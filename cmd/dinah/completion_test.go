@@ -727,8 +727,9 @@ func regexpReplace(text, pattern, with string) string {
 // TestViewNamesComplete is dinah-601/criteria/23: dinah view <Tab> offers
 // every name dinah view lists, once, with the title of the declaration a draw
 // of that name uses. The user's daily shadows the workbench's, the
-// workbench's mine shadows the built-in one, and alpha stands in the user's
-// layer alone, so each layer and both shadowings are reached.
+// workbench's mine shadows the built-in one, alpha stands in the user's
+// layer alone, and the built-in board stands in its own, so each layer and
+// both shadowings are reached.
 func TestViewNamesComplete(t *testing.T) {
 	root := newBench(t)
 	declareViewsIn(t, root, bench.ViewsKey+":\n  daily:\n    title: Workbench daily\n    sections:\n      - query: \"state:ready\"\n"+
@@ -747,11 +748,11 @@ func TestViewNamesComplete(t *testing.T) {
 			titles = append(titles, row.Title)
 		}
 	}
-	if len(listing.Views) != 5 || strings.Join(want, " ") != "alpha daily mine" {
-		t.Fatalf("dinah view listed %d rows, using %q; the fixture should give five rows using alpha, daily and mine", len(listing.Views), want)
+	if len(listing.Views) != 6 || strings.Join(want, " ") != "alpha board daily mine" {
+		t.Fatalf("dinah view listed %d rows, using %q; the fixture should give six rows using alpha, board, daily and mine", len(listing.Views), want)
 	}
 	got := zsh(t, root, "view", "")
-	if strings.Join(got.inserts, " ") != strings.Join(want, " ") || strings.Join(got.descriptions, "|") != "Alpha|User daily|Workbench mine" {
+	if strings.Join(got.inserts, " ") != strings.Join(want, " ") || strings.Join(got.descriptions, "|") != "Alpha|Board|User daily|Workbench mine" {
 		t.Errorf("view offered %q described %q; wanted %q described %q", got.inserts, got.descriptions, want, titles)
 	}
 	if prefix := zsh(t, root, "view", "da"); strings.Join(prefix.inserts, " ") != "daily" {

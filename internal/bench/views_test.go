@@ -79,7 +79,7 @@ func TestEachDefectIsProducedByItsOwnFixture(t *testing.T) {
 		"  nested-title:\n    title:\n      deep: value\n    sections:\n      - query: \"state:ready\"\n" +
 		"  empty-sections:\n    sections: []\n" +
 		"  no-query:\n    sections:\n      - title: only a title\n" +
-		"  columns-layout:\n    layout: columns\n    sections:\n      - query: \"state:ready\"\n" +
+		"  grid-layout:\n    layout: grid\n    sections:\n      - query: \"state:ready\"\n" +
 		"  urgency-order:\n    order: urgency\n    sections:\n      - query: \"state:ready\"\n" +
 		"  sibling:\n    sections:\n      - query: \"state:ready\"\n"
 	opened := benchDeclaring(t, block)
@@ -90,7 +90,7 @@ func TestEachDefectIsProducedByItsOwnFixture(t *testing.T) {
 		"nested-title":   ViewMalformedMember,
 		"empty-sections": ViewNoSections,
 		"no-query":       ViewSectionWithoutQuery,
-		"columns-layout": ViewUnknownLayout,
+		"grid-layout":    ViewUnknownLayout,
 		"urgency-order":  ViewUnknownOrder,
 		"sibling":        "",
 	}

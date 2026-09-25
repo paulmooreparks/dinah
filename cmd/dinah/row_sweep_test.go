@@ -1469,7 +1469,7 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
-			site: renderSite{File: "view.go", Function: "renderView", Label: "cards", Ordinal: 1}, label: "dinah view mine, the cards the actor holds",
+			site: renderSite{File: "view.go", Function: "viewLines", Label: "cards", Ordinal: 1}, label: "dinah view mine, the cards the actor holds",
 			keys: []string{"column.view.card", "column.view.column", "column.view.priority", "column.view.severity", "column.view.title"},
 			opensWith: func(tag string, w *sweptWorkbenches) string {
 				return msg.For(tag).T("view.section.heading", "title", msg.For(tag).T("view.mine.claimed"), "count", strconv.Itoa(len(expectMineClaimed(nil, w.record, tag).rows)))
@@ -2302,6 +2302,7 @@ func sweptSettings(t *testing.T, w *sweptWorkbenches) []sweptSettingRecord {
 		{key: "actor", source: bench.SourceEnvironment, value: w.record.actor},
 		{key: "editor", source: bench.SourceConfig, value: w.record.editor},
 		{key: "workbench", source: bench.SourceSearch, pathIs: sweptPathIs(t, w.healthy, filepath.Base(soleBenchDir(t, w.healthy)))},
+		{key: "glyphs", source: bench.SourceUnset},
 	}
 }
 

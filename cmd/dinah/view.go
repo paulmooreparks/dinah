@@ -17,10 +17,23 @@ import (
 // writes one line naming them to standard error after the refusal itself,
 // because the refusal's name leads standard error on every refusal the tool
 // reports and a script reading that first token must not meet anything else.
+//
+// --watch is refused before the workbench is opened when it is asked for in
+// a machine form or with no view to draw, in that order, and before anything
+// reaches the terminal when the terminal cannot be redrawn in place.
 func runView(s *session, parsed *arguments) int {
 	req := s.request("view", parsed)
 	req.View = at(parsed.rest(), 0)
 	req.Lang = s.r.Tag
+	req.All = parsed.has("all")
+	req.ViewPlain = parsed.has("plain")
+	req.ViewWatch = parsed.has("watch")
+	if req.ViewWatch && s.format != formatHuman {
+		return s.reportError(contract.Refuse(contract.Malformed, "--watch --json"))
+	}
+	if req.ViewWatch && req.View == "" {
+		return s.reportError(contract.Refuse(contract.Malformed, "--watch"))
+	}
 	return s.withBench(func(l *verb.Library) int {
 		if req.View == "" {
 			listing, err := l.ListViews(req)
@@ -37,6 +50,13 @@ func runView(s *session, parsed *arguments) int {
 		}
 		if s.format != formatHuman {
 			return s.emitMachine(answer)
+		}
+		if req.ViewWatch {
+			return s.watch(l, req)
+		}
+		if answer.View.Layout == bench.ViewLayoutColumns {
+			glyphs := s.boardGlyphSet(req.ViewPlain)
+			return s.drawOnce(s.columnsView(answer, l.Bench, glyphs, boardWindow(s.rawWidth), req.All))
 		}
 		s.renderView(answer, l.Bench.Operator)
 		return 0
@@ -86,10 +106,19 @@ func (s *session) emitViewList(listing *verb.ViewListing) int {
 	return 0
 }
 
-// renderView draws a view in the list layout: a heading naming the view and
-// who it was asked as, then each section's heading and its cards, one table
-// per section because two sections can carry different columns.
+// renderView draws a view in the list layout and writes it to stdout.
 func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
+	for _, line := range s.viewLines(answer, operator) {
+		s.line(line)
+	}
+}
+
+// viewLines lays a view out in the list layout: a heading naming the view
+// and who it was asked as, then each section's heading and its cards, one
+// table per section because two sections can carry different columns. It
+// answers the lines rather than writing them, so the watch can place them
+// one row at a time.
+func (s *session) viewLines(answer *verb.ViewAnswer, operator string) []string {
 	body := answer.View
 	heading := body.Title
 	if body.Actor != "" {
@@ -99,18 +128,19 @@ func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
 		}
 		heading = s.rightAligned(body.Title, acting)
 	}
-	s.line(heading)
-	s.line("")
+	lines := []string{heading, ""}
 	for i, section := range body.Sections {
 		if i > 0 {
-			s.line("")
+			lines = append(lines, "")
 		}
-		s.line(s.r.T("view.section.heading", "title", section.Title, "count", strconv.Itoa(section.Count)))
+		lines = append(lines, s.r.T("view.section.heading", "title", section.Title, "count", strconv.Itoa(section.Count)))
 		switch {
 		case section.Refused != "":
-			s.renderRefusedSection(section)
+			for _, refused := range s.refusedSectionLines(section) {
+				lines = append(lines, splitLines(s.wrappedLine(refused.indent, refused.text))...)
+			}
 		case section.Count == 0:
-			s.line(s.wrappedLine(2, s.r.T("view.section.empty")))
+			lines = append(lines, splitLines(s.wrappedLine(2, s.r.T("view.section.empty")))...)
 		default:
 			cards := table{
 				indent:          2,
@@ -119,12 +149,20 @@ func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
 				cutTail:         true,
 			}
 			viewSectionRows(&cards, section, body.Actor)
-			s.table(cards)
+			lines = append(lines, s.tableLines(cards)...)
 		}
 	}
+	return lines
 }
 
-// renderRefusedSection writes the line a section this workbench could not ask
+// indentedText is a line of prose and the indent it is laid out at, before
+// any width breaks it.
+type indentedText struct {
+	indent int
+	text   string
+}
+
+// refusedSectionLines composes what a section this workbench could not ask
 // is drawn with. The refusal is rebuilt from the section's own members and
 // composed by the refusal composer with every fragment but the next step, so
 // it names the legal values wherever the refusal lists them, and any rows the
@@ -133,20 +171,21 @@ func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
 // The composer leads a refusal with its name and a space, which is what a
 // reader of standard error scans for. Inside a sentence that already says the
 // question was not asked, the name reads as a label, so it takes a colon.
-func (s *session) renderRefusedSection(section verb.ViewSectionAnswer) {
+func (s *session) refusedSectionLines(section verb.ViewSectionAnswer) []indentedText {
 	refusal := contract.RefuseWith(section.Refused, section.RefusedDetail, section.RefusedContext)
 	lines := s.composeRefusalWithout(refusal)
 	if len(lines) == 0 {
-		return
+		return nil
 	}
 	first := lines[0]
 	if rest, named := strings.CutPrefix(first, refusal.Name+" "); named {
 		first = refusal.Name + ": " + rest
 	}
-	s.line(s.wrappedLine(2, s.r.T("view.section.refused", "refusal", first)))
+	composed := []indentedText{{indent: 2, text: s.r.T("view.section.refused", "refusal", first)}}
 	for _, line := range lines[1:] {
-		s.line(s.wrappedLine(4, strings.TrimLeft(line, " ")))
+		composed = append(composed, indentedText{indent: 4, text: strings.TrimLeft(line, " ")})
 	}
+	return composed
 }
 
 // viewSectionRows fills one section's table with its cards. The Item column

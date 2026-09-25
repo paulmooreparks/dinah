@@ -177,63 +177,79 @@ The figure in the agenda's Urgency column and the total `--explain` prints come 
 
 ## 5. Layouts, and the board
 
+dinah-288 built this section, and its specification is the contract wherever the two differ. What follows describes what shipped.
+
 ### 5.1 Two layouts
 
-A view is laid out as a `list`, which is a table per section as in section 3.4, or as `columns`, which is a board. The board is not a new command. `dinah view board` is the built-in view with the `columns` layout, and `dinah board` could be kept as a short alias if the operator wants one.
+A view is laid out as a `list`, which is a table per section as in section 3.4, or as `columns`, which is a board. The board is not a new command. `dinah view board` is the built-in view with the `columns` layout, and the operator ruled on 2026-09-25 against a `dinah board` command, so the views guide shows the one-line alias a person can give themselves instead.
 
 ### 5.2 How columns fit a terminal
 
-The development workbench has fourteen columns, and Intake alone holds 230 cards, so the layout has to choose what to show. These are the rules.
+The development workbench has fourteen columns, and Intake alone holds hundreds of cards, so the layout has to choose what to show. These are the rules.
 
+- Every line draws in one column fewer than the window, so no line reaches the window's last column and nothing depends on how a terminal wraps there.
 - A column appears only when it holds at least one card that matches the view. Empty stations take no width.
-- A column the view marks as collapsed, by default the intake and done kinds, is drawn as a count in the heading line and never as a list.
-- Each column gets an equal share of the terminal width, with a minimum of twenty characters. When the columns will not fit at that minimum, they wrap into a second band below the first, still in flow order, so the board never scrolls sideways.
+- A column the view marks as collapsed, by default the intake and done kinds, is drawn as a count on a line of its own under the heading, and never as a column.
+- Each column gets an equal share of the width, with a minimum of twenty characters and a gutter of two. When the columns will not fit at that minimum, they wrap into further bands below the first, still in flow order, so the board never scrolls sideways. Below twenty characters the board draws one column as wide as the window allows and cuts everything in it to fit.
 - Each column shows at most five cards and then "+N more". `--all` lifts the cap.
-- A card takes two lines: its state glyph, its number and its holder on the first, and its title cut to the column's width on the second.
+- A card takes two lines. The first carries its state glyph, its number, the operator mark where an item waits on the operator, then its holder or its block's kind, then its priority, dropping the priority first and then shortening and dropping the holder as the column narrows. The second carries its title, cut to the column's width. Severity is never drawn.
+- Text is cut between whole characters, whole emoji sequences and whole flags, and ends in an ellipsis.
 
-A board at 118 characters, from the workbench on 2026-09-24:
+A board at 118 characters, drawn by the binary over a workbench shaped like the development one:
 
 ```console
 $ dinah view board
-Board · Dinah development             Intake 230 · Done 76             acting as paul, operator
-Triage (3)              Design Queue (9)        Agent Design Rev. (1)   Implement (2)           Acceptance ◆ (11)
-──────────────────────  ──────────────────────  ──────────────────────  ──────────────────────  ──────────────────────
-○ 4                     ○ 565                   ● 598  claude           ● 594  claude           ○ 572
-  Jira-resolution wor…    Dinah's 1.0 scope i…    A starved run updat…    A declared field ma…    dinah setup connect…
-○ 271                   ○ 532                                           ○ 449                   ○ 472
-  Rung three: the int…    The workbench lives…                            Move this project's…    A checklist item's …
-○ 308                   ○ 511                                                                   ○ 593
-  The quick start tea…    The compatibility f…                                                    A column declares s…
-                        ○ 497                                                                   ○ 573
-                          A workbench declare…                                                    dinah prime answers…
-                        +5 more                                                                 +7 more
+Board                                                                                        acting as paul, operator
+Collapsed: Intake 5
+
+Triage (3)             Design Queue (7)       Agent Design Rev… (1)  Implement (2)          Acceptance ◆ (7)
+─────────────────────  ─────────────────────  ─────────────────────  ─────────────────────  ─────────────────────
+○ 6  later             ○ 9 ◆  next            ● 16  claude  now      ● 17  claude  now      ○ 19  next
+  Jira-resolution wo…    Dinah's 1.0 scope …    A starved run upda…    A declared field m…    dinah setup connec…
+○ 7  soon              ○ 10  later                                   ✕ 18  operator-ruling  ○ 20  next
+  Rung three: the in…    The workbench live…                           Move this project …    A checklist item's…
+○ 8  soon              ○ 11  later                                                          ○ 21  next
+  The quick start te…    The compatibility …                                                  A column declares …
+                       ○ 12  later                                                          ○ 22  next
+                         A workbench declar…                                                  dinah prime answer…
+                       ○ 13  later                                                          ○ 23  next
+                         A long-lived serve…                                                  An unblock can say…
+                       +2 more                                                              +2 more
 ```
 
 ### 5.3 Glyphs, colour and plain terminals
 
-Status is shown by a glyph and a colour together, never by colour alone, so the board reads the same on a monochrome terminal and to a reader who cannot tell the colours apart.
+Status is shown by a glyph, and colour only ever reinforces it, so the board reads the same on a monochrome terminal and to a reader who cannot tell the colours apart.
 
 | State | Glyph | Colour | Plain form |
 |---|---|---|---|
 | ready | ○ | default | `o` |
 | active | ● | blue | `*` |
 | blocked | ✕ | red | `x` |
-| waits on the operator | ◆ in the column heading | amber | `!` |
+| waits on the operator | ◆ in the column heading and after a card's number | yellow | `!` |
 
-The plain forms are used when the console cannot print the glyphs, when `NO_COLOR` is set, or when output is not a terminal. Dinah already measures the terminal's width for its tables, so the layout reuses that code rather than adding its own.
+Rules are `─`, or `-` in the plain form, and a cut ends in `…`, or `...`. The colour is yellow because neither the Windows console's documented character attributes nor terminfo's eight portable `setaf` colours has an amber.
+
+No documented interface says whether a console's font can draw a glyph, so the glyph set is chosen and never detected. It is the Unicode set unless `--plain` asks for the plain one for a run, or the setting `glyphs: plain` asks for it every time, on the operator's ruling of 2026-09-25. `NO_COLOR` turns colour off and changes nothing else. A file or a pipe receives the same glyph set as a terminal, in UTF-8, with no colour and no control sequence, laid out at `COLUMNS` or at 80.
 
 ### 5.4 Watching
 
-`--watch` works on any view. The view is drawn, `changes --wait` blocks until the workbench changes, and the view is drawn again in place. `changes --wait` already exists, so the watch loop adds no mechanism to the library, and it costs nothing while the workbench is quiet.
+`--watch` works on any view. The view is drawn, `changes --wait` blocks until the workbench changes, and the view is drawn again in place. The watch also redraws when the window's size changes and when a claim the last frame drew expires. The frame is written one row at a time, each row placed at the start of its line and erased to its end, with a status line on the window's last row. No row is written with a line feed and none reaches past the window, so a frame never scrolls it. On Ctrl+C the last frame stays on the screen, the colour and the cursor are put back, and the prompt returns below it.
 
 ```console
 $ dinah view board --watch
-Board · Dinah development             Intake 230 · Done 76             acting as paul, operator
+Board                                                                                        acting as paul, operator
+Collapsed: Intake 5
+
 …
-updated 09:41:07 · dinah-598 moved to Operator Design Review by claude · Ctrl+C stops
+updated 09:41:07 · dinah-598 moved Spec to Agent Design Review by claude · Ctrl+C stops
 ```
 
-The last line names the change that caused the redraw, which answers the question a person watching a board actually has, namely what just happened.
+The status line names the change that caused the redraw, which answers the question a person watching a board actually has, namely what just happened.
+
+On Windows the watch and the colour go through the classic console functions and never through a virtual-terminal sequence, on the operator's ruling of 2026-09-25, because nothing Microsoft documents says how a sequence cut across two `WriteConsole` calls is parsed, and the console writer can cut one. Six of the seven functions carry this notice on their Microsoft Learn pages, quoted as the pages carry it: "This document describes console platform functionality that is no longer a part of our ecosystem roadmap. We do not recommend using this content in new products, but we will continue to support existing usages for the indefinite future. Our preferred modern solution focuses on virtual terminal sequences for maximum compatibility in cross-platform scenarios." `GetConsoleScreenBufferInfo` carries none. The functions sit behind one package, `internal/screen`, so moving to virtual-terminal sequences later changes no interface.
+
+Everywhere else the watch writes only what the terminal's own terminfo entry supplies, found through `TERM` and read by an in-tree reader of the compiled format, again on the operator's ruling of 2026-09-25, with no new dependency.
 
 ## 6. Shell completion
 
@@ -271,7 +287,7 @@ A completion runs on every Tab, so it has to be quick. It reads card titles from
 
 | View | Layout | Order | Sections |
 |---|---|---|---|
-| `board` | columns | flow | every live card, Intake and Done collapsed |
+| `board` | columns | column | every live card, the intake and done columns collapsed |
 | `agenda` | list | urgency | cards the caller can act on |
 | `mine` | list | column | `holder:@me`, split into active and blocked |
 
@@ -315,7 +331,7 @@ Shell completion is built at the same time as views, as section 10 allows.
 | 1 | views, `@me`, `item_owner`, `item_state`, `dinah view`, the `list` layout | one verb, two query fields, one block | nothing |
 | 2 | the agenda: urgency terms, `--explain`, the `urgency` block | one block | phase 1; `blocks others` waits for dinah-596 |
 | 3 | shell completion | one verb | nothing, and it can run beside phase 1 |
-| 4 | the `columns` layout and `--watch` | none | phase 1 |
+| 4 | the `columns` layout and `--watch` | three flags on `view`, the `glyphs` setting and the `dinah.watch-unavailable` refusal | phase 1 |
 | 5 | a terminal UI | a head | phase 4 |
 
 Phases 1 and 3 are independent and can run at the same time. The phases together add two verbs. Every new verb and message still costs eight catalogs, a help entry and quick start transcripts, which are the shared generated files the critical analysis found taxing every merge. The design keeps the number of verbs down partly for that reason.

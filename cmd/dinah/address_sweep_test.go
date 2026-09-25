@@ -803,7 +803,7 @@ func addressCases() []addressCase {
 			// The built-in view draws one table per section, and the first
 			// is the cards the fixture's owner holds, which is the block this
 			// case reads.
-			site:  renderSite{File: "view.go", Function: "renderView", Label: "cards", Ordinal: 1},
+			site:  renderSite{File: "view.go", Function: "viewLines", Label: "cards", Ordinal: 1},
 			label: "view",
 			argv:  []string{"view", "mine"}, at: 0,
 			want: func(t *testing.T, w *addressWorkbench) []addressExpectation {

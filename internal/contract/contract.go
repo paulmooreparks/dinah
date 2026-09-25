@@ -343,6 +343,12 @@ const (
 	// the layer as empty, because a user view that should have shadowed a
 	// workbench view would otherwise vanish and the workbench's be drawn.
 	ViewsUnreadable = LayerPrefix + "views-unreadable"
+	// WatchUnavailable is dinah view --watch refused before anything is
+	// drawn, because the watch cannot redraw in place on this output. The
+	// value reason names why, as one of the WatchReason tokens, and a
+	// too-small window adds its size while a missing capability adds the
+	// terminfo name of the capability.
+	WatchUnavailable = LayerPrefix + "watch-unavailable"
 	// ChainTooLong is a group-by chain naming more axes than a tree nests
 	// along. It carries a name of its own because it has no offending word
 	// to name: every axis in the chain may be legal, and the length is the
@@ -840,8 +846,27 @@ var Introduced = []string{
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
 	SetupOtherWorkbench, SetupRunNotAllowed, SetupStepFailed,
-	UnknownView, MalformedView, ViewsUnreadable,
+	UnknownView, MalformedView, ViewsUnreadable, WatchUnavailable,
 }
+
+// The reasons dinah.watch-unavailable carries in its reason value, which are
+// machine tokens and never translated.
+const (
+	// WatchNotATerminal is standard output that is not a terminal.
+	WatchNotATerminal = "not-a-terminal"
+	// WatchNoSize is a terminal that does not report its size.
+	WatchNoSize = "no-size"
+	// WatchTooSmall is a window narrower than 40 columns or shorter than 6
+	// rows.
+	WatchTooSmall = "too-small"
+	// WatchNoTerminalDescription is a POSIX terminal whose terminfo entry,
+	// named by TERM, could not be found or read.
+	WatchNoTerminalDescription = "no-terminal-description"
+	// WatchMissingCapability is a terminfo entry lacking a capability the
+	// watch needs, or using a parameter operation the reader does not
+	// evaluate in one.
+	WatchMissingCapability = "missing-capability"
+)
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one
 // the profile declares, or one carrying a full stop.

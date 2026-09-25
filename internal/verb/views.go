@@ -65,6 +65,15 @@ var builtinViews = []builtinView{
 			{titleKey: "view.mine.blocked", query: "state:blocked actor:@me event:blocked"},
 		},
 	},
+	{
+		name:     "board",
+		titleKey: "view.board.title",
+		layout:   bench.ViewLayoutColumns,
+		order:    bench.ViewOrderColumn,
+		sections: []builtinSection{
+			{titleKey: "view.board.cards", query: "state:ready,active,blocked"},
+		},
+	},
 }
 
 // ViewListing is what dinah view answers with no name: one row per
@@ -95,14 +104,20 @@ type ViewAnswer struct {
 // ViewBody is one drawn view. Title, Layout and Order are the effective
 // values, and Actor is the actor the sections were asked as, empty where none
 // resolved.
+//
+// Collapsed is the identifiers of the columns the view collapses on this
+// workbench, resolved and in flow order. It is present on every view and is
+// the empty array on a list view, where collapsing has no effect. An entry the
+// view declares that names no column of this workbench does not appear in it.
 type ViewBody struct {
-	Name     string              `json:"name"`
-	Title    string              `json:"title"`
-	Layout   string              `json:"layout"`
-	Order    string              `json:"order"`
-	Source   string              `json:"source"`
-	Actor    string              `json:"actor"`
-	Sections []ViewSectionAnswer `json:"sections"`
+	Name      string              `json:"name"`
+	Title     string              `json:"title"`
+	Layout    string              `json:"layout"`
+	Order     string              `json:"order"`
+	Source    string              `json:"source"`
+	Actor     string              `json:"actor"`
+	Collapsed []string            `json:"collapsed"`
+	Sections  []ViewSectionAnswer `json:"sections"`
 }
 
 // ViewSectionAnswer is one drawn section. Every member is present on every
@@ -189,13 +204,14 @@ func (l *Library) DrawView(req *Request) (*ViewAnswer, error) {
 	}
 	me := meExpansion{enabled: true, actor: req.Actor, harness: req.Harness}
 	body := ViewBody{
-		Name:     view.Name,
-		Title:    view.EffectiveTitle(),
-		Layout:   view.EffectiveLayout(),
-		Order:    view.EffectiveOrder(),
-		Source:   view.Source,
-		Actor:    req.Actor,
-		Sections: []ViewSectionAnswer{},
+		Name:      view.Name,
+		Title:     view.EffectiveTitle(),
+		Layout:    view.EffectiveLayout(),
+		Order:     view.EffectiveOrder(),
+		Source:    view.Source,
+		Actor:     req.Actor,
+		Collapsed: l.collapsedColumns(view),
+		Sections:  []ViewSectionAnswer{},
 	}
 	for i, section := range view.Sections {
 		answer, err := l.drawSection(section, view.EffectiveOrder(), req.Actor, me)
@@ -206,6 +222,33 @@ func (l *Library) DrawView(req *Request) (*ViewAnswer, error) {
 		body.Sections = append(body.Sections, *answer)
 	}
 	return &ViewAnswer{View: body}, nil
+}
+
+// collapsedColumns resolves the columns a view collapses on this workbench,
+// in flow order. A list view collapses nothing. A view declaring no collapsed
+// member collapses the columns whose kind is intake or done, and one declaring
+// the member collapses the columns its entries resolve to by ColumnByRef's
+// reading of a column reference, [] collapsing nothing. An entry naming no
+// column of this workbench is dropped rather than refusing the view, for the
+// reason a section naming a missing column is drawn as not asked: one user's
+// view is read on every workbench that user opens.
+func (l *Library) collapsedColumns(view bench.View) []string {
+	collapsed := []string{}
+	if view.EffectiveLayout() != bench.ViewLayoutColumns {
+		return collapsed
+	}
+	named := map[string]bool{}
+	for _, entry := range view.Collapsed {
+		if column := l.Bench.ColumnByRef(entry); column != nil {
+			named[column.ID] = true
+		}
+	}
+	for _, column := range l.Bench.Columns {
+		if (view.HasCollapsed && named[column.ID]) || (!view.HasCollapsed && column.CollapsedByDefault()) {
+			collapsed = append(collapsed, column.ID)
+		}
+	}
+	return collapsed
 }
 
 // drawSection asks one section's question and answers it, or answers the

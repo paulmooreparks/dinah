@@ -302,7 +302,7 @@ func TestAnUnknownViewNamesEveryVisibleViewOnce(t *testing.T) {
 	h.declareViews(bench.ViewsKey + ":\n" + oneSection("zeta", "state:ready") + oneSection("alpha", "state:ready"))
 	h.userViews(bench.ViewsKey + ":\n" + oneSection("zeta", "state:ready"))
 	refusal := h.refuseDraw("nosuch", "alka")
-	if refusal.Name != contract.UnknownView || refusal.Detail != "nosuch" || refusal.Extra["views"] != "alpha, mine, zeta" {
+	if refusal.Name != contract.UnknownView || refusal.Detail != "nosuch" || refusal.Extra["views"] != "alpha, board, mine, zeta" {
 		t.Errorf("an unknown view was answered %s %q with views %q", refusal.Name, refusal.Detail, refusal.Extra["views"])
 	}
 }
@@ -312,7 +312,7 @@ func TestAnUnknownViewNamesEveryVisibleViewOnce(t *testing.T) {
 // built-in, each row carrying exactly the seven members.
 func TestTheListingSortsByNameThenLayer(t *testing.T) {
 	h := newHarness(t)
-	h.declareViews(bench.ViewsKey + ":\n" + oneSection("mine", "state:ready") + oneSection("beta", "state:ready") + "  broken:\n    layout: columns\n    sections:\n      - query: state:ready\n")
+	h.declareViews(bench.ViewsKey + ":\n" + oneSection("mine", "state:ready") + oneSection("beta", "state:ready") + "  broken:\n    layout: grid\n    sections:\n      - query: state:ready\n")
 	h.userViews(bench.ViewsKey + ":\n" + oneSection("mine", "state:ready") + oneSection("alpha", "state:ready"))
 	listing, err := h.library.ListViews(&Request{Verb: "view", Actor: "alka"})
 	if err != nil {
@@ -322,7 +322,7 @@ func TestTheListingSortsByNameThenLayer(t *testing.T) {
 	for _, row := range listing.Views {
 		order = append(order, row.Name+"/"+row.Source)
 	}
-	want := "alpha/user beta/workbench broken/workbench mine/user mine/workbench mine/built-in"
+	want := "alpha/user beta/workbench board/built-in broken/workbench mine/user mine/workbench mine/built-in"
 	if got := strings.Join(order, " "); got != want {
 		t.Errorf("the listing orders %s, want %s", got, want)
 	}
@@ -343,7 +343,7 @@ func TestTheListingSortsByNameThenLayer(t *testing.T) {
 				t.Errorf("a row carries no %s: %v", member, row)
 			}
 		}
-		if row["name"] == "broken" && (row["malformed"] != bench.ViewUnknownLayout || row["layout"] != "columns") {
+		if row["name"] == "broken" && (row["malformed"] != bench.ViewUnknownLayout || row["layout"] != "grid") {
 			t.Errorf("the malformed row reads %v", row)
 		}
 	}
@@ -365,8 +365,8 @@ func TestAnEmptySectionCarriesEveryMemberAndNoNull(t *testing.T) {
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(decoded.View) != 7 {
-		t.Errorf("the view carries %d members, want seven: %s", len(decoded.View), encoded)
+	if len(decoded.View) != 8 {
+		t.Errorf("the view carries %d members, want eight: %s", len(decoded.View), encoded)
 	}
 	var sections []map[string]json.RawMessage
 	if err := json.Unmarshal(decoded.View["sections"], &sections); err != nil || len(sections) != 1 {
@@ -445,15 +445,22 @@ func TestTheColumnOrderFollowsTheFlow(t *testing.T) {
 	wantSection(t, h.mustDraw("by-arrival", "alka"), 0, arrival...)
 }
 
-// TestTheLaterLayoutAndOrderAreMalformedHere is dinah-600/criteria/4.
+// TestTheLaterLayoutAndOrderAreMalformedHere is dinah-600/criteria/4, as
+// dinah-288/criteria/15 amends it: layout: columns now draws, and a layout
+// word this build still does not know keeps the view malformed, as does the
+// urgency order this build does not draw yet.
 func TestTheLaterLayoutAndOrderAreMalformedHere(t *testing.T) {
 	h := newHarness(t)
 	h.declareViews(bench.ViewsKey + ":\n  board:\n    layout: columns\n    sections:\n      - query: state:ready\n" +
+		"  grid:\n    layout: grid\n    sections:\n      - query: state:ready\n" +
 		"  agenda:\n    order: urgency\n    sections:\n      - query: state:ready\n" +
 		"  flow:\n    order: column\n    sections:\n      - query: state:ready\n" +
 		"  arrived:\n    order: arrival\n    sections:\n      - query: state:ready\n")
-	if refusal := h.refuseDraw("board", "alka"); refusal.Extra["defect"] != bench.ViewUnknownLayout {
-		t.Errorf("layout: columns was answered %s %v", refusal.Name, refusal.Extra)
+	if drawn := h.mustDraw("board", "alka"); drawn.View.Layout != bench.ViewLayoutColumns {
+		t.Errorf("layout: columns drew layout %q", drawn.View.Layout)
+	}
+	if refusal := h.refuseDraw("grid", "alka"); refusal.Extra["defect"] != bench.ViewUnknownLayout {
+		t.Errorf("layout: grid was answered %s %v", refusal.Name, refusal.Extra)
 	}
 	if refusal := h.refuseDraw("agenda", "alka"); refusal.Extra["defect"] != bench.ViewUnknownOrder {
 		t.Errorf("order: urgency was answered %s %v", refusal.Name, refusal.Extra)

@@ -1109,7 +1109,7 @@ these members:
 |---|---|---|---|
 | the view's key | yes | none | one segment of the harness-name grammar, at most 64 bytes |
 | `title` | no | the view's name | any non-blank text |
-| `layout` | no | `list` | `list` |
+| `layout` | no | `list` | `list`, `columns` |
 | `order` | no | `arrival` | `arrival`, `column` |
 | `collapsed` | no | the columns whose kind is `intake` or `done` | a sequence of column references |
 | `sections` | yes | none | at least one section |
@@ -1117,10 +1117,13 @@ these members:
 | section `query` | yes | none | any non-blank text, parsed only when the view is drawn or checked |
 
 A blank title reads as absent. A scalar member written as a number or a
-boolean is read as its literal text. `collapsed` is validated for its shape
-and has no effect on the `list` layout. A later build adds values to the
-`layout` and `order` sets rather than members to the declaration, so the shape
-of a view does not change when a layout or an order arrives.
+boolean is read as its literal text. `collapsed` is validated for its shape.
+On the `columns` layout it names the columns drawn as a count rather than as
+a column, each resolved as a column reference, and an entry naming no column
+of the workbench is ignored; it has no effect on the `list` layout. A later
+build adds values to the `layout` and `order` sets rather than members to the
+declaration, so the shape of a view does not change when a layout or an order
+arrives.
 
 A view is malformed when it fails one of these rules, and it carries the first
 of them that applies, tried in this order: `invalid-name`, the key is outside

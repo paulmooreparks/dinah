@@ -988,6 +988,23 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.views-unreadable.next"},
 	},
 	{
+		// The base sentence names the view and the reason token. A window
+		// too small for the watch adds its size and the size it needs, and a
+		// terminal description lacking a capability adds the capability's
+		// name, each switched on by the value only that reason carries. The
+		// next step asks for a bigger window only where the window was the
+		// reason.
+		Name:   WatchUnavailable,
+		Values: []string{"reason", "size", "minimum", "capability"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.watch-unavailable.size", When: "size"},
+			{Key: "refusal.dinah.watch-unavailable.capability", When: "capability"},
+			{Key: "refusal.dinah.watch-unavailable.next-small", When: "size"},
+			{Key: "refusal.dinah.watch-unavailable.next"},
+		},
+		NextStep: []string{"refusal.dinah.watch-unavailable.next-small", "refusal.dinah.watch-unavailable.next"},
+	},
+	{
 		// The axis list rides as a value read off the disposition table
 		// itself rather than written into the catalog, so an axis added to
 		// the vocabulary reaches this sentence without a translator being

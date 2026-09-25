@@ -50,15 +50,16 @@ var ViewDefects = []string{
 // one of these sets rather than a member to the declaration, so the shape of
 // a view does not change when a layout or an order arrives.
 const (
-	ViewLayoutList   = "list"
-	ViewOrderArrival = "arrival"
-	ViewOrderColumn  = "column"
+	ViewLayoutList    = "list"
+	ViewLayoutColumns = "columns"
+	ViewOrderArrival  = "arrival"
+	ViewOrderColumn   = "column"
 )
 
 // ViewLayouts and ViewOrders are the values this build admits for a view's
 // layout and order. A value outside them makes the view malformed.
 var (
-	ViewLayouts = []string{ViewLayoutList}
+	ViewLayouts = []string{ViewLayoutList, ViewLayoutColumns}
 	ViewOrders  = []string{ViewOrderArrival, ViewOrderColumn}
 )
 

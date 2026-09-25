@@ -3,6 +3,9 @@ package main
 import (
 	"runtime"
 	"strings"
+
+	"dinah/internal/screen"
+	"dinah/internal/textwidth"
 )
 
 // tableColumn is one column of a table: the heading a reader sees above it,
@@ -1124,4 +1127,409 @@ func rule(width int) string {
 // reaches its column takes the rest of its own line and resumes underneath.
 func splitLines(text string) []string {
 	return strings.Split(text, "\n")
+}
+
+// boardRule is a rule under a column of the board: width copies of the glyph
+// the board's glyph set draws rules with, built one column at a time the way
+// rule is, because the glyph is an argument here rather than ruleGlyph.
+func boardRule(glyph rune, width int) string {
+	var b strings.Builder
+	for i := 0; i < width; i++ {
+		b.WriteRune(glyph)
+	}
+	return b.String()
+}
+
+// boardMinimumColumn is the narrowest column the board draws, M in the
+// specification's fit rules, except in a window too narrow for one column of
+// it.
+const boardMinimumColumn = 20
+
+// boardTitleIndent is how far a card's title line sits under its first line.
+const boardTitleIndent = 2
+
+// boardSlotGap is how many columns separate a card's number from its holder
+// and its holder from its priority.
+const boardSlotGap = 2
+
+// boardSlotMinimum is the narrowest room a cut holder is drawn in. Below it
+// the holder is dropped rather than cut to a stub nobody could read.
+const boardSlotMinimum = 4
+
+// boardGlyphs is one glyph set: what each state, the operator mark, a rule
+// and a cut draw with. A glyph is text rather than a rune because the plain
+// set's cut is three characters.
+type boardGlyphs struct {
+	ready, active, blocked, operator string
+	rule                             rune
+	ellipsis                         string
+}
+
+// boardColumn is one column of one section of a board, as board.go chose it:
+// what its heading says and the cards it shows, already capped.
+type boardColumn struct {
+	// title is the column's title.
+	title string
+	// operator marks a column owned by the operator.
+	operator bool
+	// count is the column's count, already rendered.
+	count string
+	// cards are the cards the column shows, in the section's order.
+	cards []boardCard
+	// more is the line counting the cards not shown, empty when every card
+	// is shown.
+	more string
+}
+
+// boardCard is one card of a board column, as board.go chose it.
+type boardCard struct {
+	// glyph is the state's glyph and colour its colour.
+	glyph  string
+	colour screen.Colour
+	// number is the card's reference without the workbench's slug.
+	number string
+	// mark is true when an item on the card waits on the operator.
+	mark bool
+	// holder is the holder of an active card or the kind of a blocked one's
+	// block, and priority is the card's priority; either may be empty.
+	holder, priority string
+	// title is the card's title.
+	title string
+}
+
+// colourSpan is a run of a drawn line's bytes to be drawn in a colour.
+type colourSpan struct {
+	start, end int
+	colour     screen.Colour
+}
+
+// drawnLine is one line of a board: its text, laid out in plain text, and
+// the spans of it to colour. Colour is attached after layout, so nothing the
+// measure reads ever carries a control sequence.
+type drawnLine struct {
+	text  string
+	spans []colourSpan
+}
+
+// segments splits a drawn line into the segments the terminal layer writes,
+// so that the text of the segments joined is the line's text byte for byte.
+func (d drawnLine) segments() []screen.Segment {
+	var segments []screen.Segment
+	at := 0
+	for _, span := range d.spans {
+		if span.start > at {
+			segments = append(segments, screen.Segment{Text: d.text[at:span.start]})
+		}
+		segments = append(segments, screen.Segment{Text: d.text[span.start:span.end], Colour: span.colour})
+		at = span.end
+	}
+	if at < len(d.text) {
+		segments = append(segments, screen.Segment{Text: d.text[at:]})
+	}
+	return segments
+}
+
+// shifted is a line's spans moved right by offset bytes, which is where they
+// fall once the line is placed after offset bytes of other text.
+func shifted(spans []colourSpan, offset int) []colourSpan {
+	moved := make([]colourSpan, 0, len(spans))
+	for _, span := range spans {
+		moved = append(moved, colourSpan{start: offset + span.start, end: offset + span.end, colour: span.colour})
+	}
+	return moved
+}
+
+// boardBands answers how many columns each band of a section holds and how
+// wide every one of them is, for visible columns drawn in draw display
+// columns. As many columns fit in a band as fit at the minimum width with a
+// gutter between each, never fewer than one, and every column of the section
+// shares one width so the columns of later bands sit under the first's.
+func boardBands(visible, draw int) (perBand, width int) {
+	fit := (draw + tableGutter) / (boardMinimumColumn + tableGutter)
+	if fit < 1 {
+		fit = 1
+	}
+	perBand = visible
+	if perBand > fit {
+		perBand = fit
+	}
+	if perBand < 1 {
+		perBand = 1
+	}
+	width = (draw+tableGutter)/perBand - tableGutter
+	return perBand, width
+}
+
+// cutText cuts a value to room display columns: the longest leading run of
+// whole units that fits in the room less the ellipsis, then the ellipsis.
+// Where the room is narrower than the ellipsis itself, the cut keeps whole
+// units with no ellipsis, since an ellipsis wider than its room would put
+// the line past it, and it drops any space the run ends in, since nothing
+// follows it.
+func cutText(text string, room int, ellipsis string) string {
+	if displayWidth(text) <= room {
+		return text
+	}
+	return cutPrefix(text, room, ellipsis) + cutMark(room, ellipsis)
+}
+
+// cutPrefix is the part of a cut value kept from the value itself.
+func cutPrefix(text string, room int, ellipsis string) string {
+	mark := displayWidth(ellipsis)
+	if room < mark {
+		return strings.TrimRight(textwidth.Cut(text, room), " ")
+	}
+	return textwidth.Cut(text, room-mark)
+}
+
+// cutMark is what a cut value ends in: the ellipsis, where the room holds it.
+func cutMark(room int, ellipsis string) string {
+	if room < displayWidth(ellipsis) {
+		return ""
+	}
+	return ellipsis
+}
+
+// cutLine cuts a drawn line to room, keeping the colour of every glyph that
+// survives the cut. Every span the board colours is one glyph, which is one
+// whole unit, and the cut falls between whole units, so a span is either
+// kept whole or dropped whole.
+func cutLine(line drawnLine, room int, ellipsis string) drawnLine {
+	if displayWidth(line.text) <= room {
+		return line
+	}
+	kept := cutPrefix(line.text, room, ellipsis)
+	cut := drawnLine{text: kept + cutMark(room, ellipsis)}
+	for _, span := range line.spans {
+		if span.end <= len(kept) {
+			cut.spans = append(cut.spans, span)
+		}
+	}
+	return cut
+}
+
+// boardLines lays out one section of a board drawn in draw display columns:
+// its visible columns dealt into bands, a blank line between bands. No line
+// is wider than draw and none ends in a space.
+func boardLines(columns []boardColumn, draw int, glyphs boardGlyphs) []drawnLine {
+	perBand, width := boardBands(len(columns), draw)
+	var lines []drawnLine
+	for start := 0; start < len(columns); start += perBand {
+		end := start + perBand
+		if end > len(columns) {
+			end = len(columns)
+		}
+		if start > 0 {
+			lines = append(lines, drawnLine{})
+		}
+		var laid [][]drawnLine
+		for _, column := range columns[start:end] {
+			laid = append(laid, boardColumnLines(column, width, glyphs))
+		}
+		lines = append(lines, boardBand(laid, width)...)
+	}
+	return lines
+}
+
+// boardBand lays the columns of one band side by side. Line i of the band is
+// line i of each column, a column shorter than the band contributing
+// nothing. Every column up to the last one contributing a non-empty line is
+// a cell of the column's width and a gutter, and that last one is the tail,
+// so no line trails padding. Every cell's text is narrower than its cell, so
+// formatRow pads each in place and never takes its overflow branch, and a
+// span's offset in the line is the length of the row cut before its cell.
+func boardBand(columns [][]drawnLine, width int) []drawnLine {
+	height := 0
+	for _, column := range columns {
+		if len(column) > height {
+			height = len(column)
+		}
+	}
+	lineOf := func(column []drawnLine, i int) drawnLine {
+		if i < len(column) {
+			return column[i]
+		}
+		return drawnLine{}
+	}
+	var lines []drawnLine
+	for i := 0; i < height; i++ {
+		last := -1
+		for k, column := range columns {
+			if lineOf(column, i).text != "" {
+				last = k
+			}
+		}
+		if last < 0 {
+			lines = append(lines, drawnLine{})
+			continue
+		}
+		cells := make([]cell, 0, last)
+		for k := 0; k < last; k++ {
+			cells = append(cells, cell{text: lineOf(columns[k], i).text, width: width + tableGutter})
+		}
+		tail := lineOf(columns[last], i).text
+		laid := drawnLine{text: formatRow(row{cells: cells, tail: tail}, 0)}
+		for k := 0; k <= last; k++ {
+			offset := len(formatRow(row{cells: cells[:k]}, 0))
+			laid.spans = append(laid.spans, shifted(lineOf(columns[k], i).spans, offset)...)
+		}
+		lines = append(lines, laid)
+	}
+	return lines
+}
+
+// boardColumnLines lays out one column at width: its heading, its rule, two
+// lines per card and the line counting the cards not shown. Every line is
+// cut to width and none ends in a space.
+func boardColumnLines(column boardColumn, width int, glyphs boardGlyphs) []drawnLine {
+	lines := []drawnLine{boardHeadingCell(column, width, glyphs), {text: boardRule(glyphs.rule, width)}}
+	for _, card := range column.cards {
+		lines = append(lines, boardCardLine(card, width, glyphs), boardTitleLine(card.title, width, glyphs))
+	}
+	if column.more != "" {
+		lines = append(lines, drawnLine{text: cutText(column.more, width, glyphs.ellipsis)})
+	}
+	return lines
+}
+
+// boardHeadingCell is a column's heading: its title, the operator mark where
+// the column is owned by the operator, and its count. The mark and the count
+// are kept whole and the title alone is cut, unless even they do not fit, in
+// which case the whole heading is cut.
+func boardHeadingCell(column boardColumn, width int, glyphs boardGlyphs) drawnLine {
+	suffix := drawnLine{text: " "}
+	if column.operator {
+		suffix.spans = []colourSpan{{start: 1, end: 1 + len(glyphs.operator), colour: screen.Yellow}}
+		suffix.text += glyphs.operator + " "
+	}
+	suffix.text += column.count
+	whole := drawnLine{text: column.title + suffix.text, spans: shifted(suffix.spans, len(column.title))}
+	if displayWidth(whole.text) <= width {
+		return whole
+	}
+	room := width - displayWidth(suffix.text)
+	title := cutText(column.title, room, glyphs.ellipsis)
+	if room < 1 || title == "" {
+		return cutLine(whole, width, glyphs.ellipsis)
+	}
+	return drawnLine{text: title + suffix.text, spans: shifted(suffix.spans, len(title))}
+}
+
+// boardCardLine is a card's first line: its glyph, its number and its mark,
+// then its holder and its priority, each after a gap, for as many of them as
+// fit. It tries each form in turn and takes the first that fits: both slots,
+// the holder alone, the holder cut to what is left while at least
+// boardSlotMinimum columns are, and neither. Where even the glyph, the number
+// and the mark do not fit, they are cut.
+func boardCardLine(card boardCard, width int, glyphs boardGlyphs) drawnLine {
+	lead := drawnLine{text: card.glyph + " " + card.number}
+	if card.colour != screen.None {
+		lead.spans = append(lead.spans, colourSpan{start: 0, end: len(card.glyph), colour: card.colour})
+	}
+	if card.mark {
+		start := len(lead.text) + 1
+		lead.text += " " + glyphs.operator
+		lead.spans = append(lead.spans, colourSpan{start: start, end: start + len(glyphs.operator), colour: screen.Yellow})
+	}
+	with := func(slots ...string) drawnLine {
+		line := drawnLine{text: lead.text, spans: lead.spans}
+		for _, slot := range slots {
+			if slot == "" {
+				continue
+			}
+			gap := cell{text: line.text, width: displayWidth(line.text) + boardSlotGap}
+			line.text = formatRow(row{cells: []cell{gap}, tail: slot}, 0)
+		}
+		return line
+	}
+	for _, form := range []drawnLine{with(card.holder, card.priority), with(card.holder)} {
+		if displayWidth(form.text) <= width {
+			return form
+		}
+	}
+	room := width - displayWidth(lead.text) - boardSlotGap
+	if card.holder != "" && room >= boardSlotMinimum {
+		return with(cutText(card.holder, room, glyphs.ellipsis))
+	}
+	return cutLine(lead, width, glyphs.ellipsis)
+}
+
+// boardTitleLine is a card's second line: its title under the first line,
+// indented by two or by what the column leaves room for, and cut to fit. A
+// column is at least one character wide, since the window is at least two,
+// so the indent is never negative.
+func boardTitleLine(title string, width int, glyphs boardGlyphs) drawnLine {
+	indent := boardTitleIndent
+	if width-1 < indent {
+		indent = width - 1
+	}
+	cut := strings.TrimRight(cutText(title, width-indent, glyphs.ellipsis), " ")
+	if cut == "" {
+		return drawnLine{}
+	}
+	return drawnLine{text: formatRow(row{indent: indent, tail: cut}, 0)}
+}
+
+// boardHeadingLine is the line a drawn view opens with at draw display
+// columns: the view's title, and the acting clause ending in the last column
+// drawn. Where the two do not fit with a gutter between them the line is the
+// title alone, cut to fit.
+func boardHeadingLine(title, acting string, draw int, ellipsis string) string {
+	room := draw - displayWidth(acting)
+	if acting == "" || room < displayWidth(title)+tableGutter {
+		return cutText(title, draw, ellipsis)
+	}
+	return formatRow(row{cells: []cell{{text: title, width: room}}, tail: acting}, 0)
+}
+
+// boardProse lays a line of prose out at an indent in draw display columns:
+// broken between words where draw is at least minTailColumns, which is the
+// narrowest window the word breaker serves, and cut to fit otherwise. Every
+// line it returns is cut to draw, so a word wider than the window cannot
+// overrun it.
+func boardProse(text string, indent, draw int, ellipsis string) []string {
+	laid := formatRow(row{indent: indent, tail: text}, 0)
+	if draw >= minTailColumns {
+		laid = formatRow(row{indent: indent, tail: text, wrapTail: true}, draw)
+	}
+	var lines []string
+	for _, line := range splitLines(laid) {
+		lines = append(lines, cutText(line, draw, ellipsis))
+	}
+	return lines
+}
+
+// statusLine joins a watch's status parts with the separator and cuts them
+// to room in the order the specification fixes: the change first, down to
+// one unit and the ellipsis; then the time and its separator are dropped;
+// then what remains is cut. The instruction to press Ctrl+C is therefore the
+// last thing to go. An empty change is left out with its separator.
+func statusLine(clock, change, stops, separator string, room int, ellipsis string) string {
+	join := func(parts ...string) string {
+		var kept []string
+		for _, part := range parts {
+			if part != "" {
+				kept = append(kept, part)
+			}
+		}
+		return strings.Join(kept, separator)
+	}
+	whole := join(clock, change, stops)
+	if displayWidth(whole) <= room {
+		return whole
+	}
+	if change != "" {
+		first := textwidth.Cut(change, 1)
+		if first == "" {
+			first = textwidth.Cut(change, 2)
+		}
+		shortest := first + ellipsis
+		changeRoom := room - displayWidth(join(clock, "x", stops)) + 1
+		if changeRoom >= displayWidth(shortest) {
+			return join(clock, cutText(change, changeRoom, ellipsis), stops)
+		}
+		change = shortest
+	}
+	remaining := join(change, stops)
+	return cutText(remaining, room, ellipsis)
 }

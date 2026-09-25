@@ -255,6 +255,15 @@ var argumentExemptions = map[string]map[string]string{
 		"wait":    "holds the call open until the cursor advances, and this head answers one call before reading the next line on stdin, so a caller blocked here cannot be reached by the cancellation notification the MCP specification defines until the wait itself ends",
 		"timeout": "bounds a wait this head does not offer, so a caller has no wait to bound",
 	},
+	// view's three markers shape a drawing, and this head draws nothing: it
+	// answers the view object, which carries every card uncapped. watch is
+	// held back for the reason changes' wait is, since it holds the call open
+	// until the caller interrupts it. dinah-288.
+	"view": {
+		"all":   "lifts the per-column cap of a drawing this head never makes, and the answer it returns already carries every card",
+		"plain": "chooses the marks of a drawing this head never makes",
+		"watch": "redraws the view until interrupted, which holds the call open, and this head answers one call before reading the next line on stdin",
+	},
 }
 
 // exemptArgument reports whether a tool holds a parameter back rather than

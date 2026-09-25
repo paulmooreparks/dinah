@@ -96,8 +96,13 @@ type session struct {
 	workbenchRoot string
 	// width is how many columns the window gives, zero when no documented
 	// source answers and the layout is then unbounded. It is resolved once
-	// per invocation, so every row of one run is laid out against one width.
+	// per invocation, and once per frame under --watch, so every row of one
+	// run, or of one frame, is laid out against one width.
 	width int
+	// rawWidth is the same answer before the tables' floor of
+	// minTailColumns is applied, which the columns layout reads so that a
+	// board in a narrower window draws narrower instead of overrunning it.
+	rawWidth int
 	// command is the command word this invocation named, empty until one is
 	// looked up. It is what a next-step sentence names when the refusal it
 	// belongs to is raised from several commands, and what verb.Usage
@@ -174,6 +179,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		benchFlagSource: benchFlagSource,
 		cwd:             cwd,
 		width:           windowWidth(),
+		rawWidth:        rawWindowWidth(),
 	}
 	if w, ok := out.(*consolewriter.Writer); ok {
 		s.rawOut = w.File()

@@ -337,14 +337,26 @@ func continuation(wanted, indent, window int) int {
 }
 
 // windowWidth reports the columns the window gives, or zero when no documented
-// source answers.
+// source answers, raised to minTailColumns since no table layout helps below
+// that. It is rawWindowWidth with that floor applied.
+func windowWidth() int {
+	columns := rawWindowWidth()
+	if columns <= 0 {
+		return 0
+	}
+	return clampWindow(columns)
+}
+
+// rawWindowWidth reports the columns the window gives, or zero when no
+// documented source answers, with no floor. The columns layout and the watch
+// read it, because the tables' floor of 20 would push a board's lines past a
+// narrower window.
 //
 // COLUMNS decides whenever the environment carries it, which POSIX defines in
 // XBD Chapter 8 as the user's preferred width in column positions for the
-// terminal screen. A value that parses and is positive is the width, clamped
-// up to minTailColumns since no layout helps below that; a value that is
-// absent from the variable, empty, not a decimal integer, zero, or negative
-// states nothing a layout can use, and the width is then unknown.
+// terminal screen. A value that parses and is positive is the width; a value
+// that is empty, not a decimal integer, zero, or negative states nothing a
+// layout can use, and the width is then unknown.
 //
 // The terminal is asked only when the environment carries no COLUMNS at all,
 // through golang.org/x/term, which reads GetConsoleScreenBufferInfo on Windows
@@ -353,19 +365,42 @@ func continuation(wanted, indent, window int) int {
 // terminal query is what the interactive case actually runs on. It answers
 // nothing when output is piped, which leaves the piped run unbounded and
 // therefore identical in any terminal.
-func windowWidth() int {
+func rawWindowWidth() int {
 	if stated, ok := os.LookupEnv("COLUMNS"); ok {
-		columns, err := strconv.Atoi(strings.TrimSpace(stated))
-		if err != nil || columns <= 0 {
-			return 0
-		}
-		return clampWindow(columns)
+		return positiveInteger(stated)
 	}
 	columns, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || columns <= 0 {
 		return 0
 	}
-	return clampWindow(columns)
+	return columns
+}
+
+// windowHeight reports the rows the window gives, or zero when no documented
+// source answers. LINES decides whenever the environment carries it, which
+// XBD Chapter 8 defines as the user's preferred number of lines on a page or
+// the vertical screen or window size in lines, read on the terms COLUMNS is
+// read on; otherwise the terminal behind stdout is asked, as rawWindowWidth
+// asks it. Only the watch reads it.
+func windowHeight() int {
+	if stated, ok := os.LookupEnv("LINES"); ok {
+		return positiveInteger(stated)
+	}
+	_, rows, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || rows <= 0 {
+		return 0
+	}
+	return rows
+}
+
+// positiveInteger reads a stated size, answering zero for anything that is
+// not a positive decimal integer.
+func positiveInteger(stated string) int {
+	value, err := strconv.Atoi(strings.TrimSpace(stated))
+	if err != nil || value <= 0 {
+		return 0
+	}
+	return value
 }
 
 // clampWindow raises a stated width to the narrowest one a layout can use.

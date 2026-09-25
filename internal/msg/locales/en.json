@@ -3117,6 +3117,18 @@
       "text": "the view to draw; leave it out to list every view",
       "context": "The meaning of the view argument of `dinah view`, printed in that command's arguments table. The argument is a view's name."
     },
+    "param.view.all.summary": {
+      "text": "show every card in a column of the columns layout, rather than the first five and a count of the rest",
+      "context": "The meaning of the --all flag of `dinah view`, printed in that command's arguments table. The columns layout draws at most five cards in each column and counts the rest; this flag draws them all. It has no effect on the list layout."
+    },
+    "param.view.plain.summary": {
+      "text": "draw the columns layout with plain ASCII marks and rules, for a console or font that cannot show the usual symbols",
+      "context": "The meaning of the --plain flag of `dinah view`, printed in that command's arguments table. The columns layout normally draws card states, the operator mark and its rules with Unicode symbols; this flag draws them with ASCII characters instead."
+    },
+    "param.view.watch.summary": {
+      "text": "draw the view again each time the workbench changes, until Ctrl+C stops it",
+      "context": "The meaning of the --watch flag of `dinah view`, printed in that command's arguments table. Ctrl+C is the key a person presses to stop the command; write it the way keyboards in the language label that key."
+    },
     "param.unblock.reason.summary": {
       "text": "why the block is lifted, in one shell word or in quotation marks; leave it out to lift the block without saying why",
       "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table."
@@ -3864,6 +3876,26 @@
     "refusal.dinah.views-unreadable.next": {
       "text": "; repair or remove the file, or its dinah.views block",
       "context": "The next step of refusal.dinah.views-unreadable. dinah.views is the key the views are declared under and is never translated."
+    },
+    "refusal.dinah.watch-unavailable": {
+      "text": "view {detail} cannot be redrawn in place here ({reason})",
+      "context": "The sentence printed after the refusal name dinah.watch-unavailable, which `dinah view --watch` carries when it cannot redraw the view in place, before anything is drawn. {detail} is the view's name and {reason} is a machine token naming why, one of not-a-terminal, no-size, too-small, no-terminal-description and missing-capability, which is never translated. The fragments refusal.dinah.watch-unavailable.size, refusal.dinah.watch-unavailable.capability and a next step are spliced on after it."
+    },
+    "refusal.dinah.watch-unavailable.size": {
+      "text": "; the window is {size}, and --watch needs at least {minimum}",
+      "context": "Spliced after refusal.dinah.watch-unavailable when the window is too small for --watch. {size} is the window's width and height written as 30x24, and {minimum} is the smallest size the watch runs in, written the same way."
+    },
+    "refusal.dinah.watch-unavailable.capability": {
+      "text": "; the terminal's description has no {capability}",
+      "context": "Spliced after refusal.dinah.watch-unavailable when the terminal's terminfo description lacks a capability the watch needs. {capability} is the capability's terminfo name, such as cup, which is never translated."
+    },
+    "refusal.dinah.watch-unavailable.next-small": {
+      "text": "; widen or heighten the window, or draw the view once without --watch",
+      "context": "The next step of refusal.dinah.watch-unavailable when the window was too small."
+    },
+    "refusal.dinah.watch-unavailable.next": {
+      "text": "; draw the view once without --watch",
+      "context": "The next step of refusal.dinah.watch-unavailable for every reason other than a window that is too small."
     },
     "refusal.dinah.unknown-command": {
       "text": "Dinah offers no command called {detail}",
@@ -5660,6 +5692,86 @@
     "view.mine.blocked": {
       "text": "Blocked by me",
       "context": "The title of the second section of the built-in view mine: the cards now blocked on which the caller recorded a block, whether or not the caller ever held them."
+    },
+    "view.board.title": {
+      "text": "Board",
+      "context": "The title of the built-in view named board, which draws every live card of the workbench as columns side by side."
+    },
+    "view.board.cards": {
+      "text": "Every card",
+      "context": "The title of the one section of the built-in view board. A view of one section draws no section heading, so this is read in the listing of views and in the machine form."
+    },
+    "view.columns.count": {
+      "text": "({count})",
+      "context": "The count after a column's title at the head of each column of a view drawn in the columns layout, as in Acceptance (11). {count} is how many of the section's cards stand in the column."
+    },
+    "view.columns.more": {
+      "text": "+{count} more",
+      "context": "The last line of a column of a view drawn in the columns layout when the column holds more than five cards. {count} is how many were not drawn. It must stay short, because a column can be twenty characters wide."
+    },
+    "view.columns.collapsed": {
+      "text": "Collapsed: {columns}",
+      "context": "The line under the heading of a view drawn in the columns layout, naming the columns the view collapses, such as the intake and done columns, which hold cards but are not drawn as columns. {columns} is the list, each entry composed by view.columns.collapsed.entry and joined by view.columns.collapsed.separator."
+    },
+    "view.columns.collapsed.entry": {
+      "text": "{title} {count}",
+      "context": "One entry of view.columns.collapsed. {title} is a collapsed column's title and {count} is how many of the view's cards stand in it."
+    },
+    "view.columns.collapsed.separator": {
+      "text": ", ",
+      "context": "What separates two entries inside the {columns} of view.columns.collapsed. A punctuation mark and whatever spacing the language wants around it."
+    },
+    "view.watch.since": {
+      "text": "watching since {time}",
+      "context": "The first part of the status line on the bottom row of the first frame dinah view --watch draws, before anything has changed. {time} is the local time the watch began, written as 09:40:00."
+    },
+    "view.watch.updated": {
+      "text": "updated {time}",
+      "context": "The first part of the status line on the bottom row of every later frame dinah view --watch draws. {time} is the local time the frame was drawn, written as 09:41:07."
+    },
+    "view.watch.stops": {
+      "text": "Ctrl+C stops",
+      "context": "The last part of the status line of dinah view --watch, telling the reader how to end the watch. Ctrl+C is the key a person presses; write it the way keyboards in the language label that key. It must stay short."
+    },
+    "view.watch.separator": {
+      "text": " · ",
+      "context": "What separates the parts of the status line of dinah view --watch: the time, the change, and how to stop. A mark and whatever spacing the language wants around it."
+    },
+    "view.watch.change": {
+      "text": "{subject} {action} {detail} by {actor}",
+      "context": "The middle part of the status line of dinah view --watch, naming the change that caused the redraw, as in dinah-598 moved Spec to Agent Design Review by claude. {subject} is the card's reference, {action} is the act already rendered as a word, {detail} is what the act carried, such as the columns it moved between, and {actor} is who acted."
+    },
+    "view.watch.change.bare": {
+      "text": "{subject} {action} by {actor}",
+      "context": "The same as view.watch.change, for an act that carried no detail, as in dinah-598 claimed by claude."
+    },
+    "view.watch.change.expired": {
+      "text": "{subject} {action}, held by {actor}",
+      "context": "The same as view.watch.change, for a claim that expired. {actor} is the owner who held the lapsed claim, not somebody who caused the expiry, so the sentence must not read as though they did."
+    },
+    "view.watch.more": {
+      "text": ", and {count} more",
+      "context": "Added after view.watch.change when the change carried more than one event. {count} is how many events the status line does not name."
+    },
+    "view.watch.gone": {
+      "text": "{ref} {fate}",
+      "context": "The middle part of the status line of dinah view --watch when the change was a card leaving the workbench and carried no event. {ref} is its reference and {fate} is archived or removed, already rendered as a word."
+    },
+    "view.watch.columns-changed": {
+      "text": "the columns changed",
+      "context": "The middle part of the status line of dinah view --watch when the change was to the workbench's columns and carried no event."
+    },
+    "view.watch.workbench-changed": {
+      "text": "the workbench changed",
+      "context": "The middle part of the status line of dinah view --watch when the workbench changed in a way that carried no event, no departure and no column change."
+    },
+    "view.watch.hidden": {
+      "text": "{count} more lines below; a taller window shows them",
+      "context": "The last line of a frame of dinah view --watch whose drawing is taller than the window. {count} is how many lines of the drawing are not shown."
+    },
+    "view.watch.too-small": {
+      "text": "window too small for --watch: needs {size}",
+      "context": "The only line of a frame of dinah view --watch drawn after the window was made smaller than the watch can draw in. The watch keeps running and draws again when the window grows back. {size} is the smallest size, written as 40x6."
     },
     "setup.operator.workbench": {
       "text": "the workbench's operator",
