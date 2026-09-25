@@ -1,0 +1,23 @@
+{
+  "outcome": "ok",
+  "verb": "add",
+  "card": {
+    "id": "<id-1>",
+    "ref": "gd-2",
+    "title": "A waiting card",
+    "column": "<id-2>",
+    "column_title": "Intake",
+    "state": "ready",
+    "pull_destination": "build",
+    "revision": "sha256:<hex-1>"
+  },
+  "basis": "sha256:<hex-1>",
+  "affordances": [
+    "pull",
+    "move",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ]
+}

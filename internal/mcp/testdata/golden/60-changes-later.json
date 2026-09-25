@@ -1,0 +1,9 @@
+{
+  "cursor": "<cursor-1>",
+  "changed": false,
+  "affordances": [
+    "status",
+    "list",
+    "show"
+  ]
+}

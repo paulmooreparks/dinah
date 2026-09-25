@@ -1,0 +1,26 @@
+{
+  "outcome": "ok",
+  "verb": "unblock",
+  "card": {
+    "id": "<id-1>",
+    "ref": "gd-1",
+    "title": "A renamed card",
+    "column": "<id-2>",
+    "column_title": "Build",
+    "state": "ready",
+    "pull_destination": "review",
+    "revision": "sha256:<hex-1>",
+    "attachment_count": 1,
+    "checklist_count": 5,
+    "child_count": 8
+  },
+  "basis": "sha256:<hex-1>",
+  "affordances": [
+    "claim",
+    "move",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "outcome": "ok",
+  "verb": "workstream",
+  "detail": "<id-1>",
+  "workstream": {
+    "id": "<id-1>",
+    "ref": "workstream/golden",
+    "slug": "golden",
+    "title": "Golden stream",
+    "status": "active",
+    "cards": 0
+  },
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ]
+}

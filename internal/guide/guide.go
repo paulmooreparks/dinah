@@ -37,6 +37,7 @@ var reading = []string{
 	"views",
 	"workbench-layout",
 	"mcp",
+	"http",
 	"setup-recipes",
 	"pipeline",
 }

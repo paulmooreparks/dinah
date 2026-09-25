@@ -1,0 +1,41 @@
+{
+  "affordances": [
+    "move",
+    "release",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ],
+  "served": {
+    "instructions": {
+      "withheld": [
+        "standing",
+        "column"
+      ],
+      "reread": "build"
+    },
+    "legal_moves": [
+      {
+        "column": "<id-1>",
+        "ref": "intake",
+        "title": "Intake",
+        "direction": "backward"
+      },
+      {
+        "column": "<id-2>",
+        "ref": "review",
+        "title": "Review",
+        "direction": "forward",
+        "on_route": true
+      },
+      {
+        "column": "<id-3>",
+        "ref": "finished",
+        "title": "Finished",
+        "direction": "forward"
+      }
+    ],
+    "column": "<id-4>"
+  }
+}

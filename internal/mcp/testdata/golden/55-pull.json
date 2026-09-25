@@ -1,0 +1,53 @@
+{
+  "outcome": "ok",
+  "verb": "pull",
+  "card": {
+    "id": "<id-1>",
+    "ref": "gd-2",
+    "title": "A waiting card",
+    "column": "<id-2>",
+    "column_title": "Build",
+    "state": "active",
+    "pull_destination": "review",
+    "holder": "alka",
+    "claim_since": "<ts>",
+    "revision": "sha256:<hex-1>"
+  },
+  "basis": "sha256:<hex-1>",
+  "instructions": {
+    "withheld": [
+      "standing",
+      "column"
+    ],
+    "reread": "build"
+  },
+  "legal_moves": [
+    {
+      "column": "<id-3>",
+      "ref": "intake",
+      "title": "Intake",
+      "direction": "backward"
+    },
+    {
+      "column": "<id-4>",
+      "ref": "review",
+      "title": "Review",
+      "direction": "forward",
+      "on_route": true
+    },
+    {
+      "column": "<id-5>",
+      "ref": "finished",
+      "title": "Finished",
+      "direction": "forward"
+    }
+  ],
+  "affordances": [
+    "move",
+    "release",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ]
+}

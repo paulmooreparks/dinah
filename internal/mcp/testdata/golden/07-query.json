@@ -1,0 +1,33 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "matches": {
+    "query": "column:build",
+    "cards": [
+      {
+        "id": "<id-1>",
+        "ref": "gd-1",
+        "title": "A card",
+        "column": "<id-2>",
+        "column_title": "Build",
+        "state": "ready",
+        "pull_destination": "review",
+        "revision": "sha256:<hex-1>"
+      },
+      {
+        "id": "<id-3>",
+        "ref": "gd-3",
+        "title": "A card to archive",
+        "column": "<id-2>",
+        "column_title": "Build",
+        "state": "ready",
+        "pull_destination": "review",
+        "revision": "sha256:<hex-2>"
+      }
+    ],
+    "count": 2
+  }
+}

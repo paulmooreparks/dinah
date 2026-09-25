@@ -1,0 +1,16 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "findings": [
+    {
+      "Detail": "1",
+      "Key": "check.requirements-without-table",
+      "Path": "<root>/.dinah/0199a1b2c3d47abc8000000000000001/workbench.md",
+      "Severity": ""
+    }
+  ],
+  "outcome": "findings"
+}

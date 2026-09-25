@@ -136,6 +136,9 @@ func init() {
 		// lsp declares no bounded positional, every argument it reads being
 		// a flag, so a stray word is refused rather than silently ignored.
 		{name: "lsp", group: groupServe, run: runLSP},
+		// serve declares no bounded positional, its one argument being a
+		// flag, so a stray word is refused rather than silently ignored.
+		{name: "serve", group: groupServe, run: runServe},
 		// setup binds the harness a recipe is named for and reads everything
 		// else as a flag, so a stray second word is refused rather than
 		// ignored.

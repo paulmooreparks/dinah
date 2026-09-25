@@ -1,0 +1,8 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "value": "A card"
+}

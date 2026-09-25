@@ -1,0 +1,11 @@
+{
+  "outcome": "refused",
+  "verb": "claim",
+  "refusal": "unknown-card",
+  "detail": "gd-99",
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ]
+}

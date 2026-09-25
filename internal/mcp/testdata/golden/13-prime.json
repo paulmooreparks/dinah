@@ -1,0 +1,60 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "primer": {
+    "workbench": "Golden",
+    "root": "<root>/.dinah/0199a1b2c3d47abc8000000000000001",
+    "identity": {
+      "actor": "alka",
+      "is_operator": true,
+      "operator": "alka",
+      "harness": "golden",
+      "provider": "golden-provider",
+      "model": "golden-model",
+      "server": "golden.invalid"
+    },
+    "holding": [],
+    "ready": [
+      {
+        "column": "<id-1>",
+        "title": "Intake",
+        "card": {
+          "id": "<id-2>",
+          "ref": "gd-2",
+          "title": "A waiting card",
+          "column": "<id-1>",
+          "column_title": "Intake",
+          "state": "ready",
+          "pull_destination": "build",
+          "revision": "sha256:<hex-1>"
+        },
+        "taken_by_pull": true,
+        "landing": "build",
+        "ready_count": 1
+      },
+      {
+        "column": "<id-3>",
+        "title": "Build",
+        "card": {
+          "id": "<id-4>",
+          "ref": "gd-1",
+          "title": "A card",
+          "column": "<id-3>",
+          "column_title": "Build",
+          "state": "ready",
+          "pull_destination": "review",
+          "revision": "sha256:<hex-2>"
+        },
+        "landing": "build",
+        "ready_count": 2
+      }
+    ],
+    "pending": [],
+    "instructions": {
+      "standing": "Standing text.\n"
+    }
+  }
+}

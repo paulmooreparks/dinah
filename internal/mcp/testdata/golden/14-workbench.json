@@ -1,0 +1,12 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "workbench": {
+    "title": "Golden",
+    "slug": "gd",
+    "operator": "alka"
+  }
+}
