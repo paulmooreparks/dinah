@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"dinah/internal/answer"
 	"dinah/internal/bench"
 	"dinah/internal/completion"
 	"dinah/internal/contract"
@@ -2049,20 +2050,11 @@ func holds(fragment contract.Fragment, values map[string]string) bool {
 	return true
 }
 
-// refusalValues collects everything a refusal's sentence may name: the detail,
-// the two values only this invocation knows, and the named values the raise
-// site carried. The raise site wins a collision, since a value it attached is
-// about the refusal rather than about the invocation.
+// refusalValues collects everything a refusal's sentence may name, through
+// answer.RefusalValues, which the pages fill a refusal's slots through too.
+// The command is the one this invocation ran.
 func (s *session) refusalValues(r *contract.Refusal) map[string]string {
-	values := map[string]string{"detail": r.Detail}
-	if s.command != "" {
-		values[contract.ValueCommand] = s.command
-		values[contract.ValueUsage] = verb.Usage(s.command)
-	}
-	for name, carried := range r.Extra {
-		values[name] = carried
-	}
-	return values
+	return answer.RefusalValues(s.command, r)
 }
 
 // sortedKeys returns a map's keys in order, so that one refusal renders the

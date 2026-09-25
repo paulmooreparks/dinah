@@ -113,20 +113,29 @@ func readClaim(h *head, x *exchange) {
 	if entity != nil {
 		ref = entity.Ref
 	}
+	if x.served == typeHTML {
+		h.sendHTML(x, http.StatusSeeOther, pathForRef(pathCard, ref), nil)
+		return
+	}
 	header := x.w.Header()
 	header.Set("Location", pathForRef(pathCard, ref))
 	header.Set("Content-Type", servedJSON(x.served))
 	x.w.WriteHeader(http.StatusSeeOther)
 }
 
-// readWindow answers a card's window route, which dinah-338 gives an HTML
-// renderer. Until then it resolves the card and answers 501.
+// readWindow answers a card's window route with the window's markup alone,
+// which the windows script fetches for a card it opens. The route takes no
+// query parameters.
 func readWindow(h *head, x *exchange) {
+	if x.r.URL.RawQuery != "" {
+		h.refuse(x, contract.Usage, firstQueryName(x.r.URL.RawQuery))
+		return
+	}
 	probe := &verb.Request{Verb: "show"}
 	if !h.open(x, probe) || !h.bindsKind(x, probe, pathCard, pathHead(x)) {
 		return
 	}
-	h.refuseFor(x, probe, contract.NotImplemented, x.r.URL.Path)
+	h.writeWindow(x)
 }
 
 // readBound answers a read whose command takes one parameter from the path,

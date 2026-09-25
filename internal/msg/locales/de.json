@@ -2288,6 +2288,11 @@
       "context": "The one-line summary of the tree command, shown beside its syntax in the help block.",
       "source": "978852122039d8b6"
     },
+    "cmd.ui.summary": {
+      "text": "Diese Werkbank einem Browser auf diesem Rechner bereitstellen und einen Browser darauf öffnen",
+      "context": "The one-line summary of the ui command, shown beside its syntax in the help block.",
+      "source": "af932d4905efadf4"
+    },
     "cmd.view.summary": {
       "text": "Die Ansichten auflisten, die Sie sehen können, oder eine nach Namen zeichnen",
       "context": "The one-line summary of the view command, shown beside its syntax in the help block. A view is a named set of questions a person asks the workbench again and again.",
@@ -3337,6 +3342,481 @@
       "context": "The sentence after the unreachable outcome name.",
       "source": "aa65b469853e26e8"
     },
+    "page.act.back": {
+      "text": "{column} (zurück)",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A move choice that goes back along the flow. {column} is the column's title.",
+      "source": "3eb8f0de306c73b3"
+    },
+    "page.act.block": {
+      "text": "Blockieren",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button of a card's block form.",
+      "source": "2b2ae20d26f78ac2"
+    },
+    "page.act.claim": {
+      "text": "Übernehmen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button of a card's claim form.",
+      "source": "90b34efba1c2832f"
+    },
+    "page.act.comment": {
+      "text": "Kommentieren",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button of a card's comment form.",
+      "source": "af84ec86139d349e"
+    },
+    "page.act.comment-text": {
+      "text": "Kommentar",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the comment form's text box.",
+      "source": "af84ec86139d349e"
+    },
+    "page.act.kind": {
+      "text": "Art",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a block form's kind box.",
+      "source": "70af97de3ad8fb23"
+    },
+    "page.act.list": {
+      "text": "Auflisten",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A link on a card's sheet or a generic page to the list read.",
+      "source": "3d249bb480032121"
+    },
+    "page.act.move": {
+      "text": "Verschieben",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button of a card's move form.",
+      "source": "379c18aec5654894"
+    },
+    "page.act.move-to": {
+      "text": "Verschieben nach",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of a card's move choice.",
+      "source": "4e9cfb1fc29f5f15"
+    },
+    "page.act.next_card": {
+      "text": "Als Nächstes",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A link on a generic page to the next read.",
+      "source": "fbf6dc6a1966408"
+    },
+    "page.act.pull": {
+      "text": "Nach {column} ziehen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button of a card's pull form. {column} is the destination column's title.",
+      "source": "bdab57ef17eaf13e"
+    },
+    "page.act.pull-note": {
+      "text": "Ein Ziehen nimmt den Kopf der Warteschlange nach {column} und antwortet veraltet, wenn das eine andere Karte ist.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. Written under the pull button. {column} is the destination column's title.",
+      "source": "336a35f210855162"
+    },
+    "page.act.reason": {
+      "text": "Grund",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a block or unblock form's reason box.",
+      "source": "aa29a2ac03cd9d19"
+    },
+    "page.act.release": {
+      "text": "Freigeben",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button of a card's release form.",
+      "source": "1cdeecda0baf365e"
+    },
+    "page.act.show": {
+      "text": "Zeigen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A link on a card's sheet to the show read of the card.",
+      "source": "716a6024e3fe999c"
+    },
+    "page.act.status": {
+      "text": "Status",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A link on a generic page to the status read, which is the board.",
+      "verbatim": true,
+      "source": "ad3e3c8146fc920f"
+    },
+    "page.act.unblock": {
+      "text": "Blockade aufheben",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button of a card's unblock form.",
+      "source": "865b6f4c6920e17f"
+    },
+    "page.acting-as": {
+      "text": "Handelt als",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. Written before the actor every click acts as, in the topbar.",
+      "source": "eaa424a26ad83"
+    },
+    "page.acts": {
+      "text": "Was Sie tun können",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the section holding a card's forms.",
+      "source": "7c6ecc96236c9862"
+    },
+    "page.add.column": {
+      "text": "Spalte",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the add form's column choice.",
+      "source": "9e40e59654c8ad67"
+    },
+    "page.add.first-column": {
+      "text": "Die erste Spalte, die eine Karte aufnimmt",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The add form's default column choice, which leaves the column to the workbench.",
+      "source": "dcbfcd4b170e1e20"
+    },
+    "page.add.more": {
+      "text": "Mehr",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of the add form's optional fields.",
+      "source": "37a9e8aec5713460"
+    },
+    "page.add.priority": {
+      "text": "Priorität",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the add form's priority box.",
+      "source": "a4e407b3a0fe4669"
+    },
+    "page.add.route": {
+      "text": "Route",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the add form's route box.",
+      "verbatim": true,
+      "source": "4406e2a8264d6a3e"
+    },
+    "page.add.severity": {
+      "text": "Schweregrad",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the add form's severity box.",
+      "source": "cd0cfe87af6f2ff2"
+    },
+    "page.add.submit": {
+      "text": "Karte hinzufügen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The add form's button.",
+      "source": "8b78fb70ee4b9b57"
+    },
+    "page.add.title": {
+      "text": "Titel",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the add form's title box.",
+      "source": "99f110d27e30b289"
+    },
+    "page.back.columns": {
+      "text": "Spalten",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The text of the back link a detail page begins with on a narrow screen, which returns to the columns.",
+      "source": "b0f3327210fe18fc"
+    },
+    "page.board": {
+      "text": "Tafel",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The board page's title and the topbar link to it.",
+      "source": "8fc1231952986aeb"
+    },
+    "page.cards": {
+      "text": "Karten",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The card list page's title and the topbar link to it.",
+      "source": "6f5d93a17b8bdc24"
+    },
+    "page.cards.query": {
+      "text": "Abfrage",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the query box above the card list.",
+      "source": "c74b7675f65c3e23"
+    },
+    "page.cards.run-query": {
+      "text": "Finden",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button that runs the card list's query.",
+      "source": "d1fe2584eebc40fa"
+    },
+    "page.column.capacity": {
+      "text": "Kapazität {capacity}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A badge on a column's page naming its capacity. {capacity} is a number.",
+      "source": "5f33e6524974e78b"
+    },
+    "page.column.operator-owned": {
+      "text": "gehört dem Betreiber",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A badge on a column's page for a column only the operator works.",
+      "source": "c1dc97fff18e51e1"
+    },
+    "page.column.takes-work-up": {
+      "text": "nimmt Arbeit auf",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A badge on a column's page for a column whose owners claim work.",
+      "source": "cadf5123061c3605"
+    },
+    "page.columns": {
+      "text": "Spalten",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The sidebar's heading and accessible name.",
+      "source": "b0f3327210fe18fc"
+    },
+    "page.defect": {
+      "text": "Diese Seite konnte nicht gezeichnet werden; das ist ein Fehler in Dinah und nicht in etwas, das Sie getan haben.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The sentence of the page answered with status 500.",
+      "source": "e4f3a80a9edd525c"
+    },
+    "page.defect.title": {
+      "text": "Etwas ist schiefgegangen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The title of the page answered with status 500.",
+      "source": "b9bd4f5a3810b77e"
+    },
+    "page.dinah": {
+      "text": "Dinah",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The brand text in the topbar when no workbench opened. It is the product's name.",
+      "verbatim": true,
+      "source": "4f7f4ffab37b3e1"
+    },
+    "page.filter": {
+      "text": "Die Tafel mit einer Abfrage filtern",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the toolbar's query box.",
+      "source": "1658ef62d4f7169e"
+    },
+    "page.filter.clear": {
+      "text": "Diesen Filter entfernen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the link that removes the query filter chip.",
+      "source": "c5234045cf214b37"
+    },
+    "page.lane.of-capacity": {
+      "text": "{count} von {capacity}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A lane's card count against its column's capacity. {count} and {capacity} are numbers.",
+      "source": "f3b0de8f1d504b27"
+    },
+    "page.layer.column": {
+      "text": "Diese Spalte",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The heading of a column's own instruction layer.",
+      "source": "28a03a4a98f14899"
+    },
+    "page.layer.global": {
+      "text": "Ihre eigenen Anweisungen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The heading of the user-global instruction layer on a card's sheet.",
+      "source": "6702a570d5a0e007"
+    },
+    "page.layer.standing": {
+      "text": "Diese Werkbank",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The heading of the workbench's standing instruction layer on a card's sheet.",
+      "source": "edcbd2cf2818d8c"
+    },
+    "page.log": {
+      "text": "Befehlsprotokoll",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The command log's title, the topbar link to its page, and the accessible name of the log panel.",
+      "source": "bf367d5670852f5c"
+    },
+    "page.log.again": {
+      "text": "Erneut ausführen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button that runs a logged command again, on an entry made from a card's form, which answers stale once the card has changed.",
+      "source": "87343cad9bb3d346"
+    },
+    "page.log.again-unguarded": {
+      "text": "Erneut ausführen, an der Karte, wie sie jetzt steht",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button that runs a logged command again on an entry that carries no revision, so it acts on the card as it now stands however it has changed.",
+      "source": "4bc306ea66470090"
+    },
+    "page.log.copy": {
+      "text": "Kopieren",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button the pages' script puts beside a logged command line to copy it.",
+      "source": "3687049d1af562c4"
+    },
+    "page.log.run": {
+      "text": "Ausführen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The button that runs the command line typed into the log.",
+      "source": "9fbbc819fe7e66aa"
+    },
+    "page.log.stale": {
+      "text": "{card} hat sich geändert, nachdem diese Seite gezeichnet wurde; sie steht jetzt in {column}, {state}.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. Written under a stale entry of the command log. {card} is the card's reference, {column} its column and {state} its state.",
+      "source": "19b2c7dc2b0b694"
+    },
+    "page.nav": {
+      "text": "Seiten",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the topbar's navigation.",
+      "source": "6ac0c20ddc5c15ff"
+    },
+    "page.new-card": {
+      "text": "Neue Karte",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The toolbar link to the form that adds a card.",
+      "source": "e1aab6a63e77e15"
+    },
+    "page.next": {
+      "text": "Als Nächstes",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The toolbar link to the next work on offer.",
+      "source": "fbf6dc6a1966408"
+    },
+    "page.no-actor": {
+      "text": "Kein Akteur, daher wird jede Handlung abgelehnt; starten Sie dinah ui mit --actor",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. Written in the topbar when the process resolved no actor. --actor and dinah ui stay as they are.",
+      "source": "d7f516ac50732a80"
+    },
+    "page.open-as-window": {
+      "text": "Als Fenster öffnen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The link on a card's page that opens the card as a window over the board.",
+      "source": "2ef1c508092bc948"
+    },
+    "page.search": {
+      "text": "Suche",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The search page's title.",
+      "source": "5d929ff1619ac0c9"
+    },
+    "page.search.phrase": {
+      "text": "Wörter",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the search page's phrase box.",
+      "source": "f350bc4e538e3ea"
+    },
+    "page.search.query": {
+      "text": "Abfrage",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The label of the search page's query box.",
+      "source": "c74b7675f65c3e23"
+    },
+    "page.search.run": {
+      "text": "Suchen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The search page's button.",
+      "source": "5d929ff1619ac0c9"
+    },
+    "page.sheet.block-kind": {
+      "text": "Art der Blockade",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row giving the block's kind.",
+      "source": "175d68b94a02ebd"
+    },
+    "page.sheet.block-reason": {
+      "text": "Blockiert, weil",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row giving the block's reason.",
+      "source": "44a2979b738da6af"
+    },
+    "page.sheet.checklist": {
+      "text": "Checkliste",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of a card sheet's checklist.",
+      "source": "f834fd8bbd22502f"
+    },
+    "page.sheet.column": {
+      "text": "Spalte",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row naming the column.",
+      "source": "9e40e59654c8ad67"
+    },
+    "page.sheet.comments": {
+      "text": "Kommentare",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of a card sheet's comments.",
+      "source": "dc12d4d35420eeb7"
+    },
+    "page.sheet.held-since": {
+      "text": "{holder}, seit {since}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The holder row's value with the claim's start. {since} is a time stamp.",
+      "source": "a21523d1588aa167"
+    },
+    "page.sheet.held-until": {
+      "text": "{held}, bis {expires}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The holder row's value with the claim's expiry. {expires} is a time stamp.",
+      "source": "ee734a516853f4be"
+    },
+    "page.sheet.holder": {
+      "text": "Gehalten von",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row naming the holder.",
+      "source": "6a4b61b4b5d8b123"
+    },
+    "page.sheet.instructions": {
+      "text": "Anweisungen bei {column}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of a card sheet's instructions. {column} is the column's title.",
+      "source": "8ce0e28804b80055"
+    },
+    "page.sheet.links": {
+      "text": "Verknüpfungen und Anhänge",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of a card sheet's links and attachments.",
+      "source": "6868fb3a4288b695"
+    },
+    "page.sheet.pull-destination": {
+      "text": "Ein Ziehen bringt sie nach",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row naming where a pull takes the card.",
+      "source": "865e8f2c4f386c3d"
+    },
+    "page.sheet.workstreams": {
+      "text": "Arbeitsstränge",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row naming the card's workstreams.",
+      "source": "5756cdff66da2de9"
+    },
+    "page.state.active": {
+      "text": "aktiv",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The reader's word for a card somebody holds.",
+      "source": "6580790b036f0c6f"
+    },
+    "page.state.blocked": {
+      "text": "blockiert",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The reader's word for a blocked card.",
+      "source": "7efbf1594f60e733"
+    },
+    "page.state.held": {
+      "text": "{state}, gehalten von {holder}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The badge of a held card on its sheet. {state} is the state word and {holder} the actor holding it.",
+      "source": "9079b1aa7c18a198"
+    },
+    "page.state.ready": {
+      "text": "bereit",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The reader's word for a card that is ready.",
+      "source": "8935baf305f374b4"
+    },
+    "page.table.column": {
+      "text": "Spalte",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the column.",
+      "source": "9e40e59654c8ad67"
+    },
+    "page.table.holder": {
+      "text": "Gehalten von",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the holder.",
+      "source": "6a4b61b4b5d8b123"
+    },
+    "page.table.ref": {
+      "text": "Karte",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the reference.",
+      "source": "dfef4f9ce9ebb93f"
+    },
+    "page.table.state": {
+      "text": "Zustand",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the state.",
+      "source": "ae239213b7c70376"
+    },
+    "page.table.title": {
+      "text": "Titel",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the title.",
+      "source": "99f110d27e30b289"
+    },
+    "page.theme": {
+      "text": "Zwischen hell und dunkel wechseln",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the theme toggle the pages' script inserts.",
+      "source": "7fadd9464785ba00"
+    },
+    "page.title": {
+      "text": "{page} · {workbench}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The document title: {page} is the page's own title and {workbench} the workbench's title, separated by a middle dot.",
+      "verbatim": true,
+      "source": "bec3165166535d72"
+    },
+    "page.tree": {
+      "text": "Baum",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The tree page's title.",
+      "source": "85b3b9fb528f2775"
+    },
+    "page.tree.group": {
+      "text": "{axis}: {value}",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The heading of one group of the tree page. {axis} is the field grouped on and {value} the value the group holds.",
+      "verbatim": true,
+      "source": "9a9f9fe9e39e0655"
+    },
+    "page.tree.hidden": {
+      "text": "Hier nicht gezeigt: {children} Gruppen mit {subjects} Karten und {filtered} Karten, die der Filter ausgelassen hat.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. Written under a tree group that hides part of what it holds. The three slots are numbers.",
+      "source": "51ead4fc641c8c82"
+    },
+    "page.views": {
+      "text": "Ansichten",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The views page's title and the topbar link to it.",
+      "source": "900aa761e7ae5c71"
+    },
+    "page.window": {
+      "text": "Fenster",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's buttons.",
+      "source": "5c49cfa8045bc89d"
+    },
+    "page.window.close": {
+      "text": "Schließen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's close button.",
+      "source": "5e8250fb85d64c23"
+    },
+    "page.window.maximize": {
+      "text": "Maximieren",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's maximize button.",
+      "source": "2b3441b8eece504f"
+    },
+    "page.window.minimize": {
+      "text": "Minimieren",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's minimize button.",
+      "source": "1c109a21525649fd"
+    },
+    "page.window.page": {
+      "text": "Als Seite öffnen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's button that opens the card as a page.",
+      "source": "bba86c706652034f"
+    },
+    "page.window.restore": {
+      "text": "Wiederherstellen",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a maximized or snapped window's restore button.",
+      "source": "26f91b6796e33111"
+    },
+    "page.windows": {
+      "text": "Offene Fenster",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the dock listing the open windows.",
+      "source": "b3bb196f2e968940"
+    },
     "param.add.column.summary": {
       "text": "in welcher Spalte die Karte angelegt wird; die erste Spalte, wenn Sie keine nennen",
       "context": "The meaning of the column argument of `dinah add`, printed in that command's arguments table.",
@@ -3951,6 +4431,16 @@
       "text": "welche Karten verschachtelt werden, geschrieben als Abfrage in einem Shell-Wort oder in Anführungszeichen; jede lebende Karte, wenn Sie keine schreiben",
       "context": "The meaning of the query argument of `dinah tree`, printed in that command's arguments table. tree reads the same query language `dinah query` reads.",
       "source": "a5a5e862482edacf"
+    },
+    "param.ui.listen.summary": {
+      "text": "Host und Port, auf denen gelauscht wird, geschrieben als host:port; der Host ist localhost oder eine Loopback-Adresse, alles andere wird abgelehnt; 127.0.0.1:7340, wenn Sie keinen nennen",
+      "context": "The meaning of the --listen argument of `dinah ui`, printed in that command's arguments table. host:port, localhost and 127.0.0.1:7340 are written as a person types them and stay as they are.",
+      "source": "50a9b14020367cb1"
+    },
+    "param.ui.no-browser.summary": {
+      "text": "die Adresse ausgeben und keinen Browser öffnen",
+      "context": "The meaning of the --no-browser marker of `dinah ui`, printed in that command's arguments table.",
+      "source": "8bde178422d024bd"
     },
     "param.view.view.summary": {
       "text": "die zu zeichnende Ansicht; lassen Sie sie weg, um jede Ansicht aufzulisten",
@@ -4750,6 +5240,16 @@
       "text": " Setze einen Punkt zurück, der resolved, verified oder failed ist.",
       "context": "The next step of refusal.dinah.not-resolved, spliced onto the sentence that just named the item's state. The three state names are machine vocabulary that is never translated.",
       "source": "5ac264a582046f29"
+    },
+    "refusal.dinah.not-served": {
+      "text": "die Seiten können {detail} noch nicht ausführen, weil der HTTP-Kopf keine Route dafür hat",
+      "context": "The sentence printed after the refusal name dinah.not-served in the pages' command log. {detail} is the command the reader typed, such as file or resolve.",
+      "source": "54ab382694548782"
+    },
+    "refusal.dinah.not-served.next": {
+      "text": "; führen Sie es in einem Terminal aus, und dinah guide http nennt die Befehle, die die Seiten ausführen können",
+      "context": "Spliced onto refusal.dinah.not-served as the next step. dinah guide http is a command and stays as it is.",
+      "source": "4ce57c948ec1e565"
     },
     "refusal.dinah.not-waivable": {
       "text": "Dieser Eintrag ist {detail}, er hält also nichts auf.",
@@ -6328,6 +6828,11 @@
       "text": "(kein Wert)",
       "context": "The label on the group holding the cards that carry no value at all on the axis. It is drawn in the Reference column, where every other group row carries the value it gathered at.",
       "source": "199f98480ae8cbac"
+    },
+    "ui.no-browser": {
+      "text": "Es konnte kein Browser geöffnet werden ({error}). Öffnen Sie {url} selbst.",
+      "context": "Written to stderr by dinah ui when the platform would not open a browser; the server goes on serving. {error} is the operating system's own error text and {url} is the address the server printed.",
+      "source": "c7385e3febd2521f"
     },
     "version.catalogs": {
       "text": "Kataloge:",

@@ -322,8 +322,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 61 {
-		t.Errorf("wanted sixty-one listed commands, got %d", listed)
+	if listed != 62 {
+		t.Errorf("wanted sixty-two listed commands, got %d", listed)
 	}
 }
 
@@ -7517,7 +7517,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-container", "migrate-designations", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals", "migrate-raw-lines", "migrate-schedule",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
-		"no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
+		"no-browser", "no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
 		"unresolved", "version", "wait", "watch", "witness", "yes",
 	}

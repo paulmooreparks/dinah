@@ -1,0 +1,118 @@
+{{define "page"}}<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{.Title}}</title>
+<link rel="icon" href="/assets/dinah-lantern.svg" type="image/svg+xml" />
+<script src="/assets/pudl/pudl-theme.js"></script>
+<link rel="stylesheet" href="/assets/pudl/pudl.css" />
+<link rel="stylesheet" href="/assets/pudl/pudl-windows.css" />
+<link rel="stylesheet" href="/assets/dinah.css" />
+<script src="/assets/pudl/pudl-windows.js" defer="defer"></script>
+<script src="/assets/dinah.js" defer="defer"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img class="brand-mark" src="/assets/dinah-lantern.svg" alt="" /> {{if .Workbench}}{{.Workbench}}{{else}}{{t "page.dinah"}}{{end}}</a>
+  <nav class="topbar-chrome" aria-label="{{t "page.nav"}}" data-theme-label="{{t "page.theme"}}">
+{{- if .HasWorkbench}}
+    <span class="topbar-actor">{{if .Actor}}{{t "page.acting-as"}} <span class="num">{{.Actor}}</span>{{else}}{{t "page.no-actor"}}{{end}}</span>
+    <a class="topbar-pill" href="/">{{t "page.board"}}</a>
+    <a class="topbar-pill" href="/cards">{{t "page.cards"}}</a>
+    <a class="topbar-pill" href="/views">{{t "page.views"}}</a>
+    <a class="topbar-pill" href="/commands">{{t "page.log"}}</a>
+{{- end}}
+  </nav>
+</header>
+{{- if .HasWorkbench}}
+<div class="md-layout" data-md-pane="{{.Pane}}" data-changes-cursor="{{.Cursor}}">
+  <div class="md-toolbar">
+    <form method="get" action="/tree" role="search">
+      <input class="md-filter" type="search" name="query" value="{{.Filter}}" aria-label="{{t "page.filter"}}" />
+    </form>
+    <span class="md-toolbar-spacer"></span>
+    <nav class="win-dock" data-win-dock="" aria-label="{{t "page.windows"}}">
+{{- range .Tabs}}
+      <a class="win-tab{{if .Min}} minimized{{end}}" data-win-tab="{{.Key}}" href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{.Text}}</a>
+{{- end}}
+    </nav>
+    <span class="md-toolbar-sep"></span>
+    <div class="md-toolbar-cmds">
+      <a class="btn btn-sm" href="/next">{{t "page.next"}}</a>
+      <a class="btn btn-sm" href="/cards#add">{{t "page.new-card"}}</a>
+    </div>
+  </div>
+  <div class="md-chips">{{with .Chip}}<span class="filter-chip">{{.Text}} <a class="filter-chip-x" href="{{.Href}}" aria-label="{{t "page.filter.clear"}}">&#215;</a></span>{{end}}</div>
+  <main class="md-body win-host">
+    <nav class="md-sidebar" data-live="sidebar" aria-label="{{t "page.columns"}}">
+      <div class="md-section-label">{{t "page.columns"}}</div>
+{{- range .Sidebar}}
+      <div class="md-row{{if .Active}} active{{end}}" id="col-{{.Slug}}"><a class="md-item" href="/columns/{{.Slug}}"{{if .Active}} aria-current="page"{{end}}>{{.Title}} <span class="md-count num">{{.Count}}</span></a></div>
+{{- end}}
+    </nav>
+    <section class="md-detail" data-live="detail" aria-label="{{.Title}}">
+{{- with .Back}}
+      <a class="md-back" href="{{.Href}}">{{.Text}}</a>
+{{- end}}
+{{template "detail" .}}
+    </section>
+    <div class="win-layer" data-win-layer="" data-win-src="/cards/{key}/window">
+{{- range .Windows}}
+{{template "win" .}}
+{{- end}}
+    </div>
+  </main>
+  <section class="cmdlog" data-live="cmdlog" aria-label="{{t "page.log"}}" data-copy-label="{{t "page.log.copy"}}">
+    <form class="cmdlog-line" method="post" action="/commands">
+      <label for="cmdline">dinah</label>
+      <input class="form-input" id="cmdline" name="line" autocomplete="off" spellcheck="false" />
+      <button class="btn btn-sm" type="submit">{{t "page.log.run"}}</button>
+    </form>
+{{template "entries" .Log}}
+  </section>
+</div>
+{{- else}}
+<main class="error-alone">
+{{template "detail" .}}
+</main>
+{{- end}}
+</body>
+</html>
+{{end}}
+
+{{define "entries"}}    <ol class="cmdlog-entries" reversed="reversed">
+{{- range .}}
+      <li class="cmdlog-entry" data-outcome="{{.Outcome}}">
+        <time datetime="{{.At.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.Local.Format "15:04:05"}}</time>
+        <span class="badge{{if eq .Outcome "ok"}} pr{{else if eq .Outcome "refused"}} danger{{else if eq .Outcome "stale"}} warn{{else if eq .Outcome "read"}} accent{{end}}">{{.Outcome}}</span>
+        <code class="cmdlog-cmd">{{.Line}}</code>
+{{- if .Rerun}}
+        <form method="post" action="/commands"><input type="hidden" name="entry" value="{{.Seq}}" /><button class="btn btn-sm" type="submit">{{if .Guarded}}{{t "page.log.again"}}{{else}}{{t "page.log.again-unguarded"}}{{end}}</button></form>
+{{- else}}
+        <span></span>
+{{- end}}
+{{- if or .Sentence .Next}}
+        <span class="cmdlog-why">{{.Sentence}}{{.Next}}</span>
+{{- end}}
+{{- if .Target}}
+        <a class="cmdlog-target" href="{{.Target}}">{{.Target}}</a>
+{{- end}}
+      </li>
+{{- end}}
+    </ol>{{end}}
+
+{{define "detail"}}
+{{- if eq .Kind "lanes"}}{{template "lanes" .Detail}}
+{{- else if eq .Kind "column"}}{{template "column" .Detail}}
+{{- else if eq .Kind "card"}}{{template "card" .Detail}}
+{{- else if eq .Kind "cards"}}{{template "cards" .Detail}}
+{{- else if eq .Kind "tree"}}{{template "tree" .Detail}}
+{{- else if eq .Kind "search"}}{{template "search" .Detail}}
+{{- else if eq .Kind "views"}}{{template "views" .Detail}}
+{{- else if eq .Kind "view"}}{{template "view" .Detail}}
+{{- else if eq .Kind "generic"}}{{template "generic" .Detail}}
+{{- else if eq .Kind "error"}}{{template "error" .Detail}}
+{{- else if eq .Kind "commands"}}{{template "commands" .Detail}}
+{{- end}}
+{{- end}}

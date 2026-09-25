@@ -140,6 +140,8 @@ SERVE
     [--poll-seconds <n>] [--stdio]            over LSP on stdio
   serve [--listen <address>]                Serve this workbench over HTTP on
                                               this machine
+  ui [--listen <address>] [--no-browser]    Serve this workbench to a browser on
+                                              this machine and open one on it
   setup [harness] [--list]                  Connect a harness to a workbench
     [--recipe <dir>] [--agent <name>]         from a recipe
     [--tools <profile>] [--scope <scope>]

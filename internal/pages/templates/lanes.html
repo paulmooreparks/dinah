@@ -1,0 +1,122 @@
+{{define "lanes"}}      <div class="lanes">
+{{- range .}}
+        <section class="card lane" aria-label="{{.Title}}">
+          <h2 class="card-title"><a href="/columns/{{.Slug}}">{{.Title}}</a> <span class="num">{{.Count}}</span></h2>
+{{- range .Sections}}
+{{- if .Label}}
+          <div class="md-section-label">{{.Label}}</div>
+{{- end}}
+{{- range .Cards}}
+          {{template "lanecard" .}}
+{{- end}}
+{{- end}}
+        </section>
+{{- end}}
+      </div>{{end}}
+
+{{define "lanecard"}}<a class="lane-card"{{if .ID}} id="{{.ID}}"{{end}} href="/cards/{{.Ref}}" data-win-open="{{.Ref}}"><span class="num">{{.Ref}}</span>{{.Title}}{{with .Badge}}<br /><span class="badge {{.Class}}">{{.Text}}</span>{{end}}</a>{{end}}
+
+{{define "column"}}      <div class="card">
+        <h2>{{.Title}}</h2>
+        <div class="card-badges">{{range .Badges}}<span class="badge{{if .Class}} {{.Class}}{{end}}">{{.Text}}</span> {{end}}</div>
+{{- if .Instructions}}
+        <details><summary>{{t "page.layer.column"}}</summary><p class="card-body">{{.Instructions}}</p></details>
+{{- end}}
+      </div>
+{{template "lanes" .Lanes}}{{end}}
+
+{{define "cardtable"}}      <table class="kv-table card-table">
+        <thead><tr><th>{{t "page.table.ref"}}</th><th>{{t "page.table.title"}}</th><th>{{t "page.table.column"}}</th><th>{{t "page.table.state"}}</th><th>{{t "page.table.holder"}}</th></tr></thead>
+        <tbody>
+{{- range .}}
+          <tr><td><a href="/cards/{{.Ref}}" data-win-open="{{.Ref}}">{{.Ref}}</a></td><td>{{.Title}}</td><td>{{.Column}}</td><td><span class="badge{{if .State.Class}} {{.State.Class}}{{end}}">{{.State.Text}}</span></td><td>{{.Holder}}</td></tr>
+{{- end}}
+        </tbody>
+      </table>{{end}}
+
+{{define "cards"}}      <form method="get" action="/cards" role="search" class="query-form">
+        <label class="form-label" for="cards-query">{{t "page.cards.query"}}</label>
+        <input class="form-input" id="cards-query" name="query" value="{{.Query}}" />
+        <button class="btn" type="submit">{{t "page.cards.run-query"}}</button>
+      </form>
+{{template "cardtable" .Rows}}
+      <form method="post" action="/cards" id="add" class="add-form">
+        <div class="form-group"><label class="form-label" for="add-title">{{t "page.add.title"}}</label>
+          <input class="form-input" id="add-title" name="title" required="required" /></div>
+        <div class="form-group"><label class="form-label" for="add-column">{{t "page.add.column"}}</label>
+          <select class="form-select" id="add-column" name="column">
+            <option value="">{{t "page.add.first-column"}}</option>
+{{- range .Columns}}
+            <option value="{{if .Slug}}{{.Slug}}{{else}}{{.ID}}{{end}}">{{.Title}}</option>
+{{- end}}
+          </select></div>
+        <details><summary>{{t "page.add.more"}}</summary>
+          <div class="form-group"><label class="form-label" for="add-severity">{{t "page.add.severity"}}</label><input class="form-input" id="add-severity" name="severity" /></div>
+          <div class="form-group"><label class="form-label" for="add-priority">{{t "page.add.priority"}}</label><input class="form-input" id="add-priority" name="priority" /></div>
+          <div class="form-group"><label class="form-label" for="add-route">{{t "page.add.route"}}</label><input class="form-input" id="add-route" name="route" /></div>
+        </details>
+        <button class="btn btn-primary" type="submit">{{t "page.add.submit"}}</button>
+      </form>{{end}}
+
+{{define "tree"}}{{if .Lanes}}{{template "lanes" .Lanes}}{{else}}{{template "treesections" .Sections}}{{end}}{{end}}
+
+{{define "treesections"}}{{range .}}      <section class="tree-group">
+        <h3>{{.Heading}}</h3>
+{{- if .Hidden}}
+        <p class="tree-hidden">{{.Hidden}}</p>
+{{- end}}
+{{- range .Cards}}
+        {{template "lanecard" .}}
+{{- end}}
+{{template "treesections" .Sections}}
+      </section>
+{{end}}{{end}}
+
+{{define "search"}}      <form method="get" action="/search" role="search" class="query-form">
+        <label class="form-label" for="search-phrase">{{t "page.search.phrase"}}</label>
+        <input class="form-input" id="search-phrase" name="phrase" value="{{.Phrase}}" required="required" />
+        <label class="form-label" for="search-query">{{t "page.search.query"}}</label>
+        <input class="form-input" id="search-query" name="query" value="{{.Query}}" />
+        <button class="btn" type="submit">{{t "page.search.run"}}</button>
+      </form>
+      <table class="kv-table card-table">
+        <tbody>
+{{- range .Hits}}
+          <tr><td>{{if eq .Kind "card"}}<a href="/cards/{{.Ref}}" data-win-open="{{.Ref}}">{{.Ref}}</a>{{else if eq .Kind "column"}}<a href="/columns/{{.Ref}}">{{.Ref}}</a>{{else}}{{.Ref}}{{end}}</td><td>{{.Title}}</td><td>{{.ColumnTitle}}</td><td>{{.Snippet}}</td></tr>
+{{- end}}
+        </tbody>
+      </table>{{end}}
+
+{{define "views"}}      <ul class="view-list">
+{{- range .}}
+        <li><a href="{{.Href}}">{{.Text}}</a></li>
+{{- end}}
+      </ul>{{end}}
+
+{{define "view"}}{{range .Sections}}      <section class="view-section">
+        <h2>{{.Title}}</h2>
+{{- if .Refusal}}{{template "refusal" .Refusal}}{{else if .Lanes}}{{template "lanes" .Lanes}}{{else}}{{template "cardtable" .Rows}}{{end}}
+      </section>
+{{end}}{{end}}
+
+{{define "generic"}}      <div class="card">
+        <h2>{{.Heading}}</h2>
+{{- if .Acts}}
+        <section class="card-acts" aria-label="{{t "page.acts"}}">{{range .Acts}}{{template "act" .}}{{end}}</section>
+{{- end}}
+        <pre class="payload"><code>{{.Payload}}</code></pre>
+      </div>{{end}}
+
+{{define "refusal"}}<div class="card refusal">
+        <p><code>{{.Name}}</code>{{if .Detail}} <code>{{.Detail}}</code>{{end}}</p>
+        <p class="refusal-why">{{.Sentence}}{{.Next}}</p>
+      </div>{{end}}
+
+{{define "error"}}      {{template "refusal" .}}{{end}}
+
+{{define "commands"}}      <form class="cmdlog-line" method="post" action="/commands">
+        <label for="cmdline-page">dinah</label>
+        <input class="form-input" id="cmdline-page" name="line" autocomplete="off" spellcheck="false" />
+        <button class="btn btn-sm" type="submit">{{t "page.log.run"}}</button>
+      </form>
+{{template "entries" .}}{{end}}

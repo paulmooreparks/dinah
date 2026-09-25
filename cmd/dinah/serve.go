@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"dinah/internal/bench"
+	"dinah/internal/browser"
 	"dinah/internal/contract"
 	"dinah/internal/httphead"
 )
@@ -36,19 +38,45 @@ var (
 	serveListen = listenFunc(net.Listen)
 )
 
+// openURL opens a browser on a URL. It is browser.Open, and only a test in
+// this package replaces it, to see what dinah ui would have opened without
+// opening anything.
+var openURL = browser.Open
+
 // runServe serves the workbench over HTTP on the loopback interface until an
 // interrupt arrives.
 func runServe(s *session, parsed *arguments) int {
 	ctx, stop := signal.NotifyContext(serveBase(), os.Interrupt)
 	defer stop()
-	return serveUntil(ctx, s, parsed, serveListen)
+	return serveUntil(ctx, s, parsed, serveListen, nil)
+}
+
+// runUI serves the workbench as runServe does and opens a browser on it once
+// the address is bound and announced. The two commands build one handler, so
+// a browser pointed at dinah serve gets the same pages; this command differs
+// only in opening one. A browser that will not open is reported on stderr and
+// the server goes on serving, because the address it printed still works.
+func runUI(s *session, parsed *arguments) int {
+	ctx, stop := signal.NotifyContext(serveBase(), os.Interrupt)
+	defer stop()
+	return serveUntil(ctx, s, parsed, serveListen, func(url string) {
+		if parsed.has("no-browser") {
+			return
+		}
+		if err := openURL(url); err != nil {
+			s.errLine(s.r.T("ui.no-browser", "url", url, "error", err.Error()))
+		}
+	})
 }
 
 // serveUntil is runServe with the context and the listen function handed
 // in. The order is the specification's: parse --listen, apply the loopback
-// rule, open the workbench, listen, print one line, and serve until the
-// context is cancelled. Each refusal before the listen binds nothing.
-func serveUntil(ctx context.Context, s *session, parsed *arguments, listen listenFunc) int {
+// rule, open the workbench, listen, print one line, call afterListen when it
+// is set, and serve until the context is cancelled. Each refusal before the
+// listen binds nothing. afterListen runs after the line is printed and before
+// serving starts, and a request it causes waits in the listener's backlog
+// until the server reads it.
+func serveUntil(ctx context.Context, s *session, parsed *arguments, listen listenFunc, afterListen func(url string)) int {
 	address := parsed.value("listen")
 	if address == "" {
 		address = defaultListen
@@ -84,8 +112,13 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 			Agent:        s.agent,
 			Host:         bind,
 			Port:         bound,
+			Lang:         s.r.Tag,
+			ParseLine:    typedLineParser(s.cfg),
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
+	}
+	if afterListen != nil {
+		afterListen(url)
 	}
 	served := make(chan error, 1)
 	go func() { served <- server.Serve(listener) }()
@@ -97,6 +130,18 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 		return 0
 	case err := <-served:
 		return s.reportError(err)
+	}
+}
+
+// typedLineParser is the parser the pages' command log runs a typed line
+// through: the terminal's own steps, with the reader's own aliases.
+func typedLineParser(cfg *bench.Config) func(words []string) (httphead.TypedLine, *contract.Refusal) {
+	return func(words []string) (httphead.TypedLine, *contract.Refusal) {
+		typed, refusal := parseTypedLine(cfg, words)
+		if refusal != nil {
+			return httphead.TypedLine{}, refusal
+		}
+		return httphead.TypedLine{Command: typed.Command, Arguments: typed.Arguments, Actor: typed.Actor}, nil
 	}
 }
 

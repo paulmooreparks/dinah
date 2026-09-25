@@ -13,6 +13,8 @@ package httphead
 import (
 	"errors"
 	"net/http"
+	"net/url"
+	"path"
 	"strconv"
 	"strings"
 
@@ -50,6 +52,13 @@ type Config struct {
 	// calls it inside a mutation while holding the card lock. It is a test
 	// seam, nil in production.
 	Interleave func()
+	// Lang is the language the process resolved at startup, which the pages
+	// render in. A request's Accept-Language is not read.
+	Lang string
+	// ParseLine parses the words of a line typed into the pages' command log
+	// with the terminal's own parser. When it is nil, POST /commands answers
+	// 501 and parses nothing.
+	ParseLine func(words []string) (TypedLine, *contract.Refusal)
 	// observe, when set, is called with each library request just before
 	// the library runs it. It is unexported, so only this package's own
 	// tests can set it, and they use it to hold what a request carried
@@ -61,13 +70,15 @@ type Config struct {
 type head struct {
 	cfg Config
 	mux *http.ServeMux
+	// log is the command log the pages keep, one per handler.
+	log *commandLog
 }
 
 // Handler returns the HTTP head for one workbench. It binds nothing: the
 // caller listens and serves, so the loopback rule is the caller's and every
 // admission check is the handler's.
 func Handler(cfg Config) http.Handler {
-	h := &head{cfg: cfg, mux: http.NewServeMux()}
+	h := &head{cfg: cfg, mux: http.NewServeMux(), log: &commandLog{}}
 	for _, r := range routes {
 		matched := r
 		h.mux.HandleFunc(matched.pattern, func(w http.ResponseWriter, req *http.Request) {
@@ -94,6 +105,9 @@ type exchange struct {
 	served string
 	// library is the request's own library, once the workbench is opened.
 	library *verb.Library
+	// page is what an HTML request carries beside its route's own read, and
+	// nil on any other request.
+	page *pageState
 }
 
 // ServeHTTP runs the admission steps that read nothing of the route, then
@@ -119,7 +133,32 @@ func (h *head) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if cleaned := cleanPath(r.URL.Path); cleaned != r.URL.Path {
+		// ServeMux would answer a path that is not in its clean form with a
+		// redirect to the cleaned path, written in text/html by net/http
+		// rather than by the one HTML writer. A path that names a resource
+		// only once rewritten names none as written, so it is answered here,
+		// as any path no route matches is.
+		h.refuse(x, contract.UnknownResource, r.URL.Path)
+		return
+	}
 	h.mux.ServeHTTP(w, r)
+}
+
+// cleanPath is the path ServeMux redirects a request to: the path with dot
+// segments and repeated slashes removed, and a trailing slash kept.
+func cleanPath(p string) string {
+	if p == "" {
+		return "/"
+	}
+	if p[0] != '/' {
+		p = "/" + p
+	}
+	cleaned := path.Clean(p)
+	if p[len(p)-1] == '/' && cleaned != "/" {
+		cleaned += "/"
+	}
+	return cleaned
 }
 
 // serveUnmatched answers a path no route matches.
@@ -134,6 +173,10 @@ func (h *head) serveRoute(rt *route, w http.ResponseWriter, r *http.Request) {
 	x := &exchange{w: w, r: r, route: rt, verb: rt.command(), method: r.Method}
 	if !rt.takes(r.Method) {
 		h.notAllowed(x)
+		return
+	}
+	if rt.ignoresAccept {
+		rt.read(h, x)
 		return
 	}
 	if unsafeMethod(r.Method) {
@@ -153,10 +196,31 @@ func (h *head) serveRoute(rt *route, w http.ResponseWriter, r *http.Request) {
 	}
 	x.served = served
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		if served == typeHTML {
+			if rt.pattern != "/cards/{card}/window" && h.takePageParameters(x) {
+				return
+			}
+			if rt.pattern == "/cards/{card}" && !x.r.URL.Query().Has("fields") {
+				x.r.URL.RawQuery = joinQuery(x.r.URL.RawQuery, "fields="+url.QueryEscape(defaultCardPageFields))
+			}
+			h.readPageState(x)
+		}
 		rt.read(h, x)
 		return
 	}
+	if rt.post != nil {
+		rt.post(h, x)
+		return
+	}
 	h.act(x)
+}
+
+// joinQuery appends one encoded parameter to a raw query string.
+func joinQuery(raw, pair string) string {
+	if raw == "" {
+		return pair
+	}
+	return raw + "&" + pair
 }
 
 // admitBody runs steps 5 and 6 of admission for an unsafe request: the
@@ -270,6 +334,10 @@ func (h *head) write(x *exchange, answered answer.Sealed, success int) {
 		if outcome == contract.OutcomeOK {
 			status = success
 		}
+	}
+	if h.wantsHTML(x) {
+		h.writePage(x, answered, status)
+		return
 	}
 	encoded, err := answered.Encode()
 	if err != nil {

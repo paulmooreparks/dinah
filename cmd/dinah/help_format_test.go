@@ -127,6 +127,8 @@ SERVE
   lsp [--root <dir>] [--annotate-prose]                  Serve one workbench to an editor over LSP on stdio
     [--poll-seconds <n>] [--stdio]
   serve [--listen <address>]                             Serve this workbench over HTTP on this machine
+  ui [--listen <address>] [--no-browser]                 Serve this workbench to a browser on this machine
+                                                           and open one on it
   setup [harness] [--list] [--recipe <dir>]              Connect a harness to a workbench from a recipe
     [--agent <name>] [--tools <profile>]
     [--scope <scope>] [--target <dir>]
@@ -234,6 +236,7 @@ SERVE
   mcp [--root <dir>] [--tools <profile>]                                                                Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>] [--stdio]                                  Serve one workbench to an editor over LSP on stdio
   serve [--listen <address>]                                                                            Serve this workbench over HTTP on this machine
+  ui [--listen <address>] [--no-browser]                                                                Serve this workbench to a browser on this machine and open one on it
   setup [harness] [--list] [--recipe <dir>] [--agent <name>] [--tools <profile>] [--scope <scope>]      Connect a harness to a workbench from a recipe
     [--target <dir>] [--provider <name>] [--model <name>] [--server <address>] [--trust-project-recipe]
     [--allow-run] [--dry-run] [--remove]

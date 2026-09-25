@@ -35,8 +35,11 @@ var sealedUse = map[string]bool{
 	"FormRoute":             true,
 	"FromErrorSealed":       true,
 	"RefusalSealed":         true,
-	"RunSealed":             true,
-	"Sealed":                true,
+	// RefusalValues composes no answer: it collects the values a refusal's
+	// sentence names, which the pages' error page and command log render.
+	"RefusalValues": true,
+	"RunSealed":     true,
+	"Sealed":        true,
 }
 
 // checkComposition parses every non-test Go file in dir and reports each

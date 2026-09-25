@@ -1169,9 +1169,10 @@ func TestEveryDeclaredParameterReachesItsDeclaredField(t *testing.T) {
 	// skip the parameter. The check still builds the request and requires the
 	// defect to still be present, so repairing the defect reddens this test
 	// and the entry has to be deleted along with it.
-	knownDefect := map[string]string{
-		"attach.description": "dinah-222: assignValue has no case for it, so an attachment made over this head is created with no description",
-	}
+	//
+	// The table is empty since dinah-338 gave answer.Build the cases the
+	// pages' typed line needed, which repaired attach.description (dinah-222).
+	knownDefect := map[string]string{}
 	// An entry naming a parameter the table no longer declares is looked up by
 	// nothing below, so it would sit here unread while reading as coverage.
 	// The keys are struck off as they are met and whatever is left over is

@@ -436,6 +436,7 @@ var guides = map[string][]string{
 	"view":              {"views"},
 	"setup":             {"setup-recipes"},
 	"serve":             {"http"},
+	"ui":                {"http"},
 }
 
 // Guides lists the guide topics a command's help points at: the command's own,
@@ -934,6 +935,13 @@ var params = map[string][]Param{
 	"serve": {
 		{Name: "listen", Flag: true, Value: "address", Complete: CompleteNone},
 	},
+	// ui is serve with a browser opened on it, so it reads serve's one flag
+	// with serve's meaning and builds no Request either. --no-browser is a
+	// marker that suppresses the browser and changes nothing else.
+	"ui": {
+		{Name: "listen", Flag: true, Value: "address", Complete: CompleteNone},
+		{Name: "no-browser", Flag: true, Marker: true},
+	},
 	// lsp declares its own root rather than sharing mcp's, because the two
 	// mean different things: mcp's root bounds every workbench that head may
 	// serve, and this one is a directory to search for the single workbench
@@ -1318,6 +1326,81 @@ func quoteArgument(arg string) string {
 	return quoted.String()
 }
 
+// SplitLine takes a line written in Line's quoting apart into its words, so
+// that a line a reader types, or a line the command log printed and the reader
+// pasted back, reaches the same argument parser os.Args would. It is
+// quoteArgument's inverse: for every Command whose arguments carry no line
+// break, SplitLine(c.Line()) is c.Verb followed by c.Args.
+//
+// Outside quotes, runs of spaces and tabs separate words. A double quote opens
+// or closes a quoted span, which may be part of a word, so --kind="a b" is one
+// word. A run of n backslashes immediately before a double quote yields n/2
+// backslashes, and the quote is then a literal character when n is odd and a
+// delimiter when n is even; a run not followed by a double quote is kept as it
+// stands. That is the rule quoteArgument writes, and the one Microsoft
+// documents for CommandLineToArgvW. A pair of quotes standing alone is an empty
+// word. Every other character is ordinary, because no shell runs here and
+// nothing is expanded.
+//
+// A line holding a carriage return or a line feed is refused with the detail
+// \n, and a quoted span still open at the end of the line is refused with the
+// detail ", each as dinah.usage.
+func SplitLine(line string) ([]string, error) {
+	if strings.ContainsAny(line, "\r\n") {
+		return nil, contract.Refuse(contract.Usage, `\n`)
+	}
+	var words []string
+	var word strings.Builder
+	inWord, quoted := false, false
+	for i := 0; i < len(line); {
+		c := line[i]
+		switch {
+		case c == '\\':
+			run := 0
+			for i < len(line) && line[i] == '\\' {
+				run++
+				i++
+			}
+			inWord = true
+			if i < len(line) && line[i] == '"' {
+				for n := 0; n < run/2; n++ {
+					word.WriteByte('\\')
+				}
+				if run%2 == 1 {
+					word.WriteByte('"')
+					i++
+				}
+				continue
+			}
+			for n := 0; n < run; n++ {
+				word.WriteByte('\\')
+			}
+		case c == '"':
+			quoted = !quoted
+			inWord = true
+			i++
+		case (c == ' ' || c == '\t') && !quoted:
+			if inWord {
+				words = append(words, word.String())
+				word.Reset()
+				inWord = false
+			}
+			i++
+		default:
+			word.WriteByte(c)
+			inWord = true
+			i++
+		}
+	}
+	if quoted {
+		return nil, contract.Refuse(contract.Usage, `"`)
+	}
+	if inWord {
+		words = append(words, word.String())
+	}
+	return words, nil
+}
+
 // inertThroughout reports whether every byte of arg sits in shellInert, which
 // is the one question that decides whether a token is rendered bare. It walks
 // bytes rather than runes on purpose. A byte of 0x80 or above belongs to no
@@ -1473,6 +1556,7 @@ var derivationExemptions = map[string]string{
 	"lsp":        "starts this head; the terminal never builds a Request for it",
 	"mcp":        "starts this head; the terminal never builds a Request for it",
 	"serve":      "starts this head; the terminal never builds a Request for it",
+	"ui":         "starts this head and a browser; the terminal never builds a Request for it",
 	"path":       "resolves a filesystem path for a shell; the terminal never builds a Request for it",
 	"version":    "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
 	"export":     "Library.Export takes no arguments at all; there is no request to read a value from",

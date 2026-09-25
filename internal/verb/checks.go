@@ -537,6 +537,12 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.Usage, Key: "check.serve.1"},
 		{Refusal: contract.NotLoopback, Key: "check.serve.2"},
 	},
+	// ui starts the same head through the same startup path, so it carries
+	// serve's two checks, in serve's order and in serve's words.
+	"ui": {
+		{Refusal: contract.Usage, Key: "check.serve.1"},
+		{Refusal: contract.NotLoopback, Key: "check.serve.2"},
+	},
 	// setup's rows are in the order internal/setup evaluates them, and
 	// nothing is written until every row has passed for every step. Rows 1
 	// and 9 are both usage: the first is the shape of the invocation and the

@@ -178,6 +178,7 @@ var toolExemptions = map[string]exemption{
 	"mcp":        {GroundTheHeadItself, "starts this head, so a tool for it would be the server offering to start itself"},
 	"lsp":        {GroundTheHeadItself, "starts a second head, which serves one workbench to an editor over its own protocol on its own stream; a tool for it would be one server offering to start another"},
 	"serve":      {GroundTheHeadItself, "starts the HTTP head, so a tool for it would be one server offering to start another"},
+	"ui":         {GroundTheHeadItself, "starts the HTTP head and a browser, so a tool for it would be one server offering to start another"},
 	"guide":      {GroundProtocolServesIt, "served as a resource rather than a tool, because a guide is read rather than run"},
 	"help":       {GroundProtocolServesIt, "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal"},
 }

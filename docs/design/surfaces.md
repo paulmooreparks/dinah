@@ -88,22 +88,45 @@ the process boundary: talk MCP or HTTP to the local binary.
 
 ## The GUI boundary
 
-A GUI wrapper is wanted sooner rather than later, and the architecture makes
-it cheap: it is one more head over the same verbs, with no new core surface.
-The shape that fits the operator's standing principles is a local,
-server-rendered web UI (`dinah ui`: the binary serves localhost and opens
-a browser), URL-is-king, no SPA framework, embedded static assets, which is
-the same stack discipline as the hosted product.
+The GUI is not a fifth head. `dinah ui` starts the HTTP head `dinah serve`
+starts and opens a browser on it, and that head answers a browser with pages
+rendered on the server from the same routes that answer a client with JSON.
+The representation is chosen by the request's `Accept` header, so a card's
+page and its JSON share one URL, every state the pages draw is a URL, and the
+pages use no client framework, which is the stack discipline of the hosted
+product. Every act on a page is a form posting to the act's own route, and no
+act needs script. The pages' one script of their own polls the changes route
+with its cursor and redraws what changed, and PUDL's windows script adds
+dragging to windows the server has already drawn. A card's forms are its
+affordances. A page draws one form for each name the card's response carries
+and none for anything else, so an act the workbench would refuse is absent
+from the page as it is from every other surface. A card opens as a floating
+window over the board. The URL names the open windows, the server draws them,
+and a window's markup also has a route of its own, `/cards/{card}/window`,
+beside the card's page. The pages are styled with PUDL, the design language
+the operator's projects share, copied into the tree from a tagged release and
+embedded in the binary. They use PUDL's default palette and the system's own
+interface face, and embed no font files.
 
 The boundary that keeps it from competing with the hosted product is the
 gitk precedent. Git ships gitk, a workmanlike local viewer of one
 repository, and GitHub lost nothing to it, because the products answer
 different questions. The Dinah GUI is a single-workbench, single-seat view:
-walk the board, read cards, perform the verbs. The portfolio view, the
-multi-user board, live coordination between seats, analytics, and operator
-surfaces across many workbenches are the hosted product, and the GUI does not
-grow toward them. Where the GUI's ceiling is reached, the answer is the
-upgrade path, not a bigger GUI.
+walk the board, read cards, perform the verbs the HTTP head routes. The
+portfolio view, the multi-user board, live coordination between seats,
+analytics, and operator surfaces across many workbenches are the hosted
+product, and the GUI does not grow toward them. Where the GUI's ceiling is
+reached, the answer is the upgrade path, not a bigger GUI. No button on a page
+runs an agent.
+
+Every act a page performs is written to a command log as the command line
+that would have performed it at a terminal. The line is derived from the
+request through the same parameter table that generates the CLI's syntax and
+the MCP schema, so the log cannot teach a spelling the terminal does not
+accept. The log also takes a typed line back, parsed by the CLI's own parser,
+and performs it as a click would. Until the HTTP head routes the checklist,
+link and field commands, the typed line runs only the commands that have a
+route, and refuses the rest with the name of the command.
 
 ## Onboarding: guidance is served, templates are instantiated
 
@@ -214,8 +237,8 @@ column shows its count against the limit, and a node's context menu is the
 affordances block rendered as menu items, so illegal actions are absent
 from the representation here exactly as they are everywhere else. The
 in-binary TUI runs in the integrated terminal at every rung for free, and
-the webview rung comes last, embedding the server-rendered ui pages once
-they exist. The extension speaks to the binary over the machine surfaces
+the webview rung comes last, embedding the pages `dinah ui` serves. The
+extension speaks to the binary over the machine surfaces
 and never parses human output.
 
 ## Extension processing
@@ -435,4 +458,3 @@ frontmatter.
 - Whether the HTTP surface also serves the mirror and interchange
   representations, which dinah-612 carries with `export`.
 - LSP scope: registry-driven diagnostics and completion first; what else.
-- GUI timing: which milestone it enters after the CLI and MCP heads exist.

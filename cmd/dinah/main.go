@@ -270,7 +270,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	// prose and refused as a second word.
 	// unblock joins block because its tail is read by s.freeText on the same
 	// terms: the reason is prose, and a flag-shaped word inside it is text.
-	if command.name != "add" && command.name != "block" && command.name != "unblock" && command.name != "comment" && command.name != "workbench" && command.name != "workstream" && command.name != "set" {
+	if resolvesOpenTail(command.name) {
 		if refusal := resolveOpenTailFlags(parsed, command); refusal != nil {
 			return s.reportError(refusal)
 		}
@@ -282,6 +282,19 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		return s.fail(contract.Usage, "--"+flag)
 	}
 	return command.run(s, parsed)
+}
+
+// resolvesOpenTail reports whether a command's flag-shaped words are corrected
+// by resolveOpenTailFlags once the command is known, which is every command
+// but the seven the comment in run names. run and the pages' typed line both
+// ask it, so a line typed into the command log is parsed as the terminal
+// parses the same words.
+func resolvesOpenTail(name string) bool {
+	switch name {
+	case "add", "block", "unblock", "comment", "workbench", "workstream", "set":
+		return false
+	}
+	return true
 }
 
 // commandNames returns the live command roster as a membership set.

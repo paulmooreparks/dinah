@@ -1,0 +1,79 @@
+{{define "card"}}      <div class="card">
+        <h1><span class="num">{{.Ref}}</span> {{.Title}}</h1>
+        <p><a href="/?open={{.Ref}}&amp;top={{.Ref}}">{{t "page.open-as-window"}}</a></p>
+{{template "sheet" .}}
+      </div>{{end}}
+
+{{define "sheet"}}<div class="card-sheet">
+          <div class="card-badges"><span class="badge{{if .State.Class}} {{.State.Class}}{{end}}">{{.State.Text}}</span>{{range .Chips}} <span class="chip">{{.}}</span>{{end}}</div>
+          <section class="card-acts" aria-label="{{t "page.acts"}}">{{range .Acts}}{{template "act" .}}{{end}}</section>
+{{- if .Rows}}
+          <table class="kv-table">
+{{- range .Rows}}
+            <tr><th>{{.Name}}</th><td>{{.Value}}</td></tr>
+{{- end}}
+          </table>
+{{- end}}
+{{- if .Body}}
+          <p class="card-body">{{.Body}}</p>
+{{- end}}
+          <details open="open"><summary>{{t "page.sheet.checklist"}}</summary>
+            <table class="kv-table">
+{{- range .Checklist}}
+              <tr><th><span class="badge{{if .State.Class}} {{.State.Class}}{{end}}">{{.State.Text}}</span></th><td>{{.Kind}}{{if .Column}}, {{.Column}}{{end}}{{if .Owner}}, {{.Owner}}{{end}}: {{.Text}}</td></tr>
+{{- end}}
+            </table>
+          </details>
+          <details><summary>{{t "page.sheet.comments"}}</summary>
+            <ol class="comment-index">
+{{- range .Comments}}
+              <li><a href="{{.Href}}">{{.Subject}}</a> {{.Author}}, <time datetime="{{.TS}}">{{.TS}}</time></li>
+{{- end}}
+            </ol>
+{{- with .Comment}}{{template "act" .}}{{end}}
+          </details>
+          <details><summary>{{t "page.sheet.links"}}</summary>
+            <ul>
+{{- range .Links}}
+              <li><a href="{{.Href}}">{{.Text}}</a></li>
+{{- end}}
+            </ul>
+            <ul>
+{{- range .Attachments}}
+              <li>{{.Name}}{{if .Value}}: {{.Value}}{{end}}</li>
+{{- end}}
+            </ul>
+          </details>
+          <details{{if .InstructionsOpen}} open="open"{{end}}><summary>{{.InstructionsTitle}}</summary>
+{{- range .Layers}}
+            <h3>{{.Name}}</h3>
+            <p class="card-body">{{.Value}}</p>
+{{- end}}
+          </details>
+        </div>{{end}}
+
+{{define "act"}}{{if .Link}}<a class="btn" href="{{.Link}}">{{.Button}}</a>{{else if eq .Control "block"}}<details class="act-block"><summary class="btn">{{.Button}}</summary><form method="post" action="{{.Action}}">{{template "hidden" .Hidden}}<input class="form-input" name="reason" required="required" aria-label="{{t "page.act.reason"}}" /><input class="form-input" name="kind" aria-label="{{t "page.act.kind"}}" /><button class="{{if .Primary}}btn btn-primary{{else}}btn{{end}}" type="submit">{{.Button}}</button></form></details>{{else}}<form method="post" action="{{.Action}}">{{template "hidden" .Hidden}}
+{{- if eq .Control "move"}}<label class="form-label" for="{{.ID}}-column">{{t "page.act.move-to"}}</label><select class="form-select" id="{{.ID}}-column" name="column">{{range .Options}}<option value="{{.Value}}">{{.Name}}</option>{{end}}</select>
+{{- else if eq .Control "unblock"}}<input class="form-input" name="reason" aria-label="{{t "page.act.reason"}}" />
+{{- else if eq .Control "comment"}}<textarea class="form-textarea" name="text" required="required" aria-label="{{t "page.act.comment-text"}}"></textarea>
+{{- end}}<button class="{{if .Primary}}btn btn-primary{{else}}btn{{end}}" type="submit">{{.Button}}</button>{{if .Note}}<span class="act-note">{{.Note}}</span>{{end}}</form>{{end}}{{end}}
+
+{{define "hidden"}}{{range .}}<input type="hidden" name="{{.Name}}" value="{{.Value}}" />{{end}}{{end}}
+
+{{define "win"}}      <article class="win{{if .Active}} active{{end}}" data-win="{{.Key}}" data-win-mode="{{.Mode}}" role="dialog" aria-labelledby="win-{{.Key}}-title"{{if .Hidden}} hidden="hidden"{{end}}{{if .Placed}} style="--win-x:{{.X}}; --win-y:{{.Y}}; --win-w:{{.W}}; --win-h:{{.H}}"{{end}}>
+        <header class="win-head">
+          <h2 class="win-title" id="win-{{.Key}}-title"><span class="num">{{.Ref}}</span> {{.Title}}</h2>
+          <nav class="win-chrome" aria-label="{{t "page.window"}}">
+            <a class="win-btn" data-win-action="page" href="{{.PageHref}}" aria-label="{{t "page.window.page"}}"></a>
+            <a class="win-btn" data-win-action="minimize" href="{{.MinHref}}" aria-label="{{t "page.window.minimize"}}"></a>
+            <a class="win-btn" data-win-action="maximize" href="{{.MaxHref}}" aria-label="{{.MaxLabel}}"></a>
+            <a class="win-btn" data-win-action="close" href="{{.CloseHref}}" aria-label="{{t "page.window.close"}}"></a>
+          </nav>
+        </header>
+        <div class="win-body" data-live="win-body">
+          {{template "sheet" .Sheet}}
+        </div>
+      </article>{{end}}
+
+{{define "window"}}{{template "win" .}}
+{{end}}

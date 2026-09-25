@@ -56,11 +56,16 @@ func affordanceRows() []answer.AffordanceRow {
 	return rows
 }
 
-// readAffordances answers GET /affordances.
+// readAffordances answers GET /affordances, as the generic page to a
+// browser.
 func readAffordances(h *head, x *exchange) {
 	encoded, err := answer.EncodeAffordanceTable(affordanceRows())
 	if err != nil {
 		http.Error(x.w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if x.served == typeHTML {
+		h.writeGeneric(x, encoded)
 		return
 	}
 	x.w.Header().Set("Content-Type", servedJSON(x.served))

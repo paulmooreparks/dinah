@@ -46,6 +46,7 @@ var refusalStatus = map[string]int{
 	contract.ForeignHost:          http.StatusMisdirectedRequest,
 	contract.BasisRequired:        http.StatusPreconditionRequired,
 	contract.NotImplemented:       http.StatusNotImplemented,
+	contract.NotServed:            http.StatusNotImplemented,
 }
 
 // statusFor is the one place a status is chosen for an answer the library or
