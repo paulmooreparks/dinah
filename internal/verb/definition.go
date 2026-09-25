@@ -710,12 +710,17 @@ var params = map[string][]Param{
 		{Name: "root", Flag: true, Value: "path", Shared: "root", Field: "Root", Complete: CompleteDirs},
 		{Name: "max-depth", Flag: true, Value: "n", Shared: "max-depth", Field: "MaxDepth", Complete: CompleteNone},
 	},
-	// view takes one optional positional, the name of the view to draw, and
-	// no flag of its own; leaving the name out lists every view the caller
-	// can see. The name declares no Vocabulary, because the views a caller
-	// can see depend on the user base and the workbench rather than on
-	// anything this table can enumerate.
-	"view": {{Name: "view", Field: "View", Complete: CompleteView}},
+	// view takes two optional positionals, the name of the view to draw and
+	// a card to narrow it to; leaving the name out lists every view the
+	// caller can see. The name declares no Vocabulary, because the views a
+	// caller can see depend on the user base and the workbench rather than
+	// on anything this table can enumerate. --explain carries every term
+	// behind every rank of a view ordered by urgency.
+	"view": {
+		{Name: "view", Field: "View", Complete: CompleteView},
+		{Name: "card", Display: "ref", Field: "Card", Complete: CompleteCard},
+		{Name: "explain", Flag: true, Marker: true, Field: "Explain"},
+	},
 	// fields is declared here, as a parameter of show, rather than as an
 	// injected property of the MCP head. The schema generator then publishes
 	// it on show and on no other tool, a person at a terminal gains

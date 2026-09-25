@@ -1110,11 +1110,12 @@ these members:
 | the view's key | yes | none | one segment of the harness-name grammar, at most 64 bytes |
 | `title` | no | the view's name | any non-blank text |
 | `layout` | no | `list` | `list` |
-| `order` | no | `arrival` | `arrival`, `column` |
+| `order` | no | `arrival` | `arrival`, `column`, `urgency` |
 | `collapsed` | no | the columns whose kind is `intake` or `done` | a sequence of column references |
 | `sections` | yes | none | at least one section |
-| section `title` | no | the section's `query`, as declared | any non-blank text |
-| section `query` | yes | none | any non-blank text, parsed only when the view is drawn or checked |
+| section `title` | no | the section's `query`, as declared, or its `scope` where it has no query | any non-blank text |
+| section `query` | one of the two | none | any non-blank text, parsed only when the view is drawn or checked |
+| section `scope` | one of the two | none | `actionable` |
 
 A blank title reads as absent. A scalar member written as a number or a
 boolean is read as its literal text. `collapsed` is validated for its shape
@@ -1128,8 +1129,9 @@ the name grammar; `not-a-mapping`, the view is not a mapping; `malformed-member`
 a scalar member is not a scalar, `collapsed` is not a sequence of scalars,
 `sections` is not a sequence, a section is not a mapping, or a section's
 `title` or `query` is not a scalar; `no-sections`, `sections` is absent or
-empty; `section-without-query`, a section has no query or a blank one;
-`unknown-layout` and `unknown-order`, a value outside what this build admits.
+empty; `section-without-query`, a section has neither a non-blank query nor
+a scope; `unknown-layout` and `unknown-order`, a value outside what this build
+admits; `unknown-scope`, a section's scope outside what this build admits.
 A malformed view is still read and listed and still takes its place in name
 resolution, and it cannot be drawn.
 
@@ -1159,6 +1161,23 @@ given to the `dinah.views` member alone, because the import's read-back guard
 checks lines against the generic reader, which is the reader views are read
 by and not the reader every other member is read by.
 
+A section's `scope` selects cards no query can express. `actionable` is the
+set of cards the caller can act on: for the operator, every card in a column
+he owns that is not of the done kind, every card carrying an item that waits on
+him, every blocked card, and every card `dinah next` offers him; for anybody
+else, the cards `dinah next` offers. A section carrying a scope and a query
+selects the cards the query matches that are also in the scope. A view whose
+order is `urgency` or which carries a scoped section needs an actor and
+refuses `no-owner` without one. Dinah ships a view named `agenda`, ordered by
+`urgency`, whose one section is scoped `actionable`.
+
+The `urgency` order ranks each section's cards on their own, highest score
+first, then by arrival in the current column, then by card number. A card's
+score is the sum of the eight terms the `dinah.urgency` layer below weights.
+This build draws the `list` layout alone, and what `urgency`, `--explain` and
+a card argument to `dinah view` do under the `columns` layout is specified with
+that layout (dinah-288).
+
 Three findings report on a workbench's views, and none on a user's, because a
 user's views are not part of a workbench. `check.view-malformed` names a view
 that cannot be drawn, or a `dinah.views` value that is not a mapping.
@@ -1166,6 +1185,65 @@ that cannot be drawn, or a `dinah.views` value that is not a mapping.
 cleanup severity. `check.view-query-refused` names a section of a well-formed
 view whose query this workbench refuses on the checks that read no card, at
 cleanup severity.
+
+### Urgency weights, the `dinah.urgency` layer
+
+A workbench declares the weights of the `urgency` order under the top-level
+frontmatter key `dinah.urgency` in its own `workbench.md`. The key is read
+from that file alone; a `dinah.urgency` key in a user's `config.md` has no
+effect. The block is read through the same reader `dinah.views` is, and no
+verb writes it.
+
+| Term key | Shape | Default |
+|---|---|---|
+| `waits-on-you` | number | `10` |
+| `your-question` | mapping of `per-item` (number) and `cap` (whole number) | `per-item: 4`, `cap: 3` |
+| `priority` | list of numbers, at least one | `[0, 2, 4, 6]` |
+| `severity` | list of numbers, at least one | `[0, 1, 2, 4]` |
+| `blocked` | number | `3` |
+| `blocks-others` | number | `2` |
+| `age` | mapping of `per-day` (number) and `cap` (whole number) | `per-day: 0.5`, `cap: 5` |
+| `stale-claim` | number | `3` |
+
+A number is a decimal literal with no exponent and at most one significant
+digit after the decimal point, so `0.50` is admitted and `0.25` and `1e1` are
+not, and its magnitude is at most 1000. A whole number is a number with no
+tenths, from 0 to 1000. A term or member the block leaves out keeps its
+default. Dinah holds every weight as an integer count of tenths, so a score
+is exact and is written with exactly one decimal digit.
+
+The spellings follow from the shared reader. A weight is written bare, a list
+inline on its member's line, a mapping term with one member per line beneath
+it, and a comment on a line of its own. A quoted number, a dashed list, a flow
+mapping and a trailing comment each reach the reader as text and are
+malformed. The example the views guide prints is this block:
+
+```yaml
+dinah.urgency:
+  waits-on-you: 10
+  # priority weights, lowest first: later, soon, next, now
+  priority: [0, 2, 4, 6]
+  age:
+    per-day: 0.5
+    cap: 5
+```
+
+A key with nothing readable beneath it, the key alone or the key followed only
+by comments, declares nothing, and every term takes its default. Any other
+value that is not a mapping is `not-a-mapping`, and a term or member of the
+wrong shape, out of range, or an empty list is `malformed-term`. A malformed
+block refuses every view ordered by `urgency` with `dinah.malformed-urgency`,
+naming the defect, the term's path and the value read, and never falls back to
+the defaults; every other view draws. A member the block does not know is
+ignored and left in the file.
+
+Three findings report on the block. `check.urgency-malformed` names a block
+that cannot be used. `check.urgency-member-unknown` names a member this build
+does not read, at cleanup severity. `check.urgency-level-count` names a
+`priority` or `severity` list the block declares whose length differs from the
+levels the workbench declares on that axis, at cleanup severity; a list aligns
+at the top of the declared set, so the highest level always takes the last
+weight.
 
 ## History
 

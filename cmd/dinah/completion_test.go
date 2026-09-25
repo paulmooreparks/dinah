@@ -747,11 +747,11 @@ func TestViewNamesComplete(t *testing.T) {
 			titles = append(titles, row.Title)
 		}
 	}
-	if len(listing.Views) != 5 || strings.Join(want, " ") != "alpha daily mine" {
-		t.Fatalf("dinah view listed %d rows, using %q; the fixture should give five rows using alpha, daily and mine", len(listing.Views), want)
+	if len(listing.Views) != 6 || strings.Join(want, " ") != "agenda alpha daily mine" {
+		t.Fatalf("dinah view listed %d rows, using %q; the fixture should give six rows using agenda, alpha, daily and mine", len(listing.Views), want)
 	}
 	got := zsh(t, root, "view", "")
-	if strings.Join(got.inserts, " ") != strings.Join(want, " ") || strings.Join(got.descriptions, "|") != "Alpha|User daily|Workbench mine" {
+	if strings.Join(got.inserts, " ") != strings.Join(want, " ") || strings.Join(got.descriptions, "|") != "What needs me first|Alpha|User daily|Workbench mine" {
 		t.Errorf("view offered %q described %q; wanted %q described %q", got.inserts, got.descriptions, want, titles)
 	}
 	if prefix := zsh(t, root, "view", "da"); strings.Join(prefix.inserts, " ") != "daily" {

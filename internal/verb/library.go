@@ -24,12 +24,14 @@ type Library struct {
 	// lists one from the store, and with ObserveItemAnchor and the member's
 	// own identifier when it opens an item's anchor to read its kind.
 	//
-	// It reports the store reads a collection listing makes and no others. The
-	// two arms of containmentMembersOf that answer from the workbench already
-	// in memory, columns and cards, return before the event, so a caller
-	// counting ObserveList is counting listings that went to disk. Nothing
-	// outside the containment projection reports at all: this is not a
-	// general account of what a verb reads.
+	// Within the projection it reports the store reads a collection listing
+	// makes and no others. The two arms of containmentMembersOf that answer
+	// from the workbench already in memory, columns and cards, return before
+	// the event, so a caller counting ObserveList is counting listings that
+	// went to disk. Beyond the projection, the card detail read reports each
+	// designated comment it opens and a view ordered by urgency reports each
+	// journal it reads to rank a card, and nothing else reports at all: this
+	// is not a general account of what a verb reads.
 	//
 	// It is a field for the reason Now and Interleave are fields. The
 	// projection's read bound, one listing of a card's checklist and one
@@ -248,6 +250,9 @@ type Request struct {
 	// View is the name of the view dinah view draws, empty for the listing
 	// of every view the caller can see.
 	View string
+	// Explain asks dinah view to carry every term behind every rank of a
+	// view ordered by urgency.
+	Explain bool
 	// Lang is the language a read answers its own prose in, which is the
 	// title of a built-in view. The cli head sets the session's language;
 	// the mcp head leaves it empty, which reads as the base catalog.

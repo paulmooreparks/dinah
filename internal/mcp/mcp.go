@@ -1100,6 +1100,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.FullPending = value
 	case "brief":
 		req.Brief = value
+	case "explain":
+		req.Explain = value
 	case "archived":
 		req.Archived = value
 	case "wait":

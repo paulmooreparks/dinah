@@ -132,16 +132,19 @@ A card's urgency is a sum of terms. Each term's weight is declared in the workbe
 | age | per day in its current column, up to five days | 0.5 per day |
 | stale claim | the claim has outlived its expiry | 3 |
 
-Weights are declared like this, and a term a workbench leaves out keeps its default.
+Weights are declared under `dinah.urgency` in `workbench.md`, like this, and a term a workbench leaves out keeps its default. The two mapping terms are written with one member per line, and a comment goes on a line of its own, because the shared block reader reads a flow mapping and a trailing comment as text.
 
 ```yaml
-urgency:
+dinah.urgency:
   waits-on-you: 10
-  priority: [0, 2, 4, 6]      # later, soon, next, now
-  age: {per-day: 0.5, cap: 5}
+  # priority weights, lowest first: later, soon, next, now
+  priority: [0, 2, 4, 6]
+  age:
+    per-day: 0.5
+    cap: 5
 ```
 
-The agenda ranks only cards the caller can act on. For the operator that means cards at his stations and cards carrying his items. For an agent it means the cards `next` would offer it, which already respects tier, route and claims. So an agent's agenda is `prime`'s ready list put in order, and `prime` could adopt that order later without changing what it offers.
+The agenda ranks only cards the caller can act on. For an agent it means the cards `next` would offer it, which already respects tier, route and claims. So an agent's agenda is `prime`'s ready list put in order, and `prime` could adopt that order later without changing what it offers. For the operator it means four arms: cards at his stations, except a station of the done kind, since a finished card there is work already done; cards carrying his items, in any column, the done kind included; every blocked card, because a block is how this workbench raises a question for him; and, on his ruling of 2026-09-25, the ready cards `next` would offer him.
 
 ### 4.3 Reading the agenda
 

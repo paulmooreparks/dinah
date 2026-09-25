@@ -1455,7 +1455,8 @@ func itemKindAt(dir string) string {
 
 // The events Library.Observe reports. The first two are the two ways the
 // containment projection reaches the store; the third belongs to the card
-// detail read, which the projection is no part of.
+// detail read and the fourth to the urgency order, neither of which the
+// projection is part of.
 const (
 	// ObserveList is one collection listed, named by its path.
 	ObserveList = "list"
@@ -1468,6 +1469,11 @@ const (
 	// count distinguish the indexed checklist read, which opens none, from
 	// the full one, which opens one per settled item.
 	ObserveDesignatedComment = "designated-comment"
+	// ObserveJournal is one card's journal read to rank it in a view ordered
+	// by urgency, named by the journal's path. A draw reads each ranked
+	// card's journal once and derives its arrival and its claim history from
+	// that one reading, which is what a count of this event establishes.
+	ObserveJournal = "journal"
 )
 
 // observe reports one read to whoever is watching, and does nothing when

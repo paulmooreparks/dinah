@@ -20,6 +20,8 @@ import (
 func runView(s *session, parsed *arguments) int {
 	req := s.request("view", parsed)
 	req.View = at(parsed.rest(), 0)
+	req.Card = at(parsed.rest(), 1)
+	req.Explain = parsed.has("explain")
 	req.Lang = s.r.Tag
 	return s.withBench(func(l *verb.Library) int {
 		if req.View == "" {
@@ -38,7 +40,11 @@ func runView(s *session, parsed *arguments) int {
 		if s.format != formatHuman {
 			return s.emitMachine(answer)
 		}
-		s.renderView(answer, l.Bench.Operator)
+		if answer.View.Explained && req.Card != "" {
+			s.renderExplainedCard(answer.View, explainReaderFor(answer.View, l.Bench))
+			return 0
+		}
+		s.renderView(answer, l.Bench)
 		return 0
 	})
 }
@@ -89,7 +95,8 @@ func (s *session) emitViewList(listing *verb.ViewListing) int {
 // renderView draws a view in the list layout: a heading naming the view and
 // who it was asked as, then each section's heading and its cards, one table
 // per section because two sections can carry different columns.
-func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
+func (s *session) renderView(answer *verb.ViewAnswer, b *bench.Bench) {
+	operator := b.Operator
 	body := answer.View
 	heading := body.Title
 	if body.Actor != "" {
@@ -111,6 +118,10 @@ func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
 			s.renderRefusedSection(section)
 		case section.Count == 0:
 			s.line(s.wrappedLine(2, s.r.T("view.section.empty")))
+		case body.Order == bench.ViewOrderUrgency && body.Explained:
+			s.renderExplainedSection(section, explainReaderFor(body, b))
+		case body.Order == bench.ViewOrderUrgency:
+			s.renderRankedSection(section, body.Actor)
 		default:
 			cards := table{
 				indent:          2,

@@ -77,7 +77,7 @@ internal/guide/guides/references.md:18 figure=three noun=ways counts=the spellin
 internal/guide/guides/references.md:144 figure=Twenty-one noun=commands counts=the commands that take a reference derives=referenceCommands
 internal/guide/guides/references.md:170 figure=Ten noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference, with the per-command setup that lets each cell answer, and holds this sentence's named list against both what each one did and what internal/verb declares
 internal/guide/guides/references.md:172 figure=Eleven noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
-internal/guide/guides/views.md:111 figure=Two noun=fields counts=the query fields that describe a card's checklist items holds=unreachable at=internal/verb/query.go:93 declares=itemPlane
+internal/guide/guides/views.md:116 figure=Two noun=fields counts=the query fields that describe a card's checklist items holds=unreachable at=internal/verb/query.go:93 declares=itemPlane
 internal/guide/guides/verbs.md:1 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:3 figure=Five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
 internal/guide/guides/verbs.md:36 figure=two noun=commands counts=two of the five verbs holds=partitive reason=the two are claim and move, whose separate records a pull writes together

@@ -414,6 +414,15 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 			return nil, err
 		}
 	}
+	return l.columnOffers(req, cards, columns)
+}
+
+// columnOffers is every offer the named columns make to the caller of req,
+// in the order the columns are given, over cards the caller has already run
+// the lapse pass on. Next, Prime and the actionable scope of a view all call
+// it, and nothing else calls offerFor, so the three cannot disagree about
+// what a column offers the one caller.
+func (l *Library) columnOffers(req *Request, cards []*bench.Card, columns []*bench.Column) ([]Offer, error) {
 	admit := selectionAdmission(l.Bench, req)
 	offers := make([]Offer, 0, len(columns))
 	for _, column := range columns {
@@ -430,8 +439,9 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 // admission, on the terms Next has always built every column's offer: a
 // claim takes the head of what the column itself offers, and a pull takes
 // the head of what the column beyond it, on the card's own route, offers.
-// This is the one place that scan is written, so Next and Prime.Ready read
-// one answer and cannot disagree about what a column offers.
+// This is the one place that scan is written, and columnOffers is its one
+// caller, so Next, Prime.Ready and the actionable scope read one answer and
+// cannot disagree about what a column offers.
 //
 // A column offers its head card when some act could take that card up, and
 // offers nothing when none could. A claim could take it where the column
@@ -2525,13 +2535,12 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 		holding = append(holding, *view)
 		heldCards = append(heldCards, card)
 	}
-	admit := selectionAdmission(l.Bench, req)
+	offers, err := l.columnOffers(req, cards, l.Bench.Columns)
+	if err != nil {
+		return nil, err
+	}
 	ready := []Offer{}
-	for _, column := range l.Bench.Columns {
-		offer, err := l.offerFor(column, cards, admit)
-		if err != nil {
-			return nil, err
-		}
+	for _, offer := range offers {
 		if offer.Card == nil && !offer.AboveTier {
 			continue
 		}

@@ -673,6 +673,18 @@
       "text": "a view in dinah.views asks a question this workbench refuses: {detail}",
       "context": "A check finding at cleanup severity: a section of one of this workbench's views whose query this workbench refuses, such as one naming a column the workbench no longer has. {detail} carries the view's name, the section's one-based position and the refusal's machine name."
     },
+    "check.urgency-malformed": {
+      "text": "the dinah.urgency block cannot be used, so every view ordered by urgency refuses: {detail}",
+      "context": "A check finding: this workbench's dinah.urgency block, which declares the weights of the urgency order, cannot be read, so every view ordered by urgency refuses to draw until it is repaired. {detail} carries `dinah.urgency not-a-mapping`, or the path of the member at fault followed by the machine token malformed-term. dinah.urgency is the key the weights are declared under and is never translated."
+    },
+    "check.urgency-member-unknown": {
+      "text": "the dinah.urgency block carries a member this build does not read, and it is ignored: {detail}",
+      "context": "A check finding at cleanup severity: a member of this workbench's dinah.urgency block that this build does not read, such as a misspelt weight. {detail} carries the member's path within the block, such as age.perday. The member is kept in the file and ignored, so the term it was meant for keeps its default."
+    },
+    "check.urgency-level-count": {
+      "text": "a level list in dinah.urgency is not as long as the set it weights, so it is aligned at the top: {detail}",
+      "context": "A check finding at cleanup severity: the dinah.urgency block declares a priority or severity weight list whose length differs from the number of levels the workbench declares on that axis. {detail} carries the axis, the list's length and the declared count. The list still works: the highest level takes the last weight."
+    },
     "check.format-current": {
       "text": "The store already declares format {format}, so there is nothing to stamp.",
       "context": "The line a format stamp prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number."
@@ -3117,6 +3129,14 @@
       "text": "the view to draw; leave it out to list every view",
       "context": "The meaning of the view argument of `dinah view`, printed in that command's arguments table. The argument is a view's name."
     },
+    "param.view.card.summary": {
+      "text": "a card to narrow the view to, keeping the rank it holds in the whole view",
+      "context": "The meaning of the optional card argument of `dinah view`, printed in that command's arguments table. The argument is a card reference, and the view then draws that card's row alone."
+    },
+    "param.view.explain.summary": {
+      "text": "print every term behind each rank of a view ordered by urgency",
+      "context": "The meaning of the --explain flag of `dinah view`, printed in that command's arguments table. It prints the arithmetic behind each card's rank, term by term."
+    },
     "param.unblock.reason.summary": {
       "text": "why the block is lifted, in one shell word or in quotation marks; leave it out to lift the block without saying why",
       "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table."
@@ -3864,6 +3884,34 @@
     "refusal.dinah.views-unreadable.next": {
       "text": "; repair or remove the file, or its dinah.views block",
       "context": "The next step of refusal.dinah.views-unreadable. dinah.views is the key the views are declared under and is never translated."
+    },
+    "refusal.dinah.malformed-urgency": {
+      "text": "view {detail} is ordered by urgency, and this workbench's dinah.urgency block cannot be used: {defect}",
+      "context": "The sentence printed after the refusal name dinah.malformed-urgency, which `dinah view` carries when a view ordered by urgency is drawn on a workbench whose dinah.urgency block cannot be read. {detail} is the view's name and {defect} is a machine token naming what is wrong (not-a-mapping or malformed-term). dinah.urgency and {defect} are never translated. refusal.dinah.malformed-urgency.term is spliced on after it where one member is at fault, and refusal.dinah.malformed-urgency.next after that."
+    },
+    "refusal.dinah.malformed-urgency.term": {
+      "text": "; {term} reads as {read}",
+      "context": "A fragment of refusal.dinah.malformed-urgency, spliced on where one member of the block is at fault. {term} is that member's path within the block, such as age.cap, and {read} is the value the reader found there, written as JSON, so a quoted number or a trailing comment shows in it. Both are machine text and are never translated."
+    },
+    "refusal.dinah.malformed-urgency.next": {
+      "text": "; write a weight bare, a list inline as [0, 2, 4, 6], and a comment on a line of its own",
+      "context": "The next step of refusal.dinah.malformed-urgency. It names the three spellings the dinah.urgency block reads: a weight with no quotes, a list written on one line in brackets, and a comment on a line by itself rather than after a value. The bracketed list is syntax and stays as it is."
+    },
+    "refusal.dinah.card-not-in-view": {
+      "text": "no section of view {view} selects {detail}",
+      "context": "The sentence printed after the refusal name dinah.card-not-in-view, which `dinah view <view> <card>` carries when the card exists and no section of the view selects it, so there is no row to narrow the view to. {view} is the view's name and {detail} is the card's reference. refusal.dinah.card-not-in-view.next is spliced on after it."
+    },
+    "refusal.dinah.card-not-in-view.next": {
+      "text": "; `dinah view {view}` shows what it does select",
+      "context": "The next step of refusal.dinah.card-not-in-view. The command inside it is syntax and stays as it is, with {view} the view's name."
+    },
+    "refusal.dinah.view-not-ranked": {
+      "text": "view {detail} is ordered by {order}, which ranks nothing, so there is no arithmetic to explain",
+      "context": "The sentence printed after the refusal name dinah.view-not-ranked, which `dinah view --explain` carries on a view whose order is not urgency. {detail} is the view's name and {order} is the order it declares, a machine word that is never translated. refusal.dinah.view-not-ranked.next is spliced on after it."
+    },
+    "refusal.dinah.view-not-ranked.next": {
+      "text": "; `dinah view {view}` draws it without --explain",
+      "context": "The next step of refusal.dinah.view-not-ranked. The command inside it is syntax and stays as it is, with {view} the view's name, and --explain is the flag the reader typed."
     },
     "refusal.dinah.unknown-command": {
       "text": "Dinah offers no command called {detail}",
@@ -5661,6 +5709,170 @@
       "text": "Blocked by me",
       "context": "The title of the second section of the built-in view mine: the cards now blocked on which the caller recorded a block, whether or not the caller ever held them."
     },
+    "view.agenda.title": {
+      "text": "What needs me first",
+      "context": "The title of the built-in view named agenda, which ranks the cards the caller can act on by urgency, most urgent first."
+    },
+    "view.agenda.actionable": {
+      "text": "Cards you can act on",
+      "context": "The title of the one section of the built-in view agenda: the cards the caller can act on now."
+    },
+    "view.urgency.why.waits-on-you": {
+      "text": "waits on you",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores a card standing in a column the operator owns. The cell joins the phrases of every term that moved the card with a comma."
+    },
+    "view.urgency.why.your-question.one": {
+      "text": "your question",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores the open questions and decisions on a card that are the reader's, when it counted exactly one."
+    },
+    "view.urgency.why.your-question.other": {
+      "text": "your questions ({count})",
+      "context": "The same as view.urgency.why.your-question.one, when the term counted any other number of items. {count} is how many it counted."
+    },
+    "view.urgency.why.blocked": {
+      "text": "blocked",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores a blocked card."
+    },
+    "view.urgency.why.age.one": {
+      "text": "{count} day here",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores how many whole days a card has stood in its current column, when that is exactly one."
+    },
+    "view.urgency.why.age.other": {
+      "text": "{count} days here",
+      "context": "The same as view.urgency.why.age.one, for any other number of whole days. {count} is that number."
+    },
+    "view.urgency.why.stale-claim": {
+      "text": "stale claim",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores a ready card whose last claim lapsed rather than being released or moved."
+    },
+    "view.urgency.term.waits-on-you": {
+      "text": "waits on you",
+      "context": "The label of one term line --explain prints, in a list of the eight terms of the urgency order. This term scores a card standing in a column the operator owns."
+    },
+    "view.urgency.term.your-question": {
+      "text": "your question",
+      "context": "The label of one term line --explain prints. This term scores the open questions and decisions on a card that are the reader's to answer."
+    },
+    "view.urgency.term.priority": {
+      "text": "priority",
+      "context": "The label of one term line --explain prints. This term scores the card's priority."
+    },
+    "view.urgency.term.severity": {
+      "text": "severity",
+      "context": "The label of one term line --explain prints. This term scores the card's severity."
+    },
+    "view.urgency.term.blocked": {
+      "text": "blocked",
+      "context": "The label of one term line --explain prints. This term scores a blocked card."
+    },
+    "view.urgency.term.blocks-others": {
+      "text": "blocks others",
+      "context": "The label of one term line --explain prints. This term will score the unfinished cards a card blocks, once blocks links carry a meaning, and scores nothing until then."
+    },
+    "view.urgency.term.age": {
+      "text": "age",
+      "context": "The label of one term line --explain prints. This term scores the whole days a card has stood in its current column."
+    },
+    "view.urgency.term.stale-claim": {
+      "text": "stale claim",
+      "context": "The label of one term line --explain prints. This term scores a ready card whose last claim lapsed."
+    },
+    "view.urgency.total": {
+      "text": "urgency",
+      "context": "The label of the total line --explain prints under the rule, beside the card's score, which is the sum of the eight term figures above it."
+    },
+    "view.urgency.explain.waits-on-you.owned": {
+      "text": "{column} is yours",
+      "context": "The phrase --explain prints for the waits-on-you term when the operator owns the column the card stands in. {column} is that column's title."
+    },
+    "view.urgency.explain.waits-on-you.unowned": {
+      "text": "{column} is not yours",
+      "context": "The phrase --explain prints for the waits-on-you term when the reader is the operator and does not own the column the card stands in. {column} is that column's title."
+    },
+    "view.urgency.explain.waits-on-you.finished": {
+      "text": "{column} holds finished work",
+      "context": "The phrase --explain prints for the waits-on-you term when the reader is the operator and the card stands in a done column he owns. The term scores nothing there because the work is finished, and the phrase gives that reason rather than saying the column is not his. {column} is that column's title."
+    },
+    "view.urgency.explain.waits-on-you.agent": {
+      "text": "only the operator owns a column",
+      "context": "The phrase --explain prints for the waits-on-you term when the reader is not the operator. The only ownership a column declares is the operator's, so the term never applies to anybody else."
+    },
+    "view.urgency.explain.your-question.none": {
+      "text": "none of its items is yours",
+      "context": "The phrase --explain prints for the your-question term when no open question or decision on the card is the reader's to answer."
+    },
+    "view.urgency.explain.your-question.one": {
+      "text": "{count} of its items is yours, {per-item} each",
+      "context": "The phrase --explain prints for the your-question term when exactly one item on the card is the reader's. {count} is that number, and {per-item} is the points each counted item scores."
+    },
+    "view.urgency.explain.your-question.other": {
+      "text": "{count} of its items are yours, {counted} counted, {per-item} each",
+      "context": "The same as view.urgency.explain.your-question.one, for any other number. {count} is how many items are the reader's, {counted} is how many the cap let the term count, and {per-item} is the points each counted item scores."
+    },
+    "view.urgency.explain.priority.none": {
+      "text": "no priority",
+      "context": "The phrase --explain prints for the priority term when the card carries no priority. A card with none scores nothing, rather than scoring as the lowest level."
+    },
+    "view.urgency.explain.severity.none": {
+      "text": "no severity",
+      "context": "The phrase --explain prints for the severity term when the card carries no severity. A card with none scores nothing, rather than scoring as the lowest level."
+    },
+    "view.urgency.explain.level": {
+      "text": "{level}, rank {rank} of {of}",
+      "context": "The phrase --explain prints for the priority or severity term. {level} is the name the card carries, {rank} is its one-based position in the workbench's declared set, lowest first, and {of} is how many the set declares."
+    },
+    "view.urgency.explain.level.undeclared": {
+      "text": "{level} is not declared",
+      "context": "The phrase --explain prints for the priority or severity term when the card carries a name the workbench does not declare on that axis, which scores nothing. {level} is that name."
+    },
+    "view.urgency.explain.blocked": {
+      "text": "blocked",
+      "context": "The phrase --explain prints for the blocked term when the card is blocked and its block names no kind."
+    },
+    "view.urgency.explain.blocked.kind": {
+      "text": "blocked ({kind})",
+      "context": "The phrase --explain prints for the blocked term when the card is blocked. {kind} is the kind the block recorded, the blocker's own word, which is never translated."
+    },
+    "view.urgency.explain.blocked.not": {
+      "text": "not blocked",
+      "context": "The phrase --explain prints for the blocked term when the card is not blocked."
+    },
+    "view.urgency.explain.blocks-others": {
+      "text": "blocks links are not read yet",
+      "context": "The phrase --explain prints for the blocks-others term, which scores nothing because no build yet gives a blocks link a meaning. blocks is the link kind's machine word and is never translated."
+    },
+    "view.urgency.explain.age.unknown": {
+      "text": "arrival unknown",
+      "context": "The phrase --explain prints for the age term when the card's journal could not be read, so the moment it entered its column is not known and the term counts no days."
+    },
+    "view.urgency.explain.age.one": {
+      "text": "{count} day in {column}, {per-day} per day",
+      "context": "The phrase --explain prints for the age term when the card has stood exactly one whole day in its current column. {column} is that column's title and {per-day} is the points each day scores."
+    },
+    "view.urgency.explain.age.other": {
+      "text": "{count} days in {column}, {per-day} per day",
+      "context": "The same as view.urgency.explain.age.one, for any other number of whole days after the cap. {count} is that number."
+    },
+    "view.urgency.explain.stale-claim": {
+      "text": "the claim {holder} held lapsed at {expired}",
+      "context": "The phrase --explain prints for the stale-claim term when the card's last claim lapsed. {holder} is the owner whose claim it was and {expired} is the moment it lapsed, as a timestamp."
+    },
+    "view.urgency.explain.stale-claim.none": {
+      "text": "no lapsed claim",
+      "context": "The phrase --explain prints for the stale-claim term when the card's last claim did not lapse, or it carries none."
+    },
+    "view.urgency.explain.card": {
+      "text": "{card}: {title}",
+      "context": "The line --explain prints above the terms of the one card named after the view: the card's reference, then its title."
+    },
+    "view.urgency.explain.ranked": {
+      "text": "{rank}. {card}: {title}",
+      "context": "The line --explain prints above the terms of each card when no card is named, in rank order: the card's one-based rank within its section, its reference, then its title."
+    },
+    "view.urgency.explain.total": {
+      "text": "the sum of the terms above",
+      "context": "The phrase --explain prints on the total line, beside the label urgency and the card's score, saying that the score is the sum of the term figures printed above it."
+    },
     "setup.operator.workbench": {
       "text": "the workbench's operator",
       "context": "Placed in parentheses after an agent name in the detail of dinah.setup-agent-is-operator, when the name equals the workbench's operator."
@@ -5788,6 +6000,30 @@
     "column.view.title": {
       "text": "Title",
       "context": "Heading over a card's title, in a section of a view `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.view.rank": {
+      "text": "Rank",
+      "context": "Heading over a card's one-based rank within its section, in a view ordered by urgency that `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.view.urgency": {
+      "text": "Urgency",
+      "context": "Heading over a card's urgency score, in a view ordered by urgency that `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.view.why": {
+      "text": "Why",
+      "context": "Heading over the terms that moved a card's score, in a view ordered by urgency that `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.explain.term": {
+      "text": "Term",
+      "context": "Heading over the name of one term of a card's urgency, in the table --explain draws. The table draws no heading row, so a reader meets this heading only in the stacked form a narrow window draws, in front of each field. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.explain.reading": {
+      "text": "Basis",
+      "context": "Heading over what one term of a card's urgency read, such as the card's priority and its rank, in the table --explain draws. The table draws no heading row, so a reader meets this heading only in the stacked form a narrow window draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
+    },
+    "column.explain.points": {
+      "text": "Points",
+      "context": "Heading over the points one term of a card's urgency contributed, in the table --explain draws. The table draws no heading row, so a reader meets this heading only in the stacked form a narrow window draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language."
     },
     "column.setup-list.path": {
       "text": "Path",
