@@ -298,8 +298,9 @@ func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.Vi
 }
 
 // interactiveOptions are the program's options: input disabled because keys
-// come from Dinah's reader, the terminal or the seam's writer as output, and
-// the ANSI colour profile, or the one with no colour at all under NO_COLOR.
+// come from Dinah's reader, the terminal or the seam's writer as output, the
+// ANSI colour profile, or the one with no colour at all under NO_COLOR, and
+// the environment interactiveEnviron answers.
 // Under the seam the program is also given the seam's size and ignores
 // signals.
 func (s *session) interactiveOptions(width, height int) []tea.ProgramOption {
@@ -307,11 +308,13 @@ func (s *session) interactiveOptions(width, height int) []tea.ProgramOption {
 	if !colourAllowed() {
 		profile = colorprofile.Ascii
 	}
+	environ := tea.WithEnvironment(interactiveEnviron(os.Environ(), runtime.GOOS))
 	if seam := interactiveSeam; seam != nil {
 		return []tea.ProgramOption{
 			tea.WithInput(nil),
 			tea.WithOutput(seam.output),
 			tea.WithColorProfile(profile),
+			environ,
 			tea.WithWindowSize(width, height),
 			tea.WithoutSignals(),
 		}
@@ -320,7 +323,31 @@ func (s *session) interactiveOptions(width, height int) []tea.ProgramOption {
 		tea.WithInput(nil),
 		tea.WithOutput(s.rawOut),
 		tea.WithColorProfile(profile),
+		environ,
 	}
+}
+
+// interactiveEnviron is the environment Bubble Tea reads: the process's own,
+// less TERM on Windows. Bubble Tea's renderer chooses which cursor and
+// repeat sequences to write from TERM, and for terminals such as kitty,
+// alacritty, wezterm and tmux it writes REP and HPA, which Microsoft's
+// "Console Virtual Terminal Sequences" page does not list. A Windows console
+// never needs TERM, and without it the renderer writes only sequences that
+// page documents, so the head relies on nothing undocumented beyond the two
+// corners the operator accepted.
+func interactiveEnviron(environ []string, goos string) []string {
+	if goos != "windows" {
+		return environ
+	}
+	kept := make([]string, 0, len(environ))
+	for _, variable := range environ {
+		name, _, _ := strings.Cut(variable, "=")
+		if strings.EqualFold(name, "TERM") {
+			continue
+		}
+		kept = append(kept, variable)
+	}
+	return kept
 }
 
 // enterKeyboard takes the keyboard and answers how to give it back and the

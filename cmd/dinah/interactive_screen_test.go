@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -374,11 +375,25 @@ var controlSequence = regexp.MustCompile("\x1b\\[[0-9;?<>=]*[ -/]*[@-~]|\x1b\\][
 
 // allowedSequence matches the sequences the program may write: the
 // alternate screen, the cursor's visibility and bracketed paste switched on
-// and off, cursor position, erase in display, erase in line, erase character,
-// cursor movement, the cursor's absolute column, and SGR. Each is listed on
-// Microsoft's "Console Virtual Terminal Sequences" page. Bubble Tea writes the
-// absolute column only where it maps line feeds, which it does off Windows.
-var allowedSequence = regexp.MustCompile(`^\x1b\[(\?1049[hl]|\?25[hl]|\?2004[hl]|[0-9;]*H|[0-9]*J|[0-9]*K|[0-9]*X|[0-9]*[ABCDG]|[0-9;]*m)$`)
+// and off, SGR, and the cursor, erase, text-modification, scrolling and
+// tab sequences Bubble Tea's renderer chooses among to update a frame:
+// cursor up, down, forward, back, next line, previous line, absolute column
+// and absolute row, cursor position, erase in display and in line, insert
+// and delete character, erase character, insert and delete line, scroll up
+// and down, backward and forward tab, the scrolling margins, and reverse
+// index. Each is listed on Microsoft's "Console Virtual Terminal Sequences"
+// page. Which of them a frame uses depends on TERM, which the seam sets to
+// xterm, and on the platform, because Bubble Tea turns its scroll
+// optimization off on Windows. dinah-603/decisions/10 records the reading.
+var allowedSequence = regexp.MustCompile(`^(\x1b\[(\?1049[hl]|\?25[hl]|\?2004[hl]|[0-9;]*[ABCDEFGHJKLMPSTXZdfmr@I])|\x1bM)$`)
+
+// undocumentedSequence matches the sequences the renderer knows and
+// Microsoft's page does not list: repeat the previous character, horizontal
+// position absolute, insert mode and autowrap. The renderer enables the first
+// two only for terminals other than xterm and an unset TERM, and writes the
+// last two only when it inserts characters without ICH or fills the
+// lower-right cell, which no frame of the head reaches.
+var undocumentedSequence = regexp.MustCompile(`^\x1b\[([0-9]*b|[0-9]*` + "`" + `|4[hl]|\?7[hl])$`)
 
 // TestTheProgramWritesOnlyTheSequencesItMay is dinah-603/criteria/24. A run
 // that opens every mode and quits writes no control sequence outside the
@@ -399,6 +414,9 @@ func TestTheProgramWritesOnlyTheSequencesItMay(t *testing.T) {
 		counts[sequence]++
 		if !allowedSequence.MatchString(sequence) {
 			t.Errorf("the program wrote %q, which is outside the allowed set", sequence)
+		}
+		if undocumentedSequence.MatchString(sequence) {
+			t.Errorf("the program wrote %q, which Microsoft's console page does not list", sequence)
 		}
 	}
 	t.Logf("%d distinct sequences written", len(counts))
@@ -551,5 +569,41 @@ func TestCtrlCInsideAnOpenPasteQuits(t *testing.T) {
 			wantModel(t, "the comment prompt's text", run.model.area.Value(), "")
 			endsRestored(t, run.output)
 		})
+	}
+}
+
+// TestBubbleTeaReadsNoTERMOnWindows holds the environment the head gives
+// Bubble Tea: on Windows it is the process's own less TERM, whatever its
+// case, and on every other GOOS it is the process's own unchanged.
+func TestBubbleTeaReadsNoTERMOnWindows(t *testing.T) {
+	environ := []string{"PATH=/bin", "TERM=kitty", "Term=alacritty", "TERMINFO=/x"}
+	if got := interactiveEnviron(environ, "windows"); strings.Join(got, " ") != "PATH=/bin TERMINFO=/x" {
+		t.Errorf("on windows the environment is %q, wanted PATH and TERMINFO alone", got)
+	}
+	if got := interactiveEnviron(environ, "linux"); strings.Join(got, " ") != strings.Join(environ, " ") {
+		t.Errorf("on linux the environment is %q, wanted it unchanged", got)
+	}
+}
+
+// TestAWindowsTerminalNamingKittyGetsNothingUndocumented runs the head on
+// Windows under TERM=kitty, which would lead Bubble Tea's renderer to write
+// REP and HPA, and requires every sequence written to be one Microsoft's
+// console page lists.
+func TestAWindowsTerminalNamingKittyGetsNothingUndocumented(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("TERM reaches Bubble Tea off Windows, where the terminal it names documents what it answers")
+	}
+	tuiTerm = "kitty"
+	defer func() { tuiTerm = "xterm" }()
+	run := runTUIThrough(t, tuiBench(t), tuiSeam(t, strings.NewReader("jjl"+keyEnter+keyEnter+"q"), 100, 30))
+	written := 0
+	for _, sequence := range controlSequence.FindAllString(run.output, -1) {
+		written++
+		if !allowedSequence.MatchString(sequence) || undocumentedSequence.MatchString(sequence) {
+			t.Errorf("under TERM=kitty the program wrote %q", sequence)
+		}
+	}
+	if written == 0 {
+		t.Fatal("the run wrote no sequence, so this proves nothing")
 	}
 }
