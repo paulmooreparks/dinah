@@ -41,8 +41,8 @@ nothing between them. `holder:""` returns the cards nobody is holding.
 
 ## The fields you may name
 
-Fifteen fields are built in, and your workbench may add its own, which the
-section below explains. Eight of the built-in fields describe the card now:
+Nineteen fields are built in, and your workbench may add its own, which the
+section below explains. Twelve of the built-in fields describe the card now:
 
 - `column` is the column the card is in. Give it a column's short name or its
   identifier.
@@ -61,6 +61,13 @@ section below explains. Eight of the built-in fields describe the card now:
 - `route` is the route the card walks, named in the workbench's own `routes:`
   block. `route:""` returns the cards walking the workbench's full column
   list, which is every card until somebody puts one on a shorter road.
+- `start_after` is the first day `dinah next` and `dinah pull` may hand the
+  card out, written `YYYY-MM-DD`.
+- `start_by` is the last day somebody should have taken the card up.
+- `due` is the last day for the card to reach a done column.
+- `schedule` is what the three dates say about the card today: `overdue`,
+  `late_start`, `due_soon`, `start_soon` or `not_yet`. The section on dates
+  below explains each one.
 
 The other five describe something that happened to the card, which Dinah reads
 from its journal:
@@ -71,8 +78,9 @@ from its journal:
 - `left` is the column a move carried the card out of.
 - `at` is when it happened.
 
-`at` is the one field that compares with `>=`, `<=`, `>`, and `<` rather than
-with `:`, because instants rank and names do not. Write its value as a full
+`at`, the three date fields and every date field your workbench declares
+compare with `>=`, `<=`, `>`, and `<`, because instants and dates rank and
+names do not. `at` takes those four alone. Write its value as a full
 timestamp, `2026-08-01T09:30:00Z`, or as a date, `2026-08-01`, which Dinah
 reads as midnight UTC at the start of that day. Two `at` terms give you a
 window.
@@ -134,7 +142,8 @@ Both take `:` and `!=`, the same as the other equality fields, and neither
 takes `>=`, `<=`, `>`, or `<`. The two axes are ranked internally, and a
 workbench can declare which of its priorities outranks another, but the query
 does not read that ranking. `priority>=now` is still an error message, not a
-query, because the language admits no ordered comparison on anything but `at`.
+query, because the language admits an ordered comparison only on `at` and on
+the date fields.
 
 A workbench that has not declared a set for an axis, or a card that carries no
 value on one, is not an error. `priority:""` returns the cards carrying none.
@@ -162,10 +171,16 @@ subcontracted electrical work the same way:
 
 A declared field takes `:` and `!=`, the comma reads as `or`, and the empty
 value asks for absence, exactly as the built-in fields work. Dinah does not
-check the value against anything, so a value no card carries is a query that
-matches nothing rather than an error, and `event.date>=2026-10-01` is still an
-error, because no field but `at` takes an ordered comparison, whatever type the
-field was declared with.
+check a value against a list, so a value no card carries is a query that
+matches nothing rather than an error. A field declared with type `date` also
+takes the four ordered comparisons, so a planner who declares `event.date` asks
+for every event from October on like this:
+
+    dinah query "event.date>=2026-10-01"
+
+A value on a date field has to be a date, so `event.date:2026-1-5` is an error
+message rather than a query that matches nothing. A field of any other type
+takes no ordered comparison.
 
 A field the workbench does not declare is an error message that lists the
 built-in fields and then the ones your workbench declares, unless some card
@@ -178,6 +193,60 @@ to the card. If a field's declaration says it applies only where another
 field carries one of some values, a value kept on a card the declaration no
 longer admits is still found by its value, which is how you find the cards
 `dinah check` reports.
+
+## Dates and what is late
+
+A card may carry three dates, each written `YYYY-MM-DD` and each meaning the
+whole of that day. `start_after` is the first day selection may hand the card
+out, so `dinah next` and `dinah pull` pass over a card whose `start_after` is
+still to come, and say so when that is the only work a column holds. Naming the
+card with `dinah claim` still takes it up, with a warning. `start_by` is the
+last day somebody should have taken the card up, and `due` is the last day for
+it to reach a done column. Set them with `dinah set` or when you file the card:
+
+    dinah add "Book the Tokyo hotel" --start-after 2026-10-06 --due 2026-10-10
+
+Any value on a date field may be relative: `today`, or `today` with a number of
+days added or taken away, such as `today+7` or `today-3`. Nothing else is
+relative, so `tomorrow` is an error message. A traveller asks for everything
+due in the coming week, and for every card that should already have been
+started, like this:
+
+    dinah query "due>=today due<=today+7"
+    dinah query "start_by<today"
+
+The `schedule` field asks the question directly. Dinah works out five
+conditions every time it reads a card, and stores none of them. A card is
+`overdue` when its due date has passed, and `late_start` when its `start_by`
+date has passed and nobody has claimed it. It is `due_soon` when its due date
+falls between today and the end of the workbench's soon window, and
+`start_soon` when its `start_by` date does and nobody has claimed it. It is
+`not_yet` when its `start_after` date is still to come. A card standing in a
+done column holds none of them. A wedding planner asks for the vendors due in
+the next fortnight that are not waiting on a date to start:
+
+    dinah query "due<=today+14 schedule!=not_yet"
+
+and a harness that wants reminders asks for everything late or close on a timer
+of its own, since Dinah fires nothing:
+
+    dinah query "schedule:overdue,late_start,due_soon"
+
+A date field your workbench declares works the same way, so a construction
+foreman who declares `task.inspection-date` finds today's inspections with:
+
+    dinah query "task.inspection-date:today"
+
+Today is the calendar date in the workbench's time zone, and the soon window is
+seven days, unless `workbench.md` says otherwise in a block of its own:
+
+    dinah.schedule:
+      time_zone: Asia/Singapore
+      soon_days: 7
+
+`time_zone` takes a zone name such as `Europe/Berlin`, and `soon_days` a whole
+number from 0 to 365. Without the block today is read in UTC, and `dinah
+check` says so once a card carries a date.
 
 ## When the query cannot say it
 

@@ -119,6 +119,22 @@ func (l *Library) Add(req *Request) *Response {
 			})
 		}
 	}
+	// The three dates are admitted before an identifier is claimed, on the
+	// terms the levels are, so a malformed one refuses the whole filing and
+	// leaves no card directory behind.
+	dates := map[string]string{
+		bench.StartAfterField: strings.TrimSpace(req.StartAfter),
+		bench.StartByField:    strings.TrimSpace(req.StartBy),
+		bench.DueField:        strings.TrimSpace(req.Due),
+	}
+	for _, field := range bench.ScheduleFields {
+		if dates[field] == "" {
+			continue
+		}
+		if _, ok := bench.ParseDate(dates[field]); !ok {
+			return l.refuse(req, nil, contract.Malformed, field)
+		}
+	}
 	now := bench.Stamp(l.Now())
 	// The workbench lock alone guarantees nothing about the mark a caller reads
 	// after taking it. It stops two filings from writing at once, but a caller
@@ -177,6 +193,9 @@ func (l *Library) Add(req *Request) *Response {
 	if route != "" {
 		fm.Set(bench.RouteField, route)
 	}
+	for _, field := range bench.ScheduleFields {
+		bench.SetScheduleDate(fm, field, dates[field])
+	}
 	if err := bench.WriteText(filepath.Join(dir, bench.CardAnchor), fm.Render(req.Text)); err != nil {
 		return l.FromError(req, err)
 	}
@@ -214,7 +233,9 @@ func (l *Library) Add(req *Request) *Response {
 	if err := l.mintStandingItems(req, card, destination, now); err != nil {
 		return l.FromError(req, err)
 	}
-	return l.ok(req, card)
+	response := l.ok(req, card)
+	scheduleOrderWarning(response, card)
+	return response
 }
 
 // Comment writes one comment below its holder, which is a card, a column, or

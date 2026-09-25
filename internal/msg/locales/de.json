@@ -5132,9 +5132,9 @@
       "source": "78859b1ed7d0ad36"
     },
     "refusal.dinah.unknown-field.ordered": {
-      "text": " Nur {instantField} nimmt >=, <=, > und < an.",
-      "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {instantField} is the one field whose values rank and arrives as a filled value. The four operators after it are punctuation a reader types, the same in every language, so leave them as they are.",
-      "source": "4f6de5e55bbd45d0"
+      "text": " Die Felder, die >=, <=, > und < annehmen, sind: {orderedFields}.",
+      "context": "Spliced onto refusal.dinah.unknown-field unconditionally, because the reader who named a field this tool does not have and the reader who gave a field an operator it does not take cannot be told apart from the sentence. {orderedFields} is the comma-separated list of the fields whose values rank, the built-in ones first and then the workbench's declared date fields, and arrives as a filled value. The four operators before it are punctuation a reader types, the same in every language, so leave them as they are.",
+      "source": "6ae1ca51100c998d"
     },
     "refusal.dinah.unknown-field.set": {
       "text": "Dinah hat kein Feld {detail} auf {kind}. Die Felder von {kind} sind: {fields}.",
@@ -7892,6 +7892,201 @@
       "text": "; setup nimmt genau eines von einem Harness, --list oder --recipe und nur die Optionen, die dazu passen, die dinah help setup aufführt",
       "context": "The next step of refusal.dinah.usage when dinah setup raised it. The flags and the command spelling are machine vocabulary and are not translated.",
       "source": "e541e466d453dee9"
+    },
+    "next.not-yet": {
+      "text": "bereit, nicht vor {date} zu beginnen",
+      "context": "Printed beside a column that offers no card because the ready work standing there that the caller could otherwise take carries a start_after date later than today. {date} is the earliest such date, as YYYY-MM-DD, and is not translated.",
+      "source": "e66ad191405e6a4e"
+    },
+    "answer.pull.not-yet.bare": {
+      "text": "Dinah hat bereite Arbeit zum Ziehen gefunden, aber nichts davon darf vor {date} beginnen",
+      "context": "The one-line sentence pull prints when the bare form was asked, a column holds ready work, and every card of it the caller could otherwise take carries a start_after date later than today. {date} is the earliest such date, YYYY-MM-DD, untranslated. It is a separate key from answer.pull.empty.bare so a caller reading the message alone can tell work waiting on a date from no work.",
+      "source": "3a4421dbfaa52976"
+    },
+    "answer.pull.not-yet.named": {
+      "text": "Dinah hat in {upstream} bereite Arbeit für {destination} gefunden, aber nichts davon darf vor {date} beginnen",
+      "context": "As answer.pull.not-yet.bare, for the named form. {upstream} and {destination} are column titles.",
+      "source": "2377a9b6256b0469"
+    },
+    "warn.before-start-after": {
+      "text": "diese Karte soll nicht vor {detail} beginnen; Sie haben sie benannt, also hat nichts sie zurückgehalten",
+      "context": "A warning on a successful claim of a card whose start_after date is later than today. {detail} is that date, YYYY-MM-DD, untranslated.",
+      "source": "c51165246824a2d6"
+    },
+    "warn.schedule-order": {
+      "text": "die Termine der Karte widersprechen sich jetzt: {detail}",
+      "context": "A warning on a successful write of a scheduling date that leaves start_after, start_by and due out of order. {detail} names the two fields and their dates; field names and dates are not translated.",
+      "source": "c8dd8c62de1daa8c"
+    },
+    "card.start-after": {
+      "text": "  frühester Beginn: {date}",
+      "context": "Printed under the card line when the card carries a start_after date, the first day next and pull may hand the card out. It is the line drawn where no condition the date drives holds. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "e71306e87c01b26b"
+    },
+    "card.start-after.not-yet.one": {
+      "text": "  frühester Beginn: {date} (noch nicht, noch {n} Tag)",
+      "context": "Printed under the card line when the card carries a start_after date, the first day next and pull may hand the card out. The date is later than today, so next and pull pass the card over; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "2d34e93ff9a7a8e0"
+    },
+    "card.start-after.not-yet.other": {
+      "text": "  frühester Beginn: {date} (noch nicht, noch {n} Tage)",
+      "context": "Printed under the card line when the card carries a start_after date, the first day next and pull may hand the card out. The date is later than today, so next and pull pass the card over; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "6f5dd2d479b4173"
+    },
+    "card.start-by": {
+      "text": "  spätester Beginn: {date}",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. It is the line drawn where no condition the date drives holds. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "5140a2b0d206f102"
+    },
+    "card.start-by.late.one": {
+      "text": "  spätester Beginn: {date} (Beginn um {n} Tag überfällig)",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and nobody has taken the card up; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "30f5fb3e69733995"
+    },
+    "card.start-by.late.other": {
+      "text": "  spätester Beginn: {date} (Beginn um {n} Tage überfällig)",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and nobody has taken the card up; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "a5eb2b0d2f67051a"
+    },
+    "card.start-by.soon.one": {
+      "text": "  spätester Beginn: {date} (Beginn innerhalb von {n} Tag)",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and nobody has taken the card up; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "b280d8e19d57dcfa"
+    },
+    "card.start-by.soon.other": {
+      "text": "  spätester Beginn: {date} (Beginn innerhalb von {n} Tagen)",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and nobody has taken the card up; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "a94ebe5e5cba5f5f"
+    },
+    "card.start-by.soon.today": {
+      "text": "  spätester Beginn: {date} (Beginn heute)",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date is today and nobody has taken the card up. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "707b986caed97da"
+    },
+    "card.due": {
+      "text": "  fällig: {date}",
+      "context": "Printed under the card line when the card carries a due date, the last day for the card to reach a done column. It is the line drawn where no condition the date drives holds. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "6fc072cdc6294e9f"
+    },
+    "card.due.overdue.one": {
+      "text": "  fällig: {date} (seit {n} Tag überfällig)",
+      "context": "Printed under the card line when the card carries a due date, the last day for the card to reach a done column. The date has passed; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "54cccdcaba306f0f"
+    },
+    "card.due.overdue.other": {
+      "text": "  fällig: {date} (seit {n} Tagen überfällig)",
+      "context": "Printed under the card line when the card carries a due date, the last day for the card to reach a done column. The date has passed; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "4935f17a60f454dc"
+    },
+    "card.due.soon.one": {
+      "text": "  fällig: {date} (fällig in {n} Tag)",
+      "context": "Printed under the card line when the card carries a due date, the last day for the card to reach a done column. The date falls within the workbench's soon window; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "fd475340fbc8e727"
+    },
+    "card.due.soon.other": {
+      "text": "  fällig: {date} (fällig in {n} Tagen)",
+      "context": "Printed under the card line when the card carries a due date, the last day for the card to reach a done column. The date falls within the workbench's soon window; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "source": "29a8816bd6da4e44"
+    },
+    "card.due.soon.today": {
+      "text": "  fällig: {date} (heute fällig)",
+      "context": "Printed under the card line when the card carries a due date, the last day for the card to reach a done column. The date is today. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "9a5800449f740039"
+    },
+    "column.queue.schedule": {
+      "text": "Termine",
+      "context": "Heading over the card's schedule cell, the highest scheduling condition it holds with the date that condition is about, in the card listing `dinah list` prints. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9b8dccb514a0e34c"
+    },
+    "column.query.schedule": {
+      "text": "Termine",
+      "context": "Heading over the card's schedule cell, the highest scheduling condition it holds with the date that condition is about, in the card table `dinah query` and `dinah list cards` print. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9b8dccb514a0e34c"
+    },
+    "schedule.cell.overdue": {
+      "text": "überfällig {date}",
+      "context": "A cell of the Schedule column in a card listing. The card's due date has passed, and {date} is that due date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "80e682e0cd652a15"
+    },
+    "schedule.cell.late-start": {
+      "text": "Beginn überfällig {date}",
+      "context": "A cell of the Schedule column in a card listing. The card's start_by date has passed and nobody has taken it up, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "f8aadf2b421bf2ba"
+    },
+    "schedule.cell.due-soon": {
+      "text": "bald fällig {date}",
+      "context": "A cell of the Schedule column in a card listing. The card's due date falls within the workbench's soon window, and {date} is that due date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "5ebefa78005afbb4"
+    },
+    "schedule.cell.start-soon": {
+      "text": "bald beginnen {date}",
+      "context": "A cell of the Schedule column in a card listing. The card's start_by date falls within the soon window and nobody has taken it up, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "3ff61351f21006f2"
+    },
+    "schedule.cell.not-yet": {
+      "text": "nicht vor {date}",
+      "context": "A cell of the Schedule column in a card listing. The card's start_after date is later than today, so next and pull pass it over, and {date} is that start_after date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "ad2f3ebdd4e8b50b"
+    },
+    "schedule.cell.due": {
+      "text": "fällig {date}",
+      "context": "A cell of the Schedule column in a card listing. The card holds no condition and carries a due date, and {date} is that due date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "fb53b5aba4c6397f"
+    },
+    "schedule.cell.and-not-yet": {
+      "text": "{cell}, nicht vor {date}",
+      "context": "A cell of the Schedule column in a card listing. {cell} is one of the other six schedule cells, already rendered, and the card also holds not_yet, whose start_after date is {date}. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "3aa1625a32a46287"
+    },
+    "check.schedule-order": {
+      "text": "die Termine dieser Karte stehen in falscher Reihenfolge: {detail}",
+      "context": "A check finding: one pair of a card's scheduling dates in the wrong order, start_after later than start_by, start_after later than due, or start_by later than due, one finding per pair. {detail} names the two fields and their dates, as `start_by 2026-10-12 after due 2026-10-10`; the field names and the dates are never translated.",
+      "source": "e321c6cefda087f8"
+    },
+    "check.schedule-date-malformed": {
+      "text": "ein Termin dieser Karte ist kein als YYYY-MM-DD geschriebenes Datum, also wird er als fehlend gelesen: {detail}",
+      "context": "A check finding: a card stores a scheduling date that does not parse. {detail} carries the field and the stored text. YYYY-MM-DD is the spelling a reader writes and is never translated. No condition and no withholding reads such a value.",
+      "source": "9ee997bfea83ce27"
+    },
+    "check.schedule-malformed": {
+      "text": "der dinah.schedule-Block in dieser workbench.md kann so nicht verwendet werden, also gilt vorerst sein Standardwert: {detail}",
+      "context": "A check finding, followed by the workbench.md path in parentheses. {detail} carries `dinah.schedule not a mapping`, or `dinah.schedule`, the member and the text read, as `dinah.schedule time_zone Mars/Olympus`. time_zone takes an IANA zone name and soon_days a whole number from 0 to 365. dinah.schedule and the member names are never translated.",
+      "source": "85f7c90b07843240"
+    },
+    "check.schedule-member-unknown": {
+      "text": "der dinah.schedule-Block in dieser workbench.md trägt ein Element, das dieser Build nicht liest, und es wird ignoriert: {detail}",
+      "context": "A check finding at cleanup severity, followed by the workbench.md path in parentheses. {detail} is the member's name. The two members Dinah reads are time_zone and soon_days, so the finding is most often a misspelling of one of them.",
+      "source": "60454ef71572ccc6"
+    },
+    "check.schedule-below-format": {
+      "text": "Karten hier tragen Termine, aber diese Werkbank erklärt Format {detail}, also würde ein älteres Dinah eine Karte vor ihrem start_after ausgeben; führen Sie `dinah check --migrate-schedule --yes` aus, damit ein älteres Dinah sie stattdessen abweist",
+      "context": "A check finding: a workbench declaring a storage format below the one that introduced scheduling dates, where some live card carries one. {detail} carries the declared format number. An older Dinah ignores the dates and so hands a card out early, which is what the format number exists to prevent. start_after is a field name and the command line inside the sentence is the repair; neither is translated.",
+      "source": "8f44ff8a8194bee7"
+    },
+    "check.schedule-zone-undeclared": {
+      "text": "Karten hier tragen Termine, und heute wird in UTC gelesen, weil keine Zeitzone erklärt ist; um es in Ihrer zu lesen, fügen Sie `dinah.schedule:` mit `time_zone: <IANA-Name>` darunter, etwa `time_zone: Asia/Singapore`, zum Frontmatter dieser workbench.md hinzu",
+      "context": "A check notice, printed under the check.notices heading and followed by the path of the workbench's workbench.md in parentheses. Some live card carries a scheduling date and the workbench declares no usable time_zone, so overdue and not-yet are judged against the UTC calendar. dinah.schedule, time_zone, the example zone name and workbench.md are file syntax and are never translated; <IANA name> is a placeholder the reader replaces and may be translated.",
+      "source": "fc57215ee4749dfa"
+    },
+    "param.add.start-after.summary": {
+      "text": "der erste Tag, an dem next oder pull diese Karte ausgeben darf, YYYY-MM-DD",
+      "context": "The meaning of the start-after argument of `dinah add`, printed in that command's arguments table. YYYY-MM-DD is the spelling a reader types and is never translated, and next and pull are command names.",
+      "source": "a7c2586f63a20876"
+    },
+    "param.add.start-by.summary": {
+      "text": "der letzte Tag, an dem jemand diese Karte aufnehmen sollte, YYYY-MM-DD",
+      "context": "The meaning of the start-by argument of `dinah add`, printed in that command's arguments table. YYYY-MM-DD is the spelling a reader types and is never translated, and next and pull are command names.",
+      "source": "b09d8edf05e918cb"
+    },
+    "param.add.due.summary": {
+      "text": "der letzte Tag, an dem diese Karte eine erledigt-Spalte erreichen soll, YYYY-MM-DD",
+      "context": "The meaning of the due argument of `dinah add`, printed in that command's arguments table. YYYY-MM-DD is the spelling a reader types and is never translated, and next and pull are command names.",
+      "source": "85eaa5ed83818f46"
+    },
+    "param.check.migrate-schedule.summary": {
+      "text": "trägt auf der Werkbank das Format ein, ab dem eine Karte Termine trägt, von jeder Nummer ab 7 aus, damit ein älteres Dinah den Speicher abweist, statt eine Karte mit Termin zu früh auszugeben; eine Werkbank unter Format 7 wird abgewiesen und führt zuerst --migrate-designations aus; ohne --yes wird nichts geschrieben",
+      "context": "The written meaning of the --migrate-schedule flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
+      "source": "692f57c724d38fb0"
     }
   }
 }

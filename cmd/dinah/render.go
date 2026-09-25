@@ -135,6 +135,12 @@ func (s *session) renderCard(card *verb.CardView) {
 	if card.Route != "" {
 		s.line(s.r.T("card.route", "route", card.Route))
 	}
+	// The three scheduling dates stand after the route and before the
+	// declared fields, one line per date the card carries, each followed by
+	// the highest condition that date drives where one holds.
+	for _, line := range s.scheduleLines(card) {
+		s.line(line)
+	}
 	// A standing criterion-retirement grant stands with the route, drawn only
 	// where the card carries one, because somebody deciding whether to tidy a
 	// card has to learn that the permission exists before they try rather
@@ -158,6 +164,116 @@ func (s *session) renderCard(card *verb.CardView) {
 	if card.BlockReason != "" {
 		s.line(s.r.T("card.blocked", "reason", card.BlockReason))
 	}
+}
+
+// scheduleLines are the lines renderCard draws for a card's scheduling dates,
+// in the order start_after, start_by, due, one per date the card carries.
+// Each line names the condition the date drives where the view reports one
+// holding, with the whole number of calendar days between today and the
+// date, so a card in a done column, which holds no condition, draws the bare
+// dates. Today is the day the view's conditions were computed against, which
+// the view carries, so the clock is read once for both.
+func (s *session) scheduleLines(card *verb.CardView) []string {
+	var lines []string
+	holds := func(condition string) bool {
+		for _, held := range card.Schedule {
+			if held == condition {
+				return true
+			}
+		}
+		return false
+	}
+	// A condition holds only for a date that parses, so the one parse here
+	// that could fail never reaches a line that prints its answer.
+	today := card.ScheduleDay
+	days := func(date string) int {
+		parsed, _ := bench.ParseDate(date)
+		return today.DaysUntil(parsed)
+	}
+	count := func(key string, n int, date string) string {
+		return s.r.TN(key, n, "date", date, "n", strconv.Itoa(n))
+	}
+	if date := card.StartAfter; date != "" {
+		line := s.r.T("card.start-after", "date", date)
+		if holds(contract.ScheduleNotYet) {
+			line = count("card.start-after.not-yet", days(date), date)
+		}
+		lines = append(lines, line)
+	}
+	if date := card.StartBy; date != "" {
+		line := s.r.T("card.start-by", "date", date)
+		switch {
+		case holds(contract.ScheduleLateStart):
+			line = count("card.start-by.late", -days(date), date)
+		case holds(contract.ScheduleStartSoon) && days(date) == 0:
+			line = s.r.T("card.start-by.soon.today", "date", date)
+		case holds(contract.ScheduleStartSoon):
+			line = count("card.start-by.soon", days(date), date)
+		}
+		lines = append(lines, line)
+	}
+	if date := card.Due; date != "" {
+		line := s.r.T("card.due", "date", date)
+		switch {
+		case holds(contract.ScheduleOverdue):
+			line = count("card.due.overdue", -days(date), date)
+		case holds(contract.ScheduleDueSoon) && days(date) == 0:
+			line = s.r.T("card.due.soon.today", "date", date)
+		case holds(contract.ScheduleDueSoon):
+			line = count("card.due.soon", days(date), date)
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// scheduleCell is what a listing's Schedule column shows for one card: the
+// highest condition that holds, with the date that condition is about, and
+// the not-yet phrase after it where the card holds not_yet beneath a higher
+// condition, because not_yet is the one condition that changes what next and
+// pull do and a reader who sees next pass the card over needs the reason on
+// the same line. A card holding no condition shows its due date where it
+// carries one and does not stand in a done column, and nothing otherwise.
+func (s *session) scheduleCell(card *verb.CardView) string {
+	notYet := false
+	for _, held := range card.Schedule {
+		if held == contract.ScheduleNotYet {
+			notYet = true
+		}
+	}
+	if len(card.Schedule) == 0 {
+		if _, ok := bench.ParseDate(card.Due); !ok || s.inDoneColumn(card) {
+			return ""
+		}
+		return s.r.T("schedule.cell.due", "date", card.Due)
+	}
+	var cell string
+	switch card.Schedule[0] {
+	case contract.ScheduleOverdue:
+		cell = s.r.T("schedule.cell.overdue", "date", card.Due)
+	case contract.ScheduleLateStart:
+		cell = s.r.T("schedule.cell.late-start", "date", card.StartBy)
+	case contract.ScheduleDueSoon:
+		cell = s.r.T("schedule.cell.due-soon", "date", card.Due)
+	case contract.ScheduleStartSoon:
+		cell = s.r.T("schedule.cell.start-soon", "date", card.StartBy)
+	case contract.ScheduleNotYet:
+		return s.r.T("schedule.cell.not-yet", "date", card.StartAfter)
+	}
+	if notYet {
+		cell = s.r.T("schedule.cell.and-not-yet", "cell", cell, "date", card.StartAfter)
+	}
+	return cell
+}
+
+// inDoneColumn reports whether a card stands in a column of kind done on the
+// open workbench.
+func (s *session) inDoneColumn(card *verb.CardView) bool {
+	if s.library == nil {
+		return false
+	}
+	column := s.library.Bench.Column(card.Column)
+	return column != nil && column.Terminal()
 }
 
 // slotLine draws one stored value's line: the ordinary line where the slot
@@ -373,7 +489,13 @@ func (s *session) renderPrimeReady(ready []verb.Offer) {
 			s.primeRow(offer.Title + ": " + count + " ready, " + offer.Card.Ref + ": " + offer.Card.Title)
 			continue
 		}
-		s.primeRow(offer.Title + ": " + s.r.T("next.above-tier"))
+		// A column above the caller's tier says so ahead of a date, which is
+		// the precedence next uses: a more senior caller would get work now.
+		if offer.AboveTier {
+			s.primeRow(offer.Title + ": " + s.r.T("next.above-tier"))
+			continue
+		}
+		s.primeRow(offer.Title + ": " + s.r.T("next.not-yet", "date", offer.StartableFrom))
 	}
 }
 
@@ -616,11 +738,11 @@ func (s *session) renderListing(listing *verb.Listing) {
 		s.line(s.r.T("queue.empty"))
 		return
 	}
-	t := table{indent: 2, columns: s.columns("queue", "card", "standing", "severity", "priority", "title")}
+	t := table{indent: 2, columns: s.columns("queue", "card", "standing", "severity", "priority", "schedule", "title")}
 	for _, card := range listing.Cards {
 		severity := s.levelCell(&card, bench.SeverityField, card.Severity)
 		priority := s.levelCell(&card, bench.PriorityField, card.Priority)
-		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.State), severity, priority, card.Title}})
+		t.rows = append(t.rows, tableRow{fields: []string{card.Ref, s.token(card.State), severity, priority, s.scheduleCell(&card), card.Title}})
 	}
 	s.table(t)
 }
@@ -645,9 +767,9 @@ func (s *session) renderMatches(matches *verb.Matches) {
 		s.line(s.r.T("query.empty"))
 		return
 	}
-	t := table{indent: 2, columns: s.columns("query", "card", "column", "standing", "title")}
+	t := table{indent: 2, columns: s.columns("query", "card", "column", "standing", "schedule", "title")}
 	for _, card := range matches.Cards {
-		fields := []string{card.Ref, card.ColumnTitle, s.token(card.State), card.Title}
+		fields := []string{card.Ref, card.ColumnTitle, s.token(card.State), s.scheduleCell(&card), card.Title}
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
@@ -856,16 +978,22 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	t := table{indent: 2, columns: s.columns("next", "column", "card", "title", "take")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			// Four empty answers, most specific last, so the narrowest fact a
-			// column can report is the one printed. A column holding ready
-			// work that stands above the tier the caller declared says so,
-			// which tells a reader to send a more senior caller rather than
-			// to wait for work to arrive. A column where no act could take a
-			// card up says that instead, which is a different fact again,
-			// because a done column holding four ready cards offers none of
-			// them. A column waiting on somebody outside says who it waits
-			// on. Everything else has nothing ready.
+			// Five empty answers, most specific last, so the narrowest fact a
+			// column can report is the one printed. A column whose ready work
+			// may not start before a date says so and names the earliest
+			// date. A column holding ready work that stands above the tier
+			// the caller declared says so instead, which tells a reader to
+			// send a more senior caller rather than to wait, and wins over
+			// the date because a more senior caller would get work now. A
+			// column where no act could take a card up says that instead,
+			// which is a different fact again, because a done column holding
+			// four ready cards offers none of them. A column waiting on
+			// somebody outside says who it waits on. Everything else has
+			// nothing ready.
 			absent := s.r.T("next.none")
+			if offer.NotYet {
+				absent = s.r.T("next.not-yet", "date", offer.StartableFrom)
+			}
 			if offer.AboveTier {
 				absent = s.r.T("next.above-tier")
 			}
@@ -1334,6 +1462,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedAppliesWhen != nil {
 		s.renderAppliesWhenMigration(report.MigratedAppliesWhen)
 	}
+	if report.MigratedSchedule != nil {
+		s.renderScheduleMigration(report.MigratedSchedule)
+	}
 	if report.MigratedRawLines != nil {
 		s.renderRawLineMigration(report.MigratedRawLines)
 	}
@@ -1387,6 +1518,20 @@ func (s *session) renderAppliesWhenMigration(report *bench.AppliesWhenMigration)
 	case report.Stamped:
 		s.line(s.r.T("check.format-stamped", "format", target))
 	case report.From >= bench.AppliesWhenFormat:
+		s.line(s.r.T("check.format-current", "format", strconv.Itoa(report.From)))
+	default:
+		s.line(s.r.T("check.format-would-stamp", "from", strconv.Itoa(report.From), "format", target))
+	}
+}
+
+// renderScheduleMigration prints the one line the scheduling-date format stamp
+// answers with, on the shape renderAppliesWhenMigration draws.
+func (s *session) renderScheduleMigration(report *bench.ScheduleMigration) {
+	target := strconv.Itoa(bench.ScheduleFormat)
+	switch {
+	case report.Stamped:
+		s.line(s.r.T("check.format-stamped", "format", target))
+	case report.From >= bench.ScheduleFormat:
 		s.line(s.r.T("check.format-current", "format", strconv.Itoa(report.From)))
 	default:
 		s.line(s.r.T("check.format-would-stamp", "from", strconv.Itoa(report.From), "format", target))

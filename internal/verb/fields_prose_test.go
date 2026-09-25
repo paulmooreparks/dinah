@@ -167,6 +167,8 @@ func plainValueFor(field bench.Field, ref string) string {
 		// so the value is composed from the subject rather than written as
 		// a literal, and proseSubject plants the comment it names.
 		return ref + "/comments/1"
+	case bench.GuardDate:
+		return "2026-10-06"
 	}
 	return "a written value"
 }

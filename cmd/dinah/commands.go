@@ -183,6 +183,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 
 		MigrateDesignations: parsed.has("migrate-designations"),
 		MigrateAppliesWhen:  parsed.has("migrate-applies-when"),
+		MigrateSchedule:     parsed.has("migrate-schedule"),
 		MigrateRawLines:     parsed.has("migrate-raw-lines"),
 		Rehearse:            parsed.has("rehearse"),
 		ForceClaims:         parsed.has("force-claims"),
@@ -296,6 +297,9 @@ func runAdd(s *session, parsed *arguments) int {
 	req.Severity = parsed.value("severity")
 	req.Priority = parsed.value("priority")
 	req.Route = parsed.value("route")
+	req.StartAfter = parsed.value("start-after")
+	req.StartBy = parsed.value("start-by")
+	req.Due = parsed.value("due")
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.Add(req))
 	})
@@ -1601,6 +1605,7 @@ var checkStarvedMarkers = []string{
 	"migrate-branches",
 	"migrate-newlines",
 	"migrate-applies-when",
+	"migrate-schedule",
 	"migrate-raw-lines",
 	"file-standing",
 	"renumber",

@@ -1531,6 +1531,7 @@ quietly.
 | Refusing a claim on the ground of the owner's capability | in | The preceding row is ruled in, so the refusal now has something to evaluate. The statement requires the refusal and fixes no name for it, which is the only such statement in this profile, and section 5.11 argues the exception: the ground covers three situations leading to three different repairs, so one name would be a worse answer here than none. | | CORE-CAP-4, CORE-CAP-5 |
 | Ranked priority levels on a card | out | The core's waiting order deliberately consults only arrival, and admitting ranks would make the order depend on a scale the profile does not define. | A shared ordering across tools is needed and arrival order proves insufficient. | |
 | Ranked severity levels on a card | out | Severity changes no act and constrains nothing, so it is a field a workbench declares for its people to read. | Severity begins to constrain an act. | |
+| Dates on a card saying when its work may start, should start and should finish | out | Most work outside software runs to a calendar, but no act the core defines consults a date: the next card of a column is fixed by arrival alone, and a date that constrains no act is a field a workbench declares for its people to read. One implementation carries three such dates outside the core, withholding a card from its own selection before the first and reporting cards late against the other two, and the core waits on that rather than naming it first. | An implementation's own form of this has run on real workbenches long enough to be worth copying, and a second implementation needs to read it rather than merely preserve it. | |
 | Views across several workbenches at once | out | The core is scoped to one workbench, and a view over many is a reading built on top of conforming tools rather than a rule inside one. | Two tools need to agree how a card in one workbench refers to a card in another. | |
 | Measurement and reporting over a workbench's history | out | History is already in the core, and a measurement is a reading of it. Fixing the measurements would freeze somebody's dashboard into the contract. | Two tools must produce identical numbers from identical history. | |
 | Free prose attached to a card by its readers [comments] | out | The core loses nothing, because no verb consults prose, and a workbench can hold conversation in any field it likes. | A recorded act needs to reference a piece of that prose. | |
@@ -1547,7 +1548,7 @@ quietly.
 | Several people sharing one workbench, and who may do what | out | The core names an owner on every act and reserves some acts to the operator, which is the whole of what the model needs. Anything further is deployment. | Two tools must agree on a permission, rather than each enforcing its own. | |
 | Proving that an owner name belongs to whoever presents it | out | A single-person tool has nobody to prove anything to, and a shared one has its own means. Fixing one would exclude both. No statement of this profile rests on the question, which is why section 5.4 settles it in prose: the core neither requires such proof nor forbids it. | Two tools must accept each other's evidence about an owner. | |
 
-Rows ruled in: 41. Rows ruled out: 20. Total rows: 61.
+Rows ruled in: 41. Rows ruled out: 21. Total rows: 62.
 
 ### 10.1 Walking a wedding through the whole profile
 

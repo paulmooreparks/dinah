@@ -62,8 +62,14 @@ import type { VersionReport } from "./api";
  * column anchor read as text and rewrote the raw JSON lines an earlier import
  * had quoted. Both are facts about the anchor files, which this extension
  * never reads, and the verb surface it drives is unchanged.
+ *
+ * 10 joined the set at dinah-605, which gave a card three scheduling dates
+ * that an older build would ignore and so hand a dated card out early. The
+ * dates are keys of the card anchor, which this extension never reads: the
+ * card view a read answers with gains `start_after`, `start_by`, `due` and
+ * `schedule`, which an older reader ignores.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 /**
  * The conformance claim this extension needs. A different name or major is

@@ -6,6 +6,8 @@ WORK
   add <title> [--column <column>]           File a new card in the first column
     [--severity <level>]
     [--priority <level>] [--route <name>]
+    [--start-after <date>]
+    [--start-by <date>] [--due <date>]
   claim <card> [--expires <duration>]       Take up a ready card
   move <card> <column> [--override]         Carry a card to another column
   pull [column] [--no-claim]                Claim the head of a column's queue
@@ -115,6 +117,7 @@ WORKBENCH
     [--force-claims] [--migrate-branches]
     [--migrate-newlines]
     [--migrate-applies-when]
+    [--migrate-schedule]
     [--migrate-raw-lines] [--file-standing]
     [--renumber] [--remint <dir>]
     [--migrate-workstreams] [--witness]

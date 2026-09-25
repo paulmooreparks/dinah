@@ -30,6 +30,8 @@ Usage: dinah <command> [arguments]
 WORK
   add <title> [--column <column>] [--severity <level>]   File a new card in the first column
     [--priority <level>] [--route <name>]
+    [--start-after <date>] [--start-by <date>]
+    [--due <date>]
   claim <card> [--expires <duration>]                    Take up a ready card
   move <card> <column> [--override]                      Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>]      Claim the head of a column's queue and move it
@@ -108,9 +110,10 @@ WORKBENCH
     [--migrate-numbers] [--migrate-designations]
     [--rehearse] [--force-claims] [--migrate-branches]
     [--migrate-newlines] [--migrate-applies-when]
-    [--migrate-raw-lines] [--file-standing] [--renumber]
-    [--remint <dir>] [--migrate-workstreams] [--witness]
-    [--yes] [--root <path>] [--max-depth <n>]
+    [--migrate-schedule] [--migrate-raw-lines]
+    [--file-standing] [--renumber] [--remint <dir>]
+    [--migrate-workstreams] [--witness] [--yes]
+    [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench                                              Read this workbench's own fields
@@ -159,6 +162,7 @@ Usage: dinah <command> [arguments]
 
 WORK
   add <title> [--column <column>] [--severity <level>] [--priority <level>] [--route <name>]            File a new card in the first column
+    [--start-after <date>] [--start-by <date>] [--due <date>]
   claim <card> [--expires <duration>]                                                                   Take up a ready card
   move <card> <column> [--override]                                                                     Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>] [--override]                                        Claim the head of a column's queue and move it there in one act
@@ -216,9 +220,9 @@ WORKBENCH
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
     [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims]
-    [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-raw-lines]
-    [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes]
-    [--root <path>] [--max-depth <n>]
+    [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule]
+    [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams]
+    [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
   workstream <new> <title> [--slug <slug>]                                                              Create a workstream on this workbench

@@ -1989,7 +1989,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -7502,10 +7502,10 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
 		"actor", "agent", "at", "before", "capacity", "card", "column", "depth",
-		"description", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
+		"description", "due", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
 		"lang", "listen", "map", "max-depth", "model", "note", "observed", "operator", "owner",
 		"poll-seconds", "priority", "provider", "query", "reason", "recipe", "remint", "root", "route",
-		"scope", "server", "severity", "since", "slug", "target", "text", "tier", "timeout", "tools",
+		"scope", "server", "severity", "since", "slug", "start-after", "start-by", "target", "text", "tier", "timeout", "tools",
 		"workbench",
 	}
 	wantMarkers := []string{
@@ -7515,7 +7515,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-applies-when", "migrate-branches",
 		"migrate-columns",
 		"migrate-container", "migrate-designations", "migrate-newlines", "migrate-numbers",
-		"migrate-ordinals", "migrate-raw-lines",
+		"migrate-ordinals", "migrate-raw-lines", "migrate-schedule",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
 		"no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
@@ -7766,6 +7766,9 @@ var placeholdersOutsideTheParameterTable = map[string]string{
 	// reach one. The argument rename declares is a reference, not the
 	// reference's card segment.
 	"card": "refusal.dinah.not-renamable.next",
+	// The zone name a reader writes into a dinah.schedule block, which no
+	// command takes as an argument because no verb writes that block.
+	"IANA name": "check.schedule-zone-undeclared",
 }
 
 // TestEveryPlaceholderNamesSomethingDeclared asserts dinah-172 AC-18: a word a

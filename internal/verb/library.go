@@ -128,6 +128,12 @@ type Request struct {
 	// two levels above are: add names it through a flag of its own, where set
 	// names it by field.
 	Route string
+	// StartAfter, StartBy and Due are the scheduling dates a filing gives the
+	// new card, each empty when the invocation named none. They are separate
+	// from Value for the reason Route is.
+	StartAfter string
+	StartBy    string
+	Due        string
 	// Tier is what a column creation gives the new column as its default, and
 	// what a raise asks the card to require at the column it is standing in,
 	// which are two different acts sharing one argument name the way Kind
@@ -335,6 +341,10 @@ type Request struct {
 	// writes the one format line and nothing else, and without Confirm it
 	// writes nothing at all, which is why it carries no rehearsal of its own.
 	MigrateAppliesWhen bool
+	// MigrateSchedule asks check to stamp the store at the format from which
+	// a card may carry scheduling dates. It writes the one format line and
+	// nothing else, and without Confirm it writes nothing at all.
+	MigrateSchedule bool
 	// MigrateRawLines asks check to rewrite every quoted raw line an earlier
 	// import wrote on the workbench and column anchors to the bare JSON
 	// spelling, and to stamp the store at the format that declares a quoted
@@ -493,6 +503,40 @@ type Request struct {
 	// than once per destination. It is nil on every request a head builds,
 	// and atCapacity counts the cards itself whenever it is.
 	occupancy map[string]int
+	// day is the calendar date this request's schedule conditions, start
+	// holds and relative query values are computed against, read from the
+	// clock once by Library.today the first time anything asks and held
+	// here for the rest of the request, beside the workbench it was read
+	// for. It is nil on every request a head builds, and a head repeating
+	// an act builds or copies a fresh request for each repetition, as a
+	// watch does for each frame, so no answer is drawn on a day an earlier
+	// answer read. A day is read in its workbench's zone, and a root walk
+	// hands one request to every workbench in turn, so a day one workbench
+	// read answers only that workbench: Library.today reads the clock again
+	// when a different workbench asks, and no walk has to clear the day
+	// before crossing.
+	day *requestDay
+}
+
+// requestDay is the day a request was answered on and the workbench it was
+// read for. The two travel together because the date means nothing without
+// the zone it was read in, and a workbench is where the zone is declared.
+type requestDay struct {
+	bench *bench.Bench
+	date  bench.Date
+}
+
+// today is the day this request is answered on, in the workbench's zone. The
+// first call from a workbench reads the clock and every later call on the same
+// request from that workbench answers the same date, so a request selecting a
+// card and rendering it cannot compute the two against different days when it
+// runs across midnight. A call from a different workbench reads the clock
+// again, because that workbench's zone may put it on a different date.
+func (l *Library) today(req *Request) bench.Date {
+	if req.day == nil || req.day.bench != l.Bench {
+		req.day = &requestDay{bench: l.Bench, date: l.Bench.Today(l.Now())}
+	}
+	return req.day.date
 }
 
 // CardView is the card as a response carries it.
@@ -521,6 +565,20 @@ type CardView struct {
 	// terms the two levels above are: a name the workbench does not declare
 	// is shown exactly as stored, and dinah check is what reports it.
 	Route string `json:"route,omitempty"`
+	// StartAfter, StartBy and Due are the card's three scheduling dates, as
+	// stored, each absent where the card carries none. A stored value that
+	// does not parse is reported as stored and contributes no condition.
+	StartAfter string `json:"start_after,omitempty"`
+	StartBy    string `json:"start_by,omitempty"`
+	Due        string `json:"due,omitempty"`
+	// Schedule is every condition that holds, in precedence order, absent
+	// where none does.
+	Schedule []string `json:"schedule,omitempty"`
+	// ScheduleDay is the day Schedule was computed against, carried so a
+	// renderer counting days to a date reads the same day rather than the
+	// clock a second time, which across midnight could disagree with the
+	// condition beside the count. It is not part of any payload.
+	ScheduleDay bench.Date `json:"-"`
 	// RetirementGrant is the reference of the column this card stood in when
 	// the workbench operator gave it a criterion-retirement grant, and
 	// RetirementGrantTitle is that column's title, resolved the way
@@ -795,7 +853,11 @@ type Response struct {
 // The per-collection counts are read out of that one result rather than
 // re-listing the same two directories, so publishing the total costs one
 // listing per card view rather than three.
-func (l *Library) view(card *bench.Card) (*CardView, error) {
+//
+// The schedule conditions are computed against today, which the caller reads
+// once for its whole request and passes to every view it builds, so a listing
+// cannot draw two of its cards against different days.
+func (l *Library) view(card *bench.Card, today bench.Date) (*CardView, error) {
 	counts, err := bench.ChildCounts(card.Dir, bench.KindCard)
 	if err != nil {
 		return nil, err
@@ -814,6 +876,10 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 		Priority: card.Priority,
 		Route:    card.Route,
 		Holder:   card.Holder,
+
+		StartAfter: card.StartAfter,
+		StartBy:    card.StartBy,
+		Due:        card.Due,
 
 		RetirementGrant: grantRef(l.Bench, card.RetirementGrant),
 		ClaimSince:      card.ClaimSince,
@@ -838,6 +904,11 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if bound := l.Bench.Column(card.RetirementGrant); bound != nil {
 		v.RetirementGrantTitle = bound.Title
 	}
+	schedule, err := l.scheduleOf(card, today)
+	if err != nil {
+		return nil, err
+	}
+	v.Schedule, v.ScheduleDay = schedule, today
 	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
 	for _, slot := range l.Bench.InapplicableSlots(card) {
 		answer := l.Bench.Applicability(card, slot)
@@ -1226,7 +1297,7 @@ func (l *Library) refuseWith(req *Request, card *bench.Card, name, detail string
 		// A card whose collections will not read cannot be rendered, and
 		// the read failure is what the caller is told rather than a
 		// refusal carrying a view built from a collection nobody read.
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -1244,7 +1315,7 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 		Basis:       req.Basis,
 	}
 	if card != nil {
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}

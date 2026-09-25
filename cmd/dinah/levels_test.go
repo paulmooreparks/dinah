@@ -387,7 +387,7 @@ func TestTheQueryKeepsItsOwnUnknownFieldRendering(t *testing.T) {
 			t.Errorf("%s: the refusal name is %s, wanted %s", tag, name, contract.UnknownField)
 		}
 		for _, key := range []string{"refusal.dinah.unknown-field.ordered", "refusal.dinah.unknown-field.next"} {
-			rendered := strings.TrimSpace(catalog.T(key, "instantField", verb.FieldAt))
+			rendered := strings.TrimSpace(catalog.T(key, "orderedFields", "start_after, start_by, due, at"))
 			if !strings.Contains(refused.errw, rendered) {
 				t.Errorf("%s: the query rendering lost %s:\n%s", tag, key, refused.errw)
 			}
@@ -559,10 +559,11 @@ What you may write:
   <field>                     which field you are writing; which names are legal
                               depends on the kind the reference resolves to (one
                               of: body, capacity, column, column_body_limit,
-                              description, evidence, filename, hold,
+                              description, due, evidence, filename, hold,
                               instructions, kind, notes, operator, owner,
                               priority, resolution, route, severity, slug,
-                              state, status, text, tier, title)
+                              start_after, start_by, state, status, text, tier,
+                              title)
   [value|-]                   what to store in it; write a single dash to read
                               it from standard input, and leave it out to clear
                               a field that may be cleared

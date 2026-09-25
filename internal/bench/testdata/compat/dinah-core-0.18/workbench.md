@@ -1,5 +1,5 @@
 ---
-format: 9
+format: 10
 profile: dinah-core/0.18
 title: Sample workbench
 slug: sample

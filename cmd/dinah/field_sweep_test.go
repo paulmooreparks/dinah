@@ -111,6 +111,12 @@ var fieldSamples = map[string]map[string]fieldSample{
 		"priority": {first: "later", second: "now"},
 		"tier":     {first: "workhorse", second: "frontier"},
 		"route":    {first: "one", second: "two"},
+		// The three scheduling dates take calendar dates in order, so the
+		// two values of each keep the card's dates consistent whichever of
+		// them the sweep has written.
+		"start_after": {first: "2026-10-01", second: "2026-10-02"},
+		"start_by":    {first: "2026-10-03", second: "2026-10-04"},
+		"due":         {first: "2026-10-05", second: "2026-10-06"},
 	},
 	bench.KindComment: {
 		"body": {first: "First thought.", second: "Second thought.\n\nWith a second paragraph."},

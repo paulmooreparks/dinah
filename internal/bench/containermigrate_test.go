@@ -550,10 +550,12 @@ func TestAFreshWorkbenchCarriesTheUnionMergeAttributes(t *testing.T) {
 // move to 8 is a fourth, since a condition on a declaration and a level axis
 // in mapping form are both members the profile does not name, and dinah-593's
 // move to 9 is a fifth, since how an anchor spells a quoted scalar is a fact
-// about the file and not about the interchange.
+// about the file and not about the interchange, and dinah-605's move to 10 is
+// a sixth, since scheduling dates are Dinah's own behaviour and the profile
+// names none of them.
 func TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens(t *testing.T) {
-	if StorageFormat != 9 {
-		t.Errorf("StorageFormat is %d, wanted 9", StorageFormat)
+	if StorageFormat != 10 {
+		t.Errorf("StorageFormat is %d, wanted 10", StorageFormat)
 	}
 	older := strings.Replace(olderBenchDefinition, "profile: dinah-core/0.7", "profile: dinah-core/0.9", 1)
 	root := plantBench(t, filepath.Join(t.TempDir(), "workbench"), older)

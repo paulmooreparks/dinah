@@ -357,6 +357,41 @@ const (
 	// list still aligns at the top of the declared set; a list the block
 	// leaves out was never declared and never raises it.
 	FindingUrgencyLevelCount = "check.urgency-level-count"
+	// FindingScheduleOrder names one pair of a card's scheduling dates in
+	// the wrong order: start_after later than start_by, start_after later
+	// than due, or start_by later than due. Path is the card's anchor and
+	// Detail is the pair, as `start_by 2026-10-12 after due 2026-10-10`, one
+	// finding per pair. A card in a done column is still reported, because a
+	// contradiction in the record is a defect whether or not it still
+	// matters. It carries no severity, which reads as a defect.
+	FindingScheduleOrder = "check.schedule-order"
+	// FindingScheduleDateMalformed names a card storing a scheduling date
+	// that does not parse as YYYY-MM-DD. Path is the card's anchor and Detail
+	// is the field and the stored text. Every condition and selection read
+	// such a value as absent, so nothing is withheld on its strength.
+	FindingScheduleDateMalformed = "check.schedule-date-malformed"
+	// FindingScheduleMalformed names a dinah.schedule block that is not a
+	// mapping, or one member of it the reader could not use. Path is the
+	// workbench anchor and Detail is `dinah.schedule not a mapping`, or
+	// `dinah.schedule`, the member and the text read. The reader uses the
+	// member's default meanwhile, so nothing refuses.
+	FindingScheduleMalformed = "check.schedule-malformed"
+	// FindingScheduleMemberUnknown names one member of the dinah.schedule
+	// block this build does not read, which is ignored. Detail is the
+	// member's name. It is cleanup, and it exists so that a misspelt member
+	// is visible rather than silently defaulted.
+	FindingScheduleMemberUnknown = "check.schedule-member-unknown"
+	// FindingScheduleBelowFormat names a workbench declaring a format below
+	// ScheduleFormat where a live card carries a scheduling date, which an
+	// older build ignores and so hands the card out before its start_after.
+	// Path is the workbench anchor and Detail is the declared format, and
+	// the repair is `dinah check --migrate-schedule --yes`.
+	FindingScheduleBelowFormat = "check.schedule-below-format"
+	// NoticeScheduleZoneUndeclared is a notice rather than a finding: some
+	// live card carries a scheduling date and the dinah.schedule block
+	// declares no usable time_zone, so today is read in UTC. Path is the
+	// workbench anchor and Detail is empty.
+	NoticeScheduleZoneUndeclared = "check.schedule-zone-undeclared"
 	// FindingRequiredFieldUndeclared names a column whose require_fields
 	// declaration carries a key the workbench does not declare. It holds
 	// nothing, because a key nothing can ever be written under would make the
@@ -628,6 +663,11 @@ func (b *Bench) Check() ([]Finding, error) {
 	findings = append(findings, b.checkFieldDeclarations()...)
 	findings = append(findings, b.checkViews()...)
 	findings = append(findings, b.checkUrgency()...)
+	scheduleFindings, err := b.checkSchedule()
+	if err != nil {
+		return findings, err
+	}
+	findings = append(findings, scheduleFindings...)
 	findings = append(findings, b.checkConditions()...)
 	findings = append(findings, b.checkRawLines()...)
 	newlineFindings, err := b.checkStoredNewlines()
@@ -1024,6 +1064,7 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	if column == nil {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownColumn, Detail: card.Column})
 	}
+	findings = append(findings, checkScheduleDates(card)...)
 	// A claim standing where no owner takes work up is history rather than
 	// something a card acquires afresh, since claim, move and pull all refuse
 	// to put one there. The finding names the column, because that is what an
@@ -1646,6 +1687,84 @@ func (b *Bench) checkUrgency() []Finding {
 			Key:      FindingUrgencyLevelCount,
 			Detail:   entry.axis + " " + strconv.Itoa(len(entry.list)) + " " + strconv.Itoa(count),
 			Severity: SeverityCleanup,
+		})
+	}
+	return findings
+}
+
+// checkSchedule reports what the dinah.schedule block carries that the reader
+// could not use, and a workbench below ScheduleFormat where some live card
+// carries a scheduling date. The per-card reports, a pair of dates out of
+// order and a date that does not parse, are checkCard's.
+func (b *Bench) checkSchedule() ([]Finding, error) {
+	anchor := filepath.Join(b.Root, WorkbenchAnchor)
+	_, defects := b.Schedule()
+	var findings []Finding
+	for _, defect := range defects {
+		switch defect.Defect {
+		case ScheduleNotAMapping:
+			findings = append(findings, Finding{Path: anchor, Key: FindingScheduleMalformed, Detail: ScheduleKey + " not a mapping"})
+		case ScheduleMalformedMember:
+			findings = append(findings, Finding{Path: anchor, Key: FindingScheduleMalformed, Detail: ScheduleKey + " " + defect.Member + " " + defect.Read})
+		case ScheduleUnknownMember:
+			findings = append(findings, Finding{Path: anchor, Key: FindingScheduleMemberUnknown, Detail: defect.Member, Severity: SeverityCleanup})
+		}
+	}
+	if b.Format >= ScheduleFormat {
+		return findings, nil
+	}
+	dated, err := b.anyLiveCardDated()
+	if err != nil {
+		return findings, err
+	}
+	if dated {
+		findings = append(findings, Finding{Path: anchor, Key: FindingScheduleBelowFormat, Detail: strconv.Itoa(b.Format)})
+	}
+	return findings, nil
+}
+
+// anyLiveCardDated reports whether some live card stores anything under any
+// of the three scheduling dates, parseable or not. A card whose header will
+// not read is skipped, because the card walk already reports it.
+func (b *Bench) anyLiveCardDated() (bool, error) {
+	ids, err := ListIDs(b.CardsRoot())
+	if err != nil {
+		return false, err
+	}
+	for _, id := range ids {
+		fm, err := ReadCardHeader(filepath.Join(b.CardsRoot(), id, CardAnchor))
+		if err != nil {
+			continue
+		}
+		for _, field := range ScheduleFields {
+			if fm.Value(field) != "" {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+// checkScheduleDates reports a card's scheduling dates that do not parse, one
+// finding per field, and every pair of its parseable dates out of order, one
+// finding per pair. A card in a done column is checked like any other.
+func checkScheduleDates(card *Card) []Finding {
+	anchor := card.AnchorPath()
+	var findings []Finding
+	for _, field := range ScheduleFields {
+		stored := card.scheduleValue(field)
+		if stored == "" {
+			continue
+		}
+		if _, ok := ParseDate(stored); !ok {
+			findings = append(findings, Finding{Path: anchor, Key: FindingScheduleDateMalformed, Detail: field + " " + stored})
+		}
+	}
+	for _, violation := range card.ScheduleOrderViolations() {
+		findings = append(findings, Finding{
+			Path:   anchor,
+			Key:    FindingScheduleOrder,
+			Detail: violation.First + " " + violation.FirstDate + " after " + violation.Second + " " + violation.SecondDate,
 		})
 	}
 	return findings

@@ -130,6 +130,12 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.Priority = value
 	case "route":
 		req.Route = value
+	case "start-after":
+		req.StartAfter = value
+	case "start-by":
+		req.StartBy = value
+	case "due":
+		req.Due = value
 	case "tier":
 		req.Tier = value
 	case "at":
@@ -213,6 +219,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateDesignations = value
 	case "migrate-applies-when":
 		req.MigrateAppliesWhen = value
+	case "migrate-schedule":
+		req.MigrateSchedule = value
 	case "migrate-raw-lines":
 		req.MigrateRawLines = value
 	case "rehearse":
