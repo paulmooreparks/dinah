@@ -282,7 +282,7 @@ func (l *Library) DrawView(req *Request) (*ViewAnswer, error) {
 		Sections:  []ViewSectionAnswer{},
 	}
 	for i, section := range view.Sections {
-		answer, err := l.drawSection(section, order, req.Actor, me, draw, req.Explain, l.today(req))
+		answer, err := l.drawSection(section, order, req.Actor, me, draw, req.Explain, l.dayOf(req))
 		if err != nil {
 			err = contract.With(err, viewValueView, view.Name)
 			return nil, contract.With(err, viewValueSection, strconv.Itoa(i+1))
@@ -372,10 +372,10 @@ func narrowTo(body *ViewBody, id string) bool {
 //
 // A section carrying a scope and no query selects the scope's cards, and one
 // carrying both selects the cards the query matches that are also in the
-// scope. draw is nil on a view that neither ranks nor scopes. today is the day
-// the whole view is drawn on, so every section selects and renders against the
-// one date.
-func (l *Library) drawSection(section bench.ViewSection, order, actor string, me meExpansion, draw *viewDraw, explained bool, today bench.Date) (*ViewSectionAnswer, error) {
+// scope. draw is nil on a view that neither ranks nor scopes. day is the
+// request's day the whole view is drawn on, so every section selects and
+// renders against the one date and the one graph of holds.
+func (l *Library) drawSection(section bench.ViewSection, order, actor string, me meExpansion, draw *viewDraw, explained bool, day *requestDay) (*ViewSectionAnswer, error) {
 	answer := &ViewSectionAnswer{
 		Title:          section.Heading(),
 		Query:          section.Query,
@@ -386,9 +386,9 @@ func (l *Library) drawSection(section bench.ViewSection, order, actor string, me
 		RefusedContext: map[string]string{},
 	}
 	if strings.TrimSpace(section.Query) == "" {
-		return l.fillSection(answer, nil, draw.actionableCards(), order, draw, explained, today)
+		return l.fillSection(answer, nil, draw.actionableCards(), order, draw, explained, day)
 	}
-	parsed, matched, _, fault, err := l.selectionQuery(section.Query, actor, me, today)
+	parsed, matched, _, fault, err := l.selectionQuery(section.Query, actor, me, day)
 	if err != nil {
 		refusal, isRefusal := err.(*contract.Refusal)
 		if !isRefusal || !fault.vocabulary() {
@@ -412,14 +412,14 @@ func (l *Library) drawSection(section bench.ViewSection, order, actor string, me
 		}
 		matched = inScope
 	}
-	return l.fillSection(answer, parsed, matched, order, draw, explained, today)
+	return l.fillSection(answer, parsed, matched, order, draw, explained, day)
 }
 
 // fillSection puts a section's selected cards in the view's order and writes
 // them into its answer, with the items that witnessed each selection where a
 // query named an item field, and each card's rank and score on a view ordered
 // by urgency.
-func (l *Library) fillSection(answer *ViewSectionAnswer, parsed *query, matched []*bench.Card, order string, draw *viewDraw, explained bool, today bench.Date) (*ViewSectionAnswer, error) {
+func (l *Library) fillSection(answer *ViewSectionAnswer, parsed *query, matched []*bench.Card, order string, draw *viewDraw, explained bool, day *requestDay) (*ViewSectionAnswer, error) {
 	var scores []urgencyScore
 	if order == bench.ViewOrderUrgency {
 		ranked, err := draw.rank(matched)
@@ -431,7 +431,7 @@ func (l *Library) fillSection(answer *ViewSectionAnswer, parsed *query, matched 
 		l.orderSection(matched, order)
 	}
 	for i, card := range matched {
-		view, err := l.view(card, today)
+		view, err := l.view(card, day)
 		if err != nil {
 			return nil, err
 		}
@@ -579,7 +579,7 @@ func (l *Library) refusedViewQueries() []viewQueryRefusal {
 	// The day only resolves relative values, and no refusal these checks
 	// raise depends on it, but every section is still parsed against one
 	// reading.
-	today := l.Bench.Today(l.Now())
+	day := l.dayOf(&Request{})
 	var found []viewQueryRefusal
 	for _, view := range views {
 		if view.Defect != "" {
@@ -589,7 +589,7 @@ func (l *Library) refusedViewQueries() []viewQueryRefusal {
 			if section.Query == "" {
 				continue
 			}
-			parsed, _, err := l.parseQuery(section.Query, today)
+			parsed, _, err := l.parseQuery(section.Query, day)
 			if err == nil {
 				_, err = l.checkVocabularies(parsed)
 			}

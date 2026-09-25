@@ -1287,6 +1287,77 @@ through `dinah export` and `init --from` as an unrecognized member of the
 workbench object, as `dinah.urgency` does. The section on scheduling dates says
 what the settings govern.
 
+### Holding kinds and the commitment column, the `dinah.holds` layer
+
+A workbench names the link kinds that hold a card back from selection, and the
+column from which a card counts as started, under the top-level frontmatter key
+`dinah.holds` in its own `workbench.md`. The key is read from that file alone;
+a `dinah.holds` key in a user's `config.md` has no effect. The block is read
+through the same reader `dinah.schedule` is, and no verb writes it.
+
+```yaml
+dinah.holds:
+  start_at: implement
+  kinds:
+    blocks:
+      held: named
+      waits_for: finish
+      finish_at: acceptance
+    parked_behind:
+      held: carrier
+    cures_before:
+      held: named
+      lag_days: 7
+```
+
+| Member | Shape | Default |
+|---|---|---|
+| `start_at` | a column reference | the default commitment column, below |
+| `kinds` | a mapping of link kind to rule | none, so no kind holds |
+
+The kinds sit in a mapping of their own because link kinds are open, and a
+workbench may name a kind `start_at`. A kind is matched against a link's
+stored kind exactly, case included, and a kind the block does not name holds
+nothing. A link is stored on one card, the carrier, and names another, the
+named card. Each rule carries:
+
+| Member | Shape | Default | Meaning |
+|---|---|---|---|
+| `held` | `named` or `carrier` | none; the kind holds nothing without it | Which end of the link is held. The other end is the holder. |
+| `waits_for` | `start` or `finish` | `finish` | Whether the held card waits for the holder to start or to finish. |
+| `lag_days` | whole number from 0 to 365 | `0` | Calendar days after the day of the holder's event on which the held card comes free. |
+| `finish_at` | a column reference | none, meaning any column of kind `done` | The column whose reaching counts as finishing, for `waits_for: finish` only. |
+
+Direction is declared rather than inferred, because a kind's grammar is the
+workbench's own: `dinah link A blocks B` reads "A blocks B" and holds `B`, the
+named card, while `dinah link A parked_behind B` reads "A is parked behind B"
+and holds `A`, the carrier.
+
+The commitment column is the column `start_at` names. Where it names none, or
+names one unusably, the default is the first column after the flow's first at
+which work is taken up, and where the flow has no such column, its first done
+column. The flow's first column is where work arrives and is never the
+default. On the flow `dinah init` creates, the default is Doing. A workbench
+whose stations triage or design before the work is committed names its build
+column in `start_at`.
+
+A key with nothing readable beneath it declares no rule and the default
+commitment column. A defect falls back rather than refusing, on the reasoning
+`dinah.schedule` gives, and `dinah check` names it under
+`check.holds-malformed`: a block that is not a mapping declares no rule; a
+`start_at` that names no column, a done column or the flow's first column gives
+way to the default; a `kinds` that is not a mapping declares no rule; a kind
+that is not a mapping, or whose `held` is missing or reads as anything but
+`named` or `carrier`, holds nothing; an unreadable `waits_for` reads as
+`finish`; a `lag_days` that is not a whole number from 0 to 365 written bare
+reads as `0`, so a quoted `"7"` is refused; and a `finish_at` naming no column,
+standing beside `waits_for: start`, or naming a column earlier in the flow
+than the commitment column reads as empty. A member the reader does not know
+is named under `check.holds-member-unknown` and otherwise ignored. The block
+travels through `dinah export` and `init --from` as an unrecognized member of
+the workbench object. The section on holds through links says what the rules
+govern.
+
 ## History
 
 Which kinds bear journals is a per-kind registry fact, decided by one test:
@@ -2643,11 +2714,13 @@ card-owned by the single-writer logic that governs position and workstream
 membership, so the card carrying the link is the only file that changes when
 the link is added or removed, and deleting a card takes its links with it.
 
-Nothing in the tool reads a link. Pull order does not consult one, no verb
-refuses because of one, and the CLI shows a card's links and computes nothing
-over them. A workbench that wants dependency ordering or a listing of the work
-whose predecessors are done declares an extension under a dotted name and
-builds it there.
+Nothing in the core reads a link. Dinah's own `dinah.holds` layer gives a kind
+a hold where a workbench declares one, and pull order consults a link only
+there: a card a declared link holds is passed over by selection until the card
+it waits on has started or finished. No verb refuses because of a link, and on
+a workbench declaring no such layer the CLI shows a card's links and computes
+nothing over them. The section on holds through links says what a declared
+kind does.
 
 The kind is an open enum by the rule that settles the question, since no
 contract behavior hangs on its members. The registry marks it open and
@@ -3183,13 +3256,17 @@ moves the clock.
 
 ### The conditions
 
-Five conditions are computed on every read from the card's dates, the soon
-window `N` the `dinah.schedule` layer declares, today, and the card's journal.
-Nothing about a condition is stored. A card standing in a column of kind `done`
-has finished and holds no condition at all, whatever its dates say. A card has
-started once its journal records a `claimed` event, or while it is `active`; a
-pull records one, and a claim is append-only history, so `late_start` cannot
-come back once a claim clears it.
+Six conditions are computed on every read from the card's dates, the soon
+window `N` the `dinah.schedule` layer declares, today, the card's position,
+and the links the `dinah.holds` layer declares. Nothing about a condition is
+stored. A card standing in a column of kind `done` has finished and holds no
+condition at all, whatever its dates say. A card has started while it stands
+in the workbench's commitment column or any column after it, or while it is
+`active` under a claim that has not expired; the subsection on the
+`dinah.holds` layer says which column that is. Started is read from the card's
+position today and not from its history, so a card released, or moved back,
+before the commitment column has not started and reads `late_start` again
+while its `start_by` says so.
 
 | Condition | Holds when |
 |---|---|
@@ -3198,6 +3275,7 @@ come back once a claim clears it.
 | `due_soon` | `due` is set and `today <= due <= today + N`. |
 | `start_soon` | `start_by` is set, `today <= start_by <= today + N`, and the card has not started. |
 | `not_yet` | `start_after` is set and `start_after > today`. |
+| `waiting` | A link the `dinah.holds` layer declares holds the card back today. |
 
 The conditions are independent, so a card can hold several. Their precedence,
 highest first, is the order of the table, and a surface showing one condition
@@ -3221,7 +3299,7 @@ the four after `route`, which moved the compact grammar to version 6.
 `dinah query` takes all six operators on the three fields and on every declared
 card field of type `date`, and a value on such a field may be relative:
 `today`, or `today` followed by `+` or `-` and one to four digits of days. The
-derived field `schedule` takes `:` and `!=` over the five condition names, and
+derived field `schedule` takes `:` and `!=` over the six condition names, and
 matches every condition that holds rather than only the highest.
 
 ### Selection
@@ -3287,6 +3365,141 @@ stamps the number, a stamp locks every older build out of the whole workbench
 and so is asked for by name, and an MCP server already running keeps the
 workbench it opened without reading the number again, so a stamp on write
 would not close the window for it either.
+
+## Holds through links
+
+A workbench may declare, in the `dinah.holds` layer, that links of a kind it
+names hold one end of the link back from selection until the other end has
+started or finished, optionally for a number of days after that. The layer is
+Dinah's own behaviour rather than the profile's, and a workbench declaring no
+usable rule behaves as though its links carried none.
+
+### What Dinah takes, and what it declines
+
+Dinah is a pull system. It computes no schedule, no critical path and no
+levelling, and it fires nothing, so a dependency is taken only where a read can
+test it against a card's position, its history and today, and where its only
+effect is to withhold a card from selection or to report on it. Of the four
+standard dependency types, finish-to-start is taken as `waits_for: finish` and
+start-to-start as `waits_for: start`. Finish-to-finish and start-to-finish are
+declined, because their only act would be holding finished work back, which
+Kanban counts as waste. A lag in whole calendar days is taken as `lag_days`,
+declared per kind, because a link carries a kind and a card and nothing else; a
+workbench that needs two lags declares two kinds. A lead is declined, because
+it counts back from an event that has not happened, and that is a forecast.
+
+### Started and finished
+
+Both are read from a card's column and state today, and never from its
+history. The committed set is the commitment column, every column after it in
+the whole flow, and every done column. A card has started when it stands in the
+committed set, or when it is `active` under a claim that has not expired; a
+claimed event in the journal of a ready card standing before the commitment
+column counts for nothing. A rule's finishing point is every done column, and
+where the rule names `finish_at`, that column and every column after it too. A
+card has finished, for that rule, when it stands in the finishing point. A card
+moved back out of either set has not started, or has not finished, again.
+
+The start day of a card in the committed set is the day of the most recent
+crossing into that set, and of a card active outside it, the day of its most
+recent claim. The finish day is the day of the most recent crossing into the
+finishing point. A crossing is a `moved` event from a column outside the set to
+one inside it, or a `created` event filing the card straight into it, so a move
+between two columns that both lie inside, such as between two done columns, is
+no crossing. Every day is a journal stamp read as a calendar day in the
+workbench's zone. A card that reached its event with no crossing recorded, as a
+card written into a done column by hand has, reached it on no readable day,
+and a day that cannot be read withholds nothing.
+
+### Grounds
+
+Each declared link whose held end is the card being asked about is one ground.
+No ground is in force on a card that has started, so a hold governs only work
+that has not started. On a card that has not started, a ground is awaiting
+while the holder has not reached the event the rule waits for, and lagging
+while the holder reached it on a day `E` and `E + lag_days` is still to come.
+A lagging ground lifts on `E + lag_days` itself, as a card may be taken up on
+its own `start_after`. A ground is never in force where the holder is archived
+or resolves nowhere; a holder restored from the archive holds again.
+
+An awaiting ground carries the earliest day it could lift, given the holder's
+own dates, reported as `not_before` where it is later than today. It is the
+latest of the holder's `start_after`, the until days of the holder's own
+lagging grounds, and the not-before days of the holder's own awaiting grounds,
+computed the same way, plus the rule's lag; a holder that has started
+contributes no day. The walk back skips only the cards on the path being read,
+so a card reached along two paths is read along both and a cycle ends at the
+card already on the path. The holder's `start_by` and `due` do not reach the
+held card. The not-before day lifts nothing: the ground lifts on the holder's
+event and on nothing else.
+
+A ready card is held when its own `start_after` is later than today or when a
+ground is in force. It is released by time when none of its grounds in force
+is awaiting, on the latest of its own `start_after` and its lagging grounds'
+until days; a card with an awaiting ground waits on a card, and no date
+releases it.
+
+### Selection
+
+The start hold selection applies, which the section on Tier describes, holds a
+card on its grounds as it holds one on its own `start_after`. `next` passes over
+a held card and, where a column's ready work all waits, sets `waiting` and
+`waiting_on` on its offer, the references of the cards waited on, and prints
+`ready, waiting on` with at most three of them. `prime` lists such a column.
+`pull` answers `answer.pull.waiting.*` naming the cards waited on. Nobody is
+exempt, the operator included, and a pull carrying `--no-claim` is withheld.
+
+### Explicit acts
+
+No verb refuses anything on the ground of a link. `dinah claim` of a waiting
+card by its reference succeeds, where a claim is admitted at all, and carries
+the warning `warn.waiting-on` naming the cards it waited on; the claim starts
+the card, and while it holds nothing withholds it. Released, or expired,
+before the commitment column, the card has not started and waits again. A card
+held only by a date, its own or a lag's, carries `warn.before-start-after`
+instead. At a column where nobody takes work up, a claim is refused on its own
+account, and moving the card to the commitment column or beyond is the
+override, which lasts. `dinah link` warns with `warn.hold-cycle` when the link
+it writes closes a cycle.
+
+### Cycles
+
+A cycle is counted over awaiting edges only: the held card stands outside a
+done column and has not started, and the holder has not reached the rule's
+event. A cycle of such edges holds every card in it, and Dinah breaks it by no
+rule. A person breaks it by starting any card of it, by a claim held or a move
+to the commitment column, or by removing a link or the rule.
+
+### Conditions, show and listings
+
+The condition `waiting` holds on a live card outside a done column with a
+ground in force, and `dinah query "schedule:waiting"` selects such cards. The
+JSON card view carries `waits_on`, one entry per ground in force with the
+holder's `id` and `ref`, the `kind`, `waits_for`, `finish_at` where the rule
+names one, `lag_days`, and `reached`, `until` or `not_before` as the ground
+carries them. `dinah show` prints one line per ground, such as
+`waits on: wed-1 to finish, not before 2026-11-01` or
+`waits until 2026-10-09: 7 days after garage-1 finished`, and a listing's
+Schedule cell names the cards waited on after any other condition. The urgency
+term `blocks-others` counts, for each card, the live cards outside a done
+column that wait on it through an awaiting ground.
+
+### What check reports
+
+| Report | Kind | Severity | What it says |
+|---|---|---|---|
+| `check.holds-malformed` | finding | defect | A `dinah.holds` block that is not a mapping, or a member or kind the reader could not use, with the member and the text read. |
+| `check.holds-member-unknown` | finding | cleanup | A member of the block, or of a kind, this build does not read. |
+| `check.hold-cycle` | finding | defect | A cycle of awaiting edges, reported once at the anchor of its lowest-numbered card, naming its cards in edge order. |
+| `check.holds-below-format` | finding | defect | A workbench declaring a format below 11 whose block declares a usable rule. |
+
+### Below storage format 11
+
+A workbench below format 11 honours `dinah.holds` in this build, and the number
+records only whether an older build could open it and hand a held card out
+early. `check.holds-below-format` reports the gap and `dinah check
+--migrate-holds --yes` closes it, stamping `format: 11` and writing nothing
+else, on every term `--migrate-schedule` keeps.
 
 ## Tier: what class of worker a card needs at each stop
 
@@ -3520,6 +3733,19 @@ carrying `--no-claim` is withheld on the date, which parts it from the tier,
 because it still hands the card out by selection. The way to act before the
 date is to name the card.
 
+A link a workbench declares under `dinah.holds` is a third ground the start
+hold reads, and the section on holds through links says when it is in force. A
+card held on such a ground either waits on a card, which no date releases, or
+is released by time on a date, which folds into `startable_from` like a
+`start_after`. Where a column's ready work waits on a card, `next` sets
+`waiting` and `waiting_on`, and where it holds both kinds it carries `not_yet`
+and `waiting` together and prints the waiting sentence, because it names work
+somebody can go and do while the date arrives without anybody's help. The
+above-tier sentence still comes first. `pull` answers `answer.pull.above-tier.*`,
+else `answer.pull.waiting.*` naming the cards waited on, else
+`answer.pull.not-yet.*`, else `answer.pull.empty.*`. A pull carrying
+`--no-claim` is withheld on a link as on a date.
+
 ### Raising the tier from inside the work
 
 An agent that has taken a card up and found the work beyond its own class
@@ -3613,12 +3839,12 @@ run stopped between its anchor and them.
 The format carries two version numbers with two audiences, and they are
 never conflated:
 
-- **Storage format version.** `format: 10` in `workbench.md` frontmatter,
+- **Storage format version.** `format: 11` in `workbench.md` frontmatter,
   an integer governing the whole workbench directory. An implementation
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the number has moved nine times: from
+  approximately once) is the model, and the number has moved ten times: from
   1 to 2 when the rule that a workbench lives inside a `.dinah` container
   landed, from 2 to 3 when the card number left the card anchor for the
   registry, from 3 to 4 when the heading a card body carried its branch name
@@ -3628,14 +3854,17 @@ never conflated:
   answer came to be identified by the comment's own identifier rather than by
   its position, from 7 to 8 when a declaration could stop applying to a
   card, from 8 to 9 when a quoted scalar on an anchor came to read as
-  text, and from 9 to 10 when a card gained scheduling dates. Three of the
-  nine are not private business: the mechanism behind each is one the
-  profile states, and the profile moved with it. The seventh is private
+  text, from 9 to 10 when a card gained scheduling dates, and from 10 to 11
+  when a link a workbench declares under `dinah.holds` began to hold a card
+  back from selection. Three of the ten are not private business: the
+  mechanism behind each is one the profile states, and the profile moved with
+  it. The seventh is private
   business of the plainest kind, since a build below 8 reads a level axis in
   the mapping form as no axis at all, and so are the eighth, since a build
   below 9 parses the text inside a line's quotes and reads a quoted JSON
-  object as the object, and the ninth, since a build below 10 ignores a
-  card's dates and hands a card out before its `start_after`.
+  object as the object, the ninth, since a build below 10 ignores a card's
+  dates and hands a card out before its `start_after`, and the tenth, since a
+  build below 11 ignores a declared hold and hands a held card out early.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no

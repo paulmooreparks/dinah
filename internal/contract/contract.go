@@ -979,33 +979,54 @@ const UrgencyKey = LayerPrefix + "urgency"
 // asking.
 const ScheduleKey = LayerPrefix + "schedule"
 
+// HoldsKey is the frontmatter key a workbench declares its commitment column
+// and its holding link kinds under: which kinds hold one end of a link back
+// from selection until the other end starts or finishes, and the column at
+// which work counts as started. It is read from the workbench's own
+// workbench.md alone, because a link kind's grammar is the workbench's.
+const HoldsKey = LayerPrefix + "holds"
+
 // MintedKeys lists every frontmatter key Dinah introduces under the layer
 // prefix. It sits beside Introduced and MintedKinds for the reason MintedKinds
 // gives: the prefix carries all three, and a reader meeting a dotted token in
 // a document needs one place to ask what it is.
-var MintedKeys = []string{ViewsKey, UrgencyKey, ScheduleKey}
+var MintedKeys = []string{ViewsKey, UrgencyKey, ScheduleKey, HoldsKey}
 
-// The five schedule conditions a card can hold, computed on every read from
-// its three scheduling dates, its history and today, and never stored.
+// The six schedule conditions a card can hold, computed on every read from
+// its three scheduling dates, its position, the links the workbench declares
+// under dinah.holds and today, and never stored.
 const (
 	// ScheduleOverdue holds where the card's due date is before today.
 	ScheduleOverdue = "overdue"
 	// ScheduleLateStart holds where the card's start_by date is before
-	// today and nobody has taken the card up.
+	// today and the card has not started.
 	ScheduleLateStart = "late_start"
 	// ScheduleDueSoon holds where the card's due date falls from today to
 	// the end of the workbench's soon window.
 	ScheduleDueSoon = "due_soon"
 	// ScheduleStartSoon holds where the card's start_by date falls from
-	// today to the end of the soon window and nobody has taken it up.
+	// today to the end of the soon window and the card has not started.
 	ScheduleStartSoon = "start_soon"
 	// ScheduleNotYet holds where the card's start_after date is after
-	// today, which is the one condition selection reads.
+	// today, which selection reads beside ScheduleWaiting.
 	ScheduleNotYet = "not_yet"
+	// ScheduleWaiting holds where a link the workbench declares under
+	// dinah.holds holds the card back today, because the card it waits on
+	// has not started or finished, or did so too few days ago.
+	ScheduleWaiting = "waiting"
 )
 
 // ScheduleConditions is the closed set, in precedence order, highest first.
-var ScheduleConditions = []string{ScheduleOverdue, ScheduleLateStart, ScheduleDueSoon, ScheduleStartSoon, ScheduleNotYet}
+var ScheduleConditions = []string{ScheduleOverdue, ScheduleLateStart, ScheduleDueSoon, ScheduleStartSoon, ScheduleNotYet, ScheduleWaiting}
+
+// The ends of a holding link and the events it waits for, as the dinah.holds
+// layer writes them.
+const (
+	HoldHeldNamed   = "named"
+	HoldHeldCarrier = "carrier"
+	HoldWaitsStart  = "start"
+	HoldWaitsFinish = "finish"
+)
 
 // Kinds lists every column kind this build admits by name: the three the
 // profile declares and the one Dinah mints. A surface offering a caller the

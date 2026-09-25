@@ -881,6 +881,7 @@ var params = map[string][]Param{
 		{Name: "migrate-newlines", Flag: true, Marker: true, Field: "MigrateNewlines"},
 		{Name: "migrate-applies-when", Flag: true, Marker: true, Field: "MigrateAppliesWhen"},
 		{Name: "migrate-schedule", Flag: true, Marker: true, Field: "MigrateSchedule"},
+		{Name: "migrate-holds", Flag: true, Marker: true, Field: "MigrateHolds"},
 		{Name: "migrate-raw-lines", Flag: true, Marker: true, Field: "MigrateRawLines"},
 		{Name: "file-standing", Flag: true, Marker: true, Field: "FileStanding"},
 		{Name: "renumber", Flag: true, Marker: true, Field: "Renumber"},

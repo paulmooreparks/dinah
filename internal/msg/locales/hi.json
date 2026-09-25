@@ -7501,9 +7501,9 @@
       "source": "a85ec4143b0da0da"
     },
     "view.urgency.explain.blocks-others": {
-      "text": "blocks लिंक अभी पढ़े नहीं जाते",
-      "context": "The phrase --explain prints for the blocks-others term, which scores nothing because no build yet gives a blocks link a meaning. blocks is the link kind's machine word and is never translated.",
-      "source": "b59ef0ec2539e26d"
+      "text": "यहाँ कोई लिंक प्रकार कार्ड नहीं रोकता",
+      "context": "The phrase --explain prints for the blocks-others term on a workbench whose dinah.holds block declares no link kind that holds a card back, so no card is counted.",
+      "source": "33c7c8c4913718f3"
     },
     "view.urgency.explain.age.unknown": {
       "text": "आगमन अज्ञात",
@@ -7894,7 +7894,7 @@
     },
     "warn.before-start-after": {
       "text": "यह कार्ड {detail} से पहले शुरू नहीं होना है; आपने इसे नाम से चुना, इसलिए किसी चीज़ ने इसे नहीं रोका",
-      "context": "A warning on a successful claim of a card whose start_after date is later than today. {detail} is that date, YYYY-MM-DD, untranslated.",
+      "context": "A warning on a successful claim of a card selection would have held back until a date: its own start_after, or the end of a number of days after a card it waits on through a link the workbench declares under dinah.holds. {detail} is that date, YYYY-MM-DD, untranslated.",
       "source": "c51165246824a2d6"
     },
     "warn.schedule-order": {
@@ -7924,27 +7924,27 @@
     },
     "card.start-by.late.one": {
       "text": "  अधिकतम शुरुआत: {date} (शुरुआत में {n} दिन की देरी)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and nobody has taken the card up; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and the card has not started; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "source": "30f5fb3e69733995"
     },
     "card.start-by.late.other": {
       "text": "  अधिकतम शुरुआत: {date} (शुरुआत में {n} दिन की देरी)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and nobody has taken the card up; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and the card has not started; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "source": "a5eb2b0d2f67051a"
     },
     "card.start-by.soon.one": {
       "text": "  अधिकतम शुरुआत: {date} ({n} दिन के भीतर शुरू करें)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and nobody has taken the card up; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and the card has not started; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "source": "b280d8e19d57dcfa"
     },
     "card.start-by.soon.other": {
       "text": "  अधिकतम शुरुआत: {date} ({n} दिन के भीतर शुरू करें)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and nobody has taken the card up; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and the card has not started; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "source": "a94ebe5e5cba5f5f"
     },
     "card.start-by.soon.today": {
       "text": "  अधिकतम शुरुआत: {date} (आज शुरू करें)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date is today and nobody has taken the card up. {date} is a date written YYYY-MM-DD and is never translated.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date is today and the card has not started. {date} is a date written YYYY-MM-DD and is never translated.",
       "source": "707b986caed97da"
     },
     "card.due": {
@@ -7994,7 +7994,7 @@
     },
     "schedule.cell.late-start": {
       "text": "शुरुआत में देरी {date}",
-      "context": "A cell of the Schedule column in a card listing. The card's start_by date has passed and nobody has taken it up, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "context": "A cell of the Schedule column in a card listing. The card's start_by date has passed and it has not started, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
       "source": "f8aadf2b421bf2ba"
     },
     "schedule.cell.due-soon": {
@@ -8004,7 +8004,7 @@
     },
     "schedule.cell.start-soon": {
       "text": "जल्द शुरू {date}",
-      "context": "A cell of the Schedule column in a card listing. The card's start_by date falls within the soon window and nobody has taken it up, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "context": "A cell of the Schedule column in a card listing. The card's start_by date falls within the soon window and it has not started, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
       "source": "3ff61351f21006f2"
     },
     "schedule.cell.not-yet": {
@@ -8071,6 +8071,141 @@
       "text": "वर्कबेंच पर वह फ़ॉर्मैट अंकित करता है जिससे कार्ड समय-सारणी की तिथियाँ रखता है, 7 या उससे ऊपर की किसी भी संख्या से, ताकि पुराना Dinah दिनांकित कार्ड को जल्दी देने के बजाय स्टोर को अस्वीकार करे; फ़ॉर्मैट 7 से नीचे की वर्कबेंच अस्वीकार की जाती है और पहले --migrate-designations चलाती है; --yes के बिना यह कुछ नहीं लिखता",
       "context": "The written meaning of the --migrate-schedule flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
       "source": "692f57c724d38fb0"
+    },
+    "next.waiting": {
+      "text": "तैयार, {cards} की प्रतीक्षा में",
+      "context": "Printed beside a column that offers no card because none of the ready cards standing there that the caller could otherwise take may be taken yet, and at least one of them waits on another card to start or finish. Others may wait on a date. {cards} is one to three references of the cards waited on, joined by a comma and a space, which are not translated.",
+      "source": "3350c101a4a28dd7"
+    },
+    "next.waiting.more": {
+      "text": "तैयार, {cards} और {n} अन्य की प्रतीक्षा में",
+      "context": "As next.waiting, where more than three cards are waited on. {cards} is the first three references; {n} is how many further cards are waited on, always 1 or more.",
+      "source": "5cad62a506a9cab"
+    },
+    "answer.pull.waiting.bare": {
+      "text": "Dinah को खींचने के लिए तैयार काम मिला, पर उसमें से कोई भी अभी लिया नहीं जा सकता, और उसमें से कुछ दूसरे कार्डों की प्रतीक्षा में है: {cards}",
+      "context": "The sentence pull prints when the bare form was asked, a column holds ready work, none of it the caller could otherwise take may be taken yet, and at least one card of it waits on another card to start or finish. Others may wait on a date. {cards} is one to three card references joined by a comma and a space, untranslated.",
+      "source": "dac9c2130d648ee3"
+    },
+    "answer.pull.waiting.bare.more": {
+      "text": "Dinah को खींचने के लिए तैयार काम मिला, पर उसमें से कोई भी अभी लिया नहीं जा सकता, और उसमें से कुछ दूसरे कार्डों की प्रतीक्षा में है: {cards} और {n} अन्य",
+      "context": "As answer.pull.waiting.bare, where more than three cards are waited on. {n} is how many further cards are waited on, always 1 or more.",
+      "source": "69ba652c7bf1cee7"
+    },
+    "answer.pull.waiting.named": {
+      "text": "Dinah को {upstream} में {destination} के लिए तैयार काम मिला, पर उसमें से कोई भी अभी लिया नहीं जा सकता, और उसमें से कुछ दूसरे कार्डों की प्रतीक्षा में है: {cards}",
+      "context": "As answer.pull.waiting.bare, for the named form. {upstream} and {destination} are column titles.",
+      "source": "97debdfffab6451a"
+    },
+    "answer.pull.waiting.named.more": {
+      "text": "Dinah को {upstream} में {destination} के लिए तैयार काम मिला, पर उसमें से कोई भी अभी लिया नहीं जा सकता, और उसमें से कुछ दूसरे कार्डों की प्रतीक्षा में है: {cards} और {n} अन्य",
+      "context": "As answer.pull.waiting.named, where more than three cards are waited on. {n} is how many further cards are waited on, always 1 or more.",
+      "source": "c870cb5015d5d74c"
+    },
+    "warn.waiting-on": {
+      "text": "यह कार्ड {detail} की प्रतीक्षा में था; आपने इसे नाम से चुना, इसलिए किसी चीज़ ने इसे नहीं रोका, और यह फिर से प्रतीक्षा तभी करेगा जब प्रतिबद्धता कॉलम तक पहुँचने से पहले इसका दावा छोड़ दिया जाए या समाप्त हो जाए",
+      "context": "A warning on a successful claim of a card a link was holding back until another card started or finished. The claim starts the card for as long as it is held; a card whose claim is released, or runs out, short of the workbench's commitment column has not started and is held again. {detail} is one or more card references joined by a comma and a space, untranslated.",
+      "source": "574ab70625575fb4"
+    },
+    "warn.hold-cycle": {
+      "text": "यह कड़ी ऐसे कार्डों का चक्र पूरा करती है जिनमें हर एक अगले की प्रतीक्षा करता है, इसलिए next और pull उनमें से कोई भी नहीं देंगे: {detail}",
+      "context": "A warning on a successful link whose kind the workbench declares under dinah.holds. {detail} is the cycle's card references, joined by a comma and a space, untranslated.",
+      "source": "47454d4310b52f3b"
+    },
+    "card.waits-on.start": {
+      "text": "  प्रतीक्षा: {card} के शुरू होने की",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds that holds this card back until another card starts. {card} is that card's reference and is never translated. Waits is the word rather than held, because held by names whoever holds a claim.",
+      "source": "17ff248714d77087"
+    },
+    "card.waits-on.finish": {
+      "text": "  प्रतीक्षा: {card} के पूरा होने की",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds that holds this card back until another card reaches a done column. {card} is that card's reference and is never translated.",
+      "source": "23e1fe6b2d6eb92a"
+    },
+    "card.waits-on.reach": {
+      "text": "  प्रतीक्षा: {card} के {column} तक पहुँचने की",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds that holds this card back until another card reaches a named column or any column after it. {card} is that card's reference and is never translated; {column} is the column's title.",
+      "source": "608821f840747512"
+    },
+    "card.waits-on.not-before": {
+      "text": "{line}, {date} से पहले नहीं",
+      "context": "One of the card.waits-on lines, already rendered as {line}, followed by the earliest day the wait could end given the other card's own dates. {date} is a date written YYYY-MM-DD and is never translated.",
+      "source": "c3a3024abe62aa81"
+    },
+    "card.waits-until.start.one": {
+      "text": "  {date} तक प्रतीक्षा: {card} के शुरू होने के {n} दिन बाद",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds whose other card has started, where the link also asks for a number of days after that; the form for one day. {date} is the day, written YYYY-MM-DD, on which time alone releases this card; {card} is the other card's reference. Neither is translated.",
+      "source": "b5578439ceb28752"
+    },
+    "card.waits-until.start.other": {
+      "text": "  {date} तक प्रतीक्षा: {card} के शुरू होने के {n} दिन बाद",
+      "context": "As card.waits-until.start.one, the form for any other number of days.",
+      "source": "baf59affea0a267f"
+    },
+    "card.waits-until.finish.one": {
+      "text": "  {date} तक प्रतीक्षा: {card} के पूरा होने के {n} दिन बाद",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds whose other card has reached a done column, where the link also asks for a number of days after that; the form for one day. {date} is the day, written YYYY-MM-DD, on which time alone releases this card; {card} is the other card's reference. Neither is translated.",
+      "source": "d2c7d970b6da86af"
+    },
+    "card.waits-until.finish.other": {
+      "text": "  {date} तक प्रतीक्षा: {card} के पूरा होने के {n} दिन बाद",
+      "context": "As card.waits-until.finish.one, the form for any other number of days.",
+      "source": "1208c339de3f7530"
+    },
+    "card.waits-until.reach.one": {
+      "text": "  {date} तक प्रतीक्षा: {card} के {column} तक पहुँचने के {n} दिन बाद",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds whose other card has reached a named column, where the link also asks for a number of days after that; the form for one day. {date} is the day, written YYYY-MM-DD, on which time alone releases this card; {card} is the other card's reference and {column} the column's title.",
+      "source": "2f47ec65b660c659"
+    },
+    "card.waits-until.reach.other": {
+      "text": "  {date} तक प्रतीक्षा: {card} के {column} तक पहुँचने के {n} दिन बाद",
+      "context": "As card.waits-until.reach.one, the form for any other number of days.",
+      "source": "f42001db43595426"
+    },
+    "schedule.cell.waiting": {
+      "text": "{cards} की प्रतीक्षा में",
+      "context": "A cell of the Schedule column in a card listing. A link the workbench declares under dinah.holds holds the card back today, so next and pull pass it over. {cards} is the references of the cards it waits on, joined by a comma and a space, and is never translated.",
+      "source": "c7e48011d4041966"
+    },
+    "schedule.cell.and-waiting": {
+      "text": "{cell}, {cards} की प्रतीक्षा में",
+      "context": "A cell of the Schedule column in a card listing. {cell} is another schedule cell, already rendered, and the card also waits on the cards named in {cards}, joined by a comma and a space, which are never translated.",
+      "source": "9287ccceee15f122"
+    },
+    "check.holds-malformed": {
+      "text": "इस workbench.md का dinah.holds ब्लॉक जैसा लिखा है वैसा उपयोग नहीं किया जा सकता, इसलिए तब तक दोषपूर्ण सदस्य अपना डिफ़ॉल्ट लेता है, जिस प्रकार का held named या carrier नहीं है वह कुछ नहीं रोकता, और जो start_at प्रवाह के पहले कॉलम या पूर्ण कॉलम के अलावा किसी कॉलम को नहीं बताता वह डिफ़ॉल्ट प्रतिबद्धता कॉलम को जगह देता है: {detail}",
+      "context": "A check finding, followed by the workbench.md path in parentheses. {detail} carries `dinah.holds not a mapping`; or `dinah.holds`, the member and the text read, as `dinah.holds start_at nowhere`; or `dinah.holds`, a link kind and `not a mapping`; or `dinah.holds`, a link kind, the member and the text read. held takes named or carrier, waits_for takes start or finish, lag_days a whole number from 0 to 365, and start_at and finish_at a column. dinah.holds, the member names and the words they take are never translated.",
+      "source": "edb135aa8353463c"
+    },
+    "check.holds-member-unknown": {
+      "text": "इस workbench.md का dinah.holds ब्लॉक ऐसा सदस्य रखता है जिसे यह बिल्ड नहीं पढ़ता, और उसे अनदेखा किया जाता है: {detail}",
+      "context": "A check finding at cleanup severity, followed by the workbench.md path in parentheses. {detail} is the member's name, preceded by the link kind where the member belongs to one. The block's members are start_at and kinds, and a kind's are held, waits_for, lag_days and finish_at, so the finding is most often a misspelling of one of them.",
+      "source": "15cefccd317eb489"
+    },
+    "check.hold-cycle": {
+      "text": "ये कार्ड dinah.holds में घोषित कड़ी के ज़रिए हर एक अगले की प्रतीक्षा करते हैं, इसलिए next और pull इनमें से कोई भी तब तक नहीं देते जब तक इनमें से कोई शुरू न हो: {detail}",
+      "context": "A check finding, followed by the path of the lowest-numbered card's card.md in parentheses. {detail} is the cycle's card references in the order each waits on the next, joined by a comma and a space, and is never translated. Moving any of the cards to the workbench's commitment column, claiming one, or removing a link breaks the cycle.",
+      "source": "cc8f6d4812c3bf7f"
+    },
+    "check.holds-below-format": {
+      "text": "यह वर्कबेंच dinah.holds के अंतर्गत ऐसी कड़ियाँ घोषित करती है जो कार्डों को रोकती हैं, पर यह फ़ॉर्मैट {detail} घोषित करती है, इसलिए पुराना Dinah रोके गए कार्ड को जल्दी दे देगा; `dinah check --migrate-holds --yes` चलाएँ ताकि पुराना Dinah इसके बजाय इसे अस्वीकार करे",
+      "context": "A check finding: a workbench declaring a storage format below the one that introduced holds carried by links, where its dinah.holds block declares at least one usable rule. {detail} carries the declared format number. dinah.holds is file syntax and the command line inside the sentence is the repair; neither is translated.",
+      "source": "daf25a0ae6ccae00"
+    },
+    "param.check.migrate-holds.summary": {
+      "text": "वर्कबेंच पर वह फ़ॉर्मैट अंकित करता है जिससे dinah.holds के अंतर्गत घोषित कड़ी किसी कार्ड को रोकती है, 7 या उससे ऊपर की किसी भी संख्या से, ताकि पुराना Dinah रोके गए कार्ड को जल्दी देने के बजाय स्टोर को अस्वीकार करे; फ़ॉर्मैट 7 से नीचे की वर्कबेंच अस्वीकार की जाती है और पहले --migrate-designations चलाती है; --yes के बिना यह कुछ नहीं लिखता",
+      "context": "The written meaning of the --migrate-holds flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
+      "source": "c80478ce67ef72db"
+    },
+    "view.urgency.explain.blocks-others.counted.one": {
+      "text": "{count} कार्ड इसकी प्रतीक्षा करता है",
+      "context": "The phrase --explain prints for the blocks-others term when one card waits on this card through a link the workbench declares under dinah.holds; the form for one card.",
+      "source": "524a7541815d1c5b"
+    },
+    "view.urgency.explain.blocks-others.counted.other": {
+      "text": "{count} कार्ड इसकी प्रतीक्षा करते हैं",
+      "context": "As view.urgency.explain.blocks-others.counted.one, the form for any other number of cards, including none.",
+      "source": "6d7ffc660cfb5587"
     }
   }
 }

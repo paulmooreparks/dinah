@@ -1306,3 +1306,15 @@ Caught twice on dinah-605, 2026-09-25, at Agent Code Review, by a reviewer traci
 **The test:** wherever an answer is computed from the current time, count the places in one call that read the clock, and treat any count above one as the defect, however close together the reads sit. Arm it with an injected clock that moves a whole day forward on every read rather than with a sleep: under that clock a second read is a different day every time, so an answer whose rows disagree about the day, or whose rows carry a condition other than the one they were selected for, is proof of the second read. Restore the per-item read and watch the case name the rows that disagree.
 
 **Related:** "A two-route recovery that consults the inference before the evidence," above, rested its guard on one write stamping two lines from one reading of the clock. That entry is about trusting a single reading nobody checked; this one is about the same answer taking two readings nobody noticed.
+
+## A reading taken as a later argument of the call whose earlier argument changes what it reads
+
+Caught at Implement on dinah-608, 2026-09-25, by the implementer's own test of the claim warning, before the card left the column. The feature warns a person who claims a card by name that a link had been holding the card back. The warning has to be read before the claim, because once the card is claimed it has started and nothing holds it.
+
+**Wrong:** `return l.warnWithheld(l.claim(req, card), hold(card))`. The specification wrote the arm this way, with a comment saying the hold is read before the claim. Go evaluates a call's arguments left to right, so `l.claim` ran first and wrote the card active, and `hold(card)` then read a card that had started and answered that nothing held it. Every claim of a waiting card succeeded with no warning at all. The line reads as though the hold came first because `hold` was built on the line above, and building the function is not calling it.
+
+**Right:** take the reading in a statement of its own, before the call that changes what it reads: `answer := hold(card)`, then `return l.warnWithheld(l.claim(req, card), answer)`. Say in a comment why the reading is hoisted, because the next person to tidy the arm will fold it back into the argument list.
+
+**The test:** wherever one argument of a call is a function of state another argument writes, read the arguments in the order the language evaluates them rather than in the order the comment above them describes. Arm it by folding the reading back into the argument list and watching a case that asserts the warning's text on a card that was waiting go red; a case asserting only that the claim succeeded passes either way.
+
+**Related:** "One answer that reads the clock more than once," above, is the same question about when a reading is taken, asked of a clock rather than of a card: in both, what a later step computes depends on whether a write has already happened, and neither shows it in the code.

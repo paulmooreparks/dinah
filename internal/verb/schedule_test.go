@@ -81,31 +81,56 @@ func (h *harness) journals() map[string]string {
 // TestTheBoundaryTableHolds is dinah-605/criteria/4: every row of the boundary
 // table in the specification's section 3, read off the JSON card view with
 // today at 2026-10-03 and a seven-day window.
+//
+// Two rows were re-pinned at dinah-608 under its decision 10, which makes
+// started a position in the flow. The fixture's commitment column defaults to
+// Doing, so a card standing in Aftercare has started whether or not anybody
+// claimed it. The rows that exercise late_start now file their card in Intake,
+// before the commitment column, where it still reads; the row that stood a
+// never-claimed card in Aftercare now pins decision 10's answer there, which
+// is no late_start. The claimed-and-released row declares its commitment
+// column at Aftercare so that its claim lands before it, which is the only
+// place a claim decides whether the card has started.
 func TestTheBoundaryTableHolds(t *testing.T) {
 	h := scheduleHarness(t)
 	rows := []struct {
-		name   string
-		column string
-		dates  []string
-		after  func(ref string)
-		want   string
+		name    string
+		column  string
+		startAt string
+		dates   []string
+		after   func(ref string)
+		want    string
 	}{
 		{name: "due yesterday", column: aftercare, dates: []string{bench.DueField, "2026-10-02"}, want: "overdue"},
 		{name: "due today", column: aftercare, dates: []string{bench.DueField, "2026-10-03"}, want: "due_soon"},
 		{name: "due at the window's edge", column: aftercare, dates: []string{bench.DueField, "2026-10-10"}, want: "due_soon"},
 		{name: "due past the window", column: aftercare, dates: []string{bench.DueField, "2026-10-11"}, want: ""},
 		{name: "due yesterday and finished", column: finished, dates: []string{bench.DueField, "2026-10-02"}, want: ""},
-		{name: "start_by yesterday, never claimed", column: aftercare, dates: []string{bench.StartByField, "2026-10-02"}, want: "late_start"},
-		{name: "start_by yesterday, claimed and released", column: aftercare, dates: []string{bench.StartByField, "2026-10-02"}, after: func(ref string) {
+		{name: "start_by yesterday, never claimed", column: intake, dates: []string{bench.StartByField, "2026-10-02"}, want: "late_start"},
+		{name: "start_by yesterday, never claimed, past the commitment column", column: aftercare, dates: []string{bench.StartByField, "2026-10-02"}, want: ""},
+		// The claim has to land before the commitment column for a release
+		// to count, so this row moves the commitment column to Aftercare and
+		// stands its card in Doing. The claim alone starts the card, which the
+		// row reads between the claim and the release, so the row fails where
+		// the claim does not happen; the release before the commitment column
+		// makes the card late again.
+		{name: "start_by yesterday, claimed and released before the commitment column", column: doing, startAt: "aftercare", dates: []string{bench.StartByField, "2026-10-02"}, after: func(ref string) {
 			h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref})
+			if got := strings.Join(h.cardView(ref).Schedule, ","); got != "" {
+				t.Errorf("while claimed the card holds [%s], want nothing", got)
+			}
 			h.mustDo(&Request{Verb: Release, Actor: "alka", Card: ref})
-		}, want: ""},
+		}, want: "late_start"},
 		{name: "start_after tomorrow", column: aftercare, dates: []string{bench.StartAfterField, "2026-10-04"}, want: "not_yet"},
 		{name: "start_after today", column: aftercare, dates: []string{bench.StartAfterField, "2026-10-03"}, want: ""},
-		{name: "late to start and due soon", column: aftercare, dates: []string{bench.StartByField, "2026-10-01", bench.DueField, "2026-10-08"}, want: "late_start,due_soon"},
+		{name: "late to start and due soon", column: intake, dates: []string{bench.StartByField, "2026-10-01", bench.DueField, "2026-10-08"}, want: "late_start,due_soon"},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			if row.startAt != "" {
+				h.writeAnchorBlock(bench.HoldsKey, "dinah.holds:\n  start_at: "+row.startAt+"\n")
+				defer h.writeAnchorBlock(bench.HoldsKey, "")
+			}
 			ref := h.dated(row.name, row.column, row.dates...)
 			if row.after != nil {
 				row.after(ref)
@@ -237,12 +262,12 @@ func TestAnInjectedHoldIsTheOnlyThingTheScanReads(t *testing.T) {
 	}
 	column := h.library.Bench.Column(aftercare)
 	admit := selectionAdmission(h.library.Bench, &Request{Actor: "alka"})
-	injected := func(*bench.Card) (bool, string) { return true, "2026-10-09" }
-	offer, err := h.library.offerFor(column, cards, admit, injected, h.library.today(&Request{}))
+	injected := func(*bench.Card) holdAnswer { return holdAnswer{Held: true, From: "2026-10-09"} }
+	offer, err := h.library.offerFor(column, cards, admit, injected, h.library.dayOf(&Request{}))
 	if err != nil || offer.Card != nil || !offer.NotYet || offer.StartableFrom != "2026-10-09" {
 		t.Errorf("the injected hold gave %+v %v", offer, err)
 	}
-	offer, err = h.library.offerFor(column, cards, admit, h.library.selectionHold(&Request{}), h.library.today(&Request{}))
+	offer, err = h.library.offerFor(column, cards, admit, mustSelectionHold(t, h.library), h.library.dayOf(&Request{}))
 	if err != nil || offer.Card == nil || offer.Card.Ref != ref {
 		t.Errorf("the production hold gave %+v %v", offer, err)
 	}
@@ -500,10 +525,12 @@ func TestDateTermsCompareAndResolve(t *testing.T) {
 	}
 }
 
-// TestTheScheduleFieldSelectsByCondition is dinah-605/criteria/12.
+// TestTheScheduleFieldSelectsByCondition is dinah-605/criteria/12. Its late
+// card stands in Intake since dinah-608's decision 10, because a card standing
+// past the commitment column has started and reads no late_start.
 func TestTheScheduleFieldSelectsByCondition(t *testing.T) {
 	h := scheduleHarness(t)
-	both := h.dated("late and due soon", aftercare, bench.StartByField, "2026-10-01", bench.DueField, "2026-10-08")
+	both := h.dated("late and due soon", intake, bench.StartByField, "2026-10-01", bench.DueField, "2026-10-08")
 	overdue := h.dated("overdue", aftercare, bench.DueField, "2026-10-02")
 	early := h.dated("not yet and due soon", aftercare, bench.StartAfterField, "2026-10-06", bench.DueField, "2026-10-10")
 	plain := h.dated("nothing", aftercare)
@@ -522,7 +549,7 @@ func TestTheScheduleFieldSelectsByCondition(t *testing.T) {
 	}
 	_, err := h.queryRefs("schedule:late")
 	refusal, ok := err.(*contract.Refusal)
-	if !ok || refusal.Name != contract.UnknownValue || refusal.Extra["legal"] != "overdue, late_start, due_soon, start_soon, not_yet" {
+	if !ok || refusal.Name != contract.UnknownValue || refusal.Extra["legal"] != "overdue, late_start, due_soon, start_soon, not_yet, waiting" {
 		t.Errorf("schedule:late answered %+v", err)
 	}
 	_, err = h.queryRefs("schedule>=x")
@@ -617,7 +644,18 @@ func TestAUserConfigCarriesNoSchedule(t *testing.T) {
 // viewToday is a card's view drawn on the day the fixture's clock reads, for
 // the cases that ask about one card and have no request to read the day from.
 func (l *Library) viewToday(card *bench.Card) (*CardView, error) {
-	return l.view(card, l.Bench.Today(l.Now()))
+	return l.view(card, l.dayOf(&Request{}))
+}
+
+// mustSelectionHold is the start hold a fresh request on library builds,
+// failing the test where the hold index cannot be read.
+func mustSelectionHold(t *testing.T, library *Library) startHold {
+	t.Helper()
+	hold, err := library.selectionHold(&Request{})
+	if err != nil {
+		t.Fatalf("selectionHold: %v", err)
+	}
+	return hold
 }
 
 // TestOneAnswerIsDrawnOnOneDay runs each reading verb on a clock that moves a

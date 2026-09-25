@@ -237,6 +237,7 @@ var argumentExemptions = map[string]map[string]string{
 		"migrate-designations": "converts every checklist item's answer of record and stamps the store's format, which is a cutover the workbench operator runs at a moment he picks and which locks every older build out of the store",
 		"migrate-applies-when": "stamps the store's format at the one that declares applies_when conditions, which locks every older build out of the store and is the operator's to run at a terminal",
 		"migrate-schedule":     "stamps the store's format at the one from which a card carries scheduling dates, which locks every older build out of the store and is the operator's to run at a terminal",
+		"migrate-holds":        "stamps the store's format at the one from which a declared link holds a card back from selection, which locks every older build out of the store and is the operator's to run at a terminal",
 		"migrate-raw-lines":    "rewrites every quoted raw line on the workbench and column anchors and stamps the store's format, which locks every older build out of the store and is the operator's to run at a terminal",
 		"rehearse":             "turns that conversion into a rehearsal, which is the form an agent may run and which this head offers no conversion to rehearse",
 		"force-claims":         "carries that conversion past a card somebody still holds, which is a judgement about whose session has died and is the operator's to make at a terminal",

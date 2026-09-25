@@ -221,6 +221,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateAppliesWhen = value
 	case "migrate-schedule":
 		req.MigrateSchedule = value
+	case "migrate-holds":
+		req.MigrateHolds = value
 	case "migrate-raw-lines":
 		req.MigrateRawLines = value
 	case "rehearse":

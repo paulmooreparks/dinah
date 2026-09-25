@@ -161,7 +161,7 @@ func (l *Library) Status(req *Request) (*Status, error) {
 			return nil, err
 		}
 		counts[card.Column]++
-		view, err := l.view(card, l.today(req))
+		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
 			return nil, err
 		}
@@ -311,7 +311,7 @@ func (l *Library) List(req *Request) (*Listing, error) {
 	}
 	sortByArrival(kept)
 	for _, card := range kept {
-		view, err := l.view(card, l.today(req))
+		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
 			return nil, err
 		}
@@ -358,13 +358,23 @@ type Offer struct {
 	RequiredTier string      `json:"required_tier,omitempty"`
 	SatisfiedBy  []ModelView `json:"satisfied_by,omitempty"`
 	// NotYet says the column holds ready work that no act here may select
-	// before a date: at least one ready card with a landing was withheld because
-	// its start_after is later than today. It may stand beside AboveTier, and
-	// it never stands beside Card or NoTaker.
+	// before a date: at least one ready card with a landing was withheld until
+	// a day time alone brings, its own start_after or the end of a lag after
+	// a card it waits on. It may stand beside AboveTier and Waiting, and it
+	// never stands beside Card or NoTaker.
 	NotYet bool `json:"not_yet,omitempty"`
-	// StartableFrom is the earliest start_after among the cards withheld on
-	// that ground, present exactly where NotYet is.
+	// StartableFrom is the earliest date among the cards withheld on that
+	// ground, present exactly where NotYet is.
 	StartableFrom string `json:"startable_from,omitempty"`
+	// Waiting says the column holds ready work that no act here may select
+	// until another card starts or finishes: at least one ready card with a
+	// landing was withheld on a ground carried by a link. It may stand beside
+	// AboveTier and NotYet, and it never stands beside Card or NoTaker.
+	Waiting bool `json:"waiting,omitempty"`
+	// WaitingOn are the references of the cards that withheld work waits on,
+	// each once, in arrival order of the cards waiting. Present exactly where
+	// Waiting is.
+	WaitingOn []string `json:"waiting_on,omitempty"`
 	// Landing is the column the offered card would be taken to: this column
 	// where a claim would take it up, and the column a pull would carry it
 	// into where it is offered by pull. It is the column whose tier floor the
@@ -377,7 +387,7 @@ type Offer struct {
 	// ReadyCount is how many ready cards stand in this column, whichever of
 	// them, if any, Card names. It is readyIn's own length, already computed
 	// before this field existed and simply published now. Absent where Card,
-	// AboveTier and NotYet are all absent, since there is nothing to count for a
+	// AboveTier, NotYet and Waiting are all absent, since there is nothing to count for a
 	// column carrying no ready card this caller could be shown at all: a
 	// column reporting NoTaker may still hold ready cards nobody here could
 	// take, and this field says nothing about those.
@@ -432,11 +442,15 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 // what a column offers the one caller.
 func (l *Library) columnOffers(req *Request, cards []*bench.Card, columns []*bench.Column) ([]Offer, error) {
 	admit := selectionAdmission(l.Bench, req)
-	today := l.today(req)
-	hold := l.startHoldFor(today)
+	day := l.dayOf(req)
+	holds, err := l.holdsAt(day)
+	if err != nil {
+		return nil, err
+	}
+	hold := l.startHoldFor(day.date, holds)
 	offers := make([]Offer, 0, len(columns))
 	for _, column := range columns {
-		offer, err := l.offerFor(column, cards, admit, hold, today)
+		offer, err := l.offerFor(column, cards, admit, hold, day)
 		if err != nil {
 			return nil, err
 		}
@@ -471,12 +485,13 @@ func (l *Library) columnOffers(req *Request, cards []*bench.Card, columns []*ben
 //
 // The start hold is the second test the scan applies, after the landing and
 // before the tier, and a column whose only ready work the hold withheld
-// reports NotYet with the earliest date rather than NoTaker: a column holding
-// ready work that will be taken from here once its date comes is not a column
-// nothing is taken from. today is the day hold was built from, and the head's
+// reports NotYet with the earliest date, Waiting with the cards waited on, or
+// both, rather than NoTaker: a column holding ready work that will be taken
+// from here once its date comes, or once another card moves, is not a column
+// nothing is taken from. day is the day hold was built from, and the head's
 // view is drawn on it too, so an offer cannot show a card it selected as
 // startable carrying a condition that says it is held.
-func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admission, hold startHold, today bench.Date) (Offer, error) {
+func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admission, hold startHold, day *requestDay) (Offer, error) {
 	offer := Offer{Column: column.ID, Title: column.Title}
 	byPull := !column.TakesWorkUp()
 	landing := func(*bench.Card) *bench.Column { return column }
@@ -486,14 +501,18 @@ func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admi
 		}
 	}
 	ready := readyIn(cards, column.ID)
-	head, at, sawTier, withheld, notYetFrom := headOfReadyFor(l.Bench, column.ID, landing, hold, cards, admit)
-	if head == nil && notYetFrom != "" {
+	head, at, sawTier, withheld, held := headOfReadyFor(l.Bench, column.ID, landing, hold, cards, admit)
+	if head == nil && held.NotYetFrom != "" {
 		offer.NotYet = true
-		offer.StartableFrom = notYetFrom
+		offer.StartableFrom = held.NotYetFrom
+	}
+	if head == nil && len(held.WaitingOn) > 0 {
+		offer.Waiting = true
+		offer.WaitingOn = held.WaitingOn
 	}
 	switch {
 	case head != nil:
-		view, err := l.view(head, today)
+		view, err := l.view(head, day)
 		if err != nil {
 			return Offer{}, err
 		}
@@ -504,10 +523,11 @@ func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admi
 		offer.AboveTier = true
 		offer.RequiredTier = withheld
 		offer.SatisfiedBy = modelViews(l.Bench.SatisfyingModels(withheld))
-	case notYetFrom != "":
-		// NotYet is already set. This arm exists so the NoTaker arm below is
-		// not reached: a column holding ready work that will be taken from
-		// here once its date comes is not a column nothing is taken from.
+	case held.NotYetFrom != "" || len(held.WaitingOn) > 0:
+		// NotYet or Waiting is already set. This arm exists so the NoTaker
+		// arm below is not reached: a column holding ready work that will be
+		// taken from here once its date comes, or once the card it waits on
+		// moves, is not a column nothing is taken from.
 	case byPull && (len(ready) > 0 || carriesInto(column, l.Bench.Columns) == nil):
 		// Nothing standing here can be taken from here, which is what
 		// NoTaker says. A column holding ready cards answers it out of
@@ -520,7 +540,7 @@ func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admi
 		offer.NoTaker = true
 		offer.AwaitingOutside = column.AwaitingOutside
 	}
-	if offer.Card != nil || offer.AboveTier || offer.NotYet {
+	if offer.Card != nil || offer.AboveTier || offer.NotYet || offer.Waiting {
 		offer.ReadyCount = len(ready)
 	}
 	return offer, nil
@@ -657,7 +677,8 @@ func readyIn(cards []*bench.Card, columnID string) []*bench.Card {
 // Each ready card meets three tests in this order, and the order is part of
 // the contract: the landing, then the start hold, then the tier. A card with no
 // landing is skipped and counts toward nothing. A card the hold reports held is
-// skipped and its date folds into the earliest such date seen. A card the
+// skipped, and its date folds into the earliest such date seen, or the cards
+// it waits on into those already met. A card the
 // admission refuses is skipped and counts as tier-withheld work. The first card
 // passing all three is the head, and no card is reordered.
 //
@@ -668,10 +689,10 @@ func readyIn(cards []*bench.Card, columnID string) []*bench.Card {
 // tier withheld them. Those are different answers to a reader deciding what to
 // do next, so nothing here collapses them into a nil card.
 //
-// notYetFrom is the earliest date, YYYY-MM-DD, among the cards with a landing
-// that the start hold withheld, and is empty where it withheld none. The scan
-// reads neither today nor any card's dates itself: which cards are held, and
-// from when, is the hold's answer alone.
+// held is what the start hold withheld among the cards with a landing: the
+// earliest date time alone releases one of them on, and the cards the others
+// wait on. The scan reads neither today, any card's dates nor any link itself:
+// which cards are held, from when and on what, is the hold's answer alone.
 //
 // withheldTier is the tier the first tier-withheld card requires at the landing
 // column, which is what an offer and a refusal name so that a caller reads the
@@ -685,25 +706,25 @@ func readyIn(cards []*bench.Card, columnID string) []*bench.Card {
 // refuse, by carries no filter and every ready card is eligible.
 func headOfReadyFor(b *bench.Bench, columnID string, landing landingFor, hold startHold,
 	cards []*bench.Card, by admission) (head *bench.Card, at *bench.Column, sawTier bool,
-	withheldTier string, notYetFrom string) {
+	withheldTier string, held heldWork) {
 	for _, card := range readyIn(cards, columnID) {
 		landed := landing(card)
 		if landed == nil {
 			continue
 		}
-		if held, from := hold(card); held {
-			notYetFrom = earlierDate(notYetFrom, from)
+		if answer := hold(card); answer.Held {
+			held = held.withheld(answer, b.Slug)
 			continue
 		}
 		if by.admits(b, card, landed) {
-			return card, landed, sawTier, withheldTier, notYetFrom
+			return card, landed, sawTier, withheldTier, held
 		}
 		sawTier = true
 		if withheldTier == "" {
 			withheldTier = card.RequiredTier(b, landed)
 		}
 	}
-	return nil, nil, sawTier, withheldTier, notYetFrom
+	return nil, nil, sawTier, withheldTier, held
 }
 
 // Detail is a card and everything below it a reader asked to see.
@@ -1583,7 +1604,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			}
 			return nil, nil, nil, text, nil
 		}
-		detail, text, err := l.detailOf(entity.Card, effective, filters, l.today(req))
+		detail, text, err := l.detailOf(entity.Card, effective, filters, l.dayOf(req))
 		return detail, nil, nil, text, err
 	}
 	// A column is an entity of the workbench, and the containment walk prints
@@ -1668,7 +1689,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, nil, nil, "", err
 	}
-	detail, text, err := l.detailOf(card, effective, filters, l.today(req))
+	detail, text, err := l.detailOf(card, effective, filters, l.dayOf(req))
 	return detail, nil, nil, text, err
 }
 
@@ -1787,9 +1808,10 @@ func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 // the archived-half one, and neither carries a copy of the build.
 //
 // It is the whole of what show does once it has a card, so nothing about
-// which half the card came from reaches inside it. today is the day the
-// card's schedule conditions are drawn on, read once by Show for its request.
-func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters detailFilters, today bench.Date) (*Detail, string, error) {
+// which half the card came from reaches inside it. day is the request's day,
+// which the card's schedule conditions and holds are drawn on, read once by
+// Show for its request.
+func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters detailFilters, day *requestDay) (*Detail, string, error) {
 	cardRef := card.Ref(l.Bench.Slug)
 	// Every member is built before the selection is applied, because withheld
 	// reports what the card holds rather than what the caller left out, and
@@ -1797,7 +1819,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	// directory, which show performs whatever the caller asked for.
 	detail := &Detail{Path: card.AnchorPath(), selected: chosen}
 	if chosen.carries("card") {
-		view, err := l.view(card, today)
+		view, err := l.view(card, day)
 		if err != nil {
 			return nil, "", err
 		}
@@ -2474,12 +2496,13 @@ type Primer struct {
 	// actor holds nothing.
 	Holding []CardView `json:"holding"`
 	// Ready are the columns holding ready work this caller could take up
-	// now, is waiting on a more senior caller for, or may take from a date,
-	// one entry per column, in the workbench's own declared column order. An
-	// entry carries Card for the first, AboveTier for the second and NotYet
-	// for the third, and AboveTier and NotYet may stand together. A column
-	// offering none of the three is left out of this list entirely: Ready is
-	// empty, not a list of empty offers, when nothing anywhere is waiting.
+	// now, is waiting on a more senior caller for, may take from a date, or
+	// waits on another card to start or finish, one entry per column, in the
+	// workbench's own declared column order. An entry carries Card for the
+	// first, AboveTier for the second, NotYet for the third and Waiting for
+	// the fourth, and the last three may stand together. A column offering
+	// none of the four is left out of this list entirely: Ready is empty, not
+	// a list of empty offers, when nothing anywhere is waiting.
 	Ready []Offer `json:"ready"`
 	// Pending are the checklist items stamped for this caller, across every
 	// card the rules below reach, in the order their owning card arrived
@@ -2574,7 +2597,7 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 		if !isHolder(card, req.Actor) {
 			continue
 		}
-		view, err := l.view(card, l.today(req))
+		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
 			return nil, err
 		}
@@ -2587,7 +2610,7 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 	}
 	ready := []Offer{}
 	for _, offer := range offers {
-		if offer.Card == nil && !offer.AboveTier && !offer.NotYet {
+		if offer.Card == nil && !offer.AboveTier && !offer.NotYet && !offer.Waiting {
 			continue
 		}
 		ready = append(ready, offer)
@@ -2838,6 +2861,9 @@ type CheckReport struct {
 	// MigratedSchedule is the account of the scheduling-date format stamp,
 	// present on a run that asked for it.
 	MigratedSchedule *bench.ScheduleMigration `json:"migrated_schedule,omitempty"`
+	// MigratedHolds is the account of the holds format stamp, present
+	// exactly when the request carried --migrate-holds.
+	MigratedHolds *bench.HoldsMigration `json:"migrated_holds,omitempty"`
 	// MigratedRawLines is the account of the raw-line rewrite and the format
 	// stamp the migration made or previewed, absent from a request that did
 	// not ask for it.
@@ -3048,6 +3074,16 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
+	// The holds stamp runs beside the scheduling-date stamp and on its
+	// terms: without the confirmation it writes nothing, and it reads no
+	// card.
+	if req != nil && req.MigrateHolds {
+		migrated, err := l.Bench.MigrateHolds(req.Confirm)
+		report.MigratedHolds = migrated
+		if err != nil {
+			return report, err
+		}
+	}
 	// The raw-line rewrite runs beside the applies_when stamp, on the same
 	// shape: without the confirmation it names what it would rewrite and
 	// writes nothing, and it reads no card.
@@ -3090,6 +3126,7 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return nil, err
 		}
 		report.Findings = append(report.Findings, findings...)
+		report.Findings = append(report.Findings, l.holdCycleFindings(req)...)
 		report.Findings = append(report.Findings, l.viewQueryFindings()...)
 		report.stampOutcome()
 		return report, nil
@@ -3116,6 +3153,7 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		}
 		report.Findings = append(report.Findings, finding)
 	}
+	report.Findings = append(report.Findings, l.holdCycleFindings(req)...)
 	report.Findings = append(report.Findings, l.viewQueryFindings()...)
 	report.stampOutcome()
 	return report, nil

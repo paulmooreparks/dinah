@@ -117,7 +117,7 @@ WORKBENCH
     [--force-claims] [--migrate-branches]
     [--migrate-newlines]
     [--migrate-applies-when]
-    [--migrate-schedule]
+    [--migrate-schedule] [--migrate-holds]
     [--migrate-raw-lines] [--file-standing]
     [--renumber] [--remint <dir>]
     [--migrate-workstreams] [--witness]
