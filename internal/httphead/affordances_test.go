@@ -7,19 +7,20 @@ import (
 	"strings"
 	"testing"
 
+	"dinah/internal/answer"
 	"dinah/internal/contract"
 	"dinah/internal/verb"
 )
 
 // affordanceDocument reads GET /affordances.
-func affordanceDocument(t *testing.T, f *fixture) []affordanceRow {
+func affordanceDocument(t *testing.T, f *fixture) []answer.AffordanceRow {
 	t.Helper()
 	got := f.get("/affordances")
 	if got.status != http.StatusOK {
 		t.Fatalf("GET /affordances: %d %s", got.status, got.body)
 	}
 	var document struct {
-		Affordances []affordanceRow `json:"affordances"`
+		Affordances []answer.AffordanceRow `json:"affordances"`
 	}
 	if err := json.Unmarshal([]byte(got.body), &document); err != nil {
 		t.Fatalf("GET /affordances: %v\n%s", err, got.body)

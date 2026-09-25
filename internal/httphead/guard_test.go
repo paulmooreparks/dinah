@@ -23,15 +23,20 @@ const (
 )
 
 // sealedUse is every name the head may select from package answer. Each
-// either composes nothing or answers with an answer.Sealed.
+// either composes nothing or answers with an answer.Sealed. Encode is absent
+// because it encodes any value: the head encodes an answer only through
+// Sealed.Encode and its own table only through EncodeAffordanceTable, which
+// takes rows and nothing else.
 var sealedUse = map[string]bool{
-	"Affordances":     true,
-	"Build":           true,
-	"Encode":          true,
-	"FromErrorSealed": true,
-	"RefusalSealed":   true,
-	"RunSealed":       true,
-	"Sealed":          true,
+	"AffordanceRow":         true,
+	"Affordances":           true,
+	"Build":                 true,
+	"EncodeAffordanceTable": true,
+	"FormRoute":             true,
+	"FromErrorSealed":       true,
+	"RefusalSealed":         true,
+	"RunSealed":             true,
+	"Sealed":                true,
 }
 
 // checkComposition parses every non-test Go file in dir and reports each
@@ -50,7 +55,8 @@ var sealedUse = map[string]bool{
 //     name a response, even through a pointer;
 //  5. any selector on package answer outside sealedUse, which keeps the
 //     head off Run, Refusal and FromError, the three that hand back the
-//     *verb.Response itself.
+//     *verb.Response itself, and off Encode, which would encode a value the
+//     head built from the copy Sealed.Affordances returns.
 //
 // The affordance list is protected by a type rather than by this guard. The
 // head holds every answer as an answer.Sealed, whose fields are unexported,
@@ -80,6 +86,18 @@ var sealedUse = map[string]bool{
 // without the translation publishes next there and fails it. A rewrite of
 // such an answer that drops, reorders or repeats names the table already
 // carries passes this guard and that test.
+//
+// The seal covers the answer and not the bytes Sealed.Encode returns. Rule 5
+// keeps answer.Encode out of the head, so the head cannot encode a map it
+// built from the copy Sealed.Affordances returns through package answer
+// (rule5_encode_a_rewritten_copy.go). It can still do so through
+// encoding/json, which it imports to read request bodies, and a rewrite of
+// the bytes names nothing any rule reads:
+//
+//	encoded, err := answered.Encode()
+//	var members map[string]any
+//	json.Unmarshal(encoded, &members) // then reorder members["affordances"]
+//	encoded, err = json.MarshalIndent(members, "", "  ")
 func checkComposition(dir string) []string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
