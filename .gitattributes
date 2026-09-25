@@ -7,3 +7,8 @@
 # Compiled terminfo entries are binary files in the format term(5) documents,
 # committed byte for byte as tic wrote them. dinah-288.
 internal/screen/testdata/terminfo/[0-9a-f][0-9a-f]/* binary
+
+# PUDL's runtime files are copied byte for byte out of a tagged release and
+# their hashes are pinned in PROVENANCE beside them, so git must never rewrite
+# a byte of them. dinah-338.
+internal/pages/assets/pudl/* -text

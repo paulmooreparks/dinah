@@ -3,10 +3,11 @@ package main
 import (
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
+	"dinah/internal/answer"
+	"dinah/internal/bench"
 	"dinah/internal/verb"
 )
 
@@ -28,9 +29,15 @@ func TestDeriveCommandRoundTrips(t *testing.T) {
 	names := append([]string(nil), verb.Commands()...)
 	sort.Strings(names)
 	rounded := 0
+	cfg := bench.LoadConfig(t.TempDir())
 
 	for _, command := range names {
 		if _, skip := exempted[command]; skip {
+			continue
+		}
+		// A command the terminal does not dispatch has no line a reader could
+		// type, so the typed-line parser refuses it as the terminal does.
+		if _, notDispatched := commandExemptions[command]; notDispatched {
 			continue
 		}
 		declared := verb.Params(command)
@@ -43,7 +50,7 @@ func TestDeriveCommandRoundTrips(t *testing.T) {
 			t.Errorf("%s: refused derivation: %s", command, reason)
 			continue
 		}
-		back, refusal := reparse(command, cmd.Args)
+		back, refusal := reparse(cfg, command, cmd.Args)
 		if refusal != nil {
 			t.Errorf("%s: the derived line %q was refused on the way back in: %v", command, cmd.Line(), refusal)
 			continue
@@ -96,49 +103,15 @@ func sentinelRequest(t *testing.T, command string, declared []verb.Param) *verb.
 	return req
 }
 
-// reparse drives the derived arguments back through the terminal's own parser
-// and shared request helper, then fills the remaining fields the way the run
-// functions do: a marker from the flag's presence, a valued flag from what it
-// carried, a repeatable flag from every occurrence in order, and a positional
-// from its slot in the words after the command name.
-func reparse(command string, args []string) (*verb.Request, error) {
-	valued := map[string]bool{}
-	for _, flag := range valuedFlags {
-		valued[flag] = true
-	}
-	parsed, refusal := parseArgs(append([]string{command}, args...), valued)
+// reparse drives the derived words back through the pages' typed-line parser,
+// which runs the terminal's own parse steps, and builds the request with
+// answer.Build, which is what the pages' command log performs a typed line
+// through. So the parse a log line is tested against is the parse a line
+// typed into the log runs.
+func reparse(cfg *bench.Config, command string, args []string) (*verb.Request, error) {
+	typed, refusal := parseTypedLine(cfg, append([]string{command}, args...))
 	if refusal != nil {
 		return nil, refusal
 	}
-	s := &session{}
-	req := s.request(command, parsed)
-	fields := reflect.ValueOf(req).Elem()
-	words := parsed.rest()
-	slot := 0
-	for _, p := range verb.Params(command) {
-		field := fields.FieldByName(p.Field)
-		switch {
-		case p.Marker:
-			field.SetBool(parsed.has(p.Name))
-		case p.Flag && field.Kind() == reflect.Slice:
-			field.Set(reflect.ValueOf(parsed.values(p.Name)))
-		case p.Flag && field.Type() == reflect.TypeOf(time.Duration(0)):
-			lease, err := verb.ParseDuration(parsed.value(p.Name))
-			if err != nil {
-				return nil, err
-			}
-			field.Set(reflect.ValueOf(lease))
-		case p.Flag:
-			field.SetString(parsed.value(p.Name))
-		case p.Rest:
-			field.SetString(strings.Join(words[min(slot, len(words)):], " "))
-			slot = len(words)
-		default:
-			if slot < len(words) {
-				field.SetString(words[slot])
-				slot++
-			}
-		}
-	}
-	return req, nil
+	return answer.Build(typed.Command, typed.Arguments), nil
 }

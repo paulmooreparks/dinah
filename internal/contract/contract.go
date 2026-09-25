@@ -486,6 +486,11 @@ const (
 	// NotImplemented is an HTTP route the head reserves and cannot answer
 	// yet, because the one representation it offers has no renderer.
 	NotImplemented = LayerPrefix + "not-implemented"
+	// NotServed is a command typed into the pages' command log that the HTTP
+	// head has no route for, so the pages cannot run it. It reaches only the
+	// command log, because the typed line always answers with a redirect,
+	// and it maps to 501 so that a later route raising it has a status.
+	NotServed = LayerPrefix + "not-served"
 	// AmbiguousName is a name selector matching more than one entity of a
 	// collection that declares a name field, raised before the resolver
 	// guesses which one the caller meant. The detail names the selector and
@@ -879,7 +884,7 @@ var Introduced = []string{
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, UnknownToolProfile, ConflictingScope, DepthWithoutRoot, MalformedDepth,
 	NotLoopback, ForeignHost, ForeignOrigin, OriginRequired, BodyTooLarge, UnknownResource,
-	MethodNotAllowed, NotAcceptable, UnsupportedMediaType, BasisRequired, NotImplemented,
+	MethodNotAllowed, NotAcceptable, UnsupportedMediaType, BasisRequired, NotImplemented, NotServed,
 	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat, InapplicableField,

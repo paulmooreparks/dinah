@@ -24,8 +24,9 @@ const (
 	typeUnblock = "application/vnd.dinah.unblock+json"
 	// typePull is the body of a POST to the claims collection.
 	typePull = "application/vnd.dinah.pull+json"
-	// typeHTML is offered by the window route alone, which has no renderer
-	// yet.
+	// typeHTML is the pages' representation, offered by every route with a
+	// page after the two JSON types, and alone by the window route and the
+	// command log's.
 	typeHTML = "text/html"
 )
 
@@ -33,10 +34,12 @@ const (
 // in, carrying the contract version as its profile parameter.
 var typeVendor = `application/vnd.dinah+json; profile="` + profileVersion() + `"`
 
-// jsonOffers is what every route but the window offers, in preference order.
-// dinah-338 gives a route an HTML representation by adding text/html and a
-// renderer to that route's own list.
+// jsonOffers are the two JSON types, in preference order. Every route with a
+// page offers them ahead of text/html, through pageOffers.
 var jsonOffers = []string{typeVendor, typeJSON}
+
+// htmlOnly is what the window route and the command log's route offer.
+var htmlOnly = []string{typeHTML}
 
 // pathKind is the kind of thing a path's leading segment binds its first
 // variable to.
@@ -179,6 +182,12 @@ type route struct {
 	// offered are the representations the route offers, in preference
 	// order.
 	offered []string
+	// ignoresAccept marks the assets route, whose read answers each file in
+	// its own type whatever the Accept header says, before any negotiation.
+	ignoresAccept bool
+	// post answers a POST the route takes that runs no act of the table's,
+	// which is the typed line's, after admission and negotiation.
+	post func(h *head, x *exchange)
 }
 
 // command is the command a refusal the head raises on this route names
@@ -258,16 +267,16 @@ var routes []*route
 
 func init() {
 	routes = []*route{
-		{pattern: "/{$}", read: runRead("status"), reads: []string{"status"}, readHref: "/", offered: jsonOffers},
-		{pattern: "/workbench", binds: pathWorkbench, read: runShowAt, reads: []string{"show"}, offered: jsonOffers},
+		{pattern: "/{$}", read: runRead("status"), reads: []string{"status"}, readHref: "/", offered: pageOffers},
+		{pattern: "/workbench", binds: pathWorkbench, read: runShowAt, reads: []string{"show"}, offered: pageOffers},
 		{
-			pattern: "/cards", binds: pathRoster, read: readCards, reads: []string{"list", "query"}, offered: jsonOffers,
+			pattern: "/cards", binds: pathRoster, read: readCards, reads: []string{"list", "query"}, offered: pageOffers,
 			methods: []method{
 				{name: http.MethodPost, accepts: createTypes, acts: []act{{command: "add", created: true}}},
 			},
 		},
 		{
-			pattern: "/cards/{card}", binds: pathCard, read: runShowAt, reads: []string{"show"}, offered: jsonOffers,
+			pattern: "/cards/{card}", binds: pathCard, read: runShowAt, reads: []string{"show"}, offered: pageOffers,
 			methods: []method{
 				{name: http.MethodPatch, accepts: patchTypes, acts: []act{
 					{command: verb.Move, selectedBy: typeMove, href: "/cards/{card}"},
@@ -277,47 +286,59 @@ func init() {
 				{name: http.MethodPost, accepts: []string{typeForm}, tunnel: true},
 			},
 		},
-		{pattern: "/cards/{card}/instructions", binds: pathCard, read: readInstructions, reads: []string{"instructions"}, offered: jsonOffers},
+		{pattern: "/cards/{card}/instructions", binds: pathCard, read: readInstructions, reads: []string{"instructions"}, offered: pageOffers},
 		{
-			pattern: "/cards/{card}/claim", binds: pathCard, read: readClaim, offered: jsonOffers,
+			pattern: "/cards/{card}/claim", binds: pathCard, read: readClaim, offered: pageOffers,
 			methods: []method{
 				{name: http.MethodPost, accepts: createTypes, empty: true, acts: []act{{command: verb.Claim, created: true, href: "/cards/{card}/claim"}}},
 				{name: http.MethodDelete, empty: true, acts: []act{{command: verb.Release, href: "/cards/{card}/claim"}}},
 			},
 		},
-		{pattern: "/cards/{card}/window", binds: pathCard, read: readWindow, offered: []string{typeHTML}},
+		{pattern: "/cards/{card}/window", binds: pathCard, read: readWindow, offered: htmlOnly},
 		{
-			pattern: "/cards/{card}/{rest...}", binds: pathCard, read: readBelow, reads: []string{"list", "show"}, readHref: "{path}", offered: jsonOffers,
+			pattern: "/cards/{card}/{rest...}", binds: pathCard, read: readBelow, reads: []string{"list", "show"}, readHref: "{path}", offered: pageOffers,
 			methods: []method{
 				{name: http.MethodPost, accepts: commentTypes, empty: true, acts: []act{{command: "comment", created: true, href: "{path}/comments"}}},
 			},
 		},
-		{pattern: "/columns", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: jsonOffers},
-		{pattern: "/columns/{column}", binds: pathColumn, read: runShowAt, reads: []string{"show"}, offered: jsonOffers},
-		{pattern: "/columns/{column}/instructions", binds: pathColumn, read: readInstructions, reads: []string{"instructions"}, offered: jsonOffers},
+		{pattern: "/columns", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: pageOffers},
+		{pattern: "/columns/{column}", binds: pathColumn, read: runShowAt, reads: []string{"show"}, offered: pageOffers},
+		{pattern: "/columns/{column}/instructions", binds: pathColumn, read: readInstructions, reads: []string{"instructions"}, offered: pageOffers},
 		{
-			pattern: "/columns/{column}/{rest...}", binds: pathColumn, read: readBelow, reads: []string{"list", "show"}, offered: jsonOffers,
+			pattern: "/columns/{column}/{rest...}", binds: pathColumn, read: readBelow, reads: []string{"list", "show"}, offered: pageOffers,
 			methods: []method{
 				{name: http.MethodPost, accepts: commentTypes, empty: true, acts: []act{{command: "comment", created: true, href: "{path}/comments"}}},
 			},
 		},
-		{pattern: "/workstreams", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: jsonOffers},
-		{pattern: "/workstreams/{slug}", binds: pathWorkstream, read: runShowAt, reads: []string{"show"}, offered: jsonOffers},
-		{pattern: "/routes", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: jsonOffers},
-		{pattern: "/attachments", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: jsonOffers},
-		{pattern: "/next", read: runRead("next"), reads: []string{"next"}, readHref: "/next", offered: jsonOffers},
-		{pattern: "/changes", read: runRead("changes"), reads: []string{"changes"}, offered: jsonOffers},
-		{pattern: "/tree", read: runRead("tree"), reads: []string{"tree"}, offered: jsonOffers},
-		{pattern: "/search", read: runRead("search"), reads: []string{"search"}, offered: jsonOffers},
-		{pattern: "/views", read: readViews, reads: []string{"view"}, offered: jsonOffers},
-		{pattern: "/views/{view}", read: readView, reads: []string{"view"}, offered: jsonOffers},
-		{pattern: "/whoami", read: runRead("whoami"), reads: []string{"whoami"}, offered: jsonOffers},
-		{pattern: "/version", read: runRead("version"), reads: []string{"version"}, offered: jsonOffers},
-		{pattern: "/affordances", read: readAffordances, offered: jsonOffers},
+		{pattern: "/workstreams", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: pageOffers},
+		{pattern: "/workstreams/{slug}", binds: pathWorkstream, read: runShowAt, reads: []string{"show"}, offered: pageOffers},
+		{pattern: "/routes", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: pageOffers},
+		{pattern: "/attachments", binds: pathRoster, read: runListAt, reads: []string{"list"}, offered: pageOffers},
+		{pattern: "/next", read: runRead("next"), reads: []string{"next"}, readHref: "/next", offered: pageOffers},
+		{pattern: "/changes", read: runRead("changes"), reads: []string{"changes"}, offered: pageOffers},
+		{pattern: "/tree", read: runRead("tree"), reads: []string{"tree"}, offered: pageOffers},
+		{pattern: "/search", read: runRead("search"), reads: []string{"search"}, offered: pageOffers},
+		{pattern: "/views", read: readViews, reads: []string{"view"}, offered: pageOffers},
+		{pattern: "/views/{view}", read: readView, reads: []string{"view"}, offered: pageOffers},
+		{pattern: "/whoami", read: runRead("whoami"), reads: []string{"whoami"}, offered: pageOffers},
+		{pattern: "/version", read: runRead("version"), reads: []string{"version"}, offered: pageOffers},
+		{pattern: "/affordances", read: readAffordances, offered: pageOffers},
 		{
-			pattern: "/claims", offered: jsonOffers,
+			pattern: "/claims", offered: pageOffers,
 			methods: []method{
 				{name: http.MethodPost, accepts: pullTypes, acts: []act{{command: verb.Pull, created: true, href: "/claims"}}},
+			},
+		},
+		// The pages' own three rows. The assets route answers the embedded
+		// stylesheets and scripts; the command log's route draws the log and
+		// takes a typed line as a form alone, so a JSON body, a text body or
+		// an empty one answers 415 at admission and a form must prove it came
+		// from these pages.
+		{pattern: "/assets/{rest...}", read: readAsset, offered: htmlOnly, ignoresAccept: true},
+		{
+			pattern: "/commands", read: readCommands, offered: htmlOnly, post: postCommands,
+			methods: []method{
+				{name: http.MethodPost, accepts: []string{typeForm}},
 			},
 		},
 	}
@@ -389,6 +410,7 @@ var routeExemptions = map[string]exemption{
 	"mcp":               {GroundTheHeadItself, "starts the MCP head, so a route for it would be one server offering to start another"},
 	"lsp":               {GroundTheHeadItself, "starts the editor head, so a route for it would be one server offering to start another"},
 	"serve":             {GroundTheHeadItself, "starts this head, so a route for it would be the server offering to start itself"},
+	"ui":                {GroundTheHeadItself, "starts this head and a browser on it, so a route for it would be the server offering to start itself"},
 	"help":              {GroundProtocolServesIt, "GET /affordances names what every route takes, which is what help prints at a terminal"},
 	"raise":             {GroundLaterCard, laterCard},
 	"join":              {GroundLaterCard, laterCard},

@@ -197,7 +197,8 @@ func TestTheCardActsAnswerOverHTTP(t *testing.T) {
 
 // specifiedStatus is the table of section 9.1 of dinah-152's specification,
 // written out here so the map in status.go is held to the specification
-// rather than to itself.
+// rather than to itself. dinah.not-served is dinah-338's, whose section 13
+// maps it to 501.
 var specifiedStatus = map[int][]string{
 	400: {"malformed", "no-reason", "dinah.usage", "dinah.malformed-harness", "dinah.malformed-depth", "dinah.malformed-member-name", "dinah.unknown-field", "dinah.unknown-value", "dinah.unknown-axis", "dinah.repeated-axis", "dinah.unknown-depth", "dinah.chain-too-long", "dinah.multiple-words", "dinah.empty-search"},
 	403: {"not-operator", "not-holder", "not-requester", "no-owner", "dinah.below-tier", "dinah.foreign-origin", "dinah.origin-required"},
@@ -208,7 +209,7 @@ var specifiedStatus = map[int][]string{
 	415: {"dinah.unsupported-media-type"},
 	421: {"dinah.foreign-host"},
 	428: {"dinah.basis-required"},
-	501: {"dinah.not-implemented"},
+	501: {"dinah.not-implemented", "dinah.not-served"},
 }
 
 // TestEveryOutcomeMapsToItsStatus is dinah-152/criteria/10.
@@ -278,8 +279,11 @@ func TestNegotiationAndHeaders(t *testing.T) {
 	if asJSON.status != http.StatusUnsupportedMediaType || asJSON.header.Get("Accept-Patch") != strings.Join(patchTypes, ", ") {
 		t.Errorf("a move sent as application/json: wanted 415 with Accept-Patch %q, got %d %q", strings.Join(patchTypes, ", "), asJSON.status, asJSON.header.Get("Accept-Patch"))
 	}
-	if html := record(f.get("/cards/"+card, "Accept", "text/html")); html.status != http.StatusNotAcceptable || html.refusal(t) != contract.NotAcceptable {
-		t.Errorf("Accept text/html: wanted 406, got %d %s", html.status, html.body)
+	if html := record(f.get("/cards/"+card, "Accept", "image/png")); html.status != http.StatusNotAcceptable || html.refusal(t) != contract.NotAcceptable {
+		t.Errorf("Accept image/png: wanted 406, got %d %s", html.status, html.body)
+	}
+	if page := record(f.get("/cards/"+card, "Accept", "text/html")); page.status != http.StatusOK || page.header.Get("Content-Type") != htmlType {
+		t.Errorf("Accept text/html: wanted 200 %s, which dinah-338 gives every GET row, got %d %q", htmlType, page.status, page.header.Get("Content-Type"))
 	}
 	vendor := `application/vnd.dinah+json; profile="` + bench.ProfileVersion + `"`
 	star := record(f.get("/cards/"+card, "Accept", "*/*"))
@@ -294,8 +298,8 @@ func TestNegotiationAndHeaders(t *testing.T) {
 		t.Errorf("Accept application/json: wanted the same bytes labelled application/json, got %q and %d bytes against %d", plain.header.Get("Content-Type"), len(plain.body), len(bare.body))
 	}
 	browser := record(f.get("/cards/"+card, "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"))
-	if browser.header.Get("Content-Type") != vendor {
-		t.Errorf("a browser's usual Accept: wanted %s, got %q", vendor, browser.header.Get("Content-Type"))
+	if browser.header.Get("Content-Type") != htmlType {
+		t.Errorf("a browser's usual Accept: wanted the page, %s, got %q", htmlType, browser.header.Get("Content-Type"))
 	}
 	record(f.get("/nowhere"))
 	record(f.json(http.MethodPost, "/cards", typeJSON, `{"title": "A card"}`))
@@ -480,14 +484,16 @@ func showMembers(payload map[string]any) string {
 	return ""
 }
 
-// TestTheWindowRouteIsReserved is dinah-152/criteria/15.
+// TestTheWindowRouteIsReserved is dinah-152/criteria/15, as dinah-338 left
+// it: the route dinah-152 reserved answers with the window renderer that
+// replaced its 501, and still answers 404 for a card that does not exist.
 func TestTheWindowRouteIsReserved(t *testing.T) {
 	f := newFixture(t)
 	card := f.add("A card", "build")
-	if got := f.get("/cards/" + card + "/window"); got.status != http.StatusNotImplemented || got.refusal(t) != contract.NotImplemented {
-		t.Errorf("a card's window: wanted 501, got %d %s", got.status, got.body)
+	if got := f.get("/cards/" + card + "/window"); got.status != http.StatusOK || !strings.HasPrefix(strings.TrimSpace(got.body), "<article class=\"win") {
+		t.Errorf("a card's window: wanted 200 and the window's markup, got %d %s", got.status, got.body)
 	}
-	if got := f.get("/cards/ht-99/window"); got.status != http.StatusNotFound || got.refusal(t) != contract.UnknownCard {
+	if got := f.get("/cards/ht-99/window"); got.status != http.StatusNotFound || !strings.Contains(got.body, contract.UnknownCard) {
 		t.Errorf("a missing card's window: wanted 404 unknown-card, got %d %s", got.status, got.body)
 	}
 	for _, r := range routes {

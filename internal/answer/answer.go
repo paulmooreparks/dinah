@@ -9,6 +9,10 @@
 // these and composes no payload of its own. Identity (the actor and the four
 // declared facts) and the transport's own envelope stay with each head,
 // because the two heads read them from different places.
+//
+// It also holds the sentence a person reads for a refusal, which the terminal
+// and the pages both compose through RefusalSentence, so that the two heads a
+// person reads word one refusal one way.
 package answer
 
 import (
@@ -122,6 +126,24 @@ func FromError(l *verb.Library, r *verb.Request, err error) *verb.Response {
 	response := l.FromError(r, err)
 	response.Affordances = Affordances(response.Affordances)
 	return response
+}
+
+// RefusalValues collects everything a refusal's sentence may name: the
+// detail, the command that raised it and that command's syntax line, and the
+// named values the raise site carried. The raise site wins a collision, since
+// a value it attached is about the refusal rather than about the command. The
+// terminal and the pages fill a refusal's slots through this one function, so
+// the two cannot render one refusal with different values.
+func RefusalValues(command string, refusal *contract.Refusal) map[string]string {
+	values := map[string]string{"detail": refusal.Detail}
+	if command != "" {
+		values[contract.ValueCommand] = command
+		values[contract.ValueUsage] = verb.Usage(command)
+	}
+	for name, carried := range refusal.Extra {
+		values[name] = carried
+	}
+	return values
 }
 
 // Encode is the one encoding both machine heads publish a payload in.

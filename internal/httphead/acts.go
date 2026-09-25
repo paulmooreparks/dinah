@@ -98,6 +98,10 @@ func (h *head) act(x *exchange) {
 		req.Card = target
 	}
 	answered := h.execute(x, chosen.command, req)
+	if x.served == typeHTML {
+		h.pageAct(x, chosen.command, req, answered)
+		return
+	}
 	success := http.StatusOK
 	if chosen.created && !(chosen.command == verb.Pull && req.NoClaim) {
 		success = http.StatusCreated
@@ -363,6 +367,13 @@ func (h *head) membersOf(x *exchange, sent *body, command string, bound map[stri
 		if !ok {
 			h.refuse(x, contract.Usage, name)
 			return nil, false
+		}
+		// A browser sends every named control of a form, the empty ones
+		// included, and HTML has no way to leave an empty field out, so an
+		// empty member of a form is read as absent unless the parameter is
+		// required. A JSON body can leave a member out and is untouched.
+		if text, _ := sent.members[name].(string); sent.form && text == "" && !param.Required {
+			continue
 		}
 		value, ok := memberValue(param, sent.members[name], sent.form)
 		if !ok {

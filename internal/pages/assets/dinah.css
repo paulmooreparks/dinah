@@ -1,0 +1,82 @@
+/* Dinah's theme in PUDL's sense. It loads after pudl.css and
+   pudl-windows.css, uses PUDL's tokens for every colour, shadow, radius and
+   font, and declares only the layout PUDL does not ship: the lanes, the card
+   sheet, the command log, the brand mark and the dock in the toolbar. It sets
+   no palette token, so the pages use PUDL's default palette unmodified.
+
+   It sets one token. On the operator's ruling of 2026-09-25 the binary embeds
+   no font file, so the interface face is PUDL's own fallback list with Inter
+   removed. --font-display is derived from it, and --mono is untouched. */
+:root { --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+body { display: flex; flex-direction: column; height: 100vh; margin: 0; }
+.md-layout { flex: 1; min-height: 0; }
+
+.brand-mark { width: 20px; height: 20px; }
+.topbar-actor { font-size: 13px; color: var(--tb-chrome-fg); }
+.topbar-actor .num { color: var(--tb-fg); }
+
+.md-toolbar .win-dock { display: inline-flex; gap: 6px; }
+.win-tab {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;
+  color: var(--text); text-decoration: none;
+  background: var(--raise-grad); border: 1px solid var(--raise-border);
+  box-shadow: var(--raise-shadow);
+}
+.win-tab[aria-current="true"] { border-color: var(--accent); }
+.win-tab.minimized { opacity: .7; }
+
+.md-row .md-item { display: flex; justify-content: space-between; gap: 8px; }
+.md-row .md-count { color: var(--text-muted); font-size: 12px; }
+
+.lanes { display: flex; gap: 14px; align-items: flex-start; min-width: min-content; }
+.lane { width: 240px; flex: none; padding: 12px; }
+.lane .card-title { display: flex; justify-content: space-between; font-size: 14px; }
+.lane .md-section-label { padding: 8px 0 4px; }
+.lane-card {
+  display: block; padding: 6px 8px; margin: 0 0 6px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text); text-decoration: none; font-size: 13px;
+}
+.lane-card .num { color: var(--text-muted); font-size: 12px; margin-right: 4px; }
+.lane-card .badge { margin-top: 3px; }
+
+.card-sheet h3 { font-size: 13px; margin: 18px 0 6px; color: var(--text-muted);
+                 text-transform: uppercase; letter-spacing: .05em; }
+.card-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.card-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;
+             padding: 10px 0 14px; border-bottom: 1px solid var(--border); }
+.card-acts form { display: inline-flex; gap: 6px; align-items: flex-end; margin: 0; }
+.card-acts .form-input, .card-acts .form-select { width: auto; padding: 5px 8px; font-size: 13px; }
+.act-note { font-size: 12px; color: var(--text-muted); }
+.card-body { white-space: pre-wrap; font-size: 14px; line-height: 1.55; margin: 0; }
+.card-sheet details { margin-top: 10px; }
+.card-sheet summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+
+.query-form, .add-form { margin: 12px 0; }
+.query-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.card-table td { padding-right: 12px; }
+.tree-group { margin: 0 0 12px 12px; }
+.tree-hidden { font-size: 12px; color: var(--text-muted); }
+pre.payload { overflow: auto; font-family: var(--mono); font-size: 12.5px; }
+.refusal-why { color: var(--text); }
+.error-alone { padding: 24px; }
+
+.cmdlog {
+  flex: none; max-height: 30vh; overflow-y: auto;
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 8px 16px 10px;
+}
+.cmdlog-line { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; }
+.cmdlog-line label { font-family: var(--mono); font-size: 13px; color: var(--text-muted); }
+.cmdlog-line .form-input { font-family: var(--mono); font-size: 13px; padding: 5px 9px; }
+.cmdlog-entries { list-style: none; margin: 0; padding: 0; }
+.cmdlog-entry {
+  display: grid; grid-template-columns: auto auto 1fr auto auto; gap: 10px; align-items: baseline;
+  padding: 3px 0; border-top: 1px solid var(--surface-alt); font-size: 13px;
+}
+.cmdlog-entry time { color: var(--text-muted); font-size: 12px; }
+.cmdlog-cmd { font-family: var(--mono); }
+.cmdlog-why { grid-column: 3 / 6; color: var(--text-muted); font-size: 12.5px; }
+.cmdlog-entry form { margin: 0; }

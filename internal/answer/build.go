@@ -8,7 +8,8 @@ import (
 // arguments, reading the same parameter list the cli head composes its
 // syntax from. A valued parameter's argument is a string and a marker's is a
 // boolean, which is what the MCP schema publishes; an argument of any other
-// type is read as the zero value. Identity (the actor, the basis and the four
+// type is read as the zero value, except that a repeatable flag's argument is
+// a list of strings, one per occurrence. Identity (the actor, the basis and the four
 // declared facts) is left to each head, because the heads read it from
 // different places.
 func Build(command string, arguments map[string]any) *verb.Request {
@@ -30,6 +31,10 @@ func Build(command string, arguments map[string]any) *verb.Request {
 		if param.Marker {
 			flag, _ := value.(bool)
 			assignMarker(req, param.Name, flag)
+			continue
+		}
+		if list, isList := value.([]string); isList {
+			assignList(req, param.Name, list)
 			continue
 		}
 		text, _ := value.(string)
@@ -142,6 +147,10 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.At = value
 	case "title":
 		req.Title = value
+	case "description":
+		req.Description = value
+	case "from":
+		req.From = value
 	case "text":
 		req.Text = value
 	case "phrase":
@@ -256,5 +265,14 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.ViewPlain = value
 	case "watch":
 		req.ViewWatch = value
+	}
+}
+
+// assignList puts one named repeatable flag's occurrences on the request, in
+// the order the caller wrote them.
+func assignList(req *verb.Request, name string, values []string) {
+	switch name {
+	case "map":
+		req.Map = append([]string(nil), values...)
 	}
 }

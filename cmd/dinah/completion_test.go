@@ -63,8 +63,8 @@ func completionBench(t *testing.T) string {
 	return root
 }
 
-// answer is one callback's output, read back into its header and its lines.
-type answer struct {
+// completionAnswer is one callback's output, read back into its header and its lines.
+type completionAnswer struct {
 	// code is the exit code.
 	code int
 	// mode is the header's mode, empty when there was no header.
@@ -79,7 +79,7 @@ type answer struct {
 
 // callBack runs the callback in process from a directory, as a script would,
 // and reads the answer back.
-func callBack(t *testing.T, dir string, args ...string) answer {
+func callBack(t *testing.T, dir string, args ...string) completionAnswer {
 	t.Helper()
 	got := runCLI(t, dir, append([]string{"__complete", "1"}, args...)...)
 	return readAnswer(t, got)
@@ -87,9 +87,9 @@ func callBack(t *testing.T, dir string, args ...string) answer {
 
 // readAnswer splits an invocation's stdout into its header and its lines,
 // failing on any line that does not carry exactly one TAB.
-func readAnswer(t *testing.T, got invocation) answer {
+func readAnswer(t *testing.T, got invocation) completionAnswer {
 	t.Helper()
-	a := answer{code: got.code, raw: got.out, errw: got.errw}
+	a := completionAnswer{code: got.code, raw: got.out, errw: got.errw}
 	if got.out == "" {
 		return a
 	}
@@ -112,14 +112,14 @@ func readAnswer(t *testing.T, got invocation) answer {
 
 // zsh completes the words the way the zsh script hands them over, the last
 // being the current word.
-func zsh(t *testing.T, dir string, words ...string) answer {
+func zsh(t *testing.T, dir string, words ...string) completionAnswer {
 	t.Helper()
 	return callBack(t, dir, append([]string{"zsh", "--"}, words...)...)
 }
 
 // bashLine completes a whole line the way the bash script hands it over, with
 // bash's default word breaks.
-func bashLine(t *testing.T, dir, line string) answer {
+func bashLine(t *testing.T, dir, line string) completionAnswer {
 	t.Helper()
 	return callBack(t, dir, "bash", " \t\n\"'><=;|&(:", line)
 }
@@ -443,7 +443,7 @@ func TestTheBashCallbackReplacesOnlyWhatReadlineReplaces(t *testing.T) {
 func TestATitleWithATabAndQuotesIsOneDescribedLine(t *testing.T) {
 	root := completionBench(t)
 	t.Setenv(completeWordsVariable, `{"words":["show","fx-3"],"replacing":"fx-3"}`)
-	answers := map[string]answer{
+	answers := map[string]completionAnswer{
 		"zsh":        zsh(t, root, "show", "fx-3"),
 		"fish":       callBack(t, root, "fish", "--", "show", "fx-3"),
 		"powershell": callBack(t, root, "powershell"),
