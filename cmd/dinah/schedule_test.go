@@ -33,6 +33,16 @@ func datedCard(t *testing.T, root, title string, flags ...string) string {
 	return ref
 }
 
+// uncommittedCard files a card with the dates named and leaves it in Intake,
+// before the workbench's commitment column, which on the flow dinah init
+// creates is Doing. Since dinah-608's decision 10 a card standing at or past
+// the commitment column has started, so the two conditions start_by drives
+// read only on a card like this one.
+func uncommittedCard(t *testing.T, root, title string, flags ...string) string {
+	t.Helper()
+	return fileCard(t, root, title, flags...)
+}
+
 // declareScheduleOn writes a dinah.schedule block, given whole, into the
 // workbench anchor.
 func declareScheduleOn(t *testing.T, root, block string) {
@@ -53,6 +63,10 @@ func declareScheduleOn(t *testing.T, root, block string) {
 // dinah-605/criteria/13: one line per date, each carrying the phrase of the
 // highest condition the date drives, in the one-day, many-day and today forms,
 // and bare lines on a card in a done column.
+//
+// The start_by cases file their card in Intake since dinah-608's decision 10:
+// a card in Doing, the commitment column, has started, so its start_by line is
+// bare, which the last case pins.
 func TestShowPrintsEachDateWithItsCondition(t *testing.T) {
 	root := newBench(t)
 	english := msg.For(msg.Base)
@@ -79,11 +93,19 @@ func TestShowPrintsEachDateWithItsCondition(t *testing.T) {
 		{"--due", dayFrom(30), english.T("card.due", "date", dayFrom(30))},
 	}
 	for _, c := range cases {
-		ref := datedCard(t, root, "dated "+c.flag+" "+c.date, c.flag, c.date)
+		file := datedCard
+		if c.flag == "--start-by" {
+			file = uncommittedCard
+		}
+		ref := file(t, root, "dated "+c.flag+" "+c.date, c.flag, c.date)
 		shown := mustRunHere(t, root, "show", ref, "--fields", "card")
 		if !strings.Contains(shown.out, "\n"+c.want+"\n") {
 			t.Errorf("%s %s: show does not print %q:\n%s", c.flag, c.date, c.want, shown.out)
 		}
+	}
+	committed := datedCard(t, root, "late but committed", "--start-by", dayFrom(-2))
+	if shown := mustRunHere(t, root, "show", committed, "--fields", "card"); !strings.Contains(shown.out, "\n"+english.T("card.start-by", "date", dayFrom(-2))+"\n") {
+		t.Errorf("a card standing in the commitment column prints a start_by condition:\n%s", shown.out)
 	}
 	for _, want := range []string{"(not yet, 3 days to go)", "(not yet, 1 day to go)", "(late to start by 2 days)", "(start today)", "(overdue by 1 day)", "(due today)"} {
 		found := false
@@ -125,10 +147,11 @@ func TestShowPrintsEachDateWithItsCondition(t *testing.T) {
 // TestTheMachineFormsCarryTheDates is the machine half of
 // dinah-605/criteria/13: the JSON card view carries the four members after
 // the route, and the compact card record carries them after route, with the
-// conditions joined by commas, under compact version 6.
+// conditions joined by commas, under compact version 6. The card stands in
+// Intake since dinah-608's decision 10, where late_start still reads.
 func TestTheMachineFormsCarryTheDates(t *testing.T) {
 	root := newBench(t)
-	ref := datedCard(t, root, "late and due", "--start-by", dayFrom(-2), "--due", dayFrom(3))
+	ref := uncommittedCard(t, root, "late and due", "--start-by", dayFrom(-2), "--due", dayFrom(3))
 	shown := mustRunHere(t, root, "show", ref, "--json")
 	order := []string{`"state"`, `"start_by"`, `"due"`, `"schedule": [`, `"late_start"`, `"due_soon"`, `"revision"`}
 	at := -1
@@ -139,7 +162,7 @@ func TestTheMachineFormsCarryTheDates(t *testing.T) {
 		}
 		at = next
 	}
-	compact := mustRunHere(t, root, "--format", "compact", "list", "doing")
+	compact := mustRunHere(t, root, "--format", "compact", "list", "intake")
 	if !strings.HasPrefix(compact.out, "fmt|compact|6\n") {
 		t.Errorf("the compact payload opens on %q", strings.SplitN(compact.out, "\n", 2)[0])
 	}
@@ -205,6 +228,10 @@ func scheduleTable(t *testing.T, out string) (headings []string, rows map[string
 // list cards and query each draw a Schedule column before Title, whose cell
 // is the highest condition with its date, the not-yet phrase after a comma
 // where the card also holds not_yet, and the due date where nothing holds.
+//
+// The late and the starting cards stand in Intake since dinah-608's decision
+// 10, and a card past its start_by in Doing, the commitment column, pins that
+// it reads neither condition there.
 func TestTheListingsCarryAScheduleCell(t *testing.T) {
 	root := newBench(t)
 	// A window wide enough that no cell is cut, so the comparison reads what
@@ -213,8 +240,9 @@ func TestTheListingsCarryAScheduleCell(t *testing.T) {
 	english := msg.For(msg.Base)
 	soon := datedCard(t, root, "due soon and not yet", "--start-after", dayFrom(2), "--due", dayFrom(4))
 	overdue := datedCard(t, root, "overdue and not yet", "--start-after", dayFrom(2), "--due", dayFrom(-1))
-	late := datedCard(t, root, "late to start", "--start-by", dayFrom(-2))
-	starting := datedCard(t, root, "start soon", "--start-by", dayFrom(3))
+	late := uncommittedCard(t, root, "late to start", "--start-by", dayFrom(-2))
+	starting := uncommittedCard(t, root, "start soon", "--start-by", dayFrom(3))
+	committed := datedCard(t, root, "late but committed", "--start-by", dayFrom(-2))
 	waiting := datedCard(t, root, "not yet", "--start-after", dayFrom(9))
 	distant := datedCard(t, root, "due far off", "--due", dayFrom(40))
 	plain := datedCard(t, root, "no dates")
@@ -226,11 +254,15 @@ func TestTheListingsCarryAScheduleCell(t *testing.T) {
 		waiting:  english.T("schedule.cell.not-yet", "date", dayFrom(9)),
 		distant:  english.T("schedule.cell.due", "date", dayFrom(40)),
 		plain:    "",
+		// A card in the commitment column has started, and a start_by that
+		// has passed drives no condition on it and names no due date.
+		committed: "",
 	}
+	inIntake := map[string]bool{late: true, starting: true}
 	if want[soon] != "due soon "+dayFrom(4)+", not before "+dayFrom(2) {
 		t.Errorf("the English cell for due soon and not yet reads %q", want[soon])
 	}
-	for _, argv := range [][]string{{"list", "doing"}, {"list", "cards"}, {"query", "column:doing"}} {
+	for _, argv := range [][]string{{"list", "doing"}, {"list", "cards"}, {"query", "column:doing"}, {"query", "column:intake"}} {
 		got := mustRunHere(t, root, argv...)
 		headings, rows := scheduleTable(t, got.out)
 		joined := strings.Join(headings, " ")
@@ -238,6 +270,14 @@ func TestTheListingsCarryAScheduleCell(t *testing.T) {
 			t.Errorf("%v draws the headings %q, without Schedule directly before Title", argv, joined)
 		}
 		for ref, cell := range want {
+			if argv[1] == "doing" || argv[1] == "column:doing" {
+				if inIntake[ref] {
+					continue
+				}
+			}
+			if argv[1] == "column:intake" && !inIntake[ref] {
+				continue
+			}
 			if rows[ref]["Schedule"] != cell {
 				t.Errorf("%v draws %s's Schedule cell as %q, want %q", argv, ref, rows[ref]["Schedule"], cell)
 			}
@@ -292,8 +332,8 @@ func TestNextAndPrimeNameTheDate(t *testing.T) {
 			continue
 		}
 		found = true
-		if len(fields) != 11 || fields[8] != "2" || fields[9] != "1" || fields[10] != dayFrom(2) {
-			t.Errorf("the off record reads %q, want ready_count 2, not_yet 1 and %s", record, dayFrom(2))
+		if len(fields) != 13 || fields[8] != "2" || fields[9] != "1" || fields[10] != dayFrom(2) || fields[11] != "" || fields[12] != "" {
+			t.Errorf("the off record reads %q, want ready_count 2, not_yet 1 and %s, and no waiting", record, dayFrom(2))
 		}
 	}
 	if !found {
@@ -456,7 +496,7 @@ func TestTheScheduleMigrationAdviceIsACommandThatWorks(t *testing.T) {
 func TestInitCreatesTheCurrentFormat(t *testing.T) {
 	root := newBench(t)
 	text, err := bench.ReadText(filepath.Join(soleBenchDir(t, root), bench.WorkbenchAnchor))
-	if err != nil || !strings.Contains(text, "\nformat: 10\n") {
+	if err != nil || !strings.Contains(text, "\nformat: 11\n") {
 		t.Errorf("init wrote %v:\n%s", err, text)
 	}
 }

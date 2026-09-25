@@ -142,6 +142,11 @@ func (s *session) renderCard(card *verb.CardView) {
 	for _, line := range s.scheduleLines(card) {
 		s.line(line)
 	}
+	// The grounds a declared link holds the card back on stand after its
+	// dates and before the declared fields, one line per ground in force.
+	for _, line := range s.waitLines(card) {
+		s.line(line)
+	}
 	// A standing criterion-retirement grant stands with the route, drawn only
 	// where the card carries one, because somebody deciding whether to tidy a
 	// card has to learn that the permission exists before they try rather
@@ -228,18 +233,74 @@ func (s *session) scheduleLines(card *verb.CardView) []string {
 	return lines
 }
 
+// waitLines are the lines renderCard draws for the grounds a declared link
+// holds the card back on, one per ground in force, in the order the view
+// lists them. An awaiting ground names the card waited on and the event, with
+// the earliest day it could lift where the view carries one; a lagging ground
+// names the day time alone lifts it and the event it counts from. "Waits" is
+// the word throughout, because "held by" already names a claim's holder.
+func (s *session) waitLines(card *verb.CardView) []string {
+	var lines []string
+	for _, wait := range card.WaitsOn {
+		if wait.Until == "" {
+			line := s.r.T("card.waits-on.finish", "card", wait.Ref)
+			switch {
+			case wait.WaitsFor == contract.HoldWaitsStart:
+				line = s.r.T("card.waits-on.start", "card", wait.Ref)
+			case wait.FinishAt != "":
+				line = s.r.T("card.waits-on.reach", "card", wait.Ref, "column", wait.FinishAtTitle)
+			}
+			if wait.NotBefore != "" {
+				line = s.r.T("card.waits-on.not-before", "line", line, "date", wait.NotBefore)
+			}
+			lines = append(lines, line)
+			continue
+		}
+		values := []string{"date", wait.Until, "n", strconv.Itoa(wait.LagDays), "card", wait.Ref}
+		key := "card.waits-until.finish"
+		switch {
+		case wait.WaitsFor == contract.HoldWaitsStart:
+			key = "card.waits-until.start"
+		case wait.FinishAt != "":
+			key = "card.waits-until.reach"
+			values = append(values, "column", wait.FinishAtTitle)
+		}
+		lines = append(lines, s.r.TN(key, wait.LagDays, values...))
+	}
+	return lines
+}
+
+// waitingOnCell is the references of the cards a view's grounds wait on,
+// each once, in the order the view lists them, joined by a comma and a space.
+func waitingOnCell(card *verb.CardView) string {
+	var refs []string
+	seen := map[string]bool{}
+	for _, wait := range card.WaitsOn {
+		if seen[wait.Ref] {
+			continue
+		}
+		seen[wait.Ref] = true
+		refs = append(refs, wait.Ref)
+	}
+	return strings.Join(refs, ", ")
+}
+
 // scheduleCell is what a listing's Schedule column shows for one card: the
-// highest condition that holds, with the date that condition is about, and
-// the not-yet phrase after it where the card holds not_yet beneath a higher
-// condition, because not_yet is the one condition that changes what next and
-// pull do and a reader who sees next pass the card over needs the reason on
-// the same line. A card holding no condition shows its due date where it
-// carries one and does not stand in a done column, and nothing otherwise.
+// highest condition that holds, with the date that condition is about, then
+// the not-yet phrase where the card holds not_yet beneath a higher condition,
+// then the cards it waits on where it holds waiting beneath either. not_yet
+// and waiting are the two conditions that change what next and pull do, and
+// a reader who sees next pass the card over needs the reason on the same
+// line. A card holding no condition shows its due date where it carries one
+// and does not stand in a done column, and nothing otherwise.
 func (s *session) scheduleCell(card *verb.CardView) string {
-	notYet := false
+	notYet, waiting := false, false
 	for _, held := range card.Schedule {
-		if held == contract.ScheduleNotYet {
+		switch held {
+		case contract.ScheduleNotYet:
 			notYet = true
+		case contract.ScheduleWaiting:
+			waiting = true
 		}
 	}
 	if len(card.Schedule) == 0 {
@@ -259,10 +320,16 @@ func (s *session) scheduleCell(card *verb.CardView) string {
 	case contract.ScheduleStartSoon:
 		cell = s.r.T("schedule.cell.start-soon", "date", card.StartBy)
 	case contract.ScheduleNotYet:
-		return s.r.T("schedule.cell.not-yet", "date", card.StartAfter)
+		cell = s.r.T("schedule.cell.not-yet", "date", card.StartAfter)
+		notYet = false
+	case contract.ScheduleWaiting:
+		return s.r.T("schedule.cell.waiting", "cards", waitingOnCell(card))
 	}
 	if notYet {
 		cell = s.r.T("schedule.cell.and-not-yet", "cell", cell, "date", card.StartAfter)
+	}
+	if waiting {
+		cell = s.r.T("schedule.cell.and-waiting", "cell", cell, "cards", waitingOnCell(card))
 	}
 	return cell
 }
@@ -490,10 +557,17 @@ func (s *session) renderPrimeReady(ready []verb.Offer) {
 			s.primeRow(offer.Title + ": " + count + " ready, " + offer.Card.Ref + ": " + offer.Card.Title)
 			continue
 		}
-		// A column above the caller's tier says so ahead of a date, which is
-		// the precedence next uses: a more senior caller would get work now.
+		// A column above the caller's tier says so ahead of the cards its
+		// work waits on, and those ahead of a date, which is the precedence
+		// next uses: a more senior caller would get work now, and the cards
+		// waited on name work somebody can go and do while the date arrives
+		// without anybody's help.
 		if offer.AboveTier {
 			s.primeRow(offer.Title + ": " + s.r.T("next.above-tier"))
+			continue
+		}
+		if offer.Waiting {
+			s.primeRow(offer.Title + ": " + s.waitingText(offer.WaitingOn))
 			continue
 		}
 		s.primeRow(offer.Title + ": " + s.r.T("next.not-yet", "date", offer.StartableFrom))
@@ -979,10 +1053,14 @@ func (s *session) renderOffers(offers []verb.Offer) {
 	t := table{indent: 2, columns: s.columns("next", "column", "card", "title", "take")}
 	for _, offer := range offers {
 		if offer.Card == nil {
-			// Five empty answers, most specific last, so the narrowest fact a
+			// Six empty answers, most specific last, so the narrowest fact a
 			// column can report is the one printed. A column whose ready work
 			// may not start before a date says so and names the earliest
-			// date. A column holding ready work that stands above the tier
+			// date. A column some of whose ready work waits on another card
+			// to start or finish names the cards waited on instead, which
+			// wins over the date because it names work somebody can go and
+			// do, where the date arrives without anybody's help. A column
+			// holding ready work that stands above the tier
 			// the caller declared says so instead, which tells a reader to
 			// send a more senior caller rather than to wait, and wins over
 			// the date because a more senior caller would get work now. A
@@ -994,6 +1072,9 @@ func (s *session) renderOffers(offers []verb.Offer) {
 			absent := s.r.T("next.none")
 			if offer.NotYet {
 				absent = s.r.T("next.not-yet", "date", offer.StartableFrom)
+			}
+			if offer.Waiting {
+				absent = s.waitingText(offer.WaitingOn)
 			}
 			if offer.AboveTier {
 				absent = s.r.T("next.above-tier")
@@ -1018,6 +1099,16 @@ func (s *session) renderOffers(offers []verb.Offer) {
 		t.rows = append(t.rows, tableRow{fields: fields})
 	}
 	s.table(t)
+}
+
+// waitingText is the sentence next and prime print for a column whose ready
+// work waits on other cards: at most three references, joined by a comma and
+// a space, and how many more there are beyond them.
+func (s *session) waitingText(refs []string) string {
+	if len(refs) <= 3 {
+		return s.r.T("next.waiting", "cards", strings.Join(refs, ", "))
+	}
+	return s.r.T("next.waiting.more", "cards", strings.Join(refs[:3], ", "), "n", strconv.Itoa(len(refs)-3))
 }
 
 // renderDetail prints a card, its links, its attachments, and its comments, and
@@ -1466,6 +1557,9 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	if report.MigratedSchedule != nil {
 		s.renderScheduleMigration(report.MigratedSchedule)
 	}
+	if report.MigratedHolds != nil {
+		s.renderHoldsMigration(report.MigratedHolds)
+	}
 	if report.MigratedRawLines != nil {
 		s.renderRawLineMigration(report.MigratedRawLines)
 	}
@@ -1533,6 +1627,20 @@ func (s *session) renderScheduleMigration(report *bench.ScheduleMigration) {
 	case report.Stamped:
 		s.line(s.r.T("check.format-stamped", "format", target))
 	case report.From >= bench.ScheduleFormat:
+		s.line(s.r.T("check.format-current", "format", strconv.Itoa(report.From)))
+	default:
+		s.line(s.r.T("check.format-would-stamp", "from", strconv.Itoa(report.From), "format", target))
+	}
+}
+
+// renderHoldsMigration prints the one line the holds format stamp answers
+// with, on the shape renderScheduleMigration draws.
+func (s *session) renderHoldsMigration(report *bench.HoldsMigration) {
+	target := strconv.Itoa(bench.HoldsFormat)
+	switch {
+	case report.Stamped:
+		s.line(s.r.T("check.format-stamped", "format", target))
+	case report.From >= bench.HoldsFormat:
 		s.line(s.r.T("check.format-current", "format", strconv.Itoa(report.From)))
 	default:
 		s.line(s.r.T("check.format-would-stamp", "from", strconv.Itoa(report.From), "format", target))

@@ -100,8 +100,10 @@ const (
 // which made a quoted frontmatter scalar read as text, so the number says
 // whether the raw JSON lines an earlier import wrote quoted have been
 // rewritten bare. It moved from 9 to 10 at dinah-605, which gave a card
-// scheduling dates that an older build would ignore and so hand out early.
-const StorageFormat = 10
+// scheduling dates that an older build would ignore and so hand out early. It
+// moved from 10 to 11 at dinah-608, when a link began to hold a card back from
+// selection. An older build would ignore the hold and hand the card out early.
+const StorageFormat = 11
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -224,6 +226,18 @@ const RawLineFormat = 9
 // live card carries a date under check.schedule-below-format, and
 // `dinah check --migrate-schedule --yes` stamps it.
 const ScheduleFormat = 10
+
+// HoldsFormat is the storage format from which a link a workbench declares
+// under dinah.holds holds a card back from selection.
+//
+// The number protects a workbench from older builds and does not gate this
+// one, on the terms ScheduleFormat states: the layer is honoured at any
+// format this build opens. A build below this number ignores the layer and
+// hands a held card out before the card it waits on has started or finished,
+// which is the window the number closes. dinah check reports a workbench
+// below it where the layer declares a usable rule under
+// check.holds-below-format, and `dinah check --migrate-holds --yes` stamps it.
+const HoldsFormat = 11
 
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
@@ -674,6 +688,13 @@ type Bench struct {
 	// could not use. Schedule and Today are how a reader asks.
 	schedule        ScheduleSettings
 	scheduleDefects []ScheduleDefect
+	// holds is the commitment column and the holding kinds the workbench's
+	// dinah.holds block declares, read at Open once the flow is known, with
+	// every member it leaves out or carries unreadably at its default, and
+	// holdsDefects are what the reader could not use. Holds is how a reader
+	// asks.
+	holds        HoldSettings
+	holdsDefects []HoldDefect
 	// tiers are the tier table's entries in declaration order, read out of
 	// the tiers block at Open, and empty on a workbench declaring no table.
 	tiers []TierEntry
@@ -2025,6 +2046,9 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		}
 		b.OrphanedColumnDirectories = append(b.OrphanedColumnDirectories, id)
 	}
+	// The holds layer is read last, because its default commitment column
+	// and every column it names are read against the flow.
+	b.holds, b.holdsDefects = ReadHolds(fm, b.Columns, b.ColumnByRef)
 	return b, nil
 }
 
@@ -2451,15 +2475,34 @@ const WorkbenchRef = "workbench"
 // is still there. A caller that wants one card reads it through the same
 // stamping door this walk reads fifty through.
 func (b *Bench) Cards() ([]*Card, error) {
+	return cardsWith(b.CardsRoot(), b.cardLoader(), false)
+}
+
+// ReadableCards is Cards with every card whose anchor will not load left out
+// instead of failing the walk. It serves a reader that draws the relations
+// between one card and the others, such as the holds a card's links make,
+// where one card that will not load must not take every other card's answer
+// down with it. The card left out is reported by the card walk of dinah
+// check, which reads the same anchor, as anyLiveCardDated also relies on.
+// A cards directory that will not list still fails, because then no card
+// can be read at all.
+func (b *Bench) ReadableCards() ([]*Card, error) {
+	return cardsWith(b.CardsRoot(), b.cardLoader(), true)
+}
+
+// cardLoader is the one-card reader that separates the strict walk from the
+// retired-vocabulary one.
+func (b *Bench) cardLoader() func(string, string) (*Card, error) {
 	if b.retiredVocabulary {
-		return cardsWith(b.CardsRoot(), b.loadRetiredCardIn)
+		return b.loadRetiredCardIn
 	}
-	return cardsWith(b.CardsRoot(), b.LoadCardIn)
+	return b.LoadCardIn
 }
 
 // cardsWith is the body both readers share, given the one-card reader that
-// separates them.
-func cardsWith(root string, load func(string, string) (*Card, error)) ([]*Card, error) {
+// separates them, and whether a card that will not load is skipped or fails
+// the walk.
+func cardsWith(root string, load func(string, string) (*Card, error), skipUnreadable bool) ([]*Card, error) {
 	ids, err := ListIDs(root)
 	if err != nil {
 		return nil, err
@@ -2468,6 +2511,9 @@ func cardsWith(root string, load func(string, string) (*Card, error)) ([]*Card, 
 	for _, id := range ids {
 		card, err := load(root, id)
 		if err != nil {
+			if skipUnreadable {
+				continue
+			}
 			return nil, err
 		}
 		cards = append(cards, card)

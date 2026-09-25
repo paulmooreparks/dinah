@@ -128,7 +128,7 @@ A card's urgency is a sum of terms. Each term's weight is declared in the workbe
 | priority | the card's priority, by its rank in the declared list | 0, 2, 4, 6 |
 | severity | the card's severity, by its rank in the declared list | 0, 1, 2, 4 |
 | blocked | the card is blocked | 3 |
-| blocks others | per unfinished card it blocks, once dinah-596 lands | 2 each |
+| blocks others | per card waiting on it through a link the workbench declares under `dinah.holds` | 2 each |
 | age | per day in its current column, up to five days | 0.5 per day |
 | stale claim | the claim has outlived its expiry | 3 |
 
@@ -333,7 +333,7 @@ Shell completion is built at the same time as views, as section 10 allows.
 | Phase | Delivers | New surface | Depends on |
 |---|---|---|---|
 | 1 | views, `@me`, `item_owner`, `item_state`, `dinah view`, the `list` layout | one verb, two query fields, one block | nothing |
-| 2 | the agenda: urgency terms, `--explain`, the `urgency` block | one block | phase 1; `blocks others` waits for dinah-596 |
+| 2 | the agenda: urgency terms, `--explain`, the `urgency` block | one block | phase 1 |
 | 3 | shell completion | one verb | nothing, and it can run beside phase 1 |
 | 4 | the `columns` layout and `--watch` | three flags on `view`, the `glyphs` setting and the `dinah.watch-unavailable` refusal | phase 1 |
 | 5 | a terminal UI | a head | phase 4 |

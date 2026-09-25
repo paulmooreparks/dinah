@@ -65,9 +65,9 @@ section below explains. Twelve of the built-in fields describe the card now:
   card out, written `YYYY-MM-DD`.
 - `start_by` is the last day somebody should have taken the card up.
 - `due` is the last day for the card to reach a done column.
-- `schedule` is what the three dates say about the card today: `overdue`,
-  `late_start`, `due_soon`, `start_soon` or `not_yet`. The section on dates
-  below explains each one.
+- `schedule` is what the dates and the links holding the card back say about
+  it today: `overdue`, `late_start`, `due_soon`, `start_soon`, `not_yet` or
+  `waiting`. The two sections on dates below explain each one.
 
 The other five describe something that happened to the card, which Dinah reads
 from its journal:
@@ -215,15 +215,19 @@ started, like this:
     dinah query "due>=today due<=today+7"
     dinah query "start_by<today"
 
-The `schedule` field asks the question directly. Dinah works out five
+The `schedule` field asks the question directly. Dinah works out six
 conditions every time it reads a card, and stores none of them. A card is
 `overdue` when its due date has passed, and `late_start` when its `start_by`
-date has passed and nobody has claimed it. It is `due_soon` when its due date
+date has passed and it has not started. It is `due_soon` when its due date
 falls between today and the end of the workbench's soon window, and
-`start_soon` when its `start_by` date does and nobody has claimed it. It is
-`not_yet` when its `start_after` date is still to come. A card standing in a
-done column holds none of them. A wedding planner asks for the vendors due in
-the next fortnight that are not waiting on a date to start:
+`start_soon` when its `start_by` date does and it has not started. It is
+`not_yet` when its `start_after` date is still to come, and `waiting` when a
+link holds it back, which the next section explains. A card has started once
+it stands at or beyond the workbench's commitment column, or while somebody
+holds it, so a card claimed and released before that column has not started.
+A card standing in a done column holds none of the six. A wedding planner asks
+for the vendors due in the next fortnight that are not waiting on a date to
+start:
 
     dinah query "due<=today+14 schedule!=not_yet"
 
@@ -247,6 +251,86 @@ seven days, unless `workbench.md` says otherwise in a block of its own:
 `time_zone` takes a zone name such as `Europe/Berlin`, and `soon_days` a whole
 number from 0 to 365. Without the block today is read in UTC, and `dinah
 check` says so once a card carries a date.
+
+## Cards that wait on other cards
+
+You can hold a card back until another card it is linked to has started or
+finished. Dinah gives no link kind a meaning of its own, so you name the kinds
+that hold in `workbench.md`, together with which end of the link waits:
+
+    dinah.holds:
+      kinds:
+        needs:
+          held: carrier
+
+With that block, `dinah link wed-4 needs wed-1` makes `wed-4`, the card
+carrying the link, wait until `wed-1` reaches a done column. `held: named`
+holds the other end instead, so a workbench that writes `dinah link A blocks
+B` declares `blocks` with `held: named` and `B` waits on `A`. A kind the block
+does not name holds nothing.
+
+A kind takes other settings as well. `waits_for: start` waits for the other
+card to start rather than finish. `finish_at` names a column that counts as
+finishing, together with every column after it, so a card waits only until its
+predecessor reaches review. `lag_days` adds whole calendar days after the
+other card's start or finish, as when a slab has to cure for a week before
+anybody frames walls on it.
+
+A wait only ever holds work that has not started. A card has started when it
+stands in the workbench's commitment column or any column after it, or while
+somebody holds it. Unless `start_at` under `dinah.holds` names another, the
+commitment column is the first column after the one where cards arrive at
+which somebody takes work up, or the first done column where there is no such
+column. A workbench that triages and designs before it commits to building
+names its build column in `start_at`.
+
+`dinah next` and `dinah pull` pass over a waiting card, and name the card it
+waits on when a column holds nothing else they could hand out. `dinah show`
+says what the card waits for. Here the invitations wait
+on the venue, and the venue cannot be booked before November:
+
+    $ dinah show wed-4 --fields card
+    wed-4  Send the invitations  [Intake / ready]
+      due: 2026-12-15
+      waits on: wed-1 to finish, not before 2026-11-01
+
+    $ dinah next intake
+      Column  Card
+      ------  -----------------------
+      Intake  ready, waiting on wed-1
+
+The date comes from the venue's own `start_after`, because the venue cannot
+finish before it may start. It tells you when the wait could end at the
+earliest, and the wait still ends only when the venue is booked. Ask for every
+card waiting on another one with:
+
+    dinah query "schedule:waiting"
+
+Nothing refuses a card that waits. If you claim one by name, Dinah takes it up
+and warns you, and the card stays started while you hold it. Where nobody
+takes work up, as in an intake column, you override a wait by moving the card
+to the commitment column instead, and a card standing there has started for
+good. A card moved back before the commitment column, or released before it,
+waits again.
+
+A site foreman who declares that framing waits seven days after the slab is
+poured sees the date on which time alone releases the walls:
+
+    dinah.holds:
+      start_at: doing
+      kinds:
+        cures_before:
+          held: named
+          lag_days: 7
+
+    $ dinah show garage-2 --fields card
+    garage-2  Frame the walls  [Prepared / ready]
+      waits until 2026-10-02: 7 days after garage-1 finished
+
+Two cards that each wait on the other hold each other forever, and Dinah
+breaks no such cycle for you. `dinah link` warns when the link it writes
+closes one, and `dinah check` reports every cycle it finds. Starting any card
+of the cycle, or removing a link, breaks it.
 
 ## When the query cannot say it
 

@@ -213,7 +213,7 @@ func TestPullableCardsFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 				wanted = append(wanted, flow[at])
 			}
 		}
-		taken, _, _ := library.pullableCards(destination, cards, admission{}, library.selectionHold(&Request{}), nil)
+		taken, _, _ := library.pullableCards(destination, cards, admission{}, mustSelectionHold(t, library), nil)
 		var got []*bench.Column
 		for _, card := range taken {
 			got = append(got, library.Bench.Column(card.Column))
@@ -232,7 +232,7 @@ func TestPullableCardsFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 	// The assertion above holds by construction unless the operator-owned
 	// buffer really is a source of the station, so that one case is named.
 	station := flow[3]
-	taken, _, _ := library.pullableCards(station, cards, admission{}, library.selectionHold(&Request{}), nil)
+	taken, _, _ := library.pullableCards(station, cards, admission{}, mustSelectionHold(t, library), nil)
 	found := false
 	for _, card := range taken {
 		if card.Column == flow[1].ID {

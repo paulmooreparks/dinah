@@ -44,7 +44,8 @@ const compactVersion = "6"
 //	aff      one trailing field per affordance token
 //	lst      column
 //	off      column, title, awaiting_outside, no_taker, taken_by_pull, above_tier,
-//	         landing, ready_count, not_yet, startable_from
+//	         landing, ready_count, not_yet, startable_from, waiting, waiting_on;
+//	         waiting_on is the references joined by ","
 //
 // A field appended to the end of a record's list is a compatible change and
 // does not increment the version, because a record is read by index and a
@@ -285,6 +286,8 @@ func compactOffers(offers []verb.Offer) string {
 			strconv.Itoa(offer.ReadyCount),
 			compactFlag(offer.NotYet),
 			offer.StartableFrom,
+			compactFlag(offer.Waiting),
+			strings.Join(offer.WaitingOn, ","),
 		)
 		payload.card(offer.Card)
 	}

@@ -883,6 +883,7 @@ var checkAdviceProvenByRunning = map[string]string{
 	"check.applies-when-below-format":                     "TestTheAppliesWhenMigrationAdviceIsACommandThatWorks",
 	"check.raw-line-quoted":                               "TestTheRawLineMigrationAdviceIsACommandThatWorks",
 	"check.schedule-below-format":                         "TestTheScheduleMigrationAdviceIsACommandThatWorks",
+	"check.holds-below-format":                            "TestTheHoldsMigrationAdviceIsACommandThatWorks",
 }
 
 // checkAdviceNeedingNoScope names every remaining catalog message that names a
