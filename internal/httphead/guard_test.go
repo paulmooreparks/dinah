@@ -22,54 +22,64 @@ const (
 	contractPath = "dinah/internal/contract"
 )
 
+// sealedUse is every name the head may select from package answer. Each
+// either composes nothing or answers with an answer.Sealed.
+var sealedUse = map[string]bool{
+	"Affordances":     true,
+	"Build":           true,
+	"Encode":          true,
+	"FromErrorSealed": true,
+	"RefusalSealed":   true,
+	"RunSealed":       true,
+	"Sealed":          true,
+}
+
 // checkComposition parses every non-test Go file in dir and reports each
-// place the file composes an answer of its own rather than taking one from
-// package answer, one line per violation naming the file, the line and the
-// rule:
+// place the file composes an answer of its own, or takes one from package
+// answer in a form it could rewrite, one line per violation naming the file,
+// the line and the rule:
 //
 //  1. a dot import or a blank import of verb, answer or contract, or an
 //     import of reflect or unsafe, each of which lets a value be built out
 //     of the walk's sight;
 //  2. any selector verb.ComposeRefusal, called or taken as a value;
 //  3. any selector FromError whose operand is not the name bound to package
-//     answer, which covers a method call on a library, a method value and a
-//     method expression;
-//  4. any selector verb.Response whose parent is not a star, so a signature,
-//     a field or a variable may hold *verb.Response and nothing may build or
-//     hold a verb.Response itself;
-//  5. any assignment, increment, append or copy whose target, and any
-//     address-of whose operand, reduces to a selector named Affordances once
-//     writeRoot has stripped its index, slice, parenthesis and dereference
-//     layers.
+//     answer, which covers a method call on a library, a method value and
+//     a method expression;
+//  4. any selector verb.Response, so nothing in the head may build, hold or
+//     name a response, even through a pointer;
+//  5. any selector on package answer outside sealedUse, which keeps the
+//     head off Run, Refusal and FromError, the three that hand back the
+//     *verb.Response itself.
+//
+// The affordance list is protected by a type rather than by this guard. The
+// head holds every answer as an answer.Sealed, whose fields are unexported,
+// so the compiler refuses a write to the list in any form, and
+// TestASealedAnswerHandsOutACopy in package answer holds its one accessor,
+// Affordances, to returning a copy. Rules 4 and 5 keep the head on that type.
 //
 // The guard reads one directory, no types, and no value's path from one
-// name to another, so code can still rewrite or compose an answer past it.
-// The shapes below are the ones known to pass, and a parse cannot close the
-// list, each with a reproduction:
+// name to another, so code can still compose an answer past it, and what
+// it composes that way it can also rewrite. The shapes below are the ones
+// known to pass, and a parse cannot close the list, each with a
+// reproduction:
 //
-//   - A library act called directly in place of answer.Run:
+//   - A library act called directly in place of answer.RunSealed:
 //     payload := x.library.Do(req)
 //   - A helper in another package returning a *verb.Response it built:
 //     payload := elsewhere.Refuse(req) // elsewhere builds &verb.Response{...}
-//   - A generic allocator whose type argument is inferred from a
-//     *verb.Response variable:
-//     func alloc[T any](_ *T) *T { return new(T) }; payload := alloc(existing)
-//   - json.Unmarshal into a *verb.Response:
-//     var payload *verb.Response; json.Unmarshal(bytes, &payload)
-//   - The affordance list handed to a function that rewrites it in place:
-//     sort.Strings(response.Affordances)
-//     slices.Reverse(response.Affordances)
-//   - The affordance list copied into a variable and written through it:
-//     list := response.Affordances; list[0] = "status"
+//
+// A generic allocator or json.Unmarshal can reach a response only through a
+// value one of those two shapes produced, since naming the type is rule 4.
 //
 // TestEveryPublishedAffordanceHasARow catches part of this and no more. It
 // fails when an answer publishes a name the affordance table has no row for,
 // and when one of the head's own refusals it pins lacks next_card. It drives
 // every act route into a refusal before a card is found, where the library
-// puts its untranslated next, so a route answering through any of the first
-// four shapes publishes next there and fails it. The last two fail it only when they introduce a name without a row
-// or push next_card off a pinned refusal. A rewrite that drops, reorders or
-// repeats names the table already carries passes this guard and that test.
+// puts its untranslated next, so a route answering through either shape
+// without the translation publishes next there and fails it. A rewrite of
+// such an answer that drops, reorders or repeats names the table already
+// carries passes this guard and that test.
 func checkComposition(dir string) []string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -120,80 +130,30 @@ func checkFile(fset *token.FileSet, name string, file *ast.File) []string {
 		bound[path] = local
 	}
 	verbName, answerName := bound[verbPath], bound[answerPath]
-	affordances := func(target ast.Expr) bool {
-		selector, ok := writeRoot(target).(*ast.SelectorExpr)
-		return ok && selector.Sel.Name == "Affordances"
-	}
-	var parents []ast.Node
 	ast.Inspect(file, func(n ast.Node) bool {
-		if n == nil {
-			parents = parents[:len(parents)-1]
+		selector, ok := n.(*ast.SelectorExpr)
+		if !ok {
 			return true
 		}
-		var parent ast.Node
-		if len(parents) > 0 {
-			parent = parents[len(parents)-1]
+		operand, _ := selector.X.(*ast.Ident)
+		onVerb := operand != nil && verbName != "" && operand.Name == verbName
+		onAnswer := operand != nil && answerName != "" && operand.Name == answerName
+		name := selector.Sel.Name
+		if onVerb && name == "ComposeRefusal" {
+			report(selector.Pos(), 2, "verb.ComposeRefusal")
 		}
-		parents = append(parents, n)
-		switch node := n.(type) {
-		case *ast.SelectorExpr:
-			operand, _ := node.X.(*ast.Ident)
-			onVerb := operand != nil && verbName != "" && operand.Name == verbName
-			if onVerb && node.Sel.Name == "ComposeRefusal" {
-				report(node.Pos(), 2, "verb.ComposeRefusal")
-			}
-			if node.Sel.Name == "FromError" && (operand == nil || answerName == "" || operand.Name != answerName) {
-				report(node.Pos(), 3, "FromError on something other than package answer")
-			}
-			if onVerb && node.Sel.Name == "Response" {
-				if _, star := parent.(*ast.StarExpr); !star {
-					report(node.Pos(), 4, "verb.Response outside a pointer")
-				}
-			}
-		case *ast.AssignStmt:
-			for _, target := range node.Lhs {
-				if affordances(target) {
-					report(node.Pos(), 5, "assigns to Affordances")
-				}
-			}
-		case *ast.IncDecStmt:
-			if affordances(node.X) {
-				report(node.Pos(), 5, "increments Affordances")
-			}
-		case *ast.CallExpr:
-			if callee, ok := node.Fun.(*ast.Ident); ok && (callee.Name == "append" || callee.Name == "copy") && len(node.Args) > 0 && affordances(node.Args[0]) {
-				report(node.Pos(), 5, callee.Name+" into Affordances")
-			}
-		case *ast.UnaryExpr:
-			if node.Op == token.AND && affordances(node.X) {
-				report(node.Pos(), 5, "takes the address of Affordances")
-			}
+		if name == "FromError" && !onAnswer {
+			report(selector.Pos(), 3, "FromError on something other than package answer")
+		}
+		if onVerb && name == "Response" {
+			report(selector.Pos(), 4, "names verb.Response")
+		}
+		if onAnswer && !sealedUse[name] {
+			report(selector.Pos(), 5, "answer."+name+" answers with an unsealed response")
 		}
 		return true
 	})
 	return violations
-}
-
-// writeRoot reduces an expression written to, or whose address is taken, to
-// the expression that owns the storage: it strips index, slice, parenthesis
-// and pointer-dereference layers until none is left, so
-// (*x).Affordances[i], x.Affordances[:1] and (x.Affordances)[0] all reduce to
-// a selector named Affordances.
-func writeRoot(target ast.Expr) ast.Expr {
-	for {
-		switch layer := target.(type) {
-		case *ast.IndexExpr:
-			target = layer.X
-		case *ast.SliceExpr:
-			target = layer.X
-		case *ast.ParenExpr:
-			target = layer.X
-		case *ast.StarExpr:
-			target = layer.X
-		default:
-			return target
-		}
-	}
 }
 
 // plantedRule reads the rule a planted file was written for off its name,

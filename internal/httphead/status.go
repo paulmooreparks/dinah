@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"dinah/internal/contract"
-	"dinah/internal/verb"
 )
 
 // refusalStatus maps the refusal names that do not answer 409 to the status
@@ -52,8 +51,8 @@ var refusalStatus = map[string]int{
 // statusFor is the one place a status is chosen for an answer the library or
 // package answer composed. An ok answer is 200 here, and the route replaces
 // it with its own success status.
-func statusFor(response *verb.Response) int {
-	switch response.Outcome {
+func statusFor(outcome, refusal string) int {
+	switch outcome {
 	case contract.OutcomeOK:
 		return http.StatusOK
 	case contract.OutcomeStale:
@@ -61,7 +60,7 @@ func statusFor(response *verb.Response) int {
 	case contract.OutcomeUnreachable:
 		return http.StatusServiceUnavailable
 	}
-	if status, listed := refusalStatus[response.Refusal]; listed {
+	if status, listed := refusalStatus[refusal]; listed {
 		return status
 	}
 	return http.StatusConflict

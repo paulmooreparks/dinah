@@ -97,19 +97,19 @@ func (h *head) act(x *exchange) {
 		}
 		req.Card = target
 	}
-	payload, response := h.execute(x, chosen.command, req)
+	answered := h.execute(x, chosen.command, req)
 	success := http.StatusOK
 	if chosen.created && !(chosen.command == verb.Pull && req.NoClaim) {
 		success = http.StatusCreated
 	}
-	if response != nil && response.Outcome == contract.OutcomeOK {
-		if location := h.locationOf(x, chosen.command, req, response); location != "" {
+	if answered.Outcome() == contract.OutcomeOK {
+		if location := h.locationOf(x, chosen.command, req, answered); location != "" {
 			x.w.Header().Set("Location", location)
 		} else {
 			success = http.StatusOK
 		}
 	}
-	h.writePayload(x, payload, response, success)
+	h.write(x, answered, success)
 }
 
 // readBody reads an act's body: a form, a JSON object, or nothing.
@@ -424,24 +424,25 @@ func (h *head) commentTarget(x *exchange, req *verb.Request) (string, bool) {
 }
 
 // locationOf composes the Location an act that created something answers
-// with, from the canonical reference the response carries.
-func (h *head) locationOf(x *exchange, command string, req *verb.Request, response *verb.Response) string {
+// with, from the canonical reference the answer carries.
+func (h *head) locationOf(x *exchange, command string, req *verb.Request, answered answer.Sealed) string {
+	card := answered.CardRef()
 	switch command {
 	case "add":
-		if response.Card != nil {
-			return pathForRef(pathCard, response.Card.Ref)
+		if card != "" {
+			return pathForRef(pathCard, card)
 		}
 	case verb.Claim:
-		if response.Card != nil {
-			return pathForRef(pathCard, response.Card.Ref) + "/claim"
+		if card != "" {
+			return pathForRef(pathCard, card) + "/claim"
 		}
 	case verb.Pull:
-		if response.Card != nil && !req.NoClaim {
-			return pathForRef(pathCard, response.Card.Ref) + "/claim"
+		if card != "" && !req.NoClaim {
+			return pathForRef(pathCard, card) + "/claim"
 		}
 	case "comment":
-		if response.Detail != "" {
-			return pathForRef(x.route.binds, response.Detail)
+		if detail := answered.Detail(); detail != "" {
+			return pathForRef(x.route.binds, detail)
 		}
 	}
 	return ""

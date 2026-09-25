@@ -219,7 +219,7 @@ func (h *head) open(x *exchange, req *verb.Request) bool {
 	if err != nil {
 		// A library over no bench composes the answer to the open's own
 		// error; no act or read runs on it.
-		h.write(x, answer.FromError(verb.New(nil, h.cfg.Home), req, err), 0)
+		h.write(x, answer.FromErrorSealed(verb.New(nil, h.cfg.Home), req, err), 0)
 		return false
 	}
 	x.library = verb.New(opened, h.cfg.Home)
@@ -228,60 +228,56 @@ func (h *head) open(x *exchange, req *verb.Request) bool {
 }
 
 // execute hands a built request to the library and returns what it
-// answered, for the caller to write.
-func (h *head) execute(x *exchange, command string, req *verb.Request) (any, *verb.Response) {
+// answered, sealed, for the caller to write.
+func (h *head) execute(x *exchange, command string, req *verb.Request) answer.Sealed {
 	if h.cfg.observe != nil {
 		h.cfg.observe(command, req)
 	}
 	if h.cfg.BeforeRun != nil {
 		h.cfg.BeforeRun()
 	}
-	return answer.Run(command, x.library, req)
+	return answer.RunSealed(command, x.library, req)
 }
 
 // refuse answers a refusal the head raised itself.
 func (h *head) refuse(x *exchange, name, detail string) {
 	req := &verb.Request{Verb: x.verb}
-	h.write(x, answer.Refusal(req, contract.Refuse(name, detail)), 0)
+	h.write(x, answer.RefusalSealed(req, contract.Refuse(name, detail)), 0)
 }
 
 // refuseFor answers a refusal the head raised over a built request.
 func (h *head) refuseFor(x *exchange, req *verb.Request, name, detail string) {
-	h.write(x, answer.Refusal(req, contract.Refuse(name, detail)), 0)
+	h.write(x, answer.RefusalSealed(req, contract.Refuse(name, detail)), 0)
 }
 
 // failed answers an error the head met while resolving something on the
 // library's behalf.
 func (h *head) failed(x *exchange, req *verb.Request, err error) {
-	h.write(x, answer.FromError(x.library, req, err), 0)
+	h.write(x, answer.FromErrorSealed(x.library, req, err), 0)
 }
 
-// write answers with a response the library or package answer composed.
-func (h *head) write(x *exchange, response *verb.Response, success int) {
-	h.writePayload(x, response, response, success)
-}
-
-// writePayload encodes a payload and writes it with its status and headers.
-// A nil response is a read's own answer, which a runner produces only on
-// success; success is the route's success status, and zero means 200.
-func (h *head) writePayload(x *exchange, payload any, response *verb.Response, success int) {
+// write encodes an answer package answer composed and writes it with its
+// status and headers. An answer with no outcome is a read's own answer, which
+// a runner produces only on success; success is the route's success status,
+// and zero means 200.
+func (h *head) write(x *exchange, answered answer.Sealed, success int) {
 	if success == 0 {
 		success = http.StatusOK
 	}
 	status := success
-	if response != nil {
-		status = statusFor(response)
-		if response.Outcome == contract.OutcomeOK {
+	if outcome := answered.Outcome(); outcome != "" {
+		status = statusFor(outcome, answered.Refusal())
+		if outcome == contract.OutcomeOK {
 			status = success
 		}
 	}
-	encoded, err := answer.Encode(payload)
+	encoded, err := answered.Encode()
 	if err != nil {
 		http.Error(x.w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	header := x.w.Header()
-	if revision := revisionOf(payload, response); revision != "" {
+	if revision := answered.Revision(); revision != "" {
 		header.Set("ETag", strconv.Quote(revision))
 	}
 	h.acceptHeaders(x, status)
@@ -320,25 +316,6 @@ func servedJSON(served string) string {
 		return typeJSON
 	}
 	return typeVendor
-}
-
-// revisionOf reads the revision of the card a payload carries, which is the
-// only entity revision the library reports.
-func revisionOf(payload any, response *verb.Response) string {
-	if response != nil {
-		if response.Card != nil {
-			return response.Card.Revision
-		}
-		return ""
-	}
-	wrapped, ok := payload.(map[string]any)
-	if !ok {
-		return ""
-	}
-	if detail, ok := wrapped["detail"].(*verb.Detail); ok && detail != nil {
-		return detail.Card.Revision
-	}
-	return ""
 }
 
 // profileVersion is the contract version the vendor type's profile names.

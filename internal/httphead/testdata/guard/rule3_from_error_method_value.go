@@ -2,6 +2,6 @@ package guard
 
 import "dinah/internal/verb"
 
-func failer(l *verb.Library) func(*verb.Request, error) *verb.Response {
+func failer(l *verb.Library) any {
 	return l.FromError
 }

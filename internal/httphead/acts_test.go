@@ -217,7 +217,7 @@ func TestEveryOutcomeMapsToItsStatus(t *testing.T) {
 	for status, names := range specifiedStatus {
 		for _, name := range names {
 			listed++
-			got := statusFor(&verb.Response{Outcome: contract.OutcomeRefused, Refusal: name})
+			got := statusFor(contract.OutcomeRefused, name)
 			if got != status {
 				t.Errorf("%s: wanted %d, got %d", name, status, got)
 			}
@@ -227,12 +227,12 @@ func TestEveryOutcomeMapsToItsStatus(t *testing.T) {
 		t.Errorf("the specification lists %d names and the map carries %d", listed, len(refusalStatus))
 	}
 	for outcome, status := range map[string]int{contract.OutcomeOK: 200, contract.OutcomeStale: 412, contract.OutcomeUnreachable: 503} {
-		if got := statusFor(&verb.Response{Outcome: outcome}); got != status {
+		if got := statusFor(outcome, ""); got != status {
 			t.Errorf("outcome %s: wanted %d, got %d", outcome, status, got)
 		}
 	}
 	for _, unlisted := range []string{contract.Held, contract.UnknownRoute} {
-		if got := statusFor(&verb.Response{Outcome: contract.OutcomeRefused, Refusal: unlisted}); got != http.StatusConflict {
+		if got := statusFor(contract.OutcomeRefused, unlisted); got != http.StatusConflict {
 			t.Errorf("the unlisted %s: wanted 409, got %d", unlisted, got)
 		}
 	}

@@ -5,6 +5,6 @@ import (
 	"dinah/internal/verb"
 )
 
-func refuse(req *verb.Request) *verb.Response {
+func refuse(req *verb.Request) any {
 	return verb.ComposeRefusal(req, contract.Refuse(contract.Usage, "x"))
 }

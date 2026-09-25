@@ -243,8 +243,7 @@ func namesNothing(name string) bool {
 
 // answer runs a built request and writes the answer.
 func (h *head) answer(x *exchange, command string, req *verb.Request, success int) {
-	payload, response := h.execute(x, command, req)
-	h.writePayload(x, payload, response, success)
+	h.write(x, h.execute(x, command, req), success)
 }
 
 // pathHead is the path's first variable, a card or a column reference.
