@@ -506,25 +506,37 @@ type Request struct {
 	// day is the calendar date this request's schedule conditions, start
 	// holds and relative query values are computed against, read from the
 	// clock once by Library.today the first time anything asks and held
-	// here for the rest of the request. It is nil on every request a head
-	// builds, and a head repeating an act builds or copies a fresh request
-	// for each repetition, as a watch does for each frame, so no answer is
-	// drawn on a day an earlier answer read. A copy carries whatever day the
-	// original held when it was taken, so a copy handed to another workbench,
-	// whose zone may differ, clears it first.
-	day *bench.Date
+	// here for the rest of the request, beside the workbench it was read
+	// for. It is nil on every request a head builds, and a head repeating
+	// an act builds or copies a fresh request for each repetition, as a
+	// watch does for each frame, so no answer is drawn on a day an earlier
+	// answer read. A day is read in its workbench's zone, and a root walk
+	// hands one request to every workbench in turn, so a day one workbench
+	// read answers only that workbench: Library.today reads the clock again
+	// when a different workbench asks, and no walk has to clear the day
+	// before crossing.
+	day *requestDay
+}
+
+// requestDay is the day a request was answered on and the workbench it was
+// read for. The two travel together because the date means nothing without
+// the zone it was read in, and a workbench is where the zone is declared.
+type requestDay struct {
+	bench *bench.Bench
+	date  bench.Date
 }
 
 // today is the day this request is answered on, in the workbench's zone. The
-// first call reads the clock and every later call on the same request answers
-// the same date, so a request selecting a card and rendering it cannot compute
-// the two against different days when it runs across midnight.
+// first call from a workbench reads the clock and every later call on the same
+// request from that workbench answers the same date, so a request selecting a
+// card and rendering it cannot compute the two against different days when it
+// runs across midnight. A call from a different workbench reads the clock
+// again, because that workbench's zone may put it on a different date.
 func (l *Library) today(req *Request) bench.Date {
-	if req.day == nil {
-		day := l.Bench.Today(l.Now())
-		req.day = &day
+	if req.day == nil || req.day.bench != l.Bench {
+		req.day = &requestDay{bench: l.Bench, date: l.Bench.Today(l.Now())}
 	}
-	return *req.day
+	return req.day.date
 }
 
 // CardView is the card as a response carries it.

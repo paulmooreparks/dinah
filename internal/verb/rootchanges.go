@@ -208,11 +208,11 @@ func changesFor(row forestRow, req *Request, held rootCursor, minting bool) (Wor
 		return member, ""
 	}
 	// The request is copied rather than mutated, because one Request is handed
-	// to every workbench in the walk and each needs its own Since. Each also
-	// reads its own day, because a day is read in its workbench's zone and
-	// another workbench may declare a different one.
+	// to every workbench in the walk and each needs its own Since. The day
+	// needs no such care: Library.today keeps it beside the workbench that
+	// read it and reads again for any other, so a copy carrying one
+	// workbench's day answers another with its own.
 	own := *req
-	own.day = nil
 	entry, known := held.Entries[row.Candidate.Path]
 	own.Since = entry
 	set, err := row.Library.Changes(&own)

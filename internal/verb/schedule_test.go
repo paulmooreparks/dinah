@@ -706,3 +706,95 @@ func TestOneAnswerIsDrawnOnOneDay(t *testing.T) {
 	}
 	drawn("prime", primer.Holding, 3, "")
 }
+
+// TestARootWalkJudgesEachWorkbenchOnItsOwnDay pins the day to the workbench
+// that read it. A root walk hands one request to every workbench in turn, and
+// a workbench in Auckland and one in Los Angeles fall on different dates for
+// most of every day: at 2026-10-02T17:00:00Z Auckland reads 2026-10-03 and
+// Los Angeles reads 2026-10-02. A card starting on the third is therefore
+// offered, listed as startable and held without a condition in Auckland, and
+// withheld, listed as not_yet and held as not_yet in Los Angeles, whichever
+// workbench the walk reaches first. A request that carried the first
+// workbench's day into the second would judge one of the two on the wrong
+// day, and the walk's order decides which.
+func TestARootWalkJudgesEachWorkbenchOnItsOwnDay(t *testing.T) {
+	root := t.TempDir()
+	zones := map[string]string{"auckland": "Pacific/Auckland", "los-angeles": "America/Los_Angeles"}
+	wantDay := map[string]string{"auckland": "2026-10-03", "los-angeles": "2026-10-02"}
+	for name, zone := range zones {
+		h := newHarness(t)
+		h.writeAnchorBlock(bench.ScheduleKey, bench.ScheduleKey+":\n  time_zone: "+zone+"\n")
+		h.dated("starts on the third", aftercare, bench.StartAfterField, "2026-10-03")
+		held := h.dated("held from the third", aftercare, bench.StartAfterField, "2026-10-03")
+		if response := h.do(&Request{Verb: Claim, Actor: "alka", Card: held}); response.Outcome != contract.OutcomeOK {
+			t.Fatalf("claim in %s: %+v", name, response)
+		}
+		if err := copyTree(h.root, filepath.Join(root, name, bench.UserBaseName, harnessWorkbenchID)); err != nil {
+			t.Fatalf("copy %s: %v", name, err)
+		}
+	}
+	forestClock = func() time.Time { return time.Date(2026, 10, 2, 17, 0, 0, 0, time.UTC) }
+	defer func() { forestClock = time.Now }()
+	// nameOf is which workbench a row is, read from the path the walk found
+	// it at, which is root/<name>/<user base>/<id>.
+	nameOf := func(path string) string {
+		return filepath.Base(filepath.Dir(filepath.Dir(path)))
+	}
+	// judged fails the case unless the view was drawn on its own
+	// workbench's day and carries not_yet exactly where that day is before
+	// the third.
+	judged := func(verb, name string, view CardView) {
+		t.Helper()
+		if got := view.ScheduleDay.String(); got != wantDay[name] {
+			t.Errorf("%s drew %s in %s on %s, want %s", verb, view.Ref, name, got, wantDay[name])
+		}
+		notYet := strings.Join(view.Schedule, ",") == contract.ScheduleNotYet
+		if want := wantDay[name] == "2026-10-02"; notYet != want {
+			t.Errorf("%s drew %s in %s with not_yet %v, want %v", verb, view.Ref, name, notYet, want)
+		}
+	}
+
+	offers, err := NextForest(root, "", &Request{Verb: "next", Actor: "alka", Column: aftercare}, 0)
+	if err != nil || len(offers.Workbenches) != 2 {
+		t.Fatalf("next walked %+v %v, want two workbenches", offers, err)
+	}
+	for _, member := range offers.Workbenches {
+		name := nameOf(member.Path)
+		if member.Unanswered != "" || len(member.Offers) != 1 {
+			t.Fatalf("next in %s answered %+v", name, member)
+		}
+		offered := member.Offers[0].Card
+		if withheld := offered == nil; withheld != (wantDay[name] == "2026-10-02") {
+			t.Errorf("next in %s offered %+v", name, offered)
+		}
+		if offered != nil {
+			judged("next", name, *offered)
+		}
+	}
+
+	status, err := StatusForest(root, "", &Request{Verb: "status", Actor: "alka"}, 0)
+	if err != nil || len(status.Workbenches) != 2 {
+		t.Fatalf("status walked %+v %v, want two workbenches", status, err)
+	}
+	for _, member := range status.Workbenches {
+		name := nameOf(member.Path)
+		if member.Unanswered != "" || member.Status == nil || len(member.Status.Holding) != 1 {
+			t.Fatalf("status in %s answered %+v", name, member)
+		}
+		judged("status", name, member.Status.Holding[0])
+	}
+
+	listing, err := ListForest(root, "", &Request{Verb: "list", Actor: "alka", Ref: aftercare}, 0)
+	if err != nil || len(listing.Workbenches) != 2 {
+		t.Fatalf("list walked %+v %v, want two workbenches", listing, err)
+	}
+	for _, member := range listing.Workbenches {
+		name := nameOf(member.Path)
+		if member.Unanswered != "" || member.Listing == nil || len(member.Listing.Cards) != 2 {
+			t.Fatalf("list in %s answered %+v", name, member)
+		}
+		for _, view := range member.Listing.Cards {
+			judged("list", name, view)
+		}
+	}
+}
