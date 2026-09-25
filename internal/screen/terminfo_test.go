@@ -238,7 +238,9 @@ func TestTheSearchFollowsTheDocumentedOrder(t *testing.T) {
 	if _, err := LoadTerminfo("xterm", env(map[string]string{"TERMINFO": "hex:" + hexOf(data)})); err != nil {
 		t.Errorf("a description carried in TERMINFO was not read: %v", err)
 	}
-	if _, err := LoadTerminfo("vt52", env(map[string]string{"TERMINFO": "hex:" + hexOf(data), "TERMINFO_DIRS": t.TempDir()})); err == nil {
+	// The name is one no terminfo database carries, since the search goes on
+	// to the system's own directories, where vt52 or any real name may be.
+	if _, err := LoadTerminfo("dinah-no-such-terminal", env(map[string]string{"TERMINFO": "hex:" + hexOf(data), "TERMINFO_DIRS": t.TempDir()})); err == nil {
 		t.Error("a carried description answered for a name it does not carry")
 	}
 	for _, name := range []string{"", "..", "x/y", `x\y`} {
