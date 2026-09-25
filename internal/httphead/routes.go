@@ -389,6 +389,7 @@ var routeExemptions = map[string]exemption{
 	"mcp":               {GroundTheHeadItself, "starts the MCP head, so a route for it would be one server offering to start another"},
 	"lsp":               {GroundTheHeadItself, "starts the editor head, so a route for it would be one server offering to start another"},
 	"serve":             {GroundTheHeadItself, "starts this head, so a route for it would be the server offering to start itself"},
+	"tui":               {GroundTheHeadItself, "starts the terminal head, which reads a person's keyboard and draws on their screen, so a route for it would be one head offering to start another"},
 	"help":              {GroundProtocolServesIt, "GET /affordances names what every route takes, which is what help prints at a terminal"},
 	"raise":             {GroundLaterCard, laterCard},
 	"join":              {GroundLaterCard, laterCard},
