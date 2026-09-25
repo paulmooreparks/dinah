@@ -447,7 +447,7 @@ func (l *Library) checkpoint(req *Request) (*ChangeSet, error) {
 
 // mintedChangeSet is the answer to a first call: a cursor and nothing else.
 // A fresh session is asking what happens from now, and what ever happened is
-// what log answers, per card.
+// in each card's own journal.
 //
 // This is the one call that parses the whole bench and reports nothing. The
 // position the token carries has to name the end of the total order as it
@@ -860,7 +860,7 @@ func (l *Library) entityRef(scope, id string) string {
 // changeAffordances names what a caller may do next after a checkpoint: read
 // the board it was just told about.
 func (l *Library) changeAffordances() []string {
-	return []string{"status", "ls", "show", "log"}
+	return []string{"status", "list", "show"}
 }
 
 // liveCardIDs lists the identifiers of the live half of the walk, in key

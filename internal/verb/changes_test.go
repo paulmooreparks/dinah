@@ -158,6 +158,25 @@ func TestAFirstCheckpointMintsACursorAndReportsNothing(t *testing.T) {
 	}
 }
 
+// TestAChangeSetOffersOnlyCommandsThatExist holds the affordances a change set
+// carries to the declared commands. It offered ls and log for a while after
+// both were retired, and a head that maps affordance names to requests has
+// nothing to map those to.
+func TestAChangeSetOffersOnlyCommandsThatExist(t *testing.T) {
+	h := newHarness(t)
+	h.ready("A card")
+
+	set := h.checkpoint(&Request{})
+	if len(set.Affordances) == 0 {
+		t.Fatal("a change set offered no affordances, so there was nothing to check")
+	}
+	for _, name := range set.Affordances {
+		if _, declared := params[name]; !declared {
+			t.Errorf("a change set offers %q, which is not a command", name)
+		}
+	}
+}
+
 // TestAnUnchangedBenchAnswersWithTheSameTokenCoversAC2 covers dinah-120 AC-2.
 // The token comes back byte for byte, so a caller compares two answers without
 // decoding either.
