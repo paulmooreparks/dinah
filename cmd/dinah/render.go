@@ -183,25 +183,20 @@ func (s *session) scheduleLines(card *verb.CardView) []string {
 		}
 		return false
 	}
-	days := func(from, to string) int {
-		start, ok := bench.ParseDate(from)
-		if !ok {
-			return 0
-		}
-		end, ok := bench.ParseDate(to)
-		if !ok {
-			return 0
-		}
-		return start.DaysUntil(end)
+	// A condition holds only for a date that parses, so the one parse here
+	// that could fail never reaches a line that prints its answer.
+	today, _ := bench.ParseDate(s.today())
+	days := func(date string) int {
+		parsed, _ := bench.ParseDate(date)
+		return today.DaysUntil(parsed)
 	}
-	today := s.today()
 	count := func(key string, n int, date string) string {
 		return s.r.TN(key, n, "date", date, "n", strconv.Itoa(n))
 	}
 	if date := card.StartAfter; date != "" {
 		line := s.r.T("card.start-after", "date", date)
 		if holds(contract.ScheduleNotYet) {
-			line = count("card.start-after.not-yet", days(today, date), date)
+			line = count("card.start-after.not-yet", days(date), date)
 		}
 		lines = append(lines, line)
 	}
@@ -209,11 +204,11 @@ func (s *session) scheduleLines(card *verb.CardView) []string {
 		line := s.r.T("card.start-by", "date", date)
 		switch {
 		case holds(contract.ScheduleLateStart):
-			line = count("card.start-by.late", days(date, today), date)
-		case holds(contract.ScheduleStartSoon) && days(today, date) == 0:
+			line = count("card.start-by.late", -days(date), date)
+		case holds(contract.ScheduleStartSoon) && days(date) == 0:
 			line = s.r.T("card.start-by.soon.today", "date", date)
 		case holds(contract.ScheduleStartSoon):
-			line = count("card.start-by.soon", days(today, date), date)
+			line = count("card.start-by.soon", days(date), date)
 		}
 		lines = append(lines, line)
 	}
@@ -221,11 +216,11 @@ func (s *session) scheduleLines(card *verb.CardView) []string {
 		line := s.r.T("card.due", "date", date)
 		switch {
 		case holds(contract.ScheduleOverdue):
-			line = count("card.due.overdue", days(date, today), date)
-		case holds(contract.ScheduleDueSoon) && days(today, date) == 0:
+			line = count("card.due.overdue", -days(date), date)
+		case holds(contract.ScheduleDueSoon) && days(date) == 0:
 			line = s.r.T("card.due.soon.today", "date", date)
 		case holds(contract.ScheduleDueSoon):
-			line = count("card.due.soon", days(today, date), date)
+			line = count("card.due.soon", days(date), date)
 		}
 		lines = append(lines, line)
 	}

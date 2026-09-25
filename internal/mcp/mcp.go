@@ -1118,6 +1118,12 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		// naming it before dispatch ever reaches here; see the case for
 		// "timeout" in assignValue above.
 		req.Wait = value
+	case "plain":
+		// view holds this argument back from its schema, for the reason
+		// "wait" gives; see tools.go's argumentExemptions.
+		req.ViewPlain = value
+	case "watch":
+		req.ViewWatch = value
 	}
 }
 

@@ -1,0 +1,7 @@
+---
+ts: 2026-09-25T07:08:39Z
+author: sam
+ordinal: 1
+digest: 603d013ce33bac7cd2f8f89dc2e091d5d660f9934a4ebb0e36208b6cfe290e08
+---
+a comment, corrected

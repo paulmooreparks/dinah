@@ -3936,6 +3936,26 @@
       "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table.",
       "source": "f8c6c340dba151c4"
     },
+    "param.view.all.summary": {
+      "text": "कॉलम लेआउट के किसी कॉलम में पहले पाँच कार्ड और बाकी की गिनती के बजाय हर कार्ड दिखाता है",
+      "context": "The meaning of the --all flag of `dinah view`, printed in that command's arguments table. The columns layout draws at most five cards in each column and counts the rest; this flag draws them all. It has no effect on the list layout.",
+      "source": "2e730b1376b1b649"
+    },
+    "param.view.plain.summary": {
+      "text": "कॉलम लेआउट को सादे ASCII चिह्नों और रेखाओं से बनाता है, ऐसे कंसोल या फ़ॉन्ट के लिए जो सामान्य प्रतीक नहीं दिखा सकता",
+      "context": "The meaning of the --plain flag of `dinah view`, printed in that command's arguments table. The columns layout normally draws card states, the operator mark and its rules with Unicode symbols; this flag draws them with ASCII characters instead.",
+      "source": "2509ca0281ff27be"
+    },
+    "param.view.watch.summary": {
+      "text": "हर बार वर्कबेंच बदलने पर दृश्य को फिर से बनाता है, जब तक Ctrl+C इसे रोक न दे",
+      "context": "The meaning of the --watch flag of `dinah view`, printed in that command's arguments table. Ctrl+C is the key a person presses to stop the command; write it the way keyboards in the language label that key.",
+      "source": "c8b22d76d46462bf"
+    },
+    "param.unblock.reason.summary": {
+      "text": "बाधा क्यों हटाई जा रही है, एक शेल-शब्द में या उद्धरण चिह्नों में; बिना कारण बताए बाधा हटाने के लिए इसे छोड़ दें",
+      "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table.",
+      "source": "f8c6c340dba151c4"
+    },
     "param.version.catalogs.summary": {
       "text": "हर उपलब्ध भाषा और उसका कितना अनुवाद हुआ है, यह बताएँ",
       "context": "The meaning of the catalogs argument of `dinah version`, printed in that command's arguments table.",
@@ -4899,6 +4919,36 @@
       "text": "; `dinah view {view}` इसे --explain के बिना बनाता है",
       "context": "The next step of refusal.dinah.view-not-ranked. The command inside it is syntax and stays as it is, with {view} the view's name, and --explain is the flag the reader typed.",
       "source": "3de4c95aff4e0d2d"
+    },
+    "refusal.dinah.unknown-command": {
+      "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
+      "context": "The sentence printed after the refusal name dinah.unknown-command. {detail} carries the identifier, owner or column the refusal is about.",
+      "source": "8b00c9755211e752"
+    },
+    "refusal.dinah.watch-unavailable": {
+      "text": "दृश्य {detail} को यहाँ उसी जगह फिर से नहीं बनाया जा सकता ({reason})",
+      "context": "The sentence printed after the refusal name dinah.watch-unavailable, which `dinah view --watch` carries when it cannot redraw the view in place, before anything is drawn. {detail} is the view's name and {reason} is a machine token naming why, one of not-a-terminal, no-size, too-small, no-terminal-description and missing-capability, which is never translated. The fragments refusal.dinah.watch-unavailable.size, refusal.dinah.watch-unavailable.capability and a next step are spliced on after it.",
+      "source": "5821fbcb7f12685"
+    },
+    "refusal.dinah.watch-unavailable.size": {
+      "text": "; विंडो {size} है, और --watch को कम से कम {minimum} चाहिए",
+      "context": "Spliced after refusal.dinah.watch-unavailable when the window is too small for --watch. {size} is the window's width and height written as 30x24, and {minimum} is the smallest size the watch runs in, written the same way.",
+      "source": "f1d5f6e7d764959d"
+    },
+    "refusal.dinah.watch-unavailable.capability": {
+      "text": "; टर्मिनल के विवरण में {capability} नहीं है",
+      "context": "Spliced after refusal.dinah.watch-unavailable when the terminal's terminfo description lacks a capability the watch needs. {capability} is the capability's terminfo name, such as cup, which is never translated.",
+      "source": "e38b59f489637a5c"
+    },
+    "refusal.dinah.watch-unavailable.next-small": {
+      "text": "; विंडो को चौड़ा या ऊँचा करें, या दृश्य को --watch के बिना एक बार बनाएँ",
+      "context": "The next step of refusal.dinah.watch-unavailable when the window was too small.",
+      "source": "ecc2267cefb442ec"
+    },
+    "refusal.dinah.watch-unavailable.next": {
+      "text": "; दृश्य को --watch के बिना एक बार बनाएँ",
+      "context": "The next step of refusal.dinah.watch-unavailable for every reason other than a window that is too small.",
+      "source": "ac0cff81ccae33e0"
     },
     "refusal.dinah.unknown-command": {
       "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
@@ -7361,6 +7411,116 @@
       "text": "ऊपर के पदों का योग",
       "context": "The phrase --explain prints on the total line, beside the label urgency and the card's score, saying that the score is the sum of the term figures printed above it.",
       "source": "757abdf783fcbe79"
+    },
+    "setup.operator.workbench": {
+      "text": "वर्कबेंच का संचालक",
+      "context": "Placed in parentheses after an agent name in the detail of dinah.setup-agent-is-operator, when the name equals the workbench's operator.",
+      "source": "aa1b9a21dbd860cd"
+    },
+    "view.board.title": {
+      "text": "बोर्ड",
+      "context": "The title of the built-in view named board, which draws every live card of the workbench as columns side by side.",
+      "source": "8fc1231952986aeb"
+    },
+    "view.board.cards": {
+      "text": "हर कार्ड",
+      "context": "The title of the one section of the built-in view board. A view of one section draws no section heading, so this is read in the listing of views and in the machine form.",
+      "source": "113f59c9aec7c542"
+    },
+    "view.columns.count": {
+      "text": "({count})",
+      "context": "The count after a column's title at the head of each column of a view drawn in the columns layout, as in Acceptance (11). {count} is how many of the section's cards stand in the column.",
+      "source": "ed05103e109e7481",
+      "verbatim": true
+    },
+    "view.columns.more": {
+      "text": "+{count} और",
+      "context": "The last line of a column of a view drawn in the columns layout when the column holds more than five cards. {count} is how many were not drawn. It must stay short, because a column can be twenty characters wide.",
+      "source": "92a007a4ac26be2"
+    },
+    "view.columns.collapsed": {
+      "text": "समेटे गए: {columns}",
+      "context": "The line under the heading of a view drawn in the columns layout, naming the columns the view collapses, such as the intake and done columns, which hold cards but are not drawn as columns. {columns} is the list, each entry composed by view.columns.collapsed.entry and joined by view.columns.collapsed.separator.",
+      "source": "91fcec6bbe0bcc7b"
+    },
+    "view.columns.collapsed.entry": {
+      "text": "{title} {count}",
+      "context": "One entry of view.columns.collapsed. {title} is a collapsed column's title and {count} is how many of the view's cards stand in it.",
+      "source": "11c3747a81afe318",
+      "verbatim": true
+    },
+    "view.columns.collapsed.separator": {
+      "text": ", ",
+      "context": "What separates two entries inside the {columns} of view.columns.collapsed. A punctuation mark and whatever spacing the language wants around it.",
+      "source": "7d38007b49acdd1",
+      "verbatim": true
+    },
+    "view.watch.since": {
+      "text": "{time} से देख रहे हैं",
+      "context": "The first part of the status line on the bottom row of the first frame dinah view --watch draws, before anything has changed. {time} is the local time the watch began, written as 09:40:00.",
+      "source": "82fbf3017c050809"
+    },
+    "view.watch.updated": {
+      "text": "{time} पर अद्यतन",
+      "context": "The first part of the status line on the bottom row of every later frame dinah view --watch draws. {time} is the local time the frame was drawn, written as 09:41:07.",
+      "source": "4acab01df76b506f"
+    },
+    "view.watch.stops": {
+      "text": "Ctrl+C रोकता है",
+      "context": "The last part of the status line of dinah view --watch, telling the reader how to end the watch. Ctrl+C is the key a person presses; write it the way keyboards in the language label that key. It must stay short.",
+      "source": "589ac6470160238f"
+    },
+    "view.watch.separator": {
+      "text": " · ",
+      "context": "What separates the parts of the status line of dinah view --watch: the time, the change, and how to stop. A mark and whatever spacing the language wants around it.",
+      "source": "68407576087524b0",
+      "verbatim": true
+    },
+    "view.watch.change": {
+      "text": "{subject} {action} {detail}, {actor} द्वारा",
+      "context": "The middle part of the status line of dinah view --watch, naming the change that caused the redraw, as in dinah-598 moved Spec to Agent Design Review by claude. {subject} is the card's reference, {action} is the act already rendered as a word, {detail} is what the act carried, such as the columns it moved between, and {actor} is who acted.",
+      "source": "8af3a6f883d2d830"
+    },
+    "view.watch.change.bare": {
+      "text": "{subject} {action}, {actor} द्वारा",
+      "context": "The same as view.watch.change, for an act that carried no detail, as in dinah-598 claimed by claude.",
+      "source": "85991632c5680e03"
+    },
+    "view.watch.change.expired": {
+      "text": "{subject} {action}, धारक {actor} था",
+      "context": "The same as view.watch.change, for a claim that expired. {actor} is the owner who held the lapsed claim, not somebody who caused the expiry, so the sentence must not read as though they did.",
+      "source": "ae5f35897a51b81a"
+    },
+    "view.watch.more": {
+      "text": ", और {count} अन्य",
+      "context": "Added after view.watch.change when the change carried more than one event. {count} is how many events the status line does not name.",
+      "source": "9da35567bd95ce36"
+    },
+    "view.watch.gone": {
+      "text": "{ref} {fate}",
+      "context": "The middle part of the status line of dinah view --watch when the change was a card leaving the workbench and carried no event. {ref} is its reference and {fate} is archived or removed, already rendered as a word.",
+      "source": "c08a4122f67cd944",
+      "verbatim": true
+    },
+    "view.watch.columns-changed": {
+      "text": "कॉलम बदल गए",
+      "context": "The middle part of the status line of dinah view --watch when the change was to the workbench's columns and carried no event.",
+      "source": "3b9f90a15a0f0d03"
+    },
+    "view.watch.workbench-changed": {
+      "text": "वर्कबेंच बदल गया",
+      "context": "The middle part of the status line of dinah view --watch when the workbench changed in a way that carried no event, no departure and no column change.",
+      "source": "be040a59b4773795"
+    },
+    "view.watch.hidden": {
+      "text": "नीचे {count} और पंक्तियाँ; लंबी विंडो उन्हें दिखाती है",
+      "context": "The last line of a frame of dinah view --watch whose drawing is taller than the window. {count} is how many lines of the drawing are not shown.",
+      "source": "9d2cf3b8be5f809d"
+    },
+    "view.watch.too-small": {
+      "text": "--watch के लिए विंडो बहुत छोटी है: {size} चाहिए",
+      "context": "The only line of a frame of dinah view --watch drawn after the window was made smaller than the watch can draw in. The watch keeps running and draws again when the window grows back. {size} is the smallest size, written as 40x6.",
+      "source": "8c00b10d6a13c688"
     },
     "setup.operator.workbench": {
       "text": "वर्कबेंच का संचालक",

@@ -259,6 +259,15 @@ type Request struct {
 	// Explain asks dinah view to carry every term behind every rank of a
 	// view ordered by urgency.
 	Explain bool
+	// ViewPlain and ViewWatch are two of dinah view's markers: draw a
+	// columns drawing with the plain marks, and redraw the view in place
+	// until interrupted. Its third, --all, fills All. None of them changes
+	// what DrawView answers, and the library reads none of them. They are
+	// carried here so that a view call derives to the command line the
+	// caller typed, markers included, which a parameter naming no field
+	// would drop.
+	ViewPlain bool
+	ViewWatch bool
 	// Lang is the language a read answers its own prose in, which is the
 	// title of a built-in view. The cli head sets the session's language;
 	// the mcp head leaves it empty, which reads as the base catalog.
@@ -462,7 +471,10 @@ type Request struct {
 	Unresolved bool
 	// All is show's flag for the whole card, unshaped: every member
 	// DetailSelectors names, each carried in full. It is refused together
-	// with Fields, since one call cannot name two field sets.
+	// with Fields, since one call cannot name two field sets. On view it is
+	// the marker lifting the per-column cap of a columns drawing, which the
+	// library does not read, and it shares the field because the MCP head
+	// assigns a marker by its name alone.
 	All bool
 	// FullPending removes the cap prime's own queue rule (rule 2 of
 	// Primer.Pending) carries, placing every item that rule matches into

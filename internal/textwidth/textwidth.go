@@ -48,24 +48,52 @@ func Columns(text string) int {
 	runes := []rune(text)
 	total := 0
 	for i := 0; i < len(runes); {
-		if i+1 < len(runes) && isRegionalIndicator(runes[i]) && isRegionalIndicator(runes[i+1]) {
-			total += 2
-			i += 2
-			continue
-		}
-		if unit := emojiUnit(runes, i); unit > i {
-			total += 2
-			i = unit
-			continue
-		}
-		if drawsNothing(runes[i]) {
-			i++
-			continue
-		}
-		total += runeColumns(runes[i])
-		i++
+		end, columns := nextUnit(runes, i)
+		total += columns
+		i = end
 	}
 	return total
+}
+
+// Cut returns the longest leading run of whole units of text that draws in at
+// most columns, where a unit is what Columns measures as one. A cut therefore
+// never falls inside an emoji sequence or a flag, and a nonspacing mark, which
+// draws nothing, stays with the base before it. Where the next unit is two
+// columns wide and one column remains, the run stops short of it, so the
+// result can draw one column narrower than asked. A columns of zero or less
+// returns the empty string.
+func Cut(text string, columns int) string {
+	if columns <= 0 {
+		return ""
+	}
+	runes := []rune(text)
+	drawn := 0
+	i := 0
+	for i < len(runes) {
+		end, width := nextUnit(runes, i)
+		if drawn+width > columns {
+			break
+		}
+		drawn += width
+		i = end
+	}
+	return string(runes[:i])
+}
+
+// nextUnit reports where the unit starting at i ends and how many columns it
+// draws in. It is the one walk Columns and Cut share, so the two can never
+// disagree about where a unit begins or how wide it is.
+func nextUnit(runes []rune, i int) (end, columns int) {
+	if i+1 < len(runes) && isRegionalIndicator(runes[i]) && isRegionalIndicator(runes[i+1]) {
+		return i + 2, 2
+	}
+	if unit := emojiUnit(runes, i); unit > i {
+		return unit, 2
+	}
+	if drawsNothing(runes[i]) {
+		return i + 1, 0
+	}
+	return i + 1, runeColumns(runes[i])
 }
 
 // runeColumns reports the columns one rune draws in, outside any emoji

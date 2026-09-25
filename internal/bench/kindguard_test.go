@@ -209,7 +209,7 @@ func kindAllowlist(t *testing.T, root string) []kindExemption {
 	t.Helper()
 	return []kindExemption{
 		{path: "internal/contract/contract.go", lines: 6, reason: "declares the four constants, the list of the kinds Dinah mints, and the list of every kind a surface may offer"},
-		{path: ownPrincipalFile(t, root), lines: 4, reason: "holds the predicates every reader asks, the shared kind grammar readColumn and column creation share, and the kind a column created without one is born with"},
+		{path: ownPrincipalFile(t, root), lines: 5, reason: "holds the predicates every reader asks, the shared kind grammar readColumn and column creation share, the kind a column created without one is born with, and which columns a columns view collapses when it declares nothing"},
 		{path: "internal/bench/check.go", lines: 5, reason: "asks where a kind stands in the flow, which is a different question from whether work is taken up"},
 		{path: "internal/verb/beyond.go", lines: 3, reason: "declares the kinds of the three columns dinah init writes"},
 	}

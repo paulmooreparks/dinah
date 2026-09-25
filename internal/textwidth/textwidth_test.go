@@ -275,3 +275,49 @@ func parseCodePoint(t *testing.T, spelling string) rune {
 	}
 	return rune(value)
 }
+
+// TestCutKeepsWholeUnits asserts that Cut keeps the longest leading run of
+// whole units that fits, that it never splits an emoji ZWJ sequence, a keycap
+// sequence, a flag, or a base from its nonspacing mark, and that where the
+// next unit is two columns wide and one column remains it stops short rather
+// than growing past the room. Every result is checked to be a prefix of the
+// text that Columns measures within the room.
+func TestCutKeepsWholeUnits(t *testing.T) {
+	family := "\U0001F468‍\U0001F469‍\U0001F467"
+	keycap := "1️⃣"
+	flag := "\U0001F1EF\U0001F1F5"
+	acute := "é"
+	cases := []struct {
+		name    string
+		text    string
+		columns int
+		want    string
+	}{
+		{"fits whole", "board", 5, "board"},
+		{"ascii cut", "board", 3, "boa"},
+		{"zero room", "board", 0, ""},
+		{"negative room", "board", -1, ""},
+		{"wide character does not split", "看板を", 3, "看"},
+		{"wide characters fill exactly", "看板を", 4, "看板"},
+		{"zwj sequence kept whole", "a" + family + "b", 2, "a"},
+		{"zwj sequence taken whole", "a" + family + "b", 3, "a" + family},
+		{"keycap sequence kept whole", "a" + keycap, 2, "a"},
+		{"keycap sequence taken whole", "a" + keycap, 3, "a" + keycap},
+		{"flag kept whole", "a" + flag, 2, "a"},
+		{"flag taken whole", "a" + flag, 3, "a" + flag},
+		{"mark stays with its base", "ab" + acute + "c", 3, "ab" + acute},
+		{"mark is not left behind", acute + "x", 1, acute},
+	}
+	for _, c := range cases {
+		got := Cut(c.text, c.columns)
+		if got != c.want {
+			t.Errorf("%s: Cut(%q, %d) = %q, want %q", c.name, c.text, c.columns, got, c.want)
+		}
+		if !strings.HasPrefix(c.text, got) {
+			t.Errorf("%s: Cut(%q, %d) = %q, which is not a prefix of the text", c.name, c.text, c.columns, got)
+		}
+		if c.columns > 0 && Columns(got) > c.columns {
+			t.Errorf("%s: Cut(%q, %d) draws %d columns", c.name, c.text, c.columns, Columns(got))
+		}
+	}
+}

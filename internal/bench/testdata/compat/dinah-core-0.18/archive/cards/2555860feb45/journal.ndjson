@@ -1,4 +1,0 @@
-{"ts":"2026-09-25T06:55:29Z","event":"created","actor":{"name":"sam"},"title":"sixth card","to":"004acda2c28a","to_title":"Intake"}
-{"ts":"2026-09-25T06:55:31Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"7b5cfe51cb3b","from_title":"Intake","to_title":"Doing","override":true}
-{"ts":"2026-09-25T06:55:31Z","event":"item_filed","actor":{"name":"sam"},"kind":"decision","column":"7b5cfe51cb3b","column_title":"Doing","item":"ae8d1259988a","standing":"handoff-posted"}
-{"ts":"2026-09-25T06:55:31Z","event":"archived","actor":{"name":"sam"},"note":"2555860feb45"}

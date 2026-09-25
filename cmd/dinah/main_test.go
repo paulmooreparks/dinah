@@ -7517,9 +7517,9 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-container", "migrate-designations", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals", "migrate-raw-lines", "migrate-schedule",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
-		"no-claim", "override", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
+		"no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
-		"unresolved", "version", "wait", "witness", "yes",
+		"unresolved", "version", "wait", "watch", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

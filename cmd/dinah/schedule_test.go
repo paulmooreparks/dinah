@@ -319,6 +319,11 @@ func TestTheAboveTierAnswerOutranksTheDateInText(t *testing.T) {
 	if strings.Count(out.String(), s.r.T("next.not-yet", "date", "2026-10-06")) != 2 {
 		t.Errorf("not-yet alone printed:\n%s", out.String())
 	}
+	// A session with no workbench open knows of no done column, so a card
+	// holding no condition shows its due date.
+	if got := s.scheduleCell(&verb.CardView{Due: "2026-10-10"}); got != s.r.T("schedule.cell.due", "date", "2026-10-10") {
+		t.Errorf("with no workbench open the cell reads %q", got)
+	}
 }
 
 // TestCheckPrintsTheScheduleReports is the terminal half of
@@ -406,6 +411,11 @@ func TestTheScheduleMigrationAdviceIsACommandThatWorks(t *testing.T) {
 	}
 	if again := runCLI(t, root, "check"); again.code != 0 || strings.Contains(again.out, advice) {
 		t.Errorf("check exits %d after the stamp:\n%s", again.code, again.out)
+	}
+	// A second confirmed run finds the format already declared and says so.
+	current := runCLI(t, root, "check", "--migrate-schedule", "--yes")
+	if want := english.T("check.format-current", "format", "10"); !strings.Contains(current.out, want) || current.code != 0 {
+		t.Errorf("the second run exits %d and does not print %q:\n%s", current.code, want, current.out)
 	}
 
 	old := newBench(t)

@@ -7,12 +7,14 @@ them again and draws each answer as a section of its own.
     dinah view
     dinah view mine
     dinah view agenda
+    dinah view board
     dinah view waiting-on-me
 
-`dinah view` with no name lists every view you can see. Dinah ships two views.
-`dinah view mine` shows the cards you hold and the cards you blocked, and
-`dinah view agenda` ranks the cards you can act on by how urgent they are.
-Every other view is one you or your workbench declared.
+`dinah view` with no name lists every view you can see. Dinah ships three
+views. `dinah view mine` shows the cards you hold and the cards you blocked,
+`dinah view agenda` ranks the cards you can act on by how urgent they are, and
+`dinah view board` draws every live card of the workbench as columns side by
+side. Every other view is one you or your workbench declared.
 
 ## Declaring a view
 
@@ -36,14 +38,18 @@ A view carries these members, and only `sections` is required:
 
 - `title` is what the view's heading says. Without one, the heading is the
   view's name.
-- `layout` is how the view is drawn. This build draws `list`, which is also
-  what a view without one gets.
+- `layout` is how the view is drawn. `list`, which a view without one gets,
+  draws each section as a table of cards. `columns` draws each section as a
+  board, which the section on the board below describes.
 - `order` is how the cards inside each section are ordered. `arrival` is the
   order `dinah query` returns and the default. `column` orders them by where
   their column stands in the flow, and by arrival within one column. `urgency`
   ranks them, most urgent first, as the agenda below explains.
-- `collapsed` lists columns by reference. It belongs to a layout this build
-  does not draw yet, and a view carrying it is still read.
+- `collapsed` lists the columns a `columns` view draws as a count on one line
+  rather than as a column, each named by reference. A `columns` view without
+  it collapses the intake and done columns, and `collapsed: []` collapses
+  nothing. It has no effect on the `list` layout, and Dinah ignores an entry
+  naming a column this workbench does not have.
 - `sections` lists the view's questions in the order they are drawn. Each
   section carries a `query`, written in the language the guide on queries
   teaches, or a `scope`, or both, and may carry a `title`. A section without a
@@ -71,7 +77,7 @@ that declares it:
 1. your own settings, the `config.md` file in your user base, which only you
    see;
 2. the workbench's `workbench.md`, which everybody working the workbench sees;
-3. the views Dinah ships, which today are `agenda` and `mine`.
+3. the views Dinah ships, which today are `agenda`, `board`, and `mine`.
 
 Both files take the same block, so a view copies from one to the other without
 an edit. No command writes the block for you. Open `workbench.md` with
@@ -304,8 +310,10 @@ holding it draws its row alone, with the rank the card holds in the whole
 section, and every other section draws empty. A card no section selects
 refuses with `dinah.card-not-in-view`.
 
-The ranked table, `--explain` and a card after the view's name are described
-here for the list layout, which is the one layout this build draws.
+The ranked table belongs to the list layout. A `columns` view ordered by
+urgency draws a board instead, with each column's cards in urgency order, and
+`--explain` and a card after the view's name work on it as the section on the
+board below describes.
 
 `dinah view agenda --json` carries each ranked card's rank and score under
 `urgency`, and with `--explain` every term with the values it was computed
@@ -346,6 +354,148 @@ to chase. It can find one more kind of card, one you blocked that was later
 unblocked and blocked again by somebody else, because a query cannot ask which
 block is the current one.
 
-To change `mine` or `agenda`, declare your own view of the same name, in your
-settings or on the workbench, and yours is drawn in its place. A replacement
-agenda keeps the agenda's selection by writing `scope: actionable`.
+`board` is titled Board, uses the `columns` layout, orders its cards by
+column, and asks one question, `state:ready,active,blocked`, which matches
+every live card on any workbench. It declares no `collapsed` member, so it
+counts the cards in the intake and done columns rather than drawing them.
+
+To change `mine`, `agenda`, or `board`, declare your own view of the same name,
+in your settings or on the workbench, and yours is drawn in its place. A
+replacement agenda keeps the agenda's selection by writing `scope: actionable`.
+To draw the board with a shorter command, give yourself an alias named board:
+
+    dinah config set alias.board "view board"
+
+## The board
+
+When a view uses the `columns` layout, Dinah draws each section as columns
+side by side, each headed by its title and the number of cards it holds, with
+two lines for every card beneath:
+
+    Triage (3)                 Design Queue (9)           Agent Design Review (1)
+    ─────────────────────────  ─────────────────────────  ─────────────────────────
+    ○ 4  later                 ○ 565 ◆  next              ● 598  claude  now
+      Jira-resolution workfl…    Dinah's 1.0 scope is w…    A starved run updates …
+
+A card's first line shows its state, its number, its holder and its priority.
+The mark says whether the card is ready (`○`), held (`●`) or blocked (`✕`).
+The number is the card's reference without the workbench's slug, and
+`dinah show 565` finds it. A held card names its holder and a blocked card
+names the kind of block. The second line is the card's title. When a column
+is too narrow for everything, Dinah drops the priority first, then shortens
+the holder, then drops it, and it never drops the mark, the number or the
+title. The board never shows severity, which `dinah show` does.
+
+`◆` marks a column owned by the operator, and a card with a checklist item
+waiting on the operator.
+
+Dinah leaves out any column that holds none of a section's cards. It draws as
+many columns side by side as fit at twenty characters or more each, and it
+starts a new row of columns underneath when the window runs out. A card
+standing in a column the workbench no longer lists is drawn in a column of its
+own at the end, titled by its identifier.
+
+Each column shows at most five cards and then a line such as `+4 more`.
+`dinah view board --all` shows every card. The drawing uses one column fewer
+than your window, so no line ever reaches its right edge.
+
+The layout decides how a view is drawn, and the order only decides where each
+card stands. So a `columns` view ordered by urgency lists each column's cards
+most urgent first and draws no rank, score, or Why text. `--explain` prints
+the agenda's blocks in place of the board, as it does for any view ordered by
+urgency. A card after the view's name narrows the board to that card. Each
+section holding it draws one column, the card's own, with a count of 1, even
+when the view collapses that column, and every other section draws that
+nothing matches.
+
+### Marks, colour, and plain characters
+
+Dinah draws the board with the Unicode symbols above unless you ask for plain
+characters. `--plain` draws one board with `o`, `*`, `x` and `!` for the four
+marks, `-` for the rules, and `...` where it shortens text. To use plain
+characters every time, set
+
+    dinah config set glyphs plain
+
+and `dinah config set glyphs` goes back to the symbols. Dinah cannot find out
+whether your console's font has the symbols, so it never guesses. If you see
+boxes or question marks where the marks should be, use `--plain`.
+
+Some terminals, especially ones set up for Chinese, Japanese or Korean, draw
+`○`, `●`, `◆`, `─` and `…` two columns wide instead of one. The board then
+drifts out of line, and under `--watch` a long rule can wrap onto the next
+row and scroll the whole window. Use `--plain` on such a terminal.
+
+On a terminal, Dinah colours the marks: blue for held, red for blocked and
+yellow for waiting on the operator. It colours only the marks and never a
+title, and every state keeps its own mark, so nothing depends on seeing the
+colour. If the `NO_COLOR` environment variable is set to anything other than
+an empty string, Dinah draws no colour at all and changes nothing else, so the
+marks stay as they are.
+
+### Files, pipes, and the machine form
+
+If you redirect the board to a file or a pipe, Dinah draws the same board
+without colour, as wide as `COLUMNS` says or 80 columns wide when nothing
+says, so the file is the same on every machine:
+
+    COLUMNS=160 dinah view board > board.txt
+
+The board shortens titles to fit its columns. If you need every title whole,
+use `dinah view board --json`, which answers with every card of every section,
+never capped, and names the collapsed columns in a `collapsed` member.
+
+## Watching a view
+
+`dinah view <name> --watch` draws the view and then draws it again, in place,
+each time the workbench changes, until you press Ctrl+C. It works with any
+view, the `list` layout included:
+
+    dinah view board --watch
+
+The bottom row says when Dinah last drew the view and what changed, such as
+`updated 09:41:07 · dinah-598 moved Spec to Agent Design Review by claude ·
+Ctrl+C stops`. Dinah also draws the view again when you resize the window,
+within about a second, and when a claim on a card it drew expires. When the
+view is taller than the window, Dinah draws what fits and says how many lines
+it left out.
+
+Dinah refuses `--watch` together with `--json`, without a view name, and when
+your output is not a terminal. It also refuses a window narrower than 40
+columns or shorter than 6 rows, and a Linux or macOS terminal whose
+description, named by `TERM`, it cannot find or that lacks what redrawing
+needs. If you shrink the window below 40 by 6 while a watch is running, Dinah
+says so on the first row and draws the view again once the window is big
+enough.
+
+A watch reads the window's size from `COLUMNS` and `LINES` when they are set,
+and from the terminal otherwise. If you exported either one and have since
+resized the window, the watch draws for the old size, and rows wider than the
+window wrap and overwrite each other. Unset them, or set them to the window's
+size, before you start a watch.
+
+On Linux and macOS, Dinah reads the terminal's description, named by `TERM`,
+from the places ncurses searches: the directory `TERMINFO` names, then
+`~/.terminfo`, then each directory `TERMINFO_DIRS` lists, then
+`/etc/terminfo`, `/lib/terminfo` and `/usr/share/terminfo`. That last list is
+the one Ubuntu 24.04 documents; a system built with another one may keep its
+database elsewhere. If Dinah finds no description, a watch is refused with
+`no-terminal-description` and the board is drawn without colour. `infocmp -D`
+prints where your system keeps its database, and setting `TERMINFO_DIRS` to
+that directory fixes both.
+
+A watch reads your workbench exactly as `dinah view` does. Like any read, it
+records a claim that has expired, under the name of whoever held it.
+
+Some things a watch does not do:
+
+- It does not read the keyboard. Anything you type is echoed as your terminal
+  echoes it, and the next redraw covers it.
+- It does not handle Ctrl+Z. If you suspend a watch in a POSIX shell, the
+  cursor stays hidden until the watch resumes or another program shows it.
+- It cannot restore your terminal if it is killed rather than interrupted, or
+  if you close a Windows console while it runs. The cursor may stay hidden,
+  and the text colour changed, until the next program resets them.
+
+When you press Ctrl+C, Dinah puts the colour and the cursor back, leaves the
+last drawing on the screen, and returns you to your prompt below it.
