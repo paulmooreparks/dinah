@@ -318,12 +318,13 @@ The surfaces document and the workbench's own standing text disagree on where a 
 
 ## 9. Decisions
 
-The operator ruled on all four decisions on 2026-09-25.
+The operator ruled on all four decisions on 2026-09-25, and on a fifth that followed from the fourth.
 
 1. **Views are declared in a first-party layer.** They live in a `dinah.views` layer in the workbench definition and in the user's own settings, not in the core contract, because views are presentation and another implementation of the contract should not be obliged to render them.
 2. **A board does not break the "no board interface" rule.** The operator said the rule had been read too strictly, and that he is now more willing to have a board in the tool. `view` with the `columns` layout goes ahead.
 3. **The agenda's weights are declared per workbench,** with the defaults of section 4.2.
 4. **A terminal UI comes sooner rather than later.** The operator values a live view that updates highly, so the terminal UI is planned as the phase after the board and `--watch`, not left until somebody else drives a workbench. Section 8's question about where it lives is settled by the second ruling: the rule no longer keeps an interactive board out of the tool, so the terminal UI can be one more head in the one binary, as the surfaces document already describes for `dinah mcp` and `dinah ui`. Its own design settles the details.
+5. **The terminal UI is built on Bubble Tea.** On the same day the operator chose Bubble Tea, with its Bubbles components and Lip Gloss, over tcell, tview and custom code. The comparison behind the choice was measured. Stripped minimal builds came to 1.85 MB for the baseline of `golang.org/x/term`, 2.32 MB for tcell with 17 modules, 3.18 MB for tview with 19, and 3.22 MB for Bubble Tea with 36. Dinah's own binary is about 9.7 MB, so download size did not decide it. Reading the libraries' source showed that all three drive the Windows console with escape sequences. The choice reverses two rulings made earlier that day, on dinah-288, but only for the interactive head: the board drawn through the classic console functions and the in-tree terminfo reader. `dinah view board` and `--watch` keep both. Bubble Tea was preferred because it handles keyboard input across terminals, can be tested without a real console, and supplies text input, lists and a help component that draws key bindings as a footer. It also renders strings, so the existing board drawing can be reused. The costs accepted are a 36-module supply chain and a major-version transition that was under way at the time. The terminal UI never binds a bare Esc key, so the library's guess at Esc timing never matters. dinah-603 carries the ruling.
 
 Shell completion is built at the same time as views, as section 10 allows.
 
