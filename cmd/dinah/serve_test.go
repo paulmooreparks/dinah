@@ -148,8 +148,16 @@ func TestServeListensOnLoopbackAlone(t *testing.T) {
 // TestServeStartsPrintsAndStops is dinah-152/criteria/2.
 func TestServeStartsPrintsAndStops(t *testing.T) {
 	root := newBench(t)
-	workbench := soleBenchDir(t, root)
-	absolute, err := filepath.Abs(workbench)
+	// The root serve prints is the one discovery found from the directory it
+	// ran in, so the test asks discovery the same question rather than
+	// spelling the fixture's path itself: on macOS the temporary directory
+	// lies behind a symbolic link, and the working directory discovery climbs
+	// from is the resolved side of it.
+	anchor := runCLI(t, root, "path", "workbench")
+	if anchor.code != 0 {
+		t.Fatalf("path workbench: %d %s", anchor.code, anchor.errw)
+	}
+	absolute, err := filepath.Abs(filepath.Dir(strings.TrimSpace(anchor.out)))
 	if err != nil {
 		t.Fatalf("abs: %v", err)
 	}

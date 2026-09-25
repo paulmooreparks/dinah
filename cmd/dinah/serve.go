@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -101,22 +100,21 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 	}
 }
 
-// announce prints the one line dinah serve writes to stdout, and flushes it,
-// because a caller waiting for the address reads nothing until it arrives
-// and the server writes nothing after it.
+// announce prints the one line dinah serve writes to stdout. It needs no
+// flush: the process's stdout writer holds back only an incomplete UTF-8
+// sequence at the end of a write, and a whole line carries none, so a caller
+// waiting for the address reads it as soon as it is written.
 func (s *session) announce(url, root string) {
 	if s.format == formatHuman {
 		s.line(s.r.T("serve.listening", "url", url, "workbench", root))
-	} else {
-		line, _ := json.Marshal(struct {
-			URL       string `json:"url"`
-			Workbench string `json:"workbench"`
-		}{url, root})
-		io.WriteString(s.out, string(line)+"\n")
+		return
 	}
-	if flusher, ok := s.out.(interface{ Flush() error }); ok {
-		flusher.Flush()
-	}
+	announced := struct {
+		URL       string `json:"url"`
+		Workbench string `json:"workbench"`
+	}{url, root}
+	line, _ := json.Marshal(announced)
+	s.line(string(line))
 }
 
 // portNumber reports whether a port is written as a decimal number from 0 to
