@@ -88,15 +88,18 @@ func (h *harness) journals() map[string]string {
 // claimed it. The rows that exercise late_start now file their card in Intake,
 // before the commitment column, where it still reads; the row that stood a
 // never-claimed card in Aftercare now pins decision 10's answer there, which
-// is no late_start.
+// is no late_start. The claimed-and-released row declares its commitment
+// column at Aftercare so that its claim lands before it, which is the only
+// place a claim decides whether the card has started.
 func TestTheBoundaryTableHolds(t *testing.T) {
 	h := scheduleHarness(t)
 	rows := []struct {
-		name   string
-		column string
-		dates  []string
-		after  func(ref string)
-		want   string
+		name    string
+		column  string
+		startAt string
+		dates   []string
+		after   func(ref string)
+		want    string
 	}{
 		{name: "due yesterday", column: aftercare, dates: []string{bench.DueField, "2026-10-02"}, want: "overdue"},
 		{name: "due today", column: aftercare, dates: []string{bench.DueField, "2026-10-03"}, want: "due_soon"},
@@ -105,16 +108,29 @@ func TestTheBoundaryTableHolds(t *testing.T) {
 		{name: "due yesterday and finished", column: finished, dates: []string{bench.DueField, "2026-10-02"}, want: ""},
 		{name: "start_by yesterday, never claimed", column: intake, dates: []string{bench.StartByField, "2026-10-02"}, want: "late_start"},
 		{name: "start_by yesterday, never claimed, past the commitment column", column: aftercare, dates: []string{bench.StartByField, "2026-10-02"}, want: ""},
-		{name: "start_by yesterday, claimed and released", column: aftercare, dates: []string{bench.StartByField, "2026-10-02"}, after: func(ref string) {
+		// The claim has to land before the commitment column for a release
+		// to count, so this row moves the commitment column to Aftercare and
+		// stands its card in Doing. The claim alone starts the card, which the
+		// row reads between the claim and the release, so the row fails where
+		// the claim does not happen; the release before the commitment column
+		// makes the card late again.
+		{name: "start_by yesterday, claimed and released before the commitment column", column: doing, startAt: "aftercare", dates: []string{bench.StartByField, "2026-10-02"}, after: func(ref string) {
 			h.mustDo(&Request{Verb: Claim, Actor: "alka", Card: ref})
+			if got := strings.Join(h.cardView(ref).Schedule, ","); got != "" {
+				t.Errorf("while claimed the card holds [%s], want nothing", got)
+			}
 			h.mustDo(&Request{Verb: Release, Actor: "alka", Card: ref})
-		}, want: ""},
+		}, want: "late_start"},
 		{name: "start_after tomorrow", column: aftercare, dates: []string{bench.StartAfterField, "2026-10-04"}, want: "not_yet"},
 		{name: "start_after today", column: aftercare, dates: []string{bench.StartAfterField, "2026-10-03"}, want: ""},
 		{name: "late to start and due soon", column: intake, dates: []string{bench.StartByField, "2026-10-01", bench.DueField, "2026-10-08"}, want: "late_start,due_soon"},
 	}
 	for _, row := range rows {
 		t.Run(row.name, func(t *testing.T) {
+			if row.startAt != "" {
+				h.writeAnchorBlock(bench.HoldsKey, "dinah.holds:\n  start_at: "+row.startAt+"\n")
+				defer h.writeAnchorBlock(bench.HoldsKey, "")
+			}
 			ref := h.dated(row.name, row.column, row.dates...)
 			if row.after != nil {
 				row.after(ref)

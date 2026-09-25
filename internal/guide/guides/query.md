@@ -310,7 +310,7 @@ Nothing refuses a card that waits. If you claim one by name, Dinah takes it up
 and warns you, and the card stays started while you hold it. Where nobody
 takes work up, as in an intake column, you override a wait by moving the card
 to the commitment column instead, and a card standing there has started for
-good. A card moved back before the commitment column, or released there,
+good. A card moved back before the commitment column, or released before it,
 waits again.
 
 A site foreman who declares that framing waits seven days after the slab is

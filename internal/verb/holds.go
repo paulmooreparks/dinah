@@ -44,25 +44,43 @@ type holdIndex struct {
 	// cards are the live cards by identifier, which is what makes an
 	// archived or missing holder hold nothing: it is not here.
 	cards map[string]*bench.Card
-	// events are the journals read, by card identifier.
+	// events are the journals read, by card identifier. A journal that
+	// would not read is here as nil, which reads as no day.
 	events map[string][]bench.Event
-	// earliest memoises earliestOf for a holder whose computation met no
-	// card on the path, because such an answer depends on nothing above the
-	// holder and is the same along every path.
-	earliest map[string]earliestDay
+	// component numbers the strongly connected set of the walked edges each
+	// card stands in, for the cards at either end of a walked edge. Two
+	// cards share a number exactly when each waits, through walked edges,
+	// on the other, which is when they stand in one cycle.
+	component map[string]int
+	// members are each component's cards, by component number.
+	members [][]string
+	// own memoises ownOf by card, and floor memoises earliestOf by
+	// component.
+	own   map[string]earliestDay
+	floor map[int]earliestDay
 }
 
-// earliestDay is earliestOf's answer: the day, and whether there is one.
+// earliestDay is a not-before computation's answer: the day, and whether
+// there is one.
 type earliestDay struct {
 	day bench.Date
 	ok  bool
 }
 
+// later is e moved to day where day is later, or where e has no day yet.
+func (e earliestDay) later(day bench.Date) earliestDay {
+	if !e.ok || day.After(e.day) {
+		return earliestDay{day: day, ok: true}
+	}
+	return e
+}
+
 // holdsOn is the request's hold index, built on first use from the live
 // cards and Bench.Holds, and answered again on every later call on req. It
-// is the one place a hold reads the disk, so it is the one place a hold can
-// fail, and an unreadable journal fails the read that asked, as a read of
-// the journal fails elsewhere.
+// is the one place a hold reads the disk. A card whose anchor will not load
+// and a journal that will not read are each left out of it rather than
+// failing it, because every card view reads the index, and one damaged card
+// must not take down the answer about every other card.
 func (l *Library) holdsOn(req *Request) (*holdIndex, error) {
 	return l.holdsAt(l.dayOf(req))
 }
@@ -84,23 +102,32 @@ func (l *Library) holdsAt(day *requestDay) (*holdIndex, error) {
 // it answers nil without listing a card or reading a journal, and a journal
 // is read only for the holder of an edge whose rule carries a lag, because a
 // day is needed only there.
+//
+// The cards are read through ReadableCards, so a card whose anchor will not
+// load is absent, which makes it hold nothing and be held by nothing, as an
+// archived card is; dinah check's card walk reports it. A holder whose
+// journal will not read has no readable day, so it makes no lagging ground,
+// on the rule that a day which cannot be read never withholds
+// (dinah-608/decisions/19).
 func (l *Library) buildHolds(now time.Time) (*holdIndex, error) {
 	settings, _ := l.Bench.Holds()
 	if len(settings.Rules) == 0 {
 		return nil, nil
 	}
-	cards, err := l.Bench.Cards()
+	cards, err := l.Bench.ReadableCards()
 	if err != nil {
 		return nil, err
 	}
 	index := &holdIndex{
-		bench:    l.Bench,
-		now:      now,
-		edges:    bench.HoldEdges(cards, settings.Rules),
-		byHeld:   map[string][]bench.HoldEdge{},
-		cards:    map[string]*bench.Card{},
-		events:   map[string][]bench.Event{},
-		earliest: map[string]earliestDay{},
+		bench:     l.Bench,
+		now:       now,
+		edges:     bench.HoldEdges(cards, settings.Rules),
+		byHeld:    map[string][]bench.HoldEdge{},
+		cards:     map[string]*bench.Card{},
+		events:    map[string][]bench.Event{},
+		component: map[string]int{},
+		own:       map[string]earliestDay{},
+		floor:     map[int]earliestDay{},
 	}
 	for _, card := range cards {
 		index.cards[card.ID] = card
@@ -118,11 +145,62 @@ func (l *Library) buildHolds(now time.Time) (*holdIndex, error) {
 		l.observe(ObserveJournal, path)
 		events, _, err := bench.ReadJournal(path)
 		if err != nil {
-			return nil, err
+			events = nil
 		}
 		index.events[holder.ID] = events
 	}
+	index.partition()
 	return index, nil
+}
+
+// walked reports whether the not-before computation follows edge from its
+// held card to its holder: both are live, the held card has not started,
+// and the holder has not reached the rule's event. An edge whose holder has
+// reached its event is read for its lag and not followed, and a card that
+// has started has passed its own start constraints, so nothing out of it is
+// followed.
+func (x *holdIndex) walked(edge bench.HoldEdge) bool {
+	held, holder := x.cards[edge.Held], x.cards[edge.Holder]
+	if held == nil || holder == nil {
+		return false
+	}
+	return !x.bench.Started(held, x.now) && !x.bench.Reached(holder, edge.Rule, x.now)
+}
+
+// partition numbers the strongly connected sets of the walked edges.
+func (x *holdIndex) partition() {
+	next := map[string][]string{}
+	var nodes []string
+	seen := map[string]bool{}
+	for _, edge := range x.edges {
+		if !x.walked(edge) {
+			continue
+		}
+		next[edge.Held] = append(next[edge.Held], edge.Holder)
+		for _, id := range []string{edge.Held, edge.Holder} {
+			if !seen[id] {
+				seen[id] = true
+				nodes = append(nodes, id)
+			}
+		}
+	}
+	for number, members := range bench.StronglyConnected(nodes, next) {
+		for _, id := range members {
+			x.component[id] = number
+		}
+		x.members = append(x.members, members)
+	}
+}
+
+// together reports whether two cards stand in one cycle of walked edges, or
+// are one card.
+func (x *holdIndex) together(first, second string) bool {
+	if first == second {
+		return true
+	}
+	a, inA := x.component[first]
+	b, inB := x.component[second]
+	return inA && inB && a == b
 }
 
 // holdsOf is every ground in force on card today, awaiting and lagging, in
@@ -142,7 +220,7 @@ func (x *holdIndex) holdsOf(b *bench.Bench, card *bench.Card, today bench.Date) 
 		if holder == nil {
 			continue
 		}
-		ground, inForce := x.groundOf(edge, holder, today, map[string]bool{card.ID: true})
+		ground, inForce := x.groundOf(edge, holder, today, card.ID)
 		if inForce {
 			grounds = append(grounds, ground)
 		}
@@ -150,11 +228,9 @@ func (x *holdIndex) holdsOf(b *bench.Bench, card *bench.Card, today bench.Date) 
 	return grounds
 }
 
-// groundOf reads one edge's ground on today, reporting whether it is in
-// force. path is the cards from the one asked about down to the held card of
-// this edge, which the not-before recursion reads a holder already on as no
-// day.
-func (x *holdIndex) groundOf(edge bench.HoldEdge, holder *bench.Card, today bench.Date, path map[string]bool) (linkHold, bool) {
+// groundOf reads the ground one edge of the card asked about makes today,
+// reporting whether it is in force.
+func (x *holdIndex) groundOf(edge bench.HoldEdge, holder *bench.Card, today bench.Date, asked string) (linkHold, bool) {
 	ground := linkHold{
 		Holder:   holder,
 		Kind:     edge.Rule.Kind,
@@ -163,89 +239,172 @@ func (x *holdIndex) groundOf(edge bench.HoldEdge, holder *bench.Card, today benc
 		LagDays:  edge.Rule.LagDays,
 	}
 	if !x.bench.Reached(holder, edge.Rule, x.now) {
-		if path[holder.ID] {
-			// A card waiting on itself, or on a card already on the path,
-			// reads that card as no day.
+		if holder.ID == asked {
+			// A card waiting on itself reads itself as no day.
 			return ground, true
 		}
-		if earliest, ok, _ := x.earliestOf(holder, today, path); ok {
-			if notBefore := earliest.AddDays(edge.Rule.LagDays); notBefore.After(today) {
+		var earliest earliestDay
+		if x.together(asked, holder.ID) {
+			earliest = x.earliestAvoiding(holder, asked, today)
+		} else {
+			earliest = x.earliestOf(holder, today)
+		}
+		if earliest.ok {
+			if notBefore := earliest.day.AddDays(edge.Rule.LagDays); notBefore.After(today) {
 				ground.NotBefore = notBefore.String()
 			}
 		}
 		return ground, true
 	}
-	if edge.Rule.LagDays == 0 {
-		return ground, false
-	}
-	// A holder that reached its event on no readable day makes no lagging
-	// ground, so its lag is treated as already run.
-	reached, ok := bench.ParseDate(x.bench.DayReached(holder, edge.Rule, x.events[holder.ID], x.now))
+	reached, until, ok := x.lagging(edge, holder, today)
 	if !ok {
-		return ground, false
-	}
-	until := reached.AddDays(edge.Rule.LagDays)
-	if !until.After(today) {
 		return ground, false
 	}
 	ground.Reached, ground.Until = reached.String(), until.String()
 	return ground, true
 }
 
-// earliestOf is the earliest day holder could reach any event given its own
-// dates: the latest of its own start_after where that parses, the until date
-// of each of its own lagging grounds, and the not-before date of each of its
-// own awaiting grounds, computed the same way. A holder that has started has
-// passed its own start constraints and answers no day. A ground whose holder
-// is already on path is read as no day, and nothing below it is read, which
-// is what ends a cycle. The third answer reports whether the computation met
-// a card on the path, which is what decides whether the answer may be
-// memoised.
-func (x *holdIndex) earliestOf(holder *bench.Card, today bench.Date, path map[string]bool) (bench.Date, bool, bool) {
-	if known, ok := x.earliest[holder.ID]; ok {
-		return known.day, known.ok, false
+// lagging reads the lagging ground of an edge whose holder has reached its
+// event: the day it reached it and the day the lag runs out, and whether
+// that day is still to come. A rule with no lag makes no lagging ground, and
+// a holder that reached its event on no readable day makes none either, so
+// its lag is treated as already run.
+func (x *holdIndex) lagging(edge bench.HoldEdge, holder *bench.Card, today bench.Date) (bench.Date, bench.Date, bool) {
+	if edge.Rule.LagDays == 0 {
+		return bench.Date{}, bench.Date{}, false
 	}
-	if x.bench.Started(holder, x.now) {
-		x.earliest[holder.ID] = earliestDay{}
-		return bench.Date{}, false, false
+	reached, ok := bench.ParseDate(x.bench.DayReached(holder, edge.Rule, x.events[holder.ID], x.now))
+	if !ok {
+		return bench.Date{}, bench.Date{}, false
 	}
-	latest, found, metPath := bench.Date{}, false, false
-	later := func(day bench.Date) {
-		if !found || day.After(latest) {
-			latest, found = day, true
+	until := reached.AddDays(edge.Rule.LagDays)
+	if !until.After(today) {
+		return bench.Date{}, bench.Date{}, false
+	}
+	return reached, until, true
+}
+
+// The not-before computation.
+//
+// The specification defines a holder's earliest day by a walk that keeps its
+// path: the latest of the holder's own start_after, the until date of each of
+// its lagging grounds, and, for each awaiting ground, that ground's holder's
+// earliest day plus the lag, where a holder already on the path is read as no
+// day. That is the latest date over every simple path out of the holder,
+// which on a cycle is a longest-simple-path question. A walk answering it
+// exactly takes time exponential in the size of the cycle: a ladder of 16
+// cards in one cycle took most of a second, and each added card multiplied
+// the time by about 1.6.
+//
+// This computation reads the same dates in time linear in the walked edges
+// for each ground read. It partitions the walked edges into strongly
+// connected sets, which are the cycles, and computes in three parts.
+//
+//   - ownOf is a card's own contribution, which depends on no path: its
+//     start_after, the until dates of its lagging grounds, and, for each
+//     walked edge leaving its cycle, the earliest day of that edge's holder
+//     plus the lag. A holder outside the card's cycle cannot reach back into
+//     it, so no card on any path through the cycle is below that holder, and
+//     its answer is the same along every path. ownOf is memoised per card.
+//   - earliestOf is the earliest day of a holder read from outside its
+//     cycle: the latest ownOf over every card of the cycle, since each is
+//     reached from the holder by a simple path that meets no card of the
+//     path above. It is memoised per cycle. On a card in no cycle it is
+//     ownOf, so on an acyclic graph the answer is the specification's with
+//     every lag counted, and the diamond reads X+9 because ownOf adds each
+//     route's own lag to the one memoised answer below it.
+//   - earliestAvoiding is a holder read by a card of its own cycle: the
+//     latest ownOf over the cards the holder reaches inside the cycle
+//     without passing through the card asked about, which is the set of
+//     cards a simple path from the holder reaches with the asked card on the
+//     path. The asked card's own dates therefore never return to it.
+//
+// What is given up is the sum of the lags along a path inside a cycle,
+// beyond the lag of the ground being read, because that sum is the
+// longest-path part. A ground inside a cycle is released by no date anyway,
+// since the cycle holds every card in it until somebody starts one, so its
+// not-before date is a floor, and leaving lags out of a floor keeps it a
+// floor. Where no edge inside a cycle carries a lag, the answer is the
+// specification's exactly. It is also exact on the specification's own cycle
+// of two cards, lags or not, because a path through a cycle of two crosses
+// no edge of it beyond the ground being read. dinah-608/decisions/18 records
+// the choice.
+
+// ownOf is card's own contribution to a not-before date, as described above,
+// and no day where card has started.
+func (x *holdIndex) ownOf(card *bench.Card, today bench.Date) earliestDay {
+	if known, ok := x.own[card.ID]; ok {
+		return known
+	}
+	var answer earliestDay
+	if !x.bench.Started(card, x.now) {
+		if startAfter, ok := card.ScheduleDate(bench.StartAfterField); ok {
+			answer = answer.later(startAfter)
 		}
-	}
-	if startAfter, ok := holder.ScheduleDate(bench.StartAfterField); ok {
-		later(startAfter)
-	}
-	path[holder.ID] = true
-	for _, edge := range x.byHeld[holder.ID] {
-		above := x.cards[edge.Holder]
-		if above == nil {
-			continue
-		}
-		if path[above.ID] {
-			metPath = true
-			continue
-		}
-		if !x.bench.Reached(above, edge.Rule, x.now) {
-			day, ok, met := x.earliestOf(above, today, path)
-			metPath = metPath || met
-			if ok {
-				later(day.AddDays(edge.Rule.LagDays))
+		for _, edge := range x.byHeld[card.ID] {
+			above := x.cards[edge.Holder]
+			if above == nil {
+				continue
 			}
-			continue
-		}
-		if ground, inForce := x.groundOf(edge, above, today, path); inForce {
-			until, _ := bench.ParseDate(ground.Until)
-			later(until)
+			if x.bench.Reached(above, edge.Rule, x.now) {
+				if _, until, ok := x.lagging(edge, above, today); ok {
+					answer = answer.later(until)
+				}
+				continue
+			}
+			if x.together(card.ID, above.ID) {
+				continue
+			}
+			if earliest := x.earliestOf(above, today); earliest.ok {
+				answer = answer.later(earliest.day.AddDays(edge.Rule.LagDays))
+			}
 		}
 	}
-	delete(path, holder.ID)
-	if !metPath {
-		x.earliest[holder.ID] = earliestDay{day: latest, ok: found}
+	x.own[card.ID] = answer
+	return answer
+}
+
+// earliestOf is the earliest day holder could reach any event given the
+// dates of the cards it waits on, read from outside holder's cycle.
+func (x *holdIndex) earliestOf(holder *bench.Card, today bench.Date) earliestDay {
+	number, inCycle := x.component[holder.ID]
+	if !inCycle {
+		return x.ownOf(holder, today)
 	}
-	return latest, found, metPath
+	if known, ok := x.floor[number]; ok {
+		return known
+	}
+	var answer earliestDay
+	for _, id := range x.members[number] {
+		if own := x.ownOf(x.cards[id], today); own.ok {
+			answer = answer.later(own.day)
+		}
+	}
+	x.floor[number] = answer
+	return answer
+}
+
+// earliestAvoiding is the earliest day of a holder standing in one cycle with
+// the card asked about, read without passing through that card.
+func (x *holdIndex) earliestAvoiding(holder *bench.Card, asked string, today bench.Date) earliestDay {
+	visited := map[string]bool{asked: true, holder.ID: true}
+	queue := []string{holder.ID}
+	var answer earliestDay
+	for len(queue) > 0 {
+		at := x.cards[queue[0]]
+		queue = queue[1:]
+		if own := x.ownOf(at, today); own.ok {
+			answer = answer.later(own.day)
+		}
+		for _, edge := range x.byHeld[at.ID] {
+			if visited[edge.Holder] || !x.walked(edge) || !x.together(at.ID, edge.Holder) {
+				continue
+			}
+			visited[edge.Holder] = true
+			queue = append(queue, edge.Holder)
+		}
+	}
+	return answer
 }
 
 // awaitingOn counts the live cards standing outside a done column that wait
@@ -415,7 +574,9 @@ func (l *Library) holdCycleWarning(req *Request, response *Response, carrier *be
 	if rule.Held == contract.HoldHeldCarrier {
 		held, holder = carrier.ID, to
 	}
-	cards, err := l.Bench.Cards()
+	// A card whose anchor will not load is left out, as the hold index
+	// leaves it out, so it closes no cycle and the link's answer stands.
+	cards, err := l.Bench.ReadableCards()
 	if err != nil {
 		return err
 	}
@@ -447,15 +608,16 @@ func (l *Library) holdCycleWarning(req *Request, response *Response, carrier *be
 }
 
 // holdCycleFindings are the check.hold-cycle findings among the live cards,
-// at the request's one clock reading. A card whose header will not read
-// fails the listing, which the card walk has already reported, so the cycles
-// are then left unreported rather than failing the whole check.
+// at the request's one clock reading. A card whose header will not read is
+// left out, because the card walk has already reported it, and the cycles
+// among the other cards are still reported. A cards directory that will not
+// list leaves the cycles unreported rather than failing the whole check.
 func (l *Library) holdCycleFindings(req *Request) []bench.Finding {
 	settings, _ := l.Bench.Holds()
 	if len(settings.Rules) == 0 {
 		return nil
 	}
-	cards, err := l.Bench.Cards()
+	cards, err := l.Bench.ReadableCards()
 	if err != nil {
 		return nil
 	}

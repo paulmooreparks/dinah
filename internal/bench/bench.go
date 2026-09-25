@@ -2475,15 +2475,34 @@ const WorkbenchRef = "workbench"
 // is still there. A caller that wants one card reads it through the same
 // stamping door this walk reads fifty through.
 func (b *Bench) Cards() ([]*Card, error) {
+	return cardsWith(b.CardsRoot(), b.cardLoader(), false)
+}
+
+// ReadableCards is Cards with every card whose anchor will not load left out
+// instead of failing the walk. It serves a reader that draws the relations
+// between one card and the others, such as the holds a card's links make,
+// where one card that will not load must not take every other card's answer
+// down with it. The card left out is reported by the card walk of dinah
+// check, which reads the same anchor, as anyLiveCardDated also relies on.
+// A cards directory that will not list still fails, because then no card
+// can be read at all.
+func (b *Bench) ReadableCards() ([]*Card, error) {
+	return cardsWith(b.CardsRoot(), b.cardLoader(), true)
+}
+
+// cardLoader is the one-card reader that separates the strict walk from the
+// retired-vocabulary one.
+func (b *Bench) cardLoader() func(string, string) (*Card, error) {
 	if b.retiredVocabulary {
-		return cardsWith(b.CardsRoot(), b.loadRetiredCardIn)
+		return b.loadRetiredCardIn
 	}
-	return cardsWith(b.CardsRoot(), b.LoadCardIn)
+	return b.LoadCardIn
 }
 
 // cardsWith is the body both readers share, given the one-card reader that
-// separates them.
-func cardsWith(root string, load func(string, string) (*Card, error)) ([]*Card, error) {
+// separates them, and whether a card that will not load is skipped or fails
+// the walk.
+func cardsWith(root string, load func(string, string) (*Card, error), skipUnreadable bool) ([]*Card, error) {
 	ids, err := ListIDs(root)
 	if err != nil {
 		return nil, err
@@ -2492,6 +2511,9 @@ func cardsWith(root string, load func(string, string) (*Card, error)) ([]*Card, 
 	for _, id := range ids {
 		card, err := load(root, id)
 		if err != nil {
+			if skipUnreadable {
+				continue
+			}
 			return nil, err
 		}
 		cards = append(cards, card)

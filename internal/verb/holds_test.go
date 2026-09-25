@@ -2,6 +2,7 @@ package verb
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1230,4 +1231,268 @@ func TestAHoldDoesNotTouchTheStoreItReads(t *testing.T) {
 	if _, err := os.Stat(h.root); err != nil {
 		t.Fatalf("the workbench is gone: %v", err)
 	}
+}
+
+// TestOneUnreadableCardTakesNoOtherCardDown guards that a card whose anchor
+// will not load, on a workbench declaring holds, takes down no answer about
+// any other card. Every card view reads the hold index, so an index that
+// failed on the one damaged card would fail show, next, the response of
+// every mutating verb, and every claim. Here each of show, next, move, claim
+// and link succeeds for the healthy cards, the move reports the column it
+// carried the card to, the damaged card's own links hold nothing, and dinah
+// check still names the damaged card.
+func TestOneUnreadableCardTakesNoOtherCardDown(t *testing.T) {
+	h := holdsHarness(t, finishBlocks)
+	holder := h.filedAt("holder", hTriage)
+	held := h.filedAt("held", hBuildQueue)
+	free := h.filedAt("free", hBuildQueue)
+	mover := h.filedAt("mover", hBuildQueue)
+	claimed := h.filedAt("claimed", hTriage)
+	damaged := h.filedAt("damaged", hBuildQueue)
+	h.link(holder, "blocks", held)
+	h.link(holder, "blocks", damaged)
+	h.link(damaged, "blocks", free)
+	cycleA := h.filedAt("cycle a", hBuildQueue)
+	cycleB := h.filedAt("cycle b", hBuildQueue)
+	h.link(cycleA, "blocks", cycleB)
+	damagedID, moverID := h.cardID(damaged), h.cardID(mover)
+	anchor := filepath.Join(h.card(damaged).Dir, bench.CardAnchor)
+	if err := os.WriteFile(anchor, []byte("this file carries no anchor at all\n"), 0o644); err != nil {
+		t.Fatalf("plant: %v", err)
+	}
+	h.reopen()
+	if _, err := h.library.Bench.Cards(); err == nil {
+		t.Fatal("the plant did not take: Cards() still succeeds, so this proves nothing")
+	}
+
+	if got := h.waitsOn(held); got != holder {
+		t.Errorf("show of the held card waits on %q, want %s", got, holder)
+	}
+	if got := h.waitsOn(free); got != "" {
+		t.Errorf("a card the damaged card blocked waits on %q, want nothing", got)
+	}
+	// Next lists every card of the workbench before it reads a hold, and at
+	// trunk that listing already fails on a card that will not load,
+	// whatever the workbench declares. What the holds must not do is add a
+	// failure of their own, so next is asked at the damaged card's own
+	// column and at a column it does not stand in, with and without the
+	// layer, and the answers must agree.
+	nextAt := func(column string) string {
+		offers, err := h.library.Next(&Request{Verb: "next", Actor: "brin", Column: column})
+		if err != nil {
+			return "error " + err.Error()
+		}
+		if len(offers) != 1 || offers[0].Card == nil {
+			return fmt.Sprintf("%+v", offers)
+		}
+		return offers[0].Card.Ref
+	}
+	withLayer := []string{nextAt(hBuildQueue), nextAt(hTriage)}
+	h.declareHolds("")
+	h.reopen()
+	withoutLayer := []string{nextAt(hBuildQueue), nextAt(hTriage)}
+	h.declareHolds(finishBlocks)
+	h.reopen()
+	for i := range withLayer {
+		if withLayer[i] != withoutLayer[i] {
+			t.Errorf("next answers %q with the layer declared and %q without it", withLayer[i], withoutLayer[i])
+		}
+	}
+
+	moved := h.do(&Request{Verb: Move, Card: mover, Actor: "alka", Column: hImplement})
+	if moved.Outcome != contract.OutcomeOK || moved.Card == nil || moved.Card.Column != hImplement {
+		t.Errorf("the move answered %s %s %+v, want ok with the card at Implement", moved.Outcome, moved.Refusal, moved.Card)
+	}
+	if got := h.card(mover).Column; got != hImplement {
+		t.Errorf("the moved card stands at %s", got)
+	}
+
+	claim := h.do(&Request{Verb: Claim, Card: claimed, Actor: "brin"})
+	if claim.Outcome != contract.OutcomeOK || claim.Card == nil || claim.Card.Ref != claimed {
+		t.Errorf("the claim answered %s %s", claim.Outcome, claim.Refusal)
+	}
+
+	linked := h.library.Link(&Request{Verb: "link", Actor: "alka", Card: free, Kind: "blocks", LinkTo: claimed})
+	if linked.Outcome != contract.OutcomeOK || linked.Warning != "" {
+		t.Errorf("the link answered %s %s %s", linked.Outcome, linked.Refusal, linked.Warning)
+	}
+	h.reopen()
+	// A link closing a cycle among the healthy cards still warns, and check
+	// still reports that cycle, beside the damaged card.
+	closing := h.library.Link(&Request{Verb: "link", Actor: "alka", Card: cycleB, Kind: "blocks", LinkTo: cycleA})
+	if closing.Outcome != contract.OutcomeOK || closing.Warning != "warn.hold-cycle" || closing.WarningDetail != cycleA+", "+cycleB {
+		t.Errorf("the closing link answered %s %s %q %q", closing.Outcome, closing.Refusal, closing.Warning, closing.WarningDetail)
+	}
+	h.reopen()
+	if findings := h.cycleFindings(); len(findings) != 1 || findings[0].Detail != cycleA+", "+cycleB {
+		t.Errorf("check reports the cycles %+v, want the healthy pair", findings)
+	}
+
+	report, err := h.library.Check(&Request{Verb: "check", Actor: "alka"})
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	named := false
+	for _, finding := range report.Findings {
+		if strings.Contains(finding.Path, damagedID) {
+			named = true
+		}
+		if strings.Contains(finding.Path, moverID) {
+			t.Errorf("check reports the healthy moved card: %+v", finding)
+		}
+	}
+	if !named {
+		t.Errorf("check no longer names the damaged card: %+v", report.Findings)
+	}
+}
+
+// TestAnUnreadableJournalWithholdsNothing is dinah-608/decisions/19: a lag
+// holder whose journal will not read has no readable day, so it makes no
+// lagging ground, and the held card's view and next both still answer.
+func TestAnUnreadableJournalWithholdsNothing(t *testing.T) {
+	h := initHarness(t, "dinah.holds:\n  kinds:\n    cures:\n      held: carrier\n      lag_days: 9\n")
+	holder := h.filedAt("holder", iDoing)
+	held := h.filedAt("held", iIntake)
+	h.link(held, "cures", holder)
+	h.at(holder, iDone)
+	if got := h.waitsOn(held); got != holder {
+		t.Fatalf("before the plant the held card waits on %q, want the lag on %s", got, holder)
+	}
+	journal := h.card(holder).JournalPath()
+	raw, err := os.ReadFile(journal)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if err := os.WriteFile(journal, append([]byte("not an event\n"), raw...), 0o644); err != nil {
+		t.Fatalf("plant: %v", err)
+	}
+	h.reopen()
+	if _, _, err := bench.ReadJournal(journal); err == nil {
+		t.Fatal("the plant did not take: the journal still reads")
+	}
+	if got := h.waitsOn(held); got != "" {
+		t.Errorf("with the holder's journal unreadable the held card waits on %q, want nothing", got)
+	}
+	if got := h.offered(iIntake); got != held {
+		t.Errorf("next at Intake offers %q, want %s", got, held)
+	}
+}
+
+// ladder files a hold graph of layers cards two wide in Intake, every card
+// waiting on both cards of the layer below, and the last layer's first card
+// waiting on the first card of the top, which closes every card into one
+// cycle. It answers the cards by layer.
+func (h *harness) ladder(layers int) [][2]string {
+	h.t.Helper()
+	cards := make([][2]string, layers)
+	for layer := range cards {
+		for side := range cards[layer] {
+			cards[layer][side] = h.filedAt(fmt.Sprintf("layer %d side %d", layer, side), iIntake)
+		}
+	}
+	for layer := 0; layer+1 < layers; layer++ {
+		for _, from := range cards[layer] {
+			for _, to := range cards[layer+1] {
+				h.link(from, "after", to)
+			}
+		}
+	}
+	h.link(cards[layers-1][0], "after", cards[0][0])
+	return cards
+}
+
+// TestNotBeforeOnALargeCycleIsQuick is the Agent Code Review's layered case
+// from dinah-608's first code review. The walk that kept its path read every
+// simple path of the cycle, about 1.6 times as long for each layer added, so
+// the 24 layers here took it well over half a minute. The small ladder pins
+// the dates, which that walk gives too, because no edge of it carries a lag.
+func TestNotBeforeOnALargeCycleIsQuick(t *testing.T) {
+	block := "dinah.holds:\n  kinds:\n    after:\n      held: carrier\n    after3:\n      held: carrier\n      lag_days: 3\n"
+	notBefore := func(h *harness, ref string) string {
+		var dates []string
+		for _, wait := range h.showCard(ref).WaitsOn {
+			dates = append(dates, wait.Ref+"@"+wait.NotBefore)
+		}
+		return strings.Join(dates, ",")
+	}
+	t.Run("the dates on a small ladder", func(t *testing.T) {
+		h := initHarness(t, block)
+		cards := h.ladder(3)
+		h.mustSet(cards[2][1], bench.StartAfterField, "2026-10-20")
+		h.mustSet(cards[1][0], bench.StartAfterField, "2026-10-10")
+		want := map[string]string{
+			// The top reaches both dates through the layers below it.
+			cards[0][0]: cards[1][0] + "@2026-10-20," + cards[1][1] + "@2026-10-20",
+			cards[0][1]: cards[1][0] + "@2026-10-20," + cards[1][1] + "@2026-10-20",
+			// The middle reads round the cycle from the bottom through the
+			// top to its partner and on to the dated bottom card.
+			cards[1][0]: cards[2][0] + "@2026-10-20," + cards[2][1] + "@2026-10-20",
+			cards[1][1]: cards[2][0] + "@2026-10-20," + cards[2][1] + "@2026-10-20",
+			// The bottom reads round the cycle and down to its dated
+			// partner.
+			cards[2][0]: cards[0][0] + "@2026-10-20",
+		}
+		for ref, expected := range want {
+			if got := notBefore(h, ref); got != expected {
+				t.Errorf("%s reads %q, want %q", ref, got, expected)
+			}
+		}
+	})
+	// A lag on an edge inside a cycle past the ground being read is not
+	// added, which is dinah-608/decisions/18: a waits on b, b waits on c
+	// with a lag of three, c waits on a, and c carries start_after X. The
+	// path walk read a's ground on b as X+3, and this reads it as X, which is
+	// still a floor on a ground no date releases. The ground's own lag is
+	// always added, so c's ground on a, which reads round to b, is X+0 read
+	// from b's own date, and b's ground on c is c's date plus three.
+	t.Run("a lag inside a cycle", func(t *testing.T) {
+		h := initHarness(t, block)
+		a, b, c := h.filedAt("a", iIntake), h.filedAt("b", iIntake), h.filedAt("c", iIntake)
+		h.link(a, "after", b)
+		h.link(b, "after3", c)
+		h.link(c, "after", a)
+		h.mustSet(c, bench.StartAfterField, "2026-10-20")
+		for ref, expected := range map[string]string{
+			a: b + "@2026-10-20",
+			b: c + "@2026-10-23",
+			c: a + "@",
+		} {
+			if got := notBefore(h, ref); got != expected {
+				t.Errorf("%s reads %q, want %q", ref, got, expected)
+			}
+		}
+	})
+	t.Run("twenty-four layers", func(t *testing.T) {
+		h := initHarness(t, block)
+		cards := h.ladder(24)
+		h.mustSet(cards[23][1], bench.StartAfterField, "2026-10-20")
+		done := make(chan string, 1)
+		go func() {
+			offers, err := h.library.Next(&Request{Verb: "next", Actor: "brin", Column: iIntake})
+			if err != nil || len(offers) != 1 {
+				done <- fmt.Sprintf("next answered %+v %v", offers, err)
+				return
+			}
+			grounds, err := h.library.holdsOn(&Request{})
+			if err != nil {
+				done <- err.Error()
+				return
+			}
+			var answers []string
+			for _, ref := range []string{cards[0][0], cards[12][1], cards[23][0]} {
+				for _, ground := range grounds.holdsOf(h.library.Bench, h.card(ref), bench.DateOf(2026, time.October, 3)) {
+					answers = append(answers, ground.NotBefore)
+				}
+			}
+			done <- strings.Join(answers, ",")
+		}()
+		select {
+		case got := <-done:
+			if want := "2026-10-20,2026-10-20,2026-10-20,2026-10-20,2026-10-20"; got != want {
+				t.Errorf("the ladder reads %q, want %q", got, want)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("next and three cards' grounds on a 48-card cycle took more than ten seconds")
+		}
+	})
 }

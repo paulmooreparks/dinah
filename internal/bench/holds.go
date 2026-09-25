@@ -537,7 +537,7 @@ func (b *Bench) HoldCycles(cards []*Card, rules []HoldRule, now time.Time) [][]*
 		}
 	}
 	var cycles [][]*Card
-	for _, component := range stronglyConnected(nodes, next) {
+	for _, component := range StronglyConnected(nodes, next) {
 		if len(component) == 1 && !selfLoop[component[0]] {
 			continue
 		}
@@ -589,9 +589,9 @@ func HoldCycleThrough(edges []HoldEdge, held, holder string) []string {
 	return nil
 }
 
-// stronglyConnected is Tarjan's partition of the nodes into strongly
+// StronglyConnected is Tarjan's partition of the nodes into strongly
 // connected sets, each set in the order the walk met its members.
-func stronglyConnected(nodes []string, next map[string][]string) [][]string {
+func StronglyConnected(nodes []string, next map[string][]string) [][]string {
 	index := map[string]int{}
 	low := map[string]int{}
 	onStack := map[string]bool{}

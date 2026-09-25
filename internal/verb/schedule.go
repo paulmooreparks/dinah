@@ -66,7 +66,7 @@ func (l *Library) scheduleOf(card *bench.Card, day *requestDay) ([]string, error
 // workbench's commitment column, or somebody holds it now. It answers
 // Bench.Started, the one definition the holds read as well, and reads no
 // journal. A claim taken before the commitment column starts the card only
-// while it is held, so a card released there, or whose claim has expired at
+// while it is held, so a card released before it, or whose claim has expired at
 // now, has not started, and a card moved back before the commitment column
 // has not started either.
 func (l *Library) hasStarted(card *bench.Card, now time.Time) bool {
