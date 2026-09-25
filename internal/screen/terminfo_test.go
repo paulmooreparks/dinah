@@ -211,7 +211,14 @@ func TestTheSearchFollowsTheDocumentedOrder(t *testing.T) {
 	if _, err := LoadTerminfo("xterm", env(map[string]string{"TERMINFO": testdataTerminfo})); err != nil {
 		t.Errorf("TERMINFO naming the tree did not find xterm under its hexadecimal directory: %v", err)
 	}
-	lettered := t.TempDir()
+	// TERMINFO_DIRS is a colon-separated list, and a Windows path carries a
+	// colon after its drive letter, so the two members are named relative to
+	// the package's directory, where no path carries one on any platform.
+	lettered, err := os.MkdirTemp(".", "terminfo-dirs-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(lettered) })
 	if err := os.MkdirAll(filepath.Join(lettered, "x"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +229,8 @@ func TestTheSearchFollowsTheDocumentedOrder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(lettered, "x", "xterm"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadTerminfo("xterm", env(map[string]string{"TERMINFO_DIRS": t.TempDir() + ":" + lettered})); err != nil {
+	missing := filepath.Join(lettered, "missing")
+	if _, err := LoadTerminfo("xterm", env(map[string]string{"TERMINFO_DIRS": missing + ":" + lettered})); err != nil {
 		t.Errorf("TERMINFO_DIRS did not reach its second member's lettered directory: %v", err)
 	}
 	home := t.TempDir()
