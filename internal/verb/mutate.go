@@ -45,7 +45,7 @@ func (l *Library) Do(req *Request) *Response {
 		l.Interleave()
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
-		view, err := l.view(card, l.today(req))
+		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -114,7 +114,18 @@ func (l *Library) admit(req *Request) (*bench.Resolved, *Response) {
 func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 	switch req.Verb {
 	case Claim:
-		return l.warnBeforeStartAfter(req, l.claim(req, card), card)
+		// The hold is read before the claim, while the card has not started:
+		// once claimed, no link holds it, and the warning would say nothing.
+		// It is read in a statement of its own, because the claim writes
+		// the card it is handed, and Go evaluates a call's arguments left to
+		// right, so a hold read as the second argument would read the card
+		// the first had already claimed.
+		hold, err := l.selectionHold(req)
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		answer := hold(card)
+		return l.warnWithheld(l.claim(req, card), answer)
 	case Move:
 		return l.move(req, card)
 	case Release:
@@ -135,20 +146,31 @@ func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 	return l.refuse(req, card, contract.UnknownVerb, req.Verb)
 }
 
-// warnBeforeStartAfter carries a warning on a successful claim of a card the
-// start hold would have withheld from selection, naming the date the card may
-// be taken up from. The claim is not refused: the caller named the card, and
-// selection withholding it is a statement about what the tool hands out
-// rather than about what a person may choose. A response already carrying a
-// warning keeps it, and Do's own stale-prefix warning, set after this runs,
-// takes the slot where both apply.
-func (l *Library) warnBeforeStartAfter(req *Request, response *Response, card *bench.Card) *Response {
+// warnWithheld carries a warning on a successful claim of a card the start
+// hold would have withheld from selection. The claim is not refused: the
+// caller named the card, and selection withholding it is a statement about
+// what the tool hands out rather than about what a person may choose. A
+// response already carrying a warning keeps it, and Do's own stale-prefix
+// warning, set after this runs, takes the slot where both apply.
+//
+// answer is the hold read before the claim. A card waiting on another card
+// is warned with the cards it waited on, each once, since the claim starts it
+// and nothing withholds it while the claim holds. A card held only by a date,
+// its own start_after or the end of a lag, is warned with that date. The
+// card's own start_after does not depend on whether it has started, so
+// reading it before the claim answers what reading it after did.
+func (l *Library) warnWithheld(response *Response, answer holdAnswer) *Response {
 	if response == nil || response.Outcome != contract.OutcomeOK || response.Warning != "" {
 		return response
 	}
-	if held, from := l.selectionHold(req)(card); held {
+	if len(answer.Waiting) > 0 {
+		response.Warning = "warn.waiting-on"
+		response.WarningDetail = strings.Join(holderRefs(answer.Waiting, l.Bench.Slug), ", ")
+		return response
+	}
+	if answer.Held {
 		response.Warning = "warn.before-start-after"
-		response.WarningDetail = from
+		response.WarningDetail = answer.From
 	}
 	return response
 }

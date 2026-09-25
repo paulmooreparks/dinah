@@ -149,7 +149,7 @@ func (l *Library) Search(req *Request) (*SearchResults, error) {
 	// the filter's own set contributes no hit at any tier.
 	var narrowed map[string]bool
 	if strings.TrimSpace(req.Query) != "" {
-		matched, _, err := l.selection(req.Query, req.Actor, l.today(req))
+		matched, _, err := l.selection(req.Query, req.Actor, l.dayOf(req))
 		if err != nil {
 			return nil, err
 		}

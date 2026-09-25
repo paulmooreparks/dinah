@@ -7334,8 +7334,8 @@
       "skeleton": true
     },
     "view.urgency.explain.blocks-others": {
-      "text": "blocks links are not read yet",
-      "context": "The phrase --explain prints for the blocks-others term, which scores nothing because no build yet gives a blocks link a meaning. blocks is the link kind's machine word and is never translated.",
+      "text": "no link kind here holds cards",
+      "context": "The phrase --explain prints for the blocks-others term on a workbench whose dinah.holds block declares no link kind that holds a card back, so no card is counted.",
       "skeleton": true
     },
     "view.urgency.explain.age.unknown": {
@@ -7715,7 +7715,7 @@
     },
     "warn.before-start-after": {
       "text": "this card is not to start before {detail}; you named it, so nothing withheld it",
-      "context": "A warning on a successful claim of a card whose start_after date is later than today. {detail} is that date, YYYY-MM-DD, untranslated.",
+      "context": "A warning on a successful claim of a card selection would have held back until a date: its own start_after, or the end of a number of days after a card it waits on through a link the workbench declares under dinah.holds. {detail} is that date, YYYY-MM-DD, untranslated.",
       "skeleton": true
     },
     "warn.schedule-order": {
@@ -7745,27 +7745,27 @@
     },
     "card.start-by.late.one": {
       "text": "  start by: {date} (late to start by {n} day)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and nobody has taken the card up; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and the card has not started; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "skeleton": true
     },
     "card.start-by.late.other": {
       "text": "  start by: {date} (late to start by {n} days)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and nobody has taken the card up; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date has passed and the card has not started; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "skeleton": true
     },
     "card.start-by.soon.one": {
       "text": "  start by: {date} (start within {n} day)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and nobody has taken the card up; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and the card has not started; the form for one day. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "skeleton": true
     },
     "card.start-by.soon.other": {
       "text": "  start by: {date} (start within {n} days)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and nobody has taken the card up; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date falls within the workbench's soon window and the card has not started; the form for any other number of days. {date} is a date written YYYY-MM-DD and is never translated. {n} is the whole number of calendar days between today and the date.",
       "skeleton": true
     },
     "card.start-by.soon.today": {
       "text": "  start by: {date} (start today)",
-      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date is today and nobody has taken the card up. {date} is a date written YYYY-MM-DD and is never translated.",
+      "context": "Printed under the card line when the card carries a start_by date, the last day somebody should have taken the card up. The date is today and the card has not started. {date} is a date written YYYY-MM-DD and is never translated.",
       "skeleton": true
     },
     "card.due": {
@@ -7815,7 +7815,7 @@
     },
     "schedule.cell.late-start": {
       "text": "late to start {date}",
-      "context": "A cell of the Schedule column in a card listing. The card's start_by date has passed and nobody has taken it up, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "context": "A cell of the Schedule column in a card listing. The card's start_by date has passed and it has not started, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
       "skeleton": true
     },
     "schedule.cell.due-soon": {
@@ -7825,7 +7825,7 @@
     },
     "schedule.cell.start-soon": {
       "text": "start soon {date}",
-      "context": "A cell of the Schedule column in a card listing. The card's start_by date falls within the soon window and nobody has taken it up, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
+      "context": "A cell of the Schedule column in a card listing. The card's start_by date falls within the soon window and it has not started, and {date} is that start_by date. {date} is a date written YYYY-MM-DD and is never translated.",
       "skeleton": true
     },
     "schedule.cell.not-yet": {
@@ -7891,6 +7891,141 @@
     "param.check.migrate-schedule.summary": {
       "text": "stamps the workbench with the format from which a card carries scheduling dates, from any number from 7 up, so that an older Dinah refuses the store instead of handing a dated card out early; a workbench below format 7 is refused and runs --migrate-designations first; without --yes it writes nothing",
       "context": "The written meaning of the --migrate-schedule flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
+      "skeleton": true
+    },
+    "next.waiting": {
+      "text": "ready, waiting on {cards}",
+      "context": "Printed beside a column that offers no card because none of the ready cards standing there that the caller could otherwise take may be taken yet, and at least one of them waits on another card to start or finish. Others may wait on a date. {cards} is one to three references of the cards waited on, joined by a comma and a space, which are not translated.",
+      "skeleton": true
+    },
+    "next.waiting.more": {
+      "text": "ready, waiting on {cards} and {n} more",
+      "context": "As next.waiting, where more than three cards are waited on. {cards} is the first three references; {n} is how many further cards are waited on, always 1 or more.",
+      "skeleton": true
+    },
+    "answer.pull.waiting.bare": {
+      "text": "Dinah found ready work to pull, but none of it may be taken yet, and some of it waits on other cards: {cards}",
+      "context": "The sentence pull prints when the bare form was asked, a column holds ready work, none of it the caller could otherwise take may be taken yet, and at least one card of it waits on another card to start or finish. Others may wait on a date. {cards} is one to three card references joined by a comma and a space, untranslated.",
+      "skeleton": true
+    },
+    "answer.pull.waiting.bare.more": {
+      "text": "Dinah found ready work to pull, but none of it may be taken yet, and some of it waits on other cards: {cards} and {n} more",
+      "context": "As answer.pull.waiting.bare, where more than three cards are waited on. {n} is how many further cards are waited on, always 1 or more.",
+      "skeleton": true
+    },
+    "answer.pull.waiting.named": {
+      "text": "Dinah found ready work in {upstream} for {destination}, but none of it may be taken yet, and some of it waits on other cards: {cards}",
+      "context": "As answer.pull.waiting.bare, for the named form. {upstream} and {destination} are column titles.",
+      "skeleton": true
+    },
+    "answer.pull.waiting.named.more": {
+      "text": "Dinah found ready work in {upstream} for {destination}, but none of it may be taken yet, and some of it waits on other cards: {cards} and {n} more",
+      "context": "As answer.pull.waiting.named, where more than three cards are waited on. {n} is how many further cards are waited on, always 1 or more.",
+      "skeleton": true
+    },
+    "warn.waiting-on": {
+      "text": "this card was waiting on {detail}; you named it, so nothing withheld it, and it waits again only if its claim is released or expires before it reaches the commitment column",
+      "context": "A warning on a successful claim of a card a link was holding back until another card started or finished. The claim starts the card for as long as it is held; a card whose claim is released, or runs out, short of the workbench's commitment column has not started and is held again. {detail} is one or more card references joined by a comma and a space, untranslated.",
+      "skeleton": true
+    },
+    "warn.hold-cycle": {
+      "text": "this link closes a cycle of cards that each wait on the next, so next and pull will hand out none of them: {detail}",
+      "context": "A warning on a successful link whose kind the workbench declares under dinah.holds. {detail} is the cycle's card references, joined by a comma and a space, untranslated.",
+      "skeleton": true
+    },
+    "card.waits-on.start": {
+      "text": "  waits on: {card} to start",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds that holds this card back until another card starts. {card} is that card's reference and is never translated. Waits is the word rather than held, because held by names whoever holds a claim.",
+      "skeleton": true
+    },
+    "card.waits-on.finish": {
+      "text": "  waits on: {card} to finish",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds that holds this card back until another card reaches a done column. {card} is that card's reference and is never translated.",
+      "skeleton": true
+    },
+    "card.waits-on.reach": {
+      "text": "  waits on: {card} to reach {column}",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds that holds this card back until another card reaches a named column or any column after it. {card} is that card's reference and is never translated; {column} is the column's title.",
+      "skeleton": true
+    },
+    "card.waits-on.not-before": {
+      "text": "{line}, not before {date}",
+      "context": "One of the card.waits-on lines, already rendered as {line}, followed by the earliest day the wait could end given the other card's own dates. {date} is a date written YYYY-MM-DD and is never translated.",
+      "skeleton": true
+    },
+    "card.waits-until.start.one": {
+      "text": "  waits until {date}: {n} day after {card} started",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds whose other card has started, where the link also asks for a number of days after that; the form for one day. {date} is the day, written YYYY-MM-DD, on which time alone releases this card; {card} is the other card's reference. Neither is translated.",
+      "skeleton": true
+    },
+    "card.waits-until.start.other": {
+      "text": "  waits until {date}: {n} days after {card} started",
+      "context": "As card.waits-until.start.one, the form for any other number of days.",
+      "skeleton": true
+    },
+    "card.waits-until.finish.one": {
+      "text": "  waits until {date}: {n} day after {card} finished",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds whose other card has reached a done column, where the link also asks for a number of days after that; the form for one day. {date} is the day, written YYYY-MM-DD, on which time alone releases this card; {card} is the other card's reference. Neither is translated.",
+      "skeleton": true
+    },
+    "card.waits-until.finish.other": {
+      "text": "  waits until {date}: {n} days after {card} finished",
+      "context": "As card.waits-until.finish.one, the form for any other number of days.",
+      "skeleton": true
+    },
+    "card.waits-until.reach.one": {
+      "text": "  waits until {date}: {n} day after {card} reached {column}",
+      "context": "Printed under the card line for a link the workbench declares under dinah.holds whose other card has reached a named column, where the link also asks for a number of days after that; the form for one day. {date} is the day, written YYYY-MM-DD, on which time alone releases this card; {card} is the other card's reference and {column} the column's title.",
+      "skeleton": true
+    },
+    "card.waits-until.reach.other": {
+      "text": "  waits until {date}: {n} days after {card} reached {column}",
+      "context": "As card.waits-until.reach.one, the form for any other number of days.",
+      "skeleton": true
+    },
+    "schedule.cell.waiting": {
+      "text": "waiting on {cards}",
+      "context": "A cell of the Schedule column in a card listing. A link the workbench declares under dinah.holds holds the card back today, so next and pull pass it over. {cards} is the references of the cards it waits on, joined by a comma and a space, and is never translated.",
+      "skeleton": true
+    },
+    "schedule.cell.and-waiting": {
+      "text": "{cell}, waiting on {cards}",
+      "context": "A cell of the Schedule column in a card listing. {cell} is another schedule cell, already rendered, and the card also waits on the cards named in {cards}, joined by a comma and a space, which are never translated.",
+      "skeleton": true
+    },
+    "check.holds-malformed": {
+      "text": "the dinah.holds block in this workbench.md cannot be used as written, so the member at fault takes its default meanwhile, a kind whose held is not named or carrier holds nothing, and a start_at that is not a column other than the flow's first or a done column gives way to the default commitment column: {detail}",
+      "context": "A check finding, followed by the workbench.md path in parentheses. {detail} carries `dinah.holds not a mapping`; or `dinah.holds`, the member and the text read, as `dinah.holds start_at nowhere`; or `dinah.holds`, a link kind and `not a mapping`; or `dinah.holds`, a link kind, the member and the text read. held takes named or carrier, waits_for takes start or finish, lag_days a whole number from 0 to 365, and start_at and finish_at a column. dinah.holds, the member names and the words they take are never translated.",
+      "skeleton": true
+    },
+    "check.holds-member-unknown": {
+      "text": "the dinah.holds block in this workbench.md carries a member this build does not read, and it is ignored: {detail}",
+      "context": "A check finding at cleanup severity, followed by the workbench.md path in parentheses. {detail} is the member's name, preceded by the link kind where the member belongs to one. The block's members are start_at and kinds, and a kind's are held, waits_for, lag_days and finish_at, so the finding is most often a misspelling of one of them.",
+      "skeleton": true
+    },
+    "check.hold-cycle": {
+      "text": "these cards each wait on the next through a link dinah.holds declares, so next and pull hand out none of them until one of them starts: {detail}",
+      "context": "A check finding, followed by the path of the lowest-numbered card's card.md in parentheses. {detail} is the cycle's card references in the order each waits on the next, joined by a comma and a space, and is never translated. Moving any of the cards to the workbench's commitment column, claiming one, or removing a link breaks the cycle.",
+      "skeleton": true
+    },
+    "check.holds-below-format": {
+      "text": "this workbench declares links under dinah.holds that hold cards back, but it declares format {detail}, so an older Dinah would hand a held card out early; run `dinah check --migrate-holds --yes` so that an older Dinah refuses it instead",
+      "context": "A check finding: a workbench declaring a storage format below the one that introduced holds carried by links, where its dinah.holds block declares at least one usable rule. {detail} carries the declared format number. dinah.holds is file syntax and the command line inside the sentence is the repair; neither is translated.",
+      "skeleton": true
+    },
+    "param.check.migrate-holds.summary": {
+      "text": "stamps the workbench with the format from which a link declared under dinah.holds holds a card back, from any number from 7 up, so that an older Dinah refuses the store instead of handing a held card out early; a workbench below format 7 is refused and runs --migrate-designations first; without --yes it writes nothing",
+      "context": "The written meaning of the --migrate-holds flag of check. It writes the one format line on the workbench anchor and reads no card, and without the confirmation flag it writes nothing at all.",
+      "skeleton": true
+    },
+    "view.urgency.explain.blocks-others.counted.one": {
+      "text": "{count} card waits on this one",
+      "context": "The phrase --explain prints for the blocks-others term when one card waits on this card through a link the workbench declares under dinah.holds; the form for one card.",
+      "skeleton": true
+    },
+    "view.urgency.explain.blocks-others.counted.other": {
+      "text": "{count} cards wait on this one",
+      "context": "As view.urgency.explain.blocks-others.counted.one, the form for any other number of cards, including none.",
       "skeleton": true
     }
   }

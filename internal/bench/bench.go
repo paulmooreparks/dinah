@@ -100,8 +100,10 @@ const (
 // which made a quoted frontmatter scalar read as text, so the number says
 // whether the raw JSON lines an earlier import wrote quoted have been
 // rewritten bare. It moved from 9 to 10 at dinah-605, which gave a card
-// scheduling dates that an older build would ignore and so hand out early.
-const StorageFormat = 10
+// scheduling dates that an older build would ignore and so hand out early. It
+// moved from 10 to 11 at dinah-608, when a link began to hold a card back from
+// selection. An older build would ignore the hold and hand the card out early.
+const StorageFormat = 11
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -224,6 +226,18 @@ const RawLineFormat = 9
 // live card carries a date under check.schedule-below-format, and
 // `dinah check --migrate-schedule --yes` stamps it.
 const ScheduleFormat = 10
+
+// HoldsFormat is the storage format from which a link a workbench declares
+// under dinah.holds holds a card back from selection.
+//
+// The number protects a workbench from older builds and does not gate this
+// one, on the terms ScheduleFormat states: the layer is honoured at any
+// format this build opens. A build below this number ignores the layer and
+// hands a held card out before the card it waits on has started or finished,
+// which is the window the number closes. dinah check reports a workbench
+// below it where the layer declares a usable rule under
+// check.holds-below-format, and `dinah check --migrate-holds --yes` stamps it.
+const HoldsFormat = 11
 
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
@@ -674,6 +688,13 @@ type Bench struct {
 	// could not use. Schedule and Today are how a reader asks.
 	schedule        ScheduleSettings
 	scheduleDefects []ScheduleDefect
+	// holds is the commitment column and the holding kinds the workbench's
+	// dinah.holds block declares, read at Open once the flow is known, with
+	// every member it leaves out or carries unreadably at its default, and
+	// holdsDefects are what the reader could not use. Holds is how a reader
+	// asks.
+	holds        HoldSettings
+	holdsDefects []HoldDefect
 	// tiers are the tier table's entries in declaration order, read out of
 	// the tiers block at Open, and empty on a workbench declaring no table.
 	tiers []TierEntry
@@ -2025,6 +2046,9 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		}
 		b.OrphanedColumnDirectories = append(b.OrphanedColumnDirectories, id)
 	}
+	// The holds layer is read last, because its default commitment column
+	// and every column it names are read against the flow.
+	b.holds, b.holdsDefects = ReadHolds(fm, b.Columns, b.ColumnByRef)
 	return b, nil
 }
 

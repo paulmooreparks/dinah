@@ -447,7 +447,7 @@ func (l *Library) checkpoint(req *Request) (*ChangeSet, error) {
 		// caller comparing two answers compares tokens without decoding one.
 		return &ChangeSet{Cursor: req.Since, Changed: false, Affordances: l.changeAffordances()}, nil
 	}
-	return l.changedSince(held, terms, live, archive, wantedCard, wantedColumn, l.today(req))
+	return l.changedSince(held, terms, live, archive, wantedCard, wantedColumn, l.dayOf(req))
 }
 
 // mintedChangeSet is the answer to a first call: a cursor and nothing else.
@@ -546,9 +546,9 @@ func (l *Library) watchedCard(ref string) (string, error) {
 
 // changedSince builds the answer to a call whose board moved: the events after
 // the cursor, the live cards this call has a reason to report, what left, and
-// the cursor that covers all of it. today is the day the reported cards'
-// conditions are drawn on.
-func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched, wantedCard string, wantedColumn *bench.Column, today bench.Date) (*ChangeSet, error) {
+// the cursor that covers all of it. day is the request's day, which the
+// reported cards' conditions and holds are drawn on.
+func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched, wantedCard string, wantedColumn *bench.Column, day *requestDay) (*ChangeSet, error) {
 	var delivered []position
 	var unreadable, liveUnreadable []string
 	if held.Live != terms.Live {
@@ -593,7 +593,7 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	// the live one, so letting it stand as the explanation for a moved live
 	// term would suppress a resync the live half had earned.
 	explained := len(delivered) > 0 || len(liveUnreadable) > 0
-	changed, err := l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedColumn, today)
+	changed, err := l.changedCards(delivered, unreadable, live, held.Live != terms.Live && !explained, wantedCard, wantedColumn, day)
 	if err != nil {
 		return nil, err
 	}
@@ -703,7 +703,7 @@ func (l *Library) inColumn(scope, id string, event bench.Event, wanted *bench.Co
 // caller, over every entity the walk delivered rather than over cards alone,
 // because a workbench field rewrite, a workstream act, a deletion and a
 // completed archiving all move the live term and all explain it.
-func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, unexplained bool, wantedCard string, wantedColumn *bench.Column, today bench.Date) ([]*CardView, error) {
+func (l *Library) changedCards(delivered []position, unreadable []string, live []bench.Watched, unexplained bool, wantedCard string, wantedColumn *bench.Column, day *requestDay) ([]*CardView, error) {
 	named := map[string]bool{}
 	departed := map[string]bool{}
 	for _, at := range delivered {
@@ -748,7 +748,7 @@ func (l *Library) changedCards(delivered []position, unreadable []string, live [
 		if wantedColumn != nil && card.Column != wantedColumn.ID {
 			continue
 		}
-		view, err := l.view(card, today)
+		view, err := l.view(card, day)
 		if err != nil {
 			return nil, err
 		}

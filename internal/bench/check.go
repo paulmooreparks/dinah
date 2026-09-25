@@ -381,6 +381,36 @@ const (
 	// member's name. It is cleanup, and it exists so that a misspelt member
 	// is visible rather than silently defaulted.
 	FindingScheduleMemberUnknown = "check.schedule-member-unknown"
+	// FindingHoldsMalformed names a dinah.holds block that is not a mapping,
+	// a kind under it that is not a mapping, or one member of either the
+	// reader could not use. Path is the workbench anchor and Detail is
+	// `dinah.holds not a mapping`; or `dinah.holds`, the member and the text
+	// read, for start_at and kinds; or `dinah.holds`, the kind and `not a
+	// mapping`; or `dinah.holds`, the kind, the member and the text read. The
+	// reader uses the member's default meanwhile, or leaves the kind out where
+	// its held member does not read, so nothing refuses.
+	FindingHoldsMalformed = "check.holds-malformed"
+	// FindingHoldsMemberUnknown names one member of the dinah.holds block, or
+	// of a kind under it, that this build does not read, which is ignored.
+	// Detail is the member's name, preceded by the kind where the member is a
+	// kind's. It is cleanup, for the reason FindingScheduleMemberUnknown is.
+	FindingHoldsMemberUnknown = "check.holds-member-unknown"
+	// FindingHoldCycle names a cycle of cards each of which a declared link
+	// holds back until the next has started or finished, so selection hands
+	// out none of them. Path is the anchor of the lowest-numbered card in the
+	// cycle and Detail is the cycle's card references in edge order, starting
+	// from that card, joined by ", ". Only edges whose ground is awaiting are
+	// read, so a cycle one of whose edges has lifted is not reported. It is
+	// raised by the check verb rather than by Bench.Check, because whether a
+	// card has started reads the clock, and the verb's clock is the one every
+	// other reading of the request uses.
+	FindingHoldCycle = "check.hold-cycle"
+	// FindingHoldsBelowFormat names a workbench declaring a format below
+	// HoldsFormat whose dinah.holds block declares at least one usable rule,
+	// which an older build ignores and so hands a held card out early. Path
+	// is the workbench anchor and Detail is the declared format, and the
+	// repair is `dinah check --migrate-holds --yes`.
+	FindingHoldsBelowFormat = "check.holds-below-format"
 	// FindingScheduleBelowFormat names a workbench declaring a format below
 	// ScheduleFormat where a live card carries a scheduling date, which an
 	// older build ignores and so hands the card out before its start_after.
@@ -668,6 +698,7 @@ func (b *Bench) Check() ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, scheduleFindings...)
+	findings = append(findings, b.checkHolds()...)
 	findings = append(findings, b.checkConditions()...)
 	findings = append(findings, b.checkRawLines()...)
 	newlineFindings, err := b.checkStoredNewlines()
@@ -1721,6 +1752,43 @@ func (b *Bench) checkSchedule() ([]Finding, error) {
 		findings = append(findings, Finding{Path: anchor, Key: FindingScheduleBelowFormat, Detail: strconv.Itoa(b.Format)})
 	}
 	return findings, nil
+}
+
+// checkHolds reports what the dinah.holds block carries that the reader could
+// not use, and a workbench below HoldsFormat whose block declares a usable
+// rule. It reads no card: the cycles among the cards are the check verb's to
+// report, beside the clock it reads.
+func (b *Bench) checkHolds() []Finding {
+	anchor := filepath.Join(b.Root, WorkbenchAnchor)
+	settings, defects := b.Holds()
+	var findings []Finding
+	for _, defect := range defects {
+		switch defect.Defect {
+		case HoldsNotAMapping:
+			findings = append(findings, Finding{Path: anchor, Key: FindingHoldsMalformed, Detail: HoldsKey + " not a mapping"})
+		case HoldsKindNotAMapping:
+			findings = append(findings, Finding{Path: anchor, Key: FindingHoldsMalformed, Detail: HoldsKey + " " + defect.Kind + " not a mapping"})
+		case HoldsMalformedMember:
+			findings = append(findings, Finding{Path: anchor, Key: FindingHoldsMalformed, Detail: joinWords(HoldsKey, defect.Kind, defect.Member, defect.Read)})
+		case HoldsUnknownMember:
+			findings = append(findings, Finding{Path: anchor, Key: FindingHoldsMemberUnknown, Detail: joinWords(defect.Kind, defect.Member), Severity: SeverityCleanup})
+		}
+	}
+	if b.Format < HoldsFormat && len(settings.Rules) > 0 {
+		findings = append(findings, Finding{Path: anchor, Key: FindingHoldsBelowFormat, Detail: strconv.Itoa(b.Format)})
+	}
+	return findings
+}
+
+// joinWords joins the words that are not empty with single spaces.
+func joinWords(words ...string) string {
+	var kept []string
+	for _, word := range words {
+		if word != "" {
+			kept = append(kept, word)
+		}
+	}
+	return strings.Join(kept, " ")
 }
 
 // anyLiveCardDated reports whether some live card stores anything under any
