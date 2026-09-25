@@ -1,0 +1,36 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "views": [
+    {
+      "name": "agenda",
+      "title": "What needs me first",
+      "layout": "list",
+      "order": "urgency",
+      "source": "built-in",
+      "used": true,
+      "malformed": ""
+    },
+    {
+      "name": "board",
+      "title": "Board",
+      "layout": "columns",
+      "order": "column",
+      "source": "built-in",
+      "used": true,
+      "malformed": ""
+    },
+    {
+      "name": "mine",
+      "title": "My cards",
+      "layout": "list",
+      "order": "column",
+      "source": "built-in",
+      "used": true,
+      "malformed": ""
+    }
+  ]
+}
