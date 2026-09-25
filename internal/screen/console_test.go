@@ -110,6 +110,9 @@ func TestTheConsoleLayerWritesNoControlSequence(t *testing.T) {
 	if err := scr.Line(line); err != nil {
 		t.Fatalf("line: %v", err)
 	}
+	if console.info.Attributes != 0x0017 {
+		t.Errorf("after a one-shot line with a coloured segment the attributes are %#04x, want the 0x0017 the console started with", console.info.Attributes)
+	}
 	if err := scr.Begin(); err != nil {
 		t.Fatalf("begin: %v", err)
 	}

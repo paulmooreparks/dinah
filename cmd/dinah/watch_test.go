@@ -332,7 +332,7 @@ func TestWatchRefusesBeforeDrawing(t *testing.T) {
 	}
 	for _, size := range [][2]int{{39, 24}, {80, 5}} {
 		rig := newWatchRig(t, size[0], size[1])
-		got := runCLI(t, root, "view", "every", "--watch")
+		got := refusedOrStopped(t, rig, root)
 		want := fmt.Sprintf("%dx%d", size[0], size[1])
 		if got.code == 0 || got.out != "" || !strings.Contains(got.errw, contract.WatchTooSmall) || !strings.Contains(got.errw, want) {
 			t.Errorf("a %s window answered %d %q %q", want, got.code, got.out, got.errw)
@@ -344,7 +344,7 @@ func TestWatchRefusesBeforeDrawing(t *testing.T) {
 	noCup := terminfoFixture(t, "64", "dinah-no-cup")
 	rig := newWatchRig(t, 80, 24)
 	rig.install(func(text io.Writer) screen.Screen { return screen.NewTerminfo(noCup, text) })
-	got := runCLI(t, root, "view", "every", "--watch")
+	got := refusedOrStopped(t, rig, root)
 	if got.code == 0 || got.out != "" || !strings.Contains(got.errw, contract.WatchMissingCapability) || !strings.Contains(got.errw, "cup") {
 		t.Errorf("a description lacking cup answered %d %q %q", got.code, got.out, got.errw)
 	}
@@ -356,6 +356,21 @@ func TestWatchRefusesBeforeDrawing(t *testing.T) {
 	if watching.code != 0 {
 		t.Errorf("a 40x6 watch exited %d: %s", watching.code, watching.errw)
 	}
+}
+
+// refusedOrStopped runs a watch the rig should refuse. A build that draws
+// instead is interrupted after three seconds, so it fails on its exit code
+// rather than hanging the test.
+func refusedOrStopped(t *testing.T, rig *watchRig, root string) *asideRun {
+	t.Helper()
+	watching := runAside(t, root, "view", "every", "--watch")
+	select {
+	case <-watching.done:
+	case <-time.After(3 * time.Second):
+		rig.interrupt()
+	}
+	watching.finish(t)
+	return watching
 }
 
 // terminfoFixture reads one of the screen package's committed entries.
@@ -619,16 +634,19 @@ func (s *sequenceRecorder) Write(p []byte) (int, error) {
 // TestCtrlCMidFrameKeepsEverySequenceWhole is the POSIX half of
 // dinah-288/criteria/19: through the terminfo layer over the committed
 // xterm-256color entry, every escape in every write begins a sequence that
-// ends within that write, an interrupt during row 10 still finishes it, and
-// the watch exits 0 with the cursor shown by the restore.
+// ends within that write, an interrupt during the twelfth write, which is
+// row 10, still finishes that row and writes no other, and the watch exits 0
+// with the cursor shown by the restore.
 func TestCtrlCMidFrameKeepsEverySequenceWhole(t *testing.T) {
 	root := busyBench(t)
 	entry := terminfoFixture(t, "78", "xterm-256color")
 	rig := newWatchRig(t, 1000, 60)
 	recorder := &sequenceRecorder{}
 	interrupted := false
+	writes := 0
 	recorder.onWrite = func(text string) {
-		if !interrupted && strings.HasPrefix(text, "\x1b[10;1H") {
+		writes++
+		if !interrupted && writes == 12 {
 			interrupted = true
 			rig.interrupt()
 		}
@@ -658,10 +676,8 @@ func TestCtrlCMidFrameKeepsEverySequenceWhole(t *testing.T) {
 	if !strings.Contains(last, "\x1b[?25h") || !strings.HasSuffix(last, "\n") {
 		t.Errorf("the last write is not the restore: %q", last)
 	}
-	for _, write := range recorder.writes {
-		if strings.HasPrefix(write, "\x1b[11;1H") {
-			t.Error("a row after the interrupted one was written")
-		}
+	if len(recorder.writes) != 13 {
+		t.Errorf("the watch made %d writes, want the two of Begin, ten rows and the restore:\n%q", len(recorder.writes), recorder.writes)
 	}
 }
 

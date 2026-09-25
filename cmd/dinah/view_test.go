@@ -15,7 +15,6 @@ import (
 	"dinah/internal/contract"
 	"dinah/internal/msg"
 	"dinah/internal/screen"
-	"dinah/internal/textwidth"
 	"dinah/internal/verb"
 )
 
@@ -757,10 +756,15 @@ func TestAWideTitleIsCutWhole(t *testing.T) {
 	flag := "\U0001F1EF\U0001F1F5"
 	mark := "e\u0301"
 	title = "ab" + family + flag + mark + "cdefgh"
+	boundaries := map[string]bool{}
+	for _, unit := range []string{"a", "b", family, flag, mark, "c", "d", "e", "f", "g", "h"} {
+		boundaries[strings.Join(append(keptUnits(boundaries), unit), "")] = true
+	}
+	boundaries[""] = true
 	for width := 3; width <= displayWidth(title)+2; width++ {
 		drawn := boardTitleLine(title, width, unicodeGlyphs).text
 		kept := strings.TrimSuffix(strings.TrimLeft(drawn, " "), tailEllipsis)
-		if !strings.HasPrefix(title, kept) || !wholeUnits(title, kept) {
+		if !strings.HasPrefix(title, kept) || !boundaries[kept] {
 			t.Errorf("at %d the title kept %q, which is not a run of whole units", width, kept)
 		}
 		if displayWidth(drawn) > width {
@@ -769,10 +773,21 @@ func TestAWideTitleIsCutWhole(t *testing.T) {
 	}
 }
 
-// wholeUnits reports whether a prefix of text ends where textwidth's own
-// walk puts a unit boundary, which is where Cut at the prefix's width stops.
-func wholeUnits(text, prefix string) bool {
-	return textwidth.Cut(text, displayWidth(prefix)) == prefix
+// keptUnits is the longest run of units already recorded as a boundary,
+// which is the prefix the next unit extends. The boundaries are written out
+// unit by unit rather than read from textwidth, so a broken unit walk cannot
+// agree with itself here.
+func keptUnits(boundaries map[string]bool) []string {
+	longest := ""
+	for prefix := range boundaries {
+		if len(prefix) > len(longest) {
+			longest = prefix
+		}
+	}
+	if longest == "" {
+		return nil
+	}
+	return []string{longest}
 }
 
 // colourSeam installs a terminal seam whose screen is the terminfo layer over
@@ -934,8 +949,9 @@ func TestCollapsedColumnsAreCounted(t *testing.T) {
 	addTo(t, root, 1, "Waiting in intake")
 	addTo(t, root, 1, "Also waiting in intake")
 	addTo(t, root, 8, "Being built")
+	addTo(t, root, 14, "Finished")
 	board := drawAt(t, root, 80, "board")
-	if !strings.Contains(board, "Collapsed: Intake 2\n") || strings.Contains(board, "Intake (") || strings.Contains(board, "Done") {
+	if !strings.Contains(board, "Collapsed: Intake 2, Done 1\n") || strings.Contains(board, "Intake (") || strings.Contains(board, "Done (") {
 		t.Errorf("the built-in board did not collapse intake and done:\n%s", board)
 	}
 	if every := drawAt(t, root, 80, "every"); !strings.Contains(every, "Intake (2)") || strings.Contains(every, "Collapsed") {
