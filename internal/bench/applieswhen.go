@@ -382,13 +382,25 @@ func (b *Bench) checkConditions() []Finding {
 // exit code. Each notice is a Finding carrying SeverityCleanup, so SeverityOf
 // answers truly for a caller that reads one.
 //
-// One notice exists. A column whose require_fields names a key carrying a
+// Two notices exist. A column whose require_fields names a key carrying a
 // usable condition refuses entry to a card the condition excludes, since such
 // a card can never store the value, and only the operator's override lets it
 // in. The operator ruled the configuration legitimate, so the report has
-// nothing to repair and is a notice rather than a finding.
+// nothing to repair and is a notice rather than a finding. And a workbench
+// whose live cards carry scheduling dates while its dinah.schedule block
+// declares no usable time zone reads today in UTC, which may be what the
+// operator wants and is said so that nobody has to discover it.
 func (b *Bench) Notices() []Finding {
 	var notices []Finding
+	if settings, _ := b.Schedule(); !settings.ZoneDeclared {
+		if dated, err := b.anyLiveCardDated(); err == nil && dated {
+			notices = append(notices, Finding{
+				Path:     filepath.Join(b.Root, WorkbenchAnchor),
+				Key:      NoticeScheduleZoneUndeclared,
+				Severity: SeverityCleanup,
+			})
+		}
+	}
 	for _, column := range b.Columns {
 		for _, key := range column.RequireFields {
 			field := b.DeclaredFieldOf(key)

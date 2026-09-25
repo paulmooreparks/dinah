@@ -1,0 +1,53 @@
+{"ts":"2026-09-25T07:08:33Z","event":"created","actor":{"name":"sam"},"title":"first card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-25T07:08:34Z","event":"commented","actor":{"name":"sam"},"comment":"e9a7e5c77d2f"}
+{"ts":"2026-09-25T07:08:34Z","event":"commented","actor":{"name":"sam"},"comment":"bc33432c4cc7"}
+{"ts":"2026-09-25T07:08:34Z","event":"archived","actor":{"name":"sam"},"note":"e9a7e5c77d2f"}
+{"ts":"2026-09-25T07:08:34Z","event":"attached","actor":{"name":"sam"},"attachment":"622a52087cdf","filename":"payload-one.txt"}
+{"ts":"2026-09-25T07:08:34Z","event":"attached","actor":{"name":"sam"},"attachment":"39cfca7e667e","filename":"payload-two.txt"}
+{"ts":"2026-09-25T07:08:34Z","event":"attachment_replaced","actor":{"name":"sam"},"attachment":"622a52087cdf","filename":"payload-two.txt"}
+{"ts":"2026-09-25T07:08:34Z","event":"attachment_removed","actor":{"name":"sam"},"attachment":"39cfca7e667e","filename":"payload-two.txt","note":"39cfca7e667e"}
+{"ts":"2026-09-25T07:08:34Z","event":"attached","actor":{"name":"sam"},"attachment":"e6a69bcce39a","filename":"payload-three.txt"}
+{"ts":"2026-09-25T07:08:34Z","event":"archived","actor":{"name":"sam"},"note":"e6a69bcce39a"}
+{"ts":"2026-09-25T07:08:34Z","event":"attached","actor":{"name":"sam"},"attachment":"97373f1caf5b","filename":"payload-two.txt"}
+{"ts":"2026-09-25T07:08:34Z","event":"attachment_renamed","actor":{"name":"sam"},"from":"payload-two.txt","attachment":"622a52087cdf","filename":"renamed-payload.txt"}
+{"ts":"2026-09-25T07:08:35Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"3f9c17ade5b2","from_title":"Intake","to_title":"Review"}
+{"ts":"2026-09-25T07:08:35Z","event":"card_updated","actor":{"name":"sam"},"to":"apex","field":"tier"}
+{"ts":"2026-09-25T07:08:35Z","event":"tier_overridden","actor":{"name":"sam"},"to":"frontier","column":"7b5cfe51cb3b","expr":"frontier"}
+{"ts":"2026-09-25T07:08:35Z","event":"tier_overridden","actor":{"name":"sam"},"to":"apex","column":"3f9c17ade5b2","expr":"+1","against":"frontier"}
+{"ts":"2026-09-25T07:08:36Z","event":"tier_overridden","actor":{"name":"sam"},"from":"frontier","to":"apex","column":"7b5cfe51cb3b","expr":"apex"}
+{"ts":"2026-09-25T07:08:37Z","event":"card_updated","actor":{"name":"sam"},"to":"minor","field":"severity"}
+{"ts":"2026-09-25T07:08:37Z","event":"card_updated","actor":{"name":"sam"},"from":"minor","to":"major","field":"severity"}
+{"ts":"2026-09-25T07:08:37Z","event":"card_updated","actor":{"name":"sam"},"to":"now","field":"priority"}
+{"ts":"2026-09-25T07:08:38Z","event":"item_filed","actor":{"name":"sam"},"kind":"acceptance_criterion","item":"fcdaf8291410"}
+{"ts":"2026-09-25T07:08:38Z","event":"item_filed","actor":{"name":"sam"},"kind":"open_question","item":"dbf63c1c584d"}
+{"ts":"2026-09-25T07:08:38Z","event":"item_filed","actor":{"name":"sam"},"kind":"decision","item":"8979d4d80a5a"}
+{"ts":"2026-09-25T07:08:38Z","event":"item_cited","actor":{"name":"sam"},"item":"fcdaf8291410","scheme":"test","target":"internal/verb/mutate_test.go#TestTheCardLockCoversTheWholeTransaction"}
+{"ts":"2026-09-25T07:08:38Z","event":"commented","actor":{"name":"sam"},"comment":"fc34442c1652","item":"fcdaf8291410"}
+{"ts":"2026-09-25T07:08:38Z","event":"item_verified","actor":{"name":"sam"},"from":"pending","to":"verified","item":"fcdaf8291410"}
+{"ts":"2026-09-25T07:08:38Z","event":"item_reopened","actor":{"name":"sam"},"from":"verified","to":"pending","reason":"the reviewer found the fixture predates the fix","item":"fcdaf8291410"}
+{"ts":"2026-09-25T07:08:39Z","event":"commented","actor":{"name":"sam"},"comment":"0327e543af99","item":"fcdaf8291410"}
+{"ts":"2026-09-25T07:08:39Z","event":"item_failed","actor":{"name":"sam"},"from":"pending","to":"failed","item":"fcdaf8291410"}
+{"ts":"2026-09-25T07:08:39Z","event":"commented","actor":{"name":"sam"},"comment":"339229a58770","item":"dbf63c1c584d"}
+{"ts":"2026-09-25T07:08:39Z","event":"item_resolved","actor":{"name":"sam"},"from":"pending","to":"resolved","item":"dbf63c1c584d"}
+{"ts":"2026-09-25T07:08:39Z","event":"commented","actor":{"name":"sam"},"comment":"57367302db4d","item":"8979d4d80a5a"}
+{"ts":"2026-09-25T07:08:39Z","event":"item_resolved","actor":{"name":"sam"},"from":"pending","to":"resolved","item":"8979d4d80a5a"}
+{"ts":"2026-09-25T07:08:39Z","event":"linked","actor":{"name":"sam"},"to":"11eb87103267","kind":"duplicates"}
+{"ts":"2026-09-25T07:08:39Z","event":"linked","actor":{"name":"sam"},"to":"8f521c9fa8fd","kind":"relates"}
+{"ts":"2026-09-25T07:08:39Z","event":"linked","actor":{"name":"sam"},"to":"11eb87103267","kind":"spawned_from"}
+{"ts":"2026-09-25T07:08:39Z","event":"unlinked","actor":{"name":"sam"},"to":"11eb87103267","kind":"spawned_from"}
+{"ts":"2026-09-25T07:08:39Z","event":"commented","actor":{"name":"sam"},"comment":"6bdf2216206f","item":"dbf63c1c584d"}
+{"ts":"2026-09-25T07:08:39Z","event":"item_updated","actor":{"name":"sam"},"from":"339229a58770","to":"6bdf2216206f","field":"resolution","note":"dbf63c1c584d"}
+{"ts":"2026-09-25T07:08:39Z","event":"commented","actor":{"name":"sam"},"comment":"3405ffb9ce36"}
+{"ts":"2026-09-25T07:08:40Z","event":"archived","actor":{"name":"sam"},"note":"3405ffb9ce36"}
+{"ts":"2026-09-25T07:08:40Z","event":"restored","actor":{"name":"sam"},"note":"3405ffb9ce36"}
+{"ts":"2026-09-25T07:08:40Z","event":"item_filed","actor":{"name":"sam"},"kind":"acceptance_criterion","item":"f1ad5e437372"}
+{"ts":"2026-09-25T07:08:40Z","event":"commented","actor":{"name":"sam"},"comment":"80ae8ac2f048","item":"f1ad5e437372"}
+{"ts":"2026-09-25T07:08:40Z","event":"item_waived","actor":{"name":"sam"},"from":"pending","to":"waived","item":"f1ad5e437372"}
+{"ts":"2026-09-25T07:08:40Z","event":"item_filed","actor":{"name":"sam"},"kind":"open_question","item":"667b47909c2e"}
+{"ts":"2026-09-25T07:08:40Z","event":"commented","actor":{"name":"sam"},"comment":"d0cf5429c12f","item":"667b47909c2e"}
+{"ts":"2026-09-25T07:08:40Z","event":"item_withdrawn","actor":{"name":"sam"},"from":"pending","to":"withdrawn","item":"667b47909c2e"}
+{"ts":"2026-09-25T07:08:40Z","event":"retirement_granted","actor":{"name":"sam"},"to":"3f9c17ade5b2"}
+{"ts":"2026-09-25T07:08:40Z","event":"retirement_revoked","actor":{"name":"sam"}}
+{"ts":"2026-09-25T07:08:40Z","event":"moved","actor":{"name":"sam"},"from":"3f9c17ade5b2","to":"7b5cfe51cb3b","from_title":"Review","to_title":"Doing, renamed","reshape":true}
+{"ts":"2026-09-25T07:08:40Z","event":"tier_override_dropped","actor":{"name":"sam"},"from":"apex","column":"3f9c17ade5b2"}
+{"ts":"2026-09-25T07:08:40Z","event":"item_filed","actor":{"name":"sam"},"kind":"decision","column":"7b5cfe51cb3b","column_title":"Doing, renamed","item":"a917d0e84fdd","standing":"handoff-posted"}

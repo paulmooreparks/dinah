@@ -76,7 +76,7 @@ func (h *harness) set(ref, field, value string) *Response {
 // every response carrying a card draws from.
 func (h *harness) cardView(ref string) *CardView {
 	h.t.Helper()
-	view, err := h.library.view(h.card(ref))
+	view, err := h.library.viewToday(h.card(ref))
 	if err != nil {
 		h.t.Fatalf("view %s: %v", ref, err)
 	}

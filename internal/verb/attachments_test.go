@@ -192,7 +192,7 @@ func TestACountIsTakenWithoutOpeningAnAnchor(t *testing.T) {
 		t.Errorf("the count reads the anchors: got %d, wanted 2", got)
 	}
 	h.reopen()
-	got1, gotErr1 := h.library.view(h.card(ref))
+	got1, gotErr1 := h.library.viewToday(h.card(ref))
 	if gotErr1 != nil {
 		t.Fatalf("view: %v", gotErr1)
 	}

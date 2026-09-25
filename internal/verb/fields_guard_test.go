@@ -49,6 +49,7 @@ func TestEveryGuardedFieldRefusesAndAcceptsAtItsOwnGate(t *testing.T) {
 		bench.GuardColumnRef:  guardColumnRef,
 		bench.GuardResolution: guardResolution,
 		bench.GuardRoute:      guardRoute,
+		bench.GuardDate:       guardDate,
 	}
 	if len(subtests) != len(bench.Guards) {
 		t.Fatalf("this file runs %d subtests and the closed guard set declares %d, so a guard is unexercised", len(subtests), len(bench.Guards))
@@ -513,5 +514,27 @@ func guardRoute(t *testing.T) {
 	}
 	if value != "" {
 		t.Errorf("the cleared route reads back %q", value)
+	}
+}
+
+// guardDate asserts a scheduling date's two halves: a value the calendar does
+// not carry, or one written in any spelling but YYYY-MM-DD, is refused
+// malformed, and a calendar date is stored and read back, on each of the
+// three fields the guard is declared on.
+func guardDate(t *testing.T) {
+	h := harnessFromDefinition(t, "gd", fieldGuardDefinition)
+	ref := h.add("a card with dates")
+	for _, field := range bench.ScheduleFields {
+		for _, refused := range []string{"2026-02-30", "2026-10-1", "today", "2026-10-06T09:00:00Z"} {
+			response := h.library.SetField(&Request{Verb: "set", Actor: "alka", Ref: ref, Field: field, Value: refused})
+			refusedWith(t, field+" "+refused, response, contract.Malformed)
+		}
+		accepted := h.library.SetField(&Request{Verb: "set", Actor: "alka", Ref: ref, Field: field, Value: "2026-02-28"})
+		acceptedOK(t, field+" on a calendar date", accepted)
+		h.reopen()
+		value, err := h.library.GetField(&Request{Verb: "get", Ref: ref, Field: field})
+		if err != nil || value != "2026-02-28" {
+			t.Errorf("%s reads back %q %v", field, value, err)
+		}
 	}
 }

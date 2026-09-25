@@ -1248,6 +1248,45 @@ levels the workbench declares on that axis, at cleanup severity; a list aligns
 at the top of the declared set, so the highest level always takes the last
 weight.
 
+### Schedule settings, the `dinah.schedule` layer
+
+A workbench declares the settings its scheduling dates are read against under
+the top-level frontmatter key `dinah.schedule` in its own `workbench.md`. The
+key is read from that file alone; a `dinah.schedule` key in a user's
+`config.md` has no effect. The block is read through the same reader
+`dinah.urgency` is, and no verb writes it.
+
+```yaml
+dinah.schedule:
+  time_zone: Asia/Singapore
+  soon_days: 7
+```
+
+| Member | Shape | Default |
+|---|---|---|
+| `time_zone` | an IANA time zone name, as text | `UTC` |
+| `soon_days` | whole number from 0 to 365 | `7` |
+
+`time_zone` is admitted where it is a non-empty string naming a zone Go's
+`time.LoadLocation` resolves. The binary carries Go's embedded zone database,
+which that function falls back to, so a host with no zone database of its own,
+as a Windows host has none, still resolves every name. `Local` is refused,
+because it would make today depend on the machine asking.
+`soon_days` is admitted where it is a whole number written bare; a quoted `"7"`
+is text and is refused.
+
+A key with nothing readable beneath it declares nothing, and both members take
+their defaults. Unlike `dinah.urgency`, a defect falls back rather than
+refusing: a block that is not a mapping, or a member that cannot be used, reads
+as the member's default, and `dinah check` names it under
+`check.schedule-malformed`. The settings reach `next`, `pull`, `show` and every
+listing, so a refusal would stop all work on the workbench over a typo, where a
+fallback misplaces today by at most a day. A member the block does not know is
+ignored and named under `check.schedule-member-unknown`. The block travels
+through `dinah export` and `init --from` as an unrecognized member of the
+workbench object, as `dinah.urgency` does. The section on scheduling dates says
+what the settings govern.
+
 ## History
 
 Which kinds bear journals is a per-kind registry fact, decided by one test:
@@ -3079,6 +3118,176 @@ status.
 | `check.inapplicable-value` | finding | cleanup | A card keeping a value on a slot its condition does not admit, one finding per value, beside `check.unknown-level` on the card's anchor. A value both kept and undeclared is reported under both. |
 | `check.required-field-conditioned` | notice | cleanup | A column whose `require_fields` names a key carrying a usable condition. The requirement is enforced as CORE-FIELD-11 states, so a card the condition excludes enters only by the operator's override, and the operator ruled that configuration legitimate. |
 
+## Scheduling dates
+
+A card may carry three dates saying when its work may start, when it should
+have started and when it should be finished. They are Dinah's own behaviour
+rather than the profile's: the core profile rules them out of its vocabulary in
+its boundary table, and a second tool meeting them keeps them under CORE-CARD-9
+as it keeps any key it does not know.
+
+### The three fields
+
+| Field | Meaning | Conditions it drives |
+|---|---|---|
+| `start_after` | Nobody is handed this card by selection before this date. The card may be taken up on the date itself. | `not_yet` |
+| `start_by` | Somebody should have taken the card up by the end of this date. | `start_soon`, `late_start` |
+| `due` | The card should stand in a `done` column by the end of this date. | `due_soon`, `overdue` |
+
+Each is optional, clearable, and independent of the other two, and none is
+gated by `applies_when`, which reaches only declared fields and level axes. A
+value is a calendar date written `YYYY-MM-DD` and read under the layout a
+declared `date` field is read under, so `2026-02-30` and `2026-10-1` are refused
+and `2026-02-28` is admitted. No time of day, offset or zone is admitted. A date
+means the whole of that calendar day in the workbench's zone.
+
+The three are top-level keys of the card anchor, written bare after the card's
+route and levels and before its workstreams, whichever order they are written
+in:
+
+```yaml
+---
+title: Book the Tokyo hotel
+column: 4a05829c3146
+state: ready
+start_after: 2026-10-06
+due: 2026-10-10
+workstreams:
+  - b3f924406e4c
+---
+```
+
+The reader is order-insensitive, and a hand-written quoted value such as
+`due: "2026-10-10"` reads as text under format 9's quoted-scalar rule and
+parses as the same date, so it is honoured. They hold only what the card itself
+declares: a date derived from anything else, such as another card, is computed
+on read and never written into them.
+
+`dinah set <card> start_after|start_by|due <date>` writes one and a set with no
+value clears it; each write journals `card_updated`. `dinah add` takes
+`--start-after`, `--start-by` and `--due`, and a malformed value refuses the
+whole filing before an identifier is claimed. A write that leaves `start_after`
+later than `start_by`, `start_after` later than `due`, or `start_by` later than
+`due` succeeds and carries the warning `warn.schedule-order`, naming the first
+violated pair, because entering dates one at a time passes through
+inconsistent states. Equal dates are in order, so `start_after` and `start_by`
+on one day are how a card says it must start on exactly that day.
+
+### Today
+
+Today is the calendar date the machine's clock falls on in the workbench's
+zone, which the `dinah.schedule` layer declares and which is UTC where it
+declares none. One function computes it, and every condition, every relative
+query value and every withholding reads it. No environment variable or flag
+moves the clock.
+
+### The conditions
+
+Five conditions are computed on every read from the card's dates, the soon
+window `N` the `dinah.schedule` layer declares, today, and the card's journal.
+Nothing about a condition is stored. A card standing in a column of kind `done`
+has finished and holds no condition at all, whatever its dates say. A card has
+started once its journal records a `claimed` event, or while it is `active`; a
+pull records one, and a claim is append-only history, so `late_start` cannot
+come back once a claim clears it.
+
+| Condition | Holds when |
+|---|---|
+| `overdue` | `due` is set and `due < today`. |
+| `late_start` | `start_by` is set, `start_by < today`, and the card has not started. |
+| `due_soon` | `due` is set and `today <= due <= today + N`. |
+| `start_soon` | `start_by` is set, `today <= start_by <= today + N`, and the card has not started. |
+| `not_yet` | `start_after` is set and `start_after > today`. |
+
+The conditions are independent, so a card can hold several. Their precedence,
+highest first, is the order of the table, and a surface showing one condition
+shows the highest that holds. A due date of today is `due_soon` and not
+`overdue`, because the card has until the end of the day. A stored date that
+does not parse is read as absent by every condition and by selection, and
+`dinah check` reports it.
+
+The JSON card view carries `start_after`, `start_by` and `due` as stored and
+`schedule`, every condition that holds in precedence order, after `route`.
+`dinah show` prints one line per date, followed by the phrase of the highest
+condition that date drives with the number of days to or from it. `dinah list`,
+`dinah list cards` and `dinah query` print a `Schedule` cell before the title:
+the highest condition's phrase and date, the due date where no condition holds
+and the card is not finished, and, where the card holds `not_yet` beneath a
+higher condition, the not-yet phrase after a comma, because `not_yet` is the
+condition that changes what `next` offers and a reader who sees `next` pass a
+card over needs the reason on the same line. The compact card record carries
+the four after `route`, which moved the compact grammar to version 6.
+
+`dinah query` takes all six operators on the three fields and on every declared
+card field of type `date`, and a value on such a field may be relative:
+`today`, or `today` followed by `+` or `-` and one to four digits of days. The
+derived field `schedule` takes `:` and `!=` over the five condition names, and
+matches every condition that holds rather than only the highest.
+
+### Selection
+
+A ready card whose `start_after` is later than today is not selected by `next`,
+by `pull` with or without `--no-claim`, by `prime`, or by a view's `actionable`
+scope. The operator is withheld like anybody else, because a date is a fact
+about the work rather than about who takes it. `dinah claim` of such a card by
+its reference succeeds and carries the warning `warn.before-start-after` with
+the date; a move carries no claim and no warning; and no verb refuses anything
+on schedule grounds. The rule sits beside the tier in the selection section
+under Tier, which says how the two answers combine.
+
+### Why these three dates
+
+The date set was mined from the standard constraints of project-management
+tools and filtered through the Kanban discipline Dinah keeps: a constraint is
+taken only where it can be stated as a fact about one card that a read tests
+against today, as a floor under when selection may hand the card out or as a
+line against which the card is reported late. Start No Earlier Than is
+`start_after`, Start No Later Than is `start_by`, and Finish No Later Than and a
+deadline are `due`; a start constraint on an exact day is `start_after` and
+`start_by` on that day. Two candidates are declined. Finish No Earlier Than
+would hold finished work back, which Kanban counts as waste. A window that
+closes, where a card must be taken up before a date or not at all, is the
+literal reading of "cannot start by", and it would have the tool drop missed
+work out of the offers on its own authority, which Kanban leaves to a person;
+`late_start` reports the miss instead. Either could be added later as a new
+field, with nothing here changing.
+
+### What check reports
+
+| Report | Kind | Severity | What it says |
+|---|---|---|---|
+| `check.schedule-order` | finding | defect | One pair of a card's dates out of order, as `start_by 2026-10-12 after due 2026-10-10`, one finding per pair, in the order start_after/start_by, start_after/due, start_by/due. A card in a done column is still checked, because a contradiction in the record is a defect whether or not it still matters. |
+| `check.schedule-date-malformed` | finding | defect | A card storing a date that does not parse, with the field and the stored text. |
+| `check.schedule-malformed` | finding | defect | A `dinah.schedule` block that is not a mapping, or a member the reader could not use, with the member and the text read. The member's default is used meanwhile. |
+| `check.schedule-member-unknown` | finding | cleanup | A member of the `dinah.schedule` block this build does not read. |
+| `check.schedule-below-format` | finding | defect | A workbench declaring a format below 10 where a live card carries a date. |
+| `check.schedule-zone-undeclared` | notice | cleanup | Some live card carries a date and the block declares no usable `time_zone`, so today is read in UTC. |
+
+No verb writes `dinah.schedule`, so the three reports about the block are
+where a reader learns where to write it: each names the key and the member,
+and each is followed by the path of the workbench's `workbench.md`.
+
+### Below storage format 10
+
+A date write is accepted on a workbench declaring any storage format this
+build opens, and it leaves the declared format where it was. This build honours
+the dates wherever it finds them; the number records only whether an older
+build could still open the workbench and hand a dated card out before its
+`start_after`. That is the posture `AppliesWhenFormat` set: the gap is reported
+by `check.schedule-below-format` and closed by `dinah check --migrate-schedule
+--yes`, which stamps `format: 10` and writes nothing else. The stamp is a floor
+and never a downgrade; without `--yes` it reports what it would stamp and
+writes nothing; and a workbench below format 7 is refused with
+`dinah.store-awaiting-migration`, whose next step names
+`dinah check --migrate-designations`. Nothing on disk needs rewriting, because
+a date written at format 9 reads the same at 10.
+
+The first date write does not stamp the format itself. Only a migration
+stamps the number, a stamp locks every older build out of the whole workbench
+and so is asked for by name, and an MCP server already running keeps the
+workbench it opened without reading the number again, so a stamp on write
+would not close the window for it either.
+
 ## Tier: what class of worker a card needs at each stop
 
 Tier is the third level axis, and a workbench declares it exactly as it
@@ -3290,6 +3499,27 @@ A pull carrying `--no-claim` takes nothing up, so no requirement the card
 carries can refuse it. The gate does not run for such a pull, and selection
 withholds nothing from it on tier either.
 
+A card's own dates are the second thing selection withholds on, and the
+section on scheduling dates says what they are. For each ready card in arrival
+order the scan applies three tests, in this order: the card has a landing, the
+start hold does not hold it, and the tier admits it. The start hold is a card
+whose `start_after` is later than today, and it is asked as one function the
+scan is handed, so the scan reads neither today nor any date itself. The first
+card passing all three is the head, and nothing is reordered. A card the hold
+withholds does not count as tier-withheld work, so a queue holding only such
+cards does not report `above_tier`; it reports `not_yet` on `next`'s offer
+instead, beside `startable_from`, the earliest withheld date, and not
+`no_taker`, since a column whose ready work will be taken from once its date
+comes is not a column nothing is taken from. Where a column holds both kinds,
+`next` carries both flags and prints the above-tier sentence, because a more
+senior caller would get work now and waiting for the date would not. `pull`
+answers in the same precedence: `answer.pull.above-tier.*` where some source
+withheld work on tier, else `answer.pull.not-yet.*` with the earliest date
+where some source withheld work on its date, else `answer.pull.empty.*`. A pull
+carrying `--no-claim` is withheld on the date, which parts it from the tier,
+because it still hands the card out by selection. The way to act before the
+date is to name the card.
+
 ### Raising the tier from inside the work
 
 An agent that has taken a card up and found the work beyond its own class
@@ -3383,12 +3613,12 @@ run stopped between its anchor and them.
 The format carries two version numbers with two audiences, and they are
 never conflated:
 
-- **Storage format version.** `format: 9` in `workbench.md` frontmatter,
+- **Storage format version.** `format: 10` in `workbench.md` frontmatter,
   an integer governing the whole workbench directory. An implementation
   that opens a workbench with a higher number than it knows refuses loudly
   and names the version it wanted. This is Dinah's private business; the git
   precedent (`core.repositoryformatversion`, carried always, bumped
-  approximately once) is the model, and the number has moved eight times: from
+  approximately once) is the model, and the number has moved nine times: from
   1 to 2 when the rule that a workbench lives inside a `.dinah` container
   landed, from 2 to 3 when the card number left the card anchor for the
   registry, from 3 to 4 when the heading a card body carried its branch name
@@ -3397,13 +3627,15 @@ never conflated:
   designated comment rather than a free-text note, from 6 to 7 when that
   answer came to be identified by the comment's own identifier rather than by
   its position, from 7 to 8 when a declaration could stop applying to a
-  card, and from 8 to 9 when a quoted scalar on an anchor came to read as
-  text. Three of the eight are not private business: the mechanism behind
-  each is one the profile states, and the profile moved with it. The seventh
-  is private business of the plainest kind, since a build below 8 reads a
-  level axis in the mapping form as no axis at all, and so is the eighth,
-  since a build below 9 parses the text inside a line's quotes and reads a
-  quoted JSON object as the object.
+  card, from 8 to 9 when a quoted scalar on an anchor came to read as
+  text, and from 9 to 10 when a card gained scheduling dates. Three of the
+  nine are not private business: the mechanism behind each is one the
+  profile states, and the profile moved with it. The seventh is private
+  business of the plainest kind, since a build below 8 reads a level axis in
+  the mapping form as no axis at all, and so are the eighth, since a build
+  below 9 parses the text inside a line's quotes and reads a quoted JSON
+  object as the object, and the ninth, since a build below 10 ignores a
+  card's dates and hands a card out before its `start_after`.
 - **Profile version.** The contract's public promise, with the channel and
   increment rules recorded with the contract-profile work. `format:` is an
   integer read by exactly one implementation, this one, and it carries no

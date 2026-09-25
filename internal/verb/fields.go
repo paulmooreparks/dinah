@@ -180,7 +180,17 @@ func (l *Library) SetField(req *Request) *Response {
 	if field.Guard == bench.GuardHold {
 		return l.writeHold(req, entity, field, value)
 	}
-	return l.writeField(req, entity, builtInTarget(field), value)
+	response := l.writeField(req, entity, builtInTarget(field), value)
+	// A scheduling date is never refused over the order it leaves the card's
+	// three dates in, because entering them one at a time passes through
+	// inconsistent states, so a write leaving them out of order succeeds and
+	// says so.
+	if field.Guard == bench.GuardDate && response.Outcome == contract.OutcomeOK {
+		if written, err := l.Bench.LoadCardIn(filepath.Dir(entity.Dir), entity.ID); err == nil {
+			scheduleOrderWarning(response, written)
+		}
+	}
+	return response
 }
 
 // fieldWrite is where one write puts its value and what the journal calls it.
@@ -203,11 +213,16 @@ type fieldWrite struct {
 	// declared field key carries a full stop by construction, so a value
 	// written there could not be told from a layer declaration.
 	nested bool
+	// date is true where the value is one of a card's three scheduling
+	// dates, which bench.SetScheduleDate places after the card's route and
+	// levels rather than at the end of the header, so the three read in one
+	// place whoever wrote them.
+	date bool
 }
 
 // builtInTarget is where a field of a kind's own declared set is written.
 func builtInTarget(field bench.Field) fieldWrite {
-	return fieldWrite{name: field.Name, key: field.Stored(), prose: field.Prose}
+	return fieldWrite{name: field.Name, key: field.Stored(), prose: field.Prose, date: field.Guard == bench.GuardDate}
 }
 
 // declaredTarget is where a workbench-declared field is written, which is
@@ -603,6 +618,13 @@ func (l *Library) admitFieldValue(req *Request, entity *bench.EntityRef, field b
 		if !l.Bench.DeclaresRoute(value) {
 			return l.unknownRoute(req, entity.Card, value)
 		}
+	case bench.GuardDate:
+		// A scheduling date is a calendar date and nothing else: no time of
+		// day, no offset, no relative spelling, and no day the calendar does
+		// not carry.
+		if _, ok := bench.ParseDate(value); !ok {
+			return l.refuse(req, entity.Card, contract.Malformed, field.Name)
+		}
 	case bench.GuardResolution:
 		// A designation names a comment of the very item being written, and
 		// the check is the one the terminal verbs run, so a resolution
@@ -732,6 +754,9 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	case target.nested:
 		was = bench.FieldValue(fm, target.key)
 		bench.SetFieldValue(fm, target.key, value)
+	case target.date:
+		was = fm.Value(target.key)
+		bench.SetScheduleDate(fm, target.key, value)
 	case value == "":
 		was = fm.Value(target.key)
 		fm.Delete(target.key)

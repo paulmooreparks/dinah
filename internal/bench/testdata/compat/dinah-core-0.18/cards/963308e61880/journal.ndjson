@@ -1,5 +1,0 @@
-{"ts":"2026-09-24T08:09:40Z","event":"created","actor":{"name":"sam"},"title":"fifth card","to":"004acda2c28a","to_title":"Intake"}
-{"ts":"2026-09-24T08:09:42Z","event":"blocked","actor":{"name":"sam"},"reason":"a second obstacle","kind":"external"}
-{"ts":"2026-09-24T08:09:42Z","event":"commented","actor":{"name":"sam"},"comment":"6f6cb301ba82"}
-{"ts":"2026-09-24T08:09:42Z","event":"unblocked","actor":{"name":"sam"},"reason":"the second obstacle cleared","comment":"6f6cb301ba82"}
-{"ts":"2026-09-24T08:09:42Z","event":"blocked","actor":{"name":"sam"},"reason":"a third obstacle","kind":"external"}

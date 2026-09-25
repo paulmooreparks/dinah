@@ -707,14 +707,20 @@ func TestAnUndeclaredDottedKeyIsRefusedUnlessACardStoresIt(t *testing.T) {
 	wantRefs(t, "nobody.home:x", h.ask("nobody.home:x"), ref)
 }
 
-// TestADottedKeyTakesNoOrderedOperator is the fifth case of specification
-// section 11.4: an ordered operator on a declared key is refused at check 3,
-// naming the field with the operator after it, whatever the key's type.
-func TestADottedKeyTakesNoOrderedOperator(t *testing.T) {
+// TestADottedKeyTakesAnOrderedOperatorOnlyAsADate began as the fifth case of
+// dinah-587's specification section 11.4, which refused an ordered operator on
+// every declared key whatever its type. dinah-605 gave a key declared with
+// type date on cards all six operators, so the date-typed key is now admitted
+// and a key of any other type is still refused at check 3, naming the field
+// with the operator after it.
+func TestADottedKeyTakesAnOrderedOperatorOnlyAsADate(t *testing.T) {
 	h := declaringHarness(t)
-	refused := h.refuse("venue.deposit-paid>=2026-10-01")
-	if refused.Name != contract.UnknownField || refused.Detail != "venue.deposit-paid>=" {
-		t.Errorf("an ordered operator on a date-typed key is refused %s over %q", refused.Name, refused.Detail)
+	if _, err := h.queryRefs("venue.deposit-paid>=2026-10-01"); err != nil {
+		t.Errorf("an ordered operator on a date-typed key is refused: %v", err)
+	}
+	refused := h.refuse("git.branch>=main")
+	if refused.Name != contract.UnknownField || refused.Detail != "git.branch>=" {
+		t.Errorf("an ordered operator on a string-typed key is refused %s over %q", refused.Name, refused.Detail)
 	}
 }
 

@@ -2,10 +2,16 @@ package verb
 
 import (
 	"strings"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
+
+// forestClock is the clock every Library a walk opens reads. It is time.Now
+// by default; a test overrides it to hold two workbenches, in zones that fall
+// on different dates, at one instant.
+var forestClock = time.Now
 
 // forestRow is one candidate EnumerateDeep found beneath a root, carrying
 // either an opened Library or the refusal name that stopped it short of one.
@@ -62,7 +68,9 @@ func openCandidate(candidate bench.Candidate, home string) forestRow {
 		candidate.Refused = refusalNameOf(err)
 		return forestRow{Candidate: candidate}
 	}
-	return forestRow{Candidate: candidate, Library: New(opened, home)}
+	library := New(opened, home)
+	library.Now = forestClock
+	return forestRow{Candidate: candidate, Library: library}
 }
 
 // refusalNameOf is the contract name an error carries, and UnreadableBench for

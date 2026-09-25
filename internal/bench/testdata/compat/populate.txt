@@ -52,6 +52,9 @@ set sample-1 severity major
 set sample-1 priority now
 set sample-2 severity trivial
 set sample-2 severity
+set sample-2 start_after 2026-10-06
+set sample-2 start_by 2026-10-08
+set sample-2 due 2026-10-10
 workstream new "Portfolio work"
 workstream new "Console redesign"
 set workstream/portfolio-work status paused

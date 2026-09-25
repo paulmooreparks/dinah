@@ -932,11 +932,40 @@ const ViewsKey = LayerPrefix + "views"
 // alone, because the weights are declared per workbench.
 const UrgencyKey = LayerPrefix + "urgency"
 
+// ScheduleKey is the frontmatter key a workbench declares its schedule
+// settings under: the time zone whose calendar today is read in, and how far
+// ahead soon looks. It is read from the workbench's own workbench.md alone,
+// because today is a fact about the workbench rather than about whoever is
+// asking.
+const ScheduleKey = LayerPrefix + "schedule"
+
 // MintedKeys lists every frontmatter key Dinah introduces under the layer
 // prefix. It sits beside Introduced and MintedKinds for the reason MintedKinds
 // gives: the prefix carries all three, and a reader meeting a dotted token in
 // a document needs one place to ask what it is.
-var MintedKeys = []string{ViewsKey, UrgencyKey}
+var MintedKeys = []string{ViewsKey, UrgencyKey, ScheduleKey}
+
+// The five schedule conditions a card can hold, computed on every read from
+// its three scheduling dates, its history and today, and never stored.
+const (
+	// ScheduleOverdue holds where the card's due date is before today.
+	ScheduleOverdue = "overdue"
+	// ScheduleLateStart holds where the card's start_by date is before
+	// today and nobody has taken the card up.
+	ScheduleLateStart = "late_start"
+	// ScheduleDueSoon holds where the card's due date falls from today to
+	// the end of the workbench's soon window.
+	ScheduleDueSoon = "due_soon"
+	// ScheduleStartSoon holds where the card's start_by date falls from
+	// today to the end of the soon window and nobody has taken it up.
+	ScheduleStartSoon = "start_soon"
+	// ScheduleNotYet holds where the card's start_after date is after
+	// today, which is the one condition selection reads.
+	ScheduleNotYet = "not_yet"
+)
+
+// ScheduleConditions is the closed set, in precedence order, highest first.
+var ScheduleConditions = []string{ScheduleOverdue, ScheduleLateStart, ScheduleDueSoon, ScheduleStartSoon, ScheduleNotYet}
 
 // Kinds lists every column kind this build admits by name: the three the
 // profile declares and the one Dinah mints. A surface offering a caller the

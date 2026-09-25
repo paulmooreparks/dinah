@@ -35,7 +35,7 @@ func TestCardViewPublishesChildCount(t *testing.T) {
 	h := newHarness(t)
 	ref := filledCard(t, h)
 
-	view, err := h.library.view(h.card(ref))
+	view, err := h.library.viewToday(h.card(ref))
 	if err != nil {
 		t.Fatalf("view the filled card: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestCardViewPublishesChildCount(t *testing.T) {
 	}
 
 	bare := h.ready("A card with nothing")
-	empty, err := h.library.view(h.card(bare))
+	empty, err := h.library.viewToday(h.card(bare))
 	if err != nil {
 		t.Fatalf("view the empty card: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestOneCardViewMakesOneListingPerMountPlusTheBlockingRead(t *testing.T) {
 	bench.ListIDsObserver = func(collection string) { listed = append(listed, collection) }
 	t.Cleanup(func() { bench.ListIDsObserver = nil })
 
-	if _, err := h.library.view(card); err != nil {
+	if _, err := h.library.viewToday(card); err != nil {
 		bench.ListIDsObserver = nil
 		t.Fatalf("view the card: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestOperatorPendingCountsOnlyWhatAwaitsTheOperator(t *testing.T) {
 	h.item(ref, "b00000000004", "kind: decision\nstate: resolved\nowner: operator\nordinal: 4\n", "Already settled.")
 	h.item(ref, "b00000000005", "kind: acceptance_criterion\nstate: pending\nowner: operator\nordinal: 5\n", "A criterion, never his queue.")
 
-	view, err := h.library.view(h.card(ref))
+	view, err := h.library.viewToday(h.card(ref))
 	if err != nil {
 		t.Fatalf("view the five-item card: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestOperatorPendingCountsOnlyWhatAwaitsTheOperator(t *testing.T) {
 	h.item(bare, "b00000000007", "kind: decision\nstate: resolved\nowner: operator\nordinal: 2\n", "Already settled.")
 	h.item(bare, "b00000000008", "kind: acceptance_criterion\nstate: pending\nowner: operator\nordinal: 3\n", "A criterion.")
 
-	noneView, err := h.library.view(h.card(bare))
+	noneView, err := h.library.viewToday(h.card(bare))
 	if err != nil {
 		t.Fatalf("view the three-item card: %v", err)
 	}

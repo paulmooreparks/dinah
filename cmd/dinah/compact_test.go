@@ -239,16 +239,22 @@ func decodeCompactCard(record compactRecord) verb.CardView {
 		Severity:        record.field(6),
 		Priority:        record.field(7),
 		Route:           record.field(8),
-		PullDestination: record.field(9),
-		Holder:          record.field(10),
-		ClaimSince:      record.field(11),
-		Expires:         record.field(12),
-		BlockReason:     record.field(13),
-		BlockKind:       record.field(14),
-		Revision:        record.field(15),
+		StartAfter:      record.field(9),
+		StartBy:         record.field(10),
+		Due:             record.field(11),
+		PullDestination: record.field(13),
+		Holder:          record.field(14),
+		ClaimSince:      record.field(15),
+		Expires:         record.field(16),
+		BlockReason:     record.field(17),
+		BlockKind:       record.field(18),
+		Revision:        record.field(19),
 	}
-	if len(record.fields) > 16 {
-		card.Workstreams = append([]string{}, record.fields[16:]...)
+	if schedule := record.field(12); schedule != "" {
+		card.Schedule = strings.Split(schedule, ",")
+	}
+	if len(record.fields) > 20 {
+		card.Workstreams = append([]string{}, record.fields[20:]...)
 	}
 	return card
 }
@@ -439,6 +445,8 @@ func decodeCompactOffers(payload string) ([]verb.Offer, error) {
 				AboveTier:       decodeCompactFlag(record.field(5)),
 				Landing:         record.field(6),
 				ReadyCount:      readyCount,
+				NotYet:          decodeCompactFlag(record.field(8)),
+				StartableFrom:   record.field(9),
 			})
 		case "card":
 			if len(offers) == 0 {
@@ -1025,7 +1033,7 @@ func TestAShapeWithNoCompactRenderingEmitsTheCanonicalJSON(t *testing.T) {
 // So this literal is the pin. Changing compactVersion reddens the test below
 // by name and does not compile away, which makes whoever renumbers the grammar
 // say so here deliberately.
-const wantVersionLine = "fmt|compact|5"
+const wantVersionLine = "fmt|compact|6"
 
 // TestTheCompactFormOpensOnItsVersionRecord asserts the framing decision the
 // compact form was introduced on: every compact payload opens with its version
@@ -1034,8 +1042,9 @@ const wantVersionLine = "fmt|compact|5"
 // wb record an id field ahead of its title, to 3 at dinah-542, which gave
 // the card record a route and a pull destination ahead of its holder, to 4
 // at dinah-545, which added the colatt record a version 3 reader would refuse,
-// and to 5 at dinah-573, which gave the off record a ready_count field ahead
-// of the card record it carries below it.
+// to 5 at dinah-573, which gave the off record a ready_count field ahead of
+// the card record it carries below it, and to 6 at dinah-605, which gave the
+// card record four scheduling fields ahead of its pull destination.
 func TestTheCompactFormOpensOnItsVersionRecord(t *testing.T) {
 	root := newCompactBench(t)
 	for _, argv := range [][]string{{"list", "intake"}, {"next"}, {"claim", "fx-2"}} {

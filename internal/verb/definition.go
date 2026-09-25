@@ -473,6 +473,11 @@ var params = map[string][]Param{
 		// flags declare none: the set is per workbench, so the refusal is
 		// what tells a reader which names the workbench carries.
 		{Name: "route", Flag: true, Value: "name", Field: "Route", Complete: CompleteRoute},
+		// The three date flags take a calendar date and nothing else, so no
+		// vocabulary and no completion reaches them.
+		{Name: "start-after", Flag: true, Value: "date", Field: "StartAfter", Complete: CompleteNone},
+		{Name: "start-by", Flag: true, Value: "date", Field: "StartBy", Complete: CompleteNone},
+		{Name: "due", Flag: true, Value: "date", Field: "Due", Complete: CompleteNone},
 	},
 	Claim: {
 		{Name: "card", Required: true, Field: "Card", Complete: CompleteCard},
@@ -874,6 +879,7 @@ var params = map[string][]Param{
 		{Name: "migrate-branches", Flag: true, Marker: true, Field: "MigrateBranches"},
 		{Name: "migrate-newlines", Flag: true, Marker: true, Field: "MigrateNewlines"},
 		{Name: "migrate-applies-when", Flag: true, Marker: true, Field: "MigrateAppliesWhen"},
+		{Name: "migrate-schedule", Flag: true, Marker: true, Field: "MigrateSchedule"},
 		{Name: "migrate-raw-lines", Flag: true, Marker: true, Field: "MigrateRawLines"},
 		{Name: "file-standing", Flag: true, Marker: true, Field: "FileStanding"},
 		{Name: "renumber", Flag: true, Marker: true, Field: "Renumber"},

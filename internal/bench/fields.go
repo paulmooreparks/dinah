@@ -59,17 +59,22 @@ const (
 	// field carrying this guard therefore holds a designation a reader can
 	// open without first asking whose answer it is.
 	GuardResolution = "resolution"
+	// GuardDate admits a calendar date written YYYY-MM-DD, exactly what
+	// FieldDateLayout parses, and refuses every other value malformed. It is
+	// the guard of a card's three scheduling dates.
+	GuardDate = "date"
 )
 
 // Guards lists the closed set of guard names a field may declare. A sweep
 // asking whether every guard is routed reads this rather than writing the
-// eleven out again.
+// twelve out again.
 var Guards = []string{
 	GuardSlug, GuardLevel, GuardTier, GuardState,
 	GuardFilename, GuardKind, GuardCapacity, GuardHold,
 	GuardResolution,
 	GuardColumnRef,
 	GuardRoute,
+	GuardDate,
 }
 
 // The two write authorities a kind declares. The set is closed at two, and it
@@ -209,6 +214,9 @@ var fields = map[string][]Field{
 		{Name: PriorityField, Clearable: true, Guard: GuardLevel},
 		{Name: TierField, Clearable: true, Guard: GuardTier},
 		{Name: RouteField, Clearable: true, Guard: GuardRoute},
+		{Name: StartAfterField, Clearable: true, Guard: GuardDate},
+		{Name: StartByField, Clearable: true, Guard: GuardDate},
+		{Name: DueField, Clearable: true, Guard: GuardDate},
 	},
 	KindComment: {
 		{Name: BodyField, Prose: true},

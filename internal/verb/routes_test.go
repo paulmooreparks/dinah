@@ -1136,7 +1136,7 @@ func TestTheRouteReachesTheCardView(t *testing.T) {
 // view reads one card's published view.
 func (h *harness) view(ref string) *CardView {
 	h.t.Helper()
-	view, err := h.library.view(h.card(ref))
+	view, err := h.library.viewToday(h.card(ref))
 	if err != nil {
 		h.t.Fatalf("view %s: %v", ref, err)
 	}

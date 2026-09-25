@@ -78,7 +78,7 @@ var wantedKeys = map[string][]string{
 	"workbench.md":                                {"format", "profile", "title", "slug", "operator", "columns", "levels", "tiers"},
 	"columns/<id>/column.md":                      {"title", "slug", "kind", "operator_owned", "wip_limit", "tier"},
 	"archive/columns/<id>/column.md":              {"title", "slug", "kind", "operator_owned", "wip_limit"},
-	"cards/<id>/card.md":                          {"title", "column", "state", "severity", "priority", "tier", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
+	"cards/<id>/card.md":                          {"title", "column", "state", "severity", "priority", "tier", "start_after", "start_by", "due", "tier_at", "links", "claim_holder", "claim_since", "claim_expires", "block_reason", "block_kind", "block_since", "workstreams"},
 	"archive/cards/<id>/card.md":                  {"title", "column", "state"},
 	"cards/<id>/comments/<id>/comment.md":         {"ts", "author", "ordinal"},
 	"cards/<id>/archive/comments/<id>/comment.md": {"ts", "author", "ordinal"},

@@ -95,9 +95,9 @@ func TestOneFunctionComputesWhatEveryColumnOffers(t *testing.T) {
 // package that compiles is never touched.
 func TestTheOfferGuardSeesEachNamingDodge(t *testing.T) {
 	plants := map[string]string{
-		"a second direct call":               "func (l *Library) plantedDirect() {\n\t_, _ = l.offerFor(nil, nil, admission{})\n}",
-		"a method expression":                "func plantedExpression(l *Library) {\n\t_, _ = (*Library).offerFor(l, nil, nil, admission{})\n}",
-		"a method value assigned to a local": "func (l *Library) plantedValue() {\n\tscan := l.offerFor\n\t_, _ = scan(nil, nil, admission{})\n}",
+		"a second direct call":               "func (l *Library) plantedDirect() {\n\t_, _ = l.offerFor(nil, nil, admission{}, nil)\n}",
+		"a method expression":                "func plantedExpression(l *Library) {\n\t_, _ = (*Library).offerFor(l, nil, nil, admission{}, nil)\n}",
+		"a method value assigned to a local": "func (l *Library) plantedValue() {\n\tscan := l.offerFor\n\t_, _ = scan(nil, nil, admission{}, nil)\n}",
 		"a package-level variable":           "var plantedVariable = (*Library).offerFor",
 	}
 	entries, err := os.ReadDir(".")

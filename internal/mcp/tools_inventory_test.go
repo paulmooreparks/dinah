@@ -39,7 +39,7 @@ var publishedProperties = map[string][]string{
 	"raise":             {"actor", "card", "harness", "model", "provider", "reason", "server", "tier", "workbench"},
 	"join_workstream":   {"actor", "basis", "card", "harness", "model", "provider", "server", "workbench", "workstream"},
 	"leave_workstream":  {"actor", "basis", "card", "harness", "model", "provider", "server", "workbench", "workstream"},
-	"add_card":          {"actor", "column", "harness", "model", "priority", "provider", "route", "server", "severity", "title", "workbench"},
+	"add_card":          {"actor", "column", "due", "harness", "model", "priority", "provider", "route", "server", "severity", "start-after", "start-by", "title", "workbench"},
 	"comment":           {"actor", "card", "harness", "model", "provider", "server", "text", "workbench"},
 	"attach":            {"actor", "description", "file", "harness", "model", "provider", "ref", "replace", "server", "workbench"},
 	"file_item":         {"actor", "card", "column", "harness", "kind", "model", "owner", "provider", "server", "text", "workbench"},
