@@ -1256,6 +1256,9 @@ func TestOneUnreadableCardTakesNoOtherCardDown(t *testing.T) {
 	cycleB := h.filedAt("cycle b", hBuildQueue)
 	h.link(cycleA, "blocks", cycleB)
 	damagedID, moverID := h.cardID(damaged), h.cardID(mover)
+	if got := h.waitsOn(free); got != damaged {
+		t.Fatalf("before the plant the card the damaged card blocks waits on %q, want %s", got, damaged)
+	}
 	anchor := filepath.Join(h.card(damaged).Dir, bench.CardAnchor)
 	if err := os.WriteFile(anchor, []byte("this file carries no anchor at all\n"), 0o644); err != nil {
 		t.Fatalf("plant: %v", err)
@@ -1443,8 +1446,9 @@ func TestNotBeforeOnALargeCycleIsQuick(t *testing.T) {
 	// with a lag of three, c waits on a, and c carries start_after X. The
 	// path walk read a's ground on b as X+3, and this reads it as X, which is
 	// still a floor on a ground no date releases. The ground's own lag is
-	// always added, so c's ground on a, which reads round to b, is X+0 read
-	// from b's own date, and b's ground on c is c's date plus three.
+	// always added, so b's ground on c is c's date plus three. c's ground on
+	// a reads no not-before date, because every path from a returns to c
+	// and neither a nor b carries a date of its own.
 	t.Run("a lag inside a cycle", func(t *testing.T) {
 		h := initHarness(t, block)
 		a, b, c := h.filedAt("a", iIntake), h.filedAt("b", iIntake), h.filedAt("c", iIntake)
