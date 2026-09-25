@@ -14,10 +14,13 @@ import (
 )
 
 // Link is one entry of a card's links sequence: a kind and the identifier of
-// the card it names. A link is a declaration rather than an entity, and
-// nothing in the tool reads one.
+// the card it names. A link is a declaration rather than an entity. Nothing in
+// the core reads one, and only a kind the workbench declares under dinah.holds
+// carries behaviour, which is Dinah's own: HoldEdges reads such links.
 type Link struct {
-	// Kind is an open value; no contract behaviour hangs on its members.
+	// Kind is an open value; no contract behaviour hangs on its members, and
+	// a kind carries behaviour only where the workbench declares it under
+	// dinah.holds.
 	Kind string
 	// To is the identifier of the card the link names.
 	To string

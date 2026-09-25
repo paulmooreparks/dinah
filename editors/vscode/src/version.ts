@@ -68,8 +68,15 @@ import type { VersionReport } from "./api";
  * dates are keys of the card anchor, which this extension never reads: the
  * card view a read answers with gains `start_after`, `start_by`, `due` and
  * `schedule`, which an older reader ignores.
+ *
+ * 11 joined the set at dinah-608, which let a link of a kind the workbench
+ * declares under `dinah.holds` hold a card back from selection, where an older
+ * build would ignore the hold and hand the card out early. The layer is a key
+ * of the workbench anchor and links are keys of the card anchor, neither of
+ * which this extension reads: the card view gains `waits_on` and the offer
+ * gains `waiting` and `waiting_on`, which an older reader ignores.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
 /**
  * The conformance claim this extension needs. A different name or major is

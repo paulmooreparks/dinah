@@ -345,6 +345,11 @@ type Request struct {
 	// a card may carry scheduling dates. It writes the one format line and
 	// nothing else, and without Confirm it writes nothing at all.
 	MigrateSchedule bool
+	// MigrateHolds asks check to stamp the store at the format from which a
+	// link a workbench declares under dinah.holds holds a card back. It
+	// writes the one format line and nothing else, and without Confirm it
+	// writes nothing at all.
+	MigrateHolds bool
 	// MigrateRawLines asks check to rewrite every quoted raw line an earlier
 	// import wrote on the workbench and column anchors to the bare JSON
 	// spelling, and to stamp the store at the format that declares a quoted
@@ -521,9 +526,20 @@ type Request struct {
 // requestDay is the day a request was answered on and the workbench it was
 // read for. The two travel together because the date means nothing without
 // the zone it was read in, and a workbench is where the zone is declared.
+//
+// The instant the date was read from travels with it, because whether a card
+// has started reads a claim's expiry against the clock, and a request asking
+// that of two cards must ask it at one instant. The hold index travels with
+// it too, built the first time a hold is asked about and answered again on
+// every later ask, so one request reads one graph as it reads one day.
 type requestDay struct {
 	bench *bench.Bench
 	date  bench.Date
+	now   time.Time
+	// holds is the request's hold index once holdsRead is set, and nil
+	// where the workbench declares no usable rule.
+	holds     *holdIndex
+	holdsRead bool
 }
 
 // today is the day this request is answered on, in the workbench's zone. The
@@ -533,10 +549,17 @@ type requestDay struct {
 // runs across midnight. A call from a different workbench reads the clock
 // again, because that workbench's zone may put it on a different date.
 func (l *Library) today(req *Request) bench.Date {
+	return l.dayOf(req).date
+}
+
+// dayOf is the request's day, its clock reading and its hold index together,
+// on the terms today states.
+func (l *Library) dayOf(req *Request) *requestDay {
 	if req.day == nil || req.day.bench != l.Bench {
-		req.day = &requestDay{bench: l.Bench, date: l.Bench.Today(l.Now())}
+		now := l.Now()
+		req.day = &requestDay{bench: l.Bench, date: l.Bench.Today(now), now: now}
 	}
-	return req.day.date
+	return req.day
 }
 
 // CardView is the card as a response carries it.
@@ -574,6 +597,10 @@ type CardView struct {
 	// Schedule is every condition that holds, in precedence order, absent
 	// where none does.
 	Schedule []string `json:"schedule,omitempty"`
+	// WaitsOn is every ground in force on the card, in edge order, absent
+	// where none is: each link the workbench declares under dinah.holds that
+	// holds the card back today, with the card it waits on.
+	WaitsOn []WaitView `json:"waits_on,omitempty"`
 	// ScheduleDay is the day Schedule was computed against, carried so a
 	// renderer counting days to a date reads the same day rather than the
 	// clock a second time, which across midnight could disagree with the
@@ -854,10 +881,11 @@ type Response struct {
 // re-listing the same two directories, so publishing the total costs one
 // listing per card view rather than three.
 //
-// The schedule conditions are computed against today, which the caller reads
-// once for its whole request and passes to every view it builds, so a listing
-// cannot draw two of its cards against different days.
-func (l *Library) view(card *bench.Card, today bench.Date) (*CardView, error) {
+// The schedule conditions and the grounds the card waits on are computed
+// against the request's day, which the caller reads once for its whole
+// request and passes to every view it builds, so a listing cannot draw two of
+// its cards against different days or two different graphs of holds.
+func (l *Library) view(card *bench.Card, day *requestDay) (*CardView, error) {
 	counts, err := bench.ChildCounts(card.Dir, bench.KindCard)
 	if err != nil {
 		return nil, err
@@ -904,11 +932,16 @@ func (l *Library) view(card *bench.Card, today bench.Date) (*CardView, error) {
 	if bound := l.Bench.Column(card.RetirementGrant); bound != nil {
 		v.RetirementGrantTitle = bound.Title
 	}
-	schedule, err := l.scheduleOf(card, today)
+	schedule, err := l.scheduleOf(card, day)
 	if err != nil {
 		return nil, err
 	}
-	v.Schedule, v.ScheduleDay = schedule, today
+	v.Schedule, v.ScheduleDay = schedule, day.date
+	holds, err := l.holdsAt(day)
+	if err != nil {
+		return nil, err
+	}
+	v.WaitsOn = l.waitViews(holds.holdsOf(l.Bench, card, day.date))
 	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
 	for _, slot := range l.Bench.InapplicableSlots(card) {
 		answer := l.Bench.Applicability(card, slot)
@@ -1297,7 +1330,7 @@ func (l *Library) refuseWith(req *Request, card *bench.Card, name, detail string
 		// A card whose collections will not read cannot be rendered, and
 		// the read failure is what the caller is told rather than a
 		// refusal carrying a view built from a collection nobody read.
-		view, err := l.view(card, l.today(req))
+		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -1315,7 +1348,7 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 		Basis:       req.Basis,
 	}
 	if card != nil {
-		view, err := l.view(card, l.today(req))
+		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}

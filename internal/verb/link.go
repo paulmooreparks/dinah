@@ -83,7 +83,15 @@ func (l *Library) Link(req *Request) *Response {
 	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	return l.ok(req, reloaded)
+	response := l.ok(req, reloaded)
+	// A link whose kind the workbench declares under dinah.holds may close
+	// a cycle of cards each waiting on the next, which selection would then
+	// hand out none of. The link is written either way, and the warning
+	// says so.
+	if err := l.holdCycleWarning(req, response, reloaded, kind, to); err != nil {
+		return l.FromError(req, err)
+	}
+	return response
 }
 
 // Unlink removes the one entry whose kind and resolved target match, leaving

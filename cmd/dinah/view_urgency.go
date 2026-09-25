@@ -187,7 +187,10 @@ func (s *session) explainPhrase(card verb.CardView, term verb.UrgencyTerm, reade
 	case bench.UrgencyBlocked:
 		return s.blockedPhrase(basis)
 	case bench.UrgencyBlocksOthers:
-		return s.r.T("view.urgency.explain.blocks-others")
+		if basis["read"] != "true" {
+			return s.r.T("view.urgency.explain.blocks-others")
+		}
+		return s.r.TN("view.urgency.explain.blocks-others.counted", basisCount(term, "counted"))
 	case bench.UrgencyAge:
 		if basis["arrival"] == "" {
 			return s.r.T("view.urgency.explain.age.unknown")

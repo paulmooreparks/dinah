@@ -139,6 +139,9 @@ func init() {
 		// serve declares no bounded positional, its one argument being a
 		// flag, so a stray word is refused rather than silently ignored.
 		{name: "serve", group: groupServe, run: runServe},
+		// ui is serve with a browser opened on the address, so it declares
+		// serve's shape: no bounded positional, every argument a flag.
+		{name: "ui", group: groupServe, run: runUI},
 		// setup binds the harness a recipe is named for and reads everything
 		// else as a flag, so a stray second word is refused rather than
 		// ignored.
@@ -187,6 +190,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateDesignations: parsed.has("migrate-designations"),
 		MigrateAppliesWhen:  parsed.has("migrate-applies-when"),
 		MigrateSchedule:     parsed.has("migrate-schedule"),
+		MigrateHolds:        parsed.has("migrate-holds"),
 		MigrateRawLines:     parsed.has("migrate-raw-lines"),
 		Rehearse:            parsed.has("rehearse"),
 		ForceClaims:         parsed.has("force-claims"),
@@ -1609,6 +1613,7 @@ var checkStarvedMarkers = []string{
 	"migrate-newlines",
 	"migrate-applies-when",
 	"migrate-schedule",
+	"migrate-holds",
 	"migrate-raw-lines",
 	"file-standing",
 	"renumber",

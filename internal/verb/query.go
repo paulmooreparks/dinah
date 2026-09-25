@@ -210,8 +210,11 @@ type query struct {
 	// itemTerms are the terms compared against one live checklist item.
 	itemTerms []term
 	// today is the day the query's relative dates and its schedule field
-	// were resolved against, read once before any card is read.
+	// were resolved against, read once before any card is read, and day is
+	// the request's day it came from, which carries the clock reading and
+	// the hold index the schedule field reads as well.
 	today bench.Date
+	day   *requestDay
 }
 
 // Query reports the live cards matching a query string, in arrival order.
@@ -225,14 +228,14 @@ type query struct {
 // key some card still stores after its declaration went has to stay
 // findable.
 func (l *Library) Query(req *Request) (*Matches, error) {
-	matched, _, err := l.selection(req.Query, req.Actor, l.today(req))
+	matched, _, err := l.selection(req.Query, req.Actor, l.dayOf(req))
 	if err != nil {
 		return nil, err
 	}
 	sortByArrival(matched)
 	matches := &Matches{Query: req.Query, Cards: []CardView{}}
 	for _, card := range matched {
-		view, err := l.view(card, l.today(req))
+		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
 			return nil, err
 		}
@@ -253,12 +256,12 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 //
 // The actor travels with the text because the walk lapses an expired claim as
 // it goes, and a lapse that notices a hand-edited position records who was
-// reading when it noticed. today is the day the caller's request is answered
-// on, which resolves every relative value and every schedule condition the
-// query names, so a caller rendering what it selected passes the same day to
-// the views it builds.
-func (l *Library) selection(text, actor string, today bench.Date) (matched, live []*bench.Card, err error) {
-	matched, live, _, err = l.selectionFor(text, actor, meExpansion{}, today)
+// reading when it noticed. day is the request's day, the date the caller's
+// request is answered on, which resolves every relative value and every
+// schedule condition the query names, so a caller rendering what it selected
+// passes the same day to the views it builds.
+func (l *Library) selection(text, actor string, day *requestDay) (matched, live []*bench.Card, err error) {
+	matched, live, _, err = l.selectionFor(text, actor, meExpansion{}, day)
 	return matched, live, err
 }
 
@@ -266,16 +269,16 @@ func (l *Library) selection(text, actor string, today bench.Date) (matched, live
 // reports, beside any refusal, the check that raised it. The query, tree and
 // search paths reach it through selection, which passes the zero expansion
 // and discards the fault, so nothing they print depends on either.
-func (l *Library) selectionFor(text, actor string, me meExpansion, today bench.Date) (matched, live []*bench.Card, fault *queryFault, err error) {
-	_, matched, live, fault, err = l.selectionQuery(text, actor, me, today)
+func (l *Library) selectionFor(text, actor string, me meExpansion, day *requestDay) (matched, live []*bench.Card, fault *queryFault, err error) {
+	_, matched, live, fault, err = l.selectionQuery(text, actor, me, day)
 	return matched, live, fault, err
 }
 
 // selectionQuery is selectionFor answering the parsed query as well, which a
 // view reads again to name the items that witnessed each card it drew. An
 // error reading the store is returned with no fault.
-func (l *Library) selectionQuery(text, actor string, me meExpansion, today bench.Date) (parsed *query, matched, live []*bench.Card, fault *queryFault, err error) {
-	parsed, fault, err = l.parseQuery(text, today)
+func (l *Library) selectionQuery(text, actor string, me meExpansion, day *requestDay) (parsed *query, matched, live []*bench.Card, fault *queryFault, err error) {
+	parsed, fault, err = l.parseQuery(text, day)
 	if err != nil {
 		return nil, nil, nil, fault, err
 	}
@@ -316,15 +319,15 @@ func (l *Library) selectionQuery(text, actor string, me meExpansion, today bench
 // parseQuery runs checks 1 to 3: every term parses, every field is one this
 // tool knows or one shaped like a declared key, and every operator is one the
 // named field accepts. It is a method only because the refusal it raises
-// lists the workbench's own card keys beside the built-in names. today is the
-// day relative values resolve against and schedule conditions are tested on,
-// read by the caller once for its whole request.
-func (l *Library) parseQuery(text string, today bench.Date) (*query, *queryFault, error) {
+// lists the workbench's own card keys beside the built-in names. day is the
+// request's day, which relative values resolve against and schedule
+// conditions are tested on, read by the caller once for its whole request.
+func (l *Library) parseQuery(text string, day *requestDay) (*query, *queryFault, error) {
 	tokens, err := splitTerms(strings.Trim(text, queryTrims))
 	if err != nil {
 		return nil, &queryFault{stage: stageParse}, err
 	}
-	parsed := &query{today: today}
+	parsed := &query{today: day.date, day: day}
 	for _, token := range tokens {
 		t, err := parseTerm(token)
 		if err != nil {
@@ -1133,7 +1136,7 @@ func (l *Library) cardMatches(q *query, card *bench.Card) (bool, error) {
 			continue
 		}
 		if t.field == FieldSchedule {
-			held, err := l.scheduleOf(card, q.today)
+			held, err := l.scheduleOf(card, q.day)
 			if err != nil {
 				return false, err
 			}

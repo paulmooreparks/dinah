@@ -110,10 +110,10 @@ WORKBENCH
     [--migrate-numbers] [--migrate-designations]
     [--rehearse] [--force-claims] [--migrate-branches]
     [--migrate-newlines] [--migrate-applies-when]
-    [--migrate-schedule] [--migrate-raw-lines]
-    [--file-standing] [--renumber] [--remint <dir>]
-    [--migrate-workstreams] [--witness] [--yes]
-    [--root <path>] [--max-depth <n>]
+    [--migrate-schedule] [--migrate-holds]
+    [--migrate-raw-lines] [--file-standing] [--renumber]
+    [--remint <dir>] [--migrate-workstreams] [--witness]
+    [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench                                              Read this workbench's own fields
@@ -127,6 +127,8 @@ SERVE
   lsp [--root <dir>] [--annotate-prose]                  Serve one workbench to an editor over LSP on stdio
     [--poll-seconds <n>] [--stdio]
   serve [--listen <address>]                             Serve this workbench over HTTP on this machine
+  ui [--listen <address>] [--no-browser]                 Serve this workbench to a browser on this machine
+                                                           and open one on it
   setup [harness] [--list] [--recipe <dir>]              Connect a harness to a workbench from a recipe
     [--agent <name>] [--tools <profile>]
     [--scope <scope>] [--target <dir>]
@@ -222,8 +224,8 @@ WORKBENCH
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
     [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims]
     [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule]
-    [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams]
-    [--witness] [--yes] [--root <path>] [--max-depth <n>]
+    [--migrate-holds] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>]
+    [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
   workstream <new> <title> [--slug <slug>]                                                              Create a workstream on this workbench
@@ -235,6 +237,7 @@ SERVE
   mcp [--root <dir>] [--tools <profile>]                                                                Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>] [--stdio]                                  Serve one workbench to an editor over LSP on stdio
   serve [--listen <address>]                                                                            Serve this workbench over HTTP on this machine
+  ui [--listen <address>] [--no-browser]                                                                Serve this workbench to a browser on this machine and open one on it
   setup [harness] [--list] [--recipe <dir>] [--agent <name>] [--tools <profile>] [--scope <scope>]      Connect a harness to a workbench from a recipe
     [--target <dir>] [--provider <name>] [--model <name>] [--server <address>] [--trust-project-recipe]
     [--allow-run] [--dry-run] [--remove]

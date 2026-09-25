@@ -1325,6 +1325,11 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.not-implemented.next"},
 	},
 	{
+		Name:      NotServed,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-served.next"}},
+		NextStep:  []string{"refusal.dinah.not-served.next"},
+	},
+	{
 		// The workbench the second scope named rides as a value beside the
 		// root in the detail, because the reader has to see both to know
 		// which of the two to drop, and a sentence naming only the one they

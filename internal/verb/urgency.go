@@ -328,13 +328,17 @@ func (d *viewDraw) urgencyOf(card *bench.Card) (urgencyScore, error) {
 	if err != nil {
 		return urgencyScore{}, err
 	}
+	blocking, err := d.blocksOthers(card)
+	if err != nil {
+		return urgencyScore{}, err
+	}
 	score := urgencyScore{terms: []urgencyTerm{
 		d.waitsOnYou(card),
 		question,
 		d.level(card, bench.PriorityField, card.Priority, d.weights.Priority),
 		d.level(card, bench.SeverityField, card.Severity, d.weights.Severity),
 		d.blocked(card),
-		d.blocksOthers(),
+		blocking,
 		d.age(card),
 		d.staleClaim(card),
 	}}
@@ -458,16 +462,34 @@ func (d *viewDraw) blocked(card *bench.Card) urgencyTerm {
 	}
 }
 
-// blocksOthers contributes nothing on every card. No link carries a meaning
-// or a direction yet, and this workbench's own cards record blocks both ways,
-// so counting outgoing blocks links would be wrong rather than early. The
-// weight is still read and validated, so a workbench declaring it now needs
-// no edit when the links gain a meaning.
-func (d *viewDraw) blocksOthers() urgencyTerm {
-	return urgencyTerm{
-		term:  bench.UrgencyBlocksOthers,
-		basis: map[string]string{basisRead: "false"},
+// blocksOthers contributes its weight once for each live card, standing
+// outside a done column, that waits on this card through an awaiting ground:
+// a link of a kind the workbench declares under dinah.holds, whose held card
+// has not started and whose holder, this card, has not reached the rule's
+// event. A lagging ground does not count, because the holder has done its
+// part. A link carries no direction of its own, so on a workbench declaring
+// no usable rule nothing is counted, the term contributes nothing and its
+// basis says the links were not read.
+func (d *viewDraw) blocksOthers(card *bench.Card) (urgencyTerm, error) {
+	holds, err := d.l.holdsOn(d.req)
+	if err != nil {
+		return urgencyTerm{}, err
 	}
+	if holds == nil {
+		return urgencyTerm{
+			term:  bench.UrgencyBlocksOthers,
+			basis: map[string]string{basisRead: "false"},
+		}, nil
+	}
+	counted := int64(holds.awaitingOn(card))
+	return urgencyTerm{
+		term:   bench.UrgencyBlocksOthers,
+		points: d.weights.BlocksOthers * counted,
+		basis: map[string]string{
+			basisRead:    "true",
+			basisCounted: strconv.FormatInt(counted, 10),
+		},
+	}, nil
 }
 
 // age counts whole days since the card entered its current column, capped,

@@ -47,7 +47,7 @@ send one twice, Dinah answers 400.
 | `/cards/<card>/<rest>` | `dinah list` when the reference names a collection, such as `comments` or `journal`, and `dinah show` otherwise |
 | `/cards/<card>/instructions` | `dinah instructions <card>` |
 | `/cards/<card>/claim` | a 303 redirect to the card, because the card carries its claim |
-| `/cards/<card>/window` | a 501 for now; the card's floating window will be served here |
+| `/cards/<card>/window` | the card's floating window, as HTML alone |
 | `/columns` and `/columns/<column>` | `dinah list columns` and `dinah show <column>` |
 | `/columns/<column>/<rest>` and `/columns/<column>/instructions` | the same as for a card |
 | `/workstreams` and `/workstreams/<slug>` | `dinah list workstreams` and `dinah show workstream/<slug>` |
@@ -122,9 +122,12 @@ would give you, with its name and its detail.
 Dinah sends every body as `application/vnd.dinah+json`, with a `profile`
 parameter naming the contract version, unless your `Accept` header asks for
 `application/json` and not the vendor type, in which case it sends the same
-bytes as `application/json`. If your `Accept` header admits neither, Dinah
-answers 406. Every answer carries `Cache-Control: no-store`, because every
-answer is the workbench as it stands.
+bytes as `application/json`. A request with no `Accept` header, or with
+`*/*`, gets the vendor type. When your `Accept` header ranks `text/html`
+above both, as a browser's does, Dinah answers with a page, which the last
+section of this guide describes. If your `Accept` header admits none of the
+three, Dinah answers 406. Every answer carries `Cache-Control: no-store`,
+because every answer is the workbench as it stands.
 
 ## Acting from an HTML form
 
@@ -141,7 +144,9 @@ form members for what the form cannot say.
 | `_actor` | `Dinah-Actor` |
 
 A checkbox with no `value` attribute sends `on`, and Dinah reads that as true.
-If you name a member twice, Dinah answers 400. It also answers 400 when
+A browser sends every field of a form, the empty ones included, so Dinah reads
+an empty member as absent unless the act cannot run without it. If you name a
+member twice, Dinah answers 400. It also answers 400 when
 `_basis` and `If-Match` disagree, or when `_actor` and `Dinah-Actor` disagree,
 because the request has not said which one it means.
 
@@ -170,3 +175,40 @@ path of whatever the answer was about. `accepts` lists the body types the
 method takes. `form` tells you how an HTML form sends the same act: a POST to
 that URL, carrying the listed members as hidden fields beside the act's own
 members and any `_basis` and `_actor` you add. A read's `form` is null.
+
+## Pages
+
+When a browser asks for any of these paths, Dinah answers with a page, drawn
+on the server from the same answer a JSON client gets. `dinah ui` starts this
+server and opens a browser on it, and a browser you point at `dinah serve`
+gets the same pages. The board is at `/`, a column's page at
+`/columns/<column>`, a card's page at `/cards/<card>`, the card list at
+`/cards`, and the tree, the search, the views and the command log at `/tree`,
+`/search`, `/views` and `/commands`. For any other path, Dinah shows the JSON
+answer on a page. A card also opens as a floating window over any page, and the URL
+names the open windows in its `open`, `top`, `min` and `p.<card>` parameters,
+which a page takes and a JSON client's request is refused for.
+
+Every act on a page is a form posting to the act's own route, and the page
+works with script turned off. After the act Dinah sends you back to the page
+you posted from, whatever the outcome, and the outcome appears in the command
+log along the bottom of every page. The log shows each act as the command line
+that would have done it at a terminal, newest first. It holds the last 500
+entries, typed lines included, until the server stops. Run again performs
+an entry's command a second time. It is guarded by the card's revision only
+on an entry made from a card's form, so it answers stale once the card has
+changed, and on any other entry it acts on the card as it stands now.
+
+You can also type a command line into the log. Dinah splits it into words at
+spaces, keeps words inside double quotes together, reads a backslash before a
+double quote as making the quote part of the word, and expands nothing. It
+then parses the words with the terminal's own parser and performs the command
+as a click would. The typed line runs the commands this
+guide's route table names, and refuses any other command by its name with
+`dinah.not-served`.
+
+Dinah does not let a page on another site show these pages inside a frame.
+Every page carries `Content-Security-Policy` with `frame-ancestors 'self'`
+and `X-Frame-Options: SAMEORIGIN`. Without them, another site could frame a
+page and trick you into clicking one of its forms, and Dinah could not tell
+that click from one you meant.
