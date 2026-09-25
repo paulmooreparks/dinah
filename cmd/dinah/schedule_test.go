@@ -335,10 +335,26 @@ func TestCheckPrintsTheScheduleReports(t *testing.T) {
 	root := newBench(t)
 	datedCard(t, root, "dated", "--due", dayFrom(3))
 	anchor := filepath.Join(soleBenchDir(t, root), bench.WorkbenchAnchor)
+	// The path the tool prints is the one discovery resolved, which on a host
+	// whose temporary directory sits behind a symbolic link, as macOS's
+	// /var does, is the link's target rather than the spelling the test
+	// built. Either spelling names the one file.
+	anchors := []string{anchor}
+	if resolved, err := filepath.EvalSymlinks(anchor); err == nil && resolved != anchor {
+		anchors = append(anchors, resolved)
+	}
+	endsInAnchor := func(out, sentence string) bool {
+		for _, path := range anchors {
+			if strings.Contains(out, sentence+" ("+path+")") {
+				return true
+			}
+		}
+		return false
+	}
 	clean := runCLI(t, root, "check")
-	notice := english.T("check.schedule-zone-undeclared", "detail", "") + " (" + anchor + ")"
-	if clean.code != 0 || !strings.Contains(clean.out, notice) || !strings.Contains(clean.out, english.T("check.notices")) {
-		t.Errorf("check exits %d and does not print the notice %q under its heading:\n%s", clean.code, notice, clean.out)
+	notice := english.T("check.schedule-zone-undeclared", "detail", "")
+	if clean.code != 0 || !endsInAnchor(clean.out, notice) || !strings.Contains(clean.out, english.T("check.notices")) {
+		t.Errorf("check exits %d and does not print the notice %q followed by %v under its heading:\n%s", clean.code, notice, anchors, clean.out)
 	}
 	if !strings.Contains(notice, "dinah.schedule") || !strings.Contains(notice, "time_zone") {
 		t.Errorf("the notice does not name the key and the member: %q", notice)
@@ -346,11 +362,11 @@ func TestCheckPrintsTheScheduleReports(t *testing.T) {
 	declareScheduleOn(t, root, "dinah.schedule:\n  time_zone: Mars/Olympus\n  zone: UTC\n")
 	reported := runCLI(t, root, "check")
 	for _, want := range []string{
-		english.T("check.schedule-malformed", "detail", "dinah.schedule time_zone Mars/Olympus") + " (" + anchor + ")",
-		english.T("check.schedule-member-unknown", "detail", "zone") + " (" + anchor + ")",
+		english.T("check.schedule-malformed", "detail", "dinah.schedule time_zone Mars/Olympus"),
+		english.T("check.schedule-member-unknown", "detail", "zone"),
 	} {
-		if !strings.Contains(reported.out, want) {
-			t.Errorf("check does not print %q:\n%s", want, reported.out)
+		if !endsInAnchor(reported.out, want) {
+			t.Errorf("check does not print %q followed by %v:\n%s", want, anchors, reported.out)
 		}
 	}
 	if reported.code == 0 {
