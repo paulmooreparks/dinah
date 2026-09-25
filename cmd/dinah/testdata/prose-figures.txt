@@ -72,6 +72,7 @@ internal/guide/guides/mcp.md:368 figure=Eight noun=tools counts=the MCP tools wh
 internal/guide/guides/mcp.md:400 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares
 internal/guide/guides/setup-recipes.md:86 figure=Three noun=kinds counts=the step kinds a recipe carries out as data holds=partitive reason=the sentence counts the three data kinds of the four step kinds internal/setup declares in stepKeys, and the fourth, run, has a section of its own
 internal/guide/guides/query.md:44 figure=Nineteen noun=fields counts=the field names the query language admits derives=queryFields
+internal/guide/guides/query.md:81 figure=three noun=fields counts=the built-in query fields whose values are calendar dates holds=unreachable at=internal/verb/query.go:81 declares=dateFields
 internal/guide/guides/query.md:92 figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go:108 declares=actPlane
 internal/guide/guides/references.md:18 figure=three noun=ways counts=the spellings of this workbench the guide shows derives=workbenchSpellings
 internal/guide/guides/references.md:144 figure=Twenty-one noun=commands counts=the commands that take a reference derives=referenceCommands

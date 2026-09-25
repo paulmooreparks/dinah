@@ -465,6 +465,7 @@ func TestDateTermsCompareAndResolve(t *testing.T) {
 		"due:today-1":             {passport},
 		"due!=2026-10-02":         {hotel, approval, claim, rail},
 		"due>2026-10-10":          {claim},
+		"due>=2026-10-10":         {hotel, claim},
 		"due<=2026-10-08":         {approval, passport},
 		"start_after>today+10":    {claim},
 		"trip.depart>=today":      {rail},
