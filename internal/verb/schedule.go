@@ -114,9 +114,10 @@ func (l *Library) startHoldFor(today bench.Date) startHold {
 	}
 }
 
-// selectionHold is the start hold for a selection starting now.
-func (l *Library) selectionHold() startHold {
-	return l.startHoldFor(l.Bench.Today(l.Now()))
+// selectionHold is the start hold for a selection made on req, on the day
+// every other schedule reading of that request uses.
+func (l *Library) selectionHold(req *Request) startHold {
+	return l.startHoldFor(l.today(req))
 }
 
 // earlierDate folds two dates written YYYY-MM-DD into the earlier of them,

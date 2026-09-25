@@ -395,7 +395,7 @@ func (l *Library) Tree(req *Request, chain []string, level string) (*Tree, error
 	if err := checkLevel(level, TreeLevels); err != nil {
 		return nil, err
 	}
-	kept, live, err := l.selection(req.Query, req.Actor)
+	kept, live, err := l.selection(req.Query, req.Actor, l.today(req))
 	if err != nil {
 		return nil, err
 	}
@@ -1126,7 +1126,7 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 		Depth:    level,
 		Root:     root,
 	}
-	members, _, err := l.selection(narrowToReady(workstreamSelector(l.Bench, entity), req.ReadyOnly), req.Actor)
+	members, _, err := l.selection(narrowToReady(workstreamSelector(l.Bench, entity), req.ReadyOnly), req.Actor, l.today(req))
 	if err != nil {
 		return nil, err
 	}

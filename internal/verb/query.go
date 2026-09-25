@@ -225,14 +225,14 @@ type query struct {
 // key some card still stores after its declaration went has to stay
 // findable.
 func (l *Library) Query(req *Request) (*Matches, error) {
-	matched, _, err := l.selection(req.Query, req.Actor)
+	matched, _, err := l.selection(req.Query, req.Actor, l.today(req))
 	if err != nil {
 		return nil, err
 	}
 	sortByArrival(matched)
 	matches := &Matches{Query: req.Query, Cards: []CardView{}}
 	for _, card := range matched {
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return nil, err
 		}
@@ -253,9 +253,12 @@ func (l *Library) Query(req *Request) (*Matches, error) {
 //
 // The actor travels with the text because the walk lapses an expired claim as
 // it goes, and a lapse that notices a hand-edited position records who was
-// reading when it noticed.
-func (l *Library) selection(text, actor string) (matched, live []*bench.Card, err error) {
-	matched, live, _, err = l.selectionFor(text, actor, meExpansion{})
+// reading when it noticed. today is the day the caller's request is answered
+// on, which resolves every relative value and every schedule condition the
+// query names, so a caller rendering what it selected passes the same day to
+// the views it builds.
+func (l *Library) selection(text, actor string, today bench.Date) (matched, live []*bench.Card, err error) {
+	matched, live, _, err = l.selectionFor(text, actor, meExpansion{}, today)
 	return matched, live, err
 }
 
@@ -263,16 +266,16 @@ func (l *Library) selection(text, actor string) (matched, live []*bench.Card, er
 // reports, beside any refusal, the check that raised it. The query, tree and
 // search paths reach it through selection, which passes the zero expansion
 // and discards the fault, so nothing they print depends on either.
-func (l *Library) selectionFor(text, actor string, me meExpansion) (matched, live []*bench.Card, fault *queryFault, err error) {
-	_, matched, live, fault, err = l.selectionQuery(text, actor, me)
+func (l *Library) selectionFor(text, actor string, me meExpansion, today bench.Date) (matched, live []*bench.Card, fault *queryFault, err error) {
+	_, matched, live, fault, err = l.selectionQuery(text, actor, me, today)
 	return matched, live, fault, err
 }
 
 // selectionQuery is selectionFor answering the parsed query as well, which a
 // view reads again to name the items that witnessed each card it drew. An
 // error reading the store is returned with no fault.
-func (l *Library) selectionQuery(text, actor string, me meExpansion) (parsed *query, matched, live []*bench.Card, fault *queryFault, err error) {
-	parsed, fault, err = l.parseQuery(text)
+func (l *Library) selectionQuery(text, actor string, me meExpansion, today bench.Date) (parsed *query, matched, live []*bench.Card, fault *queryFault, err error) {
+	parsed, fault, err = l.parseQuery(text, today)
 	if err != nil {
 		return nil, nil, nil, fault, err
 	}
@@ -313,13 +316,15 @@ func (l *Library) selectionQuery(text, actor string, me meExpansion) (parsed *qu
 // parseQuery runs checks 1 to 3: every term parses, every field is one this
 // tool knows or one shaped like a declared key, and every operator is one the
 // named field accepts. It is a method only because the refusal it raises
-// lists the workbench's own card keys beside the built-in names.
-func (l *Library) parseQuery(text string) (*query, *queryFault, error) {
+// lists the workbench's own card keys beside the built-in names. today is the
+// day relative values resolve against and schedule conditions are tested on,
+// read by the caller once for its whole request.
+func (l *Library) parseQuery(text string, today bench.Date) (*query, *queryFault, error) {
 	tokens, err := splitTerms(strings.Trim(text, queryTrims))
 	if err != nil {
 		return nil, &queryFault{stage: stageParse}, err
 	}
-	parsed := &query{today: l.Bench.Today(l.Now())}
+	parsed := &query{today: today}
 	for _, token := range tokens {
 		t, err := parseTerm(token)
 		if err != nil {

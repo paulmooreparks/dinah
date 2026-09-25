@@ -53,7 +53,7 @@ func (l *Library) Pull(req *Request) *Response {
 	}
 	// The start hold is built once, here, and handed down every path the
 	// pull takes, so one pull reads the clock once whichever form it takes.
-	hold := l.selectionHold()
+	hold := l.selectionHold(req)
 	destination, answer, err := l.pullDestination(req, named, hold)
 	if err != nil {
 		return l.FromError(req, err)
@@ -459,7 +459,7 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 		return l.FromError(req, err)
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}

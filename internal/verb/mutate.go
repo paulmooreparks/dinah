@@ -45,7 +45,7 @@ func (l *Library) Do(req *Request) *Response {
 		l.Interleave()
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -114,7 +114,7 @@ func (l *Library) admit(req *Request) (*bench.Resolved, *Response) {
 func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 	switch req.Verb {
 	case Claim:
-		return l.warnBeforeStartAfter(l.claim(req, card), card)
+		return l.warnBeforeStartAfter(req, l.claim(req, card), card)
 	case Move:
 		return l.move(req, card)
 	case Release:
@@ -142,11 +142,11 @@ func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 // rather than about what a person may choose. A response already carrying a
 // warning keeps it, and Do's own stale-prefix warning, set after this runs,
 // takes the slot where both apply.
-func (l *Library) warnBeforeStartAfter(response *Response, card *bench.Card) *Response {
+func (l *Library) warnBeforeStartAfter(req *Request, response *Response, card *bench.Card) *Response {
 	if response == nil || response.Outcome != contract.OutcomeOK || response.Warning != "" {
 		return response
 	}
-	if held, from := l.selectionHold()(card); held {
+	if held, from := l.selectionHold(req)(card); held {
 		response.Warning = "warn.before-start-after"
 		response.WarningDetail = from
 	}

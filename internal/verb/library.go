@@ -503,6 +503,28 @@ type Request struct {
 	// than once per destination. It is nil on every request a head builds,
 	// and atCapacity counts the cards itself whenever it is.
 	occupancy map[string]int
+	// day is the calendar date this request's schedule conditions, start
+	// holds and relative query values are computed against, read from the
+	// clock once by Library.today the first time anything asks and held
+	// here for the rest of the request. It is nil on every request a head
+	// builds, and a head repeating an act builds or copies a fresh request
+	// for each repetition, as a watch does for each frame, so no answer is
+	// drawn on a day an earlier answer read. A copy carries whatever day the
+	// original held when it was taken, so a copy handed to another workbench,
+	// whose zone may differ, clears it first.
+	day *bench.Date
+}
+
+// today is the day this request is answered on, in the workbench's zone. The
+// first call reads the clock and every later call on the same request answers
+// the same date, so a request selecting a card and rendering it cannot compute
+// the two against different days when it runs across midnight.
+func (l *Library) today(req *Request) bench.Date {
+	if req.day == nil {
+		day := l.Bench.Today(l.Now())
+		req.day = &day
+	}
+	return *req.day
 }
 
 // CardView is the card as a response carries it.
@@ -819,7 +841,11 @@ type Response struct {
 // The per-collection counts are read out of that one result rather than
 // re-listing the same two directories, so publishing the total costs one
 // listing per card view rather than three.
-func (l *Library) view(card *bench.Card) (*CardView, error) {
+//
+// The schedule conditions are computed against today, which the caller reads
+// once for its whole request and passes to every view it builds, so a listing
+// cannot draw two of its cards against different days.
+func (l *Library) view(card *bench.Card, today bench.Date) (*CardView, error) {
 	counts, err := bench.ChildCounts(card.Dir, bench.KindCard)
 	if err != nil {
 		return nil, err
@@ -866,7 +892,6 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if bound := l.Bench.Column(card.RetirementGrant); bound != nil {
 		v.RetirementGrantTitle = bound.Title
 	}
-	today := l.Bench.Today(l.Now())
 	schedule, err := l.scheduleOf(card, today)
 	if err != nil {
 		return nil, err
@@ -1260,7 +1285,7 @@ func (l *Library) refuseWith(req *Request, card *bench.Card, name, detail string
 		// A card whose collections will not read cannot be rendered, and
 		// the read failure is what the caller is told rather than a
 		// refusal carrying a view built from a collection nobody read.
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -1278,7 +1303,7 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 		Basis:       req.Basis,
 	}
 	if card != nil {
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return l.FromError(req, err)
 		}

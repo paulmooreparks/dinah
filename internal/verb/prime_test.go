@@ -370,7 +370,7 @@ func TestPrimePendingOperatorRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("prime with the cap lifted: %v", err)
 	}
-	view, err := h.library.view(h.card(card))
+	view, err := h.library.viewToday(h.card(card))
 	if err != nil {
 		t.Fatalf("view the card: %v", err)
 	}

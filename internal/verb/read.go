@@ -161,7 +161,7 @@ func (l *Library) Status(req *Request) (*Status, error) {
 			return nil, err
 		}
 		counts[card.Column]++
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return nil, err
 		}
@@ -311,7 +311,7 @@ func (l *Library) List(req *Request) (*Listing, error) {
 	}
 	sortByArrival(kept)
 	for _, card := range kept {
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return nil, err
 		}
@@ -432,10 +432,11 @@ func (l *Library) Next(req *Request) ([]Offer, error) {
 // what a column offers the one caller.
 func (l *Library) columnOffers(req *Request, cards []*bench.Card, columns []*bench.Column) ([]Offer, error) {
 	admit := selectionAdmission(l.Bench, req)
-	hold := l.selectionHold()
+	today := l.today(req)
+	hold := l.startHoldFor(today)
 	offers := make([]Offer, 0, len(columns))
 	for _, column := range columns {
-		offer, err := l.offerFor(column, cards, admit, hold)
+		offer, err := l.offerFor(column, cards, admit, hold, today)
 		if err != nil {
 			return nil, err
 		}
@@ -472,8 +473,10 @@ func (l *Library) columnOffers(req *Request, cards []*bench.Card, columns []*ben
 // before the tier, and a column whose only ready work the hold withheld
 // reports NotYet with the earliest date rather than NoTaker: a column holding
 // ready work that will be taken from here once its date comes is not a column
-// nothing is taken from.
-func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admission, hold startHold) (Offer, error) {
+// nothing is taken from. today is the day hold was built from, and the head's
+// view is drawn on it too, so an offer cannot show a card it selected as
+// startable carrying a condition that says it is held.
+func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admission, hold startHold, today bench.Date) (Offer, error) {
 	offer := Offer{Column: column.ID, Title: column.Title}
 	byPull := !column.TakesWorkUp()
 	landing := func(*bench.Card) *bench.Column { return column }
@@ -490,7 +493,7 @@ func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admi
 	}
 	switch {
 	case head != nil:
-		view, err := l.view(head)
+		view, err := l.view(head, today)
 		if err != nil {
 			return Offer{}, err
 		}
@@ -1580,7 +1583,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			}
 			return nil, nil, nil, text, nil
 		}
-		detail, text, err := l.detailOf(entity.Card, effective, filters)
+		detail, text, err := l.detailOf(entity.Card, effective, filters, l.today(req))
 		return detail, nil, nil, text, err
 	}
 	// A column is an entity of the workbench, and the containment walk prints
@@ -1665,7 +1668,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 	if err := l.lapseRead(card, req.Actor); err != nil {
 		return nil, nil, nil, "", err
 	}
-	detail, text, err := l.detailOf(card, effective, filters)
+	detail, text, err := l.detailOf(card, effective, filters, l.today(req))
 	return detail, nil, nil, text, err
 }
 
@@ -1784,8 +1787,9 @@ func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 // the archived-half one, and neither carries a copy of the build.
 //
 // It is the whole of what show does once it has a card, so nothing about
-// which half the card came from reaches inside it.
-func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters detailFilters) (*Detail, string, error) {
+// which half the card came from reaches inside it. today is the day the
+// card's schedule conditions are drawn on, read once by Show for its request.
+func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters detailFilters, today bench.Date) (*Detail, string, error) {
 	cardRef := card.Ref(l.Bench.Slug)
 	// Every member is built before the selection is applied, because withheld
 	// reports what the card holds rather than what the caller left out, and
@@ -1793,7 +1797,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	// directory, which show performs whatever the caller asked for.
 	detail := &Detail{Path: card.AnchorPath(), selected: chosen}
 	if chosen.carries("card") {
-		view, err := l.view(card)
+		view, err := l.view(card, today)
 		if err != nil {
 			return nil, "", err
 		}
@@ -2570,7 +2574,7 @@ func (l *Library) Prime(req *Request) (*Primer, error) {
 		if !isHolder(card, req.Actor) {
 			continue
 		}
-		view, err := l.view(card)
+		view, err := l.view(card, l.today(req))
 		if err != nil {
 			return nil, err
 		}

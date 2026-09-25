@@ -326,7 +326,11 @@ func (w *watcher) stamp() {
 func (w *watcher) frame() (bool, error) {
 	width, height := frameSize()
 	w.width, w.height = width, height
-	answer, err := w.l.DrawView(w.req)
+	// Each frame is a request of its own, so it reads its own day rather
+	// than the day the first frame read, and a watch left running overnight
+	// draws each frame's conditions on the day that frame was drawn.
+	drawn := *w.req
+	answer, err := w.l.DrawView(&drawn)
 	if err != nil {
 		return false, err
 	}

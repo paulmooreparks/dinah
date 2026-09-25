@@ -238,11 +238,11 @@ func TestAnInjectedHoldIsTheOnlyThingTheScanReads(t *testing.T) {
 	column := h.library.Bench.Column(aftercare)
 	admit := selectionAdmission(h.library.Bench, &Request{Actor: "alka"})
 	injected := func(*bench.Card) (bool, string) { return true, "2026-10-09" }
-	offer, err := h.library.offerFor(column, cards, admit, injected)
+	offer, err := h.library.offerFor(column, cards, admit, injected, h.library.today(&Request{}))
 	if err != nil || offer.Card != nil || !offer.NotYet || offer.StartableFrom != "2026-10-09" {
 		t.Errorf("the injected hold gave %+v %v", offer, err)
 	}
-	offer, err = h.library.offerFor(column, cards, admit, h.library.selectionHold())
+	offer, err = h.library.offerFor(column, cards, admit, h.library.selectionHold(&Request{}), h.library.today(&Request{}))
 	if err != nil || offer.Card == nil || offer.Card.Ref != ref {
 		t.Errorf("the production hold gave %+v %v", offer, err)
 	}
@@ -612,4 +612,97 @@ func TestAUserConfigCarriesNoSchedule(t *testing.T) {
 	if got := h.library.Bench.Today(h.library.Now()).String(); got != "2026-10-02" {
 		t.Errorf("a config naming Singapore moved today to %s", got)
 	}
+}
+
+// viewToday is a card's view drawn on the day the fixture's clock reads, for
+// the cases that ask about one card and have no request to read the day from.
+func (l *Library) viewToday(card *bench.Card) (*CardView, error) {
+	return l.view(card, l.Bench.Today(l.Now()))
+}
+
+// TestOneAnswerIsDrawnOnOneDay runs each reading verb on a clock that moves a
+// whole day forward every time anything reads it, so a verb reading today
+// again for each card it draws draws each card on a later day than the one
+// before. Every card is due on the fixture's day, which reads as due_soon on
+// that day and as overdue on any later one. Each answer must draw all its
+// cards on one day, and a query or a view section asking for due_soon must
+// draw every card it selected as due_soon, which it can only do on the day it
+// selected them.
+func TestOneAnswerIsDrawnOnOneDay(t *testing.T) {
+	h := scheduleHarness(t)
+	h.declareViews(bench.ViewsKey + ":\n  soon:\n    sections:\n      - query: schedule:due_soon\n")
+	first := h.dated("first", aftercare, bench.DueField, scheduleToday)
+	second := h.dated("second", aftercare, bench.DueField, scheduleToday)
+	third := h.dated("third", doing, bench.DueField, scheduleToday)
+	reads := 0
+	advancing := func() time.Time {
+		reads++
+		return time.Date(2026, 10, 3, 23, 0, 0, 0, time.UTC).AddDate(0, 0, reads-1)
+	}
+	h.library.Now = advancing
+	// drawn fails the case unless the answer drew want cards, all on one day,
+	// and, where condition is not empty, every one carrying that condition.
+	drawn := func(verb string, views []CardView, want int, condition string) {
+		t.Helper()
+		if len(views) != want {
+			t.Fatalf("%s drew %d cards, want %d", verb, len(views), want)
+		}
+		for _, view := range views {
+			if view.ScheduleDay != views[0].ScheduleDay {
+				t.Errorf("%s drew %s on %s and %s on %s", verb, views[0].Ref, views[0].ScheduleDay, view.Ref, view.ScheduleDay)
+			}
+			if got := strings.Join(view.Schedule, ","); condition != "" && got != condition {
+				t.Errorf("%s selected %s as %s and drew it on %s as %s", verb, view.Ref, condition, view.ScheduleDay, got)
+			}
+		}
+	}
+
+	reads = 0
+	matches, err := h.library.Query(&Request{Verb: "query", Actor: "alka", Query: "schedule:due_soon"})
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	drawn("query", matches.Cards, 3, contract.ScheduleDueSoon)
+
+	reads = 0
+	answer, err := h.library.DrawView(&Request{Verb: "view", Actor: "alka", View: "soon"})
+	if err != nil || len(answer.View.Sections) != 1 {
+		t.Fatalf("view: %+v %v", answer, err)
+	}
+	drawn("view", answer.View.Sections[0].Cards, 3, contract.ScheduleDueSoon)
+
+	reads = 0
+	listing, err := h.library.List(&Request{Verb: "list", Actor: "alka"})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	drawn("list", listing.Cards, 3, "")
+
+	reads = 0
+	offers, err := h.library.Next(&Request{Verb: "next", Actor: h.library.Bench.Operator})
+	if err != nil {
+		t.Fatalf("next: %v", err)
+	}
+	var offered []CardView
+	for _, offer := range offers {
+		if offer.Card != nil {
+			offered = append(offered, *offer.Card)
+		}
+	}
+	drawn("next", offered, 2, "")
+
+	for _, ref := range []string{first, second, third} {
+		if response := h.do(&Request{Verb: "claim", Actor: "alka", Card: ref}); response.Outcome != contract.OutcomeOK {
+			t.Fatalf("claim %s: %+v", ref, response)
+		}
+	}
+	// A claim reopens the library on the fixture's still clock, so the
+	// advancing one goes back in before prime reads it.
+	h.library.Now = advancing
+	reads = 0
+	primer, err := h.library.Prime(&Request{Verb: "prime", Actor: "alka"})
+	if err != nil {
+		t.Fatalf("prime: %v", err)
+	}
+	drawn("prime", primer.Holding, 3, "")
 }
