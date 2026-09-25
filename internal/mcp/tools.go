@@ -1,16 +1,16 @@
 package mcp
 
 import (
-	"encoding/json"
 	"sort"
 
-	"dinah/internal/contract"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
 
-// tool is one entry of the MCP surface: the name an agent calls, the library
-// command it projects, and the call that runs it.
+// tool is one entry of the MCP surface: the name an agent calls and the library
+// command it projects. The runner that answers the command lives in
+// internal/answer, which the HTTP head calls too, so the two heads publish one
+// payload for one call.
 //
 // Tool names are the cli head's own verb spellings, expanded where the short
 // unixy form reads as an abbreviation to a reader who never saw the cli. That
@@ -28,8 +28,9 @@ type tool struct {
 	// command is the library command whose parameter list generates this
 	// tool's input schema.
 	command string
-	// run answers the call with a value that marshals to the canonical form.
-	run func(*verb.Library, *verb.Request) any
+	// action, when set, is the action word this tool fills in on the request
+	// itself, for a tool that is one action of a command taking several.
+	action string
 	// summaryKey, when set, replaces "cmd.<command>.summary" as the catalog
 	// key toolList reads.
 	summaryKey string
@@ -71,65 +72,65 @@ const (
 )
 
 var tools = []tool{
-	{name: "claim", command: verb.Claim, run: doVerb},
-	{name: "move", command: verb.Move, run: doVerb},
-	{name: "release", command: verb.Release, run: doVerb},
-	{name: "block", command: verb.Block, run: doVerb},
-	{name: "unblock", command: verb.Unblock, run: doVerb},
-	{name: "raise", command: verb.Raise, run: func(l *verb.Library, r *verb.Request) any { return l.Raise(r) }},
-	{name: "join_workstream", command: verb.Join, run: doVerb},
-	{name: "leave_workstream", command: verb.Leave, run: doVerb},
-	{name: "add_card", command: "add", run: func(l *verb.Library, r *verb.Request) any { return l.Add(r) }},
-	{name: "comment", command: "comment", run: func(l *verb.Library, r *verb.Request) any { return l.Comment(r) }},
-	{name: "attach", command: "attach", run: func(l *verb.Library, r *verb.Request) any { return l.Attach(r) }},
-	{name: "file_item", command: "file", run: func(l *verb.Library, r *verb.Request) any { return l.File(r) }},
-	{name: "cite_item", command: "cite", run: func(l *verb.Library, r *verb.Request) any { return l.Cite(r) }},
-	{name: "resolve_item", command: "resolve", run: func(l *verb.Library, r *verb.Request) any { return l.Resolve(r) }},
-	{name: "verify_item", command: "verify", run: func(l *verb.Library, r *verb.Request) any { return l.Verify(r) }},
-	{name: "fail_item", command: "fail", run: func(l *verb.Library, r *verb.Request) any { return l.Fail(r) }},
-	{name: "waive_item", command: "waive", run: func(l *verb.Library, r *verb.Request) any { return l.Waive(r) }},
-	{name: "withdraw_item", command: "withdraw", run: func(l *verb.Library, r *verb.Request) any { return l.Withdraw(r) }},
-	{name: "reopen_item", command: "reopen", run: func(l *verb.Library, r *verb.Request) any { return l.Reopen(r) }},
-	{name: "grant", command: verb.GrantPermission, run: doVerb},
-	{name: "revoke", command: verb.RevokePermission, run: doVerb},
-	{name: "settle", command: "settle", run: func(l *verb.Library, r *verb.Request) any { return l.Settle(r) }},
-	{name: "link_card", command: "link", run: func(l *verb.Library, r *verb.Request) any { return l.Link(r) }},
-	{name: "unlink_card", command: "unlink", run: func(l *verb.Library, r *verb.Request) any { return l.Unlink(r) }},
-	{name: "archive", command: "archive", run: func(l *verb.Library, r *verb.Request) any { return l.Archive(r) }},
-	{name: "restore", command: "restore", run: func(l *verb.Library, r *verb.Request) any { return l.Restore(r) }},
-	{name: "delete", command: "delete", run: func(l *verb.Library, r *verb.Request) any { return l.Delete(r) }},
-	{name: "accept_divergence", command: "accept-divergence", run: func(l *verb.Library, r *verb.Request) any { return l.AcceptDivergence(r) }},
-	{name: "rename", command: "rename", run: func(l *verb.Library, r *verb.Request) any { return l.Rename(r) }},
-	{name: "status", command: "status", run: readStatus},
-	{name: "list", command: "list", run: readList},
-	{name: "next_card", command: "next", run: readNext},
-	{name: "pull", command: verb.Pull, run: func(l *verb.Library, r *verb.Request) any { return l.Pull(r) }},
-	{name: "query", command: "query", run: readQuery, wrapper: "matches"},
-	{name: "search_cards", command: "search", run: readSearch, wrapper: "results"},
-	{name: "tree", command: "tree", run: readTree, wrapper: "tree"},
+	{name: "claim", command: verb.Claim},
+	{name: "move", command: verb.Move},
+	{name: "release", command: verb.Release},
+	{name: "block", command: verb.Block},
+	{name: "unblock", command: verb.Unblock},
+	{name: "raise", command: verb.Raise},
+	{name: "join_workstream", command: verb.Join},
+	{name: "leave_workstream", command: verb.Leave},
+	{name: "add_card", command: "add"},
+	{name: "comment", command: "comment"},
+	{name: "attach", command: "attach"},
+	{name: "file_item", command: "file"},
+	{name: "cite_item", command: "cite"},
+	{name: "resolve_item", command: "resolve"},
+	{name: "verify_item", command: "verify"},
+	{name: "fail_item", command: "fail"},
+	{name: "waive_item", command: "waive"},
+	{name: "withdraw_item", command: "withdraw"},
+	{name: "reopen_item", command: "reopen"},
+	{name: "grant", command: verb.GrantPermission},
+	{name: "revoke", command: verb.RevokePermission},
+	{name: "settle", command: "settle"},
+	{name: "link_card", command: "link"},
+	{name: "unlink_card", command: "unlink"},
+	{name: "archive", command: "archive"},
+	{name: "restore", command: "restore"},
+	{name: "delete", command: "delete"},
+	{name: "accept_divergence", command: "accept-divergence"},
+	{name: "rename", command: "rename"},
+	{name: "status", command: "status"},
+	{name: "list", command: "list"},
+	{name: "next_card", command: "next"},
+	{name: "pull", command: verb.Pull},
+	{name: "query", command: "query", wrapper: "matches"},
+	{name: "search_cards", command: "search", wrapper: "results"},
+	{name: "tree", command: "tree", wrapper: "tree"},
 	// view answers two shapes, the listing and a drawn view, and no one
 	// wrapper can name both, so each shape carries its own member inside the
 	// payload on both heads and the tool declares none.
-	{name: "view", command: "view", run: readView},
-	{name: "show", command: "show", run: readShow},
-	{name: "changes", command: "changes", run: readChanges},
-	{name: "instructions", command: "instructions", run: readInstructions},
-	{name: "whoami", command: "whoami", run: readWhoami},
-	{name: "prime", command: "prime", run: readPrime},
-	{name: "workbench", command: "workbench", run: doWorkbench},
-	{name: "workstream", command: "workstream", run: doWorkstream},
-	{name: "get_field", command: "get", run: readField},
-	{name: "set_field", command: "set", run: func(l *verb.Library, r *verb.Request) any { return l.SetField(r) }},
+	{name: "view", command: "view"},
+	{name: "show", command: "show"},
+	{name: "changes", command: "changes"},
+	{name: "instructions", command: "instructions"},
+	{name: "whoami", command: "whoami"},
+	{name: "prime", command: "prime"},
+	{name: "workbench", command: "workbench"},
+	{name: "workstream", command: "workstream"},
+	{name: "get_field", command: "get"},
+	{name: "set_field", command: "set"},
 	// The tool sets the action itself, since column carries exactly one, and
 	// argumentExemptions holds that argument back so the schema never asks a
-	// caller for a value this closure has already decided. A later card adding
+	// caller for a value the tool has already decided. A later card adding
 	// get and set has two ways out of the single-purpose shape, and either one
 	// deletes the exemption: dispatch on the action here the way workstream
 	// does, or publish the other two acts as tools of their own.
-	{name: "new_column", command: "column", run: func(l *verb.Library, r *verb.Request) any { r.Action = "new"; return l.NewColumn(r) }},
-	{name: "version", command: "version", run: readVersion},
-	{name: "export", command: "export", run: readExport},
-	{name: "check", command: "check", run: readCheck},
+	{name: "new_column", command: "column", action: "new"},
+	{name: "version", command: "version"},
+	{name: "export", command: "export"},
+	{name: "check", command: "check"},
 }
 
 // exemption is one command this head does not serve: the ground it is held out
@@ -176,6 +177,7 @@ var toolExemptions = map[string]exemption{
 	"setup":      {GroundMachineNotWorkbench, "writes a harness's configuration files on the caller's machine, which belong to the machine and the person rather than to any workbench"},
 	"mcp":        {GroundTheHeadItself, "starts this head, so a tool for it would be the server offering to start itself"},
 	"lsp":        {GroundTheHeadItself, "starts a second head, which serves one workbench to an editor over its own protocol on its own stream; a tool for it would be one server offering to start another"},
+	"serve":      {GroundTheHeadItself, "starts the HTTP head, so a tool for it would be one server offering to start another"},
 	"guide":      {GroundProtocolServesIt, "served as a resource rather than a tool, because a guide is read rather than run"},
 	"help":       {GroundProtocolServesIt, "the surface's own tools/list carries every tool's schema and description, which is what help prints at a terminal"},
 }
@@ -699,306 +701,3 @@ const listPlaceholder = "list"
 // which is the only signal the parameter table gives that a value is parsed as
 // a duration rather than taken as text.
 const durationPlaceholder = "duration"
-
-// doVerb runs one of the five contract verbs.
-func doVerb(l *verb.Library, r *verb.Request) any {
-	return l.Do(r)
-}
-
-// wrap adds the affordances member every tool response carries, so an agent
-// never has to learn which responses answer the question and which do not.
-func wrap(payload map[string]any, affordances []string) map[string]any {
-	payload["affordances"] = affordances
-	return payload
-}
-
-// readAffordances are what a caller may do next after a read of the bench
-// rather than of one card.
-//
-// Every name here is a tool this head serves, and
-// TestEveryPublishedAffordanceNamesAServedTool holds it to that off the same
-// tools table tools/list is built from. The list lost columns and gained list
-// in one move, because the collapse left one tool answering both questions.
-var readAffordances = []string{"status", "list", "next_card"}
-
-// readStatus answers the status tool.
-func readStatus(l *verb.Library, r *verb.Request) any {
-	status, err := l.Status(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"status": status}, readAffordances)
-}
-
-// readList answers the list tool, which is every read of a collection this
-// surface serves.
-//
-// The member each shape is published under is the member the retired tool
-// published it under, so a caller that read columns off the columns tool goes
-// on reading columns off the same key. The one new member is rosters, which no
-// retired tool had, because no retired tool answered the bare question.
-func readList(l *verb.Library, r *verb.Request) any {
-	result, err := l.ListRef(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	switch result.Shape {
-	case verb.ShapeRosters:
-		return wrap(map[string]any{"rosters": result.Rosters}, readAffordances)
-	case verb.ShapeColumns:
-		return wrap(map[string]any{"columns": result.Columns}, readAffordances)
-	case verb.ShapeWorkstreams:
-		return wrap(map[string]any{"listing": result.Workstreams}, readAffordances)
-	case verb.ShapeAttachments:
-		return wrap(map[string]any{"attachments": result.Attachments}, readAffordances)
-	case verb.ShapeMatches:
-		return wrap(map[string]any{"matches": result.Matches}, readAffordances)
-	case verb.ShapeQueue:
-		return wrap(map[string]any{"listing": result.Queue}, readAffordances)
-	case verb.ShapeHistory:
-		return wrap(map[string]any{"events": result.History}, readAffordances)
-	}
-	return wrap(map[string]any{"tree": result.Contents}, readAffordances)
-}
-
-// readNext answers the next_card tool, which changes nothing: offering a card
-// is not assigning it.
-//
-// The affordances carry pull beside claim, because an offer from a column where
-// no owner takes work up is taken by a pull into the column beyond and a claim
-// there is refused. An agent reading only claim would meet that refusal with
-// nothing telling it what to reach for instead.
-func readNext(l *verb.Library, r *verb.Request) any {
-	offers, err := l.Next(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"offers": offers}, []string{"claim", "pull", "show", "list"})
-}
-
-// readQuery answers the query tool. It carries the same Matches object the
-// cli head emits under --json for the same query string, since both heads hand
-// the one library call the one string.
-func readQuery(l *verb.Library, r *verb.Request) any {
-	matches, err := l.Query(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"matches": matches}, readAffordances)
-}
-
-// readSearch answers the search_cards tool, which is what puts a duplicate
-// check in front of every agent that reaches this workbench over the protocol
-// and has no filesystem to grep.
-func readSearch(l *verb.Library, r *verb.Request) any {
-	results, err := l.Search(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"results": results}, readAffordances)
-}
-
-// readTree answers the tree tool. It carries the same Tree object the cli head
-// emits under --json for the same arguments, since both heads hand the one
-// library call the one chain, the one level and the one query string.
-func readTree(l *verb.Library, r *verb.Request) any {
-	chain := verb.ParseChain(r.GroupBy)
-	level := r.Depth
-	if level == "" {
-		level = verb.LevelCards
-	}
-	tree, err := l.Tree(r, chain, level)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"tree": tree}, readAffordances)
-}
-
-// readView answers the view tool. With no view named it carries the listing
-// under views, and with one named it carries the drawn view under view,
-// which is the object the cli head prints under --json in each case, since
-// both heads hand the one library call the one view name and the one actor.
-func readView(l *verb.Library, r *verb.Request) any {
-	if r.View == "" {
-		listing, err := l.ListViews(r)
-		if err != nil {
-			return l.FromError(r, err)
-		}
-		return wrap(map[string]any{"views": listing.Views}, readAffordances)
-	}
-	answer, err := l.DrawView(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"view": answer.View}, readAffordances)
-}
-
-// cardAffordances asks the library what a caller may do with the card a
-// request names, and puts the answer into this surface's vocabulary before it
-// is published. A read never returns a *verb.Response, so nothing else
-// translates it, and the library's no-card fallback spells two of its reads
-// as the commands ls and next, which name no tool here. Translating at the
-// boundary keeps that fallback from dead-ending a reader whichever head
-// reaches it.
-func cardAffordances(l *verb.Library, r *verb.Request) []string {
-	return surfaceAffordances(l.CardAffordances(r))
-}
-
-// readShow answers the show tool. The card branch asks the library what a
-// caller may do with the card it just read, rather than carrying a list of its
-// own that would go on naming claim at a column where a claim is refused.
-//
-// The request's Fields travels through untouched, and this head supplies no
-// default of its own, so the MCP head's default shape for show is the shape
-// show has always answered with. Which members an answer carries is the
-// caller's choice on the call rather than this head's choice on every call,
-// and the head stays a projection of the library and nothing else.
-func readShow(l *verb.Library, r *verb.Request) any {
-	detail, record, item, text, err := l.Show(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	if record != nil {
-		return wrap(map[string]any{"record": record}, readAffordances)
-	}
-	if item != nil {
-		return wrap(map[string]any{"item": item}, cardAffordances(l, r))
-	}
-	if detail == nil {
-		return wrap(map[string]any{"text": text}, readAffordances)
-	}
-	return wrap(map[string]any{"detail": detail}, cardAffordances(l, r))
-}
-
-// readChanges answers the changes tool. It carries the same ChangeSet the cli
-// head emits under --json for the same arguments, since both heads hand the
-// one library call the one cursor, the one card and the one column.
-//
-// The answer is the ChangeSet itself rather than a wrapped payload, the way
-// log's is, because the shape already declares its own affordances member.
-func readChanges(l *verb.Library, r *verb.Request) any {
-	changes, err := l.Changes(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return changes
-}
-
-// readInstructions answers the instructions tool, and asks the library what
-// the caller may do where the chain was served rather than carrying a list of
-// its own.
-//
-// This is the tool an agent calls precisely to learn what it may do where the
-// card is standing, so it is the worst place on the surface to name an act the
-// tool refuses. A written-out claim told a caller at a buffer, at an intake
-// column or at a done column to claim, and the claim then answered
-// dinah.takes-no-work.
-func readInstructions(l *verb.Library, r *verb.Request) any {
-	served, err := l.Instructions(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"served": served}, surfaceAffordances(l.ServedAffordances(r, served)))
-}
-
-// readWhoami answers the whoami tool.
-func readWhoami(l *verb.Library, r *verb.Request) any {
-	identity, err := l.Whoami(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"identity": identity}, readAffordances)
-}
-
-// readPrime answers the prime tool, wrapping the answer under "primer"
-// rather than composing a second envelope: an agent reading this tool
-// already has the one call it asked for.
-func readPrime(l *verb.Library, r *verb.Request) any {
-	primer, err := l.Prime(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"primer": primer}, readAffordances)
-}
-
-// readField answers the get_field tool, which reads one field of whatever
-// entity the reference names, exactly as the command does.
-//
-// It wraps with readAffordances rather than with a list of its own. The tool
-// answers for a workbench, a column, a card, a comment, an item, an attachment
-// and a workstream alike, so an affordance naming what a reader does next with
-// a card would be wrong wherever the reference is not one, and every other
-// bench-level read in this file wraps with the same four.
-func readField(l *verb.Library, r *verb.Request) any {
-	value, err := l.GetField(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"value": value}, readAffordances)
-}
-
-// doWorkbench answers the workbench tool, which reads the workbench's own
-// fields exactly as the bare command does, so an agent reads the same three
-// fields the terminal listing prints.
-func doWorkbench(l *verb.Library, r *verb.Request) any {
-	fields, err := l.Workbench(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"workbench": fields}, readAffordances)
-}
-
-// doWorkstream answers the workstream tool, which creates a workstream and
-// does nothing else, exactly as the command does. Its listing action retired
-// into the list tool under the reference workstreams, so the tool refuses the
-// retired action by name the way the workbench tool refuses its own two, and a
-// workstream's fields are read and written through get_field and set_field.
-func doWorkstream(l *verb.Library, r *verb.Request) any {
-	if r.Action == "new" {
-		return l.NewWorkstream(r)
-	}
-	return l.FromError(r, contract.Refuse(contract.Usage, r.Action))
-}
-
-// readVersion answers the version tool, always with catalog coverage, since a
-// machine surface has no reason to withhold it.
-func readVersion(l *verb.Library, r *verb.Request) any {
-	return wrap(map[string]any{"version": verb.Version(true)}, readAffordances)
-}
-
-// readExport answers the export tool.
-func readExport(l *verb.Library, r *verb.Request) any {
-	data, err := l.Export()
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(map[string]any{"interchange": string(data)}, readAffordances)
-}
-
-// readCheck answers the check tool with the report the library composed,
-// carrying every member the terminal's machine form carries.
-//
-// The answer is the report's own JSON encoding decoded back into a map, so
-// that the affordances can be added beside it. Naming the members here one
-// by one is what dropped notices on the floor (dinah-590/criteria/14): the
-// report gained a member and this projection went on copying the two it
-// knew, so a live check over this head answered without the one report the
-// notice tier was minted to show. Going through the encoding means a member
-// added to CheckReport reaches this head the day it is added, and the
-// omitempty each optional member declares is honoured here exactly as the
-// terminal honours it.
-func readCheck(l *verb.Library, r *verb.Request) any {
-	report, err := l.Check(r)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	encoded, err := json.Marshal(report)
-	if err != nil {
-		return l.FromError(r, err)
-	}
-	answer := map[string]any{}
-	if err := json.Unmarshal(encoded, &answer); err != nil {
-		return l.FromError(r, err)
-	}
-	return wrap(answer, readAffordances)
-}

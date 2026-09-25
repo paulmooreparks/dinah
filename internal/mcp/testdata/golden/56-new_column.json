@@ -1,0 +1,20 @@
+{
+  "outcome": "ok",
+  "verb": "column",
+  "detail": "<id-1>",
+  "column": {
+    "id": "<id-1>",
+    "slug": "parking",
+    "title": "Parking",
+    "kind": "work",
+    "operator_owned": false,
+    "awaiting_outside": false,
+    "takes_work_up": true,
+    "count": 0
+  },
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ]
+}

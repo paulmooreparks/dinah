@@ -322,8 +322,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 60 {
-		t.Errorf("wanted sixty listed commands, got %d", listed)
+	if listed != 61 {
+		t.Errorf("wanted sixty-one listed commands, got %d", listed)
 	}
 }
 
@@ -7503,7 +7503,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 	wantValued := []string{
 		"actor", "agent", "at", "before", "capacity", "card", "column", "depth",
 		"description", "due", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
-		"lang", "map", "max-depth", "model", "note", "observed", "operator", "owner",
+		"lang", "listen", "map", "max-depth", "model", "note", "observed", "operator", "owner",
 		"poll-seconds", "priority", "provider", "query", "reason", "recipe", "remint", "root", "route",
 		"scope", "server", "severity", "since", "slug", "start-after", "start-by", "target", "text", "tier", "timeout", "tools",
 		"workbench",

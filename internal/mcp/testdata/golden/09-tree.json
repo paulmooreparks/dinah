@@ -1,0 +1,101 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "tree": {
+    "producer": "grouped",
+    "subject": "card",
+    "group_by": [
+      "column",
+      "state"
+    ],
+    "depth": "cards",
+    "root": {
+      "kind": "workbench",
+      "ref": "gd",
+      "title": "Golden",
+      "count": 3,
+      "children": [
+        {
+          "kind": "group",
+          "axis": "column",
+          "value": "intake",
+          "count": 1,
+          "children": [
+            {
+              "kind": "card",
+              "id": "<id-1>",
+              "ref": "gd-2",
+              "title": "A waiting card",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "axis": "column",
+          "value": "build",
+          "count": 2,
+          "children": [
+            {
+              "kind": "group",
+              "axis": "state",
+              "value": "ready",
+              "count": 2,
+              "children": [
+                {
+                  "kind": "card",
+                  "id": "<id-2>",
+                  "ref": "gd-1",
+                  "title": "A card",
+                  "count": 1
+                },
+                {
+                  "kind": "card",
+                  "id": "<id-3>",
+                  "ref": "gd-3",
+                  "title": "A card to archive",
+                  "count": 1
+                }
+              ]
+            },
+            {
+              "kind": "group",
+              "axis": "state",
+              "value": "active",
+              "count": 0
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "axis": "column",
+          "value": "review",
+          "count": 0,
+          "children": [
+            {
+              "kind": "group",
+              "axis": "state",
+              "value": "ready",
+              "count": 0
+            },
+            {
+              "kind": "group",
+              "axis": "state",
+              "value": "active",
+              "count": 0
+            }
+          ]
+        },
+        {
+          "kind": "group",
+          "axis": "column",
+          "value": "finished",
+          "count": 0
+        }
+      ]
+    }
+  }
+}

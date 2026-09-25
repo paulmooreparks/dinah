@@ -1251,6 +1251,64 @@ var Shapes = []Shape{
 		Fragments: []Fragment{{Key: "refusal.dinah.unknown-tool-profile.next"}},
 		NextStep:  []string{"refusal.dinah.unknown-tool-profile.next"},
 	},
+	// The HTTP head's refusals. Each names what the request got wrong in its
+	// detail and carries no value beside it; an HTTP client reads the name
+	// and the detail, and dinah.not-loopback alone reaches a terminal.
+	{
+		Name:      NotLoopback,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-loopback.next"}},
+		NextStep:  []string{"refusal.dinah.not-loopback.next"},
+	},
+	{
+		Name:      ForeignHost,
+		Fragments: []Fragment{{Key: "refusal.dinah.foreign-host.next"}},
+		NextStep:  []string{"refusal.dinah.foreign-host.next"},
+	},
+	{
+		Name:      ForeignOrigin,
+		Fragments: []Fragment{{Key: "refusal.dinah.foreign-origin.next"}},
+		NextStep:  []string{"refusal.dinah.foreign-origin.next"},
+	},
+	{
+		Name:      OriginRequired,
+		Fragments: []Fragment{{Key: "refusal.dinah.origin-required.next"}},
+		NextStep:  []string{"refusal.dinah.origin-required.next"},
+	},
+	{
+		Name:      BodyTooLarge,
+		Fragments: []Fragment{{Key: "refusal.dinah.body-too-large.next"}},
+		NextStep:  []string{"refusal.dinah.body-too-large.next"},
+	},
+	{
+		Name:      UnknownResource,
+		Fragments: []Fragment{{Key: "refusal.dinah.unknown-resource.next"}},
+		NextStep:  []string{"refusal.dinah.unknown-resource.next"},
+	},
+	{
+		Name:      MethodNotAllowed,
+		Fragments: []Fragment{{Key: "refusal.dinah.method-not-allowed.next"}},
+		NextStep:  []string{"refusal.dinah.method-not-allowed.next"},
+	},
+	{
+		Name:      NotAcceptable,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-acceptable.next"}},
+		NextStep:  []string{"refusal.dinah.not-acceptable.next"},
+	},
+	{
+		Name:      UnsupportedMediaType,
+		Fragments: []Fragment{{Key: "refusal.dinah.unsupported-media-type.next"}},
+		NextStep:  []string{"refusal.dinah.unsupported-media-type.next"},
+	},
+	{
+		Name:      BasisRequired,
+		Fragments: []Fragment{{Key: "refusal.dinah.basis-required.next"}},
+		NextStep:  []string{"refusal.dinah.basis-required.next"},
+	},
+	{
+		Name:      NotImplemented,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-implemented.next"}},
+		NextStep:  []string{"refusal.dinah.not-implemented.next"},
+	},
 	{
 		// The workbench the second scope named rides as a value beside the
 		// root in the detail, because the reader has to see both to know

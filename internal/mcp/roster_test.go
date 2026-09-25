@@ -4,6 +4,7 @@ import (
 	"sort"
 	"testing"
 
+	"dinah/internal/answer"
 	"dinah/internal/verb"
 )
 
@@ -152,16 +153,17 @@ func sortedNames(reasons map[string]string) []string {
 // TestTheAffordanceTranslationAgreesWithTheRoster asserts that the map which
 // rewrites a library affordance into a tool name says what the roster says.
 //
-// commandTool carries only the commands whose two vocabularies differ, so it
+// answer.Translation carries only the commands whose two vocabularies differ, so it
 // is a short hand-written list standing beside the generated one, and a tool
 // renamed in tools would leave it pointing at a name this head no longer
 // serves. That is the drift this card exists to catch, one layer in from the
 // roster itself.
 func TestTheAffordanceTranslationAgreesWithTheRoster(t *testing.T) {
-	if len(commandTool) == 0 {
+	translation := answer.Translation()
+	if len(translation) == 0 {
 		t.Fatal("the affordance translation is empty, so this check read nothing")
 	}
-	for command, name := range commandTool {
+	for command, name := range translation {
 		served := ToolNameFor(command)
 		if served == "" {
 			t.Errorf("the affordance translation rewrites %s and this head serves no tool for it", command)

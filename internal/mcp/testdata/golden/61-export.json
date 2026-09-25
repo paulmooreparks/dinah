@@ -1,0 +1,8 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "interchange": "{\n  \"columns\": [\n    {\n      \"id\": \"<id-1>\",\n      \"instructions\": \"Intake text.\\n\",\n      \"kind\": \"intake\",\n      \"slug\": \"intake\",\n      \"title\": \"Intake\"\n    },\n    {\n      \"id\": \"<id-2>\",\n      \"instructions\": \"Build text.\\n\",\n      \"kind\": \"work\",\n      \"slug\": \"build\",\n      \"tier\": \"workhorse\",\n      \"title\": \"Build\"\n    },\n    {\n      \"id\": \"<id-3>\",\n      \"instructions\": \"Review text.\\n\",\n      \"kind\": \"work\",\n      \"slug\": \"review\",\n      \"title\": \"Review\"\n    },\n    {\n      \"id\": \"<id-4>\",\n      \"kind\": \"done\",\n      \"slug\": \"finished\",\n      \"title\": \"Finished\"\n    }\n  ],\n  \"instructions\": \"Standing text.\\n\",\n  \"levels\": {\n    \"tier\": [\n      \"workhorse\",\n      \"frontier\",\n      \"apex\"\n    ]\n  },\n  \"profile\": \"dinah-core/0.18\",\n  \"title\": \"Golden\"\n}"
+}

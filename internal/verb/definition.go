@@ -435,6 +435,7 @@ var guides = map[string][]string{
 	"search":            {"query"},
 	"view":              {"views"},
 	"setup":             {"setup-recipes"},
+	"serve":             {"http"},
 }
 
 // Guides lists the guide topics a command's help points at: the command's own,
@@ -926,6 +927,12 @@ var params = map[string][]Param{
 	"mcp": {
 		{Name: "root", Flag: true, Value: "dir", Complete: CompleteDirs},
 		{Name: "tools", Flag: true, Value: "profile", Vocabulary: "tool-profile"},
+	},
+	// serve reads its one flag itself and builds no Request, so the
+	// parameter names no Field. The address is a host and a port, which no
+	// completer can offer.
+	"serve": {
+		{Name: "listen", Flag: true, Value: "address", Complete: CompleteNone},
 	},
 	// lsp declares its own root rather than sharing mcp's, because the two
 	// mean different things: mcp's root bounds every workbench that head may
@@ -1465,6 +1472,7 @@ var derivationExemptions = map[string]string{
 	"init":       "creates a workbench in a directory; the terminal never builds a Request for it",
 	"lsp":        "starts this head; the terminal never builds a Request for it",
 	"mcp":        "starts this head; the terminal never builds a Request for it",
+	"serve":      "starts this head; the terminal never builds a Request for it",
 	"path":       "resolves a filesystem path for a shell; the terminal never builds a Request for it",
 	"version":    "runVersion reads catalogs straight off the parsed arguments; no Request carries it",
 	"export":     "Library.Export takes no arguments at all; there is no request to read a value from",

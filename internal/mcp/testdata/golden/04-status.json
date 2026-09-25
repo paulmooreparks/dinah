@@ -1,0 +1,61 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "status": {
+    "workbench": "Golden",
+    "root": "<root>/.dinah/0199a1b2c3d47abc8000000000000001",
+    "actor": "alka",
+    "is_operator": true,
+    "operator": "alka",
+    "profile": "dinah-core/0.18",
+    "columns": [
+      {
+        "id": "<id-1>",
+        "slug": "intake",
+        "title": "Intake",
+        "kind": "intake",
+        "operator_owned": false,
+        "awaiting_outside": false,
+        "takes_work_up": false,
+        "pull_destination": "build",
+        "count": 1
+      },
+      {
+        "id": "<id-2>",
+        "slug": "build",
+        "title": "Build",
+        "kind": "work",
+        "operator_owned": false,
+        "awaiting_outside": false,
+        "takes_work_up": true,
+        "pull_destination": "review",
+        "count": 2
+      },
+      {
+        "id": "<id-3>",
+        "slug": "review",
+        "title": "Review",
+        "kind": "work",
+        "operator_owned": false,
+        "awaiting_outside": false,
+        "takes_work_up": true,
+        "count": 0
+      },
+      {
+        "id": "<id-4>",
+        "slug": "finished",
+        "title": "Finished",
+        "kind": "done",
+        "operator_owned": false,
+        "awaiting_outside": false,
+        "takes_work_up": false,
+        "count": 0
+      }
+    ],
+    "holding": [],
+    "blocked": []
+  }
+}

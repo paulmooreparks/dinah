@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"os"
 	"reflect"
 	"sort"
@@ -31,8 +33,8 @@ type crossHeadCase struct {
 }
 
 // TestBothHeadsAnswerTheDeclaredReadsAlike asserts that every command declared
-// cross-head identical answers a terminal invocation under --json and an mcp
-// tool call with the same payload.
+// cross-head identical answers a terminal invocation under --json, an mcp
+// tool call and an HTTP request with the same payload.
 //
 // Presence is not agreement. The two layers above prove a command reaches both
 // heads and that each head reads the arguments it advertises, and a command
@@ -78,6 +80,7 @@ func TestBothHeadsAnswerTheDeclaredReadsAlike(t *testing.T) {
 		t.Fatalf("claim: %d %s", got.code, got.errw)
 	}
 
+	served := serveBench(t, root)
 	compared := 0
 	for _, name := range names {
 		tool := mcp.ToolNameFor(name)
@@ -101,6 +104,11 @@ func TestBothHeadsAnswerTheDeclaredReadsAlike(t *testing.T) {
 			if !reflect.DeepEqual(terminal, protocol) {
 				t.Errorf("%s %s answers differently on the two heads:\n terminal: %s\n     tool: %s",
 					name, sample.describe(), mustEncode(t, terminal), mustEncode(t, protocol))
+			}
+			overHTTP := httpPayload(t, served, name, tool, sample)
+			if !reflect.DeepEqual(terminal, overHTTP) {
+				t.Errorf("%s %s answers differently at the terminal and over HTTP:\n terminal: %s\n     HTTP: %s",
+					name, sample.describe(), mustEncode(t, terminal), mustEncode(t, overHTTP))
 			}
 		}
 		if !populated {
@@ -292,6 +300,49 @@ func toolPayload(t *testing.T, root, tool, command string, sample crossHeadCase)
 	}
 	payload := stripAffordances(decode(t, answer.Result.Content[0].Text))
 	return unwrapDeclared(t, command, tool, payload)
+}
+
+// httpPayload drives the same read through the HTTP head and returns the
+// decoded body, which is the payload the mcp head carries in its text
+// content, so it is unwrapped by the same declaration.
+//
+// The URL is composed here per command, from the route each read is served
+// at: query rides the cards collection's query parameter, tree takes the
+// same string as its own query parameter, a named view is a path below
+// /views, and changes takes the cursor as since.
+func httpPayload(t *testing.T, served *httpFixture, command, tool string, sample crossHeadCase) any {
+	t.Helper()
+	query := url.Values{}
+	path := ""
+	switch command {
+	case "query":
+		path = "/cards"
+		query.Set("query", sample.text)
+	case "tree":
+		path = "/tree"
+		if sample.text != "" {
+			query.Set("query", sample.text)
+		}
+	case "view":
+		path = "/views"
+		if named := sample.values["view"]; named != "" {
+			path += "/" + named
+		}
+	case "changes":
+		path = "/changes"
+		query.Set("since", sample.values["since"])
+	default:
+		t.Fatalf("%s is declared cross-head identical and this test composes no HTTP route for it", command)
+	}
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	status, _, object := served.do(http.MethodGet, path, "", "")
+	if status != http.StatusOK {
+		t.Fatalf("GET %s answered %d %v", path, status, object)
+	}
+	var payload any = object
+	return unwrapDeclared(t, command, tool, stripAffordances(payload))
 }
 
 // decode reads one payload as JSON.

@@ -153,7 +153,12 @@ func TestTheDocumentationCarriesNoBannedTypography(t *testing.T) {
 
 // mintedRefusal matches a refusal name Dinah coins, which carries the layer
 // prefix and so can never be an ordinary English word.
-var mintedRefusal = regexp.MustCompile(regexp.QuoteMeta(contract.LayerPrefix) + `[a-z][a-z-]*`)
+//
+// The prefix must not stand inside a longer dotted word. The HTTP head's
+// vendor media types, such as application/vnd.dinah.move+json, carry the
+// prefix after vnd., and a media type is not a refusal name; no refusal name
+// is ever written with a dot before it.
+var mintedRefusal = regexp.MustCompile(`(?:^|[^A-Za-z0-9.])(` + regexp.QuoteMeta(contract.LayerPrefix) + `[a-z][a-z-]*)`)
 
 // TestTheGuidesQuoteOnlyDeclaredRefusals asserts that every refusal name a
 // guide or the quick start quotes is one the profile declares or one Dinah
@@ -206,7 +211,8 @@ func TestTheGuidesQuoteOnlyDeclaredRefusals(t *testing.T) {
 				inBlock = !inBlock
 				continue
 			}
-			for _, name := range mintedRefusal.FindAllString(line, -1) {
+			for _, match := range mintedRefusal.FindAllStringSubmatch(line, -1) {
+				name := match[1]
 				checked++
 				if legal[name] {
 					continue

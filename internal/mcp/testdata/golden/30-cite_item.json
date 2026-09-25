@@ -1,0 +1,31 @@
+{
+  "outcome": "ok",
+  "verb": "cite",
+  "detail": "<id-1>",
+  "card": {
+    "id": "<id-2>",
+    "ref": "gd-1",
+    "title": "A card",
+    "column": "<id-3>",
+    "column_title": "Build",
+    "state": "active",
+    "pull_destination": "review",
+    "holder": "alka",
+    "claim_since": "<ts>",
+    "revision": "sha256:<hex-1>",
+    "attachment_count": 1,
+    "checklist_count": 5,
+    "blocking_items": 1,
+    "operator_pending": 1,
+    "child_count": 7
+  },
+  "basis": "sha256:<hex-1>",
+  "affordances": [
+    "move",
+    "release",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ]
+}
