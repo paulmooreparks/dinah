@@ -2,6 +2,7 @@ package httphead
 
 import (
 	"encoding/json"
+	"html"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -203,7 +204,7 @@ func (h *head) pageContext(x *exchange) *pages.Context {
 		Tree:         x.page.tree,
 		Cursor:       x.page.cursor,
 		DefaultActor: h.cfg.DefaultActor,
-		Log:          h.log.pageEntries(h.renderer()),
+		Log:          h.log.pageEntries(h.renderer(), logCapacity),
 	}
 	if c.Lang == "" {
 		c.Lang = msg.Base
@@ -226,6 +227,32 @@ func (h *head) pageContext(x *exchange) *pages.Context {
 		}
 	}
 	c.Windows = windows
+	return c
+}
+
+// windowContext composes what the window route's one article is drawn with,
+// which is less than a page's context holds: no changes cursor, no tree, no
+// window state, and the newest log entry alone, since that is the only entry
+// a sheet reads. The window's own two reads are windowCard's. The status is
+// read as well, because the sheet names the pull destination by its column's
+// title and the status is the one answer carrying every column's title; a
+// window a page draws takes the same title from the status the page read.
+func (h *head) windowContext(x *exchange) *pages.Context {
+	c := &pages.Context{
+		R:            h.renderer(),
+		Lang:         h.renderer().Tag,
+		Path:         x.r.URL.Path,
+		Query:        x.r.URL.Query(),
+		DefaultActor: h.cfg.DefaultActor,
+		Status:       h.readFor(x, x.library, "status", map[string]any{}),
+		Log:          h.log.pageEntries(h.renderer(), 1),
+	}
+	if c.Lang == "" {
+		c.Lang = msg.Base
+	}
+	if table, err := answer.EncodeAffordanceTable(affordanceRows()); err == nil {
+		c.Affordances = table
+	}
 	return c
 }
 
@@ -279,7 +306,7 @@ func (h *head) writePage(x *exchange, answered answer.Sealed, status int) {
 		body, err = pages.Views(c, encoded)
 	case "/views/{view}":
 		body, err = pages.View(c, encoded, func(name, detail string, context map[string]string) pages.Refusal {
-			return h.refusalOf(x.verb, name, detail, context, status)
+			return h.refusalOf(x.verb, "", name, detail, context, status)
 		})
 	default:
 		_, ref, _ := refForPath(x.r.URL.Path)
@@ -292,11 +319,14 @@ func (h *head) writePage(x *exchange, answered answer.Sealed, status int) {
 	h.sendHTML(x, status, "", body)
 }
 
-// refusalOf renders a refusal's sentence and next step for a page.
-func (h *head) refusalOf(command, name, detail string, context map[string]string, status int) pages.Refusal {
-	values := answer.RefusalValues(command, contract.RefuseWith(name, detail, context))
-	sentence, next := pages.RefusalSentence(h.renderer(), name, values)
-	return pages.Refusal{Status: status, Name: name, Detail: detail, Sentence: sentence, Next: next}
+// refusalOf renders a refusal's sentence, next step included, for a page,
+// through the composer the terminal uses. The card is the reference of the
+// card the answer carried, and empty where it carried none.
+func (h *head) refusalOf(command, card, name, detail string, context map[string]string, status int) pages.Refusal {
+	refused := contract.RefuseWith(name, detail, context)
+	composed := answer.RefusalSentence(h.renderer(), command, card, refused)
+	sentence := composed.Sentence + composed.Tail(true)
+	return pages.Refusal{Status: status, Name: name, Detail: detail, Sentence: sentence}
 }
 
 // errorPage answers a refusal as a page with the status the outcome maps to.
@@ -305,9 +335,17 @@ func (h *head) errorPage(x *exchange, status int, encoded []byte) {
 		Refusal string            `json:"refusal"`
 		Detail  string            `json:"detail"`
 		Context map[string]string `json:"context"`
+		Card    *struct {
+			Ref string `json:"ref"`
+		} `json:"card"`
 	}
 	json.Unmarshal(encoded, &refused)
-	body, err := pages.ErrorPage(h.pageContext(x), h.refusalOf(x.verb, refused.Refusal, refused.Detail, refused.Context, status))
+	card := ""
+	if refused.Card != nil {
+		card = refused.Card.Ref
+	}
+	drawn := h.refusalOf(x.verb, card, refused.Refusal, refused.Detail, refused.Context, status)
+	body, err := pages.ErrorPage(h.pageContext(x), drawn)
 	if err != nil {
 		h.defect(x, err)
 		return
@@ -323,12 +361,13 @@ func (h *head) defect(x *exchange, err error) {
 		http.Error(x.w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	h.sendHTML(x, http.StatusInternalServerError, "", []byte(err.Error()))
+	message := html.EscapeString(err.Error())
+	h.sendHTML(x, http.StatusInternalServerError, "", []byte(message))
 }
 
 // writeWindow answers the window route: one card's window markup alone.
 func (h *head) writeWindow(x *exchange) {
-	c := h.pageContext(x)
+	c := h.windowContext(x)
 	body, err := pages.Window(c, h.windowCard(x, x.library, pathHead(x)))
 	if err != nil {
 		h.defect(x, err)

@@ -9,6 +9,10 @@
 // these and composes no payload of its own. Identity (the actor and the four
 // declared facts) and the transport's own envelope stay with each head,
 // because the two heads read them from different places.
+//
+// It also holds the sentence a person reads for a refusal, which the terminal
+// and the pages both compose through RefusalSentence, so that the two heads a
+// person reads word one refusal one way.
 package answer
 
 import (

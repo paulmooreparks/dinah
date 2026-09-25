@@ -16,7 +16,9 @@ import (
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 	"dinah/internal/httphead"
+	"dinah/internal/msg"
 )
 
 // The typed line's tests live here rather than beside the rest of the pages'
@@ -125,6 +127,8 @@ func (p *pagesServer) command(form url.Values, header ...string) pageReply {
 type logEntry struct {
 	outcome, line, text string
 	again               string
+	// why is the entry's sentence alone, as the page writes it.
+	why string
 }
 
 // entryPattern reads the log page's entries.
@@ -132,6 +136,7 @@ var (
 	entryPattern   = regexp.MustCompile(`(?s)<li class="cmdlog-entry" data-outcome="([a-z]+)">(.*?)</li>`)
 	codePattern    = regexp.MustCompile(`(?s)<code class="cmdlog-cmd">(.*?)</code>`)
 	againPattern   = regexp.MustCompile(`(?s)name="entry" value="[0-9]+" /><button class="btn btn-sm" type="submit">(.*?)</button>`)
+	whyPattern     = regexp.MustCompile(`(?s)<span class="cmdlog-why">(.*?)</span>`)
 	tagPattern     = regexp.MustCompile(`<[^>]+>`)
 	detailBoundary = `<section class="md-detail"`
 )
@@ -156,6 +161,9 @@ func (p *pagesServer) log() []logEntry {
 		}
 		if again := againPattern.FindStringSubmatch(m[2]); again != nil {
 			e.again = htmlText(again[1])
+		}
+		if why := whyPattern.FindStringSubmatch(m[2]); why != nil {
+			e.why = htmlText(why[1])
 		}
 		entries = append(entries, e)
 	}
@@ -292,6 +300,91 @@ func TestTheTypedLine(t *testing.T) {
 	}
 	if holder := cardMember(t, root, "fx-1", "holder"); holder != "someone" {
 		t.Errorf("the claim acted as %q, wanted the header's someone", holder)
+	}
+}
+
+// TestARefusalReadsTheSameOnThePagesAsAtTheTerminal holds every refusal next
+// step that names the card to one sentence on both heads: the log entry a
+// typed line leaves reads exactly as the terminal's line for the same command
+// on the same card, with the card's reference filled in.
+//
+// The set is derived rather than listed. Every next step a declared shape
+// names is rendered with a sentinel card, and the ones the sentinel reaches
+// are the set, so a sixth hint naming the card fails here until it is given a
+// command below.
+//
+// raise has no route on the HTTP head, so no page reaches its hint and the
+// typed line is refused dinah.not-served. That case asserts the refusal, and
+// compares the sentences as soon as a route makes the pages run raise;
+// TestARefusedEntryNamesItsCard in internal/httphead draws its hint through
+// the log directly.
+func TestARefusalReadsTheSameOnThePagesAsAtTheTerminal(t *testing.T) {
+	en := msg.For("en")
+	const sentinel = "sentinel-card-9"
+	naming := map[string]bool{}
+	for _, shape := range contract.Shapes {
+		for _, key := range shape.NextStep {
+			if strings.Contains(en.T(key, contract.ValueCard, sentinel), sentinel) {
+				naming[key] = true
+			}
+		}
+	}
+	if len(naming) != 5 {
+		t.Fatalf("%d next steps name the card, wanted five: %v", len(naming), naming)
+	}
+
+	root := newBench(t)
+	for _, title := range []string{"Unheld", "Blocked", "Held"} {
+		runCLI(t, root, "add", title)
+	}
+	for _, argv := range [][]string{{"block", "fx-2", "why"}, {"move", "fx-3", "doing"}, {"claim", "fx-3"}} {
+		if got := runCLI(t, root, argv...); got.code != 0 {
+			t.Fatalf("%v: %d %s", argv, got.code, got.errw)
+		}
+	}
+	cases := []struct {
+		key, card string
+		argv      []string
+	}{
+		{"refusal.blocked.next", "fx-2", []string{"claim", "fx-2"}},
+		{"refusal.no-reason.next", "fx-1", []string{"block", "fx-1"}},
+		{"refusal.no-reason.raise.next", "fx-3", []string{"raise", "fx-3"}},
+		{"refusal.not-blocked.next", "fx-1", []string{"unblock", "fx-1"}},
+		{"refusal.not-holder.next-unheld", "fx-1", []string{"release", "fx-1"}},
+	}
+	p := startPages(t, root)
+	covered, compared := 0, 0
+	for _, c := range cases {
+		if !naming[c.key] {
+			t.Errorf("%s is not a next step naming the card", c.key)
+			continue
+		}
+		covered++
+		terminal := runCLI(t, root, c.argv...)
+		if terminal.code == 0 {
+			t.Errorf("%v was not refused at the terminal: %s", c.argv, terminal.out)
+			continue
+		}
+		line := strings.TrimSuffix(terminal.errw, "\n")
+		hint := en.T(c.key, contract.ValueCard, c.card)
+		if !strings.HasSuffix(line, hint) {
+			t.Errorf("%v at the terminal reads %q, which does not end on %s as %q", c.argv, line, c.key, hint)
+		}
+		p.command(url.Values{"line": {strings.Join(c.argv, " ")}})
+		log := p.log()
+		if len(log) == 0 {
+			t.Fatalf("%v left no log entry", c.argv)
+		}
+		if c.argv[0] == "raise" && strings.HasPrefix(log[0].why, contract.NotServed+" ") {
+			continue
+		}
+		compared++
+		if log[0].why != line {
+			t.Errorf("%v reads differently on the two heads:\n  pages:    %q\n  terminal: %q", c.argv, log[0].why, line)
+		}
+	}
+	if covered != len(naming) || compared < 4 {
+		t.Errorf("%d of the %d next steps naming the card were driven, and %d compared on both heads, wanted four", covered, len(naming), compared)
 	}
 }
 

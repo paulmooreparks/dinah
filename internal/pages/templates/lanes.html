@@ -109,7 +109,7 @@
 
 {{define "refusal"}}<div class="card refusal">
         <p><code>{{.Name}}</code>{{if .Detail}} <code>{{.Detail}}</code>{{end}}</p>
-        <p class="refusal-why">{{.Sentence}}{{.Next}}</p>
+        <p class="refusal-why">{{.Sentence}}</p>
       </div>{{end}}
 
 {{define "error"}}      {{template "refusal" .}}{{end}}

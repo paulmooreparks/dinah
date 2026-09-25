@@ -113,11 +113,14 @@ func (l *commandLog) snapshot() []LogEntry {
 	return out
 }
 
-// pageEntries returns the entries newest first, with each refusal's and each
-// stale answer's sentence rendered.
-func (l *commandLog) pageEntries(r *msg.Renderer) []pages.LogEntry {
+// pageEntries returns at most most of the entries, newest first, with each
+// refusal's and each stale answer's sentence rendered.
+func (l *commandLog) pageEntries(r *msg.Renderer, most int) []pages.LogEntry {
 	var out []pages.LogEntry
 	for _, entry := range l.snapshot() {
+		if len(out) == most {
+			break
+		}
 		drawn := pages.LogEntry{
 			Seq: entry.Seq, At: entry.At, Outcome: entry.Outcome, Verb: entry.Verb,
 			Line: entry.Line, Rerun: entry.Line != "", Guarded: entry.Basis != "", Target: entry.Target,
@@ -128,9 +131,9 @@ func (l *commandLog) pageEntries(r *msg.Renderer) []pages.LogEntry {
 		}
 		switch entry.Outcome {
 		case contract.OutcomeRefused:
-			values := answer.RefusalValues(entry.Verb, contract.RefuseWith(entry.Refusal, entry.Detail, entry.Context))
-			sentence, next := pages.RefusalSentence(r, entry.Refusal, values)
-			drawn.Sentence, drawn.Next = entry.Refusal+" "+sentence, next
+			refused := contract.RefuseWith(entry.Refusal, entry.Detail, entry.Context)
+			composed := answer.RefusalSentence(r, entry.Verb, entry.Card, refused)
+			drawn.Sentence = entry.Refusal + " " + composed.Sentence + composed.Tail(true)
 		case contract.OutcomeStale:
 			drawn.Sentence = r.T("page.log.stale", "card", entry.Card, "column", entry.Column, "state", entry.State)
 		}

@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"html/template"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -95,19 +94,19 @@ type LogEntry struct {
 	// Guarded marks an entry carrying a basis, whose Run again answers stale
 	// once the card has changed.
 	Guarded bool
-	// Sentence and Next are the refusal's or the stale answer's sentence
-	// and its next step, rendered.
-	Sentence, Next string
+	// Sentence is the refusal's or the stale answer's sentence, rendered,
+	// with a refusal's next step in it.
+	Sentence string
 	// Target is the path of the card or comment the answer carried.
 	Target string
 }
 
 // Refusal is a refusal an error page draws: its name, detail, and the
-// sentence and next step rendered for it.
+// sentence rendered for it, with its next step in it.
 type Refusal struct {
-	Status         int
-	Name, Detail   string
-	Sentence, Next string
+	Status       int
+	Name, Detail string
+	Sentence     string
 }
 
 // templates caches one parsed template set per language.
@@ -668,14 +667,4 @@ func ErrorPage(c *Context, refusal Refusal) ([]byte, error) {
 // typed-line form.
 func CommandLog(c *Context) ([]byte, error) {
 	return shell(c, page{title: c.R.T("page.log"), pane: "detail", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "commands", detail: c.Log})
-}
-
-// sortedKeys lists a map's keys in order.
-func sortedKeys(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }

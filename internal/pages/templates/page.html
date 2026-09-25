@@ -92,8 +92,8 @@
 {{- else}}
         <span></span>
 {{- end}}
-{{- if or .Sentence .Next}}
-        <span class="cmdlog-why">{{.Sentence}}{{.Next}}</span>
+{{- if .Sentence}}
+        <span class="cmdlog-why">{{.Sentence}}</span>
 {{- end}}
 {{- if .Target}}
         <a class="cmdlog-target" href="{{.Target}}">{{.Target}}</a>

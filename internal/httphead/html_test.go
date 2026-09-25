@@ -2,8 +2,11 @@ package httphead
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"html"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -757,8 +760,10 @@ func TestTheLogRecordsWhatThePagesDid(t *testing.T) {
 	if got := lines(1); got != "dinah release "+card+" --actor bryn" {
 		t.Errorf("the release by bryn is logged %q", got)
 	}
-	if entries[1].attr["data-outcome"] != "refused" || !strings.Contains(entries[1].allText(), contract.NotHolder) {
-		t.Errorf("a refused release is logged without its sentence: %s", entries[1].allText())
+	en := msg.For("en")
+	refused := contract.NotHolder + " " + en.T("refusal.not-holder", "detail", "alka") + en.T("refusal.not-holder.next", "detail", "alka")
+	if why := entries[1].first(withClass("cmdlog-why")); entries[1].attr["data-outcome"] != "refused" || why == nil || why.allText() != refused {
+		t.Errorf("a refused release is logged %q, wanted %q", entries[1].allText(), refused)
 	}
 	if entries[0].attr["data-outcome"] != "stale" || !strings.Contains(entries[0].allText(), card) {
 		t.Errorf("a stale claim is logged without its sentence: %s", entries[0].allText())
@@ -773,6 +778,35 @@ func TestTheLogRecordsWhatThePagesDid(t *testing.T) {
 	}
 	if _, held := log.find(1); held || len(log.snapshot()) != logCapacity {
 		t.Errorf("the ring holds %d entries and still holds the first: %v", len(log.snapshot()), held)
+	}
+}
+
+// TestADefectAnswerEscapesItsMessage holds the 500 a page request meets when
+// no page can be drawn to text/html that carries the fault's message as text,
+// escaped, rather than as markup.
+func TestADefectAnswerEscapesItsMessage(t *testing.T) {
+	message := `template: <script>alert("x")</script> & more`
+	recorder := httptest.NewRecorder()
+	x := &exchange{w: recorder, r: &http.Request{Header: http.Header{}}, served: typeHTML}
+	(&head{}).defect(x, errors.New(message))
+	if recorder.Code != http.StatusInternalServerError || recorder.Body.String() != html.EscapeString(message) {
+		t.Errorf("a defect answered %d %q, wanted 500 %q", recorder.Code, recorder.Body.String(), html.EscapeString(message))
+	}
+}
+
+// TestARefusedEntryNamesItsCard holds a refused entry's next step to the
+// card the answer carried, on the one hint naming the card that no page can
+// reach, raise's, since the HTTP head has no route for raise. The other four
+// are compared with the terminal's own sentence by
+// TestARefusalReadsTheSameOnThePagesAsAtTheTerminal in cmd/dinah.
+func TestARefusedEntryNamesItsCard(t *testing.T) {
+	en := msg.For("en")
+	log := &commandLog{}
+	log.record(LogEntry{Verb: "raise", Outcome: contract.OutcomeRefused, Refusal: contract.NoReason, Card: "fx-3"})
+	drawn := log.pageEntries(en, logCapacity)
+	want := contract.NoReason + " " + en.T("refusal.no-reason.raise") + en.T("refusal.no-reason.raise.next", "card", "fx-3")
+	if len(drawn) != 1 || drawn[0].Sentence != want {
+		t.Errorf("a refused raise is drawn %+v, wanted the sentence %q", drawn, want)
 	}
 }
 

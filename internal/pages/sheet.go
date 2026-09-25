@@ -2,7 +2,9 @@ package pages
 
 import (
 	"encoding/json"
+	"maps"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -131,7 +133,7 @@ func cardSheet(c *Context, show, instructions []byte, prefix string) (sheet, car
 	addRow("page.sheet.block-kind", card.BlockKind)
 	addRow("page.sheet.pull-destination", titleOf(c, card.PullDestination))
 	addRow("page.sheet.workstreams", strings.Join(card.Workstreams, ", "))
-	for _, name := range sortedKeys(card.Fields) {
+	for _, name := range slices.Sorted(maps.Keys(card.Fields)) {
 		if card.Fields[name] != "" {
 			s.Rows = append(s.Rows, member{Name: name, Value: card.Fields[name]})
 		}
@@ -230,7 +232,7 @@ func acts(c *Context, names []string, card cardView, moves []legalMove, prefix s
 			continue
 		}
 		a := act{Name: name, Action: fill(row.Form.Href), ID: prefix + "-" + name, Button: actLabel(c, name)}
-		for _, key := range sortedKeys(row.Form.Members) {
+		for _, key := range slices.Sorted(maps.Keys(row.Form.Members)) {
 			a.Hidden = append(a.Hidden, member{Name: key, Value: row.Form.Members[key]})
 		}
 		if basisActs[name] {

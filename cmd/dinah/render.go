@@ -1939,25 +1939,18 @@ func (s *session) composeRefusalWithout(r *contract.Refusal) []string {
 }
 
 // composeRefusalLines is the composer both of the above share, with the next
-// step included or left out.
+// step included or left out. The sentence is answer.RefusalSentence's, which
+// the pages compose through too, and this adds the listing the terminal
+// prints beneath some refusals. It names no card, because a refusal a verb
+// answered already carries the answer's card among its values (outcomeValues
+// puts it there), and a refusal raised before any verb ran has none to name.
 func (s *session) composeRefusalLines(r *contract.Refusal, withNext bool) []string {
-	shape := contract.ShapeOf(r.Name)
+	composed := answer.RefusalSentence(s.r, s.command, "", r)
+	shape := composed.Shape
+	lines := []string{r.Name + " " + composed.Sentence}
 	if shape == nil {
-		return []string{r.Name + " " + s.r.T("refusal.unknown", "name", r.Name, "detail", r.Detail)}
+		return lines
 	}
-	values := s.refusalValues(r)
-	pairs := make([]string, 0, 2*len(values))
-	for _, name := range sortedKeys(values) {
-		pairs = append(pairs, name, values[name])
-	}
-	key := "refusal." + shape.Name
-	if shape.Variant(values[contract.ValueCommand]) {
-		key = shape.VariantKeyOf(values[contract.ValueCommand])
-	}
-	if shape.Subject != "" && values[shape.Subject] == "" {
-		key = shape.AbsentKeyOf(key)
-	}
-	lines := []string{r.Name + " " + s.r.T(key, pairs...)}
 
 	var rows []string
 	if block, ok := refusalBlocks[shape.Listing]; ok {
@@ -1969,7 +1962,7 @@ func (s *session) composeRefusalLines(r *contract.Refusal, withNext bool) []stri
 		}
 		rows = s.tableLines(t)
 	} else if shape.Carried != "" {
-		carried := values[shape.Carried]
+		carried := composed.Values[shape.Carried]
 		if carried != "" {
 			// The raise site joins references that are never empty, so
 			// every field of the split is a row and none is skipped.
@@ -1989,72 +1982,15 @@ func (s *session) composeRefusalLines(r *contract.Refusal, withNext bool) []stri
 	}
 	lines = append(lines, rows...)
 
-	next := s.nextStepOf(shape, values)
-	var spliced []string
-	for _, fragment := range shape.Fragments {
-		if shape.NamedInNextStep(fragment.Key) {
-			if withNext && fragment.Key == next {
-				spliced = append(spliced, s.r.T(fragment.Key, pairs...))
-			}
-			continue
-		}
-		if holds(fragment, values) {
-			spliced = append(spliced, s.r.T(fragment.Key, pairs...))
-		}
-	}
-	if len(spliced) == 0 {
+	joined := composed.Tail(withNext)
+	if joined == "" {
 		return lines
 	}
-	joined := strings.Join(spliced, "")
 	if len(rows) == 0 {
 		lines[0] += joined
 		return lines
 	}
 	return append(lines, joined)
-}
-
-// nextStepOf reads the alternation and returns the key of the one fragment
-// that renders: the first whose condition holds, and never more than one. The
-// last member carries no condition, so a shape the guard has passed always
-// answers with a key.
-//
-// The winner renders at the position its fragment holds in the declared list
-// rather than after every other fragment, because a clause split out of a base
-// entry sat where the sentence put it. dinah.usage is where that is visible:
-// its next step was written ahead of the dash hint, so it is declared ahead of
-// it and it renders ahead of it.
-func (s *session) nextStepOf(shape *contract.Shape, values map[string]string) string {
-	for _, named := range shape.NextStep {
-		fragment := shape.Fragment(named)
-		if fragment != nil && holds(*fragment, values) {
-			return named
-		}
-	}
-	return ""
-}
-
-// holds reports whether a fragment's condition is satisfied: a When names a
-// value that is present and non-empty, an Unless names one that is not, a
-// WhenCommand names the command the reader typed, and a fragment carrying none
-// of the three always renders.
-func holds(fragment contract.Fragment, values map[string]string) bool {
-	if fragment.When != "" {
-		return values[fragment.When] != ""
-	}
-	if fragment.Unless != "" {
-		return values[fragment.Unless] == ""
-	}
-	if fragment.WhenCommand != "" {
-		return values[contract.ValueCommand] == fragment.WhenCommand
-	}
-	return true
-}
-
-// refusalValues collects everything a refusal's sentence may name, through
-// answer.RefusalValues, which the pages fill a refusal's slots through too.
-// The command is the one this invocation ran.
-func (s *session) refusalValues(r *contract.Refusal) map[string]string {
-	return answer.RefusalValues(s.command, r)
 }
 
 // sortedKeys returns a map's keys in order, so that one refusal renders the

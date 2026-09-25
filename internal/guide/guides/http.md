@@ -193,11 +193,11 @@ Every act on a page is a form posting to the act's own route, and the page
 works with script turned off. After the act Dinah sends you back to the page
 you posted from, whatever the outcome, and the outcome appears in the command
 log along the bottom of every page. The log shows each act as the command line
-that would have done it at a terminal, newest first, and holds the last 500
-acts until the server stops. Run again performs an entry's command a second
-time. It is guarded by the card's revision only on an entry made from a
-card's form, so it answers stale once the card has changed, and on any other
-entry it acts on the card as it stands now.
+that would have done it at a terminal, newest first. It holds the last 500
+entries, typed lines included, until the server stops. Run again performs
+an entry's command a second time. It is guarded by the card's revision only
+on an entry made from a card's form, so it answers stale once the card has
+changed, and on any other entry it acts on the card as it stands now.
 
 You can also type a command line into the log. Dinah splits it into words at
 spaces, keeps words inside double quotes together, reads a backslash before a
