@@ -139,9 +139,11 @@ query, because the language admits no ordered comparison on anything but `at`.
 A workbench that has not declared a set for an axis, or a card that carries no
 value on one, is not an error. `priority:""` returns the cards carrying none.
 If you want a card ranked ahead of another, sort that out with columns, with
-the queue order, or with a workstream, the way you always could. Severity and
-priority are now things a query can name; Dinah still gives no ranked answer
-to "what is ready and important."
+the queue order, or with a workstream, the way you always could. A query still
+ranks nothing. For a ranked answer to "what is ready and important", run
+`dinah view agenda`, which ranks the cards you can act on by severity,
+priority and six other terms and shows the arithmetic behind every rank; the
+guide on views describes it.
 
 ## Fields your workbench declares
 

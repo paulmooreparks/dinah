@@ -623,13 +623,22 @@ func (c *Card) Arrival() time.Time {
 	if err != nil {
 		return time.Time{}
 	}
+	return ArrivalFrom(events, c.Column)
+}
+
+// ArrivalFrom is the moment a card standing in column entered it, read out of
+// the card's journal events by the rule Arrival states: the last created
+// event, or the last moved or manual_correction event naming the column,
+// whichever comes later. A reader that already holds the events reads the
+// arrival through this rather than asking Arrival to read the journal again.
+func ArrivalFrom(events []Event, column string) time.Time {
 	arrival := time.Time{}
 	for _, ev := range events {
 		switch ev.Event {
 		case contract.EventCreated:
 			arrival = ParseStamp(ev.TS)
 		case contract.EventMoved, contract.EventManualCorrection:
-			if ev.To == c.Column {
+			if ev.To == column {
 				arrival = ParseStamp(ev.TS)
 			}
 		}

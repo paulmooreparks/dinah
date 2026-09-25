@@ -641,6 +641,12 @@ type Bench struct {
 	// present with a value that is not a mapping. Views is how a reader asks.
 	views            []View
 	viewsBlockDefect bool
+	// urgency is the weights the workbench's dinah.urgency block declares,
+	// read at Open with the shipped defaults for every term it leaves out,
+	// and urgencyDefect is what made the block unusable, empty where it can
+	// be used. Urgency is how a reader asks.
+	urgency       Urgency
+	urgencyDefect UrgencyDefect
 	// tiers are the tier table's entries in declaration order, read out of
 	// the tiers block at Open, and empty on a workbench declaring no table.
 	tiers []TierEntry
@@ -1875,6 +1881,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	fields := readDeclaredFields(fm)
 	b.declaredFields, b.malformedFields = fields.declared, fields.malformed
 	b.views, b.viewsBlockDefect = ReadViews(fm, ViewSourceWorkbench)
+	b.urgency, b.urgencyDefect = ReadUrgency(fm)
 	b.usesAppliesWhen = levels.mappingForm || len(levels.conditions) > 0 || fields.metAny
 	b.resolveConditions(levels.conditions, fields.conditions)
 	b.tiers, b.malformedTiers = readTiers(fm)

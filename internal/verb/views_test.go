@@ -302,7 +302,7 @@ func TestAnUnknownViewNamesEveryVisibleViewOnce(t *testing.T) {
 	h.declareViews(bench.ViewsKey + ":\n" + oneSection("zeta", "state:ready") + oneSection("alpha", "state:ready"))
 	h.userViews(bench.ViewsKey + ":\n" + oneSection("zeta", "state:ready"))
 	refusal := h.refuseDraw("nosuch", "alka")
-	if refusal.Name != contract.UnknownView || refusal.Detail != "nosuch" || refusal.Extra["views"] != "alpha, mine, zeta" {
+	if refusal.Name != contract.UnknownView || refusal.Detail != "nosuch" || refusal.Extra["views"] != "agenda, alpha, mine, zeta" {
 		t.Errorf("an unknown view was answered %s %q with views %q", refusal.Name, refusal.Detail, refusal.Extra["views"])
 	}
 }
@@ -322,7 +322,7 @@ func TestTheListingSortsByNameThenLayer(t *testing.T) {
 	for _, row := range listing.Views {
 		order = append(order, row.Name+"/"+row.Source)
 	}
-	want := "alpha/user beta/workbench broken/workbench mine/user mine/workbench mine/built-in"
+	want := "agenda/built-in alpha/user beta/workbench broken/workbench mine/user mine/workbench mine/built-in"
 	if got := strings.Join(order, " "); got != want {
 		t.Errorf("the listing orders %s, want %s", got, want)
 	}
@@ -365,19 +365,19 @@ func TestAnEmptySectionCarriesEveryMemberAndNoNull(t *testing.T) {
 	if err := json.Unmarshal(encoded, &decoded); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(decoded.View) != 7 {
-		t.Errorf("the view carries %d members, want seven: %s", len(decoded.View), encoded)
+	if len(decoded.View) != 8 {
+		t.Errorf("the view carries %d members, want eight: %s", len(decoded.View), encoded)
 	}
 	var sections []map[string]json.RawMessage
 	if err := json.Unmarshal(decoded.View["sections"], &sections); err != nil || len(sections) != 1 {
 		t.Fatalf("the sections decode as %v (%v)", sections, err)
 	}
 	section := sections[0]
-	if len(section) != 10 {
-		t.Errorf("the section carries %d members, want ten: %s", len(section), encoded)
+	if len(section) != 12 {
+		t.Errorf("the section carries %d members, want twelve: %s", len(section), encoded)
 	}
 	want := map[string]string{
-		"cards": "[]", "count": "0", "items": "{}", "refused": `""`, "refused_detail": `""`,
+		"cards": "[]", "count": "0", "items": "{}", "scope": `""`, "urgency": "{}", "refused": `""`, "refused_detail": `""`,
 		"refused_field": `""`, "refused_term": `""`, "refused_context": "{}",
 	}
 	for member, literal := range want {
@@ -445,19 +445,19 @@ func TestTheColumnOrderFollowsTheFlow(t *testing.T) {
 	wantSection(t, h.mustDraw("by-arrival", "alka"), 0, arrival...)
 }
 
-// TestTheLaterLayoutAndOrderAreMalformedHere is dinah-600/criteria/4.
+// TestTheLaterLayoutAndOrderAreMalformedHere is dinah-600/criteria/4 as
+// dinah-602 left it: the columns layout is still malformed, and the urgency
+// order, which dinah-602 admits, draws.
 func TestTheLaterLayoutAndOrderAreMalformedHere(t *testing.T) {
 	h := newHarness(t)
 	h.declareViews(bench.ViewsKey + ":\n  board:\n    layout: columns\n    sections:\n      - query: state:ready\n" +
-		"  agenda:\n    order: urgency\n    sections:\n      - query: state:ready\n" +
+		"  ranked:\n    order: urgency\n    sections:\n      - query: state:ready\n" +
 		"  flow:\n    order: column\n    sections:\n      - query: state:ready\n" +
 		"  arrived:\n    order: arrival\n    sections:\n      - query: state:ready\n")
 	if refusal := h.refuseDraw("board", "alka"); refusal.Extra["defect"] != bench.ViewUnknownLayout {
 		t.Errorf("layout: columns was answered %s %v", refusal.Name, refusal.Extra)
 	}
-	if refusal := h.refuseDraw("agenda", "alka"); refusal.Extra["defect"] != bench.ViewUnknownOrder {
-		t.Errorf("order: urgency was answered %s %v", refusal.Name, refusal.Extra)
-	}
+	h.mustDraw("ranked", "alka")
 	h.mustDraw("flow", "alka")
 	h.mustDraw("arrived", "alka")
 }

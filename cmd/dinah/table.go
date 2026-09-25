@@ -34,6 +34,11 @@ type tableRow struct {
 	// own node. A row of no entries is a top-level row or an ordinary non-tree
 	// row.
 	guides []bool
+	// ruleAbove draws the separator a heading row draws under itself above
+	// this row as well, which is how a total is set off from the rows it
+	// sums. The stacked form draws no such rule, since each record there
+	// already stands on its own.
+	ruleAbove bool
 }
 
 // labelling says where a reader meets a table's column labels. It says nothing
@@ -199,7 +204,7 @@ func withGuides(t table) table {
 		if len(fields) > 0 {
 			fields[0] = guidePrefix(r.guides) + fields[0]
 		}
-		rows = append(rows, tableRow{section: r.section, fields: fields, note: r.note})
+		rows = append(rows, tableRow{section: r.section, fields: fields, note: r.note, ruleAbove: r.ruleAbove})
 	}
 	return table{
 		indent: t.indent, columns: t.columns, rows: rows, labels: t.labels,
@@ -315,6 +320,9 @@ func (s *session) tableLines(t table) []string {
 		}
 		if i == 0 && len(laid.columns) > 1 && laid.labels == labelAbove {
 			lines = append(lines, laid.headingLines()...)
+		}
+		if r.ruleAbove {
+			lines = append(lines, laid.ruleLine())
 		}
 		lines = append(lines, splitLines(laid.rowLine(r))...)
 		if r.note != "" {
@@ -581,10 +589,11 @@ func withoutEmptyColumns(t table) table {
 			}
 		}
 		narrowed.rows = append(narrowed.rows, tableRow{
-			section: r.section,
-			fields:  fields,
-			note:    r.note,
-			guides:  r.guides,
+			section:   r.section,
+			fields:    fields,
+			note:      r.note,
+			guides:    r.guides,
+			ruleAbove: r.ruleAbove,
 		})
 	}
 	return withoutTrailingEmptyFields(narrowed)
@@ -602,10 +611,11 @@ func withoutTrailingEmptyFields(t table) table {
 			end--
 		}
 		rows = append(rows, tableRow{
-			section: r.section,
-			fields:  r.fields[:end],
-			note:    r.note,
-			guides:  r.guides,
+			section:   r.section,
+			fields:    r.fields[:end],
+			note:      r.note,
+			guides:    r.guides,
+			ruleAbove: r.ruleAbove,
 		})
 	}
 	return table{indent: t.indent, columns: t.columns, rows: rows}
@@ -949,14 +959,22 @@ func (laid laidTable) stackLine(heading string, label int, value string) string 
 // headingLines returns the heading row and the separator row under it.
 func (laid laidTable) headingLines() []string {
 	headings := make([]string, 0, len(laid.columns))
+	for _, column := range laid.columns {
+		headings = append(headings, column.heading)
+	}
+	return []string{laid.rowLine(tableRow{fields: headings}), laid.ruleLine()}
+}
+
+// ruleLine returns the separator row: a rule under every column, as wide as
+// the column, with the gutter left blank between neighbouring rules.
+func (laid laidTable) ruleLine() string {
 	rules := make([]string, 0, len(laid.columns))
 	start := laid.indent
-	for c, column := range laid.columns {
-		headings = append(headings, column.heading)
+	for c := range laid.columns {
 		rules = append(rules, rule(laid.ruleWidth(c, start)))
 		start += laid.widths[c] + tableGutter
 	}
-	return []string{laid.rowLine(tableRow{fields: headings}), laid.rowLine(tableRow{fields: rules})}
+	return laid.rowLine(tableRow{fields: rules})
 }
 
 // ruleWidth is how wide the rule under one column draws: its column's own

@@ -843,6 +843,21 @@
       "context": "A check finding at cleanup severity: a section of one of this workbench's views whose query this workbench refuses, such as one naming a column the workbench no longer has. {detail} carries the view's name, the section's one-based position and the refusal's machine name.",
       "source": "b717f2e2695632d6"
     },
+    "check.urgency-malformed": {
+      "text": "dinah.urgency ब्लॉक उपयोग नहीं किया जा सकता, इसलिए तात्कालिकता के क्रम वाला हर दृश्य मना करता है: {detail}",
+      "context": "A check finding: this workbench's dinah.urgency block, which declares the weights of the urgency order, cannot be read, so every view ordered by urgency refuses to draw until it is repaired. {detail} carries `dinah.urgency not-a-mapping`, or the path of the member at fault followed by the machine token malformed-term. dinah.urgency is the key the weights are declared under and is never translated.",
+      "source": "8e2ae07ed1f0fca8"
+    },
+    "check.urgency-member-unknown": {
+      "text": "dinah.urgency ब्लॉक ऐसा सदस्य रखता है जिसे यह बिल्ड नहीं पढ़ता, और उसे अनदेखा किया जाता है: {detail}",
+      "context": "A check finding at cleanup severity: a member of this workbench's dinah.urgency block that this build does not read, such as a misspelt weight. {detail} carries the member's path within the block, such as age.perday. The member is kept in the file and ignored, so the term it was meant for keeps its default.",
+      "source": "f0b91714d1ccf949"
+    },
+    "check.urgency-level-count": {
+      "text": "dinah.urgency में एक स्तर सूची उस समुच्चय जितनी लंबी नहीं है जिसे वह भार देती है, इसलिए उसे ऊपर से संरेखित किया जाता है: {detail}",
+      "context": "A check finding at cleanup severity: the dinah.urgency block declares a priority or severity weight list whose length differs from the number of levels the workbench declares on that axis. {detail} carries the axis, the list's length and the declared count. The list still works: the highest level takes the last weight.",
+      "source": "1f9357354ad85a6f"
+    },
     "check.format-current": {
       "text": "भंडार पहले से फ़ॉर्मैट {format} घोषित करता है, इसलिए अंकित करने को कुछ नहीं है।",
       "context": "The line a format stamp prints when the workbench already declares the format it stamps or a later one, whether or not the run carried the confirmation flag. {format} carries the declared number.",
@@ -3906,6 +3921,16 @@
       "context": "The meaning of the view argument of `dinah view`, printed in that command's arguments table. The argument is a view's name.",
       "source": "73fc80d333fc9b10"
     },
+    "param.view.card.summary": {
+      "text": "एक कार्ड जिस तक दृश्य को सीमित करना है, उस श्रेणी के साथ जो उसकी पूरे दृश्य में है",
+      "context": "The meaning of the optional card argument of `dinah view`, printed in that command's arguments table. The argument is a card reference, and the view then draws that card's row alone.",
+      "source": "fcc856bac62bf4d0"
+    },
+    "param.view.explain.summary": {
+      "text": "तात्कालिकता के क्रम वाले दृश्य की हर श्रेणी के पीछे का हर पद छापें",
+      "context": "The meaning of the --explain flag of `dinah view`, printed in that command's arguments table. It prints the arithmetic behind each card's rank, term by term.",
+      "source": "7bbaf7be98402440"
+    },
     "param.unblock.reason.summary": {
       "text": "बाधा क्यों हटाई जा रही है, एक शेल-शब्द में या उद्धरण चिह्नों में; बिना कारण बताए बाधा हटाने के लिए इसे छोड़ दें",
       "context": "The meaning of the optional reason argument of `dinah unblock`, printed in that command's arguments table.",
@@ -4839,6 +4864,41 @@
       "text": "; फ़ाइल को, या उसके dinah.views ब्लॉक को, ठीक करें या हटाएँ",
       "context": "The next step of refusal.dinah.views-unreadable. dinah.views is the key the views are declared under and is never translated.",
       "source": "96c58c65776d9fe3"
+    },
+    "refusal.dinah.malformed-urgency": {
+      "text": "दृश्य {detail} तात्कालिकता के क्रम में है, और इस वर्कबेंच का dinah.urgency ब्लॉक उपयोग नहीं किया जा सकता: {defect}",
+      "context": "The sentence printed after the refusal name dinah.malformed-urgency, which `dinah view` carries when a view ordered by urgency is drawn on a workbench whose dinah.urgency block cannot be read. {detail} is the view's name and {defect} is a machine token naming what is wrong (not-a-mapping or malformed-term). dinah.urgency and {defect} are never translated. refusal.dinah.malformed-urgency.term is spliced on after it where one member is at fault, and refusal.dinah.malformed-urgency.next after that.",
+      "source": "800ea3e0932f2708"
+    },
+    "refusal.dinah.malformed-urgency.term": {
+      "text": "; {term} को {read} के रूप में पढ़ा जाता है",
+      "context": "A fragment of refusal.dinah.malformed-urgency, spliced on where one member of the block is at fault. {term} is that member's path within the block, such as age.cap, and {read} is the value the reader found there, written as JSON, so a quoted number or a trailing comment shows in it. Both are machine text and are never translated.",
+      "source": "8b40c07996af8869"
+    },
+    "refusal.dinah.malformed-urgency.next": {
+      "text": "; भार को बिना उद्धरण चिह्नों के लिखें, सूची को एक ही पंक्ति में [0, 2, 4, 6] की तरह लिखें, और टिप्पणी को अपनी अलग पंक्ति में लिखें",
+      "context": "The next step of refusal.dinah.malformed-urgency. It names the three spellings the dinah.urgency block reads: a weight with no quotes, a list written on one line in brackets, and a comment on a line by itself rather than after a value. The bracketed list is syntax and stays as it is.",
+      "source": "489609645778bde"
+    },
+    "refusal.dinah.card-not-in-view": {
+      "text": "दृश्य {view} का कोई भी खंड {detail} को नहीं चुनता",
+      "context": "The sentence printed after the refusal name dinah.card-not-in-view, which `dinah view <view> <card>` carries when the card exists and no section of the view selects it, so there is no row to narrow the view to. {view} is the view's name and {detail} is the card's reference. refusal.dinah.card-not-in-view.next is spliced on after it.",
+      "source": "103050cdd5d02e66"
+    },
+    "refusal.dinah.card-not-in-view.next": {
+      "text": "; `dinah view {view}` दिखाता है कि वह क्या चुनता है",
+      "context": "The next step of refusal.dinah.card-not-in-view. The command inside it is syntax and stays as it is, with {view} the view's name.",
+      "source": "2a18a856e7c33c7e"
+    },
+    "refusal.dinah.view-not-ranked": {
+      "text": "दृश्य {detail} {order} के क्रम में है, जो किसी को श्रेणी नहीं देता, इसलिए समझाने के लिए कोई गणना नहीं है",
+      "context": "The sentence printed after the refusal name dinah.view-not-ranked, which `dinah view --explain` carries on a view whose order is not urgency. {detail} is the view's name and {order} is the order it declares, a machine word that is never translated. refusal.dinah.view-not-ranked.next is spliced on after it.",
+      "source": "e272a20433e77167"
+    },
+    "refusal.dinah.view-not-ranked.next": {
+      "text": "; `dinah view {view}` इसे --explain के बिना बनाता है",
+      "context": "The next step of refusal.dinah.view-not-ranked. The command inside it is syntax and stays as it is, with {view} the view's name, and --explain is the flag the reader typed.",
+      "source": "3de4c95aff4e0d2d"
     },
     "refusal.dinah.unknown-command": {
       "text": "Dinah {detail} नाम की कोई कमांड नहीं देती",
@@ -7095,6 +7155,208 @@
       "context": "The title of the second section of the built-in view mine: the cards now blocked on which the caller recorded a block, whether or not the caller ever held them.",
       "source": "426c7a7dae2ace6e"
     },
+    "view.agenda.title": {
+      "text": "पहले मुझे किसकी ज़रूरत है",
+      "context": "The title of the built-in view named agenda, which ranks the cards the caller can act on by urgency, most urgent first.",
+      "source": "70a69394dc567e1a"
+    },
+    "view.agenda.actionable": {
+      "text": "कार्ड जिन पर आप कार्य कर सकते हैं",
+      "context": "The title of the one section of the built-in view agenda: the cards the caller can act on now.",
+      "source": "306da39ed5bce42a"
+    },
+    "view.urgency.why.waits-on-you": {
+      "text": "आपकी प्रतीक्षा में",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores a card standing in a column the operator owns. The cell joins the phrases of every term that moved the card with a comma.",
+      "source": "62b18cf0beefaddd"
+    },
+    "view.urgency.why.your-question.one": {
+      "text": "आपका प्रश्न",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores the open questions and decisions on a card that are the reader's, when it counted exactly one.",
+      "source": "f56642b7d636749e"
+    },
+    "view.urgency.why.your-question.other": {
+      "text": "आपके प्रश्न ({count})",
+      "context": "The same as view.urgency.why.your-question.one, when the term counted any other number of items. {count} is how many it counted.",
+      "source": "a0efb4f9f2dd0711"
+    },
+    "view.urgency.why.blocked": {
+      "text": "अवरुद्ध",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores a blocked card.",
+      "source": "7efbf1594f60e733"
+    },
+    "view.urgency.why.age.one": {
+      "text": "यहाँ {count} दिन",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores how many whole days a card has stood in its current column, when that is exactly one.",
+      "source": "789c942d8ed43154"
+    },
+    "view.urgency.why.age.other": {
+      "text": "यहाँ {count} दिन",
+      "context": "The same as view.urgency.why.age.one, for any other number of whole days. {count} is that number.",
+      "source": "1d019f2d04daa193"
+    },
+    "view.urgency.why.stale-claim": {
+      "text": "समाप्त दावा",
+      "context": "One phrase of the Why cell in a view ordered by urgency, naming the term that scores a ready card whose last claim lapsed rather than being released or moved.",
+      "source": "ebaaabc57f2af26"
+    },
+    "view.urgency.term.waits-on-you": {
+      "text": "आपकी प्रतीक्षा में",
+      "context": "The label of one term line --explain prints, in a list of the eight terms of the urgency order. This term scores a card standing in a column the operator owns.",
+      "source": "62b18cf0beefaddd"
+    },
+    "view.urgency.term.your-question": {
+      "text": "आपका प्रश्न",
+      "context": "The label of one term line --explain prints. This term scores the open questions and decisions on a card that are the reader's to answer.",
+      "source": "f56642b7d636749e"
+    },
+    "view.urgency.term.priority": {
+      "text": "प्राथमिकता",
+      "context": "The label of one term line --explain prints. This term scores the card's priority.",
+      "source": "f5b6ea8c35ac1e89"
+    },
+    "view.urgency.term.severity": {
+      "text": "गंभीरता",
+      "context": "The label of one term line --explain prints. This term scores the card's severity.",
+      "source": "70ea1438b142a712"
+    },
+    "view.urgency.term.blocked": {
+      "text": "अवरुद्ध",
+      "context": "The label of one term line --explain prints. This term scores a blocked card.",
+      "source": "7efbf1594f60e733"
+    },
+    "view.urgency.term.blocks-others": {
+      "text": "दूसरों को रोकता है",
+      "context": "The label of one term line --explain prints. This term will score the unfinished cards a card blocks, once blocks links carry a meaning, and scores nothing until then.",
+      "source": "5d8a3ddc7e54256e"
+    },
+    "view.urgency.term.age": {
+      "text": "आयु",
+      "context": "The label of one term line --explain prints. This term scores the whole days a card has stood in its current column.",
+      "source": "e715b4190539215c"
+    },
+    "view.urgency.term.stale-claim": {
+      "text": "समाप्त दावा",
+      "context": "The label of one term line --explain prints. This term scores a ready card whose last claim lapsed.",
+      "source": "ebaaabc57f2af26"
+    },
+    "view.urgency.total": {
+      "text": "तात्कालिकता",
+      "context": "The label of the total line --explain prints under the rule, beside the card's score, which is the sum of the eight term figures above it.",
+      "source": "1e5208cf5eb1abd4"
+    },
+    "view.urgency.explain.waits-on-you.owned": {
+      "text": "{column} आपका है",
+      "context": "The phrase --explain prints for the waits-on-you term when the operator owns the column the card stands in. {column} is that column's title.",
+      "source": "409fe2b1535390a5"
+    },
+    "view.urgency.explain.waits-on-you.unowned": {
+      "text": "{column} आपका नहीं है",
+      "context": "The phrase --explain prints for the waits-on-you term when the reader is the operator and does not own the column the card stands in, or the column is a done column. {column} is that column's title.",
+      "source": "4339bba5483f5e00"
+    },
+    "view.urgency.explain.waits-on-you.agent": {
+      "text": "केवल ऑपरेटर किसी कॉलम का स्वामी होता है",
+      "context": "The phrase --explain prints for the waits-on-you term when the reader is not the operator. The only ownership a column declares is the operator's, so the term never applies to anybody else.",
+      "source": "e72ff67340eb8cac"
+    },
+    "view.urgency.explain.your-question.none": {
+      "text": "इसकी कोई भी मद आपकी नहीं है",
+      "context": "The phrase --explain prints for the your-question term when no open question or decision on the card is the reader's to answer.",
+      "source": "b18cef8461d71382"
+    },
+    "view.urgency.explain.your-question.one": {
+      "text": "इसकी {count} मद आपकी है, प्रत्येक {per-item}",
+      "context": "The phrase --explain prints for the your-question term when exactly one item on the card is the reader's. {count} is that number, and {per-item} is the points each counted item scores.",
+      "source": "75ef6a706f980cbb"
+    },
+    "view.urgency.explain.your-question.other": {
+      "text": "इसकी {count} मदें आपकी हैं, {counted} गिनी गईं, प्रत्येक {per-item}",
+      "context": "The same as view.urgency.explain.your-question.one, for any other number. {count} is how many items are the reader's, {counted} is how many the cap let the term count, and {per-item} is the points each counted item scores.",
+      "source": "8d41adee0121a567"
+    },
+    "view.urgency.explain.priority.none": {
+      "text": "कोई प्राथमिकता नहीं",
+      "context": "The phrase --explain prints for the priority term when the card carries no priority. A card with none scores nothing, rather than scoring as the lowest level.",
+      "source": "baaf114973a07792"
+    },
+    "view.urgency.explain.severity.none": {
+      "text": "कोई गंभीरता नहीं",
+      "context": "The phrase --explain prints for the severity term when the card carries no severity. A card with none scores nothing, rather than scoring as the lowest level.",
+      "source": "66c04bce2e9ef0b9"
+    },
+    "view.urgency.explain.level": {
+      "text": "{level}, {of} में से श्रेणी {rank}",
+      "context": "The phrase --explain prints for the priority or severity term. {level} is the name the card carries, {rank} is its one-based position in the workbench's declared set, lowest first, and {of} is how many the set declares.",
+      "source": "cfd326248fa1dde9"
+    },
+    "view.urgency.explain.level.undeclared": {
+      "text": "{level} घोषित नहीं है",
+      "context": "The phrase --explain prints for the priority or severity term when the card carries a name the workbench does not declare on that axis, which scores nothing. {level} is that name.",
+      "source": "517091dea9fa0026"
+    },
+    "view.urgency.explain.blocked": {
+      "text": "अवरुद्ध",
+      "context": "The phrase --explain prints for the blocked term when the card is blocked and its block names no kind.",
+      "source": "7efbf1594f60e733"
+    },
+    "view.urgency.explain.blocked.kind": {
+      "text": "अवरुद्ध ({kind})",
+      "context": "The phrase --explain prints for the blocked term when the card is blocked. {kind} is the kind the block recorded, the blocker's own word, which is never translated.",
+      "source": "751c47bc2f56a1b4"
+    },
+    "view.urgency.explain.blocked.not": {
+      "text": "अवरुद्ध नहीं",
+      "context": "The phrase --explain prints for the blocked term when the card is not blocked.",
+      "source": "a85ec4143b0da0da"
+    },
+    "view.urgency.explain.blocks-others": {
+      "text": "blocks लिंक अभी पढ़े नहीं जाते",
+      "context": "The phrase --explain prints for the blocks-others term, which scores nothing because no build yet gives a blocks link a meaning. blocks is the link kind's machine word and is never translated.",
+      "source": "b59ef0ec2539e26d"
+    },
+    "view.urgency.explain.age.unknown": {
+      "text": "आगमन अज्ञात",
+      "context": "The phrase --explain prints for the age term when the card's journal could not be read, so the moment it entered its column is not known and the term counts no days.",
+      "source": "7a931c2a424cd21c"
+    },
+    "view.urgency.explain.age.one": {
+      "text": "{column} में {count} दिन, प्रति दिन {per-day}",
+      "context": "The phrase --explain prints for the age term when the card has stood exactly one whole day in its current column. {column} is that column's title and {per-day} is the points each day scores.",
+      "source": "27d5b85fac53914"
+    },
+    "view.urgency.explain.age.other": {
+      "text": "{column} में {count} दिन, प्रति दिन {per-day}",
+      "context": "The same as view.urgency.explain.age.one, for any other number of whole days after the cap. {count} is that number.",
+      "source": "c28508b62e6e27fb"
+    },
+    "view.urgency.explain.stale-claim": {
+      "text": "{holder} का दावा {expired} पर समाप्त हुआ",
+      "context": "The phrase --explain prints for the stale-claim term when the card's last claim lapsed. {holder} is the owner whose claim it was and {expired} is the moment it lapsed, as a timestamp.",
+      "source": "a35604a13f2879c0"
+    },
+    "view.urgency.explain.stale-claim.none": {
+      "text": "कोई समाप्त दावा नहीं",
+      "context": "The phrase --explain prints for the stale-claim term when the card's last claim did not lapse, or it carries none.",
+      "source": "8ca7e92a508c1131"
+    },
+    "view.urgency.explain.card": {
+      "text": "{card}: {title}",
+      "context": "The line --explain prints above the terms of the one card named after the view: the card's reference, then its title.",
+      "verbatim": true,
+      "source": "cc6228eaff147c53"
+    },
+    "view.urgency.explain.ranked": {
+      "text": "{rank}. {card}: {title}",
+      "context": "The line --explain prints above the terms of each card when no card is named, in rank order: the card's one-based rank within its section, its reference, then its title.",
+      "verbatim": true,
+      "source": "1c0cd5fee0bee843"
+    },
+    "view.urgency.explain.total": {
+      "text": "ऊपर के पदों का योग",
+      "context": "The phrase --explain prints on the total line, beside the label urgency and the card's score, saying that the score is the sum of the term figures printed above it.",
+      "source": "757abdf783fcbe79"
+    },
     "setup.operator.workbench": {
       "text": "वर्कबेंच का संचालक",
       "context": "Placed in parentheses after an agent name in the detail of dinah.setup-agent-is-operator, when the name equals the workbench's operator.",
@@ -7254,6 +7516,36 @@
       "text": "शीर्षक",
       "context": "Heading over a card's title, in a section of a view `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
       "source": "99f110d27e30b289"
+    },
+    "column.view.rank": {
+      "text": "श्रेणी",
+      "context": "Heading over a card's one-based rank within its section, in a view ordered by urgency that `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "9841212bd35bac27"
+    },
+    "column.view.urgency": {
+      "text": "तात्कालिकता",
+      "context": "Heading over a card's urgency score, in a view ordered by urgency that `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "43d6d38b31a03434"
+    },
+    "column.view.why": {
+      "text": "क्यों",
+      "context": "Heading over the terms that moved a card's score, in a view ordered by urgency that `dinah view` draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "74cf0a19e64a56d9"
+    },
+    "column.explain.term": {
+      "text": "पद",
+      "context": "Heading over the name of one term of a card's urgency, in the table --explain draws. The table draws no heading row, so a reader meets this heading only in the stacked form a narrow window draws, in front of each field. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "2470dafb1ae8a017"
+    },
+    "column.explain.reading": {
+      "text": "आधार",
+      "context": "Heading over what one term of a card's urgency read, such as the card's priority and its rank, in the table --explain draws. The table draws no heading row, so a reader meets this heading only in the stacked form a narrow window draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "ed2d55e3f811e34d"
+    },
+    "column.explain.points": {
+      "text": "अंक",
+      "context": "Heading over the points one term of a card's urgency contributed, in the table --explain draws. The table draws no heading row, so a reader meets this heading only in the stacked form a narrow window draws. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it. Each catalog decides for itself how a heading reads as a heading in its own language.",
+      "source": "cabf78417c4e5d86"
     },
     "column.setup-list.path": {
       "text": "पथ",

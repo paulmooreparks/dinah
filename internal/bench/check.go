@@ -339,6 +339,24 @@ const (
 	// language lives there, and it is cleanup: the view still draws, with the
 	// section marked refused where the refusal is one of vocabulary.
 	FindingViewQueryRefused = "check.view-query-refused"
+	// FindingUrgencyMalformed names a dinah.urgency block that cannot be
+	// used, so every view ordered by urgency refuses on this workbench.
+	// Detail is `dinah.urgency not-a-mapping`, or the path of the term at
+	// fault followed by `malformed-term`. It carries no severity, which reads
+	// as a defect.
+	FindingUrgencyMalformed = "check.urgency-malformed"
+	// FindingUrgencyMemberUnknown names one member of the dinah.urgency block
+	// this build does not read, which is ignored. Detail is the member's path
+	// within the block, such as age.perday. It is cleanup, and it exists so
+	// that a misspelt weight is visible rather than silently defaulted.
+	FindingUrgencyMemberUnknown = "check.urgency-member-unknown"
+	// FindingUrgencyLevelCount names a priority or severity list the
+	// dinah.urgency block declares whose length differs from the number of
+	// levels the workbench declares on that axis, zero included. Detail is
+	// `<axis> <list length> <declared count>`. It is cleanup, because the
+	// list still aligns at the top of the declared set; a list the block
+	// leaves out was never declared and never raises it.
+	FindingUrgencyLevelCount = "check.urgency-level-count"
 	// FindingRequiredFieldUndeclared names a column whose require_fields
 	// declaration carries a key the workbench does not declare. It holds
 	// nothing, because a key nothing can ever be written under would make the
@@ -609,6 +627,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	}
 	findings = append(findings, b.checkFieldDeclarations()...)
 	findings = append(findings, b.checkViews()...)
+	findings = append(findings, b.checkUrgency()...)
 	findings = append(findings, b.checkConditions()...)
 	findings = append(findings, b.checkRawLines()...)
 	newlineFindings, err := b.checkStoredNewlines()
@@ -1584,6 +1603,50 @@ func (b *Bench) checkViews() []Finding {
 				Severity: SeverityCleanup,
 			})
 		}
+	}
+	return findings
+}
+
+// checkUrgency reports a dinah.urgency block that cannot be used, the members
+// of it this build does not read, and a declared level list whose length
+// differs from the set it weights.
+func (b *Bench) checkUrgency() []Finding {
+	anchor := filepath.Join(b.Root, WorkbenchAnchor)
+	weights, defect := b.Urgency()
+	switch defect.Defect {
+	case UrgencyNotAMapping:
+		return []Finding{{Path: anchor, Key: FindingUrgencyMalformed, Detail: UrgencyKey + " " + UrgencyNotAMapping}}
+	case UrgencyMalformedTerm:
+		return []Finding{{Path: anchor, Key: FindingUrgencyMalformed, Detail: defect.Term + " " + UrgencyMalformedTerm}}
+	}
+	var findings []Finding
+	for _, member := range weights.Unknown {
+		findings = append(findings, Finding{
+			Path:     anchor,
+			Key:      FindingUrgencyMemberUnknown,
+			Detail:   member,
+			Severity: SeverityCleanup,
+		})
+	}
+	lists := []struct {
+		axis     string
+		declared bool
+		list     []int64
+	}{
+		{axis: SeverityField, declared: weights.SeverityDeclared, list: weights.Severity},
+		{axis: PriorityField, declared: weights.PriorityDeclared, list: weights.Priority},
+	}
+	for _, entry := range lists {
+		count := len(b.Levels(entry.axis))
+		if !entry.declared || len(entry.list) == count {
+			continue
+		}
+		findings = append(findings, Finding{
+			Path:     anchor,
+			Key:      FindingUrgencyLevelCount,
+			Detail:   entry.axis + " " + strconv.Itoa(len(entry.list)) + " " + strconv.Itoa(count),
+			Severity: SeverityCleanup,
+		})
 	}
 	return findings
 }

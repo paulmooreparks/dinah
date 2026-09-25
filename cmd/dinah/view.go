@@ -20,6 +20,8 @@ import (
 func runView(s *session, parsed *arguments) int {
 	req := s.request("view", parsed)
 	req.View = at(parsed.rest(), 0)
+	req.Card = at(parsed.rest(), 1)
+	req.Explain = parsed.has("explain")
 	req.Lang = s.r.Tag
 	return s.withBench(func(l *verb.Library) int {
 		if req.View == "" {
@@ -37,6 +39,10 @@ func runView(s *session, parsed *arguments) int {
 		}
 		if s.format != formatHuman {
 			return s.emitMachine(answer)
+		}
+		if answer.View.Explained && req.Card != "" {
+			s.renderExplainedCard(answer.View, l.Bench.Operator)
+			return 0
 		}
 		s.renderView(answer, l.Bench.Operator)
 		return 0
@@ -111,6 +117,10 @@ func (s *session) renderView(answer *verb.ViewAnswer, operator string) {
 			s.renderRefusedSection(section)
 		case section.Count == 0:
 			s.line(s.wrappedLine(2, s.r.T("view.section.empty")))
+		case body.Order == bench.ViewOrderUrgency && body.Explained:
+			s.renderExplainedSection(section, body.Actor, operator)
+		case body.Order == bench.ViewOrderUrgency:
+			s.renderRankedSection(section, body.Actor)
 		default:
 			cards := table{
 				indent:          2,

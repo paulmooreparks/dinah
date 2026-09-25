@@ -42,6 +42,7 @@ type builtinView struct {
 type builtinSection struct {
 	titleKey string
 	query    string
+	scope    string
 }
 
 // builtinViews is every view Dinah declares, in the order a listing reads them
@@ -54,7 +55,22 @@ type builtinSection struct {
 // caller's to chase. The act plane has no way to ask whether the caller's
 // block is the current one, so a card the caller blocked and somebody else
 // blocked again after an unblock still appears.
+//
+// agenda ranks the cards the caller can act on by urgency. Its selection is
+// a scope rather than a query, because the cards next would offer depend on
+// the caller's tier, every card's route and every claim, which no query can
+// say, and a person replacing the view keeps the selection by writing the
+// same scope.
 var builtinViews = []builtinView{
+	{
+		name:     "agenda",
+		titleKey: "view.agenda.title",
+		layout:   bench.ViewLayoutList,
+		order:    bench.ViewOrderUrgency,
+		sections: []builtinSection{
+			{titleKey: "view.agenda.actionable", scope: bench.ViewScopeActionable},
+		},
+	},
 	{
 		name:     "mine",
 		titleKey: "view.mine.title",
@@ -94,22 +110,27 @@ type ViewAnswer struct {
 
 // ViewBody is one drawn view. Title, Layout and Order are the effective
 // values, and Actor is the actor the sections were asked as, empty where none
-// resolved.
+// resolved. Explained says the draw was asked to explain its ranks, so every
+// ranked card carries all eight of its terms.
 type ViewBody struct {
-	Name     string              `json:"name"`
-	Title    string              `json:"title"`
-	Layout   string              `json:"layout"`
-	Order    string              `json:"order"`
-	Source   string              `json:"source"`
-	Actor    string              `json:"actor"`
-	Sections []ViewSectionAnswer `json:"sections"`
+	Name      string              `json:"name"`
+	Title     string              `json:"title"`
+	Layout    string              `json:"layout"`
+	Order     string              `json:"order"`
+	Source    string              `json:"source"`
+	Actor     string              `json:"actor"`
+	Explained bool                `json:"explained"`
+	Sections  []ViewSectionAnswer `json:"sections"`
 }
 
 // ViewSectionAnswer is one drawn section. Every member is present on every
 // section and none is ever null.
 //
-// Query is the query exactly as declared, before @me is expanded. Cards are
-// the cards the section selected, in the view's order. Items maps each card
+// Query is the query exactly as declared, before @me is expanded, and empty
+// on a section that selects by scope alone. Scope is the section's scope, or
+// empty. Cards are the cards the section selected, in the view's order.
+// Urgency maps each card reference to its rank and score on a view ordered
+// by urgency, and is empty on a view ordered any other way. Items maps each card
 // reference to the references of every item that witnessed its selection, in
 // stored order, and is empty on a section whose query names no item field.
 // The Refused members describe a section this workbench could not ask, which
@@ -117,16 +138,18 @@ type ViewBody struct {
 // context is an empty object. The context is the refusal's named values, the
 // same map a refusal envelope publishes, and never a composed sentence.
 type ViewSectionAnswer struct {
-	Title          string              `json:"title"`
-	Query          string              `json:"query"`
-	Cards          []CardView          `json:"cards"`
-	Count          int                 `json:"count"`
-	Items          map[string][]string `json:"items"`
-	Refused        string              `json:"refused"`
-	RefusedDetail  string              `json:"refused_detail"`
-	RefusedField   string              `json:"refused_field"`
-	RefusedTerm    string              `json:"refused_term"`
-	RefusedContext map[string]string   `json:"refused_context"`
+	Title          string                   `json:"title"`
+	Query          string                   `json:"query"`
+	Scope          string                   `json:"scope"`
+	Cards          []CardView               `json:"cards"`
+	Count          int                      `json:"count"`
+	Items          map[string][]string      `json:"items"`
+	Urgency        map[string]UrgencyAnswer `json:"urgency"`
+	Refused        string                   `json:"refused"`
+	RefusedDetail  string                   `json:"refused_detail"`
+	RefusedField   string                   `json:"refused_field"`
+	RefusedTerm    string                   `json:"refused_term"`
+	RefusedContext map[string]string        `json:"refused_context"`
 }
 
 // ListViews answers dinah view with no name: every view the caller can see,
@@ -162,7 +185,11 @@ func (l *Library) ListViews(req *Request) (*ViewListing, error) {
 
 // DrawView answers dinah view <name>. It runs its refusals in the order the
 // verb's contract fixes, and it composes the whole answer before returning
-// it, so a refused view prints nothing at all.
+// it, so a refused view prints nothing at all. After the view is found and
+// found well formed, --explain on a view that ranks nothing refuses, then a
+// card that does not resolve, then a missing actor where the view ranks or
+// scopes, then a dinah.urgency block that cannot be read where it ranks, and
+// last, once every section is drawn, a card no section selected.
 //
 // Each section runs the whole query path with @me expanded to the caller. A
 // section refused by a check that says this workbench's own vocabulary lacks
@@ -187,36 +214,134 @@ func (l *Library) DrawView(req *Request) (*ViewAnswer, error) {
 			"source": view.Source,
 		})
 	}
+	order := view.EffectiveOrder()
+	ranked := order == bench.ViewOrderUrgency
+	if req.Explain && !ranked {
+		return nil, contract.RefuseWith(contract.ViewNotRanked, view.Name, map[string]string{
+			viewValueView: view.Name,
+			"order":       order,
+		})
+	}
+	var focus *bench.Card
+	if req.Card != "" {
+		found, err := l.Bench.ResolveCard(req.Card)
+		if err != nil {
+			return nil, err
+		}
+		focus = found.Card
+	}
+	scoped := viewScoped(view)
+	if (ranked || scoped) && req.Actor == "" {
+		var extra map[string]string
+		if req.Harness != "" {
+			extra = map[string]string{contract.ValueHarness: req.Harness}
+		}
+		return nil, contract.RefuseWith(contract.NoOwner, "", extra)
+	}
+	weights, defect := l.Bench.Urgency()
+	if ranked && defect.Defect != "" {
+		return nil, contract.RefuseWith(contract.MalformedUrgency, view.Name, map[string]string{
+			"defect": defect.Defect,
+			"term":   defect.Term,
+			"read":   defect.Read,
+		})
+	}
+	var draw *viewDraw
+	if ranked || scoped {
+		var err error
+		draw, err = l.newViewDraw(req, weights)
+		if err != nil {
+			return nil, err
+		}
+	}
 	me := meExpansion{enabled: true, actor: req.Actor, harness: req.Harness}
 	body := ViewBody{
-		Name:     view.Name,
-		Title:    view.EffectiveTitle(),
-		Layout:   view.EffectiveLayout(),
-		Order:    view.EffectiveOrder(),
-		Source:   view.Source,
-		Actor:    req.Actor,
-		Sections: []ViewSectionAnswer{},
+		Name:      view.Name,
+		Title:     view.EffectiveTitle(),
+		Layout:    view.EffectiveLayout(),
+		Order:     order,
+		Source:    view.Source,
+		Actor:     req.Actor,
+		Explained: req.Explain,
+		Sections:  []ViewSectionAnswer{},
 	}
 	for i, section := range view.Sections {
-		answer, err := l.drawSection(section, view.EffectiveOrder(), req.Actor, me)
+		answer, err := l.drawSection(section, order, req.Actor, me, draw, req.Explain)
 		if err != nil {
 			err = contract.With(err, viewValueView, view.Name)
 			return nil, contract.With(err, viewValueSection, strconv.Itoa(i+1))
 		}
 		body.Sections = append(body.Sections, *answer)
 	}
+	if focus != nil && !narrowTo(&body, focus.ID) {
+		return nil, contract.RefuseWith(contract.CardNotInView, focus.Ref(l.Bench.Slug), map[string]string{
+			viewValueView: view.Name,
+		})
+	}
 	return &ViewAnswer{View: body}, nil
+}
+
+// viewScoped reports whether any section of a view selects by scope, which
+// needs the caller's actionable set and so an actor.
+func viewScoped(view bench.View) bool {
+	for _, section := range view.Sections {
+		if section.Scope != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// narrowTo keeps one card's row in every section that holds it, with the rank
+// it holds in the full section, and empties every other section. A section
+// this workbench could not ask keeps its refusal. It reports whether any
+// section held the card.
+func narrowTo(body *ViewBody, id string) bool {
+	held := false
+	for i := range body.Sections {
+		section := &body.Sections[i]
+		if section.Refused != "" {
+			continue
+		}
+		kept := []CardView{}
+		items := map[string][]string{}
+		urgency := map[string]UrgencyAnswer{}
+		for _, card := range section.Cards {
+			if card.ID != id {
+				continue
+			}
+			kept = append(kept, card)
+			if witnesses, ok := section.Items[card.Ref]; ok {
+				items[card.Ref] = witnesses
+			}
+			if answer, ok := section.Urgency[card.Ref]; ok {
+				urgency[card.Ref] = answer
+			}
+		}
+		held = held || len(kept) > 0
+		section.Cards, section.Count, section.Items, section.Urgency = kept, len(kept), items, urgency
+	}
+	return held
 }
 
 // drawSection asks one section's question and answers it, or answers the
 // refusal a vocabulary check raised as a refused section.
-func (l *Library) drawSection(section bench.ViewSection, order, actor string, me meExpansion) (*ViewSectionAnswer, error) {
+//
+// A section carrying a scope and no query selects the scope's cards, and one
+// carrying both selects the cards the query matches that are also in the
+// scope. draw is nil on a view that neither ranks nor scopes.
+func (l *Library) drawSection(section bench.ViewSection, order, actor string, me meExpansion, draw *viewDraw, explained bool) (*ViewSectionAnswer, error) {
 	answer := &ViewSectionAnswer{
 		Title:          section.Heading(),
 		Query:          section.Query,
+		Scope:          section.Scope,
 		Cards:          []CardView{},
 		Items:          map[string][]string{},
+		Urgency:        map[string]UrgencyAnswer{},
 		RefusedContext: map[string]string{},
+	}
+	if strings.TrimSpace(section.Query) == "" {
+		return l.fillSection(answer, nil, draw.actionableCards(), order, draw, explained)
 	}
 	parsed, matched, _, fault, err := l.selectionQuery(section.Query, actor, me)
 	if err != nil {
@@ -233,13 +358,45 @@ func (l *Library) drawSection(section bench.ViewSection, order, actor string, me
 		}
 		return answer, nil
 	}
-	l.orderSection(matched, order)
-	for _, card := range matched {
+	if section.Scope != "" {
+		var inScope []*bench.Card
+		for _, card := range matched {
+			if draw.actionable[card.ID] {
+				inScope = append(inScope, draw.current(card))
+			}
+		}
+		matched = inScope
+	}
+	return l.fillSection(answer, parsed, matched, order, draw, explained)
+}
+
+// fillSection puts a section's selected cards in the view's order and writes
+// them into its answer, with the items that witnessed each selection where a
+// query named an item field, and each card's rank and score on a view ordered
+// by urgency.
+func (l *Library) fillSection(answer *ViewSectionAnswer, parsed *query, matched []*bench.Card, order string, draw *viewDraw, explained bool) (*ViewSectionAnswer, error) {
+	var scores []urgencyScore
+	if order == bench.ViewOrderUrgency {
+		ranked, err := draw.rank(matched)
+		if err != nil {
+			return nil, err
+		}
+		scores = ranked
+	} else {
+		l.orderSection(matched, order)
+	}
+	for i, card := range matched {
 		view, err := l.view(card)
 		if err != nil {
 			return nil, err
 		}
 		answer.Cards = append(answer.Cards, *view)
+		if scores != nil {
+			answer.Urgency[view.Ref] = scores[i].answer(i+1, explained)
+		}
+		if parsed == nil {
+			continue
+		}
 		witnesses, err := l.itemWitnesses(parsed, card, card.Ref(l.Bench.Slug))
 		if err != nil {
 			return nil, err
@@ -319,6 +476,7 @@ func builtins(lang string) []bench.View {
 			view.Sections = append(view.Sections, bench.ViewSection{
 				Title: catalog.T(section.titleKey),
 				Query: section.query,
+				Scope: section.scope,
 			})
 		}
 		views = append(views, view)
@@ -379,6 +537,9 @@ func (l *Library) refusedViewQueries() []viewQueryRefusal {
 			continue
 		}
 		for i, section := range view.Sections {
+			if section.Query == "" {
+				continue
+			}
 			parsed, _, err := l.parseQuery(section.Query)
 			if err == nil {
 				_, err = l.checkVocabularies(parsed)

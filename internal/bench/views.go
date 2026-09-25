@@ -27,7 +27,7 @@ const (
 	ViewSourceBuiltIn   = "built-in"
 )
 
-// The seven defects that make a view malformed, as machine tokens. A view
+// The eight defects that make a view malformed, as machine tokens. A view
 // carries at most one, the first of these that applies, tried in this order.
 const (
 	ViewInvalidName         = "invalid-name"
@@ -37,13 +37,14 @@ const (
 	ViewSectionWithoutQuery = "section-without-query"
 	ViewUnknownLayout       = "unknown-layout"
 	ViewUnknownOrder        = "unknown-order"
+	ViewUnknownScope        = "unknown-scope"
 )
 
 // ViewDefects is the closed set of defect tokens, in the order a view is
 // tried against them.
 var ViewDefects = []string{
 	ViewInvalidName, ViewNotAMapping, ViewMalformedMember, ViewNoSections,
-	ViewSectionWithoutQuery, ViewUnknownLayout, ViewUnknownOrder,
+	ViewSectionWithoutQuery, ViewUnknownLayout, ViewUnknownOrder, ViewUnknownScope,
 }
 
 // The layout and order words this build draws. A later build adds a word to
@@ -53,14 +54,24 @@ const (
 	ViewLayoutList   = "list"
 	ViewOrderArrival = "arrival"
 	ViewOrderColumn  = "column"
+	ViewOrderUrgency = "urgency"
 )
 
 // ViewLayouts and ViewOrders are the values this build admits for a view's
 // layout and order. A value outside them makes the view malformed.
 var (
 	ViewLayouts = []string{ViewLayoutList}
-	ViewOrders  = []string{ViewOrderArrival, ViewOrderColumn}
+	ViewOrders  = []string{ViewOrderArrival, ViewOrderColumn, ViewOrderUrgency}
 )
+
+// ViewScopeActionable is the one scope this build admits: the cards the
+// caller can act on, which no query can express because it depends on the
+// caller's tier, every card's route and every claim.
+const ViewScopeActionable = "actionable"
+
+// ViewScopes are the values this build admits for a section's scope. A value
+// outside them makes the view malformed.
+var ViewScopes = []string{ViewScopeActionable}
 
 // The member names a view and a section may carry. Anything else is ignored
 // and reported by check as a member this build does not read.
@@ -71,6 +82,7 @@ const (
 	viewCollapsed = "collapsed"
 	viewSections  = "sections"
 	sectionQuery  = "query"
+	sectionScope  = "scope"
 )
 
 // View is one declared view, as read. Every member is kept as the file
@@ -89,11 +101,13 @@ type View struct {
 	Unknown      []string // the member paths check reports, in the order read
 }
 
-// ViewSection is one section of a view: a query and the heading it is drawn
-// under.
+// ViewSection is one section of a view: a query, a scope, or both, and the
+// heading it is drawn under. A section carrying both selects the cards the
+// query matches that are also in the scope.
 type ViewSection struct {
 	Title string // "" where absent or blank
 	Query string
+	Scope string // "" where absent; one of ViewScopes on a view that can be drawn
 }
 
 // EffectiveTitle is the view's title, or its name where it declares none.
@@ -121,12 +135,15 @@ func (v View) EffectiveOrder() string {
 }
 
 // Heading is the section's title, or its query exactly as declared where it
-// declares none.
+// declares none, or its scope word where it declares neither.
 func (s ViewSection) Heading() string {
 	if s.Title != "" {
 		return s.Title
 	}
-	return s.Query
+	if s.Query != "" {
+		return s.Query
+	}
+	return s.Scope
 }
 
 // ReadViews reads the dinah.views key of whatever frontmatter it is handed,
@@ -224,7 +241,7 @@ func readView(name string, raw json.RawMessage, source string) View {
 		defects = append(defects, ViewNoSections)
 	}
 	for _, section := range view.Sections {
-		if strings.TrimSpace(section.Query) == "" {
+		if strings.TrimSpace(section.Query) == "" && section.Scope == "" {
 			defects = append(defects, ViewSectionWithoutQuery)
 			break
 		}
@@ -234,6 +251,12 @@ func readView(name string, raw json.RawMessage, source string) View {
 	}
 	if view.Order != "" && !containsWord(ViewOrders, view.Order) {
 		defects = append(defects, ViewUnknownOrder)
+	}
+	for _, section := range view.Sections {
+		if section.Scope != "" && !containsWord(ViewScopes, section.Scope) {
+			defects = append(defects, ViewUnknownScope)
+			break
+		}
 	}
 	view.Defect = firstDefect(defects)
 	return view
@@ -251,17 +274,20 @@ func readViewSection(raw json.RawMessage, position int) (ViewSection, []string, 
 	ok := true
 	for _, member := range members {
 		switch member.name {
-		case viewTitle, sectionQuery:
+		case viewTitle, sectionQuery, sectionScope:
 			text, scalar := viewScalar(member.value)
 			if !scalar {
 				ok = false
 				continue
 			}
-			if member.name == viewTitle {
+			switch member.name {
+			case viewTitle:
 				section.Title = blankAsAbsent(text)
-				continue
+			case sectionQuery:
+				section.Query = text
+			case sectionScope:
+				section.Scope = text
 			}
-			section.Query = text
 		default:
 			unknown = append(unknown, viewSections+"/"+strconv.Itoa(position)+"/"+member.name)
 		}
