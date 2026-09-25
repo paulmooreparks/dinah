@@ -1,0 +1,26 @@
+{
+  "outcome": "refused",
+  "verb": "claim",
+  "refusal": "held",
+  "detail": "alka",
+  "card": {
+    "id": "<id-1>",
+    "ref": "gd-1",
+    "title": "A card",
+    "column": "<id-2>",
+    "column_title": "Build",
+    "state": "active",
+    "pull_destination": "review",
+    "holder": "alka",
+    "claim_since": "<ts>",
+    "revision": "sha256:<hex-1>"
+  },
+  "affordances": [
+    "move",
+    "release",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ]
+}

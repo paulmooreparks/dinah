@@ -1,0 +1,16 @@
+{
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "identity": {
+    "actor": "alka",
+    "is_operator": true,
+    "operator": "alka",
+    "harness": "golden",
+    "provider": "golden-provider",
+    "model": "golden-model",
+    "server": "golden.invalid"
+  }
+}

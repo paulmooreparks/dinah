@@ -1,0 +1,10 @@
+{
+  "outcome": "ok",
+  "verb": "archive",
+  "detail": "<id-1>",
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ]
+}

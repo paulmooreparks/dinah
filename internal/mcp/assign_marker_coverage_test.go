@@ -5,15 +5,17 @@ import (
 	"sort"
 	"testing"
 
+	"dinah/internal/answer"
 	"dinah/internal/verb"
 )
 
 // TestAssignMarkerCoversEveryPublishedMarker asserts that every Marker
 // parameter this head's own tool table publishes reaches its own field of
-// the request through assignMarker, catching the shape dinah-543's own
+// the request through answer.Build, catching the shape dinah-543's own
 // "all" flag almost shipped in: a marker added to a published tool's schema
-// and never wired into dispatch, which assignMarker's switch drops silently
-// rather than refusing (mcp.go:1000-1043, no default branch).
+// and never wired into dispatch, which the builder's marker switch drops
+// silently rather than refusing (assignMarker in internal/answer/build.go,
+// which has no default branch).
 //
 // The walk is table-driven over the live parameter declarations rather than
 // a fixed list of names, per the specification's own reasoning: it does not
@@ -32,8 +34,9 @@ import (
 // from the changes tool's own published schema.
 func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 	type marker struct {
-		name  string
-		field string
+		name    string
+		field   string
+		command string
 	}
 	byName := map[string]marker{}
 	walked := 0
@@ -47,7 +50,7 @@ func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 				t.Fatalf("%s's marker %q names the field %q, and another tool already named %q for the same marker",
 					served.name, param.Name, param.Field, existing.field)
 			}
-			byName[param.Name] = marker{name: param.Name, field: param.Field}
+			byName[param.Name] = marker{name: param.Name, field: param.Field, command: served.command}
 		}
 	}
 	if walked == 0 {
@@ -64,7 +67,7 @@ func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 		t.Fatalf("swept %d markers, wanted 34 (twenty-four already wired, plus migrate-designations, rehearse and force-claims from dinah-472, plus migrate-applies-when from dinah-590, plus file-standing and migrate-raw-lines from dinah-593, plus explain from dinah-602, plus plain and watch from dinah-288, plus migrate-schedule from dinah-605)", len(names))
 	}
 
-	// Each marker is exercised for real, through assignMarker itself, rather
+	// Each marker is exercised for real, through the builder itself, rather
 	// than by reading its source: the field the parameter names is read back
 	// by reflection after the call, so a case that is missing, that writes
 	// the wrong field, or that assignMarker's fallthrough silently drops (the
@@ -73,8 +76,7 @@ func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 	for _, name := range names {
 		m := byName[name]
 		t.Run(name, func(t *testing.T) {
-			req := &verb.Request{}
-			assignMarker(req, m.name, true)
+			req := answer.Build(m.command, map[string]any{m.name: true})
 			value := reflect.ValueOf(req).Elem().FieldByName(m.field)
 			if !value.IsValid() {
 				t.Fatalf("the marker %q names the field %q, and Request declares no such field", m.name, m.field)
@@ -83,7 +85,7 @@ func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 				t.Fatalf("the marker %q names the field %q, which is not a bool", m.name, m.field)
 			}
 			if !value.Bool() {
-				t.Errorf("assignMarker(%q, true) left %s false, so this marker reaches no case", m.name, m.field)
+				t.Errorf("answer.Build with %q true left %s false, so this marker reaches no case", m.name, m.field)
 			}
 		})
 	}

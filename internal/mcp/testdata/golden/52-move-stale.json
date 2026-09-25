@@ -1,0 +1,28 @@
+{
+  "outcome": "stale",
+  "verb": "move",
+  "card": {
+    "id": "<id-1>",
+    "ref": "gd-1",
+    "title": "A renamed card",
+    "column": "<id-2>",
+    "column_title": "Build",
+    "state": "active",
+    "pull_destination": "review",
+    "holder": "alka",
+    "claim_since": "<ts>",
+    "revision": "sha256:<hex-1>",
+    "attachment_count": 1,
+    "checklist_count": 5,
+    "child_count": 8
+  },
+  "basis": "sha256:<hex-2>",
+  "affordances": [
+    "move",
+    "release",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "outcome": "ok",
+  "verb": "restore",
+  "detail": "<id-1>",
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "outcome": "ok",
+  "verb": "claim",
+  "card": {
+    "id": "<id-1>",
+    "ref": "gd-1",
+    "title": "A renamed card",
+    "column": "<id-2>",
+    "column_title": "Build",
+    "state": "active",
+    "pull_destination": "review",
+    "holder": "alka",
+    "claim_since": "<ts>",
+    "revision": "sha256:<hex-1>",
+    "attachment_count": 1,
+    "checklist_count": 5,
+    "child_count": 8
+  },
+  "basis": "sha256:<hex-1>",
+  "instructions": {
+    "standing": "Standing text.\n",
+    "column": "Build text.\n"
+  },
+  "legal_moves": [
+    {
+      "column": "<id-3>",
+      "ref": "intake",
+      "title": "Intake",
+      "direction": "backward"
+    },
+    {
+      "column": "<id-4>",
+      "ref": "review",
+      "title": "Review",
+      "direction": "forward",
+      "on_route": true
+    },
+    {
+      "column": "<id-5>",
+      "ref": "finished",
+      "title": "Finished",
+      "direction": "forward"
+    }
+  ],
+  "affordances": [
+    "move",
+    "release",
+    "block",
+    "comment",
+    "show",
+    "list"
+  ]
+}

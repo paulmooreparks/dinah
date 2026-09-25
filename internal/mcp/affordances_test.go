@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"dinah/internal/answer"
 	"dinah/internal/verb"
 )
 
@@ -29,7 +30,7 @@ func TestEveryPublishedAffordanceNamesAServedTool(t *testing.T) {
 	}
 	library := newLibrary(t)
 	published := map[string][]string{
-		"readAffordances":          readAffordances,
+		"readAffordances":          answer.ReadAffordances(),
 		"the next_card answer":     affordancesOf(t, library, "next_card", map[string]any{"actor": "alka"}),
 		"the show answer":          affordancesOf(t, library, "show", map[string]any{"actor": "alka", "card": "fx-1"}),
 		"the list answer":          affordancesOf(t, library, "list", map[string]any{"actor": "alka", "ref": "columns"}),

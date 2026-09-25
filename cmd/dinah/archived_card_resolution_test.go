@@ -153,9 +153,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "B", axis: "reaching",
 		what:      "the half-taking resolvers anywhere, and ArchivedHalf named from outside internal/bench",
-		files:     7,
-		mentions:  22,
-		functions: 14,
+		files:     9,
+		mentions:  27,
+		functions: 17,
 		sites: []resolutionSite{
 			{"cmd/dinah/commands.go", "runPath", 2, "the --archived flag of dinah path, propagating the resolver's error"},
 			{"internal/bench/entity.go", "ResolveEntity", 1, "the one-line live delegate for an entity"},
@@ -171,6 +171,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/resolve.go", "CollectionRootIn", 1, "composes the directory one top-level collection occupies in a half, which reaches no card and resolves no reference"},
 			{"internal/verb/list.go", "ListRef", 1, "the one resolution list performs, taking the half from halfFor exactly as show does"},
 			{"internal/verb/list.go", "Rosters", 3, "the roster counts, which name the half and compose each collection's directory in it; they count directory entries and reach no card"},
+			{"internal/httphead/acts.go", "commentTarget", 1, "the HTTP head asking whether a POST below a card or a column names a comments collection, in the live half; it resolves the reference only to choose the route's answer, and the library resolves it again for the comment it writes"},
+			{"internal/httphead/reads.go", "readBelow", 2, "the HTTP head asking whether a GET below a card or a column names a collection, in the half the request's archived marker chooses, to choose between list and show; the library resolves the reference again for the read it runs"},
+			{"internal/httphead/reads.go", "resolveKind", 2, "the HTTP head checking that the first variable of a card or column path names the kind its prefix binds, in the half the request's archived marker chooses; it resolves that one segment, and the library resolves the whole reference again for what it runs"},
 		},
 	},
 	{

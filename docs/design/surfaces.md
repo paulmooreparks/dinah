@@ -27,7 +27,9 @@ canonical git for years, while GUIs shelled out and scraped output. Dinah
 wants independent implementations of the contract; it does not want its own
 CLI, MCP, HTTP, and LSP surfaces to be four of them.
 
-Three of the four are built. `dinah lsp` serves one workbench to an editor
+All four are built. `dinah serve` answers one workbench over HTTP on the
+loopback interface alone, opening it afresh for every request, and its guide is
+`dinah guide http`. `dinah lsp` serves one workbench to an editor
 over stdio and reads a workbench's twelve-hex identifiers back as names, on
 hover, as an inline annotation, and through go-to-definition. It is a reader.
 No verb runs there and no lock is taken, and it holds no value past the next
@@ -295,11 +297,10 @@ closed vocabulary of ten field names, and it returns the matching live cards in
 the same arrival order every other listing uses. The language is Dinah's own
 tool surface rather than contract material, so a second implementation
 conforms without it. The CLI takes the string as its one free-text argument and
-the MCP tool takes it as a string member. The HTTP head does not exist yet, and
-when it is built the recommendation is a GET on the cards collection with the
-query riding a parameter named `q`, whose value is character for character the
-string the other two heads take; that head's own card rules on it, together
-with the status code a refusal maps to.
+the MCP tool takes it as a string member. The HTTP head takes it as a GET on the
+cards collection with the string riding a parameter named `query`, character
+for character the string the other two heads take, and a refusal of the string
+answers 400.
 
 The CLI is subcommand porcelain over the library: `--json` emits the
 frozen canonical form, default output renders through the locale
@@ -309,12 +310,16 @@ could-not-ask.
 
 REST follows Fielding with no invented verbs, and the format design
 turns out to have converged on REST's own mechanics already: the basis
-guard is ETag and If-Match, stale is 412, refused is 403 or 409, and
+guard is ETag and If-Match, stale is 412, refused is 409 unless the refusal's name maps elsewhere: 403 for
+a refusal about who is asking, 404 for a reference naming nothing, and 400 for
+a malformed request, and
 entity revisions serve as ETags throughout. The claim is a resource, not
 an action: POST to a card's claim creates it (409 when held), DELETE
-releases it, a lease renewal is a PUT on it. A move is a change to the
+releases it, a lease renewal will be a PUT on it once the library has a
+renewal verb, and until then the claim answers PUT with 405. A move is a change to the
 card's column and rides PATCH, with a Dinah-defined media type
-(application/dinah.move+json) rather than generic merge-patch: the media
+(application/vnd.dinah.move+json, in the vendor tree RFC 6838 gives a type
+belonging to one product) rather than generic merge-patch: the media
 type's definition is where the board semantics live in the contract (WIP
 refusal on entry, operator-owned stations offering agents no such
 request, mandatory If-Match), per Fielding's own instruction that a REST
@@ -326,6 +331,25 @@ server's witness. Every representation lists only the legal next
 transitions and names the media type each accepts, so illegal actions are
 absent from the representation and legal ones arrive with their paperwork
 attached; the contract version rides in the media type.
+
+The first cut of `dinah serve` binds the loopback interface and refuses any
+other address, because it authenticates nobody: the actor is the `Dinah-Actor`
+header or the process's own, a self-report exactly as `--actor` is, so a
+request naming no actor acts as whoever started the server. Because a page on
+another site can make a browser post a form to the loopback address, a form
+body is admitted only with proof that it came from this server's own pages, a
+matching `Origin` or `Sec-Fetch-Site: same-origin`, while the JSON types need no
+such proof because no page can send them cross-site without a preflight the
+server never answers. Block and unblock ride the same PATCH as move, each with
+a small media type of its own, and a pull is a POST of
+`application/vnd.dinah.pull+json` to the claims collection. A form cannot send
+PATCH or DELETE or set a header, so every act also takes a form body in which
+four underscore members stand for the method, the content type, the basis and
+the actor. The body stays the frozen JSON the other heads publish, so the
+transitions travel as the affordance names already in it, and
+`GET /affordances` maps each name to its method, URL and accepted types. A
+card's floating window has a route of its own, `/cards/{card}/window`, beside
+the card's page.
 
 Two commands read the workbench as a tree rather than as a listing, and
 both build the same node so that one renderer draws them and one shape
@@ -408,8 +432,7 @@ frontmatter.
 - The MCP tool naming and how closely it tracks Andoneer's tool surface,
   including which Andoneer MCP improvements (the expected-revision guard
   among them) are adopted here first.
-- The full media-type roster for REST (which mutations earn a dedicated
-  type beyond move) and whether the HTTP surface also serves the
-  mirror/interchange representations.
+- Whether the HTTP surface also serves the mirror and interchange
+  representations, which dinah-612 carries with `export`.
 - LSP scope: registry-driven diagnostics and completion first; what else.
 - GUI timing: which milestone it enters after the CLI and MCP heads exist.

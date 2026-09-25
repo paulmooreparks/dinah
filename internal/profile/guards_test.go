@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -4509,5 +4510,60 @@ func TestNoSourceOutsideTheTerminalLayerCarriesAnEscape(t *testing.T) {
 	}
 	if files == 0 || literals == 0 {
 		t.Errorf("the sweep parsed %d files and %d literals, so it proves nothing", files, literals)
+	}
+}
+
+// TestTheReadmeReleaseBadgesEachReadOneTagNamespace guards the README's
+// release badges against showing one product's version under the other's
+// name. The repository publishes the CLI and the VS Code extension from one
+// release list under two tag namespaces, and an unfiltered release badge sorts
+// both together and shows whichever is highest, which is how the extension's
+// version came to be labelled as the latest release (dinah-616). The
+// extension's prefix is read from the workflow that mints its tags, so a
+// renamed prefix fails here instead of leaving a badge that shows nothing.
+func TestTheReadmeReleaseBadgesEachReadOneTagNamespace(t *testing.T) {
+	root := filepath.Join("..", "..")
+	workflow, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "vscode-release.yml"))
+	if err != nil {
+		t.Fatalf("reading vscode-release.yml: %v", err)
+	}
+	minted := regexp.MustCompile(`TAG="([A-Za-z0-9._-]+)\$VERSION"`).FindSubmatch(workflow)
+	if minted == nil {
+		t.Fatal(`vscode-release.yml no longer mints its tag as TAG="<prefix>$VERSION", so this guard cannot learn the extension's prefix`)
+	}
+	prefix := string(minted[1])
+
+	readme, err := os.ReadFile(filepath.Join(root, "README.md"))
+	if err != nil {
+		t.Fatalf("reading README.md: %v", err)
+	}
+	const badge = "https://img.shields.io/github/v/release/paulmooreparks/dinah?"
+	filters := map[string]string{}
+	for _, found := range regexp.MustCompile(regexp.QuoteMeta(badge)+`[^)\s]*`).FindAll(readme, -1) {
+		query, err := url.ParseQuery(strings.TrimPrefix(string(found), badge))
+		if err != nil {
+			t.Fatalf("the release badge %s carries a query that does not parse: %v", found, err)
+		}
+		label, filter := query.Get("label"), query.Get("filter")
+		if filter == "" {
+			t.Errorf("the release badge labelled %q carries no filter, so it sorts the CLI's and the extension's tags together: %s", label, found)
+			continue
+		}
+		if _, seen := filters[label]; seen {
+			t.Errorf("two release badges are labelled %q", label)
+		}
+		filters[label] = filter
+	}
+	want := map[string]string{
+		"CLI":               "!" + prefix + "*",
+		"VS Code extension": prefix + "*",
+	}
+	for label, filter := range want {
+		if filters[label] != filter {
+			t.Errorf("the release badge labelled %q filters on %q, want %q", label, filters[label], filter)
+		}
+	}
+	if len(filters) != len(want) {
+		t.Errorf("the README carries %d filtered release badges, want exactly the %d named here: %v", len(filters), len(want), filters)
 	}
 }

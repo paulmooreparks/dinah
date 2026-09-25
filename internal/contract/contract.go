@@ -451,6 +451,44 @@ const (
 	// this head serves: station, operator or all. It is checked before the
 	// server opens any workbench, beside UnknownRoot and OutsideRoot.
 	UnknownToolProfile = LayerPrefix + "unknown-tool-profile"
+	// NotLoopback is a --listen host for dinah serve outside the loopback
+	// interface. The head authenticates nobody, so it binds nowhere else, and
+	// the check runs before anything is bound. It is the one refusal of the
+	// HTTP head that reaches a terminal.
+	NotLoopback = LayerPrefix + "not-loopback"
+	// ForeignHost is an HTTP request whose Host header names neither the
+	// address the head is bound to nor localhost with the bound port, which
+	// is how a DNS-rebinding page would reach the head under a hostile name.
+	ForeignHost = LayerPrefix + "foreign-host"
+	// ForeignOrigin is an unsafe HTTP request that says it came from a page
+	// other than the head's own, through Sec-Fetch-Site or through Origin.
+	ForeignOrigin = LayerPrefix + "foreign-origin"
+	// OriginRequired is a form post, or an empty-bodied post, that carries
+	// no proof it came from the head's own pages. A page on any site can
+	// make a browser send either shape without asking first.
+	OriginRequired = LayerPrefix + "origin-required"
+	// BodyTooLarge is an HTTP request body over the head's limit.
+	BodyTooLarge = LayerPrefix + "body-too-large"
+	// UnknownResource is an HTTP path no route of the head matches. It is
+	// not UnknownRoute, which is a write naming a workflow route the
+	// workbench does not declare.
+	UnknownResource = LayerPrefix + "unknown-resource"
+	// MethodNotAllowed is an HTTP method the matched route does not take.
+	MethodNotAllowed = LayerPrefix + "method-not-allowed"
+	// NotAcceptable is an HTTP Accept header admitting no representation
+	// the matched route offers.
+	NotAcceptable = LayerPrefix + "not-acceptable"
+	// UnsupportedMediaType is an HTTP request body whose type the matched
+	// route does not take for the method as received.
+	UnsupportedMediaType = LayerPrefix + "unsupported-media-type"
+	// BasisRequired is an HTTP PATCH carrying no basis at all. The act
+	// changes a card another writer may have changed since the caller read
+	// it, so the head requires the caller to say which revision it read, or
+	// to say with * that it chose not to.
+	BasisRequired = LayerPrefix + "basis-required"
+	// NotImplemented is an HTTP route the head reserves and cannot answer
+	// yet, because the one representation it offers has no renderer.
+	NotImplemented = LayerPrefix + "not-implemented"
 	// AmbiguousName is a name selector matching more than one entity of a
 	// collection that declares a name field, raised before the resolver
 	// guesses which one the caller meant. The detail names the selector and
@@ -843,6 +881,8 @@ var Introduced = []string{
 	UnknownDepth, UnknownWorkstream, Referenced, WorkstreamSlugTaken,
 	ColumnSlugTaken, ColumnRoutingDisrupted,
 	UnknownRoot, OutsideRoot, UnknownToolProfile, ConflictingScope, DepthWithoutRoot, MalformedDepth,
+	NotLoopback, ForeignHost, ForeignOrigin, OriginRequired, BodyTooLarge, UnknownResource,
+	MethodNotAllowed, NotAcceptable, UnsupportedMediaType, BasisRequired, NotImplemented,
 	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
 	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
 	NoLevels, UnknownLevel, UnknownFormat, InapplicableField,

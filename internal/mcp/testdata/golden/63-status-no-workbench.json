@@ -1,0 +1,14 @@
+{
+  "outcome": "refused",
+  "verb": "status",
+  "refusal": "dinah.outside-root",
+  "detail": "<root>/nowhere",
+  "affordances": [
+    "status",
+    "list",
+    "next_card"
+  ],
+  "context": {
+    "root": "<root>"
+  }
+}

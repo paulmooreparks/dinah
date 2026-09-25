@@ -824,6 +824,16 @@
       "context": "A check finding: one entry of this workbench's fields block that the declaration reader refused, which is an entry whose key the grammar refuses, whose type is absent or outside the five, or whose meaning is absent or blank. {detail} carries the key as written. The entry declares nothing and the workbench still opens, so the repair is an edit to the block.",
       "skeleton": true
     },
+    "check.serve.1": {
+      "text": "--listen is written host:port",
+      "context": "The first row of the precondition list of serve, raised before the server starts when --listen is not a host and a port from 0 to 65535. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "skeleton": true
+    },
+    "check.serve.2": {
+      "text": "--listen names a loopback host",
+      "context": "The second row of the precondition list of serve, raised before the server starts when the host --listen names is not localhost, an address in 127.0.0.0/8, or ::1. Keep a translation at or under 52 display columns. A longer sentence takes the table row to itself and pushes the refusal name down to the line beneath.",
+      "skeleton": true
+    },
     "check.view-malformed": {
       "text": "a view in dinah.views cannot be read, so it cannot be drawn: {detail}",
       "context": "A check finding: one view of this workbench's dinah.views block that cannot be drawn. {detail} carries the view's name and a machine token naming its defect, or `dinah.views not-a-mapping` where the block itself is not a mapping. dinah.views is the key the views are declared under and is never translated.",
@@ -2237,6 +2247,16 @@
     "cmd.search.summary": {
       "text": "Every place a phrase occurs in this workbench",
       "context": "The one-line summary of the search command, shown beside its syntax in the help block.",
+      "skeleton": true
+    },
+    "cmd.serve.note": {
+      "text": "Every request is answered from the workbench as it stands on disk, with the JSON every other machine surface answers with. It prints the address it is listening on and runs until interrupted. It listens on the loopback interface and nowhere else, and it asks no request who sent it. A request names the actor it acts as in a Dinah-Actor header, and a request that names none acts as whoever started dinah serve, which is normally you. Any process on this machine that can reach the address, run by any account, can therefore act on this workbench in your name. Keeping other accounts out and serving beyond this machine both need authentication, which this command does not have.",
+      "context": "The note printed under the serve command's own help, after its summary. It says what the server answers with, that it listens on the loopback interface alone, that a request naming no actor acts as whoever started the server, and that any process or account on the machine can reach it because the command authenticates nobody. Dinah-Actor is an HTTP header name and dinah serve is a command, and both stay as they are.",
+      "skeleton": true
+    },
+    "cmd.serve.summary": {
+      "text": "Serve this workbench over HTTP on this machine",
+      "context": "The one-line summary of the serve command, shown beside its syntax in the help block.",
       "skeleton": true
     },
     "cmd.set.summary": {
@@ -3829,6 +3849,11 @@
       "context": "The meaning of the --query flag of `dinah search`, printed in that command's arguments table.",
       "skeleton": true
     },
+    "param.serve.listen.summary": {
+      "text": "host and port to listen on, written host:port; the host is localhost or a loopback address, one in 127.0.0.0/8 or ::1, and anything else is refused; 127.0.0.1:7340 when you name none, and port 0 lets the system choose one",
+      "context": "The meaning of the --listen argument of `dinah serve`, printed in that command's arguments table. host:port, localhost, 127.0.0.0/8, ::1 and 127.0.0.1:7340 are written as a person types them and stay as they are.",
+      "skeleton": true
+    },
     "param.set.at.summary": {
       "text": "the column a tier write applies to, instead of the card's own baseline; a card's tier is the one field that takes it",
       "context": "The meaning of the at argument of `dinah set`, printed in that command's arguments table. Every other field takes one value for the whole entity, so naming a column beside one is a usage error.",
@@ -4129,6 +4154,16 @@
       "context": "Spliced onto refusal.dinah.awaiting-outside as the next step. The two ways forward are the same whichever act was refused.",
       "skeleton": true
     },
+    "refusal.dinah.basis-required": {
+      "text": "a PATCH changes a card somebody else may have changed since you read it, and this one names no revision",
+      "context": "The sentence printed after the refusal name dinah.basis-required. The sentence carries no placeholder; the detail is If-Match, the header that carries a revision.",
+      "skeleton": true
+    },
+    "refusal.dinah.basis-required.next": {
+      "text": "; send If-Match with the ETag you read the card with, or If-Match: * to act without one",
+      "context": "Spliced onto refusal.dinah.basis-required as the next step, naming the header that carries the revision and the value that opts out of it.",
+      "skeleton": true
+    },
     "refusal.dinah.below-tier": {
       "text": "this card asks for tier {required} at column {column}, and {model} resolves below it",
       "context": "The sentence printed after the refusal name dinah.below-tier, which a claim by a caller whose model resolves below what the card requires carries. {required} is the tier the card itself asks for, and {detail} carries the same name; {column} is the column being claimed into; {model} is the caller's own declaration, rendered provider/model or provider/model@server. The sentence says the declaration resolves below the requirement rather than that the workbench lists it there: a caller declaring a server the table never mentions matches a serverless entry through the second pass, and a sentence saying the workbench listed that pair at that address would assert a row nobody could find.",
@@ -4137,6 +4172,16 @@
     "refusal.dinah.below-tier.next": {
       "text": "; run a model this workbench lists at {required} or above, which is {satisfied_by}",
       "context": "The next step of refusal.dinah.below-tier. The gate is a floor, so a model listed above what the card asks for is admitted, which is why the sentence says or above. {satisfied_by} is every entry of the tiers table at or above the requirement, cheapest rung first, joined by a comma and a space, and it is read off the workbench so a model identifier is never translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.body-too-large": {
+      "text": "the request body is larger than the 1 MiB this server reads",
+      "context": "The sentence printed after the refusal name dinah.body-too-large. The sentence carries no placeholder; the detail, when present, is the body's declared length in bytes.",
+      "skeleton": true
+    },
+    "refusal.dinah.body-too-large.next": {
+      "text": "; send a smaller body",
+      "context": "Spliced onto refusal.dinah.body-too-large as the next step, naming the one thing the caller can change.",
       "skeleton": true
     },
     "refusal.dinah.chain-too-long": {
@@ -4259,6 +4304,26 @@
       "context": "Spliced onto refusal.dinah.exists.restore. It names the two acts that clear the slot, and it advises neither of the two the init sentence advises, because choosing a different directory is not something a restore can do.",
       "skeleton": true
     },
+    "refusal.dinah.foreign-host": {
+      "text": "the request's Host header {detail} names neither the address this server listens on nor localhost with its port",
+      "context": "The sentence printed after the refusal name dinah.foreign-host. {detail} is the Host header an HTTP request to dinah serve carried.",
+      "skeleton": true
+    },
+    "refusal.dinah.foreign-host.next": {
+      "text": "; send the request to the address dinah serve printed when it started",
+      "context": "Spliced onto refusal.dinah.foreign-host as the next step, naming where the request should go instead.",
+      "skeleton": true
+    },
+    "refusal.dinah.foreign-origin": {
+      "text": "{detail} is not this server's own origin, so the request did not come from one of its pages",
+      "context": "The sentence printed after the refusal name dinah.foreign-origin. {detail} is the Origin header of an HTTP request to dinah serve, or the value of its Sec-Fetch-Site header, such as cross-site.",
+      "skeleton": true
+    },
+    "refusal.dinah.foreign-origin.next": {
+      "text": "; send the request from a page this server served, or from a client at this machine that sends no Origin header",
+      "context": "Spliced onto refusal.dinah.foreign-origin as the next step, telling the caller that the page it came from is not this server's.",
+      "skeleton": true
+    },
     "refusal.dinah.grant-excludes-finding": {
       "text": "That criterion is {detail}, and a standing authorization does not reach a finding somebody recorded.",
       "context": "The sentence printed after the refusal name dinah.grant-excludes-finding, which withdraw carries when a standing authorization is the only thing admitting it and the criterion already records a finding. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.grant-excludes-finding.next is spliced on after this one.",
@@ -4377,6 +4442,16 @@
     "refusal.dinah.malformed-member-name.next": {
       "text": "; rename that member in the document and read it again",
       "context": "The next step of refusal.dinah.malformed-member-name. Every other line ending in this contract is normalised rather than refused; this one cannot be, because normalising leaves a line feed that still splits the header.",
+      "skeleton": true
+    },
+    "refusal.dinah.method-not-allowed": {
+      "text": "this route does not take the method {detail}",
+      "context": "The sentence printed after the refusal name dinah.method-not-allowed. {detail} is the HTTP method the request was sent with, such as PUT.",
+      "skeleton": true
+    },
+    "refusal.dinah.method-not-allowed.next": {
+      "text": "; the Allow header of this answer lists the methods it does take",
+      "context": "Spliced onto refusal.dinah.method-not-allowed as the next step, pointing at the header that lists the methods the route takes.",
       "skeleton": true
     },
     "refusal.dinah.multiple-words": {
@@ -4518,6 +4593,16 @@
       "context": "Spliced onto refusal.dinah.no-workbench as the next step, carrying the clause that base entry used to end with.",
       "skeleton": true
     },
+    "refusal.dinah.not-acceptable": {
+      "text": "this route offers nothing the Accept header {detail} admits",
+      "context": "The sentence printed after the refusal name dinah.not-acceptable. {detail} is the Accept header of the HTTP request.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-acceptable.next": {
+      "text": "; widen the Accept header, or leave it out to take the route's first representation",
+      "context": "Spliced onto refusal.dinah.not-acceptable as the next step, telling the caller how to ask for something the route offers.",
+      "skeleton": true
+    },
     "refusal.dinah.not-archived": {
       "text": "nothing in the archive answers to {detail}",
       "context": "The sentence printed after the refusal name dinah.not-archived when show, path or contents was asked to read the archive and the archive holds nothing the reference names. {detail} is the reference as the reader typed it, which is an address rather than prose and is never translated. The reader can see the thing they typed, either because it is live or because it travelled inside an archived holder, so the sentence says which half it is in rather than saying it does not exist. No word of the sentence may agree with {detail}: the token substituted there is an untranslated address and no language can predict its gender, its number or the sound it starts with.",
@@ -4593,6 +4678,26 @@
       "context": "The next step of refusal.dinah.not-designatable.set, spliced onto the sentence that just named the comment and the item. dinah reopen is a command name and is not translated. It offers no forced form and says so, because set accepts none and a second way past this record is what the refusal exists to prevent; the shared next step beside this one offers delete's --force, which set answers dinah.usage for.",
       "skeleton": true
     },
+    "refusal.dinah.not-implemented": {
+      "text": "{detail} is reserved and has nothing to serve yet",
+      "context": "The sentence printed after the refusal name dinah.not-implemented. {detail} is the path of a route dinah serve reserves and cannot answer yet, a card's window.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-implemented.next": {
+      "text": "; read the card at its own URL for now",
+      "context": "Spliced onto refusal.dinah.not-implemented as the next step, naming what the caller can read in the meantime.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-loopback": {
+      "text": "{detail} is not on the loopback interface, and dinah serve listens nowhere else because it authenticates nobody",
+      "context": "The sentence printed after the refusal name dinah.not-loopback. {detail} is the address the caller gave --listen.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-loopback.next": {
+      "text": "; give --listen a host of localhost, an address in 127.0.0.0/8, or [::1]",
+      "context": "Spliced onto refusal.dinah.not-loopback as the next step, naming the hosts --listen accepts.",
+      "skeleton": true
+    },
     "refusal.dinah.not-pending": {
       "text": "That item is already {detail}.",
       "context": "The sentence printed after the refusal name dinah.not-pending, which resolve, verify and fail carry on an item that has already left pending. {detail} is the state on disk, machine vocabulary that is never translated. refusal.dinah.not-pending.next is spliced on after this one.",
@@ -4651,6 +4756,16 @@
     "refusal.dinah.occupied.next": {
       "text": "; move them out with `dinah move` first, then try again",
       "context": "Spliced onto refusal.dinah.occupied as the next step.",
+      "skeleton": true
+    },
+    "refusal.dinah.origin-required": {
+      "text": "a page on any site can send this request without asking first, and it carries no {detail} header naming this server",
+      "context": "The sentence printed after the refusal name dinah.origin-required. {detail} is the name of the HTTP header the request lacked, Origin.",
+      "skeleton": true
+    },
+    "refusal.dinah.origin-required.next": {
+      "text": "; a client that is not a browser sends one of the JSON types instead, or sends an Origin header naming this server",
+      "context": "Spliced onto refusal.dinah.origin-required as the next step, telling a client that is not a browser how to send an act the server admits.",
       "skeleton": true
     },
     "refusal.dinah.outside-root": {
@@ -4838,6 +4953,16 @@
       "context": "The next step of refusal.dinah.unknown-axis. The command line inside it is syntax and stays as it is.",
       "skeleton": true
     },
+    "refusal.dinah.unknown-resource": {
+      "text": "no route of this server answers {detail}",
+      "context": "The sentence printed after the refusal name dinah.unknown-resource. {detail} is the path of an HTTP request that no route of dinah serve matches.",
+      "skeleton": true
+    },
+    "refusal.dinah.unknown-resource.next": {
+      "text": "; dinah guide http lists every route this server answers",
+      "context": "Spliced onto refusal.dinah.unknown-resource as the next step, naming the guide that lists the routes; dinah guide http is a command and stays as it is.",
+      "skeleton": true
+    },
     "refusal.dinah.unknown-view": {
       "text": "no view is named {detail}",
       "context": "The sentence printed after the refusal name dinah.unknown-view, which `dinah view` carries when no view the reader can see has the name they typed. {detail} is that name. refusal.dinah.unknown-view.next is spliced on after it.",
@@ -4856,6 +4981,16 @@
     "refusal.dinah.malformed-view.next": {
       "text": "; `dinah view` lists every view and marks the malformed ones",
       "context": "The next step of refusal.dinah.malformed-view. The command inside it is syntax and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.unsupported-media-type": {
+      "text": "this route does not take a body of that type with this method",
+      "context": "The sentence printed after the refusal name dinah.unsupported-media-type. The sentence carries no placeholder; the detail is the Content-Type the request declared, empty when it declared none.",
+      "skeleton": true
+    },
+    "refusal.dinah.unsupported-media-type.next": {
+      "text": "; the Accept-Post or Accept-Patch header of this answer lists the types it does take, where it takes any",
+      "context": "Spliced onto refusal.dinah.unsupported-media-type as the next step, pointing at the header that lists the types the route takes.",
       "skeleton": true
     },
     "refusal.dinah.views-unreadable": {
@@ -5746,6 +5881,11 @@
     "search.empty": {
       "text": "No card, column, workstream or workbench text matches that search.",
       "context": "Printed when a search phrase matched nothing at all. The phrase itself was legal, so this is an answer rather than a refusal.",
+      "skeleton": true
+    },
+    "serve.listening": {
+      "text": "Serving {workbench} at {url}",
+      "context": "The one line dinah serve prints to stdout once it is listening. {workbench} is the absolute path of the workbench it serves and {url} is the address it listens on, such as http://127.0.0.1:7340/.",
       "skeleton": true
     },
     "show.attachments": {
