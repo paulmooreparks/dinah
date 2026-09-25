@@ -144,6 +144,18 @@ func TestAdmissionRefusesWhatAnotherSiteCouldSend(t *testing.T) {
 		if got.status != http.StatusRequestEntityTooLarge || got.refusal(t) != contract.BodyTooLarge {
 			t.Errorf("wanted 413 %s, got %d %.200s", contract.BodyTooLarge, got.status, got.body)
 		}
+		// A body of unknown length declares nothing to refuse early, so the
+		// limit is met while the body is read.
+		for _, contentType := range []string{typeJSON, typeForm} {
+			body := big
+			if contentType == typeForm {
+				body = "text=" + strings.Repeat("x", maxBody)
+			}
+			got := record(f.send(request{method: http.MethodPost, path: "/cards/" + card + "/comments", body: body, chunked: true, header: map[string]string{"Content-Type": contentType, "Origin": f.origin()}}))
+			if got.status != http.StatusRequestEntityTooLarge || got.refusal(t) != contract.BodyTooLarge {
+				t.Errorf("a chunked %s body over the limit: wanted 413 %s, got %d %.200s", contentType, contract.BodyTooLarge, got.status, got.body)
+			}
+		}
 	})
 
 	t.Run("route and method are answered before the body", func(t *testing.T) {
