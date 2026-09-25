@@ -992,7 +992,7 @@ func TestTheBuiltInAgendaIsListedAndReplaceable(t *testing.T) {
 	for _, row := range listing.Views {
 		rows = append(rows, row.Name+"/"+row.Source+"/"+row.Layout+"/"+row.Order)
 	}
-	if strings.Join(rows, " ") != "agenda/built-in/list/urgency mine/built-in/list/column" {
+	if strings.Join(rows, " ") != "agenda/built-in/list/urgency board/built-in/columns/column mine/built-in/list/column" {
 		t.Errorf("the listing reads %v", rows)
 	}
 	answer := h.explained("agenda", asOperator)

@@ -2340,6 +2340,7 @@ func sweptSettings(t *testing.T, w *sweptWorkbenches) []sweptSettingRecord {
 		{key: "actor", source: bench.SourceEnvironment, value: w.record.actor},
 		{key: "editor", source: bench.SourceConfig, value: w.record.editor},
 		{key: "workbench", source: bench.SourceSearch, pathIs: sweptPathIs(t, w.healthy, filepath.Base(soleBenchDir(t, w.healthy)))},
+		{key: "glyphs", source: bench.SourceUnset},
 	}
 }
 

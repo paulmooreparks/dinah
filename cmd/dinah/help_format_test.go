@@ -78,7 +78,8 @@ READ
     [--root <path>] [--max-depth <n>]
   tree [query] [--group-by <axes>] [--depth <level>]     The workbench's cards nested along a chain of axes
     [--root <path>] [--max-depth <n>]
-  view [view] [ref] [--explain]                          List the views you can see, or draw one by name
+  view [view] [ref] [--explain] [--all] [--plain]        List the views you can see, or draw one by name
+    [--watch]
   show <ref> [--fields <list>] [--all] [--archived]      The detail of an entity of this workbench
     [--since <ordinal>] [--unresolved]
   changes [--since <cursor>] [--wait]                    What has happened on this workbench since a cursor
@@ -194,7 +195,7 @@ READ
   query [query]                                                                                         The cards of the workbench that match a query
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
-  view [view] [ref] [--explain]                                                                         List the views you can see, or draw one by name
+  view [view] [ref] [--explain] [--all] [--plain] [--watch]                                             List the views you can see, or draw one by name
   show <ref> [--fields <list>] [--all] [--archived] [--since <ordinal>] [--unresolved]                  The detail of an entity of this workbench
   changes [--since <cursor>] [--wait] [--timeout <duration>] [--card <ref>] [--column <column>]         What has happened on this workbench since a cursor
     [--root <path>] [--max-depth <n>]

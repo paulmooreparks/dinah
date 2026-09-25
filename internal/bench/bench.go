@@ -459,6 +459,14 @@ func (s *Column) Terminal() bool {
 	return s.Kind == contract.KindDone
 }
 
+// CollapsedByDefault reports whether a columns view that declares no collapsed
+// member draws this column as a count rather than as a column: an intake
+// column, where cards wait to be looked at, and a done column, where they
+// have finished. Both usually hold more cards than a board has room to show.
+func (s *Column) CollapsedByDefault() bool {
+	return s.Kind == contract.KindIntake || s.Kind == contract.KindDone
+}
+
 // PullCanTakeFrom reports whether a pull may carry a card out of this column
 // into the column beyond it. It is false at a terminal column, because a pull
 // makes a forward move and CORE-STATE-9 refuses one there, and false where

@@ -81,6 +81,15 @@ var builtinViews = []builtinView{
 			{titleKey: "view.mine.blocked", query: "state:blocked actor:@me event:blocked"},
 		},
 	},
+	{
+		name:     "board",
+		titleKey: "view.board.title",
+		layout:   bench.ViewLayoutColumns,
+		order:    bench.ViewOrderColumn,
+		sections: []builtinSection{
+			{titleKey: "view.board.cards", query: "state:ready,active,blocked"},
+		},
+	},
 }
 
 // ViewListing is what dinah view answers with no name: one row per
@@ -112,6 +121,11 @@ type ViewAnswer struct {
 // values, and Actor is the actor the sections were asked as, empty where none
 // resolved. Explained says the draw was asked to explain its ranks, so every
 // ranked card carries all eight of its terms.
+//
+// Collapsed is the identifiers of the columns the view collapses on this
+// workbench, resolved and in flow order. It is present on every view and is
+// the empty array on a list view, where collapsing has no effect. An entry the
+// view declares that names no column of this workbench does not appear in it.
 type ViewBody struct {
 	Name      string              `json:"name"`
 	Title     string              `json:"title"`
@@ -120,6 +134,7 @@ type ViewBody struct {
 	Source    string              `json:"source"`
 	Actor     string              `json:"actor"`
 	Explained bool                `json:"explained"`
+	Collapsed []string            `json:"collapsed"`
 	Sections  []ViewSectionAnswer `json:"sections"`
 }
 
@@ -263,6 +278,7 @@ func (l *Library) DrawView(req *Request) (*ViewAnswer, error) {
 		Source:    view.Source,
 		Actor:     req.Actor,
 		Explained: req.Explain,
+		Collapsed: l.collapsedColumns(view),
 		Sections:  []ViewSectionAnswer{},
 	}
 	for i, section := range view.Sections {
@@ -279,6 +295,33 @@ func (l *Library) DrawView(req *Request) (*ViewAnswer, error) {
 		})
 	}
 	return &ViewAnswer{View: body}, nil
+}
+
+// collapsedColumns resolves the columns a view collapses on this workbench,
+// in flow order. A list view collapses nothing. A view declaring no collapsed
+// member collapses the columns whose kind is intake or done, and one declaring
+// the member collapses the columns its entries resolve to by ColumnByRef's
+// reading of a column reference, [] collapsing nothing. An entry naming no
+// column of this workbench is dropped rather than refusing the view, for the
+// reason a section naming a missing column is drawn as not asked: one user's
+// view is read on every workbench that user opens.
+func (l *Library) collapsedColumns(view bench.View) []string {
+	collapsed := []string{}
+	if view.EffectiveLayout() != bench.ViewLayoutColumns {
+		return collapsed
+	}
+	named := map[string]bool{}
+	for _, entry := range view.Collapsed {
+		if column := l.Bench.ColumnByRef(entry); column != nil {
+			named[column.ID] = true
+		}
+	}
+	for _, column := range l.Bench.Columns {
+		if (view.HasCollapsed && named[column.ID]) || (!view.HasCollapsed && column.CollapsedByDefault()) {
+			collapsed = append(collapsed, column.ID)
+		}
+	}
+	return collapsed
 }
 
 // viewScoped reports whether any section of a view selects by scope, which

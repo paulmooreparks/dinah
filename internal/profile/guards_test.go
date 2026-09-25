@@ -2013,7 +2013,12 @@ const theOneTable = "cmd/dinah/table.go"
 // same reason: a protocol server is handed the process's own streams and
 // writes frames rather than rows. runSetup hands stderr to the programs a
 // setup recipe's run steps start, which write their own output there rather
-// than rows the head lays out. editCmd holds the naming runEdit used to do itself, so
+// than rows the head lays out. terminal hands stdout's writer to the terminal
+// layer in internal/screen, which a coloured drawing and the watch write
+// their rows through, so that text still reaches a Windows console through
+// consolewriter. drawnText hands drawView a buffer in place of stdout, so
+// the watch places, one row at a time, the lines a one-shot draw of the same
+// command line prints. editCmd holds the naming runEdit used to do itself, so
 // runEdit is off this list: it builds no command of its own since dinah-199
 // and names no stream.
 //
@@ -2036,12 +2041,15 @@ var streamWriters = []string{
 	"runMCP",
 	"runLSP",
 	"runSetup",
+	"terminal",
+	"drawnText",
 }
 
-// processStreamHolders are the two functions that may name the process's own
-// streams: main, which hands them to run, and windowWidth, which asks the
-// terminal behind stdout how wide it is.
-var processStreamHolders = []string{"main", "windowWidth"}
+// processStreamHolders are the three functions that may name the process's
+// own streams: main, which hands them to run, and rawWindowWidth and
+// windowHeight, which ask the terminal behind stdout how wide and how tall it
+// is. windowWidth reads rawWindowWidth and names no stream of its own.
+var processStreamHolders = []string{"main", "rawWindowWidth", "windowHeight"}
 
 // columnarCatalogKeys are the catalog entries that compose columns inside a
 // translated string, where the translator owns the spacing and no column is
@@ -4429,4 +4437,77 @@ func anchorsNamed(set *token.FileSet, node ast.Node, what string) []string {
 		return true
 	})
 	return found
+}
+
+// theTerminalLayer is the one package allowed to carry an escape character,
+// because it is the one package allowed to change a terminal's state, and
+// even it writes only what a terminal's own terminfo entry supplied.
+const theTerminalLayer = "internal/screen/"
+
+// TestNoSourceOutsideTheTerminalLayerCarriesAnEscape is dinah-288/criteria/24.
+// It parses every non-test Go source outside internal/screen, takes every
+// string and character literal, unquotes it, and fails on any that carries
+// U+001B, so a control sequence written by hand anywhere else in the tree is
+// refused where it is written.
+//
+// What it cannot see: an escape built from an integer rather than written in
+// a literal, such as rune(27), byte(0x1b), string(rune(0x1b)) or
+// fmt.Sprintf("%c", 27), and one read from a file or a catalog at run time.
+// Review is what catches those, and the terminal layer's own rule, that
+// nothing but a terminfo entry supplies a sequence, is what makes them
+// unnecessary.
+func TestNoSourceOutsideTheTerminalLayerCarriesAnEscape(t *testing.T) {
+	root := filepath.Join("..", "..")
+	files, literals := 0, 0
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if skippedTrees[entry.Name()] {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		name := filepath.ToSlash(relative)
+		if strings.HasPrefix(name, theTerminalLayer) {
+			return nil
+		}
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		files++
+		ast.Inspect(file, func(node ast.Node) bool {
+			literal, ok := node.(*ast.BasicLit)
+			if !ok || (literal.Kind != token.STRING && literal.Kind != token.CHAR) {
+				return true
+			}
+			literals++
+			value, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				t.Errorf("%s:%d carries a literal strconv cannot unquote: %s", name, fset.Position(literal.Pos()).Line, literal.Value)
+				return true
+			}
+			if strings.ContainsRune(value, 0x1b) {
+				t.Errorf("%s:%d carries an escape character in %s; only internal/screen changes a terminal's state, and it writes only what a terminfo entry supplied", name, fset.Position(literal.Pos()).Line, literal.Value)
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	if files == 0 || literals == 0 {
+		t.Errorf("the sweep parsed %d files and %d literals, so it proves nothing", files, literals)
+	}
 }

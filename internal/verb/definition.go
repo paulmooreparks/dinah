@@ -716,10 +716,21 @@ var params = map[string][]Param{
 	// caller can see depend on the user base and the workbench rather than
 	// on anything this table can enumerate. --explain carries every term
 	// behind every rank of a view ordered by urgency.
+	//
+	// Its other three markers change nothing the library answers: all lifts
+	// the per-column cap of the columns layout, plain draws that layout with
+	// ASCII marks, and watch redraws the view in place until interrupted. The
+	// cli head reads each off the Request. Each still names a field, because
+	// a command whose parameters are split between bound and unbound derives
+	// to a command line that drops the unbound ones. all declares no Shared,
+	// since show's --all means something else.
 	"view": {
 		{Name: "view", Field: "View", Complete: CompleteView},
 		{Name: "card", Display: "ref", Field: "Card", Complete: CompleteCard},
 		{Name: "explain", Flag: true, Marker: true, Field: "Explain"},
+		{Name: "all", Flag: true, Marker: true, Field: "All"},
+		{Name: "plain", Flag: true, Marker: true, Field: "ViewPlain"},
+		{Name: "watch", Flag: true, Marker: true, Field: "ViewWatch"},
 	},
 	// fields is declared here, as a parameter of show, rather than as an
 	// injected property of the MCP head. The schema generator then publishes

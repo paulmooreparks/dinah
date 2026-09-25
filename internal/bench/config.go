@@ -13,7 +13,11 @@ import (
 // ConfigKeys are the settings v0 knows. A key outside this set is refused,
 // and a key already in the file that the tool does not know survives a write,
 // which is the same reader posture the format asks of every other document.
-var ConfigKeys = []string{"lang", "actor", "editor", "workbench"}
+//
+// glyphs set to plain draws the columns layout with the plain glyph set on
+// every run, which --plain does for one; any other value, and none, keeps
+// the Unicode set, on the operator's ruling of 2026-09-25 in dinah-288.
+var ConfigKeys = []string{"lang", "actor", "editor", "workbench", "glyphs"}
 
 // AliasPrefix marks a user setting as a command alias.
 const AliasPrefix = "alias."

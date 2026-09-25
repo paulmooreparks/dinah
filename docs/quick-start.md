@@ -262,6 +262,7 @@ $ dinah config
   actor      ana                                          config
   editor     nano                                         fallback
   workbench  /home/ana/release-notes/.dinah/d0e41d414bb5  search
+  glyphs                                                  unset
 [exit 0]
 ```
 
@@ -284,13 +285,14 @@ $ dinah config
   actor      bo                                           environment
   editor     nano                                         fallback
   workbench  /home/ana/release-notes/.dinah/d0e41d414bb5  search
+  glyphs                                                  unset
 [exit 0]
 ```
 
 On Windows you see `notepad` here instead.
 
-Dinah knows four settings in this version, `actor`, `lang`, `editor`, and
-`workbench`, and it accepts no other name:
+Dinah knows five settings in this version, `actor`, `lang`, `editor`,
+`workbench`, and `glyphs`, and it accepts no other name:
 
 ```console
 $ dinah config set colour green
@@ -299,6 +301,7 @@ dinah.unknown-key Dinah knows no setting or field called colour; it knows these
   actor
   editor
   workbench
+  glyphs
 name one of them instead, or run `dinah config` to see what each one holds
 [exit 2]
 ```
@@ -1388,14 +1391,14 @@ storage format 9
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1512/1512
-  af        0/1512
-  cs        0/1512
-  de        1512/1512
-  es        0/1512
-  fil       0/1512
-  hi        1512/1512
-  id        0/1512
+  en        1540/1540
+  af        0/1540
+  cs        0/1540
+  de        1540/1540
+  es        0/1540
+  fil       0/1540
+  hi        1540/1540
+  id        0/1540
 [exit 0]
 ```
 
