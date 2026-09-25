@@ -32,6 +32,7 @@ internal/guide/guides/getting-started.md:42 shows=commands
 internal/guide/guides/getting-started.md:49 shows=commands
 internal/guide/guides/getting-started.md:56 shows=commands
 internal/guide/guides/getting-started.md:69 shows=commands
+internal/guide/guides/http.md:164 shows=json
 internal/guide/guides/mcp.md:23 shows=json
 internal/guide/guides/mcp.md:27 shows=json
 internal/guide/guides/mcp.md:68 shows=json

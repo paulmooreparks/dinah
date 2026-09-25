@@ -123,6 +123,7 @@ SERVE
   mcp [--root <dir>] [--tools <profile>]                 Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]                  Serve one workbench to an editor over LSP on stdio
     [--poll-seconds <n>] [--stdio]
+  serve [--listen <address>]                             Serve this workbench over HTTP on this machine
   setup [harness] [--list] [--recipe <dir>]              Connect a harness to a workbench from a recipe
     [--agent <name>] [--tools <profile>]
     [--scope <scope>] [--target <dir>]
@@ -228,6 +229,7 @@ WORKBENCH
 SERVE
   mcp [--root <dir>] [--tools <profile>]                                                                Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose] [--poll-seconds <n>] [--stdio]                                  Serve one workbench to an editor over LSP on stdio
+  serve [--listen <address>]                                                                            Serve this workbench over HTTP on this machine
   setup [harness] [--list] [--recipe <dir>] [--agent <name>] [--tools <profile>] [--scope <scope>]      Connect a harness to a workbench from a recipe
     [--target <dir>] [--provider <name>] [--model <name>] [--server <address>] [--trust-project-recipe]
     [--allow-run] [--dry-run] [--remove]
@@ -546,10 +548,11 @@ func notedCommands(s *session) []string {
 // which is the documented behaviour of every wrap in this binary.
 func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 	// A sweep over no notes at all would pass whatever wrapNote did, so the
-	// count is pinned before the sweep runs. Seven commands carry a note today:
-	// check, resolve, verify, fail, reshape, unblock and completion.
-	if named := notedCommands(helpSession(80, "en")); len(named) != 7 {
-		t.Fatalf("wanted seven commands carrying a note, got %d: %v", len(named), named)
+	// count is pinned before the sweep runs. Eight commands carry a note
+	// today: check, resolve, verify, fail, reshape, unblock, serve and
+	// completion.
+	if named := notedCommands(helpSession(80, "en")); len(named) != 8 {
+		t.Fatalf("wanted eight commands carrying a note, got %d: %v", len(named), named)
 	}
 	for _, tag := range msg.Tags() {
 		for _, window := range helpSweepWindows() {

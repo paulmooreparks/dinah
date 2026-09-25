@@ -530,6 +530,13 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.UnknownRoot, Key: "check.lsp.1"},
 		{Refusal: contract.Malformed, Key: "check.lsp.2"},
 	},
+	// serve carries the two checks its startup path raises before it binds
+	// anything, in the order it evaluates them: --listen has to be a host
+	// and a port, and the host has to be on the loopback interface.
+	"serve": {
+		{Refusal: contract.Usage, Key: "check.serve.1"},
+		{Refusal: contract.NotLoopback, Key: "check.serve.2"},
+	},
 	// setup's rows are in the order internal/setup evaluates them, and
 	// nothing is written until every row has passed for every step. Rows 1
 	// and 9 are both usage: the first is the shape of the invocation and the

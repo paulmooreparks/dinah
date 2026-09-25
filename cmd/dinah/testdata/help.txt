@@ -135,6 +135,8 @@ SERVE
   mcp [--root <dir>] [--tools <profile>]    Serve workbenches over MCP on stdio
   lsp [--root <dir>] [--annotate-prose]     Serve one workbench to an editor
     [--poll-seconds <n>] [--stdio]            over LSP on stdio
+  serve [--listen <address>]                Serve this workbench over HTTP on
+                                              this machine
   setup [harness] [--list]                  Connect a harness to a workbench
     [--recipe <dir>] [--agent <name>]         from a recipe
     [--tools <profile>] [--scope <scope>]
