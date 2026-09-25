@@ -249,6 +249,7 @@ func TestCheckReportsEveryScheduleDefect(t *testing.T) {
 			"dinah.schedule: soon\n":                       "dinah.schedule not a mapping",
 			"dinah.schedule:\n  time_zone: Mars/Olympus\n": "dinah.schedule time_zone Mars/Olympus",
 			"dinah.schedule:\n  soon_days: 400\n":          "dinah.schedule soon_days 400",
+			"dinah.schedule:\n  soon_days: \"7\"\n":        `dinah.schedule soon_days "7"`,
 		} {
 			findings := findingsOf(t, openConditioned(t, scheduleFixture(t, StorageFormat, block)))
 			if !findingWith(findings, FindingScheduleMalformed, detail) {

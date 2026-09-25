@@ -135,7 +135,10 @@ func ReadSchedule(fm *Frontmatter) (ScheduleSettings, []ScheduleDefect) {
 		case scheduleSoonMember:
 			days, ok := soonDays(member.value)
 			if !ok {
-				defects = append(defects, ScheduleDefect{Defect: ScheduleMalformedMember, Member: member.name, Read: scheduleRead(member.value)})
+				// The window is reported as its JSON text rather than through
+				// scheduleRead, because a quoted "7" is refused for its quotes
+				// and unwrapping them would show a value that looks valid.
+				defects = append(defects, ScheduleDefect{Defect: ScheduleMalformedMember, Member: member.name, Read: strings.TrimSpace(string(member.value))})
 				continue
 			}
 			settings.SoonDays = days

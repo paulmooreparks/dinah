@@ -171,8 +171,8 @@ func (s *session) renderCard(card *verb.CardView) {
 // Each line names the condition the date drives where the view reports one
 // holding, with the whole number of calendar days between today and the
 // date, so a card in a done column, which holds no condition, draws the bare
-// dates. Today is read off the open workbench, the same day the view's
-// conditions were computed against.
+// dates. Today is the day the view's conditions were computed against, which
+// the view carries, so the clock is read once for both.
 func (s *session) scheduleLines(card *verb.CardView) []string {
 	var lines []string
 	holds := func(condition string) bool {
@@ -185,7 +185,7 @@ func (s *session) scheduleLines(card *verb.CardView) []string {
 	}
 	// A condition holds only for a date that parses, so the one parse here
 	// that could fail never reaches a line that prints its answer.
-	today, _ := bench.ParseDate(s.today())
+	today := card.ScheduleDay
 	days := func(date string) int {
 		parsed, _ := bench.ParseDate(date)
 		return today.DaysUntil(parsed)
@@ -225,15 +225,6 @@ func (s *session) scheduleLines(card *verb.CardView) []string {
 		lines = append(lines, line)
 	}
 	return lines
-}
-
-// today is the day the open workbench reads as today, as YYYY-MM-DD, and the
-// empty string where no workbench is open, which no card line can then need.
-func (s *session) today() string {
-	if s.library == nil {
-		return ""
-	}
-	return s.library.Bench.Today(s.library.Now()).String()
 }
 
 // scheduleCell is what a listing's Schedule column shows for one card: the

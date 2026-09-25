@@ -587,12 +587,16 @@ var relativeDate = regexp.MustCompile(`^today(?:([+-])([0-9]{1,4}))?$`)
 //
 // A term written `:""` or `!=""` asks for absence and carries no date, so it
 // is left as it stands. An ordered term takes one value, as at does, so a
-// comma in it is malformed.
+// comma in it is malformed, and so is an empty value, which would otherwise
+// fall through to the equality test and select the undated cards.
 func resolveDates(t *term, today bench.Date) error {
+	ordered := t.op != opIs && t.op != opIsNot
 	if t.empty {
+		if ordered {
+			return contract.Refuse(contract.Malformed, t.raw)
+		}
 		return nil
 	}
-	ordered := t.op != opIs && t.op != opIsNot
 	if ordered && strings.Contains(t.values[0], ",") {
 		return contract.Refuse(contract.Malformed, t.raw)
 	}

@@ -489,6 +489,10 @@ func TestDateTermsCompareAndResolve(t *testing.T) {
 		"trip.depart:2026-1-5":       contract.Malformed,
 		"holder>=x":                  contract.UnknownField,
 		"at>=today":                  contract.Malformed,
+		`due>=""`:                    contract.Malformed,
+		`due<=""`:                    contract.Malformed,
+		`trip.depart>=""`:            contract.Malformed,
+		`trip.depart<""`:             contract.Malformed,
 	} {
 		if _, err := h.queryRefs(query); refusalOf(err) != want {
 			t.Errorf("%s answered %v, want %s", query, err, want)

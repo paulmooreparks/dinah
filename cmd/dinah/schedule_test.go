@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
@@ -109,6 +110,15 @@ func TestShowPrintsEachDateWithItsCondition(t *testing.T) {
 	}
 	if strings.Contains(shown.out, "(") {
 		t.Errorf("a finished card prints a condition:\n%s", shown.out)
+	}
+	// The day count is taken from the day the view's conditions were
+	// computed against, not from a second reading of the clock. A session
+	// with no workbench open has no clock to read, so only the view's own
+	// day can give it the count.
+	s := &session{r: english}
+	view := &verb.CardView{Due: "2026-10-07", Schedule: []string{contract.ScheduleOverdue}, ScheduleDay: bench.DateOf(2026, time.October, 10)}
+	if got, want := s.scheduleLines(view), []string{line("card.due.overdue", 3, "2026-10-07")}; strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("the lines drawn against the view's day read %q, want %q", got, want)
 	}
 }
 

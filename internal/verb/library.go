@@ -540,6 +540,11 @@ type CardView struct {
 	// Schedule is every condition that holds, in precedence order, absent
 	// where none does.
 	Schedule []string `json:"schedule,omitempty"`
+	// ScheduleDay is the day Schedule was computed against, carried so a
+	// renderer counting days to a date reads the same day rather than the
+	// clock a second time, which across midnight could disagree with the
+	// condition beside the count. It is not part of any payload.
+	ScheduleDay bench.Date `json:"-"`
 	// RetirementGrant is the reference of the column this card stood in when
 	// the workbench operator gave it a criterion-retirement grant, and
 	// RetirementGrantTitle is that column's title, resolved the way
@@ -861,11 +866,12 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if bound := l.Bench.Column(card.RetirementGrant); bound != nil {
 		v.RetirementGrantTitle = bound.Title
 	}
-	schedule, err := l.scheduleOf(card, l.Bench.Today(l.Now()))
+	today := l.Bench.Today(l.Now())
+	schedule, err := l.scheduleOf(card, today)
 	if err != nil {
 		return nil, err
 	}
-	v.Schedule = schedule
+	v.Schedule, v.ScheduleDay = schedule, today
 	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
 	for _, slot := range l.Bench.InapplicableSlots(card) {
 		answer := l.Bench.Applicability(card, slot)
