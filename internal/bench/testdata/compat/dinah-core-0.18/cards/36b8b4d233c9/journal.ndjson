@@ -1,0 +1,10 @@
+{"ts":"2026-09-25T06:55:29Z","event":"created","actor":{"name":"sam"},"title":"fourth card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-25T06:55:30Z","event":"blocked","actor":{"name":"sam"},"reason":"a vendor has not answered","kind":"external"}
+{"ts":"2026-09-25T06:55:30Z","event":"unblocked","actor":{"name":"sam"}}
+{"ts":"2026-09-25T06:55:31Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"3f9c17ade5b2","from_title":"Intake","to_title":"Review"}
+{"ts":"2026-09-25T06:55:31Z","event":"claimed","actor":{"name":"sam"}}
+{"ts":"2026-09-25T06:55:31Z","event":"tier_overridden","actor":{"name":"sam"},"to":"apex","reason":"reads deeper than the ticket suggested, and needs a hand from somebody senior","column":"3f9c17ade5b2","column_title":"Review","expr":"apex"}
+{"ts":"2026-09-25T06:55:31Z","event":"released","actor":{"name":"sam"}}
+{"ts":"2026-09-25T06:55:36Z","event":"moved","actor":{"name":"sam"},"from":"3f9c17ade5b2","to":"7b5cfe51cb3b","from_title":"Review","to_title":"Doing, renamed","reshape":true}
+{"ts":"2026-09-25T06:55:36Z","event":"tier_override_dropped","actor":{"name":"sam"},"from":"apex","column":"3f9c17ade5b2"}
+{"ts":"2026-09-25T06:55:36Z","event":"item_filed","actor":{"name":"sam"},"kind":"decision","column":"7b5cfe51cb3b","column_title":"Doing, renamed","item":"47ac4688f94c","standing":"handoff-posted"}

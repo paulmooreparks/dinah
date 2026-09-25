@@ -198,12 +198,15 @@ type AxisDisposition struct {
 // or renamed there fails the build here rather than becoming silently
 // ungroupable.
 //
-// Ten of the fifteen group. at, severity, priority, item_owner and item_state
-// are refused: an instant is a different value on every act and no bucket
-// granularity has been chosen, severity/priority stay out of tree grouping as
-// their own scope decision (dinah-195), independent of the query's own
-// vocabulary, and a card carries many checklist items and so has no single
-// item owner or item state to group under.
+// Ten of the nineteen group. at, severity, priority, the three scheduling
+// dates, schedule, item_owner and item_state are refused: an instant is a
+// different value on every act and no bucket granularity has been chosen, and
+// a date is the same case one day wide; severity/priority stay out of tree
+// grouping as their own scope decision (dinah-195), independent of the query's
+// own vocabulary; a card may hold several schedule conditions at once and so
+// has no single one to group under; and a card carries many checklist items
+// and so has no single item owner or item state to group under. dinah-605,
+// which added the four schedule fields to the query, left the tree unchanged.
 var AxisDispositions = []AxisDisposition{
 	{Field: FieldColumn, Enumeration: EnumerationClosed, Disposition: DispositionAxis},
 	{Field: FieldState, Enumeration: EnumerationClosed, Disposition: DispositionAxis},
@@ -218,6 +221,10 @@ var AxisDispositions = []AxisDisposition{
 	// already draws for a card carrying no value, which is what block_kind
 	// draws today, so nothing is invented for it.
 	{Field: FieldRoute, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
+	{Field: FieldStartAfter, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
+	{Field: FieldStartBy, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
+	{Field: FieldDue, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
+	{Field: FieldSchedule, Enumeration: EnumerationOpen, Disposition: DispositionRefused},
 	{Field: FieldActor, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldEvent, Enumeration: EnumerationOpen, Disposition: DispositionAxis},
 	{Field: FieldEntered, Enumeration: EnumerationOpen, Disposition: DispositionAxis},

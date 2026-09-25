@@ -882,6 +882,7 @@ var checkAdviceProvenByRunning = map[string]string{
 	"refusal.dinah.store-awaiting-migration.next":         "TestTheNumberMigrationChainIsSelfGuiding",
 	"check.applies-when-below-format":                     "TestTheAppliesWhenMigrationAdviceIsACommandThatWorks",
 	"check.raw-line-quoted":                               "TestTheRawLineMigrationAdviceIsACommandThatWorks",
+	"check.schedule-below-format":                         "TestTheScheduleMigrationAdviceIsACommandThatWorks",
 }
 
 // checkAdviceNeedingNoScope names every remaining catalog message that names a

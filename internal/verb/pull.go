@@ -51,7 +51,10 @@ func (l *Library) Pull(req *Request) *Response {
 	if req.Override && req.Actor != l.Bench.Operator {
 		return l.refuse(req, nil, contract.NotOperator, req.Actor)
 	}
-	destination, answer, err := l.pullDestination(req, named)
+	// The start hold is built once, here, and handed down every path the
+	// pull takes, so one pull reads the clock once whichever form it takes.
+	hold := l.selectionHold()
+	destination, answer, err := l.pullDestination(req, named, hold)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -79,7 +82,7 @@ func (l *Library) Pull(req *Request) *Response {
 	// no such card does the pull look further back, through the columns that
 	// carry into this destination, nearest first.
 	by := selectionAdmission(l.Bench, req)
-	head, _, sawReady, _ := headOfReadyFor(l.Bench, upstream.ID, l.immediateLanding(upstream, destination), cards, by)
+	head, _, sawTier, _, notYetFrom := headOfReadyFor(l.Bench, upstream.ID, l.immediateLanding(upstream, destination), hold, cards, by)
 	if head == nil {
 		// The further walk does not reconsider the immediate upstream, which
 		// is what the source predicate excludes it for. The predicate carries
@@ -88,21 +91,28 @@ func (l *Library) Pull(req *Request) *Response {
 		// there is selected and the lock answers not-operator, rather than the
 		// caller being left with the empty answer for a card the board is
 		// showing them.
-		further, furtherReady := l.pullableCards(destination, cards, by, func(source *bench.Column) bool {
+		further, furtherTier, furtherNotYet := l.pullableCards(destination, cards, by, hold, func(source *bench.Column) bool {
 			return source.ID != upstream.ID
 		})
-		sawReady = sawReady || furtherReady
+		sawTier = sawTier || furtherTier
+		notYetFrom = earlierDate(notYetFrom, furtherNotYet)
 		if len(further) > 0 {
 			head = further[0]
 		}
 	}
 	if head == nil {
-		// Finding nothing to take has two causes and they are different
-		// answers. Either no source holds a ready card, or one does and the
-		// caller's resolved tier is admitted for none of it, which is work
-		// waiting on a more senior caller rather than an empty workbench.
-		if sawReady {
+		// Finding nothing to take has three causes and they are different
+		// answers. Some source holds ready work the caller's resolved tier is
+		// admitted for none of, which is work waiting on a more senior caller;
+		// failing that, some source holds ready work none of which may start
+		// before a date, which is work waiting on the calendar; failing both,
+		// nothing is ready at all. The tier answer comes first because a more
+		// senior caller would get work now and waiting for the date would not.
+		if sawTier {
 			return l.okAboveTier(req, destination)
+		}
+		if notYetFrom != "" {
+			return l.okNotYet(req, destination, notYetFrom)
 		}
 		return l.okEmpty(req, destination)
 	}
@@ -130,7 +140,7 @@ func (l *Library) Pull(req *Request) *Response {
 // test. The predicate reads it for the bare form because a retiring column is
 // one a pull could not land in, so leaving it in the qualifying set would
 // make the bare form ambiguous where a reader would say it plainly is not.
-func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Column, *Response, error) {
+func (l *Library) pullDestination(req *Request, named *bench.Column, hold startHold) (*bench.Column, *Response, error) {
 	if named != nil {
 		return named, nil, nil
 	}
@@ -138,7 +148,7 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 	if err != nil {
 		return nil, nil, err
 	}
-	qualifying, aboveTier := l.pullCandidates(req, cards)
+	qualifying, aboveTier, notYetFrom := l.pullCandidates(req, cards, hold)
 	if len(qualifying) > 1 {
 		carried := map[string]string{"columns": strings.Join(qualifying, "\n")}
 		return nil, l.refuseWith(req, nil, contract.AmbiguousColumn, "", carried), nil
@@ -148,6 +158,9 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 	}
 	if aboveTier {
 		return nil, l.okAboveTier(req, nil), nil
+	}
+	if notYetFrom != "" {
+		return nil, l.okNotYet(req, nil, notYetFrom), nil
 	}
 	return nil, nil, nil
 }
@@ -188,18 +201,16 @@ func (l *Library) pullDestination(req *Request, named *bench.Column) (*bench.Col
 // sequence runs under the card's lock once the destination is fixed, and when
 // the two disagree, because the workbench changed in between, the lock's
 // answer is the one the caller is given.
-func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, bool) {
+func (l *Library) pullCandidates(req *Request, cards []*bench.Card, hold startHold) (qualifying []string, aboveTier bool, notYetFrom string) {
 	operator := req.Actor == l.Bench.Operator
 	by := selectionAdmission(l.Bench, req)
-	var qualifying []string
-	aboveTier := false
 	for _, column := range l.Bench.Columns {
 		// The bare form skips a source column the workbench reserves to its
 		// operator for a caller who is not the operator, so it never nominates
 		// a destination that caller could not have pulled into. The named form
 		// holds the opposite policy, which is why the policy travels as the
 		// caller's own predicate rather than living inside the helper.
-		taken, gated := l.pullableCards(column, cards, by, func(source *bench.Column) bool {
+		taken, gated, notYet := l.pullableCards(column, cards, by, hold, func(source *bench.Column) bool {
 			return operator || !source.OperatorOwned
 		})
 		ready := len(taken) > 0
@@ -209,7 +220,9 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, b
 		// reason that has nothing to do with tier. A column at its capacity
 		// limit, one reserved to the operator, or one being retired is a
 		// column the caller was never going to reach, and saying "above your
-		// tier" about it would name the wrong obstacle.
+		// tier" about it would name the wrong obstacle. A date the start hold
+		// withheld work until is kept or dropped on the same terms and for
+		// the same reason.
 		reached, err := l.atCapacity(req, column)
 		if err == nil && reached && !req.Override {
 			continue
@@ -223,18 +236,20 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, b
 		if gated {
 			aboveTier = true
 		}
+		notYetFrom = earlierDate(notYetFrom, notYet)
 		if !ready {
 			continue
 		}
 		qualifying = append(qualifying, columnRef(column))
 	}
-	return qualifying, aboveTier
+	return qualifying, aboveTier, notYetFrom
 }
 
 // pullableCards returns the ready cards a pull into this destination may take,
 // nearest source first and in arrival order within a source, and reports
 // whether any source held ready work this caller's declared tier is admitted
-// for nowhere.
+// for nowhere, and the earliest date any source's start hold withheld a card
+// until, empty where it withheld none.
 //
 // A card qualifies when carriesInto, read against that card's own route,
 // answers this destination. The set is keyed on the card rather than on the
@@ -264,7 +279,7 @@ func (l *Library) pullCandidates(req *Request, cards []*bench.Card) ([]string, b
 // tier-gated card in a column the predicate excluded does not report work
 // standing above the caller, which is the order the walk it replaces ran its
 // two tests in.
-func (l *Library) pullableCards(destination *bench.Column, cards []*bench.Card, by admission, fromSource func(*bench.Column) bool) ([]*bench.Card, bool) {
+func (l *Library) pullableCards(destination *bench.Column, cards []*bench.Card, by admission, hold startHold, fromSource func(*bench.Column) bool) ([]*bench.Card, bool, string) {
 	landing := func(card *bench.Card) *bench.Column {
 		if carriesInto(l.Bench.Column(card.Column), l.Bench.RouteOf(card)) == destination {
 			return destination
@@ -273,24 +288,27 @@ func (l *Library) pullableCards(destination *bench.Column, cards []*bench.Card, 
 	}
 	var taken []*bench.Card
 	aboveTier := false
+	notYetFrom := ""
 	// Iterating the flow backward is what puts the nearest source first.
 	for i := len(l.Bench.Columns) - 1; i >= 0; i-- {
 		source := l.Bench.Columns[i]
 		if fromSource != nil && !fromSource(source) {
 			continue
 		}
-		head, _, sawReady, _ := headOfReadyFor(l.Bench, source.ID, landing, cards, by)
+		head, _, sawTier, _, notYet := headOfReadyFor(l.Bench, source.ID, landing, hold, cards, by)
 		if head != nil {
 			taken = append(taken, head)
 			continue
 		}
-		// The walk carries on past a source holding only tier-gated work, so a
-		// nearer gated column cannot hide an eligible card further back.
-		if sawReady {
+		// The walk carries on past a source holding only tier-gated or
+		// date-withheld work, so a nearer withheld column cannot hide an
+		// eligible card further back.
+		if sawTier {
 			aboveTier = true
 		}
+		notYetFrom = earlierDate(notYetFrom, notYet)
 	}
-	return taken, aboveTier
+	return taken, aboveTier, notYetFrom
 }
 
 // immediateLanding is the landing function the named form's first step reads at
@@ -382,6 +400,33 @@ func (l *Library) okAboveTier(req *Request, destination *bench.Column) *Response
 	response.MessageValues = map[string]string{
 		"upstream":    upstreamTitle(destination, l.Bench.Columns),
 		"destination": destination.Title,
+	}
+	return response
+}
+
+// okNotYet answers a pull that found ready work it could not take because
+// none of it may start before a date, at exit 0 with no card and nothing
+// written to any journal, on okAboveTier's pattern and for its reason: a
+// caller reading Message alone has to be able to tell work waiting on the
+// calendar from no work. The date is the earliest start_after among the
+// withheld cards, carried beside the two column titles on the named form and
+// alone on the bare form.
+func (l *Library) okNotYet(req *Request, destination *bench.Column, date string) *Response {
+	response := &Response{
+		Outcome:     contract.OutcomeOK,
+		Verb:        req.Verb,
+		Affordances: l.affordances(nil),
+	}
+	if destination == nil {
+		response.Message = "answer.pull.not-yet.bare"
+		response.MessageValues = map[string]string{"date": date}
+		return response
+	}
+	response.Message = "answer.pull.not-yet.named"
+	response.MessageValues = map[string]string{
+		"upstream":    upstreamTitle(destination, l.Bench.Columns),
+		"destination": destination.Title,
+		"date":        date,
 	}
 	return response
 }

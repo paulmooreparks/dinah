@@ -84,6 +84,15 @@ type Card struct {
 	// route until somebody repairs it, on the posture tier_at already keeps
 	// for a column reference that no longer resolves.
 	Route string
+	// StartAfter, StartBy and Due are the card's three scheduling dates, as
+	// stored, each empty where the card carries none. A stored value that
+	// does not parse is kept as written, read as absent by every condition
+	// and by selection, and reported by dinah check. They hold only what the
+	// card itself declares: a date derived from anything else is computed on
+	// read and never written here.
+	StartAfter string
+	StartBy    string
+	Due        string
 	// RetirementGrant is the identifier of the column this card stood in
 	// when the workbench operator gave it a criterion-retirement grant, and
 	// empty on a card carrying no grant. Under a standing grant an actor who
@@ -208,6 +217,9 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		Priority:    fm.Value(PriorityField),
 		Tier:        fm.Value(TierField),
 		Route:       fm.Value(RouteField),
+		StartAfter:  fm.Value(StartAfterField),
+		StartBy:     fm.Value(StartByField),
+		Due:         fm.Value(DueField),
 
 		RetirementGrant: fm.Value(RetirementGrantKey),
 		Workstreams:     fm.Seq("workstreams"),
@@ -514,6 +526,11 @@ func (c *Card) Save() error {
 	setAfterOrDelete(c.FM, TierField, c.Tier, "state")
 	setAfterOrDelete(c.FM, PriorityField, c.Priority, "state")
 	setAfterOrDelete(c.FM, SeverityField, c.Severity, "state")
+	// The three dates land after the route and the levels, in their own
+	// order, and a key somebody placed by hand stays put.
+	SetScheduleDate(c.FM, StartAfterField, c.StartAfter)
+	SetScheduleDate(c.FM, StartByField, c.StartBy)
+	SetScheduleDate(c.FM, DueField, c.Due)
 	if len(c.ColumnTiers) == 0 {
 		c.FM.Delete(TierAtKey)
 	} else {
@@ -564,6 +581,18 @@ const (
 	SeverityField = "severity"
 	PriorityField = "priority"
 	TierField     = "tier"
+)
+
+// The frontmatter keys carrying a card's three scheduling dates. Each is a
+// calendar date written YYYY-MM-DD, and each is optional and independent of
+// the other two.
+const (
+	// StartAfterField is the first day selection may hand the card out.
+	StartAfterField = "start_after"
+	// StartByField is the last day somebody should have taken the card up.
+	StartByField = "start_by"
+	// DueField is the last day for the card to reach a done column.
+	DueField = "due"
 )
 
 // RetirementGrantKey is the frontmatter key carrying a card's

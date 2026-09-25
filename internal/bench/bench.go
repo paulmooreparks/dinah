@@ -99,8 +99,9 @@ const (
 // build would misread the levels block. It moved from 8 to 9 at dinah-593,
 // which made a quoted frontmatter scalar read as text, so the number says
 // whether the raw JSON lines an earlier import wrote quoted have been
-// rewritten bare.
-const StorageFormat = 9
+// rewritten bare. It moved from 9 to 10 at dinah-605, which gave a card
+// scheduling dates that an older build would ignore and so hand out early.
+const StorageFormat = 10
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -211,6 +212,18 @@ const AppliesWhenFormat = 8
 // reader rule holds at every format this build opens, since a line the
 // migration has rewritten reads the same under either rule.
 const RawLineFormat = 9
+
+// ScheduleFormat is the storage format from which a card may carry the three
+// scheduling dates, start_after, start_by and due.
+//
+// The number protects a workbench from older builds and does not gate this
+// one, on the terms AppliesWhenFormat states: a date is written and honoured
+// at any format this build opens. A build below this number ignores the three
+// keys, keeps them, and hands a card out before its start_after, which is the
+// window the number closes. dinah check reports a workbench below it where a
+// live card carries a date under check.schedule-below-format, and
+// `dinah check --migrate-schedule --yes` stamps it.
+const ScheduleFormat = 10
 
 // UndeclaredFormat is the format a workbench whose anchor declares no format
 // key is opened as carrying. Such a workbench predates the key itself, and
@@ -647,6 +660,12 @@ type Bench struct {
 	// be used. Urgency is how a reader asks.
 	urgency       Urgency
 	urgencyDefect UrgencyDefect
+	// schedule is the settings the workbench's dinah.schedule block
+	// declares, read at Open with every member it leaves out or carries
+	// unreadably at its default, and scheduleDefects are what the reader
+	// could not use. Schedule and Today are how a reader asks.
+	schedule        ScheduleSettings
+	scheduleDefects []ScheduleDefect
 	// tiers are the tier table's entries in declaration order, read out of
 	// the tiers block at Open, and empty on a workbench declaring no table.
 	tiers []TierEntry
@@ -1882,6 +1901,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	b.declaredFields, b.malformedFields = fields.declared, fields.malformed
 	b.views, b.viewsBlockDefect = ReadViews(fm, ViewSourceWorkbench)
 	b.urgency, b.urgencyDefect = ReadUrgency(fm)
+	b.schedule, b.scheduleDefects = ReadSchedule(fm)
 	b.usesAppliesWhen = levels.mappingForm || len(levels.conditions) > 0 || fields.metAny
 	b.resolveConditions(levels.conditions, fields.conditions)
 	b.tiers, b.malformedTiers = readTiers(fm)

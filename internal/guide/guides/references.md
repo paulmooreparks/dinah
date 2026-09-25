@@ -254,7 +254,7 @@ records:
 |------|--------|
 | workbench | `title`, `slug`, `operator`, `column_body_limit`, `instructions` |
 | column | `title`, `slug`, `kind`, `tier`, `capacity`, `hold`, `instructions` |
-| card | `title`, `body`, `severity`, `priority`, `tier`, `route` |
+| card | `title`, `body`, `severity`, `priority`, `tier`, `route`, `start_after`, `start_by`, `due` |
 | comment | `body` |
 | item | `text`, `state`, `resolution`, `owner`, `column`, `evidence` |
 | attachment | `filename`, `description` |

@@ -1,7 +1,9 @@
 package verb
 
 import (
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,11 +36,20 @@ const (
 	FieldBlockKind  = "block_kind"
 	FieldWorkstream = "workstream"
 	FieldRoute      = "route"
-	FieldActor      = "actor"
-	FieldEvent      = "event"
-	FieldEntered    = "entered"
-	FieldLeft       = "left"
-	FieldAt         = "at"
+	// FieldStartAfter, FieldStartBy and FieldDue are a card's three
+	// scheduling dates, which take all six operators and a relative value.
+	FieldStartAfter = bench.StartAfterField
+	FieldStartBy    = bench.StartByField
+	FieldDue        = bench.DueField
+	// FieldSchedule is derived rather than stored: the schedule conditions
+	// that hold for the card today, from the closed set
+	// contract.ScheduleConditions.
+	FieldSchedule = "schedule"
+	FieldActor    = "actor"
+	FieldEvent    = "event"
+	FieldEntered  = "entered"
+	FieldLeft     = "left"
+	FieldAt       = "at"
 	// FieldItemOwner and FieldItemState describe one of the card's live
 	// checklist items rather than the card itself, and every item-plane term
 	// of a query is held to one and the same item.
@@ -51,18 +62,32 @@ const (
 // ahead of the card keys the workbench declares. severity and priority sit
 // between state and holder, matching the order CardView already reports a
 // card in, and route follows workstream, which is where the card's own
-// classifications end. The two item fields follow at, because they describe
-// the card's checklist rather than the card or its journal. A declared key
-// joins the language per workbench and never joins this list.
+// classifications end. The three scheduling dates and the schedule derived
+// from them follow route, which is where CardView carries them. The two item
+// fields follow at, because they describe the card's checklist rather than
+// the card or its journal. A declared key joins the language per workbench
+// and never joins this list.
 var QueryFields = []string{
 	FieldColumn, FieldState, FieldSeverity, FieldPriority, FieldHolder,
-	FieldBlockKind, FieldWorkstream, FieldRoute, FieldActor, FieldEvent,
+	FieldBlockKind, FieldWorkstream, FieldRoute,
+	FieldStartAfter, FieldStartBy, FieldDue, FieldSchedule,
+	FieldActor, FieldEvent,
 	FieldEntered, FieldLeft, FieldAt, FieldItemOwner, FieldItemState,
 }
 
-// The six operators a term may carry. The equality pair is what the nine
-// card-plane and act-plane fields take; the four ordered ones belong to at
-// alone, since equality against an instant is a question nobody asks.
+// dateFields names the three built-in fields whose values are calendar
+// dates. A declared card key of type date joins them per workbench, which
+// Library.dateField answers.
+var dateFields = map[string]bool{
+	FieldStartAfter: true,
+	FieldStartBy:    true,
+	FieldDue:        true,
+}
+
+// The six operators a term may carry. The equality pair is what every field
+// takes but at; the four ordered ones belong to at, since equality against an
+// instant is a question nobody asks, and to the date fields, which take all
+// six.
 const (
 	opIs       = ":"
 	opIsNot    = "!="
@@ -164,6 +189,10 @@ type term struct {
 	// instant is the parsed bound of an at term, and the zero time on every
 	// other field.
 	instant time.Time
+	// bound is the resolved date of an ordered term on a date field, and no
+	// date on every other term. A relative value has already been resolved
+	// against today, so no card read later moves it.
+	bound bench.Date
 	// raw is the term as it was typed, which is what a refusal names back.
 	raw string
 	// expandable marks, part by part, the values a view may replace with the
@@ -180,6 +209,9 @@ type query struct {
 	actTerms []term
 	// itemTerms are the terms compared against one live checklist item.
 	itemTerms []term
+	// today is the day the query's relative dates and its schedule field
+	// were resolved against, read once before any card is read.
+	today bench.Date
 }
 
 // Query reports the live cards matching a query string, in arrival order.
@@ -287,11 +319,16 @@ func (l *Library) parseQuery(text string) (*query, *queryFault, error) {
 	if err != nil {
 		return nil, &queryFault{stage: stageParse}, err
 	}
-	parsed := &query{}
+	parsed := &query{today: l.Bench.Today(l.Now())}
 	for _, token := range tokens {
 		t, err := parseTerm(token)
 		if err != nil {
 			return nil, &queryFault{stage: stageParse, term: token}, err
+		}
+		if l.dateField(t.field) {
+			if err := resolveDates(&t, parsed.today); err != nil {
+				return nil, &queryFault{stage: stageParse, term: token}, err
+			}
 		}
 		parsed.append(t)
 	}
@@ -522,6 +559,79 @@ func parseInstant(value string) (time.Time, error) {
 	return time.Parse(queryDate, value)
 }
 
+// dateField reports whether a field's values are calendar dates: one of the
+// three scheduling dates, or a declared key whose declaration reaches cards
+// and has type date. It reads the workbench's declarations and no card, which
+// is what lets check 1 read a date term's values before any card is read.
+func (l *Library) dateField(field string) bool {
+	if dateFields[field] {
+		return true
+	}
+	if !declaredTerm(field) {
+		return false
+	}
+	declared := l.Bench.DeclaredFieldOf(field)
+	return declared != nil && declared.Type == bench.FieldTypeDate && declared.Declares(bench.KindCard)
+}
+
+// relativeDate matches a relative value on a date field: today, optionally
+// followed by a sign and one to four digits of calendar days.
+var relativeDate = regexp.MustCompile(`^today(?:([+-])([0-9]{1,4}))?$`)
+
+// resolveDates is the part of check 1 that reads the values of a term on a
+// date field. Every value must be a date written YYYY-MM-DD or a relative
+// date, and anything else refuses the term malformed. A relative value is
+// rewritten here to the date it names, so a term compares against one fixed
+// date whichever card it is read against, and an ordered term also carries
+// its one value as a date.
+//
+// A term written `:""` or `!=""` asks for absence and carries no date, so it
+// is left as it stands. An ordered term takes one value, as at does, so a
+// comma in it is malformed.
+func resolveDates(t *term, today bench.Date) error {
+	if t.empty {
+		return nil
+	}
+	ordered := t.op != opIs && t.op != opIsNot
+	if ordered && strings.Contains(t.values[0], ",") {
+		return contract.Refuse(contract.Malformed, t.raw)
+	}
+	for i, value := range t.values {
+		date, ok := dateValue(value, today)
+		if !ok {
+			return contract.Refuse(contract.Malformed, t.raw)
+		}
+		t.values[i] = date.String()
+		if ordered {
+			t.bound = date
+		}
+	}
+	return nil
+}
+
+// dateValue reads one value of a date term: a calendar date, or today moved
+// by a whole number of calendar days. Nothing else is relative.
+func dateValue(value string, today bench.Date) (bench.Date, bool) {
+	if date, ok := bench.ParseDate(value); ok {
+		return date, true
+	}
+	m := relativeDate.FindStringSubmatch(value)
+	if m == nil {
+		return bench.Date{}, false
+	}
+	if m[1] == "" {
+		return today, true
+	}
+	days, err := strconv.Atoi(m[2])
+	if err != nil {
+		return bench.Date{}, false
+	}
+	if m[1] == "-" {
+		days = -days
+	}
+	return today.AddDays(days), true
+}
+
 // checkField runs check 2: the field named is one this tool has, or one shaped
 // like a declared field key. The static check cannot know the workbench, so
 // it admits the shape here and check 9 answers for the name once the cards are
@@ -541,17 +651,43 @@ func declaredTerm(field string) bool {
 }
 
 // checkOperator runs check 3: the operator is one the named field accepts. at
-// takes the four ordered operators and no other field takes any of them, since
-// nothing but an instant ranks in this language. severity and priority also
-// rank internally (bench.Level.Rank), but the query does not expose that
-// ranking, so they take the equality pair like every other card field, and so
-// does a declared key whatever its type.
+// takes the four ordered operators and neither of the equality pair. A date
+// field, built in or declared with type date on cards, takes all six. Every
+// other field takes the equality pair alone: severity and priority rank
+// internally (bench.Level.Rank), but the query does not expose that ranking,
+// and a declared key of any other type, or one nobody declares, has no order
+// the language could compare in.
 func (l *Library) checkOperator(t term) error {
 	ordered := t.op != opIs && t.op != opIsNot
-	if ordered == (t.field == FieldAt) {
+	switch {
+	case l.dateField(t.field):
+		return nil
+	case t.field == FieldAt:
+		if ordered {
+			return nil
+		}
+	case !ordered:
 		return nil
 	}
 	return l.unknownField(t.field + t.op)
+}
+
+// orderedFields are the fields taking >=, <=, > and <, in the order a refusal
+// lists them: the built-in ones in QueryFields order, then this workbench's
+// declared card keys of type date in declaration order.
+func (l *Library) orderedFields() []string {
+	var fields []string
+	for _, field := range QueryFields {
+		if field == FieldAt || dateFields[field] {
+			fields = append(fields, field)
+		}
+	}
+	for _, declared := range l.Bench.DeclaredFieldsOn(bench.KindCard) {
+		if declared.Type == bench.FieldTypeDate {
+			fields = append(fields, declared.Key)
+		}
+	}
+	return fields
 }
 
 // unknownField raises the refusal checks 2, 3 and 9 answer with, since one
@@ -562,16 +698,16 @@ func (l *Library) checkOperator(t term) error {
 // The field list is read off QueryFields and then off the workbench's own
 // declaration rather than written into the catalog, so a field added to the
 // language and a key a workbench declares both reach the refusal without a
-// translator being asked for anything. instantField names the one field the
-// query itself compares in ranked order, which is what the ordered-operator
-// clause is about; the four operators themselves are written in the catalog
-// beside the sentence that frames them.
+// translator being asked for anything. orderedFields names the fields the
+// query compares in ranked order, which is what the ordered-operator clause is
+// about; the four operators themselves are written in the catalog beside the
+// sentence that frames them.
 func (l *Library) unknownField(token string) error {
 	fields := append([]string(nil), QueryFields...)
 	fields = append(fields, l.Bench.DeclaredFieldKeysOn(bench.KindCard)...)
 	return contract.RefuseWith(contract.UnknownField, token, map[string]string{
-		"fields":       strings.Join(fields, ", "),
-		"instantField": FieldAt,
+		"fields":        strings.Join(fields, ", "),
+		"orderedFields": strings.Join(l.orderedFields(), ", "),
 	})
 }
 
@@ -618,6 +754,8 @@ func closedValues(field string) []string {
 		return contract.Events
 	case FieldItemState:
 		return bench.ItemStates
+	case FieldSchedule:
+		return contract.ScheduleConditions
 	}
 	return nil
 }
@@ -947,7 +1085,11 @@ func contains(values []string, want string) bool {
 func (l *Library) selectCards(q *query, cards []*bench.Card) ([]*bench.Card, error) {
 	var kept []*bench.Card
 	for _, card := range cards {
-		if !l.cardMatches(q, card) {
+		matched, err := l.cardMatches(q, card)
+		if err != nil {
+			return nil, err
+		}
+		if !matched {
 			continue
 		}
 		witnessed, err := l.actWitnessed(q, card)
@@ -969,14 +1111,36 @@ func (l *Library) selectCards(q *query, cards []*bench.Card) ([]*bench.Card, err
 	return kept, nil
 }
 
-// cardMatches reports whether every card-plane term holds for a card.
-func (l *Library) cardMatches(q *query, card *bench.Card) bool {
+// cardMatches reports whether every card-plane term holds for a card. An
+// ordered term on a date field compares the card's date against the term's
+// bound, and a schedule term reads the conditions that hold for the card
+// today, which is the one card-plane read that may open the card's journal.
+func (l *Library) cardMatches(q *query, card *bench.Card) (bool, error) {
 	for _, t := range q.cardTerms {
+		if !t.bound.IsZero() {
+			if !t.dateHoldsFor(l.cardValues(t.field, card)[0]) {
+				return false, nil
+			}
+			continue
+		}
+		if t.field == FieldSchedule {
+			held, err := l.scheduleOf(card, q.today)
+			if err != nil {
+				return false, err
+			}
+			if len(held) == 0 {
+				held = []string{""}
+			}
+			if !t.holdsFor(held) {
+				return false, nil
+			}
+			continue
+		}
 		if !t.holdsFor(l.cardValues(t.field, card)) {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
 // actWitnessed reports whether one recorded act satisfies every act-plane term
@@ -1119,6 +1283,12 @@ func (l *Library) cardValues(field string, card *bench.Card) []string {
 		return card.Workstreams
 	case FieldRoute:
 		return []string{card.Route}
+	case FieldStartAfter:
+		return []string{card.StartAfter}
+	case FieldStartBy:
+		return []string{card.StartBy}
+	case FieldDue:
+		return []string{card.Due}
 	}
 	return []string{""}
 }
@@ -1157,6 +1327,27 @@ func (t term) holdsFor(carried []string) bool {
 		return !found
 	}
 	return found
+}
+
+// dateHoldsFor reports whether a card's stored date satisfies an ordered term
+// on a date field. A card carrying no date, or carrying one that does not
+// parse, is on neither side of any bound and never matches.
+func (t term) dateHoldsFor(stored string) bool {
+	date, ok := bench.ParseDate(stored)
+	if !ok {
+		return false
+	}
+	switch t.op {
+	case opAtLeast:
+		return !date.Before(t.bound)
+	case opAtMost:
+		return !date.After(t.bound)
+	case opAfter:
+		return date.After(t.bound)
+	case opBefore:
+		return date.Before(t.bound)
+	}
+	return false
 }
 
 // instantHoldsFor reports whether an act's stamp satisfies an at term. The

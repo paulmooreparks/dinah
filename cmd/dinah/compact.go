@@ -11,7 +11,7 @@ import (
 // field of the version record that opens every compact payload. A caller
 // reads it before assuming the field order this file fixes, and an
 // incompatible change to any record increments it.
-const compactVersion = "5"
+const compactVersion = "6"
 
 // The compact projection is a second machine form of the answers a driver
 // loop reads most: line-oriented UTF-8 rather than JSON, carrying the same
@@ -21,8 +21,8 @@ const compactVersion = "5"
 // A payload is a sequence of records, one per line, ending on a single
 // trailing newline. A record is fields joined by "|", and its first field is
 // its kind, which says how many fields follow and what each of them means. A
-// payload opens with the version record fmt|compact|4 and nothing else may
-// precede it.
+// payload opens with the version record, fmt|compact| followed by
+// compactVersion, and nothing else may precede it.
 //
 // The record kinds, with their fields in order after the kind:
 //
@@ -30,9 +30,10 @@ const compactVersion = "5"
 //	rsp      outcome, verb, refusal, detail, basis, warning, warning_detail,
 //	         message, workbenches_refusal, workbenches_refusal_detail
 //	card     id, ref, title, column, column_title, state, severity, priority,
-//	         route, pull_destination, holder, claim_since, expires,
-//	         block_reason, block_kind, revision, then one trailing field per
-//	         workstream identifier
+//	         route, start_after, start_by, due, schedule, pull_destination,
+//	         holder, claim_since, expires, block_reason, block_kind, revision,
+//	         then one trailing field per workstream identifier; schedule is
+//	         the conditions joined by ",", empty where none holds
 //	wstream  id, ref, slug, title, status, cards
 //	instr    global, standing, column
 //	colatt   id, ordinal, ref, filename, description, provenance, path
@@ -43,13 +44,16 @@ const compactVersion = "5"
 //	aff      one trailing field per affordance token
 //	lst      column
 //	off      column, title, awaiting_outside, no_taker, taken_by_pull, above_tier,
-//	         landing
+//	         landing, ready_count, not_yet, startable_from
 //
 // A field appended to the end of a record's list is a compatible change and
 // does not increment the version, because a record is read by index and a
 // reader that stops after the last field it knows about sees the record it
 // already knew. Inserting, renaming, reordering or removing a field is not
-// compatible and does increment it. So does a record kind added to a block,
+// compatible and does increment it. A record ending in a variable run of
+// fields, as the card record ends in its workstreams, can take no appended
+// field, so a field it gains is an insertion: the four scheduling fields the
+// card record gained at dinah-605 are why the version is 6. So does a record kind added to a block,
 // because a reader of this grammar refuses a kind it does not know rather
 // than guessing how many fields follow it. The colatt record is such a kind,
 // added at version 4: one record per attachment of the column the instr
@@ -137,6 +141,10 @@ func (p *compactPayload) card(card *verb.CardView) {
 		card.Severity,
 		card.Priority,
 		card.Route,
+		card.StartAfter,
+		card.StartBy,
+		card.Due,
+		strings.Join(card.Schedule, ","),
 		card.PullDestination,
 		card.Holder,
 		card.ClaimSince,
@@ -275,6 +283,8 @@ func compactOffers(offers []verb.Offer) string {
 			compactFlag(offer.AboveTier),
 			offer.Landing,
 			strconv.Itoa(offer.ReadyCount),
+			compactFlag(offer.NotYet),
+			offer.StartableFrom,
 		)
 		payload.card(offer.Card)
 	}

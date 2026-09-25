@@ -145,11 +145,31 @@ func TestTheFieldToolsCarryTheSameSentencesTheTerminalPrints(t *testing.T) {
 		}
 	}
 	added := schemaOf(t, library, "add_card")
-	for _, name := range []string{bench.SeverityField, bench.PriorityField} {
+	// The three date arguments dinah-605 gave add join the two levels, so an
+	// agent filing a card reaches every flag a person at a terminal reaches.
+	for _, name := range []string{bench.SeverityField, bench.PriorityField, "start-after", "start-by", "due"} {
 		wanted := catalog.T("param.add." + name + ".summary")
 		if got := propertyDescription(t, added, name); got != wanted {
 			t.Errorf("add_card describes %s as %q and the terminal prints %q", name, got, wanted)
 		}
+	}
+}
+
+// TestAddCardStoresTheThreeDates is the MCP half of dinah-605/criteria/9: the
+// three date arguments of add_card land on the card, and a malformed one is
+// refused under its own name.
+func TestAddCardStoresTheThreeDates(t *testing.T) {
+	library := newLevelledLibrary(t)
+	added := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"add_card","arguments":{"actor":"alka","title":"a dated card","start-after":"2026-10-06","start-by":"2026-10-08","due":"2026-10-10"}}}`))
+	card, _ := added["card"].(map[string]any)
+	for field, want := range map[string]string{"start_after": "2026-10-06", "start_by": "2026-10-08", "due": "2026-10-10"} {
+		if got, _ := card[field].(string); got != want {
+			t.Errorf("add_card stored %s as %q, want %q: %v", field, got, want, added)
+		}
+	}
+	refused := payload(t, ask(t, library, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"add_card","arguments":{"actor":"alka","title":"a badly dated card","due":"2026-10-1"}}}`))
+	if name, _ := refused["refusal"].(string); name != contract.Malformed {
+		t.Errorf("a malformed due date answered %v", refused)
 	}
 }
 

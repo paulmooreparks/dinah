@@ -3,6 +3,7 @@ package verb
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -144,7 +145,7 @@ func TestTheColumnViewPublishesCarriesIntosOwnAnswer(t *testing.T) {
 	for _, c := range carriesIntoCases() {
 		t.Run(c.name, func(t *testing.T) {
 			flow := c.flow
-			library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
+			library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}, Now: time.Now}
 			views, gotErr12 := library.columnViews(nil)
 			if gotErr12 != nil {
 				t.Fatalf("columnViews: %v", gotErr12)
@@ -171,7 +172,7 @@ func TestTheColumnViewPublishesCarriesIntosOwnAnswer(t *testing.T) {
 	// reaches, so it is named here with the answer written out.
 	t.Run("a station carries a card into the station beyond it", func(t *testing.T) {
 		flow := flowOf(contract.KindWork, contract.KindWork)
-		library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
+		library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}, Now: time.Now}
 		views, gotErr11 := library.columnViews(nil)
 		if gotErr11 != nil {
 			t.Fatalf("columnViews: %v", gotErr11)
@@ -204,7 +205,7 @@ func TestPullableCardsFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 			State:  contract.StateReady,
 		})
 	}
-	library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}}
+	library := &Library{Bench: &bench.Bench{Root: t.TempDir(), Columns: flow}, Now: time.Now}
 	for _, destination := range flow {
 		var wanted []*bench.Column
 		for at := len(flow) - 1; at >= 0; at-- {
@@ -212,7 +213,7 @@ func TestPullableCardsFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 				wanted = append(wanted, flow[at])
 			}
 		}
-		taken, _ := library.pullableCards(destination, cards, admission{}, nil)
+		taken, _, _ := library.pullableCards(destination, cards, admission{}, library.selectionHold(), nil)
 		var got []*bench.Column
 		for _, card := range taken {
 			got = append(got, library.Bench.Column(card.Column))
@@ -231,7 +232,7 @@ func TestPullableCardsFiltersTheWalkRatherThanRepeatingIt(t *testing.T) {
 	// The assertion above holds by construction unless the operator-owned
 	// buffer really is a source of the station, so that one case is named.
 	station := flow[3]
-	taken, _ := library.pullableCards(station, cards, admission{}, nil)
+	taken, _, _ := library.pullableCards(station, cards, admission{}, library.selectionHold(), nil)
 	found := false
 	for _, card := range taken {
 		if card.Column == flow[1].ID {

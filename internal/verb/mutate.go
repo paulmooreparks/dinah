@@ -114,7 +114,7 @@ func (l *Library) admit(req *Request) (*bench.Resolved, *Response) {
 func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 	switch req.Verb {
 	case Claim:
-		return l.claim(req, card)
+		return l.warnBeforeStartAfter(l.claim(req, card), card)
 	case Move:
 		return l.move(req, card)
 	case Release:
@@ -133,6 +133,24 @@ func (l *Library) evaluate(req *Request, card *bench.Card) *Response {
 		return l.revoke(req, card)
 	}
 	return l.refuse(req, card, contract.UnknownVerb, req.Verb)
+}
+
+// warnBeforeStartAfter carries a warning on a successful claim of a card the
+// start hold would have withheld from selection, naming the date the card may
+// be taken up from. The claim is not refused: the caller named the card, and
+// selection withholding it is a statement about what the tool hands out
+// rather than about what a person may choose. A response already carrying a
+// warning keeps it, and Do's own stale-prefix warning, set after this runs,
+// takes the slot where both apply.
+func (l *Library) warnBeforeStartAfter(response *Response, card *bench.Card) *Response {
+	if response == nil || response.Outcome != contract.OutcomeOK || response.Warning != "" {
+		return response
+	}
+	if held, from := l.selectionHold()(card); held {
+		response.Warning = "warn.before-start-after"
+		response.WarningDetail = from
+	}
+	return response
 }
 
 // lapse applies an expired claim. Expiry is evaluated at the moment any verb

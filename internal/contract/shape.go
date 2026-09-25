@@ -819,7 +819,7 @@ var Shapes = []Shape{
 		// Both are filled at a raise site and each is its own fragment's
 		// condition, so they are declared there rather than in Values.
 		Name:     UnknownField,
-		Values:   []string{"fields", "instantField", "kind"},
+		Values:   []string{"fields", "orderedFields", "kind"},
 		Variants: []string{"get", "set", "show"},
 		Fragments: []Fragment{
 			{Key: "refusal.dinah.unknown-field.ordered", WhenCommand: "query"},

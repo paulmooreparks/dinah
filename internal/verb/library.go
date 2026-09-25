@@ -128,6 +128,12 @@ type Request struct {
 	// two levels above are: add names it through a flag of its own, where set
 	// names it by field.
 	Route string
+	// StartAfter, StartBy and Due are the scheduling dates a filing gives the
+	// new card, each empty when the invocation named none. They are separate
+	// from Value for the reason Route is.
+	StartAfter string
+	StartBy    string
+	Due        string
 	// Tier is what a column creation gives the new column as its default, and
 	// what a raise asks the card to require at the column it is standing in,
 	// which are two different acts sharing one argument name the way Kind
@@ -326,6 +332,10 @@ type Request struct {
 	// writes the one format line and nothing else, and without Confirm it
 	// writes nothing at all, which is why it carries no rehearsal of its own.
 	MigrateAppliesWhen bool
+	// MigrateSchedule asks check to stamp the store at the format from which
+	// a card may carry scheduling dates. It writes the one format line and
+	// nothing else, and without Confirm it writes nothing at all.
+	MigrateSchedule bool
 	// MigrateRawLines asks check to rewrite every quoted raw line an earlier
 	// import wrote on the workbench and column anchors to the bare JSON
 	// spelling, and to stamp the store at the format that declares a quoted
@@ -509,6 +519,15 @@ type CardView struct {
 	// terms the two levels above are: a name the workbench does not declare
 	// is shown exactly as stored, and dinah check is what reports it.
 	Route string `json:"route,omitempty"`
+	// StartAfter, StartBy and Due are the card's three scheduling dates, as
+	// stored, each absent where the card carries none. A stored value that
+	// does not parse is reported as stored and contributes no condition.
+	StartAfter string `json:"start_after,omitempty"`
+	StartBy    string `json:"start_by,omitempty"`
+	Due        string `json:"due,omitempty"`
+	// Schedule is every condition that holds, in precedence order, absent
+	// where none does.
+	Schedule []string `json:"schedule,omitempty"`
 	// RetirementGrant is the reference of the column this card stood in when
 	// the workbench operator gave it a criterion-retirement grant, and
 	// RetirementGrantTitle is that column's title, resolved the way
@@ -803,6 +822,10 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 		Route:    card.Route,
 		Holder:   card.Holder,
 
+		StartAfter: card.StartAfter,
+		StartBy:    card.StartBy,
+		Due:        card.Due,
+
 		RetirementGrant: grantRef(l.Bench, card.RetirementGrant),
 		ClaimSince:      card.ClaimSince,
 		Expires:         card.Expires,
@@ -826,6 +849,11 @@ func (l *Library) view(card *bench.Card) (*CardView, error) {
 	if bound := l.Bench.Column(card.RetirementGrant); bound != nil {
 		v.RetirementGrantTitle = bound.Title
 	}
+	schedule, err := l.scheduleOf(card, l.Bench.Today(l.Now()))
+	if err != nil {
+		return nil, err
+	}
+	v.Schedule = schedule
 	v.Fields = l.declaredFieldValues(card.FM, bench.KindCard)
 	for _, slot := range l.Bench.InapplicableSlots(card) {
 		answer := l.Bench.Applicability(card, slot)
