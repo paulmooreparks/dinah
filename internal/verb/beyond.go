@@ -254,35 +254,9 @@ func (l *Library) Add(req *Request) *Response {
 // oversight. dinah check names an empty comment nothing designates, at
 // cleanup severity, and names dinah delete as the remedy.
 func (l *Library) Comment(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.canComment(req)
+	if refused != nil {
 		return refused
-	}
-	// A blank reference resolves to the workbench under ResolveEntity, which
-	// is right for attach and wrong here: this parameter names a card, a
-	// column or a checklist item, never the workbench by omission, so the
-	// check this verb has always run first, that the card exists, is run
-	// before the reference is handed to the general resolver.
-	if strings.TrimSpace(req.Card) == "" {
-		return l.refuse(req, nil, contract.UnknownCard, "")
-	}
-	entity, err := l.Bench.ResolveEntity(req.Card)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	// Three kinds mount comments, a card, a column and a checklist item, and
-	// every other kind is refused: an attachment, a comment, a workstream and
-	// the workbench. It is the same question Attach already asks about
-	// attachments. The kind is carried beside the reference so the caller
-	// reads what the reference reached.
-	if _, mounts := bench.MountOf(entity.Kind, bench.CommentsDir); !mounts {
-		return l.refuseWith(req, entity.Card, contract.NotCommentable, entity.Ref,
-			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
 	}
 	now := bench.Stamp(l.Now())
 	// The comment is its own entity, so its identifier needs no lock, but the
@@ -326,6 +300,46 @@ func (l *Library) Comment(req *Request) *Response {
 	response := l.ok(req, entity.Card)
 	response.Detail = l.commentRefOf(entity, comment)
 	return response
+}
+
+// canComment runs every row Comment runs before it takes a lock, in Comment's
+// order: the workbench has an operator, the declared harness is well formed,
+// the reference is not blank, it resolves, the request names an owner, and
+// the entity it reached mounts comments. It answers the entity or the refusal
+// of the first row that fails. Comment and OfferActs both call it, so a row
+// added here reaches the act and the offer together.
+func (l *Library) canComment(req *Request) (*bench.EntityRef, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	// A blank reference resolves to the workbench under ResolveEntity, which
+	// is right for attach and wrong here: this parameter names a card, a
+	// column or a checklist item, never the workbench by omission, so the
+	// check this verb has always run first, that the card exists, is run
+	// before the reference is handed to the general resolver.
+	if strings.TrimSpace(req.Card) == "" {
+		return nil, l.refuse(req, nil, contract.UnknownCard, "")
+	}
+	entity, err := l.Bench.ResolveEntity(req.Card)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	// Three kinds mount comments, a card, a column and a checklist item, and
+	// every other kind is refused: an attachment, a comment, a workstream and
+	// the workbench. It is the same question Attach already asks about
+	// attachments. The kind is carried beside the reference so the caller
+	// reads what the reference reached.
+	if _, mounts := bench.MountOf(entity.Kind, bench.CommentsDir); !mounts {
+		return nil, l.refuseWith(req, entity.Card, contract.NotCommentable, entity.Ref,
+			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
+	}
+	return entity, nil
 }
 
 // commentRefOf composes what a person types to reach a comment that was just

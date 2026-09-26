@@ -160,7 +160,9 @@ func targets(args []string) error {
 		fmt.Println(string(data))
 	case "names":
 		for _, target := range release.Targets {
-			fmt.Println(target.BinaryName())
+			for _, name := range target.Names() {
+				fmt.Println(name)
+			}
 		}
 	default:
 		return fmt.Errorf("--format must be json or names, got %q", *format)

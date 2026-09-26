@@ -52,23 +52,23 @@ noun tools
 noun verbs
 noun ways
 
-docs/quick-start.md:105 figure=sixty-two noun=commands counts=the commands dinah help lists derives=groupedCommands
-docs/quick-start.md:105 figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
-docs/quick-start.md:294 figure=five noun=settings counts=the settings dinah config accepts derives=configKeys
-docs/quick-start.md:568 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:569 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:575 figure=three noun=commands counts=three of the reading commands holds=partitive reason=the sentence names ls, next, and show, which are three of the reading group rather than the whole of it
-docs/quick-start.md:685 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:700 figure=Five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:701 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
-docs/quick-start.md:905 figure=three noun=kinds counts=the checklist kinds a card may carry derives=checklistKinds
-docs/quick-start.md:1039 figure=one noun=fields counts=nothing, since the figure stands for the workstream the sentence above names holds=prose reason=the sentence reads Reading one of its fields, so one is a pronoun and no set is being counted
-docs/quick-start.md:1086 figure=two noun=commands counts=two of the commands that take any reference holds=partitive reason=the sentence names archive and delete, which take any reference at all rather than being the whole of the group that does
-docs/quick-start.md:1095 figure=two noun=commands counts=the two commands the block under this sentence runs holds=prose reason=the sentence points at the two lines of the block that follows rather than at any set the tree declares
-docs/quick-start.md:1292 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
-docs/quick-start.md:1678 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
+docs/quick-start.md:108 figure=sixty-three noun=commands counts=the commands dinah help lists derives=groupedCommands
+docs/quick-start.md:108 figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
+docs/quick-start.md:297 figure=five noun=settings counts=the settings dinah config accepts derives=configKeys
+docs/quick-start.md:571 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:572 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:578 figure=three noun=commands counts=three of the reading commands holds=partitive reason=the sentence names ls, next, and show, which are three of the reading group rather than the whole of it
+docs/quick-start.md:688 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:703 figure=Five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:704 figure=five noun=verbs counts=the verbs that change where a card stands derives=contractVerbs
+docs/quick-start.md:908 figure=three noun=kinds counts=the checklist kinds a card may carry derives=checklistKinds
+docs/quick-start.md:1042 figure=one noun=fields counts=nothing, since the figure stands for the workstream the sentence above names holds=prose reason=the sentence reads Reading one of its fields, so one is a pronoun and no set is being counted
+docs/quick-start.md:1089 figure=two noun=commands counts=two of the commands that take any reference holds=partitive reason=the sentence names archive and delete, which take any reference at all rather than being the whole of the group that does
+docs/quick-start.md:1098 figure=two noun=commands counts=the two commands the block under this sentence runs holds=prose reason=the sentence points at the two lines of the block that follows rather than at any set the tree declares
+docs/quick-start.md:1295 figure=two noun=groups counts=the two origins of a refusal name holds=prose reason=the groups are the shared rules and Dinah's own coinage, which no table in the tree declares as a set
+docs/quick-start.md:1681 figure=five noun=flags counts=the optional flags dinah column new accepts derives=columnNewFlags
 internal/guide/guides/first-session.md:129 figure=one noun=outcomes counts=one of the four outcomes a command reports holds=partitive reason=the sentence says one of four outcomes, so the figure counts the choice rather than the set
-internal/guide/guides/mcp.md:368 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:486 declares=injectedProperties
+internal/guide/guides/mcp.md:368 figure=Eight noun=tools counts=the MCP tools whose verb reads the request's basis holds=unreachable at=internal/mcp/tools.go:487 declares=injectedProperties
 internal/guide/guides/mcp.md:400 figure=two noun=kinds counts=the directory kinds the descent skips holds=prose reason=a dotted directory and a symbolic link are two branches of one walk rather than a set the tree declares
 internal/guide/guides/setup-recipes.md:86 figure=Three noun=kinds counts=the step kinds a recipe carries out as data holds=partitive reason=the sentence counts the three data kinds of the four step kinds internal/setup declares in stepKeys, and the fourth, run, has a section of its own
 internal/guide/guides/query.md:44 figure=Nineteen noun=fields counts=the field names the query language admits derives=queryFields

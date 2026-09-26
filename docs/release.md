@@ -25,6 +25,11 @@ number in the hundreds and a stable number in the single digits are counting
 different things, so nothing compares one against the other, and no code in
 this repository does.
 
+Each release carries two binaries for each of its six platforms: `dinah`, and
+`dinah-tui`, the terminal UI's program, which `dinah tui` starts. Both are built
+from the same tree with the same flags, and `dinah-tui` refuses to run for a
+`dinah` of another build, so the install scripts take both from one release.
+
 ## Checking that a download came from here
 
 Every release attaches `SHA256SUMS.txt`, which answers whether the bytes you
@@ -110,9 +115,9 @@ What happens then, in order:
    records which trunk commit it came from, which is how the next cut knows
    what this lineage already carries.
 4. The assembled tree is checked on Linux, Windows and macOS.
-5. Only then is anything published: the tag is pushed, the six binaries are
-   built from the assembled tree, and `beta.json` is written on the `channels`
-   release.
+5. Only then is anything published: the tag is pushed, the twelve binaries,
+   `dinah` and `dinah-tui` for each of six platforms, are built from the
+   assembled tree, and `beta.json` is written on the `channels` release.
 
 A cherry-pick that does not apply cleanly stops the run where it stands. The
 sequence is aborted, no check runs, no tag is pushed and no manifest is

@@ -34,10 +34,6 @@ render.go:emitCanonical#2  the branch where the machine form will not marshal, w
 render.go:refusalListings#2  the columns listing asked for before a workbench is open, which unknown-column cannot be raised before.
 render.go:renderColumnLine#2  renderColumnLine handed no column, which emitColumn cannot produce: it draws the line only on an ok outcome, and every ok outcome of column new carries the column it wrote.
 render.go:renderWorkstreamLine#2  renderWorkstreamLine handed no workstream, which emitWorkstream cannot produce: it draws the line only on an ok outcome, and every ok outcome of the two workstream acts carries the workstream it wrote.
-render.go:reportOutcome#4  the stale outcome of a response, which the cli head cannot provoke: a stale revision needs a second writer between the read and the act.
-render.go:reportOutcome#5  the same, on the branch where the stale response carries a card.
-render.go:reportOutcome#6  the same, writing the stale sentence.
-render.go:reportOutcome#7  the unreachable outcome, which is by construction the outcome no invocation produces.
 render.go:workstreamRef#2  workstreamRef reading a session that has opened no workbench, which no card line reaches: a card line is drawn from a response, and there is no response until a workbench is open.
 table.go:recordTableSite#2  the shipped binary's branch, where no test hook is armed. The suite arms the recorder for its whole run, so this is unreachable from a test by construction.
 render.go:drawNewlineConflicts#3  the skip over a conflict condition no catalogue entry names, which the migration cannot produce: every condition it files is one of the four NewlineConflict tokens and newlineConflictKeys names all four. It stands so that a fifth token added later prints nothing rather than printing a brace-wrapped key at a reader.

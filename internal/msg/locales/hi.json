@@ -8709,6 +8709,409 @@
       "text": "{count} कार्ड इसकी प्रतीक्षा करते हैं",
       "context": "As view.urgency.explain.blocks-others.counted.one, the form for any other number of cards, including none.",
       "source": "6d7ffc660cfb5587"
+    },
+    "cmd.tui.summary": {
+      "text": "कीबोर्ड से किसी दृश्य पर काम करें",
+      "context": "The one-line summary of the tui command in dinah help. The command starts an interactive screen over one view, where a person moves between cards and acts on them with keys.",
+      "source": "5b8d0c00a59dbf0c"
+    },
+    "cmd.tui.note": {
+      "text": "अलग प्रोग्राम dinah-tui चलाता है, जिसे इंस्टॉल स्क्रिप्ट dinah के बगल में रखती है।",
+      "context": "The note printed under the tui command's own help, after its summary. dinah tui starts a second program, dinah-tui, which carries the interactive screen and is installed beside dinah. dinah-tui and dinah are program names and stay as they are.",
+      "source": "338974cf7473bd20"
+    },
+    "param.tui.view.summary": {
+      "text": "जिस दृश्य में काम करना है, उसका नाम; छोड़ देने पर बोर्ड",
+      "context": "The meaning of the one positional argument of `dinah tui`, printed in that command's arguments table. A view is a named drawing of the workbench, and board is the name of the view drawn as columns.",
+      "source": "90e513b709081441"
+    },
+    "param.tui.plain.summary": {
+      "text": "Unicode चिह्नों के बजाय सादे ASCII चिह्नों से बनाता है",
+      "context": "The meaning of the --plain flag of `dinah tui`, printed in that command's arguments table. ASCII and Unicode are the names of the two character sets and stay as they are.",
+      "source": "fefdf283d9551111"
+    },
+    "check.tui.1": {
+      "text": "कोई मशीन प्रारूप नहीं माँगा गया",
+      "context": "A row of the checks table `dinah help tui` prints: the condition the command checks first, that --json or another machine format was not given, because the command draws on a screen rather than answering a script.",
+      "source": "2891a18769457bd3"
+    },
+    "check.tui.2": {
+      "text": "दृश्य ऐसा है जिसे आप देख सकते हैं",
+      "context": "A row of the checks table `dinah help tui` prints: the view named, or the board when none is, is declared by the user, the workbench or Dinah itself.",
+      "source": "89b3b8757774e401"
+    },
+    "check.tui.3": {
+      "text": "मानक इनपुट और आउटपुट ऐसा टर्मिनल हैं जो बनाने के लिए पर्याप्त बड़ा है",
+      "context": "A row of the checks table `dinah help tui` prints: both standard streams are an interactive terminal, and its window is at least the smallest size the screen is drawn in.",
+      "source": "c6a464f22d6e16c3"
+    },
+    "refusal.dinah.tui-unavailable": {
+      "text": "दृश्य {detail} पर यहाँ कीबोर्ड से काम नहीं किया जा सकता ({reason})",
+      "context": "The sentence printed after the refusal name dinah.tui-unavailable, which `dinah tui` carries when the terminal cannot carry the interactive screen, before anything is drawn. {detail} is the view's name and {reason} is a machine token naming why, one of not-a-terminal, no-size, too-small, dumb-terminal and no-key-description, which is never translated. The fragments refusal.dinah.tui-unavailable.size, refusal.dinah.tui-unavailable.capability and a next step are spliced on after it.",
+      "source": "e58fe5636e2ff9c4"
+    },
+    "refusal.dinah.tui-unavailable.size": {
+      "text": "; विंडो {size} है, और dinah tui को कम से कम {minimum} चाहिए",
+      "context": "Spliced after refusal.dinah.tui-unavailable when the window is too small for the interactive screen. {size} is the window's width and height written as 50x10, and {minimum} is the smallest size the screen is drawn in, written the same way. dinah tui is the command and stays as it is.",
+      "source": "c790a0a4f884ecca"
+    },
+    "refusal.dinah.tui-unavailable.capability": {
+      "text": "; टर्मिनल के विवरण में {capability} नहीं है",
+      "context": "Spliced after refusal.dinah.tui-unavailable when the terminal's terminfo description lacks a key the screen reads. {capability} is the capability's terminfo name, such as kcuu1, which is never translated.",
+      "source": "e38b59f489637a5c"
+    },
+    "refusal.dinah.tui-unavailable.next-small": {
+      "text": "; विंडो को चौड़ा या ऊँचा करें, या दृश्य को dinah view से एक बार बनाएँ",
+      "context": "The next step of refusal.dinah.tui-unavailable when the window was too small. dinah view is the command that draws a view once and stays as it is.",
+      "source": "377360408a1fd512"
+    },
+    "refusal.dinah.tui-unavailable.next": {
+      "text": "; दृश्य को dinah view से एक बार बनाएँ",
+      "context": "The next step of refusal.dinah.tui-unavailable for every reason other than a window that is too small. dinah view is the command that draws a view once and stays as it is.",
+      "source": "88119856cbf895d6"
+    },
+    "refusal.dinah.tui-missing": {
+      "text": "dinah tui को प्रोग्राम dinah-tui चाहिए, जो न {detail} के बगल में है और न PATH पर",
+      "context": "The sentence printed after the refusal name dinah.tui-missing, which `dinah tui` carries when it cannot find the separate program dinah-tui that draws the interactive screen. {detail} is the directory holding the running dinah program, where dinah-tui is looked for first. PATH is the environment variable and stays as it is, as do dinah tui and dinah-tui. refusal.dinah.tui-missing.next is spliced on after this one.",
+      "source": "44a4770ef216d4fa"
+    },
+    "refusal.dinah.tui-missing.next": {
+      "text": "; dinah-tui को इसी dinah वाली रिलीज़ से इंस्टॉल करें, जैसा इंस्टॉल स्क्रिप्ट करती है",
+      "context": "Spliced onto refusal.dinah.tui-missing as the next step: install dinah-tui, taken from the same release as the dinah that refused, which is what the install script already does.",
+      "source": "361909a9fb547b70"
+    },
+    "refusal.dinah.tui-skew": {
+      "text": "dinah-tui बिल्ड {tui} है, पर उसे शुरू करने वाला dinah बिल्ड {launcher} है",
+      "context": "The sentence printed after the refusal name dinah.tui-skew, which the program dinah-tui carries when the dinah that started it is a different build. {tui} and {launcher} are the two build identities, such as 0.1.0+0123456789ab, which are never translated. refusal.dinah.tui-skew.next is spliced on after this one.",
+      "source": "6f0b839622af9c31"
+    },
+    "refusal.dinah.tui-skew.next": {
+      "text": "; दोनों फ़ाइलें एक ही रिलीज़ से इंस्टॉल करें",
+      "context": "Spliced onto refusal.dinah.tui-skew as the next step: install dinah and dinah-tui together, from the same release.",
+      "source": "c31a8e7d8b86f578"
+    },
+    "interactive.heading": {
+      "text": "{workbench} · {view}",
+      "context": "The left part of the first row of dinah tui's screen. {workbench} is the workbench's title and {view} is the view's title. The mark between them may be spaced however the language wants.",
+      "verbatim": true,
+      "source": "5fa4d0fc197d510c"
+    },
+    "interactive.heading.filtered": {
+      "text": "{workbench} · {view} · {query}",
+      "context": "The left part of the first row of dinah tui's screen while a filter is set. {workbench} is the workbench's title, {view} is the view's title and {query} is the filter the person typed.",
+      "verbatim": true,
+      "source": "ae9d9a8b3bd7a509"
+    },
+    "interactive.heading.acting": {
+      "text": "{model} पर {actor} के रूप में",
+      "context": "The right part of the first row of dinah tui's screen, naming who acts and which model they declared. {actor} is the owner's name and {model} is the provider and model, such as anthropic/claude-opus-5-5, which are never translated.",
+      "source": "ea016a1759079e72"
+    },
+    "interactive.heading.acting.operator": {
+      "text": "{model} पर {actor} के रूप में, संचालक",
+      "context": "interactive.heading.acting for the workbench's operator, saying so. {actor} is the owner's name and {model} is the provider and model, which are never translated.",
+      "source": "4807b5468b691046"
+    },
+    "interactive.heading.no-actor": {
+      "text": "कोई स्वामी तय नहीं हुआ: केवल पढ़ना",
+      "context": "The right part of the first row of dinah tui's screen when no owner could be resolved, so the screen can be read but no act can be taken.",
+      "source": "8f92b23619e1d6b9"
+    },
+    "interactive.lane.section": {
+      "text": "{section} · {column}",
+      "context": "The title of one lane in the lane bar of dinah tui, on a view with several sections. {section} is the section's title and {column} is the column's title.",
+      "verbatim": true,
+      "source": "1f86fcffd0b4538b"
+    },
+    "interactive.too-small": {
+      "text": "विंडो बहुत छोटी है: {size} चाहिए",
+      "context": "The only row dinah tui draws while its window is smaller than it needs. {size} is the smallest size written as 60x12.",
+      "source": "c0802fe4913ebd72"
+    },
+    "interactive.acted.claim": {
+      "text": "{ref} उठाया गया",
+      "context": "Shown in dinah tui's message row after a claim succeeded. {ref} is the card's reference, such as dinah-12.",
+      "source": "ac88880c5ee84bb3"
+    },
+    "interactive.acted.release": {
+      "text": "{ref} लौटाया गया",
+      "context": "Shown in dinah tui's message row after a release succeeded. {ref} is the card's reference.",
+      "source": "bbad7f69a175ac53"
+    },
+    "interactive.acted.move": {
+      "text": "{ref} को कॉलम {column} में ले जाया गया",
+      "context": "Shown in dinah tui's message row after a move succeeded. {ref} is the card's reference and {column} is the destination column's title.",
+      "source": "2e697ad17fa4489c"
+    },
+    "interactive.acted.comment": {
+      "text": "{ref} पर टिप्पणी की गई",
+      "context": "Shown in dinah tui's message row after a comment was posted. {ref} is the card's reference.",
+      "source": "76329c1b5780f5d9"
+    },
+    "interactive.jump.nothing": {
+      "text": "{text} नाम का कुछ भी यहाँ दृश्य, कार्ड या कॉलम नहीं है",
+      "context": "Shown in dinah tui's message row when the text typed after : names no view, card or column. {text} is what the person typed.",
+      "source": "b9ba3d9bae980e4f"
+    },
+    "interactive.jump.no-lane": {
+      "text": "इस दृश्य का कोई कार्ड कॉलम {column} में नहीं है",
+      "context": "Shown in dinah tui's message row when the column typed after : holds none of the view's cards. {column} is the column's title.",
+      "source": "4eed991dd95ed60a"
+    },
+    "interactive.prompt.comment": {
+      "text": "{ref} पर टिप्पणी:",
+      "context": "The label above the text a person types to comment on a card in dinah tui. {ref} is the card's reference.",
+      "source": "e8f3cbefa908a32c"
+    },
+    "interactive.menu.title": {
+      "text": "{ref} को यहाँ ले जाएँ:",
+      "context": "The title of dinah tui's move menu, above the list of columns the card may be moved to. {ref} is the card's reference.",
+      "source": "981ade997c47e5a8"
+    },
+    "interactive.menu.row": {
+      "text": "{number}. {title}",
+      "context": "One row of dinah tui's move menu. {number} is the digit that chooses it and {title} is the column's title.",
+      "verbatim": true,
+      "source": "5cfa24d786155270"
+    },
+    "interactive.menu.row.route": {
+      "text": "{number}. {title} (अगला)",
+      "context": "The row of dinah tui's move menu that is the next column on the card's route. {number} is the digit that chooses it and {title} is the column's title.",
+      "source": "55c7690bf9225730"
+    },
+    "interactive.menu.row.reject": {
+      "text": "{number}. {title} (वापस भेजें)",
+      "context": "The row of dinah tui's move menu that sends the card back to the column its column rejects to. {number} is the digit that chooses it and {title} is the column's title.",
+      "source": "44fc99d8a9c0028"
+    },
+    "interactive.crashed": {
+      "text": "आंतरिक त्रुटि के कारण इंटरैक्टिव दृश्य रुक गया, और टर्मिनल पहले जैसा कर दिया गया है; त्रुटि आगे दी गई है",
+      "context": "Written to standard error when dinah tui stopped because of a fault in Dinah itself, after the terminal has been given back. The error's own text and where it happened follow on the next lines.",
+      "source": "778d6f6905cc3cd"
+    },
+    "interactive.help.show": {
+      "text": "दिखाएँ",
+      "context": "A footer label of dinah tui: what the Enter key does, which opens the selected card. Keep it short.",
+      "source": "46dc5f18e28e25bc"
+    },
+    "interactive.help.back": {
+      "text": "वापस",
+      "context": "A footer label of dinah tui: what Enter and Backspace do while a card is open, which returns to the lanes. Keep it short.",
+      "source": "9a46ff9baa276602"
+    },
+    "interactive.help.claim": {
+      "text": "उठाएँ",
+      "context": "A footer label of dinah tui: what the t key does, which takes up the selected card. Keep it short.",
+      "source": "d0f467952faee3cf"
+    },
+    "interactive.help.accept": {
+      "text": "स्वीकारें {arrow} {column}",
+      "context": "A footer label of dinah tui: what the a key does when it moves the card into a done column. {arrow} is an arrow mark and {column} is the destination column's title. Keep it short.",
+      "source": "5f448143d5bd5466"
+    },
+    "interactive.help.advance": {
+      "text": "आगे {arrow} {column}",
+      "context": "A footer label of dinah tui: what the a key does when it moves the card on along its route. {arrow} is an arrow mark and {column} is the destination column's title. Keep it short.",
+      "source": "ddb2138ccf7506a"
+    },
+    "interactive.help.send-back": {
+      "text": "वापस भेजें {arrow} {column}",
+      "context": "A footer label of dinah tui: what the b key does, which sends the card back to the column its column rejects to. {arrow} is an arrow mark and {column} is the destination column's title. Keep it short.",
+      "source": "cb94e1d236b61b03"
+    },
+    "interactive.help.move": {
+      "text": "ले जाएँ",
+      "context": "A footer label of dinah tui: what the m key does, which opens the menu of columns the card may be moved to. Keep it short.",
+      "source": "d0f17a2c3f687b4"
+    },
+    "interactive.help.release": {
+      "text": "लौटाएँ",
+      "context": "A footer label of dinah tui: what the r key does, which gives the card back. Keep it short.",
+      "source": "a63d4c9b882b10fe"
+    },
+    "interactive.help.comment": {
+      "text": "टिप्पणी",
+      "context": "A footer label of dinah tui: what the c key does, which opens a prompt for a comment on the card. Keep it short.",
+      "source": "8a0021ca40aeac3e"
+    },
+    "interactive.help.filter": {
+      "text": "फ़िल्टर",
+      "context": "A footer label of dinah tui: what the / key does, which narrows the cards shown with a query. Keep it short.",
+      "source": "8ed8bca89377d4f7"
+    },
+    "interactive.help.jump": {
+      "text": "जाएँ",
+      "context": "A footer label of dinah tui: what the : key does, which goes to a view, a card or a column by name. Keep it short.",
+      "source": "eb1776ddf832a4cd"
+    },
+    "interactive.help.keys": {
+      "text": "कुंजियाँ",
+      "context": "A footer label of dinah tui: what the ? key does, which shows every key. Keep it short.",
+      "source": "581987d75cbd3e2d"
+    },
+    "interactive.help.fewer": {
+      "text": "कम कुंजियाँ",
+      "context": "A footer label of dinah tui: what the ? key does while every key is shown, which goes back to the short list. Keep it short.",
+      "source": "74325f90ab07097a"
+    },
+    "interactive.help.quit": {
+      "text": "बंद करें",
+      "context": "A footer label of dinah tui: what the q key and Ctrl+C do, which end the screen. Keep it short.",
+      "source": "1dee6107b26f8bb6"
+    },
+    "interactive.help.repaint": {
+      "text": "फिर से बनाएँ",
+      "context": "A footer label of dinah tui: what Ctrl+L does, which draws the whole screen again and changes nothing else. Keep it short.",
+      "source": "5aef8e0bc496daf2"
+    },
+    "interactive.help.cancel": {
+      "text": "रद्द करें",
+      "context": "A footer label of dinah tui: what a key does that closes a menu or a prompt and does nothing else. Keep it short.",
+      "source": "47e83eaa4b387e3b"
+    },
+    "interactive.help.choose": {
+      "text": "चुनें",
+      "context": "A footer label of dinah tui's move menu: what Enter and the digit keys do, which move the card to a row. Keep it short.",
+      "source": "da46358c7e912020"
+    },
+    "interactive.help.post": {
+      "text": "भेजें",
+      "context": "A footer label of dinah tui's comment prompt: what Ctrl+D does, which records the comment. Keep it short.",
+      "source": "8c2fe90da8958d47"
+    },
+    "interactive.help.newline": {
+      "text": "नई पंक्ति",
+      "context": "A footer label of dinah tui's comment prompt: what Enter does there, which starts a new line of the comment. Keep it short.",
+      "source": "91a03dc10e0b10e9"
+    },
+    "interactive.help.go": {
+      "text": "जाएँ",
+      "context": "A footer label of dinah tui's jump and filter prompts: what Enter does there, which carries out what was typed. Keep it short.",
+      "source": "8953907b53f670b"
+    },
+    "interactive.help.up": {
+      "text": "पिछला कार्ड",
+      "context": "A footer label of dinah tui: what the up arrow and k do, which select the card above. Keep it short.",
+      "source": "538b9f18d005d696"
+    },
+    "interactive.help.down": {
+      "text": "अगला कार्ड",
+      "context": "A footer label of dinah tui: what the down arrow and j do, which select the card below. Keep it short.",
+      "source": "4bebb1efc7f6b176"
+    },
+    "interactive.help.left": {
+      "text": "पिछला कॉलम",
+      "context": "A footer label of dinah tui: what the left arrow and h do, which move to the lane to the left. Keep it short.",
+      "source": "2197fa41cf4d9762"
+    },
+    "interactive.help.right": {
+      "text": "अगला कॉलम",
+      "context": "A footer label of dinah tui: what the right arrow and l do, which move to the lane to the right. Keep it short.",
+      "source": "cd60841597b1eb42"
+    },
+    "interactive.help.page": {
+      "text": "पृष्ठ",
+      "context": "A footer label of dinah tui: what Page Up and Page Down do, which move a screenful at a time. Keep it short.",
+      "source": "38b2a0deba58916"
+    },
+    "interactive.help.ends": {
+      "text": "पहला या अंतिम",
+      "context": "A footer label of dinah tui: what Home and End do, which go to the first or the last row. Keep it short.",
+      "source": "10f4c0b9efe5deba"
+    },
+    "interactive.help.scroll": {
+      "text": "स्क्रॉल",
+      "context": "A footer label of dinah tui while a card is open: what the arrows do there, which scroll the card's text. Keep it short.",
+      "source": "bf00b829466b6c0c"
+    },
+    "interactive.help.highlight": {
+      "text": "पिछली या अगली पंक्ति",
+      "context": "A footer label of dinah tui's move menu: what the up and down arrows do there, which move the highlight between rows. Keep it short.",
+      "source": "559afeb2d19d7c46"
+    },
+    "interactive.key.enter": {
+      "text": "enter",
+      "context": "The label of the Enter key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "be7898bf4c4eeaad"
+    },
+    "interactive.key.backspace": {
+      "text": "backspace",
+      "context": "The label of the Backspace key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "70498c02c43fe96c"
+    },
+    "interactive.key.ctrl-c": {
+      "text": "ctrl+c",
+      "context": "The label of the key combination Ctrl+C as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "8a61124d94541a"
+    },
+    "interactive.key.ctrl-l": {
+      "text": "ctrl+l",
+      "context": "The label of the key combination Ctrl+L as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "8a54124d943e03"
+    },
+    "interactive.key.ctrl-d": {
+      "text": "ctrl+d",
+      "context": "The label of the key combination Ctrl+D as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "8a5c124d944b9b"
+    },
+    "interactive.key.ctrl-g": {
+      "text": "ctrl+g",
+      "context": "The label of the key combination Ctrl+G as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "8a5d124d944d4e"
+    },
+    "interactive.key.up": {
+      "text": "up",
+      "context": "The label of the up arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "8c43a07b566d980"
+    },
+    "interactive.key.down": {
+      "text": "down",
+      "context": "The label of the down arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "dc04126761bb7455"
+    },
+    "interactive.key.left": {
+      "text": "left",
+      "context": "The label of the left arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "24b070ada2041cb0"
+    },
+    "interactive.key.right": {
+      "text": "right",
+      "context": "The label of the right arrow key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "76aaaa535714d805"
+    },
+    "interactive.key.pgup": {
+      "text": "pgup",
+      "context": "The label of the Page Up key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "d116290dcf7f8025"
+    },
+    "interactive.key.pgdown": {
+      "text": "pgdown",
+      "context": "The label of the Page Down key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "ea2b98b0c8ed91a4"
+    },
+    "interactive.key.home": {
+      "text": "home",
+      "context": "The label of the Home key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "402d1bcc7e6f9d6e"
+    },
+    "interactive.key.end": {
+      "text": "end",
+      "context": "The label of the End key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "verbatim": true,
+      "source": "c2f00318f053500a"
     }
   }
 }

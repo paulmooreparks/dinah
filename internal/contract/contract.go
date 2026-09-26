@@ -349,6 +349,17 @@ const (
 	// too-small window adds its size while a missing capability adds the
 	// terminfo name of the capability.
 	WatchUnavailable = LayerPrefix + "watch-unavailable"
+	// TUIUnavailable is dinah tui refused before anything is drawn, because
+	// the keyboard or the window cannot carry it.
+	TUIUnavailable = LayerPrefix + "tui-unavailable"
+	// TUIMissing is dinah tui refused because the separate program dinah-tui
+	// is neither beside dinah nor on PATH. The detail is the directory of
+	// dinah's own executable.
+	TUIMissing = LayerPrefix + "tui-missing"
+	// TUISkew is dinah-tui refusing to run for a dinah from another build.
+	// The values launcher and tui carry the two build identities, and the
+	// detail is dinah-tui's path.
+	TUISkew = LayerPrefix + "tui-skew"
 	// MalformedUrgency is a view ordered by urgency drawn on a workbench
 	// whose dinah.urgency block cannot be read. It refuses rather than
 	// falling back to the shipped weights, because a ranking computed on
@@ -905,6 +916,7 @@ var Introduced = []string{
 	SetupOtherWorkbench, SetupRunNotAllowed, SetupStepFailed,
 	UnknownView, MalformedView, ViewsUnreadable,
 	MalformedUrgency, CardNotInView, ViewNotRanked, WatchUnavailable,
+	TUIUnavailable, TUIMissing, TUISkew,
 }
 
 // The reasons dinah.watch-unavailable carries in its reason value, which are
@@ -924,6 +936,18 @@ const (
 	// watch needs, or using a parameter operation the reader does not
 	// evaluate in one.
 	WatchMissingCapability = "missing-capability"
+)
+
+// The reasons dinah.tui-unavailable carries in its reason value that the
+// watch's reasons do not already name. The command reuses WatchNotATerminal,
+// WatchNoSize and WatchTooSmall where the meaning is the same, and these are
+// machine tokens that are never translated either.
+const (
+	// TUIDumbTerminal is a POSIX terminal whose TERM is dumb or unset.
+	TUIDumbTerminal = "dumb-terminal"
+	// TUINoKeyDescription is a POSIX terminal whose terminfo entry could not
+	// be read, or lacks a key capability the key reader needs.
+	TUINoKeyDescription = "no-key-description"
 )
 
 // NameIsLegal reports whether a refusal name is one CORE-OUT-3 admits: one

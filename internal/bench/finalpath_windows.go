@@ -1,6 +1,6 @@
 //go:build windows
 
-package setup
+package bench
 
 import (
 	"errors"
@@ -9,14 +9,14 @@ import (
 	"unsafe"
 )
 
-// kernel32 holds GetFinalPathNameByHandleW, which the syscall package does
+// finalPathKernel32 holds GetFinalPathNameByHandleW, which the syscall package does
 // not wrap.
 var (
-	kernel32                  = syscall.NewLazyDLL("kernel32.dll")
-	getFinalPathNameByHandleW = kernel32.NewProc("GetFinalPathNameByHandleW")
+	finalPathKernel32         = syscall.NewLazyDLL("kernel32.dll")
+	getFinalPathNameByHandleW = finalPathKernel32.NewProc("GetFinalPathNameByHandleW")
 )
 
-// Constants from the Win32 documentation cited on finalPath.
+// Constants from the Win32 documentation cited on FinalPath.
 const (
 	// fileReadAttributes is FILE_READ_ATTRIBUTES, the access right to read a
 	// file's attributes.
@@ -27,7 +27,7 @@ const (
 	fileNameNormalized = 0x0
 )
 
-// finalPath answers the path the filesystem finally reaches for an existing
+// FinalPath answers the path the filesystem finally reaches for an existing
 // file or directory, with every symbolic link, junction and other name
 // surrogate along it resolved by the operating system itself.
 //
@@ -48,7 +48,7 @@ const (
 // The answer carries the \\?\ prefix those calls document, which is removed
 // so the path compares with the ones Go builds; a UNC answer, \\?\UNC\server,
 // becomes \\server.
-func finalPath(path string) (string, error) {
+func FinalPath(path string) (string, error) {
 	name, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return "", err

@@ -40,6 +40,27 @@ const (
 	strSetaf    = 359
 )
 
+// The positions of the key and keypad capabilities the terminal head's key
+// reader reads, in the same term.h order: what the Backspace, Delete, arrow,
+// Page Up, Page Down, Home and End keys send, and the strings that switch the
+// keypad into and out of the transmit mode those key strings are defined
+// for. They are exported for internal/screen/keyboard, which reads them
+// through Terminfo.String.
+const (
+	CapKbs   = 55
+	CapKdch1 = 59
+	CapKcud1 = 61
+	CapKhome = 76
+	CapKcub1 = 79
+	CapKnp   = 81
+	CapKpp   = 82
+	CapKcuf1 = 83
+	CapKcuu1 = 87
+	CapRmkx  = 88
+	CapSmkx  = 89
+	CapKend  = 164
+)
+
 // ErrNoTerminfo is a terminal type for which no compiled description could
 // be found or read.
 var ErrNoTerminfo = errors.New("screen: no terminfo description")

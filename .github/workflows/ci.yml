@@ -36,7 +36,10 @@ jobs:
             require_shells: bash,zsh
             bash: /bin/bash
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # go-checks runs cmd/dinah twice, untagged and tagged tui, and the
+    # untagged run starts its coverage pass on top, so the limit allows for
+    # both on a slow Windows runner.
+    timeout-minutes: 40
     env:
       COMPLETION_REQUIRE_SHELLS: ${{ matrix.require_shells }}
       COMPLETION_BASH: ${{ matrix.bash }}

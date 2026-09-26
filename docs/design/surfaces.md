@@ -35,6 +35,19 @@ hover, as an inline annotation, and through go-to-definition. It is a reader.
 No verb runs there and no lock is taken, and it holds no value past the next
 time it rereads the workbench.
 
+The terminal UI is the one head outside the one binary. It is built from the
+same package, `cmd/dinah`, under the `tui` build tag, as the program
+`dinah-tui`, which the install scripts put beside `dinah`, and `dinah tui`
+starts it. The library it draws with costs every process that links it at
+start-up. With it linked into `dinah`, `dinah version` on Windows went from
+about 73 ms to about 95 ms averaged over 20 runs, package initialisation went
+from 37 ms to 63 ms, and `go-runewidth` filled a 2.2 MB table on every
+platform. Agents run `dinah` constantly, so the operator ruled on 2026-09-26
+(dinah-603/questions/4) that this head pays for its libraries alone. It links
+the same verb library and reads the same workbench format as `dinah`, and it
+refuses to run for a `dinah` of another build, so there is still one
+implementation of every verb.
+
 The language is Go: static single binary, trivial cross-compilation, stdlib
 HTTP, cheap concurrency for the servers, and language coherence with the
 hosted product (one brain maintains both; the conformance suite pins Dinah's
