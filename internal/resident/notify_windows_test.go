@@ -292,15 +292,37 @@ func removeAll(t *testing.T, path string) {
 	}
 }
 
+// renameAway renames a directory, trying again while the rename is refused
+// because something below it is open: a late last-write notification can have
+// the resident reading a file there at that instant, which refuses a rename of
+// the directory holding it for the length of the read. The retry is bounded
+// by the test deadline.
+func renameAway(t *testing.T, from, to string) {
+	t.Helper()
+	stop := time.After(realDeadline)
+	for {
+		err := os.Rename(from, to)
+		if err == nil {
+			return
+		}
+		if !errors.Is(err, windows.ERROR_ACCESS_DENIED) && !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+			t.Fatalf("rename %s away: %v", from, err)
+		}
+		select {
+		case <-stop:
+			t.Fatalf("the rename of %s kept being refused for %s: %v", from, realDeadline, err)
+		case <-time.After(time.Millisecond):
+		}
+	}
+}
+
 // TestTheRootReplacedIsDetected is part of dinah-619/criteria/8. The root is
 // renamed away and a different tree written where it was; the next Current
 // answers nil, and after the rebuild the snapshot mirrors the new root.
 func TestTheRootReplacedIsDetected(t *testing.T) {
 	root := realTree(t)
 	r := openReal(t, root, nil)
-	if err := os.Rename(root, root+"-old"); err != nil {
-		t.Fatalf("rename the watched root away: %v", err)
-	}
+	renameAway(t, root, root+"-old")
 	writeFile(t, filepath.Join(root, "workbench.md"), "---\ntitle: Replacement\n---\n")
 	writeFile(t, filepath.Join(root, "cards", "0123456789ef", "card.md"), "---\ntitle: New\n---\n")
 	if pick := r.w.Current(time.Now()); pick.Snapshot != nil {
