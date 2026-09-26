@@ -3,6 +3,7 @@
 package main
 
 import (
+	"runtime"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
@@ -346,13 +347,24 @@ func init() {
 			},
 		},
 		"edit": {
-			offered: func(m *interactiveModel) bool { return m.acts().Edit },
+			offered: func(m *interactiveModel) bool { return m.offer.edit },
 			run: func(m *interactiveModel, _ map[string]any) tea.Cmd {
 				ref, _, _ := m.target()
 				return m.runLine([]string{"edit", ref}, "")
 			},
 		},
 	}
+}
+
+// editorResolves answers whether edit typed now would find an editor, asked
+// through the same ladder runEdit climbs and over the configuration the line
+// session reads. OfferActs answers whether the card has something to edit,
+// which the library knows; which editor would open it is the CLI's own
+// setting, read here, so the menu never offers an edit that would end the
+// program only to be refused as dinah.no-editor and start a new one.
+func (m *interactiveModel) editorResolves() bool {
+	_, err := bench.ResolveEditor(m.s.lineSession(nil, nil, m.draw(), nil).cfg, runtime.GOOS, onPath)
+	return err == nil
 }
 
 // actionRow is one row of the actions menu: the verb and its entry.

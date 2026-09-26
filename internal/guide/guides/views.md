@@ -691,8 +691,13 @@ settings, and press it in the lane and in a card read in full. For example,
 this binds `o` to filing an open question on the selected card and labels it
 in the footer:
 
-    dinah config set tui.key.o "file $card open_question"
+    dinah config set tui.key.o 'file $card open_question'
     dinah config set tui.label.o question
+
+In bash, zsh and PowerShell the single quotes keep `$card` as you wrote it,
+where double quotes would let the shell replace it with nothing before Dinah
+ever saw it. Command Prompt gives single quotes no meaning and leaves `$card`
+alone, so there you write the same line with double quotes.
 
 A binding may name three placeholders, which Dinah replaces when you press
 the key. `$card` is the selected card's reference, `$column` is its column,

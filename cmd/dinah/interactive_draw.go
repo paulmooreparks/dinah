@@ -30,12 +30,22 @@ var interactiveColours = map[screen.Colour]color.Color{
 }
 
 // interactiveFrame is the tea.View every frame is drawn as: on the
-// alternate screen, with Bubble Tea's own bracketed-paste switch off because
-// Dinah sends the mode itself, and with no mouse and no keyboard enhancement.
+// alternate screen, with bracketed paste on, and with no mouse and no
+// keyboard enhancement.
+//
+// Dinah turns bracketed paste on before each program starts and off after it
+// ends, and its reader decodes the marks. Every frame also asks for the mode
+// on, because View documents DisableBracketedPasteMode as disabling the mode
+// for the view that carries it: a frame asking for it off is a frame during
+// which a paste is not marked, whoever set the mode last. Bubble Tea's
+// renderer starts ticking before Init returns, so a tick can draw its own
+// zero View, which asks for the mode on, ahead of the first frame of the
+// head's; a frame asking for it off then wrote the disable, and a head
+// restarted after a lend, whose Init reads the workbench again, left paste
+// unmarked for the rest of the session (dinah-623/criteria/52).
 func interactiveFrame(content string) tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = true
-	view.DisableBracketedPasteMode = true
 	view.MouseMode = tea.MouseModeNone
 	view.KeyboardEnhancements = tea.KeyboardEnhancements{}
 	return view

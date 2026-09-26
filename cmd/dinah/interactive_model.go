@@ -148,6 +148,9 @@ type interactiveOffer struct {
 	forward, back           *verb.LegalMove
 	forwardTerminal         bool
 	acts                    *verb.OfferedActs
+	// edit is OfferActs' Edit asked of the editor ladder as well, once per
+	// recompute, so drawing a frame reads no configuration file.
+	edit bool
 }
 
 // interactiveModel is the terminal head's Bubble Tea model.
@@ -251,6 +254,9 @@ func newInteractiveModel(s *session, l, waiter *verb.Library, req *verb.Request,
 // reader to discard the keys typed while the terminal was lent, reads the
 // view again and shows what the lent command wrote.
 func (m *interactiveModel) Init() tea.Cmd {
+	if interactiveSeam != nil && interactiveSeam.init != nil {
+		interactiveSeam.init()
+	}
 	if result := m.lent; result != nil {
 		m.lent = nil
 		if m.reader != nil {
@@ -741,6 +747,7 @@ func (m *interactiveModel) recomputeOffer() {
 		comment: offered.Comment,
 		moves:   offered.Moves,
 		acts:    offered,
+		edit:    offered.Edit && m.editorResolves(),
 	}
 	for i := range offered.Moves {
 		row := &offered.Moves[i]

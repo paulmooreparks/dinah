@@ -1342,3 +1342,16 @@ Caught at Implement on dinah-603, 2026-09-26, by the implementer's own arming ru
 **The test:** wherever a filter chooses which cases a check reads, confirm the filter measures the same representation the cases arrive in, and make the check report how many cases it read rather than how many it was given. Arm it by breaking the property under test and watching it go red. A check that stays green against a broken build has usually stopped reading its cases, and the count is what shows it.
 
 **Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, is the same failure from the input side: there the run never produced the case, and here the case was produced and then filtered out before anything looked at it.
+
+
+## A test that changes one target and then acts on another, so the refresh it claims to prove is never needed
+
+Caught at Agent Code Review on dinah-623, 2026-09-26, by a reviewer who removed the code under test and watched the test stay green. The feature is the terminal UI's command line: after a line typed at `:` returns, the head reads the view again, so the next act carries the card's fresh revision and is not answered stale. The test typed a line and then pressed an act key, and asserted the act was journaled and not stale.
+
+**Wrong:** `runLines(t, root, []string{"move fx-2 acceptance"}, keyBackspace+"t")`, then asserting that fx-1 was claimed and no stale answer was shown. The line changed fx-2 and `t` claimed fx-1, whose revision the line never touched. The claim carried a revision that was still current whether or not the head read the view again, so the test passed with `m.reread()` deleted from afterLine. It was verified on the strength of that run.
+
+**Right:** make the line change the very card the next act targets. `runLines(t, root, []string{"set fx-1 title Renamed"}, keyBackspace+"t")`, with an assertion that the selected card is fx-1 before reading the journal. Now the revision the claim carries is current only if the head reread after the line, and deleting `m.reread()` answers the claim "stale the card moved since you read it" and fails the test.
+
+**The test:** when a test claims that state changed by step one is picked up by step two, check that step two reads the thing step one wrote, the same card, the same item, the same file. Then arm it by removing the pickup and watching it go red. A test whose two steps touch different targets proves that step two works on its own, and nothing about the refresh between them.
+
+**Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, is the same family: the test is green because its input never reaches the position where the code under test matters. This instance is cheaper to spot, since the two target names sit side by side in one call.

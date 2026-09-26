@@ -139,7 +139,7 @@ func TestEditLendsTheTerminalAndTakesItBack(t *testing.T) {
 	if launches := editorLaunches(t, log); len(launches) != 1 {
 		t.Errorf("the editor was launched %d times", len(launches))
 	}
-	if width, height := drawnSize(lend.firstFrameOf(t, 1)); width > 79 || height != 24 {
+	if width, height := drawnSize(lend.firstFrameOf(t, 1)); width != 79 || height != 24 {
 		t.Errorf("the first frame after the lend is %dx%d, wanted the 80x24 the resize set", width, height)
 	}
 	if !journaled(t, root, "fx-1", contract.EventClaimed) {
@@ -150,8 +150,52 @@ func TestEditLendsTheTerminalAndTakesItBack(t *testing.T) {
 	if enable < 0 || disable < enable {
 		t.Errorf("the output does not end with the bracketed-paste disable after the last enable: enable at %d, disable at %d", enable, disable)
 	}
-	if strings.Count(out, keyboard.BracketedPasteOn) != 2 || strings.Count(out, keyboard.BracketedPasteOff) != 2 {
-		t.Errorf("each cycle should enable and disable once: %d enables, %d disables", strings.Count(out, keyboard.BracketedPasteOn), strings.Count(out, keyboard.BracketedPasteOff))
+	if why := pasteOffOnTheAlternateScreen(out); why != "" {
+		t.Error(why)
+	}
+}
+
+// TestPasteStaysMarkedAfterALend is the seam half of dinah-623/criteria/52.
+// Each program's Init is held for 150 milliseconds, well past the first tick
+// of the renderer Bubble Tea starts before Init, so the renderer draws its
+// own zero View ahead of the head's first frame in both cycles. That is the
+// position a head restarted after a lend reaches when its Init reads the
+// workbench again. Across the lend and a key typed after it, bracketed paste
+// is never switched off while a frame is on the screen, and the last paste
+// sequence written before q is the enable.
+func TestPasteStaysMarkedAfterALend(t *testing.T) {
+	root := tuiBench(t)
+	editorAppends(t)
+	var output lockedBuffer
+	s, seam := newScript(t, 100, 30, true)
+	seam.output = &output
+	seam.init = func() { time.Sleep(150 * time.Millisecond) }
+	cycles := make(chan *tea.Program, 8)
+	var lend lendScript
+	lend.seamed(seam, cycles)
+	beforeQ := -1
+	run := s.run(root, seam, func() {
+		waitForProgram(t, cycles)
+		s.write(":edit fx-1" + keyEnter)
+		waitForProgram(t, cycles)
+		s.waitFor("the flush after the lend", isFlushed)
+		waitForOutput(t, &output, "Build the parser")
+		s.write("t")
+		s.waitFor("t after the lend", isKey("t"))
+		settledLength(output.String)
+		beforeQ = len(output.String())
+		s.write("q")
+	})
+	if run.model == nil || beforeQ < 0 {
+		t.Fatalf("the run never finished: %q", run.errw)
+	}
+	out := output.String()
+	if why := pasteOffOnTheAlternateScreen(out); why != "" {
+		t.Error(why)
+	}
+	enable, disable := strings.LastIndex(out[:beforeQ], keyboard.BracketedPasteOn), strings.LastIndex(out[:beforeQ], keyboard.BracketedPasteOff)
+	if enable < 0 || disable > enable {
+		t.Errorf("the last paste sequence written before q is not the enable: enable at %d, disable at %d", enable, disable)
 	}
 }
 
@@ -191,7 +235,7 @@ func TestAResizeDuringTheLendIsHonoured(t *testing.T) {
 			}
 			continue
 		}
-		if width, height := drawnSize(first); width > size[0]-1 || height != size[1] {
+		if width, height := drawnSize(first); width != size[0]-1 || height != size[1] {
 			t.Errorf("the first frame after the lend is %dx%d, wanted %dx%d", width, height, size[0], size[1])
 		}
 	}

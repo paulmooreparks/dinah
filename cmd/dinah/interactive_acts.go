@@ -238,8 +238,10 @@ var interactiveActs = []interactiveAct{
 		offered: func(*interactiveModel) bool { return true },
 		steps:   []interactiveStep{lineStep("phrase", "interactive.prompt.search")},
 		read: func(_ *interactiveModel, args map[string]any) []string {
+			// The phrase follows the end of options, so a phrase that begins
+			// with a dash is searched for rather than read as a flag.
 			phrase, _ := args["phrase"].(string)
-			return []string{"search", phrase}
+			return []string{"search", "--", phrase}
 		}},
 	{name: "changes", verb: "changes", mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.changes },
 		offered: func(*interactiveModel) bool { return true },

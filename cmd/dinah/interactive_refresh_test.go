@@ -17,28 +17,61 @@ import (
 )
 
 // TestALineRefreshesTheViewAndTheOffer is dinah-623/criteria/12 and /16.
-// After move fx-2 acceptance typed at the command line, the view is read
-// again and the footer's offer is recomputed from the fresh read, so the act
-// key pressed next carries the fresh revision and is not answered stale.
-// After a line that renames a column, the next frame draws the new title
-// without waiting for the change loop, because the head opens its pinned
-// workbench again. With item mode open on an item a line then archives, the
-// row leaves and item mode closes with interactive.items.none. The line
-// archives the item rather than resolving it, because every item a card
-// holds offers cite to any owner, so a resolved item keeps its row.
+// A line typed at the command line changes the selected card, fx-1, by
+// renaming it, and the act key pressed next acts on that same card: t claims
+// fx-1 and is not answered stale, which holds only because the view was read
+// again after the line and the claim carries the revision the line left.
+// Aimed at a card the line never touched, the claim could not be stale
+// whatever the head did after a line. After a line that renames a column,
+// the next frame draws the new title without waiting for the change loop,
+// because the head opens its pinned workbench again. With item mode open, a
+// line that resolves an item updates its row to resolved (the row stays,
+// because every item offers cite to any owner), and a line that archives the
+// last item closes item mode with interactive.items.none.
 func TestALineRefreshesTheViewAndTheOffer(t *testing.T) {
 	root := tuiBench(t)
-	results, run := runLines(t, root, []string{"move fx-2 acceptance"}, keyBackspace+"t")
-	if len(results) != 1 {
-		t.Fatal("the move never ended")
+	results, run := runLines(t, root, []string{"set fx-1 title Renamed"}, keyBackspace+"t")
+	if len(results) != 1 || results[0].code != 0 {
+		t.Fatalf("the rename did not run: %v", results)
+	}
+	if selected, ok := run.model.selectedCard(); !ok || selected.Ref != "fx-1" {
+		t.Fatalf("t acted on %v, and the line changed fx-1", selected)
 	}
 	if !journaled(t, root, "fx-1", contract.EventClaimed) {
-		t.Errorf("t after the line did not claim fx-1: %v", run.model.message)
+		t.Errorf("t after the line did not claim fx-1, the card the line changed: %v", run.model.message)
 	}
 	for _, line := range run.model.message {
 		if strings.HasPrefix(line, contract.OutcomeStale) {
-			t.Errorf("the act after the line was answered stale: %v", run.model.message)
+			t.Errorf("the act on the card the line changed was answered stale: %v", run.model.message)
 		}
+	}
+
+	root = tuiBench(t)
+	step(t, root, "file", "fx-1", "open_question", "Which vendor?")
+	step(t, root, "file", "fx-1", "open_question", "Which colour?")
+	s0, seam0 := newScript(t, lineWidth, lineHeight, true)
+	resolved := make(chan *lineResult, 2)
+	seam0.lineDone = func(result *lineResult) { resolved <- result }
+	updated := s0.run(root, seam0, func() {
+		s0.write("i")
+		s0.waitFor("the item key", isKey("i"))
+		s0.write(`:resolve fx-1/questions/1 --text "the usual"` + keyEnter)
+		if result := <-resolved; result.code != 0 {
+			t.Errorf("the resolve typed at the command line was refused: %q", result.transcript.lines)
+		}
+		s0.write(keyCtrlC)
+	})
+	if updated.model.mode != modeItems {
+		t.Error("item mode closed though items are left")
+	}
+	state := ""
+	for _, row := range updated.model.itemRows {
+		if row.Ref == "fx-1/questions/1" {
+			state = row.State
+		}
+	}
+	if state != "resolved" {
+		t.Errorf("the resolved question's row reads %q in item mode, wanted resolved", state)
 	}
 
 	root = tuiBench(t)
@@ -203,7 +236,9 @@ func TestNoControlCharacterReachesAnyMode(t *testing.T) {
 
 // TestTheReadKeysRunThroughTheLine is dinah-623/criteria/31: >, S, F, C and
 // W are listed in the browse and card footers after :, and each runs its
-// line through runLine.
+// line through runLine. F hands its phrase after the end of options, so a
+// phrase beginning with a dash, such as --override, is searched for and not
+// refused as a flag.
 func TestTheReadKeysRunThroughTheLine(t *testing.T) {
 	root := tuiBench(t)
 	for _, mode := range []string{"", keyEnter} {
@@ -221,13 +256,21 @@ func TestTheReadKeysRunThroughTheLine(t *testing.T) {
 		}
 	}
 	var words []string
-	keys := ">" + keyBackspace + "S" + keyBackspace + "Fparser" + keyEnter + keyBackspace + "C" + keyBackspace + "W" + keyCtrlC
+	var codes []int
+	keys := ">" + keyBackspace + "S" + keyBackspace + "Fparser" + keyEnter + keyBackspace + "F--override" + keyEnter + keyBackspace + "C" + keyBackspace + "W" + keyCtrlC
 	seam := tuiSeam(t, strings.NewReader(keys), lineWidth, lineHeight)
-	seam.lineDone = func(result *lineResult) { words = append(words, strings.Join(result.words, " ")) }
+	seam.lineDone = func(result *lineResult) {
+		line := strings.Join(result.words, " ")
+		words = append(words, line)
+		codes = append(codes, result.code)
+	}
 	runTUIThrough(t, root, seam)
-	want := []string{"next", "status", "search parser", "changes --card fx-1", "whoami"}
+	want := []string{"next", "status", "search -- parser", "search -- --override", "changes --card fx-1", "whoami"}
 	if strings.Join(words, "|") != strings.Join(want, "|") {
 		t.Errorf("the read keys ran %q, wanted %q", words, want)
+	}
+	if len(codes) < 4 || codes[3] != 0 {
+		t.Errorf("F with the phrase --override answered %v, so the phrase was read as a flag", codes)
 	}
 }
 

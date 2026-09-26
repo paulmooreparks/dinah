@@ -66,6 +66,7 @@ type interactiveSeams struct {
 	view           func()                           // called at the top of View, where a test plants a panic
 	frame          func(string)                     // called with the content of every frame View answers
 	command        func()                           // called at the top of every command the head returns
+	init           func()                           // called at the top of Init, where a test holds a program's start past its renderer's first tick
 	discard        func()                           // called by the reader on every flush it makes
 	finish         func(*interactiveModel, error)   // called with the final model and Run's error
 	repanic        func(any)                        // replaces the final panic of a crash report

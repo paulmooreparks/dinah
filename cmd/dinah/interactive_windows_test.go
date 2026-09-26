@@ -365,7 +365,7 @@ func TestALendWritesOnlyWhatMicrosoftListsAndRepaintsWhole(t *testing.T) {
 		t.Errorf("across the lend the program wrote %s, which the first table of section 16.3 does not list", departure)
 	}
 	first := lend.firstFrameOf(t, 1)
-	if width, height := drawnSize(first); width > 89 || height != 25 {
+	if width, height := drawnSize(first); width != 89 || height != 25 {
 		t.Errorf("the first frame after the lend is %dx%d, wanted 90x25", width, height)
 	}
 	// The message row is left out of the rows the repaint must carry. The

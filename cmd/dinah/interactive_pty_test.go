@@ -166,7 +166,9 @@ func openPseudoTerminal(t *testing.T) (control, subordinate *os.File) {
 // within ten seconds, the card's file carries the editor's line, and the
 // first board after the lend is drawn at 80 columns. m typed during the
 // switch is not acted on, since it would have opened the move menu and left
-// the t typed after the lend without effect, and t claims fx-1. After q the
+// the t typed after the lend without effect, and t claims fx-1. Before that
+// t, the last bracketed-paste sequence written is the enable, and paste is
+// never switched off while a frame is up (dinah-623/criteria/52). After q the
 // output ends with the bracketed-paste disable after the last enable, and
 // the terminal's modes are the ones it had before dinah tui started.
 func TestALendRestoresThePseudoTerminal(t *testing.T) {
@@ -175,6 +177,14 @@ func TestALendRestoresThePseudoTerminal(t *testing.T) {
 		t.Skip("go is not on PATH, so the binary cannot be built for the pseudo-terminal")
 	}
 	root := tuiBench(t)
+	// A thousand cards waiting in intake, which the board does not draw,
+	// make the second program's Init, which opens the workbench and reads
+	// the view again, outlast the first tick of the renderer Bubble Tea
+	// starts before Init. That is the position where the renderer draws its
+	// own zero View ahead of the head's first frame (dinah-623/criteria/52).
+	for i := 0; i < pastePositionCards; i++ {
+		step(t, root, "add", "Waiting "+strconv.Itoa(i))
+	}
 	workbench := soleBenchDir(t, root)
 	anchor := anchorPath(t, root, "fx-1")
 	dir := t.TempDir()
@@ -259,8 +269,8 @@ func TestALendRestoresThePseudoTerminal(t *testing.T) {
 			}
 		}
 	}
-	enables := func(n int) func(string) bool {
-		return func(out string) bool { return strings.Count(out, keyboard.BracketedPasteOn) >= n }
+	entersScreen := func(n int) func(string) bool {
+		return func(out string) bool { return strings.Count(out, altScreenOn) >= n }
 	}
 	waitUntil("the first board", func(out string) bool { return strings.Count(out, "\n") >= 2 })
 	if _, err := control.Write([]byte(":edit fx-1\r")); err != nil {
@@ -273,12 +283,20 @@ func TestALendRestoresThePseudoTerminal(t *testing.T) {
 		t.Fatalf("TIOCSWINSZ: %v", err)
 	}
 	lent := time.Now()
-	waitUntil("the board after the lend", enables(2))
+	waitUntil("the board after the lend", entersScreen(2))
 	if took := time.Since(lent); took > 10*time.Second {
 		t.Errorf("the lend took %s", took)
 	}
-	mark := strings.LastIndex(written(), keyboard.BracketedPasteOn)
+	mark := strings.LastIndex(written(), altScreenOn)
 	waitUntil("the board drawn after the lend", func(out string) bool { return strings.Contains(out[mark:], "Build the parser") })
+	// dinah-623/criteria/52: the second program has drawn its board, so
+	// every mode its first frames set has been written. The last paste
+	// sequence before the first key typed at it must be the enable, or a
+	// paste into it is no longer marked.
+	firstKey := written()
+	if enable, disable := strings.LastIndex(firstKey, keyboard.BracketedPasteOn), strings.LastIndex(firstKey, keyboard.BracketedPasteOff); enable < 0 || disable > enable {
+		t.Errorf("the last paste sequence before the first key of the program after the lend is the disable: enable at %d, disable at %d: %q", enable, disable, firstKey[mark:min(len(firstKey), mark+60)])
+	}
 	claimed := func() bool {
 		for _, event := range cardEvents(t, root, "fx-1") {
 			if event.Event == "claimed" {
@@ -322,6 +340,9 @@ func TestALendRestoresThePseudoTerminal(t *testing.T) {
 	if enable < 0 || disable < enable {
 		t.Errorf("the output does not end with the bracketed-paste disable after the last enable: enable at %d, disable at %d", enable, disable)
 	}
+	if why := pasteOffOnTheAlternateScreen(out); why != "" {
+		t.Error(why)
+	}
 	after := out[mark:]
 	if widest := longestRun(after, "─"); widest > 79 {
 		t.Errorf("the board after the lend draws a rule %d columns wide, and the terminal was 80", widest)
@@ -338,6 +359,14 @@ func TestALendRestoresThePseudoTerminal(t *testing.T) {
 		t.Errorf("the terminal's modes after q are %+v, and before dinah tui started they were %+v", restored, before)
 	}
 }
+
+// pastePositionCards is how many cards the pseudo-terminal lend test adds to
+// intake so that the Init after the lend outlasts the renderer's first tick.
+const pastePositionCards = 1000
+
+// altScreenOn is the sequence that enters the alternate screen, which each
+// program writes once as its frames begin.
+const altScreenOn = "\x1b[?1049h"
 
 // longestRun is the most consecutive copies of a glyph in a text.
 func longestRun(text, glyph string) int {

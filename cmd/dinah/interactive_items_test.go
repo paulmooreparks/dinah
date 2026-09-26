@@ -343,3 +343,23 @@ func TestTheMenusOfferLegalValues(t *testing.T) {
 		t.Error("the refused link changed the workbench")
 	}
 }
+
+// TestEditIsOfferedOnlyWhereAnEditorResolves holds the actions menu's edit
+// entry to the editor ladder runEdit climbs: with no editor named anywhere
+// and none of the fallbacks on PATH, the card still has something to edit
+// and the menu does not list edit, so choosing it can never end the program
+// only to be refused as dinah.no-editor; with DINAH_EDITOR set it does.
+func TestEditIsOfferedOnlyWhereAnEditorResolves(t *testing.T) {
+	root := tuiBench(t)
+	for _, name := range []string{"DINAH_EDITOR", "VISUAL", "EDITOR"} {
+		t.Setenv(name, "")
+	}
+	t.Setenv("PATH", t.TempDir())
+	if index := menuIndex(fixtureRun(t, root, "alka", "x").model, "edit"); index >= 0 {
+		t.Errorf("the actions menu lists edit with no editor to run, at row %d", index+1)
+	}
+	t.Setenv("DINAH_EDITOR", "an-editor")
+	if index := menuIndex(fixtureRun(t, root, "alka", "x").model, "edit"); index < 0 {
+		t.Error("the actions menu does not list edit with DINAH_EDITOR set")
+	}
+}
