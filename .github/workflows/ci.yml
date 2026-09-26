@@ -47,6 +47,33 @@ jobs:
         shell: bash
         run: go test -count=1 -v -run '^TestCompletionScript' ./cmd/dinah
 
+  # The read budgets (dinah-621). A dedicated job on one platform, because a
+  # timing measured while `go test ./...` runs every other package in
+  # parallel measures the runner's contention, not Dinah, and because the
+  # budgets are calibrated to one runner image. Windows is the platform
+  # because file opens are what the budgets guard and Windows is where an
+  # open costs most, so a regression in opens shows there first and largest.
+  perf:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: Read budgets
+        shell: bash
+        env:
+          DINAH_PERF: ci
+        run: |
+          go test -count=1 -timeout 12m -run '^TestReadBudgets$' -v ./internal/perfstore | tee "$RUNNER_TEMP/perf.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
+          if ! grep -q '^--- PASS: TestReadBudgets' "$RUNNER_TEMP/perf.log"; then
+            echo "::error::TestReadBudgets did not report a pass; it skipped or did not run."
+            exit 1
+          fi
+
   # zsh and fish are not on an Ubuntu runner until they are installed, and this
   # is the one leg that tests both (dinah-601). The test fails rather than
   # skips when a shell COMPLETION_REQUIRE_SHELLS names is missing.
