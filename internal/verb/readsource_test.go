@@ -41,7 +41,7 @@ import (
 
 // libraryReadExemptions are the reads package verb may make below the seam,
 // keyed on the function that makes one and then on what it reads or names, as
-// "os.ReadFile" or "bench.GlobalInstructions", each with its reason. The key is
+// "os.ReadFile" or "GlobalInstructions", each with its reason. The key is
 // the pair and not the function, because a reason argues for one read: an
 // exemption keyed on the function alone let any read added beside the excused
 // one through, and a read of a workbench file planted in composeChain passed
@@ -49,80 +49,80 @@ import (
 // exemption cannot outlive what it excuses.
 var libraryReadExemptions = map[string]map[string]string{
 	"Init": {
-		"bench.AnchorRecognized": "asks whether the directory a new workbench is created in already holds an anchor, " +
+		"AnchorRecognized": "asks whether the directory a new workbench is created in already holds an anchor, " +
 			"a directory outside any workbench; init is grounded on the HTTP head",
 		"os.ReadDir": "checks that the directory a new workbench is created in is empty, a directory outside any " +
 			"workbench; init is grounded on the HTTP head",
-		"bench.Instantiate": "writes the new workbench, an act grounded on the HTTP head",
+		"Instantiate": "writes the new workbench, an act grounded on the HTTP head",
 	},
 	"readSource": {
-		"bench.Exists": "asks whether the definition a new workbench is instantiated from is a workbench directory, " +
+		"Exists": "asks whether the definition a new workbench is instantiated from is a workbench directory, " +
 			"a path the caller named outside any workbench",
-		"bench.OpenUncontained": "opens that definition when it is a workbench directory, outside any workbench",
-		"os.ReadFile":           "reads that definition when it is a file, outside any workbench",
+		"OpenUncontained": "opens that definition when it is a workbench directory, outside any workbench",
+		"os.ReadFile":     "reads that definition when it is a file, outside any workbench",
 	},
 	"readReshapeSource": {
-		"bench.Exists": "asks whether the definition reshape applies is a workbench directory, a path the caller " +
+		"Exists": "asks whether the definition reshape applies is a workbench directory, a path the caller " +
 			"named outside any workbench; reshape is grounded on the HTTP head",
-		"bench.OpenUncontained": "opens that definition when it is a workbench directory, outside any workbench",
-		"os.ReadFile":           "reads that definition when it is a file, outside any workbench",
+		"OpenUncontained": "opens that definition when it is a workbench directory, outside any workbench",
+		"os.ReadFile":     "reads that definition when it is a file, outside any workbench",
 	},
 	"matchingAttachment": {
 		"os.ReadFile": "compares a payload a reshape is about to write with one already present, inside a write, " +
 			"which reads the disk as every act does",
 	},
 	"openCandidate": {
-		"bench.Open": "opens each workbench a root-scoped read finds under a directory; the HTTP head holds root " +
+		"Open": "opens each workbench a root-scoped read finds under a directory; the HTTP head holds root " +
 			"and max-depth back (internal/httphead/routes.go, rootScoped), so no request on a resident reaches it",
 	},
 	"migrateOneVocabulary": {
-		"bench.ClassifyVocabulary": "reads the version of a workbench found by dinah migrate's sweep, reached from " +
+		"ClassifyVocabulary": "reads the version of a workbench found by dinah migrate's sweep, reached from " +
 			"dinah migrate alone",
-		"bench.OpenPreVocabulary": "opens a workbench written in the retired vocabulary to migrate it, reached " +
+		"OpenPreVocabulary": "opens a workbench written in the retired vocabulary to migrate it, reached " +
 			"from dinah migrate alone",
-		"bench.MigrateVocabulary": "rewrites that workbench in the current vocabulary, a write reached from dinah " +
+		"MigrateVocabulary": "rewrites that workbench in the current vocabulary, a write reached from dinah " +
 			"migrate alone",
 	},
 	"vocabularyCandidates": {
-		"bench.ScanContainers": "walks a directory tree for workbenches written in the retired vocabulary, which is " +
+		"ScanContainers": "walks a directory tree for workbenches written in the retired vocabulary, which is " +
 			"dinah migrate's sweep and reached from nothing else",
 	},
 	"MigrateContainerTree": {
-		"bench.ScanContainers": "sweeps a directory tree for workbenches to move into containers, which writes and " +
+		"ScanContainers": "sweeps a directory tree for workbenches to move into containers, which writes and " +
 			"is reached from dinah migrate alone",
 	},
 	"migrateOneContainer": {
-		"bench.MigrateContainer": "moves one workbench into its container for MigrateContainerTree, a write " +
+		"MigrateContainer": "moves one workbench into its container for MigrateContainerTree, a write " +
 			"reached from dinah migrate alone",
 	},
 	"RemintWorkbench": {
-		"bench.Remint": "gives one workbench directory a fresh identifier, a repair reached from dinah migrate alone",
+		"Remint": "gives one workbench directory a fresh identifier, a repair reached from dinah migrate alone",
 	},
 	"forestCandidates": {
-		"bench.EnumerateDeep": "enumerates the workbenches under a root for a root-scoped read, as openCandidate " +
+		"EnumerateDeep": "enumerates the workbenches under a root for a root-scoped read, as openCandidate " +
 			"opens them; the HTTP head holds root and max-depth back (internal/httphead/routes.go, rootScoped)",
 	},
 	"Attach": {
-		"bench.AddAttachment": "is the act itself, which reads the disk as every act does, and reads the file being " +
+		"AddAttachment": "is the act itself, which reads the disk as every act does, and reads the file being " +
 			"attached, which the caller named outside the workbench",
 	},
 	"rewriteKeptColumns": {
-		"bench.ColumnAnchorText": "compares a column's anchor before and after a step of reshape, which writes under " +
+		"ColumnAnchorText": "compares a column's anchor before and after a step of reshape, which writes under " +
 			"its own lock and reads the disk as every act does; reshape is grounded on the HTTP head",
 	},
 	"composeChain": {
-		"bench.GlobalInstructions": "reads the user-global instructions layer, a file under the Dinah home and " +
+		"GlobalInstructions": "reads the user-global instructions layer, a file under the Dinah home and " +
 			"outside every workbench, which the resident does not hold and every serve reads from disk",
 	},
 	"primeInstructions": {
-		"bench.GlobalInstructions": "reads the user-global instructions layer, for the reason composeChain does",
+		"GlobalInstructions": "reads the user-global instructions layer, for the reason composeChain does",
 	},
 	"visibleViews": {
-		"bench.LoadUserViews": "reads the user's own views, a file under the Dinah home and outside every " +
+		"LoadUserViews": "reads the user's own views, a file under the Dinah home and outside every " +
 			"workbench, which the resident does not hold",
 	},
 	"setting": {
-		"bench.ResolveWorkbenchSource": "reports where discovery would find a workbench, which climbs the " +
+		"ResolveWorkbenchSource": "reports where discovery would find a workbench, which climbs the " +
 			"directories above any workbench before one is opened",
 	},
 }
@@ -189,8 +189,9 @@ func diskBindingReaders(t *testing.T, sources []string) map[string]string {
 
 // libraryReadFinding is one read, or one Disk-binding call, in one function.
 type libraryReadFinding struct {
-	// name is what the function reads or names, as "os.ReadFile" or
-	// "bench.GlobalInstructions", which an exemption is keyed on.
+	// name is what the function reads or names, which an exemption is keyed
+	// on: a judged member with its package, as "os.ReadFile", and a name of
+	// package bench bare, as "GlobalInstructions" or "Disk".
 	function, name, what string
 }
 
@@ -238,9 +239,9 @@ func libraryReads(t *testing.T, files []string, binding map[string]string) []lib
 				where := filepath.Base(at.Filename) + ":" + strconv.Itoa(at.Line)
 				switch how, binds := binding[x.Sel.Name]; {
 				case x.Sel.Name == "Disk":
-					found = append(found, libraryReadFinding{function, "bench.Disk", "names Disk at " + where})
+					found = append(found, libraryReadFinding{function, "Disk", "names Disk at " + where})
 				case binds:
-					found = append(found, libraryReadFinding{function, "bench." + x.Sel.Name, "names " + x.Sel.Name + ", which reads below the seam (" + how + "), at " + where})
+					found = append(found, libraryReadFinding{function, x.Sel.Name, "names " + x.Sel.Name + ", which reads below the seam (" + how + "), at " + where})
 				}
 				return true
 			})
@@ -312,8 +313,8 @@ func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
 		if len(caught) == 0 {
 			t.Errorf("the planted file %s reads below the seam and the guard did not catch it", filepath.Base(plant))
 		}
-		if filepath.Base(plant) == "composechain.go" && (len(caught) != 1 || caught[0].name != "bench.ReadText") {
-			t.Errorf("the planted composeChain makes one excused read and one that is not, and the guard answered %v, wanted bench.ReadText alone", caught)
+		if filepath.Base(plant) == "composechain.go" && (len(caught) != 1 || caught[0].name != "ReadText") {
+			t.Errorf("the planted composeChain makes one excused read and one that is not, and the guard answered %v, wanted ReadText alone", caught)
 		}
 	}
 
@@ -325,8 +326,8 @@ func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
 			without = append(without, f)
 		}
 	}
-	if stale := staleExemptions(without); len(stale) != 1 || stale[0] != "composeChain reads bench.GlobalInstructions" {
-		t.Errorf("with composeChain's read of bench.GlobalInstructions removed, the stale check answered %v, wanted that pair alone", stale)
+	if stale := staleExemptions(without); len(stale) != 1 || stale[0] != "composeChain reads GlobalInstructions" {
+		t.Errorf("with composeChain's read of GlobalInstructions removed, the stale check answered %v, wanted that pair alone", stale)
 	}
 }
 
