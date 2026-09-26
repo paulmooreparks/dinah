@@ -36,15 +36,16 @@ type budget struct {
 // the perf job runs on windows-latest alone and a budget is a number about
 // one runner image.
 //
-// These rows are provisional. Their bases are dinah-618's local measurements
-// on the development workbench, not CI medians, and the calibration over
-// three perf-job runs replaces them before dinah-621 leaves Implement.
+// dinah-621 calibrated every row from three perf-job runs on its own pull
+// request, taking each operation's median across the three runs' medians as
+// the basis: status-warm 362, 376 and 367ms; show 30, 33 and 32ms; page-card
+// 2,137, 2,287 and 2,170ms; status-cold 488, 485 and 457ms.
 var budgets = map[string][]budget{
 	"windows": {
-		{op: "status-warm", limit: 1200 * time.Millisecond, basis: 384 * time.Millisecond, setBy: "dinah-621"},
-		{op: "show", limit: 400 * time.Millisecond, basis: 126 * time.Millisecond, setBy: "dinah-621"},
-		{op: "page-card", limit: 2400 * time.Millisecond, basis: 800 * time.Millisecond, setBy: "dinah-621"},
-		{op: "status-cold", limit: 1300 * time.Millisecond, basis: 430 * time.Millisecond, setBy: "dinah-621"},
+		{op: "status-warm", limit: 1110 * time.Millisecond, basis: 367 * time.Millisecond, setBy: "dinah-621"},
+		{op: "show", limit: 100 * time.Millisecond, basis: 32 * time.Millisecond, setBy: "dinah-621"},
+		{op: "page-card", limit: 6510 * time.Millisecond, basis: 2170 * time.Millisecond, setBy: "dinah-621"},
+		{op: "status-cold", limit: 1460 * time.Millisecond, basis: 485 * time.Millisecond, setBy: "dinah-621"},
 	},
 }
 
@@ -123,6 +124,28 @@ func TestReadBudgets(t *testing.T) {
 	}
 	if !calibrated {
 		t.Skipf("no budgets pinned for %s; measured: %s", runtime.GOOS, strings.Join(measured, ", "))
+	}
+}
+
+// TestBudgetsFollowTheRule asserts that every pinned row's limit is the one
+// the rule gives its basis, three times it rounded up to the next 10ms and
+// never below 30ms, and that the windows table carries a row for each of the
+// four operations. It runs in the ordinary suite, so a row edited by hand
+// away from its basis fails there rather than waiting for the perf job.
+func TestBudgetsFollowTheRule(t *testing.T) {
+	windows := budgets["windows"]
+	if len(windows) != 4 {
+		t.Errorf("the windows table carries %d rows, wanted one for each of the four operations", len(windows))
+	}
+	for goos, rows := range budgets {
+		for _, row := range rows {
+			if want := tightened(row.basis); row.limit != want {
+				t.Errorf("%s %s: limit %s, the rule gives %s from a basis of %s", goos, row.op, millis(row.limit), millis(want), millis(row.basis))
+			}
+			if row.setBy == "" {
+				t.Errorf("%s %s names no card that set it", goos, row.op)
+			}
+		}
 	}
 }
 
