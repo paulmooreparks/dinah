@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -191,4 +192,47 @@ func observeAnchor(path string) {
 // bench's source on the terms Source.ReadHead states.
 func (b *Bench) ReadHead(path string, n int) ([]byte, error) {
 	return b.source().ReadHead(path, n)
+}
+
+// joinMember is filepath.Join(dir, names...) for a directory a caller already
+// holds clean and names that are single elements, which is every identifier
+// and every anchor name. It concatenates rather than cleaning the result
+// again, because a read over a resident snapshot joins a path per member and
+// the cleaning is most of what that costs. A name outside that shape, or a
+// dir ending in a separator, goes through filepath.Join. For a clean dir the
+// answer is Join's; a dir that is not clean yields an uncleaned spelling of
+// the same path, which the disk reads alike and a snapshot passes through.
+func joinMember(dir string, names ...string) string {
+	if dir == "" || os.IsPathSeparator(dir[len(dir)-1]) {
+		return filepath.Join(append([]string{dir}, names...)...)
+	}
+	size := len(dir)
+	for _, name := range names {
+		if !simpleElement(name) {
+			return filepath.Join(append([]string{dir}, names...)...)
+		}
+		size += 1 + len(name)
+	}
+	var joined strings.Builder
+	joined.Grow(size)
+	joined.WriteString(dir)
+	for _, name := range names {
+		joined.WriteByte(filepath.Separator)
+		joined.WriteString(name)
+	}
+	return joined.String()
+}
+
+// simpleElement reports whether a name is one path element that cleaning
+// leaves alone: not empty, not "." or "..", and carrying no separator.
+func simpleElement(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		if os.IsPathSeparator(name[i]) || name[i] == '/' {
+			return false
+		}
+	}
+	return true
 }

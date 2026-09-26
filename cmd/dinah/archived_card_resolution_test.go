@@ -188,7 +188,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 		sites: []resolutionSite{
 			{"internal/bench/blockjson.go", "jsonNumber", 1, "a false positive recognised by name: the selector is the type json.Number, and telling it apart would mean running go/types over the tree to remove one row"},
 			{"internal/bench/card.go", "Ref", 2, "composes the human reference, which is why family E exists"},
-			{"internal/bench/card.go", "ByArrival", 2, "sorts on it"},
+			{"internal/bench/card.go", "ArrivedBefore", 2, "sorts on it, for ByArrival and for a sort that read each card's arrival once"},
 			{"internal/bench/card.go", "stamp", 1, "the stamping reader every number read now flows through, which assigns what numberOf answers: above the registry's format the number from the by-identifier index, and below it the frontmatter key the legacy read path still uses"},
 			{"internal/bench/card.go", "LiveCardHeaders", 1, "stamps a header read from the live half alone with what numberOf answers, the same reading stamp gives a card, so no archived card's number is reached"},
 			{"internal/bench/check.go", "checkCardNumbers", 3, "the registry's own audit: the malformed-line guards and the duplicate finding, which weighs the by-number index without comparing anything, so a rule keyed on a comparison would walk past a number scan the tree already holds"},
@@ -209,9 +209,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     20,
-		mentions:  48,
-		functions: 38,
+		files:     21,
+		mentions:  49,
+		functions: 39,
 		sites: []resolutionSite{
 			{"internal/bench/commentcheck.go", "commentDirOf", 1, "reading the archived half of one item's comments, because archiving a designated comment stays permitted and the item goes on citing it wherever it now lives; it reaches a comment below a card it was handed and resolves no card"},
 			{"internal/bench/positions.go", "DesignatedCommentDir", 1, "reading the archived half of one item's comments within one read composition, on commentDirOf's terms, which it answers the same question as; it reaches a comment below a card it was handed and resolves no card"},
@@ -250,6 +250,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/read.go", "linkRef", 1, "the other identifier-keyed pair, harmless for the same reason"},
 			{"internal/verb/search.go", "Search", 1, "searching the archived half, which matches text against loaded cards and answers no reference by number"},
 			{"internal/verb/beyond.go", "attachmentHolderDir", 1, "the directory an attachment hangs from, skipping the archive segment of an archived attachment's own path; it answers a directory the caller already holds and resolves no reference"},
+			{"internal/resident/build.go", "expiries", 1, "the earliest claim expiry of a resident snapshot, which lists the archived half to read each active card's expiry; it reads no number and resolves no reference"},
 			{"cmd/dinah-migrate-actors/main.go", "journalsUnder", 2, "the actor migration's journal walk, which lists both archived collections to reach the journals inside them and reads no card anchor and no number at all"},
 		},
 	},

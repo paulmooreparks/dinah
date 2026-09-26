@@ -2,6 +2,7 @@ package verb
 
 import (
 	"encoding/json"
+	"errors"
 	"sort"
 	"time"
 
@@ -63,7 +64,18 @@ type Library struct {
 	// taken, where a test runs a whole second write and then asserts that the
 	// first one reads it rather than overwriting it.
 	Interpose func(step string)
+	// ReadOnly, when set, makes the library refuse any write a read would make.
+	// A read that finds a claim lapsed answers ErrReadOnly rather than taking the
+	// lock. The HTTP head sets it on a library over a resident snapshot, whose
+	// requests are chosen so that no claim has lapsed at their instant, which
+	// makes this a backstop: a read that reaches it is a defect.
+	ReadOnly bool
 }
+
+// ErrReadOnly is what a ReadOnly library answers for a read that would write:
+// a claim found lapsed, which lapseRead would otherwise journal under the
+// card's lock.
+var ErrReadOnly = errors.New("verb: a read-only library was asked to lapse a claim")
 
 // New returns a library over an opened bench, on the real clock.
 func New(b *bench.Bench, home string) *Library {
@@ -1399,8 +1411,15 @@ func (l *Library) FromError(req *Request, err error) *Response {
 }
 
 // sortByArrival orders cards the way CORE-QUEUE-3 fixes.
+//
+// Each card's arrival is read once, before the sort, rather than twice per
+// comparison, and the order is bench.ByArrival's.
 func sortByArrival(cards []*bench.Card) {
+	arrivals := make(map[*bench.Card]time.Time, len(cards))
+	for _, card := range cards {
+		arrivals[card] = card.Arrival()
+	}
 	sort.SliceStable(cards, func(i, j int) bool {
-		return bench.ByArrival(cards[i], cards[j])
+		return bench.ArrivedBefore(cards[i], arrivals[cards[i]], cards[j], arrivals[cards[j]])
 	})
 }

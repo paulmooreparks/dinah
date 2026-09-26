@@ -126,6 +126,18 @@ type Card struct {
 	Revision string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+	// src is where the card was read, which its own history is read through
+	// too; nil reads as Disk.
+	src Source
+}
+
+// source is the Source this card was read through, or Disk for a card built
+// any other way.
+func (c *Card) source() Source {
+	if c.src == nil {
+		return Disk{}
+	}
+	return c.src
 }
 
 // LoadCard reads one card from a cards collection, refusing one that is not
@@ -152,7 +164,7 @@ func loadRetiredCard(src Source, collection, id string) (*Card, error) {
 // made at the call site by a caller who knows which vocabulary the workbench
 // it opened declares.
 func loadCard(src Source, collection, id string, refuseRetired bool) (*Card, error) {
-	anchor := filepath.Join(collection, id, CardAnchor)
+	anchor := joinMember(collection, id, CardAnchor)
 	// One read answers both the text and the revision, so the revision a card
 	// carries is the revision of the very bytes its fields were parsed from.
 	observeAnchor(anchor)
@@ -168,7 +180,9 @@ func loadCard(src Source, collection, id string, refuseRetired bool) (*Card, err
 		}
 		return nil, contract.Refuse(contract.UnknownCard, id)
 	}
-	return value.(*Card).Clone(), nil
+	card := value.(*Card).Clone()
+	card.src = src
+	return card, nil
 }
 
 // cardFromText is DeriveCard's derive function: the card an anchor's text
@@ -680,7 +694,7 @@ func (c *Card) SetLevel(field, value string) {
 // column it stands in, and reading only moves would report the zero time and
 // sort it ahead of every card that arrived by one.
 func (c *Card) Arrival() time.Time {
-	events, _, err := ReadJournal(c.JournalPath())
+	events, err := readJournalShared(c.source(), c.JournalPath())
 	if err != nil {
 		return time.Time{}
 	}
@@ -731,7 +745,12 @@ func (c *Card) Lapsed(now time.Time) bool {
 // identifier was what the retired CORE-QUEUE-1 named, and a random hex string
 // makes the order total without making it meaningful.
 func ByArrival(a, b *Card) bool {
-	first, second := a.Arrival(), b.Arrival()
+	return ArrivedBefore(a, a.Arrival(), b, b.Arrival())
+}
+
+// ArrivedBefore is ByArrival over arrivals a caller has already read, so a
+// sort reads each card's history once rather than once per comparison.
+func ArrivedBefore(a *Card, first time.Time, b *Card, second time.Time) bool {
 	if !first.Equal(second) {
 		return first.Before(second)
 	}

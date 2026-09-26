@@ -11,16 +11,19 @@
 package httphead
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"dinah/internal/answer"
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/resident"
 	"dinah/internal/verb"
 )
 
@@ -29,8 +32,8 @@ const maxBody = 1 << 20
 
 // Config is what a head serves with.
 type Config struct {
-	// Root is the absolute path of the workbench the head serves, opened
-	// afresh for every request.
+	// Root is the absolute path of the workbench the head serves. A request
+	// reads it from disk unless it reads Resident.
 	Root string
 	// Home is the user base the library reads the caller's settings from.
 	Home string
@@ -64,6 +67,15 @@ type Config struct {
 	// tests can set it, and they use it to hold what a request carried
 	// against what the library received.
 	observe func(command string, req *verb.Request)
+	// Resident, when set, is the workbench held in memory that GET and HEAD
+	// requests read. Nil means every request opens the workbench from disk.
+	Resident *resident.Workbench
+	// TimeRead, when set, is called with each library call's command and the
+	// time it took. It is a test seam, nil in production.
+	TimeRead func(command string, took time.Duration)
+	// observeSource, when set, is called once per request with whether the
+	// request read the resident. Only this package's tests set it.
+	observeSource func(fromResident bool)
 }
 
 // head is the handler Handler returns.
@@ -108,6 +120,25 @@ type exchange struct {
 	// page is what an HTML request carries beside its route's own read, and
 	// nil on any other request.
 	page *pageState
+	// start is when ServeHTTP took the request. A request on the resident
+	// reads one snapshot at this one instant.
+	start time.Time
+	// chosen reports that the request's source has been chosen, and pick is
+	// what the resident answered when it was asked.
+	chosen bool
+	pick   resident.Pick
+}
+
+// startKey carries the instant ServeHTTP took a request to the exchange the
+// route handler builds.
+type startKey struct{}
+
+// startOf answers the instant ServeHTTP took a request.
+func startOf(r *http.Request) time.Time {
+	if start, ok := r.Context().Value(startKey{}).(time.Time); ok {
+		return start
+	}
+	return time.Now()
 }
 
 // ServeHTTP runs the admission steps that read nothing of the route, then
@@ -117,7 +148,9 @@ func (h *head) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	header.Set("Cache-Control", "no-store")
 	header.Set("X-Content-Type-Options", "nosniff")
 	header.Set("Vary", "Accept")
-	x := &exchange{w: w, r: r, verb: "serve", method: r.Method}
+	start := time.Now()
+	r = r.WithContext(context.WithValue(r.Context(), startKey{}, start))
+	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: start}
 	if !h.admittedHost(r.Host) {
 		h.refuse(x, contract.ForeignHost, r.Host)
 		return
@@ -163,14 +196,14 @@ func cleanPath(p string) string {
 
 // serveUnmatched answers a path no route matches.
 func (h *head) serveUnmatched(w http.ResponseWriter, r *http.Request) {
-	x := &exchange{w: w, r: r, verb: "serve", method: r.Method}
+	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: startOf(r)}
 	h.refuse(x, contract.UnknownResource, r.URL.Path)
 }
 
 // serveRoute runs the admission steps that read the route, negotiates, and
 // hands the request to the route's read or to its acts.
 func (h *head) serveRoute(rt *route, w http.ResponseWriter, r *http.Request) {
-	x := &exchange{w: w, r: r, route: rt, verb: rt.command(), method: r.Method}
+	x := &exchange{w: w, r: r, route: rt, verb: rt.command(), method: r.Method, start: startOf(r)}
 	if !rt.takes(r.Method) {
 		h.notAllowed(x)
 		return
@@ -278,7 +311,30 @@ func unsafeMethod(name string) bool {
 
 // open opens the workbench for one request and returns its library. A
 // workbench that will not open is answered, and the caller stops.
+//
+// A request on the resident has one library for its whole life, which open
+// and contextLibrary share, so every read of the request reads one snapshot.
+// On the disk path each call opens the workbench afresh, as it always has.
 func (h *head) open(x *exchange, req *verb.Request) bool {
+	began := time.Now()
+	h.chooseSource(x)
+	if x.pick.Snapshot != nil {
+		if x.library != nil {
+			return true
+		}
+		if x.page != nil && x.page.library != nil {
+			x.library = x.page.library
+			return true
+		}
+		library, err := h.residentLibrary(x)
+		if err != nil {
+			h.write(x, answer.FromErrorSealed(verb.New(nil, h.cfg.Home), req, err), 0)
+			return false
+		}
+		x.library = library
+		h.timeRead("open", began)
+		return true
+	}
 	opened, err := bench.Open(h.cfg.Root)
 	if err != nil {
 		// A library over no bench composes the answer to the open's own
@@ -288,7 +344,48 @@ func (h *head) open(x *exchange, req *verb.Request) bool {
 	}
 	x.library = verb.New(opened, h.cfg.Home)
 	x.library.Interleave = h.cfg.Interleave
+	h.timeRead("open", began)
 	return true
+}
+
+// chooseSource decides, once per request, whether it reads the resident. It
+// does only when the method as received is GET or HEAD, a resident is
+// configured, and the resident answers a snapshot for the request's instant.
+func (h *head) chooseSource(x *exchange) {
+	if x.chosen {
+		return
+	}
+	x.chosen = true
+	read := x.r.Method == http.MethodGet || x.r.Method == http.MethodHead
+	if read && h.cfg.Resident != nil {
+		x.pick = h.cfg.Resident.Current(x.start)
+	}
+	if h.cfg.observeSource != nil {
+		h.cfg.observeSource(x.pick.Snapshot != nil)
+	}
+}
+
+// residentLibrary is the one library a request on the resident reads
+// through: the snapshot's workbench, on a clock frozen at the request's
+// instant, refusing any write a read would make.
+func (h *head) residentLibrary(x *exchange) (*verb.Library, error) {
+	opened, err := x.pick.Snapshot.Bench()
+	if err != nil {
+		return nil, err
+	}
+	library := verb.New(opened, h.cfg.Home)
+	start := x.start
+	library.Now = func() time.Time { return start }
+	library.ReadOnly = true
+	library.Interleave = h.cfg.Interleave
+	return library, nil
+}
+
+// timeRead reports one library call's time to TimeRead, when a test set it.
+func (h *head) timeRead(command string, began time.Time) {
+	if h.cfg.TimeRead != nil {
+		h.cfg.TimeRead(command, time.Since(began))
+	}
 }
 
 // execute hands a built request to the library and returns what it
@@ -300,7 +397,10 @@ func (h *head) execute(x *exchange, command string, req *verb.Request) answer.Se
 	if h.cfg.BeforeRun != nil {
 		h.cfg.BeforeRun()
 	}
-	return answer.RunSealed(command, x.library, req)
+	began := time.Now()
+	answered := answer.RunSealed(command, x.library, req)
+	h.timeRead(command, began)
+	return answered
 }
 
 // refuse answers a refusal the head raised itself.

@@ -1516,10 +1516,10 @@ type ItemTally struct {
 // itemsWhere reads past one: an unreadable file is a defect dinah check
 // reports rather than one a read discovers.
 func (b *Bench) TallyItems(cardDir string, ids []string, load func(dir string) (*Item, error)) (ItemTally, error) {
-	collection := filepath.Join(cardDir, ChecklistDir)
+	collection := joinMember(cardDir, ChecklistDir)
 	var tally ItemTally
 	for _, id := range ids {
-		item, err := load(filepath.Join(collection, id))
+		item, err := load(joinMember(collection, id))
 		if err != nil {
 			continue
 		}

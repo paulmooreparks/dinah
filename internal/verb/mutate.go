@@ -982,6 +982,9 @@ func (l *Library) lapseRead(card *bench.Card, actor string) error {
 	if !card.Lapsed(l.Now()) {
 		return nil
 	}
+	if l.ReadOnly {
+		return ErrReadOnly
+	}
 	lock, err := l.Bench.Acquire(card.Dir, "", bench.Stamp(l.Now()))
 	if err != nil {
 		return nil

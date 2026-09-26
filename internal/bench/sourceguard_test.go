@@ -5,7 +5,6 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,8 +12,8 @@ import (
 )
 
 // This file holds the call-graph guard of dinah-619's read seam: from every
-// method of *Bench and *Positions, nothing reachable reads the filesystem
-// except through the bench's Source. The graph is the name-keyed shape of
+// method of the package's types, *Bench and *Positions first among them,
+// nothing reachable reads the filesystem except through a Source. The graph is the name-keyed shape of
 // internal/verb's packageCallGraph, refined in two ways the parser can afford
 // without type information. A declaration is keyed by whether it is a
 // function, a method or a package variable, so a free exported reader and the
@@ -37,13 +36,6 @@ var sourceMethodNames = map[string]bool{
 	"ReadFile": true, "ReadHead": true, "ReadDir": true, "Stat": true, "Text": true, "Derive": true,
 }
 
-// seamRootType and positionsType are the two receiver types the walk starts
-// from, spelled by reflection so the type's own name is never a literal.
-var (
-	seamRootType  = reflect.TypeOf(Bench{}).Name()
-	positionsType = reflect.TypeOf(Positions{}).Name()
-)
-
 // seamExemptions are the functions the guard does not look inside, each with
 // its reason. An exempt function is a leaf, and the guard fails when one no
 // longer contains a read, so an exemption cannot outlive what it excuses.
@@ -58,7 +50,7 @@ var seamExemptions = map[string]string{
 type guardNode struct {
 	key       string   // "func:Name", "method:Name" or "var:Name"
 	file      string   // the file declaring it
-	root      bool     // a method whose receiver is Bench or Positions
+	root      bool     // a method of a receiver outsideTheRead does not name
 	edges     []string // keys this declaration references
 	reads     []string // reads it makes itself, as "os.Stat at file:line"
 	namesDisk bool     // its body names the identifier Disk
@@ -134,7 +126,7 @@ func buildGuardGraph(t *testing.T, files []string) *guardGraph {
 					continue
 				}
 				n := node(declKey(d), p.name)
-				if d.Recv != nil && receiverIsSeamRoot(d.Recv) {
+				if d.Recv != nil && !notAWorkbenchRead(d.Recv) {
 					n.root = true
 				}
 				scanGuardBody(fset, p.file, imports, declared, d.Body, n)
@@ -182,18 +174,24 @@ func receiverIs(recv *ast.FieldList, name string) bool {
 	return ok && ident.Name == name
 }
 
-// receiverIsSeamRoot reports whether a receiver is Bench or Positions, by
-// value or by pointer.
-func receiverIsSeamRoot(recv *ast.FieldList) bool {
-	if len(recv.List) == 0 {
-		return false
+// outsideTheRead are the receiver types whose methods the walk does not
+// start from, each with its reason. Every other method of the package is a
+// root, because a read hands out cards, items and the rest, and a method of
+// one of those that read the disk would bypass the seam as surely as a method
+// of the workbench itself; Card.Arrival did, until the guard started from it.
+var outsideTheRead = map[string]string{
+	"Disk":   "it is the seam's bottom, whose methods read the filesystem by definition",
+	"search": "it is discovery, which runs before any workbench is opened and finds one by reading the filesystem",
+}
+
+// notAWorkbenchRead reports whether a receiver is one of outsideTheRead.
+func notAWorkbenchRead(recv *ast.FieldList) bool {
+	for name := range outsideTheRead {
+		if receiverIs(recv, name) {
+			return true
+		}
 	}
-	expr := recv.List[0].Type
-	if star, ok := expr.(*ast.StarExpr); ok {
-		expr = star.X
-	}
-	ident, ok := expr.(*ast.Ident)
-	return ok && (ident.Name == seamRootType || ident.Name == positionsType)
+	return false
 }
 
 // scanGuardBody records into n what one body references: reads, the name
@@ -405,9 +403,12 @@ func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
 		}
 	}
 	if roots < 100 {
-		t.Fatalf("found %d methods of %s or %s to walk from, and the package declares far more, so the guard proves nothing", roots, seamRootType, positionsType)
+		t.Fatalf("found %d methods to walk from, and the package declares far more, so the guard proves nothing", roots)
 	}
-	t.Logf("walked from %d methods of %s or %s over %d declarations", roots, seamRootType, positionsType, len(g.nodes))
+	t.Logf("walked from %d methods over %d declarations", roots, len(g.nodes))
+	if len(outsideTheRead) != 2 {
+		t.Errorf("the walk leaves out the methods of %d receiver types, wanted the two named", len(outsideTheRead))
+	}
 
 	for name := range seamExemptions {
 		n := g.nodes["method:"+name]

@@ -284,6 +284,43 @@ func readJournal(src Source, path string) ([]Event, bool, error) {
 	return cloneEvents(parsed.events), parsed.torn, nil
 }
 
+// readJournalShared is readJournal for a reader inside this package that only
+// reads the events: it answers the parse a memoising source shares rather
+// than a copy, so the caller must not change what it is handed. Arrival is
+// such a reader, and a sort asks it once per card.
+func readJournalShared(src Source, path string) ([]Event, error) {
+	observeAnchor(path)
+	value, err := src.Derive(path, DeriveJournal, deriveJournal)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	parsed := value.(*parsedJournal)
+	if parsed.err != nil {
+		return nil, parsed.err
+	}
+	return parsed.events, nil
+}
+
+// JournalLines visits each event of a journal in file order with its index,
+// its stored stamp and its event name, as ReadJournal would answer them, and
+// answers ReadJournal's error. It copies no event: a reader that needs only
+// the stamps, which a cursor over every journal on the workbench does, pays
+// for no copy of every event's other members. An absent journal visits
+// nothing.
+func (b *Bench) JournalLines(path string, visit func(index int, ts, event string)) error {
+	events, err := readJournalShared(b.source(), path)
+	if err != nil {
+		return err
+	}
+	for index, event := range events {
+		visit(index, event.TS, event.Event)
+	}
+	return nil
+}
+
 // parsedJournal is what DeriveJournal memoises: the events, whether a torn
 // final line was skipped, and the error a line that is not the last one
 // raised, which is part of the answer rather than a failure to read.

@@ -61,7 +61,13 @@ func newPositions(src Source) *Positions {
 }
 
 // IDs is ListIDs(collection), called at most once per collection.
+//
+// Over a source that memoises, the listing is the source's own and nothing is
+// kept here, since asking again costs a lookup rather than a read.
 func (p *Positions) IDs(collection string) ([]string, error) {
+	if _, rereads := p.src.(rereader); !rereads {
+		return listIDs(p.src, collection)
+	}
 	if kept, ok := p.listed[collection]; ok {
 		return kept.ids, kept.err
 	}
@@ -112,7 +118,7 @@ func (p *Positions) derive(path string, kind DeriveKind, derive func(path, text,
 func (p *Positions) ChildIDs(dir, kind string) (map[string][]string, error) {
 	listed := map[string][]string{}
 	for _, mount := range Contains(kind) {
-		ids, err := p.IDs(filepath.Join(dir, mount.Dir))
+		ids, err := p.IDs(joinMember(dir, mount.Dir))
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +130,7 @@ func (p *Positions) ChildIDs(dir, kind string) (map[string][]string, error) {
 // Item is LoadItem(dir) answered from Text, refusing with the path LoadItem
 // refuses with when the anchor will not read.
 func (p *Positions) Item(dir string) (*Item, error) {
-	value, err := p.derive(filepath.Join(dir, ItemAnchor), DeriveItem, deriveItem)
+	value, err := p.derive(joinMember(dir, ItemAnchor), DeriveItem, deriveItem)
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
 	}
@@ -144,7 +150,7 @@ func (p *Positions) Sorted(collection, anchor string) ([]string, error) {
 		return nil, err
 	}
 	ordered := sortByOrdinalWith(p.src, collection, ids, func(id string) int {
-		value, err := p.derive(filepath.Join(collection, id, anchor), DeriveAnchor, deriveAnchor)
+		value, err := p.derive(joinMember(collection, id, anchor), DeriveAnchor, deriveAnchor)
 		if err != nil {
 			return 0
 		}
@@ -174,14 +180,14 @@ func (p *Positions) Of(dir, anchor string) (int, error) {
 // Items is Items(cardDir), in Sorted order, each item built by Item. An item
 // whose anchor will not read is skipped, as Items skips it.
 func (p *Positions) Items(cardDir string) ([]*Item, error) {
-	collection := filepath.Join(cardDir, ChecklistDir)
+	collection := joinMember(cardDir, ChecklistDir)
 	ordered, err := p.Sorted(collection, ItemAnchor)
 	if err != nil {
 		return nil, err
 	}
 	var items []*Item
 	for _, id := range ordered {
-		item, err := p.Item(filepath.Join(collection, id))
+		item, err := p.Item(joinMember(collection, id))
 		if err != nil {
 			continue
 		}
@@ -201,7 +207,7 @@ func (p *Positions) Comments(holderDir string) ([]*Comment, error) {
 	}
 	var comments []*Comment
 	for _, id := range ordered {
-		value, err := p.derive(filepath.Join(collection, id, CommentAnchor), DeriveComment, deriveComment)
+		value, err := p.derive(joinMember(collection, id, CommentAnchor), DeriveComment, deriveComment)
 		if err != nil {
 			continue
 		}
@@ -221,7 +227,7 @@ func (p *Positions) Attachments(dir string) ([]*Attachment, error) {
 	}
 	var attachments []*Attachment
 	for _, id := range ordered {
-		value, err := p.derive(filepath.Join(collection, id, AttachmentAnchor), DeriveAttachment, deriveAttachment)
+		value, err := p.derive(joinMember(collection, id, AttachmentAnchor), DeriveAttachment, deriveAttachment)
 		if err != nil {
 			continue
 		}

@@ -197,6 +197,11 @@ type cursor struct {
 	// has a covered line at TS. An entity that is absent is covered at TS by
 	// nothing.
 	Frontier map[string]int `json:"frontier,omitempty"`
+	// parsedTS is TS parsed, and parsedFor the TS it was parsed from, which
+	// cover keeps so a fold does not parse the boundary once per line. They
+	// are not part of the token.
+	parsedTS  time.Time
+	parsedFor string
 }
 
 // encode renders a cursor as the opaque token a caller carries.
@@ -257,7 +262,11 @@ func (p position) before(other position) bool {
 // back as the zero time, which sorts it to the front, and the stored text
 // keeps it stable there.
 func stampLess(a, b string) bool {
-	parsedA, parsedB := bench.ParseStamp(a), bench.ParseStamp(b)
+	return stampLessParsed(a, bench.ParseStamp(a), b, bench.ParseStamp(b))
+}
+
+// stampLessParsed is stampLess over stamps a caller has already parsed.
+func stampLessParsed(a string, parsedA time.Time, b string, parsedB time.Time) bool {
 	if !parsedA.Equal(parsedB) {
 		return parsedA.Before(parsedB)
 	}
@@ -298,22 +307,34 @@ func (c cursor) coverThrough(delivered []position) cursor {
 	}
 	c.Frontier = frontier
 	for _, at := range delivered {
-		switch {
-		case c.TS != "" && stampLess(at.event.TS, c.TS):
-			// A line older than the boundary is already covered by it.
-		case c.TS == at.event.TS:
-			if covered, ok := c.Frontier[at.key]; !ok || at.index > covered {
-				c.Frontier[at.key] = at.index
-			}
-		default:
-			c.TS = at.event.TS
-			c.Frontier = map[string]int{at.key: at.index}
-		}
+		c.cover(at.key, at.index, at.event.TS)
 	}
 	if len(c.Frontier) == 0 {
 		c.Frontier = nil
 	}
 	return c
+}
+
+// cover folds one delivered line into the cursor's coverage, which is
+// coverThrough's step for one position. A caller that only needs the fold
+// calls it line by line rather than building the positions first. The
+// boundary's parse is kept beside it, so a fold over many lines parses each
+// line's stamp once and the boundary once per change of boundary.
+func (c *cursor) cover(key string, index int, ts string) {
+	if c.TS != c.parsedFor {
+		c.parsedTS, c.parsedFor = bench.ParseStamp(c.TS), c.TS
+	}
+	switch {
+	case c.TS != "" && c.TS != ts && stampLessParsed(ts, bench.ParseStamp(ts), c.TS, c.parsedTS):
+		// A line older than the boundary is already covered by it.
+	case c.TS == ts:
+		if covered, ok := c.Frontier[key]; !ok || index > covered {
+			c.Frontier[key] = index
+		}
+	default:
+		c.TS = ts
+		c.Frontier = map[string]int{key: index}
+	}
 }
 
 // Changes answers one checkpoint: what has happened on this workbench since
@@ -461,8 +482,14 @@ func (l *Library) checkpoint(req *Request) (*ChangeSet, error) {
 // moment. A cursor left without a position would replay the whole board on
 // the next call that found the digest moved, which is exactly what a first
 // call is specified not to do.
+//
+// The lines are folded into the cursor as they are read, in the order
+// readHalf would deliver them, rather than gathered first: a fresh cursor
+// delivers every line, so the fold over readHalf's answer and the fold line by
+// line are the same fold, and the second builds no list of every line on the
+// workbench to throw it away.
 func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (*ChangeSet, error) {
-	var everything []position
+	terms.Frontier = make(map[string]int, len(terms.Frontier))
 	halves := []struct {
 		entries []bench.Watched
 		only    map[string]bool
@@ -471,10 +498,21 @@ func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (
 		// The archive is read through the same filter a reporting call reads
 		// it through, so the position a mint records can never sit on a line
 		// no later call would deliver.
-		read, _ := readHalf(l.Bench, half.entries, cursor{}, half.only)
-		everything = append(everything, read...)
+		for _, entry := range half.entries {
+			if entry.Journal == "" {
+				continue
+			}
+			key, only := entry.Key, half.only
+			l.Bench.JournalLines(entry.Journal, func(index int, ts, event string) {
+				if only == nil || only[event] {
+					terms.cover(key, index, ts)
+				}
+			})
+		}
 	}
-	terms = terms.coverThrough(everything)
+	if len(terms.Frontier) == 0 {
+		terms.Frontier = nil
+	}
 	token, err := terms.encode()
 	if err != nil {
 		return nil, err

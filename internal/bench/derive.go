@@ -33,7 +33,7 @@ func deriveAttachment(path, text, _ string) (any, error) {
 // itemAt reads the item whose directory is dir through src. Its error is
 // the anchor's read error.
 func itemAt(src Source, dir string) (*Item, error) {
-	anchor := filepath.Join(dir, ItemAnchor)
+	anchor := joinMember(dir, ItemAnchor)
 	observeAnchor(anchor)
 	value, err := src.Derive(anchor, DeriveItem, deriveItem)
 	if err != nil {
@@ -44,7 +44,7 @@ func itemAt(src Source, dir string) (*Item, error) {
 
 // commentAt reads the comment whose directory is dir through src.
 func commentAt(src Source, dir string) (*Comment, error) {
-	anchor := filepath.Join(dir, CommentAnchor)
+	anchor := joinMember(dir, CommentAnchor)
 	observeAnchor(anchor)
 	value, err := src.Derive(anchor, DeriveComment, deriveComment)
 	if err != nil {
@@ -56,7 +56,7 @@ func commentAt(src Source, dir string) (*Comment, error) {
 // attachmentAt reads the attachment whose directory is dir through src,
 // with the path of the file its payload directory holds.
 func attachmentAt(src Source, dir string) (*Attachment, error) {
-	anchor := filepath.Join(dir, AttachmentAnchor)
+	anchor := joinMember(dir, AttachmentAnchor)
 	observeAnchor(anchor)
 	value, err := src.Derive(anchor, DeriveAttachment, deriveAttachment)
 	if err != nil {
