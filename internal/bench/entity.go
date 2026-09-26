@@ -428,7 +428,7 @@ func replaceAttachment(src Source, dir, source string) (*Attachment, error) {
 		return nil, err
 	}
 	payload := filepath.Join(dir, PayloadDir)
-	if err := os.RemoveAll(payload); err != nil {
+	if err := removeFolder(payload); err != nil {
 		return nil, err
 	}
 	filename := filepath.Base(source)
@@ -687,6 +687,8 @@ func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRe
 // all. A rename the filesystem refuses is reported as a refusal and never
 // retried as a copy followed by a delete, which would trade one short
 // non-atomic operation for a long one and multiply the columns a crash leaves.
+// A transient refusal, a reader's handle open below the directory, is retried
+// as the same rename for a bounded time (renameFolder).
 func MoveEntity(dir, target string) error {
 	return moveEntity(Disk{}, dir, target)
 }
@@ -704,7 +706,7 @@ func moveEntity(src Source, dir, target string) error {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
 	}
-	return os.Rename(dir, target)
+	return renameFolder(dir, target)
 }
 
 // ArchiveEntity moves an entity's whole directory into the archive mirror,
@@ -718,9 +720,10 @@ func ArchiveEntity(dir string) (string, error) {
 	return target, nil
 }
 
-// DeleteEntity removes an entity's directory and the history inside it.
+// DeleteEntity removes an entity's directory and the history inside it,
+// retrying a transient refusal as removeFolder does.
 func DeleteEntity(dir string) error {
-	return os.RemoveAll(dir)
+	return removeFolder(dir)
 }
 
 // ColumnOccupied reports whether a column may be retired, which is what keeps a

@@ -183,6 +183,74 @@ func writeBytes(path string, data []byte) error {
 	return nil
 }
 
+// Retrying a refused folder move or removal.
+//
+// Windows refuses to rename or remove a directory while another process holds
+// a handle open below it, and a reader holding a file open for the length of
+// one read is enough: the rename answers ERROR_ACCESS_DENIED or
+// ERROR_SHARING_VIOLATION, and a removal whose files were only marked for
+// deletion answers ERROR_DIR_NOT_EMPTY, since DeleteFile's documentation says
+// it "marks a file for deletion on close" and the file stays until the last
+// handle to it closes. A structural act writes inside the directory it is
+// about to move, so any reader that watches for changes (dinah serve's
+// resident workbench, an editor, the search indexer) is inside that directory
+// at the moment the rename runs. The refusal is transient, because the
+// reader's handle closes when its read ends, so renameFolder and removeFolder
+// try again for a bounded time before they give the refusal back.
+//
+// The budget is one second from the first refusal, in pauses that start at
+// 2ms and double up to 50ms, which is about twenty attempts. A reader's read
+// takes milliseconds, so a refusal lasting the whole budget is a handle held
+// open on purpose, and the act then fails as it always did: the error reaches
+// the act, which reports it as the interruption it has always reported. No
+// other error is retried, and outside Windows nothing is, because a POSIX
+// rename or unlink is not refused by an open handle.
+
+// folderRetryBudget is how long a transient refusal is retried, measured from
+// the first refusal. A variable, so a test can wait less than the whole of it.
+var folderRetryBudget = time.Second
+
+// folderRetryFirstPause and folderRetryPauseCap bound the pause between
+// attempts, which doubles from the first to the cap.
+const (
+	folderRetryFirstPause = 2 * time.Millisecond
+	folderRetryPauseCap   = 50 * time.Millisecond
+)
+
+// renameFolder is os.Rename for a directory an act moves, retrying a
+// transient refusal within folderRetryBudget.
+func renameFolder(from, to string) error {
+	return retryRefused(func() error { return os.Rename(from, to) }, transientRenameRefusal)
+}
+
+// removeFolder is os.RemoveAll for a directory an act removes, retrying a
+// transient refusal within folderRetryBudget. RemoveAll is safe to repeat:
+// whatever an earlier attempt removed is gone, and the next removes the rest.
+func removeFolder(path string) error {
+	return retryRefused(func() error { return os.RemoveAll(path) }, transientRemoveRefusal)
+}
+
+// retryRefused runs op, and again after each pause while it answers an error
+// transient reports and the budget has not run out. It answers op's last
+// error, unchanged, so a caller sees what it would have seen without the
+// retry.
+func retryRefused(op func() error, transient func(error) bool) error {
+	err := op()
+	if err == nil || !transient(err) {
+		return err
+	}
+	deadline := time.Now().Add(folderRetryBudget)
+	pause := folderRetryFirstPause
+	for time.Now().Before(deadline) {
+		time.Sleep(pause)
+		if err = op(); err == nil || !transient(err) {
+			return err
+		}
+		pause = min(2*pause, folderRetryPauseCap)
+	}
+	return err
+}
+
 // Revision is the opaque revision of an anchor file: the content hash read
 // under the card lock, which is what a basis names. Callers never parse it,
 // because the remote arbiter will compute its own revision another way.
