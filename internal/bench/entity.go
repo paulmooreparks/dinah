@@ -101,20 +101,25 @@ func Comments(holderDir string) ([]*Comment, error) {
 		if err != nil {
 			continue
 		}
-		fm, body := ParseAnchor(text)
-		comment := &Comment{
-			ID:                  id,
-			Dir:                 dir,
-			TS:                  fm.Value("ts"),
-			Ordinal:             OrdinalOf(fm),
-			Author:              fm.Value("author"),
-			AuthorUnrecoverable: fm.Value(CommentAuthorUnrecoverableField) == "true",
-			Digest:              fm.Value(CommentDigestField),
-			Body:                body,
-		}
-		comments = append(comments, comment)
+		comments = append(comments, commentFromText(dir, id, text))
 	}
 	return comments, nil
+}
+
+// commentFromText builds a comment from the text of its anchor, which is the
+// parse Comments and Positions.Comments share so the two cannot drift apart.
+func commentFromText(dir, id, text string) *Comment {
+	fm, body := ParseAnchor(text)
+	return &Comment{
+		ID:                  id,
+		Dir:                 dir,
+		TS:                  fm.Value("ts"),
+		Ordinal:             OrdinalOf(fm),
+		Author:              fm.Value("author"),
+		AuthorUnrecoverable: fm.Value(CommentAuthorUnrecoverableField) == "true",
+		Digest:              fm.Value(CommentDigestField),
+		Body:                body,
+	}
 }
 
 // CountComments reports how many comments a directory's own collection
@@ -154,22 +159,29 @@ func Attachments(cardDir string) ([]*Attachment, error) {
 		if err != nil {
 			continue
 		}
-		fm, _ := ParseAnchor(text)
-		payload, err := payloadOf(dir)
-		if err != nil {
-			payload = ""
-		}
-		attachments = append(attachments, &Attachment{
-			ID:          id,
-			Dir:         dir,
-			Filename:    fm.Value("filename"),
-			Description: fm.Value("description"),
-			Provenance:  fm.Value("provenance"),
-			Ordinal:     OrdinalOf(fm),
-			Path:        payload,
-		})
+		attachments = append(attachments, attachmentFromText(dir, id, text))
 	}
 	return attachments, nil
+}
+
+// attachmentFromText builds an attachment from the text of its anchor and the
+// file its payload directory holds, which is the build Attachments and
+// Positions.Attachments share so the two cannot drift apart.
+func attachmentFromText(dir, id, text string) *Attachment {
+	fm, _ := ParseAnchor(text)
+	payload, err := payloadOf(dir)
+	if err != nil {
+		payload = ""
+	}
+	return &Attachment{
+		ID:          id,
+		Dir:         dir,
+		Filename:    fm.Value("filename"),
+		Description: fm.Value("description"),
+		Provenance:  fm.Value("provenance"),
+		Ordinal:     OrdinalOf(fm),
+		Path:        payload,
+	}
 }
 
 // CountAttachments reports how many attachments a directory's own collection
@@ -216,13 +228,13 @@ func CountItems(cardDir string) (int, error) {
 // the terms CountAttachments already states: a zero is what an entity holding
 // nothing answers, and a caller cannot tell the two apart.
 func ChildCounts(dir, kind string) (map[string]int, error) {
-	counts := map[string]int{}
-	for _, mount := range Contains(kind) {
-		ids, err := ListIDs(filepath.Join(dir, mount.Dir))
-		if err != nil {
-			return nil, err
-		}
-		counts[mount.Dir] = len(ids)
+	listed, err := NewPositions().ChildIDs(dir, kind)
+	if err != nil {
+		return nil, err
+	}
+	counts := make(map[string]int, len(listed))
+	for mount, ids := range listed {
+		counts[mount] = len(ids)
 	}
 	return counts, nil
 }
@@ -1093,6 +1105,12 @@ func LoadItem(dir string) (*Item, error) {
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
 	}
+	return itemFromText(dir, text), nil
+}
+
+// itemFromText builds a checklist item from the text of its anchor, which is
+// the parse LoadItem and Positions.Item share so the two cannot drift apart.
+func itemFromText(dir, text string) *Item {
 	fm, body := ParseAnchor(text)
 	return &Item{
 		ID:         filepath.Base(dir),
@@ -1106,7 +1124,7 @@ func LoadItem(dir string) (*Item, error) {
 		Standing:   fm.Value(ItemStandingField),
 		Evidence:   fm.Value(ItemEvidenceField),
 		Text:       strings.TrimRight(body, "\n"),
-	}, nil
+	}
 }
 
 // Items reads a card's checklist items in creation order, on the terms
@@ -1341,24 +1359,22 @@ type ItemTally struct {
 	AwaitingOperator int
 }
 
-// TallyItems reads a card's checklist items once and counts both the items
-// that would refuse a claim and the items waiting on the operator, so a
-// caller wanting both numbers pays for one walk of the collection rather
+// TallyItems counts, over the given item identifiers of a card's checklist,
+// the items that would refuse a claim and the items waiting on the operator,
+// so a caller wanting both numbers pays for one walk of the collection rather
 // than two.
 //
-// It walks the checklist collection exactly as itemsWhere does, in
-// identifier order, and it skips an item whose anchor will not open on the
-// same terms and for the same reason: an unreadable file is a defect dinah
-// check reports rather than one a read discovers.
-func (b *Bench) TallyItems(cardDir string) (ItemTally, error) {
+// It takes the listing its caller already made and the function that loads an
+// item, rather than listing and reading for itself, so a card view whose
+// counts and tallies come from one Positions lists the checklist once and
+// reads each item once. An item whose load fails is skipped, on the terms
+// itemsWhere reads past one: an unreadable file is a defect dinah check
+// reports rather than one a read discovers.
+func (b *Bench) TallyItems(cardDir string, ids []string, load func(dir string) (*Item, error)) (ItemTally, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
-	ids, err := ListIDs(collection)
-	if err != nil {
-		return ItemTally{}, err
-	}
 	var tally ItemTally
 	for _, id := range ids {
-		item, err := LoadItem(filepath.Join(collection, id))
+		item, err := load(filepath.Join(collection, id))
 		if err != nil {
 			continue
 		}

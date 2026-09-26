@@ -348,7 +348,7 @@ type Exemption struct {
 	Reason string
 }
 
-// exemptions are the thirty-six functions the sweep finds that answer a
+// exemptions are the forty-four functions the sweep finds that answer a
 // caller's string with an entity without deciding which entity a spelling
 // names.
 //
@@ -371,6 +371,10 @@ var exemptions = []Exemption{
 	{Function: "LoadWorkstream", Ground: GroundLoadsByIdentifier, Reason: "reads a workstream out of the directory its identifier names"},
 	{Function: "LoadAttachment", Ground: GroundLoadsByIdentifier, Reason: "reads an attachment out of the directory its identifier names"},
 	{Function: "LoadItem", Ground: GroundLoadsByIdentifier, Reason: "reads a checklist item out of the directory its identifier names"},
+	{Function: "Item", Ground: GroundLoadsByIdentifier, Reason: "Positions.Item, which reads a checklist item out of the directory its identifier names as LoadItem does, through the composition's memo"},
+	{Function: "itemFromText", Ground: GroundLoadsByIdentifier, Reason: "builds a checklist item from the anchor text its caller read out of the directory the item's identifier names"},
+	{Function: "commentFromText", Ground: GroundLoadsByIdentifier, Reason: "builds a comment from the anchor text its caller read out of the directory the comment's identifier names"},
+	{Function: "attachmentFromText", Ground: GroundLoadsByIdentifier, Reason: "builds an attachment from the anchor text its caller read out of the directory the attachment's identifier names"},
 	{Function: "readColumnIn", Ground: GroundLoadsByIdentifier, Reason: "reads one column's anchor out of the half it is given"},
 	{Function: "readColumn", Ground: GroundLoadsByIdentifier, Reason: "reads one column's anchor out of the live half"},
 	{Function: "loadCard", Ground: GroundLoadsByIdentifier, Reason: "reads a card's anchor off a directory the caller already resolved"},

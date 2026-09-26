@@ -88,25 +88,24 @@ func marshalled(t *testing.T, view *CardView) map[string]any {
 	return payload
 }
 
-// TestOneCardViewMakesOneListingPerMountPlusTheBlockingRead asserts dinah-519
-// criteria/13's behavioural half: the two counts a card view used to take by
-// listing two directories are read out of the one grammar walk instead, so
-// publishing the total costs one listing per card view rather than three.
+// TestOneCardViewMakesOneListingPerMount asserts dinah-519 criteria/13's
+// behavioural half and dinah-618 criteria/14: the two counts a card view used
+// to take by listing two directories are read out of the one grammar walk,
+// and since dinah-618 the tallies read the checklist listing that walk already
+// made, so a card view costs one listing per mount and nothing more.
 //
 // The property is the number of directory listings, so the number is what is
 // counted. The mount count comes from bench.Contains rather than being written
-// down, and the one extra is TallyItems, which lists the checklist a second
-// time because it opens each item's anchor to count both the blocking items
-// and, since dinah-599, the items waiting on the operator. That is four at the
-// grammar as it stands, and the unfolded implementation makes six.
+// down. That is three at the grammar as it stands; before dinah-618 TallyItems
+// listed the checklist a second time and made four, and the unfolded
+// implementation before dinah-519 made six.
 //
 // The test writes a package var in bench, so it declares itself non-parallel
 // and puts the seam back.
 //
-// Arming: restoring Library.view's two bench.CountAttachments and
-// bench.CountItems calls beside the walk reddens this test by name with six
-// listings against four.
-func TestOneCardViewMakesOneListingPerMountPlusTheBlockingRead(t *testing.T) {
+// Arming: making TallyItems list the checklist itself through ListIDs again
+// reddens this test by name with four listings against three.
+func TestOneCardViewMakesOneListingPerMount(t *testing.T) {
 	h := newHarness(t)
 	ref := filledCard(t, h)
 	card := h.card(ref)
@@ -125,12 +124,11 @@ func TestOneCardViewMakesOneListingPerMountPlusTheBlockingRead(t *testing.T) {
 	if mounts == 0 {
 		t.Fatal("the grammar gives a card no mount, so this count has nothing to compare against")
 	}
-	// One listing per mount, plus the one TallyItems makes over the
-	// checklist it then opens item by item.
-	want := mounts + 1
-	if len(listed) != want {
-		t.Errorf("one card view made %d collection listings, wanted %d (%d mounts plus the blocking-item read): %v",
-			len(listed), want, mounts, listed)
+	// One listing per mount. The tallies read the checklist listing the walk
+	// made rather than listing it again.
+	if len(listed) != mounts {
+		t.Errorf("one card view made %d collection listings, wanted %d, one per mount: %v",
+			len(listed), mounts, listed)
 	}
 }
 
@@ -154,11 +152,18 @@ func TestOneCardViewMakesOneListingPerMountPlusTheBlockingRead(t *testing.T) {
 // the checklist now rather than from a second call that opens the same
 // anchors again.
 //
+// Since dinah-618, the walk is Positions.ChildIDs rather than ChildCounts, so
+// that the tallies can read the checklist listing it made. The guard requires
+// ChildIDs exactly once and ChildCounts not at all, because ChildCounts lists
+// through a Positions of its own and a view calling it beside ChildIDs lists
+// every mount twice.
+//
 // Arming: restoring the bench.CountAttachments and bench.CountItems calls in
 // Library.view reddens this test by name, and moving them into a helper
 // Library.view calls reddens it too. Restoring the old
-// l.Bench.CountBlockingItems call in place of TallyItems reddens the last two
-// assertions.
+// l.Bench.CountBlockingItems call in place of TallyItems reddens the
+// CountBlockingItems assertion, and restoring the bench.ChildCounts call in
+// Library.view reddens the ChildCounts assertion.
 func TestLibraryViewReachesNoPerCollectionCount(t *testing.T) {
 	graph := packageCallGraph(t)
 	reachable := reachableFrom(graph, "view")
@@ -180,14 +185,14 @@ func TestLibraryViewReachesNoPerCollectionCount(t *testing.T) {
 	// product's word is workbench: a literal carrying the package's own short
 	// name trips the vocabulary guard in internal/profile. Nothing is lost,
 	// since this package declares no function of any of these names itself.
-	for _, forbidden := range []string{"CountAttachments", "CountItems"} {
+	for _, forbidden := range []string{"CountAttachments", "CountItems", "ChildCounts"} {
 		if calls[forbidden] > 0 {
 			t.Errorf("%s is called %d times in what Library.view reaches, and the whole of the fold is that it is called none",
 				forbidden, calls[forbidden])
 		}
 	}
-	if calls["ChildCounts"] != 1 {
-		t.Errorf("ChildCounts is called %d times in what Library.view reaches, wanted exactly once", calls["ChildCounts"])
+	if calls["ChildIDs"] != 1 {
+		t.Errorf("ChildIDs is called %d times in what Library.view reaches, wanted exactly once", calls["ChildIDs"])
 	}
 	if calls["TallyItems"] != 1 {
 		t.Errorf("TallyItems is called %d times in what Library.view reaches, wanted exactly once: it is not foldable, it opens each item's anchor", calls["TallyItems"])
