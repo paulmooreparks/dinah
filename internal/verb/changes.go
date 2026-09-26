@@ -471,7 +471,7 @@ func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (
 		// The archive is read through the same filter a reporting call reads
 		// it through, so the position a mint records can never sit on a line
 		// no later call would deliver.
-		read, _ := readHalf(half.entries, cursor{}, half.only)
+		read, _ := readHalf(l.Bench, half.entries, cursor{}, half.only)
 		everything = append(everything, read...)
 	}
 	terms = terms.coverThrough(everything)
@@ -552,13 +552,13 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 	var delivered []position
 	var unreadable, liveUnreadable []string
 	if held.Live != terms.Live {
-		read, unread := readHalf(live, held, nil)
+		read, unread := readHalf(l.Bench, live, held, nil)
 		delivered = append(delivered, read...)
 		unreadable = append(unreadable, unread...)
 		liveUnreadable = append(liveUnreadable, unread...)
 	}
 	if held.Archive != terms.Archive {
-		read, unread := readHalf(archive, held, archiveEvents)
+		read, unread := readHalf(l.Bench, archive, held, archiveEvents)
 		delivered = append(delivered, read...)
 		unreadable = append(unreadable, unread...)
 	}
@@ -612,7 +612,7 @@ func (l *Library) changedSince(held, terms cursor, live, archive []bench.Watched
 // board. It does not: the entity's events are dropped, its key is named, and
 // its fingerprint is still computed from os.Stat, so the terms advance past
 // the corruption rather than reporting it forever.
-func readHalf(entries []bench.Watched, held cursor, only map[string]bool) (delivered []position, unreadable []string) {
+func readHalf(b *bench.Bench, entries []bench.Watched, held cursor, only map[string]bool) (delivered []position, unreadable []string) {
 	for _, entry := range entries {
 		// An entity carrying no journal is skipped on the empty string
 		// rather than on the error reading an empty path gives, which is a
@@ -622,7 +622,7 @@ func readHalf(entries []bench.Watched, held cursor, only map[string]bool) (deliv
 		if entry.Journal == "" {
 			continue
 		}
-		events, _, err := bench.ReadJournal(entry.Journal)
+		events, _, err := b.ReadJournal(entry.Journal)
 		if err != nil {
 			unreadable = append(unreadable, entry.Key)
 			continue

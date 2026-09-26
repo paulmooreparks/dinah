@@ -29,7 +29,7 @@ func (l *Library) Do(req *Request) *Response {
 	if refused != nil {
 		return refused
 	}
-	lock, err := bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
+	lock, err := l.Bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -524,7 +524,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// about what to go and settle.
 	gateHeld := false
 	if destination.HoldsOnEntry() {
-		holding, err := bench.GatingItems(card.Dir, destination.ID)
+		holding, err := l.Bench.GatingItems(card.Dir, destination.ID)
 		if err != nil {
 			return false, nil, err
 		}
@@ -566,7 +566,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// standing exemption.
 	loopReached := false
 	if departure != nil && departure.LoopLimit > 0 && regressive {
-		events, _, err := bench.ReadJournal(card.JournalPath())
+		events, _, err := l.Bench.ReadJournal(card.JournalPath())
 		if err != nil {
 			return false, nil, err
 		}
@@ -590,7 +590,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// is escaped by sending the card back upstream.
 	exitGateHeld := false
 	if departure != nil && departure.HoldsOnExit() && !regressive {
-		holding, err := bench.GatingItems(card.Dir, departure.ID)
+		holding, err := l.Bench.GatingItems(card.Dir, departure.ID)
 		if err != nil {
 			return false, nil, err
 		}
@@ -868,7 +868,7 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 		}
 		return response
 	}
-	comment, err := bench.AddComment(card.Dir, req.Actor, now, reason)
+	comment, err := l.Bench.AddComment(card.Dir, req.Actor, now, reason)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -982,7 +982,7 @@ func (l *Library) lapseRead(card *bench.Card, actor string) error {
 	if !card.Lapsed(l.Now()) {
 		return nil
 	}
-	lock, err := bench.Acquire(card.Dir, "", bench.Stamp(l.Now()))
+	lock, err := l.Bench.Acquire(card.Dir, "", bench.Stamp(l.Now()))
 	if err != nil {
 		return nil
 	}

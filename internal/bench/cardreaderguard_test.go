@@ -80,8 +80,8 @@ func freeReaderAllowlist(t *testing.T, root string) []readerExemption {
 	t.Helper()
 	entries := []readerExemption{
 		{path: "internal/bench/card.go", references: 7,
-			answersCard: []string{"LoadCard", "loadRetiredCard", "loadCard", "LoadCardIn", "loadRetiredCardIn"},
-			reason:      "declares the three readers and the two methods that stamp what each reader answers"},
+			answersCard: []string{"LoadCard", "loadRetiredCard", "loadCard", "parseCard", "LoadCardIn", "loadRetiredCardIn"},
+			reason:      "declares the three readers, the parse they share (which a resident snapshot memoises and loadCard clones), and the two methods that stamp what each reader answers"},
 		{path: "internal/bench/check.go", references: 1,
 			reason: "probes whether a card directory a registry line names will read at all, which is a question about the file rather than about the card"},
 		{path: "internal/bench/numbermigrate.go", references: 1,

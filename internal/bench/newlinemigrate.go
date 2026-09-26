@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -154,7 +153,7 @@ type newlineTransform struct {
 // Written true on every file rewritten and false on every file not reached.
 func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigration, error) {
 	report := &NewlineMigration{Applied: apply}
-	lock, err := Acquire(b.Root, actor, now)
+	lock, err := b.Acquire(b.Root, actor, now)
 	if err != nil {
 		return report, err
 	}
@@ -178,7 +177,7 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 			// half-written file. A file that turns dirty a moment later is
 			// picked up by the next run, which is what a busy file gets
 			// anyway.
-			if candidate, readErr := os.ReadFile(path); readErr == nil {
+			if candidate, readErr := b.source().ReadFile(path); readErr == nil {
 				if result := transformNewlines(path, candidate); result.Condition == "" && bytes.Equal(result.Out, candidate) {
 					continue
 				}
@@ -186,7 +185,7 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 			report.Conflicts = append(report.Conflicts, b.lockConflict(path, err))
 			continue
 		}
-		original, err := os.ReadFile(path)
+		original, err := b.source().ReadFile(path)
 		if err != nil {
 			release(held, taken)
 			report.Conflicts = append(report.Conflicts, NewlineConflict{Path: path, Condition: NewlineConflictUnreadable})
@@ -292,7 +291,7 @@ func (b *Bench) rewriteNewlines(path, actor, now string) (bool, error) {
 		return false, err
 	}
 	defer release(held, taken)
-	original, err := os.ReadFile(path)
+	original, err := b.source().ReadFile(path)
 	if err != nil {
 		return false, nil
 	}
@@ -325,7 +324,7 @@ func (b *Bench) lockConflict(path string, err error) NewlineConflict {
 	if !lockHeld(err) {
 		return NewlineConflict{Path: path, Condition: NewlineConflictUnwritable}
 	}
-	return NewlineConflict{Path: path, Condition: NewlineConflictLocked, Detail: LockHolder(filepath.Join(b.lockDirForFile(path), LockName))}
+	return NewlineConflict{Path: path, Condition: NewlineConflictLocked, Detail: b.LockHolder(filepath.Join(b.lockDirForFile(path), LockName))}
 }
 
 // lockHeld reports whether a failed acquisition failed because another process
@@ -344,7 +343,7 @@ func (b *Bench) holdForFile(path, actor, now string) (*Lock, bool, error) {
 	if dir == b.Root {
 		return nil, false, nil
 	}
-	held, err := Acquire(dir, actor, now)
+	held, err := b.Acquire(dir, actor, now)
 	if err != nil {
 		return nil, false, err
 	}
@@ -907,7 +906,7 @@ func (b *Bench) checkStoredNewlines() ([]Finding, error) {
 	}
 	var findings []Finding
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := b.source().ReadFile(path)
 		if err != nil {
 			continue
 		}

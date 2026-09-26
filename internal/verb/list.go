@@ -716,7 +716,7 @@ func (l *Library) history(req *Request) ([]bench.Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	events, _, err := bench.ReadJournal(found.Card.JournalPath())
+	events, _, err := l.Bench.ReadJournal(found.Card.JournalPath())
 	return events, err
 }
 

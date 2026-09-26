@@ -79,11 +79,20 @@ func CommentDiverged(fm *Frontmatter, body string) bool {
 // ReadItemAnchor's mirror, and it exists for the same reason: a write has to
 // put back every key it did not touch.
 func ReadCommentAnchor(dir string) (*Frontmatter, string, error) {
-	text, err := ReadText(filepath.Join(dir, CommentAnchor))
+	return readCommentAnchor(Disk{}, dir)
+}
+
+// ReadCommentAnchor is the free ReadCommentAnchor read through this bench's source.
+func (b *Bench) ReadCommentAnchor(dir string) (*Frontmatter, string, error) {
+	return readCommentAnchor(b.source(), dir)
+}
+
+// readCommentAnchor is ReadCommentAnchor's body, reading through src.
+func readCommentAnchor(src Source, dir string) (*Frontmatter, string, error) {
+	fm, body, err := anchorOf(src, filepath.Join(dir, CommentAnchor))
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, dir)
 	}
-	fm, body := ParseAnchor(text)
 	return fm, body, nil
 }
 

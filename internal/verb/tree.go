@@ -881,7 +881,7 @@ func (l *Library) axisValues(axis string, card *bench.Card) []string {
 	if !actPlane[axis] {
 		return l.readableValues(axis, l.cardValues(axis, card))
 	}
-	events, _, err := bench.ReadJournal(card.JournalPath())
+	events, _, err := l.Bench.ReadJournal(card.JournalPath())
 	if err != nil {
 		return []string{""}
 	}
@@ -960,7 +960,7 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 		Archived: entity.Archived,
 	}
 	rank := rankOfKind(entity.Kind)
-	count, err := containedCount(entity.Dir, entity.Kind)
+	count, err := l.containedCount(entity.Dir, entity.Kind)
 	if err != nil {
 		return nil, err
 	}
@@ -1044,7 +1044,7 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 		// The count is walked rather than added up from the children the
 		// projection drew, so it is the same number whatever the depth left
 		// out, which is the rule containedCount already carries.
-		count, err := containedCount(member, collection.Mount.Kind)
+		count, err := l.containedCount(member, collection.Mount.Kind)
 		if err != nil {
 			return nil, err
 		}
@@ -1140,7 +1140,7 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 	if err != nil {
 		return nil, err
 	}
-	carried, err := containedCount(entity.Dir, bench.KindWorkstream)
+	carried, err := l.containedCount(entity.Dir, bench.KindWorkstream)
 	if err != nil {
 		return nil, err
 	}
@@ -1151,7 +1151,7 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 		// The count is walked rather than added up from the children the
 		// projection drew, so it is the same number whatever the depth left
 		// out, which is the rule containedCount already carries.
-		count, err := containedCount(card.Dir, bench.KindCard)
+		count, err := l.containedCount(card.Dir, bench.KindCard)
 		if err != nil {
 			return nil, err
 		}
@@ -1222,7 +1222,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) (TreeNode, error) {
 			Kind:  entity.Kind,
 			ID:    entity.ID,
 			Ref:   itemReference,
-			Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
+			Title: l.anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
 		}, nil
 	}
 	// Every kind reaching this branch sits below a head, and the resolver
@@ -1234,7 +1234,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) (TreeNode, error) {
 		Kind:  entity.Kind,
 		ID:    entity.ID,
 		Ref:   entity.Ref,
-		Title: anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
+		Title: l.anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
 	}, nil
 }
 
@@ -1250,13 +1250,13 @@ func (l *Library) itemRefOf(entity *bench.EntityRef) (string, error) {
 	cardRef := entity.Card.Ref(l.Bench.Slug)
 	collection := filepath.Dir(entity.Dir)
 	id := filepath.Base(entity.Dir)
-	ids, err := bench.ListIDs(collection)
+	ids, err := l.Bench.ListIDs(collection)
 	if err != nil {
 		return "", err
 	}
 	kindSeen := map[string]int{}
-	for n, member := range bench.SortByOrdinal(collection, bench.ItemAnchor, ids) {
-		kind := itemKindAt(filepath.Join(collection, member))
+	for n, member := range l.Bench.SortByOrdinal(collection, bench.ItemAnchor, ids) {
+		kind := l.itemKindAt(filepath.Join(collection, member))
 		kindSeen[kind]++
 		if member == id {
 			return itemRef(cardRef, kind, kindSeen[kind], n+1), nil
@@ -1434,7 +1434,7 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 		itemKind, kindPosition := "", 0
 		if mount.Kind == bench.KindItem {
 			l.observe(ObserveItemAnchor, id)
-			itemKind = itemKindAt(filepath.Join(collection, id))
+			itemKind = l.itemKindAt(filepath.Join(collection, id))
 			kindSeen[itemKind]++
 			kindPosition = kindSeen[itemKind]
 		}
@@ -1452,8 +1452,8 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 // where the anchor will not read. An unreadable anchor composes the
 // collection reference, which is what the walk printed for every item before
 // this card and which still resolves.
-func itemKindAt(dir string) string {
-	item, err := bench.LoadItem(dir)
+func (l *Library) itemKindAt(dir string) string {
+	item, err := l.Bench.LoadItem(dir)
 	if err != nil {
 		return ""
 	}
@@ -1516,7 +1516,7 @@ func (l *Library) containmentMembersOf(collection string, mount bench.Mount) ([]
 		return ids, nil
 	}
 	l.observe(ObserveList, collection)
-	return bench.MemberIDs(collection, mount)
+	return l.Bench.MemberIDs(collection, mount)
 }
 
 // containedNode is one entity as a node of the containment tree, with the
@@ -1530,14 +1530,14 @@ func (l *Library) containedNode(
 	parentRef string,
 ) (TreeNode, error) {
 	dir := filepath.Join(collection, id)
-	count, err := containedCount(dir, mount.Kind)
+	count, err := l.containedCount(dir, mount.Kind)
 	if err != nil {
 		return TreeNode{}, err
 	}
 	node := TreeNode{
 		Kind:  mount.Kind,
 		ID:    id,
-		Title: anchorTitle(dir, mount.Anchor),
+		Title: l.anchorTitle(dir, mount.Anchor),
 		Count: count,
 	}
 	switch mount.Kind {
@@ -1568,20 +1568,20 @@ func (l *Library) containedNode(
 // node's count equals its children plus their counts follows from the walk
 // rather than producing it, because a containment tree partitions its entities
 // and nothing appears in it twice.
-func containedCount(dir, kind string) (int, error) {
+func (l *Library) containedCount(dir, kind string) (int, error) {
 	total := 0
 	for _, mount := range bench.Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		ids, err := bench.ListIDs(collection)
+		ids, err := l.Bench.ListIDs(collection)
 		if err != nil {
 			return 0, err
 		}
 		for _, id := range ids {
 			member := filepath.Join(collection, id)
-			if !bench.Exists(filepath.Join(member, mount.Anchor)) {
+			if !l.Bench.Exists(filepath.Join(member, mount.Anchor)) {
 				continue
 			}
-			below, err := containedCount(member, mount.Kind)
+			below, err := l.containedCount(member, mount.Kind)
 			if err != nil {
 				return 0, err
 			}
@@ -1611,11 +1611,11 @@ func anchorOfKind(kind string) string {
 // anchorTitle is what an entity below a card is called. The format gives these
 // kinds no title field, so the anchor's own naming fields answer in turn and a
 // node with nothing to say carries no title at all.
-func anchorTitle(dir, anchor string) string {
+func (l *Library) anchorTitle(dir, anchor string) string {
 	if anchor == "" {
 		return ""
 	}
-	text, err := bench.ReadText(filepath.Join(dir, anchor))
+	text, err := l.Bench.ReadText(filepath.Join(dir, anchor))
 	if err != nil {
 		return ""
 	}

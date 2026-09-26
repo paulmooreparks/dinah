@@ -326,7 +326,7 @@ func migrateBenchAnchor(b *Bench) error {
 // collection holds nothing, which is what let a plain file named states be
 // renamed to columns with the migration reporting success.
 func listIdentifiers(dir string) ([]string, error) {
-	entries, err := readCollection(dir)
+	entries, err := readCollection(Disk{}, dir)
 	if err != nil {
 		return nil, err
 	}

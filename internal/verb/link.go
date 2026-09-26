@@ -60,7 +60,7 @@ func (l *Library) Link(req *Request) *Response {
 		return refused
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(found.Card.Dir, req.Actor, now)
+	lock, err := l.Bench.Acquire(found.Card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -117,7 +117,7 @@ func (l *Library) Unlink(req *Request) *Response {
 		return refused
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(found.Card.Dir, req.Actor, now)
+	lock, err := l.Bench.Acquire(found.Card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}

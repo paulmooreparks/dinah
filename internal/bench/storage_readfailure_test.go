@@ -75,17 +75,19 @@ func TestListIDsSeparatesAnAbsentCollectionFromAnUnreadableOne(t *testing.T) {
 //
 // The set is named rather than counted, so a function added to it and a
 // function dropped from it both redden. The succeeding case is pinned in the
-// same run: readCollection itself makes exactly one os.ReadDir call and
-// exactly one os.Stat call, so a build that simply deleted the classification
-// everywhere fails rather than passing.
+// same run: readCollection itself makes exactly one ReadDir call and exactly
+// one Stat call, both through the source it is handed (dinah-619's read
+// seam), so a build that simply deleted the classification everywhere fails
+// rather than passing. A direct os.ReadDir anywhere else still counts toward
+// the classifier check.
 func TestEveryCollectionListingReadsThroughTheOneReader(t *testing.T) {
 	wanted := []string{
-		"ListIDs",
-		"ListWorkbenchIDs",
 		"checkAttachmentFilename",
 		"heldLocks",
 		"interruptions",
+		"listIDs",
 		"listIdentifiers",
+		"listWorkbenchIDs",
 		"resumableLift",
 	}
 
@@ -129,13 +131,13 @@ func TestEveryCollectionListingReadsThroughTheOneReader(t *testing.T) {
 					if !named {
 						return true
 					}
-					if pkg.Name == "os" && callee.Sel.Name == "ReadDir" {
+					if (pkg.Name == "os" || pkg.Name == "src") && callee.Sel.Name == "ReadDir" {
 						readDirLocal++
 						if fn.Name.Name == "readCollection" {
 							readCalls++
 						}
 					}
-					if pkg.Name == "os" && callee.Sel.Name == "Stat" && fn.Name.Name == "readCollection" {
+					if pkg.Name == "src" && callee.Sel.Name == "Stat" && fn.Name.Name == "readCollection" {
 						statCalls++
 					}
 					if pkg.Name == "os" && (callee.Sel.Name == "IsNotExist" || callee.Sel.Name == "IsPermission") && readDirLocal > 0 {
@@ -165,9 +167,9 @@ func TestEveryCollectionListingReadsThroughTheOneReader(t *testing.T) {
 		t.Errorf("%s in %s classifies os.ReadDir's own error, which is the platform trap readCollection exists to hold", name, file)
 	}
 	if readCalls != 1 {
-		t.Errorf("readCollection makes %d os.ReadDir calls, wanted exactly one", readCalls)
+		t.Errorf("readCollection makes %d ReadDir calls through its source, wanted exactly one", readCalls)
 	}
 	if statCalls != 1 {
-		t.Errorf("readCollection makes %d os.Stat calls, wanted exactly one", statCalls)
+		t.Errorf("readCollection makes %d Stat calls through its source, wanted exactly one", statCalls)
 	}
 }

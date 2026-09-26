@@ -119,14 +119,22 @@ const crlf = "\r\n"
 // than with this function, because this function strips the very condition
 // those two exist to find.
 func ReadText(path string) (string, error) {
-	if AnchorReadObserver != nil {
-		AnchorReadObserver(path)
-	}
-	data, err := os.ReadFile(path)
+	return readText(Disk{}, path)
+}
+
+// ReadText is the free ReadText read through this bench's source.
+func (b *Bench) ReadText(path string) (string, error) {
+	return readText(b.source(), path)
+}
+
+// readText is ReadText's body, reading through src.
+func readText(src Source, path string) (string, error) {
+	observeAnchor(path)
+	text, _, err := src.Text(path)
 	if err != nil {
 		return "", err
 	}
-	return NormalizeNewlines(strings.TrimPrefix(string(data), byteOrderMark)), nil
+	return text, nil
 }
 
 // WriteText writes a text file, normalising its line endings first, which is
@@ -179,14 +187,22 @@ func writeBytes(path string, data []byte) error {
 // under the card lock, which is what a basis names. Callers never parse it,
 // because the remote arbiter will compute its own revision another way.
 func Revision(path string) (string, error) {
-	if AnchorReadObserver != nil {
-		AnchorReadObserver(path)
-	}
-	data, err := os.ReadFile(path)
+	return revision(Disk{}, path)
+}
+
+// Revision is the free Revision read through this bench's source.
+func (b *Bench) Revision(path string) (string, error) {
+	return revision(b.source(), path)
+}
+
+// revision is Revision's body, reading through src.
+func revision(src Source, path string) (string, error) {
+	observeAnchor(path)
+	_, rev, err := src.Text(path)
 	if err != nil {
 		return "", err
 	}
-	return TextRevision(string(data)), nil
+	return rev, nil
 }
 
 // readTextAndRevision reads a file once and answers its text, normalised as
@@ -200,16 +216,9 @@ func Revision(path string) (string, error) {
 // normalised text would change it for every anchor stored with CRLF line
 // endings or a byte-order mark, so a basis a caller already holds would stop
 // matching the card it was taken on.
-func readTextAndRevision(path string) (text, revision string, err error) {
-	if AnchorReadObserver != nil {
-		AnchorReadObserver(path)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", "", err
-	}
-	stored := string(data)
-	return NormalizeNewlines(strings.TrimPrefix(stored, byteOrderMark)), TextRevision(stored), nil
+func readTextAndRevision(src Source, path string) (text, revision string, err error) {
+	observeAnchor(path)
+	return src.Text(path)
 }
 
 // AnchorReadObserver is a seam over the anchor reads, so a test can count the
@@ -297,10 +306,10 @@ func ClaimID(collection string, taken func(string) bool) (string, error) {
 // It is the one place in the shipped binary that decides whether a
 // directory-read failure means absence, and every collection reader in this
 // package goes through it rather than classifying os.ReadDir's error again.
-func readCollection(dir string) ([]os.DirEntry, error) {
-	entries, err := os.ReadDir(dir)
+func readCollection(src Source, dir string) ([]os.DirEntry, error) {
+	entries, err := src.ReadDir(dir)
 	if err != nil {
-		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+		if _, statErr := src.Stat(dir); os.IsNotExist(statErr) {
 			return nil, nil
 		}
 		return nil, err
@@ -326,10 +335,20 @@ var ListIDsObserver func(collection string)
 // will not read is answered with the error, so a caller receiving an empty
 // list and a nil error has been told the collection really was read.
 func ListIDs(collection string) ([]string, error) {
+	return listIDs(Disk{}, collection)
+}
+
+// ListIDs is the free ListIDs read through this bench's source.
+func (b *Bench) ListIDs(collection string) ([]string, error) {
+	return listIDs(b.source(), collection)
+}
+
+// listIDs is ListIDs's body, reading through src.
+func listIDs(src Source, collection string) ([]string, error) {
 	if ListIDsObserver != nil {
 		ListIDsObserver(collection)
 	}
-	entries, err := readCollection(collection)
+	entries, err := readCollection(src, collection)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +364,17 @@ func ListIDs(collection string) ([]string, error) {
 
 // Exists reports whether a path is present.
 func Exists(path string) bool {
-	_, err := os.Stat(path)
+	return exists(Disk{}, path)
+}
+
+// Exists is the free Exists read through this bench's source.
+func (b *Bench) Exists(path string) bool {
+	return exists(b.source(), path)
+}
+
+// exists is Exists's body, reading through src.
+func exists(src Source, path string) bool {
+	_, err := src.Stat(path)
 	return err == nil
 }
 
@@ -459,7 +488,12 @@ func ClaimWorkbenchID(container string) (string, error) {
 // existence discrimination are performed by readCollection, which carries the
 // platform reasoning for every collection reader in this package.
 func ListWorkbenchIDs(container string) ([]string, error) {
-	entries, err := readCollection(container)
+	return listWorkbenchIDs(Disk{}, container)
+}
+
+// listWorkbenchIDs is ListWorkbenchIDs's body, reading through src.
+func listWorkbenchIDs(src Source, container string) ([]string, error) {
+	entries, err := readCollection(src, container)
 	if err != nil {
 		return nil, err
 	}

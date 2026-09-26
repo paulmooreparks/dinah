@@ -159,12 +159,12 @@ type branchMigrant struct {
 // does and writes nothing.
 func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration, error) {
 	report := &BranchMigration{Preview: !apply}
-	lock, err := Acquire(b.Root, actor, now)
+	lock, err := b.Acquire(b.Root, actor, now)
 	if err != nil {
 		return report, err
 	}
 	defer lock.Release()
-	ids, err := ListIDs(b.CardsRoot())
+	ids, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return report, err
 	}
@@ -271,13 +271,13 @@ func (b *Bench) MigrateBranches(actor, now string, apply bool) (*BranchMigration
 // since. A card whose heading has gone in between is already carried across,
 // so it answers false and the caller leaves it out of the account.
 func (b *Bench) writeBranchMigrant(migrant branchMigrant, actor, now string) (bool, error) {
-	held, err := Acquire(migrant.dir, actor, now)
+	held, err := b.Acquire(migrant.dir, actor, now)
 	if err != nil {
 		return false, err
 	}
 	defer held.Release()
 	anchor := filepath.Join(migrant.dir, CardAnchor)
-	text, err := ReadText(anchor)
+	text, err := b.ReadText(anchor)
 	if err != nil {
 		return false, err
 	}

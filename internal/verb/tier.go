@@ -59,7 +59,7 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 		return l.refuse(req, card, contract.NoOwner, "")
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(card.Dir, req.Actor, now)
+	lock, err := l.Bench.Acquire(card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}

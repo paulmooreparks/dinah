@@ -92,12 +92,12 @@ func (l *Library) File(req *Request) *Response {
 		column = named.ID
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(found.Card.Dir, req.Actor, now)
+	lock, err := l.Bench.Acquire(found.Card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	item, err := bench.AddItem(found.Card.Dir, kind, column, req.Owner, now, req.Text)
+	item, err := l.Bench.AddItem(found.Card.Dir, kind, column, req.Owner, now, req.Text)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -529,16 +529,16 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	}
 	l.interpose(itemStepUnlocked)
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(entity.Card.Dir, req.Actor, now)
+	lock, err := l.Bench.Acquire(entity.Card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	item, err := bench.LoadItem(entity.Dir)
+	item, err := l.Bench.LoadItem(entity.Dir)
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	fm, body, err := bench.ReadItemAnchor(entity.Dir)
+	fm, body, err := l.Bench.ReadItemAnchor(entity.Dir)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -619,7 +619,7 @@ func (l *Library) mintDesignation(req *Request, entity *itemTarget) (string, *Re
 			"echo": "1",
 		})
 	}
-	comment, err := bench.AddComment(entity.dir, req.Actor, entity.now, req.Text)
+	comment, err := l.Bench.AddComment(entity.dir, req.Actor, entity.now, req.Text)
 	if err != nil {
 		return "", l.FromError(req, err)
 	}
@@ -707,7 +707,7 @@ func (l *Library) designationRef(entity *itemTarget, commentDir string) (string,
 // item's bare identifier does not resolve, so handing that over is how the
 // forced form came back unknown-card.
 func (l *Library) itemCanonicalRef(card *bench.Card, itemID string) (string, error) {
-	items, err := bench.Items(card.Dir)
+	items, err := l.Bench.Items(card.Dir)
 	if err != nil {
 		return "", err
 	}

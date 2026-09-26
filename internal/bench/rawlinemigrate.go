@@ -190,7 +190,7 @@ func (b *Bench) MigrateRawLines(apply bool) (*RawLineMigration, error) {
 		byAnchor[line.Path] = append(byAnchor[line.Path], line)
 	}
 	for _, anchor := range anchors {
-		if err := rewriteRawLines(anchor, byAnchor[anchor]); err != nil {
+		if err := rewriteRawLines(b.source(), anchor, byAnchor[anchor]); err != nil {
 			return report, err
 		}
 	}
@@ -204,8 +204,8 @@ func (b *Bench) MigrateRawLines(apply bool) (*RawLineMigration, error) {
 // rewriteRawLines rewrites the named lines of one anchor in place, reading the
 // file rather than the header the bench holds so the body and every other key
 // are written back as they stand.
-func rewriteRawLines(anchor string, lines []QuotedRawLine) error {
-	text, err := ReadText(anchor)
+func rewriteRawLines(src Source, anchor string, lines []QuotedRawLine) error {
+	text, err := readText(src, anchor)
 	if err != nil {
 		return err
 	}

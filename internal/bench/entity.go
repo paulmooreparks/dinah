@@ -47,12 +47,22 @@ type Comment struct {
 // workbench root for a column, and which is what makes the ordinal scan
 // race-free.
 func AddComment(holderDir, author, ts, body string) (*Comment, error) {
+	return addComment(Disk{}, holderDir, author, ts, body)
+}
+
+// AddComment is the free AddComment read through this bench's source.
+func (b *Bench) AddComment(holderDir, author, ts, body string) (*Comment, error) {
+	return addComment(b.source(), holderDir, author, ts, body)
+}
+
+// addComment is AddComment's body, reading through src.
+func addComment(src Source, holderDir, author, ts, body string) (*Comment, error) {
 	collection := filepath.Join(holderDir, CommentsDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
-	ordinal, err := nextOrdinal(collection, CommentAnchor)
+	ordinal, err := nextOrdinal(src, collection, CommentAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -89,19 +99,28 @@ func AddComment(holderDir, author, ts, body string) (*Comment, error) {
 // them in. For a collection below a column, journalPathFor answers the empty
 // string, so nothing is recovered and the listing order stands.
 func Comments(holderDir string) ([]*Comment, error) {
+	return comments(Disk{}, holderDir)
+}
+
+// Comments is the free Comments read through this bench's source.
+func (b *Bench) Comments(holderDir string) ([]*Comment, error) {
+	return comments(b.source(), holderDir)
+}
+
+// comments is Comments's body, reading through src.
+func comments(src Source, holderDir string) ([]*Comment, error) {
 	collection := filepath.Join(holderDir, CommentsDir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
 	var comments []*Comment
-	for _, id := range SortByOrdinal(collection, CommentAnchor, ids) {
-		dir := filepath.Join(collection, id)
-		text, err := ReadText(filepath.Join(dir, CommentAnchor))
+	for _, id := range sortByOrdinal(src, collection, CommentAnchor, ids) {
+		comment, err := commentAt(src, filepath.Join(collection, id))
 		if err != nil {
 			continue
 		}
-		comments = append(comments, commentFromText(dir, id, text))
+		comments = append(comments, comment)
 	}
 	return comments, nil
 }
@@ -132,7 +151,17 @@ func commentFromText(dir, id, text string) *Comment {
 // on this workbench. Loading every comment's body to answer len() would pay
 // that cost on disk for a number the caller never reads the body to get.
 func CountComments(dir string) (int, error) {
-	ids, err := ListIDs(filepath.Join(dir, CommentsDir))
+	return countComments(Disk{}, dir)
+}
+
+// CountComments is the free CountComments read through this bench's source.
+func (b *Bench) CountComments(dir string) (int, error) {
+	return countComments(b.source(), dir)
+}
+
+// countComments is CountComments's body, reading through src.
+func countComments(src Source, dir string) (int, error) {
+	ids, err := listIDs(src, filepath.Join(dir, CommentsDir))
 	if err != nil {
 		return 0, err
 	}
@@ -147,32 +176,38 @@ func CountComments(dir string) (int, error) {
 // order such attachments were attached in from the card's journal, which is
 // the order check --migrate-ordinals will stamp them in.
 func Attachments(cardDir string) ([]*Attachment, error) {
+	return attachments(Disk{}, cardDir)
+}
+
+// Attachments is the free Attachments read through this bench's source.
+func (b *Bench) Attachments(cardDir string) ([]*Attachment, error) {
+	return attachments(b.source(), cardDir)
+}
+
+// attachments is Attachments's body, reading through src.
+func attachments(src Source, cardDir string) ([]*Attachment, error) {
 	collection := filepath.Join(cardDir, AttachmentsDir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
 	var attachments []*Attachment
-	for _, id := range SortByOrdinal(collection, AttachmentAnchor, ids) {
-		dir := filepath.Join(collection, id)
-		text, err := ReadText(filepath.Join(dir, AttachmentAnchor))
+	for _, id := range sortByOrdinal(src, collection, AttachmentAnchor, ids) {
+		attachment, err := attachmentAt(src, filepath.Join(collection, id))
 		if err != nil {
 			continue
 		}
-		attachments = append(attachments, attachmentFromText(dir, id, text))
+		attachments = append(attachments, attachment)
 	}
 	return attachments, nil
 }
 
-// attachmentFromText builds an attachment from the text of its anchor and the
-// file its payload directory holds, which is the build Attachments and
-// Positions.Attachments share so the two cannot drift apart.
+// attachmentFromText builds an attachment from the text of its anchor, which
+// is the build Attachments and Positions.Attachments share so the two cannot
+// drift apart. It leaves Path empty: the payload's name is read from the
+// payload directory by withPayload, because the anchor does not carry it.
 func attachmentFromText(dir, id, text string) *Attachment {
 	fm, _ := ParseAnchor(text)
-	payload, err := payloadOf(dir)
-	if err != nil {
-		payload = ""
-	}
 	return &Attachment{
 		ID:          id,
 		Dir:         dir,
@@ -180,7 +215,6 @@ func attachmentFromText(dir, id, text string) *Attachment {
 		Description: fm.Value("description"),
 		Provenance:  fm.Value("provenance"),
 		Ordinal:     OrdinalOf(fm),
-		Path:        payload,
 	}
 }
 
@@ -197,7 +231,17 @@ func attachmentFromText(dir, id, text string) *Attachment {
 // because a count of zero is what an entity holding no attachments answers
 // and a caller cannot tell the two apart.
 func CountAttachments(dir string) (int, error) {
-	ids, err := ListIDs(filepath.Join(dir, AttachmentsDir))
+	return countAttachments(Disk{}, dir)
+}
+
+// CountAttachments is the free CountAttachments read through this bench's source.
+func (b *Bench) CountAttachments(dir string) (int, error) {
+	return countAttachments(b.source(), dir)
+}
+
+// countAttachments is CountAttachments's body, reading through src.
+func countAttachments(src Source, dir string) (int, error) {
+	ids, err := listIDs(src, filepath.Join(dir, AttachmentsDir))
 	if err != nil {
 		return 0, err
 	}
@@ -208,7 +252,17 @@ func CountAttachments(dir string) (int, error) {
 // the collection's directory and opens no item anchor, which is what makes it
 // affordable on a listing that renders every card.
 func CountItems(cardDir string) (int, error) {
-	ids, err := ListIDs(filepath.Join(cardDir, ChecklistDir))
+	return countItems(Disk{}, cardDir)
+}
+
+// CountItems is the free CountItems read through this bench's source.
+func (b *Bench) CountItems(cardDir string) (int, error) {
+	return countItems(b.source(), cardDir)
+}
+
+// countItems is CountItems's body, reading through src.
+func countItems(src Source, cardDir string) (int, error) {
+	ids, err := listIDs(src, filepath.Join(cardDir, ChecklistDir))
 	if err != nil {
 		return 0, err
 	}
@@ -228,7 +282,17 @@ func CountItems(cardDir string) (int, error) {
 // the terms CountAttachments already states: a zero is what an entity holding
 // nothing answers, and a caller cannot tell the two apart.
 func ChildCounts(dir, kind string) (map[string]int, error) {
-	listed, err := NewPositions().ChildIDs(dir, kind)
+	return childCounts(Disk{}, dir, kind)
+}
+
+// ChildCounts is the free ChildCounts read through this bench's source.
+func (b *Bench) ChildCounts(dir, kind string) (map[string]int, error) {
+	return childCounts(b.source(), dir, kind)
+}
+
+// childCounts is ChildCounts's body, reading through src.
+func childCounts(src Source, dir, kind string) (map[string]int, error) {
+	listed, err := newPositions(src).ChildIDs(dir, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -298,12 +362,22 @@ func AddAttachment(ownerDir, source, description, provenance string) (*Attachmen
 // two paths cannot lay an attachment out differently. The payload is written
 // byte for byte, never through WriteText, which would normalise its newlines.
 func AddAttachmentBytes(ownerDir, filename string, payload []byte, description, provenance string) (*Attachment, error) {
+	return addAttachmentBytes(Disk{}, ownerDir, filename, payload, description, provenance)
+}
+
+// AddAttachmentBytes is the free AddAttachmentBytes read through this bench's source.
+func (b *Bench) AddAttachmentBytes(ownerDir, filename string, payload []byte, description, provenance string) (*Attachment, error) {
+	return addAttachmentBytes(b.source(), ownerDir, filename, payload, description, provenance)
+}
+
+// addAttachmentBytes is AddAttachmentBytes's body, reading through src.
+func addAttachmentBytes(src Source, ownerDir, filename string, payload []byte, description, provenance string) (*Attachment, error) {
 	collection := filepath.Join(ownerDir, AttachmentsDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
-	ordinal, err := nextOrdinal(collection, AttachmentAnchor)
+	ordinal, err := nextOrdinal(src, collection, AttachmentAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +413,17 @@ func AddAttachmentBytes(ownerDir, filename string, payload []byte, description, 
 // ReplaceAttachment swaps an attachment's payload for the bytes of another
 // file, which is a journaled act rather than a quiet overwrite.
 func ReplaceAttachment(dir, source string) (*Attachment, error) {
-	attachment, err := LoadAttachment(dir)
+	return replaceAttachment(Disk{}, dir, source)
+}
+
+// ReplaceAttachment is the free ReplaceAttachment read through this bench's source.
+func (b *Bench) ReplaceAttachment(dir, source string) (*Attachment, error) {
+	return replaceAttachment(b.source(), dir, source)
+}
+
+// replaceAttachment is ReplaceAttachment's body, reading through src.
+func replaceAttachment(src Source, dir, source string) (*Attachment, error) {
+	attachment, err := loadAttachment(src, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -348,10 +432,10 @@ func ReplaceAttachment(dir, source string) (*Attachment, error) {
 		return nil, err
 	}
 	filename := filepath.Base(source)
-	if err := copyFile(source, filepath.Join(payload, filename)); err != nil {
+	if err := copyBytes(src, source, filepath.Join(payload, filename)); err != nil {
 		return nil, err
 	}
-	fm, body := loadAnchor(filepath.Join(dir, AttachmentAnchor))
+	fm, body := loadAnchor(src, filepath.Join(dir, AttachmentAnchor))
 	fm.Set("filename", filename)
 	if err := WriteText(filepath.Join(dir, AttachmentAnchor), fm.Render(body)); err != nil {
 		return nil, err
@@ -375,7 +459,17 @@ func ReplaceAttachment(dir, source string) (*Attachment, error) {
 // some other attachment already carries is allowed, since the name selector
 // already refuses the reference that would guess at it.
 func RenameAttachment(dir, name string) (*Attachment, *Attachment, error) {
-	attachment, err := LoadAttachment(dir)
+	return renameAttachment(Disk{}, dir, name)
+}
+
+// RenameAttachment is the free RenameAttachment read through this bench's source.
+func (b *Bench) RenameAttachment(dir, name string) (*Attachment, *Attachment, error) {
+	return renameAttachment(b.source(), dir, name)
+}
+
+// renameAttachment is RenameAttachment's body, reading through src.
+func renameAttachment(src Source, dir, name string) (*Attachment, *Attachment, error) {
+	attachment, err := loadAttachment(src, dir)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -388,7 +482,7 @@ func RenameAttachment(dir, name string) (*Attachment, *Attachment, error) {
 		return attachment, attachment, nil
 	}
 	payload := filepath.Join(dir, PayloadDir)
-	entries, err := os.ReadDir(payload)
+	entries, err := src.ReadDir(payload)
 	if err != nil || len(entries) == 0 {
 		return nil, nil, contract.Refuse(contract.UnknownPath, payload)
 	}
@@ -396,7 +490,7 @@ func RenameAttachment(dir, name string) (*Attachment, *Attachment, error) {
 	if err := os.Rename(filepath.Join(payload, from), filepath.Join(payload, name)); err != nil {
 		return nil, nil, err
 	}
-	fm, body := loadAnchor(filepath.Join(dir, AttachmentAnchor))
+	fm, body := loadAnchor(src, filepath.Join(dir, AttachmentAnchor))
 	fm.Set("filename", name)
 	if err := WriteText(filepath.Join(dir, AttachmentAnchor), fm.Render(body)); err != nil {
 		return nil, nil, err
@@ -422,35 +516,46 @@ func ValidAttachmentName(name string) bool {
 
 // LoadAttachment reads an attachment entity from its directory.
 func LoadAttachment(dir string) (*Attachment, error) {
-	text, err := ReadText(filepath.Join(dir, AttachmentAnchor))
+	return loadAttachment(Disk{}, dir)
+}
+
+// LoadAttachment is the free LoadAttachment read through this bench's source.
+func (b *Bench) LoadAttachment(dir string) (*Attachment, error) {
+	return loadAttachment(b.source(), dir)
+}
+
+// loadAttachment is LoadAttachment's body, reading through src.
+func loadAttachment(src Source, dir string) (*Attachment, error) {
+	attachment, err := attachmentAt(src, dir)
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
-	}
-	fm, _ := ParseAnchor(text)
-	payload, err := payloadOf(dir)
-	if err != nil {
-		payload = ""
-	}
-	attachment := &Attachment{
-		ID:          filepath.Base(dir),
-		Dir:         dir,
-		Filename:    fm.Value("filename"),
-		Description: fm.Value("description"),
-		Provenance:  fm.Value("provenance"),
-		Ordinal:     OrdinalOf(fm),
-		Path:        payload,
 	}
 	return attachment, nil
 }
 
 // loadAnchor reads an anchor file, returning an empty header when it will not
 // read, which is what keeps a caller mid-write from having to decide.
-func loadAnchor(path string) (*Frontmatter, string) {
-	text, err := ReadText(path)
+func loadAnchor(src Source, path string) (*Frontmatter, string) {
+	fm, body, err := anchorOf(src, path)
 	if err != nil {
 		return NewFrontmatter(), ""
 	}
-	return ParseAnchor(text)
+	return fm, body
+}
+
+// copyBytes copies a file read through src into a new file, creating the
+// directories above it. A replaced attachment's bytes come from a path a
+// caller named, which a resident snapshot answers from the disk because it
+// lies outside the workbench.
+func copyBytes(src Source, source, target string) error {
+	data, err := src.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(target, data, 0o644)
 }
 
 // copyFile copies bytes into a new file, creating the directories above it.
@@ -549,7 +654,7 @@ func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRe
 		return entity, nil, true, nil
 	}
 	landed := &landing{}
-	path, err := descend(workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, landed, half)
+	path, err := descend(b.source(), workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, landed, half)
 	if err != nil {
 		return nil, nil, true, err
 	}
@@ -583,7 +688,17 @@ func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRe
 // retried as a copy followed by a delete, which would trade one short
 // non-atomic operation for a long one and multiply the columns a crash leaves.
 func MoveEntity(dir, target string) error {
-	if Exists(target) {
+	return moveEntity(Disk{}, dir, target)
+}
+
+// MoveEntity is the free MoveEntity read through this bench's source.
+func (b *Bench) MoveEntity(dir, target string) error {
+	return moveEntity(b.source(), dir, target)
+}
+
+// moveEntity is MoveEntity's body, reading through src.
+func moveEntity(src Source, dir, target string) error {
+	if exists(src, target) {
 		return contract.Refuse(contract.Exists, target)
 	}
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
@@ -635,13 +750,13 @@ func DeleteEntity(dir string) error {
 // occupancy refusal names the column by, so a caller who typed a slug reads
 // that same slug back rather than the raw identifier behind it.
 func (b *Bench) ColumnOccupied(id, ref string) error {
-	cardIDs, err := ListIDs(b.CardsRoot())
+	cardIDs, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return err
 	}
 	for _, cardID := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), cardID)
-		locked := Exists(filepath.Join(dir, LockName))
+		locked := b.Exists(filepath.Join(dir, LockName))
 		if b.Hooks != nil && b.Hooks.BeforeAnchorRead != nil {
 			b.Hooks.BeforeAnchorRead(cardID)
 		}
@@ -727,11 +842,11 @@ func (a *StructuralAct) siblingDir() string {
 
 // apply is the act's own change to the tree: the rename that archives or
 // restores a directory, or the removal that deletes one.
-func (a *StructuralAct) apply() error {
+func (a *StructuralAct) apply(src Source) error {
 	if a.Op == OpDelete {
 		return DeleteEntity(a.Dir)
 	}
-	return MoveEntity(a.Dir, a.Target())
+	return moveEntity(src, a.Dir, a.Target())
 }
 
 // Run performs a structural act under the protocol the format's concurrency
@@ -745,7 +860,7 @@ func (a *StructuralAct) apply() error {
 // archive and must never be held open across a removal, and the sibling is
 // what covers the window that opens there.
 func (b *Bench) Run(act *StructuralAct) error {
-	benchLock, err := Acquire(b.Root, act.Actor, act.Now)
+	benchLock, err := b.Acquire(b.Root, act.Actor, act.Now)
 	if err != nil {
 		return err
 	}
@@ -753,7 +868,7 @@ func (b *Bench) Run(act *StructuralAct) error {
 		return unwind(err, benchLock)
 	}
 
-	sibling, record, err := AcquireSibling(act.siblingDir(), act.Actor, act.Now, act.Op, act.Target())
+	sibling, record, err := b.AcquireSibling(act.siblingDir(), act.Actor, act.Now, act.Op, act.Target())
 	if err != nil {
 		benchLock.Release()
 		return err
@@ -761,7 +876,7 @@ func (b *Bench) Run(act *StructuralAct) error {
 	if err := b.step(2); err != nil {
 		return unwind(err, sibling, benchLock)
 	}
-	if target := act.Target(); target != "" && Exists(target) {
+	if target := act.Target(); target != "" && b.Exists(target) {
 		return unwind(contract.Refuse(contract.Exists, target), sibling, benchLock)
 	}
 	if act.WorkstreamID != "" {
@@ -787,7 +902,7 @@ func (b *Bench) Run(act *StructuralAct) error {
 	// An entity that vanished between the moment a caller resolved it and
 	// the moment the act reached its lock is reported as the unknown entity
 	// it has become, rather than as whatever error the filesystem raises.
-	if !Exists(act.Dir) {
+	if !b.Exists(act.Dir) {
 		refusal := contract.Refuse(contract.UnknownCard, filepath.Base(act.Dir))
 		return unwind(refusal, sibling, benchLock)
 	}
@@ -814,7 +929,7 @@ func (b *Bench) Run(act *StructuralAct) error {
 	if err := b.step(5); err != nil {
 		return reportInterruption(err, act, benchLock)
 	}
-	if err := act.apply(); err != nil {
+	if err := act.apply(b.source()); err != nil {
 		return reportInterruption(err, act, benchLock)
 	}
 	if act.ColumnID != "" {
@@ -850,7 +965,7 @@ func (b *Bench) takeEntityLock(act *StructuralAct, record LockRecord) (*Lock, er
 	if act.LockDir == "" || act.LockDir == b.Root {
 		return nil, nil
 	}
-	return acquireTolerating(act.LockDir, act.Actor, act.Now, record)
+	return acquireTolerating(b.source(), act.LockDir, act.Actor, act.Now, record)
 }
 
 // step runs the injected failure a test asks for at one numbered step of the
@@ -1022,12 +1137,12 @@ func (b *Bench) refBelowHead(half ResolutionHalf, headKind, headRef, headDir, di
 		if i == mirrored {
 			collection = filepath.Join(at, ArchiveDir, mount.Dir)
 		}
-		ids, err := ListIDs(collection)
+		ids, err := b.ListIDs(collection)
 		if err != nil {
 			return "", err
 		}
 		position := 0
-		for n, id := range SortByOrdinal(collection, mount.Anchor, ids) {
+		for n, id := range b.SortByOrdinal(collection, mount.Anchor, ids) {
 			if id == segments[i+1] {
 				position = n + 1
 				break
@@ -1101,11 +1216,21 @@ type Item struct {
 // answers the claim exactly as it did: a key a header does not carry reads as
 // empty, and an empty column names no column any workbench declares.
 func LoadItem(dir string) (*Item, error) {
-	text, err := ReadText(filepath.Join(dir, ItemAnchor))
+	return loadItem(Disk{}, dir)
+}
+
+// LoadItem is the free LoadItem read through this bench's source.
+func (b *Bench) LoadItem(dir string) (*Item, error) {
+	return loadItem(b.source(), dir)
+}
+
+// loadItem is LoadItem's body, reading through src.
+func loadItem(src Source, dir string) (*Item, error) {
+	item, err := itemAt(src, dir)
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
 	}
-	return itemFromText(dir, text), nil
+	return item, nil
 }
 
 // itemFromText builds a checklist item from the text of its anchor, which is
@@ -1133,14 +1258,24 @@ func itemFromText(dir, text string) *Item {
 // identifiers happened to fall. An item whose anchor will not open is skipped,
 // on the terms BlockingItems already reads past one.
 func Items(cardDir string) ([]*Item, error) {
+	return items(Disk{}, cardDir)
+}
+
+// Items is the free Items read through this bench's source.
+func (b *Bench) Items(cardDir string) ([]*Item, error) {
+	return items(b.source(), cardDir)
+}
+
+// items is Items's body, reading through src.
+func items(src Source, cardDir string) ([]*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
 	var items []*Item
-	for _, id := range SortByOrdinal(collection, ItemAnchor, ids) {
-		item, err := LoadItem(filepath.Join(collection, id))
+	for _, id := range sortByOrdinal(src, collection, ItemAnchor, ids) {
+		item, err := loadItem(src, filepath.Join(collection, id))
 		if err != nil {
 			continue
 		}
@@ -1270,7 +1405,7 @@ func ItemLiftsColumnHold(item *Item) bool {
 // the workbench declares, and itemsWhere stays a free function taking a
 // predicate, so the receiver reaches it through the closure alone.
 func (b *Bench) BlockingItems(cardDir string) ([]*Item, error) {
-	return itemsWhere(cardDir, b.ItemBlocksClaim)
+	return itemsWhere(b.source(), cardDir, b.ItemBlocksClaim)
 }
 
 // GatingItems reads the checklist items of a card that hold it against one
@@ -1288,10 +1423,20 @@ func (b *Bench) BlockingItems(cardDir string) ([]*Item, error) {
 // The column is named by identifier, which is what an item's column field
 // carries and what the reader beside it resolves a title from.
 func GatingItems(cardDir, columnID string) ([]*Item, error) {
+	return gatingItems(Disk{}, cardDir, columnID)
+}
+
+// GatingItems is the free GatingItems read through this bench's source.
+func (b *Bench) GatingItems(cardDir, columnID string) ([]*Item, error) {
+	return gatingItems(b.source(), cardDir, columnID)
+}
+
+// gatingItems is GatingItems's body, reading through src.
+func gatingItems(src Source, cardDir, columnID string) ([]*Item, error) {
 	if columnID == "" {
 		return nil, nil
 	}
-	return itemsWhere(cardDir, func(item *Item) bool {
+	return itemsWhere(src, cardDir, func(item *Item) bool {
 		return item.Column == columnID && !ItemLiftsColumnHold(item)
 	})
 }
@@ -1303,15 +1448,15 @@ func GatingItems(cardDir, columnID string) ([]*Item, error) {
 // will not open is skipped, on the same terms Attachments already reads past
 // one, since an unreadable file is a defect dinah check reports rather than
 // one a claim or a move discovers.
-func itemsWhere(cardDir string, keep func(*Item) bool) ([]*Item, error) {
+func itemsWhere(src Source, cardDir string, keep func(*Item) bool) ([]*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
 	var kept []*Item
 	for _, id := range ids {
-		item, err := LoadItem(filepath.Join(collection, id))
+		item, err := loadItem(src, filepath.Join(collection, id))
 		if err == nil && keep(item) {
 			kept = append(kept, item)
 		}

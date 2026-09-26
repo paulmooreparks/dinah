@@ -1,8 +1,6 @@
 package verb
 
 import (
-	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -53,12 +51,6 @@ const (
 // matches nearly anything typed near it, which is noise this search has no
 // reason to pay for.
 const fuzzyFloor = 3
-
-// attachmentCap is how much of an attachment's payload a search reads and
-// matches against. The scan is bounded rather than partial and silent: a hit
-// inside the prefix is reported like any other, and nothing is reported for a
-// match that would only exist past it.
-const attachmentCap = 65536
 
 // attachmentSniff is how many bytes of an extensionless attachment are read to
 // decide whether it carries text. A NUL byte among them says it does not.
@@ -167,7 +159,7 @@ func (l *Library) Search(req *Request) (*SearchResults, error) {
 	}
 	if req.Archived {
 		root := l.Bench.ArchivedCardsRoot()
-		archived, err := bench.ListIDs(root)
+		archived, err := l.Bench.ListIDs(root)
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +214,7 @@ func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase st
 	if at, length, ok := substringIn(phrase, card.Body); ok {
 		results.add(hit, tierFraming, MatchedInFraming, card.Body, at, length)
 	}
-	comments, err := bench.Comments(card.Dir)
+	comments, err := l.Bench.Comments(card.Dir)
 	if err == nil {
 		for _, comment := range comments {
 			if at, length, ok := substringIn(phrase, comment.Body); ok {
@@ -230,10 +222,10 @@ func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase st
 			}
 		}
 	}
-	attachments, err := bench.Attachments(card.Dir)
+	attachments, err := l.Bench.Attachments(card.Dir)
 	if err == nil {
 		for _, attachment := range attachments {
-			text, readable := attachmentText(attachment)
+			text, readable := l.attachmentText(attachment)
 			if !readable {
 				continue
 			}
@@ -563,7 +555,13 @@ func runeBoundaryAt(text string, at, step int) int {
 // byte. An attachment named for a format this tool does not read as text is
 // not sniffed: bytes that happen to spell a phrase inside a picture are not an
 // occurrence of it.
-func attachmentText(attachment *bench.Attachment) (string, bool) {
+//
+// How much it reads is bench.AttachmentHeadBytes, which is also all of a
+// payload a resident snapshot holds, so a warm search reads no payload from
+// disk. The scan is bounded rather than partial and silent: a hit inside the
+// prefix is reported like any other, and nothing is reported for a match that
+// would only exist past it.
+func (l *Library) attachmentText(attachment *bench.Attachment) (string, bool) {
 	if attachment.Path == "" {
 		return "", false
 	}
@@ -578,17 +576,10 @@ func attachmentText(attachment *bench.Attachment) (string, bool) {
 	if !named && extension != "" {
 		return "", false
 	}
-	file, err := os.Open(attachment.Path)
+	payload, err := l.Bench.ReadHead(attachment.Path, bench.AttachmentHeadBytes)
 	if err != nil {
 		return "", false
 	}
-	defer file.Close()
-	payload := make([]byte, attachmentCap)
-	read, err := io.ReadFull(file, payload)
-	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return "", false
-	}
-	payload = payload[:read]
 	if !named && !looksLikeText(payload) {
 		return "", false
 	}

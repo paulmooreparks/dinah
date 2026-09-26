@@ -590,6 +590,8 @@ type Hooks struct {
 // Bench is an opened workbench: its definition, its columns in flow order and
 // the root directory everything below it hangs from.
 type Bench struct {
+	// src is where this bench reads its files; nil reads as Disk.
+	src Source
 	// Root is the bench directory, the one holding workbench.md.
 	Root string
 	// ID is the workbench's identifier, which is the name of its own
@@ -1825,7 +1827,7 @@ var (
 // stops a reader taking an old card's state field, holding a flow-position
 // identifier under the old vocabulary, for one of ready, active or blocked.
 func Open(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true, true)
+	return openWithVocabulary(Disk{}, root, currentVocabulary, admitProfileAfterVocabulary, true, true)
 }
 
 // OpenAwaitingResolution reads a workbench the note migration has not reached,
@@ -1845,7 +1847,7 @@ func Open(root string) (*Bench, error) {
 // reader reporting every settled item on such a store as carrying no answer,
 // and that is a false reading rather than a degraded one.
 func OpenAwaitingResolution(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, true, false)
+	return openWithVocabulary(Disk{}, root, currentVocabulary, admitProfileAfterVocabulary, true, false)
 }
 
 // Contained reports whether a workbench directory sits where the format now
@@ -1878,7 +1880,7 @@ func Contained(root string) bool {
 // Every other caller goes through Open and is refused an uncontained workbench
 // by name.
 func OpenUncontained(root string) (*Bench, error) {
-	return openWithVocabulary(root, currentVocabulary, admitProfileAfterVocabulary, false, false)
+	return openWithVocabulary(Disk{}, root, currentVocabulary, admitProfileAfterVocabulary, false, false)
 }
 
 // OpenPreVocabulary reads a workbench still written in the vocabulary this
@@ -1887,7 +1889,7 @@ func OpenUncontained(root string) (*Bench, error) {
 // is reachable from the vocabulary migration alone: every other caller goes
 // through Open and is refused a workbench of this age by name.
 func OpenPreVocabulary(root string) (*Bench, error) {
-	return openWithVocabulary(root, preVocabulary, admitPreVocabularyProfile, true, false)
+	return openWithVocabulary(Disk{}, root, preVocabulary, admitPreVocabularyProfile, true, false)
 }
 
 // openWithVocabulary is the body both openers share. It reads and parses the
@@ -1905,14 +1907,14 @@ func OpenPreVocabulary(root string) (*Bench, error) {
 // rather than from the head, so it reaches the repair advice exactly where a
 // path does and nowhere else; see the Malformed shape in internal/contract for
 // why the head's own table is the wrong place for it.
-func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer, requireResolution bool) (*Bench, error) {
+func openWithVocabulary(src Source, root string, vocab columnVocabulary, admit func(declared string) (int, int, error), requireContainer, requireResolution bool) (*Bench, error) {
 	anchor := map[string]string{"path": filepath.Join(root, WorkbenchAnchor), contract.ValueWorkbench: root}
-	text, err := ReadText(filepath.Join(root, WorkbenchAnchor))
+	fm, body, err := anchorOf(src, filepath.Join(root, WorkbenchAnchor))
 	if err != nil {
 		return nil, contract.RefuseWith(contract.Malformed, WorkbenchAnchor, anchor)
 	}
-	fm, body := ParseAnchor(text)
 	b := &Bench{
+		src:               src,
 		Root:              root,
 		ID:                filepath.Base(root),
 		Title:             fm.Value("title"),
@@ -2009,11 +2011,11 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 		}
 		seen[id] = true
 		columnDir := filepath.Join(root, vocab.Dir, id)
-		if !Exists(columnDir) {
+		if !exists(src, columnDir) {
 			b.StrandedColumns = append(b.StrandedColumns, id)
 			continue
 		}
-		column, err := readColumnIn(root, vocab, id, len(b.Columns))
+		column, err := readColumnIn(src, root, vocab, id, len(b.Columns))
 		if err != nil {
 			return nil, err
 		}
@@ -2036,7 +2038,7 @@ func openWithVocabulary(root string, vocab columnVocabulary, admit func(declared
 	// ListIDs is what every other collection walk in this package reads a
 	// directory with, so a file, a stray name and anything that is not an
 	// identifier are passed over here exactly as they are there.
-	columnIDs, err := ListIDs(filepath.Join(root, vocab.Dir))
+	columnIDs, err := listIDs(src, filepath.Join(root, vocab.Dir))
 	if err != nil {
 		return nil, err
 	}
@@ -2209,21 +2211,20 @@ func revisionText(pair [2]int) string {
 // readColumn reads one column anchor and applies the profile's own checks on a
 // column: a duplicate identifier, an absent title and a kind outside the three
 // are each malformed.
-func readColumn(root, id string, position int) (*Column, error) {
-	return readColumnIn(root, currentVocabulary, id, position)
+func readColumn(src Source, root, id string, position int) (*Column, error) {
+	return readColumnIn(src, root, currentVocabulary, id, position)
 }
 
 // readColumnIn is readColumn with the on-disk spellings supplied, so the
 // pre-vocabulary opener reads a column anchor by the same rules under the
 // names that vocabulary used.
-func readColumnIn(root string, vocab columnVocabulary, id string, position int) (*Column, error) {
+func readColumnIn(src Source, root string, vocab columnVocabulary, id string, position int) (*Column, error) {
 	path := filepath.Join(root, vocab.Dir, id, vocab.Anchor)
 	anchor := map[string]string{"path": path, contract.ValueWorkbench: root, contract.ValueColumn: id}
-	text, err := ReadText(path)
+	fm, body, err := anchorOf(src, path)
 	if err != nil {
 		return nil, contract.RefuseWith(contract.Malformed, "column "+id, anchor)
 	}
-	fm, body := ParseAnchor(text)
 	column := &Column{
 		ID:            id,
 		Title:         fm.Value("title"),
@@ -2475,7 +2476,7 @@ const WorkbenchRef = "workbench"
 // is still there. A caller that wants one card reads it through the same
 // stamping door this walk reads fifty through.
 func (b *Bench) Cards() ([]*Card, error) {
-	return cardsWith(b.CardsRoot(), b.cardLoader(), false)
+	return cardsWith(b.source(), b.CardsRoot(), b.cardLoader(), false)
 }
 
 // ReadableCards is Cards with every card whose anchor will not load left out
@@ -2487,7 +2488,7 @@ func (b *Bench) Cards() ([]*Card, error) {
 // A cards directory that will not list still fails, because then no card
 // can be read at all.
 func (b *Bench) ReadableCards() ([]*Card, error) {
-	return cardsWith(b.CardsRoot(), b.cardLoader(), true)
+	return cardsWith(b.source(), b.CardsRoot(), b.cardLoader(), true)
 }
 
 // cardLoader is the one-card reader that separates the strict walk from the
@@ -2502,8 +2503,8 @@ func (b *Bench) cardLoader() func(string, string) (*Card, error) {
 // cardsWith is the body both readers share, given the one-card reader that
 // separates them, and whether a card that will not load is skipped or fails
 // the walk.
-func cardsWith(root string, load func(string, string) (*Card, error), skipUnreadable bool) ([]*Card, error) {
-	ids, err := ListIDs(root)
+func cardsWith(src Source, root string, load func(string, string) (*Card, error), skipUnreadable bool) ([]*Card, error) {
+	ids, err := listIDs(src, root)
 	if err != nil {
 		return nil, err
 	}
@@ -2525,10 +2526,10 @@ func cardsWith(root string, load func(string, string) (*Card, error), skipUnread
 // half of the cards collection, which is the uniqueness scope the archive
 // section fixes.
 func (b *Bench) HasIdentifier(id string) bool {
-	if Exists(filepath.Join(b.CardsRoot(), id)) {
+	if b.Exists(filepath.Join(b.CardsRoot(), id)) {
 		return true
 	}
-	return Exists(filepath.Join(b.ArchivedCardsRoot(), id))
+	return b.Exists(filepath.Join(b.ArchivedCardsRoot(), id))
 }
 
 // NextNumber returns the number a newly filed card carries: one past the

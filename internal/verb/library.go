@@ -886,7 +886,7 @@ type Response struct {
 // request and passes to every view it builds, so a listing cannot draw two of
 // its cards against different days or two different graphs of holds.
 func (l *Library) view(card *bench.Card, day *requestDay) (*CardView, error) {
-	return l.viewWith(card, day, bench.NewPositions())
+	return l.viewWith(card, day, l.Bench.NewPositions())
 }
 
 // viewWith is view over a Positions the caller made, so a composition that
@@ -1078,7 +1078,7 @@ func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool
 	s.layer(LayerStanding, l.Bench.Standing, &s.instructions.Standing)
 	if column != nil {
 		s.layer(LayerColumn, column.Instructions, &s.instructions.Column)
-		listing, err := attachmentViews(l.Bench.ColumnDir(column.ID), columnRef(column), bench.NewPositions())
+		listing, err := attachmentViews(l.Bench.ColumnDir(column.ID), columnRef(column), l.Bench.NewPositions())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1200,7 +1200,7 @@ func (l *Library) cardLoop(card *bench.Card) (*Loop, error) {
 	if column == nil || column.LoopLimit <= 0 {
 		return nil, nil
 	}
-	events, _, err := bench.ReadJournal(card.JournalPath())
+	events, _, err := l.Bench.ReadJournal(card.JournalPath())
 	if err != nil {
 		return nil, err
 	}

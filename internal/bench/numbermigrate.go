@@ -36,8 +36,8 @@ type numberMigrant struct {
 // one reference this file's guard budget carries is spent here. The card the
 // reader answers never leaves the function: its directory and its frontmatter
 // are read into locals, and the record is built from those alone.
-func readMigrant(root, id string) (numberMigrant, error) {
-	card, err := LoadCard(root, id)
+func readMigrant(src Source, root, id string) (numberMigrant, error) {
+	card, err := loadCard(src, root, id, true)
 	if err != nil {
 		return numberMigrant{}, err
 	}
@@ -49,7 +49,7 @@ func readMigrant(root, id string) (numberMigrant, error) {
 			migrant.number = numbered
 		}
 	}
-	migrant.created = createdStamp(dir)
+	migrant.created = createdStamp(src, dir)
 	return migrant, nil
 }
 
@@ -59,8 +59,8 @@ func readMigrant(root, id string) (numberMigrant, error) {
 // that parses, answers the zero time, and the comparator sorts a zero after
 // every card that has one rather than letting it sort first the way a bare
 // time comparison would.
-func createdStamp(dir string) time.Time {
-	events, _, err := ReadJournal(filepath.Join(dir, JournalName))
+func createdStamp(src Source, dir string) time.Time {
+	events, _, err := readJournal(src, filepath.Join(dir, JournalName))
 	if err != nil {
 		return time.Time{}
 	}
@@ -143,20 +143,20 @@ type renumberedCard struct {
 // The per-card locks are all taken before the first write, so a card a claim
 // holds costs the run its refusal and writes nothing.
 func (b *Bench) MigrateNumbers(actor, now string) (int, []string, []Finding, error) {
-	lock, err := Acquire(b.Root, actor, now)
+	lock, err := b.Acquire(b.Root, actor, now)
 	if err != nil {
 		return 0, nil, nil, err
 	}
 	defer lock.Release()
-	registry := LoadNumberRegistry(filepath.Join(b.Root, CardNumbersName))
+	registry := b.LoadNumberRegistry(filepath.Join(b.Root, CardNumbersName))
 	var migrants []numberMigrant
 	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
-		ids, err := ListIDs(root)
+		ids, err := b.ListIDs(root)
 		if err != nil {
 			return 0, nil, nil, err
 		}
 		for _, id := range ids {
-			migrant, err := readMigrant(root, id)
+			migrant, err := readMigrant(b.source(), root, id)
 			if err != nil {
 				return 0, nil, nil, err
 			}
@@ -305,7 +305,7 @@ func (b *Bench) MigrateNumbers(actor, now string) (int, []string, []Finding, err
 		if locked[dir] {
 			return nil
 		}
-		held, err := Acquire(dir, actor, now)
+		held, err := b.Acquire(dir, actor, now)
 		if err != nil {
 			return err
 		}
@@ -362,7 +362,7 @@ func (b *Bench) MigrateNumbers(actor, now string) (int, []string, []Finding, err
 			continue
 		}
 		anchor := filepath.Join(migrant.dir, CardAnchor)
-		text, err := ReadText(anchor)
+		text, err := b.ReadText(anchor)
 		if err != nil {
 			return written, ids, findings, err
 		}
@@ -418,12 +418,12 @@ func (b *Bench) MigrateNumbers(actor, now string) (int, []string, []Finding, err
 // re-read from the file for the same reason the migration re-reads it, and it
 // is reloaded once the write has landed so the bench and the file agree.
 func (b *Bench) RenumberCards(actor, now string) ([]string, []Finding, error) {
-	lock, err := Acquire(b.Root, actor, now)
+	lock, err := b.Acquire(b.Root, actor, now)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer lock.Release()
-	registry := LoadNumberRegistry(filepath.Join(b.Root, CardNumbersName))
+	registry := b.LoadNumberRegistry(filepath.Join(b.Root, CardNumbersName))
 	// A later claimant is any well-formed line past the first claiming its
 	// number, met in file order, and each takes the next number above the
 	// high-water mark.
@@ -449,7 +449,7 @@ func (b *Bench) RenumberCards(actor, now string) ([]string, []Finding, error) {
 		next++
 		entry := movedLine{at: at, id: line.ID, from: line.Number, to: next}
 		for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
-			if Exists(filepath.Join(root, line.ID)) {
+			if b.Exists(filepath.Join(root, line.ID)) {
 				entry.dir = filepath.Join(root, line.ID)
 				entry.card = true
 				break
@@ -470,7 +470,7 @@ func (b *Bench) RenumberCards(actor, now string) ([]string, []Finding, error) {
 		if !entry.card {
 			continue
 		}
-		held, err := Acquire(entry.dir, actor, now)
+		held, err := b.Acquire(entry.dir, actor, now)
 		if err != nil {
 			return nil, nil, err
 		}

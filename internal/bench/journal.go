@@ -259,13 +259,49 @@ func AppendEvent(path string, ev Event) error {
 // The second return value reports whether a trailing partial line was found,
 // which is what check reports and trims with a witness.
 func ReadJournal(path string) ([]Event, bool, error) {
-	text, err := ReadText(path)
+	return readJournal(Disk{}, path)
+}
+
+// ReadJournal is the free ReadJournal read through this bench's source.
+func (b *Bench) ReadJournal(path string) ([]Event, bool, error) {
+	return readJournal(b.source(), path)
+}
+
+// readJournal is ReadJournal's body, reading through src.
+func readJournal(src Source, path string) ([]Event, bool, error) {
+	observeAnchor(path)
+	value, err := src.Derive(path, DeriveJournal, deriveJournal)
 	if os.IsNotExist(err) {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
+	parsed := value.(*parsedJournal)
+	if parsed.err != nil {
+		return nil, parsed.torn, parsed.err
+	}
+	return cloneEvents(parsed.events), parsed.torn, nil
+}
+
+// parsedJournal is what DeriveJournal memoises: the events, whether a torn
+// final line was skipped, and the error a line that is not the last one
+// raised, which is part of the answer rather than a failure to read.
+type parsedJournal struct {
+	events []Event
+	torn   bool
+	err    error
+}
+
+// deriveJournal is DeriveJournal's derive function: readJournal's body after
+// its read.
+func deriveJournal(_ string, text, _ string) (any, error) {
+	events, torn, err := parseJournal(text)
+	return &parsedJournal{events: events, torn: torn, err: err}, nil
+}
+
+// parseJournal reads a journal's text into its events.
+func parseJournal(text string) ([]Event, bool, error) {
 	var events []Event
 	torn := false
 	lines := SplitLines(text)
