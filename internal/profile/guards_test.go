@@ -1132,7 +1132,8 @@ func windowsPowerShellEnv(extra ...string) []string {
 }
 
 // releaseBinaries names every binary a CLI release builds, in the order
-// internal/release.Targets declares them. release.yml's build matrix reads
+// internal/release.Targets declares them: each platform's dinah, then the six
+// dinah-tui programs a release publishes beside them from dinah-603 on. release.yml's build matrix reads
 // that declaration and no longer spells the names itself, so the list this
 // fixture is held against lives in Go rather than in the workflow text.
 //
@@ -1147,9 +1148,15 @@ var releaseBinaries = []string{
 	"dinah-linux-arm64",
 	"dinah-darwin-amd64",
 	"dinah-darwin-arm64",
+	"dinah-tui-windows-amd64.exe",
+	"dinah-tui-windows-arm64.exe",
+	"dinah-tui-linux-amd64",
+	"dinah-tui-linux-arm64",
+	"dinah-tui-darwin-amd64",
+	"dinah-tui-darwin-arm64",
 }
 
-// publishedRelease is a stand-in for a dev release: the six binaries, the
+// publishedRelease is a stand-in for a dev release: the twelve binaries, the
 // SHA256SUMS.txt written over them, and the channel manifest, all assembled the
 // way release.yml assembles them.
 type publishedRelease struct {
@@ -1206,7 +1213,7 @@ func buildPublishedChannelRelease(channel, tag, downloadBase string) (publishedR
 
 // TestInstallScriptReadsWhatTheWorkflowPublishes runs scripts/install.sh
 // against a stand-in release assembled by release.yml's own steps, and asserts
-// it installs a verified binary.
+// it installs a verified dinah and, beside it, a verified dinah-tui.
 //
 // The script reads the download location out of the manifest and the checksum
 // out of SHA256SUMS.txt, which sha256sum writes one line per binary. Reading
@@ -1297,6 +1304,17 @@ func TestInstallScriptReadsWhatTheWorkflowPublishes(t *testing.T) {
 	}
 	if !bytes.Equal(installed, release.binaries[wanted]) {
 		t.Errorf("installed binary is not the published %s\ngot:  %q\nwant: %q", wanted, installed, release.binaries[wanted])
+	}
+	const wantedTUI = "dinah-tui-linux-amd64"
+	installedTUI, err := os.ReadFile(filepath.Join(home, ".local", "bin", "dinah-tui"))
+	if err != nil {
+		t.Fatalf("no dinah-tui was installed: %v\n%s", err, output)
+	}
+	if !bytes.Equal(installedTUI, release.binaries[wantedTUI]) {
+		t.Errorf("installed dinah-tui is not the published %s\ngot:  %q\nwant: %q", wantedTUI, installedTUI, release.binaries[wantedTUI])
+	}
+	if !strings.Contains(string(output), "Installed "+wantedTUI+" as ") {
+		t.Errorf("the final messages do not name dinah-tui:\n%s", output)
 	}
 }
 
@@ -1718,6 +1736,9 @@ func TestInstallPS1VerifiesWithoutGetFileHash(t *testing.T) {
 	full := []byte("stand-in dinah.exe payload for the PSModulePath test\n")
 	sum := fmt.Sprintf("%x", sha256.Sum256(full))
 	const binary = "dinah-windows-amd64.exe"
+	tuiFull := []byte("stand-in dinah-tui.exe payload for the PSModulePath test\n")
+	tuiSum := fmt.Sprintf("%x", sha256.Sum256(tuiFull))
+	const tuiBinary = "dinah-tui-windows-amd64.exe"
 
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1730,10 +1751,13 @@ func TestInstallPS1VerifiesWithoutGetFileHash(t *testing.T) {
   "publishedAt": "2026-01-01T00:00:00Z",
   "downloadBase": %q,
   "binaries": {
+    %q: { "sha256": %q, "size": %d },
     %q: { "sha256": %q, "size": %d }
   }
 }
-`, server.URL+"/releases/download/v0.1.7-dev/", binary, sum, len(full))
+`, server.URL+"/releases/download/v0.1.7-dev/", binary, sum, len(full), tuiBinary, tuiSum, len(tuiFull))
+		case strings.HasSuffix(r.URL.Path, "/"+tuiBinary):
+			w.Write(tuiFull)
 		case strings.HasSuffix(r.URL.Path, "/"+binary):
 			w.Write(full)
 		default:
@@ -1771,6 +1795,13 @@ func TestInstallPS1VerifiesWithoutGetFileHash(t *testing.T) {
 	}
 	if !bytes.Equal(installed, full) {
 		t.Errorf("installed binary does not match the published bytes\ngot:  %q\nwant: %q", installed, full)
+	}
+	installedTUI, err := os.ReadFile(filepath.Join(localAppData, "dinah", "bin", "dinah-tui.exe"))
+	if err != nil {
+		t.Fatalf("no dinah-tui.exe was installed: %v\n%s", err, output)
+	}
+	if !bytes.Equal(installedTUI, tuiFull) {
+		t.Errorf("installed dinah-tui.exe does not match the published bytes\ngot:  %q\nwant: %q", installedTUI, tuiFull)
 	}
 }
 
@@ -1864,6 +1895,9 @@ func TestInstallPS1SaysWhetherDinahIsReadyToRun(t *testing.T) {
 	full := []byte("stand-in dinah.exe payload\n")
 	sum := fmt.Sprintf("%x", sha256.Sum256(full))
 	const binary = "dinah-windows-amd64.exe"
+	// The script installs dinah-tui.exe beside dinah.exe from the same
+	// release, so the stand-in publishes it too, with the same bytes.
+	const tuiBinary = "dinah-tui-windows-amd64.exe"
 
 	cases := []struct {
 		name          string
@@ -1915,11 +1949,12 @@ func TestInstallPS1SaysWhetherDinahIsReadyToRun(t *testing.T) {
   "publishedAt": "2026-01-01T00:00:00Z",
   "downloadBase": %q,
   "binaries": {
+    %q: { "sha256": %q, "size": %d },
     %q: { "sha256": %q, "size": %d }
   }
 }
-`, real.URL+"/releases/download/v0.1.7-dev/", binary, sum, len(full))
-				case strings.HasSuffix(r.URL.Path, "/"+binary):
+`, real.URL+"/releases/download/v0.1.7-dev/", binary, sum, len(full), tuiBinary, sum, len(full))
+				case strings.HasSuffix(r.URL.Path, "/"+binary), strings.HasSuffix(r.URL.Path, "/"+tuiBinary):
 					w.Write(full)
 				default:
 					http.NotFound(w, r)
@@ -4567,5 +4602,77 @@ func TestTheReadmeReleaseBadgesEachReadOneTagNamespace(t *testing.T) {
 	}
 	if len(filters) != len(want) {
 		t.Errorf("the README carries %d filtered release badges, want exactly the %d named here: %v", len(filters), len(want), filters)
+	}
+}
+
+// TestInstallScriptKeepsDinahWhenDinahTUIFails runs scripts/install.sh against
+// a stand-in release whose dinah-tui does not match its published checksum.
+// The script installs dinah, refuses dinah-tui, exits non-zero with a message
+// saying dinah is installed and dinah tui needs dinah-tui, and leaves no
+// dinah-tui behind.
+func TestInstallScriptKeepsDinahWhenDinahTUIFails(t *testing.T) {
+	for _, tool := range []string{"sh", "curl"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Skipf("this machine has no %s, which scripts/install.sh needs", tool)
+		}
+	}
+	if _, shaErr := exec.LookPath("sha256sum"); shaErr != nil {
+		if _, sumErr := exec.LookPath("shasum"); sumErr != nil {
+			t.Skip("this machine has neither sha256sum nor shasum, which scripts/install.sh needs")
+		}
+	}
+	var release publishedRelease
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/channels/dev.json"):
+			w.Write(release.manifest)
+		case strings.HasSuffix(r.URL.Path, "/SHA256SUMS.txt"):
+			w.Write(release.sums)
+		case strings.HasSuffix(r.URL.Path, "/dinah-tui-linux-amd64"):
+			w.Write([]byte("not the published dinah-tui\n"))
+		default:
+			content, ok := release.binaries[path.Base(r.URL.Path)]
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			w.Write(content)
+		}
+	}))
+	defer server.Close()
+	built, err := buildPublishedRelease(server.URL + "/releases/download/v0.1.7-dev/")
+	if err != nil {
+		t.Fatalf("assembling the stand-in release: %v", err)
+	}
+	release = built
+
+	source, err := os.ReadFile(filepath.Join("..", "..", "scripts", "install.sh"))
+	if err != nil {
+		t.Fatalf("reading scripts/install.sh: %v", err)
+	}
+	script := strings.ReplaceAll(string(source), "https://github.com/paulmooreparks/dinah", server.URL)
+	script = stubbedPlatform(t, script, "Linux", "x86_64", false)
+	home := t.TempDir()
+	scriptPath := filepath.Join(t.TempDir(), "install.sh")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("writing the script under test: %v", err)
+	}
+	command := exec.Command("sh", scriptPath)
+	command.Env = append(os.Environ(), "HOME="+home)
+	output, err := command.CombinedOutput()
+	if err == nil {
+		t.Fatalf("the install exited 0 with a dinah-tui that does not match its checksum:\n%s", output)
+	}
+	installed, readErr := os.ReadFile(filepath.Join(home, ".local", "bin", "dinah"))
+	if readErr != nil || !bytes.Equal(installed, release.binaries["dinah-linux-amd64"]) {
+		t.Errorf("the verified dinah was not left installed: %v\n%s", readErr, output)
+	}
+	if _, statErr := os.Stat(filepath.Join(home, ".local", "bin", "dinah-tui")); statErr == nil {
+		t.Errorf("a dinah-tui that failed its checksum was installed:\n%s", output)
+	}
+	for _, want := range []string{"checksum does not match", "dinah-tui-linux-amd64", "dinah is installed and works, but dinah tui needs dinah-tui"} {
+		if !strings.Contains(string(output), want) {
+			t.Errorf("the failure does not say %q:\n%s", want, output)
+		}
 	}
 }

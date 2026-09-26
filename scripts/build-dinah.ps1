@@ -1,6 +1,7 @@
-# Builds the dinah binaries and installs them into your bin directory, then
-# packages the VS Code extension and installs that too. You run it yourself
-# from a shell, and -SkipExtension leaves the extension half out.
+# Builds the dinah binaries, dinah-tui among them, and installs them into your
+# bin directory, then packages the VS Code extension and installs that too. You
+# run it yourself from a shell, and -SkipExtension leaves the extension half
+# out.
 #
 #   -SkipPull        Build whatever is currently checked out instead of updating to origin/main.
 #   -SkipExtension   Install the binaries alone and leave the VS Code extension as it is.
@@ -103,6 +104,10 @@ try {
         $exe = Join-Path $BinDir ("{0}.exe" -f $dir.Name)
         if (Test-FileLocked $exe) { $blocked += $exe }
     }
+    # dinah-tui.exe, the terminal UI's program, is built from cmd/dinah under
+    # the tui tag rather than from a directory of its own, so it is named here.
+    $tuiExe = Join-Path $BinDir "dinah-tui.exe"
+    if (Test-FileLocked $tuiExe) { $blocked += $tuiExe }
     if ($blocked) {
         # The detail goes out line by line rather than into the exception,
         # because PowerShell flattens a multi-line throw into one long run.
@@ -171,6 +176,12 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "go build failed for cmd/$($dir.Name)" }
         $built += $exe
     }
+    # dinah tui starts dinah-tui.exe, which it looks for beside dinah.exe
+    # first, so the two are built from the same checkout into the same
+    # directory.
+    go build -tags tui -o $tuiExe ./cmd/dinah
+    if ($LASTEXITCODE -ne 0) { throw "go build failed for dinah-tui" }
+    $built += $tuiExe
 
     foreach ($exe in $built) {
         Write-Host "Installed $exe" -ForegroundColor Green

@@ -1,9 +1,11 @@
 package release
 
+import "encoding/json"
+
 // Target is one platform and architecture pair a CLI release builds and ships.
-// The JSON tags spell the keys release.yml's build matrix reads, so the
-// serialized form of Targets can be handed straight to fromJSON as the
-// matrix's include list.
+// Its JSON form, which MarshalJSON writes, carries the keys release.yml's
+// build matrix reads, so the serialized form of Targets can be handed straight
+// to fromJSON as the matrix's include list.
 type Target struct {
 	// GOOS is the operating system the binary is built for, spelled as Go
 	// spells it.
@@ -16,11 +18,37 @@ type Target struct {
 	Ext string `json:"ext"`
 }
 
-// BinaryName is the dist/ filename release.yml's build job writes for t,
-// which is dinah-<goos>-<goarch><ext>. It matches the -o path that job's
-// build step composes from the same three fields.
+// BinaryName is the dist/ filename release.yml's build job writes dinah to
+// for t, which is dinah-<goos>-<goarch><ext>. The build step takes it from
+// the matrix's binary key.
 func (t Target) BinaryName() string {
 	return "dinah-" + t.GOOS + "-" + t.GOARCH + t.Ext
+}
+
+// TUIBinaryName is the dist/ filename release.yml's build job writes
+// dinah-tui, the terminal UI's program, to for t, which is
+// dinah-tui-<goos>-<goarch><ext>. The build step takes it from the matrix's
+// tui_binary key.
+func (t Target) TUIBinaryName() string {
+	return "dinah-tui-" + t.GOOS + "-" + t.GOARCH + t.Ext
+}
+
+// Names are the dist/ filenames a release publishes for t: dinah first, then
+// dinah-tui.
+func (t Target) Names() []string {
+	return []string{t.BinaryName(), t.TUIBinaryName()}
+}
+
+// MarshalJSON writes t as one entry of the build matrix: its three fields,
+// and the two filenames the build step writes, under binary and tui_binary.
+func (t Target) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		GOOS      string `json:"goos"`
+		GOARCH    string `json:"goarch"`
+		Ext       string `json:"ext"`
+		Binary    string `json:"binary"`
+		TUIBinary string `json:"tui_binary"`
+	}{t.GOOS, t.GOARCH, t.Ext, t.BinaryName(), t.TUIBinaryName()})
 }
 
 // Targets is the CLI's six supported platform and architecture pairs, in the

@@ -13,7 +13,7 @@ import (
 // and it is the gate the extension archive slipped past before dinah-396.
 const assetCheckStep = "Confirm dist/ carries exactly what a release should carry"
 
-// TestTheReleaseAssetCheckRefusesAnythingButTheSixBinaries runs the committed
+// TestTheReleaseAssetCheckRefusesAnythingButTheTwelveBinaries runs the committed
 // text of release.yml's asset-check step against assembled dist/ directories.
 //
 // The step's own bytes are lifted out of the workflow and executed, rather
@@ -26,12 +26,13 @@ const assetCheckStep = "Confirm dist/ carries exactly what a release should carr
 // What the extraction does not prove is that the surrounding workflow still
 // reaches the step, or that the file parses as YAML at all; nothing in this
 // repository parses a workflow file, which is dinah-401's subject.
-func TestTheReleaseAssetCheckRefusesAnythingButTheSixBinaries(t *testing.T) {
+func TestTheReleaseAssetCheckRefusesAnythingButTheTwelveBinaries(t *testing.T) {
 	shell := gnuShellOrSkip(t)
 	script := workflowRunBlock(t, assetCheckStep)
 
 	stray := "dinah-universal.vsix"
-	missing := publishedBinaries[len(publishedBinaries)-1]
+	published := publishedFiles()
+	missing := published[len(published)-1]
 
 	for _, testCase := range []struct {
 		name        string
@@ -43,13 +44,13 @@ func TestTheReleaseAssetCheckRefusesAnythingButTheSixBinaries(t *testing.T) {
 		{
 			// The false-failure guard. A check that fires on a correct
 			// build would be turned off within a week of landing.
-			name:       "exactly the six binaries",
-			files:      publishedBinaries,
-			wantOutput: "dist/ holds exactly the 6 expected binaries.",
+			name:       "exactly the twelve binaries",
+			files:      published,
+			wantOutput: "dist/ holds exactly the 12 expected binaries.",
 		},
 		{
-			name:        "a stray file beside the six",
-			files:       append(append([]string{}, publishedBinaries...), stray),
+			name:        "a stray file beside the twelve",
+			files:       append(append([]string{}, published...), stray),
 			wantFailure: true,
 			wantOutput:  "+" + stray,
 		},
@@ -57,15 +58,15 @@ func TestTheReleaseAssetCheckRefusesAnythingButTheSixBinaries(t *testing.T) {
 			// An artifact carrying more than one file arrives as a
 			// directory, because actions/upload-artifact roots the
 			// upload at the least common ancestor of what it matched.
-			name:        "a stray directory beside the six",
-			files:       publishedBinaries,
+			name:        "a stray directory beside the twelve",
+			files:       published,
 			directories: []string{"vsix-ubuntu-latest"},
 			wantFailure: true,
 			wantOutput:  "+vsix-ubuntu-latest",
 		},
 		{
-			name:        "one of the six never arrived",
-			files:       publishedBinaries[:len(publishedBinaries)-1],
+			name:        "one of the twelve never arrived",
+			files:       published[:len(published)-1],
 			wantFailure: true,
 			wantOutput:  "-" + missing,
 		},

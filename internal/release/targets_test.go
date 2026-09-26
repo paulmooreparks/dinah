@@ -1,6 +1,9 @@
 package release
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // publishedBinaries is the set of filenames a CLI release has published since
 // the six-platform matrix was introduced, written out by hand rather than
@@ -16,6 +19,29 @@ var publishedBinaries = []string{
 	"dinah-linux-arm64",
 	"dinah-darwin-amd64",
 	"dinah-darwin-arm64",
+}
+
+// publishedTUIBinaries are the six filenames of dinah-tui, the terminal UI's
+// program, which a release publishes beside publishedBinaries from dinah-603
+// on, written out by hand for the same reason, in the same order.
+var publishedTUIBinaries = []string{
+	"dinah-tui-windows-amd64.exe",
+	"dinah-tui-windows-arm64.exe",
+	"dinah-tui-linux-amd64",
+	"dinah-tui-linux-arm64",
+	"dinah-tui-darwin-amd64",
+	"dinah-tui-darwin-arm64",
+}
+
+// publishedFiles is every filename a release publishes: each platform's dinah
+// and then its dinah-tui, in the order dinah-release targets --format names
+// prints them.
+func publishedFiles() []string {
+	var files []string
+	for at := range publishedBinaries {
+		files = append(files, publishedBinaries[at], publishedTUIBinaries[at])
+	}
+	return files
 }
 
 // TestTargetsNamesTheSixPublishedBinaries asserts that Targets holds six
@@ -63,5 +89,22 @@ func TestTargetsKeepsTheOrderTheBuildMatrixReads(t *testing.T) {
 		if got := target.BinaryName(); got != publishedBinaries[at] {
 			t.Errorf("Targets[%d] produces %s, and the build matrix's %d-th entry has always been %s", at, got, at, publishedBinaries[at])
 		}
+	}
+}
+
+// TestEveryTargetNamesItsTerminalUIProgram asserts that each entry of
+// Targets names the dinah-tui file a release publishes for its platform, and
+// that Names answers the two files dinah first, so the twelve names
+// dinah-release targets --format names prints are exactly publishedFiles.
+func TestEveryTargetNamesItsTerminalUIProgram(t *testing.T) {
+	var names []string
+	for at, target := range Targets {
+		if got := target.TUIBinaryName(); got != publishedTUIBinaries[at] {
+			t.Errorf("Targets[%d] names dinah-tui %s, and the release publishes %s", at, got, publishedTUIBinaries[at])
+		}
+		names = append(names, target.Names()...)
+	}
+	if got, want := strings.Join(names, " "), strings.Join(publishedFiles(), " "); got != want {
+		t.Errorf("the targets name %s, and a release publishes %s", got, want)
 	}
 }

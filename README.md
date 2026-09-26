@@ -29,13 +29,13 @@ Dinah coordinates work. It knows which card is where, who holds it, what the ins
 
 ## Status
 
-Dinah works today. Clone the repository and build it with `go build -o dinah ./cmd/dinah`, and you get a single binary that creates workbenches, files cards, and carries them through the five contract verbs the design docs in `docs/design/` describe: claim, move, release, block, and unblock. `dinah help` lists every command, and each one runs end to end, including the read commands (`status`, `ls`, `show`, `log`), the workbench commands (`init`, `config`, `check`, `export`, and `extract`), and `dinah mcp`, which serves the same verb set to an agent over stdio.
+Dinah works today. Clone the repository and build it with `go build -o dinah ./cmd/dinah`, and you get a binary that creates workbenches, files cards, and carries them through the five contract verbs the design docs in `docs/design/` describe: claim, move, release, block, and unblock. `dinah help` lists every command, and each one runs end to end, including the read commands (`status`, `ls`, `show`, `log`), the workbench commands (`init`, `config`, `check`, `export`, and `extract`), and `dinah mcp`, which serves the same verb set to an agent over stdio.
 
 Dinah speaks English, Hindi, and German in full. Run `dinah version --catalogs` and you will see every other listed language still sitting at zero translated strings.
 
 ## Install
 
-Dinah ships as a single binary with no installer and nothing else to set up. On Linux or macOS, run:
+Dinah ships as two binaries, `dinah` and `dinah-tui`, the terminal UI's program that `dinah tui` starts, with no installer and nothing else to set up. On Linux or macOS, run:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.sh | sh
@@ -47,7 +47,7 @@ On Windows, run this in PowerShell:
 irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
 ```
 
-You get the binary your machine needs, checked against its published SHA-256 before anything is installed, and put somewhere you can write without administrator privilege. On Linux and macOS that is `~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
+You get the two binaries your machine needs, each checked against its published SHA-256 before it is installed, and both put in one directory you can write without administrator privilege. On Linux and macOS that is `~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
 
 On Windows you also get `%LOCALAPPDATA%\dinah\bin` added to your user PATH, so the next shell you open finds `dinah` by name. If you would rather keep your PATH as it is, set `DINAH_NO_PATH` before you run the one-liner:
 
@@ -58,7 +58,7 @@ irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.
 
 On Linux and macOS you keep your PATH exactly as it is. If `~/.local/bin` is not already on it, you get the line to add and a note saying where to put it.
 
-If you would rather not pipe a script into a shell, download the binary for your platform and `SHA256SUMS.txt` from the [releases page](https://github.com/paulmooreparks/dinah/releases). Then verify the download before you run it. On Linux:
+If you would rather not pipe a script into a shell, download the two binaries for your platform, `dinah-<os>-<arch>` and `dinah-tui-<os>-<arch>`, and `SHA256SUMS.txt` from the [releases page](https://github.com/paulmooreparks/dinah/releases). Verify the downloads before you run them, and install them in one directory as `dinah` and `dinah-tui`, since `dinah tui` looks for `dinah-tui` beside `dinah` first and refuses to run one from another release. On Linux:
 
 ```
 sha256sum -c SHA256SUMS.txt --ignore-missing
@@ -94,9 +94,12 @@ This is a Go module. From the repository root:
 
 ```
 go build -o dinah ./cmd/dinah
+go build -tags tui -o dinah-tui ./cmd/dinah
 go vet ./...
 go test ./...
 ```
+
+The second line builds `dinah-tui`, the terminal UI's program, from the same package under the `tui` build tag. `go vet -tags tui ./cmd/dinah/...` and `go test -tags tui ./cmd/dinah/... ./internal/screen/...` check the files that tag adds.
 
 The first command produces a single binary named `dinah` at the repository root; naming it explicitly with `-o` avoids depending on Go's default output-file rule for a module with a single command package.
 

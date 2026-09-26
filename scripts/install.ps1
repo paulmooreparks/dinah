@@ -1,5 +1,7 @@
 # Install Dinah on Windows, into %LOCALAPPDATA%\dinah\bin, with no
-# administrator privilege.
+# administrator privilege. It installs two programs from one release:
+# dinah.exe, and dinah-tui.exe, the terminal UI's program, which dinah tui
+# starts.
 #
 # Set DINAH_CHANNEL to choose a channel. It defaults to dev. Set DINAH_NO_PATH
 # to any value and this script leaves your PATH alone.
@@ -30,10 +32,11 @@ $goarch = switch ($env:PROCESSOR_ARCHITECTURE) {
     default { '' }
 }
 if (-not $goarch) {
-    Write-Failure "no Dinah build is published for Windows on $($env:PROCESSOR_ARCHITECTURE); build one from source with: go build -o dinah ./cmd/dinah"
+    Write-Failure "no Dinah build is published for Windows on $($env:PROCESSOR_ARCHITECTURE); build both programs from source with: go build -o dinah.exe ./cmd/dinah; go build -tags tui -o dinah-tui.exe ./cmd/dinah"
     exit 1
 }
 $binary = "dinah-windows-$goarch.exe"
+$tuiBinary = "dinah-tui-windows-$goarch.exe"
 
 # Step 2: confirm the install directory can be written before anything is
 # fetched, so a permission problem is never mistaken for a failed download.
@@ -64,103 +67,119 @@ if (-not $downloadBase) {
     Write-Failure 'the release manifest from GitHub named no download location, so there is nothing to fetch; the release may still be publishing, so try again in a few minutes'
     exit 1
 }
-$wantSha = $null
-$wantSize = $null
-if ($manifest.binaries) {
-    $entry = $manifest.binaries.PSObject.Properties[$binary]
-    if ($entry) {
-        $wantSha = $entry.Value.sha256
-        $wantSize = $entry.Value.size
+# Install-Program downloads the published file named $published, verifies
+# it against the size and SHA-256 the manifest gives for it, and installs it
+# in the install directory as $installed. $left is what a failure leaves in
+# place, which each failure message ends with.
+function Install-Program($published, $installed, $left) {
+    $wantSha = $null
+    $wantSize = $null
+    if ($manifest.binaries) {
+        $entry = $manifest.binaries.PSObject.Properties[$published]
+        if ($entry) {
+            $wantSha = $entry.Value.sha256
+            $wantSize = $entry.Value.size
+        }
     }
-}
-if (-not $wantSha) {
-    Write-Failure "the $channel channel publishes no $binary, so there is no build for your machine to install; build one from source with: go build -o dinah ./cmd/dinah"
-    exit 1
-}
-
-# Step 4: stage the download inside the install directory itself. A GUID
-# suffix cannot collide with anything already in that directory, including a
-# dinah.exe from an earlier run.
-$tmpfile = Join-Path $installDir ('dinah.tmp.' + [System.Guid]::NewGuid().ToString('N'))
-try {
-    # Step 5: download.
-    try {
-        Invoke-WebRequest -Uri ($downloadBase + $binary) -OutFile $tmpfile -UseBasicParsing
-    }
-    catch {
-        Write-Failure "download of $binary did not complete (network error); nothing was installed, and it is safe to run this script again"
+    if (-not $wantSha) {
+        Write-Failure "the $channel channel publishes no $published, so there is no build for your machine to install; $left; build both programs from source with: go build -o dinah.exe ./cmd/dinah; go build -tags tui -o dinah-tui.exe ./cmd/dinah"
         exit 1
     }
 
-    # Step 6: confirm the transfer actually finished before trusting it enough
-    # to hash. When a proxy or a CDN edge cuts a download short and closes the
-    # connection cleanly, Invoke-WebRequest reports no error and -OutFile
-    # simply stops writing, leaving a short file that never reaches the catch
-    # above. The manifest already carries each binary's size, so a length
-    # mismatch here is reported as a short download, distinct from both the
-    # network-error message above and the checksum-mismatch message below;
-    # without this check a short download reaches the hash compare and is
-    # misreported as corruption instead.
-    $gotSize = (Get-Item -Path $tmpfile).Length
-    if ($wantSize -and $gotSize -ne $wantSize) {
-        Write-Failure "download of $binary is incomplete ($gotSize of $wantSize bytes); nothing was installed, and it is safe to run this script again"
-        exit 1
-    }
-
-    # Step 7: verify the bytes. Reaching here means the transfer finished, so
-    # a mismatch is corruption or a manifest that no longer describes what is
-    # being served, which is a different failure from the one above.
-    #
-    # The digest is computed with the .NET SHA256 class directly, over a
-    # FileStream, rather than with Get-FileHash. Get-FileHash is exported by
-    # the Microsoft.PowerShell.Utility module (Microsoft Learn's own cmdlet
-    # reference states this), not one of the cmdlets Windows PowerShell's
-    # default session already carries, so Windows PowerShell reaches it only
-    # by autoloading that module off PSModulePath (documented in
-    # about_Modules and about_PSModulePath). A machine with both PowerShell
-    # editions installed can hand Windows PowerShell a PSModulePath that
-    # lists PowerShell 7's module directory ahead of Windows PowerShell's
-    # own; Windows PowerShell then autoloads PowerShell 7's copy of that
-    # module, which exposes no Get-FileHash to it, and the script would die
-    # here with CommandNotFoundException after a successful download instead
-    # of verifying it. System.Security.Cryptography.SHA256 is a base class
-    # library type, not a module export, so it needs no autoload and does not
-    # depend on PSModulePath at all.
+    # Stage the download inside the install directory itself. A GUID suffix
+    # cannot collide with anything already in that directory, including a
+    # program from an earlier run.
+    $tmpfile = Join-Path $installDir ('dinah.tmp.' + [System.Guid]::NewGuid().ToString('N'))
     try {
-        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        # Download.
         try {
-            $stream = [System.IO.File]::OpenRead($tmpfile)
+            Invoke-WebRequest -Uri ($downloadBase + $published) -OutFile $tmpfile -UseBasicParsing
+        }
+        catch {
+            Write-Failure "download of $published did not complete (network error); $left, and it is safe to run this script again"
+            exit 1
+        }
+
+        # Confirm the transfer actually finished before trusting it enough to
+        # hash. When a proxy or a CDN edge cuts a download short and closes
+        # the connection cleanly, Invoke-WebRequest reports no error and
+        # -OutFile simply stops writing, leaving a short file that never
+        # reaches the catch above. The manifest already carries each binary's
+        # size, so a length mismatch here is reported as a short download,
+        # distinct from both the network-error message above and the
+        # checksum-mismatch message below; without this check a short
+        # download reaches the hash compare and is misreported as corruption
+        # instead.
+        $gotSize = (Get-Item -Path $tmpfile).Length
+        if ($wantSize -and $gotSize -ne $wantSize) {
+            Write-Failure "download of $published is incomplete ($gotSize of $wantSize bytes); $left, and it is safe to run this script again"
+            exit 1
+        }
+
+        # Verify the bytes. Reaching here means the transfer finished, so a
+        # mismatch is corruption or a manifest that no longer describes what
+        # is being served, which is a different failure from the one above.
+        #
+        # The digest is computed with the .NET SHA256 class directly, over a
+        # FileStream, rather than with Get-FileHash. Get-FileHash is exported
+        # by the Microsoft.PowerShell.Utility module (Microsoft Learn's own
+        # cmdlet reference states this), not one of the cmdlets Windows
+        # PowerShell's default session already carries, so Windows PowerShell
+        # reaches it only by autoloading that module off PSModulePath
+        # (documented in about_Modules and about_PSModulePath). A machine with
+        # both PowerShell editions installed can hand Windows PowerShell a
+        # PSModulePath that lists PowerShell 7's module directory ahead of
+        # Windows PowerShell's own; Windows PowerShell then autoloads
+        # PowerShell 7's copy of that module, which exposes no Get-FileHash to
+        # it, and the script would die here with CommandNotFoundException
+        # after a successful download instead of verifying it.
+        # System.Security.Cryptography.SHA256 is a base class library type,
+        # not a module export, so it needs no autoload and does not depend on
+        # PSModulePath at all.
+        try {
+            $sha256 = [System.Security.Cryptography.SHA256]::Create()
             try {
-                $hashBytes = $sha256.ComputeHash($stream)
+                $stream = [System.IO.File]::OpenRead($tmpfile)
+                try {
+                    $hashBytes = $sha256.ComputeHash($stream)
+                }
+                finally {
+                    $stream.Dispose()
+                }
             }
             finally {
-                $stream.Dispose()
+                $sha256.Dispose()
             }
+            $gotSha = ([BitConverter]::ToString($hashBytes)).Replace('-', '')
         }
-        finally {
-            $sha256.Dispose()
+        catch {
+            Write-Failure "could not compute a SHA-256 checksum for $published on this machine, so the download cannot be verified; $left"
+            exit 1
         }
-        $gotSha = ([BitConverter]::ToString($hashBytes)).Replace('-', '')
-    }
-    catch {
-        Write-Failure "could not compute a SHA-256 checksum for $binary on this machine, so the download cannot be verified; nothing was installed"
-        exit 1
-    }
-    if ($gotSha -ne $wantSha) {
-        Write-Failure "downloaded file's checksum does not match the manifest for $binary; the download will not be installed"
-        exit 1
-    }
+        if ($gotSha -ne $wantSha) {
+            Write-Failure "downloaded file's checksum does not match the manifest for $published; the download will not be installed, and $left"
+            exit 1
+        }
 
-    # Step 8: the one step that changes what sits at the install path, and it
-    # runs only on a complete, verified download.
-    Move-Item -Path $tmpfile -Destination (Join-Path $installDir 'dinah.exe') -Force
-    Write-Host "Installed $binary as $(Join-Path $installDir 'dinah.exe')"
-}
-finally {
-    if (Test-Path -Path $tmpfile) {
-        Remove-Item -Path $tmpfile -Force -ErrorAction SilentlyContinue
+        # The one step that changes what sits at the install path, and it
+        # runs only on a complete, verified download.
+        Move-Item -Path $tmpfile -Destination (Join-Path $installDir $installed) -Force
+        Write-Host "Installed $published as $(Join-Path $installDir $installed)"
+    }
+    finally {
+        if (Test-Path -Path $tmpfile) {
+            Remove-Item -Path $tmpfile -Force -ErrorAction SilentlyContinue
+        }
     }
 }
+
+# Steps 4 to 8: install dinah.exe, then dinah-tui.exe, the terminal UI's
+# program, which dinah tui starts and looks for beside dinah.exe first. The two
+# come from the same release, which is what dinah tui checks. A dinah-tui.exe
+# that cannot be installed leaves the new dinah.exe in place, and says that
+# dinah tui waits on it.
+Install-Program $binary 'dinah.exe' 'nothing was installed'
+Install-Program $tuiBinary 'dinah-tui.exe' 'dinah.exe is installed and works, but dinah tui needs dinah-tui.exe, so run this script again'
 
 # Step 9: put the install directory on the user's PATH, which needs no
 # administrator privilege. A shell started after this can run dinah by name.

@@ -516,6 +516,22 @@ the window is smaller than 60 by 12, Dinah refuses with
 `dinah.tui-unavailable` before it draws anything. `dinah view <name>` draws
 the same view once and works anywhere.
 
+The interface is a program of its own, `dinah-tui`, which the install scripts
+put beside `dinah`, and `dinah tui` starts it. The library the interface is
+drawn with costs every program that links it at start-up, about 26 ms on
+Windows and a 2.2 MB table on every platform, so it lives in its own program
+and `dinah` itself pays none of it. `dinah tui` looks for `dinah-tui` beside
+`dinah`, then beside the file a link to `dinah` points at, then on your
+`PATH`, and refuses with `dinah.tui-missing` when it finds none. `dinah-tui`
+refuses with `dinah.tui-skew` when the `dinah` that started it comes from
+another build, because the two read the same workbenches; install both from
+one release, as the install scripts do.
+
+You can also run `dinah-tui` yourself, and it reads its words as those of
+`dinah tui`, so `dinah-tui agenda` works the agenda. The one exception is
+`dinah-tui version`, which answers as `dinah version` does, so you can ask
+which build it is. To work a view named `version`, run `dinah tui version`.
+
 ### What the screen shows
 
 The first row names the workbench, the view and any filter you set, and on
@@ -546,7 +562,8 @@ While you are looking at a lane:
   `q` closes the menu.
 - `/` filters the view with a query, and `:` jumps to a view, a card or a
   column by name.
-- `?` shows every key, and `q` or Ctrl+C quits.
+- `?` shows every key, Ctrl+L draws the whole screen again, and `q` or
+  Ctrl+C quits.
 
 In the jump and filter prompts, Enter carries out what you typed and Ctrl+G
 closes the prompt without doing anything. The comment prompt holds several
@@ -593,6 +610,20 @@ the jump or filter prompt can then act on the selected card, because `a`,
 paste made while you are looking at a lane. Keys you type ahead after Enter
 in those prompts are also discarded. On such a terminal, paste only into the
 comment prompt, or paste one line at a time.
+
+### On Windows
+
+On Windows the interface writes to the console only what Microsoft's "Console
+Virtual Terminal Sequences" page lists, with two exceptions. The first is the
+request that the console mark pastes, which the page does not list; where
+your console ignores it, what the section above says about a terminal that
+does not mark pastes applies. The second is narrower. Dinah hands the console
+each screen in pieces, cut only between whole sequences and whole characters,
+and reads back how many characters the console says it wrote. Microsoft does
+not say when a console can write fewer characters than it was given, and if
+one ever does in the middle of a sequence, Dinah writes the rest and draws
+the whole screen again on the next frame, so a frame drawn wrongly lasts one
+frame. Ctrl+L draws the whole screen again whenever you want it to.
 
 ### How the interface ends
 

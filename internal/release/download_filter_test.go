@@ -98,7 +98,7 @@ func TestTheReleaseDownloadTakesThePlatformBinariesAndNothingElse(t *testing.T) 
 		if err != nil {
 			t.Fatalf("the asset check refused the dist/ the filtered download assembles: %v\n%s", err, output)
 		}
-		if want := "dist/ holds exactly the 6 expected binaries."; !strings.Contains(output, want) {
+		if want := "dist/ holds exactly the 12 expected binaries."; !strings.Contains(output, want) {
 			t.Errorf("the asset check did not report %q, and said:\n%s", want, output)
 		}
 	})
@@ -224,7 +224,7 @@ func workflowUploads(t *testing.T, workflow string) []runArtifact {
 					"${{ matrix.goos }}", target.GOOS,
 					"${{ matrix.goarch }}", target.GOARCH,
 				).Replace(name)
-				artifacts = append(artifacts, runArtifact{name: expanded, files: []string{target.BinaryName()}})
+				artifacts = append(artifacts, runArtifact{name: expanded, files: target.Names()})
 			}
 		case strings.Contains(name, "${{ matrix.os }}"):
 			// The extension job uploads what `npm run package` wrote, which
