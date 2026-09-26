@@ -61,6 +61,8 @@ func (t *lineTranscript) finish() {
 // lineResult is what one line left: its transcript, its exit status, the
 // command it named and the line as the title of output mode shows it.
 type lineResult struct {
+	// words are the words the line was given, before any alias expanded.
+	words      []string
 	transcript *lineTranscript
 	code       int
 	command    string
@@ -163,7 +165,7 @@ func (m *interactiveModel) runLine(words []string, typed string) tea.Cmd {
 	if title == "" {
 		title = strings.Join(words, " ")
 	}
-	result := &lineResult{transcript: transcript, title: withoutControls(title)}
+	result := &lineResult{words: words, transcript: transcript, title: withoutControls(title)}
 	line := m.s.lineSession(transcript, transcript, m.draw(), words)
 	parsed, stop := m.prepareLine(line, words, result)
 	if stop {
@@ -314,6 +316,9 @@ func (m *interactiveModel) afterLine(result *lineResult) {
 	default:
 		m.openOutput(lines, result.title)
 	}
+	if interactiveSeam != nil && interactiveSeam.lineDone != nil {
+		interactiveSeam.lineDone(result)
+	}
 }
 
 // fitsMessage reports whether a transcript fits the message area: at most
@@ -353,11 +358,7 @@ func (m *interactiveModel) lendTerminal() {
 	m.quitting = false
 	line := lend.line
 	line.rawOut, line.rawErr, line.in = m.s.rawOut, m.s.rawErr, m.s.in
-	if interactiveSeam != nil && interactiveSeam.lend != nil {
-		lend.result.code = interactiveSeam.lend(line, lend.parsed.positional)
-	} else {
-		lend.result.code = line.dispatch(lend.parsed)
-	}
+	lend.result.code = line.dispatch(lend.parsed)
 	lend.result.transcript.finish()
 	m.lent = lend.result
 }

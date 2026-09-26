@@ -322,6 +322,9 @@ func (m *interactiveModel) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	if interactiveSeam != nil && interactiveSeam.update != nil {
 		interactiveSeam.update(msg)
 	}
+	if interactiveSeam != nil && interactiveSeam.observe != nil {
+		interactiveSeam.observe(m, msg)
+	}
 	if m.quitting {
 		return m, nil
 	}
@@ -877,6 +880,9 @@ func (m *interactiveModel) messageHeight() int {
 		if m.prompt == promptText {
 			return m.areaHeight() + 1
 		}
+		if m.prompt == promptStep {
+			return 2 + min(len(m.message), interactiveMessageLimit-2)
+		}
 		return 1 + min(len(m.message), interactiveMessageLimit-1)
 	}
 	return min(max(len(m.messageLines()), 1), interactiveMessageLimit)
@@ -1130,9 +1136,6 @@ func (m *interactiveModel) actKey(keys *interactiveKeys, pressed tea.KeyPressMsg
 	}
 	for _, row := range interactiveActs {
 		if row.mode != actBrowse || row.name == "show" || row.name == "query" || row.name == "view" {
-			continue
-		}
-		if row.name == "items" || row.name == "actions" {
 			continue
 		}
 		if !key.Matches(pressed, row.binding(keys)) {

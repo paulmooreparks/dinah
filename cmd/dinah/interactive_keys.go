@@ -309,14 +309,22 @@ func interactiveBindings(r *msg.Renderer) []interactiveBinding {
 
 // shortHelp answers the bindings the footer lists in browse and card mode:
 // the rows of interactiveActs read in those modes, in the table's order, whose
-// offered answers true, then the user's own bindings the footer lists, then
+// offered answers true, with i and x, which open item mode and the actions
+// menu rather than performing an act, placed ahead of the filter where either
+// has something to offer; then the user's own bindings the footer lists, then
 // ? and q. In card mode the first row is card mode's own Enter, and the
 // filter is left out, since it narrows lanes card mode does not draw.
 func (k *interactiveKeys) shortHelp(m *interactiveModel, full bool) []key.Binding {
 	card := m.mode == modeCard
 	var bindings []key.Binding
 	for _, row := range interactiveActs {
-		if row.mode != actBrowse || !row.offered(m) {
+		if row.mode != actBrowse {
+			continue
+		}
+		if row.name == "query" {
+			bindings = append(bindings, k.modeKeys(m)...)
+		}
+		if !row.offered(m) {
 			continue
 		}
 		binding := row.binding(k)
@@ -332,6 +340,20 @@ func (k *interactiveKeys) shortHelp(m *interactiveModel, full bool) []key.Bindin
 		bindings = append(bindings, k.more)
 	}
 	return append(bindings, k.quit)
+}
+
+// modeKeys are i and x where each has something to offer: i where some item
+// of the target card carries an offered act, and x where the actions menu
+// lists at least one entry.
+func (k *interactiveKeys) modeKeys(m *interactiveModel) []key.Binding {
+	var bindings []key.Binding
+	if len(m.offeredItems()) > 0 {
+		bindings = append(bindings, k.items)
+	}
+	if len(m.actionRows()) > 0 {
+		bindings = append(bindings, k.actions)
+	}
+	return bindings
 }
 
 // fullHelp answers the bindings full help lists in browse and card mode, in

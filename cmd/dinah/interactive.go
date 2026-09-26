@@ -54,20 +54,21 @@ const interactiveDefaultView = "board"
 // output with the frames, and feeds the POSIX decoder from keys on every
 // GOOS.
 type interactiveSeams struct {
-	stdinTerminal  bool                           // what the terminal check answers for stdin
-	stdoutTerminal bool                           // and for stdout
-	width, height  int                            // what interactiveSize answers
-	keys           io.Reader                      // bytes for the POSIX decoder, paste markers included, in place of the terminal
-	terminfo       *screen.Terminfo               // the entry the decoder uses
-	output         io.Writer                      // frames, in place of the terminal
-	program        func(*tea.Program)             // called before Run, so a test can Send messages
-	update         func(tea.Msg)                  // called at the top of Update, where a test plants a panic
-	view           func()                         // called at the top of View, where a test plants a panic
-	frame          func(string)                   // called with the content of every frame View answers
-	command        func()                         // called at the top of every command the head returns
-	discard        func()                         // called by the reader on every flush it makes
-	finish         func(*interactiveModel, error) // called with the final model and Run's error
-	repanic        func(any)                      // replaces the final panic of a crash report
+	stdinTerminal  bool                             // what the terminal check answers for stdin
+	stdoutTerminal bool                             // and for stdout
+	width, height  int                              // what interactiveSize answers
+	keys           io.Reader                        // bytes for the POSIX decoder, paste markers included, in place of the terminal
+	terminfo       *screen.Terminfo                 // the entry the decoder uses
+	output         io.Writer                        // frames, in place of the terminal
+	program        func(*tea.Program)               // called before Run, so a test can Send messages
+	update         func(tea.Msg)                    // called at the top of Update, where a test plants a panic
+	observe        func(*interactiveModel, tea.Msg) // called at the top of Update with the model, on the event loop, so a test reads its state safely
+	view           func()                           // called at the top of View, where a test plants a panic
+	frame          func(string)                     // called with the content of every frame View answers
+	command        func()                           // called at the top of every command the head returns
+	discard        func()                           // called by the reader on every flush it makes
+	finish         func(*interactiveModel, error)   // called with the final model and Run's error
+	repanic        func(any)                        // replaces the final panic of a crash report
 	// lineDispatch, when set, is called by the command line with the name
 	// of every command it is about to dispatch, and a true answer stops the
 	// line there. It exists for the test that every command reaches its run
@@ -80,11 +81,9 @@ type interactiveSeams struct {
 	// substitutes, before the value is checked, so a test can supply a value
 	// no reference, slug or view name Dinah mints could carry.
 	bindingValue func(placeholder, value string) string
-	// lend, when set, is called by the head in place of running a command
-	// that lends the terminal, with the session that command would run in,
-	// so a test drives the lend without starting an editor. It answers the
-	// exit status.
-	lend func(line *session, words []string) int
+	// lineDone, when set, is handed what every line left, once the head has
+	// shown it, so a test reads a line's transcript without parsing frames.
+	lineDone func(*lineResult)
 	// pump reads keys across every cycle of one run, started by the first
 	// cycle's reader.
 	pump *keyPump
