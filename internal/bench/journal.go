@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"dinah/internal/contract"
 )
@@ -288,11 +289,11 @@ func readJournal(src Source, path string) ([]Event, bool, error) {
 // reads the events: it answers the parse a memoising source shares rather
 // than a copy, so the caller must not change what it is handed. Arrival is
 // such a reader, and a sort asks it once per card.
-func readJournalShared(src Source, path string) ([]Event, error) {
+func readJournalShared(src Source, path string) (*parsedJournal, error) {
 	observeAnchor(path)
 	value, err := src.Derive(path, DeriveJournal, deriveJournal)
 	if os.IsNotExist(err) {
-		return nil, nil
+		return &parsedJournal{}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -301,22 +302,23 @@ func readJournalShared(src Source, path string) ([]Event, error) {
 	if parsed.err != nil {
 		return nil, parsed.err
 	}
-	return parsed.events, nil
+	return parsed, nil
 }
 
 // JournalLines visits each event of a journal in file order with its index,
-// its stored stamp and its event name, as ReadJournal would answer them, and
-// answers ReadJournal's error. It copies no event: a reader that needs only
-// the stamps, which a cursor over every journal on the workbench does, pays
-// for no copy of every event's other members. An absent journal visits
-// nothing.
-func (b *Bench) JournalLines(path string, visit func(index int, ts, event string)) error {
-	events, err := readJournalShared(b.source(), path)
+// its stored stamp, the stamp parsed as ParseStamp parses it, and its event
+// name, as ReadJournal would answer them, and answers ReadJournal's error. It
+// copies no event: a reader that needs only the stamps, which a cursor over
+// every journal on the workbench does, pays for no copy of every event's
+// other members, and a source that memoises the parse parses each stamp once.
+// An absent journal visits nothing.
+func (b *Bench) JournalLines(path string, visit func(index int, ts string, at time.Time, event string)) error {
+	parsed, err := readJournalShared(b.source(), path)
 	if err != nil {
 		return err
 	}
-	for index, event := range events {
-		visit(index, event.TS, event.Event)
+	for index, event := range parsed.events {
+		visit(index, event.TS, parsed.stamps[index], event.Event)
 	}
 	return nil
 }
@@ -326,6 +328,9 @@ func (b *Bench) JournalLines(path string, visit func(index int, ts, event string
 // raised, which is part of the answer rather than a failure to read.
 type parsedJournal struct {
 	events []Event
+	// stamps are the events' stamps parsed as ParseStamp parses them, one
+	// per event.
+	stamps []time.Time
 	torn   bool
 	err    error
 }
@@ -334,7 +339,11 @@ type parsedJournal struct {
 // its read.
 func deriveJournal(_ string, text, _ string) (any, error) {
 	events, torn, err := parseJournal(text)
-	return &parsedJournal{events: events, torn: torn, err: err}, nil
+	stamps := make([]time.Time, len(events))
+	for i, event := range events {
+		stamps[i] = ParseStamp(event.TS)
+	}
+	return &parsedJournal{events: events, stamps: stamps, torn: torn, err: err}, nil
 }
 
 // parseJournal reads a journal's text into its events.

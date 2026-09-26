@@ -321,11 +321,16 @@ func (c cursor) coverThrough(delivered []position) cursor {
 // boundary's parse is kept beside it, so a fold over many lines parses each
 // line's stamp once and the boundary once per change of boundary.
 func (c *cursor) cover(key string, index int, ts string) {
+	c.coverParsed(key, index, ts, bench.ParseStamp(ts))
+}
+
+// coverParsed is cover for a line whose stamp its caller has already parsed.
+func (c *cursor) coverParsed(key string, index int, ts string, at time.Time) {
 	if c.TS != c.parsedFor {
 		c.parsedTS, c.parsedFor = bench.ParseStamp(c.TS), c.TS
 	}
 	switch {
-	case c.TS != "" && c.TS != ts && stampLessParsed(ts, bench.ParseStamp(ts), c.TS, c.parsedTS):
+	case c.TS != "" && c.TS != ts && stampLessParsed(ts, at, c.TS, c.parsedTS):
 		// A line older than the boundary is already covered by it.
 	case c.TS == ts:
 		if covered, ok := c.Frontier[key]; !ok || index > covered {
@@ -503,9 +508,9 @@ func (l *Library) mintedChangeSet(terms cursor, live, archive []bench.Watched) (
 				continue
 			}
 			key, only := entry.Key, half.only
-			l.Bench.JournalLines(entry.Journal, func(index int, ts, event string) {
+			l.Bench.JournalLines(entry.Journal, func(index int, ts string, at time.Time, event string) {
 				if only == nil || only[event] {
-					terms.cover(key, index, ts)
+					terms.coverParsed(key, index, ts, at)
 				}
 			})
 		}

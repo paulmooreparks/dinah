@@ -185,14 +185,21 @@ func (s *Snapshot) place(path string) (placement, *dirNode, *fileNode) {
 		}
 		return placedFile, nil, file
 	}
-	if rel == "." {
-		if dir, held := s.dirs[rel]; held && dir.err == nil {
-			return placedDir, dir, nil
+	if dir, held := s.dirs[rel]; held {
+		if dir.err != nil {
+			return placedUnplaced, nil, nil
 		}
+		return placedDir, dir, nil
+	}
+	if rel == "." {
 		return placedUnplaced, nil, nil
 	}
-	// The parent first: most paths a read asks for are files, which the
-	// parent's own maps answer without looking the whole path up.
+	// A key either index held is clean, because every key is; a path that
+	// missed both is checked before the snapshot decides anything about it,
+	// and one that is not clean is the disk's to answer.
+	if !cleanRest(rel) {
+		return placedOutside, nil, nil
+	}
 	parentKey, name := splitRel(rel)
 	if parent, held := s.dirs[parentKey]; held {
 		where, _, file := s.placeIn(parent, name)
@@ -253,7 +260,8 @@ func (s *Snapshot) placeIn(dir *dirNode, name string) (placement, *dirNode, *fil
 
 // relative answers a path's key below the root, "." for the root itself,
 // and false for a path outside it. The key keeps the platform's separators,
-// so a lookup allocates nothing.
+// so a lookup allocates nothing, and it is not yet known to be clean: place
+// checks that only for a key its indexes do not hold.
 func (s *Snapshot) relative(path string) (string, bool) {
 	if path == s.root {
 		return ".", true
@@ -262,7 +270,7 @@ func (s *Snapshot) relative(path string) (string, bool) {
 		return "", false
 	}
 	rest := path[len(s.prefix):]
-	if rest == "" || !cleanRest(rest) {
+	if rest == "" {
 		return "", false
 	}
 	return rest, true

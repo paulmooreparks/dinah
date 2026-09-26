@@ -694,11 +694,28 @@ func (c *Card) SetLevel(field, value string) {
 // column it stands in, and reading only moves would report the zero time and
 // sort it ahead of every card that arrived by one.
 func (c *Card) Arrival() time.Time {
-	events, err := readJournalShared(c.source(), c.JournalPath())
+	parsed, err := readJournalShared(c.source(), c.JournalPath())
 	if err != nil {
 		return time.Time{}
 	}
-	return ArrivalFrom(events, c.Column)
+	return arrivalFromParsed(parsed.events, parsed.stamps, c.Column)
+}
+
+// arrivalFromParsed is ArrivalFrom over events whose stamps are already
+// parsed, one per event.
+func arrivalFromParsed(events []Event, stamps []time.Time, column string) time.Time {
+	arrival := time.Time{}
+	for i, ev := range events {
+		switch ev.Event {
+		case contract.EventCreated:
+			arrival = stamps[i]
+		case contract.EventMoved, contract.EventManualCorrection:
+			if ev.To == column {
+				arrival = stamps[i]
+			}
+		}
+	}
+	return arrival
 }
 
 // ArrivalFrom is the moment a card standing in column entered it, read out of
