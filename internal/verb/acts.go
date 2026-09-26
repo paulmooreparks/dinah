@@ -129,6 +129,11 @@ func (l *Library) OfferActs(req *Request) (*OfferedActs, error) {
 	if _, refused := l.canComment(commentReq); refused == nil {
 		offered.Comment = true
 	}
+	// dinah edit asks nothing of the owner, the harness or the operator: it
+	// resolves the file and hands it to the editor, so the offer asks the
+	// same resolver before the rows the library's own acts run.
+	_, err := l.Bench.ResolveEditTarget(req.Card)
+	offered.Edit = err == nil
 	found, refused := l.admit(req)
 	if refused != nil {
 		return offered, nil
@@ -242,9 +247,8 @@ func (l *Library) offerRaise(req *Request, offered *OfferedActs) {
 }
 
 // offerCardEntity answers the acts that reach the card as an entity by its
-// reference: attach through canAttach, file through canFile, archive and
-// delete through admitRemoval and canRemove, and edit through the resolver
-// dinah edit asks.
+// reference: attach through canAttach, file through canFile, and archive and
+// delete through admitRemoval and canRemove.
 func (l *Library) offerCardEntity(req *Request, card *bench.Card, offered *OfferedActs) {
 	ref := card.Ref(l.Bench.Slug)
 	_, refused := l.canAttach(cardAsking(req, "attach", ref))
@@ -266,8 +270,6 @@ func (l *Library) offerCardEntity(req *Request, card *bench.Card, offered *Offer
 		}
 		offered.Delete = true
 	}
-	_, err := l.Bench.ResolveEditTarget(ref)
-	offered.Edit = err == nil
 }
 
 // offerItems answers every item of the card with the item acts whose checks

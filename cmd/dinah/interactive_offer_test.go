@@ -35,6 +35,7 @@ const offerDefinition = `{
     "workhorse": { "meaning": "scoped work", "models": [{ "provider": "acme", "model": "workhorse" }] },
     "frontier": { "meaning": "judgement work", "models": [{ "provider": "acme", "model": "frontier" }] }
   },
+  "evidence": { "test": {} },
   "columns": [
     { "id": "o10000000001", "title": "Intake", "slug": "intake", "kind": "intake" },
     { "id": "o10000000002", "title": "Work", "slug": "work", "kind": "work" },
@@ -162,6 +163,75 @@ var offerCases = []offerCase{
 		step(t, root, "move", "fx-1", "work")
 		editWorkbenchAnchor(t, filepath.Join(benchDir(t, root), bench.WorkbenchAnchor), "operator: alka\n", "")
 	}, asking: asOwner("brin", "", "", "")},
+	{name: "items of every kind and state, for an agent", arrange: itemsOfEveryState, asking: asOwner("brin", "", "", "")},
+	{name: "items of every kind and state, for the operator", arrange: itemsOfEveryState, asking: asOwner("alka", "", "", "")},
+	{name: "items under the criterion-retirement grant, for an agent", arrange: func(t *testing.T, root string) {
+		itemsOfEveryState(t, root)
+		step(t, root, "grant", "fx-1", verb.CriterionRetirement)
+	}, asking: asOwner("brin", "", "", "")},
+	{name: "a card with links, workstreams, an attachment and an edited comment, for an agent", arrange: membersOfEveryKind, asking: asOwner("brin", "", "", "")},
+	{name: "a card with links, workstreams, an attachment and an edited comment, for the operator", arrange: membersOfEveryKind, asking: asOwner("alka", "", "", "")},
+	{name: "a blocked card, for the operator", arrange: func(t *testing.T, root string) {
+		step(t, root, "move", "fx-1", "work")
+		step(t, root, "block", "fx-1", "waiting on a vendor")
+	}, asking: asOwner("alka", "", "", "")},
+}
+
+// itemsOfEveryState files on fx-1, standing at the work station, one item in
+// every state an item verb reads: an operator-owned question and a holder's
+// question, both pending; a decision already resolved; a criterion pending
+// with no citation, one pending with a citation, one failed, one waived and
+// one withdrawn; and a question demanding evidence of a scheme nothing cited.
+func itemsOfEveryState(t *testing.T, root string) {
+	t.Helper()
+	step(t, root, "move", "fx-1", "work")
+	step(t, root, "file", "fx-1", "open_question", "Which vendor ships it?", "--owner", "operator")
+	step(t, root, "file", "fx-1", "open_question", "Is the parser in scope?", "--owner", "holder")
+	step(t, root, "file", "fx-1", "decision", "Use the stream reader")
+	step(t, root, "resolve", "fx-1/decisions/1", "--text", "decided on the stream reader")
+	step(t, root, "file", "fx-1", "acceptance_criterion", "The parser reads every line")
+	step(t, root, "file", "fx-1", "acceptance_criterion", "The parser rejects a torn line")
+	step(t, root, "cite", "fx-1/criteria/2", "test", "cmd/dinah/parser_test.go")
+	step(t, root, "file", "fx-1", "acceptance_criterion", "The parser is fast")
+	step(t, root, "cite", "fx-1/criteria/3", "test", "cmd/dinah/speed_test.go")
+	step(t, root, "fail", "fx-1/criteria/3", "--text", "it took a minute")
+	step(t, root, "file", "fx-1", "acceptance_criterion", "The parser logs")
+	step(t, root, "waive", "fx-1/criteria/4", "--text", "logging is not needed here")
+	step(t, root, "file", "fx-1", "acceptance_criterion", "The parser is pretty")
+	step(t, root, "withdraw", "fx-1/criteria/5", "--text", "nobody asked for it")
+	step(t, root, "file", "fx-1", "open_question", "Does it meet the benchmark?")
+	step(t, root, "set", "fx-1/questions/3", "evidence", "benchmark")
+}
+
+// membersOfEveryKind gives fx-1, standing at the work station, a link to
+// fx-2, membership of one of two workstreams, an attachment, a comment left as
+// written and a comment whose body was edited outside the tool.
+func membersOfEveryKind(t *testing.T, root string) {
+	t.Helper()
+	step(t, root, "move", "fx-1", "work")
+	step(t, root, "workstream", "new", "Parser", "--slug", "parser")
+	step(t, root, "workstream", "new", "Release", "--slug", "release")
+	step(t, root, "join", "fx-1", "parser")
+	step(t, root, "link", "fx-1", "relates_to", "fx-2")
+	step(t, root, "attach", "fx-1", offerAttachment(t))
+	step(t, root, "comment", "fx-1", "left as written")
+	step(t, root, "comment", "fx-1", "about to be edited")
+	path := runCLI(t, root, "path", "fx-1/comments/2")
+	if path.code != 0 {
+		t.Fatalf("path of the second comment: %s", path.errw)
+	}
+	anchor := strings.TrimSpace(path.out)
+	data, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(string(data), "about to be edited", "edited by hand", 1)
+	if edited == string(data) {
+		t.Fatalf("the comment's body was not where the fixture looked: %q", data)
+	}
+	if err := os.WriteFile(anchor, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // tieredCard sets fx-1's own tier to frontier and stands it at the work
@@ -238,6 +308,7 @@ func offerOf(t *testing.T, root string) (*verb.OfferedActs, string, string) {
 	offered, err := l.OfferActs(&verb.Request{
 		Verb:     verb.Move,
 		Card:     "fx-1",
+		Column:   offerPullColumn,
 		Actor:    os.Getenv("DINAH_ACTOR"),
 		Harness:  os.Getenv("DINAH_HARNESS"),
 		Provider: os.Getenv("DINAH_PROVIDER"),
@@ -249,41 +320,230 @@ func offerOf(t *testing.T, root string) (*verb.OfferedActs, string, string) {
 	return offered, anchorText(t, root, "fx-1"), journalText(t, root, "fx-1")
 }
 
+// offerPullColumn is the column the offer is asked a pull into, standing for
+// the focused lane's, and the column the oracle's pull names.
+const offerPullColumn = "work"
+
 // offeredSet names every act an offer allows, in the oracle's spelling.
 func offeredSet(offered *verb.OfferedActs, refOf map[string]string) []string {
 	var acts []string
-	if offered.Claim {
-		acts = append(acts, "claim")
+	flags := map[string]bool{
+		"claim": offered.Claim, "release": offered.Release, "comment": offered.Comment,
+		"add": offered.Add, "pull": offered.Pull, "block": offered.Block, "unblock": offered.Unblock,
+		"attach": offered.Attach, "file": offered.File, "archive": offered.Archive,
+		"delete": offered.Delete, "edit": offered.Edit, "link": offered.LinkNew,
 	}
-	if offered.Release {
-		acts = append(acts, "release")
-	}
-	if offered.Comment {
-		acts = append(acts, "comment")
+	for name, on := range flags {
+		if on {
+			acts = append(acts, name)
+		}
 	}
 	for _, move := range offered.Moves {
 		acts = append(acts, "move "+refOf[move.Column])
+	}
+	for _, tier := range offered.RaiseTiers {
+		acts = append(acts, "raise "+tier)
+	}
+	for _, permission := range offered.Grants {
+		acts = append(acts, "grant "+permission)
+	}
+	for _, permission := range offered.Revokes {
+		acts = append(acts, "revoke "+permission)
+	}
+	for _, link := range offered.Links {
+		acts = append(acts, "unlink "+link.Kind+" "+link.To)
+	}
+	for _, workstream := range offered.Joins {
+		acts = append(acts, "join "+workstream)
+	}
+	for _, workstream := range offered.Leaves {
+		acts = append(acts, "leave "+workstream)
+	}
+	for _, ref := range offered.Divergences {
+		acts = append(acts, "accept-divergence "+ref)
+	}
+	for _, ref := range offered.Renames {
+		acts = append(acts, "rename "+ref)
+	}
+	for _, field := range offered.Fields {
+		acts = append(acts, "set "+field)
+	}
+	for _, item := range offered.Items {
+		named := map[string]bool{
+			"resolve": item.Resolve, "verify": item.Verify, "fail": item.Fail, "waive": item.Waive,
+			"withdraw": item.Withdraw, "reopen": item.Reopen, "cite": item.Cite,
+		}
+		for name, on := range named {
+			if on {
+				acts = append(acts, name+" "+item.Ref)
+			}
+		}
 	}
 	sort.Strings(acts)
 	return acts
 }
 
-// TestTheOfferMatchesEveryAct is dinah-603/criteria/6. In every state of
-// section 11.6 the acts OfferActs answers for fx-1 are exactly the acts a real
-// CLI act accepts on a fresh copy of the workbench, claim, release, comment
-// and a move to every other column, and the offer leaves the card's anchor and
-// journal byte-identical.
+// oracleAct is one real act the oracle runs on a fresh copy of the
+// workbench: the words, and the name the offer's set spells it by.
+type oracleAct struct {
+	words []string
+	name  string
+}
+
+// oracleActs are every act a real CLI act is asked for on fx-1 in one state:
+// claim, release, comment and a move to every other column, which dinah-603
+// asked, and one act per card verb dinah-623 offers, each with arguments that
+// pass the rows reading an argument, so only the rows the offer shares can
+// refuse it.
 //
-// It also counts its coverage. The refusal names the twelve shared check
-// functions reference as contract names are read with go/parser, and every one
-// has to be reached by some oracle act across the fixtures or stand on the
-// written exemption list, and no exempted name may be reached or have stopped
-// being referenced. The count reads those twelve bodies alone: a refusal
-// raised in a new helper one of them calls, or through a method value, a
-// hand-built response, or an error a lower layer returns, is not in the
-// expected set, and is caught only where a fixture here builds the state that
-// raises it.
+// Three verbs are asked narrower than the act accepts, because the act takes
+// an argument that changes nothing and the offer does not list it: join is
+// asked of the workstreams the card is not in and leave of the ones it is,
+// and accept-divergence of the comments whose body was edited, since a
+// membership already held and a body never edited give the act nothing to
+// record.
+func oracleActs(t *testing.T, root string, opened *bench.Bench, card *bench.Card) []oracleAct {
+	t.Helper()
+	acts := []oracleAct{
+		{words: []string{"claim", "fx-1"}, name: "claim"},
+		{words: []string{"release", "fx-1"}, name: "release"},
+		{words: []string{"comment", "fx-1", "a remark"}, name: "comment"},
+		{words: []string{"add", "A card filed beside it"}, name: "add"},
+		{words: []string{"--json", "pull", offerPullColumn}, name: "pull"},
+		{words: []string{"block", "fx-1", "waiting on a vendor"}, name: "block"},
+		{words: []string{"unblock", "fx-1"}, name: "unblock"},
+		{words: []string{"attach", "fx-1", offerAttachment(t)}, name: "attach"},
+		{words: []string{"file", "fx-1", "decision", "a decision to take"}, name: "file"},
+		{words: []string{"archive", "fx-1"}, name: "archive"},
+		{words: []string{"delete", "fx-1", "--yes"}, name: "delete"},
+		{words: []string{"edit", "fx-1"}, name: "edit"},
+		{words: []string{"link", "fx-1", "relates_to", "fx-2"}, name: "link"},
+		{words: []string{"grant", "fx-1", verb.CriterionRetirement}, name: "grant " + verb.CriterionRetirement},
+		{words: []string{"revoke", "fx-1", verb.CriterionRetirement}, name: "revoke " + verb.CriterionRetirement},
+	}
+	for _, column := range opened.Columns {
+		if column.ID != card.Column {
+			acts = append(acts, oracleAct{words: []string{"move", "fx-1", column.Ref()}, name: "move " + column.Ref()})
+		}
+	}
+	for _, tier := range bench.LevelNames(opened.Levels(bench.TierField)) {
+		acts = append(acts, oracleAct{words: []string{"raise", "fx-1", tier, "the work is harder"}, name: "raise " + tier})
+	}
+	for _, link := range card.Links {
+		acts = append(acts, oracleAct{words: []string{"unlink", "fx-1", link.Kind, link.To}, name: "unlink " + link.Kind + " " + link.To})
+	}
+	workstreams, err := opened.Workstreams()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, workstream := range workstreams {
+		name := "join"
+		if slices.Contains(card.Workstreams, workstream.ID) {
+			name = "leave"
+		}
+		acts = append(acts, oracleAct{words: []string{name, "fx-1", workstream.Slug}, name: name + " " + workstream.Slug})
+	}
+	acts = append(acts, memberActs(t, root, card)...)
+	for _, field := range bench.FieldsOf(bench.KindCard) {
+		words := []string{"set", "fx-1", field}
+		if field == bench.TitleField {
+			words = append(words, "A new title")
+		}
+		acts = append(acts, oracleAct{words: words, name: "set " + field})
+	}
+	for _, key := range opened.DeclaredFieldKeysOn(bench.KindCard) {
+		acts = append(acts, oracleAct{words: []string{"set", "fx-1", key, "north"}, name: "set " + key})
+	}
+	return append(acts, itemActs(t, card)...)
+}
+
+// memberActs are the oracle's acts on fx-1's comments whose body was edited
+// and on its attachments.
+func memberActs(t *testing.T, root string, card *bench.Card) []oracleAct {
+	t.Helper()
+	var acts []oracleAct
+	comments, err := bench.Comments(card.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, comment := range comments {
+		fm, body, err := bench.ReadCommentAnchor(comment.Dir)
+		if err != nil || !bench.CommentDiverged(fm, body) {
+			continue
+		}
+		ref := "fx-1/comments/" + strconv.Itoa(i+1)
+		acts = append(acts, oracleAct{words: []string{"accept-divergence", ref}, name: "accept-divergence " + ref})
+	}
+	attachments, err := bench.Attachments(card.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range attachments {
+		ref := "fx-1/attachments/" + strconv.Itoa(i+1)
+		acts = append(acts, oracleAct{words: []string{"rename", ref, "renamed.txt"}, name: "rename " + ref})
+	}
+	return acts
+}
+
+// itemActs are the oracle's acts on every item of fx-1: each of the seven
+// item verbs, with arguments that pass the rows reading one.
+func itemActs(t *testing.T, card *bench.Card) []oracleAct {
+	t.Helper()
+	items, err := bench.Items(card.Dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	position := map[string]int{}
+	var acts []oracleAct
+	for _, item := range items {
+		position[item.Kind]++
+		word, _ := bench.WordForItemKind(item.Kind)
+		ref := "fx-1/" + word + "/" + strconv.Itoa(position[item.Kind])
+		acts = append(acts,
+			oracleAct{words: []string{"resolve", ref, "--text", "an answer given"}, name: "resolve " + ref},
+			oracleAct{words: []string{"verify", ref, "--text", "the check held"}, name: "verify " + ref},
+			oracleAct{words: []string{"fail", ref, "--text", "the check did not hold"}, name: "fail " + ref},
+			oracleAct{words: []string{"waive", ref, "--text", "the operator waived it"}, name: "waive " + ref},
+			oracleAct{words: []string{"withdraw", ref, "--text", "it stopped applying"}, name: "withdraw " + ref},
+			oracleAct{words: []string{"reopen", ref, "it was closed wrongly"}, name: "reopen " + ref},
+			oracleAct{words: []string{"cite", ref, "test", "cmd/dinah/offer_test.go"}, name: "cite " + ref},
+		)
+	}
+	return acts
+}
+
+// offerAttachment is a file the oracle's attach names, which exists for the
+// whole test.
+func offerAttachment(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "evidence.txt")
+	if err := os.WriteFile(path, []byte("evidence\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// TestTheOfferMatchesEveryAct is dinah-603/criteria/6, and dinah-623/criteria/17
+// and /39. In every state of section 11.6, and in the states dinah-623 adds
+// for the card verbs it offers, the acts OfferActs answers for fx-1 are
+// exactly the acts a real CLI act accepts on a fresh copy of the workbench:
+// claim, release, comment and a move to every other column, and every card
+// verb, each item verb on every item of the card, and a filing and a pull
+// beside them. The offer leaves the card's anchor and journal byte-identical.
+//
+// It also counts its coverage. The refusal names the shared check functions
+// reference as contract names are read with go/parser, and every one has to
+// be reached by some oracle act across the fixtures or stand on the written
+// exemption list, and no exempted name may be reached or have stopped being
+// referenced. The count reads those bodies alone: a refusal raised in a new
+// helper one of them calls, or through a method value, a hand-built response,
+// or an error a lower layer returns, is not in the expected set, and is caught
+// only where a fixture here builds the state that raises it.
 func TestTheOfferMatchesEveryAct(t *testing.T) {
+	// The oracle's edit launches an editor, which is this test binary
+	// standing in as a recorder, so the edit succeeds without a person.
+	t.Setenv("DINAH_EDITOR", os.Args[0])
+	t.Setenv(editorRecordVar, filepath.Join(t.TempDir(), "editor.log"))
 	reached := map[string]bool{}
 	for _, c := range offerCases {
 		t.Run(c.name, func(t *testing.T) {
@@ -304,7 +564,7 @@ func TestTheOfferMatchesEveryAct(t *testing.T) {
 				t.Fatalf("open: %v", err)
 			}
 			refOf := map[string]string{}
-			var acts [][]string
+			var acts []oracleAct
 			for _, column := range opened.Columns {
 				refOf[column.ID] = column.Ref()
 			}
@@ -312,25 +572,19 @@ func TestTheOfferMatchesEveryAct(t *testing.T) {
 			if err != nil {
 				t.Fatalf("resolve: %v", err)
 			}
-			acts = append(acts, []string{"claim", "fx-1"}, []string{"release", "fx-1"}, []string{"comment", "fx-1", "a remark"})
-			for _, column := range opened.Columns {
-				if column.ID != card.Card.Column {
-					acts = append(acts, []string{"move", "fx-1", column.Ref()})
-				}
-			}
+			acts = oracleActs(t, root, opened, card.Card)
 			var accepted []string
 			for _, act := range acts {
 				fresh := copyWorkbench(t, root)
-				got := runCLI(t, fresh, act...)
-				name := act[0]
-				if name == "move" {
-					name = "move " + act[2]
-				}
-				if got.code == 0 {
-					accepted = append(accepted, name)
+				got := runCLI(t, fresh, act.words...)
+				if got.code == 0 && (act.name != "pull" || strings.Contains(got.out, `"card"`)) {
+					accepted = append(accepted, act.name)
 					continue
 				}
-				t.Logf("%v refused: %s", act, strings.SplitN(got.errw, "\n", 2)[0])
+				if got.code == 0 {
+					continue
+				}
+				t.Logf("%v refused: %s", act.words, strings.SplitN(got.errw, "\n", 2)[0])
 				if fields := strings.Fields(got.errw); len(fields) > 0 {
 					reached[fields[0]] = true
 				}
@@ -345,10 +599,16 @@ func TestTheOfferMatchesEveryAct(t *testing.T) {
 	}
 	expected := sharedCheckRefusals(t)
 	exempt := map[string]string{
-		contract.UnknownColumn:  "the offer names only declared columns",
-		contract.NotRequester:   "the head never sets a holder",
-		contract.UnknownCard:    "the head only acts on a card it just read",
-		contract.NotCommentable: "the head only acts on a card it just read",
+		contract.UnknownColumn:   "the offer names only declared columns",
+		contract.NotRequester:    "the head never sets a holder",
+		contract.UnknownCard:     "the head only acts on a card it just read",
+		contract.NotCommentable:  "the head only acts on a card it just read",
+		contract.AddNeedsAColumn: "the head files a card only on a workbench whose flow it drew columns from",
+		contract.NotAttachable:   "the head attaches only to the card it just read, which mounts attachments",
+		contract.NotRenamable:    "the offer asks a rename only of the card's own attachments",
+		contract.UnknownPath:     "the offer asks each item act only of an item, a removal only of a card and a divergence only of a comment",
+		contract.UnknownValue:    "the offer asks the grant verbs only of the permissions they know",
+		contract.Malformed:       "the offer asks the grant verbs only of a permission it names",
 	}
 	hit, exempted := 0, 0
 	for _, name := range expected {
@@ -375,11 +635,17 @@ func TestTheOfferMatchesEveryAct(t *testing.T) {
 	}
 }
 
-// sharedCheckFunctions are the twelve functions whose bodies the coverage
-// count reads.
+// sharedCheckFunctions are the functions whose bodies the coverage count
+// reads: dinah-603's twelve, and the check functions dinah-623 moved every
+// other card verb's rows into.
 var sharedCheckFunctions = []string{
 	"admit", "malformedHarness", "canComment", "canClaim", "claimableState", "claimableColumn",
 	"claimableItems", "claimableTier", "takesNoWorkName", "canRelease", "canRoute", "canLand",
+	"admitAdd", "addHasColumns", "canPull", "pullableDeparture", "canBlock", "canUnblock",
+	"canRaise", "raiseColumn", "canAttach", "canFile", "admitItem", "canCloseItem",
+	"canCloseItemEvidence", "canWaive", "canWithdraw", "canReopen", "admitGrantVerb", "canRevoke",
+	"admitLink", "canJoin", "admitRemoval", "canRemove", "canRename", "canAcceptDivergence",
+	"canWriteEntity",
 }
 
 // sharedCheckRefusals reads the refusal names the shared check functions
