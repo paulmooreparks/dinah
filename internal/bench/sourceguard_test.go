@@ -11,21 +11,27 @@ import (
 )
 
 // This file holds the call-graph guard of dinah-619's read seam: from every
-// method of the package's types, *Bench and *Positions first among them, and
-// from every init function, nothing reachable reads the filesystem except
-// through a Source, and no function body anywhere names a read as a value.
-// The parse is internal/seamguard's, shared with package verb's guard, and it
-// judges a read by allowlist: every member of os, io/ioutil, io/fs,
-// path/filepath and syscall is a read unless seamguard.Allowed names it.
+// method of the package's types, *Bench and *Positions first among them, from
+// every init function, from every function literal whose value is kept and
+// from every function or variable named as a value, nothing reachable reads
+// the filesystem except through a Source; no function body anywhere names a
+// read as a value; and no type declaration names a judged type. The parse is
+// internal/seamguard's, shared with package verb's guard, and it judges a
+// read by allowlist: every member of os, io/ioutil, io/fs, path/filepath and
+// syscall is a read unless seamguard.Allowed names it.
 //
-// What this guard cannot see, with its reproduction. A read delegated to
-// another package is invisible, as with a method calling a helper in a package
-// of its own that calls os.ReadFile, since the parse reads this package's
-// files alone. So is a read held in a package variable and copied at run
-// time, by code no root reaches, into a place a method calls: write
-// `var w = filepath.WalkDir`, a free function no method calls that does
-// `holder.walk = w`, and a method calling holder.walk. seamguard's header
-// states both.
+// What this guard cannot see, each with its reproduction. A read delegated to
+// another package is invisible, as with a method calling a helper in a
+// package of its own that calls os.ReadFile, since the parse reads this
+// package's files alone. A value that reads, built by code no root reaches
+// and handed to a method through a variable or a field, passes when neither
+// its construction as the walk sees it nor its type names a judged member:
+// testdata/sourceguard/residue/diskheld.go stores a Disk that way, and
+// residue/filehandle.go hands in an *os.File. A write used as a read passes,
+// since writes are allowlisted: residue/mkdirprobe.go asks whether a folder
+// exists through the error of os.Mkdir. The guard is asserted to pass each
+// residue plant, so this list cannot claim a gap the guard has closed.
+// seamguard's header states the same residue.
 
 // sourceMethodNames are Source's own methods. A selector naming one is a
 // leaf of the walk, because it is where a read goes through the seam.
@@ -33,14 +39,20 @@ var sourceMethodNames = map[string]bool{
 	"ReadFile": true, "ReadHead": true, "ReadDir": true, "Stat": true, "Text": true, "Derive": true,
 }
 
-// seamExemptions are the functions the guard does not look inside, each with
-// its reason. An exempt function is a leaf, and the guard fails when one no
-// longer contains a read, so an exemption cannot outlive what it excuses.
-var seamExemptions = map[string]string{
-	"newlineFiles": "it lists files for dinah check and its newline repair; check is grounded, not routed, on the HTTP head " +
-		"(internal/httphead/routes.go, GroundLaterCard), and the repair writes, so no workbench opened over a resident snapshot ever " +
-		"reaches it; and WalkDir classifies the root with os.Lstat, which Source does not offer, so a conversion would " +
-		"change which files a symbolic-link root yields on Disk",
+// seamExemptions are the reads the guard lets through, keyed on the function
+// that makes one and then on the member it reads, each with its reason. The
+// pair is the key and not the function, because a reason argues for one read,
+// and an exemption keyed on a function lets any read added beside it through
+// (dinah-619/comments/15 walked one past package verb's guard that way). The
+// guard fails when a pair no longer occurs, so an exemption cannot outlive
+// what it excuses.
+var seamExemptions = map[string]map[string]string{
+	"newlineFiles": {
+		"filepath.WalkDir": "it lists files for dinah check and its newline repair; check is grounded, not routed, on the HTTP head " +
+			"(internal/httphead/routes.go, GroundLaterCard), and the repair writes, so no workbench opened over a resident snapshot ever " +
+			"reaches it; and WalkDir classifies the root with os.Lstat, which Source does not offer, so a conversion would " +
+			"change which files a symbolic-link root yields on Disk",
+	},
 }
 
 // outsideTheRead are the receiver types whose methods the walk does not
@@ -104,8 +116,8 @@ func packageSources(t *testing.T) []string {
 
 // TestTheBenchReadsOnlyThroughItsSource is dinah-619/criteria/13's bench half.
 func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
-	if len(seamExemptions) != 1 {
-		t.Errorf("the exemption table holds %d entries, and section 2.3 of dinah-619 names exactly one, newlineFiles", len(seamExemptions))
+	if len(seamExemptions) != 1 || len(seamExemptions["newlineFiles"]) != 1 {
+		t.Errorf("the exemption table holds %v, and section 2.3 of dinah-619 names exactly one read, newlineFiles's filepath.WalkDir", seamExemptions)
 	}
 	allowed := 0
 	for _, members := range seamguard.Allowed {
@@ -131,13 +143,21 @@ func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
 		t.Errorf("the walk leaves out the methods of %d receiver types, wanted the two named", len(outsideTheRead))
 	}
 
-	for name := range seamExemptions {
+	for name, members := range seamExemptions {
 		n := g.Nodes["method:"+name]
 		if n == nil {
 			n = g.Nodes["func:"+name]
 		}
-		if n == nil || len(n.Reads) == 0 {
-			t.Errorf("%s is exempt from the read seam but no longer reads anything itself, so its exemption has outlived the read it excused; remove the entry", name)
+		for member := range members {
+			occurs := false
+			if n != nil {
+				for _, read := range n.Reads {
+					occurs = occurs || read.Member == member
+				}
+			}
+			if !occurs {
+				t.Errorf("%s is exempt to read %s but no longer does, so its exemption has outlived the read it excused; remove the entry", name, member)
+			}
 		}
 	}
 
@@ -149,8 +169,8 @@ func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(planted) != 11 {
-		t.Fatalf("found %d planted files under testdata/sourceguard, wanted eleven: the seven section 12.1 of dinah-619 names and the four shapes dinah-619/comments/12 walked past the first form of this guard", len(planted))
+	if len(planted) != 18 {
+		t.Fatalf("found %d planted files under testdata/sourceguard, wanted eighteen: the seven section 12.1 of dinah-619 names, the four shapes dinah-619/comments/12 walked past the first form of this guard, and the seven dinah-619/comments/15 walked past the second", len(planted))
 	}
 	for _, plant := range planted {
 		want := plantedWant(t, plant)
@@ -163,6 +183,25 @@ func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
 		}
 		if !caught {
 			t.Errorf("the planted file %s carries a violation (%s) and the guard did not catch it", filepath.Base(plant), want)
+		}
+	}
+
+	// The residue this file's header states is planted too, and asserted to
+	// pass, so the header cannot drift from what the guard does: a guard that
+	// starts catching one has a header to narrow and a plant to move.
+	residue, err := filepath.Glob(filepath.Join("testdata", "sourceguard", "residue", "*.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(residue) != 3 {
+		t.Fatalf("found %d planted files under testdata/sourceguard/residue, wanted three: a Disk stored by code no root reaches, an *os.File handed in, and a write used as a read", len(residue))
+	}
+	for _, plant := range residue {
+		pg := buildGuardGraph(t, append(append([]string(nil), trunk...), plant))
+		for _, v := range guardViolations(pg) {
+			if v.File == plant || strings.Contains(strings.ToLower(v.Via), "plant") {
+				t.Errorf("the residue plant %s is caught (%s), so the gap the header states is closed; move the plant among the caught ones and narrow the header", filepath.Base(plant), v.What)
+			}
 		}
 	}
 }
