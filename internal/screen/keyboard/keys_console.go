@@ -1,9 +1,7 @@
-package screen
+package keyboard
 
 import (
 	"unicode/utf16"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // InputRecord is the part of one Windows console input record the console
@@ -61,19 +59,19 @@ const (
 )
 
 // consoleNamedKeys are the virtual keys that deliver a key by name.
-var consoleNamedKeys = map[uint16]rune{
-	vkUp:     tea.KeyUp,
-	vkDown:   tea.KeyDown,
-	vkLeft:   tea.KeyLeft,
-	vkRight:  tea.KeyRight,
-	vkPrior:  tea.KeyPgUp,
-	vkNext:   tea.KeyPgDown,
-	vkHome:   tea.KeyHome,
-	vkEnd:    tea.KeyEnd,
-	vkReturn: tea.KeyEnter,
-	vkBack:   tea.KeyBackspace,
-	vkDelete: tea.KeyDelete,
-	vkTab:    tea.KeyTab,
+var consoleNamedKeys = map[uint16]Code{
+	vkUp:     CodeUp,
+	vkDown:   CodeDown,
+	vkLeft:   CodeLeft,
+	vkRight:  CodeRight,
+	vkPrior:  CodePgUp,
+	vkNext:   CodePgDown,
+	vkHome:   CodeHome,
+	vkEnd:    CodeEnd,
+	vkReturn: CodeEnter,
+	vkBack:   CodeBackspace,
+	vkDelete: CodeDelete,
+	vkTab:    CodeTab,
 }
 
 // ConsoleDecoder turns Windows console input records into keys and pastes.

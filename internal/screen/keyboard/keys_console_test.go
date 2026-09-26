@@ -1,9 +1,7 @@
-package screen
+package keyboard
 
 import (
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // down builds a key-down record for a virtual key and the character it
@@ -45,18 +43,18 @@ type consoleCase struct {
 
 // consoleCases are the cases section 11.3 names for the console decoder.
 var consoleCases = []consoleCase{
-	{name: "up", records: []InputRecord{down(vkUp, 0, 0)}, want: []Event{key(tea.KeyUp)}},
-	{name: "down", records: []InputRecord{down(vkDown, 0, 0)}, want: []Event{key(tea.KeyDown)}},
-	{name: "left", records: []InputRecord{down(vkLeft, 0, 0)}, want: []Event{key(tea.KeyLeft)}},
-	{name: "right", records: []InputRecord{down(vkRight, 0, 0)}, want: []Event{key(tea.KeyRight)}},
-	{name: "page up", records: []InputRecord{down(vkPrior, 0, 0)}, want: []Event{key(tea.KeyPgUp)}},
-	{name: "page down", records: []InputRecord{down(vkNext, 0, 0)}, want: []Event{key(tea.KeyPgDown)}},
-	{name: "home", records: []InputRecord{down(vkHome, 0, 0)}, want: []Event{key(tea.KeyHome)}},
-	{name: "end", records: []InputRecord{down(vkEnd, 0, 0)}, want: []Event{key(tea.KeyEnd)}},
-	{name: "enter", records: []InputRecord{down(vkReturn, '\r', 0)}, want: []Event{key(tea.KeyEnter)}},
-	{name: "backspace", records: []InputRecord{down(vkBack, 0x08, 0)}, want: []Event{key(tea.KeyBackspace)}},
-	{name: "delete", records: []InputRecord{down(vkDelete, 0, 0)}, want: []Event{key(tea.KeyDelete)}},
-	{name: "tab", records: []InputRecord{down(vkTab, '\t', 0)}, want: []Event{key(tea.KeyTab)}},
+	{name: "up", records: []InputRecord{down(vkUp, 0, 0)}, want: []Event{key(CodeUp)}},
+	{name: "down", records: []InputRecord{down(vkDown, 0, 0)}, want: []Event{key(CodeDown)}},
+	{name: "left", records: []InputRecord{down(vkLeft, 0, 0)}, want: []Event{key(CodeLeft)}},
+	{name: "right", records: []InputRecord{down(vkRight, 0, 0)}, want: []Event{key(CodeRight)}},
+	{name: "page up", records: []InputRecord{down(vkPrior, 0, 0)}, want: []Event{key(CodePgUp)}},
+	{name: "page down", records: []InputRecord{down(vkNext, 0, 0)}, want: []Event{key(CodePgDown)}},
+	{name: "home", records: []InputRecord{down(vkHome, 0, 0)}, want: []Event{key(CodeHome)}},
+	{name: "end", records: []InputRecord{down(vkEnd, 0, 0)}, want: []Event{key(CodeEnd)}},
+	{name: "enter", records: []InputRecord{down(vkReturn, '\r', 0)}, want: []Event{key(CodeEnter)}},
+	{name: "backspace", records: []InputRecord{down(vkBack, 0x08, 0)}, want: []Event{key(CodeBackspace)}},
+	{name: "delete", records: []InputRecord{down(vkDelete, 0, 0)}, want: []Event{key(CodeDelete)}},
+	{name: "tab", records: []InputRecord{down(vkTab, '\t', 0)}, want: []Event{key(CodeTab)}},
 	{name: "a key released", records: []InputRecord{{EventType: KeyEvent, KeyDown: false, RepeatCount: 1, VirtualKeyCode: 'Q', UnicodeChar: 'q'}}},
 	{name: "Alt held", records: []InputRecord{down('Q', 'q', leftAltPressed)}},
 	{name: "right Alt held with an arrow", records: []InputRecord{down(vkUp, 0, rightAltPressed)}},
@@ -67,7 +65,7 @@ var consoleCases = []consoleCase{
 	{name: "a surrogate pair", records: typed("😀"), want: []Event{text('😀')}},
 	{name: "an unpaired low surrogate", records: []InputRecord{down(0, 0xdc00, 0)}},
 	{name: "an unpaired high surrogate then a key", records: []InputRecord{down(0, 0xd83d, 0), down('K', 'k', 0)}, want: []Event{text('k')}},
-	{name: "a repeat count of three", records: []InputRecord{{EventType: KeyEvent, KeyDown: true, RepeatCount: 3, VirtualKeyCode: vkDown}}, want: []Event{key(tea.KeyDown), key(tea.KeyDown), key(tea.KeyDown)}},
+	{name: "a repeat count of three", records: []InputRecord{{EventType: KeyEvent, KeyDown: true, RepeatCount: 3, VirtualKeyCode: vkDown}}, want: []Event{key(CodeDown), key(CodeDown), key(CodeDown)}},
 	{name: "a lone Esc", records: []InputRecord{down(0x1b, 0x1b, 0)}},
 	{name: "Esc then Ctrl+C", records: []InputRecord{down(0x1b, 0x1b, 0), down('C', 0x03, leftCtrlPressed)}, want: []Event{ctrl('c')}},
 	{name: "Esc then q", records: []InputRecord{down(0x1b, 0x1b, 0), down('Q', 'q', 0)}, want: []Event{text('q')}},

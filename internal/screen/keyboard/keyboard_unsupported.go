@@ -28,7 +28,7 @@ func EnterKeyboard(in, out *os.File, entry *screen.Terminfo) (*Keyboard, error) 
 func (k *Keyboard) Leave() error { return nil }
 
 // NewReader refuses.
-func (k *Keyboard) NewReader() (screen.Reader, error) { return nil, errNoKeyboard }
+func (k *Keyboard) NewReader() (Reader, error) { return nil, errNoKeyboard }
 
 // WindowSize reports no size, so the head refuses before it enters.
 func WindowSize(out *os.File) (width, height int, err error) { return 0, 0, errNoKeyboard }

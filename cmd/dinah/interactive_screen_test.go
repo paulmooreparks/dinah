@@ -1,7 +1,10 @@
+//go:build tui
+
 package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -395,17 +398,52 @@ var allowedSequence = regexp.MustCompile(`^(\x1b\[(\?1049[hl]|\?25[hl]|\?2004[hl
 // lower-right cell, which no frame of the head reaches.
 var undocumentedSequence = regexp.MustCompile(`^\x1b\[([0-9]*b|[0-9]*` + "`" + `|4[hl]|\?7[hl])$`)
 
-// TestTheProgramWritesOnlyTheSequencesItMay is dinah-603/criteria/24. A run
-// that opens every mode and quits writes no control sequence outside the
-// allowed set; ESC [?2004h appears exactly once, first, and ESC [?2004l
-// exactly once, last; and no DECRQM, mouse, modifyOtherKeys or kitty keyboard
-// sequence appears. ctrl+v in a prompt inserts nothing, and under NO_COLOR
-// the output carries no SGR colour parameter while the selected row still
-// carries its marker.
+// everyModeKeys open card mode and leave it, open the move menu and cancel
+// it, and open the jump prompt, with a ctrl+v typed in it, the filter prompt
+// and the comment prompt, cancelling each.
+const everyModeKeys = keyEnter + keyEnter + "m" + keyCtrlG + ":" + "\x16" + keyCtrlG + "/x" + keyCtrlG + "cy" + keyCtrlG
+
+// everyModeRun is the headless run the sequence tests sweep: at width by
+// height it types everyModeKeys, resizes the window to one ten columns
+// narrower and five rows shorter and back, opens the full help, and quits
+// with q. output, where it is not nil, is where the program writes, and
+// frame, where it is not nil, is called with the content of every frame.
+func everyModeRun(t *testing.T, root string, width, height int, output io.Writer, frame func(string)) tuiRun {
+	t.Helper()
+	s, seam := newScript(t, width, height, true)
+	seam.output = output
+	seam.frame = frame
+	return s.run(root, seam, func() {
+		s.write(everyModeKeys)
+		s.waitFor("every key of the modes", countKeys(len(everyModeKeys)))
+		seam.resize(width-10, height-5)
+		s.send(resizeMsg{})
+		s.waitFor("the smaller window", isSize(width-10, height-5))
+		seam.resize(width, height)
+		s.send(resizeMsg{})
+		s.waitFor("the window restored", isSize(width, height))
+		s.write("?")
+		s.waitFor("?", isKey("?"))
+		s.write("q")
+	})
+}
+
+// TestTheProgramWritesOnlyTheSequencesItMay is dinah-603/criteria/24. A
+// headless run of the program built with interactiveProgramOptions for the
+// running GOOS, through every mode, the help, a resize and each prompt,
+// writes no control sequence outside the allowed set and no DECRQM, mouse,
+// focus, modifyOtherKeys or kitty keyboard sequence; ESC [?2004h appears
+// exactly once, first, and ESC [?2004l exactly once, last, both Dinah's own,
+// so Bubble Tea's own bracketed-paste setting wrote nothing; and off Windows
+// it writes no REP, HPA, insert-mode or autowrap sequence, the Windows
+// configuration being held by TestAnInsertedRunNeverUsesInsertMode and
+// TestTheWindowsOutputIsOnlyWhatMicrosoftLists. ctrl+v in a prompt inserts
+// nothing, and neither prompt's key map reaches its component's Paste, and
+// under NO_COLOR the output carries no SGR colour parameter while the
+// selected row still carries its marker.
 func TestTheProgramWritesOnlyTheSequencesItMay(t *testing.T) {
-	keys := keyEnter + keyEnter + "m" + keyCtrlG + ":" + "\x16" + keyCtrlG + "/x" + keyCtrlG + "cy" + keyCtrlG + "?q"
 	root := tuiBench(t)
-	run := runTUIThrough(t, root, tuiSeam(t, strings.NewReader(keys), 100, 30))
+	run := everyModeRun(t, root, 100, 30, nil, nil)
 	if run.model == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
 	}
@@ -424,7 +462,7 @@ func TestTheProgramWritesOnlyTheSequencesItMay(t *testing.T) {
 		t.Errorf("ESC [?2004h is written %d times and first: %v", strings.Count(run.output, "\x1b[?2004h"), strings.HasPrefix(run.output, "\x1b[?2004h"))
 	}
 	endsRestored(t, run.output)
-	for _, forbidden := range []string{"$p", "\x1b[?1000", "\x1b[?1002", "\x1b[?1003", "\x1b[?1006", "\x1b[>4", "\x1b[>1u", "\x1b[<u", "\x1b[?u"} {
+	for _, forbidden := range []string{"$p", "\x1b[?1000", "\x1b[?1002", "\x1b[?1003", "\x1b[?1006", "\x1b[?1004", "\x1b[>4", "\x1b[>1u", "\x1b[<u", "\x1b[?u"} {
 		if strings.Contains(run.output, forbidden) {
 			t.Errorf("the output carries %q", forbidden)
 		}
@@ -434,6 +472,9 @@ func TestTheProgramWritesOnlyTheSequencesItMay(t *testing.T) {
 	wantModel(t, "the jump prompt after ctrl+v", pasted.model.input.Value(), "")
 	area := runTUIThrough(t, tuiBench(t), tuiSeam(t, strings.NewReader("c\x16"+keyCtrlC), 100, 30))
 	wantModel(t, "the comment prompt after ctrl+v", area.model.area.Value(), "")
+	if interactiveInputKeys().Paste.Enabled() || interactiveAreaKeys().Paste.Enabled() {
+		t.Error("a prompt's key map reaches its component's Paste")
+	}
 
 	t.Setenv("NO_COLOR", "1")
 	plain := runTUIThrough(t, tuiBench(t), tuiSeam(t, strings.NewReader("q"), 100, 30))
@@ -512,7 +553,7 @@ func TestTheSizeComesFromTheOneMeasure(t *testing.T) {
 	if m == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
 	}
-	first = strings.SplitN(visible(run.output), "\n", 2)[0]
+	first = strings.SplitN(visible(strings.ReplaceAll(run.output, "\x1b[B", "\n")), "\n", 2)[0]
 	if displayWidth(first) > 99 {
 		t.Errorf("the first frame's first row draws %d columns, which is wider than the seam's 100 less one", displayWidth(first))
 	}
@@ -572,13 +613,14 @@ func TestCtrlCInsideAnOpenPasteQuits(t *testing.T) {
 	}
 }
 
-// TestBubbleTeaReadsNoTERMOnWindows holds the environment the head gives
-// Bubble Tea: on Windows it is the process's own less TERM, whatever its
-// case, and on every other GOOS it is the process's own unchanged.
-func TestBubbleTeaReadsNoTERMOnWindows(t *testing.T) {
+// TestBubbleTeaReadsXtermOnWindows holds the environment the head gives
+// Bubble Tea: on Windows it is the process's own with every TERM entry
+// removed, whatever its case, and exactly TERM=xterm added, and on every
+// other GOOS it is the process's own unchanged.
+func TestBubbleTeaReadsXtermOnWindows(t *testing.T) {
 	environ := []string{"PATH=/bin", "TERM=kitty", "Term=alacritty", "TERMINFO=/x"}
-	if got := interactiveEnviron(environ, "windows"); strings.Join(got, " ") != "PATH=/bin TERMINFO=/x" {
-		t.Errorf("on windows the environment is %q, wanted PATH and TERMINFO alone", got)
+	if got := interactiveEnviron(environ, "windows"); strings.Join(got, " ") != "PATH=/bin TERMINFO=/x TERM=xterm" {
+		t.Errorf("on windows the environment is %q, wanted PATH, TERMINFO and TERM=xterm alone", got)
 	}
 	if got := interactiveEnviron(environ, "linux"); strings.Join(got, " ") != strings.Join(environ, " ") {
 		t.Errorf("on linux the environment is %q, wanted it unchanged", got)

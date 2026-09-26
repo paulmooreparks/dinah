@@ -1,3 +1,5 @@
+//go:build tui
+
 package main
 
 import (
@@ -145,7 +147,11 @@ func runTUIThrough(t *testing.T, root string, seam *interactiveSeams, argv ...st
 	var output lockedBuffer
 	var run tuiRun
 	var mu sync.Mutex
-	seam.output = &output
+	// A test that brings its own output, such as a fake console, reads what
+	// was written from it, and run.output stays empty.
+	if seam.output == nil {
+		seam.output = &output
+	}
 	userDiscard := seam.discard
 	seam.discard = func() {
 		mu.Lock()

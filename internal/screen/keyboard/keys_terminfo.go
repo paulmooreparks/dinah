@@ -1,10 +1,9 @@
-package screen
+package keyboard
 
 import (
 	"bytes"
+	"dinah/internal/screen"
 	"unicode/utf8"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // keyCapabilities are the terminfo key strings the decoder delivers, each
@@ -12,18 +11,18 @@ import (
 // in transmit mode, which is why the head writes smkx on entry.
 var keyCapabilities = []struct {
 	index int
-	code  rune
+	code  Code
 }{
-	{strKcuu1, tea.KeyUp},
-	{strKcud1, tea.KeyDown},
-	{strKcub1, tea.KeyLeft},
-	{strKcuf1, tea.KeyRight},
-	{strKpp, tea.KeyPgUp},
-	{strKnp, tea.KeyPgDown},
-	{strKhome, tea.KeyHome},
-	{strKend, tea.KeyEnd},
-	{strKdch1, tea.KeyDelete},
-	{strKbs, tea.KeyBackspace},
+	{screen.CapKcuu1, CodeUp},
+	{screen.CapKcud1, CodeDown},
+	{screen.CapKcub1, CodeLeft},
+	{screen.CapKcuf1, CodeRight},
+	{screen.CapKpp, CodePgUp},
+	{screen.CapKnp, CodePgDown},
+	{screen.CapKhome, CodeHome},
+	{screen.CapKend, CodeEnd},
+	{screen.CapKdch1, CodeDelete},
+	{screen.CapKbs, CodeBackspace},
 }
 
 // requiredArrows are the capabilities without which the head refuses to
@@ -32,15 +31,15 @@ var requiredArrows = []struct {
 	index int
 	name  string
 }{
-	{strKcuu1, "kcuu1"},
-	{strKcud1, "kcud1"},
-	{strKcub1, "kcub1"},
-	{strKcuf1, "kcuf1"},
+	{screen.CapKcuu1, "kcuu1"},
+	{screen.CapKcud1, "kcud1"},
+	{screen.CapKcub1, "kcub1"},
+	{screen.CapKcuf1, "kcuf1"},
 }
 
 // MissingArrow names the first arrow-key capability an entry lacks, of kcuu1,
 // kcud1, kcub1 and kcuf1, and answers the empty string where it has all four.
-func MissingArrow(entry *Terminfo) string {
+func MissingArrow(entry *screen.Terminfo) string {
 	for _, arrow := range requiredArrows {
 		if value, ok := entry.String(arrow.index); !ok || value == "" {
 			return arrow.name
@@ -51,9 +50,9 @@ func MissingArrow(entry *Terminfo) string {
 
 // KeypadTransmit answers the strings that switch the keypad into transmit
 // mode and back, smkx and rmkx, each empty where the entry has none.
-func KeypadTransmit(entry *Terminfo) (on, off string) {
-	on, _ = entry.String(strSmkx)
-	off, _ = entry.String(strRmkx)
+func KeypadTransmit(entry *screen.Terminfo) (on, off string) {
+	on, _ = entry.String(screen.CapSmkx)
+	off, _ = entry.String(screen.CapRmkx)
 	return on, off
 }
 
@@ -63,7 +62,7 @@ func KeypadTransmit(entry *Terminfo) (on, off string) {
 // the bytes alone, so the timing of Esc never matters.
 type KeyDecoder struct {
 	// sequences maps each key string the entry declares to the key it is.
-	sequences map[string]rune
+	sequences map[string]Code
 	// pending is input whose end has not arrived yet.
 	pending []byte
 	// inPaste is true between a paste's start marker and its end marker, and
@@ -78,8 +77,8 @@ type KeyDecoder struct {
 
 // NewKeyDecoder builds a decoder for the key strings entry declares. A
 // capability the entry lacks delivers no key.
-func NewKeyDecoder(entry *Terminfo) *KeyDecoder {
-	d := &KeyDecoder{sequences: map[string]rune{}}
+func NewKeyDecoder(entry *screen.Terminfo) *KeyDecoder {
+	d := &KeyDecoder{sequences: map[string]Code{}}
 	if entry == nil {
 		return d
 	}

@@ -1,3 +1,5 @@
+//go:build tui
+
 package main
 
 import (
@@ -17,7 +19,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
-	"dinah/internal/screen"
+	"dinah/internal/screen/keyboard"
 	"dinah/internal/verb"
 )
 
@@ -68,6 +70,9 @@ type (
 	crashMsg struct{}
 	// retryMsg says the pause after a failed wait has passed.
 	retryMsg struct{}
+	// repaintMsg asks for the whole screen to be drawn again on the next
+	// frame, which the console writer sends after a short write.
+	repaintMsg struct{}
 )
 
 // interactiveCrash is a recovered panic: its value and the stack captured
@@ -128,7 +133,7 @@ type interactiveModel struct {
 	waiter  *verb.Library
 	req     *verb.Request
 	program *tea.Program
-	reader  screen.Reader
+	reader  keyboard.Reader
 	glyphs  boardGlyphs
 	colour  bool
 
@@ -275,6 +280,8 @@ func (m *interactiveModel) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		return m, m.changed(msg)
 	case retryMsg:
 		return m, m.waitForChange()
+	case repaintMsg:
+		return m, tea.ClearScreen
 	case flushedMsg:
 		if m.flushAsked {
 			m.flushAsked = false
@@ -387,11 +394,21 @@ func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 // errorLines composes what an error from a read reads as in the message
 // area, the way reportError composes it for standard error.
 func (m *interactiveModel) errorLines(err error) []string {
+	return m.errorLinesFor(err, m.s.command)
+}
+
+// errorLinesFor is errorLines composed by a copy of the session naming the
+// command that performs the same read on the command line, because a
+// refusal's sentence may name the command: a filter's query is refused as
+// dinah query would refuse it, not as dinah tui.
+func (m *interactiveModel) errorLinesFor(err error, command string) []string {
 	refusal, ok := err.(*contract.Refusal)
 	if !ok {
 		return []string{contract.OutcomeUnreachable + " " + err.Error()}
 	}
-	return m.s.composeRefusal(m.s.nameTheWorkbench(refusal))
+	composer := *m.s
+	composer.command = command
+	return composer.composeRefusal(composer.nameTheWorkbench(refusal))
 }
 
 // reread reads the view again, reapplies the filter, rebuilds the lanes and
@@ -797,6 +814,11 @@ func (m *interactiveModel) key(pressed tea.KeyPressMsg) tea.Cmd {
 		m.quitting = true
 		return tea.Quit
 	}
+	// ctrl+l draws the whole screen again in every mode, a too-small
+	// window included, and changes nothing else.
+	if pressed.String() == "ctrl+l" {
+		return tea.ClearScreen
+	}
 	if m.tooSmall() {
 		return nil
 	}
@@ -1147,7 +1169,7 @@ func (m *interactiveModel) applyFilter(text string) {
 	}
 	matches, err := m.query(text)
 	if err != nil {
-		m.message = m.cleaned(m.errorLines(err))
+		m.message = m.cleaned(m.errorLinesFor(err, "query"))
 		return
 	}
 	m.filter, m.matches = text, matches

@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	"golang.org/x/sys/windows"
-
-	"dinah/internal/screen"
 )
 
 // recordedConsole is a console that records every call in order.
@@ -69,7 +67,7 @@ func TestTheConsoleEntryEnablesPasteOnlyAfterVirtualTerminalProcessing(t *testin
 	defer out.Close()
 	recorded := &recordedConsole{in: windows.Handle(in.Fd()), modes: map[windows.Handle]uint32{
 		windows.Handle(in.Fd()):  0x1f7,
-		windows.Handle(out.Fd()): 0x3,
+		windows.Handle(out.Fd()): 0x2,
 	}}
 	saved := consoleAPI
 	consoleAPI = recorded
@@ -81,16 +79,16 @@ func TestTheConsoleEntryEnablesPasteOnlyAfterVirtualTerminalProcessing(t *testin
 	if err := keyboard.Leave(); err != nil {
 		t.Fatalf("leave: %v", err)
 	}
-	vt := strconv.FormatUint(uint64(0x3|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING|windows.DISABLE_NEWLINE_AUTO_RETURN), 16)
+	vt := strconv.FormatUint(uint64(0x2|windows.ENABLE_PROCESSED_OUTPUT|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING|windows.DISABLE_NEWLINE_AUTO_RETURN), 16)
 	want := []string{
 		"get in",
 		"flush in",
 		"set in " + strconv.FormatUint(windows.ENABLE_WINDOW_INPUT, 16),
 		"get out",
 		"set out " + vt,
-		"write " + strconv.Quote(screen.BracketedPasteOn),
-		"write " + strconv.Quote(screen.BracketedPasteOff),
-		"set out 3",
+		"write " + strconv.Quote(BracketedPasteOn),
+		"write " + strconv.Quote(BracketedPasteOff),
+		"set out 2",
 		"set in 1f7",
 	}
 	if strings.Join(recorded.calls, "\n") != strings.Join(want, "\n") {

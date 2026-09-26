@@ -1020,6 +1020,21 @@ var Shapes = []Shape{
 		NextStep: []string{"refusal.dinah.tui-unavailable.next-small", "refusal.dinah.tui-unavailable.next"},
 	},
 	{
+		// The detail is the directory dinah's own executable stands in, the
+		// first place the launcher looked.
+		Name:      TUIMissing,
+		Fragments: []Fragment{{Key: "refusal.dinah.tui-missing.next"}},
+		NextStep:  []string{"refusal.dinah.tui-missing.next"},
+	},
+	{
+		// The sentence names both build identities, and the next step says to
+		// install both files from one release.
+		Name:      TUISkew,
+		Values:    []string{"launcher", "tui"},
+		Fragments: []Fragment{{Key: "refusal.dinah.tui-skew.next"}},
+		NextStep:  []string{"refusal.dinah.tui-skew.next"},
+	},
+	{
 		// term and read are empty on a block that is not a mapping, so the
 		// sentence naming them is a fragment of its own that renders only
 		// where a term was named.

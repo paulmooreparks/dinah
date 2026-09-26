@@ -1,3 +1,5 @@
+//go:build tui
+
 package main
 
 import (
@@ -55,7 +57,11 @@ func (m *interactiveModel) View() (view tea.View) {
 	if interactiveSeam != nil && interactiveSeam.view != nil {
 		interactiveSeam.view()
 	}
-	return interactiveFrame(m.content())
+	content := m.content()
+	if interactiveSeam != nil && interactiveSeam.frame != nil {
+		interactiveSeam.frame(content)
+	}
+	return interactiveFrame(content)
 }
 
 // content is the whole screen's text.

@@ -1,6 +1,7 @@
-package screen
+package keyboard
 
 import (
+	"dinah/internal/screen"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -52,7 +53,7 @@ type streamReader struct {
 // NewStreamReader builds a reader decoding source with entry's key strings.
 // discard, when not nil, is called on every flush, before the confirmation
 // is sent.
-func NewStreamReader(source io.Reader, entry *Terminfo, discard func()) Reader {
+func NewStreamReader(source io.Reader, entry *screen.Terminfo, discard func()) Reader {
 	return &streamReader{
 		source:  source,
 		decoder: NewKeyDecoder(entry),

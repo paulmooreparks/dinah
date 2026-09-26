@@ -8673,6 +8673,11 @@
       "context": "The one-line summary of the tui command in dinah help. The command starts an interactive screen over one view, where a person moves between cards and acts on them with keys.",
       "skeleton": true
     },
+    "cmd.tui.note": {
+      "text": "Runs the separate program dinah-tui, which the install script puts beside dinah.",
+      "context": "The note printed under the tui command's own help, after its summary. dinah tui starts a second program, dinah-tui, which carries the interactive screen and is installed beside dinah. dinah-tui and dinah are program names and stay as they are.",
+      "skeleton": true
+    },
     "param.tui.view.summary": {
       "text": "the view to work in, by name; the board when you leave it out",
       "context": "The meaning of the one positional argument of `dinah tui`, printed in that command's arguments table. A view is a named drawing of the workbench, and board is the name of the view drawn as columns.",
@@ -8721,6 +8726,26 @@
     "refusal.dinah.tui-unavailable.next": {
       "text": "; draw the view once with dinah view",
       "context": "The next step of refusal.dinah.tui-unavailable for every reason other than a window that is too small. dinah view is the command that draws a view once and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.tui-missing": {
+      "text": "dinah tui needs the program dinah-tui, which is neither beside {detail} nor on PATH",
+      "context": "The sentence printed after the refusal name dinah.tui-missing, which `dinah tui` carries when it cannot find the separate program dinah-tui that draws the interactive screen. {detail} is the directory holding the running dinah program, where dinah-tui is looked for first. PATH is the environment variable and stays as it is, as do dinah tui and dinah-tui. refusal.dinah.tui-missing.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.tui-missing.next": {
+      "text": "; install dinah-tui from the same release as this dinah, as the install script does",
+      "context": "Spliced onto refusal.dinah.tui-missing as the next step: install dinah-tui, taken from the same release as the dinah that refused, which is what the install script already does.",
+      "skeleton": true
+    },
+    "refusal.dinah.tui-skew": {
+      "text": "dinah-tui is build {tui}, but the dinah that started it is build {launcher}",
+      "context": "The sentence printed after the refusal name dinah.tui-skew, which the program dinah-tui carries when the dinah that started it is a different build. {tui} and {launcher} are the two build identities, such as 0.1.0+0123456789ab, which are never translated. refusal.dinah.tui-skew.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.tui-skew.next": {
+      "text": "; install both files from one release",
+      "context": "Spliced onto refusal.dinah.tui-skew as the next step: install dinah and dinah-tui together, from the same release.",
       "skeleton": true
     },
     "interactive.heading": {
@@ -8888,6 +8913,11 @@
       "context": "A footer label of dinah tui: what the q key and Ctrl+C do, which end the screen. Keep it short.",
       "skeleton": true
     },
+    "interactive.help.repaint": {
+      "text": "redraw",
+      "context": "A footer label of dinah tui: what Ctrl+L does, which draws the whole screen again and changes nothing else. Keep it short.",
+      "skeleton": true
+    },
     "interactive.help.cancel": {
       "text": "cancel",
       "context": "A footer label of dinah tui: what a key does that closes a menu or a prompt and does nothing else. Keep it short.",
@@ -8966,6 +8996,11 @@
     "interactive.key.ctrl-c": {
       "text": "ctrl+c",
       "context": "The label of the key combination Ctrl+C as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
+      "skeleton": true
+    },
+    "interactive.key.ctrl-l": {
+      "text": "ctrl+l",
+      "context": "The label of the key combination Ctrl+L as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short.",
       "skeleton": true
     },
     "interactive.key.ctrl-d": {

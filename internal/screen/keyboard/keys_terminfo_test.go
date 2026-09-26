@@ -1,24 +1,25 @@
-package screen
+package keyboard
 
 import (
+	"dinah/internal/screen"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // xtermKeys are the key strings the compiled xterm fixture declares, which
 // the terminal head's tests in cmd/dinah send as bytes.
 var xtermKeys = map[int]string{
-	strKcuu1: "\x1bOA",
-	strKcud1: "\x1bOB",
-	strKcuf1: "\x1bOC",
-	strKcub1: "\x1bOD",
-	strKhome: "\x1bOH",
-	strKend:  "\x1bOF",
-	strKpp:   "\x1b[5~",
-	strKnp:   "\x1b[6~",
-	strKdch1: "\x1b[3~",
+	screen.CapKcuu1: "\x1bOA",
+	screen.CapKcud1: "\x1bOB",
+	screen.CapKcuf1: "\x1bOC",
+	screen.CapKcub1: "\x1bOD",
+	screen.CapKhome: "\x1bOH",
+	screen.CapKend:  "\x1bOF",
+	screen.CapKpp:   "\x1b[5~",
+	screen.CapKnp:   "\x1b[6~",
+	screen.CapKdch1: "\x1b[3~",
 }
 
 // TestTheXtermFixtureDeclaresTheKeysTheTestsSend holds the key strings the
@@ -44,9 +45,9 @@ func TestTheXtermFixtureDeclaresTheKeysTheTestsSend(t *testing.T) {
 }
 
 // key, ctrl and text are the events the decoders deliver, spelled short.
-func key(code rune) Event    { return Event{Key: Key{Code: code}} }
-func ctrl(letter rune) Event { return Event{Key: Key{Code: letter, Ctrl: true}} }
-func text(r rune) Event      { return Event{Key: Key{Code: r, Text: string(r)}} }
+func key(code Code) Event    { return Event{Key: Key{Code: code}} }
+func ctrl(letter rune) Event { return Event{Key: Key{Code: CodeRune, Rune: letter, Ctrl: true}} }
+func text(r rune) Event      { return Event{Key: Key{Code: CodeRune, Rune: r, Text: string(r)}} }
 func paste(s string) Event   { return Event{Paste: true, Text: s} }
 
 // decodeCase is one byte string and the events it must deliver.
@@ -62,29 +63,29 @@ type decodeCase struct {
 // and is delivered, so a paste whose end marker never arrives cannot keep the
 // person from quitting.
 var decodeCases = []decodeCase{
-	{"up", "\x1bOA", []Event{key(tea.KeyUp)}},
-	{"down", "\x1bOB", []Event{key(tea.KeyDown)}},
-	{"left", "\x1bOD", []Event{key(tea.KeyLeft)}},
-	{"right", "\x1bOC", []Event{key(tea.KeyRight)}},
-	{"page up", "\x1b[5~", []Event{key(tea.KeyPgUp)}},
-	{"page down", "\x1b[6~", []Event{key(tea.KeyPgDown)}},
-	{"home", "\x1bOH", []Event{key(tea.KeyHome)}},
-	{"end", "\x1bOF", []Event{key(tea.KeyEnd)}},
-	{"delete", "\x1b[3~", []Event{key(tea.KeyDelete)}},
+	{"up", "\x1bOA", []Event{key(CodeUp)}},
+	{"down", "\x1bOB", []Event{key(CodeDown)}},
+	{"left", "\x1bOD", []Event{key(CodeLeft)}},
+	{"right", "\x1bOC", []Event{key(CodeRight)}},
+	{"page up", "\x1b[5~", []Event{key(CodePgUp)}},
+	{"page down", "\x1b[6~", []Event{key(CodePgDown)}},
+	{"home", "\x1bOH", []Event{key(CodeHome)}},
+	{"end", "\x1bOF", []Event{key(CodeEnd)}},
+	{"delete", "\x1b[3~", []Event{key(CodeDelete)}},
 	{"a lone ESC then q", "\x1bq", nil},
 	{"ESC b", "\x1bb", nil},
 	{"ESC then Ctrl+C", "\x1b\x03", []Event{ctrl('c')}},
 	{"ESC then Ctrl+G", "\x1b\x07", []Event{ctrl('g')}},
-	{"ESC ESC then an up arrow", "\x1b\x1bOA", []Event{key(tea.KeyUp)}},
+	{"ESC ESC then an up arrow", "\x1b\x1bOA", []Event{key(CodeUp)}},
 	{"an unknown sequence with parameters", "\x1b[1;5A", nil},
 	{"ESC [ with a final byte a, then the rest as text", "\x1b[a bq", []Event{text(' '), text('b'), text('q')}},
 	{"ESC [ with an intermediate and a final byte, then q", "\x1b[ bq", []Event{text('q')}},
 	{"ESC [ cut short by Ctrl+C", "\x1b[1\x03", []Event{ctrl('c')}},
-	{"enter as CR", "\r", []Event{key(tea.KeyEnter)}},
-	{"enter as LF", "\n", []Event{key(tea.KeyEnter)}},
-	{"tab", "\t", []Event{key(tea.KeyTab)}},
-	{"backspace as DEL", "\x7f", []Event{key(tea.KeyBackspace)}},
-	{"backspace as BS", "\x08", []Event{key(tea.KeyBackspace)}},
+	{"enter as CR", "\r", []Event{key(CodeEnter)}},
+	{"enter as LF", "\n", []Event{key(CodeEnter)}},
+	{"tab", "\t", []Event{key(CodeTab)}},
+	{"backspace as DEL", "\x7f", []Event{key(CodeBackspace)}},
+	{"backspace as BS", "\x08", []Event{key(CodeBackspace)}},
 	{"Ctrl+A", "\x01", []Event{ctrl('a')}},
 	{"Ctrl+C", "\x03", []Event{ctrl('c')}},
 	{"Ctrl+D", "\x04", []Event{ctrl('d')}},
@@ -165,4 +166,19 @@ func sameEvents(got, want []Event) bool {
 		}
 	}
 	return true
+}
+
+// readEntry parses one of the compiled terminfo entries internal/screen's own
+// tests read, from its testdata.
+func readEntry(t *testing.T, middle, name string) *screen.Terminfo {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", "testdata", "terminfo", middle, name))
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	entry, err := screen.ParseTerminfo(data)
+	if err != nil {
+		t.Fatalf("parse %s: %v", name, err)
+	}
+	return entry
 }

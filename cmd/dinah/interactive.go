@@ -1,3 +1,5 @@
+//go:build tui
+
 package main
 
 import (
@@ -61,6 +63,7 @@ type interactiveSeams struct {
 	program        func(*tea.Program)             // called before Run, so a test can Send messages
 	update         func(tea.Msg)                  // called at the top of Update, where a test plants a panic
 	view           func()                         // called at the top of View, where a test plants a panic
+	frame          func(string)                   // called with the content of every frame View answers
 	command        func()                         // called at the top of every command the head returns
 	discard        func()                         // called by the reader on every flush it makes
 	finish         func(*interactiveModel, error) // called with the final model and Run's error
@@ -80,14 +83,13 @@ func (seam *interactiveSeams) resize(width, height int) {
 // interactiveSeam is the seam a test installs; nil means the real terminal.
 var interactiveSeam *interactiveSeams
 
-// runTUI starts the terminal head over one view, the board where none is
-// named.
+// runTUIHead runs the terminal head over one view, the board where none is
+// named, in the build tagged tui. runTUI has already refused a machine format.
 //
-// A machine format is refused before the workbench is opened. The view is
-// then read once, and a refusal is reported exactly as dinah view reports
-// it, so nothing reaches the terminal before that read has answered. Only
-// then is the terminal checked, and only then does the interface start.
-func runTUI(s *session, parsed *arguments) int {
+// The view is read once, and a refusal is reported exactly as dinah view
+// reports it, so nothing reaches the terminal before that read has answered.
+// Only then is the terminal checked, and only then does the interface start.
+func runTUIHead(s *session, parsed *arguments) int {
 	req := s.request("view", parsed)
 	req.View = at(parsed.rest(), 0)
 	if req.View == "" {
@@ -95,12 +97,6 @@ func runTUI(s *session, parsed *arguments) int {
 	}
 	req.ViewPlain = parsed.has("plain")
 	req.Lang = s.r.Tag
-	if s.format != formatHuman {
-		// The detail names the command and the flag it refuses, as dinah
-		// view names --watch --json.
-		detail := strings.Join([]string{s.command, "--json"}, " ")
-		return s.reportError(contract.Refuse(contract.Malformed, detail))
-	}
 	return s.withBench(func(l *verb.Library) int {
 		first, err := l.DrawView(req)
 		if err != nil {
@@ -148,7 +144,7 @@ func (s *session) interactiveCheck(view string) (*screen.Terminfo, error) {
 	if err != nil {
 		return nil, contract.RefuseWith(contract.TUIUnavailable, view, map[string]string{"reason": contract.TUINoKeyDescription})
 	}
-	if missing := screen.MissingArrow(entry); missing != "" {
+	if missing := keyboard.MissingArrow(entry); missing != "" {
 		return nil, contract.RefuseWith(contract.TUIUnavailable, view, map[string]string{
 			"reason":     contract.TUINoKeyDescription,
 			"capability": missing,
@@ -208,7 +204,7 @@ type interactiveSink struct {
 }
 
 // Event sends a key or a paste, stamped with its generation.
-func (k interactiveSink) Event(event screen.Event) {
+func (k interactiveSink) Event(event keyboard.Event) {
 	if event.Paste {
 		k.program.Send(pasteMsg{content: event.Text, gen: event.Gen})
 		return
@@ -246,8 +242,15 @@ func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.Vi
 	}
 	width, height := s.interactiveSize()
 	model := newInteractiveModel(s, l, waiter, req, first, minted.Cursor, width, height)
-	program := tea.NewProgram(model, s.interactiveOptions(width, height)...)
+	options, frames := s.interactiveOptions(width, height)
+	program := tea.NewProgram(model, options...)
 	model.program = program
+	if frames != nil {
+		// A piece the console wrote short asks for the whole screen on the
+		// next frame. The renderer calls this while it holds its own lock,
+		// so the message is sent from a goroutine of its own.
+		frames.repaint = func() { go program.Send(repaintMsg{}) }
+	}
 	leave, reader, err := s.enterKeyboard(entry)
 	if err != nil {
 		return s.reportError(err)
@@ -259,6 +262,11 @@ func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.Vi
 		restoreOnce.Do(func() {
 			reader.Stop()
 			<-readerDone
+			// Anything the frames writer still holds is written before the
+			// bracketed-paste disable and the output mode's restore.
+			if frames != nil {
+				frames.Flush()
+			}
 			if err := leave(); err != nil {
 				s.errLine(contract.OutcomeUnreachable + " " + err.Error())
 			}
@@ -297,49 +305,64 @@ func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.Vi
 	return 0
 }
 
-// interactiveOptions are the program's options: input disabled because keys
-// come from Dinah's reader, the terminal or the seam's writer as output, the
-// ANSI colour profile, or the one with no colour at all under NO_COLOR, and
-// the environment interactiveEnviron answers.
-// Under the seam the program is also given the seam's size and ignores
-// signals.
-func (s *session) interactiveOptions(width, height int) []tea.ProgramOption {
+// interactiveOptions are the program's options for this GOOS, with the
+// terminal or the seam's writer as output. Under the seam the program also
+// ignores signals, and the frames writer, where the GOOS has one, is answered
+// so the head can flush it as it leaves.
+func (s *session) interactiveOptions(width, height int) ([]tea.ProgramOption, *consoleFrames) {
+	var output io.Writer = s.rawOut
+	if interactiveSeam != nil {
+		output = interactiveSeam.output
+	}
+	options, frames := interactiveProgramOptions(runtime.GOOS, output, os.Environ(), width, height)
+	if interactiveSeam != nil {
+		options = append(options, tea.WithWindowSize(width, height), tea.WithoutSignals())
+	}
+	return options, frames
+}
+
+// interactiveProgramOptions answers the program's options on a GOOS: input
+// disabled because keys come from Dinah's reader, the ANSI colour profile or
+// the one with no colour at all under NO_COLOR, the environment
+// interactiveEnviron answers, and the output.
+//
+// On Windows, and on Windows only, the output is a consoleFrames around the
+// writer rather than the terminal file itself, and the size is passed with
+// tea.WithWindowSize, because Bubble Tea has no terminal output there to read
+// it from. Together with TERM=xterm, that leaves Bubble Tea's renderer
+// nothing to write that Microsoft's "Console Virtual Terminal Sequences" page
+// does not list, as section 16 of the specification derives from the
+// renderer's source. Off Windows the output is the writer, and Bubble Tea
+// keeps the process's TERM and its own size handling.
+func interactiveProgramOptions(goos string, output io.Writer, environ []string, width, height int) ([]tea.ProgramOption, *consoleFrames) {
 	profile := colorprofile.ANSI
 	if !colourAllowed() {
 		profile = colorprofile.Ascii
 	}
-	environ := tea.WithEnvironment(interactiveEnviron(os.Environ(), runtime.GOOS))
-	if seam := interactiveSeam; seam != nil {
-		return []tea.ProgramOption{
-			tea.WithInput(nil),
-			tea.WithOutput(seam.output),
-			tea.WithColorProfile(profile),
-			environ,
-			tea.WithWindowSize(width, height),
-			tea.WithoutSignals(),
-		}
-	}
-	return []tea.ProgramOption{
+	options := []tea.ProgramOption{
 		tea.WithInput(nil),
-		tea.WithOutput(s.rawOut),
 		tea.WithColorProfile(profile),
-		environ,
+		tea.WithEnvironment(interactiveEnviron(environ, goos)),
 	}
+	if goos != "windows" {
+		return append(options, tea.WithOutput(output)), nil
+	}
+	frames := newConsoleFrames(output)
+	return append(options, tea.WithOutput(frames), tea.WithWindowSize(width, height)), frames
 }
 
-// interactiveEnviron is the environment Bubble Tea reads: the process's own,
-// less TERM on Windows. Bubble Tea's renderer chooses which cursor and
-// repeat sequences to write from TERM, and for terminals such as kitty,
-// alacritty, wezterm and tmux it writes REP and HPA, which Microsoft's
-// "Console Virtual Terminal Sequences" page does not list. A Windows console
-// never needs TERM, and without it the renderer writes only sequences that
-// page documents, so the head relies on nothing undocumented beyond the two
-// corners the operator accepted.
+// interactiveEnviron is the environment Bubble Tea reads. On Windows it is
+// the process's own with every TERM entry removed and exactly TERM=xterm
+// added, whatever TERM the process had, since a Windows shell may set one
+// such as cygwin that leaves the renderer no capabilities, and without
+// capabilities it writes insert mode, which Microsoft's page does not list.
+// The process's own environment is not changed. Off Windows it is the
+// process's own.
 func interactiveEnviron(environ []string, goos string) []string {
 	if goos != "windows" {
 		return environ
 	}
-	kept := make([]string, 0, len(environ))
+	kept := make([]string, 0, len(environ)+1)
 	for _, variable := range environ {
 		name, _, _ := strings.Cut(variable, "=")
 		if strings.EqualFold(name, "TERM") {
@@ -347,16 +370,16 @@ func interactiveEnviron(environ []string, goos string) []string {
 		}
 		kept = append(kept, variable)
 	}
-	return kept
+	return append(kept, "TERM=xterm")
 }
 
 // enterKeyboard takes the keyboard and answers how to give it back and the
 // reader to take keys from. Under the seam it writes the bracketed-paste
 // enable to the seam's output and changes no mode.
-func (s *session) enterKeyboard(entry *screen.Terminfo) (func() error, screen.Reader, error) {
+func (s *session) enterKeyboard(entry *screen.Terminfo) (func() error, keyboard.Reader, error) {
 	if seam := interactiveSeam; seam != nil {
 		out := seam.output
-		if _, err := io.WriteString(out, screen.BracketedPasteOn); err != nil {
+		if _, err := io.WriteString(out, keyboard.BracketedPasteOn); err != nil {
 			return nil, nil, err
 		}
 		keys := seam.keys
@@ -364,10 +387,10 @@ func (s *session) enterKeyboard(entry *screen.Terminfo) (func() error, screen.Re
 			keys = strings.NewReader("")
 		}
 		leave := func() error {
-			_, err := io.WriteString(out, screen.BracketedPasteOff)
+			_, err := io.WriteString(out, keyboard.BracketedPasteOff)
 			return err
 		}
-		return leave, screen.NewStreamReader(keys, seam.terminfo, seam.discard), nil
+		return leave, keyboard.NewStreamReader(keys, seam.terminfo, seam.discard), nil
 	}
 	in, ok := s.in.(*os.File)
 	if !ok {
@@ -387,11 +410,14 @@ func (s *session) enterKeyboard(entry *screen.Terminfo) (func() error, screen.Re
 
 // reportCrash writes what a recovered panic left, after the terminal has been
 // restored: the sentence saying so, the panic's value cleaned, and each line
-// of the stack captured where it was recovered. It then panics again with the
-// original value, so the process ends the way Go ends any panic and with
-// Go's own exit status. Under test the seam's repanic stands in for that
-// panic, and once it has returned the head answers 0, because the status of
-// the panic it stands in for is Go's to give and not the head's.
+// of the stack captured where it was recovered. It then panics again, so the
+// process ends the way Go ends any panic and with Go's own exit status, with
+// the value crashPanicValue cleans: the Go runtime prints a panic's value to
+// the terminal raw, and a value carrying an escape sequence would otherwise
+// reach it. Under test the seam's repanic stands in for that panic and is
+// handed the original value, and once it has returned the head answers 0,
+// because the status of the panic it stands in for is Go's to give and not
+// the head's.
 func (s *session) reportCrash(crash *interactiveCrash) int {
 	s.errLine(s.r.T("interactive.crashed"))
 	s.errLine(withoutControls(fmt.Sprint(crash.value)))
@@ -402,5 +428,12 @@ func (s *session) reportCrash(crash *interactiveCrash) int {
 		interactiveSeam.repanic(crash.value)
 		return 0
 	}
-	panic(crash.value)
+	panic(crashPanicValue(crash.value))
+}
+
+// crashPanicValue is the value the head panics again with after a crash: an
+// error whose text is the original value's, with every control character
+// replaced as withoutControls replaces it.
+func crashPanicValue(value any) error {
+	return errors.New(withoutControls(fmt.Sprint(value)))
 }

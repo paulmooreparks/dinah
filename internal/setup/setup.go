@@ -416,11 +416,11 @@ func homeOrAbove(dir, home string) bool {
 	if home == "" {
 		return false
 	}
-	resolvedDir, err := finalPath(dir)
+	resolvedDir, err := bench.FinalPath(dir)
 	if err != nil {
 		return true
 	}
-	resolvedHome, err := finalPath(home)
+	resolvedHome, err := bench.FinalPath(home)
 	if err != nil {
 		resolvedHome = filepath.Clean(home)
 	}
@@ -614,7 +614,7 @@ func (p *planner) fileByKey(key string) *fileState {
 // as plain directories. A prefix or a base that cannot be resolved, such as a
 // link whose target is missing, is refused rather than guessed at.
 func (p *planner) contained(abs string) bool {
-	resolvedBase, err := finalPath(p.base)
+	resolvedBase, err := bench.FinalPath(p.base)
 	if err != nil {
 		return false
 	}
@@ -631,7 +631,7 @@ func (p *planner) contained(abs string) bool {
 		rest = append([]string{filepath.Base(existing)}, rest...)
 		existing = parent
 	}
-	resolved, err := finalPath(existing)
+	resolved, err := bench.FinalPath(existing)
 	if err != nil {
 		return false
 	}

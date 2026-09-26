@@ -1,3 +1,5 @@
+//go:build tui
+
 package main
 
 import (
@@ -7,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"dinah/internal/msg"
-	"dinah/internal/screen"
+	"dinah/internal/screen/keyboard"
 )
 
 // interactiveBinding is one key binding the terminal head defines, with the
@@ -37,7 +39,7 @@ type interactiveKeys struct {
 	up, down, left, right, page, ends, show     key.Binding
 	claim, accept, advance, sendBack, move      key.Binding
 	release, comment, filter, jump, more, fewer key.Binding
-	quit, interrupt                             key.Binding
+	quit, interrupt, repaint                    key.Binding
 	// The bindings of card mode that browse mode does not have.
 	back, scrollUp, scrollDown key.Binding
 	// The bindings of the move menu.
@@ -163,6 +165,10 @@ func newInteractiveKeys(r *msg.Renderer, arrow, forward, back string) *interacti
 		key.WithKeys("ctrl+c"),
 		key.WithHelp(ctrlC, r.T("interactive.help.quit")),
 	))
+	k.repaint = add(bindingBrowse, "interactive.help.repaint", nil, key.NewBinding(
+		key.WithKeys("ctrl+l"),
+		key.WithHelp(r.T("interactive.key.ctrl-l"), r.T("interactive.help.repaint")),
+	))
 
 	k.menuUp = add(bindingMenu, "interactive.help.highlight", nil, key.NewBinding(
 		key.WithKeys("up", "k"),
@@ -258,14 +264,15 @@ func (k *interactiveKeys) shortHelp(card bool, offer interactiveOffer, full bool
 }
 
 // fullHelp answers the bindings full help lists in browse and card mode, in
-// columns: how to move, then what the offer allows, then the rest.
+// columns: how to move, then what the offer allows, then the rest, which are
+// ctrl+l, which draws the whole screen again, and ctrl+c.
 func (k *interactiveKeys) fullHelp(card bool, offer interactiveOffer) [][]key.Binding {
 	moving := []key.Binding{k.up, k.down, k.left, k.right, k.page, k.ends}
 	if card {
 		moving = []key.Binding{k.scrollUp, k.scrollDown, k.page, k.ends}
 	}
 	acts := k.shortHelp(card, offer, true)
-	return [][]key.Binding{moving, acts, {k.interrupt}}
+	return [][]key.Binding{moving, acts, {k.repaint, k.interrupt}}
 }
 
 // menuHelp answers the bindings the footer lists while the move menu is open.
@@ -281,10 +288,36 @@ func (k *interactiveKeys) promptHelp(comment bool) []key.Binding {
 	return []key.Binding{k.promptGo, k.promptCancel, k.interrupt}
 }
 
+// teaCodes maps each named key code the readers deliver to Bubble Tea's own,
+// in the one table section 6 prescribes.
+var teaCodes = map[keyboard.Code]rune{
+	keyboard.CodeEnter:     tea.KeyEnter,
+	keyboard.CodeBackspace: tea.KeyBackspace,
+	keyboard.CodeDelete:    tea.KeyDelete,
+	keyboard.CodeTab:       tea.KeyTab,
+	keyboard.CodeUp:        tea.KeyUp,
+	keyboard.CodeDown:      tea.KeyDown,
+	keyboard.CodeLeft:      tea.KeyLeft,
+	keyboard.CodeRight:     tea.KeyRight,
+	keyboard.CodePgUp:      tea.KeyPgUp,
+	keyboard.CodePgDown:    tea.KeyPgDown,
+	keyboard.CodeHome:      tea.KeyHome,
+	keyboard.CodeEnd:       tea.KeyEnd,
+}
+
+// teaCode is Bubble Tea's code for a decoded key: the table's entry for a
+// named key, and the key's own rune for a printable or ctrl+ key.
+func teaCode(decoded keyboard.Key) rune {
+	if decoded.Code == keyboard.CodeRune {
+		return decoded.Rune
+	}
+	return teaCodes[decoded.Code]
+}
+
 // interactiveKeyMsg is the message the head builds from one decoded key, in
 // the shape the Bubbles components expect.
-func interactiveKeyMsg(decoded screen.Key) tea.KeyPressMsg {
-	pressed := tea.KeyPressMsg{Code: decoded.Code, Text: decoded.Text}
+func interactiveKeyMsg(decoded keyboard.Key) tea.KeyPressMsg {
+	pressed := tea.KeyPressMsg{Code: teaCode(decoded), Text: decoded.Text}
 	if decoded.Ctrl {
 		pressed.Mod = tea.ModCtrl
 	}

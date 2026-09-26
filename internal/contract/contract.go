@@ -352,6 +352,14 @@ const (
 	// TUIUnavailable is dinah tui refused before anything is drawn, because
 	// the keyboard or the window cannot carry it.
 	TUIUnavailable = LayerPrefix + "tui-unavailable"
+	// TUIMissing is dinah tui refused because the separate program dinah-tui
+	// is neither beside dinah nor on PATH. The detail is the directory of
+	// dinah's own executable.
+	TUIMissing = LayerPrefix + "tui-missing"
+	// TUISkew is dinah-tui refusing to run for a dinah from another build.
+	// The values launcher and tui carry the two build identities, and the
+	// detail is dinah-tui's path.
+	TUISkew = LayerPrefix + "tui-skew"
 	// MalformedUrgency is a view ordered by urgency drawn on a workbench
 	// whose dinah.urgency block cannot be read. It refuses rather than
 	// falling back to the shipped weights, because a ranking computed on
@@ -908,7 +916,7 @@ var Introduced = []string{
 	SetupOtherWorkbench, SetupRunNotAllowed, SetupStepFailed,
 	UnknownView, MalformedView, ViewsUnreadable,
 	MalformedUrgency, CardNotInView, ViewNotRanked, WatchUnavailable,
-	TUIUnavailable,
+	TUIUnavailable, TUIMissing, TUISkew,
 }
 
 // The reasons dinah.watch-unavailable carries in its reason value, which are

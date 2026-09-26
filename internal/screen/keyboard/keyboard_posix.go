@@ -63,7 +63,7 @@ func EnterKeyboard(in, out *os.File, entry *screen.Terminfo) (*Keyboard, error) 
 		return nil, err
 	}
 	k := &Keyboard{in: in, out: out, saved: saved, entry: entry}
-	on, off := screen.KeypadTransmit(entry)
+	on, off := KeypadTransmit(entry)
 	if on != "" {
 		if _, err := out.WriteString(on); err != nil {
 			unix.IoctlSetTermios(fd, termiosWrite, saved)
@@ -72,7 +72,7 @@ func EnterKeyboard(in, out *os.File, entry *screen.Terminfo) (*Keyboard, error) 
 		k.keypadOff = off
 		k.keypadWent = true
 	}
-	if _, err := out.WriteString(screen.BracketedPasteOn); err != nil {
+	if _, err := out.WriteString(BracketedPasteOn); err != nil {
 		k.Leave()
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (k *Keyboard) Leave() error {
 			first = err
 		}
 	}
-	_, err := k.out.WriteString(screen.BracketedPasteOff)
+	_, err := k.out.WriteString(BracketedPasteOff)
 	keep(err)
 	if k.keypadWent && k.keypadOff != "" {
 		_, err := k.out.WriteString(k.keypadOff)
@@ -106,7 +106,7 @@ func (k *Keyboard) Leave() error {
 type ttyReader struct {
 	in       int
 	wake     [2]int
-	decoder  *screen.KeyDecoder
+	decoder  *KeyDecoder
 	gen      uint64
 	sawPaste atomic.Bool
 	// mu guards stopped, so no write reaches the pipe's descriptor after
@@ -122,18 +122,18 @@ const (
 )
 
 // NewReader builds the reader for the terminal the keyboard was entered on.
-func (k *Keyboard) NewReader() (screen.Reader, error) {
+func (k *Keyboard) NewReader() (Reader, error) {
 	var wake [2]int
 	if err := unix.Pipe(wake[:]); err != nil {
 		return nil, err
 	}
-	return &ttyReader{in: int(k.in.Fd()), wake: wake, decoder: screen.NewKeyDecoder(k.entry)}, nil
+	return &ttyReader{in: int(k.in.Fd()), wake: wake, decoder: NewKeyDecoder(k.entry)}, nil
 }
 
 // Run polls standard input and the wake pipe together, reading what is
 // waiting on standard input whenever it is readable. poll(2), read(2) and
 // pipe(2) are POSIX.
-func (r *ttyReader) Run(sink screen.Sink) error {
+func (r *ttyReader) Run(sink Sink) error {
 	defer unix.Close(r.wake[0])
 	buf := make([]byte, 4096)
 	fds := []unix.PollFd{{Fd: int32(r.in), Events: unix.POLLIN}, {Fd: int32(r.wake[0]), Events: unix.POLLIN}}

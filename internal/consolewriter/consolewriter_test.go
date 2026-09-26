@@ -365,3 +365,53 @@ func TestNoChunkBoundarySplitsASurrogatePair(t *testing.T) {
 		})
 	}
 }
+
+// TestWriteAllReportsAShortWriteAndWritesTheRest asserts that WriteAll
+// writes every unit when the console accepts fewer than it was given, as
+// Write does, and reports that it did so, and that it reports nothing when
+// every call is written whole or the stream is not a console.
+func TestWriteAllReportsAShortWriteAndWritesTheRest(t *testing.T) {
+	short := &fakeProbe{console: true, perCall: 5}
+	w, _ := newTestWriter(t, short)
+	reported, err := w.WriteAll([]byte("a frame of text"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reported || short.received() != "a frame of text" {
+		t.Errorf("a console taking 5 units a call: reported %v, received %q", reported, short.received())
+	}
+
+	whole := &fakeProbe{console: true}
+	w, _ = newTestWriter(t, whole)
+	if reported, err := w.WriteAll([]byte("a frame of text")); err != nil || reported {
+		t.Errorf("a console taking every unit: reported %v, error %v", reported, err)
+	}
+
+	redirected := &fakeProbe{console: false}
+	w, path := newTestWriter(t, redirected)
+	if reported, err := w.WriteAll([]byte("a frame of text")); err != nil || reported {
+		t.Errorf("a redirected stream: reported %v, error %v", reported, err)
+	}
+	if got := string(fileBytes(t, path)); got != "a frame of text" {
+		t.Errorf("a redirected stream received %q", got)
+	}
+}
+
+// TestNewConsoleWritesThroughItsFunction asserts that a Writer made by
+// NewConsole hands its function the UTF-16 units of what it is given.
+func TestNewConsoleWritesThroughItsFunction(t *testing.T) {
+	var units []uint16
+	w := NewConsole(func(u []uint16) (int, error) {
+		units = append(units, u...)
+		return len(u), nil
+	})
+	if _, err := w.Write([]byte("界 and 😀")); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(utf16.Decode(units)); got != "界 and 😀" {
+		t.Errorf("the function received %q", got)
+	}
+	if w.File() != nil {
+		t.Error("a console Writer answers a file")
+	}
+}

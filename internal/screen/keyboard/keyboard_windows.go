@@ -81,9 +81,13 @@ type Keyboard struct {
 // mode to exactly ENABLE_WINDOW_INPUT, which clears ENABLE_PROCESSED_INPUT so
 // that Ctrl+C arrives as a key, clears line input, echo, mouse input and
 // virtual-terminal input, and reports buffer size changes as records. It then
-// saves the output handle's mode, adds ENABLE_VIRTUAL_TERMINAL_PROCESSING and
-// DISABLE_NEWLINE_AUTO_RETURN, and only then writes the request for bracketed
-// paste, so the console reads that request as a sequence. entry is unused on
+// saves the output handle's mode, adds ENABLE_PROCESSED_OUTPUT,
+// ENABLE_VIRTUAL_TERMINAL_PROCESSING and DISABLE_NEWLINE_AUTO_RETURN, the
+// first because the SetConsoleMode page says it "should be enabled ... when
+// ENABLE_VIRTUAL_TERMINAL_PROCESSING is set", and only then writes the
+// request for bracketed paste, so the console reads that request as a
+// sequence. The head owns the output mode, because Bubble Tea's output on
+// Windows is not a terminal file and Bubble Tea leaves the mode alone. entry is unused on
 // Windows, where no terminfo describes the console.
 func EnterKeyboard(in, out *os.File, entry *screen.Terminfo) (*Keyboard, error) {
 	k := &Keyboard{in: in, out: out}
@@ -102,12 +106,12 @@ func EnterKeyboard(in, out *os.File, entry *screen.Terminfo) (*Keyboard, error) 
 		consoleAPI.SetConsoleMode(inHandle, k.savedIn)
 		return nil, err
 	}
-	vt := k.savedOut | windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING | windows.DISABLE_NEWLINE_AUTO_RETURN
+	vt := k.savedOut | windows.ENABLE_PROCESSED_OUTPUT | windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING | windows.DISABLE_NEWLINE_AUTO_RETURN
 	if err := consoleAPI.SetConsoleMode(outHandle, vt); err != nil {
 		consoleAPI.SetConsoleMode(inHandle, k.savedIn)
 		return nil, err
 	}
-	if err := consoleAPI.Write(out, screen.BracketedPasteOn); err != nil {
+	if err := consoleAPI.Write(out, BracketedPasteOn); err != nil {
 		consoleAPI.SetConsoleMode(outHandle, k.savedOut)
 		consoleAPI.SetConsoleMode(inHandle, k.savedIn)
 		return nil, err
@@ -126,7 +130,7 @@ func (k *Keyboard) Leave() error {
 			first = err
 		}
 	}
-	keep(consoleAPI.Write(k.out, screen.BracketedPasteOff))
+	keep(consoleAPI.Write(k.out, BracketedPasteOff))
 	keep(consoleAPI.SetConsoleMode(windows.Handle(k.out.Fd()), k.savedOut))
 	keep(consoleAPI.SetConsoleMode(windows.Handle(k.in.Fd()), k.savedIn))
 	return first
@@ -135,7 +139,7 @@ func (k *Keyboard) Leave() error {
 // consoleReader reads the console's input records on a waited handle.
 type consoleReader struct {
 	in       windows.Handle
-	decoder  *screen.ConsoleDecoder
+	decoder  *ConsoleDecoder
 	cancel   windows.Handle
 	flush    windows.Handle
 	gen      uint64
@@ -144,7 +148,7 @@ type consoleReader struct {
 }
 
 // NewReader builds the reader for the console the keyboard was entered on.
-func (k *Keyboard) NewReader() (screen.Reader, error) {
+func (k *Keyboard) NewReader() (Reader, error) {
 	cancel, err := windows.CreateEvent(nil, 1, 0, nil)
 	if err != nil {
 		return nil, err
@@ -156,7 +160,7 @@ func (k *Keyboard) NewReader() (screen.Reader, error) {
 	}
 	return &consoleReader{
 		in:      windows.Handle(k.in.Fd()),
-		decoder: screen.NewConsoleDecoder(),
+		decoder: NewConsoleDecoder(),
 		cancel:  cancel,
 		flush:   flush,
 	}, nil
@@ -167,7 +171,7 @@ func (k *Keyboard) NewReader() (screen.Reader, error) {
 // signalled, which the console's "Low-Level Console Input Functions" page
 // says it is while "there are unread records in its input buffer". It
 // returns when Stop sets the cancel event, or on an error.
-func (r *consoleReader) Run(sink screen.Sink) error {
+func (r *consoleReader) Run(sink Sink) error {
 	defer windows.CloseHandle(r.flush)
 	defer windows.CloseHandle(r.cancel)
 	handles := []windows.Handle{r.in, r.cancel, r.flush}
@@ -240,10 +244,10 @@ func readConsoleInput(in windows.Handle, records []rawInputRecord) (int, error) 
 }
 
 // inputRecords converts the console's records into the decoder's.
-func inputRecords(raw []rawInputRecord) []screen.InputRecord {
-	records := make([]screen.InputRecord, 0, len(raw))
+func inputRecords(raw []rawInputRecord) []InputRecord {
+	records := make([]InputRecord, 0, len(raw))
 	for _, record := range raw {
-		records = append(records, screen.InputRecord{
+		records = append(records, InputRecord{
 			EventType:       record.eventType,
 			KeyDown:         record.keyDown != 0,
 			RepeatCount:     record.repeatCount,

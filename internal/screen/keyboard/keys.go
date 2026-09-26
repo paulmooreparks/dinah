@@ -1,11 +1,9 @@
-package screen
+package keyboard
 
 import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // Event is one thing a reader decoded: a key, or a whole paste.
@@ -18,10 +16,33 @@ type Event struct {
 
 // Key is one key a reader decoded.
 type Key struct {
-	Code rune   // a tea key code: tea.KeyUp, tea.KeyEnter, 'a', ...
+	Code Code   // the key's code; CodeRune for a printable key or a ctrl+ key
+	Rune rune   // with CodeRune, the key's rune: the character typed, or the letter of a ctrl+ key
 	Ctrl bool   // Ctrl was held
 	Text string // the text a printable key types, empty otherwise
 }
+
+// Code names a key a reader decoded. The package declares its own codes, so
+// neither it nor internal/screen depends on the terminal UI's library; the
+// head maps them to that library's codes in one table.
+type Code int
+
+// The keys a reader can deliver besides printable text and ctrl+ a letter.
+const (
+	CodeRune Code = iota // a printable key or a ctrl+ key; Key.Rune holds it
+	CodeEnter
+	CodeBackspace
+	CodeDelete
+	CodeTab
+	CodeUp
+	CodeDown
+	CodeLeft
+	CodeRight
+	CodePgUp
+	CodePgDown
+	CodeHome
+	CodeEnd
+)
 
 // The bracketed-paste sequences xterm's "XTerm Control Sequences" documents
 // under "Bracketed Paste Mode": the two a program writes to switch the mode
@@ -38,18 +59,18 @@ const (
 const ctrlC = 0x03
 
 // namedKey is a key with no text, such as an arrow.
-func namedKey(code rune) Event {
+func namedKey(code Code) Event {
 	return Event{Key: Key{Code: code}}
 }
 
 // ctrlKey is Ctrl held with a letter, a to z.
 func ctrlKey(letter rune) Event {
-	return Event{Key: Key{Code: letter, Ctrl: true}}
+	return Event{Key: Key{Code: CodeRune, Rune: letter, Ctrl: true}}
 }
 
 // textKey is a printable character, delivered as the text it types.
 func textKey(r rune) Event {
-	return Event{Key: Key{Code: r, Text: string(r)}}
+	return Event{Key: Key{Code: CodeRune, Rune: r, Text: string(r)}}
 }
 
 // controlKey decodes one C0 control character that is a key of its own:
@@ -58,11 +79,11 @@ func textKey(r rune) Event {
 func controlKey(r rune) (Event, bool) {
 	switch {
 	case r == '\r' || r == '\n':
-		return namedKey(tea.KeyEnter), true
+		return namedKey(CodeEnter), true
 	case r == '\t':
-		return namedKey(tea.KeyTab), true
+		return namedKey(CodeTab), true
 	case r == 0x7f || r == 0x08:
-		return namedKey(tea.KeyBackspace), true
+		return namedKey(CodeBackspace), true
 	case r >= 0x01 && r <= 0x1a:
 		return ctrlKey('a' + r - 1), true
 	}
