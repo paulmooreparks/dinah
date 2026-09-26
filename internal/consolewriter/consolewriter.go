@@ -97,6 +97,24 @@ func New(f *os.File) *Writer {
 	return &Writer{f: f, probe: defaultProbe()}
 }
 
+// NewConsole answers a Writer onto a console reached through write, which
+// stands where WriteConsoleW does: it is given UTF-16 units and answers how
+// many of the leading ones it wrote, as lpNumberOfCharsWritten reports. The
+// Writer takes every stream it writes to as a console, and File answers nil.
+// The terminal head's tests use it to stand a console that writes short
+// behind the writer the head uses on Windows.
+func NewConsole(write func(u []uint16) (int, error)) *Writer {
+	return &Writer{probe: funcProbe(write)}
+}
+
+// funcProbe is the probe of NewConsole: every stream is a console, and
+// writes go to the function.
+type funcProbe func(u []uint16) (int, error)
+
+func (funcProbe) isConsole(*os.File) bool { return true }
+
+func (write funcProbe) writeUTF16(_ *os.File, u []uint16) (int, error) { return write(u) }
+
 // File returns the writer's own unwrapped stream. A caller handing the
 // stream to a child process it does not control (cmd/dinah's runEdit is
 // the one case in this tree) uses File instead of the Writer itself, so
@@ -123,10 +141,31 @@ func (w *Writer) Write(p []byte) (int, error) {
 	if len(complete) == 0 {
 		return len(p), nil
 	}
-	if err := w.writeConsole(complete); err != nil {
+	if _, err := w.writeConsole(complete); err != nil {
 		return 0, err
 	}
 	return len(p), nil
+}
+
+// WriteAll writes p as Write does, and also reports whether the console
+// wrote fewer characters than one of its calls was given. Write handles
+// such a short write by writing the rest in the next call and says nothing
+// of it. A caller whose text must reach the console in whole calls, as the
+// terminal head's frames must, reads the report and repairs what the split
+// may have left on the screen. On the non-console branch it never reports a
+// short write.
+func (w *Writer) WriteAll(p []byte) (short bool, err error) {
+	if !w.probe.isConsole(w.f) {
+		_, err := w.f.Write(p)
+		return false, err
+	}
+	buf := append(w.pending, p...)
+	w.pending = nil
+	complete, incomplete := splitIncompleteTail(buf)
+	if len(incomplete) > 0 {
+		w.pending = append([]byte(nil), incomplete...)
+	}
+	return w.writeConsole(complete)
 }
 
 // Flush writes any bytes Write has held back because they ended a call
@@ -168,37 +207,42 @@ func (w *Writer) Flush() error {
 	if !w.probe.isConsole(w.f) {
 		return nil
 	}
-	return w.writeConsole(pending)
+	_, err := w.writeConsole(pending)
+	return err
 }
 
 // writeConsole re-encodes b as UTF-16 and submits it to the probe in
 // pieces of at most consoleWriteChunk units, honoring the probe's
 // reported count and looping until every unit is written. b must not end
 // with a byte sequence Write or Flush would otherwise have held back;
-// both callers arrange that before calling writeConsole.
+// every caller arranges that before calling writeConsole. It reports
+// whether any call wrote fewer units than it was given.
 //
 // No piece ends between the two units of a surrogate pair, which is what
 // chunkEnd is for. Write already rejoins a character a caller split
 // across two of its own calls, and a fixed cut every consoleWriteChunk
 // units would divide one back apart a layer further down.
-func (w *Writer) writeConsole(b []byte) error {
+func (w *Writer) writeConsole(b []byte) (short bool, err error) {
 	units := utf16.Encode([]rune(string(b)))
 	if len(units) == 0 {
-		return nil
+		return false, nil
 	}
 	offset := 0
 	for offset < len(units) {
 		end := chunkEnd(units, offset)
 		n, err := w.probe.writeUTF16(w.f, units[offset:end])
 		if err != nil {
-			return err
+			return short, err
 		}
 		if n == 0 {
-			return errShortConsoleWrite
+			return short, errShortConsoleWrite
+		}
+		if n < end-offset {
+			short = true
 		}
 		offset += n
 	}
-	return nil
+	return short, nil
 }
 
 // chunkEnd returns the index one past the last unit writeConsole submits

@@ -121,6 +121,9 @@ type session struct {
 	// through this command. A diagnostic a store can be too old for is a
 	// diagnostic that goes quiet exactly where it is wanted.
 	diagnostic bool
+	// args is the argument list this invocation was given, before any alias
+	// was expanded, which dinah tui hands to dinah-tui exactly as typed.
+	args []string
 }
 
 func main() {
@@ -129,7 +132,12 @@ func main() {
 	// ASCII as any listing is (dinah-199).
 	out := consolewriter.New(os.Stdout)
 	errw := consolewriter.New(os.Stderr)
-	code := run(os.Args[1:], os.Stdin, out, errw)
+	argv := os.Args[1:]
+	if tuiEntry {
+		_, launched := os.LookupEnv(tuiLauncherVariable)
+		argv = tuiArguments(argv, launched)
+	}
+	code := run(argv, os.Stdin, out, errw)
 	// Flush's own error goes no further. By the time it runs, run has
 	// already produced this invocation's outcome, there is no stream left to
 	// report a console failure on, and no exit code left to adjust.
@@ -141,6 +149,7 @@ func main() {
 // run is main with its streams and arguments passed in, so a test drives the
 // whole head without building or exec-ing the binary.
 func run(argv []string, in io.Reader, out, errw io.Writer) int {
+	typed := argv
 	home := bench.Home()
 	cfg := bench.LoadConfig(home)
 	// The completion callback is answered here, ahead of alias expansion and
@@ -186,6 +195,14 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	}
 	if w, ok := errw.(*consolewriter.Writer); ok {
 		s.rawErr = w.File()
+	}
+	s.args = typed
+	// dinah-tui refuses a command line a dinah of another build handed on,
+	// before any command runs or any argument is reported on.
+	if tuiEntry {
+		if code, refused := s.refuseTUISkew(); refused {
+			return code
+		}
 	}
 	if parseErr != nil && expansionErr == nil {
 		// The parse failed, and the refusal still reaches its reader in

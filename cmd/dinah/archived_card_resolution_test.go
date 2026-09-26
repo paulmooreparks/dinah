@@ -255,9 +255,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     20,
-		mentions:  46,
-		functions: 36,
+		files:     21,
+		mentions:  47,
+		functions: 37,
 		sites: []resolutionSite{
 			{"internal/bench/designationmigrate.go", "ClaimedCards", 1, "naming a live card the designation conversion found claimed, which is what the in-use refusal reports; the walk reads the live cards collection alone, so no archived card reaches this call"},
 			{"internal/bench/designationmigrate.go", "plannedDesignations", 1, "naming the card one converted item hangs below, in the conversion's own report; the conversion walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
@@ -295,20 +295,22 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/verb/tree.go", "workstreamContents", 1, "naming a card the walk from a workstream drew as a member; the membership comes off Library.selection, which reads the workbench's own cards over the live half alone, so no archived card reaches this call"},
 			{"internal/lsp/annotate.go", "cardAnnotation", 1, "composing the canonical reference the language server prints in a card's hover and carries on the annotation's target; the card came out of a live resolution or out of a document's own reference, and the archive is never read here"},
 			{"internal/lsp/handlers.go", "cardCandidates", 1, "composing the label of one card candidate in a completion list, over the live half alone"},
+			{"cmd/dinah/interactive_model.go", "jumpTo", 1, "naming the card the terminal head's jump prompt resolved, so the head can find it in a lane or open it; ResolveCard resolves against the live half alone, so no archived card reaches this call"},
 		},
 	},
 	{
 		name: "F", axis: "reading",
 		what:      "reading the number out of frontmatter: every basic string literal \"number\"",
-		files:     4,
-		mentions:  7,
-		functions: 5,
+		files:     5,
+		mentions:  10,
+		functions: 6,
 		sites: []resolutionSite{
 			{"internal/bench/declaredfields.go", "<package-level>", 1, "FieldTypeNumber, the name of one of the five types a declared field may take; it is the word number and never a card's number, and nothing reads a frontmatter key with it"},
 			{"internal/bench/card.go", "numberOf", 1, "fm.Value(\"number\"), the below-format half of the reading stamp and LiveCardHeaders share, where the legacy read path still takes the number from the card's own frontmatter"},
 			{"internal/bench/check.go", "checkCardNumbers", 1, "card.FM.Has(\"number\"), the in-frontmatter finding, which reports a card on a migrated workbench still carrying the key"},
 			{"internal/bench/numbermigrate.go", "readMigrant", 2, "fm.Has(\"number\") and fm.Value(\"number\"), the free reader the migration reads pre-registry anchors through, where a stamping reader would answer nothing the run can use"},
 			{"internal/bench/numbermigrate.go", "MigrateNumbers", 2, "fm.Has(\"number\") and fm.Delete(\"number\"), the strip that takes the key off every anchor once the registry holds the number"},
+			{"cmd/dinah/interactive_draw.go", "menuLines", 3, "the placeholder name of the three move-menu row entries, which fills in the digit that chooses a row; it is the word number and never a card's number, and nothing reads a frontmatter key with it"},
 		},
 	},
 }

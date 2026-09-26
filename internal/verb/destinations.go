@@ -1,5 +1,7 @@
 package verb
 
+import "dinah/internal/bench"
+
 // MoveDestinations reports the rows of the card's legal moves that a move
 // request would pass every check on, for the request's actor and override.
 // It takes no lock, writes nothing, lapses no claim on disk and witnesses no
@@ -41,10 +43,20 @@ func (l *Library) MoveDestinations(req *Request) ([]LegalMove, error) {
 		return nil, nil
 	}
 	card := found.Card
-	moves := l.legalMoves(card)
 	if card.Lapsed(l.Now()) {
 		clearLapsedClaim(card)
 	}
+	return l.destinationsFor(req, card)
+}
+
+// destinationsFor is the per-row half of MoveDestinations: each of the card's
+// legal moves that canMove, which runs canRoute and then canLand, passes for
+// the request's owner, in the flow's order. The caller has already run admit
+// and cleared a lapsed claim in memory. MoveDestinations and OfferActs both
+// call it, so the completion of a move and the offer of the terminal head
+// answer one set.
+func (l *Library) destinationsFor(req *Request, card *bench.Card) ([]LegalMove, error) {
+	moves := l.legalMoves(card)
 	asking := *req
 	if l.anyCapacity(moves) {
 		occupancy, err := l.occupancy()

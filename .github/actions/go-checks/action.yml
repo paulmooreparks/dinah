@@ -40,6 +40,13 @@ runs:
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go vet ./...
+    # dinah-tui, the terminal UI's program, is cmd/dinah built with the tui
+    # tag, and the files that tag adds are invisible to the untagged vet and
+    # test, so both run again with it (dinah-603).
+    - name: Vet the terminal UI
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: go vet -tags tui ./cmd/dinah/...
     # The timeout is stated rather than left to Go's ten-minute default,
     # because cmd/dinah runs its own suite a second time under a coverage
     # profile and therefore costs about twice what its tests cost. That is
@@ -51,3 +58,11 @@ runs:
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go test -count=1 -timeout 30m ./...
+    # The tagged run repeats cmd/dinah's untagged tests as well as running the
+    # terminal UI's own, since a build tag adds files and removes none. The
+    # coverage sweep, which starts a second untagged run of the package, skips
+    # itself here because the step above already ran it.
+    - name: Test the terminal UI
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: go test -count=1 -timeout 30m -tags tui ./cmd/dinah/... ./internal/screen/...

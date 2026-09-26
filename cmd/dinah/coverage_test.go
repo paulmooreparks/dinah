@@ -65,6 +65,12 @@ func TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed(t *testing.T) {
 	if !fullSuiteRan() {
 		t.Skip("this run was filtered, so the profile would report the filter rather than the suite")
 	}
+	if tuiEntry {
+		// The child below is an untagged go test of this package, so the
+		// tagged run would start the same pass the untagged run already
+		// started, and read the same profile.
+		t.Skip("this is the run tagged tui, and the untagged run of this package starts the coverage pass")
+	}
 	profile := filepath.Join(t.TempDir(), "cover.out")
 	// The child carries its own timeout rather than inheriting the parent's,
 	// because it does not inherit it: this is a fresh `go test` invocation and

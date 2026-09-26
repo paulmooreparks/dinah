@@ -1551,3 +1551,313 @@ func statusLine(clock, change, stops, separator string, room int, ellipsis strin
 	remaining := join(change, stops)
 	return cutText(remaining, room, ellipsis)
 }
+
+// interactiveLine is one row of the terminal head's screen: its text, laid
+// out in plain text, the spans of it to colour, and the spans to draw in
+// reverse video and in bold. As with drawnLine, every attribute is attached
+// after layout, so nothing the measure reads ever carries a control sequence.
+type interactiveLine struct {
+	drawnLine
+	reverse []byteRange
+	bold    []byteRange
+}
+
+// byteRange is a run of a line's bytes, from start up to but not including
+// end.
+type byteRange struct {
+	start, end int
+}
+
+// interactiveGap is the room between the lanes of the lane bar.
+const interactiveGap = 2
+
+// interactiveTitleMinimum is the narrowest room a card's title keeps in the
+// list pane before the holder and the priority are dropped to make room.
+const interactiveTitleMinimum = 4
+
+// interactiveHeading is row 1 of the terminal head's screen at draw display
+// columns: the workbench and the view on the left, drawn in bold, and who is
+// acting ending in the last column drawn. Where both do not fit, the left
+// part is drawn alone and cut, as boardHeadingLine lays out a board's
+// heading.
+func interactiveHeading(left, acting string, draw int, ellipsis string) interactiveLine {
+	text := boardHeadingLine(left, acting, draw, ellipsis)
+	end := len(text)
+	if acting != "" && strings.HasPrefix(text, left) && strings.HasSuffix(text, acting) {
+		end = len(left)
+	}
+	line := interactiveLine{drawnLine: drawnLine{text: text}}
+	line.bold = []byteRange{{start: 0, end: end}}
+	return line
+}
+
+// interactiveLane is one lane as the lane bar draws it: its label, already
+// composed and cleaned, whether its column is the operator's, and its count,
+// already rendered, which a lane of the list layout carries in its label.
+type interactiveLane struct {
+	label    string
+	operator bool
+	count    string
+}
+
+// interactiveLaneText is one lane's entry in the bar: its label, the operator
+// mark where the lane's column is the operator's, and its count, as a board
+// draws a column's heading, between brackets when the lane has the focus.
+func interactiveLaneText(lane interactiveLane, focused bool, glyphs boardGlyphs) drawnLine {
+	line := drawnLine{text: lane.label}
+	if lane.operator {
+		start := len(line.text) + 1
+		line.text += " " + glyphs.operator
+		line.spans = []colourSpan{{start: start, end: len(line.text), colour: screen.Yellow}}
+	}
+	if lane.count != "" {
+		line.text += " " + lane.count
+	}
+	if focused {
+		line.text = "[" + line.text + "]"
+		line.spans = shifted(line.spans, 1)
+	}
+	return line
+}
+
+// interactiveLaneBar is row 2: every lane's entry separated by the gap, the
+// focused one drawn in reverse video. A bar wider than draw is cut on the
+// side away from the focus. The focused entry is kept whole where it fits,
+// entries on either side are then added whole while they fit, and each end
+// that lost an entry shows the glyph set's ellipsis.
+func interactiveLaneBar(lanes []interactiveLane, focus, draw int, glyphs boardGlyphs) interactiveLine {
+	if len(lanes) == 0 || focus < 0 || focus >= len(lanes) {
+		return interactiveLine{}
+	}
+	entries := make([]drawnLine, len(lanes))
+	widths := make([]int, len(lanes))
+	for i, lane := range lanes {
+		entries[i] = interactiveLaneText(lane, i == focus, glyphs)
+		widths[i] = displayWidth(entries[i].text)
+	}
+	mark := displayWidth(glyphs.ellipsis)
+	span := func(lo, hi int) int {
+		total := interactiveGap * (hi - lo)
+		for i := lo; i <= hi; i++ {
+			total += widths[i]
+		}
+		if lo > 0 {
+			total += mark + interactiveGap
+		}
+		if hi < len(lanes)-1 {
+			total += interactiveGap + mark
+		}
+		return total
+	}
+	lo, hi := focus, focus
+	for grew := true; grew; {
+		grew = false
+		if hi+1 < len(lanes) && span(lo, hi+1) <= draw {
+			hi++
+			grew = true
+		}
+		if lo > 0 && span(lo-1, hi) <= draw {
+			lo--
+			grew = true
+		}
+	}
+	type part struct {
+		drawn   drawnLine
+		focused bool
+	}
+	var parts []part
+	if lo > 0 {
+		parts = append(parts, part{drawn: drawnLine{text: glyphs.ellipsis}})
+	}
+	for i := lo; i <= hi; i++ {
+		parts = append(parts, part{drawn: entries[i], focused: i == focus})
+	}
+	if hi < len(lanes)-1 {
+		parts = append(parts, part{drawn: drawnLine{text: glyphs.ellipsis}})
+	}
+	var line interactiveLine
+	for i, p := range parts {
+		if i > 0 {
+			gap := cell{text: line.text, width: displayWidth(line.text) + interactiveGap}
+			line.text = formatRow(row{cells: []cell{gap}}, 0)
+		}
+		offset := len(line.text)
+		line.spans = append(line.spans, shifted(p.drawn.spans, offset)...)
+		if p.focused {
+			line.reverse = []byteRange{{start: offset, end: offset + len(p.drawn.text)}}
+		}
+		line.text += p.drawn.text
+	}
+	if displayWidth(line.text) > draw {
+		line.drawnLine = cutLine(line.drawnLine, draw, glyphs.ellipsis)
+		line.reverse = clampRanges(line.reverse, len(line.text))
+	}
+	return line
+}
+
+// clampRanges cuts ranges to a line cut to length bytes, dropping any that
+// start past it.
+func clampRanges(ranges []byteRange, length int) []byteRange {
+	var kept []byteRange
+	for _, r := range ranges {
+		if r.start >= length {
+			continue
+		}
+		if r.end > length {
+			r.end = length
+		}
+		kept = append(kept, r)
+	}
+	return kept
+}
+
+// interactiveListRow is one card of the list pane laid out to width display
+// columns: the selection marker, the card's glyph and number, its operator
+// mark, holder and priority as boardCardLine composes them, and its title
+// filling the rest, cut with the glyph set's ellipsis. The priority is
+// dropped first and then the holder, as the board drops them, so that the
+// title keeps at least interactiveTitleMinimum columns where the pane
+// allows. The row is padded to width, and a selected row is drawn in reverse
+// video across all of it.
+func interactiveListRow(card boardCard, selected bool, width int, glyphs boardGlyphs, marker string) interactiveLine {
+	if !selected {
+		marker = " "
+	}
+	markerWidth := displayWidth(marker) + 1
+	leadRoom := width - markerWidth - boardSlotGap - interactiveTitleMinimum
+	if leadRoom < 1 {
+		leadRoom = 1
+	}
+	lead := boardCardLine(card, leadRoom, glyphs)
+	leadWidth := displayWidth(lead.text) + boardSlotGap
+	titleRoom := width - 1 - markerWidth - leadWidth
+	// The title's cell is one column wider than the title's room, because a
+	// cell pads only text narrower than itself, so the row fills width.
+	cells := []cell{
+		{text: marker, width: markerWidth},
+		{text: lead.text, width: leadWidth},
+	}
+	if titleRoom > 0 {
+		cells = append(cells, cell{text: cutText(card.title, titleRoom, glyphs.ellipsis), width: titleRoom + 1})
+	}
+	text := formatRow(row{cells: cells}, 0)
+	leadAt := len(formatRow(row{cells: cells[:1]}, 0))
+	line := interactiveLine{drawnLine: drawnLine{text: text, spans: shifted(lead.spans, leadAt)}}
+	if selected {
+		line.reverse = []byteRange{{start: 0, end: len(text)}}
+	}
+	return line
+}
+
+// interactiveListWidth is the width of the list pane beside the detail pane
+// when draw display columns are drawn: two fifths of them.
+func interactiveListWidth(draw int) int {
+	return draw * 2 / 5
+}
+
+// interactivePanes lays the list pane and the detail pane side by side for
+// height rows: each list row padded to the list pane's width, the separator
+// glyph, and the matching detail line cut to what is left. A nil detail
+// draws the list pane alone.
+func interactivePanes(list []interactiveLine, detail []string, draw, height int, separator, ellipsis string) []interactiveLine {
+	rows := make([]interactiveLine, 0, height)
+	for i := 0; i < height; i++ {
+		left := interactiveLine{}
+		if i < len(list) {
+			left = list[i]
+		}
+		if detail == nil {
+			rows = append(rows, left)
+			continue
+		}
+		listWidth := interactiveListWidth(draw)
+		room := draw - listWidth - displayWidth(separator)
+		right := ""
+		if i < len(detail) && room > 0 {
+			right = cutText(detail[i], room, ellipsis)
+		}
+		padded := cell{text: cutText(left.text, listWidth-1, ellipsis), width: listWidth}
+		text := formatRow(row{cells: []cell{padded}, tail: separator + right}, 0)
+		line := interactiveLine{drawnLine: drawnLine{text: text, spans: clampSpans(left.spans, len(padded.text))}}
+		if len(left.reverse) > 0 {
+			line.reverse = []byteRange{{start: 0, end: len(text) - len(separator+right)}}
+		}
+		rows = append(rows, line)
+	}
+	return rows
+}
+
+// clampSpans keeps the colour spans that survive a line cut to length bytes.
+func clampSpans(spans []colourSpan, length int) []colourSpan {
+	var kept []colourSpan
+	for _, span := range spans {
+		if span.end <= length {
+			kept = append(kept, span)
+		}
+	}
+	return kept
+}
+
+// interactiveMessage is the message area at room display columns: at most
+// limit of the lines, each cut to room, the last one shown ending in the
+// ellipsis where lines were left out after it.
+func interactiveMessage(lines []string, limit, room int, ellipsis string) []string {
+	var shown []string
+	for i, line := range lines {
+		if i == limit {
+			break
+		}
+		shown = append(shown, cutText(line, room, ellipsis))
+	}
+	if limit > 0 && len(lines) > limit {
+		last := lines[limit-1]
+		shown[limit-1] = cutPrefix(last, room, ellipsis) + cutMark(room, ellipsis)
+		if displayWidth(last)+displayWidth(ellipsis) <= room {
+			shown[limit-1] = last + ellipsis
+		}
+	}
+	return shown
+}
+
+// interactiveMenu is the move menu at draw display columns and at most
+// height rows: its title, then one row per destination with the selection
+// marker on the highlighted one, drawn in reverse video. The rows scroll so
+// that the highlighted row is always shown.
+func interactiveMenu(title string, rows []string, highlight, draw, height int, glyphs boardGlyphs, marker string) []interactiveLine {
+	lines := []interactiveLine{{drawnLine: drawnLine{text: cutText(title, draw, glyphs.ellipsis)}}}
+	room := height - 1
+	if room < 1 {
+		return lines
+	}
+	first := 0
+	if highlight >= room {
+		first = highlight - room + 1
+	}
+	markerWidth := displayWidth(marker) + 1
+	for i := first; i < len(rows) && i < first+room; i++ {
+		mark := " "
+		if i == highlight {
+			mark = marker
+		}
+		laid := formatRow(row{cells: []cell{{text: mark, width: markerWidth}}, tail: rows[i]}, 0)
+		line := interactiveLine{drawnLine: drawnLine{text: cutText(laid, draw, glyphs.ellipsis)}}
+		if i == highlight {
+			line.reverse = []byteRange{{start: 0, end: len(line.text)}}
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// interactiveRule is the rule under the lane bar: draw copies of the glyph
+// set's rule glyph.
+func interactiveRule(glyphs boardGlyphs, draw int) string {
+	return boardRule(glyphs.rule, draw)
+}
+
+// interactiveCut cuts one line of text to draw display columns, for the rows
+// of the screen that are prose rather than layout: the notice of a window
+// too small, a line of card mode, and the footer.
+func interactiveCut(text string, draw int, ellipsis string) string {
+	return cutText(text, draw, ellipsis)
+}

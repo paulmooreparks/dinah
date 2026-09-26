@@ -248,6 +248,29 @@ func parseHead(t *testing.T) map[string][]*ast.FuncDecl {
 	if len(declared) == 0 {
 		t.Fatal("the package parsed to no functions at all, so this check would pass against anything")
 	}
+	// A function variable an init assigns a declared function to is read as
+	// that function, so a call through the variable reaches the function's
+	// body. dinah tui calls tuiHead, which tui_head.go's init sets to
+	// runTUIHead in the build tagged tui, and the parser reads every file
+	// whatever its build tags.
+	for _, function := range declared["init"] {
+		if function.Body == nil {
+			continue
+		}
+		for _, statement := range function.Body.List {
+			assign, ok := statement.(*ast.AssignStmt)
+			if !ok || len(assign.Lhs) != len(assign.Rhs) {
+				continue
+			}
+			for i, target := range assign.Lhs {
+				variable, isName := target.(*ast.Ident)
+				value, isFunction := assign.Rhs[i].(*ast.Ident)
+				if isName && isFunction && len(declared[value.Name]) > 0 && len(declared[variable.Name]) == 0 {
+					declared[variable.Name] = declared[value.Name]
+				}
+			}
+		}
+	}
 	return declared
 }
 

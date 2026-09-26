@@ -18,12 +18,14 @@ an index.
 
 ## Install Dinah
 
-Dinah is one binary with no installer to click through and nothing else to set
-up. On Linux or macOS, run this:
+Dinah is two binaries, `dinah` and the terminal UI's `dinah-tui`, with no
+installer to click through and nothing else to set up. On Linux or macOS, run
+this:
 
 ```console skip=the first word is curl, which the in-process head cannot run
 $ curl -fsSL https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.sh | sh
 Installed dinah-linux-amd64 as /home/ana/.local/bin/dinah
+Installed dinah-tui-linux-amd64 as /home/ana/.local/bin/dinah-tui
 
 You installed dinah to /home/ana/.local/bin, but this shell does not have that directory on PATH yet.
 Debian and Ubuntu add ~/.local/bin to PATH automatically the next time a login shell starts, but only once the directory exists, and it did not exist before this install created it. Log out and back in to pick it up, or run this now to use dinah in this shell:
@@ -38,9 +40,9 @@ On Windows, run this in PowerShell instead:
 irm https://raw.githubusercontent.com/paulmooreparks/dinah/main/scripts/install.ps1 | iex
 ```
 
-Either script fetches the binary your machine needs, checks it against its
-published SHA-256 before installing anything, and puts it somewhere you can
-write without administrator privilege. On Linux and macOS that is
+Either script fetches the two binaries your machine needs, checks each against
+its published SHA-256 before installing it, and puts both in one directory you
+can write without administrator privilege. On Linux and macOS that is
 `~/.local/bin`, and on Windows it is `%LOCALAPPDATA%\dinah\bin`.
 
 The two platforms part company over your PATH. On Windows the installer adds
@@ -51,7 +53,8 @@ changes nothing and prints the line to add instead, which is what you see at the
 end of the transcript above.
 
 If you would rather not pipe a script into a shell, download your platform's
-binary and `SHA256SUMS.txt` from the [releases
+two binaries, `dinah-<os>-<arch>` and `dinah-tui-<os>-<arch>`, and
+`SHA256SUMS.txt` from the [releases
 page](https://github.com/paulmooreparks/dinah/releases) and check the download
 yourself before you run it. The command to type is not a transcript, and it
 differs on all three platforms. On Linux:
@@ -102,7 +105,7 @@ release publishes a new one. The second line names the shared rule set that buil
 other tool built to those same rules can read this workbench and reach the same
 answers about it. The third line names the format Dinah writes on disk.
 
-`dinah help` lists all sixty-two commands, in the four groups Dinah sorts
+`dinah help` lists all sixty-three commands, in the four groups Dinah sorts
 them into. Running `dinah` with no arguments at all prints the same list. So
 does whichever spelling of the help flag you already have the habit of typing,
 because Dinah answers to `--help`, `-help`, `-h`, `-?`, `--?` and `/?` alike.
@@ -1391,14 +1394,14 @@ storage format 11
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1734/1734
-  af        0/1734
-  cs        0/1734
-  de        1734/1734
-  es        0/1734
-  fil       0/1734
-  hi        1734/1734
-  id        0/1734
+  en        1811/1811
+  af        0/1811
+  cs        0/1811
+  de        1811/1811
+  es        0/1811
+  fil       0/1811
+  hi        1811/1811
+  id        0/1811
 [exit 0]
 ```
 

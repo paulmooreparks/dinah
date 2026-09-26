@@ -174,18 +174,27 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build dinah
+      # Each platform ships two programs from the one package: dinah, built
+      # with no tags, and dinah-tui, the terminal UI, built with the tui tag.
+      # Both take the same -trimpath and -ldflags, so both report the same
+      # release number and dinah tui accepts the dinah-tui beside it.
+      - name: Build dinah and dinah-tui
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
           TAG: ${{ needs.compute-version.outputs.tag }}
         run: |
+          set -e
           go build -trimpath -ldflags="-s -w -X dinah/internal/verb.ToolRelease=${TAG}" \
-            -o dist/dinah-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} \
+            -o dist/${{ matrix.binary }} \
+            ./cmd/dinah
+          go build -trimpath -ldflags="-s -w -X dinah/internal/verb.ToolRelease=${TAG}" \
+            -tags tui \
+            -o dist/${{ matrix.tui_binary }} \
             ./cmd/dinah
 
-      - name: Upload the binary
+      - name: Upload the binaries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
@@ -243,8 +252,9 @@ jobs:
       # releases for weeks because the check here only looked for six names and
       # had no opinion about a seventh file (dinah-396).
       #
-      # So the assertion runs in both directions. dist/ has to hold the six
-      # platform binaries and nothing else, and either kind of difference stops
+      # So the assertion runs in both directions. dist/ has to hold the twelve
+      # platform binaries, dinah and dinah-tui for each of the six platforms,
+      # and nothing else, and either kind of difference stops
       # the run before anything is attached to a release.
       #
       # Position matters. SHA256SUMS.txt does not exist yet at this point in the
@@ -257,7 +267,7 @@ jobs:
           # -maxdepth 1 -mindepth 1 lists everything directly inside dist/ and
           # descends into nothing, so an artifact that arrives as a directory
           # is reported by its own name rather than passed over. A correct
-          # build leaves six regular files there and nothing else, so listing
+          # build leaves twelve regular files there and nothing else, so listing
           # directories too cannot fail a run that should pass.
           find dist -maxdepth 1 -mindepth 1 -printf '%f\n' | sort > actual.txt
           if ! diff -u expected.txt actual.txt > dist-diff.txt; then
@@ -274,13 +284,17 @@ jobs:
         run: |
           set -e
           # An artifact download does not preserve the executable bit.
-          chmod +x dist/dinah-linux-amd64
-          REPORTED=$(dist/dinah-linux-amd64 --json version)
-          echo "$REPORTED"
-          if ! printf '%s' "$REPORTED" | grep -qF "\"tool\": \"${TAG}\""; then
-            echo "::error::the linux/amd64 binary reports something other than ${TAG}; the ldflags injection did not reach verb.ToolRelease"
-            exit 1
-          fi
+          # Both programs are checked, because each is its own build and the
+          # injection has to reach both.
+          for binary in dinah-linux-amd64 dinah-tui-linux-amd64; do
+            chmod +x "dist/$binary"
+            REPORTED=$("dist/$binary" --json version)
+            echo "$REPORTED"
+            if ! printf '%s' "$REPORTED" | grep -qF "\"tool\": \"${TAG}\""; then
+              echo "::error::$binary reports something other than ${TAG}; the ldflags injection did not reach verb.ToolRelease"
+              exit 1
+            fi
+          done
 
       - name: Write the checksums and the channel manifest
         uses: ./.github/actions/channel-manifest

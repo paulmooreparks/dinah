@@ -222,8 +222,14 @@ jobs:
             GOARCH=${rest%%/*}
             EXT=${rest#*/}
             export GOOS GOARCH
+            # dinah, with no tags, and dinah-tui, the terminal UI, with the
+            # tui tag, from the same package with the same flags.
             go build -trimpath -ldflags="-s -w -X dinah/internal/verb.ToolRelease=${TAG}" \
               -o "${GITHUB_WORKSPACE}/dist/dinah-${GOOS}-${GOARCH}${EXT}" \
+              ./cmd/dinah
+            go build -trimpath -ldflags="-s -w -X dinah/internal/verb.ToolRelease=${TAG}" \
+              -tags tui \
+              -o "${GITHUB_WORKSPACE}/dist/dinah-tui-${GOOS}-${GOARCH}${EXT}" \
               ./cmd/dinah
           done
           ls -1 "${GITHUB_WORKSPACE}/dist"
@@ -233,13 +239,15 @@ jobs:
           TAG: ${{ needs.assemble.outputs.tag }}
         run: |
           set -e
-          chmod +x dist/dinah-linux-amd64
-          REPORTED=$(dist/dinah-linux-amd64 --json version)
-          echo "$REPORTED"
-          if ! printf '%s' "$REPORTED" | grep -qF "\"tool\": \"${TAG}\""; then
-            echo "::error::the linux/amd64 binary reports something other than ${TAG}; the ldflags injection did not reach verb.ToolRelease"
-            exit 1
-          fi
+          for binary in dinah-linux-amd64 dinah-tui-linux-amd64; do
+            chmod +x "dist/$binary"
+            REPORTED=$("dist/$binary" --json version)
+            echo "$REPORTED"
+            if ! printf '%s' "$REPORTED" | grep -qF "\"tool\": \"${TAG}\""; then
+              echo "::error::$binary reports something other than ${TAG}; the ldflags injection did not reach verb.ToolRelease"
+              exit 1
+            fi
+          done
 
       - name: Push the tag
         env:
