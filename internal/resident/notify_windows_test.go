@@ -630,3 +630,49 @@ func TestAResidentListingNeverRefusesADelete(t *testing.T) {
 		t.Errorf("deleting a directory the resident holds open failed: %v", err)
 	}
 }
+
+// TestTheBuilderListingNeverRefusesADelete holds the same property through
+// the two places the resident lists a directory, the builder's readDir (a
+// full read) and its readListing (an update), rather than through the helper
+// they call: listDirHeld renames and deletes the directory while the
+// listing's handle is open. A call site that went back to os.ReadDir would
+// never reach listDirHeld, and one whose listing did not share delete would
+// refuse the rename, so either goes red here (dinah-619/comments/15).
+func TestTheBuilderListingNeverRefusesADelete(t *testing.T) {
+	for _, path := range []struct {
+		name string
+		list func(b *builder, rel string)
+	}{
+		{"readDir", func(b *builder, rel string) { b.readDir(rel, false) }},
+		{"readListing", func(b *builder, rel string) { b.readListing(rel) }},
+	} {
+		t.Run(path.name, func(t *testing.T) {
+			root := t.TempDir()
+			listed := filepath.Join(root, "comments")
+			if err := os.Mkdir(listed, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, filepath.Join(listed, "comment.md"), "listed")
+			held := 0
+			listDirHeld = func(at string) {
+				if at != listed {
+					return
+				}
+				held++
+				moved := filepath.Join(root, "moved")
+				if err := os.Rename(listed, moved); err != nil {
+					t.Errorf("%s: renaming away a directory the resident is listing failed: %v", path.name, err)
+					moved = listed
+				}
+				if err := os.RemoveAll(moved); err != nil {
+					t.Errorf("%s: deleting a directory the resident is listing failed: %v", path.name, err)
+				}
+			}
+			t.Cleanup(func() { listDirHeld = nil })
+			path.list(&builder{root: root, dirs: map[string]*dirNode{}}, "comments")
+			if held != 1 {
+				t.Errorf("%s listed the directory %d times through listDir, wanted once: the resident's listing no longer goes through the handle that shares delete", path.name, held)
+			}
+		})
+	}
+}

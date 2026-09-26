@@ -30,5 +30,8 @@ func listDir(path string) (fs.FileInfo, []fs.DirEntry, error) {
 		return nil, nil, err
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	if listDirHeld != nil {
+		listDirHeld(path)
+	}
 	return info, entries, nil
 }
