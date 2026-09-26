@@ -108,6 +108,11 @@ func TestASnapshotAnswersWhatTheDiskAnswers(t *testing.T) {
 			}
 		}
 		compareStat(t, snapshot, disk, dir)
+		wantIDs, wantErr := bench.ListIDs(dir)
+		gotIDs, held := snapshot.HeldIDs(dir)
+		if wantErr != nil || !held || !reflect.DeepEqual(gotIDs, wantIDs) {
+			t.Errorf("HeldIDs(%s) answered %v, %v, and ListIDs %v, %v", dir, gotIDs, held, wantIDs, wantErr)
+		}
 		compared++
 	}
 	if got := counted.take(); len(got) != 0 {
@@ -135,6 +140,12 @@ func TestASnapshotAnswersWhatTheDiskAnswers(t *testing.T) {
 		card = filepath.Dir(card)
 	}
 	absent := filepath.Join(built.Root, "no-such-file")
+	if ids, held := snapshot.HeldIDs(absent); !held || ids != nil {
+		t.Errorf("HeldIDs of an absent collection answered %v, %v, and ListIDs answers none", ids, held)
+	}
+	if _, held := snapshot.HeldIDs(built.CRLFAnchor); held {
+		t.Error("HeldIDs answered for a file, which ListIDs refuses with the read's error")
+	}
 	missingJournal := filepath.Join(built.Root, bench.CardsDir, "000000000000", bench.JournalName)
 	for _, path := range []string{absent, missingJournal} {
 		for name, read := range map[string]func(bench.Source) error{

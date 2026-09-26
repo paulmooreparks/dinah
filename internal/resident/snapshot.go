@@ -28,7 +28,11 @@ type Snapshot struct {
 	// root starts with.
 	prefix string
 	dirs   map[string]*dirNode
-	gen    uint64
+	// files indexes every held regular file by its relative key, so a read of
+	// a file, which is most reads, is one lookup rather than a walk through
+	// its parent's maps.
+	files map[string]*fileNode
+	gen   uint64
 
 	// opened and openErr are what bench.OpenWith answered over this
 	// snapshot, computed on the applier before the snapshot is published.
@@ -42,8 +46,8 @@ type Snapshot struct {
 	lapsing []expiring
 
 	hooks *Hooks
-	// files and bytes are what Held reports.
-	files int
+	// held and bytes are what Held reports.
+	held  int
 	bytes int64
 }
 
@@ -64,6 +68,10 @@ type dirNode struct {
 	// anything but not-exist. A node carrying one is unheld: every read of
 	// it passes through to the disk.
 	err error
+
+	// idsOnce and ids memoise the identifiers HeldIDs answers.
+	idsOnce sync.Once
+	ids     []string
 }
 
 // fileNode is one held regular file.
@@ -170,6 +178,12 @@ func (s *Snapshot) place(path string) (placement, *dirNode, *fileNode) {
 	rel, ok := s.relative(path)
 	if !ok {
 		return placedOutside, nil, nil
+	}
+	if file, held := s.files[rel]; held {
+		if file.err != nil {
+			return placedUnplaced, nil, nil
+		}
+		return placedFile, nil, file
 	}
 	if rel == "." {
 		if dir, held := s.dirs[rel]; held && dir.err == nil {
@@ -445,9 +459,35 @@ func (f *fileNode) textAndRevision() (string, string) {
 	return f.text, f.revision
 }
 
+// HeldIDs answers the identifiers of a held collection as bench.ListIDs
+// would: the entries that are directories named by an identifier, in name
+// order, and nothing for a collection the snapshot knows is absent. It
+// answers held false for any collection it cannot answer, which reads it the
+// ordinary way. The answer is the caller's own.
+func (s *Snapshot) HeldIDs(collection string) ([]string, bool) {
+	where, node, _ := s.place(collection)
+	switch {
+	case where == placedAbsent:
+		return nil, true
+	case where == placedDir && node != nil:
+		node.idsOnce.Do(func() {
+			for _, entry := range node.entries {
+				if entry.IsDir() && bench.IsID(entry.Name()) {
+					node.ids = append(node.ids, entry.Name())
+				}
+			}
+		})
+		if node.ids == nil {
+			return nil, true
+		}
+		return append([]string(nil), node.ids...), true
+	}
+	return nil, false
+}
+
 // Held answers how many files the snapshot holds and how many bytes.
 func (s *Snapshot) Held() (int, int64) {
-	return s.files, s.bytes
+	return s.held, s.bytes
 }
 
 // readDirOfFileError replays the error os.ReadDir answers for a regular

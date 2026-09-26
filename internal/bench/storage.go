@@ -348,6 +348,11 @@ func listIDs(src Source, collection string) ([]string, error) {
 	if ListIDsObserver != nil {
 		ListIDsObserver(collection)
 	}
+	if lister, ok := src.(idLister); ok {
+		if ids, held := lister.HeldIDs(collection); held {
+			return ids, nil
+		}
+	}
 	entries, err := readCollection(src, collection)
 	if err != nil {
 		return nil, err
@@ -360,6 +365,15 @@ func listIDs(src Source, collection string) ([]string, error) {
 		ids = append(ids, entry.Name())
 	}
 	return ids, nil
+}
+
+// idLister is what a source that holds its listings may also offer: the
+// identifiers of a collection as ListIDs would answer them, computed once per
+// listing it holds. held false sends the caller to the ordinary read. A
+// resident snapshot offers it, because reading every card's collections on
+// every request would otherwise test every name of every listing each time.
+type idLister interface {
+	HeldIDs(collection string) (ids []string, held bool)
 }
 
 // Exists reports whether a path is present.

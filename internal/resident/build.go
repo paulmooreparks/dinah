@@ -203,11 +203,12 @@ func readWhole(path string) ([]byte, error) {
 // finish turns a directory map into a snapshot: it counts what is held, opens
 // the workbench over it and computes the earliest claim expiry.
 func finish(root string, dirs map[string]*dirNode, gen uint64, hooks *Hooks) *Snapshot {
-	s := &Snapshot{root: root, prefix: root + string(filepath.Separator), dirs: dirs, gen: gen, hooks: hooks}
-	for _, dir := range dirs {
-		for _, file := range dir.files {
+	s := &Snapshot{root: root, prefix: root + string(filepath.Separator), dirs: dirs, files: map[string]*fileNode{}, gen: gen, hooks: hooks}
+	for key, dir := range dirs {
+		for name, file := range dir.files {
+			s.files[joinRel(key, name)] = file
 			if file.err == nil {
-				s.files++
+				s.held++
 				s.bytes += int64(len(file.data))
 			}
 		}
