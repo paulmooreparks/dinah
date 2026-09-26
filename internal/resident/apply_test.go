@@ -667,11 +667,26 @@ func TestASettleDuringARebuildWaitsForTheNextPass(t *testing.T) {
 	}
 	card := filepath.Join(root, "cards", "0123456789ab")
 	write(t, filepath.Join(card, "card.md"), "column: new")
-	settled := make(chan error, 1)
+	// What the Settle's caller sees the moment it returns: the snapshot a
+	// request would then read. A Settle released by the rebuild's publish
+	// sees the rebuild, which read the card before the write.
+	type seen struct {
+		err        error
+		generation uint64
+		anchor     string
+	}
+	settled := make(chan seen, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), deadline)
 		defer cancel()
-		settled <- v.w.Settle(ctx, card)
+		err := v.w.Settle(ctx, card)
+		got := seen{err: err}
+		if snapshot := v.w.Current(time.Now()).Snapshot; snapshot != nil {
+			got.generation = snapshot.Generation()
+			data, _ := snapshot.ReadFile(filepath.Join(card, "card.md"))
+			got.anchor = string(data)
+		}
+		settled <- got
 	}()
 	// The Settle is queued before the rebuild is released.
 	waitFor(t, "the Settle to be queued", func() bool { return resident.QueuedSettles(v.w) == 1 })
@@ -681,27 +696,25 @@ func TestASettleDuringARebuildWaitsForTheNextPass(t *testing.T) {
 	if !rebuilt.Rebuilt {
 		t.Fatalf("the held pass was not the rebuild: %+v", rebuilt)
 	}
+	var got seen
 	select {
-	case <-settled:
-		t.Fatal("the Settle returned with the rebuild's publish, whose reads began before it")
-	default:
+	case got = <-settled:
+	case <-time.After(deadline):
+		t.Fatal("the Settle did not return")
+	}
+	if got.err != nil {
+		t.Fatalf("Settle answered %v", got.err)
+	}
+	if got.generation <= rebuilt.Generation {
+		t.Fatalf("the Settle returned while the snapshot served was generation %d, the rebuild's, whose reads began before the Settle", got.generation)
+	}
+	if got.anchor != "column: new" {
+		t.Errorf("the snapshot served when the Settle returned carries %q, not the write made before it", got.anchor)
 	}
 	later := v.until("naming the card's directory", func(p resident.Published) bool {
 		return names(p, "cards/0123456789ab")
 	})
-	if later.Generation <= rebuilt.Generation {
-		t.Errorf("the publish naming the card is generation %d, not after the rebuild's %d", later.Generation, rebuilt.Generation)
-	}
-	select {
-	case err := <-settled:
-		if err != nil {
-			t.Fatalf("Settle answered %v", err)
-		}
-	case <-time.After(deadline):
-		t.Fatal("the Settle did not return after the publish naming the card")
-	}
-	data, err := v.current().ReadFile(filepath.Join(card, "card.md"))
-	if err != nil || string(data) != "column: new" {
-		t.Errorf("the snapshot after the Settle carries %q, %v", data, err)
+	if later.Generation <= rebuilt.Generation || later.Generation > got.generation {
+		t.Errorf("the publish naming the card is generation %d, which is not after the rebuild's %d and at or before the one the Settle returned on, %d", later.Generation, rebuilt.Generation, got.generation)
 	}
 }
