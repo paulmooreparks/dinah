@@ -464,9 +464,21 @@ func TestNoCommandFromTheUIResolvesAPinnedSettingAfresh(t *testing.T) {
 	}
 }
 
-// sameDir compares two directory paths by what they name.
+// sameDir compares two directory paths by what they name. Each is resolved
+// through its symbolic links first, because a library reports the directory
+// discovery reached and a test holds the path it was handed, and on macOS the
+// temporary directory the two share is /var, a link to /private/var.
 func sameDir(a, b string) bool {
-	return filepath.Clean(strings.ToLower(a)) == filepath.Clean(strings.ToLower(b))
+	return canonicalDir(a) == canonicalDir(b)
+}
+
+// canonicalDir is a directory path with its symbolic links resolved where
+// they can be, cleaned and lowered, so two spellings of one directory agree.
+func canonicalDir(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	return filepath.Clean(strings.ToLower(path))
 }
 
 // checkPinnedJournals asserts every journal line the pinned run wrote under
