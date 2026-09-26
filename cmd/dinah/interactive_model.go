@@ -170,6 +170,7 @@ type interactiveModel struct {
 	selected      int
 
 	mode         interactiveMode
+	promptBack   interactiveMode
 	cardOpen     bool
 	cardRef      string
 	cardLines    []string
@@ -1030,6 +1031,8 @@ func (m *interactiveModel) itemsKey(keys *interactiveKeys, pressed tea.KeyPressM
 	case key.Matches(pressed, keys.menuCancel), key.Matches(pressed, keys.menuQuit):
 		m.closeItems()
 		return nil
+	case key.Matches(pressed, keys.jump):
+		return m.openPrompt(promptJump, "")
 	}
 	for _, row := range interactiveActs {
 		if row.mode != actItems || !key.Matches(pressed, row.binding(keys)) {
@@ -1322,6 +1325,10 @@ func (m *interactiveModel) cleaned(lines []string) []string {
 
 // openPrompt opens a prompt, holding text.
 func (m *interactiveModel) openPrompt(kind promptKind, text string) tea.Cmd {
+	m.promptBack = m.returnMode()
+	if m.mode == modeItems {
+		m.promptBack = modeItems
+	}
 	m.prompt = kind
 	m.mode = modePrompt
 	if kind == promptText {
@@ -1348,6 +1355,9 @@ func (m *interactiveModel) closePrompt() {
 	m.area.Blur()
 	m.area.Reset()
 	m.mode = m.returnMode()
+	if m.promptBack == modeItems && len(m.itemRows) > 0 {
+		m.mode = modeItems
+	}
 }
 
 // promptKey handles a key while a prompt is open. Up and Down at the command

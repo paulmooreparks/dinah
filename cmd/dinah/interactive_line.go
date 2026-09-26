@@ -294,7 +294,12 @@ func (m *interactiveModel) afterLine(result *lineResult) {
 		m.l = reopened
 	}
 	m.loadBindings(false)
+	m.message = nil
 	m.reread()
+	// A notice the read left, such as item mode closing because the line
+	// settled its last item, is kept beneath what the line showed.
+	notice := m.message
+	defer func() { m.message = append(m.message, notice...) }()
 	lines := result.transcript.lines
 	if result.pinned != "" {
 		lines = append(lines, withoutControls(m.s.r.T("interactive.line.pinned", "key", result.pinned)))
