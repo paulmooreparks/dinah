@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -123,22 +124,33 @@ type exchange struct {
 	// start is when ServeHTTP took the request. A request on the resident
 	// reads one snapshot at this one instant.
 	start time.Time
+	// state is what the exchange shares with ServeHTTP.
+	state *requestState
 	// chosen reports that the request's source has been chosen, and pick is
 	// what the resident answered when it was asked.
 	chosen bool
 	pick   resident.Pick
 }
 
-// startKey carries the instant ServeHTTP took a request to the exchange the
-// route handler builds.
-type startKey struct{}
+// requestKey carries a request's own state from ServeHTTP to the exchange the
+// route handler builds, and back.
+type requestKey struct{}
 
-// startOf answers the instant ServeHTTP took a request.
-func startOf(r *http.Request) time.Time {
-	if start, ok := r.Context().Value(startKey{}).(time.Time); ok {
-		return start
+// requestState is what ServeHTTP and the route's exchange share: the instant
+// ServeHTTP took the request, and the cards whose claims had lapsed at it
+// when that is why the request read the disk.
+type requestState struct {
+	start   time.Time
+	lapsing []string
+}
+
+// stateOf answers a request's shared state, a fresh one when ServeHTTP did
+// not take it.
+func stateOf(r *http.Request) *requestState {
+	if state, ok := r.Context().Value(requestKey{}).(*requestState); ok {
+		return state
 	}
-	return time.Now()
+	return &requestState{start: time.Now()}
 }
 
 // ServeHTTP runs the admission steps that read nothing of the route, then
@@ -148,9 +160,9 @@ func (h *head) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	header.Set("Cache-Control", "no-store")
 	header.Set("X-Content-Type-Options", "nosniff")
 	header.Set("Vary", "Accept")
-	start := time.Now()
-	r = r.WithContext(context.WithValue(r.Context(), startKey{}, start))
-	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: start}
+	state := &requestState{start: time.Now()}
+	r = r.WithContext(context.WithValue(r.Context(), requestKey{}, state))
+	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: state.start, state: state}
 	if !h.admittedHost(r.Host) {
 		h.refuse(x, contract.ForeignHost, r.Host)
 		return
@@ -176,6 +188,12 @@ func (h *head) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.mux.ServeHTTP(w, r)
+	// A request that read the disk because a claim had lapsed wrote each
+	// lapse under the card's lock, as a read always has; the settle brings
+	// those cards into the resident, so the next request reads it again.
+	if len(state.lapsing) > 0 && h.cfg.Resident != nil {
+		h.cfg.Resident.Settle(r.Context(), state.lapsing...)
+	}
 }
 
 // cleanPath is the path ServeMux redirects a request to: the path with dot
@@ -196,14 +214,16 @@ func cleanPath(p string) string {
 
 // serveUnmatched answers a path no route matches.
 func (h *head) serveUnmatched(w http.ResponseWriter, r *http.Request) {
-	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: startOf(r)}
+	state := stateOf(r)
+	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: state.start, state: state}
 	h.refuse(x, contract.UnknownResource, r.URL.Path)
 }
 
 // serveRoute runs the admission steps that read the route, negotiates, and
 // hands the request to the route's read or to its acts.
 func (h *head) serveRoute(rt *route, w http.ResponseWriter, r *http.Request) {
-	x := &exchange{w: w, r: r, route: rt, verb: rt.command(), method: r.Method, start: startOf(r)}
+	state := stateOf(r)
+	x := &exchange{w: w, r: r, route: rt, verb: rt.command(), method: r.Method, start: state.start, state: state}
 	if !rt.takes(r.Method) {
 		h.notAllowed(x)
 		return
@@ -359,6 +379,9 @@ func (h *head) chooseSource(x *exchange) {
 	read := x.r.Method == http.MethodGet || x.r.Method == http.MethodHead
 	if read && h.cfg.Resident != nil {
 		x.pick = h.cfg.Resident.Current(x.start)
+		if x.state != nil {
+			x.state.lapsing = x.pick.Lapsing
+		}
 	}
 	if h.cfg.observeSource != nil {
 		h.cfg.observeSource(x.pick.Snapshot != nil)
@@ -400,7 +423,78 @@ func (h *head) execute(x *exchange, command string, req *verb.Request) answer.Se
 	began := time.Now()
 	answered := answer.RunSealed(command, x.library, req)
 	h.timeRead(command, began)
+	if unsafeMethod(x.r.Method) && h.cfg.Resident != nil {
+		h.settleAct(x, req, answered)
+	}
 	return answered
+}
+
+// settleAct brings what an act wrote into the resident before the head
+// answers, so a page that posts an act draws its result on the redirect that
+// follows rather than waiting for Windows to report the page's own write. It
+// runs on both paths an act takes, the routed one and the typed one on POST
+// /commands, since both come through execute, and it runs whether the act
+// succeeded or was refused, because a refusal writes nothing and settling
+// costs one pass.
+//
+// The directories are collected after the act, through the act's own disk
+// library, so a reference the act itself created resolves:
+//
+//   - each of the request's card and ref that resolves to an entity: its
+//     directory, and its card's, because an item's or a comment's event is
+//     appended to its card's journal;
+//   - the card the answer carries, which is how an add or a pull names the
+//     card it created or took;
+//   - the root, which Settle always reconciles, where the card-number
+//     registry and the workbench journal live.
+func (h *head) settleAct(x *exchange, req *verb.Request, answered answer.Sealed) {
+	var dirs []string
+	add := func(ref string) {
+		if strings.TrimSpace(ref) == "" || x.library == nil || x.library.Bench == nil {
+			return
+		}
+		entity, _, err := x.library.Bench.ResolveReferenceIn(bench.LiveHalf, ref)
+		if err != nil || entity == nil {
+			return
+		}
+		dirs = append(dirs, entity.Dir)
+		if entity.Card != nil {
+			dirs = append(dirs, entity.Card.Dir)
+		}
+	}
+	add(req.Card)
+	add(req.Ref)
+	add(answered.CardRef())
+	h.cfg.Resident.Settle(x.r.Context(), outermostDirs(dirs)...)
+}
+
+// outermostDirs answers each directory once, dropping any below another in
+// the set, because a deep reconcile of the ancestor covers it.
+func outermostDirs(dirs []string) []string {
+	var kept []string
+	for _, dir := range dirs {
+		covered := false
+		for _, other := range dirs {
+			if other != dir && strings.HasPrefix(dir, other+string(filepath.Separator)) {
+				covered = true
+				break
+			}
+		}
+		if covered {
+			continue
+		}
+		duplicate := false
+		for _, k := range kept {
+			if k == dir {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			kept = append(kept, dir)
+		}
+	}
+	return kept
 }
 
 // refuse answers a refusal the head raised itself.

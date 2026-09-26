@@ -1,10 +1,17 @@
 # Working over HTTP
 
 `dinah serve` lets a browser, or any other HTTP client on this machine, work
-with one workbench. Dinah opens the workbench afresh for every request, so you
-get the answer a terminal command would give you at that moment, even when
-another process added a card or a column a second earlier. Every body Dinah
-sends you is the JSON that `dinah mcp` sends for the same call, byte for byte.
+with one workbench. On Windows, Dinah keeps the workbench in memory and learns
+of every change to its files from Windows's own change notifications, so a
+read is answered without opening a file, and a card another process moves
+appears as soon as Windows reports the move. A program that rewrites a
+workbench file in place, rather than the way Dinah writes one, can take a
+little longer to show, because Windows reports such a write when it reaches
+the disk. Every act, such as a claim or a move, still reads and writes the
+files themselves, so it is judged against the workbench as it stands on disk.
+On other systems, and for a workbench that is not on a fixed local disk, Dinah
+opens the workbench afresh for every request. Every body Dinah sends you is
+the JSON that `dinah mcp` sends for the same call, byte for byte.
 
 When you run `dinah serve`, Dinah prints the address it is listening on and
 keeps running until you interrupt it. It listens on `127.0.0.1:7340` unless

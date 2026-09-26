@@ -773,25 +773,52 @@ func ReadCardHeader(anchor string) (*Frontmatter, error) {
 // readCardHeader is ReadCardHeader's body, reading the anchor's head through
 // src.
 func readCardHeader(src Source, anchor string) (*Frontmatter, error) {
-	head, err := src.ReadHead(anchor, cardHeaderLimit)
+	head, err := src.ReadHead(anchor, cardHeaderProbe)
 	if err != nil {
 		return nil, err
 	}
+	if fm, err, decided := headerIn(anchor, head, len(head) < cardHeaderProbe); decided {
+		return fm, err
+	}
+	head, err = src.ReadHead(anchor, cardHeaderLimit)
+	if err != nil {
+		return nil, err
+	}
+	fm, err, _ := headerIn(anchor, head, true)
+	return fm, err
+}
+
+// cardHeaderProbe is how much of an anchor readCardHeader reads first. Most
+// headers close well inside it, so reading every header on a keystroke reads
+// a few kilobytes of each anchor rather than up to cardHeaderLimit; a header
+// that does not close inside it is read again up to the limit.
+const cardHeaderProbe = 4096
+
+// headerIn reads a card anchor's frontmatter out of the head of its bytes,
+// line by line, stopping at the line that closes it. complete says the head
+// is all the reader will get: the whole file, or cardHeaderLimit of it. A
+// head that is not complete decides nothing about a last line it cut short,
+// and answers decided false when it holds no closing fence, so the caller
+// reads further.
+func headerIn(anchor string, head []byte, complete bool) (*Frontmatter, error, bool) {
 	reader := bufio.NewReader(bytes.NewReader(head))
 	var text strings.Builder
 	for lineNumber := 0; ; lineNumber++ {
 		line, readErr := reader.ReadString('\n')
+		if readErr != nil && !complete {
+			return nil, nil, false
+		}
 		text.WriteString(line)
 		fence := strings.TrimSpace(line) == "---"
 		if lineNumber == 0 && !fence {
-			return nil, fmt.Errorf("%s opens no frontmatter", anchor)
+			return nil, fmt.Errorf("%s opens no frontmatter", anchor), true
 		}
 		if lineNumber > 0 && fence {
 			fm, _ := ParseAnchor(text.String())
-			return fm, nil
+			return fm, nil, true
 		}
 		if readErr != nil {
-			return nil, fmt.Errorf("%s closes no frontmatter within %d bytes", anchor, cardHeaderLimit)
+			return nil, fmt.Errorf("%s closes no frontmatter within %d bytes", anchor, cardHeaderLimit), true
 		}
 	}
 }

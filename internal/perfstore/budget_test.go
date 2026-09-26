@@ -20,7 +20,6 @@ import (
 	"dinah/internal/httphead"
 	"dinah/internal/perfstore"
 	"dinah/internal/resident"
-	"dinah/internal/resident/residenttest"
 	"dinah/internal/verb"
 )
 
@@ -345,7 +344,7 @@ func budgetOperations(t *testing.T, store *perfstore.Store, b *bench.Bench, bina
 func openResident(t *testing.T, root string) *resident.Workbench {
 	t.Helper()
 	start := time.Now()
-	w, err := resident.Open(root, resident.Options{Notifier: residenttest.NewManual()})
+	w, err := resident.Open(root, resident.Options{})
 	if err != nil {
 		t.Logf("perfstore: no resident (%v), so page-card reads the disk", err)
 		return nil

@@ -2,6 +2,7 @@ package resident
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -158,7 +159,7 @@ func readFile(path string, payload bool) *fileNode {
 	if payload {
 		data, err = readHead(path)
 	} else {
-		data, err = os.ReadFile(path)
+		data, err = readWhole(path)
 	}
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -179,12 +180,24 @@ func readFile(path string, payload bool) *fileNode {
 
 // readHead reads the head of a payload, as bench.Disk.ReadHead does.
 func readHead(path string) ([]byte, error) {
-	file, err := os.Open(path)
+	file, err := openShared(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 	return bench.ReadHeadFrom(file, bench.AttachmentHeadBytes)
+}
+
+// readWhole reads a whole file as os.ReadFile does, through a handle that
+// shares delete, so the resident's read never refuses another process's
+// delete or rename of the file.
+func readWhole(path string) ([]byte, error) {
+	file, err := openShared(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
 }
 
 // finish turns a directory map into a snapshot: it counts what is held, opens

@@ -22,6 +22,8 @@ import (
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/httphead"
+	"dinah/internal/resident"
+	"dinah/internal/resident/residenttest"
 	"dinah/internal/verb"
 )
 
@@ -388,6 +390,48 @@ func TestServeLockHelper(t *testing.T) {
 // writer is a separate operating-system process: the real binary for a CLI
 // move, and this test binary re-executed for a held lock.
 func TestAWriterInAnotherProcessIsSerialised(t *testing.T) {
+	writersAreSerialised(t, nil)
+}
+
+// TestAWriterInAnotherProcessIsSerialisedWithAResident is part of
+// dinah-619/criteria/16: dinah-152's writer tests run a second time with a
+// resident held by every head, and pass unchanged, which shows that the
+// locks and the basis guard behave as they did.
+func TestAWriterInAnotherProcessIsSerialisedWithAResident(t *testing.T) {
+	writersAreSerialised(t, func(t *testing.T) func(*httphead.Config) {
+		return withPlatformResident(t, nil)
+	})
+}
+
+// withPlatformResident is a serveBench option that opens a resident with the
+// platform's own watcher over the head's root and closes it when the test
+// ends. It skips the test where the platform has no watcher.
+func withPlatformResident(t *testing.T, hooks *resident.Hooks) func(*httphead.Config) {
+	return func(cfg *httphead.Config) {
+		t.Helper()
+		w, err := resident.Open(cfg.Root, resident.Options{Hooks: hooks})
+		if errors.Is(err, resident.ErrUnsupported) {
+			t.Skip("this platform has no watcher, so the head reads the disk as the first run did")
+		}
+		if err != nil {
+			t.Fatalf("open the resident: %v", err)
+		}
+		t.Cleanup(func() { w.Close() })
+		<-w.Ready()
+		cfg.Resident = w
+	}
+}
+
+// writersAreSerialised is dinah-152/criteria/20's body. held, when set,
+// answers an option each head is served with.
+func writersAreSerialised(t *testing.T, held func(t *testing.T) func(*httphead.Config)) {
+	serve := func(t *testing.T, root string, options ...func(*httphead.Config)) *httpFixture {
+		t.Helper()
+		if held != nil {
+			options = append(options, held(t))
+		}
+		return serveBench(t, root, options...)
+	}
 	root := newBench(t)
 	workbench := soleBenchDir(t, root)
 	for _, argv := range [][]string{{"column", "new", "Review"}, {"add", "A card"}} {
@@ -428,7 +472,7 @@ func TestAWriterInAnotherProcessIsSerialised(t *testing.T) {
 	}
 
 	t.Run("a lock held by another process", func(t *testing.T) {
-		f := serveBench(t, root)
+		f := serve(t, root)
 		found, err := opened.ResolveCard(card)
 		if err != nil {
 			t.Fatalf("resolve: %v", err)
@@ -470,7 +514,7 @@ func TestAWriterInAnotherProcessIsSerialised(t *testing.T) {
 
 	t.Run("a write between the head's read and its write", func(t *testing.T) {
 		once := sync.Once{}
-		f := serveBench(t, root, func(cfg *httphead.Config) {
+		f := serve(t, root, func(cfg *httphead.Config) {
 			cfg.BeforeRun = func() {
 				once.Do(func() {
 					if code, stderr := cliMove(t, workbench, card, "doing"); code != 0 {
@@ -487,7 +531,7 @@ func TestAWriterInAnotherProcessIsSerialised(t *testing.T) {
 	})
 
 	t.Run("a write between a GET and a PATCH", func(t *testing.T) {
-		f := serveBench(t, root)
+		f := serve(t, root)
 		_, header, _ := f.do(http.MethodGet, "/cards/"+card, "", "")
 		read, _ := strconv.Unquote(header.Get("ETag"))
 		if code, stderr := cliMove(t, workbench, card, "review"); code != 0 {
@@ -501,7 +545,7 @@ func TestAWriterInAnotherProcessIsSerialised(t *testing.T) {
 
 	t.Run("a CLI writer arriving while the head holds the lock", func(t *testing.T) {
 		code, stderr := -1, ""
-		f := serveBench(t, root, func(cfg *httphead.Config) {
+		f := serve(t, root, func(cfg *httphead.Config) {
 			cfg.Interleave = func() { code, stderr = cliMove(t, workbench, card, "done") }
 		})
 		before := len(journal())
@@ -517,4 +561,142 @@ func TestAWriterInAnotherProcessIsSerialised(t *testing.T) {
 			t.Errorf("wanted the journal to carry the HTTP move alone, got %+v", events)
 		}
 	})
+}
+
+// TestTheResidentAnswersWhatTheCLIWroteOnceItsRecordArrives is
+// dinah-619/criteria/6: dinah-152/criteria/13's cross-process shape on the
+// resident. The real binary moves a card in another process; the test waits
+// for the publish whose paths include the card's anchor, as Windows reports
+// the write, and one GET then shows the new column. The wait is on the
+// publish, against a deadline that bounds the test only, and nothing polls
+// the head.
+func TestTheResidentAnswersWhatTheCLIWroteOnceItsRecordArrives(t *testing.T) {
+	root := newBench(t)
+	workbench := soleBenchDir(t, root)
+	for _, argv := range [][]string{{"column", "new", "Review"}, {"add", "A card"}} {
+		if got := runCLI(t, root, argv...); got.code != 0 {
+			t.Fatalf("%v: %d %s", argv, got.code, got.errw)
+		}
+	}
+	card := "fx-1"
+	carryToDoing(t, root, card)
+	opened, err := bench.Open(workbench)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found, err := opened.ResolveCard(card)
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchor, err := filepath.Rel(workbench, found.Card.AnchorPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchor = filepath.ToSlash(anchor)
+	published := make(chan resident.Published, 256)
+	f := serveBench(t, root, withPlatformResident(t, &resident.Hooks{AfterPublish: func(p resident.Published) {
+		select {
+		case published <- p:
+		default:
+		}
+	}}))
+	if code, stderr := cliMove(t, workbench, card, "review"); code != 0 {
+		t.Fatalf("the CLI move: %d %s", code, stderr)
+	}
+	timeout := time.After(30 * time.Second)
+	for waiting := true; waiting; {
+		select {
+		case p := <-published:
+			for _, path := range p.Paths {
+				if path == anchor {
+					waiting = false
+				}
+			}
+		case <-timeout:
+			t.Fatalf("no publish naming %s arrived within 30 seconds of the CLI move; Windows documents that the change will be reported and not how soon, so this is a finding", anchor)
+		}
+	}
+	status, _, shown := f.do(http.MethodGet, "/cards/"+card, "", "")
+	detail, _ := shown["detail"].(map[string]any)
+	view, _ := detail["card"].(map[string]any)
+	if status != http.StatusOK || view["column_title"] != "Review" {
+		t.Errorf("GET /cards/%s after the publish: wanted the card in Review, got %d %v", card, status, view)
+	}
+}
+
+// TestServeClosesItsResident is part of dinah-619/criteria/16. serve opens
+// the resident once, serves from it, and closes it after shutdown.
+func TestServeClosesItsResident(t *testing.T) {
+	root := newBench(t)
+	var opened []*resident.Workbench
+	previous := residentOpen
+	residentOpen = func(dir string) (*resident.Workbench, error) {
+		w, err := resident.Open(dir, resident.Options{Notifier: residenttest.NewManual()})
+		if err == nil {
+			<-w.Ready()
+			opened = append(opened, w)
+		}
+		return w, err
+	}
+	t.Cleanup(func() { residentOpen = previous })
+	run := startServe(t, root, net.Listen, "--listen", "127.0.0.1:0")
+	address := run.address(t)
+	if len(opened) != 1 {
+		t.Fatalf("serve opened %d residents, wanted one", len(opened))
+	}
+	// The notifier never reports, so a card the CLI adds now is drawn only by
+	// a head that reads the disk.
+	if got := runCLI(t, root, "add", "Added under a resident that is never told"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	response, err := http.Get("http://" + address + "/cards")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if strings.Contains(string(read), "Added under a resident that is never told") {
+		t.Error("the head drew a card only the disk holds, so serve did not hand it the resident")
+	}
+	run.cancel()
+	got := run.wait(t)
+	if got.code != 0 || got.errw != "" || strings.Count(got.out, "\n") != 1 {
+		t.Errorf("serve wanted exit 0 and its one line, got %d, stdout %q, stderr %q", got.code, got.out, got.errw)
+	}
+	if pick := opened[0].Current(time.Now()); pick.Snapshot != nil {
+		t.Error("the resident still serves a snapshot after serve returned, so it was not closed")
+	}
+}
+
+// TestServeWithoutAResidentServesFromDisk is part of dinah-619/criteria/16.
+// Where resident.Open answers ErrUnsupported, serve serves from disk and
+// writes nothing beyond its one line.
+func TestServeWithoutAResidentServesFromDisk(t *testing.T) {
+	root := newBench(t)
+	previous := residentOpen
+	calls := 0
+	residentOpen = func(string) (*resident.Workbench, error) {
+		calls++
+		return nil, resident.ErrUnsupported
+	}
+	t.Cleanup(func() { residentOpen = previous })
+	run := startServe(t, root, net.Listen, "--listen", "127.0.0.1:0")
+	address := run.address(t)
+	if got := runCLI(t, root, "add", "Added with no resident"); got.code != 0 {
+		t.Fatalf("add: %d %s", got.code, got.errw)
+	}
+	response, err := http.Get("http://" + address + "/cards")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if !strings.Contains(string(read), "Added with no resident") {
+		t.Error("a head with no resident did not draw what the disk holds")
+	}
+	run.cancel()
+	got := run.wait(t)
+	if calls != 1 || got.code != 0 || got.errw != "" || strings.Count(got.out, "\n") != 1 {
+		t.Errorf("wanted one attempt, exit 0 and the one line, got %d attempts, %d, stdout %q, stderr %q", calls, got.code, got.out, got.errw)
+	}
 }
