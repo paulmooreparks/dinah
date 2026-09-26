@@ -36,7 +36,7 @@ func fileStandingItems(req *Request, b *bench.Bench, card *bench.Card, column *b
 	}
 	var written []bench.Event
 	for _, entry := range missing {
-		item, err := bench.AddStandingItem(card.Dir, column.ID, entry, ts)
+		item, err := b.AddStandingItem(card.Dir, column.ID, entry, ts)
 		if err != nil {
 			return written, err
 		}
@@ -108,7 +108,7 @@ func (l *Library) fileStanding(req *Request) (*StandingRepair, error) {
 		return nil, contract.Refuse(contract.NotOperator, req.Actor)
 	}
 	report := &StandingRepair{Preview: !req.Confirm}
-	ids, err := bench.ListIDs(l.Bench.CardsRoot())
+	ids, err := l.Bench.ListIDs(l.Bench.CardsRoot())
 	if err != nil {
 		return report, err
 	}
@@ -132,7 +132,7 @@ func (l *Library) fileStanding(req *Request) (*StandingRepair, error) {
 			}
 			continue
 		}
-		lock, err := bench.Acquire(card.Dir, req.Actor, now)
+		lock, err := l.Bench.Acquire(card.Dir, req.Actor, now)
 		if err != nil {
 			return report, err
 		}

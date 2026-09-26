@@ -814,6 +814,14 @@ func TestARefusedEntryNamesItsCard(t *testing.T) {
 // changes route.
 func TestEveryPageCarriesACursorChangesAccepts(t *testing.T) {
 	f := newPageFixture(t)
+	everyPageCarriesACursor(t, f, func() {})
+}
+
+// everyPageCarriesACursor is TestEveryPageCarriesACursorChangesAccepts's
+// body, which dinah-619 runs a second time over a resident; applied runs
+// after the move and before the poll that must see it.
+func everyPageCarriesACursor(t *testing.T, f *pageFixture, applied func()) {
+	t.Helper()
 	cursor := parseHTML(t, f.page("/").body).first(withClass("md-layout")).attr["data-changes-cursor"]
 	if cursor == "" {
 		t.Fatal("the board carries no cursor")
@@ -830,6 +838,7 @@ func TestEveryPageCarriesACursorChangesAccepts(t *testing.T) {
 		t.Error("nothing moved and changes says something changed")
 	}
 	f.act(&verb.Request{Verb: verb.Move, Actor: "alka", Card: f.card, Column: "review"})
+	applied()
 	if !ask() {
 		t.Error("a card moved and changes says nothing changed")
 	}

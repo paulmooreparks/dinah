@@ -26,7 +26,7 @@ func TestTheWorkbenchRootedSweepVisitsBothHalvesAndSkipsTheUnstamped(t *testing.
 	// attachments collection to descend into as well.
 	writeColumnComment(t, root, "b00000000001", "e00000000001", 1)
 
-	collections, err := ordinalCollections(root, KindWorkbench, map[string]bool{KindCard: true})
+	collections, err := ordinalCollections(Disk{}, root, KindWorkbench, map[string]bool{KindCard: true})
 	if err != nil {
 		t.Fatalf("ordinalCollections: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestTheWorkbenchRootedSweepVisitsBothHalvesAndSkipsTheUnstamped(t *testing.
 	// because every one of a card's mounts is stamped and so is every mount
 	// below them.
 	cardDir := filepath.Join(root, CardsDir, "c00000000001")
-	below, err := ordinalCollections(cardDir, KindCard, nil)
+	below, err := ordinalCollections(Disk{}, cardDir, KindCard, nil)
 	if err != nil {
 		t.Fatalf("the card-rooted sweep: %v", err)
 	}

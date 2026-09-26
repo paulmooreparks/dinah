@@ -2,9 +2,9 @@ package bench
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -126,13 +126,25 @@ type Card struct {
 	Revision string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+	// src is where the card was read, which its own history is read through
+	// too; nil reads as Disk.
+	src Source
+}
+
+// source is the Source this card was read through, or Disk for a card built
+// any other way.
+func (c *Card) source() Source {
+	if c.src == nil {
+		return Disk{}
+	}
+	return c.src
 }
 
 // LoadCard reads one card from a cards collection, refusing one that is not
 // written in the vocabulary this build reads: a card carrying no column key at
 // all, and a card carrying the column key beside the retired substate key.
 func LoadCard(collection, id string) (*Card, error) {
-	return loadCard(collection, id, true)
+	return loadCard(Disk{}, collection, id, true)
 }
 
 // loadRetiredCard reads a card written in the retired vocabulary without
@@ -143,24 +155,56 @@ func LoadCard(collection, id string) (*Card, error) {
 // still read in the current vocabulary's meaning of the two keys, so nothing
 // here should take its Column or its State for the card's real standing; the
 // migration itself reads cards through ParseAnchor for exactly that reason.
-func loadRetiredCard(collection, id string) (*Card, error) {
-	return loadCard(collection, id, false)
+func loadRetiredCard(src Source, collection, id string) (*Card, error) {
+	return loadCard(src, collection, id, false)
 }
 
 // loadCard is the body both readers share. refuseRetired is what separates
 // them, and it is a parameter rather than a package flag so that the choice is
 // made at the call site by a caller who knows which vocabulary the workbench
 // it opened declares.
-func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
-	dir := filepath.Join(collection, id)
-	anchor := filepath.Join(dir, CardAnchor)
+func loadCard(src Source, collection, id string, refuseRetired bool) (*Card, error) {
+	anchor := joinMember(collection, id, CardAnchor)
 	// One read answers both the text and the revision, so the revision a card
 	// carries is the revision of the very bytes its fields were parsed from.
-	text, revision, err := readTextAndRevision(anchor)
+	observeAnchor(anchor)
+	kind, derive := DeriveCard, cardFromText
+	if !refuseRetired {
+		kind, derive = DeriveCardRetired, retiredCardFromText
+	}
+	value, err := src.Derive(anchor, kind, derive)
 	if err != nil {
+		var refusal *contract.Refusal
+		if errors.As(err, &refusal) {
+			return nil, err
+		}
 		return nil, contract.Refuse(contract.UnknownCard, id)
 	}
+	card := value.(*Card).Clone()
+	card.src = src
+	return card, nil
+}
+
+// cardFromText is DeriveCard's derive function: the card an anchor's text
+// and revision describe, in the vocabulary this build reads.
+func cardFromText(path, text, revision string) (any, error) {
+	return parseCard(path, text, revision, true)
+}
+
+// retiredCardFromText is DeriveCardRetired's derive function, which reads
+// the card without refusing the retired vocabulary.
+func retiredCardFromText(path, text, revision string) (any, error) {
+	return parseCard(path, text, revision, false)
+}
+
+// parseCard is loadCard's body after its read. The card's directory and
+// identifier come from the anchor's path, so the answer is a pure function of
+// the path and the bytes, which is what lets a resident snapshot memoise it.
+func parseCard(anchor, text, revision string, refuseRetired bool) (*Card, error) {
+	dir := filepath.Dir(anchor)
+	id := filepath.Base(dir)
 	fm, body := ParseAnchor(text)
+	fm.markShared()
 	// Which vocabulary a card is written in is decided by the column key,
 	// which is the discriminator this card's D-14 settled and the one the
 	// migration's own skip-guard already asks about. No card written before
@@ -241,7 +285,7 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 // number that no longer lives there, so every caller that goes on to read
 // Number or to call Ref comes through here.
 func (b *Bench) LoadCardIn(root, id string) (*Card, error) {
-	card, err := LoadCard(root, id)
+	card, err := loadCard(b.source(), root, id, true)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +298,7 @@ func (b *Bench) LoadCardIn(root, id string) (*Card, error) {
 // lives in stamp rather than in LoadCardIn alone so that the retired route
 // reaches it too, which is the whole reason this method exists.
 func (b *Bench) loadRetiredCardIn(root, id string) (*Card, error) {
-	card, err := loadRetiredCard(root, id)
+	card, err := loadRetiredCard(b.source(), root, id)
 	if err != nil {
 		return nil, err
 	}
@@ -543,14 +587,15 @@ func (c *Card) Save() error {
 		c.FM.SetRaw("links", renderLinks(c.Links))
 	}
 	c.FM.SetSeq("workstreams", c.Workstreams)
-	if err := WriteText(c.AnchorPath(), c.FM.Render(c.Body)); err != nil {
+	rendered := c.FM.Render(c.Body)
+	if err := WriteText(c.AnchorPath(), rendered); err != nil {
 		return err
 	}
-	revision, err := Revision(c.AnchorPath())
-	if err != nil {
-		return err
-	}
-	c.Revision = revision
+	// The revision is computed over the bytes WriteText stored rather than
+	// read back from the file, which is the same value under the card lock
+	// every caller holds and which reads nothing, so a card cannot take its
+	// revision from anywhere but the write it just made.
+	c.Revision = TextRevision(NormalizeNewlines(rendered))
 	return nil
 }
 
@@ -649,11 +694,28 @@ func (c *Card) SetLevel(field, value string) {
 // column it stands in, and reading only moves would report the zero time and
 // sort it ahead of every card that arrived by one.
 func (c *Card) Arrival() time.Time {
-	events, _, err := ReadJournal(c.JournalPath())
+	parsed, err := readJournalShared(c.source(), c.JournalPath())
 	if err != nil {
 		return time.Time{}
 	}
-	return ArrivalFrom(events, c.Column)
+	return arrivalFromParsed(parsed.events, parsed.stamps, c.Column)
+}
+
+// arrivalFromParsed is ArrivalFrom over events whose stamps are already
+// parsed, one per event.
+func arrivalFromParsed(events []Event, stamps []time.Time, column string) time.Time {
+	arrival := time.Time{}
+	for i, ev := range events {
+		switch ev.Event {
+		case contract.EventCreated:
+			arrival = stamps[i]
+		case contract.EventMoved, contract.EventManualCorrection:
+			if ev.To == column {
+				arrival = stamps[i]
+			}
+		}
+	}
+	return arrival
 }
 
 // ArrivalFrom is the moment a card standing in column entered it, read out of
@@ -700,7 +762,12 @@ func (c *Card) Lapsed(now time.Time) bool {
 // identifier was what the retired CORE-QUEUE-1 named, and a random hex string
 // makes the order total without making it meaningful.
 func ByArrival(a, b *Card) bool {
-	first, second := a.Arrival(), b.Arrival()
+	return ArrivedBefore(a, a.Arrival(), b, b.Arrival())
+}
+
+// ArrivedBefore is ByArrival over arrivals a caller has already read, so a
+// sort reads each card's history once rather than once per comparison.
+func ArrivedBefore(a *Card, first time.Time, b *Card, second time.Time) bool {
 	if !first.Equal(second) {
 		return first.Before(second)
 	}
@@ -717,26 +784,58 @@ const cardHeaderLimit = 64 * 1024
 // revision. An anchor that opens no frontmatter, or does not close it inside
 // that limit, is an error.
 func ReadCardHeader(anchor string) (*Frontmatter, error) {
-	file, err := os.Open(anchor)
+	return readCardHeader(Disk{}, anchor)
+}
+
+// readCardHeader is ReadCardHeader's body, reading the anchor's head through
+// src.
+func readCardHeader(src Source, anchor string) (*Frontmatter, error) {
+	head, err := src.ReadHead(anchor, cardHeaderProbe)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-	reader := bufio.NewReader(io.LimitReader(file, cardHeaderLimit))
+	if fm, err, decided := headerIn(anchor, head, len(head) < cardHeaderProbe); decided {
+		return fm, err
+	}
+	head, err = src.ReadHead(anchor, cardHeaderLimit)
+	if err != nil {
+		return nil, err
+	}
+	fm, err, _ := headerIn(anchor, head, true)
+	return fm, err
+}
+
+// cardHeaderProbe is how much of an anchor readCardHeader reads first. Most
+// headers close well inside it, so reading every header on a keystroke reads
+// a few kilobytes of each anchor rather than up to cardHeaderLimit; a header
+// that does not close inside it is read again up to the limit.
+const cardHeaderProbe = 4096
+
+// headerIn reads a card anchor's frontmatter out of the head of its bytes,
+// line by line, stopping at the line that closes it. complete says the head
+// is all the reader will get: the whole file, or cardHeaderLimit of it. A
+// head that is not complete decides nothing about a last line it cut short,
+// and answers decided false when it holds no closing fence, so the caller
+// reads further.
+func headerIn(anchor string, head []byte, complete bool) (*Frontmatter, error, bool) {
+	reader := bufio.NewReader(bytes.NewReader(head))
 	var text strings.Builder
 	for lineNumber := 0; ; lineNumber++ {
 		line, readErr := reader.ReadString('\n')
+		if readErr != nil && !complete {
+			return nil, nil, false
+		}
 		text.WriteString(line)
 		fence := strings.TrimSpace(line) == "---"
 		if lineNumber == 0 && !fence {
-			return nil, fmt.Errorf("%s opens no frontmatter", anchor)
+			return nil, fmt.Errorf("%s opens no frontmatter", anchor), true
 		}
 		if lineNumber > 0 && fence {
 			fm, _ := ParseAnchor(text.String())
-			return fm, nil
+			return fm, nil, true
 		}
 		if readErr != nil {
-			return nil, fmt.Errorf("%s closes no frontmatter within %d bytes", anchor, cardHeaderLimit)
+			return nil, fmt.Errorf("%s closes no frontmatter within %d bytes", anchor, cardHeaderLimit), true
 		}
 	}
 }
@@ -765,7 +864,7 @@ type CardHeader struct {
 // what makes asking how many cards stand in each column cheap enough to do on
 // a keystroke. BeforeHeaderRead, when set, is asked before each anchor opens.
 func (b *Bench) LiveCardHeaders() ([]CardHeader, error) {
-	ids, err := ListIDs(b.CardsRoot())
+	ids, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return nil, err
 	}
@@ -777,7 +876,7 @@ func (b *Bench) LiveCardHeaders() ([]CardHeader, error) {
 			}
 		}
 		anchor := filepath.Join(b.CardsRoot(), id, CardAnchor)
-		fm, err := ReadCardHeader(anchor)
+		fm, err := readCardHeader(b.source(), anchor)
 		if err != nil {
 			continue
 		}

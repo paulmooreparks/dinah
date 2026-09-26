@@ -201,7 +201,7 @@ func (b *Bench) exportColumn(column *Column) (map[string]json.RawMessage, error)
 	if column.FM.Has(StandingItemsKey) {
 		element[StandingItemsKey] = standingItemsValue(column.FM)
 	}
-	attachments, err := exportAttachments(b.ColumnDir(column.ID))
+	attachments, err := exportAttachments(b.source(), b.ColumnDir(column.ID))
 	if err != nil {
 		return nil, err
 	}
@@ -215,8 +215,8 @@ func (b *Bench) exportColumn(column *Column) (map[string]json.RawMessage, error)
 // the attachments member, in creation order, and answers nil where the column
 // carries none, so a column carrying no attachment exports exactly as it did
 // before the member existed.
-func exportAttachments(columnDir string) (json.RawMessage, error) {
-	attachments, err := Attachments(columnDir)
+func exportAttachments(src Source, columnDir string) (json.RawMessage, error) {
+	attachments, err := attachments(src, columnDir)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func exportAttachments(columnDir string) (json.RawMessage, error) {
 		if attachment.Path == "" {
 			return nil, contract.Refuse(contract.UnknownPath, filepath.Join(attachment.Dir, PayloadDir))
 		}
-		payload, err := os.ReadFile(attachment.Path)
+		payload, err := src.ReadFile(attachment.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -713,13 +713,13 @@ func setRawJSON(fm *Frontmatter, key string, raw json.RawMessage) {
 // the target path, so the question is whether a write here would destroy
 // somebody's file, not whether that file happens to be a Dinah workbench.
 func (b *Bench) Extract(target string) error {
-	if Exists(filepath.Join(target, WorkbenchAnchor)) {
+	if b.Exists(filepath.Join(target, WorkbenchAnchor)) {
 		return contract.Refuse(contract.Exists, target)
 	}
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		return err
 	}
-	anchor, err := ReadText(filepath.Join(b.Root, WorkbenchAnchor))
+	anchor, err := b.ReadText(filepath.Join(b.Root, WorkbenchAnchor))
 	if err != nil {
 		return err
 	}
@@ -728,14 +728,14 @@ func (b *Bench) Extract(target string) error {
 	}
 	for _, column := range b.Columns {
 		source := filepath.Join(b.Root, ColumnsDir, column.ID, ColumnAnchor)
-		text, err := ReadText(source)
+		text, err := b.ReadText(source)
 		if err != nil {
 			return err
 		}
 		if err := WriteText(filepath.Join(target, ColumnsDir, column.ID, ColumnAnchor), text); err != nil {
 			return err
 		}
-		if err := extractAttachments(b.ColumnDir(column.ID), filepath.Join(target, ColumnsDir, column.ID)); err != nil {
+		if err := extractAttachments(b.source(), b.ColumnDir(column.ID), filepath.Join(target, ColumnsDir, column.ID)); err != nil {
 			return err
 		}
 	}
@@ -747,27 +747,27 @@ func (b *Bench) Extract(target string) error {
 // byte for byte, never through ReadText, which normalises newlines. Nothing
 // under the column's archive or its comments is copied, because those are
 // history and conversation rather than definition.
-func extractAttachments(sourceColumn, targetColumn string) error {
+func extractAttachments(src Source, sourceColumn, targetColumn string) error {
 	collection := filepath.Join(sourceColumn, AttachmentsDir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return err
 	}
 	for _, id := range ids {
 		source := filepath.Join(collection, id)
 		target := filepath.Join(targetColumn, AttachmentsDir, id)
-		anchor, err := ReadText(filepath.Join(source, AttachmentAnchor))
+		anchor, err := readText(src, filepath.Join(source, AttachmentAnchor))
 		if err != nil {
 			return err
 		}
 		if err := WriteText(filepath.Join(target, AttachmentAnchor), anchor); err != nil {
 			return err
 		}
-		payload, err := payloadOf(source)
+		payload, err := payloadOf(src, source)
 		if err != nil {
 			return err
 		}
-		data, err := os.ReadFile(payload)
+		data, err := src.ReadFile(payload)
 		if err != nil {
 			return err
 		}

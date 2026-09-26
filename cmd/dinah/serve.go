@@ -17,6 +17,7 @@ import (
 	"dinah/internal/browser"
 	"dinah/internal/contract"
 	"dinah/internal/httphead"
+	"dinah/internal/resident"
 )
 
 // defaultListen is where dinah serve listens when --listen names nothing. The
@@ -97,8 +98,21 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 	if err != nil {
 		return s.reportError(err)
 	}
+	// A workbench this platform or this volume cannot watch is served from
+	// disk per request, as it always was. That is not a refusal, and the
+	// server writes nothing while it runs, so no line says so.
+	held, err := residentOpen(root)
+	if err != nil {
+		held = nil
+	}
+	closeHeld := func() {
+		if held != nil {
+			held.Close()
+		}
+	}
 	listener, err := listen("tcp", net.JoinHostPort(bind, port))
 	if err != nil {
+		closeHeld()
 		return s.reportError(err)
 	}
 	bound := listener.Addr().(*net.TCPAddr).Port
@@ -114,6 +128,7 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 			Port:         bound,
 			Lang:         s.r.Tag,
 			ParseLine:    typedLineParser(s.cfg),
+			Resident:     held,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -127,10 +142,18 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 		stopping, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		server.Shutdown(stopping)
+		closeHeld()
 		return 0
 	case err := <-served:
+		closeHeld()
 		return s.reportError(err)
 	}
+}
+
+// residentOpen opens the workbench held in memory. It is resident.Open, and
+// only a test in this package replaces it.
+var residentOpen = func(root string) (*resident.Workbench, error) {
+	return resident.Open(root, resident.Options{})
 }
 
 // typedLineParser is the parser the pages' command log runs a typed line

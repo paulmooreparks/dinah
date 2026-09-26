@@ -3,7 +3,6 @@ package bench
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -85,39 +84,39 @@ func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) 
 	// this exact case reached through a waiting changes call, so it is
 	// checked once, here, ahead of the collection reads the comment above
 	// already says should report rather than silently contribute nothing.
-	if _, statErr := os.Stat(b.Root); statErr != nil {
+	if _, statErr := b.source().Stat(b.Root); statErr != nil {
 		return nil, nil, nil, statErr
 	}
-	live = append(live, watch(WorkbenchKey, b.JournalPath(), filepath.Join(b.Root, WorkbenchAnchor)))
-	workstreamIDs, err := ListIDs(b.WorkstreamsRoot())
+	live = append(live, watch(b.source(), WorkbenchKey, b.JournalPath(), filepath.Join(b.Root, WorkbenchAnchor)))
+	workstreamIDs, err := b.ListIDs(b.WorkstreamsRoot())
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	for _, id := range workstreamIDs {
 		dir := filepath.Join(b.WorkstreamsRoot(), id)
-		live = append(live, watch(WorkstreamsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, WorkstreamAnchor)))
+		live = append(live, watch(b.source(), WorkstreamsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, WorkstreamAnchor)))
 	}
-	cardIDs, err := ListIDs(b.CardsRoot())
+	cardIDs, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
-		live = append(live, watch(CardsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, CardAnchor)))
+		live = append(live, watch(b.source(), CardsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, CardAnchor)))
 	}
-	archivedIDs, err := ListIDs(b.ArchivedCardsRoot())
+	archivedIDs, err := b.ListIDs(b.ArchivedCardsRoot())
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	for _, id := range archivedIDs {
 		dir := filepath.Join(b.ArchivedCardsRoot(), id)
-		archive = append(archive, watch(CardsDir+"/"+id, filepath.Join(dir, JournalName), ""))
+		archive = append(archive, watch(b.source(), CardsDir+"/"+id, filepath.Join(dir, JournalName), ""))
 	}
 	// The column half reads the flow the bench opened with rather than
 	// listing the collection, so a directory carrying no anchor, which
 	// dinah check reports as orphaned, contributes nothing here either.
 	for _, column := range b.Columns {
-		columns = append(columns, watch(ColumnsDir+"/"+column.ID, "", b.ColumnAnchorPath(column.ID)))
+		columns = append(columns, watch(b.source(), ColumnsDir+"/"+column.ID, "", b.ColumnAnchorPath(column.ID)))
 	}
 	sortWatched(live)
 	sortWatched(archive)
@@ -130,15 +129,15 @@ func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) 
 // the absent-means-empty rule applied to a comparison rather than to a
 // listing. An entity carrying no journal at all is not stat-ed, the empty
 // path being tested rather than the error a stat of it happens to give.
-func watch(key, journal, anchor string) Watched {
+func watch(src Source, key, journal, anchor string) Watched {
 	entry := Watched{Key: key, Journal: journal, Anchor: anchor}
 	if journal != "" {
-		if info, err := os.Stat(journal); err == nil {
+		if info, err := src.Stat(journal); err == nil {
 			entry.Size = info.Size()
 		}
 	}
 	if anchor != "" {
-		if revision, err := Revision(anchor); err == nil {
+		if revision, err := revision(src, anchor); err == nil {
 			entry.Revision = revision
 		}
 	}

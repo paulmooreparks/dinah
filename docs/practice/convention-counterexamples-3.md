@@ -1342,3 +1342,15 @@ Caught at Implement on dinah-603, 2026-09-26, by the implementer's own arming ru
 **The test:** wherever a filter chooses which cases a check reads, confirm the filter measures the same representation the cases arrive in, and make the check report how many cases it read rather than how many it was given. Arm it by breaking the property under test and watching it go red. A check that stays green against a broken build has usually stopped reading its cases, and the count is what shows it.
 
 **Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, is the same failure from the input side: there the run never produced the case, and here the case was produced and then filtered out before anything looked at it.
+
+## A test of a retry whose setup the platform already tolerates, so the retry never runs
+
+Caught at Implement on dinah-619, 2026-09-26, by the implementer reading a timing the test logged. The change retries a folder removal that Windows refuses while a reader holds a file below it open, and the test held a file open with the share modes the server's own reader uses, read, write and delete, then asked the removal to wait the reader out.
+
+**Wrong:** hold the file with `FILE_SHARE_DELETE`, start the removal, and assert that it succeeded. On this build of Windows a file opened with that share mode is deleted at once rather than left marked for deletion, so the removal succeeded on its first attempt in half a millisecond, the retry loop never ran, and the test passed whether the retry was there or not.
+
+**Right:** hold the file as an ordinary reader does, with `os.Open`, which shares read and write but not delete, and first assert that a plain `os.Remove` of the held file is refused with the error the retry exists for: `if err := os.Remove(file); err == nil || !transientRemoveRefusal(err) { t.Fatalf(...) }`. Then assert that the retried removal took at least as long as the reader held the file, so a removal that never waited cannot pass.
+
+**The test:** a test of a recovery path asserts, before it exercises the code, that the unrecovered operation fails in the way the recovery handles, and it asserts something only the recovery can produce, such as the time it waited. Arm it by removing the retry and watching both the precondition hold and the test go red. Where the platform's own semantics decide whether the failure happens at all, the precondition is what tells a passing test from a test that never reached its subject.
+
+**Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, and the workbench memory "A test passes by avoiding the hard position".

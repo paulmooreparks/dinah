@@ -119,14 +119,22 @@ const crlf = "\r\n"
 // than with this function, because this function strips the very condition
 // those two exist to find.
 func ReadText(path string) (string, error) {
-	if AnchorReadObserver != nil {
-		AnchorReadObserver(path)
-	}
-	data, err := os.ReadFile(path)
+	return readText(Disk{}, path)
+}
+
+// ReadText is the free ReadText read through this bench's source.
+func (b *Bench) ReadText(path string) (string, error) {
+	return readText(b.source(), path)
+}
+
+// readText is ReadText's body, reading through src.
+func readText(src Source, path string) (string, error) {
+	observeAnchor(path)
+	text, _, err := src.Text(path)
 	if err != nil {
 		return "", err
 	}
-	return NormalizeNewlines(strings.TrimPrefix(string(data), byteOrderMark)), nil
+	return text, nil
 }
 
 // WriteText writes a text file, normalising its line endings first, which is
@@ -175,18 +183,94 @@ func writeBytes(path string, data []byte) error {
 	return nil
 }
 
+// Retrying a refused folder move or removal.
+//
+// Windows refuses to rename or remove a directory while another process holds
+// a handle open below it, and a reader holding a file open for the length of
+// one read is enough: the rename answers ERROR_ACCESS_DENIED or
+// ERROR_SHARING_VIOLATION, and a removal whose files were only marked for
+// deletion answers ERROR_DIR_NOT_EMPTY, since DeleteFile's documentation says
+// it "marks a file for deletion on close" and the file stays until the last
+// handle to it closes. A structural act writes inside the directory it is
+// about to move, so any reader that watches for changes (dinah serve's
+// resident workbench, an editor, the search indexer) is inside that directory
+// at the moment the rename runs. The refusal is transient, because the
+// reader's handle closes when its read ends, so renameFolder and removeFolder
+// try again for a bounded time before they give the refusal back.
+//
+// The budget is one second from the first refusal, in pauses that start at
+// 2ms and double up to 50ms, which is about twenty attempts. A reader's read
+// takes milliseconds, so a refusal lasting the whole budget is a handle held
+// open on purpose, and the act then fails as it always did: the error reaches
+// the act, which reports it as the interruption it has always reported. No
+// other error is retried, and outside Windows nothing is, because a POSIX
+// rename or unlink is not refused by an open handle.
+
+// folderRetryBudget is how long a transient refusal is retried, measured from
+// the first refusal. A variable, so a test can wait less than the whole of it.
+var folderRetryBudget = time.Second
+
+// folderRetryFirstPause and folderRetryPauseCap bound the pause between
+// attempts, which doubles from the first to the cap.
+const (
+	folderRetryFirstPause = 2 * time.Millisecond
+	folderRetryPauseCap   = 50 * time.Millisecond
+)
+
+// renameFolder is os.Rename for a directory an act moves, retrying a
+// transient refusal within folderRetryBudget.
+func renameFolder(from, to string) error {
+	return retryRefused(func() error { return os.Rename(from, to) }, transientRenameRefusal)
+}
+
+// removeFolder is os.RemoveAll for a directory an act removes, retrying a
+// transient refusal within folderRetryBudget. RemoveAll is safe to repeat:
+// whatever an earlier attempt removed is gone, and the next removes the rest.
+func removeFolder(path string) error {
+	return retryRefused(func() error { return os.RemoveAll(path) }, transientRemoveRefusal)
+}
+
+// retryRefused runs op, and again after each pause while it answers an error
+// transient reports and the budget has not run out. It answers op's last
+// error, unchanged, so a caller sees what it would have seen without the
+// retry.
+func retryRefused(op func() error, transient func(error) bool) error {
+	err := op()
+	if err == nil || !transient(err) {
+		return err
+	}
+	deadline := time.Now().Add(folderRetryBudget)
+	pause := folderRetryFirstPause
+	for time.Now().Before(deadline) {
+		time.Sleep(pause)
+		if err = op(); err == nil || !transient(err) {
+			return err
+		}
+		pause = min(2*pause, folderRetryPauseCap)
+	}
+	return err
+}
+
 // Revision is the opaque revision of an anchor file: the content hash read
 // under the card lock, which is what a basis names. Callers never parse it,
 // because the remote arbiter will compute its own revision another way.
 func Revision(path string) (string, error) {
-	if AnchorReadObserver != nil {
-		AnchorReadObserver(path)
-	}
-	data, err := os.ReadFile(path)
+	return revision(Disk{}, path)
+}
+
+// Revision is the free Revision read through this bench's source.
+func (b *Bench) Revision(path string) (string, error) {
+	return revision(b.source(), path)
+}
+
+// revision is Revision's body, reading through src.
+func revision(src Source, path string) (string, error) {
+	observeAnchor(path)
+	_, rev, err := src.Text(path)
 	if err != nil {
 		return "", err
 	}
-	return TextRevision(string(data)), nil
+	return rev, nil
 }
 
 // readTextAndRevision reads a file once and answers its text, normalised as
@@ -200,16 +284,9 @@ func Revision(path string) (string, error) {
 // normalised text would change it for every anchor stored with CRLF line
 // endings or a byte-order mark, so a basis a caller already holds would stop
 // matching the card it was taken on.
-func readTextAndRevision(path string) (text, revision string, err error) {
-	if AnchorReadObserver != nil {
-		AnchorReadObserver(path)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", "", err
-	}
-	stored := string(data)
-	return NormalizeNewlines(strings.TrimPrefix(stored, byteOrderMark)), TextRevision(stored), nil
+func readTextAndRevision(src Source, path string) (text, revision string, err error) {
+	observeAnchor(path)
+	return src.Text(path)
 }
 
 // AnchorReadObserver is a seam over the anchor reads, so a test can count the
@@ -297,10 +374,10 @@ func ClaimID(collection string, taken func(string) bool) (string, error) {
 // It is the one place in the shipped binary that decides whether a
 // directory-read failure means absence, and every collection reader in this
 // package goes through it rather than classifying os.ReadDir's error again.
-func readCollection(dir string) ([]os.DirEntry, error) {
-	entries, err := os.ReadDir(dir)
+func readCollection(src Source, dir string) ([]os.DirEntry, error) {
+	entries, err := src.ReadDir(dir)
 	if err != nil {
-		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+		if _, statErr := src.Stat(dir); os.IsNotExist(statErr) {
 			return nil, nil
 		}
 		return nil, err
@@ -326,10 +403,25 @@ var ListIDsObserver func(collection string)
 // will not read is answered with the error, so a caller receiving an empty
 // list and a nil error has been told the collection really was read.
 func ListIDs(collection string) ([]string, error) {
+	return listIDs(Disk{}, collection)
+}
+
+// ListIDs is the free ListIDs read through this bench's source.
+func (b *Bench) ListIDs(collection string) ([]string, error) {
+	return listIDs(b.source(), collection)
+}
+
+// listIDs is ListIDs's body, reading through src.
+func listIDs(src Source, collection string) ([]string, error) {
 	if ListIDsObserver != nil {
 		ListIDsObserver(collection)
 	}
-	entries, err := readCollection(collection)
+	if lister, ok := src.(idLister); ok {
+		if ids, held := lister.HeldIDs(collection); held {
+			return ids, nil
+		}
+	}
+	entries, err := readCollection(src, collection)
 	if err != nil {
 		return nil, err
 	}
@@ -343,9 +435,28 @@ func ListIDs(collection string) ([]string, error) {
 	return ids, nil
 }
 
+// idLister is what a source that holds its listings may also offer: the
+// identifiers of a collection as ListIDs would answer them, computed once per
+// listing it holds. held false sends the caller to the ordinary read. A
+// resident snapshot offers it, because reading every card's collections on
+// every request would otherwise test every name of every listing each time.
+type idLister interface {
+	HeldIDs(collection string) (ids []string, held bool)
+}
+
 // Exists reports whether a path is present.
 func Exists(path string) bool {
-	_, err := os.Stat(path)
+	return exists(Disk{}, path)
+}
+
+// Exists is the free Exists read through this bench's source.
+func (b *Bench) Exists(path string) bool {
+	return exists(b.source(), path)
+}
+
+// exists is Exists's body, reading through src.
+func exists(src Source, path string) bool {
+	_, err := src.Stat(path)
 	return err == nil
 }
 
@@ -459,7 +570,12 @@ func ClaimWorkbenchID(container string) (string, error) {
 // existence discrimination are performed by readCollection, which carries the
 // platform reasoning for every collection reader in this package.
 func ListWorkbenchIDs(container string) ([]string, error) {
-	entries, err := readCollection(container)
+	return listWorkbenchIDs(Disk{}, container)
+}
+
+// listWorkbenchIDs is ListWorkbenchIDs's body, reading through src.
+func listWorkbenchIDs(src Source, container string) ([]string, error) {
+	entries, err := readCollection(src, container)
 	if err != nil {
 		return nil, err
 	}

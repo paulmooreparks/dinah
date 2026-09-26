@@ -486,7 +486,7 @@ func (l *Library) okWaiting(req *Request, destination *bench.Column, waitingOn [
 // already looked past. Firing it here is what makes the race the refusal
 // table describes reachable from a test.
 func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
-	lock, err := bench.Acquire(head.Dir, req.Actor, bench.Stamp(l.Now()))
+	lock, err := l.Bench.Acquire(head.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return l.FromError(req, err)
 	}

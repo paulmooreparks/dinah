@@ -141,12 +141,22 @@ type Citation struct {
 // would match nothing there; File is where that resolution happens, and this
 // writer takes the value it is given.
 func AddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
+	return addItem(Disk{}, cardDir, kind, column, owner, ts, text)
+}
+
+// AddItem is the free AddItem read through this bench's source.
+func (b *Bench) AddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
+	return addItem(b.source(), cardDir, kind, column, owner, ts, text)
+}
+
+// addItem is AddItem's body, reading through src.
+func addItem(src Source, cardDir, kind, column, owner, ts, text string) (*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
-	ordinal, err := nextOrdinal(collection, ItemAnchor)
+	ordinal, err := nextOrdinal(src, collection, ItemAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -176,12 +186,22 @@ func AddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
 // copy taken at minting so one card's instance can be edited without touching
 // every other card's.
 func AddStandingItem(cardDir, columnID string, entry StandingItem, ts string) (*Item, error) {
+	return addStandingItem(Disk{}, cardDir, columnID, entry, ts)
+}
+
+// AddStandingItem is the free AddStandingItem read through this bench's source.
+func (b *Bench) AddStandingItem(cardDir, columnID string, entry StandingItem, ts string) (*Item, error) {
+	return addStandingItem(b.source(), cardDir, columnID, entry, ts)
+}
+
+// addStandingItem is AddStandingItem's body, reading through src.
+func addStandingItem(src Source, cardDir, columnID string, entry StandingItem, ts string) (*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
-	ordinal, err := nextOrdinal(collection, ItemAnchor)
+	ordinal, err := nextOrdinal(src, collection, ItemAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +240,20 @@ func AddStandingItem(cardDir, columnID string, entry StandingItem, ts string) (*
 // to put back every key it did not touch, which is what reading the header
 // rather than the entity gives it.
 func ReadItemAnchor(dir string) (*Frontmatter, string, error) {
-	text, err := ReadText(filepath.Join(dir, ItemAnchor))
+	return readItemAnchor(Disk{}, dir)
+}
+
+// ReadItemAnchor is the free ReadItemAnchor read through this bench's source.
+func (b *Bench) ReadItemAnchor(dir string) (*Frontmatter, string, error) {
+	return readItemAnchor(b.source(), dir)
+}
+
+// readItemAnchor is ReadItemAnchor's body, reading through src.
+func readItemAnchor(src Source, dir string) (*Frontmatter, string, error) {
+	fm, body, err := anchorOf(src, filepath.Join(dir, ItemAnchor))
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, dir)
 	}
-	fm, body := ParseAnchor(text)
 	return fm, body, nil
 }
 

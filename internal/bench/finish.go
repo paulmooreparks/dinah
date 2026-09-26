@@ -64,7 +64,7 @@ func (b *Bench) interruptions() ([]interruption, error) {
 	}
 	var standing []interruption
 	for _, collection := range collections {
-		entries, err := readCollection(collection)
+		entries, err := readCollection(b.source(), collection)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +78,7 @@ func (b *Bench) interruptions() ([]interruption, error) {
 				continue
 			}
 			path := filepath.Join(collection, name)
-			record, present := ReadLockRecord(path)
+			record, present := b.ReadLockRecord(path)
 			if !present {
 				continue
 			}
@@ -127,7 +127,7 @@ func (b *Bench) entityLockDir(collection, source string) string {
 		}
 		return ""
 	}
-	if Exists(filepath.Join(owner, CardAnchor)) {
+	if b.Exists(filepath.Join(owner, CardAnchor)) {
 		return owner
 	}
 	return ""
@@ -147,7 +147,7 @@ func (b *Bench) siblingCollections() ([]string, error) {
 	for _, mount := range Contains(KindWorkbench) {
 		dir := filepath.Join(b.Root, mount.Dir)
 		collections = append(collections, dir)
-		ids, err := ListIDs(dir)
+		ids, err := b.ListIDs(dir)
 		if err != nil {
 			return nil, err
 		}
@@ -169,7 +169,7 @@ func (b *Bench) collectionsBelow(dir, kind string) ([]string, error) {
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
 		collections = append(collections, collection)
-		ids, err := ListIDs(collection)
+		ids, err := b.ListIDs(collection)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +197,7 @@ func (b *Bench) decidingJournal(collection, source, op string) string {
 		}
 		return b.JournalPath()
 	}
-	if Exists(filepath.Join(owner, CardAnchor)) {
+	if b.Exists(filepath.Join(owner, CardAnchor)) {
 		return filepath.Join(owner, JournalName)
 	}
 	return b.JournalPath()
@@ -207,7 +207,7 @@ func (b *Bench) decidingJournal(collection, source, op string) string {
 // finishes.
 func (b *Bench) direction(in interruption) string {
 	if in.target != "" {
-		sourceThere, targetThere := Exists(in.source), Exists(in.target)
+		sourceThere, targetThere := b.Exists(in.source), b.Exists(in.target)
 		if sourceThere && targetThere {
 			return directionBoth
 		}
@@ -217,7 +217,7 @@ func (b *Bench) direction(in interruption) string {
 		if !sourceThere {
 			return DirectionForward
 		}
-	} else if !Exists(in.source) {
+	} else if !b.Exists(in.source) {
 		return DirectionForward
 	}
 	if b.recorded(in) {
@@ -229,7 +229,7 @@ func (b *Bench) direction(in interruption) string {
 // recorded reports whether the act's own event is already on the journal that
 // decides its direction.
 func (b *Bench) recorded(in interruption) bool {
-	events, _, err := ReadJournal(in.journal)
+	events, _, err := b.ReadJournal(in.journal)
 	if err != nil {
 		return false
 	}
@@ -275,7 +275,7 @@ func eventRecords(ev Event, op, id string) bool {
 // until a human clears it, which is the stale-lock rule rather than an
 // exception to it.
 func (b *Bench) FinishInterrupted(actor, now string) ([]Finding, error) {
-	benchLock, err := Acquire(b.Root, actor, now)
+	benchLock, err := b.Acquire(b.Root, actor, now)
 	if err != nil {
 		return nil, err
 	}
@@ -338,16 +338,16 @@ func (b *Bench) adoptEntityLock(in interruption) (*Lock, error) {
 		return adoptLock(""), nil
 	}
 	path := filepath.Join(in.lockDir, LockName)
-	if record, present := ReadLockRecord(path); present {
+	if record, present := b.ReadLockRecord(path); present {
 		if record.Actor != in.record.Actor || record.PID != in.record.PID {
 			return nil, nil
 		}
 		return adoptLock(path), nil
 	}
-	if !Exists(in.lockDir) {
+	if !b.Exists(in.lockDir) {
 		return adoptLock(path), nil
 	}
-	lock, err := acquireTolerating(in.lockDir, in.record.Actor, in.record.TS, in.record)
+	lock, err := acquireTolerating(b.source(), in.lockDir, in.record.Actor, in.record.TS, in.record)
 	if err != nil {
 		return nil, err
 	}
@@ -358,11 +358,11 @@ func (b *Bench) adoptEntityLock(in interruption) (*Lock, error) {
 // its point of record for. A directory already gone leaves nothing to do,
 // which is what makes a second finish over the same bench change nothing.
 func (b *Bench) complete(in interruption) error {
-	if !Exists(in.source) {
+	if !b.Exists(in.source) {
 		return nil
 	}
 	if in.target == "" {
 		return DeleteEntity(in.source)
 	}
-	return MoveEntity(in.source, in.target)
+	return b.MoveEntity(in.source, in.target)
 }

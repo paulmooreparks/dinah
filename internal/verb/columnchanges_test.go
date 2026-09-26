@@ -73,7 +73,7 @@ func TestReadHalfSkipsAnEntryCarryingNoJournal(t *testing.T) {
 	// The behavioural half: a column entry contributes no delivered line and
 	// is never named unreadable, whatever bench.ReadJournal would say.
 	entries := []bench.Watched{{Key: bench.ColumnsDir + "/aaaaaaaaaaaa", Anchor: "nowhere", Revision: "sha256:0"}}
-	delivered, unreadable := readHalf(entries, cursor{}, nil)
+	delivered, unreadable := readHalf(&bench.Bench{}, entries, cursor{}, nil)
 	if len(delivered) != 0 {
 		t.Errorf("a journal-less entry delivered %d lines", len(delivered))
 	}

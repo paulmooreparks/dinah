@@ -502,7 +502,7 @@ func resumableLift(container string) (string, error) {
 	// answers the error, because answering that there is none makes the
 	// caller mint a fresh target and strand whatever the interrupted run had
 	// already moved.
-	entries, err := readCollection(container)
+	entries, err := readCollection(Disk{}, container)
 	if err != nil {
 		return "", err
 	}
@@ -727,7 +727,7 @@ func stampContainerFormat(root string) error {
 // breaking one.
 func heldLocks(root string) ([]string, error) {
 	var held []string
-	entries, err := readCollection(root)
+	entries, err := readCollection(Disk{}, root)
 	if err != nil {
 		return nil, err
 	}

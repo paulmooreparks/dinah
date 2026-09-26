@@ -28,8 +28,10 @@ wants independent implementations of the contract; it does not want its own
 CLI, MCP, HTTP, and LSP surfaces to be four of them.
 
 All four are built. `dinah serve` answers one workbench over HTTP on the
-loopback interface alone, opening it afresh for every request, and its guide is
-`dinah guide http`. `dinah lsp` serves one workbench to an editor
+loopback interface alone. On Windows it reads from a copy held in memory that
+the file system's change notifications keep current, and elsewhere it opens the
+workbench afresh for every request. Every act reads and writes the disk, and
+its guide is `dinah guide http`. `dinah lsp` serves one workbench to an editor
 over stdio and reads a workbench's twelve-hex identifiers back as names, on
 hover, as an inline annotation, and through go-to-definition. It is a reader.
 No verb runs there and no lock is taken, and it holds no value past the next

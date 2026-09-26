@@ -62,7 +62,17 @@ type Lock struct {
 // entirely, no legitimate writer ever creates it, and a stray foreign file
 // there would refuse every bench-scoped acquisition on the bench forever.
 func SiblingPath(dir string) string {
-	if Exists(filepath.Join(dir, WorkbenchAnchor)) {
+	return siblingPath(Disk{}, dir)
+}
+
+// SiblingPath is the free SiblingPath read through this bench's source.
+func (b *Bench) SiblingPath(dir string) string {
+	return siblingPath(b.source(), dir)
+}
+
+// siblingPath is SiblingPath's body, reading through src.
+func siblingPath(src Source, dir string) string {
+	if exists(src, filepath.Join(dir, WorkbenchAnchor)) {
 		return ""
 	}
 	return filepath.Join(filepath.Dir(dir), filepath.Base(dir)+SiblingSuffix)
@@ -78,7 +88,13 @@ func SiblingPath(dir string) string {
 // here rather than at each call site so that every acquirer inherits it and
 // no future one can be written without it.
 func Acquire(dir, actor string, now string) (*Lock, error) {
-	return acquire(dir, actor, now, nil)
+	return acquire(Disk{}, dir, actor, now, nil)
+}
+
+// Acquire is the free Acquire reading the lock's sibling and holder through
+// this bench's source.
+func (b *Bench) Acquire(dir, actor string, now string) (*Lock, error) {
+	return acquire(b.source(), dir, actor, now, nil)
 }
 
 // acquireTolerating takes an entity's lock for the one caller a sibling must
@@ -86,18 +102,18 @@ func Acquire(dir, actor string, now string) (*Lock, error) {
 // record it read back from the standing sibling. The tolerance matches the
 // sibling's whole record rather than a flag, so a second process cannot ask
 // for the same exemption and a stale sibling from a dead process grants none.
-func acquireTolerating(dir, actor, now string, tolerated LockRecord) (*Lock, error) {
-	return acquire(dir, actor, now, &tolerated)
+func acquireTolerating(src Source, dir, actor, now string, tolerated LockRecord) (*Lock, error) {
+	return acquire(src, dir, actor, now, &tolerated)
 }
 
 // acquire is the one exclusive-create of a lock file in this codebase, which
 // is what keeps the sibling check unforgettable.
-func acquire(dir, actor, now string, tolerated *LockRecord) (*Lock, error) {
+func acquire(src Source, dir, actor, now string, tolerated *LockRecord) (*Lock, error) {
 	path := filepath.Join(dir, LockName)
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
 		if os.IsExist(err) {
-			return nil, contract.Refuse(contract.Locked, LockHolder(path))
+			return nil, contract.Refuse(contract.Locked, lockHolder(src, path))
 		}
 		return nil, err
 	}
@@ -106,7 +122,7 @@ func acquire(dir, actor, now string, tolerated *LockRecord) (*Lock, error) {
 		return nil, err
 	}
 	lock := &Lock{path: path}
-	if err := lock.refuseOnSibling(dir, tolerated); err != nil {
+	if err := lock.refuseOnSibling(src, dir, tolerated); err != nil {
 		return nil, err
 	}
 	return lock, nil
@@ -116,15 +132,25 @@ func acquire(dir, actor, now string, tolerated *LockRecord) (*Lock, error) {
 // the length of a structural act, and returns the record it wrote so that the
 // act can present it as the one sibling its own acquisitions tolerate.
 func AcquireSibling(dir, actor, now, op, to string) (*Lock, LockRecord, error) {
+	return acquireSibling(Disk{}, dir, actor, now, op, to)
+}
+
+// AcquireSibling is the free AcquireSibling read through this bench's source.
+func (b *Bench) AcquireSibling(dir, actor, now, op, to string) (*Lock, LockRecord, error) {
+	return acquireSibling(b.source(), dir, actor, now, op, to)
+}
+
+// acquireSibling is AcquireSibling's body, reading through src.
+func acquireSibling(src Source, dir, actor, now, op, to string) (*Lock, LockRecord, error) {
 	record := LockRecord{Actor: actor, PID: os.Getpid(), TS: now, Op: op, To: to}
-	path := SiblingPath(dir)
+	path := siblingPath(src, dir)
 	if path == "" {
 		return nil, record, contract.Refuse(contract.UnknownPath, dir)
 	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
 		if os.IsExist(err) {
-			return nil, record, contract.Refuse(contract.Locked, LockHolder(path))
+			return nil, record, contract.Refuse(contract.Locked, lockHolder(src, path))
 		}
 		return nil, record, err
 	}
@@ -166,12 +192,12 @@ func writeRecord(f *os.File, path string, record LockRecord) error {
 // refuseOnSibling gives a freshly taken lock back when a structural act's
 // sibling stands beside the directory it protects, which is the window
 // between the act's release of that lock and its move of the directory.
-func (l *Lock) refuseOnSibling(dir string, tolerated *LockRecord) error {
-	path := SiblingPath(dir)
+func (l *Lock) refuseOnSibling(src Source, dir string, tolerated *LockRecord) error {
+	path := siblingPath(src, dir)
 	if path == "" {
 		return nil
 	}
-	record, present := ReadLockRecord(path)
+	record, present := readLockRecord(src, path)
 	if !present {
 		return nil
 	}
@@ -186,7 +212,17 @@ func (l *Lock) refuseOnSibling(dir string, tolerated *LockRecord) error {
 // whether a lock stands at that path at all, so a file whose content will not
 // parse still counts as one held rather than as one absent.
 func ReadLockRecord(path string) (LockRecord, bool) {
-	text, err := ReadText(path)
+	return readLockRecord(Disk{}, path)
+}
+
+// ReadLockRecord is the free ReadLockRecord read through this bench's source.
+func (b *Bench) ReadLockRecord(path string) (LockRecord, bool) {
+	return readLockRecord(b.source(), path)
+}
+
+// readLockRecord is ReadLockRecord's body, reading through src.
+func readLockRecord(src Source, path string) (LockRecord, bool) {
+	text, err := readText(src, path)
 	if err != nil {
 		return LockRecord{}, false
 	}
@@ -205,7 +241,17 @@ func ReadLockRecord(path string) (LockRecord, bool) {
 // reports one. A lock whose content will not parse names no holder rather
 // than failing, since the refusal is more useful than a second error.
 func LockHolder(path string) string {
-	record, _ := ReadLockRecord(path)
+	return lockHolder(Disk{}, path)
+}
+
+// LockHolder is the free LockHolder read through this bench's source.
+func (b *Bench) LockHolder(path string) string {
+	return lockHolder(b.source(), path)
+}
+
+// lockHolder is LockHolder's body, reading through src.
+func lockHolder(src Source, path string) string {
+	record, _ := readLockRecord(src, path)
 	return record.Actor
 }
 

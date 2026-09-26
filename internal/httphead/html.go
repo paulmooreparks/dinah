@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"dinah/internal/answer"
 	"dinah/internal/bench"
@@ -129,7 +130,9 @@ func (h *head) takePageParameters(x *exchange) bool {
 func (h *head) readFor(x *exchange, library *verb.Library, command string, arguments map[string]any) []byte {
 	req := answer.Build(command, arguments)
 	h.identify(x, req, "")
+	began := time.Now()
 	answered := answer.RunSealed(command, library, req)
+	h.timeRead(command, began)
 	if outcome := answered.Outcome(); outcome != "" && outcome != contract.OutcomeOK {
 		return nil
 	}
@@ -148,11 +151,26 @@ func (h *head) contextLibrary(x *exchange) *verb.Library {
 		x.page = &pageState{windows: url.Values{}}
 	}
 	if x.page.library == nil {
+		began := time.Now()
+		h.chooseSource(x)
+		if x.pick.Snapshot != nil {
+			if x.library == nil {
+				library, err := h.residentLibrary(x)
+				if err != nil {
+					return nil
+				}
+				x.library = library
+				h.timeRead("open", began)
+			}
+			x.page.library = x.library
+			return x.page.library
+		}
 		opened, err := bench.Open(h.cfg.Root)
 		if err != nil {
 			return nil
 		}
 		x.page.library = verb.New(opened, h.cfg.Home)
+		h.timeRead("open", began)
 	}
 	return x.page.library
 }

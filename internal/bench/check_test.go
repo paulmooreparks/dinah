@@ -811,13 +811,13 @@ func resolvedItem(t *testing.T, opened *Bench, position, when string) string {
 func TestTheJournalLookupStopsAtTheWorkbenchRoot(t *testing.T) {
 	root := newFixture(t)
 	cardDir := filepath.Join(root, CardsDir, "c00000000001")
-	if got := journalPathFor(cardDir); got != filepath.Join(cardDir, JournalName) {
+	if got := journalPathFor(Disk{}, cardDir); got != filepath.Join(cardDir, JournalName) {
 		t.Errorf("a collection below a card looked up %q, wanted the card's own journal", got)
 	}
 	// The owner directory of the live workstreams collection, of the
 	// archived one, and of the workbench's own attachments.
 	for _, owner := range []string{root, filepath.Join(root, ArchiveDir), filepath.Join(root, ColumnsDir, "b00000000001")} {
-		if got := journalPathFor(owner); got != "" {
+		if got := journalPathFor(Disk{}, owner); got != "" {
 			t.Errorf("%s looked up the journal %q, and nothing there hangs off a card", owner, got)
 		}
 	}
@@ -832,7 +832,7 @@ func TestTheJournalLookupStopsAtTheWorkbenchRoot(t *testing.T) {
 	inner := filepath.Join(nested, "inner")
 	write(t, filepath.Join(inner, WorkbenchAnchor), benchDefinition)
 	write(t, filepath.Join(inner, ColumnsDir, "b00000000001", ColumnAnchor), columnDefinition)
-	if got := journalPathFor(inner); got != "" {
+	if got := journalPathFor(Disk{}, inner); got != "" {
 		t.Errorf("the walk climbed out of the workbench and reached %q", got)
 	}
 }

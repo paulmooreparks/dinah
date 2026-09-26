@@ -143,7 +143,7 @@ func (l *Library) buildHolds(now time.Time) (*holdIndex, error) {
 		}
 		path := holder.JournalPath()
 		l.observe(ObserveJournal, path)
-		events, _, err := bench.ReadJournal(path)
+		events, _, err := l.Bench.ReadJournal(path)
 		if err != nil {
 			events = nil
 		}

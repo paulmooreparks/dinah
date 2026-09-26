@@ -30,8 +30,18 @@ type NumberLine struct {
 // workbench unopenable, which is the posture FindingUnknownLevel and
 // FindingUnknownColumn already keep.
 func LoadNumberRegistry(path string) *NumberRegistry {
+	return loadNumberRegistry(Disk{}, path)
+}
+
+// LoadNumberRegistry is the free LoadNumberRegistry read through this bench's source.
+func (b *Bench) LoadNumberRegistry(path string) *NumberRegistry {
+	return loadNumberRegistry(b.source(), path)
+}
+
+// loadNumberRegistry is LoadNumberRegistry's body, reading through src.
+func loadNumberRegistry(src Source, path string) *NumberRegistry {
 	registry := &NumberRegistry{ByID: map[string]int{}, ByNumber: map[int][]string{}}
-	text, err := ReadText(path)
+	text, err := readText(src, path)
 	if err != nil {
 		return registry
 	}
@@ -106,12 +116,12 @@ func parseNumberLine(raw string) NumberLine {
 // passed over, because a hand-damaged workbench has to stay openable; the
 // state is what check reports.
 func (b *Bench) readNumbers() *NumberRegistry {
-	registry := LoadNumberRegistry(filepath.Join(b.Root, CardNumbersName))
+	registry := b.LoadNumberRegistry(filepath.Join(b.Root, CardNumbersName))
 	if b.Format >= RegistryFormat {
 		return registry
 	}
 	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
-		ids, err := ListIDs(root)
+		ids, err := b.ListIDs(root)
 		if err != nil {
 			continue
 		}

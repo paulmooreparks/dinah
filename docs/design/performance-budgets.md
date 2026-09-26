@@ -8,7 +8,7 @@ Every other test in this repository runs against a workbench of a few cards, so 
 |---|---|
 | `status-warm` | Opening the workbench and running `status` inside the test process |
 | `show` | Opening the workbench and running `show perf-1` with no fields named |
-| `page-card` | The head's handler answering `GET /cards/perf-1` as HTML, with no socket |
+| `page-card` | The head's handler answering `GET /cards/perf-1` as HTML, with no socket, reading a resident copy of the workbench where the platform has a watcher |
 | `status-cold` | `dinah status` in a fresh process, from start to exit |
 
 Each operation runs once to warm up and then ten times, and the test judges the median of the ten. Every run also checks its own answer, so a read that starts failing quickly cannot pass on speed.
@@ -29,6 +29,10 @@ status-warm over budget: median 1,412ms (retry 1,388ms) against a budget of 1,20
 The test measures an operation a second time before it fails it, so both medians in the first line were over the budget. A pull request that changed nothing about the operation does not usually fail twice in a row, and when one does, the runs line shows whether every run was slow or a few runs pulled the median up.
 
 A slack report means the reverse. The operation ran more than six times under its budget twice in a row, and the report names the budget the rule below would give it.
+
+## The page's library reads
+
+`page-card` also sums the time its request spends in library calls, meaning the reads the head makes and the acquisition of the library it makes them with, and leaves out encoding and rendering. On Windows the median of that sum over the ten runs must be under 10ms, in both modes, whatever the row's budget says. This is dinah-619's acceptance number for a warm page, and a failure prints both medians and every run's sum. The row's own budget still follows the rule below, and the resident's cold load is logged beside it.
 
 ## Reproducing it locally
 

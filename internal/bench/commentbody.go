@@ -79,11 +79,20 @@ func CommentDiverged(fm *Frontmatter, body string) bool {
 // ReadItemAnchor's mirror, and it exists for the same reason: a write has to
 // put back every key it did not touch.
 func ReadCommentAnchor(dir string) (*Frontmatter, string, error) {
-	text, err := ReadText(filepath.Join(dir, CommentAnchor))
+	return readCommentAnchor(Disk{}, dir)
+}
+
+// ReadCommentAnchor is the free ReadCommentAnchor read through this bench's source.
+func (b *Bench) ReadCommentAnchor(dir string) (*Frontmatter, string, error) {
+	return readCommentAnchor(b.source(), dir)
+}
+
+// readCommentAnchor is ReadCommentAnchor's body, reading through src.
+func readCommentAnchor(src Source, dir string) (*Frontmatter, string, error) {
+	fm, body, err := anchorOf(src, filepath.Join(dir, CommentAnchor))
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, dir)
 	}
-	fm, body := ParseAnchor(text)
 	return fm, body, nil
 }
 
@@ -109,13 +118,23 @@ func WriteCommentAnchor(dir string, fm *Frontmatter, body string) error {
 // every member after it one place low, so the reference it printed would reach
 // a different entity.
 func MemberPosition(dir, anchor string) (int, error) {
+	return memberPosition(Disk{}, dir, anchor)
+}
+
+// MemberPosition is the free MemberPosition read through this bench's source.
+func (b *Bench) MemberPosition(dir, anchor string) (int, error) {
+	return memberPosition(b.source(), dir, anchor)
+}
+
+// memberPosition is MemberPosition's body, reading through src.
+func memberPosition(src Source, dir, anchor string) (int, error) {
 	collection := filepath.Dir(dir)
 	id := filepath.Base(dir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return 0, err
 	}
-	for n, member := range SortByOrdinal(collection, anchor, ids) {
+	for n, member := range sortByOrdinal(src, collection, anchor, ids) {
 		if member == id {
 			return n + 1, nil
 		}

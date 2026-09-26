@@ -83,7 +83,7 @@ func (l *Library) NewColumn(req *Request) *Response {
 		return l.refuse(req, nil, contract.NoOwner, "")
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -96,7 +96,7 @@ func (l *Library) NewColumn(req *Request) *Response {
 	// judged against and the flow the placement is spliced into are the same
 	// flow. writeField rereads its own anchor under its own lock for the same
 	// reason.
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return l.FromError(req, err)
 	}

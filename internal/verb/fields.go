@@ -486,7 +486,7 @@ func (l *Library) admitDesignationClear(req *Request, entity *bench.EntityRef, f
 	if entity.Kind != bench.KindItem || field.Name != bench.ItemResolutionField || value != "" {
 		return nil
 	}
-	item, err := bench.LoadItem(entity.Dir)
+	item, err := l.Bench.LoadItem(entity.Dir)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -704,7 +704,7 @@ func (l *Library) entityAnchor(entity *bench.EntityRef) (*bench.Frontmatter, str
 	if !declared {
 		return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
 	}
-	text, err := bench.ReadText(path)
+	text, err := l.Bench.ReadText(path)
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
 	}
@@ -729,7 +729,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 		return refused
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -1012,7 +1012,7 @@ func (l *Library) admitDesignatedCommentWrite(req *Request, entity *bench.Entity
 		return nil
 	}
 	holder := filepath.Dir(filepath.Dir(entity.Dir))
-	item, err := bench.LoadItem(holder)
+	item, err := l.Bench.LoadItem(holder)
 	if err != nil || item.Resolution != entity.ID {
 		return nil
 	}
