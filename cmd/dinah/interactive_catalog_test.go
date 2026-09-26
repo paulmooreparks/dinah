@@ -16,7 +16,8 @@ import (
 )
 
 // TestEveryBoundDescriptionIsTheCatalogText is the first half of
-// dinah-603/criteria/21. It reads every binding the head defines, in every
+// dinah-603/criteria/21, extended by dinah-623/criteria/25 to item mode and
+// output mode. It reads every binding the head defines, in every
 // mode, through interactiveBindings, and for each of the eight languages holds
 // each binding's description to that language's catalog text for the key it
 // names, with the arrow and column values filled from the fixed column. It
@@ -36,7 +37,7 @@ func TestEveryBoundDescriptionIsTheCatalogText(t *testing.T) {
 				t.Errorf("%s: the %s binding for %v is described %q, and the catalog key %s reads %q", tag, b.mode, b.binding.Keys(), got, b.key, want)
 			}
 		}
-		for _, mode := range []string{bindingBrowse, bindingCard, bindingMenu, bindingJump, bindingComment} {
+		for _, mode := range []string{bindingBrowse, bindingCard, bindingMenu, bindingJump, bindingComment, bindingItems, bindingOutput} {
 			if perMode[mode] == 0 {
 				t.Errorf("%s: read no binding in %s mode", tag, mode)
 			}

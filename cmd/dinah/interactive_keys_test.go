@@ -147,7 +147,7 @@ var keyRows = []keyRowCase{
 	}},
 	{name: "browse m opens the move menu", keys: "m" + keyCtrlC, check: func(t *testing.T, root string, run tuiRun) {
 		wantModel(t, "the mode", run.model.mode, modeMenu)
-		if len(run.model.menuRows) == 0 {
+		if run.model.menu == nil || len(run.model.menu.rows) == 0 {
 			t.Error("the menu held no rows")
 		}
 	}},
@@ -155,7 +155,7 @@ var keyRows = []keyRowCase{
 		wantModel(t, "fx-1", stateOf(t, root, "fx-1"), "state: ready")
 	}},
 	{name: "browse c opens the comment prompt", keys: "c" + keyCtrlC, check: func(t *testing.T, root string, run tuiRun) {
-		wantModel(t, "the prompt", run.model.prompt, promptComment)
+		wantModel(t, "the prompt", run.model.prompt, promptText)
 		wantModel(t, "the mode", run.model.mode, modePrompt)
 	}},
 	{name: "browse question mark shows the full help", keys: "?q", check: func(t *testing.T, root string, run tuiRun) {
@@ -224,10 +224,10 @@ var keyRows = []keyRowCase{
 		wantModel(t, "quitting", run.model.quitting, true)
 	}},
 	{name: "menu down and j move the highlight", keys: "m" + xtermDown + "j" + keyCtrlC, check: func(t *testing.T, root string, run tuiRun) {
-		wantModel(t, "the highlight", run.model.highlight, 2)
+		wantModel(t, "the highlight", run.model.menuHighlight(), 2)
 	}},
 	{name: "menu up and k move the highlight back", keys: "mjj" + xtermUp + "k" + keyCtrlC, check: func(t *testing.T, root string, run tuiRun) {
-		wantModel(t, "the highlight", run.model.highlight, 0)
+		wantModel(t, "the highlight", run.model.menuHighlight(), 0)
 	}},
 	{name: "menu digit chooses its row at once", keys: "m1q", check: func(t *testing.T, root string, run tuiRun) {
 		if got := columnOf(t, root, "fx-1"); got == "Implement" {
@@ -267,8 +267,9 @@ var keyRows = []keyRowCase{
 		wantModel(t, "the selection", selectedRef(run.model), "fx-1")
 		wantModel(t, "quitting", run.model.quitting, true)
 	}},
-	{name: "jump prompt paste joins lines into one", keys: ":" + pasteOpen + "fx\r\n-2" + pasteClose + keyCtrlC, check: func(t *testing.T, root string, run tuiRun) {
-		wantModel(t, "the prompt's text", run.model.input.Value(), "fx -2")
+	{name: "command line paste of two lines takes nothing", keys: ":" + pasteOpen + "fx\r\n-2" + pasteClose + keyCtrlC, check: func(t *testing.T, root string, run tuiRun) {
+		wantModel(t, "the prompt's text", run.model.input.Value(), "")
+		wantModel(t, "the message", run.model.message, []string{run.model.s.r.T("interactive.line.paste")})
 	}},
 	{name: "filter prompt enter submits", keys: "/column:acceptance" + keyEnter + "q", check: func(t *testing.T, root string, run tuiRun) {
 		wantModel(t, "the filter", run.model.filter, "column:acceptance")

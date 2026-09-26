@@ -40,120 +40,120 @@ var commandExemptions = map[string]string{
 
 func init() {
 	commands = []*command{
-		{name: "add", group: groupWork, run: runAdd, openTail: true},
-		{name: "claim", group: groupWork, run: runClaim, bounded: 1},
-		{name: "move", group: groupWork, run: runMove, bounded: 2},
-		{name: "pull", group: groupWork, run: runPull, bounded: 1},
-		{name: "release", group: groupWork, run: runRelease, bounded: 1},
-		{name: "block", group: groupWork, run: runBlock, bounded: 1, openTail: true},
-		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1, openTail: true},
+		{name: "add", group: groupWork, run: runAdd, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "claim", group: groupWork, run: runClaim, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "move", group: groupWork, run: runMove, bounded: 2, terminal: terminalDirect, actsOnCard: true},
+		{name: "pull", group: groupWork, run: runPull, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "release", group: groupWork, run: runRelease, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "block", group: groupWork, run: runBlock, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "unblock", group: groupWork, run: runUnblock, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		// raise binds two positionals and lets the reason run to the end of
 		// the line, which is block's shape for the same reason: a
 		// justification worth recording is worth typing without a flag.
-		{name: "raise", group: groupWork, run: runRaise, bounded: 2, openTail: true},
-		{name: "comment", group: groupWork, run: runComment, bounded: 1, openTail: true},
-		{name: "attach", group: groupWork, run: runAttach, bounded: 2},
+		{name: "raise", group: groupWork, run: runRaise, bounded: 2, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "comment", group: groupWork, run: runComment, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "attach", group: groupWork, run: runAttach, bounded: 2, terminal: terminalDirect, actsOnCard: true},
 		// The six checklist verbs. file binds the card and the kind and lets
 		// the item's own text run to the end of the line; the three terminal
 		// verbs bind the item and let the note run; reopen binds the item and
 		// lets the reason run, which is block's shape for the same reason.
-		{name: "file", group: groupWork, run: runFile, bounded: 2, openTail: true},
-		{name: "cite", group: groupWork, run: runCite, bounded: 3},
-		{name: "resolve", group: groupWork, run: runResolve, bounded: 1, openTail: true},
-		{name: "verify", group: groupWork, run: runVerify, bounded: 1, openTail: true},
-		{name: "fail", group: groupWork, run: runFail, bounded: 1, openTail: true},
-		{name: "waive", group: groupWork, run: runWaive, bounded: 1, openTail: true},
-		{name: "withdraw", group: groupWork, run: runWithdraw, bounded: 1, openTail: true},
-		{name: "reopen", group: groupWork, run: runReopen, bounded: 1, openTail: true},
+		{name: "file", group: groupWork, run: runFile, bounded: 2, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "cite", group: groupWork, run: runCite, bounded: 3, terminal: terminalDirect, actsOnCard: true},
+		{name: "resolve", group: groupWork, run: runResolve, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "verify", group: groupWork, run: runVerify, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "fail", group: groupWork, run: runFail, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "waive", group: groupWork, run: runWaive, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "withdraw", group: groupWork, run: runWithdraw, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
+		{name: "reopen", group: groupWork, run: runReopen, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		// grant and revoke each bind the card and the permission name and
 		// take no tail, which is join's shape: both arguments are one word
 		// and neither is prose.
-		{name: "grant", group: groupWork, run: runGrant, bounded: 2},
-		{name: "revoke", group: groupWork, run: runRevoke, bounded: 2},
+		{name: "grant", group: groupWork, run: runGrant, bounded: 2, terminal: terminalDirect, actsOnCard: true},
+		{name: "revoke", group: groupWork, run: runRevoke, bounded: 2, terminal: terminalDirect, actsOnCard: true},
 		// link and unlink each bind three positionals and take no tail, which
 		// is cite's shape: every argument is one word, and none of the three
 		// is prose.
-		{name: "link", group: groupWork, run: runLink, bounded: 3},
-		{name: "unlink", group: groupWork, run: runUnlink, bounded: 3},
-		{name: "join", group: groupWork, run: runJoin, bounded: 2},
-		{name: "leave", group: groupWork, run: runLeave, bounded: 2},
-		{name: "archive", group: groupWork, run: runArchive, bounded: 1},
-		{name: "restore", group: groupWork, run: runRestore, bounded: 1},
-		{name: "delete", group: groupWork, run: runDelete, bounded: 1},
-		{name: "accept-divergence", group: groupWork, run: runAcceptDivergence, bounded: 1},
-		{name: "rename", group: groupWork, run: runRename, bounded: 2},
+		{name: "link", group: groupWork, run: runLink, bounded: 3, terminal: terminalDirect, actsOnCard: true},
+		{name: "unlink", group: groupWork, run: runUnlink, bounded: 3, terminal: terminalDirect, actsOnCard: true},
+		{name: "join", group: groupWork, run: runJoin, bounded: 2, terminal: terminalDirect, actsOnCard: true},
+		{name: "leave", group: groupWork, run: runLeave, bounded: 2, terminal: terminalDirect, actsOnCard: true},
+		{name: "archive", group: groupWork, run: runArchive, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "restore", group: groupWork, run: runRestore, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "delete", group: groupWork, run: runDelete, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "accept-divergence", group: groupWork, run: runAcceptDivergence, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "rename", group: groupWork, run: runRename, bounded: 2, terminal: terminalDirect, actsOnCard: true},
 
-		{name: "status", group: groupRead, run: runStatus},
-		{name: "list", group: groupRead, run: runListRef, bounded: 1},
-		{name: "next", group: groupRead, run: runNext, bounded: 1},
-		{name: "query", group: groupRead, run: runQuery, openTail: true},
-		{name: "search", group: groupRead, run: runSearch, openTail: true},
-		{name: "tree", group: groupRead, run: runTree, openTail: true},
-		{name: "view", group: groupRead, run: runView, bounded: 2},
-		{name: "show", group: groupRead, run: runShow, bounded: 1},
+		{name: "status", group: groupRead, run: runStatus, terminal: terminalDirect, frequentRead: true},
+		{name: "list", group: groupRead, run: runListRef, bounded: 1, terminal: terminalLine},
+		{name: "next", group: groupRead, run: runNext, bounded: 1, terminal: terminalDirect, frequentRead: true},
+		{name: "query", group: groupRead, run: runQuery, openTail: true, terminal: terminalDirect, frequentRead: true},
+		{name: "search", group: groupRead, run: runSearch, openTail: true, terminal: terminalDirect, frequentRead: true},
+		{name: "tree", group: groupRead, run: runTree, openTail: true, terminal: terminalLine},
+		{name: "view", group: groupRead, run: runView, bounded: 2, terminal: terminalDirect},
+		{name: "show", group: groupRead, run: runShow, bounded: 1, terminal: terminalDirect},
 		// changes declares no bounded positional at all, so a stray word
 		// anywhere in the invocation is refused rather than silently
 		// ignored. Every argument it reads is a flag, the cursor included.
-		{name: "changes", group: groupRead, run: runChanges},
-		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1},
-		{name: "prime", group: groupRead, run: runPrime},
-		{name: "guide", group: groupRead, run: runGuide, bounded: 1},
+		{name: "changes", group: groupRead, run: runChanges, terminal: terminalDirect, frequentRead: true},
+		{name: "instructions", group: groupRead, run: runInstructions, bounded: 1, terminal: terminalLine},
+		{name: "prime", group: groupRead, run: runPrime, terminal: terminalLine},
+		{name: "guide", group: groupRead, run: runGuide, bounded: 1, terminal: terminalLine},
 
-		{name: "init", group: groupBench, run: runInit, bounded: 1},
-		{name: "export", group: groupBench, run: runExport},
-		{name: "extract", group: groupBench, run: runExtract, bounded: 1},
+		{name: "init", group: groupBench, run: runInit, bounded: 1, terminal: terminalLine},
+		{name: "export", group: groupBench, run: runExport, terminal: terminalLine},
+		{name: "extract", group: groupBench, run: runExtract, bounded: 1, terminal: terminalLine},
 		// reshape declares no bounded positional, so a stray word is refused
 		// rather than ignored. Every argument it reads is a flag, and --map
 		// is read occurrence by occurrence rather than by name alone.
-		{name: "reshape", group: groupBench, run: runReshape},
-		{name: "path", group: groupBench, run: runPath, bounded: 1},
-		{name: "edit", group: groupBench, run: runEdit, bounded: 1},
-		{name: "get", group: groupBench, run: runGet, bounded: 2},
-		{name: "set", group: groupBench, run: runSet, bounded: 2, openTail: true},
+		{name: "reshape", group: groupBench, run: runReshape, terminal: terminalLine},
+		{name: "path", group: groupBench, run: runPath, bounded: 1, terminal: terminalLine},
+		{name: "edit", group: groupBench, run: runEdit, bounded: 1, terminal: terminalDirect, actsOnCard: true, lendsTerminal: true},
+		{name: "get", group: groupBench, run: runGet, bounded: 2, terminal: terminalLine},
+		{name: "set", group: groupBench, run: runSet, bounded: 2, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		// config dispatches on its own first word and runs the same
 		// mistyped-flag check itself (see runConfig), so it declares an open
 		// tail here to keep the generic walk in run() out of its way entirely.
-		{name: "config", group: groupBench, run: runConfig, openTail: true},
-		{name: "check", group: groupBench, run: runCheck},
-		{name: "whoami", group: groupBench, run: runWhoami},
+		{name: "config", group: groupBench, run: runConfig, openTail: true, terminal: terminalLine},
+		{name: "check", group: groupBench, run: runCheck, terminal: terminalLine},
+		{name: "whoami", group: groupBench, run: runWhoami, terminal: terminalDirect, frequentRead: true},
 		// workbench dispatches on its own first word the way config does, so
 		// it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runWorkbench).
-		{name: "workbench", group: groupBench, run: runWorkbench, openTail: true},
+		{name: "workbench", group: groupBench, run: runWorkbench, openTail: true, terminal: terminalLine},
 		// workstream dispatches on its own first word the way workbench does,
 		// so it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runWorkstream).
-		{name: "workstream", group: groupBench, run: runWorkstream, openTail: true},
+		{name: "workstream", group: groupBench, run: runWorkstream, openTail: true, terminal: terminalLine},
 		// column dispatches on its own first word the way workstream does, so
 		// it declares an open tail here and runs its own arity and
 		// mistyped-flag checks (see runColumn). It sits under groupBench
 		// rather than groupWork because it authors a station of the flow,
 		// which is workbench structure rather than an act on a card.
-		{name: "column", group: groupBench, run: runColumn, openTail: true},
-		{name: "version", group: groupBench, run: runVersion},
+		{name: "column", group: groupBench, run: runColumn, openTail: true, terminal: terminalLine},
+		{name: "version", group: groupBench, run: runVersion, terminal: terminalLine},
 
-		{name: "mcp", group: groupServe, run: runMCP},
+		{name: "mcp", group: groupServe, run: runMCP, terminal: terminalAbsent},
 		// lsp declares no bounded positional, every argument it reads being
 		// a flag, so a stray word is refused rather than silently ignored.
-		{name: "lsp", group: groupServe, run: runLSP},
+		{name: "lsp", group: groupServe, run: runLSP, terminal: terminalAbsent},
 		// serve declares no bounded positional, its one argument being a
 		// flag, so a stray word is refused rather than silently ignored.
-		{name: "serve", group: groupServe, run: runServe},
+		{name: "serve", group: groupServe, run: runServe, terminal: terminalAbsent},
 		// ui is serve with a browser opened on the address, so it declares
 		// serve's shape: no bounded positional, every argument a flag.
-		{name: "ui", group: groupServe, run: runUI},
+		{name: "ui", group: groupServe, run: runUI, terminal: terminalAbsent},
 		// setup binds the harness a recipe is named for and reads everything
 		// else as a flag, so a stray second word is refused rather than
 		// ignored.
-		{name: "setup", group: groupServe, run: runSetup, bounded: 1},
+		{name: "setup", group: groupServe, run: runSetup, bounded: 1, terminal: terminalLine},
 		// completion sits beside setup because both wire Dinah into a
 		// program somebody else ships, here the person's own shell.
-		{name: "completion", group: groupServe, run: runCompletion, bounded: 1},
+		{name: "completion", group: groupServe, run: runCompletion, bounded: 1, terminal: terminalAbsent},
 		// tui sits in the serve group because, like mcp and lsp, it starts a
 		// head: the terminal one, over one view.
-		{name: "tui", group: groupServe, run: runTUI, bounded: 1},
+		{name: "tui", group: groupServe, run: runTUI, bounded: 1, terminal: terminalAbsent},
 
-		{name: "help", run: runHelp, bounded: 1},
+		{name: "help", run: runHelp, bounded: 1, terminal: terminalLine},
 	}
 }
 
@@ -976,11 +976,12 @@ type rootWalk struct {
 // refusal, a depth that is not a count of rungs is a refusal, and a root is
 // resolved to an absolute path before any walk begins.
 //
-// The conflict check reads s.benchFlag rather than looking at --workbench and
-// DINAH_WORKBENCH separately. That field is already bench.Resolve applied to
+// The conflict check reads namedBench rather than looking at --workbench and
+// DINAH_WORKBENCH separately. benchFlag is already bench.Resolve applied to
 // the flag and the environment variable together, before the session is built,
-// so a caller naming either one shows up here as a non-empty benchFlag and
-// checking both would test one fact twice under two names.
+// so a caller naming either one shows up here as a non-empty answer and
+// checking both would test one fact twice under two names; namedBench answers
+// nothing on a terminal UI line, whose benchFlag is the head's pin.
 func (s *session) rootWalkFor(parsed *arguments, named string) (*rootWalk, *contract.Refusal) {
 	depth := parsed.value("max-depth")
 	if named == "" {
@@ -989,9 +990,9 @@ func (s *session) rootWalkFor(parsed *arguments, named string) (*rootWalk, *cont
 		}
 		return nil, nil
 	}
-	if s.benchFlag != "" {
+	if given, _ := s.namedBench(); given != "" {
 		return nil, contract.RefuseWith(contract.ConflictingScope, named, map[string]string{
-			"workbench": s.benchFlag,
+			"workbench": given,
 		})
 	}
 	rungs := bench.DefaultEnumerateDepth
@@ -1223,7 +1224,8 @@ func runInit(s *session, parsed *arguments) int {
 	if !bench.ValidSlug(slug) {
 		return s.reportError(malformedSlug(slug))
 	}
-	written, err := verb.Init(root, slug, operator, parsed.value("from"), s.benchFlag, s.benchFlagSource, parsed.has("here"))
+	named, namedSource := s.namedBench()
+	written, err := verb.Init(root, slug, operator, parsed.value("from"), named, namedSource, parsed.has("here"))
 	if err != nil {
 		return s.reportError(err)
 	}
@@ -1538,6 +1540,8 @@ func runConfig(s *session, parsed *arguments) int {
 			Home:          s.home,
 			NativeHome:    s.nativeHome,
 			Commands:      commandNames(),
+			Pinned:        s.pinnedSettings,
+			ReservedKeys:  reservedKeySet(),
 		})
 		if s.format != formatHuman {
 			return s.emitMachine(settings)
@@ -1552,7 +1556,7 @@ func runConfig(s *session, parsed *arguments) int {
 		if extra := at(words, 2); extra != "" {
 			return s.fail(contract.Usage, extra)
 		}
-		if !bench.KnownConfigKey(key) && !strings.HasPrefix(key, bench.AliasPrefix) {
+		if !bench.KnownConfigKey(key) && !strings.HasPrefix(key, bench.AliasPrefix) && !bench.KeyBindingSetting(key) {
 			return s.fail(contract.UnknownKey, key)
 		}
 		s.line(s.cfg.Get(key))
@@ -1581,12 +1585,46 @@ func runConfig(s *session, parsed *arguments) int {
 			}
 			return 0
 		}
+		if bench.KeyBindingSetting(key) {
+			return s.setKeyBinding(key, value, len(words) > 2)
+		}
 		if err := s.cfg.Set(key, value); err != nil {
 			return s.reportError(err)
 		}
 		return 0
 	}
 	return s.fail(contract.Usage, first)
+}
+
+// setKeyBinding writes or removes one tui.key or tui.label setting. A binding
+// on a key the terminal UI reads itself is refused here rather than in the
+// configuration, because only this package knows which keys those are, and
+// no override is offered: a binding answering a built-in key would answer a
+// key the footer offers only when the workbench would accept the act.
+func (s *session) setKeyBinding(setting, value string, supplied bool) int {
+	if key, isBinding := strings.CutPrefix(setting, bench.KeyBindingPrefix); isBinding && supplied {
+		if _, reserved := terminalReservedKeys[key]; reserved {
+			return s.reportError(contract.RefuseWith(
+				contract.InvalidKeyBinding,
+				setting,
+				map[string]string{"defect": bench.KeyBindingReservedKey},
+			))
+		}
+	}
+	if err := s.cfg.SetKeyBinding(setting, value, supplied); err != nil {
+		return s.reportError(err)
+	}
+	return 0
+}
+
+// reservedKeySet is terminalReservedKeys as the set the settings listing
+// reads to report a stored binding on a reserved key as invalid.
+func reservedKeySet() map[string]bool {
+	set := make(map[string]bool, len(terminalReservedKeys))
+	for key := range terminalReservedKeys {
+		set[key] = true
+	}
+	return set
 }
 
 // checkModalFlags are the three flags that decide what check does before it

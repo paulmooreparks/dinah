@@ -31,22 +31,15 @@ import (
 // checked, so the refusal is a pure read-only bail-out with nothing to
 // clean up.
 func (l *Library) Add(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	if refused := l.admitAdd(req); refused != nil {
 		return refused
-	}
-	if req.Actor == "" {
-		return l.refuse(req, nil, contract.NoOwner, "")
 	}
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return l.refuse(req, nil, contract.Malformed, "title")
 	}
-	if len(l.Bench.Columns) == 0 {
-		anchor := filepath.Join(l.Bench.Root, bench.WorkbenchAnchor)
-		return l.refuse(req, nil, contract.AddNeedsAColumn, anchor)
+	if refused := l.addHasColumns(req); refused != nil {
+		return refused
 	}
 	destination := l.Bench.Columns[0]
 	if req.Column != "" {
@@ -302,6 +295,32 @@ func (l *Library) Comment(req *Request) *Response {
 	return response
 }
 
+// admitAdd runs Add's rows ahead of the title: the workbench has an
+// operator, the declared harness is well formed, and the request names an
+// owner. Add and OfferActs both call it, and addHasColumns after it.
+func (l *Library) admitAdd(req *Request) *Response {
+	if l.Bench.Operator == "" {
+		return l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return refused
+	}
+	if req.Actor == "" {
+		return l.refuse(req, nil, contract.NoOwner, "")
+	}
+	return nil
+}
+
+// addHasColumns runs Add's row after the title: the workbench's flow has a
+// column for the card to enter.
+func (l *Library) addHasColumns(req *Request) *Response {
+	if len(l.Bench.Columns) == 0 {
+		anchor := filepath.Join(l.Bench.Root, bench.WorkbenchAnchor)
+		return l.refuse(req, nil, contract.AddNeedsAColumn, anchor)
+	}
+	return nil
+}
+
 // canComment runs every row Comment runs before it takes a lock, in Comment's
 // order: the workbench has an operator, the declared harness is well formed,
 // the reference is not blank, it resolves, the request names an owner, and
@@ -380,30 +399,14 @@ func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) 
 // a comment. The entity carries the original filename, the description and the
 // provenance, and the bytes alone sit in payload/ under their original name.
 func (l *Library) Attach(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.canAttach(req)
+	if refused != nil {
 		return refused
 	}
-	entity, err := l.Bench.ResolveEntity(req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
 	// Replacing an attachment's bytes writes nothing below it and stays legal,
-	// so one expression decides both the refusal and the branch that writes,
-	// and the two cannot drift apart.
-	replacing := req.Replace && entity.Kind == bench.KindAttachment
-	if _, mounts := bench.MountOf(entity.Kind, bench.AttachmentsDir); !mounts && !replacing {
-		return l.refuseWith(req, entity.Card, contract.NotAttachable, entity.Ref,
-			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
-	}
-	if l.definitionAttachmentWrite(entity) && req.Actor != l.Bench.Operator {
-		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
-	}
+	// so one expression decides both the refusal in canAttach and the branch
+	// that writes, and the two cannot drift apart.
+	replacing := attachReplaces(req, entity)
 	if !bench.Exists(req.File) {
 		return l.refuseWith(req, entity.Card, contract.UnknownPath, req.File, map[string]string{"file": req.File})
 	}
@@ -451,29 +454,52 @@ func (l *Library) Attach(req *Request) *Response {
 	return response
 }
 
+// canAttach runs Attach's rows ahead of the file: the workbench has an
+// operator, the declared harness is well formed, the reference resolves, the
+// request names an owner, the entity mounts attachments or is an attachment
+// being replaced, and a definition attachment is the operator's to write.
+// Attach and OfferActs both call it.
+func (l *Library) canAttach(req *Request) (*bench.EntityRef, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if _, mounts := bench.MountOf(entity.Kind, bench.AttachmentsDir); !mounts && !attachReplaces(req, entity) {
+		return nil, l.refuseWith(req, entity.Card, contract.NotAttachable, entity.Ref,
+			map[string]string{"kind": entity.Kind, entity.Kind: entity.Ref})
+	}
+	if l.definitionAttachmentWrite(entity) && req.Actor != l.Bench.Operator {
+		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return entity, nil
+}
+
+// attachReplaces reports whether an attach replaces an attachment's bytes
+// rather than adding an attachment below the entity.
+func attachReplaces(req *Request, entity *bench.EntityRef) bool {
+	return req.Replace && entity.Kind == bench.KindAttachment
+}
+
 // Archive moves an entity's whole directory into the archive mirror at its
 // own level, history and all. Listings, next and the capacity count ignore
 // the archive by construction, so an archived card is out of the flow while
 // its identifier still resolves for a link.
 func (l *Library) Archive(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.admitRemoval(req)
+	if refused != nil {
 		return refused
 	}
-	entity, err := l.Bench.ResolveEntity(req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if entity.Kind == bench.KindWorkbench {
-		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
-	}
-	if l.operatorOnlyRemoval(entity) && req.Actor != l.Bench.Operator {
-		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	if refused := l.canRemove(req, entity); refused != nil {
+		return refused
 	}
 	now := bench.Stamp(l.Now())
 	journal := l.journalFor(entity)
@@ -512,21 +538,9 @@ func (l *Library) Archive(req *Request) *Response {
 // is. The event is written at the source and arrives at the destination
 // inside the directory that carries it.
 func (l *Library) Restore(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.canRestore(req)
+	if refused != nil {
 		return refused
-	}
-	entity, err := l.Bench.ResolveEntityIn(bench.ArchivedHalf, req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if l.operatorOnlyTarget(entity) && req.Actor != l.Bench.Operator {
-		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	now := bench.Stamp(l.Now())
 	journal := l.journalFor(entity)
@@ -548,6 +562,66 @@ func (l *Library) Restore(req *Request) *Response {
 	response := l.ok(req, nil)
 	response.Detail = entity.ID
 	return response
+}
+
+// canRestore runs Restore's rows before it writes: the workbench has an
+// operator, the declared harness is well formed, the reference resolves in
+// the archive, the request names an owner, and an entity only the operator
+// may restore is restored by the operator. Restore and OfferActs both call
+// it.
+func (l *Library) canRestore(req *Request) (*bench.EntityRef, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	entity, err := l.Bench.ResolveEntityIn(bench.ArchivedHalf, req.Ref)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if l.operatorOnlyTarget(entity) && req.Actor != l.Bench.Operator {
+		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return entity, nil
+}
+
+// admitRemoval runs the rows archive and delete share before either reads
+// an argument: the workbench has an operator, the declared harness is well
+// formed, the reference resolves, and the request names an owner. Archive,
+// Delete and OfferActs all call it.
+func (l *Library) admitRemoval(req *Request) (*bench.EntityRef, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	return entity, nil
+}
+
+// canRemove runs the rows archive and delete share after admitRemoval, which
+// read the entity: the workbench itself is never removed, and an entity only
+// the operator may remove is removed by the operator. Delete runs its
+// confirmation row between the two, since the confirmation is an argument.
+func (l *Library) canRemove(req *Request, entity *bench.EntityRef) *Response {
+	if entity.Kind == bench.KindWorkbench {
+		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
+	}
+	if l.operatorOnlyRemoval(entity) && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return nil
 }
 
 // halfFor is the resolution half a request names, which is the archive mirror
@@ -573,27 +647,15 @@ func halfFor(req *Request) bench.ResolutionHalf {
 // reference never refuses an act; the dangling `to:` is what check reports
 // afterwards.
 func (l *Library) Delete(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.admitRemoval(req)
+	if refused != nil {
 		return refused
-	}
-	entity, err := l.Bench.ResolveEntity(req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
 	}
 	if !req.Confirm {
 		return l.refuse(req, entity.Card, contract.Unconfirmed, req.Ref)
 	}
-	if entity.Kind == bench.KindWorkbench {
-		return l.refuse(req, nil, contract.UnknownPath, req.Ref)
-	}
-	if l.operatorOnlyRemoval(entity) && req.Actor != l.Bench.Operator {
-		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	if refused := l.canRemove(req, entity); refused != nil {
+		return refused
 	}
 	designator, refused := l.admitCommentDeletion(req, entity)
 	if refused != nil {
@@ -793,24 +855,9 @@ func (l *Library) tombstoneNumber(id string) error {
 // one does, carries the event, since an attachment's journal is not the
 // journal of a verb to record history under.
 func (l *Library) Rename(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.canRename(req)
+	if refused != nil {
 		return refused
-	}
-	entity, err := l.Bench.ResolveEntity(req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if entity.Kind != bench.KindAttachment {
-		return l.refuseWith(req, entity.Card, contract.NotRenamable, entity.Ref, map[string]string{"kind": entity.Kind})
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if l.definitionAttachmentWrite(entity) && req.Actor != l.Bench.Operator {
-		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
 	}
 	if !bench.ValidAttachmentName(req.Value) {
 		return l.refuse(req, entity.Card, contract.Malformed, "name")
@@ -848,6 +895,33 @@ func (l *Library) Rename(req *Request) *Response {
 	response := l.ok(req, entity.Card)
 	response.Detail = entity.ID
 	return response
+}
+
+// canRename runs Rename's rows ahead of the new name: the workbench has an
+// operator, the declared harness is well formed, the reference resolves to an
+// attachment, the request names an owner, and a definition attachment is the
+// operator's to rename. Rename and OfferActs both call it.
+func (l *Library) canRename(req *Request) (*bench.EntityRef, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if entity.Kind != bench.KindAttachment {
+		return nil, l.refuseWith(req, entity.Card, contract.NotRenamable, entity.Ref, map[string]string{"kind": entity.Kind})
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if l.definitionAttachmentWrite(entity) && req.Actor != l.Bench.Operator {
+		return nil, l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return entity, nil
 }
 
 // WorkbenchView is the workbench's own fields as a read reports them: the
@@ -1535,21 +1609,9 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 // storing the value already there answers ok: the caller asked for a state and
 // the state is what they get.
 func (l *Library) AcceptDivergence(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.canAcceptDivergence(req)
+	if refused != nil {
 		return refused
-	}
-	entity, err := l.Bench.ResolveEntity(req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if entity.Kind != bench.KindComment {
-		return l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
 	}
 	now := bench.Stamp(l.Now())
 	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
@@ -1685,4 +1747,28 @@ func CommentBodyDigest(dir string) (string, error) {
 		return "", err
 	}
 	return bench.CommentDigest(body), nil
+}
+
+// canAcceptDivergence runs AcceptDivergence's rows before it takes the lock:
+// the workbench has an operator, the declared harness is well formed, the
+// reference resolves, the request names an owner, and it reaches a comment.
+// AcceptDivergence and OfferActs both call it.
+func (l *Library) canAcceptDivergence(req *Request) (*bench.EntityRef, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if entity.Kind != bench.KindComment {
+		return nil, l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
+	}
+	return entity, nil
 }

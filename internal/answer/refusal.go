@@ -113,10 +113,13 @@ func nextStepOf(shape *contract.Shape, values map[string]string) string {
 }
 
 // holds reports whether a fragment's condition is satisfied: a When names a
-// value that is present and non-empty, an Unless names one that is not, a
-// WhenCommand names the command the reader typed, and a fragment carrying none
-// of the three always renders.
+// value that is present and non-empty, or equal to Equals where Equals is
+// set, an Unless names one that is not, a WhenCommand names the command the
+// reader typed, and a fragment carrying none of the three always renders.
 func holds(fragment contract.Fragment, values map[string]string) bool {
+	if fragment.When != "" && fragment.Equals != "" {
+		return values[fragment.When] == fragment.Equals
+	}
 	if fragment.When != "" {
 		return values[fragment.When] != ""
 	}

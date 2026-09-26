@@ -118,18 +118,44 @@ func renameColumn(t *testing.T, root, title, yaml string) {
 }
 
 // endsRestored fails unless the output ends with the alternate screen left
-// and the cursor shown after the last frame, followed by Dinah's
-// bracketed-paste disable written exactly once and last.
+// and the cursor shown after the last frame, followed by the bracketed-paste
+// disable, which is the last thing written, and unless paste is never
+// switched off while a frame is on the screen.
 func endsRestored(t *testing.T, output string) {
 	t.Helper()
 	left := strings.LastIndex(output, "\x1b[?1049l")
 	shown := strings.LastIndex(output, "\x1b[?25h")
-	disabled := strings.Index(output, "\x1b[?2004l")
+	disabled := strings.LastIndex(output, "\x1b[?2004l")
 	if left < 0 || shown < left || disabled < shown {
 		t.Errorf("the output ends %q, wanted ESC [?1049l, then ESC [?25h, then ESC [?2004l", output[max(0, len(output)-80):])
 	}
-	if strings.Count(output, "\x1b[?2004l") != 1 || !strings.HasSuffix(output, "\x1b[?2004l") {
-		t.Errorf("ESC [?2004l is written %d times, and last: %v", strings.Count(output, "\x1b[?2004l"), strings.HasSuffix(output, "\x1b[?2004l"))
+	if !strings.HasSuffix(output, "\x1b[?2004l") {
+		t.Errorf("the output does not end with ESC [?2004l: %q", output[max(0, len(output)-80):])
+	}
+	if why := pasteOffOnTheAlternateScreen(output); why != "" {
+		t.Error(why)
+	}
+}
+
+// pasteOffOnTheAlternateScreen answers where an output switches bracketed
+// paste off while a program's frames are on the screen, and nothing where it
+// never does. Paste may be switched off only once the alternate screen has
+// been left, so at every ESC [?2004l the later of the last ESC [?1049h and
+// the last ESC [?1049l before it must be the leave. A disable written while
+// the screen is up leaves every paste until the next program unmarked, which
+// is what dinah-623/criteria/52 refuses.
+func pasteOffOnTheAlternateScreen(output string) string {
+	for at := 0; ; {
+		found := strings.Index(output[at:], "\x1b[?2004l")
+		if found < 0 {
+			return ""
+		}
+		found += at
+		entered, left := strings.LastIndex(output[:found], "\x1b[?1049h"), strings.LastIndex(output[:found], "\x1b[?1049l")
+		if entered > left {
+			return fmt.Sprintf("ESC [?2004l is written at byte %d while the alternate screen entered at byte %d is up, so pastes are no longer marked: %q", found, entered, output[entered:min(len(output), found+40)])
+		}
+		at = found + 1
 	}
 }
 
@@ -192,7 +218,7 @@ func TestALoneEscChangesNothingInAnyMode(t *testing.T) {
 				events = append(events, ref+" "+event.Event)
 			}
 		}
-		return outcome{m.mode, focusedColumn(m), selectedRef(m), m.highlight, m.input.Value(), m.area.Value(), strings.Join(events, ", ")}
+		return outcome{m.mode, focusedColumn(m), selectedRef(m), m.menuHighlight(), m.input.Value(), m.area.Value(), strings.Join(events, ", ")}
 	}
 	for name, keys := range scripts {
 		t.Run(name, func(t *testing.T) {
@@ -314,7 +340,7 @@ func TestTheFilterAndTheJump(t *testing.T) {
 			wantModel(t, "the message", m.message, []string{m.s.r.T("interactive.jump.no-lane", "column", "Done")})
 		}},
 		{"zzz", func(t *testing.T, m *interactiveModel) {
-			wantModel(t, "the message", m.message, []string{m.s.r.T("interactive.jump.nothing", "text", "zzz")})
+			wantModel(t, "the message", m.message, []string{m.s.r.T("interactive.line.nothing", "text", "zzz")})
 		}},
 	}
 	for _, jump := range jumps {
@@ -432,9 +458,11 @@ func everyModeRun(t *testing.T, root string, width, height int, output io.Writer
 // headless run of the program built with interactiveProgramOptions for the
 // running GOOS, through every mode, the help, a resize and each prompt,
 // writes no control sequence outside the allowed set and no DECRQM, mouse,
-// focus, modifyOtherKeys or kitty keyboard sequence; ESC [?2004h appears
-// exactly once, first, and ESC [?2004l exactly once, last, both Dinah's own,
-// so Bubble Tea's own bracketed-paste setting wrote nothing; and off Windows
+// focus, modifyOtherKeys or kitty keyboard sequence; ESC [?2004h is the first
+// thing written and ESC [?2004l the last, both Dinah's own, and paste is
+// never switched off while a frame is up (Bubble Tea may also write the
+// enable, since every frame asks for the mode on, as dinah-623/criteria/52
+// explains); and off Windows
 // it writes no REP, HPA, insert-mode or autowrap sequence, the Windows
 // configuration being held by TestAnInsertedRunNeverUsesInsertMode and
 // TestTheWindowsOutputIsOnlyWhatMicrosoftLists. ctrl+v in a prompt inserts
@@ -458,8 +486,8 @@ func TestTheProgramWritesOnlyTheSequencesItMay(t *testing.T) {
 		}
 	}
 	t.Logf("%d distinct sequences written", len(counts))
-	if !strings.HasPrefix(run.output, "\x1b[?2004h") || strings.Count(run.output, "\x1b[?2004h") != 1 {
-		t.Errorf("ESC [?2004h is written %d times and first: %v", strings.Count(run.output, "\x1b[?2004h"), strings.HasPrefix(run.output, "\x1b[?2004h"))
+	if !strings.HasPrefix(run.output, "\x1b[?2004h") {
+		t.Errorf("the output does not begin with ESC [?2004h: %q", run.output[:min(len(run.output), 40)])
 	}
 	endsRestored(t, run.output)
 	for _, forbidden := range []string{"$p", "\x1b[?1000", "\x1b[?1002", "\x1b[?1003", "\x1b[?1006", "\x1b[?1004", "\x1b[>4", "\x1b[>1u", "\x1b[<u", "\x1b[?u"} {
@@ -501,12 +529,17 @@ func TestAPasteIsTextInAPromptAndNothingElsewhere(t *testing.T) {
 		t.Errorf("the comment posted is %q", comments)
 	}
 	_ = run
-	for _, prompt := range []string{":", "/"} {
-		root := tuiBench(t)
-		run := runTUIThrough(t, root, tuiSeam(t, strings.NewReader(prompt+pasted+keyCtrlC), 100, 30))
-		wantModel(t, prompt+" prompt's text", run.model.input.Value(), "looks fine but a question")
-		wantModel(t, prompt+" prompt's mode", run.model.mode, modePrompt)
-	}
+	root = tuiBench(t)
+	run = runTUIThrough(t, root, tuiSeam(t, strings.NewReader("/"+pasted+keyCtrlC), 100, 30))
+	wantModel(t, "/ prompt's text", run.model.input.Value(), "looks fine but a question")
+	wantModel(t, "/ prompt's mode", run.model.mode, modePrompt)
+	// The command line takes a paste of one line alone, which
+	// TestAPasteIntoTheCommandLineRunsNothing holds; a paste of two lines is
+	// discarded there and leaves the prompt open and empty.
+	root = tuiBench(t)
+	run = runTUIThrough(t, root, tuiSeam(t, strings.NewReader(":"+pasted+keyCtrlC), 100, 30))
+	wantModel(t, ": prompt's text", run.model.input.Value(), "")
+	wantModel(t, ": prompt's mode", run.model.mode, modePrompt)
 	for name, keys := range map[string]string{"browse": "", "card mode": keyEnter, "the move menu": "m"} {
 		root := tuiBench(t)
 		anchor, journal := anchorText(t, root, "fx-1"), journalText(t, root, "fx-1")

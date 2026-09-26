@@ -3362,6 +3362,16 @@ type SettingsContext struct {
 	// Commands is the live command roster used to classify stale aliases
 	// that now collide with a declared command.
 	Commands map[string]bool
+	// Pinned are rows a head resolved once when it started and reports for
+	// every listing it runs afterwards, keyed by setting, in place of what
+	// the ladder would answer now. The terminal UI pins the workbench, the
+	// actor and the language it started with, so the listing its command line
+	// prints names the values the screen is using. Nil everywhere else.
+	Pinned map[string]SettingView
+	// ReservedKeys are the keys the terminal UI reads itself, which a stored
+	// key binding may not take, so the listing reports such a binding as
+	// invalid.
+	ReservedKeys map[string]bool
 }
 
 // Settings reports every setting the tool knows, resolved through the ladder
@@ -3380,6 +3390,10 @@ type SettingsContext struct {
 func Settings(cfg *bench.Config, ctx SettingsContext) []SettingView {
 	views := make([]SettingView, 0, len(bench.ConfigKeys))
 	for _, key := range bench.ConfigKeys {
+		if pinned, ok := ctx.Pinned[key]; ok {
+			views = append(views, pinned)
+			continue
+		}
 		views = append(views, setting(key, cfg, ctx))
 	}
 	for _, alias := range cfg.Aliases() {
@@ -3391,8 +3405,28 @@ func Settings(cfg *bench.Config, ctx SettingsContext) []SettingView {
 		}
 		views = append(views, SettingView{Key: alias.Key, Value: alias.Template, Source: source})
 	}
+	for _, binding := range cfg.KeyBindings() {
+		source := bench.SourceConfig
+		if binding.Defect != "" || ctx.ReservedKeys[binding.Key] {
+			source = bench.SourceInvalid
+		}
+		views = append(views, SettingView{Key: binding.Setting, Value: binding.Template, Source: source})
+		if binding.Label != "" {
+			label := bench.KeyLabelPrefix + binding.Key
+			views = append(views, SettingView{Key: label, Value: binding.Label, Source: bench.SourceConfig})
+		}
+	}
 	for _, key := range cfg.Keys() {
-		if bench.KnownConfigKey(key) || strings.HasPrefix(key, bench.AliasPrefix) {
+		if bench.KnownConfigKey(key) || strings.HasPrefix(key, bench.AliasPrefix) || strings.HasPrefix(key, bench.KeyBindingPrefix) {
+			continue
+		}
+		// A label whose key carries a binding was listed beside the binding
+		// above. A label with no binding labels nothing, so it is reported
+		// as read from the file on a row of its own.
+		if label, ok := strings.CutPrefix(key, bench.KeyLabelPrefix); ok {
+			if cfg.Get(bench.KeyBindingPrefix+label) == "" {
+				views = append(views, SettingView{Key: key, Value: cfg.Get(key), Source: bench.SourceConfig})
+			}
 			continue
 		}
 		// The views block is a key the tool reads, though no config verb

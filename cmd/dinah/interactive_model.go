@@ -23,7 +23,7 @@ import (
 	"dinah/internal/verb"
 )
 
-// interactiveMode is which of the four modes the model is in.
+// interactiveMode is which of the six modes the model is in.
 type interactiveMode int
 
 const (
@@ -31,16 +31,39 @@ const (
 	modeCard
 	modeMenu
 	modePrompt
+	// modeItems lists the target card's items that carry an offered act.
+	modeItems
+	// modeOutput shows the transcript of a line too long for the message
+	// area.
+	modeOutput
 )
 
 // promptKind is which prompt is open in prompt mode.
 type promptKind int
 
 const (
+	// promptJump is the command line on :, which is also the jump.
 	promptJump promptKind = iota
 	promptFilter
-	promptComment
+	// promptText is the multi-line prompt a stepText gathers its value in,
+	// the comment's among them.
+	promptText
+	// promptStep is the single-line prompt a stepLine gathers its value in.
+	promptStep
 )
+
+// interactiveMenuState is one open menu: the move menu, the actions menu, or
+// the menu a step gathers its value from. choose runs when a row is chosen,
+// and refresh rebuilds the rows after a read, answering false where the menu
+// has nothing left to offer and closes.
+type interactiveMenuState struct {
+	title     string
+	rows      []stepRow
+	highlight int
+	back      interactiveMode
+	choose    func(stepRow) tea.Cmd
+	refresh   func() ([]stepRow, bool)
+}
 
 // The messages the head sends its own model.
 type (
@@ -116,14 +139,18 @@ func (lane laneEntry) key() string {
 	return strconv.Itoa(lane.section) + "/" + lane.column
 }
 
-// interactiveOffer is the acts the footer and the menu offer for one card,
-// with the a and b rows picked out.
+// interactiveOffer is the acts the footer and the menus offer for one card,
+// with the a and b rows picked out, and the whole answer the library gave.
 type interactiveOffer struct {
 	ref                     string
 	claim, release, comment bool
 	moves                   []verb.LegalMove
 	forward, back           *verb.LegalMove
 	forwardTerminal         bool
+	acts                    *verb.OfferedActs
+	// edit is OfferActs' Edit asked of the editor ladder as well, once per
+	// recompute, so drawing a frame reads no configuration file.
+	edit bool
 }
 
 // interactiveModel is the terminal head's Bubble Tea model.
@@ -145,24 +172,26 @@ type interactiveModel struct {
 	focus         int
 	selected      int
 
-	mode       interactiveMode
-	cardOpen   bool
-	cardRef    string
-	cardLines  []string
-	cardBasis  string
-	cardInView bool
-	viewport   viewport.Model
-	menuRows   []verb.LegalMove
-	highlight  int
-	prompt     promptKind
-	input      textinput.Model
-	area       textarea.Model
-	offer      interactiveOffer
-	detail     []string
-	message    []string
-	status     statusParts
-	fullHelp   bool
-	help       help.Model
+	mode         interactiveMode
+	promptBack   interactiveMode
+	cardOpen     bool
+	cardRef      string
+	cardLines    []string
+	cardBasis    string
+	cardInView   bool
+	cardArchived bool
+	viewport     viewport.Model
+	menu         *interactiveMenuState
+	pending      *pendingAct
+	prompt       promptKind
+	input        textinput.Model
+	area         textarea.Model
+	offer        interactiveOffer
+	detail       []string
+	message      []string
+	status       statusParts
+	fullHelp     bool
+	help         help.Model
 
 	cursor     string
 	gate       *changeGate
@@ -170,6 +199,27 @@ type interactiveModel struct {
 	minGen     uint64
 	quitting   bool
 	expiry     time.Time
+
+	// itemRows are the rows item mode lists, and itemHighlight the one
+	// highlighted.
+	itemRows      []verb.OfferedItem
+	itemHighlight int
+	// output is the transcript output mode shows, under outputTitle,
+	// scrolled to outputOffset, and outputBack the mode it closes into.
+	output       []string
+	outputTitle  string
+	outputOffset int
+	outputBack   interactiveMode
+	// bindings are the user's key bindings the head reads, and unused the
+	// notice of the stored ones it will not run, shown once at start.
+	bindings []bench.KeyBinding
+	// lend is the command a cycle ended to hand the terminal to, and lent
+	// says the cycle now starting follows a lend, whose transcript it shows.
+	lend *lendRequest
+	lent *lineResult
+	// tabbed says the last key at the command line was Tab, so a second Tab
+	// lists the candidates.
+	tabbed bool
 
 	crashMu sync.Mutex
 	crash   *interactiveCrash
@@ -196,11 +246,25 @@ func newInteractiveModel(s *session, l, waiter *verb.Library, req *verb.Request,
 	m.viewport = viewport.New()
 	m.viewport.KeyMap = viewport.KeyMap{}
 	m.applyAnswer(first, true)
+	m.loadBindings(true)
 	return m
 }
 
-// Init starts the change loop.
+// Init starts the change loop. A cycle that follows a lend first asks the
+// reader to discard the keys typed while the terminal was lent, reads the
+// view again and shows what the lent command wrote.
 func (m *interactiveModel) Init() tea.Cmd {
+	if interactiveSeam != nil && interactiveSeam.init != nil {
+		interactiveSeam.init()
+	}
+	if result := m.lent; result != nil {
+		m.lent = nil
+		if m.reader != nil {
+			m.flushAsked = true
+			m.reader.RequestFlush()
+		}
+		m.afterLine(result)
+	}
 	return m.waitForChange()
 }
 
@@ -264,6 +328,9 @@ func (m *interactiveModel) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	}()
 	if interactiveSeam != nil && interactiveSeam.update != nil {
 		interactiveSeam.update(msg)
+	}
+	if interactiveSeam != nil && interactiveSeam.observe != nil {
+		interactiveSeam.observe(m, msg)
 	}
 	if m.quitting {
 		return m, nil
@@ -504,7 +571,8 @@ func (m *interactiveModel) keepSelection(previousKey, previousRef string, previo
 }
 
 // afterRead brings everything that depends on the read up to date: the card
-// shown in card mode, the move menu's rows, the offer and the detail pane.
+// shown in card mode, the offer, an open menu's rows, item mode's rows and
+// the detail pane.
 func (m *interactiveModel) afterRead() {
 	if m.cardOpen && !m.showCard(m.cardRef, m.cardInView) {
 		m.leaveCard()
@@ -513,6 +581,7 @@ func (m *interactiveModel) afterRead() {
 	if m.mode == modeMenu {
 		m.refreshMenu()
 	}
+	m.refreshItems()
 	m.refreshDetail()
 }
 
@@ -651,15 +720,22 @@ func (m *interactiveModel) identity(name string) *verb.Request {
 	}
 }
 
-// recomputeOffer asks the library what may be offered for the target card.
+// recomputeOffer asks the library what may be offered for the target card,
+// and, where no card is targeted, what may be offered on the workbench and
+// in the focused lane's column.
 func (m *interactiveModel) recomputeOffer() {
 	m.offer = interactiveOffer{}
 	ref, _, ok := m.target()
 	if !ok {
+		m.offerWithoutCard()
 		return
 	}
 	asking := m.identity(verb.Move)
 	asking.Card = ref
+	asking.Archived = m.cardOpen && m.cardArchived
+	if column := m.pullColumn(); column != nil && !asking.Archived {
+		asking.Column = column.Ref()
+	}
 	offered, err := m.l.OfferActs(asking)
 	if err != nil || offered == nil {
 		return
@@ -670,6 +746,8 @@ func (m *interactiveModel) recomputeOffer() {
 		release: offered.Release,
 		comment: offered.Comment,
 		moves:   offered.Moves,
+		acts:    offered,
+		edit:    offered.Edit && m.editorResolves(),
 	}
 	for i := range offered.Moves {
 		row := &offered.Moves[i]
@@ -685,6 +763,20 @@ func (m *interactiveModel) recomputeOffer() {
 	}
 }
 
+// offerWithoutCard asks the library what may be offered where no card is
+// targeted, which is a filing and a pull into the focused lane's column.
+func (m *interactiveModel) offerWithoutCard() {
+	asking := m.identity(verb.Move)
+	if column := m.pullColumn(); column != nil {
+		asking.Column = column.Ref()
+	}
+	offered, err := m.l.OfferActs(asking)
+	if err != nil || offered == nil {
+		return
+	}
+	m.offer = interactiveOffer{acts: &verb.OfferedActs{Add: offered.Add, Pull: offered.Pull}}
+}
+
 // refreshDetail renders the detail pane for the selected card, at a window
 // wide enough to hold it.
 func (m *interactiveModel) refreshDetail() {
@@ -698,7 +790,7 @@ func (m *interactiveModel) refreshDetail() {
 		return
 	}
 	width := m.draw() - interactiveListWidth(m.draw()) - 1
-	m.detail = m.showLines(card.Ref, "card,body", width)
+	m.detail = m.showLines(card.Ref, "card,body,checklist", width)
 }
 
 // showLines is what dinah show prints for a card in the human form, with the
@@ -710,11 +802,14 @@ func (m *interactiveModel) showLines(ref, fields string, width int) []string {
 }
 
 // shown is showLines with the revision the answer carried, and false where
-// the library would not show the card.
+// the library would not show the card. A read naming the checklist asks for
+// the unresolved items alone, which is what the detail pane lists.
 func (m *interactiveModel) shown(ref, fields string, width int) ([]string, string) {
 	asking := m.identity("show")
 	asking.Card = ref
 	asking.Fields = fields
+	asking.Unresolved = strings.Contains(fields, "checklist")
+	asking.Archived = m.cardArchived && ref == m.cardRef
 	detail, _, _, _, err := m.l.Show(asking)
 	if err != nil || detail == nil {
 		return nil, ""
@@ -740,24 +835,36 @@ func (m *interactiveModel) showCard(ref string, inView bool) bool {
 	return true
 }
 
-// refreshMenu recomputes the move menu's rows from the fresh offer, keeping
-// the highlight on the same column where that row is still offered, and
-// closes the menu where the card left the focused lane or no row is left.
+// refreshMenu recomputes the open menu's rows from the fresh offer, keeping
+// the highlight on the same value where that row is still offered, and
+// closes the menu, ending any act it was asking for, where no row is left.
 func (m *interactiveModel) refreshMenu() {
-	ref, _, ok := m.target()
-	if !ok || ref != m.offer.ref || len(m.offer.moves) == 0 {
-		m.mode = m.returnMode()
+	menu := m.menu
+	if menu == nil || menu.refresh == nil {
+		return
+	}
+	rows, ok := menu.refresh()
+	if !ok {
+		if m.pending != nil {
+			m.endPending()
+			return
+		}
+		m.menu = nil
+		m.mode = menu.back
+		if m.mode == modeCard && !m.cardOpen {
+			m.mode = modeBrowse
+		}
 		return
 	}
 	highlighted := ""
-	if m.highlight < len(m.menuRows) {
-		highlighted = m.menuRows[m.highlight].Column
+	if menu.highlight < len(menu.rows) {
+		highlighted = menu.rows[menu.highlight].value
 	}
-	m.menuRows = m.offer.moves
-	m.highlight = 0
-	for i, row := range m.menuRows {
-		if row.Column == highlighted {
-			m.highlight = i
+	menu.rows = rows
+	menu.highlight = 0
+	for i, row := range rows {
+		if row.value == highlighted {
+			menu.highlight = i
 		}
 	}
 }
@@ -778,8 +885,11 @@ func (m *interactiveModel) areaHeight() int {
 // messageHeight is how many rows the message area takes.
 func (m *interactiveModel) messageHeight() int {
 	if m.mode == modePrompt {
-		if m.prompt == promptComment {
+		if m.prompt == promptText {
 			return m.areaHeight() + 1
+		}
+		if m.prompt == promptStep {
+			return 2 + min(len(m.message), interactiveMessageLimit-2)
 		}
 		return 1 + min(len(m.message), interactiveMessageLimit-1)
 	}
@@ -822,15 +932,23 @@ func (m *interactiveModel) key(pressed tea.KeyPressMsg) tea.Cmd {
 	if m.tooSmall() {
 		return nil
 	}
-	m.message = nil
+	tabbed := m.tabbed
+	m.tabbed = false
+	if m.mode != modePrompt || m.prompt != promptJump || pressed.String() != "tab" {
+		m.message = nil
+	}
 	keys := m.keys()
 	switch m.mode {
 	case modePrompt:
-		return m.promptKey(keys, pressed)
+		return m.promptKey(keys, pressed, tabbed)
 	case modeMenu:
 		return m.menuKey(keys, pressed)
 	case modeCard:
 		return m.cardKey(keys, pressed)
+	case modeItems:
+		return m.itemsKey(keys, pressed)
+	case modeOutput:
+		return m.outputKey(keys, pressed)
 	}
 	return m.browseKey(keys, pressed)
 }
@@ -891,6 +1009,92 @@ func (m *interactiveModel) browseKey(keys *interactiveKeys, pressed tea.KeyPress
 	return nil
 }
 
+// itemsKey handles a key in item mode: the highlight keys, the letters of
+// the item acts offered on the highlighted item, and the keys that close it.
+// A letter whose act is not offered on the highlighted item does nothing and
+// writes nothing, and the digits choose nothing.
+func (m *interactiveModel) itemsKey(keys *interactiveKeys, pressed tea.KeyPressMsg) tea.Cmd {
+	switch {
+	case key.Matches(pressed, keys.menuUp):
+		m.itemHighlight = max(m.itemHighlight-1, 0)
+		return nil
+	case key.Matches(pressed, keys.menuDown):
+		m.itemHighlight = min(m.itemHighlight+1, max(len(m.itemRows)-1, 0))
+		return nil
+	case key.Matches(pressed, keys.page):
+		step := max(m.bodyHeight()-2, 1)
+		if pressed.String() == "pgup" {
+			step = -step
+		}
+		m.itemHighlight = min(max(m.itemHighlight+step, 0), max(len(m.itemRows)-1, 0))
+		return nil
+	case key.Matches(pressed, keys.ends):
+		if pressed.String() == "home" {
+			m.itemHighlight = 0
+		} else {
+			m.itemHighlight = max(len(m.itemRows)-1, 0)
+		}
+		return nil
+	case key.Matches(pressed, keys.menuCancel), key.Matches(pressed, keys.menuQuit):
+		m.closeItems()
+		return nil
+	case key.Matches(pressed, keys.jump):
+		return m.openPrompt(promptJump, "")
+	}
+	for _, row := range interactiveActs {
+		if row.mode != actItems || !key.Matches(pressed, row.binding(keys)) {
+			continue
+		}
+		if !row.offered(m) {
+			return nil
+		}
+		return m.startKeyAct(row)
+	}
+	return nil
+}
+
+// outputKey handles a key in output mode.
+func (m *interactiveModel) outputKey(keys *interactiveKeys, pressed tea.KeyPressMsg) tea.Cmd {
+	room := max(m.bodyHeight()-1, 1)
+	last := max(len(m.output)-room, 0)
+	switch {
+	case key.Matches(pressed, keys.scrollUp):
+		m.outputOffset = max(m.outputOffset-1, 0)
+	case key.Matches(pressed, keys.scrollDown):
+		m.outputOffset = min(m.outputOffset+1, last)
+	case key.Matches(pressed, keys.page):
+		if pressed.String() == "pgup" {
+			m.outputOffset = max(m.outputOffset-room, 0)
+		} else {
+			m.outputOffset = min(m.outputOffset+room, last)
+		}
+	case key.Matches(pressed, keys.ends):
+		if pressed.String() == "home" {
+			m.outputOffset = 0
+		} else {
+			m.outputOffset = last
+		}
+	case key.Matches(pressed, keys.outputClose):
+		m.closeOutput()
+	case key.Matches(pressed, keys.jump):
+		m.closeOutput()
+		return m.openPrompt(promptJump, "")
+	}
+	return nil
+}
+
+// closeOutput leaves output mode for the mode it was opened from.
+func (m *interactiveModel) closeOutput() {
+	m.output, m.outputTitle, m.outputOffset = nil, "", 0
+	m.mode = m.outputBack
+	if m.mode == modeCard && !m.cardOpen {
+		m.mode = modeBrowse
+	}
+	if m.mode == modeItems && len(m.itemRows) == 0 {
+		m.mode = m.returnMode()
+	}
+}
+
 // cardKey handles a key in card mode.
 func (m *interactiveModel) cardKey(keys *interactiveKeys, pressed tea.KeyPressMsg) tea.Cmd {
 	switch {
@@ -914,6 +1118,8 @@ func (m *interactiveModel) cardKey(keys *interactiveKeys, pressed tea.KeyPressMs
 		m.leaveCard()
 		m.recomputeOffer()
 		m.refreshDetail()
+	case key.Matches(pressed, keys.jump):
+		return m.openPrompt(promptJump, "")
 	case key.Matches(pressed, keys.more):
 		m.fullHelp = !m.fullHelp
 	case key.Matches(pressed, keys.quit):
@@ -925,44 +1131,92 @@ func (m *interactiveModel) cardKey(keys *interactiveKeys, pressed tea.KeyPressMs
 	return nil
 }
 
-// actKey handles an act key in browse or card mode. An act the offer does
-// not allow does nothing and writes nothing.
+// actKey handles an act key in browse or card mode: a row of the act table
+// whose key it is, then the items and actions keys, then a key binding of the
+// user's. An act the offer does not allow does nothing and writes nothing.
 func (m *interactiveModel) actKey(keys *interactiveKeys, pressed tea.KeyPressMsg) tea.Cmd {
 	switch {
-	case key.Matches(pressed, keys.claim) && m.offer.claim:
-		m.act(verb.Claim, nil)
-	case key.Matches(pressed, keys.release) && m.offer.release:
-		m.act(verb.Release, nil)
-	case key.Matches(pressed, keys.advance) && m.offer.forward != nil:
-		m.act(verb.Move, m.offer.forward)
-	case key.Matches(pressed, keys.sendBack) && m.offer.back != nil:
-		m.act(verb.Move, m.offer.back)
-	case key.Matches(pressed, keys.move) && len(m.offer.moves) > 0:
-		m.menuRows = m.offer.moves
-		m.highlight = 0
-		m.mode = modeMenu
-	case key.Matches(pressed, keys.comment) && m.offer.comment:
-		return m.openPrompt(promptComment, "")
+	case key.Matches(pressed, keys.items):
+		if len(m.offeredItems()) > 0 {
+			m.openItems()
+		}
+		return nil
+	case key.Matches(pressed, keys.actions):
+		return m.openActions()
 	}
-	return nil
+	for _, row := range interactiveActs {
+		if row.mode != actBrowse || row.name == "show" || row.name == "query" || row.name == "view" {
+			continue
+		}
+		if !key.Matches(pressed, row.binding(keys)) {
+			continue
+		}
+		if !row.offered(m) {
+			continue
+		}
+		return m.startKeyAct(row)
+	}
+	return m.bindingKey(pressed)
 }
 
-// menuKey handles a key while the move menu is open.
+// menuHighlight is the highlighted row of the open menu, 0 where none is
+// open.
+func (m *interactiveModel) menuHighlight() int {
+	if m.menu == nil {
+		return 0
+	}
+	return m.menu.highlight
+}
+
+// openMenu opens a menu, with its first row highlighted.
+func (m *interactiveModel) openMenu(menu *interactiveMenuState) {
+	m.menu = menu
+	m.mode = modeMenu
+}
+
+// menuKey handles a key while a menu is open.
 func (m *interactiveModel) menuKey(keys *interactiveKeys, pressed tea.KeyPressMsg) tea.Cmd {
+	menu := m.menu
+	if menu == nil {
+		m.mode = m.returnMode()
+		return nil
+	}
 	switch {
 	case key.Matches(pressed, keys.menuUp):
-		m.highlight = max(m.highlight-1, 0)
+		menu.highlight = max(menu.highlight-1, 0)
 	case key.Matches(pressed, keys.menuDown):
-		m.highlight = min(m.highlight+1, len(m.menuRows)-1)
+		menu.highlight = min(menu.highlight+1, len(menu.rows)-1)
+	case key.Matches(pressed, keys.page):
+		step := max(m.bodyHeight()-2, 1)
+		if pressed.String() == "pgup" {
+			step = -step
+		}
+		menu.highlight = min(max(menu.highlight+step, 0), len(menu.rows)-1)
+	case key.Matches(pressed, keys.ends):
+		if pressed.String() == "home" {
+			menu.highlight = 0
+		} else {
+			menu.highlight = len(menu.rows) - 1
+		}
 	case key.Matches(pressed, keys.menuNumber):
 		chosen := int(pressed.Code - '1')
-		if chosen < len(m.menuRows) {
-			m.chooseMove(chosen)
+		if chosen < len(menu.rows) {
+			return menu.choose(menu.rows[chosen])
 		}
 	case key.Matches(pressed, keys.menuChoose):
-		m.chooseMove(m.highlight)
+		if menu.highlight < len(menu.rows) {
+			return menu.choose(menu.rows[menu.highlight])
+		}
 	case key.Matches(pressed, keys.menuCancel), key.Matches(pressed, keys.menuQuit):
-		m.mode = m.returnMode()
+		if m.pending != nil {
+			m.endPending()
+			return nil
+		}
+		m.menu = nil
+		m.mode = menu.back
+		if m.mode == modeCard && !m.cardOpen {
+			m.mode = modeBrowse
+		}
 	}
 	return nil
 }
@@ -992,20 +1246,11 @@ func (m *interactiveModel) openCard(ref string, inView bool) {
 // leaveCard closes card mode and returns to browse.
 func (m *interactiveModel) leaveCard() {
 	m.cardOpen = false
+	m.cardArchived = false
 	m.cardRef, m.cardLines, m.cardBasis = "", nil, ""
 	if m.mode == modeCard {
 		m.mode = modeBrowse
 	}
-}
-
-// chooseMove moves the card to the menu's row at index.
-func (m *interactiveModel) chooseMove(index int) {
-	if index < 0 || index >= len(m.menuRows) {
-		return
-	}
-	row := m.menuRows[index]
-	m.mode = m.returnMode()
-	m.act(verb.Move, &row)
 }
 
 // selectCard selects a card of the focused lane by index, doing nothing
@@ -1087,16 +1332,23 @@ func (m *interactiveModel) cleaned(lines []string) []string {
 
 // openPrompt opens a prompt, holding text.
 func (m *interactiveModel) openPrompt(kind promptKind, text string) tea.Cmd {
+	m.promptBack = m.returnMode()
+	if m.mode == modeItems {
+		m.promptBack = modeItems
+	}
 	m.prompt = kind
 	m.mode = modePrompt
-	if kind == promptComment {
+	if kind == promptText {
 		m.area.Reset()
 		m.area.SetHeight(m.areaHeight())
 		return m.area.Focus()
 	}
 	m.input.Prompt = ": "
-	if kind == promptFilter {
+	switch kind {
+	case promptFilter:
 		m.input.Prompt = "/ "
+	case promptStep:
+		m.input.Prompt = "> "
 	}
 	m.input.SetValue(text)
 	m.input.CursorEnd()
@@ -1110,18 +1362,25 @@ func (m *interactiveModel) closePrompt() {
 	m.area.Blur()
 	m.area.Reset()
 	m.mode = m.returnMode()
+	if m.promptBack == modeItems && len(m.itemRows) > 0 {
+		m.mode = modeItems
+	}
 }
 
-// promptKey handles a key while a prompt is open.
-func (m *interactiveModel) promptKey(keys *interactiveKeys, pressed tea.KeyPressMsg) tea.Cmd {
+// promptKey handles a key while a prompt is open. Up and Down at the command
+// line are left unbound, for dinah-629's history.
+func (m *interactiveModel) promptKey(keys *interactiveKeys, pressed tea.KeyPressMsg, tabbed bool) tea.Cmd {
 	if key.Matches(pressed, keys.promptCancel) {
+		if m.pending != nil {
+			m.endPending()
+			return nil
+		}
 		m.closePrompt()
 		return nil
 	}
-	if m.prompt == promptComment {
+	if m.prompt == promptText {
 		if key.Matches(pressed, keys.promptPost) {
-			m.postComment()
-			return nil
+			return m.answerStep(m.area.Value())
 		}
 		var cmd tea.Cmd
 		m.area, cmd = m.area.Update(pressed)
@@ -1130,31 +1389,38 @@ func (m *interactiveModel) promptKey(keys *interactiveKeys, pressed tea.KeyPress
 	if key.Matches(pressed, keys.promptGo) {
 		return m.submit()
 	}
+	if m.prompt == promptJump {
+		switch pressed.String() {
+		case "tab":
+			m.complete(tabbed)
+			return nil
+		case "up", "down":
+			return nil
+		}
+	}
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(pressed)
 	return cmd
 }
 
-// submit handles enter in the jump and filter prompts. On a terminal that has
-// not shown it marks pastes, it first asks the reader to discard the input
-// already waiting, and drops every event until the reader confirms.
+// submit handles enter in the command line, the filter and a step's line
+// prompt. On a terminal that has not shown it marks pastes, it first asks the
+// reader to discard the input already waiting, and drops every event until
+// the reader confirms.
 func (m *interactiveModel) submit() tea.Cmd {
 	if m.reader != nil && !m.reader.SawPaste() {
 		m.flushAsked = true
 		m.reader.RequestFlush()
+	}
+	if m.prompt == promptStep {
+		return m.answerStep(m.input.Value())
 	}
 	text := strings.TrimSpace(m.input.Value())
 	if m.prompt == promptFilter {
 		m.applyFilter(text)
 		return nil
 	}
-	if text == "" {
-		m.closePrompt()
-		return nil
-	}
-	m.closePrompt()
-	m.jumpTo(text)
-	return nil
+	return m.submitLine(text)
 }
 
 // applyFilter sets the filter to text, or clears it for an empty text. A
@@ -1209,7 +1475,28 @@ func (m *interactiveModel) jumpTo(text string) {
 		m.message = []string{withoutControls(m.s.r.T("interactive.jump.no-lane", "column", column.Title))}
 		return
 	}
-	m.message = []string{withoutControls(m.s.r.T("interactive.jump.nothing", "text", text))}
+	if found, err := m.l.Bench.ResolveEntityIn(bench.ArchivedHalf, text); err == nil && found.Kind == bench.KindCard && found.Card != nil {
+		m.openArchivedCard(found.Card.Ref(m.l.Bench.Slug))
+		return
+	}
+	m.message = []string{withoutControls(m.s.r.T("interactive.line.nothing", "text", text))}
+}
+
+// openArchivedCard opens card mode over a card in the archive, read with
+// Archived set, so the actions menu can offer restore on it.
+func (m *interactiveModel) openArchivedCard(ref string) {
+	m.leaveCard()
+	m.cardArchived = true
+	m.cardRef = ref
+	m.viewport.SetYOffset(0)
+	if !m.showCard(ref, false) {
+		m.cardArchived = false
+		return
+	}
+	m.viewport.GotoTop()
+	m.cardOpen = true
+	m.mode = modeCard
+	m.recomputeOffer()
 }
 
 // jumpToView reads another view afresh, clearing the filter.
@@ -1247,30 +1534,19 @@ func (m *interactiveModel) jumpToCard(ref string) {
 	m.openCard(ref, false)
 }
 
-// postComment posts the comment prompt's text as typed, line breaks
-// included, and closes the prompt. An empty or all-whitespace text closes it
-// without calling the library.
-func (m *interactiveModel) postComment() {
-	text := m.area.Value()
-	ref, _, ok := m.target()
-	m.closePrompt()
-	if strings.TrimSpace(text) == "" || !ok {
-		return
-	}
-	asking := m.identity("comment")
-	asking.Card = ref
-	asking.Text = text
-	response := m.l.Comment(asking)
-	m.answered(response, "comment", ref, nil)
-	m.reread()
-}
-
-// paste handles one whole paste. Outside a prompt it is discarded whole.
+// paste handles one whole paste. Outside a prompt it is discarded whole. The
+// command line takes a paste of one line alone, with one trailing line break
+// removed, and discards a paste holding more; the filter and a step's line
+// prompt join the pasted lines with spaces; the multi-line prompt keeps the
+// line breaks.
 func (m *interactiveModel) paste(content string) tea.Cmd {
 	if m.tooSmall() || m.mode != modePrompt {
 		return nil
 	}
-	if m.prompt == promptComment {
+	if m.prompt == promptJump {
+		return m.pasteLine(content)
+	}
+	if m.prompt == promptText {
 		content = strings.ReplaceAll(content, "\r\n", "\n")
 		content = strings.ReplaceAll(content, "\r", "\n")
 		var cmd tea.Cmd

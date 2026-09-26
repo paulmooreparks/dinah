@@ -323,3 +323,62 @@ func TestTheWindowsOutputIsOnlyWhatMicrosoftLists(t *testing.T) {
 	sort.Strings(report)
 	t.Logf("sequences seen by kind: %s", strings.Join(report, ", "))
 }
+
+// TestALendWritesOnlyWhatMicrosoftListsAndRepaintsWhole is dinah-623/criteria/35.
+// It drives a whole lend through the program built for Windows, so every
+// byte passes through consoleFrames: edit fx-1 typed at the command line ends
+// the program, the stand-in editor runs while the seam's window is resized
+// from 100x30 to 90x25, and a new program starts. Every sequence written
+// across the lend is on the first table of section 16.3, and the new program
+// repaints the whole board at the new size after it.
+func TestALendWritesOnlyWhatMicrosoftListsAndRepaintsWhole(t *testing.T) {
+	root := tuiBench(t)
+	editorAppends(t)
+	var output lockedBuffer
+	s, seam := newScript(t, 100, 30, true)
+	seam.output = &output
+	cycles := make(chan *tea.Program, 8)
+	var lend lendScript
+	lend.seamed(seam, cycles)
+	mark := -1
+	var once sync.Once
+	seam.observe = func(m *interactiveModel, msg tea.Msg) {
+		if isEnterAtTheLine(m, msg) {
+			once.Do(func() { seam.resize(90, 25) })
+		}
+	}
+	run := s.run(root, seam, func() {
+		waitForProgram(t, cycles)
+		s.write(":edit fx-1" + keyEnter)
+		waitForProgram(t, cycles)
+		mark = len(output.String())
+		s.waitFor("the flush after the lend", isFlushed)
+		waitForOutput(t, &output, "fx-1")
+		settledLength(output.String)
+		s.write(keyCtrlC)
+	})
+	if run.model == nil || mark < 0 {
+		t.Fatalf("the run never finished: %q", run.errw)
+	}
+	departures, kinds := microsoftListedOutput(output.String())
+	for _, departure := range departures {
+		t.Errorf("across the lend the program wrote %s, which the first table of section 16.3 does not list", departure)
+	}
+	first := lend.firstFrameOf(t, 1)
+	if width, height := drawnSize(first); width != 89 || height != 25 {
+		t.Errorf("the first frame after the lend is %dx%d, wanted 90x25", width, height)
+	}
+	// The message row is left out of the rows the repaint must carry. The
+	// editor's line changes the workbench, so the refresh that follows the
+	// lend may replace "edit finished" with its own notice before the
+	// renderer draws the first frame, and which of the two reaches the
+	// console is a matter of timing rather than of the repaint.
+	rows := strings.Split(first, "\n")
+	if len(rows) >= 2 {
+		rows = append(rows[:len(rows)-2:len(rows)-2], rows[len(rows)-1])
+	}
+	if why := fullRepaint(output.String()[mark:], rows); why != "" {
+		t.Errorf("the board after the lend was not repainted whole: %s", why)
+	}
+	t.Logf("%d sequence kinds seen across the lend", len(kinds))
+}

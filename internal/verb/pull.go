@@ -28,14 +28,27 @@ import (
 // pull refuses, and the option changes what pull writes rather than what pull
 // allows.
 func (l *Library) Pull(req *Request) *Response {
+	head, answer := l.pullHead(req)
+	if answer != nil {
+		return answer
+	}
+	return l.pullTransaction(req, head)
+}
+
+// pullHead runs Pull's rows up to the head it would take: the workbench-level
+// rows, the destination, the upstream column and the head of ready work. It
+// answers the head, with the request's card and column set to it, or the
+// answer Pull gives when there is nothing to take or a row refuses. Pull and
+// OfferActs both call it, and nothing it runs writes.
+func (l *Library) pullHead(req *Request) (*bench.Card, *Response) {
 	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
 	}
 	if refused := l.malformedHarness(req, nil); refused != nil {
-		return refused
+		return nil, refused
 	}
 	if req.Actor == "" {
-		return l.refuse(req, nil, contract.NoOwner, "")
+		return nil, l.refuse(req, nil, contract.NoOwner, "")
 	}
 	// The unknown-column row belongs to the named form alone, since the bare
 	// form names no column to be unknown, and it is settled ahead of the
@@ -45,37 +58,37 @@ func (l *Library) Pull(req *Request) *Response {
 	if req.Column != "" {
 		named = l.Bench.ColumnByRef(req.Column)
 		if named == nil {
-			return l.refuse(req, nil, contract.UnknownColumn, req.Column)
+			return nil, l.refuse(req, nil, contract.UnknownColumn, req.Column)
 		}
 	}
 	if req.Override && req.Actor != l.Bench.Operator {
-		return l.refuse(req, nil, contract.NotOperator, req.Actor)
+		return nil, l.refuse(req, nil, contract.NotOperator, req.Actor)
 	}
 	// The start hold is built once, here, and handed down every path the
 	// pull takes, so one pull reads the clock once and one graph of holds
 	// whichever form it takes.
 	hold, err := l.selectionHold(req)
 	if err != nil {
-		return l.FromError(req, err)
+		return nil, l.FromError(req, err)
 	}
 	destination, answer, err := l.pullDestination(req, named, hold)
 	if err != nil {
-		return l.FromError(req, err)
+		return nil, l.FromError(req, err)
 	}
 	if answer != nil {
-		return answer
+		return nil, answer
 	}
 	if destination == nil {
-		return l.okEmpty(req, nil)
+		return nil, l.okEmpty(req, nil)
 	}
 	upstream := upstreamOf(destination, l.Bench.Columns)
 	if upstream == nil {
 		detail := columnRef(destination)
-		return l.refuseWith(req, nil, contract.NoUpstream, detail, map[string]string{"column": detail})
+		return nil, l.refuseWith(req, nil, contract.NoUpstream, detail, map[string]string{"column": detail})
 	}
 	cards, err := l.Bench.Cards()
 	if err != nil {
-		return l.FromError(req, err)
+		return nil, l.FromError(req, err)
 	}
 	// The immediate upstream is tried first and on its own terms, so every
 	// refusal it owes the caller under the lock is still raised: a done
@@ -116,15 +129,15 @@ func (l *Library) Pull(req *Request) *Response {
 		// senior caller would get work now, and the waiting answer comes
 		// before the date because the date arrives without anybody's help.
 		if sawTier {
-			return l.okAboveTier(req, destination)
+			return nil, l.okAboveTier(req, destination)
 		}
 		if len(held.WaitingOn) > 0 {
-			return l.okWaiting(req, destination, held.WaitingOn)
+			return nil, l.okWaiting(req, destination, held.WaitingOn)
 		}
 		if held.NotYetFrom != "" {
-			return l.okNotYet(req, destination, held.NotYetFrom)
+			return nil, l.okNotYet(req, destination, held.NotYetFrom)
 		}
-		return l.okEmpty(req, destination)
+		return nil, l.okEmpty(req, destination)
 	}
 	req.Card = head.Ref(l.Bench.Slug)
 	req.Column = columnRef(destination)
@@ -133,7 +146,7 @@ func (l *Library) Pull(req *Request) *Response {
 	// losing the race for a card into `stale`, which tells a person the card
 	// moved since they read it about a card they never read. Losing the race
 	// is what rows 9 and 10 answer, under the lock, in the words claim uses.
-	return l.pullTransaction(req, head)
+	return head, nil
 }
 
 // pullDestination fixes the column a pull will land its card in. A named form
@@ -552,41 +565,12 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 // would. Rows 3 to 5 run again here, harmlessly, because they are the front
 // of the move's list and answering them twice cannot change an answer.
 func (l *Library) pull(req *Request, card *bench.Card) *Response {
-	destination, departure, refusal := l.canRoute(req, card)
-	if refusal != nil {
-		return refusal
-	}
-	if refusal := l.claimableState(req, card); refusal != nil {
-		return refusal
-	}
-	if refusal := l.pullableDeparture(req, card, departure); refusal != nil {
-		return refusal
-	}
-	override, refusal, err := l.canLand(req, card, destination, departure, true)
+	destination, departure, override, refusal, err := l.canPull(req, card)
 	if err != nil {
 		return l.FromError(req, err)
 	}
 	if refusal != nil {
 		return refusal
-	}
-	// A pull that takes the card up is a claim, so it answers CORE-CLAIM-10
-	// as a plain claim does. The rule reads the card's items against the
-	// columns the workbench declares and never the card's position, so asking
-	// it here, where the card has left one column and not yet landed at
-	// another, gets the same answer either column would have given. A
-	// --no-claim pull leaves the card ready and takes nothing up, so nothing
-	// about an unresolved item refuses it.
-	if !req.NoClaim {
-		if refusal := l.claimableItems(req, card); refusal != nil {
-			return refusal
-		}
-		// Row 16, Dinah's own, is asked about the destination rather than the
-		// column the card is leaving, because that is where the claim is
-		// taken. A --no-claim pull takes nothing up, so no requirement the
-		// card carries can refuse it, exactly as no unresolved item can.
-		if refusal := l.claimableTier(req, card, destination); refusal != nil {
-			return refusal
-		}
 	}
 	now := l.Now()
 	stamp := bench.Stamp(now)
@@ -858,4 +842,50 @@ func upstreamTitle(destination *bench.Column, columns []*bench.Column) string {
 		return ""
 	}
 	return upstream.Title
+}
+
+// canPull runs every row pull runs on the card it took before it writes, in
+// pull's order: the move's route rows, the claim's two state rows, the
+// departure row, the move's landing rows, and, for a pull that takes the
+// card up, the claim's item and tier rows. It answers the destination, the
+// departure and whether a limit or a hold was overridden, or the refusal of
+// the first row that fails. pull and OfferActs both call it.
+func (l *Library) canPull(req *Request, card *bench.Card) (*bench.Column, *bench.Column, bool, *Response, error) {
+	destination, departure, refusal := l.canRoute(req, card)
+	if refusal != nil {
+		return nil, nil, false, refusal, nil
+	}
+	if refusal := l.claimableState(req, card); refusal != nil {
+		return nil, nil, false, refusal, nil
+	}
+	if refusal := l.pullableDeparture(req, card, departure); refusal != nil {
+		return nil, nil, false, refusal, nil
+	}
+	override, refusal, err := l.canLand(req, card, destination, departure, true)
+	if err != nil {
+		return nil, nil, false, nil, err
+	}
+	if refusal != nil {
+		return nil, nil, false, refusal, nil
+	}
+	// A pull that takes the card up is a claim, so it answers CORE-CLAIM-10
+	// as a plain claim does. The rule reads the card's items against the
+	// columns the workbench declares and never the card's position, so asking
+	// it here, where the card has left one column and not yet landed at
+	// another, gets the same answer either column would have given. A
+	// --no-claim pull leaves the card ready and takes nothing up, so nothing
+	// about an unresolved item refuses it.
+	if !req.NoClaim {
+		if refusal := l.claimableItems(req, card); refusal != nil {
+			return nil, nil, false, refusal, nil
+		}
+		// Row 16, Dinah's own, is asked about the destination rather than the
+		// column the card is leaving, because that is where the claim is
+		// taken. A --no-claim pull takes nothing up, so no requirement the
+		// card carries can refuse it, exactly as no unresolved item can.
+		if refusal := l.claimableTier(req, card, destination); refusal != nil {
+			return nil, nil, false, refusal, nil
+		}
+	}
+	return destination, departure, override, nil, nil
 }

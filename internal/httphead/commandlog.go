@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -452,6 +453,20 @@ func routed(command string) bool {
 // the set the pages' typed line runs.
 func RoutedCommands() []string {
 	return routedCommands()
+}
+
+// RoutedActs lists the routed commands an unsafe method performs, in byte
+// order, which is the set of routed commands that write. The terminal UI's
+// correspondence check reads it to hold a command it lists as a read to a
+// route that serves it on GET alone.
+func RoutedActs() []string {
+	acts := actCommands()
+	names := make([]string, 0, len(acts))
+	for name := range acts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // actCommands are the routed commands an unsafe method performs.
