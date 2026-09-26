@@ -745,7 +745,7 @@ func (l *Library) Rosters(archived bool) (*RosterListing, error) {
 	}
 	listing := &RosterListing{Rosters: []Roster{}}
 	for _, mount := range bench.Contains(bench.KindWorkbench) {
-		count, err := bench.CountIn(l.Bench.CollectionRootIn(half, mount.Dir))
+		count, err := l.Bench.CountIn(l.Bench.CollectionRootIn(half, mount.Dir))
 		if err != nil {
 			return nil, err
 		}
@@ -758,7 +758,7 @@ func (l *Library) Rosters(archived bool) (*RosterListing, error) {
 		// guide's table draws it. It is not read off the containment table
 		// because the workbench mounts no workstreams collection.
 		if mount.Kind == bench.KindCard {
-			streams, err := bench.CountIn(l.Bench.CollectionRootIn(half, bench.WorkstreamsDir))
+			streams, err := l.Bench.CountIn(l.Bench.CollectionRootIn(half, bench.WorkstreamsDir))
 			if err != nil {
 				return nil, err
 			}

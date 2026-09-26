@@ -369,7 +369,7 @@ func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) 
 	if holder == "" {
 		return comment.ID
 	}
-	ordinal, err := memberPosition(comment.Dir, bench.CommentAnchor)
+	ordinal, err := l.memberPosition(comment.Dir, bench.CommentAnchor)
 	if err != nil || ordinal == 0 {
 		return comment.ID
 	}
@@ -700,7 +700,7 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 	// The reference is composed under the item's own canonical spelling
 	// rather than taken from the resolver's, so the reason a reader meets in
 	// the journal is the address that item's comments answer to.
-	ordinal, err := memberPosition(entity.Dir, bench.CommentAnchor)
+	ordinal, err := l.memberPosition(entity.Dir, bench.CommentAnchor)
 	if err != nil {
 		return nil, l.FromError(req, err)
 	}

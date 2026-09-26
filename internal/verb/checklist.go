@@ -718,7 +718,7 @@ func (l *Library) itemCanonicalRef(card *bench.Card, itemID string) (string, err
 		if item.ID != itemID {
 			continue
 		}
-		position, err := memberPosition(item.Dir, bench.ItemAnchor)
+		position, err := l.memberPosition(item.Dir, bench.ItemAnchor)
 		if err != nil {
 			return "", err
 		}

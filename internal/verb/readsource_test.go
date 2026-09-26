@@ -4,20 +4,33 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
+
+	"dinah/internal/seamguard"
 )
 
 // This file holds dinah-619's guard over package verb's reads. A Library
 // reads the workbench only through l.Bench, whose source is the disk for
 // every head but dinah serve, where it may be a resident snapshot. So no
-// function here reads the filesystem itself, and none calls a free function
-// of package bench that reads through Disk, except the functions the table
-// below names, each with its reason.
+// function here reads the filesystem itself, and none names an exported free
+// function or variable of package bench from which a read is reachable,
+// except the functions the table below names, each with its reason. A read is
+// judged by internal/seamguard's allowlist: every member of os, io/ioutil,
+// io/fs, path/filepath and syscall is a read unless seamguard.Allowed names
+// it.
+//
+// What this guard cannot see, with its reproduction: a read delegated to a
+// package other than bench and the judged ones, as with a function here
+// calling a helper package of its own that calls os.ReadFile, since the scan
+// reads this package's files and bench's call graph alone. The bench graph
+// is keyed by name, so a bench function reaching a method of a common name
+// can join the binding set without reading; that errs toward refusing.
 
 // libraryReadExemptions are the functions of this package allowed to read the
 // filesystem or to call a Disk-binding free function of package bench. The
@@ -36,53 +49,80 @@ var libraryReadExemptions = map[string]string{
 		"and max-depth back (internal/httphead/routes.go, rootScoped), so no request on a resident reaches it",
 	"migrateOneVocabulary": "opens a workbench written in the retired vocabulary to migrate it, which writes and " +
 		"is reached from dinah migrate alone",
+	"vocabularyCandidates": "walks a directory tree for workbenches written in the retired vocabulary, which is " +
+		"dinah migrate's sweep and reached from nothing else",
+	"MigrateContainerTree": "sweeps a directory tree for workbenches to move into containers, which writes and is " +
+		"reached from dinah migrate alone",
+	"migrateOneContainer": "moves one workbench into its container for MigrateContainerTree, a write reached from " +
+		"dinah migrate alone",
+	"RemintWorkbench": "gives one workbench directory a fresh identifier, a repair reached from dinah migrate alone",
+	"forestCandidates": "enumerates the workbenches under a root for a root-scoped read, as openCandidate opens " +
+		"them; the HTTP head holds root and max-depth back (internal/httphead/routes.go, rootScoped)",
+	"Attach": "is an act, which reads the disk as every act does, and AddAttachment reads the file being " +
+		"attached, which the caller named outside the workbench",
+	"rewriteKeptColumns": "is a step of reshape, which writes under its own lock and reads the disk as every act " +
+		"does; reshape is grounded on the HTTP head",
+	"composeChain": "reads the user-global instructions layer through GlobalInstructions, a file under the " +
+		"Dinah home and outside every workbench, which the resident does not hold and every serve reads from disk",
+	"primeInstructions": "reads the user-global instructions layer through GlobalInstructions, for the " +
+		"reason composeChain does",
+	"visibleViews": "reads the user's own views through LoadUserViews, a file under the Dinah home and " +
+		"outside every workbench, which the resident does not hold",
+	"setting": "reports where discovery would find a workbench through ResolveWorkbenchSource, which climbs " +
+		"the directories above any workbench before one is opened",
 }
 
 // seamImportPath is the import path of the package the seam lives in.
 const seamImportPath = "dinah/internal/bench"
 
-// verbReadsBelowTheSeam are the os and filepath members dinah-619 section
-// 2.3 defines as reads, keyed by import path. os.OpenFile is judged by the
-// syntax of its flag argument.
-var verbReadsBelowTheSeam = map[string]map[string]bool{
-	"os":            {"ReadFile": true, "ReadDir": true, "Stat": true, "Lstat": true, "Open": true, "DirFS": true},
-	"path/filepath": {"Walk": true, "WalkDir": true, "Glob": true},
-}
-
-// diskBindingReaders answers the exported free functions of package bench
-// whose bodies name Disk, parsed from the package's sources rather than
-// listed, so a reader converted later joins the set with no edit here.
-func diskBindingReaders(t *testing.T) map[string]bool {
+// benchSources answers package bench's non-test files, and any extra files
+// named, which a plant uses to add a declaration to bench for one run.
+func benchSources(t *testing.T, extra ...string) []string {
 	t.Helper()
 	sources, err := filepath.Glob(filepath.Join("..", path.Base(seamImportPath), "*.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	fset := token.NewFileSet()
-	binding := map[string]bool{}
+	var kept []string
 	for _, source := range sources {
-		if strings.HasSuffix(source, "_test.go") {
+		if !strings.HasSuffix(source, "_test.go") {
+			kept = append(kept, source)
+		}
+	}
+	if len(kept) < 50 {
+		t.Fatalf("found %d non-test sources in %s, and it has far more, so the glob is reading the wrong directory", len(kept), seamImportPath)
+	}
+	return append(kept, extra...)
+}
+
+// benchSourceMethods are bench.Source's own methods, which the bench graph
+// treats as the seam: a selector naming one is a leaf.
+var benchSourceMethods = map[string]bool{
+	"ReadFile": true, "ReadHead": true, "ReadDir": true, "Stat": true, "Text": true, "Derive": true,
+}
+
+// diskBindingReaders answers the exported free functions and package
+// variables of package bench from which a read is reachable, or the name
+// Disk, computed over bench's own call graph rather than listed, so a reader
+// added later joins the set with no edit here. The first form of this guard
+// took only the functions whose bodies name Disk, and a free function reading
+// with os.ReadFile itself walked past it (dinah-619/comments/12).
+func diskBindingReaders(t *testing.T, sources []string) map[string]string {
+	t.Helper()
+	g, err := seamguard.Build(sources, seamguard.Options{Leaf: benchSourceMethods, Bottom: "Disk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := map[string]string{}
+	for key, n := range g.Nodes {
+		if !strings.HasPrefix(key, "func:") && !strings.HasPrefix(key, "var:") {
 			continue
 		}
-		file, err := parser.ParseFile(fset, source, nil, parser.SkipObjectResolution)
-		if err != nil {
-			t.Fatalf("parse %s: %v", source, err)
+		if !ast.IsExported(n.Name()) {
+			continue
 		}
-		for _, decl := range file.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Recv != nil || fn.Body == nil || !ast.IsExported(fn.Name.Name) {
-				continue
-			}
-			names := false
-			ast.Inspect(fn.Body, func(node ast.Node) bool {
-				if ident, ok := node.(*ast.Ident); ok && ident.Name == "Disk" {
-					names = true
-				}
-				return !names
-			})
-			if names {
-				binding[fn.Name.Name] = true
-			}
+		if how, ok := g.Reaches(key, "method:source"); ok {
+			binding[n.Name()] = how
 		}
 	}
 	return binding
@@ -94,8 +134,9 @@ type libraryReadFinding struct {
 }
 
 // libraryReads scans the named files and answers every read and every
-// Disk-binding call they make, by function.
-func libraryReads(t *testing.T, files []string, binding map[string]bool) []libraryReadFinding {
+// Disk-binding reference they make, by function. A read is judged by
+// seamguard's allowlist.
+func libraryReads(t *testing.T, files []string, binding map[string]string) []libraryReadFinding {
 	t.Helper()
 	fset := token.NewFileSet()
 	var found []libraryReadFinding
@@ -104,43 +145,9 @@ func libraryReads(t *testing.T, files []string, binding map[string]bool) []libra
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}
-		imports := map[string]string{}
-		for _, spec := range file.Imports {
-			path, _ := strconv.Unquote(spec.Path.Value)
-			local := filepath.Base(path)
-			if spec.Name != nil {
-				local = spec.Name.Name
-			}
-			imports[local] = path
-		}
-		pathOf := func(sel *ast.SelectorExpr) string {
-			qualifier, ok := sel.X.(*ast.Ident)
-			if !ok || qualifier.Obj != nil {
-				return ""
-			}
-			return imports[qualifier.Name]
-		}
-		writeFlag := func(expr ast.Expr) bool {
-			wronly := false
-			var constant func(ast.Expr) bool
-			constant = func(e ast.Expr) bool {
-				switch x := e.(type) {
-				case *ast.ParenExpr:
-					return constant(x.X)
-				case *ast.BinaryExpr:
-					return x.Op == token.OR && constant(x.X) && constant(x.Y)
-				case *ast.SelectorExpr:
-					if pathOf(x) != "os" || !strings.HasPrefix(x.Sel.Name, "O_") {
-						return false
-					}
-					if x.Sel.Name == "O_WRONLY" {
-						wronly = true
-					}
-					return true
-				}
-				return false
-			}
-			return constant(expr) && wronly
+		imports, dotted := seamguard.Imports(file)
+		for _, path := range dotted {
+			found = append(found, libraryReadFinding{"import", "dot import of " + path + " in " + filepath.Base(name)})
 		}
 		for _, decl := range file.Decls {
 			var body ast.Node
@@ -156,29 +163,21 @@ func libraryReads(t *testing.T, files []string, binding map[string]bool) []libra
 			default:
 				continue
 			}
-			writes := map[*ast.SelectorExpr]bool{}
+			for _, read := range seamguard.ScanReads(fset, imports, body).Reads {
+				found = append(found, libraryReadFinding{function, read})
+			}
 			ast.Inspect(body, func(node ast.Node) bool {
-				switch x := node.(type) {
-				case *ast.CallExpr:
-					if sel, ok := x.Fun.(*ast.SelectorExpr); ok && pathOf(sel) == "os" && sel.Sel.Name == "OpenFile" && len(x.Args) >= 2 && writeFlag(x.Args[1]) {
-						writes[sel] = true
-					}
-				case *ast.SelectorExpr:
-					at := fset.Position(x.Pos())
-					where := filepath.Base(at.Filename) + ":" + strconv.Itoa(at.Line)
-					path := pathOf(x)
-					switch {
-					case path == "os" && x.Sel.Name == "OpenFile":
-						if !writes[x] {
-							found = append(found, libraryReadFinding{function, "os.OpenFile (not a constant write flag) at " + where})
-						}
-					case verbReadsBelowTheSeam[path][x.Sel.Name]:
-						found = append(found, libraryReadFinding{function, filepath.Base(path) + "." + x.Sel.Name + " at " + where})
-					case path == seamImportPath && x.Sel.Name == "Disk":
-						found = append(found, libraryReadFinding{function, "names Disk at " + where})
-					case path == seamImportPath && binding[x.Sel.Name]:
-						found = append(found, libraryReadFinding{function, "names " + x.Sel.Name + ", which reads through Disk, at " + where})
-					}
+				x, ok := node.(*ast.SelectorExpr)
+				if !ok || seamguard.ImportPathOf(imports, x) != seamImportPath {
+					return true
+				}
+				at := fset.Position(x.Pos())
+				where := filepath.Base(at.Filename) + ":" + strconv.Itoa(at.Line)
+				switch how, binds := binding[x.Sel.Name]; {
+				case x.Sel.Name == "Disk":
+					found = append(found, libraryReadFinding{function, "names Disk at " + where})
+				case binds:
+					found = append(found, libraryReadFinding{function, "names " + x.Sel.Name + ", which reads below the seam (" + how + "), at " + where})
 				}
 				return true
 			})
@@ -189,18 +188,18 @@ func libraryReads(t *testing.T, files []string, binding map[string]bool) []libra
 
 // TestTheLibraryReadsOnlyThroughTheBench is dinah-619/criteria/13's verb half.
 func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
-	binding := diskBindingReaders(t)
-	t.Logf("%s declares %d exported free functions that read through Disk", seamImportPath, len(binding))
+	binding := diskBindingReaders(t, benchSources(t))
+	t.Logf("%s declares %d exported free functions and variables from which a read is reachable", seamImportPath, len(binding))
 	if len(binding) < 30 {
-		t.Fatalf("found %d Disk-binding readers in %s, and the seam converted far more, so the parse is reading the wrong files", len(binding), seamImportPath)
+		t.Fatalf("found %d binding readers in %s, and the seam converted far more, so the parse is reading the wrong files", len(binding), seamImportPath)
 	}
-	for _, name := range []string{"ReadText", "ListIDs", "Exists", "ReadJournal", "Open"} {
-		if !binding[name] {
-			t.Errorf("%s is not in the computed Disk-binding set, so the set is not what this guard thinks it is", name)
+	for _, name := range []string{"ReadText", "ListIDs", "Exists", "ReadJournal", "Open", "AddAttachment", "LoadUserViews", "CountIn", "MemberPosition"} {
+		if _, ok := binding[name]; !ok {
+			t.Errorf("%s is not in the computed binding set, so the set is not what this guard thinks it is", name)
 		}
 	}
-	if len(libraryReadExemptions) != 6 {
-		t.Errorf("the exemption table holds %d entries, wanted 6", len(libraryReadExemptions))
+	if len(libraryReadExemptions) != 17 {
+		t.Errorf("the exemption table holds %d entries, wanted 17", len(libraryReadExemptions))
 	}
 
 	sources, err := filepath.Glob("*.go")
@@ -233,20 +232,44 @@ func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
 	}
 	sort.Strings(stale)
 	for _, name := range stale {
-		t.Errorf("%s is exempt but no longer reads the filesystem or calls a Disk-binding reader, so its exemption has outlived what it excused; remove the entry", name)
+		t.Errorf("%s is exempt but no longer reads the filesystem or names a binding reader, so its exemption has outlived what it excused; remove the entry", name)
 	}
 
 	planted, err := filepath.Glob(filepath.Join("testdata", "readsource", "*.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(planted) != 4 {
-		t.Fatalf("found %d planted files under testdata/readsource, wanted the four dinah-619 section 12.2 names", len(planted))
+	if len(planted) != 8 {
+		t.Fatalf("found %d planted files under testdata/readsource, wanted eight: the four dinah-619 section 12.2 names and the four shapes dinah-619/comments/12 walked past the first form of this guard", len(planted))
 	}
 	for _, plant := range planted {
-		caught := libraryReads(t, []string{plant}, binding)
-		if len(caught) == 0 {
+		plantBinding := binding
+		if companion := benchCompanion(plant); companion != "" {
+			if _, ok := binding[plantedBenchReader]; ok {
+				t.Fatalf("%s is in the binding set without its planted file, so the plant proves nothing", plantedBenchReader)
+			}
+			plantBinding = diskBindingReaders(t, benchSources(t, companion))
+			if _, ok := plantBinding[plantedBenchReader]; !ok {
+				t.Errorf("the planted file %s of the seam's package reads with os.ReadFile and the binding set did not take it in", filepath.Base(companion))
+			}
+		}
+		if caught := libraryReads(t, []string{plant}, plantBinding); len(caught) == 0 {
 			t.Errorf("the planted file %s reads below the seam and the guard did not catch it", filepath.Base(plant))
 		}
 	}
+}
+
+// plantedBenchReader is the exported free function the bench companion of a
+// plant declares: it reads with os.ReadFile and never names Disk.
+const plantedBenchReader = "PlantedReadWithoutDisk"
+
+// benchCompanion answers the bench file a plant adds to package bench for its
+// run, which sits beside it under testdata/readsource/seam with the same
+// name, or "" when it has none.
+func benchCompanion(plant string) string {
+	companion := filepath.Join(filepath.Dir(plant), "seam", filepath.Base(plant))
+	if _, err := os.Stat(companion); err != nil {
+		return ""
+	}
+	return companion
 }

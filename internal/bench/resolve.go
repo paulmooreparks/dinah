@@ -1450,7 +1450,17 @@ func (b *Bench) CollectionRootIn(half ResolutionHalf, dir string) string {
 // into yet is an ordinary state of a workbench rather than a fault, so it
 // counts zero rather than refusing.
 func CountIn(collection string) (int, error) {
-	ids, err := ListIDs(collection)
+	return countIn(Disk{}, collection)
+}
+
+// CountIn is the free CountIn read through this bench's source.
+func (b *Bench) CountIn(collection string) (int, error) {
+	return countIn(b.source(), collection)
+}
+
+// countIn is CountIn's body, reading through src.
+func countIn(src Source, collection string) (int, error) {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return 0, err
 	}

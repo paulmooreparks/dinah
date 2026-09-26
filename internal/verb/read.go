@@ -2318,8 +2318,8 @@ func displayOrdinal(attachment *bench.Attachment, positions *bench.Positions) (i
 // than the stored ordinal, and the two stop coinciding after one delete. The
 // count is taken here so that every read composing a reference and the
 // resolver reading one back agree by construction.
-func memberPosition(dir, anchor string) (int, error) {
-	return bench.MemberPosition(dir, anchor)
+func (l *Library) memberPosition(dir, anchor string) (int, error) {
+	return l.Bench.MemberPosition(dir, anchor)
 }
 
 // attachmentRef composes the reference a person types to reach one attachment
