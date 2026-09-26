@@ -68,6 +68,26 @@ type interactiveSeams struct {
 	discard        func()                         // called by the reader on every flush it makes
 	finish         func(*interactiveModel, error) // called with the final model and Run's error
 	repanic        func(any)                      // replaces the final panic of a crash report
+	// lineDispatch, when set, is called by the command line with the name
+	// of every command it is about to dispatch, and a true answer stops the
+	// line there. It exists for the test that every command reaches its run
+	// function, and is nil in a shipped binary as the whole seam is.
+	lineDispatch func(name string) bool
+	// lineLibrary, when set, is handed every library a line session opens,
+	// so a test can reach the library a line opened in this process.
+	lineLibrary func(*verb.Library)
+	// bindingValue, when set, is called on each value a key binding
+	// substitutes, before the value is checked, so a test can supply a value
+	// no reference, slug or view name Dinah mints could carry.
+	bindingValue func(placeholder, value string) string
+	// lend, when set, is called by the head in place of running a command
+	// that lends the terminal, with the session that command would run in,
+	// so a test drives the lend without starting an editor. It answers the
+	// exit status.
+	lend func(line *session, words []string) int
+	// pump reads keys across every cycle of one run, started by the first
+	// cycle's reader.
+	pump *keyPump
 	// mu guards width and height, which a test changes while the program
 	// runs.
 	mu sync.Mutex
@@ -107,6 +127,10 @@ func runTUIHead(s *session, parsed *arguments) int {
 		entry, err := s.interactiveCheck(req.View)
 		if err != nil {
 			return s.reportError(err)
+		}
+		s.pinStart(parsed.value("actor"), scanLangFlag(s.args))
+		if interactiveSeam != nil {
+			s.lineOnOpen = interactiveSeam.lineLibrary
 		}
 		return s.interactive(l, req, first, entry)
 	})
@@ -198,38 +222,96 @@ func (s *session) interactiveSize() (int, int) {
 	return width, height
 }
 
-// interactiveSink hands what the key reader decodes to the program.
+// interactiveSink takes what the key reader decodes and queues it, and
+// returns at once whatever the program is doing, so the reader always comes
+// back to its wait and sees Stop there. A forwarder goroutine hands the queue
+// to the program in order.
 type interactiveSink struct {
+	mu     sync.Mutex
+	queued []tea.Msg
+	// ready carries one signal that the queue has grown; a signal sent while
+	// one is already waiting is dropped, since the forwarder drains the whole
+	// queue on each.
+	ready chan struct{}
+	// done is closed when the cycle ends, which stops the forwarder.
+	done    chan struct{}
 	program *tea.Program
 }
 
-// Event sends a key or a paste, stamped with its generation.
-func (k interactiveSink) Event(event keyboard.Event) {
+// newInteractiveSink builds the sink of one cycle over its program.
+func newInteractiveSink(program *tea.Program) *interactiveSink {
+	return &interactiveSink{
+		ready:   make(chan struct{}, 1),
+		done:    make(chan struct{}),
+		program: program,
+	}
+}
+
+// queue appends a message and signals the forwarder without blocking.
+func (k *interactiveSink) queue(msg tea.Msg) {
+	k.mu.Lock()
+	k.queued = append(k.queued, msg)
+	k.mu.Unlock()
+	select {
+	case k.ready <- struct{}{}:
+	default:
+	}
+}
+
+// forward hands every queued message to the program in order until the cycle
+// ends. A message still queued when it ends belongs to a program that has
+// ended, and is dropped with it.
+func (k *interactiveSink) forward() {
+	for {
+		select {
+		case <-k.done:
+			return
+		case <-k.ready:
+		}
+		k.mu.Lock()
+		taken := k.queued
+		k.queued = nil
+		k.mu.Unlock()
+		for _, msg := range taken {
+			select {
+			case <-k.done:
+				return
+			default:
+			}
+			k.program.Send(msg)
+		}
+	}
+}
+
+// stop ends the forwarder, and is safe to call once per cycle.
+func (k *interactiveSink) stop() {
+	close(k.done)
+}
+
+// Event queues a key or a paste, stamped with its generation.
+func (k *interactiveSink) Event(event keyboard.Event) {
 	if event.Paste {
-		k.program.Send(pasteMsg{content: event.Text, gen: event.Gen})
+		k.queue(pasteMsg{content: event.Text, gen: event.Gen})
 		return
 	}
-	k.program.Send(keyMsg{key: interactiveKeyMsg(event.Key), gen: event.Gen})
+	k.queue(keyMsg{key: interactiveKeyMsg(event.Key), gen: event.Gen})
 }
 
-// Resized sends the notice that the console's buffer size changed.
-func (k interactiveSink) Resized() {
-	k.program.Send(resizeMsg{})
+// Resized queues the notice that the console's buffer size changed.
+func (k *interactiveSink) Resized() {
+	k.queue(resizeMsg{})
 }
 
-// Flushed sends the confirmation of a flush.
-func (k interactiveSink) Flushed(gen uint64) {
-	k.program.Send(flushedMsg{gen: gen})
+// Flushed queues the confirmation of a flush.
+func (k *interactiveSink) Flushed(gen uint64) {
+	k.queue(flushedMsg{gen: gen})
 }
 
 // interactive runs the terminal head over the view first answered, until it
-// is quit, and answers the exit code.
-//
-// The input side, the bracketed-paste disable included, is restored in a
-// function deferred before Run is called, so it runs on every path out of
-// this function, a panic in the head's own code included. The same function
-// is called as soon as Run returns, so the crash report of a recovered panic
-// is written to a terminal already given back.
+// is quit, and answers the exit code. It is a loop over cycles: each cycle
+// runs one program over the same model, and a command that lends the
+// terminal ends the cycle it was asked in, runs with the terminal given back,
+// and starts the next.
 func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.ViewAnswer, entry *screen.Terminfo) int {
 	waiter, err := s.open()
 	s.library = l
@@ -242,9 +324,52 @@ func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.Vi
 	}
 	width, height := s.interactiveSize()
 	model := newInteractiveModel(s, l, waiter, req, first, minted.Cursor, width, height)
-	options, frames := s.interactiveOptions(width, height)
+	for {
+		runErr, started := s.cycle(model, entry)
+		if !started {
+			return s.reportError(runErr)
+		}
+		if interactiveSeam != nil && interactiveSeam.finish != nil && model.lend == nil {
+			interactiveSeam.finish(model, runErr)
+		}
+		if crash := model.crashed(); crash != nil {
+			return s.reportCrash(crash)
+		}
+		if model.lend != nil && runErr == nil {
+			model.lendTerminal()
+			continue
+		}
+		switch {
+		case errors.Is(runErr, tea.ErrInterrupted):
+			return exitInterrupted
+		case runErr != nil:
+			return s.reportError(runErr)
+		}
+		return 0
+	}
+}
+
+// cycle runs one program over the model: it measures the window, takes the
+// keyboard, starts a reader and its forwarder, runs a new Bubble Tea program,
+// and gives the keyboard back on every path out, a panic included. It answers
+// Run's error and whether the cycle started at all, and leaves any lend the
+// model asked for on the model.
+//
+// The keyboard is restored in a function deferred before Run is called, so
+// it runs on every path out of this function, a panic in the head's own code
+// included. The same function is called as soon as Run returns, so the crash
+// report of a recovered panic is written to a terminal already given back,
+// and the next cycle starts on a terminal this one has already restored.
+func (s *session) cycle(model *interactiveModel, entry *screen.Terminfo) (error, bool) {
+	width, height := s.interactiveSize()
+	if width > 0 && height > 0 {
+		model.width, model.height = width, height
+		model.fit()
+	}
+	options, frames := s.interactiveOptions(model.width, model.height)
 	program := tea.NewProgram(model, options...)
 	model.program = program
+	model.gate = &changeGate{}
 	if frames != nil {
 		// A piece the console wrote short asks for the whole screen on the
 		// next frame. The renderer calls this while it holds its own lock,
@@ -253,15 +378,17 @@ func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.Vi
 	}
 	leave, reader, err := s.enterKeyboard(entry)
 	if err != nil {
-		return s.reportError(err)
+		return err, false
 	}
 	model.reader = reader
+	sink := newInteractiveSink(program)
 	readerDone := make(chan struct{})
 	var restoreOnce sync.Once
 	restore := func() {
 		restoreOnce.Do(func() {
 			reader.Stop()
 			<-readerDone
+			sink.stop()
 			// Anything the frames writer still holds is written before the
 			// bracketed-paste disable and the output mode's restore.
 			if frames != nil {
@@ -281,28 +408,16 @@ func (s *session) interactive(l *verb.Library, req *verb.Request, first *verb.Vi
 				go program.Send(crashMsg{})
 			}
 		}()
-		reader.Run(interactiveSink{program: program})
+		reader.Run(sink)
 	}()
+	go sink.forward()
 	if interactiveSeam != nil && interactiveSeam.program != nil {
 		interactiveSeam.program(program)
 	}
-	final, runErr := program.Run()
+	_, runErr := program.Run()
 	restore()
 	model.gate.close()
-	if interactiveSeam != nil && interactiveSeam.finish != nil {
-		finished, _ := final.(*interactiveModel)
-		interactiveSeam.finish(finished, runErr)
-	}
-	if crash := model.crashed(); crash != nil {
-		return s.reportCrash(crash)
-	}
-	switch {
-	case errors.Is(runErr, tea.ErrInterrupted):
-		return exitInterrupted
-	case runErr != nil:
-		return s.reportError(runErr)
-	}
-	return 0
+	return runErr, true
 }
 
 // interactiveOptions are the program's options for this GOOS, with the
@@ -382,15 +497,20 @@ func (s *session) enterKeyboard(entry *screen.Terminfo) (func() error, keyboard.
 		if _, err := io.WriteString(out, keyboard.BracketedPasteOn); err != nil {
 			return nil, nil, err
 		}
-		keys := seam.keys
-		if keys == nil {
-			keys = strings.NewReader("")
+		if seam.pump == nil {
+			keys := seam.keys
+			if keys == nil {
+				keys = strings.NewReader("")
+			}
+			seam.pump = startKeyPump(keys)
 		}
 		leave := func() error {
 			_, err := io.WriteString(out, keyboard.BracketedPasteOff)
 			return err
 		}
-		return leave, keyboard.NewStreamReader(keys, seam.terminfo, seam.discard), nil
+		source := &cycleKeys{pump: seam.pump, done: make(chan struct{})}
+		reader := keyboard.NewStreamReader(source, seam.terminfo, seam.discard)
+		return leave, &cycleReader{Reader: reader, keys: source}, nil
 	}
 	in, ok := s.in.(*os.File)
 	if !ok {
@@ -406,6 +526,99 @@ func (s *session) enterKeyboard(entry *screen.Terminfo) (func() error, keyboard.
 		return nil, nil, err
 	}
 	return keyboard.Leave, reader, nil
+}
+
+// keyPump reads the seam's keys on a goroutine of its own for the whole run,
+// across every cycle, so a cycle's reader that has stopped leaves no read in
+// flight that would take bytes meant for the next cycle's. Each cycle reads
+// the pump through a cycleKeys of its own.
+type keyPump struct {
+	mu      sync.Mutex
+	pending []byte
+	ended   bool
+	// changed is closed and replaced whenever pending grows or the source
+	// ends, which wakes every reader waiting on it.
+	changed chan struct{}
+}
+
+// startKeyPump starts reading source into a pump.
+func startKeyPump(source io.Reader) *keyPump {
+	pump := &keyPump{changed: make(chan struct{})}
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := source.Read(buf)
+			pump.mu.Lock()
+			pump.pending = append(pump.pending, buf[:n]...)
+			if err != nil {
+				pump.ended = true
+			}
+			close(pump.changed)
+			pump.changed = make(chan struct{})
+			pump.mu.Unlock()
+			if err != nil {
+				return
+			}
+		}
+	}()
+	return pump
+}
+
+// cycleKeys is one cycle's view of the pump, which answers the end of input
+// once its cycle has ended, whatever the pump still holds.
+type cycleKeys struct {
+	pump *keyPump
+	done chan struct{}
+	once sync.Once
+}
+
+// Read answers what the pump holds, waiting for more, and the end of input
+// once the cycle has ended or the source has.
+func (c *cycleKeys) Read(p []byte) (int, error) {
+	for {
+		select {
+		case <-c.done:
+			return 0, io.EOF
+		default:
+		}
+		c.pump.mu.Lock()
+		if len(c.pump.pending) > 0 {
+			n := copy(p, c.pump.pending)
+			c.pump.pending = c.pump.pending[n:]
+			c.pump.mu.Unlock()
+			return n, nil
+		}
+		if c.pump.ended {
+			c.pump.mu.Unlock()
+			return 0, io.EOF
+		}
+		changed := c.pump.changed
+		c.pump.mu.Unlock()
+		select {
+		case <-c.done:
+			return 0, io.EOF
+		case <-changed:
+		}
+	}
+}
+
+// end ends the cycle's view, and is safe to call more than once.
+func (c *cycleKeys) end() {
+	c.once.Do(func() { close(c.done) })
+}
+
+// cycleReader is the seam's reader of one cycle: the stream reader over the
+// cycle's view of the pump, whose Stop ends that view before it stops the
+// reader, so no read of the stopped cycle is left waiting on the pump.
+type cycleReader struct {
+	keyboard.Reader
+	keys *cycleKeys
+}
+
+// Stop ends the cycle's view of the keys and then the reader.
+func (r *cycleReader) Stop() {
+	r.keys.end()
+	r.Reader.Stop()
 }
 
 // reportCrash writes what a recovered panic left, after the terminal has been

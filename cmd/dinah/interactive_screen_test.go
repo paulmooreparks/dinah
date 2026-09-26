@@ -192,7 +192,7 @@ func TestALoneEscChangesNothingInAnyMode(t *testing.T) {
 				events = append(events, ref+" "+event.Event)
 			}
 		}
-		return outcome{m.mode, focusedColumn(m), selectedRef(m), m.highlight, m.input.Value(), m.area.Value(), strings.Join(events, ", ")}
+		return outcome{m.mode, focusedColumn(m), selectedRef(m), m.menuHighlight(), m.input.Value(), m.area.Value(), strings.Join(events, ", ")}
 	}
 	for name, keys := range scripts {
 		t.Run(name, func(t *testing.T) {
@@ -314,7 +314,7 @@ func TestTheFilterAndTheJump(t *testing.T) {
 			wantModel(t, "the message", m.message, []string{m.s.r.T("interactive.jump.no-lane", "column", "Done")})
 		}},
 		{"zzz", func(t *testing.T, m *interactiveModel) {
-			wantModel(t, "the message", m.message, []string{m.s.r.T("interactive.jump.nothing", "text", "zzz")})
+			wantModel(t, "the message", m.message, []string{m.s.r.T("interactive.line.nothing", "text", "zzz")})
 		}},
 	}
 	for _, jump := range jumps {
@@ -501,12 +501,17 @@ func TestAPasteIsTextInAPromptAndNothingElsewhere(t *testing.T) {
 		t.Errorf("the comment posted is %q", comments)
 	}
 	_ = run
-	for _, prompt := range []string{":", "/"} {
-		root := tuiBench(t)
-		run := runTUIThrough(t, root, tuiSeam(t, strings.NewReader(prompt+pasted+keyCtrlC), 100, 30))
-		wantModel(t, prompt+" prompt's text", run.model.input.Value(), "looks fine but a question")
-		wantModel(t, prompt+" prompt's mode", run.model.mode, modePrompt)
-	}
+	root = tuiBench(t)
+	run = runTUIThrough(t, root, tuiSeam(t, strings.NewReader("/"+pasted+keyCtrlC), 100, 30))
+	wantModel(t, "/ prompt's text", run.model.input.Value(), "looks fine but a question")
+	wantModel(t, "/ prompt's mode", run.model.mode, modePrompt)
+	// The command line takes a paste of one line alone, which
+	// TestAPasteIntoTheCommandLineRunsNothing holds; a paste of two lines is
+	// discarded there and leaves the prompt open and empty.
+	root = tuiBench(t)
+	run = runTUIThrough(t, root, tuiSeam(t, strings.NewReader(":"+pasted+keyCtrlC), 100, 30))
+	wantModel(t, ": prompt's text", run.model.input.Value(), "")
+	wantModel(t, ": prompt's mode", run.model.mode, modePrompt)
 	for name, keys := range map[string]string{"browse": "", "card mode": keyEnter, "the move menu": "m"} {
 		root := tuiBench(t)
 		anchor, journal := anchorText(t, root, "fx-1"), journalText(t, root, "fx-1")

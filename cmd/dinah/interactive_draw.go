@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -142,7 +143,12 @@ func (m *interactiveModel) barLanes() []interactiveLane {
 // window wide enough for it.
 func (m *interactiveModel) body(height int) []interactiveLine {
 	draw := m.draw()
-	if m.mode == modeCard || (m.cardOpen && m.mode != modeMenu) {
+	switch {
+	case m.mode == modeOutput:
+		return m.outputBody(height)
+	case m.mode == modeItems:
+		return m.itemBody(height)
+	case m.mode == modeCard || (m.cardOpen && m.mode != modeMenu):
 		return m.cardBody(height)
 	}
 	width := draw
@@ -224,26 +230,60 @@ func (m *interactiveModel) listLines(width, height int) []interactiveLine {
 	return rows
 }
 
-// menuLines is the move menu's rows.
+// menuLines is the open menu's rows: its title, then one numbered row per
+// value, the move menu's rows marked as on the route or the reject where
+// they are.
 func (m *interactiveModel) menuLines(width, height int) []interactiveLine {
-	ref, _, _ := m.target()
-	title := m.s.r.T("interactive.menu.title", "ref", ref)
+	menu := m.menu
+	if menu == nil {
+		return nil
+	}
 	var rows []string
-	for i, row := range m.menuRows {
+	for i, row := range menu.rows {
 		number := strconv.Itoa(i + 1)
-		name := withoutControls(row.Title)
+		name := withoutControls(row.label)
 		switch {
 		case i >= 9:
 			rows = append(rows, name)
-		case row.OnRoute:
+		case row.route:
 			rows = append(rows, m.s.r.T("interactive.menu.row.route", "number", number, "title", name))
-		case row.Reject:
+		case row.reject:
 			rows = append(rows, m.s.r.T("interactive.menu.row.reject", "number", number, "title", name))
 		default:
 			rows = append(rows, m.s.r.T("interactive.menu.row", "number", number, "title", name))
 		}
 	}
-	return interactiveMenu(withoutControls(title), rows, m.highlight, width, height, m.glyphs, m.marker())
+	return interactiveMenu(withoutControls(menu.title), rows, menu.highlight, width, height, m.glyphs, m.marker())
+}
+
+// itemBody is item mode's rows: its title, then one row per item carrying an
+// offered act, scrolled as the list pane scrolls so the highlighted row stays
+// shown.
+func (m *interactiveModel) itemBody(height int) []interactiveLine {
+	ref, _, _ := m.target()
+	title := withoutControls(m.s.r.T("interactive.items.title", "ref", ref))
+	var rows []string
+	for i, item := range m.itemRows {
+		row := m.s.r.T("interactive.items.row",
+			"number", strconv.Itoa(i+1),
+			"ref", withoutControls(item.Ref),
+			"state", withoutControls(item.State),
+			"text", withoutControls(item.Text),
+		)
+		rows = append(rows, withoutControls(row))
+	}
+	return interactiveMenu(title, rows, m.itemHighlight, m.draw(), height, m.glyphs, m.marker())
+}
+
+// outputBody is output mode's rows: its title, then the transcript from the
+// line it is scrolled to, each cut to the window.
+func (m *interactiveModel) outputBody(height int) []interactiveLine {
+	rows := []interactiveLine{{drawnLine: drawnLine{text: interactiveCut(m.outputTitle, m.draw(), m.glyphs.ellipsis)}}}
+	for i := m.outputOffset; i < len(m.output) && len(rows) < height; i++ {
+		text := interactiveCut(m.output[i], m.draw(), m.glyphs.ellipsis)
+		rows = append(rows, interactiveLine{drawnLine: drawnLine{text: text}})
+	}
+	return rows
 }
 
 // messageRows is the message area, exactly messageHeight rows: the open
@@ -253,11 +293,15 @@ func (m *interactiveModel) messageRows() []string {
 	draw := m.draw()
 	var rows []string
 	switch {
-	case m.mode == modePrompt && m.prompt == promptComment:
-		ref, _, _ := m.target()
-		label := withoutControls(m.s.r.T("interactive.prompt.comment", "ref", ref))
+	case m.mode == modePrompt && m.prompt == promptText:
+		label := m.promptLabel()
 		rows = append(rows, interactiveCut(label, draw, m.glyphs.ellipsis))
 		rows = append(rows, strings.Split(m.area.View(), "\n")...)
+	case m.mode == modePrompt && m.prompt == promptStep:
+		shown := append([]string{}, m.cleaned(m.message)...)
+		shown = append(shown, m.promptLabel())
+		rows = append(rows, interactiveMessage(shown, height-1, draw, m.glyphs.ellipsis)...)
+		rows = append(rows, m.input.View())
 	case m.mode == modePrompt:
 		rows = append(rows, interactiveMessage(m.cleaned(m.message), height-1, draw, m.glyphs.ellipsis)...)
 		rows = append(rows, m.input.View())
@@ -278,13 +322,46 @@ func (m *interactiveModel) footerText() string {
 	case modeMenu:
 		return m.help.ShortHelpView(keys.menuHelp())
 	case modePrompt:
-		return m.help.ShortHelpView(keys.promptHelp(m.prompt == promptComment))
+		return m.help.ShortHelpView(keys.promptHelp(m.prompt))
+	case modeItems:
+		return m.help.ShortHelpView(keys.itemHelp(m))
+	case modeOutput:
+		return m.help.ShortHelpView(keys.outputHelp())
 	}
-	card := m.mode == modeCard
 	if m.fullHelp {
-		return m.help.FullHelpView(keys.fullHelp(card, m.offer))
+		return m.help.FullHelpView(keys.fullHelp(m))
 	}
-	return m.help.ShortHelpView(keys.shortHelp(card, m.offer, false))
+	return m.help.ShortHelpView(keys.shortHelp(m, false))
+}
+
+// promptLabel is the label of the step prompt open, the comment's label
+// where the comment key opened it.
+func (m *interactiveModel) promptLabel() string {
+	if step, ok := m.currentStep(); ok {
+		return m.stepLabel(step.label)
+	}
+	ref, _, _ := m.target()
+	return withoutControls(m.s.r.T("interactive.prompt.comment", "ref", ref))
+}
+
+// bindingHelp is the footer's entries for the user's own bindings the footer
+// lists: each key with its label, or its template where it has none, as the
+// user wrote it with every control character replaced. The label is never
+// looked up in a catalog.
+func (m *interactiveModel) bindingHelp() []key.Binding {
+	var bindings []key.Binding
+	for _, binding := range m.bindings {
+		if !m.bindingListed(binding) {
+			continue
+		}
+		label := binding.Label
+		if label == "" {
+			label = binding.Template
+		}
+		entry := key.NewBinding(key.WithKeys(binding.Key), key.WithHelp(binding.Key, withoutControls(label)))
+		bindings = append(bindings, entry)
+	}
+	return bindings
 }
 
 // footerRows is the footer, exactly footerHeight rows, each cut to the

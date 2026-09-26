@@ -360,6 +360,15 @@ const (
 	// The values launcher and tui carry the two build identities, and the
 	// detail is dinah-tui's path.
 	TUISkew = LayerPrefix + "tui-skew"
+	// NotInTUI is a line typed at dinah tui's command line that cannot run
+	// inside the screen: a command classed absent, a flag that waits, or a
+	// value of - that would read the keyboard. The detail is the word the
+	// person typed, and the value reason is a machine token naming why.
+	NotInTUI = LayerPrefix + "not-in-tui"
+	// InvalidKeyBinding is a tui.key setting dinah tui cannot use. The detail
+	// is the setting's key and the value defect is a machine token naming
+	// the defect, as InvalidAlias carries one.
+	InvalidKeyBinding = LayerPrefix + "invalid-key-binding"
 	// MalformedUrgency is a view ordered by urgency drawn on a workbench
 	// whose dinah.urgency block cannot be read. It refuses rather than
 	// falling back to the shipped weights, because a ranking computed on
@@ -916,7 +925,7 @@ var Introduced = []string{
 	SetupOtherWorkbench, SetupRunNotAllowed, SetupStepFailed,
 	UnknownView, MalformedView, ViewsUnreadable,
 	MalformedUrgency, CardNotInView, ViewNotRanked, WatchUnavailable,
-	TUIUnavailable, TUIMissing, TUISkew,
+	TUIUnavailable, TUIMissing, TUISkew, NotInTUI, InvalidKeyBinding,
 }
 
 // The reasons dinah.watch-unavailable carries in its reason value, which are

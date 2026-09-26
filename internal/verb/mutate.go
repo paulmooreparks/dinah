@@ -803,8 +803,8 @@ func (l *Library) block(req *Request, card *bench.Card) *Response {
 	if req.Reason == "" {
 		return l.refuse(req, card, contract.NoReason, "")
 	}
-	if card.Holder != "" && card.Holder != req.Actor {
-		return l.refuse(req, card, contract.Held, card.Holder)
+	if refusal := l.canBlock(req, card); refusal != nil {
+		return refusal
 	}
 	now := bench.Stamp(l.Now())
 	card.State = contract.StateBlocked
@@ -828,19 +828,24 @@ func (l *Library) block(req *Request, card *bench.Card) *Response {
 	return response
 }
 
+// canBlock runs the block's last row, which reads the card: a card another
+// owner holds is theirs to block. The rows ahead of it read the request, the
+// owner and the reason the person has yet to give, so block runs them itself
+// and OfferActs asks this alone after admit. block and OfferActs both call
+// it, so a row added here reaches the act and the offer together.
+func (l *Library) canBlock(req *Request, card *bench.Card) *Response {
+	if card.Holder != "" && card.Holder != req.Actor {
+		return l.refuse(req, card, contract.Held, card.Holder)
+	}
+	return nil
+}
+
 // unblock lifts an obstacle, and is the operator's alone. The list is
-// CORE-UNBLOCK's, with the operator check evaluated ahead of the state
-// check, so an owner who is not the operator is refused not-operator whatever
-// the card's state.
+// CORE-UNBLOCK's and lives in canUnblock, so OfferActs asks the same rows the
+// act runs.
 func (l *Library) unblock(req *Request, card *bench.Card) *Response {
-	if req.Actor == "" {
-		return l.refuse(req, card, contract.NoOwner, "")
-	}
-	if req.Actor != l.Bench.Operator {
-		return l.refuse(req, card, contract.NotOperator, req.Actor)
-	}
-	if card.State != contract.StateBlocked {
-		return l.refuse(req, card, contract.NotBlocked, card.State)
+	if refusal := l.canUnblock(req, card); refusal != nil {
+		return refusal
 	}
 	now := bench.Stamp(l.Now())
 	card.State = contract.StateReady
@@ -887,6 +892,34 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 	return response
 }
 
+// canUnblock runs CORE-UNBLOCK's rows, with the operator check evaluated
+// ahead of the state check, so an owner who is not the operator is refused
+// not-operator whatever the card's state. The reason is optional and read
+// after, so no row here reads an argument. unblock and OfferActs both call
+// it.
+func (l *Library) canUnblock(req *Request, card *bench.Card) *Response {
+	if req.Actor == "" {
+		return l.refuse(req, card, contract.NoOwner, "")
+	}
+	if req.Actor != l.Bench.Operator {
+		return l.refuse(req, card, contract.NotOperator, req.Actor)
+	}
+	if card.State != contract.StateBlocked {
+		return l.refuse(req, card, contract.NotBlocked, card.State)
+	}
+	return nil
+}
+
+// canJoin runs the one row join and leave share before they read the
+// workstream the person names: the request names an owner. join, leave and
+// OfferActs all call it.
+func (l *Library) canJoin(req *Request, card *bench.Card) *Response {
+	if req.Actor == "" {
+		return l.refuse(req, card, contract.NoOwner, "")
+	}
+	return nil
+}
+
 // join adds a workstream to a card's membership list. Its list is the card
 // exists, the request names an owner, and the workstream resolves. Nobody is
 // asked who holds the card, because membership is not a claim and the pull
@@ -898,8 +931,8 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 // first, so a typo is caught by dinah.unknown-workstream rather than passing
 // as a silent success.
 func (l *Library) join(req *Request, card *bench.Card) *Response {
-	if req.Actor == "" {
-		return l.refuse(req, card, contract.NoOwner, "")
+	if refusal := l.canJoin(req, card); refusal != nil {
+		return refusal
 	}
 	workstream, err := l.Bench.WorkstreamByRef(req.Workstream)
 	if err != nil {
@@ -931,8 +964,8 @@ func (l *Library) join(req *Request, card *bench.Card) *Response {
 // leaves every other entry where it was. Its list is join's, and leaving a
 // workstream the card never joined succeeds and writes nothing.
 func (l *Library) leave(req *Request, card *bench.Card) *Response {
-	if req.Actor == "" {
-		return l.refuse(req, card, contract.NoOwner, "")
+	if refusal := l.canJoin(req, card); refusal != nil {
+		return refusal
 	}
 	workstream, err := l.Bench.WorkstreamByRef(req.Workstream)
 	if err != nil {

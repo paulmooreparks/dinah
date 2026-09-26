@@ -69,11 +69,8 @@ func (l *Library) grant(req *Request, card *bench.Card) *Response {
 // revoke naming a card with nothing standing is an operator who believes a
 // permission exists, and telling him it does not is the answer he needs.
 func (l *Library) revoke(req *Request, card *bench.Card) *Response {
-	if refused := l.admitGrantVerb(req, card); refused != nil {
+	if refused := l.canRevoke(req, card); refused != nil {
 		return refused
-	}
-	if card.RetirementGrant == "" {
-		return l.refuse(req, card, contract.NoGrant, card.Ref(l.Bench.Slug))
 	}
 	card.RetirementGrant = ""
 	ev := bench.Event{
@@ -114,6 +111,18 @@ func (l *Library) admitGrantVerb(req *Request, card *bench.Card) *Response {
 			"field": "permission",
 			"legal": CriterionRetirement,
 		})
+	}
+	return nil
+}
+
+// canRevoke runs revoke's rows before it writes: the rows grant runs, then
+// the card has a grant to revoke. revoke and OfferActs both call it.
+func (l *Library) canRevoke(req *Request, card *bench.Card) *Response {
+	if refused := l.admitGrantVerb(req, card); refused != nil {
+		return refused
+	}
+	if card.RetirementGrant == "" {
+		return l.refuse(req, card, contract.NoGrant, card.Ref(l.Bench.Slug))
 	}
 	return nil
 }

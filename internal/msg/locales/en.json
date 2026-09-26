@@ -3238,8 +3238,8 @@
       "context": "The meaning of the action argument of `dinah config`, printed in that command's arguments table."
     },
     "param.config.key.summary": {
-      "text": "which setting you are reading or writing",
-      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table."
+      "text": "which setting you are reading or writing: one the tool knows, or one whose name begins alias., tui.key. or tui.label.",
+      "context": "The meaning of the key argument of `dinah config`, printed in that command's arguments table. alias., tui.key. and tui.label. are the prefixes of an alias, a key binding of dinah tui and that binding's footer label, which are machine vocabulary and stay as they are."
     },
     "param.config.value.summary": {
       "text": "what to store under it, on a set",
@@ -7009,6 +7009,86 @@
       "text": "; install both files from one release",
       "context": "Spliced onto refusal.dinah.tui-skew as the next step: install dinah and dinah-tui together, from the same release."
     },
+    "refusal.dinah.not-in-tui": {
+      "text": "{detail} does not run inside dinah tui:",
+      "context": "The sentence printed after the refusal name dinah.not-in-tui, which the command line of dinah tui prints for a line that cannot run inside the screen. {detail} is the word the person typed: a command name, a flag written with its two dashes, or a lone -. One fragment saying why is spliced on after it, each beginning with a space. dinah tui is the command and stays as it is."
+    },
+    "refusal.dinah.not-in-tui.mcp": {
+      "text": " it serves a harness over standard input and output, which this screen is using.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the command typed was mcp, saying why it cannot run inside the terminal UI."
+    },
+    "refusal.dinah.not-in-tui.lsp": {
+      "text": " it serves an editor over standard input and output, which this screen is using.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the command typed was lsp, saying why it cannot run inside the terminal UI."
+    },
+    "refusal.dinah.not-in-tui.serve": {
+      "text": " it runs a server until it is stopped, and this screen would wait for it.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the command typed was serve, saying why it cannot run inside the terminal UI."
+    },
+    "refusal.dinah.not-in-tui.ui": {
+      "text": " it runs a server and opens a browser, and this screen would wait for it.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the command typed was ui, saying why it cannot run inside the terminal UI."
+    },
+    "refusal.dinah.not-in-tui.completion": {
+      "text": " it prints a script for your shell to load, and nothing here can load it.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the command typed was completion, saying why it cannot run inside the terminal UI."
+    },
+    "refusal.dinah.not-in-tui.tui": {
+      "text": " you are already in it.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the command typed was tui itself."
+    },
+    "refusal.dinah.not-in-tui.stdin": {
+      "text": " standard input is this screen's keyboard, so give the value on the line itself.",
+      "context": "Spliced after refusal.dinah.not-in-tui when a value of - asked a command to read its argument from standard input, which inside the terminal UI is the keyboard."
+    },
+    "refusal.dinah.not-in-tui.watch": {
+      "text": " this screen already redraws the view as it changes. Type : and a view's name to draw another.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the flag typed was --watch on view. It is the next step as well, so no other advice follows it. The : is the key that opens the command line and stays as it is."
+    },
+    "refusal.dinah.not-in-tui.wait": {
+      "text": " this screen already waits for changes and redraws when one lands.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the flag typed was --wait on changes. It is the next step as well, so no other advice follows it."
+    },
+    "refusal.dinah.not-in-tui.next": {
+      "text": " Run it from a shell.",
+      "context": "The next step of refusal.dinah.not-in-tui, spliced after the reason for every reason but --watch and --wait."
+    },
+    "refusal.dinah.invalid-key-binding": {
+      "text": "{detail} is not a key binding dinah tui can use:",
+      "context": "The sentence printed after the refusal name dinah.invalid-key-binding, which config set carries for a tui.key setting dinah tui cannot use. {detail} is the setting's key, such as tui.key.o, which is machine vocabulary. One fragment saying what is wrong is spliced on after it, each beginning with a space. dinah tui is the command and stays as it is."
+    },
+    "refusal.dinah.invalid-key-binding.invalid-key": {
+      "text": " a key binding names exactly one ASCII letter or digit after tui.key.",
+      "context": "Spliced after refusal.dinah.invalid-key-binding when the part of the setting's key after tui.key. is not one letter or digit. tui.key. is machine vocabulary."
+    },
+    "refusal.dinah.invalid-key-binding.reserved-key": {
+      "text": " that key is one of dinah tui's own keys.",
+      "context": "Spliced after refusal.dinah.invalid-key-binding when the key is one dinah tui already reads in browse or card mode, which no binding may take."
+    },
+    "refusal.dinah.invalid-key-binding.empty-template": {
+      "text": " the command line it runs is empty.",
+      "context": "Spliced after refusal.dinah.invalid-key-binding when the binding's command line has no words."
+    },
+    "refusal.dinah.invalid-key-binding.shell-template": {
+      "text": " a command line beginning with ! is not one dinah runs.",
+      "context": "Spliced after refusal.dinah.invalid-key-binding when the binding's command line begins with !, which would hand it to a shell."
+    },
+    "refusal.dinah.invalid-key-binding.non-ascii-whitespace": {
+      "text": " the command line holds white space other than spaces and tabs.",
+      "context": "Spliced after refusal.dinah.invalid-key-binding when the binding's command line carries a line break or other white space that is neither a space nor a tab."
+    },
+    "refusal.dinah.invalid-key-binding.numbered-placeholder": {
+      "text": " a binding takes no arguments of its own, so $1 to $9 cannot appear in it.",
+      "context": "Spliced after refusal.dinah.invalid-key-binding when the binding's command line carries a numbered placeholder. $1 and $9 are machine vocabulary."
+    },
+    "refusal.dinah.invalid-key-binding.unknown-placeholder": {
+      "text": " the only placeholders a binding takes are $card, $column and $view.",
+      "context": "Spliced after refusal.dinah.invalid-key-binding when the binding's command line carries a $ followed by a name other than the three placeholders. $card, $column and $view are machine vocabulary."
+    },
+    "refusal.dinah.invalid-key-binding.next": {
+      "text": " Correct the setting, or remove it with `dinah config set {detail}`.",
+      "context": "The next step of refusal.dinah.invalid-key-binding. {detail} is the setting's key. The command inside the backquotes is syntax and stays as it is."
+    },
     "interactive.heading": {
       "text": "{workbench} · {view}",
       "context": "The left part of the first row of dinah tui's screen. {workbench} is the workbench's title and {view} is the view's title. The mark between them may be spaced however the language wants."
@@ -7052,10 +7132,6 @@
     "interactive.acted.comment": {
       "text": "commented on {ref}",
       "context": "Shown in dinah tui's message row after a comment was posted. {ref} is the card's reference."
-    },
-    "interactive.jump.nothing": {
-      "text": "nothing called {text} is a view, a card or a column here",
-      "context": "Shown in dinah tui's message row when the text typed after : names no view, card or column. {text} is what the person typed."
     },
     "interactive.jump.no-lane": {
       "text": "no card of this view stands in {column}",
@@ -7126,8 +7202,8 @@
       "context": "A footer label of dinah tui: what the / key does, which narrows the cards shown with a query. Keep it short."
     },
     "interactive.help.jump": {
-      "text": "jump",
-      "context": "A footer label of dinah tui: what the : key does, which goes to a view, a card or a column by name. Keep it short."
+      "text": "command or jump",
+      "context": "A footer label of dinah tui: what the : key does, which opens the command line, where a line runs a command or goes to a view, a card or a column by name. Keep it short."
     },
     "interactive.help.keys": {
       "text": "keys",
@@ -7252,6 +7328,562 @@
     "interactive.key.end": {
       "text": "end",
       "context": "The label of the End key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.help.items": {
+      "text": "items",
+      "context": "A footer label of dinah tui: what the i key does, which opens item mode over the card: its questions, decisions and criteria that carry an act you may take. Keep it short."
+    },
+    "interactive.help.actions": {
+      "text": "actions",
+      "context": "A footer label of dinah tui: what the x key does, which opens the menu of every act the workbench would accept on the card. Keep it short."
+    },
+    "interactive.help.next": {
+      "text": "next",
+      "context": "A footer label of dinah tui: what the > key does, which runs dinah next and shows what it answers. Keep it short."
+    },
+    "interactive.help.status": {
+      "text": "status",
+      "context": "A footer label of dinah tui: what the S key does, which runs dinah status and shows what it answers. Keep it short."
+    },
+    "interactive.help.search": {
+      "text": "search",
+      "context": "A footer label of dinah tui: what the F key does, which asks for a phrase and runs dinah search with it. Keep it short."
+    },
+    "interactive.help.changes": {
+      "text": "changes",
+      "context": "A footer label of dinah tui: what the C key does, which runs dinah changes for the selected card and shows what it answers. Keep it short."
+    },
+    "interactive.help.whoami": {
+      "text": "who am I",
+      "context": "A footer label of dinah tui: what the W key does, which runs dinah whoami and shows who the screen acts as. Keep it short."
+    },
+    "interactive.help.answer": {
+      "text": "answer",
+      "context": "A footer label of dinah tui: what the r key does in item mode, which answers the highlighted question or decision. Keep it short."
+    },
+    "interactive.help.verify": {
+      "text": "verify",
+      "context": "A footer label of dinah tui: what the v key does in item mode, which records the highlighted criterion as verified. Keep it short."
+    },
+    "interactive.help.fail": {
+      "text": "fail",
+      "context": "A footer label of dinah tui: what the f key does in item mode, which records the highlighted criterion as failed. Keep it short."
+    },
+    "interactive.help.waive": {
+      "text": "waive",
+      "context": "A footer label of dinah tui: what the w key does in item mode, which waives the highlighted item. Only the operator is offered it. Keep it short."
+    },
+    "interactive.help.withdraw": {
+      "text": "withdraw",
+      "context": "A footer label of dinah tui: what the x key does in item mode, which withdraws the highlighted item. Keep it short."
+    },
+    "interactive.help.reopen": {
+      "text": "reopen",
+      "context": "A footer label of dinah tui: what the o key does in item mode, which returns the highlighted item to pending. Keep it short."
+    },
+    "interactive.help.cite": {
+      "text": "cite",
+      "context": "A footer label of dinah tui: what the c key does in item mode, which records evidence on the highlighted item. Keep it short."
+    },
+    "interactive.help.close": {
+      "text": "close",
+      "context": "A footer label of dinah tui: what a key does that closes item mode or output mode and returns to the view. Keep it short."
+    },
+    "interactive.help.complete": {
+      "text": "complete",
+      "context": "A footer label of dinah tui: what Tab does at the command line, which completes the word at the cursor. Keep it short."
+    },
+    "interactive.key.tab": {
+      "text": "tab",
+      "context": "The label of the Tab key as the footer of dinah tui shows it. Write it the way keyboards in the language label that key, and keep it short."
+    },
+    "interactive.line.nothing": {
+      "text": "{text} is not a command, and nothing called that is a view, a card or a column here.",
+      "context": "Shown in dinah tui's message row when the line typed after : names no command, and no view, card or column either. {text} is what the person typed."
+    },
+    "interactive.line.done": {
+      "text": "{command} finished",
+      "context": "Shown in dinah tui's message row when a command run from the screen wrote nothing and ended with exit status 0. {command} is the command's name."
+    },
+    "interactive.line.exit": {
+      "text": "{command} ended with exit status {code}",
+      "context": "Shown in dinah tui's message row when a command run from the screen wrote nothing and ended with a status other than 0. {command} is the command's name and {code} the number."
+    },
+    "interactive.line.pinned": {
+      "text": "This screen keeps the {key} it started with. The new value applies the next time dinah tui starts.",
+      "context": "Added under what config set printed when it was typed at dinah tui's command line and wrote a setting the screen resolved when it started. {key} is the setting's name, such as workbench or lang, which is machine vocabulary. dinah tui is the command and stays as it is."
+    },
+    "interactive.line.paste": {
+      "text": "A paste holding more than one line was not taken, because the command line runs one line at a time.",
+      "context": "Shown in dinah tui's message row when a paste into the command line held a line break before its end, so nothing was inserted."
+    },
+    "interactive.line.candidates": {
+      "text": "and {count} more",
+      "context": "The last row of the completions dinah tui lists after a second Tab, when some did not fit. {count} is how many were left out."
+    },
+    "interactive.output.title": {
+      "text": "output of {line}:",
+      "context": "The title of dinah tui's output mode, above what a command run from the screen wrote. {line} is the command line as it was typed or built."
+    },
+    "interactive.output.cut": {
+      "text": "{count} more lines were not kept. Run it from a shell to read them all.",
+      "context": "The last line of dinah tui's output mode when a command wrote more lines than the screen keeps. {count} is how many were dropped."
+    },
+    "interactive.items.title": {
+      "text": "items of {ref}:",
+      "context": "The title of dinah tui's item mode, above the card's questions, decisions and criteria that carry an act you may take. {ref} is the card's reference."
+    },
+    "interactive.items.row": {
+      "text": "{number}  {ref}  {state}  {text}",
+      "context": "One row of dinah tui's item mode. {number} counts the rows, {ref} is the item's reference, {state} its state, which is machine vocabulary, and {text} the first line of the item's text."
+    },
+    "interactive.items.none": {
+      "text": "nothing on {ref} is waiting on you",
+      "context": "Shown in dinah tui's message row when item mode closes because no item of the card carries an act you may take any longer. {ref} is the card's reference."
+    },
+    "interactive.prompt.resolve": {
+      "text": "answer to {item}:",
+      "context": "The label above the text a person types to answer a question or a decision in dinah tui. {item} is the item's reference."
+    },
+    "interactive.prompt.verify": {
+      "text": "what shows {item} holds:",
+      "context": "The label above the text a person types to record a criterion as verified in dinah tui, which says what showed it holds. {item} is the criterion's reference."
+    },
+    "interactive.prompt.fail": {
+      "text": "what shows {item} does not hold:",
+      "context": "The label above the text a person types to record a criterion as failed in dinah tui, which says what showed it does not hold. {item} is the criterion's reference."
+    },
+    "interactive.prompt.waive": {
+      "text": "why {item} is waived:",
+      "context": "The label above the text the operator types to waive an item in dinah tui. {item} is the item's reference."
+    },
+    "interactive.prompt.withdraw": {
+      "text": "why {item} is withdrawn:",
+      "context": "The label above the text a person types to withdraw an item in dinah tui. {item} is the item's reference."
+    },
+    "interactive.prompt.reopen": {
+      "text": "why {item} is reopened:",
+      "context": "The label above the text a person types to return an item to pending in dinah tui. {item} is the item's reference."
+    },
+    "interactive.prompt.cite-scheme": {
+      "text": "evidence scheme for {item}:",
+      "context": "The label of the line a person types the evidence scheme of a citation in, in dinah tui, on a workbench declaring no schemes. {item} is the item's reference."
+    },
+    "interactive.prompt.cite-target": {
+      "text": "what the {scheme} evidence points at:",
+      "context": "The label of the line a person types what a citation points at in dinah tui, such as a test path. {scheme} is the evidence scheme chosen, which is machine vocabulary."
+    },
+    "interactive.prompt.cite-observed": {
+      "text": "what the check showed, written before:after:",
+      "context": "The label of the line a person types what a check showed before and after the work in dinah tui, written as two words joined by a colon such as fail:pass. before:after is syntax and stays as it is."
+    },
+    "interactive.prompt.search": {
+      "text": "search for:",
+      "context": "The label of the line a person types a phrase in after pressing F in dinah tui, which dinah search then looks for."
+    },
+    "interactive.prompt.add-title": {
+      "text": "title of the new card:",
+      "context": "The label of the line a person types the title of a card they file from dinah tui's actions menu in."
+    },
+    "interactive.prompt.block": {
+      "text": "why {ref} is blocked:",
+      "context": "The label above the text a person types to block a card from dinah tui's actions menu. {ref} is the card's reference."
+    },
+    "interactive.prompt.block-kind": {
+      "text": "what kind of obstacle it is, or nothing:",
+      "context": "The label of the line a person may type the kind of an obstacle in, after the reason, when blocking a card from dinah tui. An empty line leaves the kind out."
+    },
+    "interactive.prompt.unblock": {
+      "text": "why the block on {ref} is lifted, or nothing:",
+      "context": "The label above the text the operator may type when lifting the block on a card from dinah tui. An empty text lifts it with no reason. {ref} is the card's reference."
+    },
+    "interactive.prompt.raise": {
+      "text": "why the tier of {ref} is raised:",
+      "context": "The label above the text a person types when raising the tier a card requires, from dinah tui's actions menu. {ref} is the card's reference."
+    },
+    "interactive.prompt.attach-file": {
+      "text": "path of the file to attach to {ref}:",
+      "context": "The label of the line a person types the path of a file in, to attach it to a card from dinah tui's actions menu. {ref} is the card's reference."
+    },
+    "interactive.prompt.attach-description": {
+      "text": "what the file is, or nothing:",
+      "context": "The label of the line a person may type a description of an attached file in, in dinah tui. An empty line leaves it out."
+    },
+    "interactive.prompt.file": {
+      "text": "text of the item on {ref}:",
+      "context": "The label above the text a person types to file a question, a decision or a criterion on a card from dinah tui's actions menu. {ref} is the card's reference."
+    },
+    "interactive.prompt.link-kind": {
+      "text": "kind of link from {ref}:",
+      "context": "The label of the line a person types the kind of a link in, when linking a card from dinah tui's actions menu, such as relates_to. {ref} is the card's reference."
+    },
+    "interactive.prompt.link-to": {
+      "text": "card {ref} links to:",
+      "context": "The label of the line a person types the card a link reaches in, in dinah tui. {ref} is the reference of the card the link starts from."
+    },
+    "interactive.prompt.rename": {
+      "text": "new name of the file:",
+      "context": "The label of the line a person types an attachment's new file name in, from dinah tui's actions menu."
+    },
+    "interactive.prompt.set": {
+      "text": "new value:",
+      "context": "The label above the text a person types the new value of a card's field in, from dinah tui's actions menu."
+    },
+    "interactive.menu.scheme": {
+      "text": "evidence scheme for {item}:",
+      "context": "The title of the menu of evidence schemes dinah tui offers when citing evidence on an item. {item} is the item's reference."
+    },
+    "interactive.menu.item": {
+      "text": "which item of {ref}:",
+      "context": "The title of the menu of a card's items that dinah tui's actions menu opens for an item act. {ref} is the card's reference."
+    },
+    "interactive.menu.add-column": {
+      "text": "column the new card enters:",
+      "context": "The title of the menu of columns a card filed from dinah tui's actions menu may enter, the flow's first column first."
+    },
+    "interactive.menu.tier": {
+      "text": "tier {ref} requires:",
+      "context": "The title of the menu of tiers a raise from dinah tui's actions menu may set. {ref} is the card's reference."
+    },
+    "interactive.menu.item-kind": {
+      "text": "kind of item:",
+      "context": "The title of the menu of item kinds dinah tui offers when filing an item. The kinds listed are machine vocabulary."
+    },
+    "interactive.menu.item-column": {
+      "text": "column that settles it:",
+      "context": "The title of the menu of columns dinah tui offers when filing an item, which names the station that settles the item."
+    },
+    "interactive.menu.item-owner": {
+      "text": "who it is for:",
+      "context": "The title of the menu of owners dinah tui offers when filing an item: holder, operator, or none. holder and operator are machine vocabulary."
+    },
+    "interactive.menu.item-owner.none": {
+      "text": "nobody named",
+      "context": "The row of dinah tui's owner menu that files the item naming no owner."
+    },
+    "interactive.menu.permission": {
+      "text": "permission:",
+      "context": "The title of the menu of permissions dinah tui offers when granting or revoking one. The permissions listed are machine vocabulary."
+    },
+    "interactive.menu.link": {
+      "text": "link to remove from {ref}:",
+      "context": "The title of the menu of a card's links dinah tui offers when removing one. {ref} is the card's reference."
+    },
+    "interactive.menu.join": {
+      "text": "workstream {ref} joins:",
+      "context": "The title of the menu of workstreams dinah tui offers when adding a card to one. {ref} is the card's reference."
+    },
+    "interactive.menu.leave": {
+      "text": "workstream {ref} leaves:",
+      "context": "The title of the menu of workstreams dinah tui offers when taking a card out of one. {ref} is the card's reference."
+    },
+    "interactive.menu.archive": {
+      "text": "archive {ref}?",
+      "context": "The title of the one-row menu dinah tui shows to confirm archiving a card. {ref} is the card's reference."
+    },
+    "interactive.menu.delete": {
+      "text": "delete {ref}? This destroys it and its history.",
+      "context": "The title of the menu dinah tui shows to confirm deleting a card. {ref} is the card's reference."
+    },
+    "interactive.menu.delete-force": {
+      "text": "delete it, reopening the item it answers",
+      "context": "The row of dinah tui's delete menu that deletes with --force, which also reopens the item the deleted comment was the answer of."
+    },
+    "interactive.menu.divergence": {
+      "text": "comment whose edited body becomes the record:",
+      "context": "The title of the menu of a card's comments whose body was edited outside dinah, which dinah tui offers when making an edited body the record."
+    },
+    "interactive.menu.rename": {
+      "text": "attachment to rename:",
+      "context": "The title of the menu of a card's attachments dinah tui offers when renaming one."
+    },
+    "interactive.menu.field": {
+      "text": "field to set on {ref}:",
+      "context": "The title of the menu of a card's fields dinah tui offers when setting one. {ref} is the card's reference, and the fields listed are machine vocabulary."
+    },
+    "interactive.menu.value": {
+      "text": "value:",
+      "context": "The title of the menu of the values a field accepts, which dinah tui offers when setting a field with a closed set of values."
+    },
+    "interactive.actions.title": {
+      "text": "actions on {ref}:",
+      "context": "The title of dinah tui's actions menu, above every act the workbench would accept on the card. {ref} is the card's reference."
+    },
+    "interactive.actions.add": {
+      "text": "file a new card",
+      "context": "A row of dinah tui's actions menu, which files a new card."
+    },
+    "interactive.actions.claim": {
+      "text": "claim it",
+      "context": "A row of dinah tui's actions menu, which claims the card."
+    },
+    "interactive.actions.move": {
+      "text": "move it",
+      "context": "A row of dinah tui's actions menu, which moves the card to a column chosen next."
+    },
+    "interactive.actions.pull": {
+      "text": "pull the next card into {column}",
+      "context": "A row of dinah tui's actions menu, which pulls the head of the queue before the focused column into it and claims it. {column} is that column's title."
+    },
+    "interactive.actions.release": {
+      "text": "release it",
+      "context": "A row of dinah tui's actions menu, which gives the card back to its queue."
+    },
+    "interactive.actions.block": {
+      "text": "block it",
+      "context": "A row of dinah tui's actions menu, which records an obstacle and frees the card."
+    },
+    "interactive.actions.unblock": {
+      "text": "lift its block",
+      "context": "A row of dinah tui's actions menu, which lifts the block on the card. Only the operator is offered it."
+    },
+    "interactive.actions.raise": {
+      "text": "raise its tier",
+      "context": "A row of dinah tui's actions menu, which raises the tier the card requires at its column and frees it."
+    },
+    "interactive.actions.comment": {
+      "text": "comment on it",
+      "context": "A row of dinah tui's actions menu, which posts a comment on the card."
+    },
+    "interactive.actions.attach": {
+      "text": "attach a file",
+      "context": "A row of dinah tui's actions menu, which attaches a file to the card."
+    },
+    "interactive.actions.file": {
+      "text": "file an item",
+      "context": "A row of dinah tui's actions menu, which files a question, a decision or a criterion on the card."
+    },
+    "interactive.actions.cite": {
+      "text": "cite evidence on an item",
+      "context": "A row of dinah tui's actions menu, which records evidence on one of the card's items."
+    },
+    "interactive.actions.resolve": {
+      "text": "answer an item",
+      "context": "A row of dinah tui's actions menu, which answers one of the card's questions or decisions."
+    },
+    "interactive.actions.verify": {
+      "text": "verify an item",
+      "context": "A row of dinah tui's actions menu, which records one of the card's criteria as verified."
+    },
+    "interactive.actions.fail": {
+      "text": "fail an item",
+      "context": "A row of dinah tui's actions menu, which records one of the card's criteria as failed."
+    },
+    "interactive.actions.waive": {
+      "text": "waive an item",
+      "context": "A row of dinah tui's actions menu, which waives one of the card's items. Only the operator is offered it."
+    },
+    "interactive.actions.withdraw": {
+      "text": "withdraw an item",
+      "context": "A row of dinah tui's actions menu, which withdraws one of the card's items."
+    },
+    "interactive.actions.reopen": {
+      "text": "reopen an item",
+      "context": "A row of dinah tui's actions menu, which returns one of the card's items to pending."
+    },
+    "interactive.actions.grant": {
+      "text": "grant a permission",
+      "context": "A row of dinah tui's actions menu, which grants the card a permission. Only the operator is offered it."
+    },
+    "interactive.actions.revoke": {
+      "text": "revoke a permission",
+      "context": "A row of dinah tui's actions menu, which revokes a permission the card holds. Only the operator is offered it."
+    },
+    "interactive.actions.link": {
+      "text": "link it to a card",
+      "context": "A row of dinah tui's actions menu, which links the card to another."
+    },
+    "interactive.actions.unlink": {
+      "text": "remove a link",
+      "context": "A row of dinah tui's actions menu, which removes one of the card's links."
+    },
+    "interactive.actions.join": {
+      "text": "add it to a workstream",
+      "context": "A row of dinah tui's actions menu, which adds the card to a workstream."
+    },
+    "interactive.actions.leave": {
+      "text": "take it out of a workstream",
+      "context": "A row of dinah tui's actions menu, which takes the card out of a workstream it belongs to."
+    },
+    "interactive.actions.archive": {
+      "text": "archive it",
+      "context": "A row of dinah tui's actions menu, which moves the card into the archive."
+    },
+    "interactive.actions.restore": {
+      "text": "restore it",
+      "context": "A row of dinah tui's actions menu over a card in the archive, which puts it back in the live set."
+    },
+    "interactive.actions.delete": {
+      "text": "delete it",
+      "context": "A row of dinah tui's actions menu, which destroys the card and its history after a confirmation."
+    },
+    "interactive.actions.accept-divergence": {
+      "text": "make a comment's edited body the record",
+      "context": "A row of dinah tui's actions menu, which accepts the body of a comment edited outside dinah as the record."
+    },
+    "interactive.actions.rename": {
+      "text": "rename an attachment",
+      "context": "A row of dinah tui's actions menu, which renames one of the card's attachments."
+    },
+    "interactive.actions.set": {
+      "text": "set a field",
+      "context": "A row of dinah tui's actions menu, which writes one of the card's fields."
+    },
+    "interactive.actions.edit": {
+      "text": "edit it in your editor",
+      "context": "A row of dinah tui's actions menu, which hands the terminal to your editor over the card's file and takes it back when the editor ends."
+    },
+    "interactive.acted.resolve": {
+      "text": "answered {item}",
+      "context": "Shown in dinah tui's message row after a question or a decision was answered. {item} is the item's reference."
+    },
+    "interactive.acted.verify": {
+      "text": "verified {item}",
+      "context": "Shown in dinah tui's message row after a criterion was recorded as verified. {item} is the criterion's reference."
+    },
+    "interactive.acted.fail": {
+      "text": "failed {item}",
+      "context": "Shown in dinah tui's message row after a criterion was recorded as failed. {item} is the criterion's reference."
+    },
+    "interactive.acted.waive": {
+      "text": "waived {item}",
+      "context": "Shown in dinah tui's message row after an item was waived. {item} is the item's reference."
+    },
+    "interactive.acted.withdraw": {
+      "text": "withdrew {item}",
+      "context": "Shown in dinah tui's message row after an item was withdrawn. {item} is the item's reference."
+    },
+    "interactive.acted.reopen": {
+      "text": "reopened {item}",
+      "context": "Shown in dinah tui's message row after an item was returned to pending. {item} is the item's reference."
+    },
+    "interactive.acted.cite": {
+      "text": "cited evidence on {item}",
+      "context": "Shown in dinah tui's message row after evidence was recorded on an item. {item} is the item's reference."
+    },
+    "interactive.acted.add": {
+      "text": "filed {ref}",
+      "context": "Shown in dinah tui's message row after a card was filed from the actions menu. {ref} is the new card's reference."
+    },
+    "interactive.acted.pull": {
+      "text": "pulled {ref} into {column}",
+      "context": "Shown in dinah tui's message row after a card was pulled from the actions menu. {ref} is the card's reference and {column} the title of the column it now stands in."
+    },
+    "interactive.acted.block": {
+      "text": "blocked {ref}",
+      "context": "Shown in dinah tui's message row after a card was blocked. {ref} is the card's reference."
+    },
+    "interactive.acted.unblock": {
+      "text": "lifted the block on {ref}",
+      "context": "Shown in dinah tui's message row after the block on a card was lifted. {ref} is the card's reference."
+    },
+    "interactive.acted.raise": {
+      "text": "raised the tier of {ref}",
+      "context": "Shown in dinah tui's message row after the tier a card requires was raised. {ref} is the card's reference."
+    },
+    "interactive.acted.attach": {
+      "text": "attached a file to {ref}",
+      "context": "Shown in dinah tui's message row after a file was attached to a card. {ref} is the card's reference."
+    },
+    "interactive.acted.file": {
+      "text": "filed an item on {ref}",
+      "context": "Shown in dinah tui's message row after an item was filed on a card. {ref} is the card's reference."
+    },
+    "interactive.acted.grant": {
+      "text": "granted {ref} a permission",
+      "context": "Shown in dinah tui's message row after a permission was granted on a card. {ref} is the card's reference."
+    },
+    "interactive.acted.revoke": {
+      "text": "revoked a permission of {ref}",
+      "context": "Shown in dinah tui's message row after a permission was revoked on a card. {ref} is the card's reference."
+    },
+    "interactive.acted.link": {
+      "text": "linked {ref}",
+      "context": "Shown in dinah tui's message row after a link was added to a card. {ref} is the card's reference."
+    },
+    "interactive.acted.unlink": {
+      "text": "removed a link of {ref}",
+      "context": "Shown in dinah tui's message row after a link was removed from a card. {ref} is the card's reference."
+    },
+    "interactive.acted.join": {
+      "text": "added {ref} to a workstream",
+      "context": "Shown in dinah tui's message row after a card was added to a workstream. {ref} is the card's reference."
+    },
+    "interactive.acted.leave": {
+      "text": "took {ref} out of a workstream",
+      "context": "Shown in dinah tui's message row after a card was taken out of a workstream. {ref} is the card's reference."
+    },
+    "interactive.acted.archive": {
+      "text": "archived {ref}",
+      "context": "Shown in dinah tui's message row after a card was moved into the archive. {ref} is the card's reference."
+    },
+    "interactive.acted.restore": {
+      "text": "restored {ref}",
+      "context": "Shown in dinah tui's message row after a card was put back from the archive. {ref} is the card's reference."
+    },
+    "interactive.acted.delete": {
+      "text": "deleted {ref}",
+      "context": "Shown in dinah tui's message row after a card was deleted. {ref} is the card's reference."
+    },
+    "interactive.acted.accept-divergence": {
+      "text": "made the edited comment the record on {ref}",
+      "context": "Shown in dinah tui's message row after a comment's edited body was accepted as the record. {ref} is the card's reference."
+    },
+    "interactive.acted.rename": {
+      "text": "renamed an attachment of {ref}",
+      "context": "Shown in dinah tui's message row after an attachment of a card was renamed. {ref} is the card's reference."
+    },
+    "interactive.acted.set": {
+      "text": "set a field of {ref}",
+      "context": "Shown in dinah tui's message row after a field of a card was written. {ref} is the card's reference."
+    },
+    "interactive.binding.unused": {
+      "text": "tui.key.{key} is not used: {reason}",
+      "context": "Shown once in dinah tui's message row at start for a key binding in the user's settings that the screen will not run. {key} is the bound key and {reason} is one of the interactive.binding.defect sentences. tui.key. is machine vocabulary."
+    },
+    "interactive.binding.needs": {
+      "text": "{key} needs a selected {what}",
+      "context": "Shown in dinah tui's message row when a key binding was pressed and one of its placeholders has nothing to stand for. {key} is the key and {what} one of the interactive.binding.what words."
+    },
+    "interactive.binding.what.card": {
+      "text": "card",
+      "context": "The word interactive.binding.needs puts in {what} for a binding naming $card while no card is selected."
+    },
+    "interactive.binding.what.column": {
+      "text": "column",
+      "context": "The word interactive.binding.needs puts in {what} for a binding naming $column while no column is focused."
+    },
+    "interactive.binding.what.view": {
+      "text": "view",
+      "context": "The word interactive.binding.needs puts in {what} for a binding naming $view, which is always available, so this is shown only if no view is drawn."
+    },
+    "interactive.binding.defect.invalid-key": {
+      "text": "a key binding names exactly one ASCII letter or digit",
+      "context": "The reason interactive.binding.unused gives for a stored binding whose key is not one letter or digit."
+    },
+    "interactive.binding.defect.reserved-key": {
+      "text": "it is one of dinah tui's own keys",
+      "context": "The reason interactive.binding.unused gives for a stored binding on a key dinah tui already reads. dinah tui is the command and stays as it is."
+    },
+    "interactive.binding.defect.empty-template": {
+      "text": "the command line it runs is empty",
+      "context": "The reason interactive.binding.unused gives for a stored binding with no words."
+    },
+    "interactive.binding.defect.shell-template": {
+      "text": "a command line beginning with ! is not one dinah runs",
+      "context": "The reason interactive.binding.unused gives for a stored binding beginning with !."
+    },
+    "interactive.binding.defect.non-ascii-whitespace": {
+      "text": "the command line holds white space other than spaces and tabs",
+      "context": "The reason interactive.binding.unused gives for a stored binding carrying a line break or other white space."
+    },
+    "interactive.binding.defect.numbered-placeholder": {
+      "text": "a binding takes no arguments of its own, so $1 to $9 cannot appear in it",
+      "context": "The reason interactive.binding.unused gives for a stored binding carrying a numbered placeholder. $1 and $9 are machine vocabulary."
+    },
+    "interactive.binding.defect.unknown-placeholder": {
+      "text": "the only placeholders a binding takes are $card, $column and $view",
+      "context": "The reason interactive.binding.unused gives for a stored binding carrying a placeholder other than the three. $card, $column and $view are machine vocabulary."
     }
   }
 }
