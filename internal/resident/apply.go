@@ -381,10 +381,11 @@ type listing struct {
 	err    error
 }
 
-// readListing stats and lists one directory, answering nil when it is gone.
+// readListing stats and lists one directory through one handle, answering nil
+// when it is gone.
 func (b *builder) readListing(rel string) *listing {
 	path := b.abs(rel)
-	info, err := os.Stat(path)
+	info, listed, err := listDir(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -393,13 +394,6 @@ func (b *builder) readListing(rel string) *listing {
 	}
 	if !info.IsDir() {
 		return nil
-	}
-	listed, err := os.ReadDir(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return &listing{err: err}
 	}
 	return &listing{
 		info:   &entryInfo{name: info.Name(), size: info.Size(), mode: info.Mode(), modTime: info.ModTime()},

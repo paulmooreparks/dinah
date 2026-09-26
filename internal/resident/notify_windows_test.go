@@ -597,3 +597,36 @@ func TestAResidentReadNeverRefusesADelete(t *testing.T) {
 		t.Errorf("deleting a file the resident holds open failed: %v", err)
 	}
 }
+
+// TestAResidentListingNeverRefusesADelete is the directory form of
+// TestAResidentReadNeverRefusesADelete (dinah-619/comments/12's minor
+// finding): a directory the resident is listing, whose handle is open for the
+// length of the listing, can still be renamed and deleted by another
+// process. os.Open does not share delete, so a listing through it refused
+// both. The directory holds a file, so the handle is listing something, and
+// the listing runs while the handle is held.
+func TestAResidentListingNeverRefusesADelete(t *testing.T) {
+	dir := t.TempDir()
+	listed := filepath.Join(dir, "comments")
+	if err := os.Mkdir(listed, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(listed, "comment.md"), "listed")
+	file, err := openDirShared(listed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	entries, err := file.ReadDir(-1)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("the held handle listed %d entries (%v), wanted the one file", len(entries), err)
+	}
+	moved := filepath.Join(dir, "moved")
+	if err := os.Rename(listed, moved); err != nil {
+		t.Errorf("renaming away a directory the resident holds open failed: %v", err)
+		moved = listed
+	}
+	if err := os.RemoveAll(moved); err != nil {
+		t.Errorf("deleting a directory the resident holds open failed: %v", err)
+	}
+}

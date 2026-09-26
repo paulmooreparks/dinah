@@ -71,11 +71,12 @@ func (b *builder) abs(rel string) string {
 	return filepath.Join(b.root, filepath.FromSlash(rel))
 }
 
-// readDir stats and lists one directory and reads every regular file in it,
-// but none of its subdirectories. It answers nil when the directory is gone.
+// readDir stats and lists one directory through one handle, closed before any
+// file is read, and reads every regular file in it, but none of its
+// subdirectories. It answers nil when the directory is gone.
 func (b *builder) readDir(rel string, payloads bool) *dirNode {
 	path := b.abs(rel)
-	info, err := os.Stat(path)
+	info, listed, err := listDir(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -84,13 +85,6 @@ func (b *builder) readDir(rel string, payloads bool) *dirNode {
 	}
 	if !info.IsDir() {
 		return nil
-	}
-	listed, err := os.ReadDir(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return &dirNode{err: err}
 	}
 	node := &dirNode{
 		info:   &entryInfo{name: info.Name(), size: info.Size(), mode: info.Mode(), modTime: info.ModTime()},
@@ -145,22 +139,20 @@ func (b *builder) entryOf(dir string, entry fs.DirEntry, payloads bool, node *di
 	}
 }
 
-// readFile stats and reads one regular file, the head alone for a payload.
+// readFile stats and reads one regular file, the head alone for a payload,
+// through one handle that shares delete, so the stat and the bytes come from
+// the same open and the file is held open once, for the length of the read.
 // It answers nil when the file has vanished.
 func readFile(path string, payload bool) *fileNode {
-	info, err := os.Stat(path)
+	file, err := openShared(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
 		return &fileNode{err: err}
 	}
-	var data []byte
-	if payload {
-		data, err = readHead(path)
-	} else {
-		data, err = readWhole(path)
-	}
+	info, data, err := readOpen(file, payload)
+	file.Close()
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -178,26 +170,20 @@ func readFile(path string, payload bool) *fileNode {
 	}
 }
 
-// readHead reads the head of a payload, as bench.Disk.ReadHead does.
-func readHead(path string) ([]byte, error) {
-	file, err := openShared(path)
+// readOpen stats an open file and reads it: the head of a payload, as
+// bench.Disk.ReadHead does, or the whole of any other file, as os.ReadFile
+// does.
+func readOpen(file *os.File, payload bool) (fs.FileInfo, []byte, error) {
+	info, err := file.Stat()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer file.Close()
-	return bench.ReadHeadFrom(file, bench.AttachmentHeadBytes)
-}
-
-// readWhole reads a whole file as os.ReadFile does, through a handle that
-// shares delete, so the resident's read never refuses another process's
-// delete or rename of the file.
-func readWhole(path string) ([]byte, error) {
-	file, err := openShared(path)
-	if err != nil {
-		return nil, err
+	if payload {
+		data, err := bench.ReadHeadFrom(file, bench.AttachmentHeadBytes)
+		return info, data, err
 	}
-	defer file.Close()
-	return io.ReadAll(file)
+	data, err := io.ReadAll(file)
+	return info, data, err
 }
 
 // finish turns a directory map into a snapshot: it counts what is held, opens
