@@ -17,6 +17,13 @@ func BuildIdentity() string {
 	if !ok {
 		return ToolRelease
 	}
+	return IdentityOfBuild(info)
+}
+
+// IdentityOfBuild names the build info describes, as BuildIdentity names
+// this binary's own. A test reads another program's build info with
+// debug/buildinfo and asks it which identity that program hands on.
+func IdentityOfBuild(info *debug.BuildInfo) string {
 	return identityOf(ToolRelease, info.Settings)
 }
 

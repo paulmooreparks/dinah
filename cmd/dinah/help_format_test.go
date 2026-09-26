@@ -557,11 +557,11 @@ func notedCommands(s *session) []string {
 // which is the documented behaviour of every wrap in this binary.
 func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 	// A sweep over no notes at all would pass whatever wrapNote did, so the
-	// count is pinned before the sweep runs. Eight commands carry a note
-	// today: check, resolve, verify, fail, reshape, unblock, serve and
-	// completion.
-	if named := notedCommands(helpSession(80, "en")); len(named) != 8 {
-		t.Fatalf("wanted eight commands carrying a note, got %d: %v", len(named), named)
+	// count is pinned before the sweep runs. Nine commands carry a note
+	// today: check, resolve, verify, fail, reshape, unblock, serve,
+	// completion and tui.
+	if named := notedCommands(helpSession(80, "en")); len(named) != 9 {
+		t.Fatalf("wanted nine commands carrying a note, got %d: %v", len(named), named)
 	}
 	for _, tag := range msg.Tags() {
 		for _, window := range helpSweepWindows() {

@@ -12,6 +12,7 @@ import (
 	"github.com/rivo/uniseg"
 
 	"dinah/internal/consolewriter"
+	"dinah/internal/screen"
 )
 
 // pieceBound is the most UTF-16 code units consoleFrames hands the console
@@ -220,8 +221,8 @@ type consoleFrames struct {
 // lineMoves are the two control characters the renderer writes to move the
 // cursor, and the sequences that move it the same way.
 var lineMoves = map[byte][]byte{
-	'\n': []byte("\x1b[B"),
-	'\r': []byte("\x1b[1G"),
+	'\n': []byte(screen.ConsoleCursorDown),
+	'\r': []byte(screen.ConsoleCursorColumnOne),
 }
 
 // Write rewrites p, cuts it into pieces and writes each with one call.

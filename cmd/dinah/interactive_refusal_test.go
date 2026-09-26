@@ -167,8 +167,8 @@ func TestTheTerminalRefusalsNameTheirReason(t *testing.T) {
 }
 
 // TestARedirectedStdoutLeavesTheFileEmpty is the last clause of
-// dinah-603/criteria/3: the built binary run with its stdout redirected to a
-// file refuses and leaves the file empty.
+// dinah-603/criteria/3: dinah tui, built beside dinah-tui and run with its
+// stdout redirected to a file, refuses and leaves the file empty.
 func TestARedirectedStdoutLeavesTheFileEmpty(t *testing.T) {
 	gobin, err := exec.LookPath("go")
 	if err != nil {
@@ -176,10 +176,8 @@ func TestARedirectedStdoutLeavesTheFileEmpty(t *testing.T) {
 	}
 	root := tuiBench(t)
 	dir := t.TempDir()
-	binary := filepath.Join(dir, "dinah"+exeSuffix())
-	if out, err := exec.Command(gobin, "build", "-o", binary, ".").CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, out)
-	}
+	binary := buildProgram(t, gobin, dir, "dinah", "")
+	buildProgram(t, gobin, dir, "dinah-tui", "tui")
 	file, err := os.Create(filepath.Join(dir, "redirected.txt"))
 	if err != nil {
 		t.Fatal(err)
@@ -206,12 +204,4 @@ func TestARedirectedStdoutLeavesTheFileEmpty(t *testing.T) {
 	if len(written) != 0 {
 		t.Errorf("the redirected file holds %q", written)
 	}
-}
-
-// exeSuffix is what a built binary's name ends in on this GOOS.
-func exeSuffix() string {
-	if runtime.GOOS == "windows" {
-		return ".exe"
-	}
-	return ""
 }

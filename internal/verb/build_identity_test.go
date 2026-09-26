@@ -7,7 +7,9 @@ import (
 
 // TestTheBuildIdentityNamesTheReleaseAndTheRevision holds identityOf in the
 // three cases section 15.5 names: a clean revision, a modified one, and no
-// VCS settings at all.
+// VCS settings at all, and finds that BuildIdentity is IdentityOfBuild of
+// this binary's own build information. It compares identities composed from
+// a release it passes in, never the tool's own release number.
 func TestTheBuildIdentityNamesTheReleaseAndTheRevision(t *testing.T) {
 	revision := debug.BuildSetting{Key: "vcs.revision", Value: "0123456789abcdef0123"}
 	cases := []struct {
@@ -24,7 +26,11 @@ func TestTheBuildIdentityNamesTheReleaseAndTheRevision(t *testing.T) {
 			t.Errorf("%s: the identity is %q, wanted %q", c.name, got, c.want)
 		}
 	}
-	if got := BuildIdentity(); len(got) < len(ToolRelease) || got[:len(ToolRelease)] != ToolRelease {
-		t.Errorf("this binary's identity %q does not begin with ToolRelease %q", got, ToolRelease)
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		t.Fatal("this test binary carries no build information")
+	}
+	if got, want := BuildIdentity(), IdentityOfBuild(info); got != want {
+		t.Errorf("BuildIdentity answers %q, and IdentityOfBuild of this binary's own build information %q", got, want)
 	}
 }

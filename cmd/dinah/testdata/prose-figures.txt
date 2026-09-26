@@ -52,7 +52,7 @@ noun tools
 noun verbs
 noun ways
 
-docs/quick-start.md:105 figure=sixty-two noun=commands counts=the commands dinah help lists derives=groupedCommands
+docs/quick-start.md:105 figure=sixty-three noun=commands counts=the commands dinah help lists derives=groupedCommands
 docs/quick-start.md:105 figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
 docs/quick-start.md:294 figure=five noun=settings counts=the settings dinah config accepts derives=configKeys
 docs/quick-start.md:568 figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs

@@ -20,7 +20,9 @@ var licenceFingerprints = map[string][]string{
 // TestEveryLinkedModuleIsLicensedAsDeclared is dinah-603/criteria/5. It reads
 // cmd/dinah/testdata/licenses.txt, one row per module as its path, version and
 // licence, and asks go list which modules the binary links for windows, linux
-// and darwin. The union of those modules, Dinah's own excluded, must be
+// and darwin, both as dinah with no build tags and as dinah-tui with the tui
+// tag, against the one file. The union of those modules, Dinah's own
+// excluded, must be
 // exactly the rows, and each module's directory must hold a file whose name
 // begins LICENSE, LICENCE or COPYING carrying the declared licence's
 // fingerprint.
@@ -45,22 +47,14 @@ func TestEveryLinkedModuleIsLicensedAsDeclared(t *testing.T) {
 		declared[fields[0]] = [2]string{fields[1], fields[2]}
 	}
 	linked := map[string][2]string{}
-	for _, goos := range []string{"windows", "linux", "darwin"} {
-		list := exec.Command(gobin, "list", "-deps", "-f", "{{with .Module}}{{.Path}} {{.Version}} {{.Dir}}{{end}}", ".")
-		list.Env = append(os.Environ(), "GOOS="+goos, "GOARCH=amd64")
-		out, err := list.Output()
-		if err != nil {
-			t.Fatalf("go list for %s: %v", goos, err)
-		}
-		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			fields := strings.SplitN(line, " ", 3)
-			if len(fields) != 3 || fields[0] == "dinah" {
-				continue
+	for _, tags := range []string{"", "tui"} {
+		for _, goos := range []string{"windows", "linux", "darwin"} {
+			for path, module := range linkedModules(t, gobin, ".", goos, tags) {
+				linked[path] = module
 			}
-			linked[fields[0]] = [2]string{fields[1], fields[2]}
 		}
 	}
-	t.Logf("%d rows declared, %d modules linked across windows, linux and darwin", len(declared), len(linked))
+	t.Logf("%d rows declared, %d modules linked across windows, linux and darwin, untagged and tagged tui", len(declared), len(linked))
 	var paths []string
 	for path := range linked {
 		paths = append(paths, path)
@@ -114,4 +108,30 @@ func licenceFile(dir string) string {
 		}
 	}
 	return ""
+}
+
+// linkedModules answers the modules go list -deps reports for the package in
+// dir, built for goos on amd64 with the build tags given, each with its
+// version and directory, Dinah's own excluded.
+func linkedModules(t *testing.T, gobin, dir, goos, tags string) map[string][2]string {
+	t.Helper()
+	args := []string{"list", "-deps", "-f", "{{with .Module}}{{.Path}} {{.Version}} {{.Dir}}{{end}}"}
+	if tags != "" {
+		args = append(args, "-tags", tags)
+	}
+	list := exec.Command(gobin, append(args, dir)...)
+	list.Env = append(os.Environ(), "GOOS="+goos, "GOARCH=amd64")
+	out, err := list.Output()
+	if err != nil {
+		t.Fatalf("go list for %s with tags %q: %v", goos, tags, err)
+	}
+	modules := map[string][2]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		fields := strings.SplitN(line, " ", 3)
+		if len(fields) != 3 || fields[0] == "dinah" {
+			continue
+		}
+		modules[fields[0]] = [2]string{fields[1], fields[2]}
+	}
+	return modules
 }

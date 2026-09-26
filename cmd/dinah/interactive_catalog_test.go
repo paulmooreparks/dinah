@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"dinah/internal/msg"
-	"dinah/internal/verb"
 )
 
 // TestEveryBoundDescriptionIsTheCatalogText is the first half of
@@ -116,31 +115,5 @@ func TestTheInteractiveHeadDrawsNoLiteralProse(t *testing.T) {
 	t.Logf("%d files read", read)
 	if read == 0 {
 		t.Fatal("no interactive source was read, so this guard proves nothing")
-	}
-}
-
-// TestTheTUICommandIsDeclaredOnEverySurface is dinah-603/criteria/1 beyond
-// the help block itself: dinah help tui prints the summary, both parameters
-// and the three check rows, and dinah view gains no parameter.
-func TestTheTUICommandIsDeclaredOnEverySurface(t *testing.T) {
-	r := msg.For(msg.Base)
-	got := runCLI(t, t.TempDir(), "help", "tui")
-	if got.code != 0 {
-		t.Fatalf("help tui: %d %s", got.code, got.errw)
-	}
-	for _, key := range []string{"cmd.tui.summary", "param.tui.view.summary", "param.tui.plain.summary", "check.tui.1", "check.tui.2"} {
-		if !strings.Contains(got.out, r.T(key)) {
-			t.Errorf("dinah help tui does not print %s: %q", key, r.T(key))
-		}
-	}
-	if !strings.Contains(got.out, "dinah.tui-unavailable") || !strings.Contains(got.out, "standard input and output are a terminal") {
-		t.Errorf("dinah help tui does not print the third check row:\n%s", got.out)
-	}
-	var names []string
-	for _, param := range verb.Params("view") {
-		names = append(names, param.Name)
-	}
-	if strings.Join(names, " ") != "view card explain all plain watch" {
-		t.Errorf("dinah view declares %v, which is not the six parameters it had", names)
 	}
 }

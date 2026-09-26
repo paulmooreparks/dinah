@@ -18,8 +18,9 @@ import (
 
 // TestAFrameReachesThePseudoTerminalWithoutStaircasing is
 // dinah-603/criteria/34. A frame drawn to a buffer cannot show whether the
-// terminal adds the carriage return, so this runs the built binary as dinah
-// tui board on a real pseudo-terminal of 100 by 30, with an environment built
+// terminal adds the carriage return, so this builds dinah and dinah-tui into
+// one directory and runs dinah tui board, which starts dinah-tui, on a real
+// pseudo-terminal of 100 by 30, with an environment built
 // from nothing, reads the controlling side until the second frame row has
 // arrived, writes q, and requires the child to exit 0 with every line feed it
 // wrote preceded by a carriage return. It is also the one automated run of
@@ -32,11 +33,8 @@ func TestAFrameReachesThePseudoTerminalWithoutStaircasing(t *testing.T) {
 	root := tuiBench(t)
 	workbench := soleBenchDir(t, root)
 	dir := t.TempDir()
-	binary := filepath.Join(dir, "dinah")
-	build := exec.Command(gobin, "build", "-o", binary, ".")
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("go build: %v\n%s", err, out)
-	}
+	binary := buildProgram(t, gobin, dir, "dinah", "")
+	buildProgram(t, gobin, dir, "dinah-tui", "tui")
 	fixture, err := filepath.Abs(filepath.Join("..", "..", "internal", "screen", "testdata", "terminfo"))
 	if err != nil {
 		t.Fatal(err)
