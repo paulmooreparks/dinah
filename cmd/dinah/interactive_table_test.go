@@ -4,6 +4,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"dinah/internal/contract"
+	"dinah/internal/verb"
 )
 
 // TestTheLaneBarKeepsTheFocusedLaneWholeAndMarksWhatItCut holds the lane
@@ -104,5 +107,83 @@ func TestTheMessageAreaMarksTheLinesItLeavesOut(t *testing.T) {
 	whole := interactiveMessage([]string{"one", "two"}, 3, 20, "...")
 	if strings.Join(whole, "|") != "one|two" {
 		t.Errorf("two lines under the limit showed %q", whole)
+	}
+}
+
+// TestTheScreenLayoutHelpersHoldTheirWidths holds the layout helpers of the
+// terminal head that table.go carries for dinah-tui, in the untagged build
+// whose coverage pass reads table.go: the heading keeps who is acting at the
+// right edge where both parts fit and cuts the left part alone where they do
+// not, an unselected list row carries no marker and no reverse video, the
+// list pane takes two fifths of the width, the panes lay the detail beside
+// the list or draw the list alone, colour spans past a cut are dropped, and
+// the rule and the cut hold their widths.
+func TestTheScreenLayoutHelpersHoldTheirWidths(t *testing.T) {
+	heading := interactiveHeading("Workbench · Board", "acting as alka", 60, tailEllipsis)
+	if displayWidth(heading.text) > 60 || !strings.HasSuffix(heading.text, "acting as alka") {
+		t.Errorf("a heading with room for both parts drew %q", heading.text)
+	}
+	if len(heading.bold) != 1 || heading.text[heading.bold[0].start:heading.bold[0].end] != "Workbench · Board" {
+		t.Errorf("the heading's bold range %v does not cover the left part alone", heading.bold)
+	}
+	narrow := interactiveHeading("Workbench · Board", "acting as alka", 12, tailEllipsis)
+	if displayWidth(narrow.text) > 12 || strings.Contains(narrow.text, "alka") || len(narrow.bold) != 1 || narrow.bold[0].end != len(narrow.text) {
+		t.Errorf("a heading without room for both parts drew %q bold over %v", narrow.text, narrow.bold)
+	}
+
+	card := boardCard{glyph: "o", number: "7", title: "A title"}
+	row := interactiveListRow(card, false, 30, plainGlyphs, ">")
+	if strings.HasPrefix(row.text, ">") || len(row.reverse) != 0 || displayWidth(row.text) != 30 {
+		t.Errorf("an unselected row drew %q with reverse video %v", row.text, row.reverse)
+	}
+	if got := interactiveListWidth(100); got != 40 {
+		t.Errorf("the list pane of a 100-column draw is %d columns, wanted 40", got)
+	}
+
+	list := []interactiveLine{
+		{drawnLine: drawnLine{text: "> first", spans: []colourSpan{{start: 2, end: 7}, {start: 30, end: 40}}}, reverse: []byteRange{{start: 0, end: 7}}},
+		{drawnLine: drawnLine{text: "  second"}},
+	}
+	alone := interactivePanes(list, nil, 100, 3, "│", tailEllipsis)
+	if len(alone) != 3 || alone[0].text != "> first" || alone[2].text != "" {
+		t.Errorf("the list pane alone drew %q", []string{alone[0].text, alone[1].text, alone[2].text})
+	}
+	beside := interactivePanes(list, []string{"fx-1  A title", strings.Repeat("d", 200)}, 100, 3, "│", tailEllipsis)
+	for i, line := range beside {
+		if displayWidth(line.text) > 100 || !strings.Contains(line.text, "│") {
+			t.Errorf("row %d of the two panes drew %q", i, line.text)
+		}
+	}
+	if !strings.HasSuffix(beside[0].text, "│fx-1  A title") || len(beside[0].reverse) != 1 || len(beside[0].spans) != 1 {
+		t.Errorf("the first row of the two panes drew %q with reverse %v and spans %v", beside[0].text, beside[0].reverse, beside[0].spans)
+	}
+	if kept := clampSpans([]colourSpan{{start: 0, end: 4}, {start: 3, end: 9}}, 5); len(kept) != 1 || kept[0].end != 4 {
+		t.Errorf("clamping spans to five bytes kept %v", kept)
+	}
+	if got := interactiveRule(plainGlyphs, 12); displayWidth(got) != 12 {
+		t.Errorf("a 12-column rule drew %q", got)
+	}
+	if got := interactiveCut("a line longer than the room", 10, "..."); displayWidth(got) > 10 || !strings.HasSuffix(got, "...") {
+		t.Errorf("a cut line drew %q", got)
+	}
+}
+
+// TestAStaleOrUnreachableAnswerComposesItsOutcomeLine holds the two branches
+// of outcomeLines that no untagged command reaches, which dinah-tui's message
+// area draws: a stale answer names its outcome and the card's revision, and
+// an unreachable one names its outcome and its detail.
+func TestAStaleOrUnreachableAnswerComposesItsOutcomeLine(t *testing.T) {
+	s := helpSession(80, "en")
+	stale := s.outcomeLines(&verb.Response{Outcome: contract.OutcomeStale, Card: &verb.CardView{Revision: "r-42"}})
+	if len(stale) != 1 || !strings.HasPrefix(stale[0], contract.OutcomeStale+" ") || !strings.Contains(stale[0], "r-42") {
+		t.Errorf("a stale answer composed %q", stale)
+	}
+	bare := s.outcomeLines(&verb.Response{Outcome: contract.OutcomeStale})
+	if len(bare) != 1 || !strings.HasPrefix(bare[0], contract.OutcomeStale+" ") {
+		t.Errorf("a stale answer with no card composed %q", bare)
+	}
+	unreachable := s.outcomeLines(&verb.Response{Outcome: contract.OutcomeUnreachable, Detail: "the lock is held"})
+	if len(unreachable) != 1 || !strings.HasPrefix(unreachable[0], contract.OutcomeUnreachable+" ") || !strings.Contains(unreachable[0], "the lock is held") {
+		t.Errorf("an unreachable answer composed %q", unreachable)
 	}
 }
