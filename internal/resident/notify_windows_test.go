@@ -171,8 +171,24 @@ func naming(rel string) func(Published) bool {
 func TestTheWatcherReportsAChangeMadeAfterArming(t *testing.T) {
 	root := realTree(t)
 	r := openReal(t, root, nil)
-	if err := bench.WriteText(filepath.Join(root, "cards", "0123456789ab", "card.md"), "---\ntitle: Written\n---\n"); err != nil {
-		t.Fatal(err)
+	// WriteText lands by a rename over the anchor, which Windows refuses while
+	// any reader holds the anchor open; a late notification of the tree's
+	// creation can have the resident reading it at that instant, so the write
+	// is tried again while it is refused, bounded by the deadline.
+	stop := time.After(realDeadline)
+	for {
+		err := bench.WriteText(filepath.Join(root, "cards", "0123456789ab", "card.md"), "---\ntitle: Written\n---\n")
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, windows.ERROR_ACCESS_DENIED) && !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+			t.Fatal(err)
+		}
+		select {
+		case <-stop:
+			t.Fatalf("the write kept being refused for %s: %v", realDeadline, err)
+		case <-time.After(time.Millisecond):
+		}
 	}
 	r.until("naming the written card", naming("cards/0123456789ab/card.md"))
 	if err := bench.AppendEvent(filepath.Join(root, "cards", "0123456789ab", "journal.ndjson"), bench.Event{TS: "2026-09-26T00:00:00Z", Event: "moved", Actor: bench.Actor{Name: "alka"}}); err != nil {
