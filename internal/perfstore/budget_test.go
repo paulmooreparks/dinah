@@ -40,10 +40,15 @@ type budget struct {
 // request, taking each operation's median across the three runs' medians as
 // the basis: status-warm 362, 376 and 367ms; show 30, 33 and 32ms; page-card
 // 2,137, 2,287 and 2,170ms; status-cold 488, 485 and 457ms.
+//
+// dinah-618 cut show's reads, and its gain left the show row more than six
+// times over the median, so it recalibrated that row from three perf-job runs
+// on its own pull request: show 6, 4 and 7ms, a basis of 6ms, which the rule
+// turns into the 30ms floor.
 var budgets = map[string][]budget{
 	"windows": {
 		{op: "status-warm", limit: 1110 * time.Millisecond, basis: 367 * time.Millisecond, setBy: "dinah-621"},
-		{op: "show", limit: 100 * time.Millisecond, basis: 32 * time.Millisecond, setBy: "dinah-621"},
+		{op: "show", limit: 30 * time.Millisecond, basis: 6 * time.Millisecond, setBy: "dinah-618"},
 		{op: "page-card", limit: 6510 * time.Millisecond, basis: 2170 * time.Millisecond, setBy: "dinah-621"},
 		{op: "status-cold", limit: 1460 * time.Millisecond, basis: 485 * time.Millisecond, setBy: "dinah-621"},
 	},

@@ -154,13 +154,11 @@ func loadRetiredCard(collection, id string) (*Card, error) {
 func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	dir := filepath.Join(collection, id)
 	anchor := filepath.Join(dir, CardAnchor)
-	text, err := ReadText(anchor)
+	// One read answers both the text and the revision, so the revision a card
+	// carries is the revision of the very bytes its fields were parsed from.
+	text, revision, err := readTextAndRevision(anchor)
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownCard, id)
-	}
-	revision, err := Revision(anchor)
-	if err != nil {
-		return nil, err
 	}
 	fm, body := ParseAnchor(text)
 	// Which vocabulary a card is written in is decided by the column key,

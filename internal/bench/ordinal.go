@@ -110,11 +110,17 @@ func nextOrdinal(collection, anchor string) (int, error) {
 // the moment it was stamped, so a reference somebody had written down changed
 // what it named while nobody was looking.
 func SortByOrdinal(collection, anchor string, ids []string) []string {
+	return sortByOrdinalWith(collection, ids, func(id string) int { return EntityOrdinal(collection, id, anchor) })
+}
+
+// sortByOrdinalWith is SortByOrdinal with the ordinal supplied by the caller,
+// so the uncached sort and the memoised sort in Positions cannot drift apart.
+func sortByOrdinalWith(collection string, ids []string, ordinal func(id string) int) []string {
 	ordered := append([]string(nil), ids...)
 	ordinals := make(map[string]int, len(ordered))
 	var unstamped []string
 	for _, id := range ordered {
-		n := EntityOrdinal(collection, id, anchor)
+		n := ordinal(id)
 		ordinals[id] = n
 		if n == 0 {
 			unstamped = append(unstamped, id)

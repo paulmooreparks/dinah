@@ -1715,7 +1715,7 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 	if err != nil {
 		return nil, err
 	}
-	comments, err := l.commentViews(entity.Dir, ref)
+	comments, err := l.commentViews(entity.Dir, ref, bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
@@ -1767,14 +1767,18 @@ func capRunes(value string, limit int) string {
 // answer clears it on each entry it serves as an index, in detailOf, so that
 // `dinah show <card>/comments/<n>` and an item's own comments go on serving
 // what they serve today: both reach this function by another path.
-func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
-	stored, err := bench.Comments(dir)
+//
+// The comments, their positions and their attachments are read through the
+// caller's Positions, so the collection is sorted once rather than once per
+// comment.
+func (l *Library) commentViews(dir, holderRef string, positions *bench.Positions) ([]CommentView, error) {
+	stored, err := positions.Comments(dir)
 	if err != nil {
 		return nil, err
 	}
 	var comments []CommentView
 	for _, comment := range stored {
-		position, err := memberPosition(comment.Dir, bench.CommentAnchor)
+		position, err := positions.Of(comment.Dir, bench.CommentAnchor)
 		if err != nil {
 			return nil, err
 		}
@@ -1792,7 +1796,7 @@ func (l *Library) commentViews(dir, holderRef string) ([]CommentView, error) {
 		// A comment's attachments compose their references against the
 		// comment's own address rather than the holder's, so a reference the
 		// view prints reaches the attachment the view describes.
-		below, err := attachmentViews(comment.Dir, ref)
+		below, err := attachmentViews(comment.Dir, ref, positions)
 		if err != nil {
 			return nil, err
 		}
@@ -1818,8 +1822,12 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	// only a built member answers that. The cost is a read of the card's own
 	// directory, which show performs whatever the caller asked for.
 	detail := &Detail{Path: card.AnchorPath(), selected: chosen}
+	// One Positions serves the whole composition, the card view included, so
+	// each collection is listed once and each anchor read once however many
+	// members ask for a position.
+	positions := bench.NewPositions()
 	if chosen.carries("card") {
-		view, err := l.view(card, day)
+		view, err := l.viewWith(card, day, positions)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1832,15 +1840,15 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	for _, link := range card.Links {
 		links = append(links, LinkView{Kind: link.Kind, To: link.To, Ref: l.linkRef(link.To)})
 	}
-	views, err := attachmentViews(card.Dir, cardRef)
+	views, err := attachmentViews(card.Dir, cardRef, positions)
 	if err != nil {
 		return nil, "", err
 	}
-	comments, err := l.commentViews(card.Dir, cardRef)
+	comments, err := l.commentViews(card.Dir, cardRef, positions)
 	if err != nil {
 		return nil, "", err
 	}
-	items, err := bench.Items(card.Dir)
+	items, err := positions.Items(card.Dir)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1857,16 +1865,16 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	// counted the same way over the same order rather than composed from the
 	// overall ordinal and hoped to agree.
 	//
-	// The collection position is taken through memberPosition rather than from
-	// this loop's index, because bench.Items skips an item whose anchor will
-	// not open and the resolver counts the collection unfiltered. Counting
+	// The collection position is taken through positions.Of rather than from
+	// this loop's index, because Items skips an item whose anchor will not
+	// open and the resolver counts the collection unfiltered. Counting
 	// here would number every item after a damaged one one place low, so show
 	// would print an address reaching a different item, which is worse than
 	// the blank cell this card replaced.
 	kindPosition := map[string]int{}
 	for _, item := range items {
 		kindPosition[item.Kind]++
-		position, err := memberPosition(item.Dir, bench.ItemAnchor)
+		position, err := positions.Of(item.Dir, bench.ItemAnchor)
 		if err != nil {
 			return nil, "", err
 		}
@@ -1883,7 +1891,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		view.ResolutionID = item.Resolution
-		view.Resolution = l.designationReference(view.Ref, item)
+		view.Resolution = l.designationReference(view.Ref, item, positions)
 		// The designated comment is opened only where the caller asked for
 		// the checklist in full. This is the one line that decides whether
 		// dinah show opens thirty-three further files or none of them, and
@@ -1897,7 +1905,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			}
 			view.Designated = designated
 		}
-		count, err := bench.CountComments(item.Dir)
+		count, err := positions.CountComments(item.Dir)
 		if err != nil {
 			return nil, "", err
 		}
@@ -2004,7 +2012,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 // empty Body, entries after it carry the full text. Without --since, every
 // entry carries an empty Body (the index is the index, not the payload).
 func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal int, sinceSet bool) (*CommentListing, error) {
-	views, err := l.commentViews(collection.Holder.Dir, collection.Holder.Ref)
+	views, err := l.commentViews(collection.Holder.Dir, collection.Holder.Ref, bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
@@ -2032,7 +2040,8 @@ func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal i
 // applying the --unresolved filter: when set, only items whose state does not
 // lift a column hold are included.
 func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bool) (*ItemListing, error) {
-	items, err := bench.Items(collection.Holder.Dir)
+	positions := bench.NewPositions()
+	items, err := positions.Items(collection.Holder.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -2060,7 +2069,7 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 		if unresolvedOnly && bench.ItemLiftsColumnHold(item) {
 			continue
 		}
-		position, err := memberPosition(item.Dir, bench.ItemAnchor)
+		position, err := positions.Of(item.Dir, bench.ItemAnchor)
 		if err != nil {
 			return nil, err
 		}
@@ -2147,7 +2156,7 @@ func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
 	if entity.Kind == bench.KindWorkbench {
 		ref = bench.WorkbenchRef
 	}
-	views, err := attachmentViews(entity.Dir, ref)
+	views, err := attachmentViews(entity.Dir, ref, bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
@@ -2160,15 +2169,17 @@ func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
 // attachmentViews reads an entity's attachments collection and renders each
 // member as a read reports it, composing every reference against the entity's
 // own address. Every read that publishes attachments goes through here, so a
-// field one read carries cannot go missing from another.
-func attachmentViews(dir, ref string) ([]AttachmentView, error) {
-	attachments, err := bench.Attachments(dir)
+// field one read carries cannot go missing from another. The collection is
+// read and sorted once through the caller's Positions, however many
+// attachments it holds.
+func attachmentViews(dir, ref string, positions *bench.Positions) ([]AttachmentView, error) {
+	attachments, err := positions.Attachments(dir)
 	if err != nil {
 		return nil, err
 	}
 	var views []AttachmentView
 	for _, attachment := range attachments {
-		ordinal, err := displayOrdinal(attachment)
+		ordinal, err := displayOrdinal(attachment, positions)
 		if err != nil {
 			return nil, err
 		}
@@ -2203,15 +2214,19 @@ func commentRef(cardRef string, ordinal int) string {
 // members, on the terms the resolver already addresses the archived half: the
 // item goes on citing the comment wherever it now lives, which is what
 // archiving a designated comment has always been allowed to do.
-func (l *Library) designationReference(itemRef string, item *bench.Item) string {
+//
+// The comment is found and placed through the caller's Positions, so the
+// comments below the item are read once for both questions rather than twice
+// to find the comment and once more to place it.
+func (l *Library) designationReference(itemRef string, item *bench.Item, positions *bench.Positions) string {
 	if item.Resolution == "" {
 		return ""
 	}
-	dir, found := l.Bench.DesignatedCommentDir(item)
+	dir, found := positions.DesignatedCommentDir(item)
 	if !found {
 		return ""
 	}
-	ordinal, err := memberPosition(dir, bench.CommentAnchor)
+	ordinal, err := positions.Of(dir, bench.CommentAnchor)
 	if err != nil {
 		return ""
 	}
@@ -2290,8 +2305,8 @@ func itemRef(cardRef, kind string, kindPosition, position int) string {
 // sits in, which no caller can produce today, since Show's attachments come
 // out of that same listing. It is reported rather than smoothed over, so that
 // an unaddressable row shows up as one instead of pointing at the first file.
-func displayOrdinal(attachment *bench.Attachment) (int, error) {
-	return memberPosition(attachment.Dir, bench.AttachmentAnchor)
+func displayOrdinal(attachment *bench.Attachment, positions *bench.Positions) (int, error) {
+	return positions.Of(attachment.Dir, bench.AttachmentAnchor)
 }
 
 // memberPosition is the one-based place a member holds in the collection its

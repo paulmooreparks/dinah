@@ -166,7 +166,14 @@ func TestTallyItemsCountsBothInOneWalk(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	tally, err := b.TallyItems(card)
+	ids, err := ListIDs(filepath.Join(card, ChecklistDir))
+	if err != nil {
+		t.Fatalf("ListIDs: %v", err)
+	}
+	if len(ids) != 4 {
+		t.Fatalf("the checklist lists %d items, wanted the 4 planted", len(ids))
+	}
+	tally, err := b.TallyItems(card, ids, LoadItem)
 	if err != nil {
 		t.Fatalf("TallyItems: %v", err)
 	}

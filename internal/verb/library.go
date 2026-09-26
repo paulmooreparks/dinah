@@ -886,11 +886,23 @@ type Response struct {
 // request and passes to every view it builds, so a listing cannot draw two of
 // its cards against different days or two different graphs of holds.
 func (l *Library) view(card *bench.Card, day *requestDay) (*CardView, error) {
-	counts, err := bench.ChildCounts(card.Dir, bench.KindCard)
+	return l.viewWith(card, day, bench.NewPositions())
+}
+
+// viewWith is view over a Positions the caller made, so a composition that
+// goes on to read the card's members reads them through the listings and the
+// anchor texts the view already took. The checklist count and the tallies
+// come from one listing of the checklist, and each item is read once for both.
+func (l *Library) viewWith(card *bench.Card, day *requestDay, positions *bench.Positions) (*CardView, error) {
+	listed, err := positions.ChildIDs(card.Dir, bench.KindCard)
 	if err != nil {
 		return nil, err
 	}
-	tally, err := l.Bench.TallyItems(card.Dir)
+	counts := make(map[string]int, len(listed))
+	for mount, ids := range listed {
+		counts[mount] = len(ids)
+	}
+	tally, err := l.Bench.TallyItems(card.Dir, listed[bench.ChecklistDir], positions.Item)
 	if err != nil {
 		return nil, err
 	}
@@ -1066,7 +1078,7 @@ func (l *Library) composeChain(req *Request, column *bench.Column, withhold bool
 	s.layer(LayerStanding, l.Bench.Standing, &s.instructions.Standing)
 	if column != nil {
 		s.layer(LayerColumn, column.Instructions, &s.instructions.Column)
-		listing, err := attachmentViews(l.Bench.ColumnDir(column.ID), columnRef(column))
+		listing, err := attachmentViews(l.Bench.ColumnDir(column.ID), columnRef(column), bench.NewPositions())
 		if err != nil {
 			return nil, nil, err
 		}

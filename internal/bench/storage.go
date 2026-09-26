@@ -119,6 +119,9 @@ const crlf = "\r\n"
 // than with this function, because this function strips the very condition
 // those two exist to find.
 func ReadText(path string) (string, error) {
+	if AnchorReadObserver != nil {
+		AnchorReadObserver(path)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -176,12 +179,48 @@ func writeBytes(path string, data []byte) error {
 // under the card lock, which is what a basis names. Callers never parse it,
 // because the remote arbiter will compute its own revision another way.
 func Revision(path string) (string, error) {
+	if AnchorReadObserver != nil {
+		AnchorReadObserver(path)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
 	return TextRevision(string(data)), nil
 }
+
+// readTextAndRevision reads a file once and answers its text, normalised as
+// ReadText normalises it, together with the revision of its stored bytes,
+// which is what Revision would answer for the same bytes. loadCard reads a
+// card's anchor through it, so the text and the revision a card carries come
+// from one read.
+//
+// The revision is hashed over the raw bytes rather than over the normalised
+// text. A basis names the revision Revision answers, and hashing the
+// normalised text would change it for every anchor stored with CRLF line
+// endings or a byte-order mark, so a basis a caller already holds would stop
+// matching the card it was taken on.
+func readTextAndRevision(path string) (text, revision string, err error) {
+	if AnchorReadObserver != nil {
+		AnchorReadObserver(path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", "", err
+	}
+	stored := string(data)
+	return NormalizeNewlines(strings.TrimPrefix(stored, byteOrderMark)), TextRevision(stored), nil
+}
+
+// AnchorReadObserver is a seam over the anchor reads, so a test can count the
+// files a composition opens rather than infer them from what it answered. When
+// it is not nil, ReadText, Revision and readTextAndRevision call it with every
+// path they are about to read, and it changes nothing else.
+//
+// It is exported on the terms ListIDsObserver is: the compositions whose reads
+// are counted live in package verb. A test setting it restores it and declares
+// itself non-parallel, because it is package state.
+var AnchorReadObserver func(path string)
 
 // TextRevision is the same opaque revision Revision computes, over a string a
 // caller already holds rather than over a file it has to read. The instruction
