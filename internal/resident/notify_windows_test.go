@@ -322,14 +322,12 @@ func TestABrokenWatchDegradesAndRecovers(t *testing.T) {
 		t.Fatalf("the resident's notifier is %T, not the Windows watcher", r.w.notifier)
 	}
 	release := r.holdPublishes(func(p Published) bool { return p.Rebuilt })
-	waitReal(t, "a call to be outstanding", func() bool {
-		notifier.mu.Lock()
-		defer notifier.mu.Unlock()
-		return notifier.issued
+	// A late notification can complete the outstanding call just before the
+	// cancel reaches it, which CancelIoEx answers ERROR_NOT_FOUND; the cancel
+	// is tried again on the call the watcher issues next.
+	waitReal(t, "a cancel to reach an outstanding call", func() bool {
+		return notifier.breakWatch() == nil
 	})
-	if err := notifier.breakWatch(); err != nil {
-		t.Fatalf("break the watch: %v", err)
-	}
 	select {
 	case p := <-r.holding:
 		if !p.Rebuilt {
