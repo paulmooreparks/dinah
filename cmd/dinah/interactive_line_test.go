@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -93,13 +94,9 @@ func TestALineShowsWhatTheCLIPrints(t *testing.T) {
 		"show fx-1 extra",
 		"show fx-1 --kind x",
 		`raise fx-1 frontier because --kind x`,
-		`comment fx-2 "a quoted remark"`,
-		`file fx-1 open_question "Is it ready?" --owner holder`,
-		"mv fx-2",
 		"bad",
 		"two fx-1",
 		"move fx-1 nowhere",
-		"move fx-1 acceptance",
 		"status",
 		"list",
 		"list columns",
@@ -124,6 +121,12 @@ func TestALineShowsWhatTheCLIPrints(t *testing.T) {
 		"prime --brief",
 		"config",
 		"guide views",
+		// The lines that write come last, so every read above meets the
+		// fixture the two runs share whatever second each run writes in.
+		`comment fx-2 "a quoted remark"`,
+		`file fx-1 open_question "Is it ready?" --owner holder`,
+		"mv fx-2",
+		"move fx-1 acceptance",
 	}
 	if len(lines) < 30 {
 		t.Fatalf("the test covers %d lines, and the criterion asks for at least 30", len(lines))
@@ -337,3 +340,112 @@ func menuIndexOf(t *testing.T, root, verb string) int {
 	}
 	return index
 }
+
+// TestALineRunsInTheHeadsProcessAsTheHead is dinah-623/criteria/8 and /33.
+// The head starts as claude under a declared harness, provider and model;
+// the test then names another actor and model in the environment and empties
+// PATH before typing the writing lines of the parity set and two more. Every
+// one of them must open its library in this process, where lineLibrary sees
+// it and replaces the library's clock, and every event it journals must carry
+// that clock's stamp and the identity the head started with. A line that ran
+// a second dinah would open no library here, stamp its events with the real
+// time, and find no binary on PATH.
+//
+// The clock stands where the criterion names the Interpose hook. Interpose
+// fires only in the item verbs and in reshape, and a comment fires no hook
+// at all, while every event a library journals is stamped by its Now.
+func TestALineRunsInTheHeadsProcessAsTheHead(t *testing.T) {
+	root := tuiBench(t)
+	t.Setenv("DINAH_ACTOR", "claude")
+	t.Setenv("DINAH_HARNESS", "claude-code")
+	t.Setenv("DINAH_PROVIDER", "acme")
+	t.Setenv("DINAH_MODEL", "frontier")
+	t.Setenv("PATH", os.Getenv("PATH"))
+	lines := []struct {
+		line, ref, event string
+	}{
+		{`comment fx-2 "a quoted remark"`, "fx-2", contract.EventCommented},
+		{`file fx-1 open_question "Is it ready?" --owner holder`, "fx-1", contract.EventItemFiled},
+		{"claim fx-2", "fx-2", contract.EventClaimed},
+		{"release fx-2", "fx-2", contract.EventReleased},
+		{"move fx-1 acceptance", "fx-1", contract.EventMoved},
+	}
+	var mu sync.Mutex
+	current := -1
+	opened := map[int]int{}
+	done := make(chan *lineResult, len(lines)+4)
+	s, seam := newScript(t, lineWidth, lineHeight, true)
+	seam.lineDone = func(result *lineResult) { done <- result }
+	seam.lineLibrary = func(l *verb.Library) {
+		mu.Lock()
+		defer mu.Unlock()
+		opened[current]++
+		l.Now = func() time.Time { return inProcessClock }
+	}
+	cycles := make(chan *tea.Program, 8)
+	seam.program = func(program *tea.Program) { cycles <- program }
+	var results []*lineResult
+	run := s.run(root, seam, func() {
+		waitForProgram(t, cycles)
+		os.Setenv("DINAH_ACTOR", "other")
+		os.Setenv("DINAH_MODEL", "m2")
+		os.Setenv("PATH", "")
+		for i, line := range lines {
+			mu.Lock()
+			current = i
+			mu.Unlock()
+			s.write(":" + line.line + keyEnter)
+			select {
+			case result := <-done:
+				results = append(results, result)
+			case <-time.After(tuiWait):
+				t.Errorf("the line %q never ended", line.line)
+				return
+			}
+		}
+		s.write(keyCtrlC)
+	})
+	if run.model == nil {
+		t.Fatalf("the run never finished: %q", run.errw)
+	}
+	os.Setenv("DINAH_ACTOR", "claude")
+	os.Setenv("DINAH_MODEL", "frontier")
+	for i, line := range lines {
+		if i >= len(results) {
+			t.Fatalf("ran %d of %d lines", len(results), len(lines))
+		}
+		if results[i].code != 0 {
+			t.Errorf("%s was refused: %q", line.line, results[i].transcript.lines)
+		}
+		mu.Lock()
+		gotOpened := opened[i]
+		mu.Unlock()
+		if gotOpened == 0 {
+			t.Errorf("%s opened no library in this process", line.line)
+		}
+		events := cardEvents(t, root, line.ref)
+		var last *bench.Event
+		for j := range events {
+			if events[j].Event == line.event {
+				last = &events[j]
+			}
+		}
+		if last == nil {
+			t.Errorf("%s journaled no %s event on %s", line.line, line.event, line.ref)
+			continue
+		}
+		if last.Actor.Name != "claude" || last.Actor.Harness != "claude-code" || last.Actor.Provider != "acme" || last.Actor.Model != "frontier" {
+			t.Errorf("%s journaled %s as %+v, not as the identity the head started with", line.line, line.event, last.Actor)
+		}
+		if last.TS != bench.Stamp(inProcessClock) {
+			t.Errorf("%s journaled %s at %s, which no library this process opened stamped", line.line, line.event, last.TS)
+		}
+	}
+	if !t.Failed() {
+		t.Logf("%d writing lines opened their library here and journaled the start identity at its clock", len(lines))
+	}
+}
+
+// inProcessClock is the time a library opened by a line session reports in
+// TestALineRunsInTheHeadsProcessAsTheHead, which no other writer stamps.
+var inProcessClock = time.Date(2031, 3, 4, 5, 6, 7, 0, time.UTC)

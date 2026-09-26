@@ -1861,3 +1861,40 @@ func interactiveRule(glyphs boardGlyphs, draw int) string {
 func interactiveCut(text string, draw int, ellipsis string) string {
 	return cutText(text, draw, ellipsis)
 }
+
+// interactiveFits reports whether a line of text draws within draw display
+// columns, which is how dinah-tui decides that a command line's transcript
+// fits its message area rather than opening output mode over it.
+func interactiveFits(text string, draw int) bool {
+	return displayWidth(text) <= draw
+}
+
+// interactiveColumns lays out the entries of one of dinah-tui's menus whose
+// entries carry several fields, such as an item's reference, state and text:
+// every field but the last is padded to the widest value its column holds
+// plus the gutter, and the last is written whole. A menu entry is one line,
+// which the menu then cuts to the window, so these columns never stack the
+// way a table the window cannot hold does.
+func interactiveColumns(entries [][]string) []string {
+	widths := map[int]int{}
+	for _, fields := range entries {
+		for c := 0; c+1 < len(fields); c++ {
+			if width := displayWidth(fields[c]) + tableGutter; width > widths[c] {
+				widths[c] = width
+			}
+		}
+	}
+	lines := make([]string, 0, len(entries))
+	for _, fields := range entries {
+		if len(fields) == 0 {
+			lines = append(lines, "")
+			continue
+		}
+		cells := make([]cell, 0, len(fields)-1)
+		for c := 0; c+1 < len(fields); c++ {
+			cells = append(cells, cell{text: fields[c], width: widths[c]})
+		}
+		lines = append(lines, formatRow(row{cells: cells, tail: fields[len(fields)-1]}, 0))
+	}
+	return lines
+}

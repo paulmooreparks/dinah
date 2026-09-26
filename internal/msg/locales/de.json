@@ -9342,12 +9342,6 @@
       "context": "The title of dinah tui's item mode, above the card's questions, decisions and criteria that carry an act you may take. {ref} is the card's reference.",
       "source": "da04ab1ddf6666f1"
     },
-    "interactive.items.row": {
-      "text": "{number}  {ref}  {state}  {text}",
-      "context": "One row of dinah tui's item mode. {number} counts the rows, {ref} is the item's reference, {state} its state, which is machine vocabulary, and {text} the first line of the item's text.",
-      "verbatim": true,
-      "source": "999bfbd466e28d41"
-    },
     "interactive.items.none": {
       "text": "auf {ref} wartet nichts mehr auf Sie",
       "context": "Shown in dinah tui's message row when item mode closes because no item of the card carries an act you may take any longer. {ref} is the card's reference.",

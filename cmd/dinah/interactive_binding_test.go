@@ -51,7 +51,9 @@ func footerEntry(key, label string) string {
 // selected, the comment is posted on that card as the head's pinned identity
 // on the pinned workbench; $card/checklist substitutes inside its token; the
 // command is handed exactly as many arguments as the template has tokens
-// whatever a substituted value holds; $column is the column's slug, never
+// whatever a substituted value holds, so a value carrying spaces and
+// --override stays one argument rather than becoming a flag; $column is the
+// column's slug, never
 // its title; and a value beginning with - or carrying $ is refused as
 // dinah.usage and runs nothing.
 func TestABindingRunsItsLineWithTheValuesSubstituted(t *testing.T) {
@@ -74,17 +76,17 @@ func TestABindingRunsItsLineWithTheValuesSubstituted(t *testing.T) {
 	seam := tuiSeam(t, strings.NewReader("u"+keyBackspace+keyCtrlC), actWidth, actHeight)
 	seam.bindingValue = func(placeholder, value string) string {
 		if placeholder == "view" {
-			return "two words"
+			return "sorted --override later"
 		}
 		return value
 	}
 	var words []string
 	seam.lineDone = func(result *lineResult) { words = result.words }
 	runTUIThrough(t, root, seam)
-	if len(words) != 3 || words[2] != "two words" {
+	if len(words) != 3 || words[2] != "sorted --override later" {
 		t.Errorf("the binding handed %q, wanted three words with the value whole", words)
 	}
-	if bodies := commentBodies(t, root, "fx-2"); len(bodies) != 1 || bodies[0] != "two words" {
+	if bodies := commentBodies(t, root, "fx-2"); len(bodies) != 1 || bodies[0] != "sorted --override later" {
 		t.Errorf("fx-2 carries %q", bodies)
 	}
 

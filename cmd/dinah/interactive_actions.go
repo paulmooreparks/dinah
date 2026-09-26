@@ -55,12 +55,17 @@ func valueRows(values []string) []stepRow {
 // target card's items on which the act is offered.
 func itemStep(pick func(verb.OfferedItem) bool) interactiveStep {
 	return interactiveStep{param: "item", kind: stepMenu, label: "interactive.menu.item", rows: func(m *interactiveModel, _ map[string]any) []stepRow {
-		var rows []stepRow
+		var picked []verb.OfferedItem
+		var entries [][]string
 		for _, item := range m.acts().Items {
 			if pick(item) {
-				label := withoutControls(item.Ref + "  " + item.State + "  " + item.Text)
-				rows = append(rows, stepRow{label: label, value: item.Ref})
+				picked = append(picked, item)
+				entries = append(entries, []string{withoutControls(item.Ref), withoutControls(item.State), withoutControls(item.Text)})
 			}
+		}
+		rows := make([]stepRow, 0, len(picked))
+		for i, label := range interactiveColumns(entries) {
+			rows = append(rows, stepRow{label: label, value: picked[i].Ref})
 		}
 		return rows
 	}}
@@ -264,10 +269,14 @@ func init() {
 			offered: func(m *interactiveModel) bool { return len(m.acts().Links) > 0 },
 			target:  "card",
 			steps: []interactiveStep{{param: "kind", kind: stepMenu, label: "interactive.menu.link", rows: func(m *interactiveModel, _ map[string]any) []stepRow {
-				var rows []stepRow
-				for _, link := range m.acts().Links {
-					label := withoutControls(link.Kind + "  " + link.Ref)
-					rows = append(rows, stepRow{label: label, value: link.Kind, also: map[string]any{"to": link.To}})
+				links := m.acts().Links
+				entries := make([][]string, 0, len(links))
+				for _, link := range links {
+					entries = append(entries, []string{withoutControls(link.Kind), withoutControls(link.Ref)})
+				}
+				rows := make([]stepRow, 0, len(links))
+				for i, label := range interactiveColumns(entries) {
+					rows = append(rows, stepRow{label: label, value: links[i].Kind, also: map[string]any{"to": links[i].To}})
 				}
 				return rows
 			}}},

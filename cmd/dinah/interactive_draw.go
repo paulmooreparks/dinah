@@ -262,17 +262,11 @@ func (m *interactiveModel) menuLines(width, height int) []interactiveLine {
 func (m *interactiveModel) itemBody(height int) []interactiveLine {
 	ref, _, _ := m.target()
 	title := withoutControls(m.s.r.T("interactive.items.title", "ref", ref))
-	var rows []string
+	entries := make([][]string, 0, len(m.itemRows))
 	for i, item := range m.itemRows {
-		row := m.s.r.T("interactive.items.row",
-			"number", strconv.Itoa(i+1),
-			"ref", withoutControls(item.Ref),
-			"state", withoutControls(item.State),
-			"text", withoutControls(item.Text),
-		)
-		rows = append(rows, withoutControls(row))
+		entries = append(entries, []string{strconv.Itoa(i + 1), withoutControls(item.Ref), withoutControls(item.State), withoutControls(item.Text)})
 	}
-	return interactiveMenu(title, rows, m.itemHighlight, m.draw(), height, m.glyphs, m.marker())
+	return interactiveMenu(title, interactiveColumns(entries), m.itemHighlight, m.draw(), height, m.glyphs, m.marker())
 }
 
 // outputBody is output mode's rows: its title, then the transcript from the

@@ -199,8 +199,8 @@ func itemsOfEveryState(t *testing.T, root string) {
 	step(t, root, "waive", "fx-1/criteria/4", "--text", "logging is not needed here")
 	step(t, root, "file", "fx-1", "acceptance_criterion", "The parser is pretty")
 	step(t, root, "withdraw", "fx-1/criteria/5", "--text", "nobody asked for it")
-	step(t, root, "file", "fx-1", "open_question", "Does it meet the benchmark?")
-	step(t, root, "set", "fx-1/questions/3", "evidence", "benchmark")
+	step(t, root, "file", "fx-1", "open_question", "Does it meet the speed target?")
+	step(t, root, "set", "fx-1/questions/3", "evidence", "speed")
 }
 
 // membersOfEveryKind gives fx-1, standing at the work station, a link to

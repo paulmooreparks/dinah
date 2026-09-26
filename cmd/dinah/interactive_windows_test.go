@@ -368,7 +368,16 @@ func TestALendWritesOnlyWhatMicrosoftListsAndRepaintsWhole(t *testing.T) {
 	if width, height := drawnSize(first); width > 89 || height != 25 {
 		t.Errorf("the first frame after the lend is %dx%d, wanted 90x25", width, height)
 	}
-	if why := fullRepaint(output.String()[mark:], strings.Split(first, "\n")); why != "" {
+	// The message row is left out of the rows the repaint must carry. The
+	// editor's line changes the workbench, so the refresh that follows the
+	// lend may replace "edit finished" with its own notice before the
+	// renderer draws the first frame, and which of the two reaches the
+	// console is a matter of timing rather than of the repaint.
+	rows := strings.Split(first, "\n")
+	if len(rows) >= 2 {
+		rows = append(rows[:len(rows)-2:len(rows)-2], rows[len(rows)-1])
+	}
+	if why := fullRepaint(output.String()[mark:], rows); why != "" {
 		t.Errorf("the board after the lend was not repainted whole: %s", why)
 	}
 	t.Logf("%d sequence kinds seen across the lend", len(kinds))

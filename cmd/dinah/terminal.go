@@ -130,6 +130,21 @@ func (s *session) pinStart(actorFlag, langFlag string) {
 	s.benchFlagSource = s.workbenchSource
 }
 
+// namedBench answers the workbench a person named with --workbench or
+// DINAH_WORKBENCH, and which of the two named it. A terminal UI head and its
+// lines answer neither: their benchFlag holds the workbench the head resolved
+// at start, put there by pinStart so every line opens it, and a person at the
+// command line cannot give either (--workbench is refused as dinah.usage and
+// DINAH_WORKBENCH was read once, at start). init and a walk from --root read
+// a named workbench as a conflict with what they were asked to do, so they
+// ask here rather than reading benchFlag.
+func (s *session) namedBench() (string, string) {
+	if s.start != nil {
+		return "", ""
+	}
+	return s.benchFlag, s.benchFlagSource
+}
+
 // lineSession is the session every command the terminal UI runs by words
 // runs in, and the session Tab completion reads through. It is the one place
 // the head's start values are handed on: the workbench as the top rung of

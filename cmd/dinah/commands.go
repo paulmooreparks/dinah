@@ -976,11 +976,12 @@ type rootWalk struct {
 // refusal, a depth that is not a count of rungs is a refusal, and a root is
 // resolved to an absolute path before any walk begins.
 //
-// The conflict check reads s.benchFlag rather than looking at --workbench and
-// DINAH_WORKBENCH separately. That field is already bench.Resolve applied to
+// The conflict check reads namedBench rather than looking at --workbench and
+// DINAH_WORKBENCH separately. benchFlag is already bench.Resolve applied to
 // the flag and the environment variable together, before the session is built,
-// so a caller naming either one shows up here as a non-empty benchFlag and
-// checking both would test one fact twice under two names.
+// so a caller naming either one shows up here as a non-empty answer and
+// checking both would test one fact twice under two names; namedBench answers
+// nothing on a terminal UI line, whose benchFlag is the head's pin.
 func (s *session) rootWalkFor(parsed *arguments, named string) (*rootWalk, *contract.Refusal) {
 	depth := parsed.value("max-depth")
 	if named == "" {
@@ -989,9 +990,9 @@ func (s *session) rootWalkFor(parsed *arguments, named string) (*rootWalk, *cont
 		}
 		return nil, nil
 	}
-	if s.benchFlag != "" {
+	if given, _ := s.namedBench(); given != "" {
 		return nil, contract.RefuseWith(contract.ConflictingScope, named, map[string]string{
-			"workbench": s.benchFlag,
+			"workbench": given,
 		})
 	}
 	rungs := bench.DefaultEnumerateDepth
@@ -1223,7 +1224,8 @@ func runInit(s *session, parsed *arguments) int {
 	if !bench.ValidSlug(slug) {
 		return s.reportError(malformedSlug(slug))
 	}
-	written, err := verb.Init(root, slug, operator, parsed.value("from"), s.benchFlag, s.benchFlagSource, parsed.has("here"))
+	named, namedSource := s.namedBench()
+	written, err := verb.Init(root, slug, operator, parsed.value("from"), named, namedSource, parsed.has("here"))
 	if err != nil {
 		return s.reportError(err)
 	}

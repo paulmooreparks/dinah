@@ -134,7 +134,6 @@ func TestTheInteractiveKeysReachEveryCatalogue(t *testing.T) {
 		"interactive.output.title",
 		"interactive.output.cut",
 		"interactive.items.title",
-		"interactive.items.row",
 		"interactive.items.none",
 		"interactive.prompt.resolve",
 		"interactive.prompt.verify",
@@ -248,8 +247,8 @@ func TestTheInteractiveKeysReachEveryCatalogue(t *testing.T) {
 		"interactive.binding.defect.numbered-placeholder",
 		"interactive.binding.defect.unknown-placeholder",
 	}
-	if len(keys) < 70+158 {
-		t.Fatalf("the subject set holds %d keys, and dinah-603 minted 70 and dinah-623 158 more", len(keys))
+	if len(keys) < 70+157 {
+		t.Fatalf("the subject set holds %d keys, and dinah-603 minted 70 and dinah-623 157 more", len(keys))
 	}
 	files, err := filepath.Glob(filepath.Join("locales", "*.json"))
 	if err != nil {

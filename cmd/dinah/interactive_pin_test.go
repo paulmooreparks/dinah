@@ -16,6 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 	"dinah/internal/testenv"
 	"dinah/internal/verb"
 )
@@ -263,8 +264,10 @@ func runPinLines(t *testing.T, root string, lines []pinLine, change func()) pinR
 }
 
 // minted matches an identifier the store mints, which two runs of the same
-// lines mint differently because it is random.
-var minted = regexp.MustCompile(`\b[0-9a-f]{12}\b`)
+// lines mint differently because it is random: a card's or a column's twelve
+// hexadecimal digits, or the thirty-two of the workbench directory init
+// creates.
+var minted = regexp.MustCompile(`\b[0-9a-f]{12}\b|\b[0-9a-f]{32}\b`)
 
 // changeCursor matches the cursor dinah changes prints, an encoding of the
 // card identifiers the workbench holds and a digest over them, which two runs
@@ -411,10 +414,8 @@ func TestNoCommandFromTheUIResolvesAPinnedSettingAfresh(t *testing.T) {
 				t.Error(err)
 			}
 		}
-		var out, errw strings.Builder
-		created := run([]string{"init", root, "--here", "--from", p.definition, "--slug", "zz", "--operator", "alka"}, strings.NewReader(""), &out, &errw)
-		if created != 0 {
-			t.Errorf("the third workbench was not created in %s: %s", root, errw.String())
+		if created := runCLI(t, root, "init", root, "--here", "--from", p.definition, "--slug", "zz", "--operator", "alka"); created.code != 0 {
+			t.Errorf("the third workbench was not created in %s: %s", root, created.errw)
 		}
 		os.Setenv("DINAH_WORKBENCH", bb)
 		os.Setenv("DINAH_ACTOR", "other")
@@ -458,7 +459,9 @@ func TestNoCommandFromTheUIResolvesAPinnedSettingAfresh(t *testing.T) {
 			t.Errorf("Tab after %q listed\n%s\nin the pinned head and\n%s\nin the unchanged head", pinTabs[i], strings.Join(pinned.tabs[i], "\n"), strings.Join(control.tabs[i], "\n"))
 		}
 	}
-	t.Logf("ran %d lines for %d commands; %d lines are marked as opening a workbench, and every one reached onOpen", len(lines), len(names), opening)
+	if !t.Failed() {
+		t.Logf("ran %d lines for %d commands; %d lines are marked as opening a workbench, and every one reached onOpen", len(lines), len(names), opening)
+	}
 }
 
 // sameDir compares two directory paths by what they name.
@@ -523,5 +526,78 @@ func checkPinnedReads(t *testing.T, lines []pinLine, pinned pinRun) {
 				}
 			}
 		}
+	}
+}
+
+// TestTheReviewersReproductionsHoldNoLonger is dinah-623/criteria/28. It
+// types the design review's reproductions at the command line of a head
+// started on workbench aa. config set workbench names bb, and the line says
+// the setting is pinned; add then files its card on aa, bb gains nothing,
+// and the head still draws aa. The two check repairs run with --yes, name
+// aa's directory and change no file under bb, and the bare config listing
+// names aa rather than the bb the line just stored. Last, init --here puts a
+// second workbench where the working directory's walk reaches it, and the
+// line after it runs on aa with no dinah.ambiguous-workbench.
+func TestTheReviewersReproductionsHoldNoLonger(t *testing.T) {
+	root := tuiBench(t)
+	aa := soleBenchDir(t, root)
+	other := newBenchFromDefinition(t, tuiDefinition)
+	bb := soleBenchDir(t, other)
+	t.Setenv("DINAH_WORKBENCH", "")
+	definition := filepath.Join(t.TempDir(), "definition.json")
+	if err := os.WriteFile(definition, []byte(tuiDefinition), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := benchBytes(t, other)
+	lines := []string{
+		"config set workbench " + bb,
+		"add second",
+		"check --migrate-container --yes",
+		"check --migrate-vocabulary --yes",
+		"config",
+		"init " + root + " --here --from " + definition + " --slug zz --operator alka",
+		"status",
+	}
+	results, run := runLines(t, root, lines, "")
+	if len(results) != len(lines) {
+		t.Fatalf("ran %d of %d lines", len(results), len(lines))
+	}
+	text := func(i int) string { return strings.Join(results[i].transcript.lines, "\n") }
+	if results[0].code != 0 || results[0].pinned != "workbench" {
+		t.Errorf("config set workbench answered %d and named %q as pinned: %s", results[0].code, results[0].pinned, text(0))
+	}
+	if results[1].code != 0 {
+		t.Errorf("add second was refused: %s", text(1))
+	}
+	for _, i := range []int{2, 3} {
+		if !strings.Contains(text(i), filepath.Base(aa)) || strings.Contains(text(i), filepath.Base(bb)) {
+			t.Errorf("%s does not name aa's directory %s alone:\n%s", lines[i], filepath.Base(aa), text(i))
+		}
+	}
+	if strings.Contains(text(4), filepath.Base(bb)) || !strings.Contains(text(4), filepath.Base(aa)) {
+		t.Errorf("the config listing does not name the start workbench alone:\n%s", text(4))
+	}
+	if results[5].code != 0 {
+		t.Errorf("init --here was refused: %s", text(5))
+	}
+	if results[6].code != 0 || strings.Contains(text(6), contract.AmbiguousWorkbench) {
+		t.Errorf("status after init answered %d:\n%s", results[6].code, text(6))
+	}
+	if !sameBytes(before, benchBytes(t, other)) {
+		t.Error("a line changed a file under bb")
+	}
+	if run.model == nil || !sameDir(run.model.l.Bench.Root, aa) {
+		t.Errorf("the head no longer draws aa")
+	}
+	filed := false
+	for _, lane := range run.model.lanes {
+		for _, card := range lane.cards {
+			if card.Title == "second" {
+				filed = true
+			}
+		}
+	}
+	if !filed {
+		t.Error("the head draws no card titled second on aa")
 	}
 }

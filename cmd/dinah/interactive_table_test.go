@@ -166,6 +166,14 @@ func TestTheScreenLayoutHelpersHoldTheirWidths(t *testing.T) {
 	if got := interactiveCut("a line longer than the room", 10, "..."); displayWidth(got) > 10 || !strings.HasSuffix(got, "...") {
 		t.Errorf("a cut line drew %q", got)
 	}
+	if !interactiveFits("ten column", 10) || interactiveFits("eleven cols", 10) {
+		t.Error("interactiveFits did not answer ten columns as fitting ten and eleven as not")
+	}
+	laid := interactiveColumns([][]string{{"fx-1/criteria/1", "pending", "It builds."}, {"fx-1/questions/12", "resolved", "Which?"}, {}, {"only"}})
+	want := []string{"fx-1/criteria/1    pending   It builds.", "fx-1/questions/12  resolved  Which?", "", "only"}
+	if strings.Join(laid, "\n") != strings.Join(want, "\n") {
+		t.Errorf("interactiveColumns laid out\n%q\nand the columns should have been\n%q", laid, want)
+	}
 }
 
 // TestAStaleOrUnreachableAnswerComposesItsOutcomeLine holds the two branches

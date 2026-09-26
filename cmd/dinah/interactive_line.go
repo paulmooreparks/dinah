@@ -100,8 +100,6 @@ func (m *interactiveModel) submitLine(text string) tea.Cmd {
 	}
 	words, err := verb.SplitLine(text)
 	if err != nil {
-		composer := *m.s
-		composer.command = ""
 		m.message = m.cleaned(m.errorLinesFor(err, ""))
 		return nil
 	}
@@ -168,12 +166,7 @@ func (m *interactiveModel) runLine(words []string, typed string) tea.Cmd {
 	result := &lineResult{words: words, transcript: transcript, title: withoutControls(title)}
 	line := m.s.lineSession(transcript, transcript, m.draw(), words)
 	parsed, stop := m.prepareLine(line, words, result)
-	if stop {
-		transcript.finish()
-		m.afterLine(result)
-		return nil
-	}
-	if parsed == nil {
+	if stop || parsed == nil {
 		transcript.finish()
 		m.afterLine(result)
 		return nil
@@ -297,7 +290,7 @@ func (m *interactiveModel) afterLine(result *lineResult) {
 	m.message = nil
 	m.reread()
 	// A notice the read left, such as item mode closing because the line
-	// settled its last item, is kept beneath what the line showed.
+	// removed its last item, is kept beneath what the line showed.
 	notice := m.message
 	defer func() { m.message = append(m.message, notice...) }()
 	lines := result.transcript.lines
@@ -333,7 +326,7 @@ func (m *interactiveModel) fitsMessage(lines []string) bool {
 		return false
 	}
 	for _, line := range lines {
-		if displayWidth(line) > m.draw() {
+		if !interactiveFits(line, m.draw()) {
 			return false
 		}
 	}
@@ -395,7 +388,10 @@ func (m *interactiveModel) pasteLine(content string) tea.Cmd {
 // with the cursor anywhere but the end of the text does nothing.
 func (m *interactiveModel) complete(tabbed bool) {
 	text := m.input.Value()
-	if m.input.Position() != len([]rune(text)) {
+	at := m.input.Position()
+	m.input.CursorEnd()
+	if m.input.Position() != at {
+		m.input.SetCursor(at)
 		return
 	}
 	words, err := verb.SplitLine(text)
@@ -448,18 +444,21 @@ func (m *interactiveModel) complete(tabbed bool) {
 // Tab: as many as its rows hold, the last row naming how many did not fit.
 func (m *interactiveModel) candidateLines(candidates []completion.Candidate) []string {
 	room := interactiveMessageLimit - 1
-	var lines []string
+	var entries [][]string
 	for i, candidate := range candidates {
 		if i == room-1 && len(candidates) > room {
-			more := strconv.Itoa(len(candidates) - i)
-			lines = append(lines, withoutControls(m.s.r.T("interactive.line.candidates", "count", more)))
 			break
 		}
-		line := candidate.Word
+		entry := []string{withoutControls(candidate.Word)}
 		if candidate.Description != "" {
-			line += "  " + candidate.Description
+			entry = append(entry, withoutControls(candidate.Description))
 		}
-		lines = append(lines, withoutControls(line))
+		entries = append(entries, entry)
+	}
+	lines := interactiveColumns(entries)
+	if len(candidates) > len(entries) {
+		more := strconv.Itoa(len(candidates) - len(entries))
+		lines = append(lines, withoutControls(m.s.r.T("interactive.line.candidates", "count", more)))
 	}
 	return lines
 }

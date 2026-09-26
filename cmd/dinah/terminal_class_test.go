@@ -257,3 +257,19 @@ func checkCardReads(t *testing.T) {
 		t.Error("no card read was held to the route table, so this check read nothing")
 	}
 }
+
+// TestALineNamesNoWorkbenchOfItsOwn holds namedBench to its two answers: a
+// session built from --workbench or DINAH_WORKBENCH names that workbench and
+// its source, and a terminal UI head or line, whose benchFlag is the pin,
+// names none, so init and a walk from --root typed at the command line are
+// not refused over a workbench the person never gave.
+func TestALineNamesNoWorkbenchOfItsOwn(t *testing.T) {
+	given := &session{benchFlag: "/w", benchFlagSource: bench.SourceFlag}
+	if named, source := given.namedBench(); named != "/w" || source != bench.SourceFlag {
+		t.Errorf("a session given --workbench names %q from %q", named, source)
+	}
+	pinned := &session{benchFlag: "/w", benchFlagSource: bench.SourceFlag, start: &lineStart{}}
+	if named, source := pinned.namedBench(); named != "" || source != "" {
+		t.Errorf("a terminal UI line names %q from %q", named, source)
+	}
+}

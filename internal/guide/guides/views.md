@@ -502,10 +502,13 @@ last drawing on the screen, and returns you to your prompt below it.
 
 ## Working a view from the keyboard
 
-`dinah tui` draws a view and lets you work it with keys: you move between
+`dinah tui` draws a view and lets you work it with keys. You move between
 cards, read one in full, and claim, move, release or comment on it without
-leaving the screen. With no view named it works the board, so you need no
-alias for that; name any view `dinah view` lists to work that one instead:
+leaving the screen. You can answer, verify or withdraw the questions and
+criteria a card carries, reach every other act on a card from one menu, and
+type any other command at a command line inside the screen. With no view
+named, Dinah works the board, so you need no alias for that; name any view
+`dinah view` lists to work that one instead:
 
     dinah tui
     dinah tui agenda
@@ -540,7 +543,8 @@ per column that holds a card, with the lane you are in between brackets; the
 screen shows one lane at a time. Below the rule, the cards of that lane fill
 the left of the window, and in a window at least 100 columns wide the
 selected card's detail fills the right, exactly as `dinah show <card>
---fields card,body` prints it. The row above the last says when Dinah last
+--fields card,body,checklist --unresolved` prints it, so the questions,
+decisions and criteria still open on the card are listed under its body. The row above the last says when Dinah last
 read the workbench and what changed, and shows the answer to anything you
 just did. The last row lists the keys you can press, and only those.
 
@@ -554,22 +558,49 @@ While you are looking at a lane:
   the last card.
 - Enter opens the selected card in full, and Enter or Backspace closes it.
 - `t` claims the card, `r` releases it, and `c` opens a prompt for a comment.
+- `i` opens item mode over the card, which lists its questions, decisions and
+  criteria that carry an act you may take. The footer offers `i` only when
+  one does.
+- `x` opens the actions menu, which lists every act the workbench would
+  accept from you on the card, such as blocking it, filing an item on it,
+  linking it or setting a field on it.
 - `a` moves the card to the next column on its route, which the footer names
   accept when that column is a done column and advance otherwise. `b` sends
   it back to the column its column rejects to. `m` opens a menu of every
   column you may move it to, where the arrows or `j` and `k` pick a row, a
   digit chooses that row, Enter chooses the highlighted one, and Ctrl+G or
   `q` closes the menu.
-- `/` filters the view with a query, and `:` jumps to a view, a card or a
-  column by name.
+- `/` filters the view with a query, and `:` opens the command line, where
+  you can type any command or the name of a view, a card or a column to jump
+  to it.
+- `>` runs `dinah next`, `S` runs `dinah status`, `F` asks for a phrase and
+  runs `dinah search` with it, `C` runs `dinah changes` for the selected card,
+  and `W` runs `dinah whoami`.
 - `?` shows every key, Ctrl+L draws the whole screen again, and `q` or
   Ctrl+C quits.
 
-In the jump and filter prompts, Enter carries out what you typed and Ctrl+G
-closes the prompt without doing anything. The comment prompt holds several
-lines: Enter starts a new line, Ctrl+D posts the comment, and Ctrl+G closes
-the prompt without posting. Ctrl+C quits from anywhere, without doing the
-thing a menu or a prompt was open for.
+In the command line and the filter prompt, Enter carries out what you typed
+and Ctrl+G closes the prompt without doing anything. The comment prompt, and
+every prompt that asks for an answer or a reason, holds several lines: Enter
+starts a new line, Ctrl+D posts what you wrote, and Ctrl+G closes the prompt
+without posting. Ctrl+C quits from anywhere, without doing the thing a menu or
+a prompt was open for.
+
+In item mode, the arrows or `k` and `j` highlight an item, and Page Up, Page
+Down, Home and End move the highlight further. A letter acts on the
+highlighted item: `r` answers a question or a decision, `v` verifies a
+criterion, `f` fails it, `w` waives an item, `x` withdraws it, `o` reopens it,
+and `c` records evidence on it. The footer lists only the letters the
+workbench would accept on the highlighted item, and a letter it does not list
+does nothing. These letters mean something else outside item mode, and the
+footer says what each does where you are. Ctrl+G or `q` closes item mode.
+
+The actions menu numbers its rows as the move menu does. Choosing a row asks
+for whatever the act needs, from a menu of the values the workbench accepts
+where there is a closed set, such as the fields you may set or the
+workstreams the card is not in yet, and from a prompt where you type the
+value. Choosing "edit it in your editor" hands the terminal to your editor,
+exactly as `dinah edit` does, and takes it back when the editor ends.
 
 Esc does nothing in the interface. On Linux and macOS it also swallows the
 printable key you type after it, and Esc followed by `[` or `O` swallows the
@@ -588,28 +619,121 @@ records each act in the card's journal exactly as the same act typed on the
 command line records it, with your name and whatever your environment
 declares about the model you run on.
 
+Item mode and the actions menu follow the same rule. Only the operator is
+offered an answer, a verification or a failure of an item the operator owns,
+a waiver of any item, and the reopening of a failed or waived item or of one
+the operator owns. Nobody but the operator is offered the withdrawal of an
+acceptance criterion, unless the card carries the criterion-retirement grant
+and the criterion has not failed or been waived. On a workbench that declares
+evidence, a criterion with no citation offers `c` and neither `v` nor `f`,
+until you record evidence on it. Answers, verifications and the other acts on
+an item take no revision, because Dinah checks the item's own state when you
+act, so a comment somebody posts on the card meanwhile does not make your
+answer stale.
+
 For example, to walk the cards waiting in Acceptance as the operator, press
 `l` until the Acceptance lane is between brackets, press Enter to read the
 selected card, and press `a` to accept it. Dinah moves it to Done and selects
 the next card in the lane.
 
+### The command line
+
+The command line on `:` runs any command `dinah` runs, inside the screen and
+in the same process, and draws the view again when the command ends. Type the
+command as you would at a shell, with or without `dinah` in front of it:
+
+    : list columns
+    : file dinah-12 decision "Use the stream reader"
+
+Dinah reads your aliases from your settings, so an alias you set with
+`dinah config set alias.<name>` works here too. A line whose first word names
+neither a command nor an alias is a jump: Dinah looks the whole line up as a
+view, then a live card, then a column, then a card in the archive, and goes
+there. To reach a view, a card or a column whose name is also a command, write
+`@` in front of it, as in `:@status` for a view named `status`. If you jump
+to an archived card, Dinah opens it in full, and its actions menu offers to
+restore it.
+
+Tab completes the word at the end of the line, as a shell's Tab does. If one
+word fits, Dinah puts it in with a space after it, and if several fit, Dinah
+fills in what they share, and a second Tab lists them above the line. Tab
+does not complete the names of files or directories, since the screen offers
+no way to browse them.
+
+What a command writes appears in the row above the footer when it is three
+lines or fewer and each fits the window. Anything longer opens output mode,
+which fills the screen with what the command wrote. The arrows or `k` and `j`
+scroll it, Page Up, Page Down, Home and End move further, and Enter,
+Backspace or `q` close it. Dinah keeps the first 10000 lines a command writes
+and says how many it left out.
+
+Some commands cannot run inside the screen, and Dinah refuses them with
+`dinah.not-in-tui` and says why. `mcp`, `lsp`, `serve`, `ui`, `completion` and
+`tui` itself are refused. So are `view --watch` and `changes --wait`, because
+the screen already redraws and waits for changes, and a value of `-`, because
+the screen's keyboard is its standard input. Dinah does not detect every
+command that waits for something: a command that never returns holds the
+screen until it does, so run such a command from a shell.
+
+Every command you type runs on the workbench, as the actor and in the
+language the screen started with, and with the glyphs it started with. You
+cannot give `--workbench`, `--actor` or `--lang` at the command line. If you
+change any of those settings with `config set` there, Dinah writes it for the
+next time `dinah tui` starts and tells you the screen keeps the value it
+started with, and `dinah config` typed at the command line reports the values
+the screen is using. `dinah config` at a shell reports what the file now
+holds.
+
+### Your own keys
+
+You can bind a letter or a digit to a command line of your own, in your
+settings, and press it in the lane and in a card read in full. For example,
+this binds `o` to filing an open question on the selected card and labels it
+in the footer:
+
+    dinah config set tui.key.o "file $card open_question"
+    dinah config set tui.label.o question
+
+A binding may name three placeholders, which Dinah replaces when you press
+the key. `$card` is the selected card's reference, `$column` is its column,
+or the column of the lane you are in, written as the column's slug, and
+`$view` is the view the screen draws. Each value becomes part of the one word
+it stands in, so `list $card/checklist` lists the selected card's items, and
+a value can never split into two words. A binding takes no arguments of its
+own, so `$1` is refused, and a binding may not take a key the screen reads
+itself, such as `a`, `t` or `x`. `dinah config set tui.key.<key>` with no
+value removes the binding.
+
+The footer lists each binding after the read keys, with its label, or with
+its command line where you gave no label. It leaves out a binding whose
+placeholder has nothing to stand for, such as `$card` in an empty lane, and
+pressing its key says what it needs. It also leaves out a binding whose
+command is a single act on the selected card that the workbench would refuse
+you. Every other binding is always listed, and if the workbench refuses its
+command, pressing the key shows the refusal. When the screen starts, it names
+every binding in your settings that it will not run, and why.
+
 ### Pasting
 
 If your terminal marks pastes, which most terminals do when a program asks,
-a pasted line break never carries out the jump or filter prompt: the pasted
-lines are joined into one, and Dinah waits for your own Enter. A paste into
-the comment prompt keeps its line breaks. A paste made anywhere else is
+a pasted line break never carries out a prompt, and Dinah waits for your own
+Enter. The command line runs one line at a time, so it takes a paste of one
+line, dropping a line break at its very end, and refuses a paste of several
+lines, leaving what you had typed as it was. The filter prompt joins the
+pasted lines into one. A paste into the comment prompt, or into any prompt
+that holds several lines, keeps its line breaks. A paste made anywhere else is
 ignored.
 
 If your terminal does not mark pastes, Dinah cannot tell a paste from typing.
-After Enter in the jump or filter prompt it discards the keys that were
-already waiting, but a long paste can arrive in several pieces, and a piece
-that arrives after that is read as keys. A paste of more than one line into
-the jump or filter prompt can then act on the selected card, because `a`,
-`b`, `t`, `r`, `m`, `c` and `q` all act on a card or quit, and so can any
-paste made while you are looking at a lane. Keys you type ahead after Enter
-in those prompts are also discarded. On such a terminal, paste only into the
-comment prompt, or paste one line at a time.
+After Enter in the command line or the filter prompt it discards the keys that
+were already waiting, but a long paste can arrive in several pieces, and a
+piece that arrives after that is read as keys. A paste of more than one line
+into the command line runs its first line and delivers the rest as keys, and
+those keys can act on the selected card, because `a`, `b`, `t`, `r`, `m`, `c`
+and `q` all act on a card or quit. So can any paste made while you are
+looking at a lane. Keys you type ahead after Enter in those prompts are also
+discarded. On such a terminal, paste only into the comment prompt, or paste
+one line at a time.
 
 ### On Windows
 
@@ -624,6 +748,15 @@ not say when a console can write fewer characters than it was given, and if
 one ever does in the middle of a sequence, Dinah writes the rest and draws
 the whole screen again on the next frame, so a frame drawn wrongly lasts one
 frame. Ctrl+L draws the whole screen again whenever you want it to.
+
+### Handing the terminal to your editor
+
+When you run `edit` from the screen, whether you type it at the command line,
+choose it from the actions menu or press a key bound to it, Dinah ends the
+screen, hands the terminal to your editor, and starts the screen again when
+the editor ends. Dinah discards the keys you type while the editor starts or
+closes, measures the window again, and draws the view at the window's new
+size if you resized it meanwhile.
 
 ### How the interface ends
 
