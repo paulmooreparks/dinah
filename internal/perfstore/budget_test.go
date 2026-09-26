@@ -92,13 +92,21 @@ type libraryReads struct {
 	mu      sync.Mutex
 	current time.Duration
 	runs    []time.Duration
+	// calls and byCall hold, per command, the run in progress's time and
+	// every recorded run's, so the log can say where the sum went.
+	calls  map[string]time.Duration
+	byCall map[string][]time.Duration
 }
 
 // add is the head's TimeRead.
-func (l *libraryReads) add(_ string, took time.Duration) {
+func (l *libraryReads) add(command string, took time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.current += took
+	if l.calls == nil {
+		l.calls = map[string]time.Duration{}
+	}
+	l.calls[command] += took
 }
 
 // begin starts a run's sum.
@@ -106,6 +114,7 @@ func (l *libraryReads) begin() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.current = 0
+	l.calls = map[string]time.Duration{}
 }
 
 // end records the run's sum.
@@ -113,6 +122,31 @@ func (l *libraryReads) end() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.runs = append(l.runs, l.current)
+	if l.byCall == nil {
+		l.byCall = map[string][]time.Duration{}
+	}
+	for command, took := range l.calls {
+		l.byCall[command] = append(l.byCall[command], took)
+	}
+}
+
+// breakdown answers each command's median over the runs recorded since the
+// last take, as one line.
+func (l *libraryReads) breakdown() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var commands []string
+	for command := range l.byCall {
+		commands = append(commands, command)
+	}
+	sort.Strings(commands)
+	parts := make([]string, 0, len(commands))
+	for _, command := range commands {
+		runs := append([]time.Duration(nil), l.byCall[command]...)
+		sort.Slice(runs, func(i, j int) bool { return runs[i] < runs[j] })
+		parts = append(parts, command+" "+fine(runs[len(runs)/2]))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // take answers the sums recorded since the last take, ascending, and their
@@ -120,6 +154,7 @@ func (l *libraryReads) end() {
 func (l *libraryReads) take() ([]time.Duration, time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.byCall = nil
 	runs := append([]time.Duration(nil), l.runs...)
 	l.runs = nil
 	sort.Slice(runs, func(i, j int) bool { return runs[i] < runs[j] })
@@ -370,8 +405,9 @@ func judgeLibraryReads(t *testing.T, store *perfstore.Store, op operation) {
 	if op.library == nil {
 		return
 	}
+	calls := op.library.breakdown()
 	first, median := op.library.take()
-	t.Logf("%-12s library reads median %s", op.name, fine(median))
+	t.Logf("%-12s library reads median %s (%s)", op.name, fine(median), calls)
 	if runtime.GOOS != "windows" || median < libraryReadLimit {
 		return
 	}
