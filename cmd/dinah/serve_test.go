@@ -363,6 +363,94 @@ func cliMove(t *testing.T, workbench, card, column string) (int, string) {
 	return 0, stderr.String()
 }
 
+// cliRun runs the real binary in another process with the given arguments
+// and returns its exit code and stderr.
+func cliRun(t *testing.T, workbench string, argv ...string) (int, string) {
+	t.Helper()
+	binary, err := dinahBinary()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	command := exec.Command(binary, argv...)
+	command.Env = childEnv(workbench)
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+	err = command.Run()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return exit.ExitCode(), stderr.String()
+	}
+	if err != nil {
+		t.Fatalf("run the CLI: %v", err)
+	}
+	return 0, stderr.String()
+}
+
+// structuralRounds is how many archive, restore and delete cycles
+// TestStructuralActsFromAnotherProcessSucceedWhileTheResidentReads runs. The
+// review that found the defect saw four of five archives fail against the
+// unfixed resident, so a round that passes by luck is rare, and forty in a
+// row passing by luck is not a thing that happens.
+const structuralRounds = 40
+
+// TestStructuralActsFromAnotherProcessSucceedWhileTheResidentReads is the
+// cross-process test dinah-619/comments/12 found missing. A structural act
+// writes inside an entity's directory, records the act, then renames or
+// removes the directory. The resident reads the directory at once, because
+// Windows reports the writes, and Windows refuses a rename of a directory
+// while any handle is open below it, so the act met a refusal nearly every
+// time. The act now retries that refusal for a bounded time (the storage
+// layer's retry of dinah-619's write-path section), and the resident opens as
+// little as it can for as short as it can.
+//
+// Every act is the real binary in another operating-system process, and the
+// resident is the platform watcher's, reading as the server's does. Each
+// round adds a card, archives it, restores it and deletes it, and the test
+// fails on the first act refused, naming the round, the act and the refusal.
+func TestStructuralActsFromAnotherProcessSucceedWhileTheResidentReads(t *testing.T) {
+	root := newBench(t)
+	workbench := soleBenchDir(t, root)
+	published := make(chan resident.Published, 1024)
+	f := serveBench(t, root, withPlatformResident(t, &resident.Hooks{AfterPublish: func(p resident.Published) {
+		select {
+		case published <- p:
+		default:
+		}
+	}}))
+	publishes := 0
+	for round := 1; round <= structuralRounds; round++ {
+		card := "fx-" + strconv.Itoa(round)
+		steps := [][]string{
+			{"add", "Structural round " + strconv.Itoa(round)},
+			{"archive", card},
+			{"restore", card},
+			{"delete", card, "--yes"},
+		}
+		for _, argv := range steps {
+			if code, stderr := cliRun(t, workbench, argv...); code != 0 {
+				t.Fatalf("round %d of %d: %v answered %d: %s", round, structuralRounds, argv, code, strings.TrimSpace(stderr))
+			}
+		}
+	drain:
+		for {
+			select {
+			case <-published:
+				publishes++
+			default:
+				break drain
+			}
+		}
+	}
+	if publishes == 0 {
+		t.Fatal("the resident published nothing while the acts ran, so it read nothing and the test proves nothing")
+	}
+	status, _, body := f.do(http.MethodGet, "/cards", "", "")
+	if status != http.StatusOK {
+		t.Fatalf("GET /cards after the rounds: %d %v", status, body)
+	}
+	t.Logf("%d rounds of add, archive, restore and delete from another process, %d publishes read by the resident meanwhile", structuralRounds, publishes)
+}
+
 // lockHelperVar turns this test binary into a process that holds one card's
 // lock: it names the card's directory.
 const lockHelperVar = "DINAH_SERVE_LOCK_HELPER"
