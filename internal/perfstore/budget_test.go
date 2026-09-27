@@ -72,22 +72,32 @@ var operationNames = []string{
 // The same three runs measured status-warm and status-cold well below their
 // dinah-621 budgets, more than six times under on a run elsewhere that
 // merged the same trunk (dinah-636's own PR, on the same day), so dinah-635
-// recalibrated both from those runs: status-warm 317, 309 and 318ms, a basis
-// of 317ms; status-cold 423, 441 and 406ms, a basis of 423ms. page-card and
-// show sit closer to their slack line on the fast runner than the slow one
-// this card measured on (602ms against a 1,460ms budget, 19ms against a
-// 30ms one) but neither crossed it on either runner, so neither row moved.
+// first recalibrated both from those runs: status-warm 317, 309 and 318ms,
+// status-cold 423, 441 and 406ms.
+//
+// dinah-632 then landed parallel reads in internal/bench after this card's
+// branch had already diverged. Merging it in and running three more perf-job
+// runs on this pull request measured every operation dinah-635 had just
+// calibrated a little faster: status-warm 302, 294 and 310ms (basis 302ms);
+// status-cold 407, 395 and 402ms (basis 402ms); view-board 378, 379 and
+// 388ms (basis 379ms); view-agenda 95, 95 and 98ms (basis 95ms); next 94, 96
+// and 96ms (basis 96ms); prime 593, 583 and 592ms (basis 592ms); query 382,
+// 367 and 381ms (basis 381ms). dinah-635 recalibrated all seven by the rule.
+// offer (30, 27 and 30ms) and page-card (557, 533 and 549ms) did not get
+// faster against their own bases, so neither row moved. show was not
+// recalibrated either: its own basis is dinah-618's, and 19-20ms on these
+// runs sits well inside its 30ms budget.
 var budgets = map[string][]budget{
 	"windows": {
-		{op: "status-warm", limit: 960 * time.Millisecond, basis: 317 * time.Millisecond, setBy: "dinah-635"},
+		{op: "status-warm", limit: 910 * time.Millisecond, basis: 302 * time.Millisecond, setBy: "dinah-635"},
 		{op: "show", limit: 30 * time.Millisecond, basis: 6 * time.Millisecond, setBy: "dinah-618"},
 		{op: "page-card", limit: 1460 * time.Millisecond, basis: 486 * time.Millisecond, setBy: "dinah-630"},
-		{op: "status-cold", limit: 1270 * time.Millisecond, basis: 423 * time.Millisecond, setBy: "dinah-635"},
-		{op: "view-board", limit: 1230 * time.Millisecond, basis: 409 * time.Millisecond, setBy: "dinah-635"},
-		{op: "view-agenda", limit: 330 * time.Millisecond, basis: 108 * time.Millisecond, setBy: "dinah-635"},
-		{op: "next", limit: 330 * time.Millisecond, basis: 110 * time.Millisecond, setBy: "dinah-635"},
-		{op: "prime", limit: 1820 * time.Millisecond, basis: 606 * time.Millisecond, setBy: "dinah-635"},
-		{op: "query", limit: 1180 * time.Millisecond, basis: 392 * time.Millisecond, setBy: "dinah-635"},
+		{op: "status-cold", limit: 1210 * time.Millisecond, basis: 402 * time.Millisecond, setBy: "dinah-635"},
+		{op: "view-board", limit: 1140 * time.Millisecond, basis: 379 * time.Millisecond, setBy: "dinah-635"},
+		{op: "view-agenda", limit: 290 * time.Millisecond, basis: 95 * time.Millisecond, setBy: "dinah-635"},
+		{op: "next", limit: 290 * time.Millisecond, basis: 96 * time.Millisecond, setBy: "dinah-635"},
+		{op: "prime", limit: 1780 * time.Millisecond, basis: 592 * time.Millisecond, setBy: "dinah-635"},
+		{op: "query", limit: 1150 * time.Millisecond, basis: 381 * time.Millisecond, setBy: "dinah-635"},
 		{op: "offer", limit: 90 * time.Millisecond, basis: 29 * time.Millisecond, setBy: "dinah-635"},
 	},
 }
@@ -120,10 +130,11 @@ type sample struct {
 }
 
 // TestReadBudgets generates the development shape, confirms dinah check finds
-// nothing in it, and holds four reads to the budgets pinned for this GOOS:
-// a warm status, a show of perf-1, the HTML card page served through the
-// head's handler, and a status in a fresh process. DINAH_PERF selects the
-// mode: unset skips, measure fails over budget, and ci also fails on slack.
+// nothing in it, and holds every operation operationNames lists to the budget
+// pinned for it on this GOOS. DINAH_PERF selects the mode: unset skips, and
+// measure and ci both fail an operation over its budget. Neither mode fails
+// an operation sitting in slack, which is CI variance rather than a defect;
+// see judge and slack.
 func TestReadBudgets(t *testing.T) {
 	mode := os.Getenv("DINAH_PERF")
 	switch mode {
@@ -164,7 +175,7 @@ func TestReadBudgets(t *testing.T) {
 			t.Logf("%-12s median %s  min %s  max %s  (no budget pinned)", op.name, millis(first.median), millis(first.runs[0]), millis(first.runs[len(first.runs)-1]))
 			continue
 		}
-		judge(t, mode, store, op, row)
+		judge(t, store, op, row)
 	}
 	if !calibrated {
 		t.Skipf("no budgets pinned for %s; measured: %s", runtime.GOOS, strings.Join(measured, ", "))
@@ -620,10 +631,20 @@ func measureOp(t *testing.T, op operation) sample {
 }
 
 // judge measures one operation and holds it to its row. An over-budget median
-// is measured once more and fails only when the retry is over too; a slack
-// budget is measured once more and reported when the retry is slack too,
-// failing only in ci mode. Every operation logs one line either way.
-func judge(t *testing.T, mode string, store *perfstore.Store, op operation, row budget) {
+// is measured once more and fails only when the retry is over too, in both
+// modes: that is a real regression. A slack budget is measured once more and
+// reported when the retry is slack too, but never fails the test in either
+// mode.
+//
+// Slack cannot be a hard failure: a budget is 3x its basis and the floor a
+// slack report names is budget/6, which is basis/2, so any run under half its
+// own calibration median trips it, and CI runner variance on this repository
+// exceeds that (dinah-635 recorded a 151ms sample for an operation whose
+// basis was 317ms, the same day, on a different pull request). No basis makes
+// that gap reliable, so a slack report is a suggestion to recalibrate,
+// printed as a job-log line and a GitHub Actions warning annotation, and
+// never a reason to redden a branch that changed nothing.
+func judge(t *testing.T, store *perfstore.Store, op operation, row budget) {
 	t.Helper()
 	first := measureOp(t, op)
 	multiple := float64(row.limit) / float64(row.basis)
@@ -646,12 +667,8 @@ func judge(t *testing.T, mode string, store *perfstore.Store, op operation, row 
 	if !slack(row.limit, retry.median) {
 		return
 	}
-	message := slackMessage(op.name, first, retry, row)
-	if mode == "ci" {
-		t.Error(message)
-		return
-	}
-	t.Log(message)
+	t.Log(slackMessage(op.name, first, retry, row))
+	fmt.Println(slackWarning(op.name, first, retry, row))
 }
 
 // slack reports whether a budget is more than six times a median and above
@@ -704,6 +721,21 @@ func slackMessage(name string, first, retry sample, row budget) string {
 		"  from three perf-job runs as the calibration does, and name this card",
 	}
 	return strings.Join(lines, "\n")
+}
+
+// slackWarning is the GitHub Actions warning annotation slackMessage's report
+// prints alongside its job-log lines, on its own line and in the format
+// GitHub reads as a workflow annotation: `::warning::` followed by the text.
+// It names the operation, the larger of the two medians judge measured, the
+// budget it sits under, and the basis the rule would recalibrate it to, so
+// the annotation is legible on the pull request without opening the job log.
+func slackWarning(name string, first, retry sample, row budget) string {
+	larger := first.median
+	if retry.median > larger {
+		larger = retry.median
+	}
+	return fmt.Sprintf("::warning::%s has slack: median %s against a budget of %s (set by %s); recalibrate to about %s (3x the larger of two medians, rounded up to 10ms) from three perf-job runs",
+		name, millis(larger), millis(row.limit), row.setBy, millis(tightened(larger)))
 }
 
 // runList renders measured runs as milliseconds, ascending.
