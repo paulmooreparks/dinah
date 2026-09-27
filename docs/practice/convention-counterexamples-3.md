@@ -1366,3 +1366,15 @@ Caught at Agent Code Review on dinah-623, 2026-09-26, by a reviewer who removed 
 **The test:** when a test claims that state changed by step one is picked up by step two, check that step two reads the thing step one wrote, the same card, the same item, the same file. Then arm it by removing the pickup and watching it go red. A test whose two steps touch different targets proves that step two works on its own, and nothing about the refresh between them.
 
 **Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, is the same family: the test is green because its input never reaches the position where the code under test matters. This instance is cheaper to spot, since the two target names sit side by side in one call.
+
+## A detection test that asserts the outcome, which a second path can produce without the detection
+
+Caught at Implement on dinah-619, 2026-09-27, by the implementer's own arming run. The feature is the resident's check that the path `dinah serve` was started on still resolves where it did: the workbench is served through a junction, the junction is re-pointed at another tree, and no change record says so, so only a comparison of the root's final path can notice. The test re-pointed the junction, made one request, and asserted that the snapshot it answered mirrored the new tree. With the comparison removed it stayed green three runs out of three. Late last-write records of the old tree's own creation were still arriving, the reconcile they caused read through the served path, and the served path by then resolved to the new tree, so the snapshot came to mirror it by another road.
+
+**Wrong:** `mirrors(t, pick.Snapshot, via)` after the re-point, as the whole of the assertion. The mirror is the outcome the detection is for, and the resident has a second way to reach it that has nothing to do with the detection.
+
+**Right:** assert the act only the detection performs, beside the outcome. Here the detection makes that request re-arm and rebuild, so the test drains the request's publishes and requires one with `Rebuilt` set, then checks the mirror. Removing the comparison now fails with "the request after the junction was re-pointed did not rebuild, so the re-point was not detected", three runs of three.
+
+**The test:** before trusting a test of a detection, name every road by which the asserted outcome could come about, and arm the detection alone. If the test stays green, assert something the detection does and the other roads do not, such as the rebuild, the refusal or the event it causes.
+
+**Related:** "A test that changes one target and then acts on another, so the refresh it claims to prove is never needed," above, where the test passed without the code it named; here the code was needed, and the assertion was satisfied without it.

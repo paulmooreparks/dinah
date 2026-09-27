@@ -552,8 +552,19 @@ func TestAnUnplacedNameReconcilesItsDirectory(t *testing.T) {
 // readers loop on Current and read all twelve files through the snapshot
 // they were handed. Every read of the twelve carries one generation.
 //
+// A request that finds changes pending queues behind the pass that applies
+// them, so the eight readers alone rarely stand where a partial publish could
+// reach them. Two probes stand there on purpose. Every twentieth round holds
+// the pass before its publish and sends one request with a short context,
+// which must answer no snapshot or a snapshot carrying one generation. And
+// every round reads the previous round's snapshot again, which must still
+// carry the previous generation, since a published snapshot is never
+// written.
+//
 // Arming: publishing after each reconciled path rather than after the batch
-// lets a reader see the batch half applied.
+// lets the held round's probe read the batch half applied; and writing a
+// held file's node in place rather than replacing it changes the previous
+// round's snapshot.
 func TestARequestNeverSeesAHalfAppliedBatch(t *testing.T) {
 	const rounds, readers = 200, 8
 	root := t.TempDir()
@@ -598,18 +609,70 @@ func TestARequestNeverSeesAHalfAppliedBatch(t *testing.T) {
 			}
 		}()
 	}
-	published := 0
+	generationOf := func(snapshot *resident.Snapshot) map[string]bool {
+		seen := map[string]bool{}
+		for _, rel := range files {
+			data, err := snapshot.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+			if err != nil {
+				seen["read "+rel+": "+err.Error()] = true
+				continue
+			}
+			seen[string(data)] = true
+		}
+		return seen
+	}
+	published, probes := 0, 0
+	var previous *resident.Snapshot
 	for round := 1; round <= rounds; round++ {
 		var batch []resident.Change
 		for _, rel := range files {
 			write(t, filepath.Join(root, filepath.FromSlash(rel)), strconv.Itoa(round))
 			batch = append(batch, change(rel, resident.Modified))
 		}
-		v.deliver(batch...)
-		data, err := v.current().ReadFile(filepath.Join(root, filepath.FromSlash(files[len(files)-1])))
+		var snapshot *resident.Snapshot
+		if round%20 == 0 {
+			probes++
+			hold := make(chan struct{})
+			v.hold.Store(&hold)
+			v.deliver(batch...)
+			asked := make(chan *resident.Snapshot, 1)
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), deadline)
+				defer cancel()
+				asked <- v.w.Current(ctx, time.Now()).Snapshot
+			}()
+			select {
+			case <-v.holding:
+			case <-time.After(deadline):
+				t.Fatalf("round %d: the pass never reached BeforePublish", round)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+			if probed := v.w.Current(ctx, time.Now()).Snapshot; probed != nil {
+				if seen := generationOf(probed); len(seen) != 1 {
+					t.Errorf("round %d: a request made while the pass was held read %v", round, seen)
+				}
+			}
+			cancel()
+			v.hold.Store(nil)
+			close(hold)
+			snapshot = <-asked
+			if snapshot == nil {
+				t.Fatalf("round %d: the request that asked for the pass answered no snapshot", round)
+			}
+		} else {
+			v.deliver(batch...)
+			snapshot = v.current()
+		}
+		data, err := snapshot.ReadFile(filepath.Join(root, filepath.FromSlash(files[len(files)-1])))
 		if err != nil || string(data) != strconv.Itoa(round) {
 			t.Fatalf("round %d: the request after the batch was received read %q, %v", round, data, err)
 		}
+		if previous != nil {
+			if seen := generationOf(previous); len(seen) != 1 || !seen[strconv.Itoa(round-1)] {
+				t.Errorf("round %d: the snapshot published in round %d now reads %v", round, round-1, seen)
+			}
+		}
+		previous = snapshot
 		published += len(v.drain())
 	}
 	stop.Store(true)
@@ -618,8 +681,8 @@ func TestARequestNeverSeesAHalfAppliedBatch(t *testing.T) {
 		t.Errorf("%v: %v", key, value)
 		return true
 	})
-	t.Logf("%d rounds, %d publishes, %d snapshots read whole", rounds, published, reads.Load())
-	if published < rounds || reads.Load() < int64(rounds) {
+	t.Logf("%d rounds, %d publishes, %d snapshots read whole, %d probes of a held pass", rounds, published, reads.Load(), probes)
+	if published < rounds || reads.Load() < int64(rounds) || probes != rounds/20 {
 		t.Fatalf("%d publishes and %d snapshots read over %d rounds, and every round publishes and the readers read throughout", published, reads.Load(), rounds)
 	}
 }

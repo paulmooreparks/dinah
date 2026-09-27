@@ -411,6 +411,17 @@ func TestTheServedPathResolvingElsewhereIsDetected(t *testing.T) {
 	if pick.Snapshot == nil {
 		t.Fatal("the request after the junction was re-pointed answered no snapshot")
 	}
+	// Late records of the tree's own creation can name a/wb, and a reconcile
+	// they cause reads through via, which now resolves to b/wb, so the
+	// snapshot can come to mirror b/wb without the re-point being detected.
+	// Only the final-path comparison makes this request rebuild.
+	rebuilt := false
+	for _, p := range r.drain() {
+		rebuilt = rebuilt || p.Rebuilt
+	}
+	if !rebuilt {
+		t.Error("the request after the junction was re-pointed did not rebuild, so the re-point was not detected")
+	}
 	if diffs := MirrorDiff(pick.Snapshot, via); len(diffs) > 0 {
 		t.Errorf("the snapshot after the junction was re-pointed does not mirror its new target: %v", diffs)
 	}
