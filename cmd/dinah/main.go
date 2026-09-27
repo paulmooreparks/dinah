@@ -17,6 +17,7 @@ import (
 	"dinah/internal/bench"
 	"dinah/internal/consolewriter"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
@@ -147,6 +148,7 @@ func main() {
 	out := consolewriter.New(os.Stdout)
 	errw := consolewriter.New(os.Stderr)
 	argv := os.Args[1:]
+	durable.Waiting = forwardWaiting
 	if tuiEntry {
 		_, launched := os.LookupEnv(tuiLauncherVariable)
 		argv = tuiArguments(argv, launched)
@@ -211,6 +213,7 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 		s.rawErr = w.File()
 	}
 	s.args = typed
+	installWaiting(s.noticeWaiting)
 	// dinah-tui refuses a command line a dinah of another build handed on,
 	// before any command runs or any argument is reported on.
 	if tuiEntry {

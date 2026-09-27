@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"strings"
 
-	"dinah/internal/durable"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/verb"
 )
 

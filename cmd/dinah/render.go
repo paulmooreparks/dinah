@@ -1394,6 +1394,10 @@ func (s *session) eventDetail(ev bench.Event) string {
 		return s.r.T("log.manual-correction", "from", ev.FromTitle, "to", ev.ToTitle)
 	case contract.EventRenumbered:
 		return s.r.T("log.renumbered", "from", ev.From, "to", ev.To)
+	case contract.EventLockReclaimed:
+		// The dead lock's own record line is the detail, because it is what
+		// names the holder that ended and the process it ran as.
+		return ev.Note
 	case contract.EventTierOverridden:
 		return s.tierOverriddenDetail(ev)
 	case contract.EventItemFiled:
@@ -1580,6 +1584,10 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	// check.card-number-renumbered finding naming it immediately below.
 	if report.MigratedNumbers || report.RenumberedNumbers {
 		s.line(s.r.TN("check.cards-renumbered", len(report.RenumberedCards)))
+	}
+	for _, cleared := range report.ClearedLocks {
+		pid := strconv.Itoa(cleared.PID)
+		s.line(s.r.T("check.lock-cleared", "path", cleared.Path, "actor", cleared.Actor, "pid", pid))
 	}
 	code := s.renderFindings(report.Findings)
 	s.renderNotices(report.Notices)
@@ -1893,7 +1901,11 @@ func (s *session) renderFindings(findings []bench.Finding) int {
 	}
 	t := table{indent: 2, columns: listColumn()}
 	for _, finding := range findings {
-		reported := s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")"
+		reported := s.r.T(finding.Key, "detail", finding.Detail)
+		if finding.Next != "" {
+			reported += s.r.T(finding.Next, "detail", finding.Detail)
+		}
+		reported += " (" + finding.Path + ")"
 		t.rows = append(t.rows, tableRow{fields: []string{reported}})
 	}
 	s.table(t)

@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"dinah/internal/bench"
-	"dinah/internal/durable"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // The change tokens a report carries. They are canonical and appear

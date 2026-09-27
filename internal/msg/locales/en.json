@@ -3877,6 +3877,38 @@
       "text": "{detail} does not apply to this card, because {gate} carries no value. It applies where {gate} is one of: {admits}.",
       "context": "The sibling of refusal.dinah.inapplicable-field rendered when the card stores no value under the gating field at all, which the condition reads as excluding the card: nobody has yet said this card is one the question is asked of. {detail}, {gate} and {admits} are as on the base entry, and there is no {value}. refusal.dinah.inapplicable-field.next is spliced on after this one."
     },
+    "check.lock-cleared": {
+      "text": "cleared {path} ({actor}, pid {pid}, ended)",
+      "context": "A line `dinah check --finish` prints for each lock it reclaimed from a holder proven dead and then released. {path} is the lock file, {actor} is the owner the dead lock named, and {pid} is the process it named, a number. The word pid is machine vocabulary."
+    },
+    "check.stale-lock": {
+      "text": "a lock stands whose holder is not shown to be running: {detail}",
+      "context": "A check finding: an entity lock file whose holder check could not show to be live. {detail} is the owner the lock names followed by the verdict word, dead or unknown, or the verdict word alone when the lock names nobody; both verdict words are machine vocabulary and are not translated. One of check.stale-lock.dead.next and check.stale-lock.unknown.next is spliced on after this one."
+    },
+    "check.stale-lock.dead.next": {
+      "text": "; that process has ended, and `dinah check --finish` clears the lock",
+      "context": "Spliced onto check.stale-lock for a lock judged dead: the process it names is proven to have ended. The command spelling is machine vocabulary and is not translated."
+    },
+    "check.stale-lock.unknown.next": {
+      "text": "; Dinah cannot prove its holder has ended, so only a person can clear it: confirm that no Dinah process that could hold it is still running, meaning the holder and process the lock names, or every Dinah process on the machines sharing this workbench when it names nobody, and then delete the file by hand. An empty lock is what a crash leaves behind while a lock is being created or reclaimed",
+      "context": "Spliced onto check.stale-lock for a lock judged unknown, which no command clears. It names the hand repair and the two crash windows that leave an empty lock: one while a lock is created, and one while a dead lock is being reclaimed."
+    },
+    "notice.durable.waiting": {
+      "text": "waiting for {path}: the operating system has refused this for {seconds} seconds ({error}); close whatever has it open, or end this process",
+      "context": "Printed each time another five seconds pass while an act that has already written part of itself waits for the operating system to stop refusing a file, so that the act does not stop half done. {path} is the file relative to the workbench root, {seconds} is a whole number, and {error} is the last error the operating system gave, in its own language."
+    },
+    "refusal.dinah.busy": {
+      "text": "the operating system kept refusing access to {detail} for five seconds, and the last error it gave was: {error}",
+      "context": "The sentence printed after the refusal name dinah.busy: the operating system refused to open, write, rename or remove a file for the whole of Dinah's retry, before the act had written anything. {detail} is the file relative to the workbench root, and {error} is the last error the operating system gave, in its own language. The sentence names no cause, because a denial can come from another process or from the file system itself. refusal.dinah.busy.next is spliced on after this one."
+    },
+    "refusal.dinah.busy.next": {
+      "text": "; nothing was changed, so run the command again",
+      "context": "Spliced onto refusal.dinah.busy as the next step. dinah.busy is only ever raised before an act has written anything, so the clause is always true."
+    },
+    "token.lock_reclaimed": {
+      "text": "lock reclaimed",
+      "context": "How the canonical token lock_reclaimed is rendered where a person reads it. The machine surface always carries the canonical spelling."
+    },
     "refusal.dinah.interrupted": {
       "text": "the action on {detail} was interrupted after it was recorded",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or column the refusal is about."

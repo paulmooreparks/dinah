@@ -12,6 +12,7 @@ package httphead
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -21,6 +22,8 @@ import (
 	"dinah/internal/answer"
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
+	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
 
@@ -59,6 +62,14 @@ type Config struct {
 	// with the terminal's own parser. When it is nil, POST /commands answers
 	// 501 and parses nothing.
 	ParseLine func(words []string) (TypedLine, *contract.Refusal)
+	// Notices is where a wait notice is printed, which is the process's
+	// standard error. Nil prints nothing, and the notice still reaches the
+	// command log.
+	Notices io.Writer
+	// InstallWaiting, when set, is handed the function that surfaces a
+	// durable wait on this head, and makes it the one durable.Waiting
+	// reaches. Handler calls it before it returns.
+	InstallWaiting func(func(durable.Wait))
 	// observe, when set, is called with each library request just before
 	// the library runs it. It is unexported, so only this package's own
 	// tests can set it, and they use it to hold what a request carried
@@ -86,7 +97,21 @@ func Handler(cfg Config) http.Handler {
 		})
 	}
 	h.mux.HandleFunc("/", h.serveUnmatched)
+	if cfg.InstallWaiting != nil {
+		cfg.InstallWaiting(h.waiting)
+	}
 	return h
+}
+
+// waiting surfaces a wait on this head: it prints the notice to standard error
+// and adds it to the command log the pages draw. The request whose act waits
+// is answered when the act finishes, and other requests are served meanwhile.
+func (h *head) waiting(wait durable.Wait) {
+	text := verb.WaitingNotice(msg.For(h.cfg.Lang), []string{h.cfg.Root}, wait)
+	if h.cfg.Notices != nil {
+		io.WriteString(h.cfg.Notices, "dinah: "+text+"\n")
+	}
+	h.log.record(LogEntry{Source: logSourceNotice, Outcome: logOutcomeWaiting, Detail: text})
 }
 
 // exchange is one request in flight.

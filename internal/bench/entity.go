@@ -810,6 +810,9 @@ func (b *Bench) Run(act *StructuralAct) error {
 			return unwind(err, entityLock, sibling, benchLock)
 		}
 	}
+	if err := refuseCarriedLock(act); err != nil {
+		return unwind(err, entityLock, sibling, benchLock)
+	}
 
 	if err := act.Record(); err != nil {
 		return unwind(err, entityLock, sibling, benchLock)
@@ -855,6 +858,26 @@ func (b *Bench) Run(act *StructuralAct) error {
 	}
 	benchLock.Release()
 	return b.step(8)
+}
+
+// refuseCarriedLock refuses a restore of an entity whose archived directory
+// holds a lock the act did not take itself, naming the holder that lock
+// records. An earlier build could carry a lock into the archive with the
+// directory, and a restore that moved it back would hand the live half a lock
+// nobody holds. dinah check reports such a lock and dinah check --finish
+// clears it once its holder is proven dead. A card's or a workstream's own
+// archived lock is the one the act's third step already took, so only an
+// entity whose lock directory is not its own directory, a column, is read
+// here.
+func refuseCarriedLock(act *StructuralAct) error {
+	if act.Op != OpRestore || act.LockDir == act.Dir {
+		return nil
+	}
+	record, present := ReadLockRecord(filepath.Join(act.Dir, LockName))
+	if !present {
+		return nil
+	}
+	return contract.Refuse(contract.Locked, record.Actor)
 }
 
 // removeTravelledLock removes the entity lock standing in a directory an

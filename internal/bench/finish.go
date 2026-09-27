@@ -271,30 +271,44 @@ func eventRecords(ev Event, op, id string) bool {
 // live-failure path releases it while leaving the sibling standing. So a
 // sibling found while the lock is free is stale by construction, and a
 // sibling found while it is held means an act is running and the finish is
-// refused. A bench lock an interrupted process left behind refuses the finish
-// until a human clears it, which is the stale-lock rule rather than an
-// exception to it.
-func (b *Bench) FinishInterrupted(actor, now string) ([]Finding, error) {
+// refused. A bench lock an interrupted process left behind is reclaimed by the
+// finish's own acquisition when its holder is proven dead, and otherwise
+// refuses the finish until a human clears it.
+//
+// Before the interrupted acts, the finish reclaims and releases every other
+// entity lock judged dead, and answers each one it cleared beside what it
+// would not resolve.
+func (b *Bench) FinishInterrupted(actor, now string) ([]Finding, []ClearedLock, error) {
+	rootLock := filepath.Join(b.Root, LockName)
+	rootRecord, rootVerdict := LockRecord{}, VerdictLive
+	if Exists(rootLock) {
+		rootRecord, rootVerdict = JudgeLock(rootLock)
+	}
 	benchLock, err := Acquire(b.Root, actor, now)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer benchLock.Release()
+	var cleared []ClearedLock
+	if rootVerdict == VerdictDead {
+		cleared = append(cleared, ClearedLock{Path: rootLock, Actor: rootRecord.Actor, PID: rootRecord.PID})
+	}
+	cleared = append(cleared, b.clearDeadLocks(actor, now)...)
 	interrupted, err := b.interruptions()
 	if err != nil {
-		return nil, err
+		return nil, cleared, err
 	}
 	var findings []Finding
 	for _, standing := range interrupted {
 		finding, err := b.finish(standing)
 		if err != nil {
-			return findings, err
+			return findings, cleared, err
 		}
 		if finding != nil {
 			findings = append(findings, *finding)
 		}
 	}
-	return findings, nil
+	return findings, cleared, nil
 }
 
 // finish walks one interrupted act to its end. It adopts the standing sibling

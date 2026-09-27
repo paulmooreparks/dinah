@@ -66,6 +66,10 @@ type BusyError struct {
 	Path string
 	// Err is the last error the operating system returned.
 	Err error
+	// Structural is true for MoveDir and RemoveAll, which run as a
+	// structural act's apply step or as cleanup, and whose refusal a
+	// structural act reports as an interruption rather than as busy.
+	Structural bool
 }
 
 // Error reports the operation, the path and the last error.
@@ -410,7 +414,7 @@ func MoveDir(from, to string) error {
 		return moveOnce(from, to)
 	})
 	if err != nil {
-		return err
+		return structural(err)
 	}
 	if err := syncDir(filepath.Dir(from)); err != nil {
 		return err
@@ -443,9 +447,20 @@ func RemoveLock(path string) error {
 // it falls, on the terms MoveDir does.
 func RemoveAll(path string) error {
 	observe("remove", path, 0)
-	return retry("remove", path, alwaysGiveUp, removeAllRetryable, func() error {
+	err := retry("remove", path, alwaysGiveUp, removeAllRetryable, func() error {
 		return os.RemoveAll(path)
 	})
+	return structural(err)
+}
+
+// structural marks a *BusyError from MoveDir or RemoveAll as structural and
+// answers every other error unchanged.
+func structural(err error) error {
+	var busy *BusyError
+	if errors.As(err, &busy) {
+		busy.Structural = true
+	}
+	return err
 }
 
 // OpenJournal opens a journal for reading and writing, creating it when it is

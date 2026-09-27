@@ -168,6 +168,13 @@ const (
 	AliasShadow       = LayerPrefix + "alias-shadows-command"
 	AliasMissing      = LayerPrefix + "missing-alias-argument"
 
+	// Busy is the operating system refusing an open, a write, a rename or a
+	// removal for as long as Dinah retries one that may give up, which is
+	// only ever before an act has written anything, so nothing was changed.
+	// The detail is the path relative to the workbench root, and the extra
+	// "error" carries the last error the operating system gave.
+	Busy = LayerPrefix + "busy"
+
 	// NoWorkbenchFound is the walk coming up empty, which NoWorkbench once
 	// shared a sentence with. The two are separated because one template
 	// cannot honestly describe both a path the caller named and a search

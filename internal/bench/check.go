@@ -25,6 +25,10 @@ type Finding struct {
 	// defect, which is what every finding written before the severities
 	// existed carries and what every structural invariant means.
 	Severity string
+	// Next is the catalog key of the step a reader takes about this finding,
+	// rendered after the finding's own sentence, and empty on a finding whose
+	// sentence already says it or that carries none.
+	Next string `json:",omitempty"`
 }
 
 // The catalog keys check reports its findings under. Each names one invariant
@@ -768,6 +772,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	for _, interrupted := range standing {
 		findings = append(findings, interrupted.finding())
 	}
+	findings = append(findings, b.checkStaleLocks()...)
 	return findings, nil
 }
 
@@ -1226,7 +1231,7 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	if err != nil {
 		return findings, nil
 	}
-	if torn {
+	if torn && tornUnderLock(card) {
 		findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingTornJournal, Detail: card.ID})
 	}
 	if position := ReplayPosition(events); position != "" && position != card.Column {

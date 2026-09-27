@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/colorprofile"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/screen"
 	"dinah/internal/screen/keyboard"
 	"dinah/internal/verb"
@@ -370,6 +371,13 @@ func (s *session) cycle(model *interactiveModel, entry *screen.Terminfo) (error,
 	options, frames := s.interactiveOptions(model.width, model.height)
 	program := tea.NewProgram(model, options...)
 	model.program = program
+	// A wait notice reaches the status line through tea.Program.Send, from a
+	// goroutine of its own, because the act that waits may be running on the
+	// goroutine the event loop is waiting to hear from.
+	installWaiting(func(wait durable.Wait) {
+		text := verb.WaitingNotice(s.r, []string{s.workbenchRoot}, wait)
+		go program.Send(waitingMsg{text: text})
+	})
 	model.gate = &changeGate{}
 	if frames != nil {
 		// A piece the console wrote short asks for the whole screen on the

@@ -2816,6 +2816,11 @@ type CheckReport struct {
 	// outcome or the exit code. Bench.Notices is where they come from, and
 	// the member is absent where there are none.
 	Notices []bench.Finding `json:"notices,omitempty"`
+	// ClearedLocks are the locks dinah check --finish reclaimed from a holder
+	// proven dead and then released, each naming the dead record's owner and
+	// process. It is absent from a check that was not asked to finish and
+	// from a finish that found no dead lock.
+	ClearedLocks []bench.ClearedLock `json:"cleared_locks,omitempty"`
 	// StampedOrdinals counts the creation ordinals the migration wrote, and
 	// is absent from a request that did not ask for the migration.
 	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
@@ -3147,10 +3152,11 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.stampOutcome()
 		return report, nil
 	}
-	unresolved, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
+	unresolved, cleared, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return nil, err
 	}
+	report.ClearedLocks = cleared
 	remaining, err := l.Bench.Check()
 	if err != nil {
 		return nil, err

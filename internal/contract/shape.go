@@ -543,6 +543,16 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// The operating system kept refusing a file for the whole retry
+		// budget before the act wrote anything. The sentence names the file
+		// and the last error and no cause, because a denial can come from
+		// another process or from the file system itself.
+		Name:      Busy,
+		Values:    []string{"error"},
+		Fragments: []Fragment{{Key: "refusal.dinah.busy.next"}},
+		NextStep:  []string{"refusal.dinah.busy.next"},
+	},
+	{
 		Name:      LastColumn,
 		Fragments: []Fragment{{Key: "refusal.dinah.last-column.next"}},
 		NextStep:  []string{"refusal.dinah.last-column.next"},
