@@ -302,7 +302,8 @@ func (m *interactiveModel) startKeyAct(row interactiveAct) tea.Cmd {
 		pending.back = modeItems
 		args["item"] = item.Ref
 		pending.finish = func(m *interactiveModel, args map[string]any) tea.Cmd {
-			return m.runVerb(pending, args)
+			m.runVerb(pending, args)
+			return nil
 		}
 	case row.read != nil:
 		pending.basis = ""
@@ -314,7 +315,8 @@ func (m *interactiveModel) startKeyAct(row interactiveAct) tea.Cmd {
 	default:
 		args["card"] = ref
 		pending.finish = func(m *interactiveModel, args map[string]any) tea.Cmd {
-			return m.runVerb(pending, args)
+			m.runVerb(pending, args)
+			return nil
 		}
 	}
 	return m.startPending(pending)
@@ -491,12 +493,15 @@ func (m *interactiveModel) identityInto(req *verb.Request) {
 // runVerb performs a gathered act through the library: its request is built
 // from the gathered arguments, with the head's identity and, for an act on a
 // card itself, the drawn revision as its basis, and it runs as the machine
-// heads run a verb. The answer is shown and the view read again off the event
-// loop, exactly as act reads it, so a key queued behind that read sees its
-// fresh state once it lands rather than the state this call started with. A
-// successful act bumps the watch epoch, exactly as act does, so one act
+// heads run a verb. The answer is shown and the view read again at once, on
+// purpose, unlike act's own: a step-gathered act, comment among the browse
+// ones and every item act, submits after a multi-character prompt, so the
+// next key typed is usually several already queued up in the terminal's own
+// buffer rather than one more key a person is waiting to see land, and
+// dinah-636's fix for a single key's own redraw does not reach this surface.
+// A successful act bumps the watch epoch, exactly as act does, so one act
 // produces one refresh.
-func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) tea.Cmd {
+func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) {
 	req := answer.Build(pending.verb, args)
 	m.identityInto(req)
 	req.Basis = pending.basis
@@ -512,7 +517,7 @@ func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) tea
 	if response.Outcome == contract.OutcomeOK {
 		m.watchEpoch++
 	}
-	return m.reread()
+	m.syncReread()
 }
 
 // actedOn shows the answer of an act the step machinery ran: the refusal the

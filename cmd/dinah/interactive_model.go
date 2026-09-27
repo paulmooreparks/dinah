@@ -303,7 +303,7 @@ func (m *interactiveModel) Init() tea.Cmd {
 			m.flushAsked = true
 			m.reader.RequestFlush()
 		}
-		return tea.Batch(m.waitForChange(), m.afterLine(result))
+		m.afterLine(result)
 	}
 	return m.waitForChange()
 }
@@ -637,6 +637,35 @@ func (m *interactiveModel) drainQueue() tea.Cmd {
 		}
 	}
 	return tea.Batch(cmds...)
+}
+
+// syncReread reads the view again, reapplies the filter, rebuilds the lanes
+// and keeps the selection by section 8.3's rules, then recomputes the offer
+// and the detail pane, entirely synchronously. It exists for afterLine's use
+// alone: a binding or a worded command line can run several commands back to
+// back, faster than this board-wide read could round-trip off the event
+// loop, and dinah-636's fix for an act's own redraw does not reach this
+// surface. Bumping readSeq, and marking it answered in the same call, means
+// an asynchronous read already in flight, dispatched by reread, is
+// recognised as superseded when it eventually lands, so it never overwrites
+// what this call just applied with something older, while a key already
+// queued behind that other read stays queued exactly until that read lands,
+// this call having taken nothing away from what it is waiting on.
+func (m *interactiveModel) syncReread() {
+	m.readSeq++
+	m.readAnswered = m.readSeq
+	drawn := *m.req
+	answer, err := m.l.DrawView(&drawn)
+	if err != nil {
+		m.message = m.errorLines(err)
+		return
+	}
+	if m.filter != "" {
+		if matches, err := m.query(m.filter); err == nil {
+			m.matches = matches
+		}
+	}
+	m.applyAnswer(answer, false)
 }
 
 // query runs a filter's query and answers the references it matched.

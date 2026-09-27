@@ -470,7 +470,8 @@ func (m *interactiveModel) chooseAction(name string, back interactiveMode) tea.C
 		if entry.run != nil {
 			return entry.run(m, args)
 		}
-		return m.runVerb(pending, args)
+		m.runVerb(pending, args)
+		return nil
 	}
 	return m.startPending(pending)
 }

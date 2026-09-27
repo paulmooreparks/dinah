@@ -168,7 +168,8 @@ func (m *interactiveModel) runLine(words []string, typed string) tea.Cmd {
 	parsed, stop := m.prepareLine(line, words, result)
 	if stop || parsed == nil {
 		transcript.finish()
-		return m.afterLine(result)
+		m.afterLine(result)
+		return nil
 	}
 	if c, ok := lookup(at(parsed.positional, 0)); ok && c.lendsTerminal && !parsed.has("help") && !parsed.has("version") {
 		m.lend = &lendRequest{line: line, parsed: parsed, result: result}
@@ -178,7 +179,8 @@ func (m *interactiveModel) runLine(words []string, typed string) tea.Cmd {
 	result.code = line.dispatch(parsed)
 	transcript.finish()
 	result.pinned = pinnedWrite(parsed, result.code)
-	return m.afterLine(result)
+	m.afterLine(result)
+	return nil
 }
 
 // prepareLine runs the steps of a line before its dispatch, writing any
@@ -275,21 +277,26 @@ func pinnedWrite(parsed *arguments, code int) string {
 	return ""
 }
 
-// afterLine shows what a line left and asks the library to read the
-// workbench again, off the event loop, so a line that changed the flow is
-// drawn once that read lands: the pinned workbench is opened afresh and the
-// key bindings are read again first. A notice the read leaves, such as item
-// mode closing because the line removed its last item, arrives with that
-// later read rather than beneath the transcript shown here. A transcript with
-// nothing in it names the command and its status in the message area, a
-// short one is shown there, and any other opens output mode.
-func (m *interactiveModel) afterLine(result *lineResult) tea.Cmd {
+// afterLine shows what a line left and reads the workbench again: the pinned
+// workbench is opened afresh, the key bindings are read again, and the view
+// is reread, so a line that changed the flow is drawn at once. This runs
+// synchronously, deliberately, unlike an act's own redraw: a binding or a
+// worded command can run several lines back to back, faster than a board-wide
+// read could round-trip off the event loop, and blocker #1's fix targets an
+// act's own read specifically, not this surface. A transcript with nothing in
+// it names the command and its status in the message area, a short one is
+// shown there, and any other opens output mode.
+func (m *interactiveModel) afterLine(result *lineResult) {
 	if reopened, err := m.s.open(); err == nil {
 		m.l = reopened
 	}
 	m.loadBindings(false)
 	m.message = nil
-	cmd := m.reread()
+	m.syncReread()
+	// A notice the read left, such as item mode closing because the line
+	// removed its last item, is kept beneath what the line showed.
+	notice := m.message
+	defer func() { m.message = append(m.message, notice...) }()
 	lines := result.transcript.lines
 	if result.pinned != "" {
 		lines = append(lines, withoutControls(m.s.r.T("interactive.line.pinned", "key", result.pinned)))
@@ -314,7 +321,6 @@ func (m *interactiveModel) afterLine(result *lineResult) tea.Cmd {
 	if interactiveSeam != nil && interactiveSeam.lineDone != nil {
 		interactiveSeam.lineDone(result)
 	}
-	return cmd
 }
 
 // fitsMessage reports whether a transcript fits the message area: at most
