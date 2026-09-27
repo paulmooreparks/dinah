@@ -93,26 +93,41 @@ func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for _, id := range workstreamIDs {
-		dir := filepath.Join(b.WorkstreamsRoot(), id)
-		live = append(live, watch(WorkstreamsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, WorkstreamAnchor)))
+	workstreamEntries, err := parallelRead(len(workstreamIDs), func(i int) (Watched, error) {
+		dir := filepath.Join(b.WorkstreamsRoot(), workstreamIDs[i])
+		return watch(WorkstreamsDir+"/"+workstreamIDs[i], filepath.Join(dir, JournalName), filepath.Join(dir, WorkstreamAnchor)), nil
+	})
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	live = append(live, workstreamEntries...)
 	cardIDs, err := ListIDs(b.CardsRoot())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for _, id := range cardIDs {
-		dir := filepath.Join(b.CardsRoot(), id)
-		live = append(live, watch(CardsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, CardAnchor)))
+	// This is the walk that mints a change cursor: one stat and one content
+	// hash per live card, run across parallelRead's pool the same way
+	// cardsWith runs a card's own load, and watch takes no lock either.
+	cardEntries, err := parallelRead(len(cardIDs), func(i int) (Watched, error) {
+		dir := filepath.Join(b.CardsRoot(), cardIDs[i])
+		return watch(CardsDir+"/"+cardIDs[i], filepath.Join(dir, JournalName), filepath.Join(dir, CardAnchor)), nil
+	})
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	live = append(live, cardEntries...)
 	archivedIDs, err := ListIDs(b.ArchivedCardsRoot())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for _, id := range archivedIDs {
-		dir := filepath.Join(b.ArchivedCardsRoot(), id)
-		archive = append(archive, watch(CardsDir+"/"+id, filepath.Join(dir, JournalName), ""))
+	archiveEntries, err := parallelRead(len(archivedIDs), func(i int) (Watched, error) {
+		dir := filepath.Join(b.ArchivedCardsRoot(), archivedIDs[i])
+		return watch(CardsDir+"/"+archivedIDs[i], filepath.Join(dir, JournalName), ""), nil
+	})
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	archive = append(archive, archiveEntries...)
 	// The column half reads the flow the bench opened with rather than
 	// listing the collection, so a directory carrying no anchor, which
 	// dinah check reports as orphaned, contributes nothing here either.
