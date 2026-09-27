@@ -931,7 +931,10 @@ func serveClosesItsResident(t *testing.T, command string) {
 	steps := log.all()
 	workdir, chdir, open := indexOf(steps, "workdir "), indexOf(steps, "chdir "), indexOf(steps, "open")
 	switch {
-	case workdir < 0 || steps[workdir] != "workdir "+workbench:
+	case workdir < 0 || !sameDirectory(strings.TrimPrefix(steps[workdir], "workdir "), workbench):
+		// On macOS the temporary directory lies behind a symbolic link, and
+		// serve resolves its root from the side discovery climbs, so the two
+		// spellings are compared as directories.
 		t.Errorf("%s: serveWorkDir was not handed the workbench root %s: %v", command, workbench, steps)
 	case chdir < 0 || steps[chdir] != "chdir "+answered:
 		t.Errorf("%s: serveChdir was not handed what serveWorkDir answered, %s: %v", command, answered, steps)
