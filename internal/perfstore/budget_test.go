@@ -64,13 +64,31 @@ var operationNames = []string{
 // dinah-635 extended the mechanism to six more reads, after dinah-630 and
 // dinah-631 had already fixed the costs a budget would otherwise be pinned
 // against, calibrating every new row the same way: three perf-job runs on
-// its own pull request, the basis taken as each row's median across them.
+// its own pull request, the basis taken as each row's median across them:
+// view-board 409, 429 and 396ms; view-agenda 112, 108 and 108ms; next 112,
+// 110 and 107ms; prime 606, 615 and 597ms; query 391, 399 and 392ms; offer
+// 29, 31 and 29ms.
+//
+// The same three runs measured status-warm and status-cold well below their
+// dinah-621 budgets, more than six times under on a run elsewhere that
+// merged the same trunk (dinah-636's own PR, on the same day), so dinah-635
+// recalibrated both from those runs: status-warm 317, 309 and 318ms, a basis
+// of 317ms; status-cold 423, 441 and 406ms, a basis of 423ms. page-card and
+// show sit closer to their slack line on the fast runner than the slow one
+// this card measured on (602ms against a 1,460ms budget, 19ms against a
+// 30ms one) but neither crossed it on either runner, so neither row moved.
 var budgets = map[string][]budget{
 	"windows": {
-		{op: "status-warm", limit: 1110 * time.Millisecond, basis: 367 * time.Millisecond, setBy: "dinah-621"},
+		{op: "status-warm", limit: 960 * time.Millisecond, basis: 317 * time.Millisecond, setBy: "dinah-635"},
 		{op: "show", limit: 30 * time.Millisecond, basis: 6 * time.Millisecond, setBy: "dinah-618"},
 		{op: "page-card", limit: 1460 * time.Millisecond, basis: 486 * time.Millisecond, setBy: "dinah-630"},
-		{op: "status-cold", limit: 1460 * time.Millisecond, basis: 485 * time.Millisecond, setBy: "dinah-621"},
+		{op: "status-cold", limit: 1270 * time.Millisecond, basis: 423 * time.Millisecond, setBy: "dinah-635"},
+		{op: "view-board", limit: 1230 * time.Millisecond, basis: 409 * time.Millisecond, setBy: "dinah-635"},
+		{op: "view-agenda", limit: 330 * time.Millisecond, basis: 108 * time.Millisecond, setBy: "dinah-635"},
+		{op: "next", limit: 330 * time.Millisecond, basis: 110 * time.Millisecond, setBy: "dinah-635"},
+		{op: "prime", limit: 1820 * time.Millisecond, basis: 606 * time.Millisecond, setBy: "dinah-635"},
+		{op: "query", limit: 1180 * time.Millisecond, basis: 392 * time.Millisecond, setBy: "dinah-635"},
+		{op: "offer", limit: 90 * time.Millisecond, basis: 29 * time.Millisecond, setBy: "dinah-635"},
 	},
 }
 
@@ -542,14 +560,18 @@ func checkQuery(matches *verb.Matches, want int) error {
 }
 
 // checkOffer is the offer check's answer check: it names at least one legal
-// move for perf-1, the card the generator gives manyItemsFloor checklist
-// items so this check measures what a many-item card costs.
+// move for perf-1 and answers perf.ManyItemsFloor items, the count the
+// generator gives that card so this check measures what a many-item card
+// costs.
 func checkOffer(offered *verb.OfferedActs) error {
 	if offered == nil {
 		return fmt.Errorf("the offer check answered nothing")
 	}
 	if len(offered.Moves) == 0 {
 		return fmt.Errorf("the offer check named no legal move for perf-1")
+	}
+	if len(offered.Items) < perfstore.ManyItemsFloor {
+		return fmt.Errorf("the offer check answered %d items for perf-1, wanted at least %d", len(offered.Items), perfstore.ManyItemsFloor)
 	}
 	return nil
 }
