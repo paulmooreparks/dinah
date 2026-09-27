@@ -1325,6 +1325,31 @@ func (l *Library) refuse(req *Request, card *bench.Card, name, detail string) *R
 	return l.refuseWith(req, card, name, detail, extra)
 }
 
+// itemRefusal answers the refusal refuse would build, without the card view:
+// the harness-declared extra for a no-owner or not-operator refusal, inlined
+// at the RefuseWith call exactly as read.go and reshape.go already inline it,
+// and contract.Refuse's plain two-argument form for everything else. A shared
+// check function an act and the offer both call answers this instead of
+// refuse, so the offer, which discards the view, never pays to compose one.
+func itemRefusal(req *Request, name, detail string) *contract.Refusal {
+	if name == contract.NoOwner || name == contract.NotOperator {
+		return contract.RefuseWith(name, detail, harnessExtra(req))
+	}
+	return contract.Refuse(name, detail)
+}
+
+// refuseFrom turns a bare refusal a shared check function answered into the
+// full response an act needs, composing the card view refuseWith composes.
+// It is the seam between a check answering a bare reason and an act that
+// still needs the view: the check decides once, and each caller pays for
+// only the shape it asked for.
+func (l *Library) refuseFrom(req *Request, card *bench.Card, bare *contract.Refusal) *Response {
+	if bare == nil {
+		return nil
+	}
+	return l.refuseWith(req, card, bare.Name, bare.Detail, bare.Extra)
+}
+
 // refuseWith builds a refused response carrying the refusal's named values,
 // for a raise site holding something the sentence needs and the detail alone
 // cannot say.
