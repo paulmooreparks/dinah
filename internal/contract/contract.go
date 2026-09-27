@@ -1271,6 +1271,14 @@ const (
 	// this is its lifecycle event, where the prefix is reserved for what
 	// Dinah invents beyond what the format declares.
 	EventRenumbered = "renumbered"
+	// EventLockReclaimed records that a lock whose holder was proven dead was
+	// taken over by the actor the line names. Its Note is the dead lock's
+	// own record line, and it carries Column when the lock was a column's
+	// occupancy lock. It lands on the journal of the entity the lock
+	// protected, or, for an occupancy lock, on the journal of the card whose
+	// move or pull reclaimed it, or the workbench journal for an add or a
+	// repair.
+	EventLockReclaimed = "lock_reclaimed"
 )
 
 // Events lists the event names a query over cards accepts in its event field,
@@ -1302,6 +1310,7 @@ var Events = []string{
 	EventRetirementGranted, EventRetirementRevoked,
 	EventLinked, EventUnlinked,
 	EventRenumbered,
+	EventLockReclaimed,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"dinah/internal/bench"
+	"dinah/internal/durable"
 	"dinah/internal/contract"
 	"dinah/internal/verb"
 )
@@ -63,7 +63,7 @@ type tuiFinder struct {
 	// executable answers this program's own path, as os.Executable does.
 	executable func() (string, error)
 	// resolve answers a path once every link along it is resolved, as
-	// bench.FinalPath does.
+	// durable.FinalPath does.
 	resolve func(string) (string, error)
 	// lookPath searches PATH, as exec.LookPath does.
 	lookPath func(string) (string, error)
@@ -75,7 +75,7 @@ type tuiFinder struct {
 func systemTUIFinder() tuiFinder {
 	return tuiFinder{
 		executable: os.Executable,
-		resolve:    bench.FinalPath,
+		resolve:    durable.FinalPath,
 		lookPath:   exec.LookPath,
 		isProgram:  isRunnable,
 	}

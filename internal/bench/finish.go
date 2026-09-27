@@ -321,6 +321,9 @@ func (b *Bench) finish(in interruption) (*Finding, error) {
 		if err := b.complete(in); err != nil {
 			return nil, err
 		}
+		if err := removeTravelledLock(in.target); err != nil {
+			return nil, err
+		}
 	}
 	adoptLock(in.path).Release()
 	return nil, nil

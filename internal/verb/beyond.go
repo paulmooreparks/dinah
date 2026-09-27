@@ -9,6 +9,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/template"
 )
 
@@ -165,7 +166,7 @@ func (l *Library) Add(req *Request) *Response {
 	// the identifier up means giving up the directory too, since an empty
 	// hex directory makes every listing on the bench fail.
 	if holder, retiring := l.retiring(destination.ID); retiring {
-		os.RemoveAll(dir)
+		durable.RemoveAll(dir)
 		return l.refuse(req, nil, contract.Locked, holder)
 	}
 	fm := bench.NewFrontmatter()
@@ -1426,7 +1427,7 @@ func readSource(root, source string) (*bench.Definition, error) {
 		}
 		return bench.ReadDefinition(data)
 	}
-	data, err := os.ReadFile(source)
+	data, err := durable.ReadFile(source)
 	if err != nil {
 		return nil, contract.With(contract.Refuse(contract.UnknownPath, source), "file", source)
 	}

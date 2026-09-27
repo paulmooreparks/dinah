@@ -12,6 +12,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // The definitions these tests reshape to. Each names the fixture's own column
@@ -213,7 +214,7 @@ func (h *harness) digest() string {
 	}
 	sort.Strings(paths)
 	for _, relative := range paths {
-		body, readErr := os.ReadFile(filepath.Join(h.root, filepath.FromSlash(relative)))
+		body, readErr := durable.ReadFile(filepath.Join(h.root, filepath.FromSlash(relative)))
 		if readErr != nil {
 			h.t.Fatalf("read %s: %v", relative, readErr)
 		}

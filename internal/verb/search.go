@@ -2,7 +2,6 @@ package verb
 
 import (
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // The four kinds of entity a hit names.
@@ -578,7 +578,7 @@ func attachmentText(attachment *bench.Attachment) (string, bool) {
 	if !named && extension != "" {
 		return "", false
 	}
-	file, err := os.Open(attachment.Path)
+	file, err := durable.Open(attachment.Path)
 	if err != nil {
 		return "", false
 	}

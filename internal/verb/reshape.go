@@ -3,13 +3,13 @@ package verb
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/msg"
 )
 
@@ -370,7 +370,7 @@ func readReshapeSource(source string) (*bench.Definition, string, error) {
 		}
 		data = exported
 	} else {
-		read, err := os.ReadFile(source)
+		read, err := durable.ReadFile(source)
 		if err != nil {
 			return nil, "", contract.With(contract.Refuse(contract.UnknownPath, source), "file", source)
 		}
@@ -1105,7 +1105,7 @@ func matchingAttachment(present []*bench.Attachment, matched map[string]bool, ca
 		if matched[attachment.ID] || attachment.Filename != carried.Filename || attachment.Path == "" {
 			continue
 		}
-		payload, err := os.ReadFile(attachment.Path)
+		payload, err := durable.ReadFile(attachment.Path)
 		if err != nil || !bytes.Equal(payload, carried.Payload) {
 			continue
 		}

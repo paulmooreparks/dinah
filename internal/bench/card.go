@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // Link is one entry of a card's links sequence: a kind and the identifier of
@@ -780,7 +780,7 @@ const cardHeaderLimit = 64 * 1024
 // revision. An anchor that opens no frontmatter, or does not close it inside
 // that limit, is an error.
 func ReadCardHeader(anchor string) (*Frontmatter, error) {
-	file, err := os.Open(anchor)
+	file, err := durable.Open(anchor)
 	if err != nil {
 		return nil, err
 	}

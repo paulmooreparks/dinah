@@ -1,6 +1,6 @@
 //go:build !windows
 
-package bench
+package durable
 
 import "path/filepath"
 

@@ -25,6 +25,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // DefaultSeed is the seed CI generates with. A budget failure names it, so a
@@ -313,7 +314,7 @@ func Digest(root string) (digest string, files int, err error) {
 	sort.Strings(paths)
 	hash := sha256.New()
 	for _, relative := range paths {
-		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
+		data, err := durable.ReadFile(filepath.Join(root, filepath.FromSlash(relative)))
 		if err != nil {
 			return "", 0, err
 		}
@@ -1078,7 +1079,7 @@ func (j *journal) add(ev bench.Event) error {
 
 // save writes the collected lines to path.
 func (j *journal) save(path string) error {
-	return os.WriteFile(path, j.buffer.Bytes(), 0o644)
+	return durable.WriteFile(path, j.buffer.Bytes(), 0o644)
 }
 
 // clock issues one card's timestamps, each strictly later than the last.
@@ -1385,7 +1386,7 @@ func (g *generator) writeAttachment(cardDir string, number, ordinal int, clk *cl
 		return err
 	}
 	content := g.text("attachment-payload", index, g.shape.PayloadBytes, true) + "\n"
-	if err := os.WriteFile(payload, []byte(content), 0o644); err != nil {
+	if err := durable.WriteFile(payload, []byte(content), 0o644); err != nil {
 		return err
 	}
 	g.files += 2
