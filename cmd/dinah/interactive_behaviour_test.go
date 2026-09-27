@@ -149,6 +149,15 @@ func isChange(msg tea.Msg) bool {
 	return ok && change.set != nil && change.set.Changed
 }
 
+// isViewRead accepts the message one read of the whole view answered. A
+// change detected by the watch dispatches this read off the event loop, so a
+// script that inspects the model after seeing the change must wait for this
+// too, or it reads the model before the redraw the change caused has landed.
+func isViewRead(msg tea.Msg) bool {
+	_, ok := msg.(viewReadMsg)
+	return ok
+}
+
 // isSize accepts a size message of width by height.
 func isSize(width, height int) func(tea.Msg) bool {
 	return func(msg tea.Msg) bool {
@@ -172,6 +181,9 @@ func TestAnOtherSessionsMoveKeepsTheLaneAndSelectsTheCardAtTheOldIndex(t *testin
 		if msg := s.waitFor("the change", isChange); msg != nil {
 			change = msg.(changeMsg).set
 		}
+		// The change's own redraw runs off the event loop now, so the model
+		// carries it only once that read has landed too.
+		s.waitFor("the redraw the change caused", isViewRead)
 		s.write(keyCtrlC)
 	})
 	m := run.model
@@ -198,6 +210,9 @@ func TestAnArchivedCardLeavesCardMode(t *testing.T) {
 	run := s.run(root, seam, func() {
 		s.write(keyEnter + "Z")
 		s.waitFor("the change", isChange)
+		// The change's own redraw runs off the event loop now, so the model
+		// carries it only once that read has landed too.
+		s.waitFor("the redraw the change caused", isViewRead)
 		s.write(keyCtrlC)
 	})
 	m := run.model

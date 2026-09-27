@@ -84,10 +84,22 @@ type (
 	}
 	// resizeMsg says the console reported a change of its buffer size.
 	resizeMsg struct{}
-	// changeMsg is what one wait for a change answered.
+	// changeMsg is what one wait for a change answered, tagged with the watch
+	// epoch the wait was launched under, so an answer launched before the
+	// head's own act can be told apart from one launched after it.
 	changeMsg struct {
-		set *verb.ChangeSet
-		err error
+		set   *verb.ChangeSet
+		err   error
+		epoch uint64
+	}
+	// viewReadMsg is what one read of the view answered, tagged with the read
+	// generation it was asked under, so an answer that arrives after a later
+	// read was asked for is dropped.
+	viewReadMsg struct {
+		seq     uint64
+		answer  *verb.ViewAnswer
+		err     error
+		matches map[string]bool
 	}
 	// crashMsg says a panic was recovered and the program should quit.
 	crashMsg struct{}
@@ -221,6 +233,17 @@ type interactiveModel struct {
 	// lists the candidates.
 	tabbed bool
 
+	// readSeq is bumped on every read of the whole view, which now runs off
+	// the event loop when it is the watcher's own read of a change somebody
+	// else made; an answer whose generation readSeq no longer carries is
+	// superseded by a later read and dropped rather than applied. watchEpoch
+	// is bumped after the head's own successful act, so the wait already in
+	// flight when the act was made, which answers a change the head has
+	// already redrawn for itself, is recognised and its own refresh is
+	// skipped, keeping one act to one refresh.
+	readSeq    uint64
+	watchEpoch uint64
+
 	crashMu sync.Mutex
 	crash   *interactiveCrash
 }
@@ -303,9 +326,11 @@ func (m *interactiveModel) guarded(cmd func() tea.Msg) tea.Cmd {
 }
 
 // waitForChange is the command that waits for the next change on the waiter
-// library, for at most watchWait.
+// library, for at most watchWait. The watch epoch it is launched under travels
+// with the answer, so changed can tell a wait launched before the head's own
+// act apart from one launched after it.
 func (m *interactiveModel) waitForChange() tea.Cmd {
-	cursor, gate, waiter, actor := m.cursor, m.gate, m.waiter, m.req.Actor
+	cursor, gate, waiter, actor, epoch := m.cursor, m.gate, m.waiter, m.req.Actor, m.watchEpoch
 	return m.guarded(func() tea.Msg {
 		gate.mu.Lock()
 		defer gate.mu.Unlock()
@@ -313,7 +338,7 @@ func (m *interactiveModel) waitForChange() tea.Cmd {
 			return nil
 		}
 		set, err := waiter.Changes(&verb.Request{Verb: "changes", Actor: actor, Since: cursor, Wait: true, Timeout: watchWait})
-		return changeMsg{set: set, err: err}
+		return changeMsg{set: set, err: err, epoch: epoch}
 	})
 }
 
@@ -355,6 +380,8 @@ func (m *interactiveModel) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			m.minGen = msg.gen
 		}
 		return m, nil
+	case viewReadMsg:
+		return m, m.handleViewRead(msg)
 	case keyMsg:
 		if m.flushAsked || msg.gen < m.minGen {
 			return m, nil
@@ -425,9 +452,13 @@ func (m *interactiveModel) draw() int {
 }
 
 // changed handles what one wait for a change answered, and starts the next,
-// or, after a wait that failed, the pause before it.
+// or, after a wait that failed, the pause before it. A wait launched before
+// the head's own act, whose answer arrives reporting the very change that act
+// already made and redrew, is stale: its cursor is still taken, but its own
+// refresh is skipped, so one act produces one refresh rather than two.
 func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 	cmds := []tea.Cmd{m.measure()}
+	stale := msg.epoch != m.watchEpoch
 	switch {
 	case msg.err != nil:
 		// A wait that failed is tried again after watchWait rather than at
@@ -442,17 +473,19 @@ func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 				m.l = reopened
 			}
 		}
-		m.message = nil
-		m.status = statusParts{
-			time:   m.s.r.T("view.watch.updated", "time", now().Format(watchClock)),
-			change: m.s.changeText(msg.set),
+		if !stale {
+			m.message = nil
+			m.status = statusParts{
+				time:   m.s.r.T("view.watch.updated", "time", now().Format(watchClock)),
+				change: m.s.changeText(msg.set),
+			}
+			cmds = append(cmds, m.rereadAsync())
 		}
-		m.reread()
 	default:
 		m.cursor = msg.set.Cursor
-		if !m.expiry.IsZero() && !now().Before(m.expiry) {
+		if !stale && !m.expiry.IsZero() && !now().Before(m.expiry) {
 			m.status.time = m.s.r.T("view.watch.updated", "time", now().Format(watchClock))
-			m.reread()
+			cmds = append(cmds, m.rereadAsync())
 		}
 	}
 	return tea.Batch(append(cmds, m.waitForChange())...)
@@ -479,8 +512,16 @@ func (m *interactiveModel) errorLinesFor(err error, command string) []string {
 }
 
 // reread reads the view again, reapplies the filter, rebuilds the lanes and
-// keeps the selection by section 8.3's rules, then recomputes the offer.
+// keeps the selection by section 8.3's rules, then recomputes the offer and
+// the detail pane. It runs synchronously, on purpose: every caller is the
+// head's own write, whether an act or a command line, and the very next key
+// may be another one, whose basis must be read against the fresh state this
+// call produces. Bumping readSeq here too means a board-wide read already in
+// flight when this one runs, dispatched by rereadAsync for some earlier
+// change, is recognised as superseded when it eventually lands, so it never
+// overwrites what this call just applied with something older.
 func (m *interactiveModel) reread() {
+	m.readSeq++
 	drawn := *m.req
 	answer, err := m.l.DrawView(&drawn)
 	if err != nil {
@@ -493,6 +534,58 @@ func (m *interactiveModel) reread() {
 		}
 	}
 	m.applyAnswer(answer, false)
+}
+
+// rereadAsync is reread's board-wide read dispatched off the event loop
+// instead, tagged with a fresh read generation, for changed's own use: the
+// read that follows a change somebody else made, which no key the person at
+// this terminal is about to press depends on, unlike an act's own reread.
+// That is exactly the read the profile measured taking 400 ms, and it must
+// not hold the keyboard for that long. An answer superseded by a later read,
+// of either kind, is dropped; handleViewRead is where a current one lands.
+func (m *interactiveModel) rereadAsync() tea.Cmd {
+	m.readSeq++
+	seq := m.readSeq
+	drawn := *m.req
+	l, actor, filter := m.l, m.req.Actor, m.filter
+	return m.guarded(func() tea.Msg {
+		if interactiveSeam != nil && interactiveSeam.readGate != nil {
+			interactiveSeam.readGate()
+		}
+		answer, err := l.DrawView(&drawn)
+		if err != nil {
+			return viewReadMsg{seq: seq, err: err}
+		}
+		var matches map[string]bool
+		if filter != "" {
+			if found, err := l.Query(&verb.Request{Verb: "query", Actor: actor, Query: filter}); err == nil {
+				matches = map[string]bool{}
+				for _, card := range found.Cards {
+					matches[card.Ref] = true
+				}
+			}
+		}
+		return viewReadMsg{seq: seq, answer: answer, matches: matches}
+	})
+}
+
+// handleViewRead applies a read of the view answered off the event loop, once
+// it is still current: reapplies the filter's matches where the read asked
+// for them, rebuilds the lanes and keeps the selection by section 8.3's
+// rules, then recomputes the offer and the detail pane.
+func (m *interactiveModel) handleViewRead(msg viewReadMsg) tea.Cmd {
+	if msg.seq != m.readSeq {
+		return nil
+	}
+	if msg.err != nil {
+		m.message = m.errorLines(msg.err)
+		return nil
+	}
+	if m.filter != "" && msg.matches != nil {
+		m.matches = msg.matches
+	}
+	m.applyAnswer(msg.answer, false)
+	return nil
 }
 
 // query runs a filter's query and answers the references it matched.
@@ -721,8 +814,25 @@ func (m *interactiveModel) identity(name string) *verb.Request {
 }
 
 // recomputeOffer asks the library what may be offered for the target card,
-// and, where no card is targeted, what may be offered on the workbench and
-// in the focused lane's column.
+// and, where no card is targeted, what may be offered on the workbench and in
+// the focused lane's column.
+//
+// This runs synchronously, deliberately: OfferActs answers one card and is
+// cheap next to a board-wide read, and Bubble Tea gives no guarantee that an
+// asynchronous command's answer lands before the very next key, or before a
+// quit already in flight, so making this asynchronous raced the offer itself
+// stale against the input that is supposed to have produced it. reread, which
+// asks for the whole board, is where the read that actually took 400 ms in
+// the profile lives, and that one runs off the loop; see reread.
+//
+// It is asked fresh on every call rather than cached against the card
+// reference for the read now on screen, on purpose: whether the offer runs is
+// not only a function of the card's own revision, which a read does capture,
+// but also of the clock, since a claim's lapse depends on it, and a card
+// whose revision has not changed can still lapse between two selections of
+// the same card within one read. A cache keyed by reference answered the
+// claim a lapsed hold's owner no longer held with the offer as it stood
+// before the lapse; dinah-636's own suite caught it.
 func (m *interactiveModel) recomputeOffer() {
 	m.offer = interactiveOffer{}
 	ref, _, ok := m.target()
@@ -778,7 +888,9 @@ func (m *interactiveModel) offerWithoutCard() {
 }
 
 // refreshDetail renders the detail pane for the selected card, at a window
-// wide enough to hold it.
+// wide enough to hold it. As recomputeOffer, this runs synchronously: Show on
+// one card is cheap next to reread's board-wide read, and the same race
+// against the next key or a quit applies here too.
 func (m *interactiveModel) refreshDetail() {
 	m.detail = nil
 	if m.width < interactiveWideWidth || m.tooSmall() {
@@ -1277,11 +1389,14 @@ func (m *interactiveModel) focusLane(index int) {
 }
 
 // act performs one act on the target card through the library, shows its
-// answer, and reads the view again at once.
-func (m *interactiveModel) act(name string, row *verb.LegalMove) {
+// answer, and reads the view again off the event loop. A successful act bumps
+// the watch epoch, so the wait already in flight, which will answer this same
+// act as a change, is recognised as one the head has already redrawn for and
+// its own refresh is skipped.
+func (m *interactiveModel) act(name string, row *verb.LegalMove) tea.Cmd {
 	ref, basis, ok := m.target()
 	if !ok {
-		return
+		return nil
 	}
 	asking := m.identity(name)
 	asking.Card = ref
@@ -1291,11 +1406,15 @@ func (m *interactiveModel) act(name string, row *verb.LegalMove) {
 	}
 	response := m.l.Do(asking)
 	m.answered(response, name, ref, row)
-	if response.Outcome == contract.OutcomeOK && m.cardOpen {
-		m.leaveCard()
-		m.mode = modeBrowse
+	if response.Outcome == contract.OutcomeOK {
+		m.watchEpoch++
+		if m.cardOpen {
+			m.leaveCard()
+			m.mode = modeBrowse
+		}
 	}
 	m.reread()
+	return nil
 }
 
 // answered shows an act's answer in the message area. A refusal is composed

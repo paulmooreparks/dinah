@@ -195,16 +195,16 @@ var interactiveActs = []interactiveAct{
 		offered: func(*interactiveModel) bool { return true }},
 	{name: "claim", verb: verb.Claim, mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.claim },
 		offered: func(m *interactiveModel) bool { return m.offer.claim },
-		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { m.act(verb.Claim, nil); return nil }},
+		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { return m.act(verb.Claim, nil) }},
 	{name: "accept", verb: verb.Move, mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.accept },
 		offered: func(m *interactiveModel) bool { return m.offer.forward != nil && m.offer.forwardTerminal },
-		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { m.act(verb.Move, m.offer.forward); return nil }},
+		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { return m.act(verb.Move, m.offer.forward) }},
 	{name: "advance", verb: verb.Move, mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.advance },
 		offered: func(m *interactiveModel) bool { return m.offer.forward != nil && !m.offer.forwardTerminal },
-		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { m.act(verb.Move, m.offer.forward); return nil }},
+		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { return m.act(verb.Move, m.offer.forward) }},
 	{name: "send-back", verb: verb.Move, mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.sendBack },
 		offered: func(m *interactiveModel) bool { return m.offer.back != nil },
-		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { m.act(verb.Move, m.offer.back); return nil }},
+		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { return m.act(verb.Move, m.offer.back) }},
 	{name: "move", verb: verb.Move, mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.move },
 		offered: func(m *interactiveModel) bool { return len(m.offer.moves) > 0 },
 		steps:   []interactiveStep{{param: "column", kind: stepMenu, label: "interactive.menu.title", rows: moveRows}},
@@ -213,14 +213,14 @@ var interactiveActs = []interactiveAct{
 			for i := range m.offer.moves {
 				if m.offer.moves[i].Ref == column {
 					row := m.offer.moves[i]
-					m.act(verb.Move, &row)
+					return m.act(verb.Move, &row)
 				}
 			}
 			return nil
 		}},
 	{name: "release", verb: verb.Release, mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.release },
 		offered: func(m *interactiveModel) bool { return m.offer.release },
-		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { m.act(verb.Release, nil); return nil }},
+		run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { return m.act(verb.Release, nil) }},
 	{name: "comment", verb: "comment", mode: actBrowse, binding: func(k *interactiveKeys) key.Binding { return k.comment },
 		offered: func(m *interactiveModel) bool { return m.offer.comment },
 		steps:   []interactiveStep{textStep("text", "interactive.prompt.comment")}},
@@ -302,8 +302,7 @@ func (m *interactiveModel) startKeyAct(row interactiveAct) tea.Cmd {
 		pending.back = modeItems
 		args["item"] = item.Ref
 		pending.finish = func(m *interactiveModel, args map[string]any) tea.Cmd {
-			m.runVerb(pending, args)
-			return nil
+			return m.runVerb(pending, args)
 		}
 	case row.read != nil:
 		pending.basis = ""
@@ -315,8 +314,7 @@ func (m *interactiveModel) startKeyAct(row interactiveAct) tea.Cmd {
 	default:
 		args["card"] = ref
 		pending.finish = func(m *interactiveModel, args map[string]any) tea.Cmd {
-			m.runVerb(pending, args)
-			return nil
+			return m.runVerb(pending, args)
 		}
 	}
 	return m.startPending(pending)
@@ -493,8 +491,11 @@ func (m *interactiveModel) identityInto(req *verb.Request) {
 // runVerb performs a gathered act through the library: its request is built
 // from the gathered arguments, with the head's identity and, for an act on a
 // card itself, the drawn revision as its basis, and it runs as the machine
-// heads run a verb. The answer is shown and the view read again.
-func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) {
+// heads run a verb. The answer is shown and the view read again, at once, as
+// act reads it: the next key may be another act on the strength of this
+// read's fresh state. A successful act bumps the watch epoch, exactly as act
+// does, so one act produces one refresh.
+func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) tea.Cmd {
 	req := answer.Build(pending.verb, args)
 	m.identityInto(req)
 	req.Basis = pending.basis
@@ -507,7 +508,11 @@ func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) {
 		subject = pending.item
 	}
 	m.actedOn(response, pending.verb, subject, args)
+	if response.Outcome == contract.OutcomeOK {
+		m.watchEpoch++
+	}
 	m.reread()
+	return nil
 }
 
 // actedOn shows the answer of an act the step machinery ran: the refusal the
