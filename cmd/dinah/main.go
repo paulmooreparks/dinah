@@ -124,6 +124,20 @@ type session struct {
 	// args is the argument list this invocation was given, before any alias
 	// was expanded, which dinah tui hands to dinah-tui exactly as typed.
 	args []string
+	// start is what the terminal UI's head resolved when it started, nil on
+	// every session that is not a terminal UI head or one of its lines.
+	start *lineStart
+	// pinnedSettings are the rows the bare config listing reports in place of
+	// resolving them afresh, which the terminal UI's line session sets to the
+	// values its head started with. Nil for every other session.
+	pinnedSettings map[string]verb.SettingView
+	// onOpen, when set, is called by open with every library it opens. The
+	// terminal UI sets it on a line session from its seam alone, so a test
+	// can reach a library a line opened in this process.
+	onOpen func(*verb.Library)
+	// lineOnOpen is what a terminal UI head sets as onOpen on every line
+	// session it builds, from its seam alone.
+	lineOnOpen func(*verb.Library)
 }
 
 func main() {
@@ -236,6 +250,16 @@ func run(argv []string, in io.Reader, out, errw io.Writer) int {
 	if actor, err := bench.ResolveActor(parsed.value("actor"), s.agent.Harness, cfg); err == nil {
 		s.actor = actor
 	}
+	return s.dispatch(parsed)
+}
+
+// dispatch answers a parsed command line on a session run has already built:
+// help and version first, the help block for no command, then the command's
+// lookup, the open-tail correction, the unread-word and undeclared-flag
+// refusals, and the command's own run function. run and the terminal UI's
+// command line both call it, so a line typed at either is answered by one
+// path.
+func (s *session) dispatch(parsed *arguments) int {
 	// A request for help is answered before any command runs, so
 	// `dinah move --help` prints move's page rather than refusing that move
 	// was given no card. It is read ahead of --version for the same reason
@@ -727,6 +751,9 @@ func (s *session) open() (*verb.Library, error) {
 	opened.Damaged = damaged
 	library := verb.New(opened, s.home)
 	s.library = library
+	if s.onOpen != nil {
+		s.onOpen(library)
+	}
 	return library, nil
 }
 

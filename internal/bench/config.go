@@ -3,6 +3,7 @@ package bench
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -51,6 +52,9 @@ type Config struct {
 	Path string
 	fm   *Frontmatter
 	body string
+	// pinned are the values Get answers in place of the file's, set by
+	// Pinned and nil on a configuration read from the file alone.
+	pinned map[string]string
 }
 
 // LoadConfig reads the user's settings. An absent file is an empty
@@ -65,9 +69,27 @@ func LoadConfig(home string) *Config {
 	return &Config{Path: path, fm: fm, body: body}
 }
 
-// Get reads one setting.
+// Get reads one setting, answering a pinned value where Pinned set one.
 func (c *Config) Get(key string) string {
+	if value, pinned := c.pinned[key]; pinned {
+		return value
+	}
 	return c.fm.Value(key)
+}
+
+// Pinned answers a configuration over the same file whose Get answers
+// values[key] for every key values carries and the file's value for every
+// other key. Set, SetAlias, SetKeyBinding and Keys act on the file as they do
+// on c, so a setting written through it reaches the file and a pinned key
+// keeps answering its pinned value. The terminal UI reads every command it
+// runs through one of these, so a setting it resolved when it started
+// answers that value however the file changes afterwards.
+func (c *Config) Pinned(values map[string]string) *Config {
+	pinned := make(map[string]string, len(values))
+	for key, value := range values {
+		pinned[key] = value
+	}
+	return &Config{Path: c.Path, fm: c.fm, body: c.body, pinned: pinned}
 }
 
 // Keys lists the settings the file carries, in the order it carries them,
@@ -209,6 +231,187 @@ func ValidateAlias(name, template string) ([]string, int, string) {
 		}
 	}
 	return tokens, highest, ""
+}
+
+// KeyBindingPrefix marks a user setting as a key binding of the terminal UI,
+// whose value is the command line the key runs, and KeyLabelPrefix marks the
+// text the terminal UI's footer shows for that key.
+const (
+	KeyBindingPrefix = "tui.key."
+	KeyLabelPrefix   = "tui.label."
+)
+
+// Key binding defects are stable machine tokens carried by the
+// invalid-key-binding refusal and reported for a stored binding the terminal
+// UI will not use. Three are the alias grammar's own and are spelled as it
+// spells them.
+const (
+	KeyBindingInvalidKey          = "invalid-key"
+	KeyBindingReservedKey         = "reserved-key"
+	KeyBindingEmptyTemplate       = AliasEmptyTemplate
+	KeyBindingShellTemplate       = AliasShellTemplate
+	KeyBindingUnicodeWhitespace   = AliasUnicodeWhitespace
+	KeyBindingNumberedPlaceholder = "numbered-placeholder"
+	KeyBindingUnknownPlaceholder  = "unknown-placeholder"
+)
+
+// KeyBindingPlaceholders are the three names a key binding's template may
+// write after a $, each replaced by the terminal UI when the key is pressed.
+var KeyBindingPlaceholders = []string{"card", "column", "view"}
+
+// ValidKeyBindingKey reports whether key is one a binding may name: exactly
+// one ASCII letter or digit, case significant.
+func ValidKeyBindingKey(key string) bool {
+	if len(key) != 1 {
+		return false
+	}
+	c := key[0]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
+
+// ValidateKeyBinding validates a key binding's key and template on the alias
+// grammar, and answers the template's tokens for a binding the terminal UI
+// may run. The template is split on spaces and tabs with no quoting, and a $
+// inside a token names one of KeyBindingPlaceholders; a $ followed by a digit
+// is refused, because a binding takes no arguments of its own, and a $
+// followed by anything else is refused as an unknown placeholder. Whether the
+// key is one the terminal UI reads itself is a question only the terminal UI
+// can answer, so its caller asks it and refuses KeyBindingReservedKey.
+func ValidateKeyBinding(key, template string) ([]string, string) {
+	if !ValidKeyBindingKey(key) {
+		return nil, KeyBindingInvalidKey
+	}
+	for _, r := range template {
+		if unicode.IsSpace(r) && r != ' ' && r != '\t' {
+			return nil, KeyBindingUnicodeWhitespace
+		}
+	}
+	tokens := strings.FieldsFunc(template, func(r rune) bool { return r == ' ' || r == '\t' })
+	if len(tokens) == 0 {
+		return nil, KeyBindingEmptyTemplate
+	}
+	if strings.HasPrefix(tokens[0], "!") {
+		return nil, KeyBindingShellTemplate
+	}
+	for _, token := range tokens {
+		if defect := placeholderDefect(token); defect != "" {
+			return nil, defect
+		}
+	}
+	return tokens, ""
+}
+
+// placeholderDefect answers the defect of the first $ in a token that names
+// no placeholder a binding takes, and the empty string where every $ names
+// one.
+func placeholderDefect(token string) string {
+	for i := 0; i < len(token); i++ {
+		if token[i] != '$' {
+			continue
+		}
+		if i+1 < len(token) && token[i+1] >= '0' && token[i+1] <= '9' {
+			return KeyBindingNumberedPlaceholder
+		}
+		name := PlaceholderAt(token, i)
+		if !slices.Contains(KeyBindingPlaceholders, name) {
+			return KeyBindingUnknownPlaceholder
+		}
+		i += len(name)
+	}
+	return ""
+}
+
+// PlaceholderAt answers the name written after the $ at index i of token: the
+// longest run of ASCII letters that follows it, empty where none does.
+func PlaceholderAt(token string, i int) string {
+	end := i + 1
+	for end < len(token) {
+		c := token[end]
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') {
+			break
+		}
+		end++
+	}
+	return token[i+1 : end]
+}
+
+// KeyBinding is one stored key binding, with its label where one is stored
+// and the validation result that decides whether the terminal UI may run it.
+type KeyBinding struct {
+	// Key is the one letter or digit bound.
+	Key string
+	// Setting is the setting's own key, tui.key. followed by Key.
+	Setting string
+	// Template is the command line as stored.
+	Template string
+	// Tokens are the template's words, nil where Defect is set.
+	Tokens []string
+	// Label is the stored tui.label value for the key, empty where none is.
+	Label string
+	// Defect is the grammar's defect token, empty for a valid binding.
+	Defect string
+}
+
+// KeyBindings returns every stored key binding in byte order of its key. An
+// invalid row is retained with its defect, as Aliases retains one, so the
+// terminal UI can report it rather than run it.
+func (c *Config) KeyBindings() []KeyBinding {
+	var bindings []KeyBinding
+	for _, setting := range c.fm.Keys() {
+		if !strings.HasPrefix(setting, KeyBindingPrefix) {
+			continue
+		}
+		key := strings.TrimPrefix(setting, KeyBindingPrefix)
+		template := c.fm.Value(setting)
+		tokens, defect := ValidateKeyBinding(key, template)
+		binding := KeyBinding{
+			Key:      key,
+			Setting:  setting,
+			Template: template,
+			Tokens:   tokens,
+			Label:    c.fm.Value(KeyLabelPrefix + key),
+			Defect:   defect,
+		}
+		bindings = append(bindings, binding)
+	}
+	sort.Slice(bindings, func(i, j int) bool { return bindings[i].Key < bindings[j].Key })
+	return bindings
+}
+
+// SetKeyBinding writes or removes one key binding or one key label. Omitting
+// a value removes even a malformed stored row. A supplied binding has to pass
+// ValidateKeyBinding, and a supplied label has to name a key a binding may
+// take; the label's own text is the user's and is not checked.
+func (c *Config) SetKeyBinding(setting, value string, supplied bool) error {
+	key, isBinding := strings.CutPrefix(setting, KeyBindingPrefix)
+	if !isBinding {
+		label, isLabel := strings.CutPrefix(setting, KeyLabelPrefix)
+		if !isLabel {
+			return contract.Refuse(contract.UnknownKey, setting)
+		}
+		key = label
+	}
+	if !supplied {
+		c.fm.Delete(setting)
+		return WriteText(c.Path, c.fm.Render(c.body))
+	}
+	if !ValidKeyBindingKey(key) {
+		return contract.RefuseWith(contract.InvalidKeyBinding, setting, map[string]string{"defect": KeyBindingInvalidKey})
+	}
+	if isBinding {
+		if _, defect := ValidateKeyBinding(key, value); defect != "" {
+			return contract.RefuseWith(contract.InvalidKeyBinding, setting, map[string]string{"defect": defect})
+		}
+	}
+	c.fm.Set(setting, value)
+	return WriteText(c.Path, c.fm.Render(c.body))
+}
+
+// KeyBindingSetting reports whether a setting's key is a key binding or a key
+// label, the two prefixes config set and config get accept beside
+// AliasPrefix.
+func KeyBindingSetting(setting string) bool {
+	return strings.HasPrefix(setting, KeyBindingPrefix) || strings.HasPrefix(setting, KeyLabelPrefix)
 }
 
 // KnownConfigKey reports whether a key is one v0 knows.

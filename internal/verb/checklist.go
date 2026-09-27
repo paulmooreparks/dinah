@@ -44,18 +44,9 @@ import (
 // exist in that state, which is why the refusal is a write-time one rather
 // than a finding dinah check reports afterwards.
 func (l *Library) File(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	found, refused := l.canFile(req)
+	if refused != nil {
 		return refused
-	}
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, found.Card, contract.NoOwner, "")
 	}
 	kind := strings.TrimSpace(req.Kind)
 	if kind == "" {
@@ -114,6 +105,27 @@ func (l *Library) File(req *Request) *Response {
 	response := l.ok(req, found.Card)
 	response.Detail = item.ID
 	return response
+}
+
+// canFile runs File's rows ahead of the kind, the text and the column the
+// person names: the workbench has an operator, the declared harness is well
+// formed, the card resolves, and the request names an owner. File and
+// OfferActs both call it.
+func (l *Library) canFile(req *Request) (*bench.Resolved, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, found.Card, contract.NoOwner, "")
+	}
+	return found, nil
 }
 
 // Cite appends one citation to an item. Gathering evidence is not a state
@@ -187,19 +199,8 @@ func (l *Library) Fail(req *Request) *Response {
 // unreachable exactly where it is most needed.
 func (l *Library) Waive(req *Request) *Response {
 	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
-		if req.Actor != l.Bench.Operator {
-			return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
-		}
-		// A waiver lifts a hold, so it is legal only from a state that is
-		// holding. Waiving from pending is legal rather than requiring a
-		// fail first: the operator may decide a check need not be run on
-		// this card at all, and forcing him to record a failure nobody
-		// observed would put a false finding on the record to reach a true
-		// permission.
-		switch entity.item.State {
-		case bench.ItemPending, bench.ItemFailed:
-		default:
-			return nil, l.refuse(req, entity.card, contract.NotWaivable, entity.item.State)
+		if refused := l.canWaive(req, entity); refused != nil {
+			return nil, refused
 		}
 		resolution, refused := l.admitDesignation(req, entity)
 		if refused != nil {
@@ -215,6 +216,24 @@ func (l *Library) Waive(req *Request) *Response {
 			To:    bench.ItemWaived,
 		}, nil
 	})
+}
+
+// canWaive runs Waive's rows before the designation: the owner asking is the
+// operator, and the item stands pending or failed. A waiver lifts a hold, so
+// it is legal only from a state that is holding. Waiving from pending is
+// legal rather than requiring a fail first: the operator may decide a check
+// need not be run on this card at all, and forcing him to record a failure
+// nobody observed would put a false finding on the record to reach a true
+// permission. Waive and OfferActs both call it.
+func (l *Library) canWaive(req *Request, entity *itemTarget) *Response {
+	if req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+	}
+	switch entity.item.State {
+	case bench.ItemPending, bench.ItemFailed:
+		return nil
+	}
+	return l.refuse(req, entity.card, contract.NotWaivable, entity.item.State)
 }
 
 // Withdraw lands an item at withdrawn, which records that the question the
@@ -244,29 +263,9 @@ func (l *Library) Waive(req *Request) *Response {
 // is in the state it is in, and after a withdrawal the state is withdrawn.
 func (l *Library) Withdraw(req *Request) *Response {
 	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
-		if entity.item.State == bench.ItemWithdrawn {
-			return nil, l.refuse(req, entity.card, contract.AlreadyWithdrawn, entity.item.State)
-		}
-		granted := false
-		if req.Actor != l.Bench.Operator {
-			if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator {
-				return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
-			}
-			if entity.item.Kind == criterionKind {
-				if entity.card.RetirementGrant == "" {
-					return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
-				}
-				// The grant admits the retirement of a criterion nobody
-				// has found anything wrong with. A finding that exists is
-				// the operator's to retire, and the exclusion is keyed on
-				// the two states a non-operator can neither reach nor
-				// leave, which is what makes a state key durable here.
-				switch entity.item.State {
-				case bench.ItemFailed, bench.ItemWaived:
-					return nil, l.refuse(req, entity.card, contract.GrantExcludesFinding, entity.item.State)
-				}
-				granted = true
-			}
+		granted, refused := l.canWithdraw(req, entity)
+		if refused != nil {
+			return nil, refused
 		}
 		resolution, refused := l.admitDesignation(req, entity)
 		if refused != nil {
@@ -285,55 +284,102 @@ func (l *Library) Withdraw(req *Request) *Response {
 	})
 }
 
+// canWithdraw runs Withdraw's rows before the designation, and answers
+// whether the withdrawal is one the criterion-retirement grant admitted.
+// Withdraw and OfferActs both call it.
+func (l *Library) canWithdraw(req *Request, entity *itemTarget) (bool, *Response) {
+	if entity.item.State == bench.ItemWithdrawn {
+		return false, l.refuse(req, entity.card, contract.AlreadyWithdrawn, entity.item.State)
+	}
+	if req.Actor == l.Bench.Operator {
+		return false, nil
+	}
+	if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator {
+		return false, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+	}
+	if entity.item.Kind != criterionKind {
+		return false, nil
+	}
+	if entity.card.RetirementGrant == "" {
+		return false, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+	}
+	// The grant admits the retirement of a criterion nobody has found
+	// anything wrong with. A finding that exists is the operator's to
+	// retire, and the exclusion is keyed on the two states a non-operator
+	// can neither reach nor leave, which is what makes a state key durable
+	// here.
+	switch entity.item.State {
+	case bench.ItemFailed, bench.ItemWaived:
+		return false, l.refuse(req, entity.card, contract.GrantExcludesFinding, entity.item.State)
+	}
+	return true, nil
+}
+
 // closeItem is the body the three terminal verbs share. The landing state is
 // fixed by the item's own kind rather than chosen by the caller, which is why
 // there are three verbs rather than one taking a state.
 func (l *Library) closeItem(req *Request, event, state string) *Response {
 	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
-		// An item the operator owns is the operator's to settle. The check
-		// reads the item rather than the verb, so one statement of it covers
-		// resolve, verify and fail, which all land here, and covers all three
-		// item kinds, because whose item this is does not depend on what kind
-		// of judgment it records. Reopen does not land here and is left open
-		// deliberately: reopening returns an item to pending, which can only
-		// re-impose a hold and never lift one.
-		if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
-			return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
-		}
-		if !kindClosedBy(state)[entity.item.Kind] {
-			return nil, l.refuse(req, entity.card, contract.WrongItemKind, entity.item.Kind)
-		}
-		if entity.item.State != bench.ItemPending {
-			return nil, l.refuse(req, entity.card, contract.NotPending, entity.item.State)
+		if refused := l.canCloseItem(req, entity, state); refused != nil {
+			return nil, refused
 		}
 		resolution, refused := l.admitDesignation(req, entity)
 		if refused != nil {
 			return nil, refused
 		}
-		// The citation obligation is stated for an acceptance criterion alone,
-		// so a decision or an open question closes with citations or without
-		// them exactly as it does today.
-		if entity.item.Kind == criterionKind && l.Bench.EvidenceDeclared() && bench.CountCitations(entity.fm) == 0 {
-			return nil, l.refuse(req, entity.card, contract.Uncited, entity.ref)
-		}
-		// An item demanding a scheme is settled only against a citation
-		// naming it. The row reads the citation's scheme alone and nothing
-		// about its target, on the posture Cite takes toward a scheme it
-		// has never heard of, and it runs after the citation obligation
-		// above, which asks whether there is any citation at all before
-		// this one asks whether one of them is the right one. waive and
-		// withdraw do not land here and are untouched: neither claims the
-		// evidence exists.
-		if scheme := entity.fm.Value(bench.ItemEvidenceField); scheme != "" && !citesScheme(entity.fm, scheme) {
-			return nil, l.refuseWith(req, entity.card, contract.EvidenceSchemeRequired, scheme, map[string]string{
-				"item": entity.ref,
-			})
+		if refused := l.canCloseItemEvidence(req, entity); refused != nil {
+			return nil, refused
 		}
 		prior := entity.item.State
 		entity.fm.Set(bench.ItemStateField, state)
 		entity.fm.Set(bench.ItemResolutionField, resolution)
 		return &bench.Event{Actor: req.Acting(), Event: event, From: prior, To: state}, nil
 	})
+}
+
+// canCloseItem runs the rows the three terminal verbs share before the
+// designation, in their order: the operator-owned guard, the kind, and
+// pending. closeItem and OfferActs both call it, and canCloseItemEvidence
+// after the designation.
+//
+// An item the operator owns is the operator's to settle. The check reads the
+// item rather than the verb, so one statement of it covers resolve, verify
+// and fail, which all land here, and covers all three item kinds, because
+// whose item this is does not depend on what kind of judgment it records.
+func (l *Library) canCloseItem(req *Request, entity *itemTarget, state string) *Response {
+	if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+	}
+	if !kindClosedBy(state)[entity.item.Kind] {
+		return l.refuse(req, entity.card, contract.WrongItemKind, entity.item.Kind)
+	}
+	if entity.item.State != bench.ItemPending {
+		return l.refuse(req, entity.card, contract.NotPending, entity.item.State)
+	}
+	return nil
+}
+
+// canCloseItemEvidence runs the two rows the terminal verbs share after the
+// designation: the citation obligation and the evidence scheme.
+//
+// The citation obligation is stated for an acceptance criterion alone, so a
+// decision or an open question closes with citations or without them. An
+// item demanding a scheme is settled only against a citation naming it; the
+// row reads the citation's scheme alone and nothing about its target, on the
+// posture Cite takes toward a scheme it has never heard of, and it runs after
+// the citation obligation, which asks whether there is any citation at all
+// before this one asks whether one of them is the right one. waive and
+// withdraw do not land here: neither claims the evidence exists.
+func (l *Library) canCloseItemEvidence(req *Request, entity *itemTarget) *Response {
+	if entity.item.Kind == criterionKind && l.Bench.EvidenceDeclared() && bench.CountCitations(entity.fm) == 0 {
+		return l.refuse(req, entity.card, contract.Uncited, entity.ref)
+	}
+	if scheme := entity.fm.Value(bench.ItemEvidenceField); scheme != "" && !citesScheme(entity.fm, scheme) {
+		return l.refuseWith(req, entity.card, contract.EvidenceSchemeRequired, scheme, map[string]string{
+			"item": entity.ref,
+		})
+	}
+	return nil
 }
 
 // citesScheme reports whether at least one citation of an item names the
@@ -366,33 +412,8 @@ func citesScheme(fm *bench.Frontmatter, scheme string) bool {
 // also what frees a designated comment for deletion.
 func (l *Library) Reopen(req *Request) *Response {
 	return l.withItem(req, func(entity *itemTarget) (*bench.Event, *Response) {
-		if entity.item.State == bench.ItemPending {
-			return nil, l.refuse(req, entity.card, contract.NotResolved, entity.item.State)
-		}
-		// Reopen is refused to anybody but the operator in three cases, and
-		// stays open to everybody in every other one. The reasoning this
-		// verb was built on, that reopening can only re-impose a hold and
-		// never lift one, was true when it was written and is false now, so
-		// the guard follows the reasoning rather than the sentence.
-		//
-		// The two state cases are what make the criterion-retirement grant's
-		// own exclusion durable. With reopen open to everybody, a
-		// non-operator returned a criterion from failed to pending and the
-		// grant then admitted the withdrawal, so a finding was released in
-		// two commands.
-		//
-		// The owner case is the rule the three terminal verbs already keep,
-		// applied to the one verb that was left out of it: reopening an
-		// operator-owned question un-answers his ruling and clears the
-		// designation recording it, which is not a hold being re-imposed.
-		if req.Actor != l.Bench.Operator {
-			switch entity.item.State {
-			case bench.ItemFailed, bench.ItemWaived:
-				return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
-			}
-			if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator {
-				return nil, l.refuse(req, entity.card, contract.NotOperator, req.Actor)
-			}
+		if refused := l.canReopen(req, entity); refused != nil {
+			return nil, refused
 		}
 		reason := strings.TrimSpace(req.Reason)
 		if reason == "" {
@@ -409,6 +430,42 @@ func (l *Library) Reopen(req *Request) *Response {
 			Reason: reason,
 		}, nil
 	})
+}
+
+// canReopen runs Reopen's rows before the reason: the item is not already
+// pending, and the three cases only the operator may reopen. Reopen and
+// OfferActs both call it.
+//
+// Reopen is refused to anybody but the operator in three cases, and stays
+// open to everybody in every other one. The reasoning this verb was built
+// on, that reopening can only re-impose a hold and never lift one, was true
+// when it was written and is false now, so the guard follows the reasoning
+// rather than the sentence.
+//
+// The two state cases are what make the criterion-retirement grant's own
+// exclusion durable. With reopen open to everybody, a non-operator returned a
+// criterion from failed to pending and the grant then admitted the
+// withdrawal, so a finding was released in two commands.
+//
+// The owner case is the rule the three terminal verbs already keep, applied
+// to the one verb that was left out of it: reopening an operator-owned
+// question un-answers his ruling and clears the designation recording it,
+// which is not a hold being re-imposed.
+func (l *Library) canReopen(req *Request, entity *itemTarget) *Response {
+	if entity.item.State == bench.ItemPending {
+		return l.refuse(req, entity.card, contract.NotResolved, entity.item.State)
+	}
+	if req.Actor == l.Bench.Operator {
+		return nil
+	}
+	switch entity.item.State {
+	case bench.ItemFailed, bench.ItemWaived:
+		return l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+	}
+	if entity.fm.Value(bench.ItemOwnerField) == bench.ItemOwnerOperator {
+		return l.refuse(req, entity.card, contract.NotOperator, req.Actor)
+	}
+	return nil
 }
 
 // Settle lands an item at the state the caller names, becoming whichever of
@@ -511,21 +568,9 @@ const itemStepUnlocked = "item-unlocked"
 // runs the work body N times under it, which is the same concurrency story
 // this acquisition already tells for one write.
 func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *Response)) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	entity, refused := l.admitItem(req)
+	if refused != nil {
 		return refused
-	}
-	entity, err := l.Bench.ResolveEntity(req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if entity.Kind != bench.KindItem || entity.Card == nil {
-		return l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
 	}
 	l.interpose(itemStepUnlocked)
 	now := bench.Stamp(l.Now())
@@ -568,6 +613,31 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	response := l.ok(req, entity.Card)
 	response.Detail = item.ID
 	return response
+}
+
+// admitItem runs the rows withItem runs before it takes the card's lock: the
+// workbench has an operator, the declared harness is well formed, the
+// reference resolves, the request names an owner, and the reference is an
+// item. withItem and OfferActs both call it, and it is the whole of what
+// the offer asks of cite, since every other row of Cite reads an argument.
+func (l *Library) admitItem(req *Request) (*bench.EntityRef, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	entity, err := l.Bench.ResolveEntity(req.Ref)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if entity.Kind != bench.KindItem || entity.Card == nil {
+		return nil, l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
+	}
+	return entity, nil
 }
 
 // admitDesignation settles what a terminal verb records as the item's answer.

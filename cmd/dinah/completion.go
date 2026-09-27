@@ -147,6 +147,43 @@ type completionCall struct {
 	// attempt gave, nil when it refused.
 	opened  bool
 	library *verb.Library
+	// identity is the owner and the declared agent the completion answers
+	// for, set by lineCompletion and nil on a shell's Tab.
+	identity *lineIdentity
+}
+
+// completionShellLine is the shell a Tab at the terminal UI's command line
+// completes for, which describes candidates as every shell but bash does.
+const completionShellLine = "line"
+
+// lineIdentity is the owner and the declared agent a completion answers for,
+// when a head has already resolved them. nil means the completion resolves
+// them from the line, the environment and the configuration, as a shell's
+// Tab does.
+type lineIdentity struct {
+	actor string
+	agent bench.Agent
+}
+
+// lineCompletion is one Tab at the terminal UI's command line: the words
+// before the cursor's word and the word itself, completed through the engine
+// every shell's Tab reaches, over the head's pinned workbench and as the
+// head's identity. The line session it reads through is built by
+// lineSession, so its configuration is the pinned one and its renderer is
+// the head's, and answer resolves no renderer of its own.
+func lineCompletion(s *session, prior []string, current string) *completionCall {
+	line := s.lineSession(io.Discard, io.Discard, s.width, nil)
+	return &completionCall{
+		shell:    completionShellLine,
+		prior:    prior,
+		current:  current,
+		home:     line.home,
+		cfg:      line.cfg,
+		start:    time.Now(),
+		r:        line.r,
+		s:        line,
+		identity: &lineIdentity{actor: s.actor, agent: s.agent},
+	}
 }
 
 // completeWords is the object the PowerShell script hands over.
@@ -313,7 +350,9 @@ func (c *completionCall) answer() (string, []completion.Candidate, error) {
 		return completion.ModeWords, nil, nil
 	}
 	c.walk = walkWords(c.prior, c.cfg)
-	c.r = msg.For(bench.ResolveLang(c.walk.values["lang"], c.cfg))
+	if c.r == nil {
+		c.r = msg.For(bench.ResolveLang(c.walk.values["lang"], c.cfg))
+	}
 	w := c.walk
 	if w.nothing {
 		return completion.ModeWords, nil, nil
@@ -927,11 +966,7 @@ func (c *completionCall) moveDestinations() ([]completion.Candidate, error) {
 	if library == nil {
 		return nil, nil
 	}
-	agent := bench.ResolveAgent()
-	actor, err := bench.ResolveActor(c.walk.values["actor"], agent.Harness, c.cfg)
-	if err != nil {
-		actor = ""
-	}
+	agent, actor := c.owner()
 	req := &verb.Request{
 		Verb:     verb.Move,
 		Card:     at(c.walk.positionals, 0),
@@ -951,6 +986,22 @@ func (c *completionCall) moveDestinations() ([]completion.Candidate, error) {
 		destinations = append(destinations, completion.Candidate{Word: row.Ref, Description: row.Title})
 	}
 	return destinations, nil
+}
+
+// owner answers the declared agent and the owner a completion asks the
+// library for: the head's own where a head resolved them, and otherwise what
+// the line, the environment and the configuration resolve, as a shell's Tab
+// resolves them.
+func (c *completionCall) owner() (bench.Agent, string) {
+	if c.identity != nil {
+		return c.identity.agent, c.identity.actor
+	}
+	agent := bench.ResolveAgent()
+	actor, err := bench.ResolveActor(c.walk.values["actor"], agent.Harness, c.cfg)
+	if err != nil {
+		actor = ""
+	}
+	return agent, actor
 }
 
 // setValues offers what dinah set takes for the field in the second slot,

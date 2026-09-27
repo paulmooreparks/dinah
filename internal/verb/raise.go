@@ -39,30 +39,17 @@ import (
 // is a gap in the history rather than a half-applied write, and no state
 // exists where the tier moved and the claim did not.
 func (l *Library) Raise(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
+	card, refused := l.canRaise(req)
+	if refused != nil {
 		return refused
-	}
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	card := found.Card
-	if req.Actor == "" {
-		return l.refuse(req, card, contract.NoOwner, "")
-	}
-	if card.Holder != req.Actor {
-		return l.refuse(req, card, contract.NotHolder, card.Holder)
 	}
 	reason := strings.TrimSpace(req.Reason)
 	if reason == "" {
 		return l.refuse(req, card, contract.NoReason, "")
 	}
-	column := l.Bench.Column(card.Column)
-	if column == nil {
-		return l.refuse(req, card, contract.UnknownColumn, card.Column)
+	column, refused := l.raiseColumn(req, card)
+	if refused != nil {
+		return refused
 	}
 	expr := strings.TrimSpace(req.Tier)
 	absolute, against, refusal := l.Bench.ResolveTierWrite(column, expr)
@@ -159,4 +146,59 @@ func (l *Library) raisesTheRequirement(req *Request, card *bench.Card, column *b
 		"current":   required,
 		"attempted": absolute,
 	})
+}
+
+// canRaise runs Raise's rows ahead of the reason: the workbench has an
+// operator, the declared harness is well formed, the card resolves, the
+// request names an owner, and the owner asking holds the card. It answers the
+// card or the refusal of the first row that fails. Raise and OfferActs both
+// call it, and raiseColumn after it.
+func (l *Library) canRaise(req *Request) (*bench.Card, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	if refused := l.malformedHarness(req, nil); refused != nil {
+		return nil, refused
+	}
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	card := found.Card
+	if req.Actor == "" {
+		return nil, l.refuse(req, card, contract.NoOwner, "")
+	}
+	if card.Holder != req.Actor {
+		return nil, l.refuse(req, card, contract.NotHolder, card.Holder)
+	}
+	return card, nil
+}
+
+// raiseColumn runs Raise's row after the reason: the column the card stands
+// in is one the workbench declares. Raise and OfferActs both call it.
+func (l *Library) raiseColumn(req *Request, card *bench.Card) (*bench.Column, *Response) {
+	column := l.Bench.Column(card.Column)
+	if column == nil {
+		return nil, l.refuse(req, card, contract.UnknownColumn, card.Column)
+	}
+	return column, nil
+}
+
+// raiseTiers answers the declared tiers a raise of the card at its column
+// would accept, in the order the workbench declares them: each resolves as
+// a tier write at that column and raises the requirement the card carries
+// there.
+func (l *Library) raiseTiers(req *Request, card *bench.Card, column *bench.Column) []string {
+	var tiers []string
+	for _, tier := range bench.LevelNames(l.Bench.Levels(bench.TierField)) {
+		absolute, _, refusal := l.Bench.ResolveTierWrite(column, tier)
+		if refusal != nil {
+			continue
+		}
+		if l.raisesTheRequirement(req, card, column, absolute) != nil {
+			continue
+		}
+		tiers = append(tiers, tier)
+	}
+	return tiers
 }

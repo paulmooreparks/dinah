@@ -128,7 +128,7 @@ func TestCtrlLRepaintsTheWholeScreen(t *testing.T) {
 	}
 	r := run.model.s.r
 	var listed []string
-	for _, column := range newInteractiveKeys(r, "→", "Done", "Implement").fullHelp(false, interactiveOffer{}) {
+	for _, column := range newInteractiveKeys(r, "→", "Done", "Implement").fullHelp(run.model) {
 		for _, binding := range column {
 			listed = append(listed, binding.Help().Key+" "+binding.Help().Desc)
 		}

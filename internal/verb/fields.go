@@ -112,11 +112,8 @@ func (l *Library) SetField(req *Request) *Response {
 			return refused
 		}
 	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if l.writeAuthorityOf(entity) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
-		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	if refused := l.canWriteEntity(req, entity); refused != nil {
+		return refused
 	}
 	if refused := l.admitOwnerWrite(req, entity, field, value); refused != nil {
 		return refused
@@ -290,11 +287,8 @@ func (l *Library) setDeclaredField(req *Request, entity *bench.EntityRef) *Respo
 			return l.refuseWith(req, entity.Card, refusal.Name, refusal.Detail, refusal.Extra)
 		}
 	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if l.writeAuthorityOf(entity) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
-		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	if refused := l.canWriteEntity(req, entity); refused != nil {
+		return refused
 	}
 	// A write to a gate is never refused for what it does to the slots it
 	// governs, and it says so when it leaves a value behind: the first slot
@@ -853,6 +847,20 @@ func (l *Library) writeAuthorityOf(entity *bench.EntityRef) string {
 		return bench.AuthorityOperator
 	}
 	return bench.WriteAuthorityOf(entity.Kind)
+}
+
+// canWriteEntity runs the two rows every field write runs once the value has
+// been admitted: the request names an owner, and an entity whose kind only
+// the operator writes is written by the operator. Neither reads the field or
+// the value, so SetField, setDeclaredField and OfferActs all call it.
+func (l *Library) canWriteEntity(req *Request, entity *bench.EntityRef) *Response {
+	if req.Actor == "" {
+		return l.refuse(req, entity.Card, contract.NoOwner, "")
+	}
+	if l.writeAuthorityOf(entity) == bench.AuthorityOperator && req.Actor != l.Bench.Operator {
+		return l.refuse(req, entity.Card, contract.NotOperator, req.Actor)
+	}
+	return nil
 }
 
 // fieldEvent composes the journal line a field write appends: the written

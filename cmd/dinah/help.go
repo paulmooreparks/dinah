@@ -39,7 +39,44 @@ type command struct {
 	// command reads or stores a word past what it declares, so any word
 	// there, dash-led or plain, is unread and worth refusing.
 	openTail bool
+	// terminal is how the terminal UI supports this command. Every entry
+	// sets it; the zero value fails TestEveryCommandHasATerminalClass.
+	terminal terminalClass
+	// actsOnCard says the command writes to a card or to something below
+	// one. The operator ruled on 2026-09-26 that every such command is a
+	// direct act in the terminal UI, so an entry setting it must be classed
+	// terminalDirect and must have an entry in the actions menu.
+	actsOnCard bool
+	// frequentRead says the command is one of the reads the operator ruled
+	// (dinah-623/questions/2) should have a key of its own, shown in the
+	// footer. An entry setting it must be classed terminalDirect and have a
+	// key row in interactiveActs.
+	frequentRead bool
+	// lendsTerminal says the command hands the terminal to another program,
+	// so the terminal UI ends its program cycle around it. edit is the one
+	// command that sets it.
+	lendsTerminal bool
 }
+
+// terminalClass is how the terminal UI supports a command.
+type terminalClass string
+
+const (
+	// terminalUnclassified is the zero value, which the correspondence check
+	// refuses: a command nobody has classified is a command whose author has
+	// not said how the terminal UI reaches it.
+	terminalUnclassified terminalClass = ""
+	// terminalDirect is a command the terminal UI performs from a key of its
+	// own or from the actions menu.
+	terminalDirect terminalClass = "direct"
+	// terminalLine is a command reached only by typing it at the terminal
+	// UI's command line, or through a key binding the user made.
+	terminalLine terminalClass = "line"
+	// terminalAbsent is a command that cannot run inside a live terminal UI.
+	// The reason is the catalog sentence refusal.dinah.not-in-tui.<command>,
+	// which the command line prints when somebody types it.
+	terminalAbsent terminalClass = "absent"
+)
 
 // The four groups of the surface, in the order the help block prints them.
 const (

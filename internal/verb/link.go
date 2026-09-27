@@ -151,15 +151,9 @@ func (l *Library) Unlink(req *Request) *Response {
 // The kind is trimmed of surrounding whitespace and otherwise passes through
 // exactly as typed. Nothing checks it against a set, because there is no set.
 func (l *Library) linkArguments(req *Request) (*bench.Resolved, string, string, *Response) {
-	if l.Bench.Operator == "" {
-		return nil, "", "", l.refuse(req, nil, contract.NoOperator, "")
-	}
-	found, err := l.Bench.ResolveCard(req.Card)
-	if err != nil {
-		return nil, "", "", l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return nil, "", "", l.refuse(req, found.Card, contract.NoOwner, "")
+	found, refused := l.admitLink(req)
+	if refused != nil {
+		return nil, "", "", refused
 	}
 	kind := strings.TrimSpace(req.Kind)
 	if kind == "" {
@@ -188,4 +182,21 @@ func indexOfLink(links []bench.Link, kind, to string) int {
 		}
 	}
 	return -1
+}
+
+// admitLink runs the rows link and unlink share before they read what the
+// person names: the workbench has an operator, the card resolves, and the
+// request names an owner. linkArguments and OfferActs both call it.
+func (l *Library) admitLink(req *Request) (*bench.Resolved, *Response) {
+	if l.Bench.Operator == "" {
+		return nil, l.refuse(req, nil, contract.NoOperator, "")
+	}
+	found, err := l.Bench.ResolveCard(req.Card)
+	if err != nil {
+		return nil, l.FromError(req, err)
+	}
+	if req.Actor == "" {
+		return nil, l.refuse(req, found.Card, contract.NoOwner, "")
+	}
+	return found, nil
 }

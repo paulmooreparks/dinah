@@ -313,6 +313,31 @@ func recordEditorLaunch() bool {
 		fmt.Fprintf(os.Stderr, "recording an editor launch in %s: %v\n", log, err)
 		os.Exit(1)
 	}
+	if appended := os.Getenv(EditorAppendVar); appended != "" && len(os.Args) > 1 {
+		appendToEdited(os.Args[len(os.Args)-1], appended)
+	}
 	os.Exit(0)
 	return true
+}
+
+// EditorAppendVar names the environment variable that makes the stand-in
+// editor EditorRecordVar arms also write something: it appends the variable's
+// value as one line to the file it was handed, as a person saving an edit
+// would. The terminal UI's lend of the terminal to an editor is held to a
+// file the editor changed. dinah-623.
+const EditorAppendVar = "DINAH_TEST_EDITOR_APPEND"
+
+// appendToEdited appends one line to the file the stand-in editor was
+// handed, and exits with a failure where it cannot.
+func appendToEdited(path, line string) {
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "appending to %s: %v\n", path, err)
+		os.Exit(1)
+	}
+	defer file.Close()
+	if _, err := fmt.Fprintln(file, line); err != nil {
+		fmt.Fprintf(os.Stderr, "appending to %s: %v\n", path, err)
+		os.Exit(1)
+	}
 }

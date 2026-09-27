@@ -353,7 +353,7 @@ func TestAnAgentIsOfferedNoMoveOutOfTheOperatorsColumn(t *testing.T) {
 		t.Fatalf("the run never finished: %q", run.errw)
 	}
 	keys := run.model.keys()
-	for _, binding := range keys.shortHelp(false, run.model.offer, false) {
+	for _, binding := range keys.shortHelp(run.model, false) {
 		if name := binding.Help().Key; name == "a" || name == "b" || name == "m" {
 			t.Errorf("the agent's footer offers %s", name)
 		}

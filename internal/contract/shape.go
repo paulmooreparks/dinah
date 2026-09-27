@@ -76,6 +76,12 @@ type Fragment struct {
 	// fragment on, and it may name the shape's Subject. Empty means the
 	// fragment is unconditional unless Unless is set.
 	When string
+	// Equals, where set, narrows When to one value: the fragment is switched
+	// on only where the value When names is exactly this. It is how one
+	// refusal carrying a machine token as a value splices the sentence
+	// written for that token, so the token travels as one value rather than
+	// as a value per token. It is read only beside When.
+	Equals string
 	// Unless is the named value whose absence switches the fragment on,
 	// which is how one fragment covers the cases another does not reach.
 	// At most one of When and Unless is set, and a fragment named in
@@ -1027,6 +1033,30 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.tui-missing.next"},
 	},
 	{
+		// The reason token selects the one fragment written for it, and the
+		// next step to run the line from a shell is spliced for every token
+		// but watch and wait, where the screen already does what the flag
+		// asks and the fragment written for the token is the advice.
+		Name: NotInTUI,
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.not-in-tui.mcp", When: "reason", Equals: "mcp"},
+			{Key: "refusal.dinah.not-in-tui.lsp", When: "reason", Equals: "lsp"},
+			{Key: "refusal.dinah.not-in-tui.serve", When: "reason", Equals: "serve"},
+			{Key: "refusal.dinah.not-in-tui.ui", When: "reason", Equals: "ui"},
+			{Key: "refusal.dinah.not-in-tui.completion", When: "reason", Equals: "completion"},
+			{Key: "refusal.dinah.not-in-tui.tui", When: "reason", Equals: "tui"},
+			{Key: "refusal.dinah.not-in-tui.stdin", When: "reason", Equals: "stdin"},
+			{Key: "refusal.dinah.not-in-tui.watch", When: "reason", Equals: "watch"},
+			{Key: "refusal.dinah.not-in-tui.wait", When: "reason", Equals: "wait"},
+			{Key: "refusal.dinah.not-in-tui.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.not-in-tui.watch",
+			"refusal.dinah.not-in-tui.wait",
+			"refusal.dinah.not-in-tui.next",
+		},
+	},
+	{
 		// The sentence names both build identities, and the next step says to
 		// install both files from one release.
 		Name:      TUISkew,
@@ -1122,6 +1152,23 @@ var Shapes = []Shape{
 		Values:    []string{"defect"},
 		Fragments: []Fragment{{Key: "refusal.dinah.invalid-alias.next"}},
 		NextStep:  []string{"refusal.dinah.invalid-alias.next"},
+	},
+	{
+		// The defect token selects the one fragment saying what is wrong,
+		// as NotInTUI's reason selects its own, and the next step names the
+		// setting to correct or remove.
+		Name: InvalidKeyBinding,
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.invalid-key-binding.invalid-key", When: "defect", Equals: "invalid-key"},
+			{Key: "refusal.dinah.invalid-key-binding.reserved-key", When: "defect", Equals: "reserved-key"},
+			{Key: "refusal.dinah.invalid-key-binding.empty-template", When: "defect", Equals: "empty-template"},
+			{Key: "refusal.dinah.invalid-key-binding.shell-template", When: "defect", Equals: "shell-template"},
+			{Key: "refusal.dinah.invalid-key-binding.non-ascii-whitespace", When: "defect", Equals: "non-ascii-whitespace"},
+			{Key: "refusal.dinah.invalid-key-binding.numbered-placeholder", When: "defect", Equals: "numbered-placeholder"},
+			{Key: "refusal.dinah.invalid-key-binding.unknown-placeholder", When: "defect", Equals: "unknown-placeholder"},
+			{Key: "refusal.dinah.invalid-key-binding.next"},
+		},
+		NextStep: []string{"refusal.dinah.invalid-key-binding.next"},
 	},
 	{
 		Name:      AliasShadow,

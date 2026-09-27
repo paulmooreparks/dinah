@@ -29,6 +29,8 @@ const (
 	bindingMenu    = "menu"
 	bindingJump    = "jump"
 	bindingComment = "comment"
+	bindingItems   = "items"
+	bindingOutput  = "output"
 )
 
 // interactiveKeys are every binding the terminal head matches keys against
@@ -40,6 +42,17 @@ type interactiveKeys struct {
 	claim, accept, advance, sendBack, move      key.Binding
 	release, comment, filter, jump, more, fewer key.Binding
 	quit, interrupt, repaint                    key.Binding
+	// The keys dinah-623 added to browse and card mode: item mode, the
+	// actions menu and the five reads.
+	items, actions, next, status, search, changes, whoami key.Binding
+	// The letters of item mode.
+	itemResolve, itemVerify, itemFail, itemWaive  key.Binding
+	itemWithdraw, itemReopen, itemCite, itemClose key.Binding
+	itemQuit                                      key.Binding
+	// The keys of output mode that the other modes do not share.
+	outputClose key.Binding
+	// Tab at the command line.
+	promptComplete key.Binding
 	// The bindings of card mode that browse mode does not have.
 	back, scrollUp, scrollDown key.Binding
 	// The bindings of the move menu.
@@ -149,6 +162,34 @@ func newInteractiveKeys(r *msg.Renderer, arrow, forward, back string) *interacti
 		key.WithKeys(":"),
 		key.WithHelp(":", r.T("interactive.help.jump")),
 	))
+	k.items = add(bindingBrowse, "interactive.help.items", nil, key.NewBinding(
+		key.WithKeys("i"),
+		key.WithHelp("i", r.T("interactive.help.items")),
+	))
+	k.actions = add(bindingBrowse, "interactive.help.actions", nil, key.NewBinding(
+		key.WithKeys("x"),
+		key.WithHelp("x", r.T("interactive.help.actions")),
+	))
+	k.next = add(bindingBrowse, "interactive.help.next", nil, key.NewBinding(
+		key.WithKeys(">"),
+		key.WithHelp(">", r.T("interactive.help.next")),
+	))
+	k.status = add(bindingBrowse, "interactive.help.status", nil, key.NewBinding(
+		key.WithKeys("S"),
+		key.WithHelp("S", r.T("interactive.help.status")),
+	))
+	k.search = add(bindingBrowse, "interactive.help.search", nil, key.NewBinding(
+		key.WithKeys("F"),
+		key.WithHelp("F", r.T("interactive.help.search")),
+	))
+	k.changes = add(bindingBrowse, "interactive.help.changes", nil, key.NewBinding(
+		key.WithKeys("C"),
+		key.WithHelp("C", r.T("interactive.help.changes")),
+	))
+	k.whoami = add(bindingBrowse, "interactive.help.whoami", nil, key.NewBinding(
+		key.WithKeys("W"),
+		key.WithHelp("W", r.T("interactive.help.whoami")),
+	))
 	k.more = add(bindingBrowse, "interactive.help.keys", nil, key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", r.T("interactive.help.keys")),
@@ -195,6 +236,47 @@ func newInteractiveKeys(r *msg.Renderer, arrow, forward, back string) *interacti
 		key.WithHelp("q", r.T("interactive.help.cancel")),
 	))
 
+	k.itemResolve = add(bindingItems, "interactive.help.answer", nil, key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", r.T("interactive.help.answer")),
+	))
+	k.itemVerify = add(bindingItems, "interactive.help.verify", nil, key.NewBinding(
+		key.WithKeys("v"),
+		key.WithHelp("v", r.T("interactive.help.verify")),
+	))
+	k.itemFail = add(bindingItems, "interactive.help.fail", nil, key.NewBinding(
+		key.WithKeys("f"),
+		key.WithHelp("f", r.T("interactive.help.fail")),
+	))
+	k.itemWaive = add(bindingItems, "interactive.help.waive", nil, key.NewBinding(
+		key.WithKeys("w"),
+		key.WithHelp("w", r.T("interactive.help.waive")),
+	))
+	k.itemWithdraw = add(bindingItems, "interactive.help.withdraw", nil, key.NewBinding(
+		key.WithKeys("x"),
+		key.WithHelp("x", r.T("interactive.help.withdraw")),
+	))
+	k.itemReopen = add(bindingItems, "interactive.help.reopen", nil, key.NewBinding(
+		key.WithKeys("o"),
+		key.WithHelp("o", r.T("interactive.help.reopen")),
+	))
+	k.itemCite = add(bindingItems, "interactive.help.cite", nil, key.NewBinding(
+		key.WithKeys("c"),
+		key.WithHelp("c", r.T("interactive.help.cite")),
+	))
+	k.itemClose = add(bindingItems, "interactive.help.close", nil, key.NewBinding(
+		key.WithKeys("ctrl+g"),
+		key.WithHelp(ctrlG, r.T("interactive.help.close")),
+	))
+	k.itemQuit = add(bindingItems, "interactive.help.close", nil, key.NewBinding(
+		key.WithKeys("q"),
+		key.WithHelp("q", r.T("interactive.help.close")),
+	))
+	k.outputClose = add(bindingOutput, "interactive.help.close", nil, key.NewBinding(
+		key.WithKeys("enter", "backspace", "q"),
+		key.WithHelp(enter+"/"+r.T("interactive.key.backspace")+"/q", r.T("interactive.help.close")),
+	))
+
 	k.promptGo = add(bindingJump, "interactive.help.go", nil, key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp(enter, r.T("interactive.help.go")),
@@ -202,6 +284,10 @@ func newInteractiveKeys(r *msg.Renderer, arrow, forward, back string) *interacti
 	k.promptCancel = add(bindingJump, "interactive.help.cancel", nil, key.NewBinding(
 		key.WithKeys("ctrl+g"),
 		key.WithHelp(ctrlG, r.T("interactive.help.cancel")),
+	))
+	k.promptComplete = add(bindingJump, "interactive.help.complete", nil, key.NewBinding(
+		key.WithKeys("tab"),
+		key.WithHelp(r.T("interactive.key.tab"), r.T("interactive.help.complete")),
 	))
 	k.promptNewline = add(bindingComment, "interactive.help.newline", nil, key.NewBinding(
 		key.WithKeys("enter"),
@@ -222,39 +308,32 @@ func interactiveBindings(r *msg.Renderer) []interactiveBinding {
 }
 
 // shortHelp answers the bindings the footer lists in browse and card mode:
-// only the acts the offer allows, in the order enter, t, a, b, m, r, c, /, :,
-// ?, q.
-func (k *interactiveKeys) shortHelp(card bool, offer interactiveOffer, full bool) []key.Binding {
-	first := k.show
-	if card {
-		first = k.back
-	}
-	bindings := []key.Binding{first}
-	if offer.claim {
-		bindings = append(bindings, k.claim)
-	}
-	if offer.forward != nil {
-		if offer.forwardTerminal {
-			bindings = append(bindings, k.accept)
-		} else {
-			bindings = append(bindings, k.advance)
+// the rows of interactiveActs read in those modes, in the table's order, whose
+// offered answers true, with i and x, which open item mode and the actions
+// menu rather than performing an act, placed ahead of the filter where either
+// has something to offer; then the user's own bindings the footer lists, then
+// ? and q. In card mode the first row is card mode's own Enter, and the
+// filter is left out, since it narrows lanes card mode does not draw.
+func (k *interactiveKeys) shortHelp(m *interactiveModel, full bool) []key.Binding {
+	card := m.mode == modeCard
+	var bindings []key.Binding
+	for _, row := range interactiveActs {
+		if row.mode != actBrowse {
+			continue
 		}
+		if row.name == "query" {
+			bindings = append(bindings, k.modeKeys(m)...)
+		}
+		if !row.offered(m) {
+			continue
+		}
+		binding := row.binding(k)
+		if row.name == "show" && card {
+			binding = k.back
+		}
+		bindings = append(bindings, binding)
 	}
-	if offer.back != nil {
-		bindings = append(bindings, k.sendBack)
-	}
-	if len(offer.moves) > 0 {
-		bindings = append(bindings, k.move)
-	}
-	if offer.release {
-		bindings = append(bindings, k.release)
-	}
-	if offer.comment {
-		bindings = append(bindings, k.comment)
-	}
-	if !card {
-		bindings = append(bindings, k.filter, k.jump)
-	}
+	bindings = append(bindings, m.bindingHelp()...)
 	if full {
 		bindings = append(bindings, k.fewer)
 	} else {
@@ -263,27 +342,64 @@ func (k *interactiveKeys) shortHelp(card bool, offer interactiveOffer, full bool
 	return append(bindings, k.quit)
 }
 
+// modeKeys are i and x where each has something to offer: i where some item
+// of the target card carries an offered act, and x where the actions menu
+// lists at least one entry.
+func (k *interactiveKeys) modeKeys(m *interactiveModel) []key.Binding {
+	var bindings []key.Binding
+	if len(m.offeredItems()) > 0 {
+		bindings = append(bindings, k.items)
+	}
+	if len(m.actionRows()) > 0 {
+		bindings = append(bindings, k.actions)
+	}
+	return bindings
+}
+
 // fullHelp answers the bindings full help lists in browse and card mode, in
 // columns: how to move, then what the offer allows, then the rest, which are
 // ctrl+l, which draws the whole screen again, and ctrl+c.
-func (k *interactiveKeys) fullHelp(card bool, offer interactiveOffer) [][]key.Binding {
+func (k *interactiveKeys) fullHelp(m *interactiveModel) [][]key.Binding {
 	moving := []key.Binding{k.up, k.down, k.left, k.right, k.page, k.ends}
-	if card {
+	if m.mode == modeCard {
 		moving = []key.Binding{k.scrollUp, k.scrollDown, k.page, k.ends}
 	}
-	acts := k.shortHelp(card, offer, true)
+	acts := k.shortHelp(m, true)
 	return [][]key.Binding{moving, acts, {k.repaint, k.interrupt}}
 }
 
-// menuHelp answers the bindings the footer lists while the move menu is open.
+// itemHelp answers the bindings the footer lists in item mode: the highlight
+// keys, then the letters of the item acts offered on the highlighted item, in
+// the act table's order, then ctrl+g, q and ctrl+c.
+func (k *interactiveKeys) itemHelp(m *interactiveModel) []key.Binding {
+	bindings := []key.Binding{k.menuUp, k.menuDown}
+	for _, row := range interactiveActs {
+		if row.mode == actItems && row.offered(m) {
+			bindings = append(bindings, row.binding(k))
+		}
+	}
+	return append(bindings, k.itemClose, k.itemQuit, k.interrupt)
+}
+
+// outputHelp answers the bindings the footer lists in output mode.
+func (k *interactiveKeys) outputHelp() []key.Binding {
+	return []key.Binding{k.scrollUp, k.page, k.ends, k.outputClose, k.jump, k.interrupt}
+}
+
+// menuHelp answers the bindings the footer lists while a menu is open.
 func (k *interactiveKeys) menuHelp() []key.Binding {
 	return []key.Binding{k.menuChoose, k.menuNumber, k.menuCancel, k.menuQuit, k.interrupt}
 }
 
-// promptHelp answers the bindings the footer lists while a prompt is open.
-func (k *interactiveKeys) promptHelp(comment bool) []key.Binding {
-	if comment {
+// promptHelp answers the bindings the footer lists while a prompt is open:
+// the multi-line prompt's, or Enter, Tab at the command line alone, Ctrl+G
+// and Ctrl+C.
+func (k *interactiveKeys) promptHelp(prompt promptKind) []key.Binding {
+	switch prompt {
+	case promptText:
 		return []key.Binding{k.promptNewline, k.promptPost, k.promptCancel, k.interrupt}
+	case promptJump:
+		return []key.Binding{k.promptGo, k.promptComplete, k.promptCancel, k.interrupt}
 	}
 	return []key.Binding{k.promptGo, k.promptCancel, k.interrupt}
 }
