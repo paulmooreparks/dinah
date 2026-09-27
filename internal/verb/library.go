@@ -2,7 +2,6 @@ package verb
 
 import (
 	"encoding/json"
-	"sort"
 	"time"
 
 	"dinah/internal/bench"
@@ -1423,9 +1422,12 @@ func (l *Library) FromError(req *Request, err error) *Response {
 	}
 }
 
-// sortByArrival orders cards the way CORE-QUEUE-3 fixes.
+// sortByArrival orders cards the way CORE-QUEUE-3 fixes, through
+// bench.SortByArrival, which reads each card's arrival once for the whole
+// sort rather than once per comparison. This is the one place every caller
+// that orders cards by arrival reaches: Query, readyIn, the tree producers,
+// a view's own sections and the containment projection's card listing all
+// call this function rather than sorting against bench.ByArrival themselves.
 func sortByArrival(cards []*bench.Card) {
-	sort.SliceStable(cards, func(i, j int) bool {
-		return bench.ByArrival(cards[i], cards[j])
-	})
+	bench.SortByArrival(cards)
 }
