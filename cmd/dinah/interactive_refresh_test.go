@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -257,14 +258,40 @@ func TestTheReadKeysRunThroughTheLine(t *testing.T) {
 	}
 	var words []string
 	var codes []int
-	keys := ">" + keyBackspace + "S" + keyBackspace + "Fparser" + keyEnter + keyBackspace + "F--override" + keyEnter + keyBackspace + "C" + keyBackspace + "W" + keyCtrlC
-	seam := tuiSeam(t, strings.NewReader(keys), lineWidth, lineHeight)
+	s, seam := newScript(t, lineWidth, lineHeight, true)
+	done := make(chan *lineResult, 1)
 	seam.lineDone = func(result *lineResult) {
-		line := strings.Join(result.words, " ")
-		words = append(words, line)
+		words = append(words, strings.Join(result.words, " "))
 		codes = append(codes, result.code)
+		done <- result
 	}
-	runTUIThrough(t, root, seam)
+	wait := func() {
+		select {
+		case <-done:
+		case <-time.After(tuiWait):
+			t.Errorf("a read key's line never ended")
+		}
+	}
+	s.run(root, seam, func() {
+		s.write(">")
+		wait()
+		s.write(keyBackspace)
+		s.write("S")
+		wait()
+		s.write(keyBackspace)
+		s.write("Fparser" + keyEnter)
+		wait()
+		s.write(keyBackspace)
+		s.write("F--override" + keyEnter)
+		wait()
+		s.write(keyBackspace)
+		s.write("C")
+		wait()
+		s.write(keyBackspace)
+		s.write("W")
+		wait()
+		s.write(keyCtrlC)
+	})
 	want := []string{"next", "status", "search -- parser", "search -- --override", "changes --card fx-1", "whoami"}
 	if strings.Join(words, "|") != strings.Join(want, "|") {
 		t.Errorf("the read keys ran %q, wanted %q", words, want)

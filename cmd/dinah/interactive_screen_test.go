@@ -299,6 +299,9 @@ func TestTheFilterAndTheJump(t *testing.T) {
 		run := s.run(root, seam, func() {
 			s.write("/column:acceptance" + keyEnter + "Z")
 			s.waitFor("the change", isChange)
+			// The change's own redraw runs off the event loop now, so the
+			// filter is reapplied only once that read has landed too.
+			s.waitFor("the redraw the change caused", isViewRead)
 			s.write(keyCtrlC)
 		})
 		m := run.model

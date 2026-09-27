@@ -84,10 +84,22 @@ type (
 	}
 	// resizeMsg says the console reported a change of its buffer size.
 	resizeMsg struct{}
-	// changeMsg is what one wait for a change answered.
+	// changeMsg is what one wait for a change answered, tagged with the watch
+	// epoch the wait was launched under, so an answer launched before the
+	// head's own act can be told apart from one launched after it.
 	changeMsg struct {
-		set *verb.ChangeSet
-		err error
+		set   *verb.ChangeSet
+		err   error
+		epoch uint64
+	}
+	// viewReadMsg is what one read of the view answered, tagged with the read
+	// generation it was asked under, so an answer that arrives after a later
+	// read was asked for is dropped.
+	viewReadMsg struct {
+		seq     uint64
+		answer  *verb.ViewAnswer
+		err     error
+		matches map[string]bool
 	}
 	// crashMsg says a panic was recovered and the program should quit.
 	crashMsg struct{}
@@ -97,6 +109,15 @@ type (
 	// frame, which the console writer sends after a short write.
 	repaintMsg struct{}
 )
+
+// queuedInput is one key or one paste held in Update's keyMsg or pasteMsg
+// case while a read is in flight, replayed by drainQueue in the order it
+// arrived, through the ordinary dispatch, once the read lands.
+type queuedInput struct {
+	key     tea.KeyPressMsg
+	paste   string
+	isPaste bool
+}
 
 // interactiveCrash is a recovered panic: its value and the stack captured
 // where it was recovered.
@@ -221,6 +242,51 @@ type interactiveModel struct {
 	// lists the candidates.
 	tabbed bool
 
+	// readSeq is bumped on every read of the whole view, every one of which
+	// now runs off the event loop, whether it is an act's own, a line's own,
+	// or the watcher's; an answer whose generation readSeq no longer carries
+	// is superseded by a later read and dropped rather than applied.
+	// readAnswered is the generation of the last current answer actually
+	// applied, so readSeq != readAnswered is true exactly while a read is in
+	// flight. A key or a paste that arrives while that holds is queued in
+	// queued rather than processed or dropped, and replayed in order,
+	// through the ordinary dispatch, once the read lands; ctrl+c is the one
+	// key that bypasses the queue; see the keyMsg and pasteMsg cases in
+	// Update and drainQueue.
+	// watchEpoch is bumped after the head's own successful act, so the wait
+	// already in flight when the act was made, which goes on to answer a
+	// change the head has already redrawn for itself, is recognised and its
+	// own refresh is skipped, keeping one act to one refresh; batchIsOwnAct
+	// is where that recognition stops short of swallowing another actor's
+	// change riding in the same batch.
+	readSeq      uint64
+	readAnswered uint64
+	queued       []queuedInput
+	watchEpoch   uint64
+	// ownActRef and ownActRevision are the card and the revision the head's
+	// own last successful act left it at, from that act's own response,
+	// which is what batchIsOwnAct compares a stale batch's events against
+	// rather than identity: several sessions on this workbench share one
+	// actor, harness, provider and model, so identity alone cannot tell the
+	// head's own act apart from a different session's, sharing that same
+	// identity, landing in the same batch.
+	ownActRef      string
+	ownActRevision string
+	// pendingLine is the line whose lineDone notice handleViewRead has not
+	// yet fired, because doing so waits on the board-wide read afterLine's
+	// own reread dispatched, which now runs off the event loop like every
+	// other; nil once handleViewRead has fired it. The line's own message and
+	// mode are composed synchronously in afterLine itself, since neither
+	// depends on this read.
+	pendingLine *lineResult
+	// pullCache holds, for the read now on screen, whether pulling the next
+	// ready card into a column named by its reference would succeed; the
+	// answer depends only on that column, never on which card recomputeOffer
+	// was asked about, so it is asked of the library once per column per
+	// read rather than once per keystroke of navigation. It is cleared on
+	// every fresh read, in applyAnswer.
+	pullCache map[string]bool
+
 	crashMu sync.Mutex
 	crash   *interactiveCrash
 }
@@ -257,15 +323,16 @@ func (m *interactiveModel) Init() tea.Cmd {
 	if interactiveSeam != nil && interactiveSeam.init != nil {
 		interactiveSeam.init()
 	}
+	cmds := []tea.Cmd{m.waitForChange()}
 	if result := m.lent; result != nil {
 		m.lent = nil
 		if m.reader != nil {
 			m.flushAsked = true
 			m.reader.RequestFlush()
 		}
-		m.afterLine(result)
+		cmds = append(cmds, m.afterLine(result))
 	}
-	return m.waitForChange()
+	return tea.Batch(cmds...)
 }
 
 // recordCrash keeps a recovered panic and the stack where it was recovered,
@@ -303,9 +370,11 @@ func (m *interactiveModel) guarded(cmd func() tea.Msg) tea.Cmd {
 }
 
 // waitForChange is the command that waits for the next change on the waiter
-// library, for at most watchWait.
+// library, for at most watchWait. The watch epoch it is launched under travels
+// with the answer, so changed can tell a wait launched before the head's own
+// act apart from one launched after it.
 func (m *interactiveModel) waitForChange() tea.Cmd {
-	cursor, gate, waiter, actor := m.cursor, m.gate, m.waiter, m.req.Actor
+	cursor, gate, waiter, actor, epoch := m.cursor, m.gate, m.waiter, m.req.Actor, m.watchEpoch
 	return m.guarded(func() tea.Msg {
 		gate.mu.Lock()
 		defer gate.mu.Unlock()
@@ -313,7 +382,7 @@ func (m *interactiveModel) waitForChange() tea.Cmd {
 			return nil
 		}
 		set, err := waiter.Changes(&verb.Request{Verb: "changes", Actor: actor, Since: cursor, Wait: true, Timeout: watchWait})
-		return changeMsg{set: set, err: err}
+		return changeMsg{set: set, err: err, epoch: epoch}
 	})
 }
 
@@ -355,13 +424,30 @@ func (m *interactiveModel) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			m.minGen = msg.gen
 		}
 		return m, nil
+	case viewReadMsg:
+		return m, m.handleViewRead(msg)
 	case keyMsg:
 		if m.flushAsked || msg.gen < m.minGen {
+			return m, nil
+		}
+		// A read in flight (the head's own act, or the watcher's) is
+		// answered by a later message, not by this one, so a key that
+		// arrives now is queued rather than processed or dropped, unless it
+		// is the one key nothing may ever wait behind.
+		if msg.key.String() != "ctrl+c" && m.readSeq != m.readAnswered {
+			m.queued = append(m.queued, queuedInput{key: msg.key})
 			return m, nil
 		}
 		return m, m.key(msg.key)
 	case pasteMsg:
 		if m.flushAsked || msg.gen < m.minGen {
+			return m, nil
+		}
+		// A paste is exactly as capable of racing an in-flight read as a
+		// key is, so it is gated and queued the same way rather than
+		// dispatched straight to m.paste.
+		if m.readSeq != m.readAnswered {
+			m.queued = append(m.queued, queuedInput{paste: msg.content, isPaste: true})
 			return m, nil
 		}
 		return m, m.paste(msg.content)
@@ -425,9 +511,26 @@ func (m *interactiveModel) draw() int {
 }
 
 // changed handles what one wait for a change answered, and starts the next,
-// or, after a wait that failed, the pause before it.
+// or, after a wait that failed, the pause before it. A wait launched before
+// the head's own act can answer reporting the very change that act already
+// made and redrew, and that report is skipped rather than drawn a second
+// time, but only where batchIsOwnAct says the report holds nothing else: the
+// same batch can carry another actor's change riding in on the same window,
+// since Changes reports everything since the old cursor in one shot, and that
+// one must still be drawn.
+//
+// A stale wait's own report never clears the message area, whether or not
+// batchIsOwnAct explains the whole of it: the head's own act, launched after
+// this wait, already set whatever the message area shows now, out of a
+// response this belated report cannot be fresher than, so wiping it here
+// would let a report of somebody else's change, riding in on the same
+// window as an act on a different card, erase that act's own refusal or
+// confirmation before anyone read it. The board itself, the lanes and the
+// offer this report may still hand to reread, is a different matter and is
+// still redrawn, since those do need the fresher state.
 func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 	cmds := []tea.Cmd{m.measure()}
+	stale := msg.epoch != m.watchEpoch
 	switch {
 	case msg.err != nil:
 		// A wait that failed is tried again after watchWait rather than at
@@ -442,20 +545,66 @@ func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 				m.l = reopened
 			}
 		}
-		m.message = nil
-		m.status = statusParts{
-			time:   m.s.r.T("view.watch.updated", "time", now().Format(watchClock)),
-			change: m.s.changeText(msg.set),
+		if !stale || !m.batchIsOwnAct(msg.set) {
+			if !stale {
+				m.message = nil
+			}
+			m.status = statusParts{
+				time:   m.s.r.T("view.watch.updated", "time", now().Format(watchClock)),
+				change: m.s.changeText(msg.set),
+			}
+			cmds = append(cmds, m.reread())
 		}
-		m.reread()
 	default:
 		m.cursor = msg.set.Cursor
-		if !m.expiry.IsZero() && !now().Before(m.expiry) {
+		if !stale && !m.expiry.IsZero() && !now().Before(m.expiry) {
 			m.status.time = m.s.r.T("view.watch.updated", "time", now().Format(watchClock))
-			m.reread()
+			cmds = append(cmds, m.reread())
 		}
 	}
 	return tea.Batch(append(cmds, m.waitForChange())...)
+}
+
+// batchIsOwnAct reports whether every event a change batch carries is
+// explained by the head's own last act, which is the only case a stale
+// report is nothing but an echo of the act just made. It is decided by the
+// specific card and revision that act's own response named, in ownActRef and
+// ownActRevision, rather than by identity: several sessions on this
+// workbench routinely share one actor, harness, provider and model, so a
+// genuine change from a different session carrying that same identity would
+// be misattributed as an echo if identity alone decided it, reopening the
+// very bug this check exists to close. A batch reporting no events, or one
+// following an act whose response named no card to compare against, is not
+// attributable to anything named here, so it answers false rather than
+// vacuously true.
+func (m *interactiveModel) batchIsOwnAct(set *verb.ChangeSet) bool {
+	if len(set.Events) == 0 || m.ownActRef == "" {
+		return false
+	}
+	for _, event := range set.Events {
+		if event.Ref != m.ownActRef {
+			return false
+		}
+	}
+	for _, card := range set.Cards {
+		if card.Ref == m.ownActRef && card.Revision != m.ownActRevision {
+			return false
+		}
+	}
+	return true
+}
+
+// recordOwnAct keeps what a successful act just wrote: the card its response
+// named and the revision it left there. batchIsOwnAct compares a later stale
+// batch against exactly this, which is what lets it tell the head's own act
+// apart from a different session's act sharing its identity. Cleared to
+// nothing identifiable when the response names no card, which is the
+// signal batchIsOwnAct's own default of "not mine" answers to.
+func (m *interactiveModel) recordOwnAct(response *verb.Response) {
+	m.ownActRef, m.ownActRevision = "", ""
+	if response.Card != nil {
+		m.ownActRef, m.ownActRevision = response.Card.Ref, response.Card.Revision
+	}
 }
 
 // errorLines composes what an error from a read reads as in the message
@@ -478,21 +627,101 @@ func (m *interactiveModel) errorLinesFor(err error, command string) []string {
 	return composer.composeRefusal(composer.nameTheWorkbench(refusal))
 }
 
-// reread reads the view again, reapplies the filter, rebuilds the lanes and
-// keeps the selection by section 8.3's rules, then recomputes the offer.
-func (m *interactiveModel) reread() {
+// reread asks the library to read the view again, off the event loop, tagged
+// with a fresh read generation: an act's own redraw and the watcher's redraw
+// of a change somebody else made both go through here, and both are the
+// board-wide read the profile measured at 400 ms, which must not hold the
+// keyboard or the drawing for that long either way. A key that arrives before
+// this lands is queued in Update's keyMsg case rather than dropped or
+// processed against data this read is about to replace, and handleViewRead
+// replays the queue once a current answer lands, which is what keeps the
+// ordering an act's own reread exists for: the next key, if it is another
+// act, sees this read's fresh state before it runs, just later than the same
+// call used to make it happen, and without blocking. An answer superseded by
+// a later read is dropped rather than applied.
+func (m *interactiveModel) reread() tea.Cmd {
+	m.readSeq++
+	seq := m.readSeq
 	drawn := *m.req
-	answer, err := m.l.DrawView(&drawn)
-	if err != nil {
-		m.message = m.errorLines(err)
-		return
+	l, actor, filter := m.l, m.req.Actor, m.filter
+	return m.guarded(func() tea.Msg {
+		if interactiveSeam != nil && interactiveSeam.readGate != nil {
+			interactiveSeam.readGate()
+		}
+		answer, err := l.DrawView(&drawn)
+		if err != nil {
+			return viewReadMsg{seq: seq, err: err}
+		}
+		var matches map[string]bool
+		if filter != "" {
+			if found, err := l.Query(&verb.Request{Verb: "query", Actor: actor, Query: filter}); err == nil {
+				matches = map[string]bool{}
+				for _, card := range found.Cards {
+					matches[card.Ref] = true
+				}
+			}
+		}
+		return viewReadMsg{seq: seq, answer: answer, matches: matches}
+	})
+}
+
+// handleViewRead applies a read of the view answered off the event loop, once
+// it is still current: reapplies the filter's matches where the read asked
+// for them, rebuilds the lanes and keeps the selection by section 8.3's
+// rules, then recomputes the offer and the detail pane. Where this read is
+// the one afterLine dispatched for a line just run, pendingLine still names
+// it, and its lineDone notice, if the head is under test, fires once the
+// board is fresh and the queue is about to be drained, whether the read
+// landed clean or with an error: a caller waiting on that notice to know the
+// line is fully settled must be told either way, or it waits forever. Either
+// way, current or superseded, it marks this generation answered before
+// draining the queue, since a superseded answer still means whatever asked
+// for it is no longer the latest thing waiting to happen; the newer read
+// that superseded it is what the queue is actually waiting on, and readSeq
+// already reflects that.
+func (m *interactiveModel) handleViewRead(msg viewReadMsg) tea.Cmd {
+	if msg.seq != m.readSeq {
+		return nil
 	}
-	if m.filter != "" {
-		if matches, err := m.query(m.filter); err == nil {
-			m.matches = matches
+	m.readAnswered = msg.seq
+	if msg.err != nil {
+		m.message = m.errorLines(msg.err)
+	} else {
+		if m.filter != "" && msg.matches != nil {
+			m.matches = msg.matches
+		}
+		m.applyAnswer(msg.answer, false)
+	}
+	if pending := m.pendingLine; pending != nil {
+		m.pendingLine = nil
+		if interactiveSeam != nil && interactiveSeam.lineDone != nil {
+			interactiveSeam.lineDone(pending)
 		}
 	}
-	m.applyAnswer(answer, false)
+	return m.drainQueue()
+}
+
+// drainQueue replays the keys and the pastes queued while a read was in
+// flight, in the order they arrived, through the ordinary dispatch. Replayed
+// input can itself start another read, which leaves readSeq and readAnswered
+// apart again; the moment that happens, draining stops and whatever is left
+// queued waits for that read to land in its turn, rather than running ahead
+// of state it would see stale.
+func (m *interactiveModel) drainQueue() tea.Cmd {
+	var cmds []tea.Cmd
+	for len(m.queued) > 0 {
+		next := m.queued[0]
+		m.queued = m.queued[1:]
+		if next.isPaste {
+			cmds = append(cmds, m.paste(next.paste))
+		} else {
+			cmds = append(cmds, m.key(next.key))
+		}
+		if m.readSeq != m.readAnswered {
+			break
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 // query runs a filter's query and answers the references it matched.
@@ -522,6 +751,7 @@ func (m *interactiveModel) applyAnswer(answer *verb.ViewAnswer, first bool) {
 	m.answer = answer
 	m.expiry = earliestExpiry(answer)
 	m.lanes = m.buildLanes(answer)
+	m.pullCache = map[string]bool{}
 	switch {
 	case len(m.lanes) == 0:
 		m.focus, m.selected = 0, 0
@@ -721,8 +951,32 @@ func (m *interactiveModel) identity(name string) *verb.Request {
 }
 
 // recomputeOffer asks the library what may be offered for the target card,
-// and, where no card is targeted, what may be offered on the workbench and
-// in the focused lane's column.
+// and, where no card is targeted, what may be offered on the workbench and in
+// the focused lane's column.
+//
+// This runs synchronously, deliberately: OfferActs answers one card and is
+// cheap next to a board-wide read, and Bubble Tea gives no guarantee that an
+// asynchronous command's answer lands before the very next key, or before a
+// quit already in flight, so making this asynchronous raced the offer itself
+// stale against the input that is supposed to have produced it. reread, which
+// asks for the whole board, is where the read that actually took 400 ms in
+// the profile lives, and that one runs off the loop; see reread.
+//
+// It is asked fresh on every call rather than cached against the card
+// reference for the read now on screen, on purpose: whether the offer runs is
+// not only a function of the card's own revision, which a read does capture,
+// but also of the clock, since a claim's lapse depends on it, and a card
+// whose revision has not changed can still lapse between two selections of
+// the same card within one read. A cache keyed by reference answered the
+// claim a lapsed hold's owner no longer held with the offer as it stood
+// before the lapse; dinah-636's own suite caught it.
+//
+// The pull check is a different matter: whether pulling the next ready card
+// into a column would succeed depends only on that column, which is the
+// focused lane's own, and never on the card being asked about here, so it is
+// left out of this call's own Column and answered instead through
+// pulledInto, which keeps the one answer for every card asked about in the
+// same lane in the same read.
 func (m *interactiveModel) recomputeOffer() {
 	m.offer = interactiveOffer{}
 	ref, _, ok := m.target()
@@ -733,12 +987,12 @@ func (m *interactiveModel) recomputeOffer() {
 	asking := m.identity(verb.Move)
 	asking.Card = ref
 	asking.Archived = m.cardOpen && m.cardArchived
-	if column := m.pullColumn(); column != nil && !asking.Archived {
-		asking.Column = column.Ref()
-	}
 	offered, err := m.l.OfferActs(asking)
 	if err != nil || offered == nil {
 		return
+	}
+	if column := m.pullColumn(); column != nil && !asking.Archived {
+		offered.Pull = m.pulledInto(column.Ref())
 	}
 	m.offer = interactiveOffer{
 		ref:     ref,
@@ -763,22 +1017,47 @@ func (m *interactiveModel) recomputeOffer() {
 	}
 }
 
+// pulledInto answers, from pullCache where the column was already asked
+// about in the read now on screen, whether pulling the next ready card into
+// it would succeed. It is asked fresh once per column per read: a mutation
+// that could change the answer, someone moving a card into or out of the
+// column, always produces a fresh read of its own before the head could ask
+// again, so the cached answer never outlives the state it was computed from.
+func (m *interactiveModel) pulledInto(columnRef string) bool {
+	if cached, found := m.pullCache[columnRef]; found {
+		return cached
+	}
+	asking := m.identity(verb.Move)
+	asking.Column = columnRef
+	pulled, err := m.l.OfferPull(asking)
+	if err != nil {
+		pulled = false
+	}
+	if m.pullCache != nil {
+		m.pullCache[columnRef] = pulled
+	}
+	return pulled
+}
+
 // offerWithoutCard asks the library what may be offered where no card is
 // targeted, which is a filing and a pull into the focused lane's column.
 func (m *interactiveModel) offerWithoutCard() {
 	asking := m.identity(verb.Move)
-	if column := m.pullColumn(); column != nil {
-		asking.Column = column.Ref()
-	}
 	offered, err := m.l.OfferActs(asking)
 	if err != nil || offered == nil {
 		return
 	}
-	m.offer = interactiveOffer{acts: &verb.OfferedActs{Add: offered.Add, Pull: offered.Pull}}
+	pull := false
+	if column := m.pullColumn(); column != nil {
+		pull = m.pulledInto(column.Ref())
+	}
+	m.offer = interactiveOffer{acts: &verb.OfferedActs{Add: offered.Add, Pull: pull}}
 }
 
 // refreshDetail renders the detail pane for the selected card, at a window
-// wide enough to hold it.
+// wide enough to hold it. As recomputeOffer, this runs synchronously: Show on
+// one card is cheap next to reread's board-wide read, and the same race
+// against the next key or a quit applies here too.
 func (m *interactiveModel) refreshDetail() {
 	m.detail = nil
 	if m.width < interactiveWideWidth || m.tooSmall() {
@@ -1277,11 +1556,20 @@ func (m *interactiveModel) focusLane(index int) {
 }
 
 // act performs one act on the target card through the library, shows its
-// answer, and reads the view again at once.
-func (m *interactiveModel) act(name string, row *verb.LegalMove) {
+// answer, and reads the view again off the event loop. Every act bumps the
+// watch epoch and records itself, whatever its outcome, because every act
+// dispatches this same reread and that reread already reads the board as it
+// now stands: a wait already in flight, which goes on to answer a change with
+// nothing this act's own read has not already picked up, is recognised as one
+// the head has redrawn for regardless, and its own refresh is skipped rather
+// than run a second time on top of this one and, for a refusal, wiping the
+// message this call just composed out from under it. A refusal still leaves
+// response.Card naming the card as it now stands, which is what
+// batchIsOwnAct compares a later batch against.
+func (m *interactiveModel) act(name string, row *verb.LegalMove) tea.Cmd {
 	ref, basis, ok := m.target()
 	if !ok {
-		return
+		return nil
 	}
 	asking := m.identity(name)
 	asking.Card = ref
@@ -1291,11 +1579,13 @@ func (m *interactiveModel) act(name string, row *verb.LegalMove) {
 	}
 	response := m.l.Do(asking)
 	m.answered(response, name, ref, row)
+	m.watchEpoch++
+	m.recordOwnAct(response)
 	if response.Outcome == contract.OutcomeOK && m.cardOpen {
 		m.leaveCard()
 		m.mode = modeBrowse
 	}
-	m.reread()
+	return m.reread()
 }
 
 // answered shows an act's answer in the message area. A refusal is composed

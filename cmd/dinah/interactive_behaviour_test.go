@@ -149,6 +149,15 @@ func isChange(msg tea.Msg) bool {
 	return ok && change.set != nil && change.set.Changed
 }
 
+// isViewRead accepts the message one read of the whole view answered. A
+// change detected by the watch dispatches this read off the event loop, so a
+// script that inspects the model after seeing the change must wait for this
+// too, or it reads the model before the redraw the change caused has landed.
+func isViewRead(msg tea.Msg) bool {
+	_, ok := msg.(viewReadMsg)
+	return ok
+}
+
 // isSize accepts a size message of width by height.
 func isSize(width, height int) func(tea.Msg) bool {
 	return func(msg tea.Msg) bool {
@@ -172,6 +181,9 @@ func TestAnOtherSessionsMoveKeepsTheLaneAndSelectsTheCardAtTheOldIndex(t *testin
 		if msg := s.waitFor("the change", isChange); msg != nil {
 			change = msg.(changeMsg).set
 		}
+		// The change's own redraw runs off the event loop now, so the model
+		// carries it only once that read has landed too.
+		s.waitFor("the redraw the change caused", isViewRead)
 		s.write(keyCtrlC)
 	})
 	m := run.model
@@ -198,6 +210,9 @@ func TestAnArchivedCardLeavesCardMode(t *testing.T) {
 	run := s.run(root, seam, func() {
 		s.write(keyEnter + "Z")
 		s.waitFor("the change", isChange)
+		// The change's own redraw runs off the event loop now, so the model
+		// carries it only once that read has landed too.
+		s.waitFor("the redraw the change caused", isViewRead)
 		s.write(keyCtrlC)
 	})
 	m := run.model
@@ -276,6 +291,22 @@ const capacityDefinition = `{
 // lines, cleaned, that dinah move writes to stderr for the same refusal on a
 // copy of the workbench, the card is unchanged, and the next frame no longer
 // offers that destination.
+//
+// seam.command holds every command from the start, the watcher's own wait
+// for a change included, so Z's own move to fill Review is not even noticed
+// until hold is released: the offer a reads stays the one drawn before Z's
+// move, exactly as an ordinary frame's would if the destination filled
+// between the frame and the key, which is the whole of what this test means
+// to arrange. Releasing hold then lets the watcher's now-belated notice of
+// Z's move and a's own reread run together, dispatching a read each, and
+// changed's own rule that a stale wait's report never clears the message
+// area is what keeps that notice, riding in on a card the change never
+// touched, from erasing a's own refusal before the test ever reads it. Both
+// reads are awaited before the check on the offer, since either can be the
+// one whose answer lands and is kept: a's own is not guaranteed to outrun
+// the watcher's, given the watcher's own path runs one more round trip
+// first, and checking after only the first of the two to land read the
+// offer before the second, whichever it turned out to be, had applied.
 func TestARefusedOfferedMoveShowsTheMovesOwnRefusal(t *testing.T) {
 	root := newBenchFromDefinition(t, capacityDefinition)
 	for _, argv := range [][]string{{"add", "Offered"}, {"move", "fx-1", "implement"}, {"add", "Filler"}, {"move", "fx-2", "implement"}} {
@@ -289,12 +320,16 @@ func TestARefusedOfferedMoveShowsTheMovesOwnRefusal(t *testing.T) {
 		step(t, root, "move", "fx-2", "review")
 		anchor = anchorText(t, root, "fx-1")
 	})
+	count := 0
 	run := s.run(root, seam, func() {
 		s.write("Z")
 		s.waitFor("Z", isKey("Z"))
-		s.write("a" + keyCtrlC)
+		s.write("a")
+		s.waitFor("a", isKey("a"))
+		close(hold)
+		s.waitFor("both a's own read and the watcher's", countingViewReads(&count, 2))
+		s.write(keyCtrlC)
 	})
-	close(hold)
 	m := run.model
 	if m == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
@@ -454,9 +489,12 @@ func TestALapsedClaimIsAnsweredStaleAndOfferedAgain(t *testing.T) {
 		time.Sleep(4 * time.Second)
 		s.write("jk")
 		s.waitFor("k", isKey("k"))
-		s.write("t" + keyCtrlC)
+		s.write("t")
+		s.waitFor("t", isKey("t"))
+		close(hold)
+		s.waitFor("t's own read", isViewRead)
+		s.write(keyCtrlC)
 	})
-	close(hold)
 	m := run.model
 	if m == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
