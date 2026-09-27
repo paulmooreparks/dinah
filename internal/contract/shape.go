@@ -1555,6 +1555,14 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.ambiguous-column.next"},
 	},
 	{
+		// NoLongerDone never reaches a reader as the Refusal of a request
+		// they made: it fires only inside archiveOnDone's own re-check
+		// under Archive's own lock and is absorbed into WarningDetail on
+		// the move whose archive step it stops.
+		Name:   NoLongerDone,
+		NoNext: "nothing a reader could type would change the outcome; the card already stands wherever the concurrent move left it, and this refusal never reaches a reader as a top-level answer to a request they made",
+	},
+	{
 		// A column standing first in the flow refuses at the named form,
 		// because no upstream column precedes it. The detail names the
 		// column, which a reader needs to see alongside the rule.

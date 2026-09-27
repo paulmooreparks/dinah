@@ -246,6 +246,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.Renumber = value
 	case "no-claim":
 		req.NoClaim = value
+	case "no-archive":
+		req.NoArchive = value
 	case "full-pending":
 		req.FullPending = value
 	case "brief":

@@ -200,6 +200,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		MigrateWitness:     parsed.has("witness"),
 		NoClaim:            parsed.has("no-claim"),
+		NoArchive:          parsed.has("no-archive"),
 	}
 	return req
 }

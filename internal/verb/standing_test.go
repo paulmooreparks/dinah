@@ -357,14 +357,14 @@ func TestTheHoldNowHasSomethingToHoldOn(t *testing.T) {
 		h.declareStanding(aftercare, standingBlock)
 		ref := h.readyAt("held", aftercare)
 		minted := h.instanceIDs(ref)
-		refused := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
+		refused := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, NoArchive: true})
 		if refused.Refusal != contract.UnresolvedItemExit || !minted[refused.Detail] {
 			t.Fatalf("the forward move: wanted %s naming a minted instance, got %s %s %q", contract.UnresolvedItemExit, refused.Outcome, refused.Refusal, refused.Detail)
 		}
 		h.at(ref, doing)
 		h.at(ref, aftercare)
 		h.settle("fail", ref+"/criteria/2", "Unsigned.")
-		if refused := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished}); refused.Refusal != contract.UnresolvedItemExit {
+		if refused := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, NoArchive: true}); refused.Refusal != contract.UnresolvedItemExit {
 			t.Errorf("after a failed instance the forward move was %s %s, wanted it still refused", refused.Outcome, refused.Refusal)
 		}
 		// The three settled instances lift the hold together: the criterion
@@ -373,7 +373,7 @@ func TestTheHoldNowHasSomethingToHoldOn(t *testing.T) {
 		h.settle("verify", ref+"/criteria/1", "Paid on the 20th.")
 		h.settle("waive", ref+"/criteria/2", "Proceed regardless.")
 		h.settle("withdraw", ref+"/questions/1", "The date is fixed elsewhere.")
-		if admitted := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished}); admitted.Outcome != contract.OutcomeOK {
+		if admitted := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, NoArchive: true}); admitted.Outcome != contract.OutcomeOK {
 			t.Errorf("after every instance settled the forward move was %s %s", admitted.Outcome, admitted.Refusal)
 		}
 	})
@@ -395,7 +395,7 @@ func TestTheHoldNowHasSomethingToHoldOn(t *testing.T) {
 			// The regressive arrival is reached by carrying the card past
 			// the column with the override and sending it back.
 			h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: aftercare, Override: true})
-			h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, Override: true})
+			h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, Override: true, NoArchive: true})
 			if backward := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: aftercare}); backward.Refusal != contract.UnresolvedItem {
 				t.Errorf("the regressive return: wanted %s, got %s %s", contract.UnresolvedItem, backward.Outcome, backward.Refusal)
 			}

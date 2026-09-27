@@ -105,7 +105,7 @@ func TestAPipelineCardWalksIntakeToDoneAndASecondIsRejected(t *testing.T) {
 	if got := runCLI(t, root, "release", "px-1"); got.code != 0 {
 		t.Fatalf("release before landing at a terminal: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "move", "px-1", "done"); got.code != 0 {
+	if got := runCLI(t, root, "move", "px-1", "done", "--no-archive"); got.code != 0 {
 		t.Fatalf("move to done: %d %s", got.code, got.errw)
 	}
 
@@ -122,7 +122,7 @@ func TestAPipelineCardWalksIntakeToDoneAndASecondIsRejected(t *testing.T) {
 	if got := runCLI(t, root, "release", "px-2"); got.code != 0 {
 		t.Fatalf("release before landing at a terminal: %d %s", got.code, got.errw)
 	}
-	if got := runCLI(t, root, "move", "px-2", "returned"); got.code != 0 {
+	if got := runCLI(t, root, "move", "px-2", "returned", "--no-archive"); got.code != 0 {
 		t.Fatalf("the rejecting move: %d %s", got.code, got.errw)
 	}
 
