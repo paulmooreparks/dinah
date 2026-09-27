@@ -62,6 +62,15 @@ type Library struct {
 	// taken, where a test runs a whole second write and then asserts that the
 	// first one reads it rather than overwriting it.
 	Interpose func(step string)
+	// archiveWatch caches a waiting changes call's archived entries across its
+	// poll loop, keyed by archived card identifier. An archived card's journal
+	// does not change once it is archived, so checkpoint reuses an entry this
+	// caches rather than statting the journal and reading its anchor's
+	// revision again on every 500ms poll; only an identifier newly archived
+	// since the last poll is read from disk. It is nil outside a waiting call,
+	// which is what tells WatchedEntitiesCached to read every archived journal
+	// fresh, on the terms a one-shot Changes call always has.
+	archiveWatch map[string]bench.Watched
 }
 
 // New returns a library over an opened bench, on the real clock.

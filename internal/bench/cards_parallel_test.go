@@ -2,7 +2,10 @@ package bench
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -147,5 +150,154 @@ func TestWatchedEntitiesAnswersLiveCardsInAscendingOrder(t *testing.T) {
 		if cardKeys[i] != wanted {
 			t.Fatalf("cardKeys[%d] = %s, wanted %s: the mint walk did not preserve key order", i, cardKeys[i], wanted)
 		}
+	}
+}
+
+// archivedFixture plants n archived cards below root, each carrying a
+// journal but no anchor, on the terms an archived card's watch entry always
+// carries: archive[i] is CardsDir/<id>, its journal at JournalName, and no
+// anchor. It answers the identifiers in ascending order.
+func archivedFixture(t *testing.T, root string, n int) []string {
+	t.Helper()
+	var ids []string
+	for i := 0; i < n; i++ {
+		id := fmt.Sprintf("f%011d", i+1)
+		ids = append(ids, id)
+		write(t, filepath.Join(root, ArchiveDir, CardsDir, id, JournalName), "{}\n")
+	}
+	return ids
+}
+
+// TestWatchedEntitiesCachedReadsOnlyNewlyArchivedJournals drives dinah-620:
+// a poll loop that keeps the same cache map across calls stats an archived
+// card's journal once, on the call that first sees it, and reuses that entry
+// on every later call whose listing still carries the identifier, so a
+// workbench holding many archived cards costs one stat per archived card
+// over the whole loop rather than one stat per archived card per poll.
+//
+// Arming: passing nil in place of cache on the second and third calls, or
+// dropping watchArchived's cache lookup so it always takes the parallelRead
+// path, reddens this test with every archived journal statted on every call.
+func TestWatchedEntitiesCachedReadsOnlyNewlyArchivedJournals(t *testing.T) {
+	root := newFixture(t)
+	ids := archivedFixture(t, root, 20)
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+
+	cache := map[string]Watched{}
+	statted := map[string]int{}
+	var mu sync.Mutex
+	t.Cleanup(func() { JournalStatObserver = nil })
+	archiveRoot := opened.ArchivedCardsRoot()
+	JournalStatObserver = func(path string) {
+		if !strings.HasPrefix(filepath.Clean(path), archiveRoot) {
+			return // the live half's own journals, not this test's concern
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		statted[filepath.Clean(path)]++
+	}
+
+	if _, _, _, err := opened.WatchedEntitiesCached(cache); err != nil {
+		t.Fatalf("first call: %v", err)
+	}
+	if len(statted) != len(ids) {
+		t.Fatalf("the first call statted %d journals, wanted one per archived card (%d)", len(statted), len(ids))
+	}
+	for _, count := range statted {
+		if count != 1 {
+			t.Errorf("a journal was statted %d times on the priming call, wanted once", count)
+		}
+	}
+
+	// Second and third calls over the same, unchanged listing: no new stat.
+	for pass := 2; pass <= 3; pass++ {
+		if _, _, _, err := opened.WatchedEntitiesCached(cache); err != nil {
+			t.Fatalf("pass %d: %v", pass, err)
+		}
+	}
+	total := 0
+	for _, count := range statted {
+		total += count
+	}
+	if len(statted) != len(ids) {
+		t.Fatalf("after two more calls over an unchanged archive, %d journals were ever statted, wanted still %d: a poll over an unchanged archive should stat nothing new", len(statted), len(ids))
+	}
+	if total != len(ids) {
+		t.Fatalf("the three calls together statted %d times, wanted %d (once each, none repeated on the second and third pass over an unchanged archive)", total, len(ids))
+	}
+
+	// A newly archived card is statted once, on the call that first lists it,
+	// and the rest of the cache is left alone.
+	extra := fmt.Sprintf("f%011d", len(ids)+1)
+	write(t, filepath.Join(opened.ArchivedCardsRoot(), extra, JournalName), "{}\n")
+	if _, _, _, err := opened.WatchedEntitiesCached(cache); err != nil {
+		t.Fatalf("call after a new archive: %v", err)
+	}
+	total = 0
+	for _, count := range statted {
+		total += count
+	}
+	if len(statted) != len(ids)+1 || total != len(ids)+1 {
+		t.Fatalf("after a newly archived card, %d distinct journals were ever statted (%d stats total), wanted %d of each", len(statted), total, len(ids)+1)
+	}
+	if n := statted[filepath.Clean(filepath.Join(opened.ArchivedCardsRoot(), extra, JournalName))]; n != 1 {
+		t.Errorf("the newly archived card's journal was statted %d times, wanted once", n)
+	}
+}
+
+// TestWatchedEntitiesCachedDropsARestoredIdentifier drives dinah-620: an
+// identifier the cache holds that the archive no longer lists, because the
+// card was restored, is dropped from the cache rather than kept, so a later
+// re-archiving of the same identifier is read fresh instead of served the
+// value from before the restore.
+func TestWatchedEntitiesCachedDropsARestoredIdentifier(t *testing.T) {
+	root := newFixture(t)
+	ids := archivedFixture(t, root, 3)
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	cache := map[string]Watched{}
+	if _, _, _, err := opened.WatchedEntitiesCached(cache); err != nil {
+		t.Fatalf("prime: %v", err)
+	}
+	if len(cache) != len(ids) {
+		t.Fatalf("the cache holds %d entries after priming, wanted %d", len(cache), len(ids))
+	}
+
+	restored := ids[0]
+	if err := os.RemoveAll(filepath.Join(opened.ArchivedCardsRoot(), restored)); err != nil {
+		t.Fatalf("remove the restored card: %v", err)
+	}
+	if _, _, _, err := opened.WatchedEntitiesCached(cache); err != nil {
+		t.Fatalf("call after a restore: %v", err)
+	}
+	if _, held := cache[restored]; held {
+		t.Errorf("the cache still holds %s after it left the archive, wanted it dropped", restored)
+	}
+	if len(cache) != len(ids)-1 {
+		t.Errorf("the cache holds %d entries after a restore, wanted %d", len(cache), len(ids)-1)
+	}
+
+	statted := map[string]int{}
+	var mu sync.Mutex
+	t.Cleanup(func() { JournalStatObserver = nil })
+	JournalStatObserver = func(path string) {
+		mu.Lock()
+		defer mu.Unlock()
+		statted[filepath.Clean(path)]++
+	}
+	if err := os.MkdirAll(filepath.Join(opened.ArchivedCardsRoot(), restored), 0o755); err != nil {
+		t.Fatalf("re-create the archived directory: %v", err)
+	}
+	write(t, filepath.Join(root, ArchiveDir, CardsDir, restored, JournalName), "{}\n{}\n")
+	if _, _, _, err := opened.WatchedEntitiesCached(cache); err != nil {
+		t.Fatalf("call after a re-archive: %v", err)
+	}
+	if n := statted[filepath.Clean(filepath.Join(root, ArchiveDir, CardsDir, restored, JournalName))]; n != 1 {
+		t.Errorf("the re-archived card's journal was statted %d times, wanted once, read fresh rather than served a value from before the restore", n)
 	}
 }

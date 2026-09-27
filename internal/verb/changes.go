@@ -369,6 +369,12 @@ func (l *Library) waitForChange(req *Request) (*ChangeSet, error) {
 	if req.Timeout > 0 {
 		deadline = time.Now().Add(req.Timeout)
 	}
+	// Priming the cache here, rather than leaving it nil until the first
+	// iteration's checkpoint sees it, is what tells checkpoint this is a
+	// waiting call, so this loop's own iterations reuse an archived entry
+	// across polls and a plain, non-waiting Changes call never does.
+	l.archiveWatch = map[string]bench.Watched{}
+	defer func() { l.archiveWatch = nil }()
 	for {
 		started := time.Now()
 		// Each poll is its own answer and reads its own day, so a wait
@@ -407,8 +413,14 @@ func (l *Library) waitForChange(req *Request) (*ChangeSet, error) {
 // it once per iteration; every caller that does not set req.Wait reaches it
 // directly through Changes and sees no behavior below this point that did not
 // exist before this card.
+//
+// The archive half is read through l.archiveWatch, which is nil outside a
+// waiting call, so a one-shot Changes call reads every archived journal fresh
+// exactly as it always has. A waiting call primes the cache before its first
+// iteration, so every poll after the first reuses what the previous one read
+// unless the archive's own membership moved.
 func (l *Library) checkpoint(req *Request) (*ChangeSet, error) {
-	live, archive, columns, err := l.Bench.WatchedEntities()
+	live, archive, columns, err := l.Bench.WatchedEntitiesCached(l.archiveWatch)
 	if err != nil {
 		return nil, err
 	}
