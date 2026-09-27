@@ -1,8 +1,8 @@
 # Performance budgets
 
-Every other test in this repository runs against a workbench of a few cards, so a read that opens every file in the store passes them all. The `perf` job in `.github/workflows/ci.yml` closes that gap. It runs `TestReadBudgets` in `internal/perfstore`, which generates a workbench the size of Dinah's own development workbench from a fixed seed, confirms `dinah check` finds nothing in it, and holds four reads to budgets.
+Every other test in this repository runs against a workbench of a few cards, so a read that opens every file in the store passes them all. The `perf` job in `.github/workflows/ci.yml` closes that gap. It runs `TestReadBudgets` in `internal/perfstore`, which generates a workbench the size of Dinah's own development workbench from a fixed seed, confirms `dinah check` finds nothing in it, and holds ten reads to budgets.
 
-## The four reads
+## The ten reads
 
 | Operation | What the test times |
 |---|---|
@@ -10,6 +10,12 @@ Every other test in this repository runs against a workbench of a few cards, so 
 | `show` | Opening the workbench and running `show perf-1` with no fields named |
 | `page-card` | The head's handler answering `GET /cards/perf-1` as HTML, with no socket |
 | `status-cold` | `dinah status` in a fresh process, from start to exit |
+| `view-board` | Opening the workbench and drawing the built-in `board` view |
+| `view-agenda` | Opening the workbench and drawing the built-in `agenda` view |
+| `next` | Opening the workbench and asking every column what it offers |
+| `prime` | Opening the workbench and answering `prime` for the actor `perf` |
+| `query` | Opening the workbench and running the query `state:ready` |
+| `offer` | Opening the workbench and asking what a move offers for `perf-1`, the card `perfstore.ManyItemsFloor` gives at least that many checklist items |
 
 Each operation runs once to warm up and then ten times, and the test judges the median of the ten. Every run also checks its own answer, so a read that starts failing quickly cannot pass on speed.
 
@@ -51,6 +57,10 @@ A budget is three times the median the `perf` job measured on CI, rounded up to 
 The median comes from three runs of the `perf` job, never from one. Re-running the job on the pull request is enough, and the basis is each operation's median across the three runs' medians. A single slow run makes a bad basis, because every ordinary run afterwards sits more than six times under the budget it set and the slack check then fails pull requests that changed nothing.
 
 A card that makes an operation faster sets that operation's row by this rule in the same pull request, with its basis taken from three runs on its own pull request, and names itself in the row's `setBy`. In `ci` mode the slack check enforces this: a gain large enough to leave a budget more than six times over the median fails the `perf` job until the row is tightened. Loosening a budget needs a justification a reviewer can read in the pull request, and `setBy` records who did it.
+
+## Adding an eleventh read
+
+A card that gives `TestReadBudgets` a new operation names it in `operationNames` and in `budgetOperations`, but pins it no row yet. `TestReadBudgets` measures an unpinned operation and logs its median rather than judging it, on every GOOS, so the `perf` job stays green while the card gathers what a row needs: push the branch, then re-run the `perf` job on the pull request three times (the workflow's own re-run button or `gh run rerun` on the job both work) and read each run's `(no budget pinned)` line for the operation's median. Take the basis as the median across those three medians, exactly as calibrating an existing row does, apply the budget rule below, and add the row with `setBy` naming the card, in a later commit on the same pull request. `TestBudgetsFollowTheRule` accepts a windows table carrying fewer rows than `operationNames` while this gathering is in progress, and rejects a row naming an operation `operationNames` does not list, so a typo in either place fails the ordinary suite rather than waiting for the `perf` job.
 
 ## The band a pull request lives in
 
