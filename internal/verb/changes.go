@@ -369,10 +369,11 @@ func (l *Library) waitForChange(req *Request) (*ChangeSet, error) {
 	if req.Timeout > 0 {
 		deadline = time.Now().Add(req.Timeout)
 	}
-	// Priming the cache here, rather than leaving it nil until the first
-	// iteration's checkpoint sees it, is what tells checkpoint this is a
-	// waiting call, so this loop's own iterations reuse an archived entry
-	// across polls and a plain, non-waiting Changes call never does.
+	// Priming the map here, rather than leaving it nil until the first
+	// iteration's checkpoint sees it, gives a caller of l.archiveWatch
+	// something to read back across this loop's polls; it changes nothing
+	// about what gets statted, since WatchedEntitiesCached stats every
+	// archived journal on every call whether this is nil or not.
 	l.archiveWatch = map[string]bench.Watched{}
 	defer func() { l.archiveWatch = nil }()
 	for {
@@ -415,10 +416,12 @@ func (l *Library) waitForChange(req *Request) (*ChangeSet, error) {
 // exist before this card.
 //
 // The archive half is read through l.archiveWatch, which is nil outside a
-// waiting call, so a one-shot Changes call reads every archived journal fresh
-// exactly as it always has. A waiting call primes the cache before its first
-// iteration, so every poll after the first reuses what the previous one read
-// unless the archive's own membership moved.
+// waiting call. Every call, waiting or one-shot, stats every archived
+// journal fresh: WatchedEntitiesCached no longer answers out of the map
+// without statting, since an archived card's presence across two polls proves
+// nothing about whether its journal changed in between (dinah-620/criteria/1).
+// The map still lets a caller read back what the walk found for a given
+// identifier.
 func (l *Library) checkpoint(req *Request) (*ChangeSet, error) {
 	live, archive, columns, err := l.Bench.WatchedEntitiesCached(l.archiveWatch)
 	if err != nil {

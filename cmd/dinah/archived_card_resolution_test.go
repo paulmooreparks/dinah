@@ -213,7 +213,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
 		files:     20,
-		mentions:  49,
+		mentions:  48,
 		functions: 39,
 		sites: []resolutionSite{
 			{"internal/bench/commentcheck.go", "commentDirOf", 1, "reading the archived half of one item's comments, because archiving a designated comment stays permitted and the item goes on citing it wherever it now lives; it reaches a comment below a card it was handed and resolves no card"},
@@ -231,7 +231,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{benchPackageOwnFile, "ArchivedColumnsRoot", 1, "the columns half of the mirror, which holds no cards"},
 			{benchPackageOwnFile, "HasIdentifier", 1, "existence across both halves, which reads no number"},
 			{"internal/bench/changes.go", "WatchedEntitiesCached", 1, "fingerprinting, which lists identifiers and reads journals rather than resolving a reference; dinah-620 split the archived half's own read into watchArchived below, so WatchedEntities' old two mentions are this one plus watchArchived's two"},
-			{"internal/bench/changes.go", "watchArchived", 2, "the archived half of the fingerprint walk dinah-620 split out of WatchedEntities so a caller's cache could be consulted before either mention runs; still lists identifiers and reads journals, resolving no reference"},
+			{"internal/bench/changes.go", "watchArchived", 1, "the archived half of the fingerprint walk dinah-620 split out of WatchedEntities; a second correctness fix on the same card (dinah-620/criteria/1) dropped its presence-keyed cache lookup, since an archived card's residency proves nothing about whether its journal changed, so the function is back to one unconditional listing read that stats every journal every call; still resolves no reference"},
 			{"internal/bench/check.go", "checkCardNumbers", 4, "the registry's own audit, which reaches the archived half twice: the stranded probe loads each card a line claims, and the closing walk lists both collections; it reports rather than resolves"},
 			{"internal/bench/container.go", packageLevel, 1, "the workbench's member list, used when a whole workbench moves"},
 			{"internal/bench/entity.go", "ArchiveTarget", 1, "where an entity directory goes when it is archived; it answers a path for a directory the caller already holds"},

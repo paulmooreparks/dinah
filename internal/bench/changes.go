@@ -79,20 +79,27 @@ func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) 
 
 // WatchedEntitiesCached is WatchedEntities over a cache of archived entries a
 // caller keeps across repeated calls, such as a waiting changes call's poll
-// loop. A nil cache reads every archived journal fresh, exactly as
-// WatchedEntities always has.
+// loop.
 //
-// An archived card's journal does not change once it is archived: nothing in
-// the ordinary run of the tool writes to an entity under the archive root,
-// which is why WatchedEntities' own doc calls reading every archived anchor
-// on every call the cost the archive digest term exists to avoid. A cache
-// entry is therefore read once and reused for as long as its identifier stays
-// listed under the archive root; an identifier the cache has not seen yet,
-// because it was archived since the last poll, is read from disk and added to
-// the cache, and an identifier the cache holds that the archive root no
-// longer lists, because the card was restored, is dropped from it, so a later
-// re-archiving of the same identifier is read fresh rather than served the
-// value from before the restore.
+// dinah-620 first shipped this cache on the premise that an archived card's
+// journal does not change once it is archived, and invalidated an entry only
+// when a poll's own listing showed its identifier gone from the archive root.
+// That premise does not hold: a card restored, edited and re-archived faster
+// than one poll interval never produces a listing where the identifier goes
+// missing, so the presence-keyed cache kept serving the pre-round-trip entry
+// and a waiting caller silently missed the change (dinah-620/criteria/1). The
+// journal's byte size, not the identifier's presence, is what the value
+// actually depends on, and the size cannot be read except by statting the
+// journal, so there is no cheaper correctness key than the one WatchedEntities
+// always paid for every archived card on every call. This function now pays
+// that same cost every call, cache or no cache: every archived journal in
+// archivedIDs is statted fresh, which is the one piece of documented behavior
+// (os.Stat's reported size) the digest term can safely rest on, since the
+// journal is append-only and any write to it, restore-edit-archive included,
+// grows it. The cache parameter is kept so a caller can still read back what
+// the walk found for a given identifier, and entries for identifiers no
+// longer listed are dropped from it, but no lookup here ever answers instead
+// of statting.
 func (b *Bench) WatchedEntitiesCached(cache map[string]Watched) (live, archive, columns []Watched, err error) {
 	// A collection directory that does not exist is an ordinary, legitimate
 	// shape (a fresh bench carries no workstreams yet, for one), and
@@ -158,48 +165,34 @@ func (b *Bench) WatchedEntitiesCached(cache map[string]Watched) (live, archive, 
 }
 
 // watchArchived answers the archived half of the walk, in the identifier
-// order the listing gave it. With a nil cache it stats and hashes every
-// identifier, exactly as before this cache existed. With a cache it reuses
-// the entry held for an identifier the cache already carries, reads and
-// caches the rest, and drops every cached identifier the listing no longer
-// carries, so the cache never grows past what is currently archived and a
-// restored-then-re-archived identifier is never served a stale entry.
+// order the listing gave it. Every call, cached or not, stats every
+// identifier's journal fresh: a card's residency in the archive proves
+// nothing about its journal's byte count, since a restore, an edit and a
+// re-archive can all complete between two listings, so presence is never
+// substituted for the stat that alone reports the current size. cache, when
+// non-nil, is still updated with what this call found, and an identifier the
+// listing no longer carries is dropped from it, so a caller reading it back
+// never sees an entry for a card that has left the archive; nothing here ever
+// reads a value out of it in place of statting.
 func (b *Bench) watchArchived(archivedIDs []string, cache map[string]Watched) ([]Watched, error) {
-	if cache == nil {
-		return parallelRead(len(archivedIDs), func(i int) (Watched, error) {
-			dir := filepath.Join(b.ArchivedCardsRoot(), archivedIDs[i])
-			return watch(CardsDir+"/"+archivedIDs[i], filepath.Join(dir, JournalName), ""), nil
-		})
-	}
-	archive := make([]Watched, 0, len(archivedIDs))
-	var unread []string
-	seen := make(map[string]bool, len(archivedIDs))
-	for _, id := range archivedIDs {
-		seen[id] = true
-		if entry, cached := cache[id]; cached {
-			archive = append(archive, entry)
-			continue
-		}
-		unread = append(unread, id)
-	}
-	for id := range cache {
-		if !seen[id] {
-			delete(cache, id)
-		}
-	}
-	if len(unread) == 0 {
-		return archive, nil
-	}
-	freshlyRead, err := parallelRead(len(unread), func(i int) (Watched, error) {
-		dir := filepath.Join(b.ArchivedCardsRoot(), unread[i])
-		return watch(CardsDir+"/"+unread[i], filepath.Join(dir, JournalName), ""), nil
+	archive, err := parallelRead(len(archivedIDs), func(i int) (Watched, error) {
+		dir := filepath.Join(b.ArchivedCardsRoot(), archivedIDs[i])
+		return watch(CardsDir+"/"+archivedIDs[i], filepath.Join(dir, JournalName), ""), nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	for i, entry := range freshlyRead {
-		cache[unread[i]] = entry
-		archive = append(archive, entry)
+	if cache != nil {
+		seen := make(map[string]bool, len(archivedIDs))
+		for i, id := range archivedIDs {
+			seen[id] = true
+			cache[id] = archive[i]
+		}
+		for id := range cache {
+			if !seen[id] {
+				delete(cache, id)
+			}
+		}
 	}
 	return archive, nil
 }
