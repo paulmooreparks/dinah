@@ -164,7 +164,7 @@ func TestAMoveServesTheListingOfTheColumnItEnters(t *testing.T) {
 	}
 	carryToDoing(t, root, "fx-1")
 
-	into := runCLI(t, root, "move", "fx-1", "done", "--json")
+	into := runCLI(t, root, "move", "fx-1", "done", "--no-archive", "--json")
 	listing, present := servedListing(t, into)
 	if !present || len(listing) != 1 || listing[0].Ref != "done/attachments/1" || listing[0].Filename != "release.md" {
 		t.Fatalf("the move into done served %v %+v", present, listing)

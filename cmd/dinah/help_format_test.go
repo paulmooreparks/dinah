@@ -33,7 +33,7 @@ WORK
     [--start-after <date>] [--start-by <date>]
     [--due <date>]
   claim <card> [--expires <duration>]                    Take up a ready card
-  move <card> <column> [--override]                      Carry a card to another column
+  move <card> <column> [--override] [--no-archive]       Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>]      Claim the head of a column's queue and move it
     [--override]                                           there in one act
   release <card>                                         Give the card back to its queue
@@ -167,7 +167,7 @@ WORK
   add <title> [--column <column>] [--severity <level>] [--priority <level>] [--route <name>]            File a new card in the first column
     [--start-after <date>] [--start-by <date>] [--due <date>]
   claim <card> [--expires <duration>]                                                                   Take up a ready card
-  move <card> <column> [--override]                                                                     Carry a card to another column
+  move <card> <column> [--override] [--no-archive]                                                      Carry a card to another column
   pull [column] [--no-claim] [--expires <duration>] [--override]                                        Claim the head of a column's queue and move it there in one act
   release <card>                                                                                        Give the card back to its queue
   block <card> <reason> [--kind <kind>]                                                                 Raise an obstacle and free the card

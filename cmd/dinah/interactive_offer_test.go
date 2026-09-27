@@ -143,7 +143,7 @@ var offerCases = []offerCase{
 		step(t, root, "move", "fx-1", "loop")
 	}, asking: asOwner("brin", "", "", "")},
 	{name: "a card at a done column, for a forward move", arrange: func(t *testing.T, root string) {
-		step(t, root, "move", "fx-1", "done")
+		step(t, root, "move", "fx-1", "done", "--no-archive")
 	}, asking: asOwner("brin", "", "", "")},
 	{name: "a destination declaring awaiting_outside, for a held card", arrange: func(t *testing.T, root string) {
 		step(t, root, "move", "fx-1", "work")

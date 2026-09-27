@@ -44,10 +44,13 @@ func (h *harness) retire(id string) {
 }
 
 // at moves a card to a column as the operator, which is the setup half of every
-// test below and never the act under test.
+// test below and never the act under test. NoArchive is set so a card parked
+// at a done-kind column by this helper stays live and reachable by every
+// assertion that follows, since dinah-634's archive-on-done behaviour is not
+// what any of these callers are exercising.
 func (h *harness) at(ref, column string) {
 	h.t.Helper()
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: column})
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: column, NoArchive: true})
 }
 
 // TestAWaitingColumnRefusesTheClaim is dinah-201 AC-1. The refusal is what makes

@@ -1798,6 +1798,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "source": "9f7fb892144ebc7d"
     },
+    "check.unarchived-done": {
+      "text": "एक जीवित कार्ड डन-प्रकार के कॉलम {detail} में खड़ा है",
+      "context": "A check finding: a card that reaches a done-kind column is archived immediately, so a live card found there afterward is one of three things: the archive step failed and the caller was warned, the move carried --no-archive, or the card was filed straight into a done-kind column with dinah add. {detail} is the column.",
+      "source": "34db068ce10dc8f6"
+    },
     "check.unblock.1": {
       "text": "कार्ड मौजूद है",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
@@ -4234,6 +4239,11 @@
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
       "source": "74a12fa4cdbfa7a6"
     },
+    "param.move.no-archive.summary": {
+      "text": "कार्ड को डन-प्रकार के कॉलम में बिना आर्काइव किए रखें",
+      "context": "The meaning of the --no-archive flag of `dinah move`, printed in that command's arguments table.",
+      "source": "807f82f0f6027cbe"
+    },
     "param.move.override.summary": {
       "text": "कार्ड को तब भी ले जाएँ जब प्रवाह ऐसा कोई कदम नहीं देता",
       "context": "The meaning of the override argument of `dinah move`, printed in that command's arguments table.",
@@ -5043,6 +5053,11 @@
       "text": "; उन्हें {anchor} में levels: के नीचे घोषित करें",
       "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is.",
       "source": "1915ff7003a8ca95"
+    },
+    "refusal.dinah.no-longer-done": {
+      "text": "{detail} अब डन-प्रकार के कॉलम में नहीं खड़ा है",
+      "context": "The sentence printed after the refusal name dinah.no-longer-done, which fires only inside archiveOnDone's own re-check under Archive's own lock: a concurrent move carried the card out of Done in the window between Do releasing the card's lock and Archive re-acquiring it, so the archive that had decided to run is skipped. It never renders as the Refusal of a request a caller made directly; it surfaces only as the WarningDetail of warn.archive-on-done-failed on the move whose own archive step this stops. {detail} is the card's reference, never translated.",
+      "source": "ee617e8acf9be84e"
     },
     "refusal.dinah.no-tier-default": {
       "text": "कॉलम {column} में कोई tier डिफ़ॉल्ट नहीं है, इसलिए {expr} के पास सापेक्ष होने के लिए कुछ नहीं है",
@@ -6837,6 +6852,11 @@
       "context": "The tool's own release number.",
       "source": "9d2528e6a4d8ae98",
       "verbatim": true
+    },
+    "warn.archive-on-done-failed": {
+      "text": "कार्ड डन-प्रकार के कॉलम तक पहुँच गया लेकिन आर्काइव नहीं किया जा सका ({detail}); यह जीवित रहेगा, और dinah check इसे रिपोर्ट करेगा",
+      "context": "A warning on a move whose own outcome is ok: the move succeeded and the card stands in the done-kind column it was sent to, but the archive step this card runs immediately afterward failed. {detail} is the refusal name that archive step raised.",
+      "source": "fd78a014ca865cc9"
     },
     "warn.inapplicable-value": {
       "text": "{detail} के अंतर्गत संग्रहीत मान अब इस कार्ड पर लागू नहीं होता, और वह रखा गया है; यदि उसे हटाना हो तो dinah set से साफ़ करें",

@@ -494,6 +494,16 @@ func attachReplaces(req *Request, entity *bench.EntityRef) bool {
 // the archive by construction, so an archived card is out of the flow while
 // its identifier still resolves for a link.
 func (l *Library) Archive(req *Request) *Response {
+	return l.archive(req, nil)
+}
+
+// archive is Archive's shared body. verify, when non-nil, runs under the
+// entity's own lock, immediately before the archive is recorded, on the
+// terms bench.StructuralAct.Verify documents; archiveOnDone is the one
+// caller that passes one, to re-confirm under that lock that the card still
+// sits in a done-kind column, since the read that decided to call Archive at
+// all was taken after Do's own lock on the card had already been released.
+func (l *Library) archive(req *Request, verify func() error) *Response {
 	entity, refused := l.admitRemoval(req)
 	if refused != nil {
 		return refused
@@ -513,6 +523,7 @@ func (l *Library) Archive(req *Request) *Response {
 		Now:       now,
 		ColumnID:  columnSubject(entity),
 		ColumnRef: columnRefSubject(entity),
+		Verify:    verify,
 		Record:    func() error { return bench.AppendEvent(journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {

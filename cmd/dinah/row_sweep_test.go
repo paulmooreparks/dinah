@@ -2081,7 +2081,11 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 	// The card is released before it is carried into the done column, because
 	// no owner takes work up there and such a column takes an unheld card.
 	sweptRelease(t, benches, "fx-12", "")
-	sweptMove(t, benches, "fx-12", "done")
+	// --no-archive keeps fx-12 live and standing in the done column, since
+	// this fixture's own point is a representative card at every column the
+	// rendering sweep below reads, and dinah-634's archive-on-done would
+	// otherwise remove it from every listing this sweep asserts against.
+	sweptMoveNoArchive(t, benches, "fx-12", "done")
 	sweptComment(t, benches, "fx-1", "the first note", "")
 	sweptComment(t, benches, "fx-1", "the second note", "bo")
 	sweptAttach(t, benches, "fx-1", "notes.txt", "the body notes the file", "")
@@ -2255,6 +2259,20 @@ func sweptBlockCard(t *testing.T, w *sweptWorkbenches, ref, reason, actor string
 func sweptMove(t *testing.T, w *sweptWorkbenches, ref, column string) {
 	t.Helper()
 	sweptDo(t, w.healthy, "move", ref, column)
+	r := w.record
+	at := sweptColumnAt(r, column)
+	card := &r.cards[sweptCardAt(r, ref)]
+	r.moves = append(r.moves, sweptActRecord{card: ref, actor: r.actor, from: card.column, to: at})
+	card.column = at
+}
+
+// sweptMoveNoArchive is sweptMove with --no-archive, for the one card this
+// fixture lands in the done column and still wants counted as live: without
+// it, dinah-634's archive-on-done would remove the card from every listing
+// the rendering sweep below reads.
+func sweptMoveNoArchive(t *testing.T, w *sweptWorkbenches, ref, column string) {
+	t.Helper()
+	sweptDo(t, w.healthy, "move", ref, column, "--no-archive")
 	r := w.record
 	at := sweptColumnAt(r, column)
 	card := &r.cards[sweptCardAt(r, ref)]
@@ -2630,12 +2648,32 @@ func sweptDivergeCard(t *testing.T, dir string) {
 				if column == strings.TrimSpace(id) {
 					continue
 				}
+				// A done-kind column is skipped, so the diverged card lands
+				// somewhere ordinary: dinah-634 archives a card that reaches
+				// Done and its check.unarchived-done backstop would otherwise
+				// fire on this hand-edited card too, which is not what this
+				// fixture is testing.
+				if sweptColumnIsDone(t, root, column) {
+					continue
+				}
 				return strings.Replace(source, line, "column: "+column, 1)
 			}
 		}
 		t.Fatalf("the anchor at %s names no column this edit could move away from", anchor)
 		return source
 	})
+}
+
+// sweptColumnIsDone reports whether the column identified reads kind: done in
+// its own anchor.
+func sweptColumnIsDone(t *testing.T, root, id string) bool {
+	t.Helper()
+	text, err := bench.ReadText(filepath.Join(root, bench.ColumnsDir, id, bench.ColumnAnchor))
+	if err != nil {
+		t.Fatalf("read the anchor of %s: %v", id, err)
+	}
+	fm, _ := bench.ParseAnchor(text)
+	return fm.Value("kind") == contract.KindDone
 }
 
 // sweptStripSlugs removes the slug line from every column, which is the defect

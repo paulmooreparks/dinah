@@ -416,7 +416,7 @@ func TestRunAgainIsGuardedOnlyWhereABasisWasSent(t *testing.T) {
 	// A card's revision is a digest of what it stores, so moving it back to
 	// where it stood would give it the revision the page drew again. The
 	// other process moves it on instead.
-	runCLI(t, root, "move", "fx-1", "done")
+	runCLI(t, root, "move", "fx-1", "done", "--no-archive")
 	if got := again(1); got.status != http.StatusSeeOther {
 		t.Errorf("Run again answered %d", got.status)
 	}
@@ -452,7 +452,7 @@ func TestRunAgainIsGuardedOnlyWhereABasisWasSent(t *testing.T) {
 	if log := p.log(); log[0].again != "Run again on the card as it stands now" {
 		t.Errorf("a typed entry is labelled %q", log[0].again)
 	}
-	runCLI(t, root, "move", "fx-3", "done")
+	runCLI(t, root, "move", "fx-3", "done", "--no-archive")
 	again(typed)
 	if log := p.log(); log[0].outcome != "ok" || cardColumn(t, root, "fx-3") != "intake" {
 		t.Errorf("Run again of a typed entry after the card moved: %+v, card in %s", log[0], cardColumn(t, root, "fx-3"))

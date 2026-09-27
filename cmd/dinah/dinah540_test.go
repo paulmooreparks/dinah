@@ -144,7 +144,11 @@ func TestCheckRepairsRefuseNoOwnerBeforeAnyBranchRuns(t *testing.T) {
 	if got := runCLI(t, root, "move", "fx-1", "doing", "--actor", "alka"); got.code != 0 {
 		t.Fatalf("fixture: move: %d %s", got.code, got.errw)
 	}
-	handEditColumn(t, root, "fx-1", "d00000000003")
+	// The hand edit names Intake rather than Done: any column but fx-1's
+	// own current one reproduces the divergence this test drives, and
+	// naming Done would additionally draw dinah-634's check.unarchived-done
+	// finding, which is not what this coverage is about.
+	handEditColumn(t, root, "fx-1", "d00000000001")
 
 	before := runCLI(t, root, "list", "fx-1/journal")
 	if before.code != 0 {

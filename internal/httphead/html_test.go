@@ -507,7 +507,7 @@ func TestFormsAreTheAffordances(t *testing.T) {
 	blocked := f.add("Blocked", "build")
 	f.act(&verb.Request{Verb: verb.Block, Actor: "alka", Card: blocked, Reason: "An obstacle."})
 	finished := f.add("Finished", "build")
-	f.act(&verb.Request{Verb: verb.Move, Actor: "alka", Card: finished, Column: "finished", Override: true})
+	f.act(&verb.Request{Verb: verb.Move, Actor: "alka", Card: finished, Column: "finished", Override: true, NoArchive: true})
 	rows := map[string]answer.AffordanceRow{}
 	for _, row := range affordanceDocument(t, f.fixture) {
 		rows[row.Affordance] = row
