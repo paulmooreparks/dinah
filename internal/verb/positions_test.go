@@ -343,3 +343,69 @@ func durations(runs []time.Duration) string {
 	}
 	return strings.Join(parts, " ")
 }
+
+// offerItemsOpenMultiple is the bound TestOfferItemsOpensAConstantMultipleOfItemCount
+// holds offerItems to: reads plus listings, divided by the item count. Before
+// dinah-631, offerItems read the checklist collection and resolved each
+// item's reference again for every one of an item's checks, so the heavy
+// card's 36 items opened on the order of 36 times as many files as items; a
+// bound of 3 is generous room above what one Positions and a bare-reason
+// check need and nowhere near the quadratic count the old shape produced.
+const offerItemsOpenMultiple = 3
+
+// TestOfferItemsOpensAConstantMultipleOfItemCount drives dinah-631: the
+// checklist rows of the offer, one bench.Positions serving the whole call and
+// each shared check answering a bare reason instead of a composed refusal, so
+// a card with n items opens a small constant times n files rather than a
+// count that grows with n's square.
+//
+// Arming: restoring offerItems to list the checklist with bench.Items and
+// resolve each item's position with memberPosition, and its cite check to run
+// through admitItem's bench.ResolveEntity instead of admitResolvedItem,
+// reddens this: see the card comment for the count that shape reached against
+// the heavy card's 36 items.
+func TestOfferItemsOpensAConstantMultipleOfItemCount(t *testing.T) {
+	h := newHarness(t)
+	ref := heavyCard(t, h)
+	card := h.card(ref)
+	items, err := bench.Items(card.Dir)
+	if err != nil {
+		t.Fatalf("items: %v", err)
+	}
+	if len(items) != 36 {
+		t.Fatalf("the heavy card holds %d items, wanted 36", len(items))
+	}
+
+	counter := countReads(t)
+	offered, err := h.library.offerItems(&Request{Verb: "offer", Actor: "alka"}, card)
+	counter.stop()
+	if err != nil {
+		t.Fatalf("offerItems: %v", err)
+	}
+	if len(offered) != len(items) {
+		t.Fatalf("the offer answered %d items, wanted %d", len(offered), len(items))
+	}
+
+	total := 0
+	for _, n := range counter.reads {
+		total += n
+	}
+	for _, n := range counter.listed {
+		total += n
+	}
+	if bound := offerItemsOpenMultiple * len(items); total > bound {
+		t.Errorf("offerItems opened %d files for %d items, wanted at most %d (%d times the item count)",
+			total, len(items), bound, offerItemsOpenMultiple)
+	}
+	t.Logf("offerItems opened %d files for %d items (%d reads, %d listings)", total, len(items), sumCounts(counter.reads), sumCounts(counter.listed))
+}
+
+// sumCounts adds the values a readCounter's map holds, for the log line
+// TestOfferItemsOpensAConstantMultipleOfItemCount reports.
+func sumCounts(counts map[string]int) int {
+	total := 0
+	for _, n := range counts {
+		total += n
+	}
+	return total
+}
