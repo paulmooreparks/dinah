@@ -225,6 +225,14 @@ const (
 	blockedCards = 2
 )
 
+// ReservedStateCards answers how many live cards the generator claims and how
+// many it blocks, so a caller measuring a query against the rest of the
+// shape's cards, the ones left in their ready state, can compute that count
+// without repeating these numbers by hand.
+func ReservedStateCards() (claimed, blocked int) {
+	return claimedCards, blockedCards
+}
+
 // Generate writes a new workbench under dir and returns it. dir must exist
 // and must not already hold a .dinah directory. The workbench is written at
 // the StorageFormat and ProfileVersion of the binary the caller is linked
@@ -646,14 +654,35 @@ func (g *generator) spread(label string, total, n int) []int {
 	return counts
 }
 
+// ManyItemsFloor is the least perf-1 carries, so the generated workbench
+// always has a card the offer check's budget can measure against. dinah-631
+// measured that check up to a 42-item card, so 42 is the floor a dispatch on
+// perf-1 exercises the same shape. It is exported so a check of the offer
+// operation can assert against it rather than repeating the number.
+const ManyItemsFloor = 42
+
 // planItems deals the items over the live cards and settles each one's kind
-// and state. Pending items are spread evenly through generation order.
+// and state, after giving perf-1 the floor ManyItemsFloor names outright, the
+// same way planAttachments and planLinks give it a fixed share before
+// spreading what is left. Pending items are spread evenly through generation
+// order over the whole shape, floor included.
 func (g *generator) planItems() {
-	perCard := g.spread("item-weight", g.shape.Items, len(g.cards))
+	floor := 0
+	if len(g.cards) > 0 && g.shape.Items > 0 {
+		floor = ManyItemsFloor
+		if floor > g.shape.Items {
+			floor = g.shape.Items
+		}
+	}
+	perCard := g.spread("item-weight", g.shape.Items-floor, len(g.cards))
 	total, pending := g.shape.Items, g.shape.PendingItems
 	index := 0
 	for c, card := range g.cards {
-		for k := 0; k < perCard[c]; k++ {
+		count := perCard[c]
+		if c == 0 {
+			count += floor
+		}
+		for k := 0; k < count; k++ {
 			item := &itemPlan{id: g.id("item-id"), kind: g.itemKind(index)}
 			isPending := (index+1)*pending/total > index*pending/total
 			switch {
