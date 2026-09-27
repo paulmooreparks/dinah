@@ -660,7 +660,8 @@ func (s *session) renderPrimeInstructions(primer *verb.Primer, brief bool) {
 // Bench.Cards()' own directory-listing order, sorted by the card's random
 // ID rather than by when it arrived, matching Status.Holding), so this
 // re-reads the bench's cards and picks the earliest-arrival one by
-// bench.ByArrival, the same rule Library.Prime's own Reread member uses.
+// bench.EarliestArrival, the same rule Library.Prime's own Reread member
+// uses.
 func (s *session) primeInstructionsExample(primer *verb.Primer) string {
 	if len(primer.Holding) > 0 && s.library != nil {
 		if ref := s.earliestHeldColumnRef(primer.Identity.Actor); ref != "" {
@@ -674,22 +675,20 @@ func (s *session) primeInstructionsExample(primer *verb.Primer) string {
 }
 
 // earliestHeldColumnRef finds the column of the earliest-arrival card actor
-// holds, by bench.ByArrival, empty where the bench cannot be read or actor
-// holds nothing.
+// holds, by bench.EarliestArrival, empty where the bench cannot be read or
+// actor holds nothing.
 func (s *session) earliestHeldColumnRef(actor string) string {
 	cards, err := s.library.Bench.Cards()
 	if err != nil {
 		return ""
 	}
-	var earliest *bench.Card
+	var held []*bench.Card
 	for _, card := range cards {
-		if card.Holder != actor {
-			continue
-		}
-		if earliest == nil || bench.ByArrival(card, earliest) {
-			earliest = card
+		if card.Holder == actor {
+			held = append(held, card)
 		}
 	}
+	earliest := bench.EarliestArrival(held)
 	if earliest == nil {
 		return ""
 	}

@@ -99,7 +99,7 @@ func (l *Library) pullHead(req *Request) (*bench.Card, *Response) {
 	// no such card does the pull look further back, through the columns that
 	// carry into this destination, nearest first.
 	by := selectionAdmission(l.Bench, req)
-	head, _, sawTier, _, held := headOfReadyFor(l.Bench, upstream.ID, l.immediateLanding(upstream, destination), hold, cards, by)
+	head, _, sawTier, _, held := headOfReadyFor(l.Bench, l.immediateLanding(upstream, destination), hold, readyIn(cards, upstream.ID), by)
 	if head == nil {
 		// The further walk does not reconsider the immediate upstream, which
 		// is what the source predicate excludes it for. The predicate carries
@@ -321,7 +321,7 @@ func (l *Library) pullableCards(destination *bench.Column, cards []*bench.Card, 
 		if fromSource != nil && !fromSource(source) {
 			continue
 		}
-		head, _, sawTier, _, withheld := headOfReadyFor(l.Bench, source.ID, landing, hold, cards, by)
+		head, _, sawTier, _, withheld := headOfReadyFor(l.Bench, landing, hold, readyIn(cards, source.ID), by)
 		if head != nil {
 			taken = append(taken, head)
 			continue
