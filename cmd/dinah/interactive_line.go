@@ -168,8 +168,7 @@ func (m *interactiveModel) runLine(words []string, typed string) tea.Cmd {
 	parsed, stop := m.prepareLine(line, words, result)
 	if stop || parsed == nil {
 		transcript.finish()
-		m.afterLine(result)
-		return nil
+		return m.afterLine(result)
 	}
 	if c, ok := lookup(at(parsed.positional, 0)); ok && c.lendsTerminal && !parsed.has("help") && !parsed.has("version") {
 		m.lend = &lendRequest{line: line, parsed: parsed, result: result}
@@ -179,8 +178,7 @@ func (m *interactiveModel) runLine(words []string, typed string) tea.Cmd {
 	result.code = line.dispatch(parsed)
 	transcript.finish()
 	result.pinned = pinnedWrite(parsed, result.code)
-	m.afterLine(result)
-	return nil
+	return m.afterLine(result)
 }
 
 // prepareLine runs the steps of a line before its dispatch, writing any
@@ -277,22 +275,41 @@ func pinnedWrite(parsed *arguments, code int) string {
 	return ""
 }
 
-// afterLine shows what a line left and reads the workbench again: the pinned
-// workbench is opened afresh, the key bindings are read again, and the view
-// is reread, so a line that changed the flow is drawn at once. A transcript
-// with nothing in it names the command and its status in the message area, a
-// short one is shown there, and any other opens output mode.
-func (m *interactiveModel) afterLine(result *lineResult) {
+// afterLine reopens the pinned workbench afresh, reads the key bindings
+// again, composes what the line left in the message area or in output mode,
+// and dispatches a read of the view off the event loop through reread,
+// exactly as an act's own redraw is: a binding or a worded command line is no
+// less able to meet a slow board than a single key is, and running this read
+// synchronously used to freeze the keyboard behind it, which is the same
+// invariant blocker #1 closes for a step-gathered act. The message and the
+// mode are composed here, synchronously, rather than once the read lands,
+// because neither depends on the board-wide read at all: a transcript with
+// nothing in it names the command and its status in the message area, a
+// short one is shown there, and any other opens output mode, all from what
+// runLine already gathered before calling this. A notice the read itself
+// goes on to leave, such as item mode closing because the line removed its
+// last item, is appended to whatever this function just composed rather than
+// overwriting it, since refreshItems appends rather than replaces. pendingLine
+// names the result for handleViewRead, which fires lineDone once that read
+// has landed and the notice, if any, has had its chance to append; a key or a
+// paste typed before it lands is queued in Update and replayed after, which
+// is what keeps several lines run back to back in the order they were run
+// without either one blocking the terminal.
+func (m *interactiveModel) afterLine(result *lineResult) tea.Cmd {
 	if reopened, err := m.s.open(); err == nil {
 		m.l = reopened
 	}
 	m.loadBindings(false)
 	m.message = nil
-	m.reread()
-	// A notice the read left, such as item mode closing because the line
-	// removed its last item, is kept beneath what the line showed.
-	notice := m.message
-	defer func() { m.message = append(m.message, notice...) }()
+	m.composeLine(result)
+	m.pendingLine = result
+	return m.reread()
+}
+
+// composeLine sets the message area or opens output mode for what a line
+// left: its own transcript, its exit status and the command it named, none
+// of which depends on a fresh read of the board.
+func (m *interactiveModel) composeLine(result *lineResult) {
 	lines := result.transcript.lines
 	if result.pinned != "" {
 		lines = append(lines, withoutControls(m.s.r.T("interactive.line.pinned", "key", result.pinned)))
@@ -313,9 +330,6 @@ func (m *interactiveModel) afterLine(result *lineResult) {
 		m.message = lines
 	default:
 		m.openOutput(lines, result.title)
-	}
-	if interactiveSeam != nil && interactiveSeam.lineDone != nil {
-		interactiveSeam.lineDone(result)
 	}
 }
 

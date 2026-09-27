@@ -66,6 +66,7 @@ type interactiveSeams struct {
 	view           func()                           // called at the top of View, where a test plants a panic
 	frame          func(string)                     // called with the content of every frame View answers
 	command        func()                           // called at the top of every command the head returns
+	readGate       func()                           // called at the top of rereadAsync's own command, ahead of the board-wide read, apart from command so a test can hold that read alone without holding the change wait too
 	init           func()                           // called at the top of Init, where a test holds a program's start past its renderer's first tick
 	discard        func()                           // called by the reader on every flush it makes
 	finish         func(*interactiveModel, error)   // called with the final model and Run's error

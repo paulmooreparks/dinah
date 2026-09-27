@@ -211,6 +211,41 @@ func TestALineIsAJumpOnlyWhereNoCommandIsNamed(t *testing.T) {
 	wantModel(t, "the message after :zzz", run.model.message, []string{run.model.s.r.T("interactive.line.nothing", "text", "zzz")})
 }
 
+// runSizedScript is a script the size given, writing lines one at a time
+// through the command line, each after the previous one's lineDone has
+// fired, so the board-wide read afterLine now dispatches off the event loop
+// has always landed before the next input is typed against it; extra is
+// typed after the last line and before the head quits, once that last
+// line's own read has landed too. Every case runSizedScript's own callers
+// reach depends on the mode or the state that read leaves, which raced
+// ctrl+c under a bare burst of keys once afterLine's redraw stopped
+// blocking the keyboard for it.
+func runSizedScript(t *testing.T, root string, width, height int, before string, lines []string, extra string) tuiRun {
+	t.Helper()
+	s, seam := newScript(t, width, height, true)
+	done := make(chan *lineResult, len(lines)+1)
+	seam.lineDone = func(result *lineResult) { done <- result }
+	run := s.run(root, seam, func() {
+		if before != "" {
+			s.write(before)
+		}
+		for _, line := range lines {
+			s.write(":" + line + keyEnter)
+			select {
+			case <-done:
+			case <-time.After(tuiWait):
+				t.Errorf("the line %q never ended", line)
+				return
+			}
+		}
+		s.write(extra + keyCtrlC)
+	})
+	if run.model == nil {
+		t.Fatalf("the run never finished: %q", run.errw)
+	}
+	return run
+}
+
 // TestOutputModeHoldsALongTranscript is dinah-623/criteria/10: a transcript
 // of more than three lines, or with a line wider than the draw width, opens
 // output mode, which scrolls with card mode's keys and closes on Enter,
@@ -220,15 +255,15 @@ func TestALineIsAJumpOnlyWhereNoCommandIsNamed(t *testing.T) {
 func TestOutputModeHoldsALongTranscript(t *testing.T) {
 	root := tuiBench(t)
 	for _, closing := range []string{keyEnter, keyBackspace, "q"} {
-		run := runTUIThrough(t, root, tuiSeam(t, strings.NewReader(":status"+keyEnter+xtermDown+"j"+closing+keyCtrlC), 120, 30))
+		run := runSizedScript(t, root, 120, 30, "", []string{"status"}, xtermDown+"j"+closing)
 		wantModel(t, "the mode after closing output", run.model.mode, modeBrowse)
 	}
-	run := runTUIThrough(t, root, tuiSeam(t, strings.NewReader(":status"+keyEnter+"jj"+xtermPageDown+xtermEnd+xtermHome+"j"+keyCtrlC), 120, 12))
+	run := runSizedScript(t, root, 120, 12, "", []string{"status"}, "jj"+xtermPageDown+xtermEnd+xtermHome+"j")
 	wantModel(t, "the mode", run.model.mode, modeOutput)
 	wantModel(t, "the offset after home and j", run.model.outputOffset, 1)
-	run = runTUIThrough(t, root, tuiSeam(t, strings.NewReader(keyEnter+":status"+keyEnter+"q"+keyCtrlC), 120, 30))
+	run = runSizedScript(t, root, 120, 30, keyEnter, []string{"status"}, "q")
 	wantModel(t, "the mode output returns to", run.model.mode, modeCard)
-	wide := runTUIThrough(t, root, tuiSeam(t, strings.NewReader(":serve"+keyEnter+keyCtrlC), 60, 30))
+	wide := runSizedScript(t, root, 60, 30, "", []string{"serve"}, "")
 	wantModel(t, "the mode after one wide line", wide.model.mode, modeOutput)
 
 	transcript := &lineTranscript{}
@@ -237,7 +272,8 @@ func TestOutputModeHoldsALongTranscript(t *testing.T) {
 	}
 	transcript.finish()
 	m := run.model
-	m.afterLine(&lineResult{transcript: transcript, title: "a long command"})
+	cmd := m.afterLine(&lineResult{transcript: transcript, title: "a long command"})
+	m.handleViewRead(cmd().(viewReadMsg))
 	wantModel(t, "the mode after a long transcript", m.mode, modeOutput)
 	wantModel(t, "the lines kept", len(m.output), interactiveOutputLimit+1)
 	wantModel(t, "the last line", m.output[len(m.output)-1], m.s.r.T("interactive.output.cut", "count", "37"))
@@ -280,19 +316,14 @@ func TestAPasteIntoTheCommandLineRunsNothing(t *testing.T) {
 func TestNothingIsRecalledAndEveryWordedCommandPassesThroughRunLine(t *testing.T) {
 	root := tuiBench(t)
 	home := os.Getenv("DINAH_HOME")
-	var ran []string
-	record := func(seam *interactiveSeams) *interactiveSeams {
-		seam.lineDone = func(result *lineResult) { ran = append(ran, strings.Join(result.words, " ")) }
-		return seam
-	}
 	homeBefore, benchBefore := treeBytes(t, home), benchBytes(t, root)
-	run := runTUIThrough(t, root, record(tuiSeam(t, strings.NewReader(":status"+keyEnter+":typed"+xtermUp+xtermDown+xtermUp+keyCtrlC), 120, 30)))
+	run := runSizedScript(t, root, 120, 30, "", []string{"status"}, ":typed"+xtermUp+xtermDown+xtermUp)
 	wantModel(t, "the prompt after Up and Down", run.model.input.Value(), "typed")
 	if !sameBytes(homeBefore, treeBytes(t, home)) || !sameBytes(benchBefore, benchBytes(t, root)) {
 		t.Error("typing a line wrote under DINAH_HOME or the workbench")
 	}
 	before := benchBytes(t, root)
-	run = runTUIThrough(t, root, record(tuiSeam(t, strings.NewReader("."+keyCtrlC), 120, 30)))
+	run = runTUIThrough(t, root, tuiSeam(t, strings.NewReader("."+keyCtrlC), 120, 30))
 	wantModel(t, "the mode after .", run.model.mode, modeBrowse)
 	if !sameBytes(before, benchBytes(t, root)) {
 		t.Error(". changed the workbench")
@@ -303,8 +334,29 @@ func TestNothingIsRecalledAndEveryWordedCommandPassesThroughRunLine(t *testing.T
 	step(t, root, "config", "set", "tui.key.o", "whoami")
 	t.Setenv("DINAH_EDITOR", os.Args[0])
 	t.Setenv(editorRecordVar, filepath.Join(t.TempDir(), "editor.log"))
-	ran = nil
-	runTUIThrough(t, root, record(tuiSeam(t, strings.NewReader("o>"+keyCtrlC), 120, 30)))
+	var ran []string
+	s, seam := newScript(t, 120, 30, true)
+	done := make(chan *lineResult, 2)
+	seam.lineDone = func(result *lineResult) { done <- result }
+	s.run(root, seam, func() {
+		s.write("o")
+		select {
+		case result := <-done:
+			ran = append(ran, strings.Join(result.words, " "))
+		case <-time.After(tuiWait):
+			t.Errorf("the bound key o never ended")
+			return
+		}
+		s.write(">")
+		select {
+		case result := <-done:
+			ran = append(ran, strings.Join(result.words, " "))
+		case <-time.After(tuiWait):
+			t.Errorf("the read key > never ended")
+			return
+		}
+		s.write(keyCtrlC)
+	})
 	lendRun(t, root, "alka", "x"+strings.Repeat("j", menuIndexOf(t, root, "edit"))+keyEnter)
 	if len(ran) < 2 || ran[0] != "whoami" || ran[1] != "next" {
 		t.Errorf("the binding and the read key ran %v through runLine", ran)

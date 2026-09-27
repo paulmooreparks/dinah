@@ -166,7 +166,7 @@ func init() {
 		},
 		verb.Claim: {
 			offered: func(m *interactiveModel) bool { return m.offer.claim },
-			run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { m.act(verb.Claim, nil); return nil },
+			run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { return m.act(verb.Claim, nil) },
 		},
 		verb.Move: {
 			offered: func(m *interactiveModel) bool { return len(m.offer.moves) > 0 },
@@ -181,7 +181,7 @@ func init() {
 		},
 		verb.Release: {
 			offered: func(m *interactiveModel) bool { return m.offer.release },
-			run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { m.act(verb.Release, nil); return nil },
+			run:     func(m *interactiveModel, _ map[string]any) tea.Cmd { return m.act(verb.Release, nil) },
 		},
 		verb.Block: {
 			offered: func(m *interactiveModel) bool { return m.acts().Block },
@@ -470,8 +470,7 @@ func (m *interactiveModel) chooseAction(name string, back interactiveMode) tea.C
 		if entry.run != nil {
 			return entry.run(m, args)
 		}
-		m.runVerb(pending, args)
-		return nil
+		return m.runVerb(pending, args)
 	}
 	return m.startPending(pending)
 }

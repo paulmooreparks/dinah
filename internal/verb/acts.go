@@ -205,6 +205,17 @@ func (l *Library) offerArchived(req *Request) *OfferedActs {
 	return offered
 }
 
+// OfferPull is offerPull exported: whether a pull into the column the request
+// names would take a card and pass every row the pull runs before it writes.
+// The answer depends only on the named column, never on any card a caller
+// asking about a different reason for the same request might also be
+// carrying, so a caller offering several acts for one column across several
+// cards asks this once and keeps the answer rather than asking OfferActs
+// about the same column again for each card.
+func (l *Library) OfferPull(req *Request) (bool, error) {
+	return l.offerPull(req)
+}
+
 // offerPull answers whether a pull into the column the request names would
 // take a card and pass every row the pull runs before it writes. The head
 // selection runs as Pull runs it, through pullHead, and the rows of the pull
