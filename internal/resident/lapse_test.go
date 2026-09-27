@@ -1,6 +1,7 @@
 package resident_test
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -64,10 +65,10 @@ func TestALapseIsDueAtTheEarliestExpiry(t *testing.T) {
 		t.Fatalf("the expiries are %s and %s, wanted the first before the second", first.Expires, second.Expires)
 	}
 	v := watch(t, root)
-	if pick := v.w.Current(t1.Add(-time.Nanosecond)); pick.Snapshot == nil {
+	if pick := v.w.Current(context.Background(), t1.Add(-time.Nanosecond)); pick.Snapshot == nil {
 		t.Errorf("an instant before the first expiry Current answered no snapshot, lapsing %v", pick.Lapsing)
 	}
-	pick := v.w.Current(t1)
+	pick := v.w.Current(context.Background(), t1)
 	if pick.Snapshot != nil {
 		t.Error("at the first expiry Current answered a snapshot")
 	}

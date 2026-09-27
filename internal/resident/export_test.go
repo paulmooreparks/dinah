@@ -2,9 +2,11 @@ package resident
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
+	"testing"
 	"time"
 )
 
@@ -79,10 +81,45 @@ func SetLongForm(resolve func(string) (string, error)) func() {
 	return func() { longFormOf = old }
 }
 
-// QueuedSettles answers how many Settle requests wait in the queue, not yet
-// taken by a pass.
-func QueuedSettles(w *Workbench) int {
+// QueuedRequests answers how many Current and Settle requests wait in the
+// queue, not yet taken by a pass.
+func QueuedRequests(w *Workbench) int {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return len(w.settles)
+	return len(w.queue)
+}
+
+// Quiesce asks the applier to handle any signal it has pending and answers
+// once it has, so every signal sent before the call has been handled when it
+// returns. It must not be called while a hook holds the applier.
+func Quiesce(w *Workbench) {
+	reply := make(chan struct{})
+	w.probe <- reply
+	<-reply
+}
+
+// Parked reports whether the watch is down.
+func Parked(w *Workbench) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.state == parked
+}
+
+// Warm is the first request after Open: one Current, which builds the
+// snapshot inside it. It fails the test unless that answers a snapshot, and
+// then asserts that Ready is closed.
+func Warm(t testing.TB, w *Workbench) *Snapshot {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	pick := w.Current(ctx, time.Now())
+	if pick.Snapshot == nil {
+		t.Fatalf("the first request answered no snapshot (lapsing %v)", pick.Lapsing)
+	}
+	select {
+	case <-w.Ready():
+	default:
+		t.Fatal("the first request answered a snapshot and Ready is not closed")
+	}
+	return pick.Snapshot
 }

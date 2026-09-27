@@ -32,7 +32,7 @@ A slack report means the reverse. The operation ran more than six times under it
 
 ## The page's library reads
 
-`page-card` also sums the time its request spends in library calls, meaning the reads the head makes and the acquisition of the library it makes them with, and leaves out encoding and rendering. On Windows the median of that sum over the ten runs must be under 10ms, in both modes, whatever the row's budget says. This is dinah-619's acceptance number for a warm page, and a failure prints both medians and every run's sum. The row's own budget still follows the rule below, and the resident's cold load is logged beside it.
+`page-card` also sums the time its request spends in library calls, meaning the reads the head makes and the acquisition of the library it makes them with, and leaves out encoding and rendering. On Windows the median of that sum over the ten runs must be under 10ms, in both modes, whatever the row's budget says. The 10ms line is a standing gate: the perf job applies it to every pull request, whatever the pull request touches, and fails the pull request when both measurements miss it. It is not a budget, so the rule below never re-bases it and the slack and excess reports never mention it. The operator set it on 2026-09-27 (dinah-619/questions/2), knowing that a slow Windows runner can occasionally fail a pull request that did not touch this path, and only he changes it. A failure prints both medians and every run's sum. The row's own budget still follows the rule below, and the resident's cold load is logged beside it.
 
 ## Reproducing it locally
 

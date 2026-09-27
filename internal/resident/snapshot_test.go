@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/resident"
@@ -46,16 +45,7 @@ func openSnapshot(t *testing.T, root string, hooks *resident.Hooks) (*resident.W
 		t.Fatalf("open the resident: %v", err)
 	}
 	t.Cleanup(func() { w.Close() })
-	select {
-	case <-w.Ready():
-	case <-time.After(30 * time.Second):
-		t.Fatal("the first build did not finish within 30 seconds")
-	}
-	pick := w.Current(time.Now())
-	if pick.Snapshot == nil {
-		t.Fatalf("the first build published no snapshot (lapsing %v)", pick.Lapsing)
-	}
-	return w, manual, pick.Snapshot
+	return w, manual, resident.Warm(t, w)
 }
 
 // TestASnapshotAnswersWhatTheDiskAnswers is part of dinah-619/criteria/13. A
@@ -275,6 +265,75 @@ func TestAMisCasedPathReadsTheDisk(t *testing.T) {
 	}
 	if passed := counted.take(); len(passed) != 1 || passed[0] != miscased {
 		t.Errorf("the mis-cased path passed %v through, wanted exactly it", passed)
+	}
+}
+
+// TestALinkInsideTheWorkbenchIsReadFromDisk is part of dinah-619/criteria/20.
+// A card's comments directory is a symbolic link to a directory outside the
+// root, and another card's anchor is a symbolic link to a file outside the
+// root. After the first request, both targets change and nothing is
+// delivered. The next Current's snapshot answers both files' new bytes
+// through a pass-through, answers Stat, ReadDir and ReadFile at and below
+// each link as Disk does, and holds no file below either link. It is skipped
+// where os.Symlink is refused; the Windows junction test covers that
+// platform.
+//
+// Arming: making isLink answer false answers the comment's and the anchor's
+// old bytes.
+func TestALinkInsideTheWorkbenchIsReadFromDisk(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	write(t, filepath.Join(root, "cards", "c1", "card.md"), "held")
+	write(t, filepath.Join(outside, "comments", "c", "comment.md"), "comment, before")
+	write(t, filepath.Join(outside, "anchor.md"), "anchor, before")
+	if err := os.MkdirAll(filepath.Join(root, "cards", "c2"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "cards", "c3"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	commentsLink := filepath.Join(root, "cards", "c2", "comments")
+	anchorLink := filepath.Join(root, "cards", "c3", "card.md")
+	if err := os.Symlink(filepath.Join(outside, "comments"), commentsLink); err != nil {
+		t.Skipf("os.Symlink is refused here (%v); the Windows junction test covers this platform", err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "anchor.md"), anchorLink); err != nil {
+		t.Skipf("os.Symlink is refused here (%v)", err)
+	}
+	var through passThroughs
+	w, _, _ := openSnapshot(t, root, &resident.Hooks{PassThrough: through.hook})
+	write(t, filepath.Join(outside, "comments", "c", "comment.md"), "comment, after")
+	write(t, filepath.Join(outside, "anchor.md"), "anchor, after")
+	through.take()
+	snapshot := resident.Warm(t, w)
+	comment := filepath.Join(commentsLink, "c", "comment.md")
+	for path, want := range map[string]string{comment: "comment, after", anchorLink: "anchor, after"} {
+		data, err := snapshot.ReadFile(path)
+		if err != nil || string(data) != want {
+			t.Errorf("ReadFile(%s) answered %q, %v, wanted %q", path, data, err, want)
+		}
+	}
+	passed := strings.Join(through.take(), "\n")
+	for _, path := range []string{comment, anchorLink} {
+		if !strings.Contains(passed, path) {
+			t.Errorf("%s was not passed through to the disk; passed %q", path, passed)
+		}
+	}
+	disk := bench.Disk{}
+	for _, path := range []string{commentsLink, filepath.Join(commentsLink, "c"), comment, anchorLink} {
+		compareStat(t, snapshot, disk, path)
+		gotEntries, gotErr := snapshot.ReadDir(path)
+		wantEntries, wantErr := disk.ReadDir(path)
+		if !sameError(gotErr, wantErr) || !reflect.DeepEqual(entryNames(gotEntries), entryNames(wantEntries)) {
+			t.Errorf("ReadDir(%s) answered %v, %v, and the disk %v, %v", path, entryNames(gotEntries), gotErr, entryNames(wantEntries), wantErr)
+		}
+		gotData, gotErr := snapshot.ReadFile(path)
+		wantData, wantErr := disk.ReadFile(path)
+		if !sameError(gotErr, wantErr) || string(gotData) != string(wantData) {
+			t.Errorf("ReadFile(%s) answered %q, %v, and the disk %q, %v", path, gotData, gotErr, wantData, wantErr)
+		}
+	}
+	if files, _ := snapshot.Held(); files != 1 {
+		t.Errorf("the snapshot holds %d files, wanted the one regular file outside both links", files)
 	}
 }
 

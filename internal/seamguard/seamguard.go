@@ -109,10 +109,6 @@ var Allowed = map[string]map[string]string{
 		"Getenv":           "the process environment",
 		"Getpid":           "the process's own identifier",
 		"UserHomeDir":      "the home directory's path, read from the environment",
-		"O_APPEND":         "a flag constant; the open that uses it is judged by its flag",
-		"O_CREATE":         "a flag constant; the open that uses it is judged by its flag",
-		"O_EXCL":           "a flag constant; the open that uses it is judged by its flag",
-		"O_WRONLY":         "a flag constant; the open that uses it is judged by its flag",
 	},
 	"io/fs": {
 		"DirEntry":           "a type; each of its methods is judged by its own name",
@@ -155,7 +151,7 @@ var Allowed = map[string]map[string]string{
 
 // AllowedSize is the number of names Allowed carries across every package,
 // which each guard asserts so that a widened list is a visible edit.
-const AllowedSize = 60
+const AllowedSize = 56
 
 // IsJudged reports whether an import path is one of Judged.
 func IsJudged(path string) bool {
@@ -199,8 +195,14 @@ func namedOf(t types.Type) *types.Named {
 	return named
 }
 
-// Allows reports whether Allowed names a member.
+// Allows reports whether Allowed names a member. Every os.O_ flag is a
+// constant that reads nothing, so the family is allowed by its prefix rather
+// than listed: a flag does nothing until an open uses it, and the open is
+// what os.OpenFile's rule judges.
 func Allows(member string) bool {
+	if strings.HasPrefix(member, "os.O_") {
+		return true
+	}
 	for _, path := range Judged {
 		if rest, ok := strings.CutPrefix(member, path+"."); ok {
 			if _, allowed := Allowed[path][rest]; allowed {

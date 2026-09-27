@@ -13,15 +13,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/httphead"
+	"dinah/internal/msg"
 	"dinah/internal/resident"
 	"dinah/internal/resident/residenttest"
 	"dinah/internal/verb"
@@ -38,17 +41,35 @@ type serveRun struct {
 	mu        sync.Mutex
 	// bound are the addresses the listen function was handed.
 	bound []string
+	// chdirs are the directories serveChdir was handed.
+	chdirs []string
+	// dir is the directory runCLI runs the command from.
+	dir string
+}
+
+// sameDirectory reports whether two paths name one directory.
+func sameDirectory(a, b string) bool {
+	x, errX := os.Stat(a)
+	y, errY := os.Stat(b)
+	return errX == nil && errY == nil && os.SameFile(x, y)
 }
 
 // startServe runs dinah serve with argv through runCLI on a goroutine,
 // handing it a context the test cancels and a listen function that records
-// each address before doing what listen says. The two seams are restored
-// when the test ends.
+// each address before doing what listen says. serveChdir is replaced by a
+// recorder, so no test moves the test binary's working directory. The seams
+// are restored when the test ends.
 func startServe(t *testing.T, dir string, listen listenFunc, argv ...string) *serveRun {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	run := &serveRun{cancel: cancel, done: make(chan invocation, 1), listening: make(chan string, 1)}
-	previousBase, previousListen := serveBase, serveListen
+	run := &serveRun{cancel: cancel, done: make(chan invocation, 1), listening: make(chan string, 1), dir: dir}
+	previousBase, previousListen, previousChdir := serveBase, serveListen, serveChdir
+	serveChdir = func(dir string) error {
+		run.mu.Lock()
+		defer run.mu.Unlock()
+		run.chdirs = append(run.chdirs, dir)
+		return nil
+	}
 	serveBase = func() context.Context { return ctx }
 	serveListen = func(network, address string) (net.Listener, error) {
 		run.mu.Lock()
@@ -62,12 +83,22 @@ func startServe(t *testing.T, dir string, listen listenFunc, argv ...string) *se
 	}
 	t.Cleanup(func() {
 		cancel()
-		serveBase, serveListen = previousBase, previousListen
+		serveBase, serveListen, serveChdir = previousBase, previousListen, previousChdir
 	})
 	go func() {
 		run.done <- runCLI(t, dir, append([]string{"serve"}, argv...)...)
 	}()
 	return run
+}
+
+// readsClause is the clause the startup line carries when serve opens the
+// platform's own resident: from memory on Windows, and from disk, naming the
+// platform, everywhere else.
+func readsClause() string {
+	if runtime.GOOS == "windows" {
+		return " (reads answered from memory)"
+	}
+	return " (reads answered from disk: this system has no file-change watcher Dinah uses)"
 }
 
 // addresses is what the listen function was handed.
@@ -89,11 +120,19 @@ func (r *serveRun) wait(t *testing.T) invocation {
 	return invocation{}
 }
 
-// address waits for the server to bind and returns the bound address.
+// address waits for the server to bind and returns the bound address. By
+// then serveUntil has passed the step that moves its working directory, so it
+// also checks that the test binary still stands where runCLI put it: a
+// serveChdir that moved the process would have moved the test binary, and
+// runCLI puts the directory back when the run returns, so TestMain's own
+// comparison at the end of the run cannot see it.
 func (r *serveRun) address(t *testing.T) string {
 	t.Helper()
 	select {
 	case address := <-r.listening:
+		if wd, err := os.Getwd(); err == nil && r.dir != "" && !sameDirectory(wd, r.dir) {
+			t.Errorf("the test binary stands in %s while dinah serve runs from %s, so serveUntil moved the test binary's working directory", wd, r.dir)
+		}
 		return address
 	case got := <-r.done:
 		t.Fatalf("dinah serve returned %d before it listened: %s", got.code, got.errw)
@@ -171,7 +210,7 @@ func TestServeStartsPrintsAndStops(t *testing.T) {
 	}
 	run.cancel()
 	got := run.wait(t)
-	want := "Serving " + absolute + " at http://" + address + "/\n"
+	want := "Serving " + absolute + " at http://" + address + "/" + readsClause() + "\n"
 	if got.code != 0 || got.out != want || got.errw != "" || strings.HasSuffix(address, ":0") {
 		t.Errorf("wanted exit 0 and the one line %q, got %d, stdout %q, stderr %q", want, got.code, got.out, got.errw)
 	}
@@ -183,10 +222,11 @@ func TestServeStartsPrintsAndStops(t *testing.T) {
 	var announced struct {
 		URL       string `json:"url"`
 		Workbench string `json:"workbench"`
+		Reads     string `json:"reads"`
 	}
 	err = json.Unmarshal([]byte(got.out), &announced)
-	if err != nil || got.code != 0 || strings.Count(got.out, "\n") != 1 || announced.Workbench != absolute || announced.URL != "http://"+address+"/" {
-		t.Errorf("--json: wanted exit 0 and one object with url and workbench, got %d %q (%v)", got.code, got.out, err)
+	if err != nil || got.code != 0 || strings.Count(got.out, "\n") != 1 || announced.Workbench != absolute || announced.URL != "http://"+address+"/" || announced.Reads == "" {
+		t.Errorf("--json: wanted exit 0 and one object with url, workbench and reads, got %d %q (%v)", got.code, got.out, err)
 	}
 
 	run = startServe(t, root, refuseListen)
@@ -404,9 +444,12 @@ const structuralRounds = 40
 // little as it can for as short as it can.
 //
 // Every act is the real binary in another operating-system process, and the
-// resident is the platform watcher's, reading as the server's does. Each
-// round adds a card, archives it, restores it and deletes it, and the test
-// fails on the first act refused, naming the round, the act and the refusal.
+// resident is the platform watcher's. The resident reads the disk only while
+// a request asks, so a goroutine sends GET / in a loop for the whole run,
+// which keeps the resident reading as a page left open keeps a server busy.
+// Each round adds a card, archives it, restores it and deletes it, and the
+// test fails on the first act refused, naming the round, the act and the
+// refusal.
 func TestStructuralActsFromAnotherProcessSucceedWhileTheResidentReads(t *testing.T) {
 	root := newBench(t)
 	workbench := soleBenchDir(t, root)
@@ -417,6 +460,25 @@ func TestStructuralActsFromAnotherProcessSucceedWhileTheResidentReads(t *testing
 		default:
 		}
 	}}))
+	var stop atomic.Bool
+	polled := make(chan int, 1)
+	go func() {
+		n := 0
+		for !stop.Load() {
+			if response, err := http.Get(f.url + "/"); err == nil {
+				io.Copy(io.Discard, response.Body)
+				response.Body.Close()
+				n++
+			}
+		}
+		polled <- n
+	}()
+	defer func() {
+		if !stop.Load() {
+			stop.Store(true)
+			<-polled
+		}
+	}()
 	publishes := 0
 	for round := 1; round <= structuralRounds; round++ {
 		card := "fx-" + strconv.Itoa(round)
@@ -441,6 +503,8 @@ func TestStructuralActsFromAnotherProcessSucceedWhileTheResidentReads(t *testing
 			}
 		}
 	}
+	stop.Store(true)
+	requests := <-polled
 	if publishes == 0 {
 		t.Fatal("the resident published nothing while the acts ran, so it read nothing and the test proves nothing")
 	}
@@ -448,7 +512,7 @@ func TestStructuralActsFromAnotherProcessSucceedWhileTheResidentReads(t *testing
 	if status != http.StatusOK {
 		t.Fatalf("GET /cards after the rounds: %d %v", status, body)
 	}
-	t.Logf("%d rounds of add, archive, restore and delete from another process, %d publishes read by the resident meanwhile", structuralRounds, publishes)
+	t.Logf("%d rounds of add, archive, restore and delete from another process, %d requests and %d publishes read by the resident meanwhile", structuralRounds, requests, publishes)
 }
 
 // lockHelperVar turns this test binary into a process that holds one card's
@@ -505,8 +569,25 @@ func withPlatformResident(t *testing.T, hooks *resident.Hooks) func(*httphead.Co
 			t.Fatalf("open the resident: %v", err)
 		}
 		t.Cleanup(func() { w.Close() })
-		<-w.Ready()
+		warmResident(t, w)
 		cfg.Resident = w
+	}
+}
+
+// warmResident is the first request after resident.Open, which builds the
+// snapshot inside it; it fails the test unless that answers a snapshot and
+// Ready is then closed.
+func warmResident(t *testing.T, w *resident.Workbench) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if pick := w.Current(ctx, time.Now()); pick.Snapshot == nil {
+		t.Fatal("the first request answered no snapshot")
+	}
+	select {
+	case <-w.Ready():
+	default:
+		t.Fatal("the first request returned and Ready is not closed")
 	}
 }
 
@@ -654,10 +735,11 @@ func writersAreSerialised(t *testing.T, held func(t *testing.T) func(*httphead.C
 // TestTheResidentAnswersWhatTheCLIWroteOnceItsRecordArrives is
 // dinah-619/criteria/6: dinah-152/criteria/13's cross-process shape on the
 // resident. The real binary moves a card in another process; the test waits
-// for the publish whose paths include the card's anchor, as Windows reports
-// the write, and one GET then shows the new column. The wait is on the
-// publish, against a deadline that bounds the test only, and nothing polls
-// the head.
+// until the resident has received a batch whose changes include the card's
+// anchor, as Windows reports the write, and one GET then shows the new
+// column, since that request asks for the pass that applies the change. The
+// wait is on the received batch, against a deadline that bounds the test
+// only, and nothing polls the head.
 func TestTheResidentAnswersWhatTheCLIWroteOnceItsRecordArrives(t *testing.T) {
 	root := newBench(t)
 	workbench := soleBenchDir(t, root)
@@ -680,11 +762,10 @@ func TestTheResidentAnswersWhatTheCLIWroteOnceItsRecordArrives(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	anchor = filepath.ToSlash(anchor)
-	published := make(chan resident.Published, 256)
-	f := serveBench(t, root, withPlatformResident(t, &resident.Hooks{AfterPublish: func(p resident.Published) {
+	received := make(chan resident.Batch, 1024)
+	f := serveBench(t, root, withPlatformResident(t, &resident.Hooks{AfterReceive: func(b resident.Batch) {
 		select {
-		case published <- p:
+		case received <- b:
 		default:
 		}
 	}}))
@@ -694,14 +775,14 @@ func TestTheResidentAnswersWhatTheCLIWroteOnceItsRecordArrives(t *testing.T) {
 	timeout := time.After(30 * time.Second)
 	for waiting := true; waiting; {
 		select {
-		case p := <-published:
-			for _, path := range p.Paths {
-				if path == anchor {
+		case b := <-received:
+			for _, c := range b.Changes {
+				if filepath.Clean(c.Path) == anchor {
 					waiting = false
 				}
 			}
 		case <-timeout:
-			t.Fatalf("no publish naming %s arrived within 30 seconds of the CLI move; Windows documents that the change will be reported and not how soon, so this is a finding", anchor)
+			t.Fatalf("no notification naming %s was received within 30 seconds of the CLI move; Windows documents that the change will be reported and not how soon, so this is a finding", anchor)
 		}
 	}
 	status, _, shown := f.do(http.MethodGet, "/cards/"+card, "", "")
@@ -712,25 +793,111 @@ func TestTheResidentAnswersWhatTheCLIWroteOnceItsRecordArrives(t *testing.T) {
 	}
 }
 
-// TestServeClosesItsResident is part of dinah-619/criteria/16. serve opens
-// the resident once, serves from it, and closes it after shutdown.
+// stepLog is one ordered list of what serveUntil's seams were handed.
+type stepLog struct {
+	mu    sync.Mutex
+	steps []string
+}
+
+func (l *stepLog) add(step string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.steps = append(l.steps, step)
+}
+
+func (l *stepLog) all() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]string(nil), l.steps...)
+}
+
+// indexOf answers where a step first stands in a list, or -1.
+func indexOf(steps []string, prefix string) int {
+	for i, step := range steps {
+		if strings.HasPrefix(step, prefix) {
+			return i
+		}
+	}
+	return -1
+}
+
+// TestServeClosesItsResident is part of dinah-619/criteria/16. With
+// serveWorkDir, serveChdir, residentOpen and openURL replaced by recorders
+// appending to one list, serveUntil records one serveWorkDir call whose
+// argument is the workbench root, then one serveChdir call whose argument is
+// what serveWorkDir answered, both before the one residentOpen call; it opens
+// once, hands the head the resident, and closes it after shutdown. Run as
+// dinah ui, the list also shows serveChdir before openURL, which is the order
+// that keeps the browser out of the folder the server was started in.
+//
+// Arming: moving the serveChdir call into afterListen puts it after
+// residentOpen, and after openURL for dinah ui.
 func TestServeClosesItsResident(t *testing.T) {
+	for _, command := range []string{"serve", "ui"} {
+		t.Run(command, func(t *testing.T) { serveClosesItsResident(t, command) })
+	}
+}
+
+func serveClosesItsResident(t *testing.T, command string) {
 	root := newBench(t)
+	workbench := soleBenchDir(t, root)
+	log := &stepLog{}
 	var opened []*resident.Workbench
-	previous := residentOpen
+	ctx, cancel := context.WithCancel(context.Background())
+	listening := make(chan string, 1)
+	previousBase, previousListen, previousChdir := serveBase, serveListen, serveChdir
+	previousWorkDir, previousOpen, previousURL := serveWorkDir, residentOpen, openURL
+	serveBase = func() context.Context { return ctx }
+	serveListen = func(network, address string) (net.Listener, error) {
+		listener, err := net.Listen(network, address)
+		if err == nil {
+			listening <- listener.Addr().String()
+		}
+		return listener, err
+	}
+	answered := ""
+	serveWorkDir = func(root string) (string, error) {
+		dir, err := resident.WorkingDirectory(root)
+		answered = dir
+		log.add("workdir " + root)
+		return dir, err
+	}
+	serveChdir = func(dir string) error {
+		log.add("chdir " + dir)
+		return nil
+	}
 	residentOpen = func(dir string) (*resident.Workbench, error) {
+		log.add("open")
 		w, err := resident.Open(dir, resident.Options{Notifier: residenttest.NewManual()})
 		if err == nil {
-			<-w.Ready()
+			// The snapshot is built now, before the CLI adds a card below,
+			// so a head reading the resident cannot draw that card.
+			warmResident(t, w)
 			opened = append(opened, w)
 		}
 		return w, err
 	}
-	t.Cleanup(func() { residentOpen = previous })
-	run := startServe(t, root, net.Listen, "--listen", "127.0.0.1:0")
-	address := run.address(t)
+	openURL = func(url string) error {
+		log.add("openURL")
+		return nil
+	}
+	t.Cleanup(func() {
+		cancel()
+		serveBase, serveListen, serveChdir = previousBase, previousListen, previousChdir
+		serveWorkDir, residentOpen, openURL = previousWorkDir, previousOpen, previousURL
+	})
+	done := make(chan invocation, 1)
+	go func() { done <- runCLI(t, root, command, "--listen", "127.0.0.1:0") }()
+	var address string
+	select {
+	case address = <-listening:
+	case got := <-done:
+		t.Fatalf("%s returned %d before it listened: %s", command, got.code, got.errw)
+	case <-time.After(30 * time.Second):
+		t.Fatalf("%s did not listen", command)
+	}
 	if len(opened) != 1 {
-		t.Fatalf("serve opened %d residents, wanted one", len(opened))
+		t.Fatalf("%s opened %d residents, wanted one", command, len(opened))
 	}
 	// The notifier never reports, so a card the CLI adds now is drawn only by
 	// a head that reads the disk.
@@ -744,28 +911,50 @@ func TestServeClosesItsResident(t *testing.T) {
 	read, _ := io.ReadAll(response.Body)
 	response.Body.Close()
 	if strings.Contains(string(read), "Added under a resident that is never told") {
-		t.Error("the head drew a card only the disk holds, so serve did not hand it the resident")
+		t.Errorf("%s: the head drew a card only the disk holds, so serve did not hand it the resident", command)
 	}
-	run.cancel()
-	got := run.wait(t)
+	cancel()
+	var got invocation
+	select {
+	case got = <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatalf("%s did not return", command)
+	}
 	if got.code != 0 || got.errw != "" || strings.Count(got.out, "\n") != 1 {
-		t.Errorf("serve wanted exit 0 and its one line, got %d, stdout %q, stderr %q", got.code, got.out, got.errw)
+		t.Errorf("%s wanted exit 0 and its one line, got %d, stdout %q, stderr %q", command, got.code, got.out, got.errw)
 	}
-	if pick := opened[0].Current(time.Now()); pick.Snapshot != nil {
-		t.Error("the resident still serves a snapshot after serve returned, so it was not closed")
+	ctx2, cancel2 := context.WithTimeout(context.Background(), time.Second)
+	defer cancel2()
+	if pick := opened[0].Current(ctx2, time.Now()); pick.Snapshot != nil {
+		t.Errorf("%s: the resident still serves a snapshot after the command returned, so it was not closed", command)
+	}
+	steps := log.all()
+	workdir, chdir, open := indexOf(steps, "workdir "), indexOf(steps, "chdir "), indexOf(steps, "open")
+	switch {
+	case workdir < 0 || steps[workdir] != "workdir "+workbench:
+		t.Errorf("%s: serveWorkDir was not handed the workbench root %s: %v", command, workbench, steps)
+	case chdir < 0 || steps[chdir] != "chdir "+answered:
+		t.Errorf("%s: serveChdir was not handed what serveWorkDir answered, %s: %v", command, answered, steps)
+	case !(workdir < chdir && chdir < open):
+		t.Errorf("%s: the steps ran as %v, wanted serveWorkDir, then serveChdir, then residentOpen", command, steps)
+	}
+	if command == "ui" {
+		if url := indexOf(steps, "openURL"); url < 0 || url < chdir {
+			t.Errorf("ui: the steps ran as %v, wanted serveChdir before openURL", steps)
+		}
 	}
 }
 
 // TestServeWithoutAResidentServesFromDisk is part of dinah-619/criteria/16.
-// Where resident.Open answers ErrUnsupported, serve serves from disk and
-// writes nothing beyond its one line.
+// Where resident.Open answers an *Unsupported, serve serves from disk and
+// writes nothing beyond its one line, which names the reason.
 func TestServeWithoutAResidentServesFromDisk(t *testing.T) {
 	root := newBench(t)
 	previous := residentOpen
 	calls := 0
 	residentOpen = func(string) (*resident.Workbench, error) {
 		calls++
-		return nil, resident.ErrUnsupported
+		return nil, &resident.Unsupported{Why: resident.WhyMountedInFolder}
 	}
 	t.Cleanup(func() { residentOpen = previous })
 	run := startServe(t, root, net.Listen, "--listen", "127.0.0.1:0")
@@ -786,5 +975,198 @@ func TestServeWithoutAResidentServesFromDisk(t *testing.T) {
 	got := run.wait(t)
 	if calls != 1 || got.code != 0 || got.errw != "" || strings.Count(got.out, "\n") != 1 {
 		t.Errorf("wanted one attempt, exit 0 and the one line, got %d attempts, %d, stdout %q, stderr %q", calls, got.code, got.out, got.errw)
+	}
+	if !strings.HasSuffix(got.out, " (reads answered from disk: the workbench's volume is mounted in a folder)\n") {
+		t.Errorf("the startup line does not name the reason: %q", got.out)
+	}
+}
+
+// TestServeStaysPutWhenNoVolumeRootIsConfirmed is part of
+// dinah-619/criteria/16, and portable. With serveWorkDir answering a
+// *resident.NoVolumeRoot and serveGetwd a fixed path, serveUntil calls no
+// serveChdir, calls serveGetwd before residentOpen, serves, and ends the
+// human startup line with the serve.workdir.stays clause naming the fixed
+// path; the JSON line carries stays_in. With serveGetwd answering an error,
+// serveUntil answers that error and nothing listens.
+//
+// Arming: answering a *NoVolumeRoot with reportError, as a refusal would,
+// leaves no server to answer the GET /.
+func TestServeStaysPutWhenNoVolumeRootIsConfirmed(t *testing.T) {
+	root := newBench(t)
+	const fixed = "/fixed/where/serve/started"
+	log := &stepLog{}
+	previousWorkDir, previousGetwd, previousOpen := serveWorkDir, serveGetwd, residentOpen
+	serveWorkDir = func(string) (string, error) {
+		return "", &resident.NoVolumeRoot{Tried: [2]resident.Refused{
+			{Why: errors.New("the workbench's final path could not be read")},
+			{Dir: `C:\`, Why: errors.New("its final path is not a bare volume GUID path")},
+		}}
+	}
+	getwdErr := error(nil)
+	serveGetwd = func() (string, error) {
+		log.add("getwd")
+		return fixed, getwdErr
+	}
+	residentOpen = func(string) (*resident.Workbench, error) {
+		log.add("open")
+		return nil, &resident.Unsupported{Why: resident.WhyPlatform}
+	}
+	t.Cleanup(func() { serveWorkDir, serveGetwd, residentOpen = previousWorkDir, previousGetwd, previousOpen })
+
+	stays := " (working directory left at " + fixed + ": no volume root could be confirmed to move to, so " + fixed + " and the folders above it may stay locked while this runs)\n"
+	run := startServe(t, root, net.Listen, "--listen", "127.0.0.1:0")
+	address := run.address(t)
+	response, err := http.Get("http://" + address + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("GET / answered %d, wanted 200 from a server that stayed where it started", response.StatusCode)
+	}
+	run.cancel()
+	got := run.wait(t)
+	if got.code != 0 || !strings.HasSuffix(got.out, stays) {
+		t.Errorf("the human startup line does not end with the stays clause: %d %q", got.code, got.out)
+	}
+	run.mu.Lock()
+	chdirs := len(run.chdirs)
+	run.mu.Unlock()
+	if chdirs != 0 {
+		t.Errorf("serveChdir was called %d times with no volume root confirmed", chdirs)
+	}
+	if steps := log.all(); len(steps) != 2 || steps[0] != "getwd" || steps[1] != "open" {
+		t.Errorf("the steps ran as %v, wanted serveGetwd before residentOpen", steps)
+	}
+
+	run = startServe(t, root, net.Listen, "--json", "--listen", "127.0.0.1:0")
+	run.address(t)
+	run.cancel()
+	got = run.wait(t)
+	var announced map[string]any
+	if err := json.Unmarshal([]byte(got.out), &announced); err != nil || announced["stays_in"] != fixed {
+		t.Errorf("the JSON startup line does not carry stays_in %s: %q (%v)", fixed, got.out, err)
+	}
+
+	getwdErr = errors.New("getwd failed")
+	run = startServe(t, root, net.Listen, "--listen", "127.0.0.1:0")
+	got = run.wait(t)
+	if got.code == 0 || len(run.addresses()) != 0 || !strings.Contains(got.errw, "getwd failed") {
+		t.Errorf("with serveGetwd failing, wanted a refusal naming it and nothing bound, got %d, %v, %q", got.code, run.addresses(), got.errw)
+	}
+}
+
+// TestServeResolvesItsPathsBeforeLeavingItsDirectory is part of
+// dinah-619/criteria/16. With DINAH_HOME set to a relative path, the
+// Config.Home the head receives through serveHandler is absolute and names
+// the directory the relative path named before the move.
+//
+// Arming: passing s.home unchanged hands the head the relative path.
+func TestServeResolvesItsPathsBeforeLeavingItsDirectory(t *testing.T) {
+	root := newBench(t)
+	const relative = "relative-home"
+	if err := os.MkdirAll(filepath.Join(root, relative), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DINAH_HOME", relative)
+	var home string
+	previous := serveHandler
+	serveHandler = func(cfg httphead.Config) http.Handler {
+		home = cfg.Home
+		return httphead.Handler(cfg)
+	}
+	t.Cleanup(func() { serveHandler = previous })
+	run := startServe(t, root, net.Listen, "--listen", "127.0.0.1:0")
+	run.address(t)
+	run.cancel()
+	run.wait(t)
+	if !filepath.IsAbs(home) {
+		t.Fatalf("the head received the user base %q, which is not absolute", home)
+	}
+	got, err := os.Stat(home)
+	if err != nil {
+		t.Fatalf("the user base the head received, %s, does not exist: %v", home, err)
+	}
+	want, err := os.Stat(filepath.Join(root, relative))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(got, want) {
+		t.Errorf("the head received the user base %s, which is not the directory %s named from %s", home, relative, root)
+	}
+}
+
+// TestServeSaysWhereReadsAreAnswered is part of dinah-619/criteria/21. A table
+// over announce's input: a resident opened, and residentOpen answering each
+// of the four reasons and a plain error; and two cases where the server
+// stayed where it started, one with a resident opened and one with the
+// platform reason. Each human line is serve.listening followed by its clause,
+// and each JSON line carries url, workbench, reads and, as the case needs,
+// why, detail and stays_in. Every locale carries the new keys.
+func TestServeSaysWhereReadsAreAnswered(t *testing.T) {
+	const url, root, dir = "http://127.0.0.1:7340/", "/where/the/workbench/is", "/where/serve/started"
+	stays := " (working directory left at " + dir + ": no volume root could be confirmed to move to, so " + dir + " and the folders above it may stay locked while this runs)"
+	cases := []struct {
+		name   string
+		err    error
+		stays  string
+		clause string
+		reads  string
+		why    string
+		detail string
+	}{
+		{"a resident opened", nil, "", " (reads answered from memory)", "memory", "", ""},
+		{"no watcher on this platform", &resident.Unsupported{Why: resident.WhyPlatform}, "", " (reads answered from disk: this system has no file-change watcher Dinah uses)", "disk", "platform", ""},
+		{"a volume that is not fixed", &resident.Unsupported{Why: resident.WhyVolumeType}, "", " (reads answered from disk: the workbench is not on a fixed local disk)", "disk", "volume-type", ""},
+		{"a volume mounted in a folder", &resident.Unsupported{Why: resident.WhyMountedInFolder}, "", " (reads answered from disk: the workbench's volume is mounted in a folder)", "disk", "mounted-in-folder", ""},
+		{"a volume with no drive path", &resident.Unsupported{Why: resident.WhyNoDOSPath}, "", " (reads answered from disk: Windows gives the workbench's volume no drive path)", "disk", "no-dos-path", ""},
+		{"a plain error", errors.New("the volume root refused FILE_LIST_DIRECTORY"), "", " (reads answered from disk: the volume root refused FILE_LIST_DIRECTORY)", "disk", "error", "the volume root refused FILE_LIST_DIRECTORY"},
+		{"stayed, with a resident", nil, dir, " (reads answered from memory)" + stays, "memory", "", ""},
+		{"stayed, on this platform", &resident.Unsupported{Why: resident.WhyPlatform}, dir, " (reads answered from disk: this system has no file-change watcher Dinah uses)" + stays, "disk", "platform", ""},
+	}
+	if len(cases) != 8 {
+		t.Fatalf("the table holds %d cases, wanted 8", len(cases))
+	}
+	for _, c := range cases {
+		var human bytes.Buffer
+		s := &session{r: msg.For(msg.Base), out: &human, format: formatHuman}
+		s.announce(url, root, readsOf(c.err), c.stays)
+		if want := "Serving " + root + " at " + url + c.clause + "\n"; human.String() != want {
+			t.Errorf("%s: the human line is %q, wanted %q", c.name, human.String(), want)
+		}
+		var machine bytes.Buffer
+		s = &session{r: msg.For(msg.Base), out: &machine, format: formatJSON}
+		s.announce(url, root, readsOf(c.err), c.stays)
+		var announced map[string]any
+		if err := json.Unmarshal(machine.Bytes(), &announced); err != nil {
+			t.Fatalf("%s: the JSON line does not parse: %q", c.name, machine.String())
+		}
+		want := map[string]any{"url": url, "workbench": root, "reads": c.reads}
+		if c.why != "" {
+			want["why"] = c.why
+		}
+		if c.detail != "" {
+			want["detail"] = c.detail
+		}
+		if c.stays != "" {
+			want["stays_in"] = c.stays
+		}
+		if fmt.Sprint(announced) != fmt.Sprint(want) {
+			t.Errorf("%s: the JSON line is %v, wanted %v", c.name, announced, want)
+		}
+	}
+	keys := []string{"serve.reads.memory", "serve.reads.disk", "serve.reads.why.platform", "serve.reads.why.volume-type",
+		"serve.reads.why.mounted-in-folder", "serve.reads.why.no-dos-path", "serve.workdir.stays"}
+	locales := 0
+	for _, tag := range msg.Tags() {
+		locales++
+		for _, key := range keys {
+			if _, ok := msg.CatalogEntry(tag, key); !ok {
+				t.Errorf("the %s catalog carries no %s", tag, key)
+			}
+		}
+	}
+	if locales < 2 {
+		t.Fatalf("checked %d locales", locales)
 	}
 }

@@ -3,9 +3,10 @@
 package resident
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -23,16 +24,40 @@ import (
 const realDeadline = 30 * time.Second
 
 // realWatch is a resident over a real directory with the platform's own
-// watcher.
+// watcher, whose hooks send received batches and publishes to channels.
+//
+// The watch is held on the root directory of the workbench's volume, and the
+// resident reads below the workbench root only inside a request, so nothing
+// here retries a write, a rename or a removal: no read of the resident's can
+// be in the way unless the test itself asks for one.
 type realWatch struct {
 	t         *testing.T
 	root      string
 	w         *Workbench
 	published chan Published
+	received  chan Batch
 	holdMu    sync.Mutex
 	hold      chan struct{}
-	holdWhich func(Published) bool
 	holding   chan Published
+	through   *throughs
+}
+
+// throughs records the paths a snapshot passed through to the disk.
+type throughs struct {
+	mu    sync.Mutex
+	paths []string
+}
+
+func (p *throughs) add(path string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.paths = append(p.paths, path)
+}
+
+func (p *throughs) all() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.paths...)
 }
 
 // writeFile puts a file on disk, creating the directories above it.
@@ -50,6 +75,13 @@ func writeFile(t *testing.T, path, content string) {
 func realTree(t *testing.T) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "workbench")
+	realTreeAt(t, root)
+	return root
+}
+
+// realTreeAt writes the tree at root.
+func realTreeAt(t *testing.T, root string) {
+	t.Helper()
 	for rel, content := range map[string]string{
 		"workbench.md":                                      "---\ntitle: Real\n---\n",
 		"cards/0123456789ab/card.md":                        "---\ntitle: A card\n---\n",
@@ -59,25 +91,40 @@ func realTree(t *testing.T) string {
 	} {
 		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), content)
 	}
-	return root
 }
 
-// openReal opens a resident with the platform's watcher and waits for its
-// first publish.
+// openReal opens a resident with the platform's watcher and warms it.
 func openReal(t *testing.T, root string, extra *Hooks) *realWatch {
 	t.Helper()
-	r := &realWatch{t: t, root: root, published: make(chan Published, 1024), holding: make(chan Published, 16)}
+	r := openRealCold(t, root, extra)
+	Warm(t, r.w)
+	r.drain()
+	return r
+}
+
+// openRealCold opens a resident with the platform's watcher and reads nothing.
+func openRealCold(t *testing.T, root string, extra *Hooks) *realWatch {
+	t.Helper()
+	r := &realWatch{t: t, root: root, published: make(chan Published, 1024), received: make(chan Batch, 4096),
+		holding: make(chan Published, 16), through: &throughs{}}
 	hooks := &Hooks{
 		BeforePublish: func(p Published) {
 			r.holdMu.Lock()
-			hold, which := r.hold, r.holdWhich
+			hold := r.hold
 			r.holdMu.Unlock()
-			if hold != nil && which(p) {
+			if hold != nil {
 				r.holding <- p
 				<-hold
 			}
 		},
 		AfterPublish: func(p Published) { r.published <- p },
+		AfterReceive: func(b Batch) {
+			select {
+			case r.received <- b:
+			default:
+			}
+		},
+		PassThrough: r.through.add,
 	}
 	if extra != nil {
 		hooks.BeforeRearm = extra.BeforeRearm
@@ -88,120 +135,128 @@ func openReal(t *testing.T, root string, extra *Hooks) *realWatch {
 	}
 	r.w = w
 	t.Cleanup(func() { w.Close() })
-	select {
-	case <-w.Ready():
-	case <-time.After(realDeadline):
-		t.Fatal("the first build did not finish")
-	}
 	return r
 }
 
-// holdPublishes makes BeforePublish wait, for the publishes which picks,
-// until the answered function runs. A late notification of a directory's
-// last-write time, which the documentation says arrives "only when the cache
-// is sufficiently flushed", publishes a reconcile at any moment, so a hold
-// names the publish it is for rather than taking the first. The release also
-// runs when the test ends, so a failing test never leaves the applier held.
-func (r *realWatch) holdPublishes(which func(Published) bool) func() {
-	hold := make(chan struct{})
-	r.holdMu.Lock()
-	r.hold, r.holdWhich = hold, which
-	r.holdMu.Unlock()
-	var once sync.Once
-	release := func() {
-		once.Do(func() {
-			r.holdMu.Lock()
-			r.hold = nil
-			r.holdMu.Unlock()
-			close(hold)
-		})
-	}
-	r.t.Cleanup(release)
-	return release
-}
-
-// until waits for a publish satisfying want, and for the snapshot then
-// current to mirror the disk, since one write may arrive as several
-// completions. Its failure says that no notification arrived within the
-// deadline, which is a finding.
-func (r *realWatch) until(what string, want func(Published) bool) {
-	r.t.Helper()
-	timeout := time.After(realDeadline)
-	seen := false
+// drain empties the publish channel.
+func (r *realWatch) drain() []Published {
+	var got []Published
 	for {
 		select {
 		case p := <-r.published:
-			if want(p) {
-				seen = true
-			}
-			if seen {
-				if snapshot := r.w.Current(time.Now()).Snapshot; snapshot != nil && len(MirrorDiff(snapshot, r.root)) == 0 {
-					return
-				}
-			}
-		case <-timeout:
-			detail := "no publish " + what + " arrived"
-			if seen {
-				detail = "a publish " + what + " arrived, but the snapshot never came to mirror the disk"
-			}
-			if snapshot := r.w.Current(time.Now()).Snapshot; snapshot != nil {
-				detail += ": " + strings.Join(MirrorDiff(snapshot, r.root), "; ")
-			}
-			r.t.Fatalf("%s within %s; the documentation promises delivery and no latency, so this is a finding", detail, realDeadline)
+			got = append(got, p)
+		default:
+			return got
 		}
 	}
 }
 
-// naming answers a Published test naming one slash-separated path.
-func naming(rel string) func(Published) bool {
-	return func(p Published) bool {
+// current is one request.
+func (r *realWatch) current() Pick {
+	ctx, cancel := context.WithTimeout(context.Background(), realDeadline)
+	defer cancel()
+	return r.w.Current(ctx, time.Now())
+}
+
+// receiveNaming waits for a received batch with a change whose path, slash
+// separated, satisfies want, or for an overflow when overflow is set. Its
+// failure says that no notification naming the path arrived within the
+// deadline, which is a finding, because the documentation promises delivery
+// and no latency.
+func (r *realWatch) receiveNaming(what string, overflow bool, want func(string) bool) {
+	r.t.Helper()
+	timeout := time.After(realDeadline)
+	for {
+		select {
+		case b := <-r.received:
+			if overflow && b.Overflow {
+				return
+			}
+			for _, c := range b.Changes {
+				if want(filepath.ToSlash(c.Path)) {
+					return
+				}
+			}
+		case <-timeout:
+			r.t.Fatalf("no notification %s arrived within %s; the documentation promises delivery and no latency, so this is a finding", what, realDeadline)
+		}
+	}
+}
+
+// settles asks until the snapshot a request answers mirrors the disk, since
+// one write may arrive as several completions, each received and applied
+// when a request asks. It answers the publishes the requests caused.
+func (r *realWatch) settles(what string) []Published {
+	r.t.Helper()
+	timeout := time.After(realDeadline)
+	var publishes []Published
+	for {
+		pick := r.current()
+		publishes = append(publishes, r.drain()...)
+		if pick.Snapshot != nil && len(MirrorDiff(pick.Snapshot, r.root)) == 0 {
+			return publishes
+		}
+		select {
+		case <-r.received:
+		case <-timeout:
+			detail := ""
+			if pick.Snapshot != nil {
+				detail = strings.Join(MirrorDiff(pick.Snapshot, r.root), "; ")
+			}
+			r.t.Fatalf("after %s the snapshot never came to mirror the disk within %s: %s", what, realDeadline, detail)
+		}
+	}
+}
+
+// exactly answers a predicate naming one slash-separated path.
+func exactly(rel string) func(string) bool {
+	return func(path string) bool { return path == rel }
+}
+
+// namedIn reports whether any publish names a slash-separated path.
+func namedIn(publishes []Published, rel string) bool {
+	for _, p := range publishes {
 		for _, path := range p.Paths {
 			if path == rel {
 				return true
 			}
 		}
-		return false
 	}
+	return false
 }
 
 // TestTheWatcherReportsAChangeMadeAfterArming is part of
-// dinah-619/criteria/6. A file written with bench.WriteText and a line
-// appended with bench.AppendEvent each appear in a publish's paths, and the
+// dinah-619/criteria/6. After the first request, a file written with
+// bench.WriteText and a line appended with bench.AppendEvent are each
+// received, appear in a publish's paths once a request asks, and the
 // snapshot mirrors the disk.
 func TestTheWatcherReportsAChangeMadeAfterArming(t *testing.T) {
 	root := realTree(t)
 	r := openReal(t, root, nil)
-	// WriteText lands by a rename over the anchor, which Windows refuses while
-	// any reader holds the anchor open; a late notification of the tree's
-	// creation can have the resident reading it at that instant, so the write
-	// is tried again while it is refused, bounded by the deadline.
-	stop := time.After(realDeadline)
-	for {
-		err := bench.WriteText(filepath.Join(root, "cards", "0123456789ab", "card.md"), "---\ntitle: Written\n---\n")
-		if err == nil {
-			break
-		}
-		if !errors.Is(err, windows.ERROR_ACCESS_DENIED) && !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
-			t.Fatal(err)
-		}
-		select {
-		case <-stop:
-			t.Fatalf("the write kept being refused for %s: %v", realDeadline, err)
-		case <-time.After(time.Millisecond):
-		}
-	}
-	r.until("naming the written card", naming("cards/0123456789ab/card.md"))
-	if err := bench.AppendEvent(filepath.Join(root, "cards", "0123456789ab", "journal.ndjson"), bench.Event{TS: "2026-09-26T00:00:00Z", Event: "moved", Actor: bench.Actor{Name: "alka"}}); err != nil {
+	anchor := "cards/0123456789ab/card.md"
+	if err := bench.WriteText(filepath.Join(root, filepath.FromSlash(anchor)), "---\ntitle: Written\n---\n"); err != nil {
 		t.Fatal(err)
 	}
-	r.until("naming the appended journal", naming("cards/0123456789ab/journal.ndjson"))
+	r.receiveNaming("naming the written card", false, exactly(anchor))
+	if publishes := r.settles("the write"); !namedIn(publishes, anchor) {
+		t.Errorf("no publish named %s: %+v", anchor, publishes)
+	}
+	journal := "cards/0123456789ab/journal.ndjson"
+	if err := bench.AppendEvent(filepath.Join(root, filepath.FromSlash(journal)), bench.Event{TS: "2026-09-26T00:00:00Z", Event: "moved", Actor: bench.Actor{Name: "alka"}}); err != nil {
+		t.Fatal(err)
+	}
+	r.receiveNaming("naming the appended journal", false, exactly(journal))
+	if publishes := r.settles("the append"); !namedIn(publishes, journal) {
+		t.Errorf("no publish named %s: %+v", journal, publishes)
+	}
 }
 
 // TestTheWatcherOverflowsWhenItsBufferIsExceeded is part of
 // dinah-619/criteria/7. The watcher is held after its first completion,
 // before it issues its next call, while 4,000 files with 100-character names
 // are created: at least 800,000 bytes of records against a 65,536-byte
-// buffer. A reported overflow then rebuilds the snapshot from disk.
+// buffer. The reported overflow is received, and the next request rebuilds
+// inside itself and answers a snapshot that mirrors the disk.
 //
 // When no overflow is reported the test fails and says why: the
 // documentation fixes the system buffer at the first call, and a machine
@@ -238,120 +293,138 @@ func TestTheWatcherOverflowsWhenItsBufferIsExceeded(t *testing.T) {
 	}
 	released.Do(func() { close(release) })
 	timeout := time.After(realDeadline)
-	for {
+	for received := false; !received; {
 		select {
-		case p := <-r.published:
-			if p.Rebuilt && p.Generation > 1 {
-				r.w.mu.Lock()
-				overflows := r.w.overflows
-				r.w.mu.Unlock()
-				if overflows == 0 {
-					t.Fatalf("a rebuild was published with no overflow reported, so something other than the buffer's loss caused it: %+v", p)
-				}
-				snapshot := r.w.Current(time.Now()).Snapshot
-				if snapshot == nil {
-					continue
-				}
-				if diffs := MirrorDiff(snapshot, root); len(diffs) > 0 {
-					t.Errorf("the rebuild after the overflow does not mirror the disk: %v", diffs[:min(len(diffs), 5)])
-				}
-				return
-			}
+		case b := <-r.received:
+			received = b.Overflow
 		case <-timeout:
 			t.Fatalf("no overflow was reported after %d files with %d-character names (at least %d bytes of records) were created while the watcher held no call; the documentation fixes the system buffer at the first call, and its size on this machine is the finding, not a flake", files, nameLength, files*2*nameLength)
 		}
+	}
+	pick := r.current()
+	if pick.Snapshot == nil {
+		t.Fatal("the request after the overflow answered no snapshot")
+	}
+	rebuilt := false
+	for _, p := range r.drain() {
+		rebuilt = rebuilt || p.Rebuilt
+	}
+	if !rebuilt {
+		t.Error("the request after the overflow published no rebuild")
+	}
+	if diffs := MirrorDiff(pick.Snapshot, root); len(diffs) > 0 {
+		t.Errorf("the rebuild after the overflow does not mirror the disk: %v", diffs[:min(len(diffs), 5)])
 	}
 }
 
 // TestADirectoryDeletedAndRecreatedIsReadAgain is part of
 // dinah-619/criteria/8. A card's directory removed and recreated with the
-// same identifier and different items is read again whole.
+// same identifier and different items is received, and read again whole once
+// a request asks.
 func TestADirectoryDeletedAndRecreatedIsReadAgain(t *testing.T) {
 	root := realTree(t)
 	r := openReal(t, root, nil)
 	card := filepath.Join(root, "cards", "0123456789ab")
-	removeAll(t, card)
+	if err := os.RemoveAll(card); err != nil {
+		t.Fatal(err)
+	}
 	writeFile(t, filepath.Join(card, "card.md"), "---\ntitle: Recreated\n---\n")
 	writeFile(t, filepath.Join(card, "checklist", "0000000000b2", "item.md"), "---\nkind: open_question\n---\nA different item.\n")
-	r.until("naming the recreated card", func(p Published) bool {
-		for _, path := range p.Paths {
-			if strings.HasPrefix(path, "cards/0123456789ab") || path == "cards" {
-				return true
-			}
-		}
-		return false
+	r.receiveNaming("naming the recreated card", false, func(path string) bool {
+		return strings.HasPrefix(path, "cards/0123456789ab")
 	})
-}
-
-// removeAll removes a directory tree, trying again while the removal meets a
-// sharing violation. Go's os.Open does not share delete, so a file the
-// resident is reading at that instant, which a late last-write notification
-// can make it do at any moment, refuses a concurrent delete; the violation
-// passes as soon as the read closes the file. The retry is bounded by the
-// test deadline.
-func removeAll(t *testing.T, path string) {
-	t.Helper()
-	stop := time.After(realDeadline)
-	for {
-		err := os.RemoveAll(path)
-		if err == nil {
-			return
-		}
-		if !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
-			t.Fatal(err)
-		}
-		select {
-		case <-stop:
-			t.Fatalf("the removal kept meeting a sharing violation for %s: %v", realDeadline, err)
-		case <-time.After(time.Millisecond):
+	publishes := r.settles("the recreation")
+	named := false
+	for _, p := range publishes {
+		for _, path := range p.Paths {
+			named = named || strings.HasPrefix(path, "cards/0123456789ab") || path == "cards"
 		}
 	}
-}
-
-// renameAway renames a directory, trying again while the rename is refused
-// because something below it is open: a late last-write notification can have
-// the resident reading a file there at that instant, which refuses a rename of
-// the directory holding it for the length of the read. The retry is bounded
-// by the test deadline.
-func renameAway(t *testing.T, from, to string) {
-	t.Helper()
-	stop := time.After(realDeadline)
-	for {
-		err := os.Rename(from, to)
-		if err == nil {
-			return
-		}
-		if !errors.Is(err, windows.ERROR_ACCESS_DENIED) && !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
-			t.Fatalf("rename %s away: %v", from, err)
-		}
-		select {
-		case <-stop:
-			t.Fatalf("the rename of %s kept being refused for %s: %v", from, realDeadline, err)
-		case <-time.After(time.Millisecond):
-		}
+	if !named {
+		t.Errorf("no publish named the recreated card: %+v", publishes)
 	}
 }
 
 // TestTheRootReplacedIsDetected is part of dinah-619/criteria/8. The root is
-// renamed away and a different tree written where it was; the next Current
-// answers nil, and after the rebuild the snapshot mirrors the new root.
+// renamed away, once and with no retry, and a different tree written where it
+// was. The test waits for the new tree's records to be received; the next
+// Current finds Valid false, waits while the watch is re-armed on the path
+// and rebuilt, and answers a snapshot of the new root, the rebuild's
+// AfterPass preceding its return.
 func TestTheRootReplacedIsDetected(t *testing.T) {
 	root := realTree(t)
 	r := openReal(t, root, nil)
-	renameAway(t, root, root+"-old")
+	if err := os.Rename(root, root+"-old"); err != nil {
+		t.Fatalf("the rename of the workbench root away was refused: %v", err)
+	}
 	writeFile(t, filepath.Join(root, "workbench.md"), "---\ntitle: Replacement\n---\n")
 	writeFile(t, filepath.Join(root, "cards", "0123456789ef", "card.md"), "---\ntitle: New\n---\n")
-	if pick := r.w.Current(time.Now()); pick.Snapshot != nil {
-		t.Error("Current answered a snapshot after the root was replaced")
+	r.receiveNaming("from the replacement tree", false, func(string) bool { return true })
+	pick := r.current()
+	if pick.Snapshot == nil {
+		t.Fatal("the request after the root was replaced answered no snapshot")
 	}
-	r.until("rebuilding the new root", func(p Published) bool { return p.Rebuilt && p.Generation > 1 })
+	rebuilt := false
+	for _, p := range r.drain() {
+		rebuilt = rebuilt || p.Rebuilt
+	}
+	if !rebuilt {
+		t.Error("the request after the root was replaced published no rebuild")
+	}
+	if diffs := MirrorDiff(pick.Snapshot, root); len(diffs) > 0 {
+		t.Errorf("the snapshot after the root was replaced does not mirror the new root: %v", diffs)
+	}
+}
+
+// mklinkJunction makes a directory junction with mklink /J, which needs no
+// privilege, and skips the test with the reason when it is refused.
+func mklinkJunction(t *testing.T, link, target string) {
+	t.Helper()
+	out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+	if err != nil {
+		t.Skipf("mklink /J was refused (%v: %s)", err, strings.TrimSpace(string(out)))
+	}
+}
+
+// TestTheServedPathResolvingElsewhereIsDetected is part of
+// dinah-619/criteria/8. The workbench is served through a junction, via, to
+// a/wb. After the first request, the junction is removed and made again
+// pointing to b/wb, a different tree; no record under a/wb reports that. The
+// next Current finds Valid false because the final path differs, waits for
+// the re-arm and the rebuild, and answers a snapshot of b/wb.
+//
+// Arming: making Valid read only the moved flag answers the snapshot of a/wb.
+func TestTheServedPathResolvingElsewhereIsDetected(t *testing.T) {
+	base := t.TempDir()
+	a, b := filepath.Join(base, "a", "wb"), filepath.Join(base, "b", "wb")
+	realTreeAt(t, a)
+	realTreeAt(t, b)
+	writeFile(t, filepath.Join(b, "cards", "0123456789ef", "card.md"), "---\ntitle: Only in b\n---\n")
+	via := filepath.Join(base, "via")
+	mklinkJunction(t, via, a)
+	r := openReal(t, via, nil)
+	if err := os.Remove(via); err != nil {
+		t.Fatalf("remove the junction: %v", err)
+	}
+	mklinkJunction(t, via, b)
+	pick := r.current()
+	if pick.Snapshot == nil {
+		t.Fatal("the request after the junction was re-pointed answered no snapshot")
+	}
+	if diffs := MirrorDiff(pick.Snapshot, via); len(diffs) > 0 {
+		t.Errorf("the snapshot after the junction was re-pointed does not mirror its new target: %v", diffs)
+	}
+	if _, err := pick.Snapshot.Stat(filepath.Join(via, "cards", "0123456789ef", "card.md")); err != nil {
+		t.Errorf("the card only b/wb holds is not in the snapshot: %v", err)
+	}
 }
 
 // TestABrokenWatchDegradesAndRecovers is part of dinah-619/criteria/9. The
 // outstanding call is cancelled without the closing flag, as a failing
-// handle would end it; Current answers nil, a rebuild follows, and a file
-// written after the recovery appears in a publish, which a watcher that
-// stopped after the re-arm would never produce.
+// handle would end it, and the watch parks. The next Current waits for the
+// re-arm and the rebuild and answers the rebuilt snapshot, and a file written
+// after the recovery is received and appears in a publish, which a watcher
+// that stopped after the re-arm would never produce.
 func TestABrokenWatchDegradesAndRecovers(t *testing.T) {
 	root := realTree(t)
 	r := openReal(t, root, nil)
@@ -359,28 +432,28 @@ func TestABrokenWatchDegradesAndRecovers(t *testing.T) {
 	if !ok {
 		t.Fatalf("the resident's notifier is %T, not the Windows watcher", r.w.notifier)
 	}
-	release := r.holdPublishes(func(p Published) bool { return p.Rebuilt })
-	// A late notification can complete the outstanding call just before the
-	// cancel reaches it, which CancelIoEx answers ERROR_NOT_FOUND; the cancel
-	// is tried again on the call the watcher issues next.
-	waitReal(t, "a cancel to reach an outstanding call", func() bool {
-		return notifier.breakWatch() == nil
-	})
-	select {
-	case p := <-r.holding:
-		if !p.Rebuilt {
-			t.Fatalf("the pass after the broken watch was not a rebuild: %+v", p)
-		}
-	case <-time.After(realDeadline):
-		t.Fatal("no rebuild followed the broken watch")
+	// A record anywhere on the volume can complete the outstanding call just
+	// before the cancel reaches it, which CancelIoEx answers ERROR_NOT_FOUND;
+	// the cancel is tried again on the call the watcher issues next.
+	waitReal(t, "a cancel to reach an outstanding call", func() bool { return notifier.breakWatch() == nil })
+	waitReal(t, "the failure to park the watch", func() bool { return Parked(r.w) })
+	pick := r.current()
+	if pick.Snapshot == nil {
+		t.Fatal("the request after the broken watch answered no snapshot")
 	}
-	if pick := r.w.Current(time.Now()); pick.Snapshot != nil {
-		t.Error("Current answered a snapshot while the watch was being restored")
+	rebuilt := false
+	for _, p := range r.drain() {
+		rebuilt = rebuilt || p.Rebuilt
 	}
-	release()
-	r.until("rebuilding after the broken watch", func(p Published) bool { return p.Rebuilt && p.Generation > 1 })
-	writeFile(t, filepath.Join(root, "cards", "0123456789cd", "after.md"), "after the recovery")
-	r.until("naming the file written after the recovery", naming("cards/0123456789cd/after.md"))
+	if !rebuilt {
+		t.Error("no rebuild followed the broken watch inside the next request")
+	}
+	after := "cards/0123456789cd/after.md"
+	writeFile(t, filepath.Join(root, filepath.FromSlash(after)), "after the recovery")
+	r.receiveNaming("naming the file written after the recovery", false, exactly(after))
+	if publishes := r.settles("the write after the recovery"); !namedIn(publishes, after) {
+		t.Errorf("no publish named %s: %+v", after, publishes)
+	}
 }
 
 // waitReal polls a condition the notifier reaches on its own goroutine,
@@ -397,20 +470,58 @@ func waitReal(t *testing.T, what string, done func() bool) {
 	}
 }
 
+// TestAJunctionInsideTheWorkbenchIsReadFromDisk is part of
+// dinah-619/criteria/20, the Windows twin of the portable link test. A card's
+// comments directory is a junction to a directory outside the root. After the
+// first request, the comment outside the root is changed, with the real
+// watcher running; the next Current's snapshot answers the new bytes through
+// a pass-through, and holds no file below the junction.
+//
+// Arming: making isLink answer false for every entry answers the old bytes.
+func TestAJunctionInsideTheWorkbenchIsReadFromDisk(t *testing.T) {
+	root := realTree(t)
+	outside := filepath.Join(t.TempDir(), "outside")
+	comment := filepath.Join(outside, "comments", "0000000000c1", "comment.md")
+	writeFile(t, comment, "before")
+	junction := filepath.Join(root, "cards", "0123456789cd", "comments")
+	mklinkJunction(t, junction, filepath.Join(outside, "comments"))
+	r := openReal(t, root, nil)
+	files, _ := r.w.Held()
+	writeFile(t, comment, "after, changed outside the root")
+	pick := r.current()
+	if pick.Snapshot == nil {
+		t.Fatal("the request answered no snapshot")
+	}
+	below := filepath.Join(junction, "0000000000c1", "comment.md")
+	data, err := pick.Snapshot.ReadFile(below)
+	if err != nil || string(data) != "after, changed outside the root" {
+		t.Errorf("the comment below the junction read %q, %v", data, err)
+	}
+	passed := false
+	for _, path := range r.through.all() {
+		passed = passed || path == below
+	}
+	if !passed {
+		t.Errorf("the read of %s was not passed through to the disk", below)
+	}
+	if want := 5; files != want {
+		t.Errorf("the snapshot holds %d files, wanted the %d regular files outside the junction", files, want)
+	}
+}
+
 // TestCloseRacingACompletionReturns is part of dinah-619/criteria/9. The
 // watcher is held after consuming a completion and before it takes n.mu to
 // issue the next call, which is the position where CancelIoEx finds nothing
-// to cancel. Close, called then, returns once the watcher is released, and
-// the root can be removed.
+// to cancel. Close, called then, returns once the watcher is released, no
+// call is issued after Close has begun, and the root can be removed.
 //
-// The root starts empty and the completion is a directory created directly
-// below it, which is reported once and leaves no file whose size or
-// last-write time Windows reports later when the cache is flushed. So once
-// the completion is consumed nothing is pending, and a call issued after
-// Close had looked for one to cancel would stay outstanding.
+// The watch is on the volume's root directory, so a call issued after Close
+// had looked for one to cancel would be completed by the next record anywhere
+// on the volume and Close would return anyway. The test therefore also reads
+// strayIssue, which issue sets when it runs after Close has begun.
 //
-// Arming: moving Next's check of closing after the issue of the call leaves
-// a call outstanding that nobody cancels, and Close misses the deadline.
+// Arming: moving Next's check of closing after the issue of the call issues
+// a call after Close began, and strayIssue is set.
 func TestCloseRacingACompletionReturns(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "empty")
 	if err := os.Mkdir(root, 0o755); err != nil {
@@ -419,7 +530,7 @@ func TestCloseRacingACompletionReturns(t *testing.T) {
 	blocked := make(chan struct{})
 	release := make(chan struct{})
 	var once, released sync.Once
-	r := openReal(t, root, &Hooks{BeforeRearm: func() {
+	r := openRealCold(t, root, &Hooks{BeforeRearm: func() {
 		once.Do(func() {
 			close(blocked)
 			<-release
@@ -434,10 +545,10 @@ func TestCloseRacingACompletionReturns(t *testing.T) {
 	case <-time.After(realDeadline):
 		t.Fatal("the watcher consumed no completion within the deadline")
 	}
+	notifier := r.w.notifier.(*winNotifier)
 	closed := make(chan error, 1)
 	go func() { closed <- r.w.Close() }()
 	waitReal(t, "Close to set closing", func() bool {
-		notifier := r.w.notifier.(*winNotifier)
 		notifier.mu.Lock()
 		defer notifier.mu.Unlock()
 		return notifier.closing
@@ -450,6 +561,12 @@ func TestCloseRacingACompletionReturns(t *testing.T) {
 		}
 	case <-time.After(realDeadline):
 		t.Fatal("Close did not return after a completion landed before it")
+	}
+	notifier.mu.Lock()
+	stray := notifier.strayIssue
+	notifier.mu.Unlock()
+	if stray {
+		t.Error("a call was issued after Close had begun, which nobody would cancel")
 	}
 	if err := os.RemoveAll(root); err != nil {
 		t.Errorf("the root could not be removed after Close: %v", err)
@@ -502,17 +619,17 @@ func TestConcurrentClosesReleaseOnce(t *testing.T) {
 	t.Logf("%d rounds of two concurrent Closes", rounds)
 }
 
-// TestCloseReleasesTheDirectory is part of dinah-619/criteria/16: after
-// Close, the root can be removed, and Close gives back every handle Open
-// took.
+// TestCloseReleasesTheDirectory is kept from earlier revisions: after Close,
+// the root can be removed, and Close gives back every handle Open took. It no
+// longer stands for the property the operator ruled on;
+// TestAFolderAboveAServedWorkbenchStaysRenamable in cmd/dinah does.
 //
 // The removal alone cannot see a handle left open, because the watch handle
-// shares delete on purpose, so that the watcher never stops anybody deleting
-// the workbench. So the test also opens and closes the resident twenty times
-// and reads the process's handle count, documented as GetProcessHandleCount,
-// before and after: a Close that leaked the directory or the event would
-// leave twenty or forty behind, and the runtime's own threads do not come in
-// twenties.
+// shares delete, so the test also opens, warms and closes the resident twenty
+// times and reads the process's handle count, documented as
+// GetProcessHandleCount, before and after: a Close that leaked the directory
+// or the event would leave twenty or forty behind, and the runtime's own
+// threads do not come in twenties.
 //
 // Arming: skipping the directory handle's CloseHandle in Close leaves the
 // count twenty higher.
@@ -525,7 +642,7 @@ func TestCloseReleasesTheDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		<-w.Ready()
+		Warm(t, w)
 		if err := w.Close(); err != nil {
 			t.Fatalf("Close answered %v", err)
 		}

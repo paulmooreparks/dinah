@@ -6402,6 +6402,41 @@
       "context": "The one line dinah serve prints to stdout once it is listening. {workbench} is the absolute path of the workbench it serves and {url} is the address it listens on, such as http://127.0.0.1:7340/.",
       "source": "cdceee4612906ffe"
     },
+    "serve.reads.disk": {
+      "text": "(पढ़ने के अनुरोधों का उत्तर डिस्क से दिया जा रहा है: {why})",
+      "context": "The clause dinah serve and dinah ui add to their one startup line, after serve.listening, when every request reads the workbench from disk. {why} is one of the serve.reads.why texts, or an error's own text.",
+      "source": "427499e2d3d81323"
+    },
+    "serve.reads.memory": {
+      "text": "(पढ़ने के अनुरोधों का उत्तर मेमोरी से दिया जा रहा है)",
+      "context": "The clause dinah serve and dinah ui add to their one startup line, after serve.listening, when reads are answered from a copy of the workbench held in memory.",
+      "source": "2743d35afb5bcadf"
+    },
+    "serve.reads.why.mounted-in-folder": {
+      "text": "वर्कबेंच का वॉल्यूम किसी फ़ोल्डर में माउंट है",
+      "context": "Why dinah serve reads the workbench from disk: the disk holding it is mounted in a folder of another disk rather than at a drive letter. It fills {why} in serve.reads.disk.",
+      "source": "2a1c07b0f57d3a89"
+    },
+    "serve.reads.why.no-dos-path": {
+      "text": "Windows वर्कबेंच के वॉल्यूम को कोई ड्राइव पथ नहीं देता",
+      "context": "Why dinah serve reads the workbench from disk: Windows gives the disk holding it neither a drive letter nor a folder it is mounted in. It fills {why} in serve.reads.disk.",
+      "source": "f96d8bf7b1e1eaa8"
+    },
+    "serve.reads.why.platform": {
+      "text": "इस सिस्टम में ऐसा कोई फ़ाइल-परिवर्तन निगरानीकर्ता नहीं है जिसका Dinah उपयोग करता है",
+      "context": "Why dinah serve reads the workbench from disk: the operating system has no file-change notification that Dinah uses. It fills {why} in serve.reads.disk.",
+      "source": "3da6b0477fc8cc86"
+    },
+    "serve.reads.why.volume-type": {
+      "text": "वर्कबेंच किसी स्थिर स्थानीय डिस्क पर नहीं है",
+      "context": "Why dinah serve reads the workbench from disk: the workbench is on a network share, a removable drive or a RAM disk. It fills {why} in serve.reads.disk.",
+      "source": "6d7cac212f57d05e"
+    },
+    "serve.workdir.stays": {
+      "text": "(कार्यशील निर्देशिका {dir} पर छोड़ी गई: जाने के लिए किसी वॉल्यूम रूट की पुष्टि नहीं हो सकी, इसलिए इसके चलते रहने तक {dir} और उसके ऊपर के फ़ोल्डर लॉक रह सकते हैं)",
+      "context": "The clause dinah serve and dinah ui add to their startup line, after the reads clause, when they could not move their working directory to the root of a disk and stay in the folder they were started in. {dir} is that folder's path, written twice. The folders may stay locked rather than will, because whether a working directory holds its folder is not documented.",
+      "source": "86abede7055d16a7"
+    },
     "show.attachments": {
       "text": "संलग्नक:",
       "context": "The label above a card's attachments, printed between the links block and the comments block.",

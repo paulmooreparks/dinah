@@ -128,7 +128,7 @@ const fullDirInfoName = 68
 // listedEntryOf answers the entry for one record, or false when a reparse
 // point has vanished since it was listed.
 func listedEntryOf(dir, name string, attributes uint32) (fs.DirEntry, bool) {
-	entry := &listedEntry{dir: dir, name: name}
+	entry := &listedEntry{dir: dir, name: name, attributes: attributes}
 	switch {
 	case attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0:
 		info, err := os.Lstat(filepath.Join(dir, name))

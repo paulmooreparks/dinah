@@ -158,7 +158,7 @@ var plantExemptions = map[string]map[string]map[string]string{
 const benchPath = "dinah/internal/bench"
 
 // benchSeamKey is the FullName of the one function allowed to hold a Disk.
-const benchSeamKey = "(*dinah/internal/bench.Bench).source"
+const benchSeamKey = "(*dinah/internal/bench.Bench).source" // retired spelling, named deliberately
 
 // seam is package bench as one run of this guard sees it: the package, its
 // Disk, Source and OpenWith objects, and its binding set.
@@ -175,7 +175,7 @@ type seam struct {
 // loadSeam type-checks package bench with any companion files, through base.
 func loadSeam(t *testing.T, base *seamguard.Importer, extra ...string) *seam {
 	t.Helper()
-	pkg, err := seamguard.Load(filepath.Join("..", "bench"), extra, seamguard.LoadOptions{Importer: base})
+	pkg, err := seamguard.Load(filepath.FromSlash("../bench"), extra, seamguard.LoadOptions{Importer: base})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func loadSeam(t *testing.T, base *seamguard.Importer, extra ...string) *seam {
 	s.source, _ = scope.Lookup("Source").(*types.TypeName)
 	s.openWith = scope.Lookup("OpenWith")
 	if s.disk == nil || s.source == nil || s.openWith == nil {
-		t.Fatalf("package bench declares no Disk, Source or OpenWith, so the guard has no seam to judge")
+		t.Fatalf("the seam's package declares no Disk, Source or OpenWith, so the guard has no seam to judge")
 	}
 	g := seamguard.BuildGraph(pkg, seamguard.GraphOptions{Bottom: s.disk, Leaf: s.source})
 	for _, name := range scope.Names() {

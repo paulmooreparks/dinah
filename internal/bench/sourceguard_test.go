@@ -49,7 +49,7 @@ import (
 // argues for one read. The guard fails when a pair no longer occurs, so an
 // exemption cannot outlive what it excuses.
 var seamExemptions = map[string]map[string]string{
-	"(*dinah/internal/bench.Bench).newlineFiles": {
+	"(*dinah/internal/bench.Bench).newlineFiles": { // retired spelling, named deliberately
 		"path/filepath.WalkDir": "it lists files for dinah check and its newline repair; check is grounded, not routed, on the HTTP head " +
 			"(internal/httphead/routes.go, GroundLaterCard), and the repair writes, so no workbench opened over a resident snapshot ever " +
 			"reaches it; and WalkDir classifies the root with os.Lstat, which Source does not offer, so a conversion would " +
@@ -62,7 +62,7 @@ var seamExemptions = map[string]map[string]string{
 // declares its own function and the pair that excuses its first read.
 var residueExemptions = map[string]map[string]map[string]string{
 	"samepair.go": {
-		"(*dinah/internal/bench.Bench).plantSamePair": {"os.ReadFile": "the plant's own excused read"},
+		"(*dinah/internal/bench.Bench).plantSamePair": {"os.ReadFile": "the plant's own excused read"}, // retired spelling, named deliberately
 	},
 }
 
@@ -77,7 +77,7 @@ var outsideTheRead = map[string]string{
 }
 
 // seamKey is the FullName of the one function allowed to hold a Disk.
-const seamKey = "(*dinah/internal/bench.Bench).source"
+const seamKey = "(*dinah/internal/bench.Bench).source" // retired spelling, named deliberately
 
 // typeName answers the full name of a type's object.
 func typeName(tn *types.TypeName) string {
@@ -118,7 +118,7 @@ func runGuard(t *testing.T, importer *seamguard.Importer, exempt map[string]map[
 	disk, _ := scope.Lookup("Disk").(*types.TypeName)
 	source, _ := scope.Lookup("Source").(*types.TypeName)
 	if disk == nil || source == nil {
-		t.Fatalf("package bench declares no Disk or no Source, so the guard has no seam to judge")
+		t.Fatalf("this package declares no Disk or no Source, so the guard has no seam to judge")
 	}
 	g := seamguard.BuildGraph(pkg, seamguard.GraphOptions{Bottom: disk, Leaf: source})
 	var found []seamguard.Violation
@@ -140,7 +140,7 @@ func belongs(v seamguard.Violation, plant string) bool {
 
 // TestTheBenchReadsOnlyThroughItsSource is dinah-619/criteria/13's bench half.
 func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
-	if len(seamExemptions) != 1 || len(seamExemptions["(*dinah/internal/bench.Bench).newlineFiles"]) != 1 {
+	if len(seamExemptions) != 1 || len(seamExemptions["(*dinah/internal/bench.Bench).newlineFiles"]) != 1 { // retired spelling, named deliberately
 		t.Errorf("the exemption table holds %v, and section 2.3 of dinah-619 names exactly one read, newlineFiles's filepath.WalkDir", seamExemptions)
 	}
 	allowed := 0

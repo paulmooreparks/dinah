@@ -45,12 +45,12 @@ func TestAShortNameIsResolved(t *testing.T) {
 	}
 	v := watch(t, root)
 	write(t, filepath.Join(card, "card.md"), "after, written in place")
-	v.manual.Deliver(resident.Change{Path: filepath.Join("cards", short, "card.md"), Action: resident.Modified})
-	p := v.next()
-	if !names(p, "cards/0123456789ab/card.md") {
+	v.deliver(resident.Change{Path: filepath.Join("cards", short, "card.md"), Action: resident.Modified})
+	snapshot := v.current()
+	if p := v.publish(); !names(p, "cards/0123456789ab/card.md") {
 		t.Errorf("the change naming %s resolved to %v, wanted cards/0123456789ab/card.md", short, p.Paths)
 	}
-	mirrors(t, v.current(), root)
+	mirrors(t, snapshot, root)
 	if _, err := os.Stat(card); err != nil {
 		t.Fatal(err)
 	}

@@ -147,6 +147,12 @@ type dirEntry struct {
 	info fs.FileInfo
 	// infoErr is what the stat of this entry answered when it failed.
 	infoErr error
+	// link marks an entry isLink judged a link to somewhere else: every read
+	// at or below its path passes through to the disk.
+	link bool
+	// walked marks an entry the builder read as a directory, whose node the
+	// snapshot holds.
+	walked bool
 }
 
 func (e *dirEntry) Name() string               { return e.name }
@@ -244,6 +250,10 @@ func (s *Snapshot) placeIn(dir *dirNode, name string) (placement, *dirNode, *fil
 		return placedAbsent, nil, nil
 	}
 	entry := dir.entries[index]
+	if entry.(*dirEntry).link {
+		// A link, or anything below it, is the disk's to answer.
+		return placedUnplaced, nil, nil
+	}
 	if entry.IsDir() {
 		// A listed directory the snapshot holds no node for is one whose
 		// own read failed in a way the build recorded on the parent.

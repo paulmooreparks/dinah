@@ -4,14 +4,28 @@
 with one workbench. On Windows, Dinah keeps the workbench in memory and learns
 of every change to its files from Windows's own change notifications, so a
 read is answered without opening a file, and a card another process moves
-appears as soon as Windows reports the move. A program that rewrites a
+appears on the first page you open after Windows reports the move. The first
+page you open after the server starts takes longer, because Dinah reads the
+whole workbench into memory while that page waits, and the same happens once
+after Windows reports that it lost track of changes. Between requests Dinah
+holds nothing open inside the folders that contain the workbench, and it moves
+its own working directory out of them when it starts, so you can rename, move
+or delete any of them while the server runs; from then on it answers that no
+workbench is at the path it was started with, until one is there again. Two
+things Dinah cannot release can still stop such a rename: a `dinah` program
+file that itself sits inside one of those folders, and another program
+standing in or holding a file in one of them, such as the terminal you started
+the server from. Anything inside the workbench that is a symbolic link or a
+junction is read from disk on every request. A program that rewrites a
 workbench file in place, rather than the way Dinah writes one, can take a
 little longer to show, because Windows reports such a write when it reaches
 the disk. Every act, such as a claim or a move, still reads and writes the
 files themselves, so it is judged against the workbench as it stands on disk.
-On other systems, and for a workbench that is not on a fixed local disk, Dinah
-opens the workbench afresh for every request. Every body Dinah sends you is
-the JSON that `dinah mcp` sends for the same call, byte for byte.
+On other systems, for a workbench that is not on a fixed local disk, and for
+one on a disk mounted in a folder rather than at a drive letter, Dinah opens
+the workbench afresh for every request, and the line `dinah serve` prints when
+it starts says which of the two it is doing and why. Every body Dinah sends
+you is the JSON that `dinah mcp` sends for the same call, byte for byte.
 
 When you run `dinah serve`, Dinah prints the address it is listening on and
 keeps running until you interrupt it. It listens on `127.0.0.1:7340` unless

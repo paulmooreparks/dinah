@@ -58,7 +58,7 @@ type passWork struct {
 // Every row reads the disk as it stands when the batch is applied, so the
 // result depends neither on the order the changes arrived in nor on how many
 // changes one write produced.
-func reconcile(root string, base map[string]*dirNode, changes []Change, settles []*settleRequest, longForm func(string) (string, error)) (map[string]*dirNode, []string) {
+func reconcile(root string, base map[string]*dirNode, changes []Change, requests []*request, longForm func(string) (string, error)) (map[string]*dirNode, []string) {
 	b := &builder{root: root, dirs: make(map[string]*dirNode, len(base))}
 	for key, node := range base {
 		b.dirs[key] = node
@@ -67,8 +67,11 @@ func reconcile(root string, base map[string]*dirNode, changes []Change, settles 
 	for _, change := range changes {
 		b.classify(change, work, longForm)
 	}
-	for _, request := range settles {
-		for _, dir := range request.dirs {
+	for _, r := range requests {
+		if !r.settle {
+			continue
+		}
+		for _, dir := range r.dirs {
 			work.deep[dir] = true
 		}
 		work.shallow["."] = true
@@ -168,6 +171,12 @@ func matchesIn(dir *dirNode, name string) []string {
 // classifyResolved records the work for one resolved path, by the first row
 // of the reconcile table that fits what the path is on disk now.
 func (b *builder) classifyResolved(rel string, action Action, work *passWork) {
+	if isLinkPath(b.abs(rel)) {
+		// A link is held as its parent's entry and never read through, so
+		// the parent's re-list is the whole of its reconcile.
+		work.shallow[parentOf(rel)] = true
+		return
+	}
 	info, err := os.Stat(b.abs(rel))
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
@@ -316,14 +325,12 @@ func (b *builder) relist(rel string) []string {
 		kept := keptEntry(b, old, rel, entry, node)
 		if kept == nil {
 			touched = append(touched, joinRel(rel, name))
-			if entry.IsDir() {
-				b.dropTree(joinRel(rel, name))
-				if b.readTree(joinRel(rel, name), holdsAttachment && name == bench.PayloadDir) == nil {
-					continue
-				}
-			}
+			b.dropTree(joinRel(rel, name))
 			read, keep := b.entryOf(path, entry, payloads, node)
 			if !keep {
+				continue
+			}
+			if read.walked && b.readTree(joinRel(rel, name), holdsAttachment && name == bench.PayloadDir) == nil {
 				continue
 			}
 			kept = read
@@ -361,7 +368,7 @@ func keptEntry(b *builder, old *dirNode, rel string, entry fs.DirEntry, node *di
 		if !ok || child.err != nil {
 			return nil
 		}
-		return &dirEntry{name: name, typ: previous.typ, info: child.info}
+		return &dirEntry{name: name, typ: previous.typ, info: child.info, walked: true}
 	case entry.Type().IsRegular():
 		file, ok := old.files[name]
 		if !ok {

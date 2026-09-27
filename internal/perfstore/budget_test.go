@@ -2,6 +2,8 @@ package perfstore_test
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -165,7 +167,11 @@ func (l *libraryReads) take() ([]time.Duration, time.Duration) {
 }
 
 // libraryReadLimit is dinah-619's acceptance number: on Windows, the median of
-// a warm card page's library reads is under it, in both modes.
+// a warm card page's library reads is under it, in both modes. The operator
+// made it a standing gate on every pull request on 2026-09-27
+// (dinah-619/questions/2), and only he moves it. It is not a row of budgets,
+// so the budget rule never re-bases it and TestBudgetsFollowTheRule does not
+// judge it.
 const libraryReadLimit = 10 * time.Millisecond
 
 // sample is ten measured runs of one operation, after one discarded warm-up.
@@ -378,21 +384,34 @@ func budgetOperations(t *testing.T, store *perfstore.Store, b *bench.Bench, bina
 	}
 }
 
-// openResident opens the resident page-card reads, waits for its first
-// snapshot, and logs how long the cold load took and what it holds. Where
-// this platform has no watcher it answers nil, and the page reads the disk.
+// openResident opens the resident page-card reads and makes the first
+// request, one Current, which builds the snapshot inside it; that time is
+// what the first request after dinah serve starts costs on this store, and
+// it is logged with what the snapshot holds. Where this platform has no
+// watcher it answers nil, names why, and the page reads the disk.
 func openResident(t *testing.T, root string) *resident.Workbench {
 	t.Helper()
-	start := time.Now()
 	w, err := resident.Open(root, resident.Options{})
 	if err != nil {
-		t.Logf("perfstore: no resident (%v), so page-card reads the disk", err)
+		var unsupported *resident.Unsupported
+		if errors.As(err, &unsupported) {
+			t.Logf("perfstore: no resident (%s), so page-card reads the disk", unsupported.Why)
+		} else {
+			t.Logf("perfstore: no resident (%v), so page-card reads the disk", err)
+		}
 		return nil
 	}
 	t.Cleanup(func() { w.Close() })
-	<-w.Ready()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	start := time.Now()
+	pick := w.Current(ctx, time.Now())
+	took := time.Since(start)
+	if pick.Snapshot == nil {
+		t.Fatalf("the first request answered no snapshot (lapsing %v)", pick.Lapsing)
+	}
 	files, bytes := w.Held()
-	t.Logf("perfstore: resident cold load %s, %s files, %s bytes", millis(time.Since(start)), thousands(int64(files)), thousands(bytes))
+	t.Logf("perfstore: resident cold load %s, %s files, %s bytes", millis(took), thousands(int64(files)), thousands(bytes))
 	return w
 }
 

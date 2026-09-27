@@ -35,9 +35,12 @@ func startUI(t *testing.T, dir string, listen listenFunc, fail error, argv ...st
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	u := &uiRun{cancel: cancel, done: make(chan invocation, 1), fetched: make(chan int, 4)}
-	previousBase, previousListen, previousOpen := serveBase, serveListen, openURL
+	previousBase, previousListen, previousOpen, previousChdir := serveBase, serveListen, openURL, serveChdir
 	serveBase = func() context.Context { return ctx }
 	serveListen = listen
+	// serveChdir is recorded rather than run, so no test moves the test
+	// binary's working directory.
+	serveChdir = func(string) error { return nil }
 	openURL = func(url string) error {
 		u.mu.Lock()
 		u.opened = append(u.opened, url)
@@ -57,7 +60,7 @@ func startUI(t *testing.T, dir string, listen listenFunc, fail error, argv ...st
 	}
 	t.Cleanup(func() {
 		cancel()
-		serveBase, serveListen, openURL = previousBase, previousListen, previousOpen
+		serveBase, serveListen, openURL, serveChdir = previousBase, previousListen, previousOpen, previousChdir
 	})
 	go func() { u.done <- runCLI(t, dir, append([]string{"ui"}, argv...)...) }()
 	return u
@@ -112,7 +115,7 @@ func TestUIOpensTheBoundURLAfterAnnouncingIt(t *testing.T) {
 	if !strings.HasPrefix(url, "http://127.0.0.1:") || !strings.HasSuffix(url, "/") || strings.HasSuffix(url, ":0/") {
 		t.Errorf("opened %q", url)
 	}
-	if lines := strings.Split(strings.TrimSpace(got.out), "\n"); len(lines) != 1 || !strings.HasSuffix(lines[0], " at "+url) {
+	if lines := strings.Split(strings.TrimSpace(got.out), "\n"); len(lines) != 1 || !strings.HasSuffix(lines[0], " at "+url+strings.TrimSuffix(readsClause(), "\n")) {
 		t.Errorf("stdout is %q, which does not announce the URL opened, %s, as its one line", got.out, url)
 	}
 }

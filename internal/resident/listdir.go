@@ -18,6 +18,9 @@ var listDirHeld func(path string)
 type listedEntry struct {
 	dir, name string
 	typ       fs.FileMode
+	// attributes are the FileAttributes member of the entry's
+	// FILE_FULL_DIR_INFO record, which isLink reads.
+	attributes uint32
 }
 
 func (e *listedEntry) Name() string      { return e.name }

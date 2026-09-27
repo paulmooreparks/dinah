@@ -36,7 +36,15 @@ func TestMain(m *testing.M) {
 	restoreTemp := testenv.IsolateTempDir()
 	restoreIsolated := testenv.ClearVars(isolatedEnv...)
 	tableSiteRecorder = recordReachedTableSite
+	// No test may leave the test binary standing elsewhere than it started:
+	// the in-process callers of serveUntil replace serveChdir with a recorder
+	// for exactly this reason.
+	before, beforeErr := os.Getwd()
 	code := m.Run()
+	if after, err := os.Getwd(); beforeErr != nil || err != nil || after != before {
+		fmt.Fprintf(os.Stderr, "the test binary started in %s and ended in %s, so a test moved its working directory\n", before, after)
+		code = 1
+	}
 	tableSiteRecorder = nil
 	for _, complaint := range unreachedTableSites() {
 		fmt.Fprintln(os.Stderr, complaint)

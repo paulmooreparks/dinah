@@ -39,7 +39,7 @@ func (b *builder) readTree(rel string, payloads bool) *dirNode {
 		holdsAttachment = true
 	}
 	for _, entry := range node.entries {
-		if !entry.IsDir() {
+		if !entry.(*dirEntry).walked {
 			continue
 		}
 		b.readTree(joinRel(rel, entry.Name()), holdsAttachment && entry.Name() == bench.PayloadDir)
@@ -104,16 +104,38 @@ func (b *builder) readDir(rel string, payloads bool) *dirNode {
 	return node
 }
 
-// entryOf reads one listed entry. A regular file is stat-ed and read, the
-// head alone for a payload, and a directory is stat-ed; the entry carries the
-// info the snapshot will answer for it. An entry that has vanished since the
-// listing is dropped.
+// entryOf reads one listed entry. An entry isLink judges a link to somewhere
+// else is held as its parent's entry alone, marked, and nothing is read
+// through it: a change at its target is reported under the target's path, or
+// on another volume, so no record would ever say that what the resident held
+// below it had gone stale, and every read at or below it passes through to
+// the disk (section 4.9 of dinah-619's specification). Any other regular file
+// is stat-ed and read, the head alone for a payload, and a directory is
+// stat-ed and marked to be walked; an entry of any other type is resolved
+// with os.Stat and read as what it resolves to. The entry keeps the type the
+// listing gave it, so the snapshot's listing answers as os.ReadDir does. An
+// entry that has vanished since the listing is dropped.
 func (b *builder) entryOf(dir string, entry fs.DirEntry, payloads bool, node *dirNode) (*dirEntry, bool) {
 	name := entry.Name()
 	path := filepath.Join(dir, name)
 	held := &dirEntry{name: name, typ: entry.Type()}
+	if isLink(dir, entry) {
+		held.link = true
+		held.info, held.infoErr = entry.Info()
+		if errors.Is(held.infoErr, fs.ErrNotExist) {
+			return nil, false
+		}
+		return held, true
+	}
+	regular, isDir := entry.Type().IsRegular(), entry.IsDir()
+	if !regular && !isDir {
+		info, err := os.Stat(path)
+		if err == nil {
+			regular, isDir = info.Mode().IsRegular(), info.IsDir()
+		}
+	}
 	switch {
-	case entry.IsDir():
+	case isDir:
 		info, err := os.Stat(path)
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, false
@@ -123,8 +145,9 @@ func (b *builder) entryOf(dir string, entry fs.DirEntry, payloads bool, node *di
 			return held, true
 		}
 		held.info = &entryInfo{name: name, size: info.Size(), mode: info.Mode(), modTime: info.ModTime()}
+		held.walked = true
 		return held, true
-	case entry.Type().IsRegular():
+	case regular:
 		file := readFile(path, payloads)
 		if file == nil {
 			return nil, false

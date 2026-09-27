@@ -32,6 +32,7 @@ type residentHandle struct {
 	w         *resident.Workbench
 	manual    *residenttest.Manual
 	published chan resident.Published
+	received  chan resident.Batch
 	passed    *pathLog
 }
 
@@ -56,7 +57,7 @@ func (p *pathLog) take() []string {
 }
 
 // withResident is an option that populates the workbench, then opens a
-// resident over it with a hand-driven notifier, waits for the first snapshot
+// resident over it with a hand-driven notifier, warms it with one request,
 // and serves it.
 func withResident(t *testing.T, handle *residentHandle, populate func(root, home string)) func(*Config) {
 	return func(cfg *Config) {
@@ -66,11 +67,18 @@ func withResident(t *testing.T, handle *residentHandle, populate func(root, home
 		}
 		handle.manual = residenttest.NewManual()
 		handle.published = make(chan resident.Published, 256)
+		handle.received = make(chan resident.Batch, 256)
 		handle.passed = &pathLog{}
 		hooks := &resident.Hooks{
 			AfterPublish: func(p resident.Published) {
 				select {
 				case handle.published <- p:
+				default:
+				}
+			},
+			AfterReceive: func(b resident.Batch) {
+				select {
+				case handle.received <- b:
 				default:
 				}
 			},
@@ -81,30 +89,38 @@ func withResident(t *testing.T, handle *residentHandle, populate func(root, home
 			t.Fatalf("open the resident: %v", err)
 		}
 		t.Cleanup(func() { w.Close() })
-		select {
-		case <-w.Ready():
-		case <-time.After(waitDeadline):
-			t.Fatal("the resident's first build did not finish")
-		}
+		warm(t, w)
 		handle.w = w
 		cfg.Resident = w
 	}
 }
 
-// await waits for a publish satisfying want.
-func (h *residentHandle) await(t *testing.T, what string, want func(resident.Published) bool) resident.Published {
+// warm is the first request after Open, which builds the snapshot inside it:
+// one Current, which must answer a snapshot, or name the cards whose claims
+// have lapsed when a fixture carries one, after which Ready must be closed.
+func warm(t *testing.T, w *resident.Workbench) {
 	t.Helper()
-	timeout := time.After(waitDeadline)
-	for {
-		select {
-		case p := <-h.published:
-			if want(p) {
-				return p
-			}
-		case <-timeout:
-			t.Fatalf("no publish %s arrived within %s", what, waitDeadline)
-			return resident.Published{}
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), waitDeadline)
+	defer cancel()
+	if pick := w.Current(ctx, time.Now()); pick.Snapshot == nil && len(pick.Lapsing) == 0 {
+		t.Fatal("the first request answered no snapshot")
+	}
+	select {
+	case <-w.Ready():
+	default:
+		t.Fatal("the first request returned and Ready is not closed")
+	}
+}
+
+// receive waits for the resident to receive one batch from the notifier.
+func (h *residentHandle) receive(t *testing.T) resident.Batch {
+	t.Helper()
+	select {
+	case b := <-h.received:
+		return b
+	case <-time.After(waitDeadline):
+		t.Fatalf("no batch was received within %s", waitDeadline)
+		return resident.Batch{}
 	}
 }
 
@@ -119,13 +135,32 @@ func (h *residentHandle) drain() {
 	}
 }
 
-// rebuild reports an overflow and waits for the rebuild it causes, which is
-// how a test brings the resident up to writes it made after the first build.
+// rebuild reports an overflow, waits until it is received, and asks with one
+// request, inside which the rebuild runs; it is how a test brings the resident
+// up to writes it made after the first build.
 func (h *residentHandle) rebuild(t *testing.T) {
 	t.Helper()
 	h.drain()
 	h.manual.Overflow()
-	h.await(t, "rebuilding after the overflow", func(p resident.Published) bool { return p.Rebuilt })
+	h.receive(t)
+	ctx, cancel := context.WithTimeout(context.Background(), waitDeadline)
+	defer cancel()
+	if pick := h.w.Current(ctx, time.Now()); pick.Snapshot == nil {
+		t.Fatal("the request after the overflow answered no snapshot")
+	}
+	rebuilt := false
+	for {
+		select {
+		case p := <-h.published:
+			rebuilt = rebuilt || p.Rebuilt
+			continue
+		default:
+		}
+		break
+	}
+	if !rebuilt {
+		t.Fatal("the request after the overflow published no rebuild")
+	}
 }
 
 // fresh opens the workbench from disk the way another process would.
@@ -536,7 +571,9 @@ func TestAPageSeesItsOwnAct(t *testing.T) {
 			handle.drain()
 			handle.manual.Deliver(resident.Change{Path: filepath.Join(bench.CardsDir, idOf(t, f, other), bench.CardAnchor), Action: resident.Modified})
 			handle.manual.Release()
-			handle.await(t, "applying the other library's move", func(p resident.Published) bool { return !p.Rebuilt })
+			// The change is published only when a request asks: the GET below
+			// is that request, and it waits for the pass that applies it.
+			handle.receive(t)
 			if lane := laneOf(parseHTML(t, f.page("/").body), other); lane != "Review" {
 				t.Errorf("another library's move is not drawn (in %q) after its change was applied", lane)
 			}
@@ -669,7 +706,9 @@ func TestAPollAnswersFromTheResident(t *testing.T) {
 		resident.Change{Path: filepath.Join(bench.CardsDir, id, bench.JournalName), Action: resident.Modified},
 	)
 	handle.manual.Release()
-	handle.await(t, "applying the move", func(p resident.Published) bool { return !p.Rebuilt })
+	// The first poll that starts after the change is received waits for the
+	// pass that applies it.
+	handle.receive(t)
 	answer := poll()
 	if changed, _ := answer["changed"].(bool); !changed {
 		t.Error("the poll answered unchanged after the move was applied")
@@ -695,7 +734,7 @@ func TestALapsedClaimIsLapsedByTheRead(t *testing.T) {
 	handle := &residentHandle{}
 	sources := &sourceLogger{}
 	var card string
-	f := newFixture(t, func(cfg *Config) { cfg.observeSource = sources.add }, withResident(t, handle, func(root, home string) {
+	f := newFixture(t, func(cfg *Config) { cfg.ObserveSource = sources.add }, withResident(t, handle, func(root, home string) {
 		card = fresh(t, root, home).Add(&verb.Request{Verb: "add", Actor: "alka", Title: "A leased card", Column: "build"}).Card.Ref
 		if response := fresh(t, root, home).Do(&verb.Request{Verb: verb.Claim, Actor: "alka", Card: card, Expires: time.Hour}); response.Outcome != contract.OutcomeOK {
 			t.Fatalf("claim: %+v", response)
@@ -758,7 +797,7 @@ func TestEveryPageCarriesACursorChangesAcceptsOnTheResident(t *testing.T) {
 			resident.Change{Path: filepath.Join(bench.CardsDir, id, bench.CardAnchor), Action: resident.Modified},
 			resident.Change{Path: filepath.Join(bench.CardsDir, id, bench.JournalName), Action: resident.Modified},
 		)
-		handle.await(t, "applying the move", func(p resident.Published) bool { return !p.Rebuilt })
+		handle.receive(t)
 	})
 }
 
@@ -782,7 +821,7 @@ func (c *commandLogger) take() []string {
 	return taken
 }
 
-// sourceLogger records what observeSource reported.
+// sourceLogger records what ObserveSource reported.
 type sourceLogger struct {
 	mu      sync.Mutex
 	choices []bool
@@ -830,7 +869,7 @@ func TestTimeReadSeesEveryLibraryCall(t *testing.T) {
 		handle := &residentHandle{}
 		options := []func(*Config){func(cfg *Config) {
 			cfg.TimeRead = logger.add
-			cfg.observeSource = sources.add
+			cfg.ObserveSource = sources.add
 		}}
 		var card string
 		populate := func(root, home string) {
@@ -857,7 +896,7 @@ func TestTimeReadSeesEveryLibraryCall(t *testing.T) {
 			t.Errorf("%s: TimeRead saw %v, wanted %v", c.name, got, c.want)
 		}
 		if got := sources.take(); len(got) != 1 || got[0] != c.resident {
-			t.Errorf("%s: observeSource reported %v, wanted one choice of %v", c.name, got, c.resident)
+			t.Errorf("%s: ObserveSource reported %v, wanted one choice of %v", c.name, got, c.resident)
 		}
 	}
 }

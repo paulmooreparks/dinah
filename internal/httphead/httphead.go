@@ -74,9 +74,16 @@ type Config struct {
 	// TimeRead, when set, is called with each library call's command and the
 	// time it took. It is a test seam, nil in production.
 	TimeRead func(command string, took time.Duration)
-	// observeSource, when set, is called once per request with whether the
-	// request read the resident. Only this package's tests set it.
-	observeSource func(fromResident bool)
+	// ObserveSource, when set, is called once per request with whether the
+	// request read the resident. It is a test seam, nil in production, and
+	// exported because a test in cmd/dinah orders it against the resident's
+	// own hooks.
+	ObserveSource func(fromResident bool)
+	// ObserveFirstWrite, when set, is called once per request that reaches
+	// the mux, at the moment the first header or body byte is about to reach
+	// the connection, after the lapse settle has returned. It is a test seam,
+	// nil in production.
+	ObserveFirstWrite func()
 }
 
 // head is the handler Handler returns.
@@ -187,12 +194,77 @@ func (h *head) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.refuse(x, contract.UnknownResource, r.URL.Path)
 		return
 	}
-	h.mux.ServeHTTP(w, r)
-	// A request that read the disk because a claim had lapsed wrote each
-	// lapse under the card's lock, as a read always has; the settle brings
-	// those cards into the resident, so the next request reads it again.
-	if len(state.lapsing) > 0 && h.cfg.Resident != nil {
-		h.cfg.Resident.Settle(r.Context(), state.lapsing...)
+	sw := &settleWriter{w: w, state: state, first: h.cfg.ObserveFirstWrite}
+	if h.cfg.Resident != nil {
+		sw.settle = func(dirs []string) { h.cfg.Resident.Settle(r.Context(), dirs...) }
+	}
+	h.mux.ServeHTTP(sw, r)
+	// net/http writes the response itself after the handler returns when the
+	// route wrote nothing, so the settle runs now for such a route.
+	sw.before()
+}
+
+// settleWriter runs the request's lapse settle once, before the first header
+// or body byte reaches the ResponseWriter it wraps. A request that read the
+// disk because a claim had lapsed wrote each lapse under the card's lock, as
+// a read always has, and the settle brings those cards into the resident, so
+// the next request reads it again. Settling after the route returned would be
+// too late, because by then the route has written its whole body, and a
+// client could hold the complete answer while the settle's pass still had
+// files open below the workbench root.
+//
+// Three documented facts make the wrapper sufficient. http.ResponseWriter's
+// Write: "If WriteHeader has not yet been called, Write calls
+// WriteHeader(http.StatusOK) before writing the data." http.Handler:
+// "Returning signals that the request is finished; it is not valid to use the
+// ResponseWriter or read from the Request.Body after or concurrently with the
+// completion of the ServeHTTP call." And http.NewResponseController: "The
+// ResponseWriter should be the original value passed to the
+// Handler.ServeHTTP method, or have an Unwrap method returning the original
+// ResponseWriter." It has no Unwrap method and no Flush method, so nothing
+// the route does can reach the connection around it.
+//
+// A route that panics before its first write skips the settle, and no byte of
+// the response follows, because http.Handler says of a panicking ServeHTTP
+// that the server "recovers the panic, logs a stack trace to the server error
+// log, and either closes the network connection or sends an HTTP/2
+// RST_STREAM". The lapse the disk read wrote then reaches the resident the
+// way every other change does.
+type settleWriter struct {
+	w     http.ResponseWriter
+	state *requestState
+	// settle settles the directories it is given; nil when there is no
+	// resident.
+	settle func(dirs []string)
+	// first is Config.ObserveFirstWrite, or nil.
+	first   func()
+	settled bool
+}
+
+func (s *settleWriter) Header() http.Header { return s.w.Header() }
+
+func (s *settleWriter) WriteHeader(code int) {
+	s.before()
+	s.w.WriteHeader(code)
+}
+
+func (s *settleWriter) Write(p []byte) (int, error) {
+	s.before()
+	return s.w.Write(p)
+}
+
+// before runs the settle when the request has lapsing cards, then the
+// observer, once.
+func (s *settleWriter) before() {
+	if s.settled {
+		return
+	}
+	s.settled = true
+	if s.settle != nil && len(s.state.lapsing) > 0 {
+		s.settle(s.state.lapsing)
+	}
+	if s.first != nil {
+		s.first()
 	}
 }
 
@@ -378,13 +450,13 @@ func (h *head) chooseSource(x *exchange) {
 	x.chosen = true
 	read := x.r.Method == http.MethodGet || x.r.Method == http.MethodHead
 	if read && h.cfg.Resident != nil {
-		x.pick = h.cfg.Resident.Current(x.start)
+		x.pick = h.cfg.Resident.Current(x.r.Context(), x.start)
 		if x.state != nil {
 			x.state.lapsing = x.pick.Lapsing
 		}
 	}
-	if h.cfg.observeSource != nil {
-		h.cfg.observeSource(x.pick.Snapshot != nil)
+	if h.cfg.ObserveSource != nil {
+		h.cfg.ObserveSource(x.pick.Snapshot != nil)
 	}
 }
 
