@@ -568,7 +568,10 @@ const itemStepUnlocked = "item-unlocked"
 // runs the work body N times under it, which is the same concurrency story
 // this acquisition already tells for one write.
 func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *Response)) *Response {
-	entity, bare := l.admitItem(req)
+	entity, bare, unreachable := l.admitItem(req)
+	if unreachable != nil {
+		return unreachable
+	}
 	if bare != nil {
 		var card *bench.Card
 		if entity != nil {
@@ -626,21 +629,30 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 // card, so it calls admitResolvedItem directly and never pays for a second
 // resolution of the reference it just built.
 //
-// A refusal the resolution itself raises carries no card, since none is
-// known yet; refuseFrom composes no view for a nil card, on the terms
-// refuseWith always has.
-func (l *Library) admitItem(req *Request) (*bench.EntityRef, *contract.Refusal) {
+// Three answers rather than two, because a reference that fails to resolve
+// can fail two different ways that must not collapse into one. A reference
+// naming nothing is a refusal, carrying no card since none is known yet;
+// refuseFrom composes no view for a nil card, on the terms refuseWith always
+// has. A resolver failing for a reason that is not itself a *contract.Refusal
+// is a defect below this call rather than a person's misnamed reference, so
+// it is answered as unreachable, with its own text, through FromError, on the
+// terms admitItem always reported it before it learned to answer a bare
+// reason. Every arm of ResolveEntity's own call graph answers with either nil
+// or a *contract.Refusal today, so no caller has forced this arm, and the
+// distinction is kept on that basis rather than assumed away because nothing
+// has reached it yet.
+func (l *Library) admitItem(req *Request) (*bench.EntityRef, *contract.Refusal, *Response) {
 	entity, err := l.Bench.ResolveEntity(req.Ref)
 	if err != nil {
 		if refusal, ok := err.(*contract.Refusal); ok {
-			return nil, refusal
+			return nil, refusal, nil
 		}
-		return nil, itemRefusal(req, contract.UnknownPath, req.Ref)
+		return nil, nil, l.FromError(req, err)
 	}
 	if bare := l.admitResolvedItem(req, entity); bare != nil {
-		return entity, bare
+		return entity, bare, nil
 	}
-	return entity, nil
+	return entity, nil, nil
 }
 
 // admitResolvedItem is what makes an already-resolved entity admissible as an
