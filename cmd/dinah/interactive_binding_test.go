@@ -6,10 +6,21 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
+
+// boundSettle is how long boundRun waits, after the last line it saw finish,
+// before deciding no more are coming. Every line a bound key runs now ends
+// off the event loop through afterLine's own reread, exactly as an act's
+// does, so a burst of keys typed all at once can leave more than one such
+// read still in flight when the last key lands; boundRun cannot know in
+// advance how many of the keys it wrote will turn out to run a line at all,
+// since a binding refused for want of a selection or an offer runs none, so
+// it drains lineDone until it falls quiet rather than counting.
+const boundSettle = 300 * time.Millisecond
 
 // bindKey stores a key binding and its label in the user's configuration,
 // past the command line, as a test arranging one before the head starts.
@@ -26,14 +37,34 @@ func bindKey(t *testing.T, key, template, label string) {
 	}
 }
 
-// boundRun runs the head over keys, recording the words every line ran.
+// boundRun runs the head over keys, recording the words every line ran. Every
+// line a bound key runs now ends off the event loop, so keys is written
+// whole and then boundRun waits for lineDone to fall quiet, rather than
+// following it straight with ctrl+c: a key of keys that is still queued
+// behind an outstanding read when ctrl+c reaches the program is answered
+// never, since ctrl+c quits ahead of the queue rather than behind it.
 func boundRun(t *testing.T, root, actor, keys string) (tuiRun, [][]string) {
 	t.Helper()
 	asActor(t, actor)
 	var ran [][]string
-	seam := tuiSeam(t, strings.NewReader(keys+keyCtrlC), actWidth, actHeight)
-	seam.lineDone = func(result *lineResult) { ran = append(ran, result.words) }
-	run := runTUIThrough(t, root, seam)
+	s, seam := newScript(t, actWidth, actHeight, true)
+	done := make(chan *lineResult, 64)
+	seam.lineDone = func(result *lineResult) { done <- result }
+	run := s.run(root, seam, func() {
+		if keys != "" {
+			s.write(keys)
+		}
+	drain:
+		for {
+			select {
+			case result := <-done:
+				ran = append(ran, result.words)
+			case <-time.After(boundSettle):
+				break drain
+			}
+		}
+		s.write(keyCtrlC)
+	})
 	if run.model == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
 	}
@@ -73,7 +104,7 @@ func TestABindingRunsItsLineWithTheValuesSubstituted(t *testing.T) {
 	if last.Event != contract.EventCommented || last.Actor.Name != "alka" || last.Actor.Model != "m1" {
 		t.Errorf("the comment was journaled as %+v", last)
 	}
-	seam := tuiSeam(t, strings.NewReader("u"+keyBackspace+keyCtrlC), actWidth, actHeight)
+	s, seam := newScript(t, actWidth, actHeight, true)
 	seam.bindingValue = func(placeholder, value string) string {
 		if placeholder == "view" {
 			return "sorted --override later"
@@ -81,8 +112,13 @@ func TestABindingRunsItsLineWithTheValuesSubstituted(t *testing.T) {
 		return value
 	}
 	var words []string
-	seam.lineDone = func(result *lineResult) { words = result.words }
-	runTUIThrough(t, root, seam)
+	done := make(chan *lineResult, 1)
+	seam.lineDone = func(result *lineResult) { words = result.words; done <- result }
+	s.run(root, seam, func() {
+		s.write("u")
+		<-done
+		s.write(keyBackspace + keyCtrlC)
+	})
 	if len(words) != 3 || words[2] != "sorted --override later" {
 		t.Errorf("the binding handed %q, wanted three words with the value whole", words)
 	}

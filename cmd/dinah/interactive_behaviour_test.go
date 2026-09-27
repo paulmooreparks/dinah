@@ -291,6 +291,22 @@ const capacityDefinition = `{
 // lines, cleaned, that dinah move writes to stderr for the same refusal on a
 // copy of the workbench, the card is unchanged, and the next frame no longer
 // offers that destination.
+//
+// seam.command holds every command from the start, the watcher's own wait
+// for a change included, so Z's own move to fill Review is not even noticed
+// until hold is released: the offer a reads stays the one drawn before Z's
+// move, exactly as an ordinary frame's would if the destination filled
+// between the frame and the key, which is the whole of what this test means
+// to arrange. Releasing hold then lets the watcher's now-belated notice of
+// Z's move and a's own reread run together, dispatching a read each, and
+// changed's own rule that a stale wait's report never clears the message
+// area is what keeps that notice, riding in on a card the change never
+// touched, from erasing a's own refusal before the test ever reads it. Both
+// reads are awaited before the check on the offer, since either can be the
+// one whose answer lands and is kept: a's own is not guaranteed to outrun
+// the watcher's, given the watcher's own path runs one more round trip
+// first, and checking after only the first of the two to land read the
+// offer before the second, whichever it turned out to be, had applied.
 func TestARefusedOfferedMoveShowsTheMovesOwnRefusal(t *testing.T) {
 	root := newBenchFromDefinition(t, capacityDefinition)
 	for _, argv := range [][]string{{"add", "Offered"}, {"move", "fx-1", "implement"}, {"add", "Filler"}, {"move", "fx-2", "implement"}} {
@@ -304,13 +320,14 @@ func TestARefusedOfferedMoveShowsTheMovesOwnRefusal(t *testing.T) {
 		step(t, root, "move", "fx-2", "review")
 		anchor = anchorText(t, root, "fx-1")
 	})
+	count := 0
 	run := s.run(root, seam, func() {
 		s.write("Z")
 		s.waitFor("Z", isKey("Z"))
 		s.write("a")
 		s.waitFor("a", isKey("a"))
 		close(hold)
-		s.waitFor("a's own read", isViewRead)
+		s.waitFor("both a's own read and the watcher's", countingViewReads(&count, 2))
 		s.write(keyCtrlC)
 	})
 	m := run.model

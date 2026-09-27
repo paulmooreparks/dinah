@@ -302,8 +302,7 @@ func (m *interactiveModel) startKeyAct(row interactiveAct) tea.Cmd {
 		pending.back = modeItems
 		args["item"] = item.Ref
 		pending.finish = func(m *interactiveModel, args map[string]any) tea.Cmd {
-			m.runVerb(pending, args)
-			return nil
+			return m.runVerb(pending, args)
 		}
 	case row.read != nil:
 		pending.basis = ""
@@ -315,8 +314,7 @@ func (m *interactiveModel) startKeyAct(row interactiveAct) tea.Cmd {
 	default:
 		args["card"] = ref
 		pending.finish = func(m *interactiveModel, args map[string]any) tea.Cmd {
-			m.runVerb(pending, args)
-			return nil
+			return m.runVerb(pending, args)
 		}
 	}
 	return m.startPending(pending)
@@ -493,15 +491,21 @@ func (m *interactiveModel) identityInto(req *verb.Request) {
 // runVerb performs a gathered act through the library: its request is built
 // from the gathered arguments, with the head's identity and, for an act on a
 // card itself, the drawn revision as its basis, and it runs as the machine
-// heads run a verb. The answer is shown and the view read again at once, on
-// purpose, unlike act's own: a step-gathered act, comment among the browse
-// ones and every item act, submits after a multi-character prompt, so the
-// next key typed is usually several already queued up in the terminal's own
-// buffer rather than one more key a person is waiting to see land, and
-// dinah-636's fix for a single key's own redraw does not reach this surface.
-// A successful act bumps the watch epoch, exactly as act does, so one act
-// produces one refresh.
-func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) {
+// heads run a verb. The answer is shown at once, and the view is read again
+// off the event loop through reread, exactly as act's own redraw is: a
+// step-gathered act is no less able to meet a slow board than a single key
+// is, so leaving this read synchronous would freeze the keyboard behind it,
+// the same invariant dinah-636 exists to hold. A key or a paste that arrives
+// before this read lands is queued in Update and replayed once it does,
+// which is what keeps a worded command or a bound key run back to back with
+// another one ordered correctly without either one blocking. Every act bumps
+// the watch epoch and records itself for batchIsOwnAct, whatever its
+// outcome, exactly as act does and for the same reason: this call's own
+// reread already reads the board as it now stands, so a wait already in
+// flight has nothing left to tell that reread has not already picked up, and
+// letting a refusal skip the bump would let that wait wipe the refusal's own
+// message out from under it once it runs.
+func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) tea.Cmd {
 	req := answer.Build(pending.verb, args)
 	m.identityInto(req)
 	req.Basis = pending.basis
@@ -514,10 +518,9 @@ func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) {
 		subject = pending.item
 	}
 	m.actedOn(response, pending.verb, subject, args)
-	if response.Outcome == contract.OutcomeOK {
-		m.watchEpoch++
-	}
-	m.syncReread()
+	m.watchEpoch++
+	m.recordOwnAct(response)
+	return m.reread()
 }
 
 // actedOn shows the answer of an act the step machinery ran: the refusal the

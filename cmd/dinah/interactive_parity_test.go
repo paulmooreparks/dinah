@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
@@ -182,12 +183,25 @@ func TestEveryLineCommandReachesItsRunFunction(t *testing.T) {
 		names = append(names, c.name)
 	}
 	var reached []string
-	seam := tuiSeam(t, strings.NewReader(lineKeys(names...)+keyCtrlC), 120, 30)
+	s, seam := newScript(t, 120, 30, true)
 	seam.lineDispatch = func(name string) bool {
 		reached = append(reached, name)
 		return true
 	}
-	run := runTUIThrough(t, root, seam)
+	done := make(chan *lineResult, 1)
+	seam.lineDone = func(result *lineResult) { done <- result }
+	run := s.run(root, seam, func() {
+		for _, name := range names {
+			s.write(":" + name + keyEnter)
+			select {
+			case <-done:
+			case <-time.After(tuiWait):
+				t.Errorf("the line %q never ended", name)
+				return
+			}
+		}
+		s.write(keyCtrlC)
+	})
 	if run.code != 0 {
 		t.Fatalf("the head exited %d: %s", run.code, run.errw)
 	}
