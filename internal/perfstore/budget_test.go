@@ -111,13 +111,23 @@ func TestReadBudgets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("check the generated store: %v", err)
 	}
+	// check.unarchived-done is expected here rather than a defect: the
+	// development shape plants a fifth of its live cards straight in Done
+	// (perfstore.go's placeCards), mirroring a workbench snapshot taken
+	// before dinah-634's archive-on-done existed, which is dinah-634's own
+	// section 5, case three (a card filed straight into a done-kind column).
+	unexpected := 0
 	for _, finding := range findings {
+		if finding.Key == bench.FindingUnarchivedDone {
+			continue
+		}
+		unexpected++
 		t.Errorf("check finding %s %s at %s", finding.Key, finding.Detail, finding.Path)
 	}
-	if len(findings) > 0 {
+	if unexpected > 0 {
 		t.FailNow()
 	}
-	t.Logf("perfstore: check clean")
+	t.Logf("perfstore: check clean apart from %d expected %s findings", len(findings), bench.FindingUnarchivedDone)
 	binary := buildBinary(t)
 	home := t.TempDir()
 	operations := budgetOperations(t, store, b, binary, home)

@@ -1429,17 +1429,21 @@ func TestEachEarlyReturnInDoReleasesTheCardsLock(t *testing.T) {
 		h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "bob", Expires: time.Minute})
 		h.advance(time.Hour)
 		h.reopen()
-		// lapse's own write (card.Save, inside Do's call to l.lapse) is
-		// forced to fail by making the card's anchor read-only: the claim
-		// has already lapsed by the clock, so Do tries to write the expiry
-		// before it reaches evaluate, and the write is refused.
-		anchor := filepath.Join(h.card(ref).Dir, bench.CardAnchor)
-		if err := os.Chmod(anchor, 0o400); err != nil {
+		// lapse's own write is forced to fail at the journal append rather
+		// than at card.Save: Save writes through a temporary file and a
+		// rename, and POSIX's rename(2) checks the containing directory's
+		// permissions rather than the target file's own, so a read-only
+		// anchor does not stop the write on Linux or macOS the way it does
+		// on Windows. AppendEvent opens the journal file directly with
+		// O_WRONLY, which every platform refuses alike when the file is
+		// read-only, so the journal is the portable target.
+		journal := h.card(ref).JournalPath()
+		if err := os.Chmod(journal, 0o400); err != nil {
 			t.Fatalf("chmod: %v", err)
 		}
 		resp := h.do(&Request{Verb: Move, Card: ref, Actor: "bob", Column: doing})
-		if err := os.Chmod(anchor, 0o644); err != nil {
-			t.Fatalf("restore the anchor's mode: %v", err)
+		if err := os.Chmod(journal, 0o644); err != nil {
+			t.Fatalf("restore the journal's mode: %v", err)
 		}
 		if resp.Outcome == contract.OutcomeOK {
 			t.Fatalf("wanted the forced lapse failure to refuse the move, got ok")
