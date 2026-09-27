@@ -24,11 +24,22 @@ import (
 // disk at the moment of the write rather than a snapshot taken before it. Two
 // processes reaching the same card therefore cannot both see it ready, since
 // the second is refused the lock outright.
+// doStepAdmitted and doStepArchiving are Do's two Interpose windows, each a
+// stretch where nothing refuses a second process: doStepAdmitted is between
+// the reference resolving and Do's own lock being taken, and doStepArchiving
+// is between Do releasing that lock and archiveOnDone re-acquiring it. Ordinary
+// use sets Interpose to nil and neither ever fires.
+const (
+	doStepAdmitted  = "admitted"
+	doStepArchiving = "archiving"
+)
+
 func (l *Library) Do(req *Request) *Response {
 	found, refused := l.admit(req)
 	if refused != nil {
 		return refused
 	}
+	l.interpose(doStepAdmitted)
 	lock, err := bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return l.FromError(req, err)
@@ -79,6 +90,7 @@ func (l *Library) Do(req *Request) *Response {
 		response.WarningDetail = found.StalePrefix
 	}
 	if req.Verb == Move && response.Outcome == contract.OutcomeOK && !req.NoArchive {
+		l.interpose(doStepArchiving)
 		l.archiveOnDone(req, response)
 	}
 	return response
@@ -89,6 +101,15 @@ func (l *Library) Do(req *Request) *Response {
 // the card has already been released above. Called only from Do, and only
 // when req.Verb is Move, the move's own outcome is ok, and the caller did
 // not pass NoArchive.
+//
+// The column read here, off response.Card, is a snapshot Do took before its
+// own lock came off; a concurrent move could carry the card out of Done in
+// the window before Archive's own lock is taken (doStepArchiving is exactly
+// that window). This function's own check only decides whether to call
+// Archive at all, so the verify closure below is what actually protects
+// against that race: it re-reads the card under Archive's own entity lock
+// and refuses to let the archive proceed if the card no longer sits in a
+// done-kind column, on the terms bench.StructuralAct.Verify documents.
 func (l *Library) archiveOnDone(moveReq *Request, response *Response) {
 	if response.Card == nil {
 		return
@@ -106,7 +127,20 @@ func (l *Library) archiveOnDone(moveReq *Request, response *Response) {
 		Provider: moveReq.Provider,
 		Server:   moveReq.Server,
 	}
-	archived := l.Archive(archiveReq)
+	id := response.Card.ID
+	ref := response.Card.Ref
+	verify := func() error {
+		fresh, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id)
+		if err != nil {
+			return contract.Refuse(contract.NoLongerDone, ref)
+		}
+		stillDone := l.Bench.Column(fresh.Column)
+		if stillDone == nil || !stillDone.Terminal() {
+			return contract.Refuse(contract.NoLongerDone, ref)
+		}
+		return nil
+	}
+	archived := l.archive(archiveReq, verify)
 	if archived.Outcome == contract.OutcomeOK {
 		response.Archived = true
 		return

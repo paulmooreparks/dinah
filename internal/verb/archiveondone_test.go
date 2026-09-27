@@ -11,6 +11,48 @@ import (
 	"dinah/internal/contract"
 )
 
+// TestArchiveOnDoneSkipsWhenTheCardLeavesDoneBeforeArchiveRuns is
+// dinah-634/questions/4: archiveOnDone decides whether to archive from
+// response.Card, a snapshot Do took before it released the card's own lock.
+// A concurrent move carrying the card out of Done in the window before
+// Archive re-acquires the entity lock must not still be archived. The
+// window is driven by doStepArchiving, a real Interpose hook rather than a
+// sleep race, so a second Library moves the card exactly between Do's
+// release and Archive's re-acquisition.
+func TestArchiveOnDoneSkipsWhenTheCardLeavesDoneBeforeArchiveRuns(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("racing out of done")
+	other := h.second()
+	h.library.Interpose = func(step string) {
+		if step != doStepArchiving {
+			return
+		}
+		moved := other.Do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing})
+		if moved.Outcome != contract.OutcomeOK {
+			t.Fatalf("the interposed move: wanted ok, got %s %s", moved.Outcome, moved.Refusal)
+		}
+	}
+	response := h.library.Do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
+	h.library.Interpose = nil
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("the move itself: %s %s", response.Outcome, response.Refusal)
+	}
+	if response.Archived {
+		t.Fatalf("archived despite the interposed move carrying the card out of Done: %+v", response)
+	}
+	if response.Warning != "warn.archive-on-done-failed" {
+		t.Fatalf("wanted warn.archive-on-done-failed, got %q %q", response.Warning, response.WarningDetail)
+	}
+	h.reopen()
+	card := h.card(ref)
+	if card.Column != doing {
+		t.Fatalf("wanted the card left standing in doing, got %s", card.Column)
+	}
+	if _, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: ref}); err != nil {
+		t.Fatalf("wanted the card to stay live and reachable, got %v", err)
+	}
+}
+
 // TestArchiveOnDoneArchivesImmediatelyThroughLibraryDo is
 // dinah-634/criteria/3: a Move landing in a done-kind column reports
 // Archived true, the card is unreachable by Show and reachable through

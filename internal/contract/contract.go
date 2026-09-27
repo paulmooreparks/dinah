@@ -626,6 +626,15 @@ const (
 	// for. The detail names the reference as typed; holder, slug and
 	// collection each ride beside it on the one case that fills them.
 	NotArchived = LayerPrefix + "not-archived"
+	// NoLongerDone is archiveOnDone's own re-check under Archive's own lock
+	// finding that the card no longer sits in a done-kind column: a
+	// concurrent move carried it out of Done in the window between Do
+	// releasing the card's lock and Archive re-acquiring it. It never
+	// reaches a reader as the Refusal of a request they made; it surfaces
+	// only as the WarningDetail on the move whose own archive step this
+	// stops, through warn.archive-on-done-failed. The detail names the
+	// card's reference.
+	NoLongerDone = LayerPrefix + "no-longer-done"
 	// IsACollection is a command that takes one entity handed a reference
 	// naming a whole collection. The detail names the reference as typed,
 	// the member count rides beside it, and so does the reference of the
@@ -906,7 +915,7 @@ var Introduced = []string{
 	NotLoopback, ForeignHost, ForeignOrigin, OriginRequired, BodyTooLarge, UnknownResource,
 	MethodNotAllowed, NotAcceptable, UnsupportedMediaType, BasisRequired, NotImplemented, NotServed,
 	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
-	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
+	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork, NoLongerDone,
 	NoLevels, UnknownLevel, UnknownFormat, InapplicableField,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
 	UnlistedModel, UndeclaredModel, MalformedHarness, MalformedMemberName,

@@ -5067,6 +5067,11 @@
       "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is.",
       "source": "1915ff7003a8ca95"
     },
+    "refusal.dinah.no-longer-done": {
+      "text": "{detail} steht nicht mehr in einer Done-artigen Spalte",
+      "context": "The sentence printed after the refusal name dinah.no-longer-done, which fires only inside archiveOnDone's own re-check under Archive's own lock: a concurrent move carried the card out of Done in the window between Do releasing the card's lock and Archive re-acquiring it, so the archive that had decided to run is skipped. It never renders as the Refusal of a request a caller made directly; it surfaces only as the WarningDetail of warn.archive-on-done-failed on the move whose own archive step this stops. {detail} is the card's reference, never translated.",
+      "source": "ee617e8acf9be84e"
+    },
     "refusal.dinah.no-tier-default": {
       "text": "Spalte {column} führt keinen tier-Standardwert, also hat {expr} keinen Bezugspunkt",
       "context": "The sentence printed after the refusal name dinah.no-tier-default, which a relative tier write against a column carrying no tier default of its own carries. {column} is that column and {detail} carries the same reference; {expr} is what the caller typed. refusal.dinah.no-tier-default.next is spliced on after this one.",

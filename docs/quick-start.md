@@ -1394,14 +1394,14 @@ storage format 11
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1971/1971
-  af        0/1971
-  cs        0/1971
-  de        1971/1971
-  es        0/1971
-  fil       0/1971
-  hi        1971/1971
-  id        0/1971
+  en        1972/1972
+  af        0/1972
+  cs        0/1972
+  de        1972/1972
+  es        0/1972
+  fil       0/1972
+  hi        1972/1972
+  id        0/1972
 [exit 0]
 ```
 

@@ -1454,6 +1454,67 @@ func TestEachEarlyReturnInDoReleasesTheCardsLock(t *testing.T) {
 		}
 	})
 
+	t.Run("LoadCardIn failure", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.ready("vanishing case")
+		anchor := filepath.Join(h.card(ref).Dir, bench.CardAnchor)
+		raw, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read the anchor: %v", err)
+		}
+		// doStepAdmitted is the window between the reference resolving
+		// (which has already read the card once, successfully) and Do's own
+		// LoadCardIn under the lock: exactly where a concurrent removal
+		// would have to land to make this second read fail while the first
+		// one just succeeded.
+		h.library.Interpose = func(step string) {
+			if step != doStepAdmitted {
+				return
+			}
+			if err := os.Remove(anchor); err != nil {
+				t.Fatalf("remove the anchor: %v", err)
+			}
+		}
+		resp := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing})
+		h.library.Interpose = nil
+		if resp.Outcome == contract.OutcomeOK {
+			t.Fatalf("wanted the vanished anchor to refuse the move, got ok")
+		}
+		if err := os.WriteFile(anchor, raw, 0o644); err != nil {
+			t.Fatalf("restore the anchor: %v", err)
+		}
+		h.reopen()
+		second := h.do(&Request{Verb: Claim, Card: ref, Actor: "carol"})
+		if second.Outcome != contract.OutcomeOK {
+			t.Fatalf("a claim after the forced LoadCardIn failure: wanted ok, got %s %s", second.Outcome, second.Refusal)
+		}
+	})
+
+	t.Run("stale basis view failure", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.ready("broken view case")
+		// A plain file where the comments collection would stand makes
+		// ChildIDs' directory read fail outright, which is what forces
+		// l.view to error inside the stale-basis branch rather than reach
+		// its ordinary success return.
+		comments := filepath.Join(h.card(ref).Dir, bench.CommentsDir)
+		if err := os.WriteFile(comments, []byte("not a directory"), 0o644); err != nil {
+			t.Fatalf("plant a file where the comments collection stands: %v", err)
+		}
+		resp := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing, Basis: "not-a-real-revision"})
+		if resp.Outcome == contract.OutcomeOK || resp.Outcome == contract.OutcomeStale {
+			t.Fatalf("wanted the broken comments collection to fail the view, got %s %s", resp.Outcome, resp.Refusal)
+		}
+		if err := os.Remove(comments); err != nil {
+			t.Fatalf("remove the planted file: %v", err)
+		}
+		h.reopen()
+		second := h.do(&Request{Verb: Claim, Card: ref, Actor: "carol"})
+		if second.Outcome != contract.OutcomeOK {
+			t.Fatalf("a claim after the forced view failure: wanted ok, got %s %s", second.Outcome, second.Refusal)
+		}
+	})
+
 	t.Run("WitnessDivergence failure", func(t *testing.T) {
 		h := newHarness(t)
 		ref := h.ready("witness case")
