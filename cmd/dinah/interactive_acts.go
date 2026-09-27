@@ -491,10 +491,11 @@ func (m *interactiveModel) identityInto(req *verb.Request) {
 // runVerb performs a gathered act through the library: its request is built
 // from the gathered arguments, with the head's identity and, for an act on a
 // card itself, the drawn revision as its basis, and it runs as the machine
-// heads run a verb. The answer is shown and the view read again, at once, as
-// act reads it: the next key may be another act on the strength of this
-// read's fresh state. A successful act bumps the watch epoch, exactly as act
-// does, so one act produces one refresh.
+// heads run a verb. The answer is shown and the view read again off the event
+// loop, exactly as act reads it, so a key queued behind that read sees its
+// fresh state once it lands rather than the state this call started with. A
+// successful act bumps the watch epoch, exactly as act does, so one act
+// produces one refresh.
 func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) tea.Cmd {
 	req := answer.Build(pending.verb, args)
 	m.identityInto(req)
@@ -511,8 +512,7 @@ func (m *interactiveModel) runVerb(pending *pendingAct, args map[string]any) tea
 	if response.Outcome == contract.OutcomeOK {
 		m.watchEpoch++
 	}
-	m.reread()
-	return nil
+	return m.reread()
 }
 
 // actedOn shows the answer of an act the step machinery ran: the refusal the

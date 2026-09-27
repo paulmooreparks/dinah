@@ -307,9 +307,12 @@ func TestARefusedOfferedMoveShowsTheMovesOwnRefusal(t *testing.T) {
 	run := s.run(root, seam, func() {
 		s.write("Z")
 		s.waitFor("Z", isKey("Z"))
-		s.write("a" + keyCtrlC)
+		s.write("a")
+		s.waitFor("a", isKey("a"))
+		close(hold)
+		s.waitFor("a's own read", isViewRead)
+		s.write(keyCtrlC)
 	})
-	close(hold)
 	m := run.model
 	if m == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
@@ -467,9 +470,12 @@ func TestALapsedClaimIsAnsweredStaleAndOfferedAgain(t *testing.T) {
 		time.Sleep(4 * time.Second)
 		s.write("jk")
 		s.waitFor("k", isKey("k"))
-		s.write("t" + keyCtrlC)
+		s.write("t")
+		s.waitFor("t", isKey("t"))
+		close(hold)
+		s.waitFor("t's own read", isViewRead)
+		s.write(keyCtrlC)
 	})
-	close(hold)
 	m := run.model
 	if m == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
