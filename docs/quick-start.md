@@ -843,7 +843,7 @@ rel-1  Write the release notes  [Doing / active]
 $ dinah release rel-1
 rel-1  Write the release notes  [Doing / ready]
 [exit 0]
-$ dinah move rel-1 done
+$ dinah move rel-1 done --no-archive
 rel-1  Write the release notes  [Done / ready]
 
 Instructions, this workbench:
@@ -1394,14 +1394,14 @@ storage format 11
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1968/1968
-  af        0/1968
-  cs        0/1968
-  de        1968/1968
-  es        0/1968
-  fil       0/1968
-  hi        1968/1968
-  id        0/1968
+  en        1971/1971
+  af        0/1971
+  cs        0/1971
+  de        1971/1971
+  es        0/1971
+  fil       0/1971
+  hi        1971/1971
+  id        0/1971
 [exit 0]
 ```
 

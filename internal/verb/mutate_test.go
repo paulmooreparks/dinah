@@ -103,7 +103,7 @@ func TestRefusalOrderFollowsTheProfile(t *testing.T) {
 			name: "move reports the block before the terminal column",
 			build: func(h *harness) *Request {
 				ref := h.add("ordering")
-				h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
+				h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, NoArchive: true})
 				h.mustDo(&Request{Verb: Block, Card: ref, Actor: "alka", Reason: "stopped"})
 				return &Request{Verb: Move, Card: ref, Actor: "alka", Column: finished}
 			},
@@ -334,7 +334,7 @@ func TestMoveHonoursItsStatements(t *testing.T) {
 
 	// A forward move out of a done column is terminal; a backward one is not.
 	third := h.add("third")
-	h.mustDo(&Request{Verb: Move, Card: third, Actor: "alka", Column: finished})
+	h.mustDo(&Request{Verb: Move, Card: third, Actor: "alka", Column: finished, NoArchive: true})
 	if response := h.do(&Request{Verb: Move, Card: third, Actor: "alka", Column: intake}); response.Outcome != contract.OutcomeOK {
 		t.Errorf("a backward move out of a done column should be admitted, got %s", response.Refusal)
 	}
@@ -345,7 +345,7 @@ func TestMoveHonoursItsStatements(t *testing.T) {
 func TestForwardMoveOutOfDoneIsTerminal(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("finished")
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, NoArchive: true})
 	// CORE-STATE-9: the same card is offered no forward move at all, so the
 	// refusal below is not the only place the rule shows.
 	for _, move := range h.library.legalMoves(h.card(ref)) {
@@ -1391,6 +1391,92 @@ func TestMoveRecordsRejectOnTheJournalEventForTheDeclaredTarget(t *testing.T) {
 		}
 		if strings.Contains(string(line), "reject") {
 			t.Errorf("the unset flag reached the journal line: %s", line)
+		}
+	})
+}
+
+// TestEachEarlyReturnInDoReleasesTheCardsLock is dinah-634/criteria/14. Do no
+// longer covers its card lock with one defer that fires once at return; every
+// return ahead of evaluate releases it explicitly instead, because archiving
+// below re-acquires the same lock file. Each subtest forces one such early
+// return and then proves the lock actually came off, by running a second
+// claim or move on the same card and finding it admitted rather than refused
+// dinah.locked.
+//
+// Arming (recorded here rather than left to the commit history): removing the
+// explicit lock.Release() from the stale-basis branch of Do and rerunning the
+// "stale basis" subtest below turned it red, with the second claim refused
+// dinah.locked naming this test's own actor. Restoring the release turned it
+// green again, which is the red-then-green pair the workbench's arming
+// discipline asks for.
+func TestEachEarlyReturnInDoReleasesTheCardsLock(t *testing.T) {
+	t.Run("stale basis", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.ready("stale case")
+		resp := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing, Basis: "not-a-real-revision"})
+		if resp.Outcome != contract.OutcomeStale {
+			t.Fatalf("wanted the stale-basis exit, got %s %s", resp.Outcome, resp.Refusal)
+		}
+		second := h.do(&Request{Verb: Claim, Card: ref, Actor: "bob"})
+		if second.Outcome != contract.OutcomeOK {
+			t.Fatalf("a claim after the stale-basis exit: wanted ok, got %s %s", second.Outcome, second.Refusal)
+		}
+	})
+
+	t.Run("lapse failure", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.ready("lapse case")
+		h.mustDo(&Request{Verb: Claim, Card: ref, Actor: "bob", Expires: time.Minute})
+		h.advance(time.Hour)
+		h.reopen()
+		// lapse's own write (card.Save, inside Do's call to l.lapse) is
+		// forced to fail by making the card's anchor read-only: the claim
+		// has already lapsed by the clock, so Do tries to write the expiry
+		// before it reaches evaluate, and the write is refused.
+		anchor := filepath.Join(h.card(ref).Dir, bench.CardAnchor)
+		if err := os.Chmod(anchor, 0o400); err != nil {
+			t.Fatalf("chmod: %v", err)
+		}
+		resp := h.do(&Request{Verb: Move, Card: ref, Actor: "bob", Column: doing})
+		if err := os.Chmod(anchor, 0o644); err != nil {
+			t.Fatalf("restore the anchor's mode: %v", err)
+		}
+		if resp.Outcome == contract.OutcomeOK {
+			t.Fatalf("wanted the forced lapse failure to refuse the move, got ok")
+		}
+		second := h.do(&Request{Verb: Claim, Card: ref, Actor: "carol"})
+		if second.Outcome != contract.OutcomeOK {
+			t.Fatalf("a claim after the forced lapse failure: wanted ok, got %s %s", second.Outcome, second.Refusal)
+		}
+	})
+
+	t.Run("WitnessDivergence failure", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.ready("witness case")
+		journal := h.card(ref).JournalPath()
+		raw, err := os.ReadFile(journal)
+		if err != nil {
+			t.Fatalf("read the journal: %v", err)
+		}
+		// A malformed line that is not the journal's last line makes
+		// ReadJournal fail outright rather than skip a torn tail, and
+		// WitnessDivergence calls ReadJournal before it asks whether the
+		// journal and the anchor actually diverge.
+		if err := os.WriteFile(journal, append([]byte("not an event\n"), raw...), 0o644); err != nil {
+			t.Fatalf("plant the malformed line: %v", err)
+		}
+		h.reopen()
+		resp := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing})
+		if resp.Outcome == contract.OutcomeOK {
+			t.Fatalf("wanted the malformed journal to refuse the move, got ok")
+		}
+		if err := os.WriteFile(journal, raw, 0o644); err != nil {
+			t.Fatalf("restore the journal: %v", err)
+		}
+		h.reopen()
+		second := h.do(&Request{Verb: Move, Card: ref, Actor: "alka", Column: doing})
+		if second.Outcome != contract.OutcomeOK {
+			t.Fatalf("a move after the forced WitnessDivergence failure: wanted ok, got %s %s", second.Outcome, second.Refusal)
 		}
 	})
 }

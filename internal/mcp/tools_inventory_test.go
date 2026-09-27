@@ -32,7 +32,7 @@ import (
 // read reports them through whoami.
 var publishedProperties = map[string][]string{
 	"claim":             {"actor", "basis", "card", "expires", "harness", "model", "provider", "server", "workbench"},
-	"move":              {"actor", "basis", "card", "column", "harness", "model", "override", "provider", "server", "workbench"},
+	"move":              {"actor", "basis", "card", "column", "harness", "model", "no-archive", "override", "provider", "server", "workbench"},
 	"release":           {"actor", "basis", "card", "harness", "model", "provider", "server", "workbench"},
 	"block":             {"actor", "basis", "card", "harness", "kind", "model", "provider", "reason", "server", "workbench"},
 	"unblock":           {"actor", "basis", "card", "harness", "model", "provider", "reason", "server", "workbench"},

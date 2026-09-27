@@ -286,7 +286,7 @@ func TestBothNewStatesReleaseEveryHoldAFailedItemKeeps(t *testing.T) {
 			held := mustRefuse(t, entry, "move", "fx-1", "done")
 			assertRefusal(t, held, contract.UnresolvedItem, "a move into the gated column against a failed criterion")
 			settleTo(t, entry, "fx-1/criteria/1", state)
-			moved := mustRun(t, entry, "move", "fx-1", "done")
+			moved := mustRun(t, entry, "move", "fx-1", "done", "--no-archive")
 			_ = moved
 			for _, event := range cardJournal(t, entry, cardID(t, entry, "fx-1")) {
 				if event.Event == contract.EventMoved && event.Override {
@@ -400,7 +400,7 @@ func TestReopenComesBackFromBothStatesAndRestoresTheHoldWhereTheCardStillStands(
 			// because the entry hold fires on arrival and the card has
 			// arrived.
 			settleTo(t, root, "fx-1/criteria/1", state)
-			mustRun(t, root, "move", "fx-1", "done")
+			mustRun(t, root, "move", "fx-1", "done", "--no-archive")
 			mustRun(t, root, "reopen", "fx-1/criteria/1", "the finding stands after all")
 			if got := soleItemState(t, root, "fx-1"); got != bench.ItemPending {
 				t.Errorf("the item stands at %q after the second reopen, wanted %q", got, bench.ItemPending)

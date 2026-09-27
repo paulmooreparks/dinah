@@ -489,6 +489,7 @@ var params = map[string][]Param{
 		{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard},
 		{Name: "column", Required: true, Vocabulary: "column", AlsoFlag: true, Field: "Column", Complete: CompleteMoveDestination},
 		{Name: "override", Flag: true, Marker: true, Field: "Override"},
+		{Name: "no-archive", Flag: true, Marker: true, Field: "NoArchive"},
 	},
 	Release: {{Name: "card", Required: true, Shared: "card", Field: "Card", Complete: CompleteCard}},
 	Block: {

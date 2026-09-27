@@ -144,7 +144,7 @@ func TestLogMarksARejectMove(t *testing.T) {
 	// The move into the doing station is a move out of a column declaring
 	// nothing, so an implementation marking every move would put the mark on
 	// two lines and the count above is what tells the two apart.
-	if got := runCLI(t, root, "move", "fx-1", "done"); got.code != 0 {
+	if got := runCLI(t, root, "move", "fx-1", "done", "--no-archive"); got.code != 0 {
 		t.Fatalf("the ordinary move: %d %s", got.code, got.errw)
 	}
 	again := runCLI(t, root, "list", "fx-1/journal")

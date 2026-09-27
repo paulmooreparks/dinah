@@ -33,12 +33,13 @@ func (l *Library) Do(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	defer lock.Release()
 	card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), found.Card.ID)
 	if err != nil {
+		lock.Release()
 		return l.FromError(req, err)
 	}
 	if err := l.lapse(card); err != nil {
+		lock.Release()
 		return l.FromError(req, err)
 	}
 	if l.Interleave != nil {
@@ -47,26 +48,71 @@ func (l *Library) Do(req *Request) *Response {
 	if req.Basis != "" && req.Basis != card.Revision {
 		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
+			lock.Release()
 			return l.FromError(req, err)
 		}
-		response := &Response{
+		lock.Release()
+		return &Response{
 			Outcome:     contract.OutcomeStale,
 			Verb:        req.Verb,
 			Card:        view,
 			Basis:       req.Basis,
 			Affordances: l.affordances(card),
 		}
-		return response
 	}
 	if _, err := l.Bench.WitnessDivergence(req.Actor, bench.Stamp(l.Now()), card); err != nil {
+		lock.Release()
 		return l.FromError(req, err)
 	}
 	response := l.evaluate(req, card)
+	// The card's own lock comes off here, before anything else runs, because
+	// archiving below re-acquires this same lock file through Bench.Run and
+	// would self-refuse against it were it still held. No defer covers this
+	// release: a deferred release fired a second time, after a concurrent
+	// caller has since taken the same file, would remove a lock that call
+	// owns rather than this one. Bench.Run already keeps every one of its own
+	// locks this way, and Do now matches it rather than inventing a second
+	// convention for the same hazard.
+	lock.Release()
 	if found.StalePrefix != "" && response.Outcome == contract.OutcomeOK {
 		response.Warning = "warn.stale-prefix"
 		response.WarningDetail = found.StalePrefix
 	}
+	if req.Verb == Move && response.Outcome == contract.OutcomeOK && !req.NoArchive {
+		l.archiveOnDone(req, response)
+	}
 	return response
+}
+
+// archiveOnDone runs the second half of a move that landed a card in a
+// done-kind column: archiving it, under its own lock, once Do's own lock on
+// the card has already been released above. Called only from Do, and only
+// when req.Verb is Move, the move's own outcome is ok, and the caller did
+// not pass NoArchive.
+func (l *Library) archiveOnDone(moveReq *Request, response *Response) {
+	if response.Card == nil {
+		return
+	}
+	column := l.Bench.Column(response.Card.Column)
+	if column == nil || !column.Terminal() {
+		return
+	}
+	archiveReq := &Request{
+		Verb:     "archive",
+		Ref:      response.Card.Ref,
+		Actor:    moveReq.Actor,
+		Harness:  moveReq.Harness,
+		Model:    moveReq.Model,
+		Provider: moveReq.Provider,
+		Server:   moveReq.Server,
+	}
+	archived := l.Archive(archiveReq)
+	if archived.Outcome == contract.OutcomeOK {
+		response.Archived = true
+		return
+	}
+	response.Warning = "warn.archive-on-done-failed"
+	response.WarningDetail = archived.Refusal
 }
 
 // admit runs the rows Do runs before it takes the card's lock, in Do's order:

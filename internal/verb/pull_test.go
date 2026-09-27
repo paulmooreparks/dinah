@@ -530,7 +530,7 @@ func TestADoneUpstreamRefusesTerminal(t *testing.T) {
 	// finished is the upstream and a done column carries no card into the
 	// column beyond it, while the named form lands on terminal.
 	ref := h.add("finished")
-	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
+	h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, NoArchive: true})
 
 	response := h.library.Pull(&Request{Verb: Pull, Actor: "alka", Column: closed})
 	h.reopen()

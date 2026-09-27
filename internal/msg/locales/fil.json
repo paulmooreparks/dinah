@@ -1794,6 +1794,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.unarchived-done": {
+      "text": "a live card stands at done-kind column {detail}",
+      "context": "A check finding: a card that reaches a done-kind column is archived immediately, so a live card found there afterward is one of three things: the archive step failed and the caller was warned, the move carried --no-archive, or the card was filed straight into a done-kind column with dinah add. {detail} is the column.",
+      "skeleton": true
+    },
     "check.unblock.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
@@ -4217,6 +4222,11 @@
     "param.move.column.summary": {
       "text": "which column to carry the card to, also written --column <column>",
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.move.no-archive.summary": {
+      "text": "land the card at a done-kind column without archiving it",
+      "context": "The meaning of the --no-archive flag of `dinah move`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.move.override.summary": {
@@ -6811,6 +6821,11 @@
     "version.tool": {
       "text": "dinah {release}",
       "context": "The tool's own release number.",
+      "skeleton": true
+    },
+    "warn.archive-on-done-failed": {
+      "text": "the card reached a done-kind column but could not be archived ({detail}); it is left live, and `dinah check` will report it",
+      "context": "A warning on a move whose own outcome is ok: the move succeeded and the card stands in the done-kind column it was sent to, but the archive step this card runs immediately afterward failed. {detail} is the refusal name that archive step raised.",
       "skeleton": true
     },
     "warn.inapplicable-value": {

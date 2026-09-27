@@ -450,7 +450,7 @@ func TestExplainSaysWhyAFinishedCardDoesNotWait(t *testing.T) {
 	for i := 1; i <= 3; i++ {
 		mustRunHere(t, root, "add", "Card number "+strconv.Itoa(i))
 	}
-	mustRunHere(t, root, "move", "fx-1", "done")
+	mustRunHere(t, root, "move", "fx-1", "done", "--no-archive")
 	mustRunHere(t, root, "file", "fx-1", "open_question", "Was it right?", "--owner", "operator")
 	mustRunHere(t, root, "move", "fx-2", "review")
 	mustRunHere(t, root, "move", "fx-3", "doing")

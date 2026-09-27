@@ -154,7 +154,7 @@ func TestEveryPublishedAffordanceHasARow(t *testing.T) {
 	blocked := f.add("Blocked", "build")
 	f.act(&verb.Request{Verb: verb.Block, Actor: "alka", Card: blocked, Reason: "An obstacle."})
 	finished := f.add("Finished", "build")
-	f.act(&verb.Request{Verb: verb.Move, Actor: "alka", Card: finished, Column: "finished", Override: true})
+	f.act(&verb.Request{Verb: verb.Move, Actor: "alka", Card: finished, Column: "finished", Override: true, NoArchive: true})
 	if response := f.library().Comment(&verb.Request{Verb: "comment", Actor: "alka", Card: atBuild, Text: "A note."}); response.Outcome != contract.OutcomeOK {
 		t.Fatalf("comment: %+v", response)
 	}
