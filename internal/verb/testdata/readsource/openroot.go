@@ -2,6 +2,8 @@ package verb
 
 import "os"
 
+// want: reads os.OpenRoot
+
 // plantedOpenRoot reads a file through a Root, whose ReadFile is a method on
 // a value and names no package member.
 func (l *Library) plantedOpenRoot() []byte {

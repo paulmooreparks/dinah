@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 )
 
+// want: reads path/filepath.WalkDir
+
 // plantedWalkDir walks the workbench tree.
 func (l *Library) plantedWalkDir() int {
 	n := 0

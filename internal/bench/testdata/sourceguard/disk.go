@@ -1,6 +1,6 @@
 package bench
 
-// want: names Disk
+// want: bottom rule
 
 // plantedDisk constructs Disk itself rather than reading through the bench's
 // source.

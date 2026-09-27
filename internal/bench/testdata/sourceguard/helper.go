@@ -1,6 +1,6 @@
 package bench
 
-// want: func:ReadText
+// want: bottom rule: dinah/internal/bench.ReadText
 
 // plantedHelper reaches the free ReadText through a helper of its own.
 func (b *Bench) plantedHelper() string {

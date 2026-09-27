@@ -101,22 +101,27 @@ func (Disk) Stat(path string) (fs.FileInfo, error) {
 // Text reads the file once and answers its normalised text and the revision
 // of its stored bytes.
 func (Disk) Text(path string) (text, revision string, err error) {
+	return diskText(path)
+}
+
+// Derive reads the file and calls derive, every time, so a bench on Disk
+// parses what it parsed before the seam and holds nothing between calls.
+func (Disk) Derive(path string, _ DeriveKind, derive func(path, text, revision string) (any, error)) (any, error) {
+	text, revision, err := diskText(path)
+	if err != nil {
+		return nil, err
+	}
+	return derive(path, text, revision)
+}
+
+// diskText is Disk's Text, which Derive shares without holding a Disk value.
+func diskText(path string) (text, revision string, err error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", "", err
 	}
 	text, revision = TextAndRevisionOf(data)
 	return text, revision, nil
-}
-
-// Derive reads the file and calls derive, every time, so a bench on Disk
-// parses what it parsed before the seam and holds nothing between calls.
-func (d Disk) Derive(path string, _ DeriveKind, derive func(path, text, revision string) (any, error)) (any, error) {
-	text, revision, err := d.Text(path)
-	if err != nil {
-		return nil, err
-	}
-	return derive(path, text, revision)
 }
 
 // TextAndRevisionOf is what Text answers for a file's stored bytes: the text

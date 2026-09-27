@@ -1,6 +1,6 @@
 package bench
 
-// want: func:Exists
+// want: bottom rule: dinah/internal/bench.Exists
 
 // plantedExists calls the free reader, which binds Disk.
 func (b *Bench) plantedExists() bool {

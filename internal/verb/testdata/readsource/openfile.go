@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+// want: reads os.OpenFile
+
 // plantedOpenFile reads an optional file with a read-only OpenFile and treats
 // its absence as nothing to read.
 func (l *Library) plantedOpenFile(path string) error {

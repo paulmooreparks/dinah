@@ -132,10 +132,12 @@ type Card struct {
 }
 
 // source is the Source this card was read through, or Disk for a card built
-// any other way.
+// any other way. The Disk comes from (*Bench).source on no bench, which is the
+// one function the read-seam guard allows to hold one.
 func (c *Card) source() Source {
 	if c.src == nil {
-		return Disk{}
+		var none *Bench
+		return none.source()
 	}
 	return c.src
 }
