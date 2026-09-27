@@ -77,7 +77,14 @@ func TestGenerateRefusesTooFewItemComments(t *testing.T) {
 }
 
 // TestGeneratedStoreChecksClean asserts that the small store opens and that
-// dinah check finds nothing in it.
+// dinah check finds nothing in it beyond the one expected condition
+// placeCards's own doc comment describes: a fifth of the live cards are
+// planted straight in the Done column, mirroring a workbench snapshot taken
+// before dinah-634's archive-on-done existed. check.unarchived-done is
+// dinah-634's own passive backstop for exactly that shape (section 5 of its
+// specification: a card filed straight into a done-kind column, one of the
+// three ways a live card ends up there), so it is expected here rather than
+// a defect, and is the one finding this assertion excuses.
 func TestGeneratedStoreChecksClean(t *testing.T) {
 	t.Parallel()
 	store := generate(t, perfstore.DefaultSeed)
@@ -90,6 +97,9 @@ func TestGeneratedStoreChecksClean(t *testing.T) {
 		t.Fatalf("check: %v", err)
 	}
 	for _, finding := range findings {
+		if finding.Key == bench.FindingUnarchivedDone {
+			continue
+		}
 		t.Errorf("finding %s %s at %s", finding.Key, finding.Detail, finding.Path)
 	}
 }

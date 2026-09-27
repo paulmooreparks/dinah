@@ -128,6 +128,25 @@ func wantEvent(ref, event string) func(t *testing.T, root string, run tuiRun) {
 	}
 }
 
+// wantArchivedEvent is wantEvent for a card the act itself carries into a
+// done-kind column, which dinah-634's archive-on-done moves into the
+// archive mirror in the same act: the journal is read from there rather
+// than from the live half.
+func wantArchivedEvent(ref, event string) func(t *testing.T, root string, run tuiRun) {
+	return func(t *testing.T, root string, run tuiRun) {
+		t.Helper()
+		found := false
+		for _, got := range cardEventsArchived(t, root, ref) {
+			if got.Event == event {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s's archived journal carries no %s event; the head showed %q", ref, event, shownLines(run.model))
+		}
+	}
+}
+
 // wantRead is an effect asserting the head shows exactly the lines the CLI
 // prints for the same words on the same workbench at the head's draw width.
 func wantRead(words ...string) func(t *testing.T, root string, run tuiRun) {
@@ -223,7 +242,7 @@ var actFixtures = map[string]actFixture{
 	}},
 	"claim": {actor: "alka", effect: wantEvent("fx-1", contract.EventClaimed),
 		refuse: &actRefusal{actor: "brin", arrange: heldBy("cato")}},
-	"accept": {actor: "alka", reach: "l", effect: wantEvent("fx-3", contract.EventMoved), refuse: operatorsColumn},
+	"accept": {actor: "alka", reach: "l", effect: wantArchivedEvent("fx-3", contract.EventMoved), refuse: operatorsColumn},
 	"advance": {actor: "alka", effect: wantEvent("fx-1", contract.EventMoved),
 		refuse: &actRefusal{actor: "brin", arrange: heldBy("cato")}},
 	"send-back": {actor: "alka", reach: "l", effect: wantEvent("fx-3", contract.EventMoved), refuse: operatorsColumn},

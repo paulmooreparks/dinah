@@ -313,7 +313,7 @@ func TestAHolderReleasesBeforeMovingIntoAQueueColumn(t *testing.T) {
 				t.Fatalf("wanted %s, got %s %s", contract.TakesNoWork, refused.Outcome, refused.Refusal)
 			}
 			h.mustDo(&Request{Verb: Release, Card: ref, Actor: "alka"})
-			h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: destination})
+			h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: destination, NoArchive: true})
 			card := h.card(ref)
 			if card.State != contract.StateReady || card.Holder != "" {
 				t.Errorf("after the release the card reads state %q holder %q", card.State, card.Holder)

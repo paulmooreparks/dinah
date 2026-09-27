@@ -627,7 +627,9 @@ func TestTheFlushFallbackDropsTheKeyTypedAfterEnter(t *testing.T) {
 	marked := tuiBench(t)
 	again := runTUIThrough(t, marked, tuiSeam(t, strings.NewReader(burst+"q"), 100, 30))
 	wantModel(t, "the flushes with markers seen", again.flushes, 0)
-	wantModel(t, "fx-4's column with markers seen", columnOf(t, marked, "fx-4"), "Done")
+	// dinah-634 archives fx-4 in the same act that lands it in Done, so its
+	// column is read from the archived half.
+	wantModel(t, "fx-4's column with markers seen", columnOfArchived(t, marked, "fx-4"), "Done")
 }
 
 // TestCtrlCInsideAnOpenPasteQuits is the head's half of the design review's

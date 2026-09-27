@@ -119,7 +119,7 @@ func TestShowPrintsEachDateWithItsCondition(t *testing.T) {
 		}
 	}
 	finished := fileCard(t, root, "finished late", "--start-after", dayFrom(2), "--start-by", dayFrom(3), "--due", dayFrom(4))
-	mustRunHere(t, root, "move", finished, "done")
+	mustRunHere(t, root, "move", finished, "done", "--no-archive")
 	shown := mustRunHere(t, root, "show", finished, "--fields", "card")
 	for _, want := range []string{
 		english.T("card.start-after", "date", dayFrom(2)),

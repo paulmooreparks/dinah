@@ -178,6 +178,11 @@ type Request struct {
 	// The marker weakens no precondition: a pull still runs the claim's own
 	// rows, so a card a claim would refuse is a card a pull refuses.
 	NoClaim bool
+	// NoArchive is the marker a move carries to land a card at a done-kind
+	// column without archiving it, mirroring NoClaim's own per-invocation
+	// shape. It weakens nothing about the move itself; it only stops the
+	// follow-on archive step Do runs after a move that lands ok.
+	NoArchive bool
 	// Basis is the revision the owner read before deciding.
 	Basis string
 	// Title is the title a new card carries.
@@ -848,6 +853,12 @@ type Response struct {
 	Warning string `json:"warning,omitempty"`
 	// WarningDetail is the token the warning is about.
 	WarningDetail string `json:"warning_detail,omitempty"`
+	// Archived is true exactly when a move's own follow-on archive step ran
+	// and succeeded: the card landed in a done-kind column, the caller did
+	// not pass NoArchive, and the archive itself came back ok. Absent on a
+	// move to any other column, on one carrying NoArchive, and on one whose
+	// archive step failed.
+	Archived bool `json:"archived,omitempty"`
 	// Context carries the refusal's named values as data, absent on a
 	// response that needs none. It is what refusalReport already calls
 	// context, so a caller parsing --json reads one shape whichever layer

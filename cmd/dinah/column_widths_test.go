@@ -326,8 +326,8 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	if summaries != 63 {
 		t.Errorf("read %d command entries out of the block, want 63", summaries)
 	}
-	if wrapped != 22 {
-		t.Errorf("%d entries wrapped across more than one line, want the twenty-two whose syntax is wider than half the window", wrapped)
+	if wrapped != 23 {
+		t.Errorf("%d entries wrapped across more than one line, want the twenty-three whose syntax is wider than half the window", wrapped)
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")

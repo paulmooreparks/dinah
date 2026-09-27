@@ -83,14 +83,30 @@ func anchorText(t *testing.T, root, ref string) string {
 // cardEvents reads a card's own journal back as decoded events.
 func cardEvents(t *testing.T, root, ref string) []bench.Event {
 	t.Helper()
-	got := runCLI(t, root, "path", ref)
+	return cardEventsArgv(t, root, "path", ref)
+}
+
+// cardEventsArchived is cardEvents for a card dinah-634's archive-on-done has
+// already moved into the archive mirror, reading the archived half rather
+// than the live one.
+func cardEventsArchived(t *testing.T, root, ref string) []bench.Event {
+	t.Helper()
+	return cardEventsArgv(t, root, "path", "--archived", ref)
+}
+
+// cardEventsArgv is cardEvents' shared body, over whatever path invocation
+// the caller names, so a card read from the live half and one read from the
+// archived half go through one decoder.
+func cardEventsArgv(t *testing.T, root string, argv ...string) []bench.Event {
+	t.Helper()
+	got := runCLI(t, root, argv...)
 	if got.code != 0 {
-		t.Fatalf("path %s: %d %s", ref, got.code, got.errw)
+		t.Fatalf("%v: %d %s", argv, got.code, got.errw)
 	}
 	journal := filepath.Join(filepath.Dir(strings.TrimSpace(got.out)), bench.JournalName)
 	data, err := os.ReadFile(journal)
 	if err != nil {
-		t.Fatalf("read the journal of %s: %v", ref, err)
+		t.Fatalf("read the journal at %s: %v", journal, err)
 	}
 	var events []bench.Event
 	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {

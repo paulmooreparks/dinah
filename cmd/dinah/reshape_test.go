@@ -225,7 +225,7 @@ func TestARepeatedMapIsReadOccurrenceByOccurrence(t *testing.T) {
 		}
 	}
 	carryToDoing(t, root, "fx-1")
-	if got := runCLI(t, root, "move", "fx-2", "done"); got.code != 0 {
+	if got := runCLI(t, root, "move", "fx-2", "done", "--no-archive"); got.code != 0 {
 		t.Fatalf("move fx-2 to done: %d %s", got.code, got.errw)
 	}
 

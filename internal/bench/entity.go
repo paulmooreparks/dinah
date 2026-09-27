@@ -701,6 +701,15 @@ type StructuralAct struct {
 	// is the point of record: a failure before it unwinds everything, and a
 	// failure after it leaves the sibling standing.
 	Record func() error
+	// Verify, when set, runs immediately after the entity lock is taken and
+	// before Record, so a caller can re-confirm a precondition it read
+	// before this act's own lock existed rather than trusting that earlier
+	// snapshot. A non-nil error unwinds the act exactly as a Record failure
+	// would, except that no event is appended: the act simply does not
+	// happen, and the error travels to Run's own caller unchanged. Nil for
+	// an act that needs no such recheck, which is every caller but
+	// archiveOnDone today.
+	Verify func() error
 }
 
 // Target is where the act is taking the directory, empty for a removal.
@@ -797,6 +806,11 @@ func (b *Bench) Run(act *StructuralAct) error {
 	}
 	if err := b.step(3); err != nil {
 		return unwind(err, entityLock, sibling, benchLock)
+	}
+	if act.Verify != nil {
+		if err := act.Verify(); err != nil {
+			return unwind(err, entityLock, sibling, benchLock)
+		}
 	}
 
 	if err := act.Record(); err != nil {

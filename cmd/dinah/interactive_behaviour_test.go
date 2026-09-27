@@ -363,10 +363,12 @@ func TestTheAcceptanceWalk(t *testing.T) {
 	if run.code != 0 {
 		t.Fatalf("exit %d: %s", run.code, run.errw)
 	}
+	// Each acceptance lands the card in Done, and dinah-634 archives it in the
+	// same act, so the column and the journal are read from the archived half.
 	var stamps []string
 	for _, ref := range []string{"fx-3", "fx-4", "fx-5"} {
-		wantModel(t, ref+"'s column", columnOf(t, root, ref), "Done")
-		events := cardEvents(t, root, ref)
+		wantModel(t, ref+"'s column", columnOfArchived(t, root, ref), "Done")
+		events := cardEventsArchived(t, root, ref)
 		stamps = append(stamps, events[len(events)-1].TS)
 	}
 	if !slices.IsSorted(stamps) {

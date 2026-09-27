@@ -10,6 +10,7 @@ WORK
     [--start-by <date>] [--due <date>]
   claim <card> [--expires <duration>]       Take up a ready card
   move <card> <column> [--override]         Carry a card to another column
+    [--no-archive]
   pull [column] [--no-claim]                Claim the head of a column's queue
     [--expires <duration>] [--override]       and move it there in one act
   release <card>                            Give the card back to its queue
