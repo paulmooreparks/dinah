@@ -10,26 +10,31 @@
 <link rel="stylesheet" href="/assets/pudl/pudl-windows.css" />
 <link rel="stylesheet" href="/assets/dinah.css" />
 <script src="/assets/pudl/pudl-windows.js" defer="defer"></script>
+<script src="/assets/pudl/pudl-md.js" defer="defer"></script>
+<script src="/assets/pudl/pudl-tabs.js" defer="defer"></script>
+<script src="/assets/pudl/pudl-tooltip.js" defer="defer"></script>
 <script src="/assets/dinah.js" defer="defer"></script>
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="/"><img class="brand-mark" src="/assets/dinah-lantern.svg" alt="" /> {{if .Workbench}}{{.Workbench}}{{else}}{{t "page.dinah"}}{{end}}</a>
-  <nav class="topbar-chrome" aria-label="{{t "page.nav"}}" data-theme-label="{{t "page.theme"}}">
+  <div class="topbar-chrome" data-theme-label="{{t "page.theme"}}">
 {{- if .HasWorkbench}}
     <span class="topbar-actor">{{if .Actor}}{{t "page.acting-as"}} <span class="num">{{.Actor}}</span>{{else}}{{t "page.no-actor"}}{{end}}</span>
-    <a class="topbar-pill" href="/">{{t "page.board"}}</a>
-    <a class="topbar-pill" href="/cards">{{t "page.cards"}}</a>
-    <a class="topbar-pill" href="/views">{{t "page.views"}}</a>
-    <a class="topbar-pill" href="/commands">{{t "page.log"}}</a>
 {{- end}}
-  </nav>
+  </div>
 </header>
 {{- if .HasWorkbench}}
-<div class="md-layout" data-md-pane="{{.Pane}}" data-changes-cursor="{{.Cursor}}">
-  <div class="md-toolbar">
-    <form method="get" action="/tree" role="search">
+<nav class="app-section-bar" aria-label="{{t "page.nav"}}">
+{{- range .Sections}}
+  <a class="section-tab" href="{{.Href}}"{{if .Current}} aria-current="{{.Current}}"{{end}}>{{.Text}}</a>
+{{- end}}
+</nav>
+<div class="md-layout" data-md-pane="{{.Pane}}" data-page-pane="{{.Pane}}" data-changes-cursor="{{.Cursor}}">
+  <div class="md-toolbar md-site-tools">
+    <form class="md-filter-group" method="get" action="/tree" role="search">
       <input class="md-filter" type="search" name="query" value="{{.Filter}}" aria-label="{{t "page.filter"}}" />
+      <button class="icon-btn md-filter-go" type="submit" aria-label="{{t "page.filter.apply"}}"></button>
     </form>
     <span class="md-toolbar-spacer"></span>
     <nav class="win-dock" data-win-dock="" aria-label="{{t "page.windows"}}">
@@ -43,21 +48,22 @@
       <a class="btn btn-sm" href="/cards#add">{{t "page.new-card"}}</a>
     </div>
   </div>
-  <div class="md-chips">{{with .Chip}}<span class="filter-chip">{{.Text}} <a class="filter-chip-x" href="{{.Href}}" aria-label="{{t "page.filter.clear"}}">&#215;</a></span>{{end}}</div>
+  <div class="md-chips">{{with .Chip}}<span class="filter-chip"><span class="filter-chip-kind">{{t "page.cards.query"}}</span> {{.Text}} <a class="filter-chip-x" href="{{.Href}}" aria-label="{{t "page.filter.clear"}}">&#215;</a></span>{{end}}</div>
   <main class="md-body win-host">
     <nav class="md-sidebar" data-live="sidebar" aria-label="{{t "page.columns"}}">
       <div class="md-section-label">{{t "page.columns"}}</div>
 {{- range .Sidebar}}
-      <div class="md-row{{if .Active}} active{{end}}" id="col-{{.Slug}}"><a class="md-item" href="/columns/{{.Slug}}"{{if .Active}} aria-current="page"{{end}}>{{.Title}} <span class="md-count num">{{.Count}}</span></a></div>
+      <div class="md-row" id="col-{{.Slug}}"><a class="md-item" href="/columns/{{.Slug}}"{{if .Current}} aria-current="{{.Current}}"{{end}}>{{.Title}} <span class="md-count num">{{.Count}}</span></a></div>
 {{- end}}
     </nav>
+    <div class="md-resize" role="separator" aria-orientation="vertical" aria-label="{{t "page.sidebar.resize"}}"></div>
     <section class="md-detail" data-live="detail" aria-label="{{.Title}}">
 {{- with .Back}}
       <a class="md-back" href="{{.Href}}">{{.Text}}</a>
 {{- end}}
 {{template "detail" .}}
     </section>
-    <div class="win-layer" data-win-layer="" data-win-src="/cards/{key}/window">
+    <div class="win-layer" data-win-layer="" data-win-src="/cards/{key}/window" data-win-text-maximize="{{t "page.window.maximize"}}" data-win-text-restore="{{t "page.window.restore"}}" data-win-text-minimized="{{t "page.window.minimized" "title" "{title}"}}" data-win-text-head="{{t "page.window.head" "title" "{title}"}}">
 {{- range .Windows}}
 {{template "win" .}}
 {{- end}}
@@ -85,7 +91,7 @@
 {{- range .}}
       <li class="cmdlog-entry" data-outcome="{{.Outcome}}">
         <time datetime="{{.At.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.Local.Format "15:04:05"}}</time>
-        <span class="badge{{if eq .Outcome "ok"}} pr{{else if eq .Outcome "refused"}} danger{{else if eq .Outcome "stale"}} warn{{else if eq .Outcome "read"}} accent{{end}}">{{.Outcome}}</span>
+        <span class="badge{{if eq .Outcome "ok"}} positive{{else if eq .Outcome "refused"}} danger{{else if eq .Outcome "stale"}} warn{{else if eq .Outcome "read"}} accent{{end}}">{{.Outcome}}</span>
         <code class="cmdlog-cmd">{{.Line}}</code>
 {{- if .Rerun}}
         <form method="post" action="/commands"><input type="hidden" name="entry" value="{{.Seq}}" /><button class="btn btn-sm" type="submit">{{if .Guarded}}{{t "page.log.again"}}{{else}}{{t "page.log.again-unguarded"}}{{end}}</button></form>
