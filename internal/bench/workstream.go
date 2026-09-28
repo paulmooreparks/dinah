@@ -122,12 +122,21 @@ func (w *Workstream) SetField(name, value string) {
 // and the column a hand-written directory may already be in. The slug findings
 // name it, so nothing here has to refuse over it.
 func LoadWorkstream(collection, id string) (*Workstream, error) {
+	return loadWorkstream(Disk{}, collection, id)
+}
+
+// LoadWorkstream is the free LoadWorkstream read through this bench's source.
+func (b *Bench) LoadWorkstream(collection, id string) (*Workstream, error) {
+	return loadWorkstream(b.source(), collection, id)
+}
+
+// loadWorkstream is LoadWorkstream's body, reading through src.
+func loadWorkstream(src Source, collection, id string) (*Workstream, error) {
 	dir := filepath.Join(collection, id)
-	text, err := ReadText(filepath.Join(dir, WorkstreamAnchor))
+	fm, body, err := anchorOf(src, filepath.Join(dir, WorkstreamAnchor))
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownWorkstream, id)
 	}
-	fm, body := ParseAnchor(text)
 	workstream := &Workstream{
 		ID:      id,
 		Dir:     dir,
@@ -166,14 +175,14 @@ func (w *Workstream) Save() error {
 // invisible here, because ListIDs drops it, and a directory carrying no
 // anchor is skipped rather than refused, which is what leaves the listing
 // able to name the bad directory instead of disappearing over it.
-func workstreamsIn(collection string) ([]*Workstream, error) {
-	ids, err := ListIDs(collection)
+func workstreamsIn(src Source, collection string) ([]*Workstream, error) {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
 	var workstreams []*Workstream
-	for _, id := range SortByOrdinal(collection, WorkstreamAnchor, ids) {
-		workstream, err := LoadWorkstream(collection, id)
+	for _, id := range sortByOrdinal(src, collection, WorkstreamAnchor, ids) {
+		workstream, err := loadWorkstream(src, collection, id)
 		if err != nil {
 			continue
 		}
@@ -184,7 +193,7 @@ func workstreamsIn(collection string) ([]*Workstream, error) {
 
 // Workstreams reads the live workstreams of the bench, in creation order.
 func (b *Bench) Workstreams() ([]*Workstream, error) {
-	return workstreamsIn(b.WorkstreamsRoot())
+	return workstreamsIn(b.source(), b.WorkstreamsRoot())
 }
 
 // Workstream returns the live or archived workstream carrying an identifier,
@@ -195,10 +204,10 @@ func (b *Bench) Workstream(id string) *Workstream {
 		return nil
 	}
 	for _, collection := range []string{b.WorkstreamsRoot(), b.ArchivedWorkstreamsRoot()} {
-		if !Exists(filepath.Join(collection, id, WorkstreamAnchor)) {
+		if !b.Exists(filepath.Join(collection, id, WorkstreamAnchor)) {
 			continue
 		}
-		workstream, err := LoadWorkstream(collection, id)
+		workstream, err := b.LoadWorkstream(collection, id)
 		if err != nil {
 			continue
 		}
@@ -233,7 +242,7 @@ func (b *Bench) WorkstreamByRef(ref string) (*Workstream, error) {
 	}
 	want := asciiLower(ref)
 	for _, collection := range []string{b.WorkstreamsRoot(), b.ArchivedWorkstreamsRoot()} {
-		workstreams, err := workstreamsIn(collection)
+		workstreams, err := workstreamsIn(b.source(), collection)
 		if err != nil {
 			return nil, err
 		}
@@ -283,7 +292,7 @@ func (b *Bench) WorkstreamCounts() (map[string]int, error) {
 // which is a record of what the card belonged to on the day it was archived
 // rather than a live reference.
 func (b *Bench) WorkstreamReferenced(id, ref string) error {
-	cardIDs, err := ListIDs(b.CardsRoot())
+	cardIDs, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return err
 	}
@@ -357,7 +366,7 @@ func (b *Bench) NewWorkstream(title, slug string) (*Workstream, error) {
 	}
 	// The ordinal is hoisted out of the composite literal because a field of
 	// one takes a single value, and this call now answers two.
-	ordinal, err := nextOrdinal(collection, WorkstreamAnchor)
+	ordinal, err := nextOrdinal(b.source(), collection, WorkstreamAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -386,7 +395,7 @@ func (b *Bench) NewWorkstream(title, slug string) (*Workstream, error) {
 func (b *Bench) AdoptWorkstream(id string) (*Workstream, error) {
 	collection := b.WorkstreamsRoot()
 	dir := filepath.Join(collection, id)
-	ordinal, err := nextOrdinal(collection, WorkstreamAnchor)
+	ordinal, err := nextOrdinal(b.source(), collection, WorkstreamAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -450,17 +459,17 @@ func (b *Bench) checkWorkstreams() ([]Finding, error) {
 	var findings []Finding
 	seen := map[string]bool{}
 	root := b.WorkstreamsRoot()
-	ids, err := ListIDs(root)
+	ids, err := b.ListIDs(root)
 	if err != nil {
 		return nil, err
 	}
-	for _, id := range SortByOrdinal(root, WorkstreamAnchor, ids) {
+	for _, id := range b.SortByOrdinal(root, WorkstreamAnchor, ids) {
 		dir := filepath.Join(root, id)
-		if !Exists(filepath.Join(dir, WorkstreamAnchor)) {
+		if !b.Exists(filepath.Join(dir, WorkstreamAnchor)) {
 			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
 			continue
 		}
-		workstream, err := LoadWorkstream(b.WorkstreamsRoot(), id)
+		workstream, err := b.LoadWorkstream(b.WorkstreamsRoot(), id)
 		if err != nil {
 			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
 			continue
@@ -530,7 +539,7 @@ func (b *Bench) BackfillWorkstreamSlugs() ([]WorkstreamSlugAssignment, []Finding
 			continue
 		}
 		candidate := FreeSlug(derived, taken)
-		if err := stampSlug(path, candidate); err != nil {
+		if err := stampSlug(b.source(), path, candidate); err != nil {
 			findings = append(findings, Finding{Path: path, Key: FindingWorkstreamSlugUnwritable, Detail: workstream.ID})
 			continue
 		}

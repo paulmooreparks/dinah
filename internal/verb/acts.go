@@ -300,7 +300,7 @@ func (l *Library) offerCardEntity(req *Request, card *bench.Card, offered *Offer
 // cite runs, from admitResolvedItem's same answer, for the reference it
 // resolves itself.
 func (l *Library) offerItems(req *Request, card *bench.Card) ([]OfferedItem, error) {
-	positions := bench.NewPositions()
+	positions := l.Bench.NewPositions()
 	items, err := positions.Items(card.Dir)
 	if err != nil {
 		return nil, err
@@ -439,16 +439,16 @@ func workstreamHandle(workstream *bench.Workstream) string {
 // renamed, through canRename, each by the reference the verb takes.
 func (l *Library) offerMembers(req *Request, card *bench.Card, offered *OfferedActs) error {
 	cardRef := card.Ref(l.Bench.Slug)
-	comments, err := bench.Comments(card.Dir)
+	comments, err := l.Bench.Comments(card.Dir)
 	if err != nil {
 		return err
 	}
 	for _, comment := range comments {
-		fm, body, err := bench.ReadCommentAnchor(comment.Dir)
+		fm, body, err := l.Bench.ReadCommentAnchor(comment.Dir)
 		if err != nil || !bench.CommentDiverged(fm, body) {
 			continue
 		}
-		position, err := memberPosition(comment.Dir, bench.CommentAnchor)
+		position, err := l.memberPosition(comment.Dir, bench.CommentAnchor)
 		if err != nil || position == 0 {
 			continue
 		}
@@ -457,12 +457,12 @@ func (l *Library) offerMembers(req *Request, card *bench.Card, offered *OfferedA
 			offered.Divergences = append(offered.Divergences, ref)
 		}
 	}
-	attachments, err := bench.Attachments(card.Dir)
+	attachments, err := l.Bench.Attachments(card.Dir)
 	if err != nil {
 		return err
 	}
 	for _, attachment := range attachments {
-		position, err := memberPosition(attachment.Dir, bench.AttachmentAnchor)
+		position, err := l.memberPosition(attachment.Dir, bench.AttachmentAnchor)
 		if err != nil || position == 0 {
 			continue
 		}

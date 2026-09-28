@@ -1484,7 +1484,7 @@ func runEdit(s *session, parsed *arguments) int {
 		before := ""
 		editing := err == nil && comment.Kind == bench.KindComment
 		if editing {
-			if before, err = verb.CommentBodyDigest(comment.Dir); err != nil {
+			if before, err = l.CommentBodyDigest(comment.Dir); err != nil {
 				return s.reportError(err)
 			}
 		}

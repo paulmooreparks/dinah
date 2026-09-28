@@ -141,7 +141,7 @@ func (b *Bench) checkItemRoutes(card *Card) ([]Finding, error) {
 	if route == nil {
 		return nil, nil
 	}
-	holding, err := itemsWhere(card.Dir, func(item *Item) bool {
+	holding, err := itemsWhere(b.source(), card.Dir, func(item *Item) bool {
 		return item.Column != "" && !ItemLiftsColumnHold(item)
 	})
 	if err != nil {
@@ -183,7 +183,7 @@ func (b *Bench) StrandedItemOf(card *Card, route string) (*Item, *Column, error)
 		return nil, nil, nil
 	}
 	carried := RouteColumnsIn(ids, b.Columns)
-	holding, err := itemsWhere(card.Dir, func(item *Item) bool {
+	holding, err := itemsWhere(b.source(), card.Dir, func(item *Item) bool {
 		return item.Column != "" && !ItemLiftsColumnHold(item)
 	})
 	if err != nil {

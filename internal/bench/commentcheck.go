@@ -93,7 +93,7 @@ func SeverityOf(finding Finding) string {
 // it, so one pass over the checklist names every designated comment on the
 // card.
 func (b *Bench) checkComments(card *Card) ([]Finding, error) {
-	items, err := Items(card.Dir)
+	items, err := b.Items(card.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (b *Bench) checkComments(card *Card) ([]Finding, error) {
 		holders = append(holders, holder{dir: item.Dir, ref: itemRef})
 	}
 	for _, held := range holders {
-		comments, err := Comments(held.dir)
+		comments, err := b.Comments(held.dir)
 		if err != nil {
 			continue
 		}
@@ -201,7 +201,7 @@ func (b *Bench) commentDirOf(item *Item, resolution string) (string, bool) {
 	// searched, because archiving a designated comment stays permitted and
 	// the item goes on citing it wherever it now lives.
 	for _, holder := range []string{item.Dir, filepath.Join(item.Dir, ArchiveDir)} {
-		comments, err := Comments(holder)
+		comments, err := b.Comments(holder)
 		if err != nil {
 			continue
 		}
@@ -285,7 +285,7 @@ func lastSlash(ref string) int {
 func (b *Bench) checkMissingDesignations(card *Card) ([]Finding, error) {
 	var findings []Finding
 	for _, holder := range []string{card.Dir, filepath.Join(card.Dir, ArchiveDir)} {
-		items, err := Items(holder)
+		items, err := b.Items(holder)
 		if err != nil {
 			continue
 		}
@@ -318,14 +318,14 @@ func (b *Bench) checkRetiredNotes(card *Card) ([]Finding, error) {
 		return nil, nil
 	}
 	collection := filepath.Join(card.Dir, ChecklistDir)
-	ids, err := ListIDs(collection)
+	ids, err := b.ListIDs(collection)
 	if err != nil {
 		return nil, err
 	}
 	var findings []Finding
 	for _, id := range ids {
 		dir := filepath.Join(collection, id)
-		fm, _, err := ReadItemAnchor(dir)
+		fm, _, err := b.ReadItemAnchor(dir)
 		if err != nil {
 			continue
 		}

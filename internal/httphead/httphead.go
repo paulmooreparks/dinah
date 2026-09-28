@@ -11,18 +11,22 @@
 package httphead
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"dinah/internal/answer"
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 	"dinah/internal/durable"
 	"dinah/internal/msg"
+	"dinah/internal/resident"
 	"dinah/internal/verb"
 )
 
@@ -31,8 +35,8 @@ const maxBody = 1 << 20
 
 // Config is what a head serves with.
 type Config struct {
-	// Root is the absolute path of the workbench the head serves, opened
-	// afresh for every request.
+	// Root is the absolute path of the workbench the head serves. A request
+	// reads it from disk unless it reads Resident.
 	Root string
 	// Home is the user base the library reads the caller's settings from.
 	Home string
@@ -74,6 +78,22 @@ type Config struct {
 	// tests can set it, and they use it to hold what a request carried
 	// against what the library received.
 	observe func(command string, req *verb.Request)
+	// Resident, when set, is the workbench held in memory that GET and HEAD
+	// requests read. Nil means every request opens the workbench from disk.
+	Resident *resident.Workbench
+	// TimeRead, when set, is called with each library call's command and the
+	// time it took. It is a test seam, nil in production.
+	TimeRead func(command string, took time.Duration)
+	// ObserveSource, when set, is called once per request with whether the
+	// request read the resident. It is a test seam, nil in production, and
+	// exported because a test in cmd/dinah orders it against the resident's
+	// own hooks.
+	ObserveSource func(fromResident bool)
+	// ObserveFirstWrite, when set, is called once per request that reaches
+	// the mux, at the moment the first header or body byte is about to reach
+	// the connection, after the lapse settle has returned. It is a test seam,
+	// nil in production.
+	ObserveFirstWrite func()
 }
 
 // head is the handler Handler returns.
@@ -132,6 +152,36 @@ type exchange struct {
 	// page is what an HTML request carries beside its route's own read, and
 	// nil on any other request.
 	page *pageState
+	// start is when ServeHTTP took the request. A request on the resident
+	// reads one snapshot at this one instant.
+	start time.Time
+	// state is what the exchange shares with ServeHTTP.
+	state *requestState
+	// chosen reports that the request's source has been chosen, and pick is
+	// what the resident answered when it was asked.
+	chosen bool
+	pick   resident.Pick
+}
+
+// requestKey carries a request's own state from ServeHTTP to the exchange the
+// route handler builds, and back.
+type requestKey struct{}
+
+// requestState is what ServeHTTP and the route's exchange share: the instant
+// ServeHTTP took the request, and the cards whose claims had lapsed at it
+// when that is why the request read the disk.
+type requestState struct {
+	start   time.Time
+	lapsing []string
+}
+
+// stateOf answers a request's shared state, a fresh one when ServeHTTP did
+// not take it.
+func stateOf(r *http.Request) *requestState {
+	if state, ok := r.Context().Value(requestKey{}).(*requestState); ok {
+		return state
+	}
+	return &requestState{start: time.Now()}
 }
 
 // ServeHTTP runs the admission steps that read nothing of the route, then
@@ -141,7 +191,9 @@ func (h *head) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	header.Set("Cache-Control", "no-store")
 	header.Set("X-Content-Type-Options", "nosniff")
 	header.Set("Vary", "Accept")
-	x := &exchange{w: w, r: r, verb: "serve", method: r.Method}
+	state := &requestState{start: time.Now()}
+	r = r.WithContext(context.WithValue(r.Context(), requestKey{}, state))
+	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: state.start, state: state}
 	if !h.admittedHost(r.Host) {
 		h.refuse(x, contract.ForeignHost, r.Host)
 		return
@@ -166,7 +218,78 @@ func (h *head) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.refuse(x, contract.UnknownResource, r.URL.Path)
 		return
 	}
-	h.mux.ServeHTTP(w, r)
+	sw := &settleWriter{w: w, state: state, first: h.cfg.ObserveFirstWrite}
+	if h.cfg.Resident != nil {
+		sw.settle = func(dirs []string) { h.cfg.Resident.Settle(r.Context(), dirs...) }
+	}
+	h.mux.ServeHTTP(sw, r)
+	// net/http writes the response itself after the handler returns when the
+	// route wrote nothing, so the settle runs now for such a route.
+	sw.before()
+}
+
+// settleWriter runs the request's lapse settle once, before the first header
+// or body byte reaches the ResponseWriter it wraps. A request that read the
+// disk because a claim had lapsed wrote each lapse under the card's lock, as
+// a read always has, and the settle brings those cards into the resident, so
+// the next request reads it again. Settling after the route returned would be
+// too late, because by then the route has written its whole body, and a
+// client could hold the complete answer while the settle's pass still had
+// files open below the workbench root.
+//
+// Three documented facts make the wrapper sufficient. http.ResponseWriter's
+// Write: "If WriteHeader has not yet been called, Write calls
+// WriteHeader(http.StatusOK) before writing the data." http.Handler:
+// "Returning signals that the request is finished; it is not valid to use the
+// ResponseWriter or read from the Request.Body after or concurrently with the
+// completion of the ServeHTTP call." And http.NewResponseController: "The
+// ResponseWriter should be the original value passed to the
+// Handler.ServeHTTP method, or have an Unwrap method returning the original
+// ResponseWriter." It has no Unwrap method and no Flush method, so nothing
+// the route does can reach the connection around it.
+//
+// A route that panics before its first write skips the settle, and no byte of
+// the response follows, because http.Handler says of a panicking ServeHTTP
+// that the server "recovers the panic, logs a stack trace to the server error
+// log, and either closes the network connection or sends an HTTP/2
+// RST_STREAM". The lapse the disk read wrote then reaches the resident the
+// way every other change does.
+type settleWriter struct {
+	w     http.ResponseWriter
+	state *requestState
+	// settle settles the directories it is given; nil when there is no
+	// resident.
+	settle func(dirs []string)
+	// first is Config.ObserveFirstWrite, or nil.
+	first   func()
+	settled bool
+}
+
+func (s *settleWriter) Header() http.Header { return s.w.Header() }
+
+func (s *settleWriter) WriteHeader(code int) {
+	s.before()
+	s.w.WriteHeader(code)
+}
+
+func (s *settleWriter) Write(p []byte) (int, error) {
+	s.before()
+	return s.w.Write(p)
+}
+
+// before runs the settle when the request has lapsing cards, then the
+// observer, once.
+func (s *settleWriter) before() {
+	if s.settled {
+		return
+	}
+	s.settled = true
+	if s.settle != nil && len(s.state.lapsing) > 0 {
+		s.settle(s.state.lapsing)
+	}
+	if s.first != nil {
+		s.first()
+	}
 }
 
 // cleanPath is the path ServeMux redirects a request to: the path with dot
@@ -187,14 +310,16 @@ func cleanPath(p string) string {
 
 // serveUnmatched answers a path no route matches.
 func (h *head) serveUnmatched(w http.ResponseWriter, r *http.Request) {
-	x := &exchange{w: w, r: r, verb: "serve", method: r.Method}
+	state := stateOf(r)
+	x := &exchange{w: w, r: r, verb: "serve", method: r.Method, start: state.start, state: state}
 	h.refuse(x, contract.UnknownResource, r.URL.Path)
 }
 
 // serveRoute runs the admission steps that read the route, negotiates, and
 // hands the request to the route's read or to its acts.
 func (h *head) serveRoute(rt *route, w http.ResponseWriter, r *http.Request) {
-	x := &exchange{w: w, r: r, route: rt, verb: rt.command(), method: r.Method}
+	state := stateOf(r)
+	x := &exchange{w: w, r: r, route: rt, verb: rt.command(), method: r.Method, start: state.start, state: state}
 	if !rt.takes(r.Method) {
 		h.notAllowed(x)
 		return
@@ -302,7 +427,30 @@ func unsafeMethod(name string) bool {
 
 // open opens the workbench for one request and returns its library. A
 // workbench that will not open is answered, and the caller stops.
+//
+// A request on the resident has one library for its whole life, which open
+// and contextLibrary share, so every read of the request reads one snapshot.
+// On the disk path each call opens the workbench afresh, as it always has.
 func (h *head) open(x *exchange, req *verb.Request) bool {
+	began := time.Now()
+	h.chooseSource(x)
+	if x.pick.Snapshot != nil {
+		if x.library != nil {
+			return true
+		}
+		if x.page != nil && x.page.library != nil {
+			x.library = x.page.library
+			return true
+		}
+		library, err := h.residentLibrary(x)
+		if err != nil {
+			h.write(x, answer.FromErrorSealed(verb.New(nil, h.cfg.Home), req, err), 0)
+			return false
+		}
+		x.library = library
+		h.timeRead("open", began)
+		return true
+	}
 	opened, err := bench.Open(h.cfg.Root)
 	if err != nil {
 		// A library over no bench composes the answer to the open's own
@@ -312,7 +460,51 @@ func (h *head) open(x *exchange, req *verb.Request) bool {
 	}
 	x.library = verb.New(opened, h.cfg.Home)
 	x.library.Interleave = h.cfg.Interleave
+	h.timeRead("open", began)
 	return true
+}
+
+// chooseSource decides, once per request, whether it reads the resident. It
+// does only when the method as received is GET or HEAD, a resident is
+// configured, and the resident answers a snapshot for the request's instant.
+func (h *head) chooseSource(x *exchange) {
+	if x.chosen {
+		return
+	}
+	x.chosen = true
+	read := x.r.Method == http.MethodGet || x.r.Method == http.MethodHead
+	if read && h.cfg.Resident != nil {
+		x.pick = h.cfg.Resident.Current(x.r.Context(), x.start)
+		if x.state != nil {
+			x.state.lapsing = x.pick.Lapsing
+		}
+	}
+	if h.cfg.ObserveSource != nil {
+		h.cfg.ObserveSource(x.pick.Snapshot != nil)
+	}
+}
+
+// residentLibrary is the one library a request on the resident reads
+// through: the snapshot's workbench, on a clock frozen at the request's
+// instant, refusing any write a read would make.
+func (h *head) residentLibrary(x *exchange) (*verb.Library, error) {
+	opened, err := x.pick.Snapshot.Bench()
+	if err != nil {
+		return nil, err
+	}
+	library := verb.New(opened, h.cfg.Home)
+	start := x.start
+	library.Now = func() time.Time { return start }
+	library.ReadOnly = true
+	library.Interleave = h.cfg.Interleave
+	return library, nil
+}
+
+// timeRead reports one library call's time to TimeRead, when a test set it.
+func (h *head) timeRead(command string, began time.Time) {
+	if h.cfg.TimeRead != nil {
+		h.cfg.TimeRead(command, time.Since(began))
+	}
 }
 
 // execute hands a built request to the library and returns what it
@@ -324,7 +516,81 @@ func (h *head) execute(x *exchange, command string, req *verb.Request) answer.Se
 	if h.cfg.BeforeRun != nil {
 		h.cfg.BeforeRun()
 	}
-	return answer.RunSealed(command, x.library, req)
+	began := time.Now()
+	answered := answer.RunSealed(command, x.library, req)
+	h.timeRead(command, began)
+	if unsafeMethod(x.r.Method) && h.cfg.Resident != nil {
+		h.settleAct(x, req, answered)
+	}
+	return answered
+}
+
+// settleAct brings what an act wrote into the resident before the head
+// answers, so a page that posts an act draws its result on the redirect that
+// follows rather than waiting for Windows to report the page's own write. It
+// runs on both paths an act takes, the routed one and the typed one on POST
+// /commands, since both come through execute, and it runs whether the act
+// succeeded or was refused, because a refusal writes nothing and settling
+// costs one pass.
+//
+// The directories are collected after the act, through the act's own disk
+// library, so a reference the act itself created resolves:
+//
+//   - each of the request's card and ref that resolves to an entity: its
+//     directory, and its card's, because an item's or a comment's event is
+//     appended to its card's journal;
+//   - the card the answer carries, which is how an add or a pull names the
+//     card it created or took;
+//   - the root, which Settle always reconciles, where the card-number
+//     registry and the workbench journal live.
+func (h *head) settleAct(x *exchange, req *verb.Request, answered answer.Sealed) {
+	var dirs []string
+	add := func(ref string) {
+		if strings.TrimSpace(ref) == "" || x.library == nil || x.library.Bench == nil {
+			return
+		}
+		entity, _, err := x.library.Bench.ResolveReferenceIn(bench.LiveHalf, ref)
+		if err != nil || entity == nil {
+			return
+		}
+		dirs = append(dirs, entity.Dir)
+		if entity.Card != nil {
+			dirs = append(dirs, entity.Card.Dir)
+		}
+	}
+	add(req.Card)
+	add(req.Ref)
+	add(answered.CardRef())
+	h.cfg.Resident.Settle(x.r.Context(), outermostDirs(dirs)...)
+}
+
+// outermostDirs answers each directory once, dropping any below another in
+// the set, because a deep reconcile of the ancestor covers it.
+func outermostDirs(dirs []string) []string {
+	var kept []string
+	for _, dir := range dirs {
+		covered := false
+		for _, other := range dirs {
+			if other != dir && strings.HasPrefix(dir, other+string(filepath.Separator)) {
+				covered = true
+				break
+			}
+		}
+		if covered {
+			continue
+		}
+		duplicate := false
+		for _, k := range kept {
+			if k == dir {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			kept = append(kept, dir)
+		}
+	}
+	return kept
 }
 
 // refuse answers a refusal the head raised itself.

@@ -397,12 +397,12 @@ func readReshapeSource(source string) (*bench.Definition, string, error) {
 // refusal this verb can raise. It writes nothing, and a preview is this
 // function and the report composed from what it returns.
 func (l *Library) planReshape(req *Request, definition *bench.Definition, digest, now string) (*reshapePlan, error) {
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return nil, err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +464,7 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 	}
 	plan.stranded = strandedCards(plan, fresh, cards, retiring)
 	for _, entry := range plan.retirements {
-		count, err := countStandingInstances(cards, entry.id)
+		count, err := countStandingInstances(l.Bench, cards, entry.id)
 		if err != nil {
 			return nil, err
 		}
@@ -476,10 +476,10 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 // countStandingInstances counts the pending standing-item instances naming one
 // retiring column across every live card, which is what the write phase's
 // withdrawal step will withdraw and what the preview reports for it.
-func countStandingInstances(cards []*bench.Card, retiring string) (int, error) {
+func countStandingInstances(b *bench.Bench, cards []*bench.Card, retiring string) (int, error) {
 	count := 0
 	for _, card := range cards {
-		instances, err := bench.PendingStandingInstances(card.Dir, retiring)
+		instances, err := b.PendingStandingInstances(card.Dir, retiring)
 		if err != nil {
 			return 0, err
 		}
@@ -1001,12 +1001,12 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 	if len(added) == 0 {
 		return 0, nil
 	}
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return 0, err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return 0, err
 	}
@@ -1021,7 +1021,7 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 		if err := bench.WriteColumnFromElement(fresh.Root, element.id, element.slug, element.element); err != nil {
 			return written, err
 		}
-		lines, err := writeAddedAttachments(req, fresh.ColumnDir(element.id), element, now)
+		lines, err := writeAddedAttachments(req, fresh, fresh.ColumnDir(element.id), element, now)
 		if err != nil {
 			return written, err
 		}
@@ -1064,7 +1064,7 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 // interrupted before then journaled none of them. A kept column is never
 // passed here, so its attachments stay as they stand whatever the new
 // definition's element carries.
-func writeAddedAttachments(req *Request, columnDir string, element *reshapeElement, now string) ([]bench.Event, error) {
+func writeAddedAttachments(req *Request, b *bench.Bench, columnDir string, element *reshapeElement, now string) ([]bench.Event, error) {
 	carried, err := bench.ColumnAttachmentsOf(element.element)
 	if err != nil {
 		return nil, err
@@ -1072,7 +1072,7 @@ func writeAddedAttachments(req *Request, columnDir string, element *reshapeEleme
 	if len(carried) == 0 {
 		return nil, nil
 	}
-	present, err := bench.Attachments(columnDir)
+	present, err := b.Attachments(columnDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1085,7 +1085,7 @@ func writeAddedAttachments(req *Request, columnDir string, element *reshapeEleme
 			if provenance == "" {
 				provenance = req.Actor
 			}
-			written, err = bench.AddAttachmentBytes(columnDir, attachment.Filename, attachment.Payload, attachment.Description, provenance)
+			written, err = b.AddAttachmentBytes(columnDir, attachment.Filename, attachment.Payload, attachment.Description, provenance)
 			if err != nil {
 				return nil, err
 			}
@@ -1153,12 +1153,12 @@ func matchingAttachment(present []*bench.Attachment, matched map[string]bool, ca
 // card no longer carries.
 func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string) (map[string]int, error) {
 	carried := map[string]int{}
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return carried, err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return carried, err
 	}
@@ -1172,7 +1172,7 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 		}
 		for _, standing := range entry.cards {
 			l.interpose(reshapeStepCard)
-			cardLock, err := bench.Acquire(standing.Dir, req.Actor, now)
+			cardLock, err := l.Bench.Acquire(standing.Dir, req.Actor, now)
 			if err != nil {
 				return carried, err
 			}
@@ -1288,21 +1288,21 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 	if len(plan.retirements) == 0 {
 		return withdrawn, nil
 	}
-	ids, err := bench.ListIDs(l.Bench.CardsRoot())
+	ids, err := l.Bench.ListIDs(l.Bench.CardsRoot())
 	if err != nil {
 		return withdrawn, err
 	}
 	for _, id := range ids {
 		dir := filepath.Join(l.Bench.CardsRoot(), id)
 		for _, entry := range plan.retirements {
-			instances, err := bench.StandingInstancesOwedAWithdrawal(dir, entry.id)
+			instances, err := l.Bench.StandingInstancesOwedAWithdrawal(dir, entry.id)
 			if err != nil {
 				return withdrawn, err
 			}
 			if len(instances) == 0 {
 				continue
 			}
-			cardLock, err := bench.Acquire(dir, req.Actor, now)
+			cardLock, err := l.Bench.Acquire(dir, req.Actor, now)
 			if err != nil {
 				return withdrawn, err
 			}
@@ -1335,7 +1335,7 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 // which comment settled it, so the journal ends up carrying exactly one
 // withdrawal for the instance.
 func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *reshapeRetirement, now string) (int, error) {
-	instances, err := bench.StandingInstancesOwedAWithdrawal(cardDir, entry.id)
+	instances, err := l.Bench.StandingInstancesOwedAWithdrawal(cardDir, entry.id)
 	if err != nil {
 		return 0, err
 	}
@@ -1351,11 +1351,11 @@ func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *resha
 		if instance.State == bench.ItemWithdrawn {
 			designated = instance.Resolution
 		} else {
-			comment, err := bench.AddComment(instance.Dir, req.Actor, now, text)
+			comment, err := l.Bench.AddComment(instance.Dir, req.Actor, now, text)
 			if err != nil {
 				return count, err
 			}
-			fm, body, err := bench.ReadItemAnchor(instance.Dir)
+			fm, body, err := l.Bench.ReadItemAnchor(instance.Dir)
 			if err != nil {
 				return count, err
 			}
@@ -1456,10 +1456,10 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 			continue
 		}
 		dir := filepath.Join(l.Bench.Root, bench.ColumnsDir, entry.id)
-		if !bench.Exists(dir) {
+		if !l.Bench.Exists(dir) {
 			continue
 		}
-		fresh, err := bench.Open(l.Bench.Root)
+		fresh, err := l.Bench.Reopen()
 		if err != nil {
 			return archived, err
 		}
@@ -1506,12 +1506,12 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 // follows. A refusal raised here is late, and what it leaves behind is
 // described under applyReshape.
 func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string) ([]string, error) {
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return nil, err
 	}
 	defer lock.Release()
-	current, err := bench.Open(l.Bench.Root)
+	current, err := l.Bench.Reopen()
 	if err != nil {
 		return nil, err
 	}
@@ -1586,12 +1586,12 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 // against the plan's two lists, so an identifier the plan saw and deliberately
 // dropped stays dropped.
 func (l *Library) writeColumnOrder(req *Request, plan *reshapePlan, now string) error {
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return err
 	}

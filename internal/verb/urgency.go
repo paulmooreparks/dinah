@@ -257,7 +257,7 @@ func (d *viewDraw) itemsOf(card *bench.Card) ([]*bench.Item, error) {
 	if items, ok := d.items[card.ID]; ok {
 		return items, nil
 	}
-	items, err := bench.Items(card.Dir)
+	items, err := d.l.Bench.Items(card.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +275,7 @@ func (d *viewDraw) history(card *bench.Card) cardHistory {
 	}
 	path := card.JournalPath()
 	d.l.observe(ObserveJournal, path)
-	events, _, err := bench.ReadJournal(path)
+	events, _, err := d.l.Bench.ReadJournal(path)
 	known := cardHistory{}
 	if err == nil {
 		known = cardHistory{arrival: bench.ArrivalFrom(events, card.Column), events: events}

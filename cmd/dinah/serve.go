@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/netip"
@@ -17,6 +18,7 @@ import (
 	"dinah/internal/browser"
 	"dinah/internal/contract"
 	"dinah/internal/httphead"
+	"dinah/internal/resident"
 )
 
 // defaultListen is where dinah serve listens when --listen names nothing. The
@@ -97,17 +99,63 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 	if err != nil {
 		return s.reportError(err)
 	}
+	// Every path the server keeps is made absolute before it leaves its
+	// working directory, so nothing it uses afterwards resolves a path
+	// against the directory it stands in. bench.Home answers DINAH_HOME as
+	// written, or "." when no home resolves, so the user base can be
+	// relative.
+	home, err := filepath.Abs(s.home)
+	if err != nil {
+		return s.reportError(err)
+	}
+	// The server found its workbench by climbing from its working directory,
+	// so it starts standing in a folder above the workbench. It moves to a
+	// volume's root directory, which lies beneath no folder, before it opens
+	// the resident and before dinah ui launches a browser, which starts in
+	// the server's working directory and usually outlives it. Whether a
+	// working directory holds its folder is not documented, and after the
+	// move the question does not arise for this process. When no volume root
+	// can be confirmed the server stays where it started, serves, and says
+	// so on its startup line (dinah-619/decisions/35).
+	stays := ""
+	dir, err := serveWorkDir(root)
+	var noVolumeRoot *resident.NoVolumeRoot
+	switch {
+	case errors.As(err, &noVolumeRoot):
+		if stays, err = serveGetwd(); err != nil {
+			return s.reportError(err)
+		}
+	case err != nil:
+		return s.reportError(err)
+	default:
+		if err := serveChdir(dir); err != nil {
+			return s.reportError(err)
+		}
+	}
+	// A workbench this platform or this volume cannot watch is served from
+	// disk per request, as it always was. That is not a refusal, and the
+	// startup line says where reads are answered from and why.
+	held, openErr := residentOpen(root)
+	if openErr != nil {
+		held = nil
+	}
+	closeHeld := func() {
+		if held != nil {
+			held.Close()
+		}
+	}
 	listener, err := listen("tcp", net.JoinHostPort(bind, port))
 	if err != nil {
+		closeHeld()
 		return s.reportError(err)
 	}
 	bound := listener.Addr().(*net.TCPAddr).Port
 	url := "http://" + net.JoinHostPort(bind, strconv.Itoa(bound)) + "/"
-	s.announce(url, root)
+	s.announce(url, root, readsOf(openErr), stays)
 	server := &http.Server{
-		Handler: httphead.Handler(httphead.Config{
+		Handler: serveHandler(httphead.Config{
 			Root:           root,
-			Home:           s.home,
+			Home:           home,
 			DefaultActor:   s.actor,
 			Agent:          s.agent,
 			Host:           bind,
@@ -116,6 +164,7 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 			ParseLine:      typedLineParser(s.cfg),
 			Notify:         s.errLine,
 			InstallWaiting: installWaiting,
+			Resident:       held,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -129,10 +178,60 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 		stopping, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		server.Shutdown(stopping)
+		closeHeld()
 		return 0
 	case err := <-served:
+		closeHeld()
 		return s.reportError(err)
 	}
+}
+
+// residentOpen opens the workbench held in memory. It is resident.Open, and
+// only a test in this package replaces it.
+var residentOpen = func(root string) (*resident.Workbench, error) {
+	return resident.Open(root, resident.Options{})
+}
+
+// serveWorkDir answers the directory serveUntil moves to. It is
+// resident.WorkingDirectory, and only a test in this package replaces it.
+var serveWorkDir = resident.WorkingDirectory
+
+// serveChdir moves the process's working directory. It is os.Chdir, and only
+// a test in this package replaces it, because a test that runs serveUntil in
+// its own process must not move the test binary's directory.
+var serveChdir = os.Chdir
+
+// serveGetwd answers the directory the process stands in. It is os.Getwd,
+// and only a test in this package replaces it. serveUntil calls it only when
+// serveWorkDir answers a *resident.NoVolumeRoot, to name that directory on
+// the startup line.
+var serveGetwd = os.Getwd
+
+// serveHandler builds the head serveUntil serves. It is httphead.Handler, and
+// only a test in this package replaces it, to see the Config.
+var serveHandler = httphead.Handler
+
+// reads is where a server answers reads from, as its startup line says.
+type reads struct {
+	// memory reports a resident was opened.
+	memory bool
+	// why is the reason reads are answered from disk, and detail the error's
+	// own text when why is resident.WhyError.
+	why    resident.Why
+	detail string
+}
+
+// readsOf answers where reads are answered from, given what residentOpen
+// answered.
+func readsOf(err error) reads {
+	if err == nil {
+		return reads{memory: true}
+	}
+	var unsupported *resident.Unsupported
+	if errors.As(err, &unsupported) {
+		return reads{why: unsupported.Why}
+	}
+	return reads{why: resident.WhyError, detail: err.Error()}
 }
 
 // typedLineParser is the parser the pages' command log runs a typed line
@@ -147,19 +246,41 @@ func typedLineParser(cfg *bench.Config) func(words []string) (httphead.TypedLine
 	}
 }
 
-// announce prints the one line dinah serve writes to stdout. It needs no
-// flush: the process's stdout writer holds back only an incomplete UTF-8
-// sequence at the end of a write, and a whole line carries none, so a caller
-// waiting for the address reads it as soon as it is written.
-func (s *session) announce(url, root string) {
+// announce prints the one line dinah serve writes to stdout, which says where
+// reads are answered from and, when the server could not leave the folder it
+// was started in, which folder that is. It needs no flush: the process's
+// stdout writer holds back only an incomplete UTF-8 sequence at the end of a
+// write, and a whole line carries none, so a caller waiting for the address
+// reads it as soon as it is written.
+func (s *session) announce(url, root string, from reads, stays string) {
 	if s.format == formatHuman {
-		s.line(s.r.T("serve.listening", "url", url, "workbench", root))
+		line := s.r.T("serve.listening", "url", url, "workbench", root)
+		if from.memory {
+			line += " " + s.r.T("serve.reads.memory")
+		} else {
+			why := from.detail
+			if from.why != resident.WhyError {
+				why = s.r.T("serve.reads.why." + string(from.why))
+			}
+			line += " " + s.r.T("serve.reads.disk", "why", why)
+		}
+		if stays != "" {
+			line += " " + s.r.T("serve.workdir.stays", "dir", stays)
+		}
+		s.line(line)
 		return
 	}
 	announced := struct {
 		URL       string `json:"url"`
 		Workbench string `json:"workbench"`
-	}{url, root}
+		Reads     string `json:"reads"`
+		Why       string `json:"why,omitempty"`
+		Detail    string `json:"detail,omitempty"`
+		StaysIn   string `json:"stays_in,omitempty"`
+	}{URL: url, Workbench: root, Reads: "memory", StaysIn: stays}
+	if !from.memory {
+		announced.Reads, announced.Why, announced.Detail = "disk", string(from.why), from.detail
+	}
 	line, _ := json.Marshal(announced)
 	s.line(string(line))
 }

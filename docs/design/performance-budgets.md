@@ -8,7 +8,7 @@ Every other test in this repository runs against a workbench of a few cards, so 
 |---|---|
 | `status-warm` | Opening the workbench and running `status` inside the test process |
 | `show` | Opening the workbench and running `show perf-1` with no fields named |
-| `page-card` | The head's handler answering `GET /cards/perf-1` as HTML, with no socket |
+| `page-card` | The head's handler answering `GET /cards/perf-1` as HTML, with no socket, reading a resident copy of the workbench where the platform has a watcher |
 | `status-cold` | `dinah status` in a fresh process, from start to exit |
 | `view-board` | Opening the workbench and drawing the built-in `board` view |
 | `view-agenda` | Opening the workbench and drawing the built-in `agenda` view |
@@ -47,6 +47,10 @@ The annotation is what a reader of the pull request sees without opening the job
 A budget is `3 x basis`, and the slack floor is `budget / 6`, which is `basis / 2`. Any single run under half its own calibration median trips it, and CI runner variance on this repository's `windows-latest` job exceeds that: dinah-635 measured a 151ms sample for an operation whose basis, from three runs on the same pull request, was 317ms, and a different pull request on the same day, against the same code, measured the same operation at 302 to 322ms. No calibration closes that gap, because tightening the budget only moves the floor with it. Widening the multiple would fix it at the cost of the over-budget check's own sensitivity, which the rule above declines to trade away.
 
 The orchestrator ruled (dinah-635) that a check which cannot be made reliable by calibration must stop failing the build on the condition it cannot reliably detect. Slack still runs, still logs, and still tells a card exactly what to recalibrate to; it just no longer turns an unrelated branch red on a fast runner. Over budget carries no such floor problem: a run has to be at least three times its basis, not merely half of it, so it stays a hard failure in every mode.
+
+## The page's library reads
+
+`page-card` also sums the time its request spends in library calls, meaning the reads the head makes and the acquisition of the library it makes them with, and leaves out encoding and rendering. On Windows the median of that sum over the ten runs must be under 10ms, in both modes, whatever the row's budget says. The 10ms line is a standing gate: the perf job applies it to every pull request, whatever the pull request touches, and fails the pull request when both measurements miss it. It is not a budget, so the rule below never re-bases it and the slack and excess reports never mention it. The operator set it on 2026-09-27 (dinah-619/questions/2), knowing that a slow Windows runner can occasionally fail a pull request that did not touch this path, and only he changes it. A failure prints both medians and every run's sum. The row's own budget still follows the rule below, and the resident's cold load is logged beside it.
 
 ## Reproducing it locally
 

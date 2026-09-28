@@ -39,7 +39,17 @@ func OrdinalOf(fm *Frontmatter) int {
 
 // EntityOrdinal reads the creation ordinal of one entity of a collection.
 func EntityOrdinal(collection, id, anchor string) int {
-	fm, _ := loadAnchor(filepath.Join(collection, id, anchor))
+	return entityOrdinal(Disk{}, collection, id, anchor)
+}
+
+// EntityOrdinal is the free EntityOrdinal read through this bench's source.
+func (b *Bench) EntityOrdinal(collection, id, anchor string) int {
+	return entityOrdinal(b.source(), collection, id, anchor)
+}
+
+// entityOrdinal is EntityOrdinal's body, reading through src.
+func entityOrdinal(src Source, collection, id, anchor string) int {
+	fm, _ := loadAnchor(src, filepath.Join(collection, id, anchor))
 	return OrdinalOf(fm)
 }
 
@@ -74,21 +84,31 @@ func EntityOrdinal(collection, id, anchor string) int {
 // package and owes that comment the same position a verb's write would give
 // it.
 func NextOrdinalIn(collection, anchor string) (int, error) {
-	return nextOrdinal(collection, anchor)
+	return nextOrdinalIn(Disk{}, collection, anchor)
 }
 
-func nextOrdinal(collection, anchor string) (int, error) {
-	ids, err := ListIDs(collection)
+// NextOrdinalIn is the free NextOrdinalIn read through this bench's source.
+func (b *Bench) NextOrdinalIn(collection, anchor string) (int, error) {
+	return nextOrdinalIn(b.source(), collection, anchor)
+}
+
+// nextOrdinalIn is NextOrdinalIn's body, reading through src.
+func nextOrdinalIn(src Source, collection, anchor string) (int, error) {
+	return nextOrdinal(src, collection, anchor)
+}
+
+func nextOrdinal(src Source, collection, anchor string) (int, error) {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return 0, err
 	}
 	highest, members := 0, 0
 	for _, id := range ids {
-		if !Exists(filepath.Join(collection, id, anchor)) {
+		if !exists(src, filepath.Join(collection, id, anchor)) {
 			continue
 		}
 		members++
-		if n := EntityOrdinal(collection, id, anchor); n > highest {
+		if n := entityOrdinal(src, collection, id, anchor); n > highest {
 			highest = n
 		}
 	}
@@ -110,12 +130,22 @@ func nextOrdinal(collection, anchor string) (int, error) {
 // the moment it was stamped, so a reference somebody had written down changed
 // what it named while nobody was looking.
 func SortByOrdinal(collection, anchor string, ids []string) []string {
-	return sortByOrdinalWith(collection, ids, func(id string) int { return EntityOrdinal(collection, id, anchor) })
+	return sortByOrdinal(Disk{}, collection, anchor, ids)
+}
+
+// SortByOrdinal is the free SortByOrdinal read through this bench's source.
+func (b *Bench) SortByOrdinal(collection, anchor string, ids []string) []string {
+	return sortByOrdinal(b.source(), collection, anchor, ids)
+}
+
+// sortByOrdinal is SortByOrdinal's body, reading through src.
+func sortByOrdinal(src Source, collection, anchor string, ids []string) []string {
+	return sortByOrdinalWith(src, collection, ids, func(id string) int { return entityOrdinal(src, collection, id, anchor) })
 }
 
 // sortByOrdinalWith is SortByOrdinal with the ordinal supplied by the caller,
 // so the uncached sort and the memoised sort in Positions cannot drift apart.
-func sortByOrdinalWith(collection string, ids []string, ordinal func(id string) int) []string {
+func sortByOrdinalWith(src Source, collection string, ids []string, ordinal func(id string) int) []string {
 	ordered := append([]string(nil), ids...)
 	ordinals := make(map[string]int, len(ordered))
 	var unstamped []string
@@ -126,7 +156,7 @@ func sortByOrdinalWith(collection string, ids []string, ordinal func(id string) 
 			unstamped = append(unstamped, id)
 		}
 	}
-	rank := fallbackRank(collection, unstamped)
+	rank := fallbackRank(src, collection, unstamped)
 	sort.SliceStable(ordered, func(i, j int) bool {
 		a, b := ordered[i], ordered[j]
 		if ordinals[a] != ordinals[b] {
@@ -153,14 +183,14 @@ func sortByOrdinalWith(collection string, ids []string, ordinal func(id string) 
 // entity, so a collection whose entities all carry an ordinal, which is every
 // collection on a workbench somebody has run the migration over, costs this
 // nothing beyond the anchor reads SortByOrdinal already made.
-func fallbackRank(collection string, unstamped []string) map[string]int {
+func fallbackRank(src Source, collection string, unstamped []string) map[string]int {
 	rank := make(map[string]int, len(unstamped))
 	if len(unstamped) == 0 {
 		return rank
 	}
 	var order []string
-	if journalPath := journalPathFor(filepath.Dir(collection)); journalPath != "" {
-		if events, _, err := ReadJournal(journalPath); err == nil {
+	if journalPath := journalPathFor(src, filepath.Dir(collection)); journalPath != "" {
+		if events, _, err := readJournal(src, journalPath); err == nil {
 			order = journalOrder(events)
 		}
 	}
@@ -182,13 +212,13 @@ func fallbackRank(collection string, unstamped []string) map[string]int {
 // from an unreadable one here, because ReadJournal reads a file that is not
 // there as an empty history and an empty history recovers nothing, which is
 // the listing-order answer either way.
-func journalPathFor(ownerDir string) string {
+func journalPathFor(src Source, ownerDir string) string {
 	dir := ownerDir
 	for {
-		if Exists(filepath.Join(dir, CardAnchor)) {
+		if exists(src, filepath.Join(dir, CardAnchor)) {
 			return filepath.Join(dir, JournalName)
 		}
-		if Exists(filepath.Join(dir, WorkbenchAnchor)) {
+		if exists(src, filepath.Join(dir, WorkbenchAnchor)) {
 			return ""
 		}
 		parent := filepath.Dir(dir)
@@ -201,9 +231,9 @@ func journalPathFor(ownerDir string) string {
 
 // stampOrdinal writes an ordinal onto an entity that carries none, preserving
 // every other key of the anchor and its body.
-func stampOrdinal(collection, id, anchor string, ordinal int) error {
+func stampOrdinal(src Source, collection, id, anchor string, ordinal int) error {
 	path := filepath.Join(collection, id, anchor)
-	text, err := ReadText(path)
+	text, err := readText(src, path)
 	if err != nil {
 		return contract.Refuse(contract.UnknownPath, path)
 	}
@@ -305,7 +335,7 @@ func orderedByJournal(candidates []string, order []string) (ordered, guessed []s
 // honoured here as they come back, and neither is second-guessed by a
 // permission check of the tool's own.
 func (b *Bench) backfillCollection(collection, anchor string, order []string) (int, []Finding, error) {
-	ids, err := ListIDs(collection)
+	ids, err := b.ListIDs(collection)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -316,7 +346,7 @@ func (b *Bench) backfillCollection(collection, anchor string, order []string) (i
 	}
 	taken := map[int]bool{}
 	for _, id := range ordered {
-		if n := EntityOrdinal(collection, id, anchor); n > 0 {
+		if n := b.EntityOrdinal(collection, id, anchor); n > 0 {
 			taken[n] = true
 		}
 	}
@@ -324,7 +354,7 @@ func (b *Bench) backfillCollection(collection, anchor string, order []string) (i
 	next := 1
 	var findings []Finding
 	for _, id := range ordered {
-		if EntityOrdinal(collection, id, anchor) > 0 {
+		if b.EntityOrdinal(collection, id, anchor) > 0 {
 			continue
 		}
 		for taken[next] {
@@ -335,7 +365,7 @@ func (b *Bench) backfillCollection(collection, anchor string, order []string) (i
 			findings = append(findings, Finding{Path: path, Key: FindingOrdinalUnwritable, Detail: id})
 			continue
 		}
-		if err := stampOrdinal(collection, id, anchor, next); err != nil {
+		if err := stampOrdinal(b.source(), collection, id, anchor, next); err != nil {
 			findings = append(findings, Finding{Path: path, Key: FindingOrdinalUnwritable, Detail: id})
 			continue
 		}
@@ -390,16 +420,16 @@ func (b *Bench) beforeOrdinalStamp(id string) error {
 func (b *Bench) BackfillOrdinals(actor, now string) (int, []Finding, error) {
 	stamped := 0
 	var findings []Finding
-	cardIDs, err := ListIDs(b.CardsRoot())
+	cardIDs, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return 0, nil, err
 	}
 	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
-		if !Exists(filepath.Join(dir, CardAnchor)) {
+		if !b.Exists(filepath.Join(dir, CardAnchor)) {
 			continue
 		}
-		lock, err := Acquire(dir, actor, now)
+		lock, err := b.Acquire(dir, actor, now)
 		if err != nil {
 			findings = append(findings, Finding{Path: dir, Key: FindingOrdinalLocked, Detail: id})
 			continue
@@ -418,14 +448,14 @@ func (b *Bench) BackfillOrdinals(actor, now string) (int, []Finding, error) {
 // backfillCard stamps the collections of one card, whose lock the caller
 // holds.
 func (b *Bench) backfillCard(dir string) (int, []Finding, error) {
-	events, _, err := ReadJournal(filepath.Join(dir, JournalName))
+	events, _, err := b.ReadJournal(filepath.Join(dir, JournalName))
 	if err != nil {
 		return 0, nil, err
 	}
 	order := journalOrder(events)
 	stamped := 0
 	var findings []Finding
-	collections, err := ordinalCollections(dir, KindCard, nil)
+	collections, err := ordinalCollections(b.source(), dir, KindCard, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -466,7 +496,7 @@ type ordinalCollection struct {
 // of them as missing one; skip names the kinds the walk does not descend into,
 // and a caller rooting the walk at the workbench passes KindCard so that each
 // card keeps the per-card sweep a card-rooted walk applies to it.
-func ordinalCollections(dir, kind string, skip map[string]bool) ([]ordinalCollection, error) {
+func ordinalCollections(src Source, dir, kind string, skip map[string]bool) ([]ordinalCollection, error) {
 	var collections []ordinalCollection
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
@@ -476,12 +506,12 @@ func ordinalCollections(dir, kind string, skip map[string]bool) ([]ordinalCollec
 		if skip[mount.Kind] {
 			continue
 		}
-		ids, err := ListIDs(collection)
+		ids, err := listIDs(src, collection)
 		if err != nil {
 			return nil, err
 		}
 		for _, id := range ids {
-			below, err := ordinalCollections(filepath.Join(collection, id), mount.Kind, skip)
+			below, err := ordinalCollections(src, filepath.Join(collection, id), mount.Kind, skip)
 			if err != nil {
 				return nil, err
 			}

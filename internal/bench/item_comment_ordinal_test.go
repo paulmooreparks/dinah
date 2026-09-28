@@ -79,7 +79,7 @@ func missingOrdinals(t *testing.T, collections []ordinalCollection) int {
 
 func mustLoadAnchor(t *testing.T, path string) *Frontmatter {
 	t.Helper()
-	fm, _ := loadAnchor(path)
+	fm, _ := loadAnchor(Disk{}, path)
 	return fm
 }
 
@@ -118,7 +118,7 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 	}
 
 	// The walk this card ships reaches both.
-	after, err := ordinalCollections(cardDir, KindCard, nil)
+	after, err := ordinalCollections(Disk{}, cardDir, KindCard, nil)
 	if err != nil {
 		t.Fatalf("ordinalCollections: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	findings, err := checkOrdinals(cardDir)
+	findings, err := checkOrdinals(Disk{}, cardDir)
 	if err != nil {
 		t.Fatalf("checkOrdinals: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 	if stamped != 2 {
 		t.Fatalf("the migration stamped %d entities, wanted 2", stamped)
 	}
-	again, err := checkOrdinals(cardDir)
+	again, err := checkOrdinals(Disk{}, cardDir)
 	if err != nil {
 		t.Fatalf("checkOrdinals after backfill: %v", err)
 	}

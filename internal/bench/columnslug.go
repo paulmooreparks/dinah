@@ -127,7 +127,7 @@ func (b *Bench) BackfillColumnSlugs() ([]SlugAssignment, []Finding) {
 			continue
 		}
 		candidate := FreeSlug(derived, taken)
-		if err := stampSlug(path, candidate); err != nil {
+		if err := stampSlug(b.source(), path, candidate); err != nil {
 			findings = append(findings, Finding{Path: path, Key: FindingSlugUnwritable, Detail: column.ID})
 			continue
 		}
@@ -162,8 +162,8 @@ func FreeSlug(derived string, taken map[string]bool) string {
 // The slug goes directly after the title, where the writer that creates an
 // anchor puts it, so a migrated anchor and a newly written one read the same
 // way rather than differing by which code path wrote them.
-func stampSlug(path, slug string) error {
-	text, err := ReadText(path)
+func stampSlug(src Source, path, slug string) error {
+	text, err := readText(src, path)
 	if err != nil {
 		return err
 	}

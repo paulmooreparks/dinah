@@ -59,7 +59,7 @@ func TestTheOrdinalMinterRefusesACollectionItCannotRead(t *testing.T) {
 		collection := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
 		write(t, filepath.Join(collection, "e00000000001", CommentAnchor), "---\nauthor: alka\nordinal: 1\n---\nFirst.\n")
 		write(t, filepath.Join(collection, "e00000000002", CommentAnchor), "---\nauthor: alka\nordinal: 2\n---\nSecond.\n")
-		ordinal, err := nextOrdinal(collection, CommentAnchor)
+		ordinal, err := nextOrdinal(Disk{}, collection, CommentAnchor)
 		if err != nil {
 			t.Fatalf("nextOrdinal over a readable collection: %v", err)
 		}
@@ -73,7 +73,7 @@ func TestTheOrdinalMinterRefusesACollectionItCannotRead(t *testing.T) {
 		collection := filepath.Join(root, CardsDir, "c00000000001", CommentsDir)
 		plantUnreadable(t, collection)
 
-		ordinal, err := nextOrdinal(collection, CommentAnchor)
+		ordinal, err := nextOrdinal(Disk{}, collection, CommentAnchor)
 		if err == nil {
 			t.Fatalf("nextOrdinal answered %d for a collection it could not list", ordinal)
 		}

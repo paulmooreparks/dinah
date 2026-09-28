@@ -1163,7 +1163,7 @@ func (l *Library) actWitnessed(q *query, card *bench.Card) (bool, error) {
 	if len(q.actTerms) == 0 {
 		return true, nil
 	}
-	events, _, err := bench.ReadJournal(card.JournalPath())
+	events, _, err := l.Bench.ReadJournal(card.JournalPath())
 	if err != nil {
 		return false, err
 	}
@@ -1203,7 +1203,7 @@ func (l *Library) itemWitnessed(q *query, card *bench.Card) (bool, error) {
 	if len(q.itemTerms) == 0 {
 		return true, nil
 	}
-	items, err := bench.Items(card.Dir)
+	items, err := l.Bench.Items(card.Dir)
 	if err != nil {
 		return false, err
 	}
@@ -1222,7 +1222,7 @@ func (l *Library) itemWitnesses(q *query, card *bench.Card, cardRef string) ([]s
 	if len(q.itemTerms) == 0 {
 		return nil, nil
 	}
-	items, err := bench.Items(card.Dir)
+	items, err := l.Bench.Items(card.Dir)
 	if err != nil {
 		return nil, err
 	}

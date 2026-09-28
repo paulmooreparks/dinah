@@ -16,6 +16,12 @@ func openRead(path string) (*os.File, error) {
 	return os.Open(path)
 }
 
+// openDirOnce opens a directory, or a file, for reading. An open directory
+// refuses no other process's rename or removal outside Windows.
+func openDirOnce(path string) (*os.File, error) {
+	return os.Open(path)
+}
+
 // openRetryable accepts nothing outside Windows.
 func openRetryable(error) bool {
 	return false

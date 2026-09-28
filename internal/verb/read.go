@@ -139,7 +139,7 @@ func (l *Library) Status(req *Request) (*Status, error) {
 	if err != nil {
 		return nil, err
 	}
-	benchAttachments, err := bench.CountAttachments(l.Bench.Root)
+	benchAttachments, err := l.Bench.CountAttachments(l.Bench.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -207,11 +207,11 @@ func (l *Library) Columns() ([]ColumnView, error) {
 func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 	views := make([]ColumnView, 0, len(l.Bench.Columns))
 	for _, column := range l.Bench.Columns {
-		attachments, err := bench.CountAttachments(l.Bench.ColumnDir(column.ID))
+		attachments, err := l.Bench.CountAttachments(l.Bench.ColumnDir(column.ID))
 		if err != nil {
 			return nil, err
 		}
-		comments, err := bench.CountComments(l.Bench.ColumnDir(column.ID))
+		comments, err := l.Bench.CountComments(l.Bench.ColumnDir(column.ID))
 		if err != nil {
 			return nil, err
 		}
@@ -1612,7 +1612,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			if filters.named() {
 				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
 			}
-			text, err := bench.ReadText(filepath.Join(entity.Dir, bench.ColumnAnchor))
+			text, err := l.Bench.ReadText(filepath.Join(entity.Dir, bench.ColumnAnchor))
 			if err != nil {
 				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, req.Card)
 			}
@@ -1635,7 +1635,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 			if filters.named() {
 				return nil, nil, nil, "", refuseDetailFilter(filters.flagWord())
 			}
-			text, err := bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
+			text, err := l.Bench.ReadText(l.Bench.ColumnAnchorPath(column.ID))
 			if err != nil {
 				return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, req.Card)
 			}
@@ -1689,7 +1689,7 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		if err != nil {
 			return nil, nil, nil, "", err
 		}
-		text, err := bench.ReadText(path)
+		text, err := l.Bench.ReadText(path)
 		if err != nil {
 			return nil, nil, nil, "", contract.Refuse(contract.UnknownPath, req.Card)
 		}
@@ -1715,7 +1715,7 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 	if !ok {
 		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
 	}
-	text, err := bench.ReadText(anchor)
+	text, err := l.Bench.ReadText(anchor)
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
 	}
@@ -1729,7 +1729,7 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 	if err != nil {
 		return nil, err
 	}
-	comments, err := l.commentViews(entity.Dir, ref, bench.NewPositions())
+	comments, err := l.commentViews(entity.Dir, ref, l.Bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
@@ -1839,7 +1839,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	// One Positions serves the whole composition, the card view included, so
 	// each collection is listed once and each anchor read once however many
 	// members ask for a position.
-	positions := bench.NewPositions()
+	positions := l.Bench.NewPositions()
 	if chosen.carries("card") {
 		view, err := l.viewWith(card, day, positions)
 		if err != nil {
@@ -2026,7 +2026,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 // empty Body, entries after it carry the full text. Without --since, every
 // entry carries an empty Body (the index is the index, not the payload).
 func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal int, sinceSet bool) (*CommentListing, error) {
-	views, err := l.commentViews(collection.Holder.Dir, collection.Holder.Ref, bench.NewPositions())
+	views, err := l.commentViews(collection.Holder.Dir, collection.Holder.Ref, l.Bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
@@ -2054,7 +2054,7 @@ func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal i
 // applying the --unresolved filter: when set, only items whose state does not
 // lift a column hold are included.
 func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bool) (*ItemListing, error) {
-	positions := bench.NewPositions()
+	positions := l.Bench.NewPositions()
 	items, err := positions.Items(collection.Holder.Dir)
 	if err != nil {
 		return nil, err
@@ -2095,7 +2095,7 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 				colTitle = column.Title
 			}
 		}
-		count, err := bench.CountComments(item.Dir)
+		count, err := l.Bench.CountComments(item.Dir)
 		if err != nil {
 			return nil, err
 		}
@@ -2170,7 +2170,7 @@ func (l *Library) Attachments(req *Request) (*AttachmentListing, error) {
 	if entity.Kind == bench.KindWorkbench {
 		ref = bench.WorkbenchRef
 	}
-	views, err := attachmentViews(entity.Dir, ref, bench.NewPositions())
+	views, err := attachmentViews(entity.Dir, ref, l.Bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
@@ -2276,7 +2276,7 @@ func (l *Library) designatedComment(item *bench.Item, ref string) (*DesignatedCo
 		return view, nil
 	}
 	l.observe(ObserveDesignatedComment, dir)
-	fm, body, err := bench.ReadCommentAnchor(dir)
+	fm, body, err := l.Bench.ReadCommentAnchor(dir)
 	if err != nil {
 		return view, nil
 	}
@@ -2332,8 +2332,8 @@ func displayOrdinal(attachment *bench.Attachment, positions *bench.Positions) (i
 // than the stored ordinal, and the two stop coinciding after one delete. The
 // count is taken here so that every read composing a reference and the
 // resolver reading one back agree by construction.
-func memberPosition(dir, anchor string) (int, error) {
-	return bench.MemberPosition(dir, anchor)
+func (l *Library) memberPosition(dir, anchor string) (int, error) {
+	return l.Bench.MemberPosition(dir, anchor)
 }
 
 // attachmentRef composes the reference a person types to reach one attachment
@@ -2368,7 +2368,7 @@ func (l *Library) History(req *Request) ([]bench.Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	events, _, err := bench.ReadJournal(found.Card.JournalPath())
+	events, _, err := l.Bench.ReadJournal(found.Card.JournalPath())
 	if err != nil {
 		return nil, err
 	}
@@ -2696,7 +2696,7 @@ func (l *Library) primePending(cards []*bench.Card, req *Request, isOperator boo
 	rule2Seen := 0
 
 	for _, card := range arrival {
-		items, err := bench.Items(card.Dir)
+		items, err := l.Bench.Items(card.Dir)
 		if err != nil {
 			return nil, 0, nil, err
 		}
@@ -3306,7 +3306,7 @@ func (l *Library) adoptWorkstreams(req *Request) ([]string, error) {
 		return nil, nil
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return nil, err
 	}

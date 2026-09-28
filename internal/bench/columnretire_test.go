@@ -57,7 +57,7 @@ func newSoleStrandedFixture(t *testing.T) string {
 // pins down what the defect looked like before Open stopped calling it here.
 func TestReadColumnStillRefusesAMissingDirectoryDirectly(t *testing.T) {
 	root := newStrandedFixture(t)
-	_, err := readColumn(root, "b00000000002", 0)
+	_, err := readColumn(Disk{}, root, "b00000000002", 0)
 	if !refusedMalformed(err) {
 		t.Fatalf("wanted the malformed refusal, got %v", err)
 	}

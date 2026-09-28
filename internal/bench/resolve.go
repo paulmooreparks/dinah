@@ -3,7 +3,6 @@ package bench
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -307,7 +306,7 @@ func (b *Bench) resolvePathBody(half ResolutionHalf, ref string) (string, error)
 		if below == "" {
 			return workstream.Dir, nil
 		}
-		return descend(workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, nil, half)
+		return descend(b.source(), workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, nil, half)
 	}
 	path, _, err := b.resolveBelowLanding(half, ref, nil)
 	if err != nil {
@@ -591,12 +590,12 @@ func (b *Bench) orAWorkstreamNamedBarely(ref string, err error) error {
 // answers and the position a screen prints are one number.
 func (b *Bench) collectionAt(half ResolutionHalf, ref string, landed *landing) (*CollectionRef, error) {
 	ref = strings.TrimSpace(ref)
-	members, err := MemberIDs(landed.dir, landed.mount)
+	members, err := b.MemberIDs(landed.dir, landed.mount)
 	if err != nil {
 		return nil, err
 	}
 	if landed.narrow != "" {
-		members = filterByKind(landed.dir, landed.mount.Anchor, members, landed.narrow)
+		members = filterByKind(b.source(), landed.dir, landed.mount.Anchor, members, landed.narrow)
 	}
 	holder, err := b.collectionHolder(ref)
 	if err != nil {
@@ -661,7 +660,7 @@ func (b *Bench) resolveBelowLanding(half ResolutionHalf, ref string, landed *lan
 		if rest == "" {
 			return filepath.Join(b.Root, WorkbenchAnchor), nil, nil
 		}
-		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil, landed, half)
+		path, err := descend(b.source(), b.Root, KindWorkbench, strings.Split(rest, "/"), nil, landed, half)
 		return path, nil, err
 	}
 	withinColumn, err := b.columnByRefIn(within, head)
@@ -673,20 +672,20 @@ func (b *Bench) resolveBelowLanding(half ResolutionHalf, ref string, landed *lan
 		if rest == "" {
 			return filepath.Join(dir, ColumnAnchor), nil, nil
 		}
-		path, err := descend(dir, KindColumn, strings.Split(rest, "/"), nil, landed, half)
+		path, err := descend(b.source(), dir, KindColumn, strings.Split(rest, "/"), nil, landed, half)
 		return path, nil, err
 	}
 	found, err := b.resolveCardIn(b.cardsRootIn(within), head)
 	if err != nil {
 		return "", nil, err
 	}
-	path, err := walkBelowCard(found.Card, rest, landed, half)
+	path, err := walkBelowCard(b.source(), found.Card, rest, landed, half)
 	return path, found.Card, err
 }
 
 // walkBelowCard resolves the segments below a card. An empty rest is the
 // card's own anchor, which is what makes `path <card>` open the card.
-func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf) (string, error) {
+func walkBelowCard(src Source, card *Card, rest string, landed *landing, half ResolutionHalf) (string, error) {
 	if rest == "" {
 		return card.AnchorPath(), nil
 	}
@@ -708,9 +707,9 @@ func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf
 			return "", contract.Refuse(contract.UnknownPath, rest)
 		}
 		aliased := append([]string{items.Dir}, segments[1:]...)
-		return descend(card.Dir, KindCard, aliased, &kind, landed, half)
+		return descend(src, card.Dir, KindCard, aliased, &kind, landed, half)
 	}
-	return descend(card.Dir, KindCard, segments, nil, landed, half)
+	return descend(src, card.Dir, KindCard, segments, nil, landed, half)
 }
 
 // The two files a card owns, as CardOwnFile names them. They are the answer
@@ -787,11 +786,21 @@ type landing struct {
 // its rows from it, so the two read one statement of the order rather than
 // two statements that agree today.
 func MemberIDs(collection string, mount Mount) ([]string, error) {
-	ids, err := ListIDs(collection)
+	return memberIDs(Disk{}, collection, mount)
+}
+
+// MemberIDs is the free MemberIDs read through this bench's source.
+func (b *Bench) MemberIDs(collection string, mount Mount) ([]string, error) {
+	return memberIDs(b.source(), collection, mount)
+}
+
+// memberIDs is MemberIDs's body, reading through src.
+func memberIDs(src Source, collection string, mount Mount) ([]string, error) {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
-	return SortByOrdinal(collection, mount.Anchor, ids), nil
+	return sortByOrdinal(src, collection, mount.Anchor, ids), nil
 }
 
 // descend resolves the segments below one entity by walking the containment
@@ -814,7 +823,7 @@ func MemberIDs(collection string, mount Mount) ([]string, error) {
 // in the listing's ascending-hex order, so `<card>/comment/2` names the second
 // comment somebody wrote and keeps naming it however the identifiers happened
 // to fall.
-func descend(dir, kind string, segments []string, narrow *string, landed *landing, half ResolutionHalf) (string, error) {
+func descend(src Source, dir, kind string, segments []string, narrow *string, landed *landing, half ResolutionHalf) (string, error) {
 	mount, ok := MountOf(kind, segments[0])
 	if !ok {
 		return "", contract.Refuse(contract.UnknownPath, segments[0])
@@ -863,14 +872,14 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 		}
 		return collection, nil
 	}
-	ids, err := MemberIDs(collection, mount)
+	ids, err := memberIDs(src, collection, mount)
 	if err != nil {
 		return "", err
 	}
 	if narrow != nil {
-		ids = filterByKind(collection, mount.Anchor, ids, *narrow)
+		ids = filterByKind(src, collection, mount.Anchor, ids, *narrow)
 	}
-	id, err := pick(collection, mount, ids, tail[0])
+	id, err := pick(src, collection, mount, ids, tail[0])
 	if err != nil {
 		return "", err
 	}
@@ -885,9 +894,9 @@ func descend(dir, kind string, segments []string, narrow *string, landed *landin
 		if len(below) > 1 {
 			return "", contract.Refuse(contract.UnknownPath, below[1])
 		}
-		return payloadOf(member)
+		return payloadOf(src, member)
 	}
-	return descend(member, mount.Kind, below, nil, landed, half)
+	return descend(src, member, mount.Kind, below, nil, landed, half)
 }
 
 // AddressedInItsOwnRight reports whether a kind is one a person names directly
@@ -909,9 +918,9 @@ func AddressedInItsOwnRight(kind string) bool {
 
 // payloadOf is the file an attachment wraps, which is the one file its payload
 // directory holds.
-func payloadOf(dir string) (string, error) {
+func payloadOf(src Source, dir string) (string, error) {
 	payload := filepath.Join(dir, PayloadDir)
-	entries, err := os.ReadDir(payload)
+	entries, err := src.ReadDir(payload)
 	if err != nil || len(entries) == 0 {
 		return "", contract.Refuse(contract.UnknownPath, payload)
 	}
@@ -920,14 +929,13 @@ func payloadOf(dir string) (string, error) {
 
 // filterByKind narrows a collection to the entities whose anchor declares a
 // kind, which is how the checklist segments select one of the three.
-func filterByKind(collection, anchor string, ids []string, kind string) []string {
+func filterByKind(src Source, collection, anchor string, ids []string, kind string) []string {
 	var kept []string
 	for _, id := range ids {
-		text, err := ReadText(filepath.Join(collection, id, anchor))
+		fm, _, err := anchorOf(src, filepath.Join(collection, id, anchor))
 		if err != nil {
 			continue
 		}
-		fm, _ := ParseAnchor(text)
 		if fm.Value("kind") == kind {
 			kept = append(kept, id)
 		}
@@ -950,7 +958,7 @@ func filterByKind(collection, anchor string, ids []string, kind string) []string
 // one entity refuses ambiguous-name and carries the position of every match
 // alongside the selector, so the caller retries with attachments/<n> and the
 // number it retries with is one this same function's position arm answers.
-func pick(collection string, mount Mount, ids []string, selector string) (string, error) {
+func pick(src Source, collection string, mount Mount, ids []string, selector string) (string, error) {
 	if IsID(selector) {
 		for _, id := range ids {
 			if id == selector {
@@ -967,7 +975,7 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 		return "", contract.Refuse(contract.UnknownPath, selector)
 	}
 	if mount.NameField != "" {
-		matches := matchByName(collection, mount, ids, selector)
+		matches := matchByName(src, collection, mount, ids, selector)
 		switch len(matches) {
 		case 1:
 			return ids[matches[0]], nil
@@ -998,10 +1006,10 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 // no ordinal at all and a gapped collection carries ordinals that have drifted
 // off their positions. The caller reaches the identifier of a single match as
 // ids[position].
-func matchByName(collection string, mount Mount, ids []string, selector string) []int {
+func matchByName(src Source, collection string, mount Mount, ids []string, selector string) []int {
 	var matches []int
 	for index, id := range ids {
-		fm, _ := loadAnchor(filepath.Join(collection, id, mount.Anchor))
+		fm, _ := loadAnchor(src, filepath.Join(collection, id, mount.Anchor))
 		if fm.Value(mount.NameField) == selector {
 			matches = append(matches, index)
 		}
@@ -1144,7 +1152,7 @@ func (b *Bench) ArchivedColumnByRef(ref string) (*Column, error) {
 		return nil, nil
 	}
 	root := filepath.Join(b.Root, ArchiveDir)
-	ids, err := ListIDs(b.ArchivedColumnsRoot())
+	ids, err := b.ListIDs(b.ArchivedColumnsRoot())
 	if err != nil {
 		return nil, err
 	}
@@ -1153,7 +1161,7 @@ func (b *Bench) ArchivedColumnByRef(ref string) (*Column, error) {
 		// A directory the reader refuses is skipped rather than refused
 		// over, which is what leaves the rest of the mirror reachable when
 		// one anchor in it is damaged.
-		column, err := readColumnIn(root, currentVocabulary, id, n+1)
+		column, err := readColumnIn(b.source(), root, currentVocabulary, id, n+1)
 		if err != nil {
 			continue
 		}
@@ -1189,7 +1197,7 @@ func (b *Bench) workstreamByRefIn(half ResolutionHalf, ref string) (*Workstream,
 	if handle == "" {
 		return nil, nil
 	}
-	archived, err := workstreamsIn(b.workstreamsRootIn(ArchivedHalf))
+	archived, err := workstreamsIn(b.source(), b.workstreamsRootIn(ArchivedHalf))
 	if err != nil {
 		return nil, err
 	}
@@ -1373,14 +1381,14 @@ func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, 
 		if half == ArchivedHalf {
 			collection = filepath.Join(dir, ArchiveDir, mount.Dir)
 		}
-		members, err := MemberIDs(collection, mount)
+		members, err := b.MemberIDs(collection, mount)
 		if err != nil {
 			return "", "", false, err
 		}
 		if narrow != nil {
-			members = filterByKind(collection, mount.Anchor, members, *narrow)
+			members = filterByKind(b.source(), collection, mount.Anchor, members, *narrow)
 		}
-		id, err := pick(collection, mount, members, walk[1])
+		id, err := pick(b.source(), collection, mount, members, walk[1])
 		if err != nil {
 			continue
 		}
@@ -1396,7 +1404,7 @@ func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, 
 			if len(walk) > 3 {
 				return "", "", false, nil
 			}
-			if _, err := payloadOf(member); err != nil {
+			if _, err := payloadOf(b.source(), member); err != nil {
 				return "", "", false, nil
 			}
 			return holder, "", true, nil
@@ -1442,7 +1450,17 @@ func (b *Bench) CollectionRootIn(half ResolutionHalf, dir string) string {
 // into yet is an ordinary state of a workbench rather than a fault, so it
 // counts zero rather than refusing.
 func CountIn(collection string) (int, error) {
-	ids, err := ListIDs(collection)
+	return countIn(Disk{}, collection)
+}
+
+// CountIn is the free CountIn read through this bench's source.
+func (b *Bench) CountIn(collection string) (int, error) {
+	return countIn(b.source(), collection)
+}
+
+// countIn is CountIn's body, reading through src.
+func countIn(src Source, collection string) (int, error) {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return 0, err
 	}

@@ -18,9 +18,50 @@ import (
 // CORE-LAYER-2 free: a key the tool has never heard of survives a read and a
 // write untouched, whatever shape its value has, because nothing here decoded
 // it in the first place. Only the keys a verb actually changes are rewritten.
+//
+// A Frontmatter is copy-on-write. Clone answers one that shares this one's
+// keys and block until either is written, and every method that writes calls
+// own first, so a header a resident snapshot hands to many requests is never
+// changed by any of them.
 type Frontmatter struct {
-	keys  []string
-	block map[string][]string
+	keys   []string
+	block  map[string][]string
+	shared bool // keys and block belong to another Frontmatter too
+}
+
+// Clone answers a Frontmatter that reads as f does and that its holder may
+// change without changing f. It copies nothing until one of them is written.
+//
+// A header a memo holds is marked shared before any request can reach it, so
+// Clone writes nothing to such a header and concurrent clones of it only read
+// it.
+func (f *Frontmatter) Clone() *Frontmatter {
+	if !f.shared {
+		f.shared = true
+	}
+	return &Frontmatter{keys: f.keys[:len(f.keys):len(f.keys)], block: f.block, shared: true}
+}
+
+// markShared records that f's keys and block are held by a memo, which hands
+// out clones of f and never writes it.
+func (f *Frontmatter) markShared() {
+	f.shared = true
+}
+
+// own gives f its own keys and block before a write, when they are shared.
+// The map's values are shared still, and that is safe because no writer
+// changes a key's slice in place: each replaces it.
+func (f *Frontmatter) own() {
+	if !f.shared {
+		return
+	}
+	f.keys = append([]string(nil), f.keys...)
+	block := make(map[string][]string, len(f.block))
+	for key, lines := range f.block {
+		block[key] = lines
+	}
+	f.block = block
+	f.shared = false
 }
 
 // topKey matches a top-level frontmatter key at column one. An indented line
@@ -157,6 +198,7 @@ func (f *Frontmatter) Seq(key string) []string {
 // Set writes a scalar value, appending the key when it is new and leaving the
 // position of an existing key alone.
 func (f *Frontmatter) Set(key, value string) {
+	f.own()
 	if _, ok := f.block[key]; !ok {
 		f.keys = append(f.keys, key)
 	}
@@ -172,6 +214,7 @@ func (f *Frontmatter) Set(key, value string) {
 // when the writer that creates the anchor puts it in the same place, so the
 // two anchors of one workbench do not differ by who wrote them.
 func (f *Frontmatter) SetAfter(key, value, after string) {
+	f.own()
 	_, existing := f.block[key]
 	f.Set(key, value)
 	if existing || key == after {
@@ -196,6 +239,7 @@ func (f *Frontmatter) SetAfter(key, value, after string) {
 // deletes the key, because absent and empty mean the same thing here and the
 // shorter form is the one a reader can scan.
 func (f *Frontmatter) SetSeq(key string, items []string) {
+	f.own()
 	if len(items) == 0 {
 		f.Delete(key)
 		return
@@ -213,6 +257,7 @@ func (f *Frontmatter) SetSeq(key string, items []string) {
 // SetRaw writes a key's lines verbatim, for a value whose shape the typed
 // setters do not cover. The first line must carry the key.
 func (f *Frontmatter) SetRaw(key string, lines []string) {
+	f.own()
 	if _, ok := f.block[key]; !ok {
 		f.keys = append(f.keys, key)
 	}
@@ -227,6 +272,7 @@ func (f *Frontmatter) Raw(key string) []string {
 
 // Delete removes a key and its block.
 func (f *Frontmatter) Delete(key string) {
+	f.own()
 	if _, ok := f.block[key]; !ok {
 		return
 	}
@@ -393,6 +439,7 @@ var ErrRenameCollides = errors.New("frontmatter: the header already carries the 
 // re-Setting the value would quote it afresh and move the key to the end,
 // where a reader expects to find it where its neighbours left it.
 func (f *Frontmatter) Rename(from, to string) error {
+	f.own()
 	lines, ok := f.block[from]
 	if !ok || from == to {
 		return nil

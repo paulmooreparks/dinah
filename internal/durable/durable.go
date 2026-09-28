@@ -169,6 +169,21 @@ func Open(path string) (*os.File, error) {
 	return f, err
 }
 
+// OpenDir opens a directory, or a file, for reading, so its caller can stat it
+// and list it through one handle with (*os.File).ReadDir. On Windows the
+// handle shares read, write and delete, as Open's does, so a listing never
+// refuses another process's rename or removal of the directory while it runs.
+func OpenDir(path string) (*os.File, error) {
+	c := classify(false)
+	var f *os.File
+	err := retry("open", path, c, openRetryable, func() error {
+		var err error
+		f, err = openDirOnce(path)
+		return err
+	})
+	return f, err
+}
+
 // ReadFile reads a whole file through Open, sizing its buffer from the file's
 // length the way os.ReadFile does, and reading on to the end in case the file
 // grew or reports no length, as a file under /proc does.

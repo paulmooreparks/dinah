@@ -184,7 +184,7 @@ func (b *Bench) MigrateDesignations(actor Actor, now string, apply bool) (*Desig
 	run := &DesignationMigration{Applied: apply}
 	roots := []string{b.CardsRoot(), b.ArchivedCardsRoot()}
 	for _, root := range roots {
-		ids, err := ListIDs(root)
+		ids, err := b.ListIDs(root)
 		if err != nil {
 			return run, err
 		}
@@ -236,7 +236,7 @@ func (b *Bench) convertCard(run *DesignationMigration, card *Card, actor Actor, 
 	if !apply {
 		return nil
 	}
-	lock, err := Acquire(card.Dir, actor.Name, now)
+	lock, err := b.Acquire(card.Dir, actor.Name, now)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (b *Bench) convertCard(run *DesignationMigration, card *Card, actor Actor, 
 		if !found {
 			continue
 		}
-		fm, body, err := ReadItemAnchor(dir)
+		fm, body, err := b.ReadItemAnchor(dir)
 		if err != nil {
 			return err
 		}
@@ -282,7 +282,7 @@ func (b *Bench) plannedDesignations(card *Card) ([]DesignationEntry, error) {
 			continue
 		}
 		if !loaded {
-			events, _, err = ReadJournal(card.JournalPath())
+			events, _, err = b.ReadJournal(card.JournalPath())
 			if err != nil {
 				return nil, err
 			}
@@ -296,11 +296,11 @@ func (b *Bench) plannedDesignations(card *Card) ([]DesignationEntry, error) {
 // everyItem reads a card's checklist items from both halves, live first and
 // archived after, so an archived item is converted exactly as a live one is.
 func (b *Bench) everyItem(card *Card) ([]*Item, error) {
-	items, err := Items(card.Dir)
+	items, err := b.Items(card.Dir)
 	if err != nil {
 		return nil, err
 	}
-	archived, err := Items(filepath.Join(card.Dir, ArchiveDir))
+	archived, err := b.Items(filepath.Join(card.Dir, ArchiveDir))
 	if err != nil {
 		return items, nil
 	}
@@ -494,7 +494,7 @@ func (b *Bench) commentsOfItem(item *Item) map[string]designatedComment {
 		dir      string
 		archived bool
 	}{{item.Dir, false}, {filepath.Join(item.Dir, ArchiveDir), true}} {
-		comments, err := Comments(half.dir)
+		comments, err := b.Comments(half.dir)
 		if err != nil {
 			continue
 		}
@@ -526,7 +526,7 @@ func (b *Bench) commentsElsewhere(card *Card, item *Item) map[string]bool {
 		}
 	}
 	for _, holder := range holders {
-		comments, err := Comments(holder)
+		comments, err := b.Comments(holder)
 		if err != nil {
 			continue
 		}
@@ -545,7 +545,7 @@ func (b *Bench) commentAtPosition(item *Item, resolution string) (designatedComm
 	if !ok {
 		return designatedComment{}, false
 	}
-	comments, err := Comments(item.Dir)
+	comments, err := b.Comments(item.Dir)
 	if err != nil || ordinal < 1 || ordinal > len(comments) {
 		return designatedComment{}, false
 	}
@@ -592,7 +592,7 @@ func sameActor(a, b Actor) bool {
 // lock every older build out of a store still carrying positional answers.
 func (b *Bench) stampFormat(format int) error {
 	anchor := filepath.Join(b.Root, WorkbenchAnchor)
-	text, err := ReadText(anchor)
+	text, err := b.ReadText(anchor)
 	if err != nil {
 		return err
 	}
