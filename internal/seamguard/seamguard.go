@@ -94,6 +94,7 @@ import (
 	"sync"
 
 	"dinah/internal/durable"
+	"dinah/internal/shipped"
 )
 
 // DurablePath is the import path of the package every open, write, rename and
@@ -276,54 +277,18 @@ type Package struct {
 	Info  *types.Info
 }
 
-// Config is one build configuration: a platform and the build tags given.
-type Config struct {
-	GOOS, GOARCH string
-	Tags         []string
-}
+// Config is one build configuration, as internal/shipped names it.
+type Config = shipped.Config
 
-// String names a configuration as "windows/amd64" or "windows/amd64 tui".
-func (c Config) String() string {
-	name := c.GOOS + "/" + c.GOARCH
-	if len(c.Tags) > 0 {
-		name += " " + strings.Join(c.Tags, ",")
-	}
-	return name
-}
-
-// Context answers go/build's default context set to this configuration, with
-// cgo off, as every shipped binary is built.
-func (c Config) Context() build.Context {
-	ctxt := build.Default
-	ctxt.GOOS = c.GOOS
-	ctxt.GOARCH = c.GOARCH
-	ctxt.BuildTags = append([]string(nil), c.Tags...)
-	ctxt.CgoEnabled = false
-	return ctxt
-}
-
-// Shipped are the configurations the project builds a binary for: the six
-// platforms .github/workflows/promote.yml loops over, each built once with no
-// tags (dinah) and once with the tui tag (dinah-tui), as that workflow and
-// release.yml build them. TestShippedMatchesThePromoteWorkflow holds the
-// platform list to the workflow's.
-var Shipped = func() []Config {
-	var configs []Config
-	for _, platform := range [][2]string{
-		{"windows", "amd64"}, {"windows", "arm64"},
-		{"linux", "amd64"}, {"linux", "arm64"},
-		{"darwin", "amd64"}, {"darwin", "arm64"},
-	} {
-		configs = append(configs, Config{GOOS: platform[0], GOARCH: platform[1]})
-		configs = append(configs, Config{GOOS: platform[0], GOARCH: platform[1], Tags: []string{"tui"}})
-	}
-	return configs
-}()
+// Shipped are the configurations the project builds a binary for, which
+// internal/shipped lists and holds to promote.yml. internal/durable's guard
+// loads the module under the same list.
+var Shipped = shipped.Configs
 
 // Host is the configuration this process was built for, with no tags, which
 // is what a planted file is checked under.
 func Host() Config {
-	return Config{GOOS: build.Default.GOOS, GOARCH: build.Default.GOARCH}
+	return shipped.Host()
 }
 
 // Distinct answers the configurations among configs that select distinct
