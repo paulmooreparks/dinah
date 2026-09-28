@@ -350,16 +350,14 @@ func WriteAuthorityOf(kind string) string {
 }
 
 // AnchorOf reports the anchor filename a kind's entity carries, and the empty
-// string for a kind the grammar does not name.
+// string for a kind the grammar does not name and for a comment or an item,
+// each of which is lines of a journal rather than a file.
 //
-// The five mounted kinds are read off the containment table rather than listed
+// The mounted kinds are read off the containment table rather than listed
 // again here, so the anchor of a kind stays written down once. The workbench
 // and the workstream are named directly, because no mount names either as its
 // kind and the loop below therefore cannot reach them: the workbench is the
-// root nothing contains, and nothing contains a workstream either. A comment
-// and an item are mounted with no anchor, since in the card-unit layout each
-// is lines of a journal, and they answer the anchor the older layout gives
-// them; AnchorPathOf is what refuses a journaled one a file.
+// root nothing contains, and nothing contains a workstream either.
 func AnchorOf(kind string) string {
 	switch kind {
 	case KindWorkbench:
@@ -369,10 +367,10 @@ func AnchorOf(kind string) string {
 	}
 	for _, mounts := range containment {
 		for _, mount := range mounts {
-			if mount.Kind == kind && mount.Anchor != "" {
+			if mount.Kind == kind {
 				return mount.Anchor
 			}
 		}
 	}
-	return legacyAnchorOf(kind)
+	return ""
 }

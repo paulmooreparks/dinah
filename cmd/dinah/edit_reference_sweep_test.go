@@ -59,6 +59,11 @@ type editShape struct {
 	kind string
 	// opens says whether edit is required to open a file for this shape.
 	opens bool
+	// copies says the file edit opens is a copy of a comment's or an item's
+	// text that edit makes for the editor, since neither has a file of its
+	// own in the card-unit layout. The resolver refuses such a shape
+	// dinah.not-a-file, and the command hands the editor the copy.
+	copies bool
 	// refusal is the refusal name required when opens is false.
 	refusal string
 }
@@ -108,6 +113,13 @@ func TestEveryReferenceShapeEditAcceptsNamesAFile(t *testing.T) {
 	opens, refusals := 0, 0
 	for _, shape := range shapes {
 		answer, err := opened.ResolveEditTarget(shape.ref)
+		if shape.copies {
+			opens++
+			if refusal, ok := err.(*contract.Refusal); !ok || refusal.Name != contract.NotAFile {
+				t.Errorf("edit %q names a member edit hands a copy of, and the resolver answered %q, %v, wanted %s", shape.ref, answer, err, contract.NotAFile)
+			}
+			continue
+		}
 		if shape.opens {
 			opens++
 			if err != nil {
@@ -259,6 +271,22 @@ func TestEditHandsTheEditorTheFileTheResolverNames(t *testing.T) {
 		}
 		if len(launched) != 1 {
 			t.Errorf("`dinah edit %q` recorded %d editor launches, wanted one: %v", shape.ref, len(launched), launched)
+			continue
+		}
+		if shape.copies {
+			// The copy is named for the reference, stands in a directory
+			// edit made for it, and is gone with that directory once the
+			// editor has returned.
+			wanted := strings.ReplaceAll(strings.Trim(strings.TrimSpace(shape.ref), "/"), "/", "-") + ".md"
+			if filepath.Base(launched[0]) != wanted {
+				t.Errorf("`dinah edit %q` handed the editor %q, wanted a copy named %s", shape.ref, launched[0], wanted)
+			}
+			if !strings.HasPrefix(filepath.Base(filepath.Dir(launched[0])), "dinah-edit-") {
+				t.Errorf("`dinah edit %q` handed the editor %q, which stands in no directory edit made for it", shape.ref, launched[0])
+			}
+			if _, err := os.Stat(filepath.Dir(launched[0])); !os.IsNotExist(err) {
+				t.Errorf("`dinah edit %q` left the directory it made the copy in: %v", shape.ref, err)
+			}
 			continue
 		}
 		answer, err := opened.ResolveEditTarget(shape.ref)
@@ -416,7 +444,7 @@ func editContainedShapes(t *testing.T, fixture editFixture) []editShape {
 			if named, ok := direct[mount.Kind]; ok {
 				memberRef, memberDir = named.ref, named.dir
 			}
-			shapes = append(shapes, editShape{ref: memberRef, kind: mount.Kind, opens: true})
+			shapes = append(shapes, editShape{ref: memberRef, kind: mount.Kind, opens: true, copies: mount.Journaled})
 			walk(mount.Kind, memberDir, memberRef)
 		}
 	}
@@ -455,7 +483,7 @@ func editDeclaredShapes(t *testing.T, fixture editFixture) []editShape {
 		}
 		shapes = append(shapes,
 			editShape{ref: fixture.card + "/" + word, refusal: contract.IsACollection},
-			editShape{ref: fixture.card + "/" + word + "/1", kind: bench.KindItem, opens: true},
+			editShape{ref: fixture.card + "/" + word + "/1", kind: bench.KindItem, opens: true, copies: true},
 		)
 	}
 	shapes = append(shapes,

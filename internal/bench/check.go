@@ -1223,7 +1223,7 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingWorkstream, Detail: id})
 	}
-	ordinalFindings, err := checkOrdinals(card.Dir)
+	ordinalFindings, err := b.checkOrdinals(card.Dir)
 	if err != nil {
 		return findings, err
 	}
@@ -1311,8 +1311,8 @@ func (b *Bench) RegressiveDepartures(events []Event, columnID string) int {
 // deleted neighbour does not change where that was, so closing the gap would
 // rewrite a historical fact on entities nobody touched. A duplicate is
 // reported because it leaves a position with two answers.
-func checkOrdinals(cardDir string) ([]Finding, error) {
-	collections, err := ordinalCollections(cardDir, KindCard, nil)
+func (b *Bench) checkOrdinals(cardDir string) ([]Finding, error) {
+	collections, err := ordinalCollections(cardDir, KindCard, nil, b.CardUnit())
 	if err != nil {
 		return nil, err
 	}
@@ -1330,7 +1330,7 @@ func checkOrdinals(cardDir string) ([]Finding, error) {
 // workbench's columns and its cards, is outside the sweep because the mount
 // says so rather than because this function names the kinds.
 func (b *Bench) checkBenchOrdinals() ([]Finding, error) {
-	collections, err := ordinalCollections(b.Root, KindWorkbench, map[string]bool{KindCard: true})
+	collections, err := ordinalCollections(b.Root, KindWorkbench, map[string]bool{KindCard: true}, b.CardUnit())
 	if err != nil {
 		return nil, err
 	}

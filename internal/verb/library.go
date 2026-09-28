@@ -240,29 +240,18 @@ type Request struct {
 	Replace bool
 	// Confirm is the deliberate flag a delete requires.
 	Confirm bool
-	// PriorDigest is the digest of a comment's body as it stood before an
-	// editor was handed the file, which RecordCommentEdit reads to tell an
-	// edit this author made from one that was already there. The head
-	// computes it, because the head is what opens the editor.
-	PriorDigest string
 	// ExpectedDigest is the digest the caller last observed recorded on a
 	// comment's anchor, which turns a write of that comment into a
 	// compare-and-swap on the digest key rather than on the body.
 	//
-	// It is a second field rather than a second use of PriorDigest, and the
-	// two are not the same value. PriorDigest is what the tool computed from
-	// a body it read; this is what the tool read out of the header. They
-	// coincide on a comment nobody has hand-edited, and they part company on
-	// one somebody has, which is exactly the case each is used to judge.
-	//
-	// Which one a caller can supply is decided by what it was able to
-	// observe. `dinah edit` opens the file itself and sees the body before
-	// and after, so it compares bodies. An editor writes the file on save,
-	// so by the time an extension's save handler runs the body it would have
-	// compared against is gone; what survives is the header, and the digest
-	// in it is the only thing left to compare. A caller supplying this
+	// It is what the tool read out of the header rather than a digest of a
+	// body it read, and the two part company exactly on a comment somebody
+	// has hand-edited. `dinah edit` and the editor extension each read the
+	// comment before a person started typing and write the change after,
+	// so by then the body they would compare against may have moved; the
+	// recorded digest is what they last saw. A caller supplying this
 	// therefore says: I last saw this digest recorded, nothing has written
-	// the comment through a verb since, and the change on disk is mine.
+	// the comment through a verb since, and the change I am writing is mine.
 	ExpectedDigest string
 	// Force carries a delete past the refusal an item's designation raises,
 	// reopening that item as part of the same act. It inherits the reopen's

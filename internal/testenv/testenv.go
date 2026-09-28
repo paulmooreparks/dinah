@@ -316,9 +316,23 @@ func recordEditorLaunch() bool {
 	if appended := os.Getenv(EditorAppendVar); appended != "" && len(os.Args) > 1 {
 		appendToEdited(os.Args[len(os.Args)-1], appended)
 	}
+	if elsewhere := os.Getenv(EditorSideFileVar); elsewhere != "" {
+		appendToEdited(elsewhere, os.Getenv(EditorSideLineVar))
+	}
 	os.Exit(0)
 	return true
 }
+
+// EditorSideFileVar and EditorSideLineVar make the stand-in editor also append
+// one line to a file other than the one it was handed, while it stands in for
+// the editor: the line EditorSideLineVar holds, to the file EditorSideFileVar
+// names. It is how a test lands somebody else's write in the middle of an
+// edit, which is the race dinah edit's expected digest exists to refuse.
+// dinah-637.
+const (
+	EditorSideFileVar = "DINAH_TEST_EDITOR_SIDE_FILE"
+	EditorSideLineVar = "DINAH_TEST_EDITOR_SIDE_LINE"
+)
 
 // EditorAppendVar names the environment variable that makes the stand-in
 // editor EditorRecordVar arms also write something: it appends the variable's

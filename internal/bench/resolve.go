@@ -361,6 +361,13 @@ func (b *Bench) ResolveEditTarget(ref string) (string, error) {
 	if collection != nil {
 		return "", collection.Refuse()
 	}
+	// A comment or an item has no file of its own in the card-unit layout,
+	// and in either layout dinah edit hands the editor a copy of its text
+	// rather than a file of the store, deciding that before it asks this, so
+	// there is no path to answer with.
+	if entity.Kind == KindComment || entity.Kind == KindItem {
+		return "", contract.Refuse(contract.NotAFile, strings.TrimSpace(ref))
+	}
 	anchor, declared := AnchorPathOf(entity)
 	if !declared {
 		// No reference a reader can type reaches this, because every kind

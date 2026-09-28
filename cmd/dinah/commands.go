@@ -11,6 +11,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/guide"
 	"dinah/internal/lsp"
 	"dinah/internal/mcp"
@@ -1461,15 +1462,19 @@ func editCmd(s *session, editor, path string) *exec.Cmd {
 
 // runEdit opens a path in the reader's editor.
 //
-// On a comment it does one thing more, because a comment's body is a record
-// of what somebody said rather than a description of something: it observes
-// the body before the editor is handed the file, and on the editor's return it
-// asks the library what that edit meant. It asserts nothing about when the
-// editor returned, which no editor contracts; RecordCommentEdit carries the
-// whole of that reasoning and this side only supplies the before.
+// A comment or a checklist item is handed to the editor as a file of its own
+// that this command makes, because neither has one in the card-unit layout,
+// and editMember says what happens on the editor's return. Everything else
+// opens the file ResolveEditTarget names.
 func runEdit(s *session, parsed *arguments) int {
 	ref := at(parsed.rest(), 0)
 	return s.withBench(func(l *verb.Library) int {
+		if strings.TrimSpace(ref) != "" {
+			if entity, err := l.Bench.ResolveEntity(ref); err == nil &&
+				(entity.Kind == bench.KindComment || entity.Kind == bench.KindItem) {
+				return editMember(s, parsed, l, ref, entity)
+			}
+		}
 		// What this command opens is declared once, in ResolveEditTarget,
 		// rather than assembled here out of two resolvers.
 		resolved, err := l.Bench.ResolveEditTarget(ref)
@@ -1480,25 +1485,65 @@ func runEdit(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		comment, err := l.Bench.ResolveEntity(ref)
-		before := ""
-		editing := err == nil && comment.Kind == bench.KindComment
-		if editing {
-			if before, err = verb.CommentBodyDigest(comment.Dir); err != nil {
-				return s.reportError(err)
-			}
-		}
 		if err := editCmd(s, editor, resolved).Run(); err != nil {
 			return s.reportError(err)
 		}
-		if !editing {
-			return 0
-		}
-		req := s.request("edit", parsed)
-		req.Ref = ref
-		req.PriorDigest = before
-		return s.emit(l.RecordCommentEdit(req))
+		return 0
 	})
+}
+
+// editMember edits a comment's body or an item's text through a file in a
+// directory of its own under the system's temporary area, named for the
+// reference, which is removed on every way out.
+//
+// The file holds the editable text and nothing else. On the editor's return
+// an unchanged file writes nothing. A changed comment body is written by the
+// ordinary body write with the digest recorded before the editor opened as
+// its expected digest, so a write that landed while the editor was open is
+// refused dinah.comment-body-diverged, as --expect-digest refuses it. A
+// changed item text is written as set <item> text under that field's own
+// authority. Nothing here asserts when the editor returned, which no editor
+// contracts: an editor that hands the file to a running instance and returns
+// at once leaves the file unchanged, and nothing is written.
+func editMember(s *session, parsed *arguments, l *verb.Library, ref string, entity *bench.EntityRef) int {
+	fm, body, err := l.Bench.MemberAnchor(entity)
+	if err != nil {
+		return s.reportError(err)
+	}
+	editor, err := bench.ResolveEditor(s.cfg, runtime.GOOS, onPath)
+	if err != nil {
+		return s.reportError(err)
+	}
+	dir, err := os.MkdirTemp("", "dinah-edit-")
+	if err != nil {
+		return s.reportError(err)
+	}
+	defer durable.RemoveAll(dir)
+	name := strings.ReplaceAll(strings.Trim(strings.TrimSpace(ref), "/"), "/", "-") + ".md"
+	path := filepath.Join(dir, name)
+	if err := durable.WriteFile(path, []byte(body), 0o644); err != nil {
+		return s.reportError(err)
+	}
+	if err := editCmd(s, editor, path).Run(); err != nil {
+		return s.reportError(err)
+	}
+	edited, err := durable.ReadFile(path)
+	if err != nil {
+		return s.reportError(err)
+	}
+	if string(edited) == body {
+		return 0
+	}
+	req := s.request("edit", parsed)
+	req.Ref = ref
+	req.Value = string(edited)
+	req.Field = bench.BodyField
+	if entity.Kind == bench.KindItem {
+		req.Field = bench.TextField
+	} else {
+		req.ExpectedDigest = fm.Value(bench.CommentDigestField)
+	}
+	return s.emit(l.SetField(req))
 }
 
 // onPath reports whether a binary is on the search path, which is what the

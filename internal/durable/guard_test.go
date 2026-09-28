@@ -60,7 +60,7 @@ var permittedFunctions = map[string]map[string]bool{
 		// Other processes, and pipes and handles the process already has.
 		"FindProcess", "NewFile", "Pipe", "StartProcess",
 		// Reading what a path names, and making directories.
-		"Lstat", "Mkdir", "MkdirAll", "ReadDir", "Readlink", "SameFile", "Stat",
+		"Lstat", "Mkdir", "MkdirAll", "MkdirTemp", "ReadDir", "Readlink", "SameFile", "Stat",
 		// Classifying errors and paths.
 		"IsExist", "IsNotExist", "IsPathSeparator", "IsPermission", "IsTimeout", "NewSyscallError",
 	),
