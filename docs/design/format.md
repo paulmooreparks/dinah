@@ -1512,6 +1512,14 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `retirement_granted` | `to` (the identifier of the column the card stood in when the grant was given) | |
 | `retirement_revoked` | | |
 | `designations_migrated` | | `cards`, the references of the cards whose claim the run passed, written by a forced run alone and absent from every other; a forced run that passed none writes the line carrying no card, so the flag is never a silent no-op |
+| `lock_reclaimed` | `note` (the dead lock's own record line) | `column`, the identifier of the column whose occupancy lock was reclaimed, written only on a line about a column's occupancy lock |
+
+A `lock_reclaimed` line lands on the journal of the entity the reclaimed lock
+covered: a card's lock on that card's journal, a workstream's on the
+workstream's, and the workbench's on the workbench's. A column carries no
+journal, so a reclaim of its occupancy lock lands on the journal of the card
+whose move or pull reclaimed it, or on the workbench's when an add or `dinah
+check --finish` reclaimed it. The actor is the reclaimer.
 
 `comment_updated`, `item_updated` and `attachment_updated` are written by a
 field write below a card, and each names the written entity rather than the
@@ -4029,6 +4037,37 @@ a lockfile inside that card's directory, so two processes working different
 cards never contend. Creating an entity needs no separate lock, because
 `mkdir` of the hex directory is itself the atomic test-and-claim of the id.
 
+Every write reaches the disk before the rename that publishes it. The bytes go
+to a temporary beside the destination, the temporary is flushed with `Sync`
+and closed, and only then is it renamed over the destination. On Linux the
+directory is flushed after the rename as well, because the `fsync(2)` page
+says a file's own flush does not promise that its directory entry has reached
+the disk. On Windows the rename passes `MOVEFILE_WRITE_THROUGH`, which
+`MoveFileEx` documents as not returning until the file is moved on the disk.
+No manual page for macOS, FreeBSD, or the other BSDs documents a directory
+flush that makes a rename durable, so none is attempted there, and after a
+power loss on those systems a destination holds either its old bytes or its
+new ones, never an empty or partial file. An append to a journal is one write
+at the end of the file followed by a flush, and never a rename.
+
+On Windows a rename, a removal, or an open can fail because another process
+holds the file open, and Dinah tries it again, starting 10 ms apart and
+backing off to 250 ms. Dinah's own readers open with every sharing flag, so
+one Dinah process never refuses another's rename or append. How long a
+refused operation keeps trying depends on where it falls in its act, meaning
+the stretch during which a process holds an entity lock. Before the act's
+first write, and outside any act, an operation gives up after five seconds
+and the act is refused `dinah.busy`, whose text says that nothing was changed,
+which is then true. After the act's first write, an operation keeps trying
+until it succeeds, with a notice every five seconds and no ceiling, because
+stopping there would leave the anchor and the journal disagreeing. Every head
+surfaces the notice in its own channel, and ending the process is what ends a
+wait that will not end. A structural act's directory move and a tree removal
+give up after five seconds wherever they fall, and past the act's point of
+record that is reported as an interruption. No other platform retries,
+because POSIX `rename(2)`, `unlink(2)`, and `open(2)` are not refused by
+another process's open handle.
+
 Filing a card is the one creation that takes a lock above its own
 directory. The registry's high-water mark is read and then claimed in two
 steps rather than one, so two filings at once would read the same mark and
@@ -4042,20 +4081,62 @@ The lockfile is specified concretely so any process, including a careful
 human, can participate. It is named `lock`, sits directly inside the entity
 directory it protects, and is created with the filesystem's exclusive-create
 primitive (O_EXCL; in a shell, noclobber redirection gives the same
-atomicity). Its content is a single JSON line carrying actor, pid, and ts.
-It is removed by plain deletion after the protected write's rename lands. A
-lock is never recorded inside an entity's own frontmatter: acquiring a lock
+atomicity). Its content is a single JSON line carrying actor, pid, ts, host,
+start, and os_lock. `host` is the holder's host name, `start` is the
+holder's platform tag followed by a colon and whatever identifies the process
+and its process table on that platform, and `os_lock` says the holder took an
+operating-system lock on the file before writing the line. The holder keeps
+the file open, with that operating-system lock on it (`LockFileEx` on
+Windows, `flock(2)` elsewhere), for as long as it holds the lock, and the line
+is flushed to the disk before the acquisition returns. Releasing the lock
+deletes the file and closes the handle. A lock is never recorded inside an
+entity's own frontmatter: acquiring a lock
 by read-modify-write is a race, an in-band lock is coordination-plane state
 embedded in a mergeable document, and rewriting the file on every
 acquisition would churn the basis hash. The lock is a mutex measured in
 milliseconds; the claim is a lease measured in hours; frontmatter is right
 for the second and wrong for the first.
 
-A tool finding a stale lock refuses loudly and names the holder from the
-lock's own content, and a human removes it, the git contract exactly.
-Nothing auto-breaks a lock silently. A stale claim after a crash is a
-visible line in a text file that a human can fix with an editor, then run
-check.
+A lock held by a process that is still running is refused loudly, naming the
+holder from the lock's own content. A lock whose holder has ended is taken
+over automatically, but only on proof. Windows and POSIX both document that
+the operating system releases a process's file locks when the process ends,
+so a lock file whose operating-system lock another process can take has no
+live holder among the processes that share that lock. The proof then asks
+three more questions of the record. It has to parse and carry `os_lock` true,
+its platform tag has to be the judge's own, and it has to name the judge's
+own process table (the same host, and on Linux the same boot and PID
+namespace). The recorded process has to be gone from that table. A Linux lock
+from an earlier boot of the same machine, carrying the same machine ID and
+another boot ID, is dead as well, because every process of an earlier boot
+has ended. Anything short of that proof is judged unknown and refused like a
+live lock. The writer that proves a holder dead rewrites the record in place
+on the handle it already holds the operating-system lock on, and appends a
+`lock_reclaimed` line carrying the dead record to the journal the lock
+covers. `dinah check` reports every lock judged dead or unknown, in the live
+half and the archive alike, under `check.stale-lock`, and `dinah check
+--finish` reclaims and releases the dead ones. Nothing clears an unknown lock
+but a person. The repair is to confirm that no Dinah process that could hold
+it is still running, which means the holder and pid it names or, for a record
+that names nobody, every Dinah process on the machines sharing the workbench,
+and then to delete the file by hand. Two crash windows leave such a lock with
+an empty or partial record: a crash between a lock's creation and the flush
+of its first line, and a crash during a reclaim between the truncation of the
+dead record and the flush of the new one, since that rewrite is not atomic.
+A sibling lock carries no operating-system lock and is never taken over; the
+finish below is its repair.
+
+A column that declares a capacity is counted under a lock of its own. Its
+`columns/<id>/lock` is the column's occupancy lock, taken by a move, a pull,
+or an add into that column when the column declares a capacity and the
+request carries no override. It is held from before the count to after the
+card's anchor and journal lines are written, so two writes into a column's
+last free place cannot both count it free, and the second is refused
+`dinah.locked`. The occupancy lock is always the last lock an act takes, and
+nothing is acquired while it is held, so the full order is the workbench lock,
+then a structural act's sibling, then an entity's own lock, then a column's
+occupancy lock. No write inside a column's directory takes it; those writes
+keep taking the workbench lock.
 
 Lock scope is the nearest enclosing journal-bearing entity, a card for
 anything inside a card, a workstream for anything inside a workstream, and the
@@ -4107,7 +4188,14 @@ the lock is gone. Every writer that takes an entity's lock reads for a sibling
 immediately afterwards and gives the lock back when it finds one, the read
 paths that write included. A writer that got there first holds the lock and
 stops the structural act outright; a writer arriving later finds the sibling
-and stops itself.
+and stops itself. Such a later writer creates the entity's lock before it
+reads the sibling, and if the directory moves before it has deleted the lock
+again, the file travels with the directory. Every acquisition refuses while
+the sibling stands, so any lock found in the moved directory once an archive
+or a restore has moved it is an orphan by construction, and the act removes it
+before it releases the sibling. A restore whose archived directory still holds
+a lock the act did not take itself, which an earlier build could carry into
+the archive, is refused `dinah.locked`, naming that lock's holder.
 
 A column carries a second exposure those three acquisitions do not reach. A
 card enters a column through a move, which takes that card's own lock and none
@@ -4157,7 +4245,8 @@ lock from its first acquisition to its last: a sibling found while the lock
 is free is one nobody is working on, and a sibling found while it is held
 refuses the finish and names the holder. Finishing takes the same locks in
 the same order as the act it completes, so a workbench lock an interrupted
-process left behind refuses the finish until a human clears it, which is the
+process left behind is taken over by the finish when its holder is proven
+dead and otherwise refuses the finish until a human clears it, which is the
 stale-lock rule rather than an exception to it. A lock left inside the
 entity's own directory is deleted by the finish before the directory moves,
 since a lock may no more travel into an archive from a repair than from a
@@ -4182,8 +4271,9 @@ An entity that vanished between the moment a caller resolved it and the moment
 the act reached its lock is reported as the unknown entity it has become, and
 whatever the act had already taken comes off on the way out.
 
-A rename the filesystem refuses is reported as a refusal and never retried as
-a copy followed by a delete. The fallback would trade one short non-atomic
+A rename the filesystem still refuses once the retry above has given up is
+reported as a refusal and never retried as a copy followed by a delete. The
+fallback would trade one short non-atomic
 operation for a long one and multiply the columns a crash can leave behind, and
 an archive mirror on a different volume from the workbench it belongs to is a
 layout this format does not support.
@@ -4197,6 +4287,17 @@ workbench, work, push, pull. The format merges well by construction, since
 entity directories keep concurrent card work in disjoint files and
 append-only journals take a union merge; a conflict inside one card's
 frontmatter is real contention, rare, and resolved by a human.
+
+The operating-system lock a holder keeps is only as good as the file system's
+own lock service, which is one more reason a workbench lives on local disk.
+The `nfs(5)` page documents that under `nolock` a lock excludes only
+applications on the same client, and a share that drops a client's session
+releases its locks while that client may still be running. On Linux the
+proof of a dead holder cannot cross machines, because two machines' boot IDs
+differ and their machine IDs differ too, unless a system image was cloned
+with its `/etc/machine-id` already filled in, which `machine-id(5)` tells image
+builders not to do. On every other platform the host name is the only machine
+comparison.
 
 That reasoning has one hole a per-card file cannot cover, and the card
 number is why it no longer lives in one. Two clones of one workbench can
