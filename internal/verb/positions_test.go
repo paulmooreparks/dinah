@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -112,6 +113,11 @@ func (h *harness) mustResolve(ref string) {
 // makes, by path, through the two bench seams. It declares the test that uses
 // it non-parallel and puts both seams back.
 type readCounter struct {
+	// mu guards reads and listed: bench.Cards reads several cards through
+	// its own internal goroutines (dinah/internal/bench.parallelRead), so
+	// the two observers below fire from more than one goroutine at once
+	// whatever this test's own concurrency is (dinah-644).
+	mu     sync.Mutex
 	reads  map[string]int
 	listed map[string]int
 }
@@ -119,8 +125,16 @@ type readCounter struct {
 func countReads(t *testing.T) *readCounter {
 	t.Helper()
 	counter := &readCounter{reads: map[string]int{}, listed: map[string]int{}}
-	bench.AnchorReadObserver = func(path string) { counter.reads[filepath.Clean(path)]++ }
-	bench.ListIDsObserver = func(collection string) { counter.listed[filepath.Clean(collection)]++ }
+	bench.AnchorReadObserver = func(path string) {
+		counter.mu.Lock()
+		counter.reads[filepath.Clean(path)]++
+		counter.mu.Unlock()
+	}
+	bench.ListIDsObserver = func(collection string) {
+		counter.mu.Lock()
+		counter.listed[filepath.Clean(collection)]++
+		counter.mu.Unlock()
+	}
 	t.Cleanup(func() {
 		bench.AnchorReadObserver = nil
 		bench.ListIDsObserver = nil

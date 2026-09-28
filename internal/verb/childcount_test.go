@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"dinah/internal/bench"
@@ -110,8 +111,16 @@ func TestOneCardViewMakesOneListingPerMount(t *testing.T) {
 	ref := filledCard(t, h)
 	card := h.card(ref)
 
+	// A card view may read a card's own collections through more than one
+	// goroutine, so the observer below guards its append with a mutex rather
+	// than assuming its own caller is the only writer (dinah-644).
+	var mu sync.Mutex
 	var listed []string
-	bench.ListIDsObserver = func(collection string) { listed = append(listed, collection) }
+	bench.ListIDsObserver = func(collection string) {
+		mu.Lock()
+		listed = append(listed, collection)
+		mu.Unlock()
+	}
 	t.Cleanup(func() { bench.ListIDsObserver = nil })
 
 	if _, err := h.library.viewToday(card); err != nil {
