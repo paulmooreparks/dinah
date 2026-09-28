@@ -154,16 +154,16 @@ jobs:
             exit 1
           fi
 
-  # The completion callback's wall-clock ceiling (dinah-646), on the same
+  # The completion callback's timing checks (dinah-646), the wall-clock
+  # ceiling and the paired margins over the reads it cannot avoid, on the same
   # rationale as the read budgets above: a timing measured while `go test
   # ./...` runs every other package in parallel measures the runner's
-  # contention, not the callback, and that is what made the ceiling miss on a
-  # busy macOS runner with nothing slower in the callback itself. macOS is the
-  # platform because that is the runner the ceiling was measured against and
-  # missed on; the completion paths it exercises are not OS-specific the way
-  # the read budgets above are. DINAH_PERF unset, everywhere else this test
-  # runs, skips the ceiling and leaves only the paired-margin checks that
-  # dinah-646 left alone.
+  # contention, not the callback, and that is what made both miss on a busy
+  # macOS runner with nothing slower in the callback itself. macOS is the
+  # platform because that is the runner they were measured against and missed
+  # on; the completion paths they exercise are not OS-specific the way the
+  # read budgets above are. With DINAH_PERF unset, everywhere else this test
+  # runs, both timing checks are skipped and only its functional check runs.
   completion-budget:
     runs-on: macos-latest
     timeout-minutes: 10
