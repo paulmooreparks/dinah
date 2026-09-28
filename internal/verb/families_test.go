@@ -398,6 +398,27 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 		t.Fatalf("the migration stopped at phase %s: %+v", migrated.Phase, migrated)
 	}
 
+	// The rebuild's own line, over a card whose card.md is gone once the
+	// store is in the card-unit layout.
+	reopened, err := bench.Open(h.root)
+	if err != nil {
+		t.Fatalf("open the migrated store: %v", err)
+	}
+	rebuilding := New(reopened, h.home)
+	rebuilding.Now = h.library.Now
+	gone, err := reopened.ResolveCard(partner)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", partner, err)
+	}
+	if err := os.Remove(gone.Card.AnchorPath()); err != nil {
+		t.Fatalf("remove %s's card.md: %v", partner, err)
+	}
+	rebuild := acting("check")
+	rebuild.Rebuild = true
+	if report, err := rebuilding.Check(rebuild); err != nil || len(report.RebuiltCards) != 1 {
+		t.Fatalf("%s: %v %+v", contract.EventCardRebuilt, err, report)
+	}
+
 	// One rule, read over every line of every journal the store holds.
 	families, lines := map[string]bool{}, 0
 	err = filepath.Walk(h.root, func(path string, info os.FileInfo, err error) error {

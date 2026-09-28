@@ -1394,14 +1394,14 @@ storage format 11
 Catalogs:
   Language  Translated
   --------  ----------
-  en        2067/2067
-  af        0/2067
-  cs        0/2067
-  de        2067/2067
-  es        0/2067
-  fil       0/2067
-  hi        2067/2067
-  id        0/2067
+  en        2074/2074
+  af        0/2074
+  cs        0/2074
+  de        2074/2074
+  es        0/2074
+  fil       0/2074
+  hi        2074/2074
+  id        0/2074
 [exit 0]
 ```
 

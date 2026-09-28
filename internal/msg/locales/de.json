@@ -7508,6 +7508,41 @@
       "context": "The written meaning of the --accept-difference flag of check, which may be given once per manifest key the stopped run named.",
       "source": "a88ec663f961b47e"
     },
+    "refusal.dinah.card-projection-unreadable": {
+      "text": "Die Kartendatei {detail} fehlt, lässt sich nicht lesen oder enthält Konfliktmarkierungen, und ihr Protokoll beschreibt die Karte weiterhin.",
+      "context": "The sentence printed after the refusal name dinah.card-projection-unreadable. {detail} is the card's card.md. In the card-unit layout card.md is a projection the card's journal can reproduce, so a card whose card.md is damaged is refused every read and write until it is written back.",
+      "source": "a7b32301dcfda975"
+    },
+    "refusal.dinah.card-projection-unreadable.next": {
+      "text": " Führe `dinah check --rebuild` aus, um sie aus dem Protokoll neu zu schreiben, oder löse den Konflikt von Hand.",
+      "context": "The next step of refusal.dinah.card-projection-unreadable. dinah check --rebuild is a command line and is not translated.",
+      "source": "f82161bda86883c7"
+    },
+    "check.card-projection-unreadable": {
+      "text": "die Kartendatei von {detail} fehlt, lässt sich nicht lesen oder enthält Konfliktmarkierungen, während ihr Protokoll lesbar ist; führe `dinah check --rebuild` aus, um sie neu zu schreiben",
+      "context": "A check finding at defect severity: a card in the card-unit layout whose card.md is damaged while its journal reads. {detail} is the card's identifier. dinah check --rebuild is a command line and is not translated.",
+      "source": "7d8ca505684601f9"
+    },
+    "check.card-projection-diverged": {
+      "text": "Kartendatei und Protokoll der Karte stimmen bei {detail} nicht überein; das ist eine Bearbeitung von Hand, die noch kein Schreibvorgang bezeugt hat; der nächste Schreibvorgang auf der Karte bezeugt sie, oder führe `dinah check --witness` aus",
+      "context": "A check finding at cleanup severity: a card in the card-unit layout whose card.md differs from the replay of its journal. {detail} is the keys that differ, separated by commas, the body named body. dinah check --witness is a command line and is not translated.",
+      "source": "665ab9bc1f84477d"
+    },
+    "param.check.rebuild.summary": {
+      "text": "schreibt jede beschädigte Kartendatei aus dem Protokoll ihrer Karte neu",
+      "context": "The written meaning of the --rebuild flag of check, which writes card.md back from the journal for every card in the card-unit layout whose card.md is missing, will not parse or carries conflict markers.",
+      "source": "87c75c9ce7cbe1e9"
+    },
+    "check.rebuilt.one": {
+      "text": "{count} Kartendatei aus ihrem Protokoll neu geschrieben.",
+      "context": "The line the rebuild prints for what it wrote, for exactly one card. Followed by one line per rebuilt card identifier.",
+      "source": "eb214149551feff2"
+    },
+    "check.rebuilt.other": {
+      "text": "{count} Kartendateien aus ihren Protokollen neu geschrieben.",
+      "context": "The line the rebuild prints for what it wrote, for any other number, zero included. Followed by one line per rebuilt card identifier.",
+      "source": "24ba6920c427f10a"
+    },
     "check.comment-body-diverged": {
       "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

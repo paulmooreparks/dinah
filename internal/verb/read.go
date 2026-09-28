@@ -2885,6 +2885,12 @@ type CheckReport struct {
 	// MigratedWitness says the witness repair ran, so a caller can tell an
 	// empty list of witnesses from a repair nobody asked for.
 	MigratedWitness bool `json:"migrated_witness,omitempty"`
+	// RebuiltCards are the identifiers of the cards whose card.md the
+	// rebuild wrote back from the journal.
+	RebuiltCards []string `json:"rebuilt_cards,omitempty"`
+	// Rebuilt says the rebuild ran, so a caller can tell an empty list of
+	// rebuilt cards from a repair nobody asked for.
+	Rebuilt bool `json:"rebuilt,omitempty"`
 	// AssignedWorkstreamSlugs are the workstreams the slug migration
 	// repaired with the slug each one was given, on the terms AssignedSlugs
 	// carries the columns.
@@ -3050,6 +3056,17 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		removed, err := l.Bench.RemoveStrandedColumns()
 		report.MigratedColumns = true
 		report.RemovedStrandedColumns = removed
+		if err != nil {
+			return report, err
+		}
+	}
+	// The rebuild runs ahead of the witness, since a card whose card.md is
+	// damaged refuses every other read and write until it has one again.
+	if req != nil && req.Rebuild {
+		rebuilt, reported, err := l.Bench.RebuildCards(bench.Event{TS: bench.Stamp(l.Now()), Actor: req.Acting()})
+		report.Rebuilt = true
+		report.RebuiltCards = rebuilt
+		report.Findings = append(report.Findings, reported...)
 		if err != nil {
 			return report, err
 		}

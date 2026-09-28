@@ -1845,6 +1845,13 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// The detail is card.md's path, and the next step names the
+		// rebuild that writes it back from the journal.
+		Name:      CardProjectionUnreadable,
+		Fragments: []Fragment{{Key: "refusal.dinah.card-projection-unreadable.next"}},
+		NextStep:  []string{"refusal.dinah.card-projection-unreadable.next"},
+	},
+	{
 		// The detail is the reference as typed. The next step names the
 		// command that shows the member and the file that holds it.
 		Name:      NotAFile,

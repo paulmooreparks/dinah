@@ -348,7 +348,7 @@ type Exemption struct {
 	Reason string
 }
 
-// exemptions are the fifty-five functions the sweep finds that answer a
+// exemptions are the fifty-six functions the sweep finds that answer a
 // caller's string with an entity without deciding which entity a spelling
 // names.
 //
@@ -381,6 +381,7 @@ var exemptions = []Exemption{
 	{Function: "readColumnIn", Ground: GroundLoadsByIdentifier, Reason: "reads one column's anchor out of the half it is given"},
 	{Function: "readColumn", Ground: GroundLoadsByIdentifier, Reason: "reads one column's anchor out of the live half"},
 	{Function: "loadCard", Ground: GroundLoadsByIdentifier, Reason: "reads a card's anchor off a directory the caller already resolved"},
+	{Function: "cardOf", Ground: GroundLoadsByIdentifier, Reason: "builds a card from the header and body its caller read out of, or replayed for, the directory the card's identifier names; its string is the body, not a spelling"},
 	{Function: "loadRetiredCard", Ground: GroundLoadsByIdentifier, Reason: "reads a retired card's anchor off a directory the caller already resolved"},
 	{Function: "LoadCardIn", Ground: GroundLoadsByIdentifier, Reason: "reads a card out of the directory its identifier names and stamps the number the workbench holds for it"},
 	{Function: "loadRetiredCardIn", Ground: GroundLoadsByIdentifier, Reason: "reads a retired card out of the directory its identifier names and stamps the number the workbench holds for it"},

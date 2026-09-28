@@ -469,6 +469,15 @@ func anchorProfile(t *testing.T, root string) string {
 // result.
 func replayPopulation(t *testing.T) string {
 	t.Helper()
+	return replayPopulationWith(t, nil)
+}
+
+// replayPopulationWith is replayPopulation calling after, where it is not
+// nil, once every command of the sequence has run, with the line it ran and
+// the directory it ran in. A hand-edit step and a pause are not commands and
+// are not reported.
+func replayPopulationWith(t *testing.T, after func(line, root string)) string {
+	t.Helper()
 	base := t.TempDir()
 	root := filepath.Join(base, "workbench")
 	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
@@ -515,6 +524,9 @@ func replayPopulation(t *testing.T) string {
 		}
 		if got := runCLI(t, root, argv...); got.code != 0 {
 			t.Fatalf("%s line %d (%s): exit %d, %s", populateName, number+1, line, got.code, got.errw)
+		}
+		if after != nil {
+			after(line, root)
 		}
 	}
 	return benchDir(t, root)

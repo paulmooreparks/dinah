@@ -221,6 +221,12 @@ func (l *Library) Add(req *Request) *Response {
 		To:      destination.ID,
 		ToTitle: destination.Title,
 	}
+	// In the card-unit layout the created line states everything the filing
+	// wrote into card.md, so a rebuild can write it back; the old layout's
+	// line is written as it always was.
+	if l.Bench.CardUnit() {
+		ev.Text, ev.Fields = req.Text, createdFields(fm)
+	}
 	// The created line is appended under the new card's own lock, taken
 	// once the anchor has landed. No other process can know the directory
 	// yet, so the acquisition cannot contend, and it is what every append
@@ -1649,6 +1655,25 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	response.Workstream = &view
 	response.Detail = workstream.ID
 	return response
+}
+
+// createdFields are the card fields a filing wrote into a new card's anchor
+// beside its title, its column and its state, keyed by frontmatter key: the
+// levels, the route and the dates it named. The created line carries them so
+// that the journal states everything the filing wrote into card.md.
+func createdFields(fm *bench.Frontmatter) map[string]string {
+	fields := map[string]string{}
+	for _, key := range fm.Keys() {
+		switch key {
+		case "title", "column", "state":
+			continue
+		}
+		fields[key] = fm.Value(key)
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return fields
 }
 
 // appendUnderWorkstreamLock appends a new workstream's created line under that

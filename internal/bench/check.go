@@ -72,11 +72,22 @@ const (
 	// card-unit format that the storage migration cannot carry. Detail is
 	// the precondition it breaks, as the refusal's rule token spells it.
 	FindingStoragePrecondition = "check.storage-precondition"
-	FindingUnknownState        = "check.unknown-state"
-	FindingInterruptedAct      = "check.interrupted-act"
-	FindingEntityAtBothPaths   = "check.entity-at-both-paths"
-	FindingOrdinalMissing      = "check.ordinal-missing"
-	FindingOrdinalDuplicate    = "check.ordinal-duplicate"
+	// FindingCardProjectionUnreadable names a card in the card-unit layout
+	// whose card.md is absent, will not parse or carries conflict markers
+	// while its journal reads. Detail is the card's identifier. dinah check
+	// --rebuild writes card.md back from the journal.
+	FindingCardProjectionUnreadable = "check.card-projection-unreadable"
+	// FindingCardProjectionDiverged names a card in the card-unit layout
+	// whose card.md and the replay of its journal disagree, which is a hand
+	// edit no write has witnessed yet. Detail is the keys, the body named
+	// body. SeverityCleanup: the next write to the card witnesses it, and
+	// dinah check --witness witnesses every such card.
+	FindingCardProjectionDiverged = "check.card-projection-diverged"
+	FindingUnknownState           = "check.unknown-state"
+	FindingInterruptedAct         = "check.interrupted-act"
+	FindingEntityAtBothPaths      = "check.entity-at-both-paths"
+	FindingOrdinalMissing         = "check.ordinal-missing"
+	FindingOrdinalDuplicate       = "check.ordinal-duplicate"
 	// FindingUnarchivedDone names a card standing live in a done-kind
 	// column. A card that reaches such a column is archived immediately
 	// (dinah-634), so a live one found there is one of three things: the
@@ -730,7 +741,11 @@ func (b *Bench) Check() ([]Finding, error) {
 			continue
 		}
 		if !Exists(filepath.Join(dir, CardAnchor)) {
-			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
+			key := FindingMissingAnchor
+			if b.CardUnit() && projectionUnreadable(dir) != nil {
+				key = FindingCardProjectionUnreadable
+			}
+			findings = append(findings, Finding{Path: dir, Key: key, Detail: id})
 			continue
 		}
 		card, err := b.LoadCardIn(b.CardsRoot(), id)
@@ -1278,8 +1293,20 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	if torn && tornUnderLock(card) {
 		findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingTornJournal, Detail: card.ID})
 	}
-	if position := ReplayPosition(events); position != "" && position != card.Column {
-		findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
+	// In the card-unit layout the journal states the whole of card.md, and
+	// a hand edit to any key or to the body is reported naming the keys; the
+	// column's own finding is the older layout's, where the journal states
+	// nothing else of the card.
+	replayed, replayedBody, stated := ReplayCardFields(events)
+	switch {
+	case b.CardUnit() && stated:
+		if differ := ProjectionDifferences(card.FM, card.Body, replayed, replayedBody); len(differ) > 0 {
+			findings = append(findings, Finding{Path: anchor, Key: FindingCardProjectionDiverged, Detail: strings.Join(differ, ", "), Severity: SeverityCleanup})
+		}
+	default:
+		if position := ReplayPosition(events); position != "" && position != card.Column {
+			findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
+		}
 	}
 	// The count is read off the events this function has already read, so a
 	// card standing at a column declaring no limit costs nothing and one
@@ -1609,6 +1636,8 @@ func unreadableCardFinding(err error) string {
 		return FindingCardVocabularyMixed
 	case contract.VocabularyRetired:
 		return FindingCardVocabularyRetired
+	case contract.CardProjectionUnreadable:
+		return FindingCardProjectionUnreadable
 	}
 	return FindingMissingAnchor
 }

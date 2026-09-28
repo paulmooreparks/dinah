@@ -24,6 +24,11 @@ func (b *Bench) WitnessDivergence(held *Lock, actor, now string, card *Card) (bo
 	if err != nil {
 		return false, err
 	}
+	if b.CardUnit() {
+		if fm, body, ok := ReplayCardFields(events); ok {
+			return b.witnessProjection(held, actor, now, card, fm, body)
+		}
+	}
 	believed := ReplayPosition(events)
 	if believed == "" || believed == card.Column {
 		return false, nil
@@ -45,6 +50,70 @@ func (b *Bench) WitnessDivergence(held *Lock, actor, now string, card *Card) (bo
 		ToTitle:   toTitle,
 	}
 	if err := AppendEvent(held, card.JournalPath(), ev); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// witnessProjection is the witness of the card-unit layout, where the journal
+// states the whole of card.md: every key and the body on which card.md and the
+// replay of its journal disagree gets one line making the journal agree with
+// the anchor, which is never changed. A differing column is witnessed as a
+// manual_correction, the body as a witnessed card_updated carrying the
+// anchor's body, and any other key as a witnessed card_updated carrying the
+// replayed and the anchor's value, the raw lines of a structured key joined
+// by a newline. The actor is whoever's touch found the difference.
+func (b *Bench) witnessProjection(held *Lock, actor, now string, card *Card, fm *Frontmatter, body string) (bool, error) {
+	text, err := ReadText(card.AnchorPath())
+	if err != nil {
+		return false, err
+	}
+	anchor, anchorBody := ParseAnchor(text)
+	differ := ProjectionDifferences(anchor, anchorBody, fm, body)
+	if len(differ) == 0 {
+		return false, nil
+	}
+	var lines []Event
+	for _, key := range differ {
+		switch key {
+		case "column":
+			from, to := fm.Value("column"), anchor.Value("column")
+			ev := Event{
+				TS:        now,
+				Event:     contract.EventManualCorrection,
+				Actor:     NamedActor(actor),
+				From:      from,
+				FromTitle: b.columnTitleAnyHalf(from),
+				To:        to,
+				ToTitle:   b.columnTitleAnyHalf(to),
+			}
+			if from == "" || to == "" {
+				ev.Event = contract.EventCardUpdated
+				ev.Field, ev.From, ev.To, ev.FromTitle, ev.ToTitle, ev.Witnessed = key, from, to, "", "", true
+			}
+			lines = append(lines, ev)
+		case BodyField:
+			lines = append(lines, Event{
+				TS:        now,
+				Event:     contract.EventCardUpdated,
+				Actor:     NamedActor(actor),
+				Field:     BodyField,
+				Text:      anchorBody,
+				Witnessed: true,
+			})
+		default:
+			lines = append(lines, Event{
+				TS:        now,
+				Event:     contract.EventCardUpdated,
+				Actor:     NamedActor(actor),
+				Field:     key,
+				From:      witnessedValue(fm, key),
+				To:        witnessedValue(anchor, key),
+				Witnessed: true,
+			})
+		}
+	}
+	if err := AppendEvents(held, card.JournalPath(), lines); err != nil {
 		return false, err
 	}
 	return true, nil

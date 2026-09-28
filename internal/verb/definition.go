@@ -897,6 +897,7 @@ var params = map[string][]Param{
 		{Name: "remint", Flag: true, Value: "dir", Field: "Remint", Complete: CompleteDirs},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
 		{Name: "witness", Flag: true, Marker: true, Field: "MigrateWitness"},
+		{Name: "rebuild", Flag: true, Marker: true, Field: "Rebuild"},
 		// Read by four repairs. Migrate-vocabulary and migrate-container walk
 		// a whole tree of workbenches under --root rather than acting on the
 		// one the caller is standing in, and their rewrites have no undo, so

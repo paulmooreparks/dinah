@@ -243,6 +243,7 @@ var argumentExemptions = map[string]map[string]string{
 		"migrate-raw-lines":    "rewrites every quoted raw line on the workbench and column anchors and stamps the store's format, which locks every older build out of the store and is the operator's to run at a terminal",
 		"rehearse":             "turns that conversion into a rehearsal, which is the form an agent may run and which this head offers no conversion to rehearse",
 		"force-claims":         "carries that conversion past a card somebody still holds, which is a judgement about whose session has died and is the operator's to make at a terminal",
+		"rebuild":              "writes card.md back from the journal for a card whose anchor a conflict or a deletion damaged, which is a repair of the store taken at a terminal rather than a reading of it",
 		"migrate-storage":      "carries every comment and checklist item into its journal, stamps the store's format and removes the old layout after taking a backup, which is a cutover the workbench operator runs at a terminal with every Dinah process stopped, this head's own included",
 		"backup":               "names the directory the storage migration copies the store into, a migration this head does not offer",
 		"accept-difference":    "accepts a line the storage migration's proof found differing, which is the operator's judgement over a store part way through a migration this head does not offer",

@@ -127,6 +127,11 @@ type Card struct {
 	Revision string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+
+	// conflicted says the anchor as read carries git's conflict markers,
+	// which in the card-unit layout makes it a projection a rebuild writes
+	// back rather than a card any read or write may use.
+	conflicted bool
 }
 
 // LoadCard reads one card from a cards collection, refusing one that is not
@@ -206,9 +211,17 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	if refuseRetired && fm.Has(preVocabularyStateKey) {
 		return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
 	}
+	card := cardOf(fm, body)
+	card.ID, card.Dir, card.Revision = id, dir, revision
+	card.conflicted = carriesConflictMarkers(text)
+	return card, nil
+}
+
+// cardOf reads a card's fields out of its anchor's header and body. It is the
+// one reading of card.md's keys, which LoadCard and the card-field replay
+// share, so the replay composes a card exactly as a read of card.md sees one.
+func cardOf(fm *Frontmatter, body string) *Card {
 	card := &Card{
-		ID:          id,
-		Dir:         dir,
 		Title:       fm.Value("title"),
 		Column:      fm.Value("column"),
 		State:       fm.Value("state"),
@@ -229,7 +242,6 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 		RetirementGrant: fm.Value(RetirementGrantKey),
 		Workstreams:     fm.Seq("workstreams"),
 		Body:            body,
-		Revision:        revision,
 		FM:              fm,
 	}
 	card.Links = readLinks(fm)
@@ -237,7 +249,7 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	if card.State == "" {
 		card.State = contract.StateReady
 	}
-	return card, nil
+	return card
 }
 
 // LoadCardIn loads a card and stamps the number the workbench allocates it.
@@ -246,11 +258,54 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 // Number or to call Ref comes through here.
 func (b *Bench) LoadCardIn(root, id string) (*Card, error) {
 	card, err := LoadCard(root, id)
+	if b.CardUnit() && !isBusy(err) && (err != nil || card.conflicted) {
+		if refused := projectionUnreadable(filepath.Join(root, id)); refused != nil {
+			return nil, refused
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 	b.stamp(card)
 	return card, nil
+}
+
+// projectionUnreadable answers the refusal a card in the card-unit layout is
+// read with when its card.md is absent, will not parse or carries conflict
+// markers while its journal, which states the whole of it, reads; and nil
+// where the journal will not read either, which leaves the card to the
+// refusal its anchor already raised.
+func projectionUnreadable(dir string) error {
+	journal := filepath.Join(dir, JournalName)
+	if !Exists(journal) {
+		return nil
+	}
+	events, _, err := ReadJournal(journal)
+	if err != nil {
+		return nil
+	}
+	if _, _, ok := ReplayCardFields(events); !ok {
+		return nil
+	}
+	return contract.Refuse(contract.CardProjectionUnreadable, filepath.Join(dir, CardAnchor))
+}
+
+// carriesConflictMarkers reports whether a text carries the three markers git
+// leaves in a file it could not merge: a line beginning "<<<<<<< ", a line
+// that is exactly "=======", and a line beginning ">>>>>>> ".
+func carriesConflictMarkers(text string) bool {
+	opened, split, closed := false, false, false
+	for _, line := range SplitLines(text) {
+		switch {
+		case strings.HasPrefix(line, "<<<<<<< "):
+			opened = true
+		case line == "=======":
+			split = true
+		case strings.HasPrefix(line, ">>>>>>> "):
+			closed = true
+		}
+	}
+	return opened && split && closed
 }
 
 // loadRetiredCardIn is LoadCardIn for a bench written in the retired
@@ -449,6 +504,37 @@ func (c *Card) SetColumnTier(b *Bench, ref, tier string) {
 	c.ColumnTiers = append(c.ColumnTiers, ColumnTier{Column: ref, Tier: tier})
 }
 
+// ColumnTierRef reads the reference an override for one column is stored
+// under, which may be another spelling of the same column than the one asked
+// with, and the empty string when the card carries none.
+func (c *Card) ColumnTierRef(b *Bench, ref string) string {
+	target := (*Column)(nil)
+	if b != nil {
+		target = b.ColumnByRef(ref)
+	}
+	for _, override := range c.ColumnTiers {
+		if sameColumnRef(b, target, override.Column, ref) {
+			return override.Column
+		}
+	}
+	return ""
+}
+
+// JournaledTierRef is the column_ref a tier override line carries for an
+// override stored under spelled, or, where the card stored none, under ref: the
+// spelling itself in the card-unit layout, whose journal is the record card.md
+// is rebuilt from, and nothing in the old layout, whose lines are written as
+// they always were.
+func (b *Bench) JournaledTierRef(spelled, ref string) string {
+	if !b.CardUnit() {
+		return ""
+	}
+	if spelled == "" {
+		return ref
+	}
+	return spelled
+}
+
 // ColumnTierFor reads the override written for one column reference, and the
 // empty string when the card carries none.
 func (c *Card) ColumnTierFor(b *Bench, ref string) string {
@@ -508,6 +594,28 @@ func (c *Card) Ref(slug string) string {
 // this write preserves the raw lines, which is what the legacy read path in
 // stamp depends on.
 func (c *Card) Save() error {
+	if err := WriteText(c.AnchorPath(), c.Rendered()); err != nil {
+		return err
+	}
+	revision, err := Revision(c.AnchorPath())
+	if err != nil {
+		return err
+	}
+	c.Revision = revision
+	return nil
+}
+
+// Rendered writes the card's fields into its header and answers card.md's
+// text as Save writes it. It is Save's one rendering, which the card-field
+// replay and the rebuild use too, so a replayed card is rendered exactly as a
+// saved one.
+func (c *Card) Rendered() string {
+	c.applyFields()
+	return c.FM.Render(c.Body)
+}
+
+// applyFields writes the card's fields into its header.
+func (c *Card) applyFields() {
 	c.FM.Set("title", c.Title)
 	c.FM.Set("column", c.Column)
 	c.FM.Set("state", c.State)
@@ -547,15 +655,6 @@ func (c *Card) Save() error {
 		c.FM.SetRaw("links", renderLinks(c.Links))
 	}
 	c.FM.SetSeq("workstreams", c.Workstreams)
-	if err := WriteText(c.AnchorPath(), c.FM.Render(c.Body)); err != nil {
-		return err
-	}
-	revision, err := Revision(c.AnchorPath())
-	if err != nil {
-		return err
-	}
-	c.Revision = revision
-	return nil
 }
 
 // setOrDelete writes a value or removes the key when the value is empty, so

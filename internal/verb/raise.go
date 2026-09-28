@@ -78,6 +78,7 @@ func (l *Library) Raise(req *Request) *Response {
 	}
 	ref := columnRef(column)
 	was := reloaded.ColumnTierFor(l.Bench, ref)
+	spelled := l.Bench.JournaledTierRef(reloaded.ColumnTierRef(l.Bench, ref), ref)
 	reloaded.SetColumnTier(l.Bench, ref, absolute)
 	reloaded.State = contract.StateReady
 	reloaded.Holder = ""
@@ -92,6 +93,7 @@ func (l *Library) Raise(req *Request) *Response {
 		Actor:       req.Acting(),
 		Column:      column.ID,
 		ColumnTitle: column.Title,
+		ColumnRef:   spelled,
 		From:        was,
 		To:          absolute,
 		Expr:        expr,

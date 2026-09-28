@@ -246,6 +246,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateWorkstreams = value
 	case "witness":
 		req.MigrateWitness = value
+	case "rebuild":
+		req.Rebuild = value
 	case "renumber":
 		req.Renumber = value
 	case "no-claim":

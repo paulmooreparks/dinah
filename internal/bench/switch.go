@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // CardUnitFormat is the storage format from which a card is the unit of
@@ -103,7 +104,35 @@ func (b *Bench) Acquire(dir, actor, now string) (*Lock, error) {
 		held.Release()
 		return nil, changed
 	}
+	// In the card-unit layout the journal states the whole of card.md, so
+	// a line appended on top of an unwitnessed hand edit would make the
+	// journal reproduce the wrong anchor. The witness runs first, under the
+	// lock just taken, at the start of every write to a card.
+	if b.CardUnit() {
+		if err := b.witnessOnAcquire(held, dir, actor, now); err != nil {
+			held.Release()
+			return nil, err
+		}
+	}
 	return held, nil
+}
+
+// witnessOnAcquire witnesses a card whose lock was just taken, where the
+// directory is a card's and the card has a created line to replay from.
+func (b *Bench) witnessOnAcquire(held *Lock, dir, actor, now string) error {
+	parent := filepath.Dir(dir)
+	if !durable.SamePath(parent, b.CardsRoot()) && !durable.SamePath(parent, b.ArchivedCardsRoot()) {
+		return nil
+	}
+	if !Exists(filepath.Join(dir, JournalName)) {
+		return nil
+	}
+	card, err := b.LoadCardIn(parent, filepath.Base(dir))
+	if err != nil {
+		return err
+	}
+	_, err = b.WitnessDivergence(held, actor, now, card)
+	return err
 }
 
 // formatChanged reads workbench.md again and answers the refusal a write owes

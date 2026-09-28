@@ -1171,6 +1171,11 @@ func (l *Library) commit(req *Request, card *bench.Card, events ...bench.Event) 
 	if err := card.Save(); err != nil {
 		return nil, err
 	}
+	if l.commitFailure != nil {
+		if err := l.commitFailure(card); err != nil {
+			return nil, err
+		}
+	}
 	for _, ev := range events {
 		if err := bench.AppendEvent(req.cardLock, card.JournalPath(), ev); err != nil {
 			return nil, err

@@ -65,6 +65,11 @@ type Library struct {
 	// taken, where a test runs a whole second write and then asserts that the
 	// first one reads it rather than overwriting it.
 	Interpose func(step string)
+	// commitFailure, when set, is called by commit after card.md is saved
+	// and before the act's journal lines are appended, and an error it
+	// answers stops the act there as a crash between the two writes would.
+	// Only tests set it.
+	commitFailure func(card *bench.Card) error
 	// archiveWatch holds a waiting changes call's archived entries across its
 	// poll loop, keyed by archived card identifier, for a caller that wants
 	// to read one back. WatchedEntitiesCached stats every archived journal
@@ -458,6 +463,12 @@ type Request struct {
 	// migrate- prefix on the flag because it repairs a disagreement that is
 	// true right now rather than carrying a workbench past an older shape.
 	MigrateWitness bool
+	// Rebuild asks check to write card.md back from the journal for every
+	// card in the card-unit layout whose card.md is absent, will not parse
+	// or carries conflict markers while its journal reads. It is open to any
+	// owner, as the witness is, since it writes only what the journal
+	// already records.
+	Rebuild bool
 	// WorkbenchSource names the rung that resolved the active workbench for
 	// this invocation (flag, environment, search, or config), set by the
 	// head once discovery has run, since that is the earliest point the

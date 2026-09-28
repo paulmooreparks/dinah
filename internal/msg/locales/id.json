@@ -7463,6 +7463,41 @@
       "context": "The written meaning of the --accept-difference flag of check, which may be given once per manifest key the stopped run named.",
       "skeleton": true
     },
+    "refusal.dinah.card-projection-unreadable": {
+      "text": "The card file {detail} is missing, will not parse, or carries conflict markers, and its journal still states the card.",
+      "context": "The sentence printed after the refusal name dinah.card-projection-unreadable. {detail} is the card's card.md. In the card-unit layout card.md is a projection the card's journal can reproduce, so a card whose card.md is damaged is refused every read and write until it is written back.",
+      "skeleton": true
+    },
+    "refusal.dinah.card-projection-unreadable.next": {
+      "text": " Run `dinah check --rebuild` to write it back from the journal, or resolve the conflict by hand.",
+      "context": "The next step of refusal.dinah.card-projection-unreadable. dinah check --rebuild is a command line and is not translated.",
+      "skeleton": true
+    },
+    "check.card-projection-unreadable": {
+      "text": "the card file of {detail} is missing, will not parse, or carries conflict markers while its journal reads; run `dinah check --rebuild` to write it back",
+      "context": "A check finding at defect severity: a card in the card-unit layout whose card.md is damaged while its journal reads. {detail} is the card's identifier. dinah check --rebuild is a command line and is not translated.",
+      "skeleton": true
+    },
+    "check.card-projection-diverged": {
+      "text": "the card file and the card's journal disagree on {detail}, which is a hand edit no write has witnessed yet; the next write to the card witnesses it, or run `dinah check --witness`",
+      "context": "A check finding at cleanup severity: a card in the card-unit layout whose card.md differs from the replay of its journal. {detail} is the keys that differ, separated by commas, the body named body. dinah check --witness is a command line and is not translated.",
+      "skeleton": true
+    },
+    "param.check.rebuild.summary": {
+      "text": "writes each damaged card file back from its card's journal",
+      "context": "The written meaning of the --rebuild flag of check, which writes card.md back from the journal for every card in the card-unit layout whose card.md is missing, will not parse or carries conflict markers.",
+      "skeleton": true
+    },
+    "check.rebuilt.one": {
+      "text": "Rebuilt {count} card file from its journal.",
+      "context": "The line the rebuild prints for what it wrote, for exactly one card. Followed by one line per rebuilt card identifier.",
+      "skeleton": true
+    },
+    "check.rebuilt.other": {
+      "text": "Rebuilt {count} card files from their journals.",
+      "context": "The line the rebuild prints for what it wrote, for any other number, zero included. Followed by one line per rebuilt card identifier.",
+      "skeleton": true
+    },
     "check.comment-body-diverged": {
       "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

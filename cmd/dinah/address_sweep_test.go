@@ -111,6 +111,10 @@ var addressExemptions = []addressExemption{
 		ground: groundActNotEntity, reason: "the rows name what one repair witnessed",
 	},
 	{
+		site:   renderSite{File: "render.go", Function: "renderCheck", Label: "rebuilt", Ordinal: 1},
+		ground: groundActNotEntity, reason: "the rows name what one repair rebuilt",
+	},
+	{
 		site:   renderSite{File: "render.go", Function: "renderFindings", Label: "t", Ordinal: 1},
 		ground: groundActNotEntity, reason: "a finding names the file a defect was found in, and several finding kinds name a file that by construction has no reference at all, a missing anchor among them",
 	},

@@ -31,9 +31,9 @@ type PinnedCallSite struct {
 var declaredPinnedCallSites = []PinnedCallSite{
 	{File: "internal/mcp/mcp.go", Line: 251, Reason: "a wait notice rides the MCP surface, which is deliberately pinned to English; dinah-640"},
 	{File: "internal/mcp/mcp.go", Line: 385, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/mcp/tools.go", Line: 417, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/mcp/tools.go", Line: 602, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/verb/reshape.go", Line: 1351, Reason: "the comment a reshape stores on a withdrawn standing item is a record every later reader opens, whatever language they read in, so it is written in the base language rather than the operator's; dinah-593"},
+	{File: "internal/mcp/tools.go", Line: 418, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/mcp/tools.go", Line: 603, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/verb/reshape.go", Line: 1352, Reason: "the comment a reshape stores on a withdrawn standing item is a record every later reader opens, whatever language they read in, so it is written in the base language rather than the operator's; dinah-593"},
 }
 
 // scanDirs are the directories this guard parses, named relative to this

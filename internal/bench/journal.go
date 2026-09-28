@@ -272,6 +272,17 @@ type Event struct {
 	Redacted bool `json:"redacted,omitempty"`
 	// Lines is how many lines a redacted line records rewriting.
 	Lines int `json:"lines,omitempty"`
+	// Fields are, on a created line, the card fields the filing set beside
+	// its title and its column, keyed by their frontmatter key: the levels,
+	// the route and the scheduling dates it named. A filing that named none
+	// carries none. The card-field replay reads them, so the line states
+	// everything the filing wrote into card.md.
+	Fields map[string]string `json:"fields,omitempty"`
+	// ColumnRef is, on a tier_overridden or tier_override_dropped line, the
+	// reference the card's tier_at entry is written under, which is the
+	// spelling the card-field replay puts back; column carries the
+	// identifier it resolves to.
+	ColumnRef string `json:"column_ref,omitempty"`
 }
 
 // CitationRecord is one citation as a journal line carries it.

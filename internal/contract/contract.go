@@ -883,6 +883,11 @@ const (
 	// first such file, rule names what is wrong with it, and files lists
 	// every one.
 	StoragePrecondition = LayerPrefix + "storage-precondition"
+	// CardProjectionUnreadable is a card in the card-unit layout whose
+	// card.md is absent, will not parse, or carries git's conflict markers,
+	// while its journal, which states the whole of it, reads. The detail is
+	// card.md's path, and dinah check --rebuild writes it back.
+	CardProjectionUnreadable = LayerPrefix + "card-projection-unreadable"
 	// UnknownRoute is a write naming a route the workbench does not declare.
 	// The sentence lists the routes it does declare, read off the workbench
 	// rather than written into a catalog, so a route declared later reaches
@@ -996,7 +1001,7 @@ var Introduced = []string{
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
 	JournalUnlocked, JournalUnreadable, StoreFormatChanged, NotAFile,
 	BackupRequired, BackupInsideStore, BackupNotEmpty, BackupMismatch, BackupUnverified,
-	MigrationAwaitsCapabilities, NotADifference, StoragePrecondition,
+	MigrationAwaitsCapabilities, NotADifference, StoragePrecondition, CardProjectionUnreadable,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
@@ -1414,7 +1419,7 @@ var Events = []string{
 	EventRenumbered,
 	EventLockReclaimed,
 	EventJournalTailTrimmed,
-	EventItemBaseline, EventCommentBaseline, EventCardBaseline,
+	EventItemBaseline, EventCommentBaseline, EventCardBaseline, EventCardRebuilt,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

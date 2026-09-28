@@ -1545,6 +1545,14 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		}
 		s.table(removed)
 	}
+	if report.Rebuilt {
+		s.line(s.r.TN("check.rebuilt", len(report.RebuiltCards)))
+		rebuilt := table{indent: 2, columns: listColumn()}
+		for _, id := range report.RebuiltCards {
+			rebuilt.rows = append(rebuilt.rows, tableRow{fields: []string{id}})
+		}
+		s.table(rebuilt)
+	}
 	if report.MigratedWitness {
 		s.line(s.r.TN("check.witnessed", len(report.WitnessedCards)))
 		witnessed := table{indent: 2, columns: listColumn()}

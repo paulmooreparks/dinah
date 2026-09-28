@@ -1226,7 +1226,7 @@ func (l *Library) carryOneCard(held *bench.Lock, req *Request, entry *reshapeRet
 		ToTitle:   destination.Title,
 		Reshape:   true,
 	}
-	dropped := dropTierOverrideFor(card, fresh, entry.id)
+	dropped, spelled := dropTierOverrideFor(card, fresh, entry.id)
 	card.Column = destination.ID
 	if err := card.Save(); err != nil {
 		return false, err
@@ -1236,11 +1236,12 @@ func (l *Library) carryOneCard(held *bench.Lock, req *Request, entry *reshapeRet
 	}
 	if dropped != "" {
 		drop := bench.Event{
-			TS:     now,
-			Event:  contract.EventTierOverrideDropped,
-			Actor:  req.Acting(),
-			Column: entry.id,
-			From:   dropped,
+			TS:        now,
+			Event:     contract.EventTierOverrideDropped,
+			Actor:     req.Acting(),
+			Column:    entry.id,
+			ColumnRef: fresh.JournaledTierRef(spelled, entry.id),
+			From:      dropped,
 		}
 		if err := bench.AppendEvent(held, card.JournalPath(), drop); err != nil {
 			return false, err
@@ -1420,17 +1421,18 @@ func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, card *benc
 // unmapped card rather than guessing at one.
 //
 // An override naming any other column is untouched, since the match is against
-// the one column this call is carrying the card out of.
-func dropTierOverrideFor(card *bench.Card, fresh *bench.Bench, retiring string) string {
+// the one column this call is carrying the card out of. It answers the tier
+// dropped and the reference the entry was written under.
+func dropTierOverrideFor(card *bench.Card, fresh *bench.Bench, retiring string) (string, string) {
 	for i, override := range card.ColumnTiers {
 		target := fresh.ColumnByRef(override.Column)
 		if target == nil || target.ID != retiring {
 			continue
 		}
 		card.ColumnTiers = append(card.ColumnTiers[:i], card.ColumnTiers[i+1:]...)
-		return override.Tier
+		return override.Tier, override.Column
 	}
-	return ""
+	return "", ""
 }
 
 // reshapeDepartureTitle is the title a carried card's moved event records for

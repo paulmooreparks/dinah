@@ -214,9 +214,9 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     22,
-		mentions:  57,
-		functions: 46,
+		files:     24,
+		mentions:  59,
+		functions: 48,
 		sites: []resolutionSite{
 			{"internal/bench/designationmigrate.go", "ClaimedCardsBothHalves", 1, "listing the archived cards for the claims the storage migration is refused over, since it rewrites an archived card's journal too; it reads each card's holder and resolves no reference"},
 			{"internal/bench/migratestorage_phases.go", "readOldLayout", 1, "the storage migration walking both halves of the cards collection, because an archived card's members are carried as a live card's are; it reads each card by identifier from the root it walks and resolves no reference"},
@@ -225,6 +225,8 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/migratestorage_phases.go", "attachLines", 1, "reading the archived half of one holder's attachments into the manifest, so a deletion that reached one fails the proof; it resolves no card"},
 			{"internal/bench/migratestorage_phases.go", "pruneOldLayout", 3, "removing what is left empty of the old layout's member archive mirror below a card or a column the migration already holds; it resolves no card"},
 			{"internal/bench/migratestorage_phases.go", "StrayMemberFiles", 1, "walking both halves of the cards collection for comment.md and item.md files a stray write left behind; it reads each card by identifier from the root it walks and resolves no reference"},
+			{"internal/bench/cardreplay.go", "RebuildCards", 1, "the rebuild walking both halves of the cards collection, because an archived card's card.md is written back from its journal as a live card's is; it reads each card by identifier from the root it walks and resolves no reference"},
+			{"internal/bench/switch.go", "witnessOnAcquire", 1, "telling whether the directory a lock is taken on is a card's, live or archived, by the root it stands under, so the witness runs before the holder writes; it resolves no reference"},
 			{"internal/bench/migratestorage_phases.go", "strayOf", 1, "reading from a stray file's own path whether it stood in an archive mirror; it resolves no card"},
 			{"internal/bench/stalelock.go", "entityLockFiles", 1, "listing the lock file standing in each archived card, workstream and column directory, so check can judge a lock that travelled into the archive; it stats one fixed file name per directory and reads no anchor and no number"},
 			{"internal/bench/storagemigrate.go", "legacyCollection", 1, "composing the archive mirror of one member collection below a holder the old layout keeps, for the reader of a card it was handed; it reaches a comment or an item below that card and resolves no card"},

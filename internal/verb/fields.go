@@ -787,7 +787,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	if err := write(); err != nil {
 		return l.FromError(req, err)
 	}
-	ev := fieldEvent(req, entity, target, was, value)
+	ev := fieldEvent(req, entity, target, was, value, l.Bench.CardUnit())
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
 	ev.TS = now
 	if member {
@@ -878,11 +878,19 @@ func (l *Library) canWriteEntity(req *Request, entity *bench.EntityRef) *Respons
 // file that changed, and copying a whole instructions body into an append-only
 // journal on every edit would grow the journal without bound and put a second
 // copy of the text where nobody edits it.
-func fieldEvent(req *Request, entity *bench.EntityRef, target fieldWrite, was, value string) bench.Event {
+//
+// A card's body is the exception in the card-unit layout, where the journal is
+// the record card.md is rebuilt from: there the line carries the body in Text.
+// cardUnit says whether the store is in that layout, and the old layout's
+// lines are written as they always were.
+func fieldEvent(req *Request, entity *bench.EntityRef, target fieldWrite, was, value string, cardUnit bool) bench.Event {
 	ev := bench.Event{Actor: req.Acting(), Event: updatedEvents[entity.Kind], Field: target.name}
 	if !target.prose {
 		ev.From = was
 		ev.To = value
+	}
+	if cardUnit && target.prose && entity.Kind == bench.KindCard {
+		ev.Text = value
 	}
 	switch entity.Kind {
 	case bench.KindColumn, bench.KindComment, bench.KindItem, bench.KindAttachment:

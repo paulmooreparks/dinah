@@ -1995,7 +1995,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--migrate-storage] [--backup <dir>] [--accept-difference <key>] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule] [--migrate-holds] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--migrate-storage] [--backup <dir>] [--accept-difference <key>] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule] [--migrate-holds] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--rebuild] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -7523,7 +7523,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-container", "migrate-designations", "migrate-holds", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals", "migrate-raw-lines", "migrate-schedule",
 		"migrate-slugs", "migrate-storage", "migrate-vocabulary", "migrate-workstreams",
-		"no-archive", "no-browser", "no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
+		"no-archive", "no-browser", "no-claim", "override", "plain", "quiet", "ready", "rebuild", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
 		"unresolved", "version", "wait", "watch", "witness", "yes",
 	}

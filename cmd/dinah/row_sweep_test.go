@@ -1737,6 +1737,21 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
+			site: renderSite{File: "render.go", Function: "renderCheck", Label: "rebuilt", Ordinal: 1}, label: "one rebuilt card", varies: noCell,
+			constantReason: "this block declares one column and no heading, so it has no column to misplace",
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				// The rebuild answers only in the card-unit layout, which ships
+				// switched off, so the switch is turned on for this one
+				// subtest and its cleanup turns it off before the next row.
+				var out string
+				t.Run("card-unit", func(st *testing.T) {
+					bench.EnableCardUnitForTest(st)
+					out = sweptRun(st, sweptDamagedTree(st, w, "damaged-"+tag+"-"+sweptPass), tag, "check", "--rebuild")
+				})
+				return out
+			},
+		},
+		{
 			site: renderSite{File: "render.go", Function: "composeRefusalLines", Label: "t", Ordinal: 1}, label: "the columns a refusal lists", varies: noCell,
 			constantReason: "this block declares one column and no heading, so it has no column to misplace",
 			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
@@ -2613,6 +2628,29 @@ func sweptDivergedTree(t *testing.T, w *sweptWorkbenches, name string) string {
 	sweptInit(t, dir)
 	sweptDo(t, dir, "add", "A card somebody moved by hand")
 	sweptDivergeCard(t, dir)
+	return dir
+}
+
+// sweptDamagedTree creates a workbench in the card-unit layout holding one
+// card whose card.md was deleted, which is the damage check --rebuild writes
+// back from the card's journal. The caller has the layout switched on.
+func sweptDamagedTree(t *testing.T, w *sweptWorkbenches, name string) string {
+	t.Helper()
+	dir := filepath.Join(w.base, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sweptInit(t, dir)
+	sweptDo(t, dir, "add", "A card whose anchor was deleted")
+	root := sweptRoot(t, dir)
+	cards, err := bench.ListIDs(filepath.Join(root, bench.CardsDir))
+	if err != nil || len(cards) != 1 {
+		t.Fatalf("wanted one card under %s, got %v: %v", root, cards, err)
+	}
+	anchor := filepath.Join(root, bench.CardsDir, cards[0], bench.CardAnchor)
+	if err := os.Remove(anchor); err != nil {
+		t.Fatalf("remove %s: %v", anchor, err)
+	}
 	return dir
 }
 

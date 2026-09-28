@@ -115,7 +115,7 @@ WORKBENCH
     [--migrate-schedule] [--migrate-holds]
     [--migrate-raw-lines] [--file-standing] [--renumber]
     [--remint <dir>] [--migrate-workstreams] [--witness]
-    [--yes] [--root <path>] [--max-depth <n>]
+    [--rebuild] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench                                              Read this workbench's own fields
@@ -228,7 +228,7 @@ WORKBENCH
     [--backup <dir>] [--accept-difference <key>] [--rehearse] [--force-claims] [--migrate-branches]
     [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule] [--migrate-holds]
     [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams]
-    [--witness] [--yes] [--root <path>] [--max-depth <n>]
+    [--witness] [--rebuild] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
   workstream <new> <title> [--slug <slug>]                                                              Create a workstream on this workbench
