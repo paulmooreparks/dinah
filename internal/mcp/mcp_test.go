@@ -2,11 +2,13 @@ package mcp
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"dinah/internal/answer"
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
@@ -751,6 +754,54 @@ func TestOnlyAnEmptyLineIsSkippedSilently(t *testing.T) {
 	}
 	if string(answers[2]["id"]) != "2" {
 		t.Errorf("the empty line drew an answer of its own, so the ping is not the last: %s", answers[2])
+	}
+}
+
+// TestLoggingSetLevelIsAnswered asserts that logging/setLevel, which the MCP
+// specification gives a client of a server declaring the logging capability,
+// is answered with an empty result for each of the specification's levels and
+// with invalid params for a level it does not name, rather than with method
+// not found; and that a wait notice is sent as a log message at a level of
+// warning or below and withheld at a level above it, while its progress
+// notification is sent either way.
+func TestLoggingSetLevelIsAnswered(t *testing.T) {
+	library := newLibrary(t)
+	lines := []string{}
+	for i, level := range logLevels {
+		lines = append(lines, `{"jsonrpc":"2.0","id":`+strconv.Itoa(i+1)+`,"method":"logging/setLevel","params":{"level":"`+level+`"}}`)
+	}
+	lines = append(lines, `{"jsonrpc":"2.0","id":99,"method":"logging/setLevel","params":{"level":"loud"}}`)
+	answers := rawStream(t, library, lines...)
+	if len(answers) != len(logLevels)+1 {
+		t.Fatalf("wanted %d answers, got %d: %s", len(logLevels)+1, len(answers), answers)
+	}
+	for i, level := range logLevels {
+		if string(answers[i]["result"]) != "{}" || answers[i]["error"] != nil {
+			t.Errorf("logging/setLevel %s answered %s", level, answers[i])
+		}
+	}
+	var failure struct {
+		Code int `json:"code"`
+	}
+	if err := json.Unmarshal(answers[len(logLevels)]["error"], &failure); err != nil || failure.Code != codeInvalidParams {
+		t.Errorf("an unknown level answered %s, wanted code %d", answers[len(logLevels)], codeInvalidParams)
+	}
+
+	for _, want := range []struct {
+		level  string
+		logged bool
+	}{{"debug", true}, {"warning", true}, {"error", false}, {"emergency", false}} {
+		out := &strings.Builder{}
+		notices := &waitNotices{encoder: json.NewEncoder(out), defaultLib: library, token: json.RawMessage(`"tok"`)}
+		notices.setLevel(&request{ID: json.RawMessage("1"), Params: json.RawMessage(`{"level":"` + want.level + `"}`)})
+		notices.send(durable.Wait{Op: "write", Path: filepath.Join(library.Bench.Root, "card.md"), Last: errors.New("held"), Elapsed: time.Second, Notice: 1})
+		written := out.String()
+		if strings.Contains(written, "notifications/message") != want.logged {
+			t.Errorf("at level %s the notice wrote %q, wanted a log message %v", want.level, written, want.logged)
+		}
+		if !strings.Contains(written, "notifications/progress") {
+			t.Errorf("at level %s the notice sent no progress: %q", want.level, written)
+		}
 	}
 }
 

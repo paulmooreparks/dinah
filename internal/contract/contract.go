@@ -168,6 +168,13 @@ const (
 	AliasShadow       = LayerPrefix + "alias-shadows-command"
 	AliasMissing      = LayerPrefix + "missing-alias-argument"
 
+	// Busy is the operating system refusing an open, a write, a rename or a
+	// removal for as long as Dinah retries one that may give up, which is
+	// only ever before an act has written anything, so nothing was changed.
+	// The detail is the path relative to the workbench root, and the extra
+	// "error" carries the last error the operating system gave.
+	Busy = LayerPrefix + "busy"
+
 	// NoWorkbenchFound is the walk coming up empty, which NoWorkbench once
 	// shared a sentence with. The two are separated because one template
 	// cannot honestly describe both a path the caller named and a search
@@ -1271,6 +1278,14 @@ const (
 	// this is its lifecycle event, where the prefix is reserved for what
 	// Dinah invents beyond what the format declares.
 	EventRenumbered = "renumbered"
+	// EventLockReclaimed records that a lock whose holder was proven dead was
+	// taken over by the actor the line names. Its Note is the dead lock's
+	// own record line, and it carries Column when the lock was a column's
+	// occupancy lock. It lands on the journal of the entity the lock
+	// protected, or, for an occupancy lock, on the journal of the card whose
+	// move or pull reclaimed it, or the workbench journal for an add or a
+	// repair.
+	EventLockReclaimed = "lock_reclaimed"
 )
 
 // Events lists the event names a query over cards accepts in its event field,
@@ -1302,6 +1317,7 @@ var Events = []string{
 	EventRetirementGranted, EventRetirementRevoked,
 	EventLinked, EventUnlinked,
 	EventRenumbered,
+	EventLockReclaimed,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

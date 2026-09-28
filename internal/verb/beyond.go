@@ -9,6 +9,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/template"
 )
 
@@ -146,6 +147,26 @@ func (l *Library) Add(req *Request) *Response {
 	if l.Bench.Format < bench.RegistryFormat {
 		return l.refuse(req, nil, contract.NeedsNumberMigration, l.Bench.Root)
 	}
+	// A named destination declaring a capacity is counted again under its
+	// occupancy lock, which is held until the created line is written. The
+	// count above stays, so a full column is still refused before an
+	// identifier is claimed, but it is advice; this one is the answer.
+	var occupancy *bench.Lock
+	if req.Column != "" {
+		occupancy, err = l.takeOccupancy(req, destination, filepath.Join(l.Bench.Root, bench.JournalName))
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		defer occupancy.Release()
+		reached, err := l.atCapacity(req, destination)
+		if err != nil {
+			return l.FromError(req, err)
+		}
+		if reached {
+			return l.refuse(req, nil, contract.AtCapacity, destination.Ref())
+		}
+	}
+	l.interpose(stepCapacityCounted)
 	// The mark is read fresh from disk under the lock just taken, rather than
 	// from whatever snapshot this caller opened with, so a long-lived caller
 	// sitting on a stale mark cannot mint a number another process already
@@ -165,7 +186,7 @@ func (l *Library) Add(req *Request) *Response {
 	// the identifier up means giving up the directory too, since an empty
 	// hex directory makes every listing on the bench fail.
 	if holder, retiring := l.retiring(destination.ID); retiring {
-		os.RemoveAll(dir)
+		durable.RemoveAll(dir)
 		return l.refuse(req, nil, contract.Locked, holder)
 	}
 	fm := bench.NewFrontmatter()
@@ -203,6 +224,7 @@ func (l *Library) Add(req *Request) *Response {
 	if err := bench.AppendEvent(filepath.Join(dir, bench.JournalName), ev); err != nil {
 		return l.FromError(req, err)
 	}
+	occupancy.Release()
 	// The registry line lands after the card it names, so a crash between the
 	// two leaves a card with no line rather than a line naming a card that was
 	// never created. The first is a state check reports and the migration
@@ -1426,7 +1448,7 @@ func readSource(root, source string) (*bench.Definition, error) {
 		}
 		return bench.ReadDefinition(data)
 	}
-	data, err := os.ReadFile(source)
+	data, err := durable.ReadFile(source)
 	if err != nil {
 		return nil, contract.With(contract.Refuse(contract.UnknownPath, source), "file", source)
 	}

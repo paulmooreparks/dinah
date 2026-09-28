@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // Link is one entry of a card's links sequence: a kind and the identifier of
@@ -158,6 +158,9 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	// One read answers both the text and the revision, so the revision a card
 	// carries is the revision of the very bytes its fields were parsed from.
 	text, revision, err := readTextAndRevision(anchor)
+	if isBusy(err) {
+		return nil, err
+	}
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownCard, id)
 	}
@@ -780,7 +783,7 @@ const cardHeaderLimit = 64 * 1024
 // revision. An anchor that opens no frontmatter, or does not close it inside
 // that limit, is an error.
 func ReadCardHeader(anchor string) (*Frontmatter, error) {
-	file, err := os.Open(anchor)
+	file, err := durable.Open(anchor)
 	if err != nil {
 		return nil, err
 	}

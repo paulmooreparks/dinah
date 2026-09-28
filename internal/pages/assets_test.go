@@ -18,14 +18,13 @@ import (
 	"testing"
 )
 
-// publishedIntegrity are the SHA-384 values of the vendored files, written
-// here as literals so that an edit to a vendored file and to PROVENANCE
-// together still fails. Each is the value PUDL's README publishes for jsDelivr,
-// save pudl.css, which is taken from the v0.19.2 tag because the README had
-// not yet published a value for that release when it was vendored; replace
-// it with the published value when one appears, and the two should agree.
+// publishedIntegrity are the SHA-384 values PUDL's README publishes for
+// jsDelivr, written here as literals so that an edit to a vendored file and
+// to PROVENANCE together still fails against a value somebody other than this
+// project published. pudl.css is v0.21.0's; the other files are unchanged
+// since v0.19.0 and carry the values published for them there.
 var publishedIntegrity = map[string]string{
-	"pudl.css":         "uvcd/dN28qVj2jNoh96ZLJtvm5Id1zPmFVC0PjHy5vnrFHJFEq2LEZS3wAoiYQem",
+	"pudl.css":         "INqpOirI7CQ74lyu8GbhOFr2jJDiLBj3vGZ2jUzmYbkkWyU5gX98ddoCLMKLe837",
 	"pudl-theme.js":    "kd6cwrRNLEIY/49jBdC7mBi1fiFbf9DSlyMfmX61QgrtAc8YnUTEKkrBjKoBMgnY",
 	"pudl-windows.css": "sMQ+nDHIKGWKAfyU4gHQHOscemZ0YhkQ6ho9A1pjKhgkHK931swBJVUZuR64FzaY",
 	"pudl-windows.js":  "IfL3F3SRr/cFGmX/3Mb0y2aUUf6PF5+2kj7XhW5iFJ4+oMgapIklKsn9fW8QFFGg",
@@ -43,7 +42,7 @@ func TestVendoredPUDLMatchesProvenance(t *testing.T) {
 		t.Fatalf("read PROVENANCE: %v", err)
 	}
 	text := string(provenance)
-	for _, line := range []string{"tag v0.19.2", "commit b105a48a7df73d8799b54eab2701daede81aac6a"} {
+	for _, line := range []string{"tag v0.21.0", "commit 4d068e660f00aabebabbb9d78cfe2f5d9f4e299d"} {
 		if !strings.Contains(text, line+"\n") {
 			t.Errorf("PROVENANCE does not carry %q", line)
 		}

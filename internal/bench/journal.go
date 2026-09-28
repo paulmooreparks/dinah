@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // Actor is who acted, together with whatever the caller declared about what
@@ -241,15 +242,7 @@ func AppendEvent(path string, ev Event) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if _, err := f.Write(append(line, '\n')); err != nil {
-		return err
-	}
-	return f.Sync()
+	return durable.AppendLine(path, line)
 }
 
 // ReadJournal reads a journal in file order, which is event order. A torn

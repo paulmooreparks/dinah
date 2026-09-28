@@ -59,7 +59,7 @@ func (b *Bench) resolveCardIn(root, ref string) (*Resolved, error) {
 			// addressed by its human reference, because the reference route
 			// reads the collection and lets the refusal through.
 			var refusal *contract.Refusal
-			if errors.As(err, &refusal) && refusal.Name != contract.UnknownCard {
+			if (errors.As(err, &refusal) && refusal.Name != contract.UnknownCard) || isBusy(err) {
 				return nil, err
 			}
 			return nil, contract.Refuse(contract.UnknownCard, ref)
@@ -85,7 +85,7 @@ func (b *Bench) resolveCardIn(root, ref string) (*Resolved, error) {
 			// resolves to nothing here, which preserves the split between
 			// ResolveCard and ResolveArchivedCard.
 			var refusal *contract.Refusal
-			if errors.As(err, &refusal) && refusal.Name != contract.UnknownCard {
+			if (errors.As(err, &refusal) && refusal.Name != contract.UnknownCard) || isBusy(err) {
 				return nil, err
 			}
 			return nil, contract.Refuse(contract.UnknownCard, ref)

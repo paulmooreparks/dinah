@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"dinah/internal/bench"
+	"dinah/internal/durable"
 )
 
 // The exit codes this program answers with. The numbering starts at 3 because
@@ -286,7 +287,7 @@ func classify(groups []journalGroup) (classification, error) {
 	var report classification
 	for _, group := range groups {
 		for _, path := range group.paths {
-			text, err := os.ReadFile(path)
+			text, err := durable.ReadFile(path)
 			if err != nil {
 				report.conflicts = append(report.conflicts, conflict{journal: path, token: unreadable})
 				continue
@@ -512,7 +513,7 @@ func rewrite(groups []journalGroup) (int, error) {
 	rewrote := 0
 	for _, group := range groups {
 		for _, path := range group.paths {
-			text, err := os.ReadFile(path)
+			text, err := durable.ReadFile(path)
 			if err != nil {
 				return rewrote, err
 			}
@@ -529,7 +530,7 @@ func rewrite(groups []journalGroup) (int, error) {
 			if len(rebuilt) > 0 {
 				body = strings.Join(rebuilt, "\n") + "\n"
 			}
-			if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			if err := durable.WriteFile(path, []byte(body), 0o644); err != nil {
 				return rewrote, err
 			}
 			rewrote++

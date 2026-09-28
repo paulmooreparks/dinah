@@ -4,6 +4,8 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+
+	"dinah/internal/durable"
 )
 
 // parallelWorkers is the size of the pool a bounded parallel walk opens: one
@@ -62,9 +64,14 @@ func parallelRead[T any](n int, read func(i int) (T, error)) ([]T, error) {
 	var next int64 = -1
 	var wg sync.WaitGroup
 	wg.Add(workers)
+	// The workers read for the caller, so they join the caller's act: a read
+	// made after that act has written waits rather than giving up, as the
+	// same read made on the caller's own goroutine would.
+	act := durable.CurrentAct()
 	for w := 0; w < workers; w++ {
 		go func() {
 			defer wg.Done()
+			defer act.Enter()()
 			for {
 				i := int(atomic.AddInt64(&next, 1))
 				if i >= n {

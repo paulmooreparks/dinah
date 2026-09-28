@@ -4922,6 +4922,46 @@
       "context": "The sibling of refusal.dinah.inapplicable-field rendered when the card stores no value under the gating field at all, which the condition reads as excluding the card: nobody has yet said this card is one the question is asked of. {detail}, {gate} and {admits} are as on the base entry, and there is no {value}. refusal.dinah.inapplicable-field.next is spliced on after this one.",
       "source": "45fd62ee42571369"
     },
+    "check.lock-cleared": {
+      "text": "{path} freigegeben ({actor}, pid {pid}, beendet)",
+      "context": "A line `dinah check --finish` prints for each lock it reclaimed from a holder proven dead and then released. {path} is the lock file, {actor} is the owner the dead lock named, and {pid} is the process it named, a number. The word pid is machine vocabulary.",
+      "source": "84d616d6fe9c3c88"
+    },
+    "check.stale-lock": {
+      "text": "eine Sperre besteht, deren Inhaber nicht nachweislich läuft: {detail}",
+      "context": "A check finding: an entity lock file whose holder check could not show to be live. {detail} is the owner the lock names followed by the verdict word, dead or unknown, or the verdict word alone when the lock names nobody; both verdict words are machine vocabulary and are not translated. One of check.stale-lock.dead.next and check.stale-lock.unknown.next is spliced on after this one.",
+      "source": "f47b68622840ad52"
+    },
+    "check.stale-lock.dead.next": {
+      "text": "; dieser Prozess ist beendet, und `dinah check --finish` gibt die Sperre frei",
+      "context": "Spliced onto check.stale-lock for a lock judged dead: the process it names is proven to have ended. The command spelling is machine vocabulary and is not translated.",
+      "source": "7025a3de06058778"
+    },
+    "check.stale-lock.unknown.next": {
+      "text": "; Dinah kann nicht beweisen, dass ihr Inhaber beendet ist, daher kann nur ein Mensch sie freigeben: Stellen Sie sicher, dass kein Dinah-Prozess mehr läuft, der sie halten könnte, also weder der Inhaber und der Prozess, die die Sperre nennt, noch, wenn sie niemanden nennt, irgendein Dinah-Prozess auf den Rechnern, die sich diese Werkbank teilen, und löschen Sie die Datei dann von Hand. Eine leere Sperre hinterlässt ein Absturz, während eine Sperre angelegt oder zurückgefordert wird",
+      "context": "Spliced onto check.stale-lock for a lock judged unknown, which no command clears. It names the hand repair and the two crash windows that leave an empty lock: one while a lock is created, and one while a dead lock is being reclaimed.",
+      "source": "2b08135cff950ba5"
+    },
+    "notice.durable.waiting": {
+      "text": "warte auf {path}: das Betriebssystem verweigert dies seit {seconds} Sekunden ({error}); schließen Sie, was die Datei geöffnet hält, oder beenden Sie diesen Prozess",
+      "context": "Printed each time another five seconds pass while an act that has already written part of itself waits for the operating system to stop refusing a file, so that the act does not stop half done. {path} is the file relative to the workbench root, {seconds} is a whole number, and {error} is the last error the operating system gave, in its own language.",
+      "source": "2d5dbbb69dd33844"
+    },
+    "refusal.dinah.busy": {
+      "text": "das Betriebssystem hat den Zugriff auf {detail} fünf Sekunden lang verweigert, und der letzte Fehler lautete: {error}",
+      "context": "The sentence printed after the refusal name dinah.busy: the operating system refused to open, write, rename or remove a file for the whole of Dinah's retry, before the act had written anything. {detail} is the file relative to the workbench root, and {error} is the last error the operating system gave, in its own language. The sentence names no cause, because a denial can come from another process or from the file system itself. refusal.dinah.busy.next is spliced on after this one.",
+      "source": "40d9bfd4ebbf3b94"
+    },
+    "refusal.dinah.busy.next": {
+      "text": "; es wurde nichts geändert, führen Sie den Befehl also erneut aus",
+      "context": "Spliced onto refusal.dinah.busy as the next step. dinah.busy is only ever raised before an act has written anything, so the clause is always true.",
+      "source": "69603a4c0ced164f"
+    },
+    "token.lock_reclaimed": {
+      "text": "Sperre zurückgefordert",
+      "context": "How the canonical token lock_reclaimed is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "source": "72da6b74f50c447c"
+    },
     "refusal.dinah.interrupted": {
       "text": "die Aktion auf {detail} wurde unterbrochen, nachdem sie festgehalten worden war",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or column the refusal is about.",

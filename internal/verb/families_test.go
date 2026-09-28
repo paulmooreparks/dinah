@@ -11,18 +11,19 @@ import (
 	"dinah/internal/contract"
 )
 
-// composedWithoutARequest are the three event names no request-bearing verb
+// composedWithoutARequest are the four event names no request-bearing verb
 // writes, each with the reason it carries the owner's name and nothing else.
 //
 // Section 1.8 of dinah-496's contract puts a write with no request through
 // bench.NamedActor, which composes from a name and declares nothing. So no
-// implementation of that contract can make one of these three carry a harness,
+// implementation of that contract can make one of these four carry a harness,
 // a provider, a model or a server, and a guard demanding it would be a guard
 // nothing could satisfy.
 var composedWithoutARequest = map[string]string{
 	contract.EventExpired:          "the lapse sweep writes it from the lapsed holder's name, and the caller whose read triggered the sweep is not the owner the line is attributed to",
 	contract.EventManualCorrection: "the witness writes it from the name of whoever touched the workbench, reconciling an edit made outside every verb",
 	contract.EventRenumbered:       "the two number repairs write it, and the card whose number moved was claimed by nobody",
+	contract.EventLockReclaimed:    "the lock layer writes it inside an acquisition, and Acquire, which every write path calls, is handed the acquiring owner's name and nothing more",
 }
 
 // TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers drives
@@ -30,7 +31,7 @@ var composedWithoutARequest = map[string]string{
 // sample.
 //
 // The expected set is computed from internal/contract's own event names less
-// the three above, so an event name added later joins this test with no edit
+// the four above, so an event name added later joins this test with no edit
 // here and fails it until somebody drives the family or says why it cannot be
 // driven. That is the half round one of Agent Code Review found missing: the
 // first draft drove nine families and asserted nine, which is a quarter of the

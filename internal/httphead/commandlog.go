@@ -69,6 +69,15 @@ type LogEntry struct {
 	Target string
 }
 
+// logSourceNotice and logOutcomeWaiting mark an entry that is a wait notice
+// rather than an act: an act that has already written part of itself is
+// waiting for the operating system to stop refusing a file. Detail carries
+// the notice's text.
+const (
+	logSourceNotice   = "notice"
+	logOutcomeWaiting = "waiting"
+)
+
 // commandLog is the ring of recent entries.
 type commandLog struct {
 	mu      sync.Mutex
@@ -127,6 +136,11 @@ func (l *commandLog) pageEntries(r *msg.Renderer, most int) []pages.LogEntry {
 			Line: entry.Line, Rerun: entry.Line != "", Guarded: entry.Basis != "", Target: entry.Target,
 		}
 		drawn.Card = entry.Card
+		if entry.Source == logSourceNotice {
+			drawn.Sentence = entry.Detail
+			out = append(out, drawn)
+			continue
+		}
 		if drawn.Line == "" {
 			drawn.Line = "dinah " + entry.Typed
 		}
