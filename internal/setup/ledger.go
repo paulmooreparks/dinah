@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"dinah/internal/durable"
 )
 
 // LedgerName is the file in the user base where setup records what it wrote.
@@ -74,7 +76,7 @@ type ledgerDocument struct {
 func readLedger(userBase string) (*ledger, error) {
 	path := filepath.Join(userBase, LedgerName)
 	l := &ledger{path: path}
-	data, err := os.ReadFile(path)
+	data, err := durable.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return l, nil
 	}
@@ -184,31 +186,8 @@ func writeFileAtomic(path string, data []byte) error {
 	if info, err := os.Stat(path); err == nil {
 		mode = info.Mode().Perm()
 	}
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".dinah-setup-*")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(name)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(name)
-		return err
-	}
-	if err := os.Chmod(name, mode); err != nil {
-		os.Remove(name)
-		return err
-	}
-	if err := os.Rename(name, path); err != nil {
-		os.Remove(name)
-		return err
-	}
-	return nil
+	return durable.WriteFile(path, data, mode)
 }

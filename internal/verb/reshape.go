@@ -3,13 +3,13 @@ package verb
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/msg"
 )
 
@@ -333,7 +333,16 @@ func (l *Library) Reshape(req *Request) (*ReshapeReport, error) {
 	if !req.Confirm {
 		return report, nil
 	}
-	if err := l.applyReshape(req, plan, now, report); err != nil {
+	// The write phase is one act, whatever locks its steps take and give
+	// back. Its first write is the first that lands, and every operation
+	// after it waits out a refusal rather than giving up, so dinah.busy can
+	// only come from a run that has changed nothing, which is what that
+	// refusal tells its reader. A step that gives up on a lock still refuses,
+	// and the report says which parts landed before it.
+	act := durable.BeginAct()
+	err = l.applyReshape(req, plan, now, report)
+	act.End()
+	if err != nil {
 		// The report goes back with the error rather than being dropped for
 		// it, because a refusal raised once the write phase has begun leaves
 		// a workbench part way through the new shape and the caller has no
@@ -370,7 +379,7 @@ func readReshapeSource(source string) (*bench.Definition, string, error) {
 		}
 		data = exported
 	} else {
-		read, err := os.ReadFile(source)
+		read, err := durable.ReadFile(source)
 		if err != nil {
 			return nil, "", contract.With(contract.Refuse(contract.UnknownPath, source), "file", source)
 		}
@@ -1105,7 +1114,7 @@ func matchingAttachment(present []*bench.Attachment, matched map[string]bool, ca
 		if matched[attachment.ID] || attachment.Filename != carried.Filename || attachment.Path == "" {
 			continue
 		}
-		payload, err := os.ReadFile(attachment.Path)
+		payload, err := durable.ReadFile(attachment.Path)
 		if err != nil || !bytes.Equal(payload, carried.Payload) {
 			continue
 		}

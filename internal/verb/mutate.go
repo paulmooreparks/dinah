@@ -741,7 +741,20 @@ func (l *Library) missingRequiredField(card *bench.Card, destination *bench.Colu
 
 // move carries a card from one column to another. The list is CORE-MOVE's, in
 // the order section 6.4 declares it.
+//
+// A destination declaring a capacity is counted under its occupancy lock,
+// taken after the route resolves it and held until the moved line is written,
+// so two moves into its last free place cannot both count it free.
 func (l *Library) move(req *Request, card *bench.Card) *Response {
+	routed, _, refusal := l.canRoute(req, card)
+	if refusal != nil {
+		return refusal
+	}
+	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath())
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer occupancy.Release()
 	destination, departure, override, refusal, err := l.canMove(req, card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -749,6 +762,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
+	l.interpose(stepCapacityCounted)
 	ev := bench.Event{
 		TS:        bench.Stamp(l.Now()),
 		Event:     contract.EventMoved,
@@ -776,6 +790,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	card.RetirementGrant = ""
 	card.Column = destination.ID
 	response, err := l.commit(req, card, ev)
+	occupancy.Release()
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -806,6 +821,25 @@ func titleOf(column *bench.Column) string {
 		return ""
 	}
 	return column.Title
+}
+
+// stepCapacityCounted is the Interpose window move, pull and add open after
+// the capacity row has passed and before the card is written, which is the
+// stretch the column occupancy lock exists to cover.
+const stepCapacityCounted = "capacity-counted"
+
+// takeOccupancy takes a destination column's occupancy lock when the column
+// declares a capacity and the request does not carry an override, which skips
+// the capacity row; otherwise it takes nothing and answers a nil lock, whose
+// Release does nothing. It is always the last lock an act takes, and nothing
+// is acquired while it is held. A reclaim of a dead holder's occupancy lock
+// is recorded in journal.
+func (l *Library) takeOccupancy(req *Request, destination *bench.Column, journal string) (*bench.Lock, error) {
+	if destination == nil || destination.Capacity <= 0 || req.Override {
+		return nil, nil
+	}
+	dir := l.Bench.ColumnDir(destination.ID)
+	return bench.AcquireRecording(dir, req.Acting(), bench.Stamp(l.Now()), journal)
 }
 
 // atCapacity reports whether a column has reached its declared limit. The

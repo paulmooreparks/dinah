@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"io/fs"
-	"os"
 	"sort"
 	"strings"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // mergeMember plans one member, reporting false when the member is a conflict
@@ -490,7 +490,7 @@ func writeSnapshots(writes []snapshot) error {
 			continue
 		}
 		if !w.exists {
-			if err := os.Remove(f.abs); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			if err := durable.Remove(f.abs); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				return err
 			}
 			f.onDisk, f.onDiskExists = nil, false

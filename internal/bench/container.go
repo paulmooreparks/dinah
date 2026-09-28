@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // ContainerShape names how one workbench directory sits relative to the rule
@@ -108,11 +109,11 @@ func memberPaths(root string) []string {
 	return present
 }
 
-// containerRename is os.Rename by default. A test overrides it to force the
-// cross-device fallback without needing two filesystems on the machine running
-// the suite, which is the reason readAnchorContent and statPath are package
-// variables in this same package.
-var containerRename = os.Rename
+// containerRename is durable.MoveDir by default. A test overrides it to force
+// the cross-device fallback without needing two filesystems on the machine
+// running the suite, which is the reason readAnchorContent and statPath are
+// package variables in this same package.
+var containerRename = durable.MoveDir
 
 // memberWalk is filepath.WalkDir by default. A test overrides it to make the
 // member walk below report a failure, which no fixture on disk can produce:
@@ -367,7 +368,7 @@ func remintInPlace(path string) (string, error) {
 //
 // This is the one migration that can genuinely fail partway, and it is the one
 // that runs against workbenches somebody is using. Each member moves by
-// os.Rename, which is atomic for that member, and the anchor moves last, so an
+// durable.MoveDir, which is atomic for that member, and the anchor moves last, so an
 // interrupted run leaves a workbench still recognised at the old path and a
 // container directory carrying members and no anchor. resumableLift is what
 // reads that state on the next run and carries on into the same directory
@@ -479,7 +480,7 @@ func copyMembers(root, target string) error {
 // in, and nothing else in that directory.
 func removeMembers(root string) error {
 	for _, member := range memberPaths(root) {
-		if err := os.RemoveAll(member); err != nil {
+		if err := durable.RemoveAll(member); err != nil {
 			return err
 		}
 	}
@@ -555,7 +556,7 @@ func completedLift(source, container string) (string, error) {
 	}
 	// A container that could not be listed travels on as the raw filesystem
 	// error, with no contract.Refusal wrapping it, because liftIntoContainer
-	// already lets an os.MkdirAll or an os.Rename failure reach the caller
+	// already lets an os.MkdirAll or a rename failure reach the caller
 	// that way and this call has no reason to behave differently from its
 	// neighbours.
 	ids, err := ListWorkbenchIDs(container)
@@ -860,7 +861,14 @@ func mirrorTree(source, target string) error {
 		if !entry.Type().IsRegular() {
 			return nil
 		}
-		return copyFile(path, destination)
+		data, err := durable.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			return err
+		}
+		return durable.WriteFile(destination, data, 0o644)
 	})
 }
 

@@ -941,6 +941,7 @@ var checkAdviceNeedingNoScope = map[string]string{
 	"check.bare-workbench":                          "a finding row printed by a sweep the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
 	"check.damaged-workbench":                       "a finding row printed by a sweep the caller has already scoped, describing what that sweep does not repair rather than naming a fresh invocation",
 	"check.stranded-column":                         "a finding row printed by a check the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
+	"check.stale-lock.dead.next":                    "a finding row printed by a check the caller has already scoped, saying that the finish on that same scope clears the lock rather than naming a fresh invocation",
 	"check.duplicate-workbench-id":                  "a finding row printed by a check the caller has already scoped, describing what --remint would do rather than naming a fresh invocation",
 	"refusal.dinah.repair-would-empty-columns":      "the sentence names the command that just refused, which is the reader's own invocation carrying whatever scope he gave it",
 	"refusal.dinah.repair-would-empty-columns.next": "the reader is told to run again the invocation he has just run, so the scope he typed is the scope he repeats",

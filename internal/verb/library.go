@@ -2,10 +2,13 @@ package verb
 
 import (
 	"encoding/json"
+	"errors"
+	"path/filepath"
 	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // Library is the one implementation of every verb, over one opened bench.
@@ -1433,12 +1436,32 @@ func (l *Library) FromError(req *Request, err error) *Response {
 			Affordances: l.affordances(nil),
 		}
 	}
+	if refusal := l.busyRefusal(err); refusal != nil {
+		return ComposeRefusal(req, refusal)
+	}
 	return &Response{
 		Outcome:     contract.OutcomeUnreachable,
 		Verb:        req.Verb,
 		Detail:      err.Error(),
 		Affordances: l.affordances(nil),
 	}
+}
+
+// busyRefusal composes dinah.busy from a *durable.BusyError anywhere in err's
+// chain, naming the path relative to the workbench root with forward slashes
+// and carrying the last error the operating system gave. It answers nil for
+// every other error, and for a structural one from MoveDir or RemoveAll, which
+// a structural act reports as an interruption instead.
+func (l *Library) busyRefusal(err error) *contract.Refusal {
+	var busy *durable.BusyError
+	if !errors.As(err, &busy) || busy.Structural {
+		return nil
+	}
+	path := busy.Path
+	if relative, relErr := filepath.Rel(l.Bench.Root, busy.Path); relErr == nil && filepath.IsLocal(relative) {
+		path = filepath.ToSlash(relative)
+	}
+	return contract.RefuseWith(contract.Busy, path, map[string]string{"error": busy.Err.Error()})
 }
 
 // sortByArrival orders cards the way CORE-QUEUE-3 fixes, through

@@ -212,10 +212,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     20,
-		mentions:  48,
-		functions: 39,
+		files:     21,
+		mentions:  49,
+		functions: 40,
 		sites: []resolutionSite{
+			{"internal/bench/stalelock.go", "entityLockFiles", 1, "listing the lock file standing in each archived card, workstream and column directory, so check can judge a lock that travelled into the archive; it stats one fixed file name per directory and reads no anchor and no number"},
 			{"internal/bench/commentcheck.go", "commentDirOf", 1, "reading the archived half of one item's comments, because archiving a designated comment stays permitted and the item goes on citing it wherever it now lives; it reaches a comment below a card it was handed and resolves no card"},
 			{"internal/bench/positions.go", "DesignatedCommentDir", 1, "reading the archived half of one item's comments within one read composition, on commentDirOf's terms, which it answers the same question as; it reaches a comment below a card it was handed and resolves no card"},
 			{"internal/bench/commentcheck.go", "checkMissingDesignations", 1, "reading the archived half of one card's checklist, because an archived item settled without an answer says what a live one says; the card came off check's own live walk and no card is resolved here"},

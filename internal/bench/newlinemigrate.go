@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -14,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // The conditions the plan pass refuses a destination for. Each is a token
@@ -178,7 +178,7 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 			// half-written file. A file that turns dirty a moment later is
 			// picked up by the next run, which is what a busy file gets
 			// anyway.
-			if candidate, readErr := os.ReadFile(path); readErr == nil {
+			if candidate, readErr := durable.ReadFile(path); readErr == nil {
 				if result := transformNewlines(path, candidate); result.Condition == "" && bytes.Equal(result.Out, candidate) {
 					continue
 				}
@@ -186,7 +186,7 @@ func (b *Bench) MigrateNewlines(actor, now string, apply bool) (*NewlineMigratio
 			report.Conflicts = append(report.Conflicts, b.lockConflict(path, err))
 			continue
 		}
-		original, err := os.ReadFile(path)
+		original, err := durable.ReadFile(path)
 		if err != nil {
 			release(held, taken)
 			report.Conflicts = append(report.Conflicts, NewlineConflict{Path: path, Condition: NewlineConflictUnreadable})
@@ -292,7 +292,7 @@ func (b *Bench) rewriteNewlines(path, actor, now string) (bool, error) {
 		return false, err
 	}
 	defer release(held, taken)
-	original, err := os.ReadFile(path)
+	original, err := durable.ReadFile(path)
 	if err != nil {
 		return false, nil
 	}
@@ -907,7 +907,7 @@ func (b *Bench) checkStoredNewlines() ([]Finding, error) {
 	}
 	var findings []Finding
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		data, err := durable.ReadFile(path)
 		if err != nil {
 			continue
 		}

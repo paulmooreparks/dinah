@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"dinah/internal/durable"
 )
 
 // TimeFormat is the timestamp form every journal line and every claim field
@@ -115,14 +117,14 @@ const crlf = "\r\n"
 // which reader asked.
 //
 // A caller that has to see a file's stored bytes, which is the newline
-// migration and the check finding behind it, reads with os.ReadFile rather
+// migration and the check finding behind it, reads with durable.ReadFile rather
 // than with this function, because this function strips the very condition
 // those two exist to find.
 func ReadText(path string) (string, error) {
 	if AnchorReadObserver != nil {
 		AnchorReadObserver(path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := durable.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -150,29 +152,10 @@ func WriteText(path, text string) error {
 // because nothing short of performing the rename predicts whether the rename
 // will be permitted.
 func writeBytes(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".dinah-*")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(name)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		os.Remove(name)
-		return err
-	}
-	if err := os.Rename(name, path); err != nil {
-		os.Remove(name)
-		return err
-	}
-	return nil
+	return durable.WriteFile(path, data, 0o644)
 }
 
 // Revision is the opaque revision of an anchor file: the content hash read
@@ -182,7 +165,7 @@ func Revision(path string) (string, error) {
 	if AnchorReadObserver != nil {
 		AnchorReadObserver(path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := durable.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -204,7 +187,7 @@ func readTextAndRevision(path string) (text, revision string, err error) {
 	if AnchorReadObserver != nil {
 		AnchorReadObserver(path)
 	}
-	data, err := os.ReadFile(path)
+	data, err := durable.ReadFile(path)
 	if err != nil {
 		return "", "", err
 	}

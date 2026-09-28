@@ -1,13 +1,15 @@
 package bench
 
 import (
-	"io"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // Comment is one comment: an entity like every other, ordered by the creation
@@ -284,7 +286,7 @@ type Attachment struct {
 // The caller holds the lock covering that collection, which is what makes the
 // ordinal scan race-free.
 func AddAttachment(ownerDir, source, description, provenance string) (*Attachment, error) {
-	payload, err := os.ReadFile(source)
+	payload, err := durable.ReadFile(source)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +324,7 @@ func AddAttachmentBytes(ownerDir, filename string, payload []byte, description, 
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(target, payload, 0o644); err != nil {
+	if err := durable.WriteFile(target, payload, 0o644); err != nil {
 		return nil, err
 	}
 	attachment := &Attachment{
@@ -338,26 +340,41 @@ func AddAttachmentBytes(ownerDir, filename string, payload []byte, description, 
 
 // ReplaceAttachment swaps an attachment's payload for the bytes of another
 // file, which is a journaled act rather than a quiet overwrite.
+//
+// The new bytes are written over the payload's current name with
+// durable.WriteFile, which replaces them atomically and flushes them first.
+// When the new file carries a different name, RenameAttachment then carries the
+// payload to it and rewrites the anchor, so a crash between the two leaves the
+// disagreement check.attachment-filename-drift already reports.
 func ReplaceAttachment(dir, source string) (*Attachment, error) {
 	attachment, err := LoadAttachment(dir)
 	if err != nil {
 		return nil, err
 	}
-	payload := filepath.Join(dir, PayloadDir)
-	if err := os.RemoveAll(payload); err != nil {
+	data, err := durable.ReadFile(source)
+	if err != nil {
 		return nil, err
 	}
 	filename := filepath.Base(source)
-	if err := copyFile(source, filepath.Join(payload, filename)); err != nil {
+	current := filename
+	if attachment.Path != "" {
+		current = filepath.Base(attachment.Path)
+	}
+	payload := filepath.Join(dir, PayloadDir)
+	if err := os.MkdirAll(payload, 0o755); err != nil {
 		return nil, err
 	}
-	fm, body := loadAnchor(filepath.Join(dir, AttachmentAnchor))
-	fm.Set("filename", filename)
-	if err := WriteText(filepath.Join(dir, AttachmentAnchor), fm.Render(body)); err != nil {
+	if err := durable.WriteFile(filepath.Join(payload, current), data, 0o644); err != nil {
 		return nil, err
 	}
-	attachment.Filename = filename
-	return attachment, nil
+	if current == filename && attachment.Filename == filename {
+		return attachment, nil
+	}
+	_, renamed, err := RenameAttachment(dir, filename)
+	if err != nil {
+		return nil, err
+	}
+	return renamed, nil
 }
 
 // RenameAttachment carries an attachment's payload under a new filename and
@@ -393,8 +410,10 @@ func RenameAttachment(dir, name string) (*Attachment, *Attachment, error) {
 		return nil, nil, contract.Refuse(contract.UnknownPath, payload)
 	}
 	from := entries[0].Name()
-	if err := os.Rename(filepath.Join(payload, from), filepath.Join(payload, name)); err != nil {
-		return nil, nil, err
+	if from != name {
+		if err := durable.Replace(filepath.Join(payload, from), filepath.Join(payload, name)); err != nil {
+			return nil, nil, err
+		}
 	}
 	fm, body := loadAnchor(filepath.Join(dir, AttachmentAnchor))
 	fm.Set("filename", name)
@@ -451,27 +470,6 @@ func loadAnchor(path string) (*Frontmatter, string) {
 		return NewFrontmatter(), ""
 	}
 	return ParseAnchor(text)
-}
-
-// copyFile copies bytes into a new file, creating the directories above it.
-func copyFile(source, target string) error {
-	in, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-		return err
-	}
-	out, err := os.Create(target)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
 }
 
 // ArchiveTarget is where an entity directory goes when it is archived: the
@@ -589,7 +587,7 @@ func MoveEntity(dir, target string) error {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
 	}
-	return os.Rename(dir, target)
+	return durable.MoveDir(dir, target)
 }
 
 // ArchiveEntity moves an entity's whole directory into the archive mirror,
@@ -605,7 +603,7 @@ func ArchiveEntity(dir string) (string, error) {
 
 // DeleteEntity removes an entity's directory and the history inside it.
 func DeleteEntity(dir string) error {
-	return os.RemoveAll(dir)
+	return durable.RemoveAll(dir)
 }
 
 // ColumnOccupied reports whether a column may be retired, which is what keeps a
@@ -812,6 +810,9 @@ func (b *Bench) Run(act *StructuralAct) error {
 			return unwind(err, entityLock, sibling, benchLock)
 		}
 	}
+	if err := refuseCarriedLock(act); err != nil {
+		return unwind(err, entityLock, sibling, benchLock)
+	}
 
 	if err := act.Record(); err != nil {
 		return unwind(err, entityLock, sibling, benchLock)
@@ -829,6 +830,9 @@ func (b *Bench) Run(act *StructuralAct) error {
 		return reportInterruption(err, act, benchLock)
 	}
 	if err := act.apply(); err != nil {
+		return reportInterruption(err, act, benchLock)
+	}
+	if err := removeTravelledLock(act.Target()); err != nil {
 		return reportInterruption(err, act, benchLock)
 	}
 	if act.ColumnID != "" {
@@ -856,6 +860,44 @@ func (b *Bench) Run(act *StructuralAct) error {
 	return b.step(8)
 }
 
+// refuseCarriedLock refuses a restore of an entity whose archived directory
+// holds a lock the act did not take itself, naming the holder that lock
+// records. An earlier build could carry a lock into the archive with the
+// directory, and a restore that moved it back would hand the live half a lock
+// nobody holds. dinah check reports such a lock and dinah check --finish
+// clears it once its holder is proven dead. A card's or a workstream's own
+// archived lock is the one the act's third step already took, so only an
+// entity whose lock directory is not its own directory, a column, is read
+// here.
+func refuseCarriedLock(act *StructuralAct) error {
+	if act.Op != OpRestore || act.LockDir == act.Dir {
+		return nil
+	}
+	record, present := ReadLockRecord(filepath.Join(act.Dir, LockName))
+	if !present {
+		return nil
+	}
+	return contract.Refuse(contract.Locked, record.Actor)
+}
+
+// removeTravelledLock removes the entity lock standing in a directory an
+// archive or a restore has just moved, treating an absent one as success. A
+// writer that created the entity's lock in the gap between the act's release
+// of it and the move reads the sibling, refuses and releases, but the move may
+// carry the file with the directory first. Every acquisition refuses while the
+// sibling stands, so any lock found here once the move has run is such an
+// orphan by construction. A removal has no target and nothing to remove.
+func removeTravelledLock(target string) error {
+	if target == "" {
+		return nil
+	}
+	err := durable.RemoveLock(filepath.Join(target, LockName))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
 // takeEntityLock performs the act's third acquisition, through the acquire
 // that tolerates the one sibling the act itself wrote. An act whose scope is
 // the bench takes nothing here, because the bench's own lock is what covers a
@@ -878,9 +920,14 @@ func (b *Bench) step(n int) error {
 
 // unwind gives back what an act took, in the reverse of the order it took
 // them. A failure standing for a process that died releases nothing, because
-// a dead process releases nothing, and the bench is left as a crash leaves it.
+// a dead process releases nothing, and the bench is left as a crash leaves it:
+// every lock file stays, and only what the process's own death takes with it,
+// its handles and its registry entries, goes.
 func unwind(err error, locks ...*Lock) error {
 	if err == ErrAborted {
+		for _, lock := range locks {
+			lock.abandon()
+		}
 		return err
 	}
 	for _, lock := range locks {
@@ -895,6 +942,7 @@ func unwind(err error, locks ...*Lock) error {
 // own predecessor.
 func reportInterruption(err error, act *StructuralAct, benchLock *Lock) error {
 	if err == ErrAborted {
+		benchLock.abandon()
 		return err
 	}
 	benchLock.Release()

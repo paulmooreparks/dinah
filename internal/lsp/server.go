@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"dinah/internal/bench"
+	"dinah/internal/durable"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
 )
@@ -337,6 +338,16 @@ func declaredCapabilities() capabilities {
 // catalogue. Nothing this server tells a person is a Go string literal.
 func (s *Server) log(kind int, key string, pairs ...string) error {
 	return s.conn.notify(methodLogMessage, logMessageParams{Type: kind, Message: s.messages.T(key, pairs...)})
+}
+
+// Waiting sends a wait notice to the client's own log as a warning, which is
+// how this head surfaces an act that waits for the operating system to stop
+// refusing a file. The caller makes it the one durable.Waiting reaches before
+// Serve reads its first frame. It takes no lock, because the goroutine whose
+// act is waiting may already hold the server's.
+func (s *Server) Waiting(wait durable.Wait) {
+	roots := []string{s.opts.Workbench, s.opts.Root}
+	s.log(messageTypeWarning, verb.WaitingNoticeKey, verb.WaitingNoticeValues(roots, wait)...)
 }
 
 // show sends one line to the client's own message area, from the catalogue

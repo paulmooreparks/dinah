@@ -108,6 +108,13 @@ type (
 	// repaintMsg asks for the whole screen to be drawn again on the next
 	// frame, which the console writer sends after a short write.
 	repaintMsg struct{}
+	// waitingMsg carries a wait notice: an act that has already written part
+	// of itself is waiting for the operating system to stop refusing a file.
+	// It is sent from outside the event loop through tea.Program.Send, and
+	// drawn in the status line until the act's answer arrives.
+	waitingMsg struct {
+		text string
+	}
 )
 
 // queuedInput is one key or one paste held in Update's keyMsg or pasteMsg
@@ -211,8 +218,12 @@ type interactiveModel struct {
 	detail       []string
 	message      []string
 	status       statusParts
-	fullHelp     bool
-	help         help.Model
+	// waiting is the last wait notice an act in flight sent, drawn in place
+	// of the status line until that act's answer arrives, and empty
+	// otherwise.
+	waiting  string
+	fullHelp bool
+	help     help.Model
 
 	cursor     string
 	gate       *changeGate
@@ -418,6 +429,9 @@ func (m *interactiveModel) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		return m, m.waitForChange()
 	case repaintMsg:
 		return m, tea.ClearScreen
+	case waitingMsg:
+		m.waiting = msg.text
+		return m, nil
 	case flushedMsg:
 		if m.flushAsked {
 			m.flushAsked = false
@@ -684,6 +698,7 @@ func (m *interactiveModel) handleViewRead(msg viewReadMsg) tea.Cmd {
 		return nil
 	}
 	m.readAnswered = msg.seq
+	m.waiting = ""
 	if msg.err != nil {
 		m.message = m.errorLines(msg.err)
 	} else {
@@ -1190,6 +1205,9 @@ func (m *interactiveModel) footerHeight() int {
 // messageLines are the lines the message area shows outside a prompt: an
 // act's answer or a refusal where one stands, and the live status otherwise.
 func (m *interactiveModel) messageLines() []string {
+	if m.waiting != "" {
+		return []string{m.waiting}
+	}
 	if len(m.message) > 0 {
 		return m.message
 	}

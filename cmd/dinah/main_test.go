@@ -16,6 +16,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/profile"
@@ -35,9 +36,14 @@ import (
 func TestMain(m *testing.M) {
 	restoreTemp := testenv.IsolateTempDir()
 	restoreIsolated := testenv.ClearVars(isolatedEnv...)
+	// Every fixture is made under the temporary directory, so none of them
+	// flushes in a binary built with the nofixtureflush tag. The tests of a
+	// wait keep flushing through keepFlushing.
+	restoreFlush := durable.SkipFlushUnder(os.TempDir())
 	tableSiteRecorder = recordReachedTableSite
 	code := m.Run()
 	tableSiteRecorder = nil
+	restoreFlush()
 	for _, complaint := range unreachedTableSites() {
 		fmt.Fprintln(os.Stderr, complaint)
 		code = 1

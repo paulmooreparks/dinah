@@ -294,8 +294,8 @@ func readBackArchive(t *testing.T, b *bench.Bench, want int) {
 
 // TestPerfstoreIsNotInTheBinary asserts that no production binary links the
 // generator, and that the generator imports nothing from this module beyond
-// internal/bench and internal/contract, which is what lets an external test
-// package of either import it.
+// internal/bench, internal/contract and internal/durable, which is what lets
+// an external test package of any of them import it.
 func TestPerfstoreIsNotInTheBinary(t *testing.T) {
 	t.Parallel()
 	deps := goList(t, "-deps", "dinah/cmd/dinah")
@@ -306,7 +306,11 @@ func TestPerfstoreIsNotInTheBinary(t *testing.T) {
 		t.Errorf("dinah/cmd/dinah depends on dinah/internal/perfstore")
 	}
 	imports := goList(t, "-f", "{{join .Imports \"\\n\"}}", "dinah/internal/perfstore")
-	allowed := map[string]bool{"dinah/internal/bench": true, "dinah/internal/contract": true}
+	allowed := map[string]bool{
+		"dinah/internal/bench":    true,
+		"dinah/internal/contract": true,
+		"dinah/internal/durable":  true,
+	}
 	moduleImports := 0
 	for _, path := range imports {
 		if !strings.HasPrefix(path, "dinah/") {

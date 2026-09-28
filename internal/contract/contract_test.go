@@ -129,17 +129,18 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// ratifying a comment body somebody edited outside the tool, and to
 	// thirty-eight when dinah-472 minted item_waived, item_withdrawn,
 	// retirement_granted and retirement_revoked for the two new item states
-	// and the standing authorization that admits one of them. Each of those
-	// paid the coordinated compat-fixture change this guard exists to make
-	// somebody notice.
+	// and the standing authorization that admits one of them, and to
+	// thirty-nine when dinah-640 minted lock_reclaimed for the reclaim of a
+	// lock whose holder was proven dead. Each of those paid the coordinated
+	// compat-fixture change this guard exists to make somebody notice.
 	//
 	// The designation conversion's own designations_migrated is not counted
 	// here, and the omission is deliberate rather than an oversight: it lands
 	// on the workbench's journal and never on a card's, so Events holds it out
 	// for the reason it holds out the three *_updated names, and EventNames is
 	// where it is counted.
-	if len(Events) != 38 {
-		t.Errorf("the event set carries %d names, and this build declares thirty-eight", len(Events))
+	if len(Events) != 39 {
+		t.Errorf("the event set carries %d names, and this build declares thirty-nine", len(Events))
 	}
 }
 

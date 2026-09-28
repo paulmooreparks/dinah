@@ -32,8 +32,15 @@ import (
 	"dinah/internal/textwidth"
 )
 
-// lockAcquisition matches the exclusive-create primitive a lock is taken with.
-var lockAcquisition = regexp.MustCompile(`\bO_EXCL\b`)
+// lockAcquisition matches the exclusive-create primitive a lock is taken with,
+// spelled as the flag or as the durable function that wraps it.
+var lockAcquisition = regexp.MustCompile(`\bO_EXCL\b|\bCreateExclusive\(`)
+
+// thePrimitive is the package holding the exclusive-create primitive itself,
+// behind durable.CreateExclusive, which the one acquirer alone calls. The
+// package also opens a journal exclusively to learn whether the open created
+// it, which takes no lock.
+const thePrimitive = "internal/durable/"
 
 // lockWrite matches a line that both names a lock file and writes one, which
 // is the other shape a hand-rolled acquisition takes.
@@ -76,7 +83,7 @@ func TestNoLockIsCreatedOutsideTheOneAcquirer(t *testing.T) {
 			return relErr
 		}
 		name := filepath.ToSlash(relative)
-		if name == theOneAcquirer {
+		if name == theOneAcquirer || strings.HasPrefix(name, thePrimitive) {
 			return nil
 		}
 		source, readErr := os.ReadFile(path)

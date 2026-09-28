@@ -91,7 +91,7 @@
 {{- range .}}
       <li class="cmdlog-entry" data-outcome="{{.Outcome}}">
         <time datetime="{{.At.Format "2006-01-02T15:04:05Z07:00"}}">{{.At.Local.Format "15:04:05"}}</time>
-        <span class="badge{{if eq .Outcome "ok"}} positive{{else if eq .Outcome "refused"}} danger{{else if eq .Outcome "stale"}} warn{{else if eq .Outcome "read"}} accent{{end}}">{{.Outcome}}</span>
+        <span class="badge{{if eq .Outcome "ok"}} positive{{else if eq .Outcome "refused"}} danger{{else if or (eq .Outcome "stale") (eq .Outcome "waiting")}} warn{{else if eq .Outcome "read"}} accent{{end}}">{{.Outcome}}</span>
         <code class="cmdlog-cmd">{{.Line}}</code>
 {{- if .Rerun}}
         <form method="post" action="/commands"><input type="hidden" name="entry" value="{{.Seq}}" /><button class="btn btn-sm" type="submit">{{if .Guarded}}{{t "page.log.again"}}{{else}}{{t "page.log.again-unguarded"}}{{end}}</button></form>

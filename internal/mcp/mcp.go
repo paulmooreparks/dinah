@@ -21,6 +21,7 @@ import (
 	"dinah/internal/answer"
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/verb"
@@ -104,15 +105,32 @@ const (
 // this head grows a transport where a connection is not a process, the memory
 // has to be keyed on something that transport supplies.
 func Serve(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, profile string) error {
-	return serveWith(root, defaultLib, libraries, in, out, profile, newChainMemory())
+	return ServeNotifying(root, defaultLib, libraries, in, out, profile, nil)
+}
+
+// ServeNotifying is Serve for a head that surfaces waits. Before it reads its
+// first request it hands install the function that turns a durable wait into
+// this connection's notifications, which the caller makes the one
+// durable.Waiting reaches. A nil install surfaces nothing.
+func ServeNotifying(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, profile string, install func(func(durable.Wait))) error {
+	return serveWith(root, defaultLib, libraries, in, out, profile, newChainMemory(), install)
 }
 
 // serveWith is Serve over a memory the caller built, which is how a test drives
 // the expiry bounds against an injected clock rather than by sleeping.
-func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, profile string, memory *chainMemory) error {
+//
+// Requests are answered one at a time, in order. A wait notice is written to
+// the same encoder on the same goroutine as the answers, because durable calls
+// Waiting on the goroutine whose act is waiting, and that is this one, so no
+// two writes to the stream interleave.
+func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb.Library, in io.Reader, out io.Writer, profile string, memory *chainMemory, install func(func(durable.Wait))) error {
 	reader := bufio.NewScanner(in)
 	reader.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	encoder := json.NewEncoder(out)
+	notices := &waitNotices{encoder: encoder, defaultLib: defaultLib, libraries: libraries}
+	if install != nil {
+		install(notices.send)
+	}
 	for reader.Scan() {
 		line := reader.Text()
 		if line == "" {
@@ -125,7 +143,14 @@ func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb
 			}
 			continue
 		}
-		answer := dispatch(root, defaultLib, libraries, &req, profile, memory)
+		notices.token = progressToken(req.Params)
+		var answer *response
+		if req.Method == "logging/setLevel" {
+			answer = notices.setLevel(&req)
+		} else {
+			answer = dispatch(root, defaultLib, libraries, &req, profile, memory)
+		}
+		notices.token = nil
 		if answer == nil {
 			continue
 		}
@@ -134,6 +159,143 @@ func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb
 		}
 	}
 	return reader.Err()
+}
+
+// notification is one JSON-RPC 2.0 notification this head sends, which
+// carries no identifier and is never answered.
+type notification struct {
+	// JSONRPC is the protocol version, always 2.0.
+	JSONRPC string `json:"jsonrpc"`
+	// Method is the notification's method.
+	Method string `json:"method"`
+	// Params are its parameters.
+	Params any `json:"params"`
+}
+
+// waitNotices turns a durable wait into the MCP specification's server-to-
+// client log message, notifications/message at level warning, and, when the
+// request being answered carried a progress token, into notifications/progress
+// as well.
+type waitNotices struct {
+	encoder    *json.Encoder
+	defaultLib *verb.Library
+	libraries  map[string]*verb.Library
+	// token is the progressToken of the request being answered, nil when it
+	// carried none or when no request is being answered.
+	token json.RawMessage
+	// level is the least severe level the client asked to be sent through
+	// logging/setLevel, empty until it asks, when every level is sent.
+	level string
+}
+
+// logLevels are the MCP specification's log levels, the syslog severities of
+// RFC 5424, from the least severe to the most.
+var logLevels = []string{"debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"}
+
+// noticeLevel is the level every wait notice is sent at, the only level this
+// server logs at.
+const noticeLevel = "warning"
+
+// severity answers a level's place in logLevels, and false for a name that is
+// not a level.
+func severity(level string) (int, bool) {
+	for i, known := range logLevels {
+		if known == level {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// setLevel answers logging/setLevel, which the MCP specification's logging
+// section gives a client of a server that declares the logging capability:
+// the level it names is the least severe one the server sends from then on.
+// Every notice this server logs is at warning, so a level of warning or below
+// changes nothing, and a level above it stops the log messages while the
+// progress notifications, which are not logging, go on. A level that is not
+// one of the specification's answers invalid params, as the specification's
+// error handling for this request says.
+func (n *waitNotices) setLevel(req *request) *response {
+	if len(req.ID) == 0 {
+		return nil
+	}
+	answer := &response{JSONRPC: "2.0", ID: req.ID}
+	var params struct {
+		Level string `json:"level"`
+	}
+	if len(req.Params) > 0 && json.Unmarshal(req.Params, &params) != nil {
+		params.Level = ""
+	}
+	if _, ok := severity(params.Level); !ok {
+		answer.Error = &rpcError{Code: codeInvalidParams, Message: "invalid log level: " + params.Level}
+		return answer
+	}
+	n.level = params.Level
+	answer.Result = map[string]any{}
+	return answer
+}
+
+// logs reports whether a notice at level reaches the client under the level
+// it asked for.
+func (n *waitNotices) logs(level string) bool {
+	if n.level == "" {
+		return true
+	}
+	wanted, _ := severity(n.level)
+	sent, _ := severity(level)
+	return sent >= wanted
+}
+
+// send writes the notices for one wait.
+func (n *waitNotices) send(wait durable.Wait) {
+	text := verb.WaitingNotice(msg.For(msg.Base), n.roots(), wait)
+	if n.logs(noticeLevel) {
+		logged := notification{
+			JSONRPC: "2.0",
+			Method:  "notifications/message",
+			Params:  map[string]any{"level": noticeLevel, "logger": "dinah", "data": text},
+		}
+		n.encoder.Encode(logged)
+	}
+	if len(n.token) == 0 {
+		return
+	}
+	progress := notification{
+		JSONRPC: "2.0",
+		Method:  "notifications/progress",
+		Params:  map[string]any{"progressToken": n.token, "progress": wait.Notice, "message": text},
+	}
+	n.encoder.Encode(progress)
+}
+
+// roots answers the workbench roots a wait's path is written relative to.
+func (n *waitNotices) roots() []string {
+	var roots []string
+	if n.defaultLib != nil {
+		roots = append(roots, n.defaultLib.Bench.Root)
+	}
+	for _, library := range n.libraries {
+		roots = append(roots, library.Bench.Root)
+	}
+	return roots
+}
+
+// progressToken reads params._meta.progressToken off a request's parameters,
+// nil when there is none.
+func progressToken(params json.RawMessage) json.RawMessage {
+	var carried struct {
+		Meta struct {
+			ProgressToken json.RawMessage `json:"progressToken"`
+		} `json:"_meta"`
+	}
+	if len(params) == 0 || json.Unmarshal(params, &carried) != nil {
+		return nil
+	}
+	token := carried.Meta.ProgressToken
+	if len(token) == 0 || string(token) == "null" {
+		return nil
+	}
+	return token
 }
 
 // malformedLineResponse builds the response for one line of stdin that
@@ -202,6 +364,7 @@ func initializeResult(root string, defaultLib *verb.Library) map[string]any {
 		"capabilities": map[string]any{
 			"tools":     map[string]any{},
 			"resources": map[string]any{},
+			"logging":   map[string]any{},
 		},
 		"serverInfo": map[string]any{
 			"name":    "dinah",

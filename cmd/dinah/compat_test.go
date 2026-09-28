@@ -158,7 +158,8 @@ var wantedEvents = map[string][]string{
 // card that next moves the build's claim grows the sequence past a repair
 // and captures a fresh sample.
 var absentEvents = map[string]string{
-	contract.EventRenumbered: "only the two repair flags write it, and the population sequence runs no repair, so no capture the sequence drives can carry it",
+	contract.EventRenumbered:    "only the two repair flags write it, and the population sequence runs no repair, so no capture the sequence drives can carry it",
+	contract.EventLockReclaimed: "only a reclaim of a lock whose holding process has ended writes it, and the population sequence is a list of commands that each run to completion and release every lock they take, so no line of it can leave a lock for a later one to reclaim",
 }
 
 // shape is what a fixture and a freshly populated workbench are compared on.

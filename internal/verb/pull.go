@@ -564,7 +564,19 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 // so canRoute resolves the destination exactly as the named form of a move
 // would. Rows 3 to 5 run again here, harmlessly, because they are the front
 // of the move's list and answering them twice cannot change an answer.
+//
+// A destination declaring a capacity is counted under its occupancy lock, on
+// the terms move counts one.
 func (l *Library) pull(req *Request, card *bench.Card) *Response {
+	routed, _, refusal := l.canRoute(req, card)
+	if refusal != nil {
+		return refusal
+	}
+	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath())
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer occupancy.Release()
 	destination, departure, override, refusal, err := l.canPull(req, card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -572,6 +584,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
+	l.interpose(stepCapacityCounted)
 	now := l.Now()
 	stamp := bench.Stamp(now)
 	events := make([]bench.Event, 0, 2)
@@ -614,6 +627,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 		Override:  override,
 	})
 	response, err := l.commit(req, card, events...)
+	occupancy.Release()
 	if err != nil {
 		return l.FromError(req, err)
 	}

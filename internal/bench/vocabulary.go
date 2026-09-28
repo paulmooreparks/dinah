@@ -1,11 +1,11 @@
 package bench
 
 import (
-	"os"
 	"path/filepath"
 	"strconv"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // The on-disk spellings this build retired. A workbench written before
@@ -275,11 +275,11 @@ func migrateColumnDirectories(b *Bench) error {
 			if !Exists(anchor) {
 				continue
 			}
-			if err := os.Rename(anchor, filepath.Join(from, id, ColumnAnchor)); err != nil {
+			if err := durable.Replace(anchor, filepath.Join(from, id, ColumnAnchor)); err != nil {
 				return err
 			}
 		}
-		if err := os.Rename(from, filepath.Join(parent, ColumnsDir)); err != nil {
+		if err := durable.MoveDir(from, filepath.Join(parent, ColumnsDir)); err != nil {
 			return err
 		}
 	}

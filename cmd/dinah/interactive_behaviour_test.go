@@ -485,6 +485,20 @@ func TestALapsedClaimIsAnsweredStaleAndOfferedAgain(t *testing.T) {
 	s, seam := newScript(t, 99, 30, true)
 	hold := make(chan struct{})
 	seam.command = func() { <-hold }
+	// The run ends only once the model has handled all three keys and no
+	// read is in flight, which puts the last read it applied after t's own
+	// write. Waiting for the next view read instead can catch a read that
+	// was dispatched before t and released with it.
+	answers := make(chan bool, 1)
+	seen := 0
+	seam.observe = func(m *interactiveModel, msg tea.Msg) {
+		switch msg.(type) {
+		case keyMsg:
+			seen++
+		case settleProbe:
+			answers <- modelSettled(m, seen, len("jkt"))
+		}
+	}
 	run := s.run(root, seam, func() {
 		time.Sleep(4 * time.Second)
 		s.write("jk")
@@ -492,7 +506,7 @@ func TestALapsedClaimIsAnsweredStaleAndOfferedAgain(t *testing.T) {
 		s.write("t")
 		s.waitFor("t", isKey("t"))
 		close(hold)
-		s.waitFor("t's own read", isViewRead)
+		awaitSettled(t, s, answers)
 		s.write(keyCtrlC)
 	})
 	m := run.model
