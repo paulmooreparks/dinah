@@ -56,6 +56,10 @@ jobs:
       - name: Completion script tests, with each test's log
         shell: bash
         run: go test -count=1 -v -run '^TestCompletionScript' ./cmd/dinah
+      - name: dinah-646 proof, completion budget x50 in the ordinary job
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: go test -count=50 -timeout 15m -run '^TestTheCallbackStaysInsideItsBudget$' -v ./cmd/dinah
 
   # The tui-tagged vet and test, split out of the job above so it runs on its
   # own runner concurrently rather than after the untagged pass finishes on
