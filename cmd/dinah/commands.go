@@ -1056,6 +1056,7 @@ func runShow(s *session, parsed *arguments) int {
 	req.SinceComment = parsed.value("since")
 	req.Unresolved = parsed.has("unresolved")
 	req.All = parsed.has("all")
+	req.Brief = parsed.has("brief")
 	if req.Card == "" {
 		if rows, ok := s.ambiguousWorkbenches(); ok {
 			return s.emitWorkbenches(rows, "")

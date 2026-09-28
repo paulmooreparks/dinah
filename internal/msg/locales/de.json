@@ -4642,6 +4642,11 @@
       "context": "The meaning of the all argument of `dinah show`, printed in that command's arguments table. It is the flag that restores the whole-card answer show gave before the narrow default, and it is refused together with --fields.",
       "source": "bf0ae2a46a1df60b"
     },
+    "param.show.brief.summary": {
+      "text": "die Kurzfassung ausgeben, mit der eine Station eine Karte aufnimmt: die knappe Vorgabe, die letzte Übergabe in voller Länge und die vollständige Prüfliste, eingegrenzt auf die Punkte, deren Zustand eine Spaltensperre nicht aufhebt; neben --fields und neben --all abgelehnt",
+      "context": "The meaning of the brief argument of `dinah show`, printed in that command's arguments table. The flag spellings inside it are syntax and stay as they are, and handoff is the name of a member of the card, which is machine vocabulary.",
+      "source": "88ac6f78640385e0"
+    },
     "param.show.since.summary": {
       "text": "die Texte der Kommentare nach dieser einsbasierten Ordnungszahl ausgeben, für die übrigen nur das Verzeichnis",
       "context": "The meaning of the since argument of `dinah show`, printed in that command's arguments table. The word is spelled as it is on `dinah changes`, and this sentence is where the two part: that one takes an opaque cursor and this one takes a comment's position.",
@@ -6753,6 +6758,11 @@
       "text": "Kommentare:",
       "context": "The label above a card's comments.",
       "source": "14ee3017f3f55997"
+    },
+    "show.handoff": {
+      "text": "Übergabe:",
+      "context": "The label above the comments the last station left on the card, each printed with its body, drawn between the comments block and the checklist block when the answer carries the handoff member.",
+      "source": "119a4cef81bbbbcd"
     },
     "show.links": {
       "text": "Verknüpfungen:",

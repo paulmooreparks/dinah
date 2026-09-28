@@ -86,8 +86,8 @@ READ
     [--root <path>] [--max-depth <n>]
   view [view] [ref] [--explain] [--all] [--plain]        List the views you can see, or draw one by name
     [--watch]
-  show <ref> [--fields <list>] [--all] [--archived]      The detail of an entity of this workbench
-    [--since <ordinal>] [--unresolved]
+  show <ref> [--fields <list>] [--all] [--brief]         The detail of an entity of this workbench
+    [--archived] [--since <ordinal>] [--unresolved]
   changes [--since <cursor>] [--wait]                    What has happened on this workbench since a cursor
     [--timeout <duration>] [--card <ref>]
     [--column <column>] [--root <path>] [--max-depth <n>]
@@ -210,7 +210,7 @@ READ
   search <phrase> [--query <terms>] [--archived] [--root <path>] [--max-depth <n>]                      Every place a phrase occurs in this workbench
   tree [query] [--group-by <axes>] [--depth <level>] [--root <path>] [--max-depth <n>]                  The workbench's cards nested along a chain of axes
   view [view] [ref] [--explain] [--all] [--plain] [--watch]                                             List the views you can see, or draw one by name
-  show <ref> [--fields <list>] [--all] [--archived] [--since <ordinal>] [--unresolved]                  The detail of an entity of this workbench
+  show <ref> [--fields <list>] [--all] [--brief] [--archived] [--since <ordinal>] [--unresolved]        The detail of an entity of this workbench
   changes [--since <cursor>] [--wait] [--timeout <duration>] [--card <ref>] [--column <column>]         What has happened on this workbench since a cursor
     [--root <path>] [--max-depth <n>]
   instructions <card|column>                                                                            The instructions served at a position

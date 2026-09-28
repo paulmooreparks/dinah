@@ -1394,14 +1394,14 @@ storage format 11
 Catalogs:
   Language  Translated
   --------  ----------
-  en        2035/2035
-  af        0/2035
-  cs        0/2035
-  de        2035/2035
-  es        0/2035
-  fil       0/2035
-  hi        2035/2035
-  id        0/2035
+  en        1999/1999
+  af        0/1999
+  cs        0/1999
+  de        1999/1999
+  es        0/1999
+  fil       0/1999
+  hi        1999/1999
+  id        0/1999
 [exit 0]
 ```
 
