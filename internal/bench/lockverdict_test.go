@@ -248,6 +248,11 @@ func TestCheckReportsAndClearsDeadLocksInBothHalves(t *testing.T) {
 	child := startLockChild(t, helperHold, "brin", card, workstream, root, column, archived)
 	child.expect(t, "held")
 	child.end(t)
+	// Whatever the machine does with the helper's PID from here on, the
+	// verdicts below must not change, because the helper is known ended.
+	// On Windows the process table rule 6 reads is replaced by one in which
+	// that PID now names a process nobody can open.
+	reusedPIDsEverywhere(t)
 	for _, dir := range []string{card, workstream, root, column, archived} {
 		judgedDead(t, filepath.Join(dir, LockName))
 	}

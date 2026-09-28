@@ -53,6 +53,12 @@ var ReclaimInterpose func()
 // the lock in that window.
 var judgeOpened func()
 
+// processGone is rule 6, the platform's own recordedProcessGone. A test that
+// has ended a process of its own replaces it, so that its verdicts do not
+// depend on whether the operating system has since given that PID to another
+// process.
+var processGone = recordedProcessGone
+
 // judgement is what the verdict found: the record the file carries, the
 // verdict, whether the file was gone before it could be opened, and, for a
 // VerdictDead, the handle the judge holds the operating-system lock on.
@@ -177,7 +183,7 @@ func verdictOn(record LockRecord, parsed bool) Verdict {
 	if table != verdictContinue {
 		return table
 	}
-	if recordedProcessGone(record) {
+	if processGone(record) {
 		return VerdictDead
 	}
 	return VerdictUnknown

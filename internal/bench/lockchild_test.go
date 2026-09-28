@@ -2,12 +2,14 @@ package bench
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -22,6 +24,8 @@ const lockHelperVariable = "DINAH_LOCK_HELPER"
 const (
 	lockHelperDirs  = "DINAH_LOCK_HELPER_DIRS"
 	lockHelperActor = "DINAH_LOCK_HELPER_ACTOR"
+	// lockHelperEnded carries the parent's endedProcesses as JSON.
+	lockHelperEnded = "DINAH_LOCK_HELPER_ENDED"
 )
 
 // The helper's modes.
@@ -41,6 +45,7 @@ const (
 // it fails before it can wait; otherwise it waits on its standard input
 // until its parent ends it.
 func runLockHelper(mode string) int {
+	readEndedList()
 	actor := os.Getenv(lockHelperActor)
 	dirs := filepath.SplitList(os.Getenv(lockHelperDirs))
 	_, start := selfIdentity()
@@ -79,6 +84,9 @@ type lockChild struct {
 	stdin io.WriteCloser
 	out   *bufio.Reader
 	ended bool
+	// start is the start the helper reported with its first "held" or
+	// "idle", which is what endedProcesses records it under.
+	start string
 }
 
 // startLockChild starts the helper in a mode over some directories, acting as
@@ -94,6 +102,7 @@ func startLockChild(t *testing.T, mode, actor string, dirs ...string) *lockChild
 		lockHelperVariable+"="+mode,
 		lockHelperActor+"="+actor,
 		lockHelperDirs+"="+strings.Join(dirs, string(os.PathListSeparator)),
+		lockHelperEnded+"="+endedList(),
 	)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -131,7 +140,11 @@ func (c *lockChild) expect(t *testing.T, word string) string {
 	if !ok {
 		t.Fatalf("the helper said %q, wanted a line beginning %q", text, word)
 	}
-	return strings.TrimSpace(rest)
+	rest = strings.TrimSpace(rest)
+	if (word == "held" || word == "idle") && c.start == "" {
+		c.start = rest
+	}
+	return rest
 }
 
 // proceed lets a helper paused at ReclaimInterpose carry on.
@@ -156,6 +169,58 @@ func (c *lockChild) end(t *testing.T) {
 	c.ended = true
 	c.cmd.Process.Kill()
 	c.cmd.Wait()
+	if c.start != "" {
+		endedProcesses.Lock()
+		endedProcesses.starts[c.pid()] = c.start
+		endedProcesses.Unlock()
+	}
+}
+
+// endedProcesses are the helpers this test binary has ended and waited on,
+// each PID with the start its helper reported. A helper learns its parent's
+// list through lockHelperEnded.
+var endedProcesses = struct {
+	sync.Mutex
+	starts map[int]string
+}{starts: map[int]string{}}
+
+// endedByThisTestOrGone is the rule 6 every test here judges by: a record
+// naming a helper this binary ended, by PID and by the start that helper
+// reported, is gone, and every other record goes to the platform's own rule.
+// Windows gives a freed PID to the next process quickly, and a process this
+// one cannot open answers not gone, so without this the verdict on a helper
+// the test ended would depend on what else the machine started since. Rule 6
+// itself is tested apart from it, against a table the test controls and
+// against a process the test holds alive.
+func endedByThisTestOrGone(record LockRecord) bool {
+	endedProcesses.Lock()
+	start, ended := endedProcesses.starts[record.PID]
+	endedProcesses.Unlock()
+	if ended && start == record.Start {
+		return true
+	}
+	return recordedProcessGone(record)
+}
+
+// endedList renders endedProcesses for lockHelperEnded.
+func endedList() string {
+	endedProcesses.Lock()
+	defer endedProcesses.Unlock()
+	encoded, _ := json.Marshal(endedProcesses.starts)
+	return string(encoded)
+}
+
+// readEndedList fills endedProcesses from lockHelperEnded in a helper.
+func readEndedList() {
+	var starts map[int]string
+	if json.Unmarshal([]byte(os.Getenv(lockHelperEnded)), &starts) != nil {
+		return
+	}
+	endedProcesses.Lock()
+	defer endedProcesses.Unlock()
+	for pid, start := range starts {
+		endedProcesses.starts[pid] = start
+	}
 }
 
 // judgedDead waits, for at most ten seconds, for the verdict on a lock whose
