@@ -18,6 +18,7 @@ import { COMMAND_OPEN_COMMENT } from "../../src/identity";
 import type { TreeElement } from "../../src/tree";
 import { treeItemFor } from "../../src/tree";
 import { ENGLISH } from "../../src/l10n";
+import { memberLocation } from "../../src/memberDocument";
 import type { CheckResults, CommentLog, HostLog } from "../support/rows";
 import {
 	ROOT,
@@ -77,36 +78,37 @@ async function invoke(
 // dinah-519/criteria/11: one call, the comment's own reference, no holder
 // ---------------------------------------------------------------------------
 
-test("Open Comment asks path for the comment's own reference and opens what it answered", async () => {
+test("Open Comment asks show for the comment's own reference and opens its member document", async () => {
 	// THE COMMENT'S HOLDER IS AN ITEM, deliberately, which is what arms the
 	// single-argv assertion. Every earlier draft of this work resolved a
 	// comment by cutting the trailing /comments/<n> off its reference and
-	// asking `show <holder> --fields comments`, falling back to `show <holder>`
-	// when that was refused, and the fallback existed precisely because a card
-	// holder and an item holder take different forms. An implementation that
-	// still cuts a holder out of the reference records two argvs on this
-	// fixture and fails on the count; one that records one but records a show
-	// rather than a path fails on the argv. A build that happened to open the
-	// right file after two calls is still wrong and this says so.
+	// asking about its holder, and the fallback existed precisely because a
+	// card holder and an item holder take different forms. An implementation
+	// that still cuts a holder out of the reference records two argvs on this
+	// fixture and fails on the count. From storage format 12 a comment has no
+	// file, so the one call is `show` of the comment itself, whose answer is
+	// the document the dinah-member provider serves, and no `path` is asked.
 	const ref = "wb-1/questions/1/comments/2";
-	const path = "C:/work/bench/cards/aa/checklist/bb/comments/cc/comment.md";
-	const run = await invoke(COMMAND_OPEN_COMMENT, [commentRow({ ref }, 0, "wb-1/questions/1")], () =>
-		ok({ path }),
-	);
+	const anchor = "---\nts: 2026-08-01T09:00:00Z\nauthor: ana\nordinal: 2\ndigest: ff\n---\nwords\n";
+	const run = await invoke(COMMAND_OPEN_COMMENT, [commentRow({ ref }, 0, "wb-1/questions/1")], () => ({
+		code: 0,
+		stdout: anchor,
+		stderr: "",
+	}));
 
-	assert.deepEqual(run.calls, [pinned("path", ref)]);
-	assert.deepEqual(run.comments.opened, [path]);
-	assert.deepEqual(run.log.served, [], "opening an anchor file served a composed page");
+	assert.deepEqual(run.calls, [pinned("show", ref)]);
+	assert.deepEqual(run.comments.opened, [memberLocation({ ref, root: ROOT })]);
+	assert.deepEqual(run.log.served, [], "opening a comment served a composed page");
 });
 
-test("a refused path shows the refusal and opens no document", async () => {
+test("a refused show shows the refusal and opens no document", async () => {
 	const ref = "wb-1/comments/9";
 	const run = await invoke(COMMAND_OPEN_COMMENT, [commentRow({ ref })], () =>
 		refused("dinah.unknown-comment", ref),
 	);
-	assert.deepEqual(run.calls, [pinned("path", ref)]);
+	assert.deepEqual(run.calls, [pinned("show", ref)]);
 	assert.deepEqual(run.log.opened, []);
-	assert.deepEqual(run.log.errors, [`dinah.unknown-comment: ${ref}`]);
+	assert.deepEqual(run.comments.errors, [`dinah.unknown-comment: ${ref}`]);
 });
 
 test("a row that is not a comment is skipped and spawns nothing", async () => {

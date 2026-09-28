@@ -323,13 +323,14 @@ func TestTheColumnNoticeCostsNoCardRead(t *testing.T) {
 	}
 }
 
-// TestTheCursorVersionIsThreeAndRefusesAnOlderToken asserts dinah-515
-// criterion 21: the constant is 3, a token minted at version 2 is refused as
-// malformed, and a call carrying no token mints a fresh one and reports
-// nothing.
-func TestTheCursorVersionIsThreeAndRefusesAnOlderToken(t *testing.T) {
-	if cursorVersion != 3 {
-		t.Errorf("cursorVersion is %d, and this card takes it to 3", cursorVersion)
+// TestTheCursorVersionIsFourAndRefusesAnOlderToken asserts dinah-515
+// criterion 21 as dinah-637/criteria/20 moved it: the constant is 4, a token
+// minted at version 2, or at version 3 before the storage migration, is
+// refused as malformed, and a call carrying no token mints a fresh one and
+// reports nothing.
+func TestTheCursorVersionIsFourAndRefusesAnOlderToken(t *testing.T) {
+	if cursorVersion != 4 {
+		t.Errorf("cursorVersion is %d, and dinah-637 takes it to 4", cursorVersion)
 	}
 	l := columnFixture(t)
 
@@ -364,6 +365,27 @@ func TestTheCursorVersionIsThreeAndRefusesAnOlderToken(t *testing.T) {
 		t.Fatal("a token minted at version 2 was accepted")
 	} else if name := refusalNameOfChange(err); name != contract.Malformed {
 		t.Errorf("a version 2 token was refused %s, wanted %s", name, contract.Malformed)
+	}
+
+	// A token of the shape a build before the card-unit layout minted, which
+	// is this build's own shape at version 3.
+	var shaped map[string]any
+	decoded, err := base64.RawURLEncoding.DecodeString(minted.Cursor)
+	if err != nil {
+		t.Fatalf("decode the minted token: %v", err)
+	}
+	if err := json.Unmarshal(decoded, &shaped); err != nil {
+		t.Fatalf("parse the minted token: %v", err)
+	}
+	shaped["v"] = 3
+	raw, err = json.Marshal(shaped)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if _, err := decodeCursor(base64.RawURLEncoding.EncodeToString(raw)); err == nil {
+		t.Fatal("a token minted at version 3, before the storage migration, was accepted")
+	} else if name := refusalNameOfChange(err); name != contract.Malformed {
+		t.Errorf("a version 3 token was refused %s, wanted %s", name, contract.Malformed)
 	}
 
 	// The accepting case beside the refusing one: a token this build minted

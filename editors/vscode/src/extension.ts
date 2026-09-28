@@ -17,7 +17,7 @@ import type { CommandHost, PickItem } from "./cardCommands";
 import { pinnedArgv, refusalMessage } from "./cardCommands";
 import type { CheckpointEntry, Watcher } from "./changes";
 import { applyDropVerdicts, dragRowsFrom, dropColumnFor, offerDrag } from "./dragAndDrop";
-import { CheckpointLoop, systemClock } from "./changes";
+import { CheckpointLoop, WATCHED_FILES, systemClock } from "./changes";
 import { runDinah, runDinahText } from "./cli";
 import type { AnnotationsAnswer, AnnotationsChanged, Chip } from "./lsp";
 import {
@@ -94,6 +94,14 @@ import type { TreeElement, TreeItemSpec } from "./tree";
 import { DinahTreeProvider, elementKey } from "./tree";
 import type { CommentBodyHost, OpenComments } from "./commentBody";
 import { forgetComment, saveCommentBody } from "./commentBody";
+import type { MemberAddress, OpenItems } from "./memberDocument";
+import {
+	MEMBER_SCHEME,
+	memberAddress,
+	memberKey,
+	readMember,
+	saveItemDocument,
+} from "./memberDocument";
 import { classifyVersion, describeVersion } from "./version";
 import type { JournalEvent, PathAnswer, ServedAnswer } from "./wire";
 import { VerbCatalog } from "./verbCatalog";
@@ -108,6 +116,93 @@ let treeView: vscode.TreeView<TreeElement> | undefined;
 let servedText: ServedTextRefreshLoop | undefined;
 
 /** Reads a settings value as a string, treating an unset value as empty. */
+/**
+ * The URI a document location names: a `dinah-member` location as the URI it
+ * spells, and anything else as the file at that path.
+ */
+function documentUri(location: string): vscode.Uri {
+	return location.startsWith(`${MEMBER_SCHEME}:`)
+		? vscode.Uri.parse(location)
+		: vscode.Uri.file(location);
+}
+
+/** The member a `dinah-member` URI names, or undefined for any other URI. */
+function addressOfUri(uri: vscode.Uri): MemberAddress | undefined {
+	return uri.scheme === MEMBER_SCHEME ? memberAddress(uri.path, uri.query) : undefined;
+}
+
+/**
+ * The file system behind `dinah-member` documents, which is the store read
+ * and written through the binary: reading a document runs `dinah show`, and
+ * saving one runs the verb that writes the member, as memberDocument.ts
+ * describes. Nothing else a file system offers is served, since a member is
+ * neither created, renamed nor deleted by editing a document.
+ */
+class MemberFileSystem implements vscode.FileSystemProvider {
+	private readonly changed = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
+	readonly onDidChangeFile = this.changed.event;
+
+	constructor(
+		private readonly exe: () => string,
+		private readonly host: CommentBodyHost,
+		private readonly comments: OpenComments,
+		private readonly items: OpenItems,
+	) {}
+
+	watch(): vscode.Disposable {
+		return new vscode.Disposable(() => undefined);
+	}
+
+	stat(): vscode.FileStat {
+		return { type: vscode.FileType.File, ctime: 0, mtime: Date.now(), size: 0 };
+	}
+
+	readDirectory(): [string, vscode.FileType][] {
+		return [];
+	}
+
+	createDirectory(): void {
+		throw vscode.FileSystemError.NoPermissions();
+	}
+
+	async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+		const address = addressOfUri(uri);
+		if (address === undefined) {
+			throw vscode.FileSystemError.FileNotFound(uri);
+		}
+		const read = await readMember(nodeSpawner, this.exe(), address);
+		if (read.kind !== "ok") {
+			throw vscode.FileSystemError.Unavailable(read.message);
+		}
+		return new TextEncoder().encode(read.text);
+	}
+
+	async writeFile(uri: vscode.Uri, content: Uint8Array): Promise<void> {
+		const address = addressOfUri(uri);
+		if (address === undefined) {
+			throw vscode.FileSystemError.FileNotFound(uri);
+		}
+		const text = new TextDecoder().decode(content);
+		// The session this window opened the document under says which member
+		// it is, since a comment and an item are written by different verbs.
+		const written = this.comments.has(memberKey(address))
+			? await saveCommentBody(this.host, nodeSpawner, this.exe(), this.comments, memberKey(address), text)
+			: await saveItemDocument(this.host, nodeSpawner, this.exe(), this.items, address, text);
+		if (!written) {
+			throw vscode.FileSystemError.NoPermissions(uri);
+		}
+		this.changed.fire([{ type: vscode.FileChangeType.Changed, uri }]);
+	}
+
+	delete(): void {
+		throw vscode.FileSystemError.NoPermissions();
+	}
+
+	rename(): void {
+		throw vscode.FileSystemError.NoPermissions();
+	}
+}
+
 function setting(key: string, scope?: vscode.Uri): string {
 	const dot = key.lastIndexOf(".");
 	const section = key.slice(0, dot);
@@ -233,7 +328,7 @@ function commandHost(
 		input: async (prompt) => vscode.window.showInputBox({ prompt }),
 		openDocument: async (path) => {
 			const document = await vscode.workspace.openTextDocument(
-				vscode.Uri.file(path),
+				documentUri(path),
 			);
 			await vscode.window.showTextDocument(document);
 		},
@@ -304,7 +399,7 @@ function commentBodyHost(
 		},
 		openDocument: async (path) => {
 			const document = await vscode.workspace.openTextDocument(
-				vscode.Uri.file(path),
+				documentUri(path),
 			);
 			await vscode.window.showTextDocument(document);
 		},
@@ -350,7 +445,7 @@ function workbenchCommandHost(
 		copyToClipboard: async (text) => vscode.env.clipboard.writeText(text),
 		openDocument: async (path) => {
 			const document = await vscode.workspace.openTextDocument(
-				vscode.Uri.file(path),
+				documentUri(path),
 			);
 			await vscode.window.showTextDocument(document);
 		},
@@ -382,7 +477,7 @@ function columnCommandHost(
 		revealOutput: () => channel.show(),
 		openDocument: async (path) => {
 			const document = await vscode.workspace.openTextDocument(
-				vscode.Uri.file(path),
+				documentUri(path),
 			);
 			await vscode.window.showTextDocument(document);
 		},
@@ -838,7 +933,7 @@ export async function activate(
 		watchFiles: settingOf<boolean>(SETTING_WATCH_FILES, true),
 		createWatcher: (entry, onEvent): Watcher => {
 			const watcher = vscode.workspace.createFileSystemWatcher(
-				new vscode.RelativePattern(vscode.Uri.file(entry.path), "**/*.md"),
+				new vscode.RelativePattern(vscode.Uri.file(entry.path), WATCHED_FILES),
 			);
 			watcher.onDidChange(onEvent);
 			watcher.onDidCreate(onEvent);
@@ -1071,12 +1166,24 @@ export async function activate(
 	const commentHost = commentBodyHost(channel, t, (folder) =>
 		checkpointing.checkNow(folder),
 	);
-	// The comment files this window has opened. It is here rather than inside
-	// a module because two things read it: the commands that open a comment,
-	// which add to it, and the save listener below, which is what writes a
-	// body through the verb rather than leaving the editor's own bytes on
-	// disk.
+	// The comment and item documents this window has opened. They are here
+	// rather than inside a module because two things read them: the commands
+	// that open a member, which add to them, and the file system provider
+	// below, whose save is what writes a member through the verb.
 	const openComments: OpenComments = new Map();
+	const openItems: OpenItems = new Map();
+	context.subscriptions.push(
+		vscode.workspace.registerFileSystemProvider(
+			MEMBER_SCHEME,
+			new MemberFileSystem(
+				() => (binary.state === "ok" ? binary.path : ""),
+				commentHost,
+				openComments,
+				openItems,
+			),
+			{ isCaseSensitive: true },
+		),
+	);
 	// The command palette's own catalogue, built here rather than below it
 	// because the filing form reads its kind choices from the same object and
 	// the wiring has to carry it. The build is still lazy, so a window that
@@ -1117,6 +1224,7 @@ export async function activate(
 		},
 		commentHost,
 		openComments,
+		openItems,
 		verbCatalog: () => verbCatalog.get(),
 	};
 
@@ -1149,34 +1257,16 @@ export async function activate(
 		emitter.fire(undefined);
 	});
 
-	// Saving a comment's own file writes its body through the verb.
-	//
-	// The editor has already put its bytes on disk by the time this runs, and
-	// that is the state the call corrects rather than prevents: the write
-	// re-renders the anchor from the body it is given and records the digest
-	// over it, so the record and the file agree again and the journal says who
-	// changed it. Without it every save of a comment would leave one `dinah
-	// check` reports as diverged.
-	//
-	// A file this window did not open a comment into is left alone, which
-	// saveCommentBody answers for by reading the map rather than the path.
+	// Saving a comment or an item writes it through the verb, and that is the
+	// file system provider's writeFile, registered above for the documents
+	// the two open as. Closing a document forgets its session.
 	context.subscriptions.push(
-		vscode.workspace.onDidSaveTextDocument((document) => {
-			void saveCommentBody(
-				commentHost,
-				nodeSpawner,
-				binary.state === "ok" ? binary.path : "",
-				openComments,
-				document.uri.fsPath,
-				document.getText(),
-			).catch((err: unknown) => {
-				channel.appendLine(
-					`comment save: ${err instanceof Error ? err.message : String(err)}`,
-				);
-			});
-		}),
 		vscode.workspace.onDidCloseTextDocument((document) => {
-			forgetComment(openComments, document.uri.fsPath);
+			const address = addressOfUri(document.uri);
+			if (address !== undefined) {
+				forgetComment(openComments, memberKey(address));
+				openItems.delete(memberKey(address));
+			}
 		}),
 	);
 

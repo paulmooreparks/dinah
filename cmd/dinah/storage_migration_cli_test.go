@@ -246,3 +246,69 @@ func TestAColumnCommentFollowsItsColumnAcrossTheMigration(t *testing.T) {
 		t.Errorf("another column's comment changed when a column was deleted:\n%s", diffLines(before, after))
 	}
 }
+
+// TestAMigratedStoreIsRefusedByTheSwitchOffBuild drives the terminal half of
+// dinah-637/criteria/39. The migration fixture, migrated with the layout
+// switched on, is refused unsupported-version naming format 12 by dinah check
+// and by show once the layout is switched off again, which is what every
+// build whose highest format is 11 answers; with the layout switched on,
+// show of a card, a comment and an item answers.
+//
+// Arming: comparing the opener's integer test against StorageFormat rather
+// than the effective ceiling opens the store with the switch off, and the
+// refusal assertions fail.
+func TestAMigratedStoreIsRefusedByTheSwitchOffBuild(t *testing.T) {
+	store, root := fixtureCopy(t)
+	at := func(args ...string) invocation {
+		return runCLI(t, root, append([]string{"--workbench", store}, args...)...)
+	}
+	t.Run("migrate", func(st *testing.T) {
+		bench.EnableCardUnitForTest(st)
+		if got := at("check", "--migrate-storage", "--backup", filepath.Join(st.TempDir(), "backup")); got.code != 0 {
+			st.Fatalf("migrate: %d %s%s", got.code, got.out, got.errw)
+		}
+	})
+	for _, args := range [][]string{{"check"}, {"show", "fx-1"}} {
+		got := at(args...)
+		if !storageRefused(got, contract.UnsupportedVer) || !strings.Contains(got.errw, "format 12") {
+			t.Errorf("dinah %s with the layout switched off answered %d %q, wanted %s naming format 12", strings.Join(args, " "), got.code, got.errw, contract.UnsupportedVer)
+		}
+	}
+	bench.EnableCardUnitForTest(t)
+	for _, ref := range []string{"fx-1", "fx-1/comments/1", "fx-1/checklist/1"} {
+		if got := at("show", ref); got.code != 0 || strings.TrimSpace(got.out) == "" {
+			t.Errorf("show %s with the layout switched on answered %d %q", ref, got.code, got.errw)
+		}
+	}
+}
+
+// TestExportIsTheSameBeforeAndAfterTheMigration drives the export clause of
+// dinah-637/criteria/21. The interchange form carries the workbench's
+// definition and no card, so dinah export of the migration fixture answers
+// the same bytes before the storage migration, with the layout switched off
+// as main ships it, and after, with the layout switched on.
+//
+// Arming: an export that listed a card's comments would differ across the
+// migration, since the one before reads directories and the one after the
+// journal.
+func TestExportIsTheSameBeforeAndAfterTheMigration(t *testing.T) {
+	store, root := fixtureCopy(t)
+	at := func(args ...string) invocation {
+		return runCLI(t, root, append([]string{"--workbench", store}, args...)...)
+	}
+	before := at("export")
+	if before.code != 0 {
+		t.Fatalf("export before the migration: %d %s", before.code, before.errw)
+	}
+	bench.EnableCardUnitForTest(t)
+	if got := at("check", "--migrate-storage", "--backup", filepath.Join(t.TempDir(), "backup")); got.code != 0 {
+		t.Fatalf("migrate: %d %s%s", got.code, got.out, got.errw)
+	}
+	after := at("export")
+	if after.code != 0 {
+		t.Fatalf("export after the migration: %d %s", after.code, after.errw)
+	}
+	if after.out != before.out {
+		t.Errorf("the export changed across the migration:\n%s", diffLines(before.out, after.out))
+	}
+}

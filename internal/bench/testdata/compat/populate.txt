@@ -96,3 +96,9 @@ hand-edit sample-2 column intake
 check --witness
 check --migrate-designations --force-claims
 reshape --from reshape.json --yes
+comment sample-2 "a comment written only to be deleted"
+delete sample-2/comments/1 --yes
+file sample-5 decision "a decision filed to be archived, restored and deleted"
+set sample-5/d/1 text "the decision, restated before it goes"
+archive sample-5/d/1
+restore sample-5/d/1 --archived

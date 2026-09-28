@@ -398,6 +398,12 @@ func ReadItemAnchor(dir string) (*Frontmatter, string, error) {
 	return fm, body, nil
 }
 
+// LegacyItemDir is the directory the old layout keeps one checklist item of a
+// card in, for a writer that has to produce that layout.
+func LegacyItemDir(cardDir, id string) string {
+	return filepath.Join(cardDir, ChecklistDir, id)
+}
+
 // WriteItemAnchor rewrites an item's anchor on the old layout from a header
 // and a body.
 func WriteItemAnchor(dir string, fm *Frontmatter, body string) error {

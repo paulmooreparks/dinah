@@ -749,9 +749,9 @@
 			"text": "Dinah made a comment on {ref} and named none, so there is no file to open.",
 			"context": "Error when the comment verb answered ok and carried no identifier. {ref} is the holder's reference. It is a defect in the answer rather than anything the reader did, and it says so."
 		},
-		"comment.composeNoPath": {
-			"text": "Dinah knows of comment {ref} and reports no file for it.",
-			"context": "Error when `dinah path` answered ok with no path for a comment that was just minted. {ref} is the comment's own reference."
+		"member.itemFieldsChanged": {
+			"text": "Only the text of {ref} can be saved from here, and its front matter changed. Change a field with the item's own commands: resolve, verify, fail, waive, withdraw, reopen, or dinah set.",
+			"context": "Error when an item document is saved with its front matter changed. {ref} is the item's reference. A save writes the item's text alone, so a field is changed through the item's commands, whose names are not translated."
 		},
 		"item.answer": {
 			"text": "Answer:",

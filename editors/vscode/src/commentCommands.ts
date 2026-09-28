@@ -1,13 +1,13 @@
 // A comment row contributes two commands: Open Comment, which opens the
-// comment's own anchor file, and Delete Comment, which runs `dinah delete` on
-// the comment after the reader confirms it.
+// comment's anchor as a document, and Delete Comment, which runs `dinah
+// delete` on the comment after the reader confirms it.
 //
 // Nothing here imports vscode, for the reason cardCommands.ts's header gives.
 // The handlers are functions over an injected host, so the unit layer asserts
 // on the argv they compose and on the message a refusal produces without a
 // VS Code window.
 //
-// A comment's body is edited by saving the file Open Comment opens, which
+// A comment's body is edited by saving the document Open Comment opens, which
 // writes it through the verb. No Reply entry is offered, because `dinah
 // comment` records a comment on a card, on a column, or on one of a card's
 // items, and it refuses a comment's own reference, so a Reply entry here would
@@ -30,7 +30,6 @@ import type { Wiring } from "./commandTable";
 import type { CommentBodyHost, OpenComments } from "./commentBody";
 import { openExistingComment } from "./commentBody";
 import type { TreeElement } from "./tree";
-import type { PathAnswer } from "./wire";
 
 /** What a comment command acts on, which is one comment and where it stands. */
 export interface CommentCommandContext {
@@ -52,7 +51,7 @@ export interface CommentCommandContext {
  * No holder is composed and none is needed. Every earlier draft of this work
  * resolved a comment by cutting the trailing `/comments/<n>` off its reference
  * and asking about whatever was left, which meant working out what kind of
- * thing the holder was; `path` takes the comment's own reference and resolves
+ * thing the holder was; `show` takes the comment's own reference and resolves
  * it whatever holds it, so the question does not arise.
  */
 export function contextForComment(
@@ -79,42 +78,27 @@ export function contextForComment(
 }
 
 /**
- * Opens the comment's own anchor file, and starts an editing session over it.
+ * Opens the comment's anchor as a document, and starts an editing session
+ * over it.
  *
  * A comment is prose somebody wrote, and a page this extension composes over
- * it is the defect this work was filed about. Opening `comment.md` is what
- * opening `card.md` already is: the thing itself, editable, with its front
- * matter above the prose.
+ * it is the defect this work was filed about. The document is the comment's
+ * anchor as `dinah show` prints it, editable, with its front matter above the
+ * prose, which is what opening `card.md` already is for a card.
  *
  * The session is what parts this from opening a card. A comment's body carries
- * a digest of itself, so a save that left the editor's own bytes on the file
- * would leave a comment `dinah check` reports as hand-edited. Reaching the
- * file through openExistingComment remembers the digest the anchor records, so
- * the save handler can hand it back to the verb and have the write attributed
- * rather than refused. The two routes to an open comment, composing a new one
- * and opening one that exists, therefore end in the same state.
+ * a digest of itself, and openExistingComment remembers the digest the anchor
+ * records, so the save can hand it back to the verb and have the write
+ * attributed rather than refused. The two routes to an open comment,
+ * composing a new one and opening one that exists, therefore end in the same
+ * state.
  */
 export async function openComment(
 	context: CommentCommandContext,
 	commentHost: CommentBodyHost,
 	opened: OpenComments,
 ): Promise<void> {
-	const located = await runDinah(
-		context.spawner,
-		context.exe,
-		pinnedArgv(context.root, ["path", context.ref]),
-		{ cwd: context.root },
-	);
-	if (located.kind !== "ok") {
-		context.host.showError(refusalMessage(located));
-		return;
-	}
-	const path = (located.json as PathAnswer).path ?? "";
-	if (path === "") {
-		context.host.log(`dinah path ${context.ref} answered with no path`);
-		return;
-	}
-	await openExistingComment(commentHost, opened, path, {
+	await openExistingComment(commentHost, context.spawner, context.exe, opened, {
 		root: context.root,
 		folder: context.folder,
 		ref: context.ref,
