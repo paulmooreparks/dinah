@@ -19,11 +19,11 @@ import (
 )
 
 // publishedIntegrity are the SHA-384 values PUDL's README publishes for
-// jsDelivr at v0.19.0, written here as literals so that an edit to a vendored
+// jsDelivr at v0.19.1, written here as literals so that an edit to a vendored
 // file and to PROVENANCE together still fails against a value somebody other
 // than this project published.
 var publishedIntegrity = map[string]string{
-	"pudl.css":         "IiD0MdDFXjsihk85kmQfBu1RhwUvpVsxoEequbI4vcGO5uCRMwEfBqR+IlcUseVq",
+	"pudl.css":         "wJPwcc31mRd9i2pjWH2ukJR7tXTA7zmYE14iZEseCwwf9SHkeI9Kay9tUC2edQz4",
 	"pudl-theme.js":    "kd6cwrRNLEIY/49jBdC7mBi1fiFbf9DSlyMfmX61QgrtAc8YnUTEKkrBjKoBMgnY",
 	"pudl-windows.css": "sMQ+nDHIKGWKAfyU4gHQHOscemZ0YhkQ6ho9A1pjKhgkHK931swBJVUZuR64FzaY",
 	"pudl-windows.js":  "IfL3F3SRr/cFGmX/3Mb0y2aUUf6PF5+2kj7XhW5iFJ4+oMgapIklKsn9fW8QFFGg",
@@ -41,7 +41,7 @@ func TestVendoredPUDLMatchesProvenance(t *testing.T) {
 		t.Fatalf("read PROVENANCE: %v", err)
 	}
 	text := string(provenance)
-	for _, line := range []string{"tag v0.19.0", "commit 1e63473572177bd44683c5495d732ec8e40d401f"} {
+	for _, line := range []string{"tag v0.19.1", "commit f9d2ada84a72c952ac0481abb7e324fcd26f86b3"} {
 		if !strings.Contains(text, line+"\n") {
 			t.Errorf("PROVENANCE does not carry %q", line)
 		}
