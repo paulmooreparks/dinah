@@ -156,12 +156,21 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		AttachmentCount: benchAttachments,
 	}
 	counts := map[string]int{}
+	day := l.dayOf(req)
 	for _, card := range cards {
 		if err := l.lapseRead(card, req.Actor); err != nil {
 			return nil, err
 		}
 		counts[card.Column]++
-		view, err := l.view(card, l.dayOf(req))
+		// Status prints only the cards it holds and the cards blocked, so a
+		// card in neither set never earns the full view: view composes a
+		// checklist tally, a schedule and a hold graph, none of which this
+		// answer discards, since it is never built for a card status will
+		// not print.
+		if !isHolder(card, req.Actor) && card.State != contract.StateBlocked {
+			continue
+		}
+		view, err := l.view(card, day)
 		if err != nil {
 			return nil, err
 		}

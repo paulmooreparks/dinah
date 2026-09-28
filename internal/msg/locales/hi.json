@@ -3478,13 +3478,18 @@
     },
     "page.board": {
       "text": "बोर्ड",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The board page's title and the topbar link to it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The board page's title and the section tab that leads to it.",
       "source": "8fc1231952986aeb"
     },
     "page.cards": {
       "text": "कार्ड",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The card list page's title and the topbar link to it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The card list page's title and the section tab that leads to it.",
       "source": "6f5d93a17b8bdc24"
+    },
+    "page.cards.none": {
+      "text": "कोई कार्ड मेल नहीं खाता।",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The only row of the card table when it lists no card.",
+      "source": "3ebc5cd547e4a74d"
     },
     "page.cards.query": {
       "text": "क्वेरी",
@@ -3537,6 +3542,11 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the toolbar's query box.",
       "source": "1658ef62d4f7169e"
     },
+    "page.filter.apply": {
+      "text": "फ़िल्टर लागू करें",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name and tooltip of the search-glyph button beside the toolbar's query box, which applies the query.",
+      "source": "518acebfe2875c72"
+    },
     "page.filter.clear": {
       "text": "यह फ़िल्टर हटाएँ",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the link that removes the query filter chip.",
@@ -3564,7 +3574,7 @@
     },
     "page.log": {
       "text": "कमांड लॉग",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The command log's title, the topbar link to its page, and the accessible name of the log panel.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The command log's title, the section tab that leads to its page, and the accessible name of the log panel.",
       "source": "bf367d5670852f5c"
     },
     "page.log.again": {
@@ -3594,7 +3604,7 @@
     },
     "page.nav": {
       "text": "पेज",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the topbar's navigation.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the row of section tabs below the topbar.",
       "source": "6ac0c20ddc5c15ff"
     },
     "page.new-card": {
@@ -3621,6 +3631,11 @@
       "text": "खोज",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The search page's title.",
       "source": "5d929ff1619ac0c9"
+    },
+    "page.search.none": {
+      "text": "इन शब्दों से कुछ भी मेल नहीं खाता।",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The only row of the search page's table when the search found nothing.",
+      "source": "1ababfcfa19e12e5"
     },
     "page.search.phrase": {
       "text": "शब्द",
@@ -3662,6 +3677,16 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of a card sheet's comments.",
       "source": "dc12d4d35420eeb7"
     },
+    "page.sheet.details": {
+      "text": "कार्ड के खंड",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the row of tabs on a card's sheet, which switches between its checklist, comments, links and instructions.",
+      "source": "7d9d231453220205"
+    },
+    "page.sheet.empty": {
+      "text": "यहाँ अभी कुछ नहीं है।",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. What a tab of a card's sheet says when it holds nothing, such as a card with no comments.",
+      "source": "980bee8ef29d6a1c"
+    },
     "page.sheet.held-since": {
       "text": "{holder}, {since} से",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The holder row's value with the claim's start. {since} is a time stamp.",
@@ -3697,6 +3722,11 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row naming the card's workstreams.",
       "source": "5756cdff66da2de9"
     },
+    "page.sidebar.resize": {
+      "text": "कॉलम सूची का आकार बदलें",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the divider between the column list and the page beside it, which can be dragged or moved with the arrow keys.",
+      "source": "15912f5b9c4a61d8"
+    },
     "page.state.active": {
       "text": "सक्रिय",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The reader's word for a card somebody holds.",
@@ -3726,6 +3756,11 @@
       "text": "किसके पास",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the holder.",
       "source": "6a4b61b4b5d8b123"
+    },
+    "page.table.match": {
+      "text": "मिलान",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The heading of the search table's column that shows the words around each match.",
+      "source": "837fcb0b70616656"
     },
     "page.table.ref": {
       "text": "कार्ड",
@@ -3771,8 +3806,13 @@
     },
     "page.views": {
       "text": "दृश्य",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The views page's title and the topbar link to it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The views page's title and the section tab that leads to it.",
       "source": "900aa761e7ae5c71"
+    },
+    "page.views.none": {
+      "text": "इस वर्कबेंच में कोई दृश्य परिभाषित नहीं है।",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The title of the empty state the views page draws when the workbench has no views.",
+      "source": "c9a2d190fabeebe1"
     },
     "page.window": {
       "text": "विंडो",
@@ -3784,6 +3824,11 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's close button.",
       "source": "5e8250fb85d64c23"
     },
+    "page.window.head": {
+      "text": "विंडो: {title}। तीर कुंजियाँ इसे खिसकाती हैं, Shift के साथ तीर कुंजियाँ इसका आकार बदलती हैं, Enter इसे बड़ा करता है या पहले जैसा करता है।",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's title bar, which a keyboard reader focuses to move the window. {title} is the window's title and must be kept exactly as written.",
+      "source": "8401006870367a2b"
+    },
     "page.window.maximize": {
       "text": "बड़ा करें",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's maximize button.",
@@ -3793,6 +3838,11 @@
       "text": "छोटा करें",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's minimize button.",
       "source": "1c109a21525649fd"
+    },
+    "page.window.minimized": {
+      "text": "{title} (छोटा किया गया)",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The tooltip of a minimised window's tab in the dock. {title} is the window's title and must be kept exactly as written.",
+      "source": "c7e25356ea490ff4"
     },
     "page.window.page": {
       "text": "पेज के रूप में खोलें",

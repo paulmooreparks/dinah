@@ -204,18 +204,26 @@ func TestShowReadsEachAnchorAndListsEachCollectionOnce(t *testing.T) {
 	}
 }
 
-// TestStatusReadsEachCardAndItemOnce drives dinah-618 criteria/18. On a
-// workbench holding the heavy card and two filled cards, with no claim lapsed
-// and no hold rule declared, one status opens each card anchor once and each
-// item anchor once, and lists each card's mounts once.
+// TestStatusReadsEachCardOnceAndComposesOnlyWhatItPrints drives dinah-620:
+// status opens every card's own anchor once, since it has to weigh each card
+// into the column tally, but it composes the full card view, which lists a
+// card's mounts and opens its checklist items, only for the cards it prints:
+// the caller's held cards and the blocked ones. dinah-618's predecessor of
+// this test asked status to open every card's items regardless of whether
+// status went on to print the card; dinah-620 narrows that.
 //
-// Arming: restoring the second Revision read in loadCard reddens it, with each
-// card anchor opened twice.
-func TestStatusReadsEachCardAndItemOnce(t *testing.T) {
+// Arming: replacing the guard in Library.Status that skips the view for a
+// card neither held nor blocked reddens this test, with the two untouched
+// cards' item anchors and mounts opened once each instead of not at all.
+func TestStatusReadsEachCardOnceAndComposesOnlyWhatItPrints(t *testing.T) {
 	h := newHarness(t)
-	heavyCard(t, h)
-	filledCard(t, h)
-	filledCard(t, h)
+	heavy := heavyCard(t, h) // ready: neither held nor blocked
+	held := filledCard(t, h)
+	h.mustDo(&Request{Verb: Claim, Card: held, Actor: "alka"})
+	blocked := filledCard(t, h)
+	h.mustDo(&Request{Verb: Claim, Card: blocked, Actor: "alka"})
+	h.mustDo(&Request{Verb: Block, Card: blocked, Actor: "alka", Reason: "stopped"})
+	untouched := filledCard(t, h) // ready: neither held nor blocked
 	if settings, _ := h.library.Bench.Holds(); len(settings.Rules) != 0 {
 		t.Fatalf("the harness workbench declares %d hold rules, and a hold rule reads every card again", len(settings.Rules))
 	}
@@ -223,7 +231,12 @@ func TestStatusReadsEachCardAndItemOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cards: %v", err)
 	}
-	var cardAnchors, itemAnchors, mounts []string
+	if len(cards) != 4 {
+		t.Fatalf("the fixture holds %d cards, wanted 4", len(cards))
+	}
+	printed := map[string]bool{h.card(held).ID: true, h.card(blocked).ID: true}
+	skipped := map[string]bool{h.card(heavy).ID: true, h.card(untouched).ID: true}
+	var cardAnchors, printedItemAnchors, printedMounts, skippedItemAnchors, skippedMounts []string
 	for _, card := range cards {
 		if card.Lapsed(h.library.Now()) {
 			t.Fatalf("card %s carries a lapsed claim, and a lapse re-reads the card under its lock", card.ID)
@@ -233,24 +246,50 @@ func TestStatusReadsEachCardAndItemOnce(t *testing.T) {
 		if err != nil {
 			t.Fatalf("list the checklist of %s: %v", card.ID, err)
 		}
+		var itemAnchors, mounts []string
 		for _, id := range ids {
 			itemAnchors = append(itemAnchors, filepath.Join(card.Dir, bench.ChecklistDir, id, bench.ItemAnchor))
 		}
 		for _, mount := range bench.Contains(bench.KindCard) {
 			mounts = append(mounts, filepath.Join(card.Dir, mount.Dir))
 		}
+		switch {
+		case printed[card.ID]:
+			printedItemAnchors = append(printedItemAnchors, itemAnchors...)
+			printedMounts = append(printedMounts, mounts...)
+		case skipped[card.ID]:
+			skippedItemAnchors = append(skippedItemAnchors, itemAnchors...)
+			skippedMounts = append(skippedMounts, mounts...)
+		default:
+			t.Fatalf("card %s is neither printed nor skipped in this fixture", card.ID)
+		}
 	}
 
 	counter := countReads(t)
-	if _, err := h.library.Status(&Request{Verb: "status", Actor: "alka"}); err != nil {
+	status, err := h.library.Status(&Request{Verb: "status", Actor: "alka"})
+	if err != nil {
 		counter.stop()
 		t.Fatalf("status: %v", err)
 	}
 	counter.stop()
 
-	exactlyOnce(t, "card anchor", counter.reads, cardAnchors, 3)
-	exactlyOnce(t, "item anchor", counter.reads, itemAnchors, 38)
-	exactlyOnce(t, "card mount", counter.listed, mounts, 9)
+	if len(status.Holding) != 1 || len(status.Blocked) != 1 {
+		t.Fatalf("status held %d and blocked %d cards, wanted 1 and 1", len(status.Holding), len(status.Blocked))
+	}
+
+	exactlyOnce(t, "card anchor", counter.reads, cardAnchors, 4)
+	exactlyOnce(t, "printed item anchor", counter.reads, printedItemAnchors, 2)
+	exactlyOnce(t, "printed card mount", counter.listed, printedMounts, 6)
+	for _, path := range skippedItemAnchors {
+		if n := counter.reads[filepath.Clean(path)]; n != 0 {
+			t.Errorf("status opened %s %d times, wanted zero: status prints neither the heavy card nor the untouched one", path, n)
+		}
+	}
+	for _, path := range skippedMounts {
+		if n := counter.listed[filepath.Clean(path)]; n != 0 {
+			t.Errorf("status listed %s %d times, wanted zero: status prints neither the heavy card nor the untouched one", path, n)
+		}
+	}
 }
 
 // TestShowOfAHeavyCardStaysNearItsReads drives dinah-618 criteria/10. It

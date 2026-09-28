@@ -2775,11 +2775,15 @@
     },
     "page.board": {
       "text": "Board",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The board page's title and the topbar link to it."
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The board page's title and the section tab that leads to it."
     },
     "page.cards": {
       "text": "Cards",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The card list page's title and the topbar link to it."
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The card list page's title and the section tab that leads to it."
+    },
+    "page.cards.none": {
+      "text": "No card matches.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The only row of the card table when it lists no card."
     },
     "page.cards.query": {
       "text": "Query",
@@ -2821,6 +2825,10 @@
       "text": "Filter the board by a query",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the toolbar's query box."
     },
+    "page.filter.apply": {
+      "text": "Apply the filter",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name and tooltip of the search-glyph button beside the toolbar's query box, which applies the query."
+    },
     "page.filter.clear": {
       "text": "Remove this filter",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the link that removes the query filter chip."
@@ -2843,7 +2851,7 @@
     },
     "page.log": {
       "text": "Command log",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The command log's title, the topbar link to its page, and the accessible name of the log panel."
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The command log's title, the section tab that leads to its page, and the accessible name of the log panel."
     },
     "page.log.again": {
       "text": "Run again",
@@ -2867,7 +2875,7 @@
     },
     "page.nav": {
       "text": "Pages",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the topbar's navigation."
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the row of section tabs below the topbar."
     },
     "page.new-card": {
       "text": "New card",
@@ -2888,6 +2896,10 @@
     "page.search": {
       "text": "Search",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The search page's title."
+    },
+    "page.search.none": {
+      "text": "Nothing matches these words.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The only row of the search page's table when the search found nothing."
     },
     "page.search.phrase": {
       "text": "Words",
@@ -2921,6 +2933,14 @@
       "text": "Comments",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of a card sheet's comments."
     },
+    "page.sheet.details": {
+      "text": "Card sections",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the row of tabs on a card's sheet, which switches between its checklist, comments, links and instructions."
+    },
+    "page.sheet.empty": {
+      "text": "Nothing here yet.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. What a tab of a card's sheet says when it holds nothing, such as a card with no comments."
+    },
     "page.sheet.held-since": {
       "text": "{holder}, since {since}",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The holder row's value with the claim's start. {since} is a time stamp."
@@ -2949,6 +2969,10 @@
       "text": "Workstreams",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row naming the card's workstreams."
     },
+    "page.sidebar.resize": {
+      "text": "Resize the column list",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the divider between the column list and the page beside it, which can be dragged or moved with the arrow keys."
+    },
     "page.state.active": {
       "text": "active",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The reader's word for a card somebody holds."
@@ -2972,6 +2996,10 @@
     "page.table.holder": {
       "text": "Held by",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the holder."
+    },
+    "page.table.match": {
+      "text": "Match",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The heading of the search table's column that shows the words around each match."
     },
     "page.table.ref": {
       "text": "Card",
@@ -3007,7 +3035,11 @@
     },
     "page.views": {
       "text": "Views",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The views page's title and the topbar link to it."
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The views page's title and the section tab that leads to it."
+    },
+    "page.views.none": {
+      "text": "This workbench defines no views.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The title of the empty state the views page draws when the workbench has no views."
     },
     "page.window": {
       "text": "Window",
@@ -3017,6 +3049,10 @@
       "text": "Close",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's close button."
     },
+    "page.window.head": {
+      "text": "Window: {title}. Arrow keys move it, Shift with arrow keys resizes it, Enter maximizes or restores it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's title bar, which a keyboard reader focuses to move the window. {title} is the window's title and must be kept exactly as written."
+    },
     "page.window.maximize": {
       "text": "Maximize",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's maximize button."
@@ -3024,6 +3060,10 @@
     "page.window.minimize": {
       "text": "Minimize",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's minimize button."
+    },
+    "page.window.minimized": {
+      "text": "{title} (minimized)",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The tooltip of a minimised window's tab in the dock. {title} is the window's title and must be kept exactly as written."
     },
     "page.window.page": {
       "text": "Open as a page",

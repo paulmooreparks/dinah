@@ -11,11 +11,18 @@
      pudl:window-place   on the layer, before a window opens with no placement
                          in the URL. A listener may set event.detail.placement
                          to {mode, x, y, w, h}, for example from saved state.
+                         event.detail.parent names a child window's parent.
      pudl:window-open    on the window element, once it is in the page. Use it
                          to wire up the window's content, because scripts in a
                          fetched fragment do not run.
+     pudl:window-close   on the window element, just before it leaves the
+                         page by any route. Use it to tear down what
+                         pudl:window-open set up.
      pudl:windows-change on the layer, after every change, with the state in
-                         event.detail. Use it to persist placements. */
+                         event.detail. Use it to persist placements.
+
+   window.pudlWindows offers open, replace, raise, minimize, close and state
+   to scripts, each doing what the matching link or button does. */
 (function () {
   'use strict';
 
@@ -122,12 +129,36 @@
     return location.pathname + (parts.length ? '?' + parts.join('&') : '') + location.hash;
   }
 
-  /* The topmost visible window other than the one given, for when the top
+  /* A child window names its parent with data-win-parent. The relation is a
+     fact about the content, so it lives in the markup, not the URL. It
+     holds only while the parent is open and is itself a top-level window;
+     otherwise the window stands on its own. */
+  function parentOf(st, key) {
+    var el = wins[key];
+    var p = el && el.getAttribute('data-win-parent');
+    if (!p || p === key || st.open.indexOf(p) < 0) return null;
+    var pe = wins[p];
+    var grand = pe && pe.getAttribute('data-win-parent');
+    return grand && st.open.indexOf(grand) >= 0 ? null : p;
+  }
+
+  function rootOf(st, key) { return parentOf(st, key) || key; }
+
+  function childrenOf(st, key) {
+    return st.open.filter(function (k) { return parentOf(st, k) === key; });
+  }
+
+  function isHidden(st, key) {
+    var p = parentOf(st, key);
+    return !!(st.min[key] || (p && st.min[p]));
+  }
+
+  /* The topmost visible window outside the given set, for when the top
      window is minimised or closed. */
   function nextTop(st, except) {
     for (var i = zOrder.length - 1; i >= 0; i--) {
       var k = zOrder[i];
-      if (k !== except && st.open.indexOf(k) >= 0 && !st.min[k]) return k;
+      if (except.indexOf(k) < 0 && st.open.indexOf(k) >= 0 && !isHidden(st, k)) return k;
     }
     return null;
   }
@@ -137,14 +168,26 @@
   function raised(st, key) {
     st = copy(st);
     delete st.min[key];
+    delete st.min[rootOf(st, key)];
     st.top = key;
     return st;
   }
 
+  /* Minimising a window hides its children with it. A child has no dock tab
+     to come back from, so a child is never minimised on its own. */
   function minimized(st, key) {
+    if (parentOf(st, key)) return copy(st);
     st = copy(st);
     st.min[key] = true;
-    if (st.top === key) st.top = nextTop(st, key);
+    if (st.top && rootOf(st, st.top) === key) st.top = nextTop(st, [key].concat(childrenOf(st, key)));
+    return st;
+  }
+
+  /* Minimises every top-level window, which shows the page beneath them. */
+  function allMinimized(st) {
+    st = copy(st);
+    st.open.forEach(function (k) { if (!parentOf(st, k)) st.min[k] = true; });
+    st.top = null;
     return st;
   }
 
@@ -155,19 +198,33 @@
     return st;
   }
 
+  /* Closing a window closes its children with it. */
   function closed(st, key) {
+    var gone = [key].concat(childrenOf(st, key));
+    var top = st.top;
     st = copy(st);
-    st.open = st.open.filter(function (k) { return k !== key; });
-    delete st.min[key];
-    delete st.place[key];
-    if (st.top === key) st.top = nextTop(st, key);
+    st.top = gone.indexOf(top) >= 0 ? nextTop(st, gone) : top;
+    st.open = st.open.filter(function (k) { return gone.indexOf(k) < 0; });
+    gone.forEach(function (k) { delete st.min[k]; delete st.place[k]; });
     return st;
   }
 
-  /* A dock tab raises its window, or minimises it if it is already on top,
-     as a taskbar does. */
+  /* The window a top-level window's tab or row brings forward: its topmost
+     child if it has one, since that child covers it, or else itself. */
+  function frontOf(st, key) {
+    var kids = childrenOf(st, key);
+    for (var i = zOrder.length - 1; i >= 0; i--) {
+      if (kids.indexOf(zOrder[i]) >= 0) return zOrder[i];
+    }
+    return key;
+  }
+
+  /* A dock tab raises its window, or minimises it if it is already in
+     front, as a taskbar does. A child's row in a list only raises it. */
   function tabbed(st, key) {
-    return st.top === key && !st.min[key] ? minimized(st, key) : raised(st, key);
+    if (parentOf(st, key)) return raised(st, key);
+    var inFront = st.top && rootOf(st, st.top) === key && !st.min[key];
+    return inFront ? minimized(st, key) : raised(st, frontOf(st, key));
   }
 
   /* === Applying state to the page ======================================== */
@@ -180,29 +237,59 @@
     el.style.setProperty('--win-h', fmt(p.h));
   }
 
+  /* The words this script writes into the page, in English unless the layer
+     carries a data-win-text-<name> attribute with the page's own. {title}
+     stands for the window's title. */
+  function text(name, fallback) {
+    return (layer && layer.getAttribute('data-win-text-' + name)) || fallback;
+  }
+
   function titleOf(key) {
     var t = wins[key] && wins[key].querySelector('.win-title');
     return t ? t.textContent.trim() : key;
   }
 
   function apply(st) {
+    /* A window leaving the page says so first, however it was closed, so
+       its content can tear down what it set up. */
     Object.keys(wins).forEach(function (k) {
-      if (st.open.indexOf(k) < 0) { wins[k].remove(); delete wins[k]; }
+      if (st.open.indexOf(k) >= 0) return;
+      var gone = wins[k];
+      delete wins[k];
+      gone.dispatchEvent(new CustomEvent('pudl:window-close', { bubbles: true, detail: { key: k } }));
+      gone.remove();
     });
     zOrder = zOrder.filter(function (k) { return st.open.indexOf(k) >= 0; });
     st.open.forEach(function (k) { if (zOrder.indexOf(k) < 0) zOrder.push(k); });
     if (st.top) { zOrder.splice(zOrder.indexOf(st.top), 1); zOrder.push(st.top); }
 
+    /* Children stack directly above their parent, and the active window's
+       family goes to the top. */
+    var roots = zOrder.filter(function (k) { return !parentOf(st, k); });
+    if (st.top) {
+      var topRoot = rootOf(st, st.top);
+      roots.splice(roots.indexOf(topRoot), 1);
+      roots.push(topRoot);
+    }
+    var ordered = [];
+    roots.forEach(function (r) {
+      ordered.push(r);
+      zOrder.forEach(function (k) { if (parentOf(st, k) === r) ordered.push(k); });
+    });
+    zOrder = ordered;
+
     zOrder.forEach(function (k, i) {
       var el = wins[k];
       setPlacement(el, st.place[k]);
-      el.hidden = !!st.min[k];
+      el.hidden = isHidden(st, k);
       el.classList.toggle('active', k === st.top);
       el.style.zIndex = String(i + 1);
     });
     state = st;
     updateLinks();
     renderDocks();
+    renderRows();
+    syncPane();
   }
 
   /* Every window button and dock tab is a real link to the state it
@@ -215,7 +302,7 @@
       var max = el.querySelector('[data-win-action="maximize"]');
       setHref(max, urlFor(maximizeToggled(state, k)));
       if (max) {
-        var label = state.place[k].mode === 'floating' ? 'Maximize' : 'Restore';
+        var label = state.place[k].mode === 'floating' ? text('maximize', 'Maximize') : text('restore', 'Restore');
         max.setAttribute('aria-label', label);
         max.setAttribute('title', label);
       }
@@ -224,19 +311,72 @@
 
   function setHref(a, href) { if (a && a.tagName === 'A') a.setAttribute('href', href); }
 
+  /* The dock has a tab for each top-level window only. */
   function renderDocks() {
+    var topRoot = state.top ? rootOf(state, state.top) : null;
     document.querySelectorAll('[data-win-dock]').forEach(function (dock) {
       dock.textContent = '';
       state.open.forEach(function (k) {
+        if (parentOf(state, k)) return;
         var a = document.createElement('a');
         a.className = 'win-tab' + (state.min[k] ? ' minimized' : '');
         a.href = urlFor(tabbed(state, k));
         a.setAttribute('data-win-tab', k);
-        if (k === state.top) a.setAttribute('aria-current', 'true');
+        if (k === topRoot) a.setAttribute('aria-current', 'true');
         a.textContent = titleOf(k);
-        a.title = titleOf(k) + (state.min[k] ? ' (minimized)' : '');
+        a.title = state.min[k] ? text('minimized', '{title} (minimized)').split('{title}').join(titleOf(k)) : titleOf(k);
         dock.appendChild(a);
       });
+    });
+  }
+
+  /* A list row whose link opens a window follows that window: the row of the
+     window in front is marked current, and each open child gets a row of
+     its own beneath its parent's, which goes when the child closes. */
+  function renderRows() {
+    document.querySelectorAll('.md-row-child[data-win-child]').forEach(function (r) { r.remove(); });
+    var topRoot = state.top ? rootOf(state, state.top) : null;
+    document.querySelectorAll('.md-row').forEach(function (row) {
+      var link = row.querySelector('a[data-win-open]');
+      if (!link) return;
+      var key = link.getAttribute('data-win-open');
+      var current = key === topRoot && !isHidden(state, key);
+      row.classList.toggle('active', current);
+      if (current) link.setAttribute('aria-current', 'true');
+      else link.removeAttribute('aria-current');
+      /* A menu panel lists places, and a child window is not one, so a
+         panel's rows are marked but gain no child rows. */
+      if (state.open.indexOf(key) < 0 || row.closest('[popover]')) return;
+
+      var after = row;
+      childrenOf(state, key).forEach(function (c) {
+        var child = document.createElement('div');
+        child.className = 'md-row md-row-child' + (c === state.top ? ' active' : '');
+        child.setAttribute('data-win-child', c);
+        var a = document.createElement('a');
+        a.className = 'md-item';
+        a.href = urlFor(raised(state, c));
+        a.setAttribute('data-win-tab', c);
+        if (c === state.top) a.setAttribute('aria-current', 'true');
+        a.textContent = titleOf(c);
+        child.appendChild(a);
+        after.after(child);
+        after = child;
+      });
+    });
+  }
+
+  /* In a master-detail layout narrow enough to show one pane at a time, the
+     windows are the detail pane: it shows while any window does. A link
+     marked data-win-back minimises them all, which returns to the list. */
+  function syncPane() {
+    var md = layer.closest('.md-layout');
+    if (md) {
+      var any = state.open.some(function (k) { return !isHidden(state, k); });
+      md.setAttribute('data-md-pane', any ? 'detail' : 'list');
+    }
+    document.querySelectorAll('a[data-win-back]').forEach(function (a) {
+      a.setAttribute('href', urlFor(allMinimized(state)));
     });
   }
 
@@ -249,7 +389,7 @@
     if (url !== location.pathname + location.search + location.hash) {
       history[push ? 'pushState' : 'replaceState'](history.state, '', url);
     }
-    layer.dispatchEvent(new CustomEvent('pudl:windows-change', { detail: copy(st) }));
+    layer.dispatchEvent(new CustomEvent('pudl:windows-change', { bubbles: true, detail: copy(st) }));
   }
 
   /* For keyboard moves: the page follows each key at once, and the URL is
@@ -321,30 +461,61 @@
       /* A link's native drag would take the pointer away from a title-bar drag. */
       head.querySelectorAll('a').forEach(function (a) { a.draggable = false; });
       head.tabIndex = 0;
-      head.setAttribute('aria-label', 'Window: ' + titleOf(key) +
-        '. Arrow keys move it, Shift with arrow keys resizes it, Enter maximizes or restores it.');
+      head.setAttribute('aria-label', text('head',
+        'Window: {title}. Arrow keys move it, Shift with arrow keys resizes it, Enter maximizes or restores it.')
+        .split('{title}').join(titleOf(key)));
     }
     return el;
   }
 
+  /* The key of the window an element sits in, or null. */
+  function hostOf(elm) {
+    var w = elm && elm.closest && elm.closest('.win');
+    return w && layer.contains(w) && wins[w.getAttribute('data-win')] ? w.getAttribute('data-win') : null;
+  }
+
+  /* A window opened from a link inside another window opens in that
+     window's state: maximised from maximised, the same half from a snapped
+     half, and from a floating window, floating one step down and to the
+     right, so the opener stays in sight behind it. A step that would run
+     past the edge starts again near the top left. */
+  var OPENER_STEP = 0.03;
+  function fromOpener(host) {
+    var p = state.place[host];
+    if (!p) return null;
+    var x = p.x + OPENER_STEP, y = p.y + OPENER_STEP;
+    if (x + p.w > 1) x = OPENER_STEP;
+    if (y + p.h > 1) y = OPENER_STEP;
+    return { mode: p.mode, x: x, y: y, w: p.w, h: p.h };
+  }
+
   /* The placement a window opens with when the URL gives none: whatever a
-     pudl:window-place listener supplies, then the server's style attribute,
-     then a cascade from the top left. */
-  function initialPlacement(key, el, index) {
-    var ev = new CustomEvent('pudl:window-place', { detail: { key: key, placement: null } });
+     pudl:window-place listener supplies, then its opener's state when a link
+     inside a window opened it, then the server's style attribute, then the
+     markup's mode with a cascade from the top left. */
+  function initialPlacement(key, el, index, host) {
+    var ev = new CustomEvent('pudl:window-place', {
+      detail: { key: key, parent: el.getAttribute('data-win-parent') || null, opener: host || null, placement: null }
+    });
     layer.dispatchEvent(ev);
     if (validPlacement(ev.detail.placement)) return Object.assign({}, ev.detail.placement);
 
+    var inherited = host && fromOpener(host);
+    if (inherited) return inherited;
+
     var s = el.style;
+    var mode = MODES.indexOf(el.getAttribute('data-win-mode')) >= 0 ? el.getAttribute('data-win-mode') : 'floating';
     var fromStyle = {
-      mode: MODES.indexOf(el.getAttribute('data-win-mode')) >= 0 ? el.getAttribute('data-win-mode') : 'floating',
+      mode: mode,
       x: parseFloat(s.getPropertyValue('--win-x')), y: parseFloat(s.getPropertyValue('--win-y')),
       w: parseFloat(s.getPropertyValue('--win-w')), h: parseFloat(s.getPropertyValue('--win-h'))
     };
     if (validPlacement(fromStyle)) return fromStyle;
 
+    /* The markup's mode still counts without numbers, so a window can open
+       maximised, and the cascade gives it somewhere to restore to. */
     var step = (index % 6) * 0.04;
-    return { mode: 'floating', x: 0.06 + step, y: 0.05 + step, w: 0.55, h: 0.75 };
+    return { mode: mode, x: 0.06 + step, y: 0.05 + step, w: 0.55, h: 0.75 };
   }
 
   function announceOpen(el) {
@@ -356,6 +527,16 @@
     if (head) head.focus({ preventScroll: true });
   }
 
+  /* A window that has to be fetched arrives some time after the reader
+     asked for it, and by then they may have moved on, to a menu, a field
+     or another window. It takes focus only if focus is still where it was
+     when they asked, or has fallen back to the page, so it never pulls the
+     reader away from something they chose in the meantime. */
+  function focusUnmoved(asked) {
+    var now = document.activeElement;
+    return now === asked || !now || now === document.body || now === document.documentElement;
+  }
+
   function open(key, from) {
     if (wins[key]) {
       commit(raised(state, key), false);
@@ -364,22 +545,70 @@
     }
     if (pending[key]) return;
     pending[key] = true;
+    var host = hostOf(from);              // read now: the opener may close while this loads
+    var asked = document.activeElement;
     load(key).then(function (el) {
       delete pending[key];
       if (wins[key]) return;            // opened meanwhile, by Back or Forward
+      var take = focusUnmoved(asked);
       adopt(el);
       var st = copy(state);
       st.open.push(key);
-      st.place[key] = clampPlacement(initialPlacement(key, el, st.open.length - 1), layer.clientWidth, layer.clientHeight);
+      st.place[key] = clampPlacement(initialPlacement(key, el, st.open.length - 1, host && wins[host] ? host : null),
+                                     layer.clientWidth, layer.clientHeight);
       st.top = key;
       openers[key] = from || null;
       commit(st, true);
       announceOpen(el);
-      focusWindow(key);
+      if (take) focusWindow(key);
     }, function (err) {
       delete pending[key];
       /* The window could not be built, so fall back on the item's own page,
          which is where the link pointed all along. */
+      if (window.console) console.warn('pudl-windows:', err.message);
+      if (from && from.href) location.href = from.href;
+    });
+  }
+
+  /* Opens a window in place of another, as a link does in a browser tab:
+     the new window takes the old one's place in the dock and its placement,
+     the old one closes, and the whole move is one history entry, so Back
+     returns to the old window. If the new window is already open it is
+     brought forward and the old one closes. */
+  function replaceWith(oldKey, key, from) {
+    if (!wins[oldKey] || oldKey === key) { open(key, from); return; }
+    if (wins[key]) {
+      commit(closed(raised(state, key), oldKey), true);
+      focusWindow(key);
+      return;
+    }
+    if (pending[key]) return;
+    pending[key] = true;
+    var asked = document.activeElement;
+    load(key).then(function (el) {
+      delete pending[key];
+      if (wins[key]) return;
+      /* Judged before the old window closes, since closing it would drop
+         focus to the page if focus was inside it. */
+      var take = focusUnmoved(asked);
+      adopt(el);
+      var st = copy(state);
+      if (!wins[oldKey] || st.open.indexOf(oldKey) < 0) {
+        st.open.push(key);
+        st.place[key] = clampPlacement(initialPlacement(key, el, st.open.length - 1), layer.clientWidth, layer.clientHeight);
+      } else {
+        st.open.splice(st.open.indexOf(oldKey) + 1, 0, key);
+        st.place[key] = Object.assign({}, st.place[oldKey]);
+        delete st.min[key];
+        st = closed(st, oldKey);
+      }
+      st.top = key;
+      openers[key] = null;
+      commit(st, true);
+      announceOpen(el);
+      if (take) focusWindow(key);
+    }, function (err) {
+      delete pending[key];
       if (window.console) console.warn('pudl-windows:', err.message);
       if (from && from.href) location.href = from.href;
     });
@@ -553,17 +782,27 @@
     var opener = e.target.closest('a[data-win-open]');
     if (opener) {
       var key = opener.getAttribute('data-win-open');
-      if (KEY_RE.test(key)) { e.preventDefault(); open(key, opener); }
+      if (!KEY_RE.test(key)) return;
+      e.preventDefault();
+      var host = opener.hasAttribute('data-win-replace') && opener.closest('.win');
+      if (host && layer.contains(host)) replaceWith(host.getAttribute('data-win'), key, opener);
+      else open(key, opener);
       return;
     }
 
     var tab = e.target.closest('[data-win-tab]');
     if (tab) {
       e.preventDefault();
-      var k = tab.getAttribute('data-win-tab');
-      var st = tabbed(state, k);
+      var st = tabbed(state, tab.getAttribute('data-win-tab'));
       commit(st, false);
-      if (!st.min[k]) focusWindow(k);
+      if (st.top) focusWindow(st.top);
+      return;
+    }
+
+    var back = e.target.closest('a[data-win-back]');
+    if (back) {
+      e.preventDefault();
+      commit(allMinimized(state), false);
       return;
     }
 
@@ -613,7 +852,20 @@
     var el = e.target.closest && e.target.closest('.win');
     if (!el || !layer.contains(el)) return;
     var key = el.getAttribute('data-win');
-    if (state.top !== key && !state.min[key]) commit(raised(state, key), false);
+    if (state.top !== key && !isHidden(state, key)) commit(raised(state, key), false);
+  }
+
+  /* Escape closes a child window that is in front, as a lightbox does,
+     unless the key is meant for a field in the page. Escape never closes a
+     top-level window, so a stray key cannot lose a reader's place. */
+  function onEscape(e) {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    var top = state.top;
+    if (!top || !parentOf(state, top) || isHidden(state, top)) return;
+    var t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) return;
+    e.preventDefault();
+    close(top);
   }
 
   function init() {
@@ -647,7 +899,28 @@
         preventDefault: function () { e.preventDefault(); }
       }, head.closest('.win').getAttribute('data-win'));
     });
+    document.addEventListener('keydown', onEscape);
     window.addEventListener('popstate', function () { sync(false); });
+
+    /* When pudl-regions.js swaps parts of the page, the new list rows and
+       dock need marking and linking as the old ones were. */
+    document.addEventListener('pudl:regions-swap', function () { apply(state); });
+
+    /* The script interface. Each function does exactly what the matching
+       link or button does, the URL and history included, so a project never
+       has to click PUDL's own buttons from script. */
+    window.pudlWindows = {
+      open: function (key, opener) { if (KEY_RE.test(key)) open(key, opener || null); },
+      replace: function (oldKey, key) { if (KEY_RE.test(key)) replaceWith(oldKey, key, null); },
+      raise: function (key) {
+        if (!wins[key]) return;
+        commit(raised(state, key), false);
+        focusWindow(key);
+      },
+      minimize: function (key) { if (wins[key]) commit(minimized(state, key), false); },
+      close: function (key) { if (wins[key]) close(key); },
+      state: function () { return copy(state); }
+    };
 
     sync(false);
   }

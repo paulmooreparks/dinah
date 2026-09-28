@@ -18,6 +18,9 @@ var assetTypes = map[string]string{
 	"dinah.css":             "text/css; charset=utf-8",
 	"pudl/pudl-theme.js":    "text/javascript; charset=utf-8",
 	"pudl/pudl-windows.js":  "text/javascript; charset=utf-8",
+	"pudl/pudl-md.js":       "text/javascript; charset=utf-8",
+	"pudl/pudl-tabs.js":     "text/javascript; charset=utf-8",
+	"pudl/pudl-tooltip.js":  "text/javascript; charset=utf-8",
 	"dinah.js":              "text/javascript; charset=utf-8",
 	"dinah-lantern.svg":     "image/svg+xml",
 }
