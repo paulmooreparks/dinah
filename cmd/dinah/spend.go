@@ -25,16 +25,17 @@ func runSpend(s *session, parsed *arguments) int {
 	req.Column = parsed.value("column")
 	req.Note = parsed.value("note")
 	return s.withBench(func(l *verb.Library) int {
-		switch answer := l.SpendCall(req).(type) {
-		case *verb.Response:
-			return s.emit(answer)
-		case *verb.SpendReport:
-			if s.format != formatHuman {
-				return s.emitMachine(answer)
-			}
-			s.renderSpend(answer)
-			return 0
+		answer := l.SpendCall(req)
+		if response, recorded := answer.(*verb.Response); recorded {
+			return s.emit(response)
 		}
+		// SpendCall answers one of two types and nothing else, so what is
+		// not a response is the report.
+		report := answer.(*verb.SpendReport)
+		if s.format != formatHuman {
+			return s.emitMachine(report)
+		}
+		s.renderSpend(report)
 		return 0
 	})
 }

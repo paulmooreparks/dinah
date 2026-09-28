@@ -5,7 +5,39 @@ import (
 	"testing"
 
 	"dinah/internal/msg"
+	"dinah/internal/verb"
 )
+
+// TestSpendCellsDrawWhatTheReportCarries pins the three cell composers the
+// spend tables draw through, on the shapes the terminal test's fixture does
+// not reach: a consumer known by one half, a column the line carries none
+// of, and a note after figures.
+func TestSpendCellsDrawWhatTheReportCarries(t *testing.T) {
+	for _, row := range []struct{ provider, model, want string }{
+		{"openai", "gpt-5", "openai/gpt-5"},
+		{"openai", "", "openai"},
+		{"", "gpt-5", "gpt-5"},
+		{"", "", spendAbsent},
+	} {
+		if got := spendConsumer(row.provider, row.model); got != row.want {
+			t.Errorf("spendConsumer(%q, %q) = %q, wanted %q", row.provider, row.model, got, row.want)
+		}
+	}
+	if got := spendText(""); got != spendAbsent {
+		t.Errorf("an empty text drew %q rather than the absent glyph", got)
+	}
+	if got := spendText("Intake"); got != "Intake" {
+		t.Errorf("a text drew %q rather than itself", got)
+	}
+	in, out := 1200.0, 300.5
+	figures := spendFigures(verb.SpendFigures{Input: &in, Output: &out}, false, 2, "a remark")
+	if want := "input 1200, output 300.5, round 2; a remark"; figures != want {
+		t.Errorf("the folded cell reads %q, wanted %q", figures, want)
+	}
+	if got := spendFigures(verb.SpendFigures{}, false, 0, ""); got != spendAbsent {
+		t.Errorf("a row carrying no figure drew %q rather than the absent glyph", got)
+	}
+}
 
 // TestSpendRecordsAtTheTerminalAndReports drives dinah-647's three shapes at
 // the terminal: a record, the card's report and the workbench's, and the
