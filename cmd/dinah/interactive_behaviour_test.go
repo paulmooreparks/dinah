@@ -485,6 +485,13 @@ func TestALapsedClaimIsAnsweredStaleAndOfferedAgain(t *testing.T) {
 	s, seam := newScript(t, 99, 30, true)
 	hold := make(chan struct{})
 	seam.command = func() { <-hold }
+	answered := make(chan bool, 1)
+	seam.observe = func(m *interactiveModel, msg tea.Msg) {
+		if _, ok := msg.(lapseProbe); ok {
+			answered <- strings.HasPrefix(strings.Join(m.message, " "), contract.OutcomeStale+" ") &&
+				m.readSeq == m.readAnswered && len(m.queued) == 0
+		}
+	}
 	run := s.run(root, seam, func() {
 		time.Sleep(4 * time.Second)
 		s.write("jk")
@@ -492,7 +499,7 @@ func TestALapsedClaimIsAnsweredStaleAndOfferedAgain(t *testing.T) {
 		s.write("t")
 		s.waitFor("t", isKey("t"))
 		close(hold)
-		s.waitFor("t's own read", isViewRead)
+		awaitLapseAnswered(t, s, answered)
 		s.write(keyCtrlC)
 	})
 	m := run.model
@@ -517,6 +524,40 @@ func TestALapsedClaimIsAnsweredStaleAndOfferedAgain(t *testing.T) {
 	}
 	if card, ok := m.selectedCard(); !ok || card.Revision != cardRevision(t, root, "fx-1") {
 		t.Errorf("the offer stands against revision %q, and the card's is %q", card.Revision, cardRevision(t, root, "fx-1"))
+	}
+}
+
+// lapseProbe is a message the lapsed-claim test sends the running program to
+// read, on the event loop, whether t has been answered and the re-read after
+// it has landed. Update ignores it.
+type lapseProbe struct{}
+
+// awaitLapseAnswered blocks until the model has answered t stale and the
+// re-read that answer started has been applied, with nothing still queued.
+// Waiting for the next view read is not enough: t can be queued behind a
+// read already in flight, the watcher's after the claim lapses, and that
+// read's answer would satisfy the wait before t is handled, so ctrl+c, which
+// jumps the queue, would end the run with t never answered.
+func awaitLapseAnswered(t *testing.T, s *script, answered <-chan bool) {
+	t.Helper()
+	deadline := time.After(tuiWait)
+	for {
+		s.send(lapseProbe{})
+		select {
+		case done := <-answered:
+			if done {
+				return
+			}
+		case <-deadline:
+			t.Error("the program never answered t and re-read the view")
+			return
+		}
+		select {
+		case <-deadline:
+			t.Error("the program never answered t and re-read the view")
+			return
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 }
 

@@ -528,6 +528,13 @@ func (m *interactiveModel) draw() int {
 // confirmation before anyone read it. The board itself, the lanes and the
 // offer this report may still hand to reread, is a different matter and is
 // still redrawn, since those do need the fresher state.
+//
+// A current wait's report clears the message area only when batchIsOwnAct
+// does not explain the whole of it. The next wait starts from the cursor the
+// last report left, which can predate the lines the head's own act wrote, so
+// a wait launched after the act can still come back holding nothing but that
+// act; it is redrawn, but the act's answer stays until something else
+// happens.
 func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 	cmds := []tea.Cmd{m.measure()}
 	stale := msg.epoch != m.watchEpoch
@@ -545,8 +552,9 @@ func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 				m.l = reopened
 			}
 		}
-		if !stale || !m.batchIsOwnAct(msg.set) {
-			if !stale {
+		own := m.batchIsOwnAct(msg.set)
+		if !stale || !own {
+			if !stale && !own {
 				m.message = nil
 			}
 			m.status = statusParts{
