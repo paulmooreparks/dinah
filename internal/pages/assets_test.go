@@ -19,26 +19,29 @@ import (
 )
 
 // publishedIntegrity are the SHA-384 values PUDL's README publishes for
-// jsDelivr at v0.5.0, written here as literals so that an edit to a vendored
+// jsDelivr at v0.19.1, written here as literals so that an edit to a vendored
 // file and to PROVENANCE together still fails against a value somebody other
 // than this project published.
 var publishedIntegrity = map[string]string{
-	"pudl.css":         "nIVRM8BP2HkZXTOq81/FHwj0n1LB2i8TlwJH9z9Epbljm4KF9Js/5b9qA6mZIHuL",
-	"pudl-theme.js":    "MVBsHKpekAHr+tn0bTWhvmuChc2GE0LuMgNXVtxFYU2ht0dMVHtSreaYuhhEb2my",
-	"pudl-windows.css": "a6Hk3ctcWCEH1a1w21ajWl1IJ6RtMngseAQgi5F0x0obYAeTOM3lEwFiONe5o/kn",
-	"pudl-windows.js":  "DqM9FWJUDZTv5dfaQoBPgKI5FfAqDQwxEcxwGpoIAu4OSh0CDtCnDXYpmr912Mz9",
+	"pudl.css":         "wJPwcc31mRd9i2pjWH2ukJR7tXTA7zmYE14iZEseCwwf9SHkeI9Kay9tUC2edQz4",
+	"pudl-theme.js":    "kd6cwrRNLEIY/49jBdC7mBi1fiFbf9DSlyMfmX61QgrtAc8YnUTEKkrBjKoBMgnY",
+	"pudl-windows.css": "sMQ+nDHIKGWKAfyU4gHQHOscemZ0YhkQ6ho9A1pjKhgkHK931swBJVUZuR64FzaY",
+	"pudl-windows.js":  "IfL3F3SRr/cFGmX/3Mb0y2aUUf6PF5+2kj7XhW5iFJ4+oMgapIklKsn9fW8QFFGg",
+	"pudl-md.js":       "R+2C7oJMfb6TgIkiIzIC5A2md8QUi6VdtylXHaX0E0M/np3H+psG8uQiL6t8KmEY",
+	"pudl-tabs.js":     "Bnebu3DUQ+3lBMS9y3BESL07D+fVrByQMR+pZObi+210lQHpb1CxPM6t4pXHzkM3",
+	"pudl-tooltip.js":  "gDMZmor2jCP7e6nGXHl+l4jF6vE/IBCXeyjSSZdhJTKyYoBU15XQSH0OunSZ0TGh",
 }
 
 // TestVendoredPUDLMatchesProvenance holds the embedded pudl directory to the
-// five files PROVENANCE lists, each with both of its listed hashes, and
-// PROVENANCE to the tag, the commit and the four values PUDL published.
+// eight files PROVENANCE lists, each with both of its listed hashes, and
+// PROVENANCE to the tag, the commit and the seven values PUDL published.
 func TestVendoredPUDLMatchesProvenance(t *testing.T) {
 	provenance, err := assetFiles.ReadFile("assets/pudl/PROVENANCE")
 	if err != nil {
 		t.Fatalf("read PROVENANCE: %v", err)
 	}
 	text := string(provenance)
-	for _, line := range []string{"tag v0.5.0", "commit f86222bb66fd5a92c97571d591fc35d7fc7b392d"} {
+	for _, line := range []string{"tag v0.19.1", "commit f9d2ada84a72c952ac0481abb7e324fcd26f86b3"} {
 		if !strings.Contains(text, line+"\n") {
 			t.Errorf("PROVENANCE does not carry %q", line)
 		}
@@ -69,8 +72,8 @@ func TestVendoredPUDLMatchesProvenance(t *testing.T) {
 		}
 	}
 	sort.Strings(files)
-	if strings.Join(files, " ") != "LICENSE pudl-theme.js pudl-windows.css pudl-windows.js pudl.css" || len(listed) != 5 {
-		t.Fatalf("the embedded pudl directory holds %v and PROVENANCE lists %d files, wanted the same five", files, len(listed))
+	if strings.Join(files, " ") != "LICENSE pudl-md.js pudl-tabs.js pudl-theme.js pudl-tooltip.js pudl-windows.css pudl-windows.js pudl.css" || len(listed) != 8 {
+		t.Fatalf("the embedded pudl directory holds %v and PROVENANCE lists %d files, wanted the same eight", files, len(listed))
 	}
 	for _, name := range files {
 		data, err := assetFiles.ReadFile("assets/pudl/" + name)

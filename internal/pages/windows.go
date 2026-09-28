@@ -17,7 +17,7 @@ type Placement struct {
 }
 
 // WindowState is the arrangement of windows a URL names, as pudl-windows.js
-// 0.5.0 keeps it: the open keys in opening order, the active key, the
+// 0.19.1 keeps it: the open keys in opening order, the active key, the
 // minimised set and each key's placement. Every function below mirrors the
 // script function of the same name, so the server draws the windows a URL
 // names and writes every window button as a link to the state it produces.

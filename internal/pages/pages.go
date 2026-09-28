@@ -142,6 +142,7 @@ type document struct {
 	Actor        string
 	Pane         string
 	Cursor       string
+	Sections     []sectionTab
 	Filter       string
 	Chip         *link
 	Tabs         []tab
@@ -160,23 +161,44 @@ type link struct {
 	Href, Text string
 }
 
+// sectionTab is one tab of the section bar. Current is the tab's
+// aria-current value: "page" on the section's own page, "true" on a page
+// inside the section, and empty on every other tab.
+type sectionTab struct {
+	Href, Text, Current string
+}
+
+// sections are the section bar's tabs: the section's name, its page and the
+// catalog key of its text.
+var sections = []struct{ name, href, key string }{
+	{"board", "/", "page.board"},
+	{"cards", "/cards", "page.cards"},
+	{"views", "/views", "page.views"},
+	{"log", "/commands", "page.log"},
+}
+
 // tab is one dock tab.
 type tab struct {
 	Key, Href, Text string
 	Min, Current    bool
 }
 
-// sidebarRow is one column row of the sidebar.
+// sidebarRow is one column row of the sidebar. Current is its link's
+// aria-current value: "page" on the column's own page, "true" on a card's
+// page in that column, and empty otherwise.
 type sidebarRow struct {
 	Slug, Title string
 	Count       int
-	Active      bool
+	Current     string
 }
 
 // page carries what a renderer adds to the common context.
 type page struct {
-	title        string
-	pane         string
+	title string
+	pane  string
+	// section names the section bar's tab the page belongs to, and the board
+	// when it is empty.
+	section      string
 	back         *link
 	activeColumn string
 	filter       string
@@ -196,7 +218,12 @@ func shell(c *Context, p page) ([]byte, error) {
 		doc.Title = c.R.T("page.title", "page", p.title, "workbench", doc.Workbench)
 	}
 	if doc.HasWorkbench {
-		doc.Sidebar = sidebar(c, status, p.activeColumn)
+		current := "true"
+		if p.kind == "column" {
+			current = "page"
+		}
+		doc.Sidebar = sidebar(c, status, p.activeColumn, current)
+		doc.Sections = sectionTabs(c, p.section)
 		doc.Windows = windows(c)
 		doc.Tabs = dock(c, doc.Windows)
 		doc.Log = c.Log
@@ -227,9 +254,29 @@ func columnOf(status statusPayload, value string) (statusColumn, bool) {
 	return statusColumn{}, false
 }
 
+// sectionTabs draws the section bar, marking the tab of the section a page
+// belongs to.
+func sectionTabs(c *Context, section string) []sectionTab {
+	if section == "" {
+		section = "board"
+	}
+	var tabs []sectionTab
+	for _, s := range sections {
+		tab := sectionTab{Href: s.href, Text: c.R.T(s.key)}
+		switch {
+		case s.name == section && c.Path == s.href:
+			tab.Current = "page"
+		case s.name == section:
+			tab.Current = "true"
+		}
+		tabs = append(tabs, tab)
+	}
+	return tabs
+}
+
 // sidebar draws one row per column group node under the default tree's root,
-// in the tree's order.
-func sidebar(c *Context, status statusPayload, active string) []sidebarRow {
+// in the tree's order, marking the active column's row with current.
+func sidebar(c *Context, status statusPayload, active, current string) []sidebarRow {
 	var tree treePayload
 	json.Unmarshal(c.Tree, &tree)
 	var rows []sidebarRow
@@ -241,7 +288,11 @@ func sidebar(c *Context, status statusPayload, active string) []sidebarRow {
 		if !ok {
 			continue
 		}
-		rows = append(rows, sidebarRow{Slug: column.address(), Title: column.Title, Count: node.Count, Active: active != "" && (column.ID == active || column.Slug == active)})
+		row := sidebarRow{Slug: column.address(), Title: column.Title, Count: node.Count}
+		if active != "" && (column.ID == active || column.Slug == active) {
+			row.Current = current
+		}
+		rows = append(rows, row)
 	}
 	return rows
 }
@@ -404,7 +455,7 @@ func Column(c *Context, column string, instructions []byte) ([]byte, error) {
 		detail.Badges = append(detail.Badges, badge{Class: "warn", Text: c.R.T("page.column.operator-owned")})
 	}
 	if found.TakesWorkUp {
-		detail.Badges = append(detail.Badges, badge{Class: "pr", Text: c.R.T("page.column.takes-work-up")})
+		detail.Badges = append(detail.Badges, badge{Class: "positive", Text: c.R.T("page.column.takes-work-up")})
 	}
 	if found.Capacity > 0 {
 		detail.Badges = append(detail.Badges, badge{Text: c.R.T("page.column.capacity", "capacity", strconv.Itoa(found.Capacity))})
@@ -460,7 +511,7 @@ func CardList(c *Context, payload []byte) ([]byte, error) {
 			detail.Rows = append(detail.Rows, rowOf(c, card))
 		}
 	}
-	return shell(c, page{title: c.R.T("page.cards"), pane: "detail", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "cards", detail: detail})
+	return shell(c, page{title: c.R.T("page.cards"), pane: "detail", section: "cards", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "cards", detail: detail})
 }
 
 // rowOf draws one card as a table row.
@@ -550,7 +601,7 @@ func Search(c *Context, payload []byte) ([]byte, error) {
 	var found searchPayload
 	json.Unmarshal(payload, &found)
 	detail := searchDetail{Phrase: c.Query.Get("phrase"), Query: c.Query.Get("query"), Hits: found.Results.Hits}
-	return shell(c, page{title: c.R.T("page.search"), pane: "detail", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "search", detail: detail})
+	return shell(c, page{title: c.R.T("page.search"), pane: "detail", section: "cards", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "search", detail: detail})
 }
 
 // Views renders /views: a link to each view the payload names.
@@ -561,7 +612,7 @@ func Views(c *Context, payload []byte) ([]byte, error) {
 	for _, v := range listed.Views {
 		links = append(links, link{Href: "/views/" + url.PathEscape(v.Name), Text: v.Title})
 	}
-	return shell(c, page{title: c.R.T("page.views"), pane: "detail", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "views", detail: links})
+	return shell(c, page{title: c.R.T("page.views"), pane: "detail", section: "views", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "views", detail: links})
 }
 
 // viewDetail is what one view's page draws.
@@ -600,7 +651,7 @@ func View(c *Context, payload []byte, refusal func(name, detail string, context 
 		}
 		detail.Sections = append(detail.Sections, sv)
 	}
-	return shell(c, page{title: drawn.View.Title, pane: "detail", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "view", detail: detail})
+	return shell(c, page{title: drawn.View.Title, pane: "detail", section: "views", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "view", detail: detail})
 }
 
 // lanesOfCards groups cards by column, in the status read's column order.
@@ -666,5 +717,5 @@ func ErrorPage(c *Context, refusal Refusal) ([]byte, error) {
 // CommandLog renders GET /commands: the whole log, newest first, under the
 // typed-line form.
 func CommandLog(c *Context) ([]byte, error) {
-	return shell(c, page{title: c.R.T("page.log"), pane: "detail", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "commands", detail: c.Log})
+	return shell(c, page{title: c.R.T("page.log"), pane: "detail", section: "log", back: back(c, "/", "", c.R.T("page.back.columns")), kind: "commands", detail: c.Log})
 }

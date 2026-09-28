@@ -42,6 +42,9 @@ type member struct {
 
 // sheet is what the card sheet draws.
 type sheet struct {
+	// ID prefixes the ids of the sheet's tabs and panels, so two sheets on
+	// one page write different ids.
+	ID                string
 	Ref, Title        string
 	State             badge
 	Chips             []string
@@ -88,7 +91,7 @@ func cardSheet(c *Context, show, instructions []byte, prefix string) (sheet, car
 	card := detail.Card
 	var served instructionsPayload
 	json.Unmarshal(instructions, &served)
-	s := sheet{Ref: card.Ref, Title: card.Title, Body: detail.Body}
+	s := sheet{ID: prefix, Ref: card.Ref, Title: card.Title, Body: detail.Body}
 
 	s.State = badge{Text: stateLabel(c, card.State)}
 	switch card.State {
@@ -143,7 +146,7 @@ func cardSheet(c *Context, show, instructions []byte, prefix string) (sheet, car
 		state := badge{Text: item.State}
 		switch item.State {
 		case "resolved", "verified":
-			state.Class = "pr"
+			state.Class = "positive"
 		case "failed":
 			state.Class = "danger"
 		}

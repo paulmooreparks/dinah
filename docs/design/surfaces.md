@@ -109,8 +109,9 @@ page and its JSON share one URL, every state the pages draw is a URL, and the
 pages use no client framework, which is the stack discipline of the hosted
 product. Every act on a page is a form posting to the act's own route, and no
 act needs script. The pages' one script of their own polls the changes route
-with its cursor and redraws what changed, and PUDL's windows script adds
-dragging to windows the server has already drawn. A card's forms are its
+with its cursor and redraws what changed, and PUDL's own scripts add
+dragging to windows the server has already drawn, tabs to a card's sheet and
+a divider that resizes the column list. A card's forms are its
 affordances. A page draws one form for each name the card's response carries
 and none for anything else, so an act the workbench would refuse is absent
 from the page as it is from every other surface. A card opens as a floating
