@@ -67,6 +67,8 @@ WORK
   restore <ref> [--archived]                             Put an archived entity back into the live set
   delete <ref> --yes [--force]                           Destroy an entity, along with its history
   accept-divergence <comment>                            Make a comment's edited body the record
+  redact <member> [--yes]                                Replace a comment's or an item's text with its
+                                                           digest, for good
   rename <ref> <name>                                    Rename an attachment
 
 READ
@@ -195,6 +197,7 @@ WORK
   restore <ref> [--archived]                                                                            Put an archived entity back into the live set
   delete <ref> --yes [--force]                                                                          Destroy an entity, along with its history
   accept-divergence <comment>                                                                           Make a comment's edited body the record
+  redact <member> [--yes]                                                                               Replace a comment's or an item's text with its digest, for good
   rename <ref> <name>                                                                                   Rename an attachment
 
 READ
@@ -560,11 +563,11 @@ func notedCommands(s *session) []string {
 // which is the documented behaviour of every wrap in this binary.
 func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 	// A sweep over no notes at all would pass whatever wrapNote did, so the
-	// count is pinned before the sweep runs. Nine commands carry a note
-	// today: check, resolve, verify, fail, reshape, unblock, serve,
+	// count is pinned before the sweep runs. Ten commands carry a note
+	// today: check, resolve, verify, fail, redact, reshape, unblock, serve,
 	// completion and tui.
-	if named := notedCommands(helpSession(80, "en")); len(named) != 9 {
-		t.Fatalf("wanted nine commands carrying a note, got %d: %v", len(named), named)
+	if named := notedCommands(helpSession(80, "en")); len(named) != 10 {
+		t.Fatalf("wanted ten commands carrying a note, got %d: %v", len(named), named)
 	}
 	for _, tag := range msg.Tags() {
 		for _, window := range helpSweepWindows() {

@@ -888,6 +888,23 @@ const (
 	// while its journal, which states the whole of it, reads. The detail is
 	// card.md's path, and dinah check --rebuild writes it back.
 	CardProjectionUnreadable = LayerPrefix + "card-projection-unreadable"
+	// NotRedactable is a dinah redact naming something other than a comment
+	// or a checklist item: a card, a column, a workstream, the workbench, an
+	// attachment or a payload. The detail is the reference as typed.
+	NotRedactable = LayerPrefix + "not-redactable"
+	// AlreadyRedacted is a dinah redact on a member whose journal already
+	// records a redaction of it. The detail is the member's identifier.
+	AlreadyRedacted = LayerPrefix + "already-redacted"
+	// TornSidecarPresent is a dinah redact on a journal beside which a
+	// torn-tail sidecar stands, or whose own tail is torn, since a
+	// quarantined fragment may hold the text and cannot be parsed to find
+	// it. The detail is the sidecar, or the journal whose tail is torn.
+	TornSidecarPresent = LayerPrefix + "torn-sidecar-present"
+	// Redacted is a write to the text of a member dinah redact replaced: a
+	// redacted comment's body, including accepting a divergence of it, or a
+	// redacted item's text. No command restores the text. The detail is the
+	// reference as typed.
+	Redacted = LayerPrefix + "redacted"
 	// UnknownRoute is a write naming a route the workbench does not declare.
 	// The sentence lists the routes it does declare, read off the workbench
 	// rather than written into a catalog, so a route declared later reaches
@@ -1002,6 +1019,7 @@ var Introduced = []string{
 	JournalUnlocked, JournalUnreadable, StoreFormatChanged, NotAFile,
 	BackupRequired, BackupInsideStore, BackupNotEmpty, BackupMismatch, BackupUnverified,
 	MigrationAwaitsCapabilities, NotADifference, StoragePrecondition, CardProjectionUnreadable,
+	NotRedactable, AlreadyRedacted, TornSidecarPresent, Redacted,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
@@ -1420,6 +1438,7 @@ var Events = []string{
 	EventLockReclaimed,
 	EventJournalTailTrimmed,
 	EventItemBaseline, EventCommentBaseline, EventCardBaseline, EventCardRebuilt,
+	EventRedacted,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

@@ -609,6 +609,7 @@ func TestTheOfferMatchesEveryAct(t *testing.T) {
 		contract.UnknownPath:     "the offer asks each item act only of an item, a removal only of a card and a divergence only of a comment",
 		contract.UnknownValue:    "the offer asks the grant verbs only of the permissions they know",
 		contract.Malformed:       "the offer asks the grant verbs only of a permission it names",
+		contract.Redacted:        "the offer asks a divergence only of a comment whose body diverged, and a redacted comment's recorded digest is the empty text's, so it never diverges",
 	}
 	hit, exempted := 0, 0
 	for _, name := range expected {

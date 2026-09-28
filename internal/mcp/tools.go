@@ -100,6 +100,7 @@ var tools = []tool{
 	{name: "restore", command: "restore"},
 	{name: "delete", command: "delete"},
 	{name: "accept_divergence", command: "accept-divergence"},
+	{name: "redact", command: "redact"},
 	{name: "rename", command: "rename"},
 	{name: "status", command: "status"},
 	{name: "list", command: "list"},
@@ -355,7 +356,7 @@ var stationMembers = []string{
 var operatorOnlyMembers = []string{
 	"unblock", "workbench", "new_column",
 	"status", "version", "export", "check",
-	"archive", "restore", "delete", "rename", "accept_divergence",
+	"archive", "restore", "delete", "rename", "accept_divergence", "redact",
 	"grant", "revoke",
 }
 

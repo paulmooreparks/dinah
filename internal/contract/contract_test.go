@@ -135,7 +135,8 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// journal_tail_trimmed for the repair of a torn journal tail, and to
 	// forty-four when the same card minted item_baseline, comment_baseline
 	// and card_baseline for the storage migration and card_rebuilt for the
-	// rebuild of a damaged card.md. Each of those paid the coordinated
+	// rebuild of a damaged card.md, and to forty-five when it minted
+	// redacted for dinah redact. Each of those paid the coordinated
 	// compat-fixture change this guard exists to make somebody notice.
 	//
 	// The designation conversion's own designations_migrated and the storage
@@ -144,8 +145,8 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// journal and never on a card's, so Events holds it out for the reason it
 	// holds out the three *_updated names, and EventNames is where it is
 	// counted.
-	if len(Events) != 44 {
-		t.Errorf("the event set carries %d names, and this build declares forty-four", len(Events))
+	if len(Events) != 45 {
+		t.Errorf("the event set carries %d names, and this build declares forty-five", len(Events))
 	}
 }
 

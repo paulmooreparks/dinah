@@ -59,6 +59,7 @@ var publishedProperties = map[string][]string{
 	"restore":           {"actor", "archived", "harness", "model", "provider", "ref", "server", "workbench"},
 	"delete":            {"actor", "force", "harness", "model", "provider", "ref", "server", "workbench", "yes"},
 	"accept_divergence": {"actor", "comment", "harness", "model", "provider", "server", "workbench"},
+	"redact":            {"actor", "harness", "member", "model", "provider", "server", "workbench", "yes"},
 	"rename":            {"actor", "harness", "model", "name", "provider", "ref", "server", "workbench"},
 	"status":            {"actor", "harness", "max-depth", "model", "provider", "root", "server", "workbench"},
 	"next_card":         {"actor", "column", "harness", "max-depth", "model", "provider", "root", "server", "workbench"},

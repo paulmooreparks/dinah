@@ -1238,6 +1238,13 @@ type CommentView struct {
 	// and a card's comments are bounded by that card, so the list costs
 	// what the one card costs rather than what a listing costs.
 	Attachments []AttachmentView `json:"attachments,omitempty"`
+	// Redacted reports a comment dinah redact replaced the text of, whose
+	// body, subject and size then describe the empty text.
+	Redacted bool `json:"redacted,omitempty"`
+	// Redaction is who redacted it and when, which the terminal prints in
+	// place of the body. It is not published, since Redacted already says
+	// what a machine reader needs and the journal says the rest.
+	Redaction *bench.Redaction `json:"-"`
 }
 
 // ItemView is one checklist item as a read reports it.
@@ -1315,6 +1322,9 @@ type ItemView struct {
 	// are reached through the item's own reference, which ItemDetail
 	// answers.
 	CommentCount int `json:"comment_count,omitempty"`
+	// Redacted reports an item dinah redact replaced the text of, whose
+	// text is then empty. Its state and resolution read as before.
+	Redacted bool `json:"redacted,omitempty"`
 }
 
 // DesignatedComment is the comment an item's resolution names, as the full
@@ -1354,6 +1364,11 @@ type ItemDetail struct {
 	Text string `json:"text"`
 	// Comments are the comments written on the item, in ordinal order.
 	Comments []CommentView `json:"comments,omitempty"`
+	// Redacted reports an item dinah redact replaced the text of.
+	Redacted bool `json:"redacted,omitempty"`
+	// Redaction is who redacted it and when, which the terminal prints in
+	// place of the text, and is not published.
+	Redaction *bench.Redaction `json:"-"`
 }
 
 // CommentListing is what list answers for a reference naming a comment
@@ -1739,7 +1754,35 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ItemDetail{Ref: ref, Text: text, Comments: comments}, nil
+	detail := &ItemDetail{Ref: ref, Text: text, Comments: comments}
+	if entity.Journaled {
+		redaction, err := l.Bench.MemberRedaction(entity)
+		if err != nil {
+			return nil, err
+		}
+		detail.Redacted, detail.Redaction = redaction != nil, redaction
+	}
+	return detail, nil
+}
+
+// RedactionOf answers who redacted the comment or item a show request names
+// and when, and nil for a member nobody redacted or a reference that names no
+// member, which is what the terminal reads to print the redaction in place of
+// a comment's body.
+func (l *Library) RedactionOf(req *Request) *bench.Redaction {
+	half := bench.LiveHalf
+	if req.Archived {
+		half = bench.ArchivedHalf
+	}
+	entity, err := l.Bench.ResolveEntityIn(half, req.Card)
+	if err != nil || !entity.Journaled {
+		return nil
+	}
+	redaction, err := l.Bench.MemberRedaction(entity)
+	if err != nil {
+		return nil
+	}
+	return redaction
 }
 
 // subjectCap is how many runes of a first line an index entry carries. It is
@@ -1809,6 +1852,9 @@ func (l *Library) commentViews(holder *bench.EntityRef, half bench.ResolutionHal
 			Subject: subjectOf(comment.Body),
 			Size:    len(comment.Body),
 			Body:    comment.Body,
+
+			Redacted:  comment.Redacted != nil,
+			Redaction: comment.Redacted,
 		}
 		// A comment's attachments compose their references against the
 		// comment's own address rather than the holder's, so a reference the
@@ -1933,6 +1979,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			Standing: item.Standing,
 			Evidence: item.Evidence,
 			Text:     item.Text,
+			Redacted: item.Redacted != nil,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		view.ResolutionID = item.Resolution
@@ -3199,6 +3246,20 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.RenumberedNumbers = true
 		report.RenumberedCards = append(report.RenumberedCards, renumbered...)
 		report.Findings = append(report.Findings, reported...)
+		if err != nil {
+			return report, err
+		}
+	}
+	// A journal.ndjson.redact a stopped dinah redact left is stale, since
+	// the journal beside it still holds the old content, and every check
+	// removes it under the journal's lock and reports it.
+	if l.Bench.CardUnit() {
+		actor := ""
+		if req != nil {
+			actor = req.Actor
+		}
+		leftovers, err := l.Bench.RedactLeftovers(actor, bench.Stamp(l.Now()))
+		report.Findings = append(report.Findings, leftovers...)
 		if err != nil {
 			return report, err
 		}

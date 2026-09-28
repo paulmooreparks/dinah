@@ -1244,9 +1244,19 @@ func (s *session) renderComments(comments []verb.CommentView) {
 	for _, comment := range comments {
 		size := strconv.Itoa(comment.Size)
 		fields := []string{comment.Ref, comment.TS, comment.Author, comment.Subject, size}
-		block.rows = append(block.rows, tableRow{fields: fields, note: wrapBodyText(comment.Body, s.width)})
+		note := wrapBodyText(comment.Body, s.width)
+		if comment.Redaction != nil {
+			note = s.redactionLine(comment.Redaction)
+		}
+		block.rows = append(block.rows, tableRow{fields: fields, note: note})
 	}
 	s.table(block)
+}
+
+// redactionLine is the line show prints in place of a redacted member's body
+// or text, naming who redacted it and when.
+func (s *session) redactionLine(redaction *bench.Redaction) string {
+	return s.r.T("show.redacted", "actor", redaction.By, "ts", redaction.At)
 }
 
 // renderItemDetail prints the item show answers for the item's own reference:
@@ -1254,6 +1264,9 @@ func (s *session) renderComments(comments []verb.CommentView) {
 // comments existed, then the item's comments where it carries any.
 func (s *session) renderItemDetail(item *verb.ItemDetail) {
 	s.write(wrapBodyText(item.Text, s.width))
+	if item.Redaction != nil {
+		s.line(s.redactionLine(item.Redaction))
+	}
 	if len(item.Comments) > 0 {
 		s.line("")
 		s.line(s.r.T("show.comments"))
@@ -1842,6 +1855,33 @@ func (s *session) renderStorageMigration(run *bench.StorageMigration) {
 	}
 	s.line(s.r.T("storage.done", "to", count(run.To)))
 	s.line(s.r.T("storage.stop-processes"))
+}
+
+// renderRedaction prints what dinah redact rewrote, or would rewrite: the
+// member and its journal, its own lines and the legacy answer lines counted
+// apart, the attachments it leaves readable, and what the redaction cannot
+// reach.
+func (s *session) renderRedaction(report *verb.RedactionReport) {
+	if report.LeftoverRemoved != "" {
+		s.line(s.r.T("redact.leftover", "path", report.LeftoverRemoved))
+	}
+	if report.Written {
+		s.line(s.r.T("redact.done", "member", report.Member, "journal", report.Journal))
+	} else {
+		s.line(s.r.T("redact.planned", "member", report.Member, "journal", report.Journal))
+	}
+	count := strconv.Itoa
+	s.line(s.r.T("redact.own", "count", count(report.OwnLines)))
+	s.line(s.r.T("redact.legacy", "count", count(report.LegacyLines)))
+	s.line(s.r.T("redact.lines", "count", count(report.Lines)))
+	if len(report.AttachmentsLeft) > 0 {
+		s.line(s.r.T("redact.attachments-left"))
+		for _, attachment := range report.AttachmentsLeft {
+			s.line(s.r.T("redact.attachment-left", "ref", attachment.Ref, "filename", attachment.Filename))
+		}
+		s.line(s.r.T("redact.attachments-note"))
+	}
+	s.line(s.r.T("redact.beyond-reach"))
 }
 
 // storageList prints a label counting a list and one row per entry.

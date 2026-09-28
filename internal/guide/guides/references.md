@@ -141,7 +141,7 @@ what you are about to type, and `dinah list --json` and `dinah list
 
 ## Which command takes what
 
-Twenty-one commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
+Twenty-two commands take a reference, and between them they accept six different sets of things. This table says what each one accepts:
 
 | Command      | A workbench | A column | A card | Below a card | A collection |
 |--------------|-------------|----------|--------|--------------|--------------|
@@ -166,10 +166,11 @@ Twenty-one commands take a reference, and between them they accept six different
 | withdraw     | no          | no       | no     | yes          | no           |
 | reopen       | no          | no       | no     | yes          | no           |
 | accept-divergence | no     | yes      | no     | yes          | no           |
+| redact       | no          | yes      | no     | yes          | no           |
 
 Ten commands take a workstream: `path`, `edit`, `get`, `set`, `attach`, `archive`, `restore`, `delete`, `list`, and `show`. The others refuse one, and the table leaves the workstream out rather than carrying a column for it, so this sentence is where that answer lives.
 
-Eleven of those rows carry a detail the table is too coarse to hold.
+Twelve of those rows carry a detail the table is too coarse to hold.
 `attach` takes a comment below a card, and it takes an attachment only
 with `--replace`, which replaces that attachment's bytes rather than
 hanging a new file below it. It takes nothing else below a card, so `dinah
@@ -183,7 +184,10 @@ wb/cards/1` is refused and `dinah list wb-1` is what you write.
 `dinah rename wb-1/comments/1` is refused. The checklist verbs `cite`,
 `resolve`, `verify`, `fail`, and `reopen` take a checklist item and nothing
 else below a card. `accept-divergence` takes a comment, which hangs below a
-column, below a card, or below one of a card's checklist items.
+column, below a card, or below one of a card's checklist items. `redact`
+takes a comment wherever it hangs, or a checklist item, and nothing else, and
+it also reaches an archived or a deleted one by its identifier under what held
+it, such as `wb-1/comments/9f2c4a1b7e30`.
 
 Each command's own help page carries the same answer for that one command,
 so run `dinah help attach` when you want it beside the arguments rather

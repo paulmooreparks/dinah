@@ -70,6 +70,10 @@
       "statement": "Somebody edited the text of comment wb-12/comments/3 in an editor rather than through Dinah, and the words they left there are the ones that should stand."
     },
     {
+      "tool": "redact",
+      "statement": "Comment wb-12/comments/4 quotes a customer's password, and as the workbench operator you want its text gone from the record for good, including every earlier version of it."
+    },
+    {
       "tool": "rename",
       "statement": "The file fastened to wb-12 carries the wrong filename, and I want that attachment given a different name."
     },

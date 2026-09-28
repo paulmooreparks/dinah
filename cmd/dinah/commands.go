@@ -82,6 +82,7 @@ func init() {
 		{name: "restore", group: groupWork, run: runRestore, bounded: 1, terminal: terminalDirect, actsOnCard: true},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1, terminal: terminalDirect, actsOnCard: true},
 		{name: "accept-divergence", group: groupWork, run: runAcceptDivergence, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "redact", group: groupWork, run: runRedact, bounded: 1, terminal: terminalDirect, actsOnCard: true},
 		{name: "rename", group: groupWork, run: runRename, bounded: 2, terminal: terminalDirect, actsOnCard: true},
 
 		{name: "status", group: groupRead, run: runStatus, terminal: terminalDirect, frequentRead: true},
@@ -605,6 +606,24 @@ func runAcceptDivergence(s *session, parsed *arguments) int {
 	})
 }
 
+// runRedact replaces the text one comment's or one item's journal lines carry
+// with its digest, or, without --yes, says what it would rewrite.
+func runRedact(s *session, parsed *arguments) int {
+	req := s.request("redact", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	return s.withBench(func(l *verb.Library) int {
+		report, err := l.Redact(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			return s.emitMachine(report)
+		}
+		s.renderRedaction(report)
+		return 0
+	})
+}
+
 // runArchive moves an entity out of the live set.
 func runArchive(s *session, parsed *arguments) int {
 	req := s.request("archive", parsed)
@@ -1082,6 +1101,11 @@ func runShow(s *session, parsed *arguments) int {
 		}
 		if detail == nil {
 			s.write(text)
+			// A redacted comment's composed anchor carries no body, and
+			// the line naming who redacted it stands where the body was.
+			if redaction := l.RedactionOf(req); redaction != nil && s.format == formatHuman {
+				s.line(s.redactionLine(redaction))
+			}
 			return 0
 		}
 		if s.format != formatHuman {

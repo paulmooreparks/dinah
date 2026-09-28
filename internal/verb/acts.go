@@ -52,6 +52,11 @@ type OfferedActs struct {
 	// as the reference the verb takes.
 	Divergences []string
 	Renames     []string
+	// Redactions are the card's own comments and its checklist items whose
+	// text dinah redact may replace, each as the reference it takes, which
+	// the operator alone is offered and only on a store in the card-unit
+	// layout.
+	Redactions []string
 	// Fields are the card's fields set may write, the built-in fields
 	// first in the order the format declares them, then the declared
 	// fields the workbench lets a card carry, in byte order.
@@ -429,6 +434,31 @@ func workstreamHandle(workstream *bench.Workstream) string {
 	return workstream.ID
 }
 
+// offerRedactions answers the card's own comments and its checklist items
+// whose text dinah redact would replace: none unless the request's owner is
+// the workbench operator on a store in the card-unit layout, and then every
+// live one not already redacted, by the reference the verb takes.
+func (l *Library) offerRedactions(req *Request, card *bench.Card, record *bench.CardRecord, offered *OfferedActs) {
+	if !l.Bench.CardUnit() || l.Bench.Migrating != "" || l.Bench.Operator == "" || req.Actor != l.Bench.Operator {
+		return
+	}
+	cardRef := card.Ref(l.Bench.Slug)
+	for _, comment := range record.CommentsOf("", bench.LiveHalf) {
+		position := record.Position(bench.MemberCollection{Kind: bench.KindComment}, bench.LiveHalf, comment.ID)
+		if comment.Redacted == nil && position > 0 {
+			offered.Redactions = append(offered.Redactions, commentRef(cardRef, position))
+		}
+	}
+	kindPosition := map[string]int{}
+	for _, item := range record.ItemsIn(bench.LiveHalf, "") {
+		kindPosition[item.Kind]++
+		position := record.Position(bench.MemberCollection{Kind: bench.KindItem}, bench.LiveHalf, item.ID)
+		if item.Redacted == nil {
+			offered.Redactions = append(offered.Redactions, itemRef(cardRef, item.Kind, kindPosition[item.Kind], position))
+		}
+	}
+}
+
 // offerMembers answers the card's comments whose edited body may be made the
 // record, through canAcceptDivergence, and its attachments that may be
 // renamed, through canRename, each by the reference the verb takes.
@@ -451,6 +481,7 @@ func (l *Library) offerMembers(req *Request, card *bench.Card, offered *OfferedA
 			offered.Divergences = append(offered.Divergences, ref)
 		}
 	}
+	l.offerRedactions(req, card, record, offered)
 	attachments, err := bench.Attachments(card.Dir)
 	if err != nil {
 		return err

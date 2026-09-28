@@ -738,6 +738,11 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	// A redacted member's text is gone for good, so a write of it is
+	// refused; its other fields stay writable.
+	if target.prose && redactedAnchor(entity, fm) {
+		return l.refuse(req, entity.Card, contract.Redacted, entity.Ref)
+	}
 	if entity.Kind == bench.KindComment {
 		if refused := l.admitCommentWrite(req, entity, fm, body); refused != nil {
 			return refused

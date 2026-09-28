@@ -6005,6 +6005,102 @@
       "text": "Rebuilt {count} card files from their journals.",
       "context": "The line the rebuild prints for what it wrote, for any other number, zero included. Followed by one line per rebuilt card identifier."
     },
+    "refusal.dinah.not-redactable": {
+      "text": "{detail} is not a comment or a checklist item, and dinah redact replaces the text of those alone.",
+      "context": "The sentence printed after the refusal name dinah.not-redactable. {detail} is the reference as the caller typed it, which reached a card, a column, a workstream, the workbench, an attachment or a payload. dinah redact is a command name and is not translated."
+    },
+    "refusal.dinah.not-redactable.next": {
+      "text": " Name a comment or an item, such as `dinah redact <card>/comments/1`; an attachment is removed with `dinah delete`.",
+      "context": "The next step of refusal.dinah.not-redactable. The two command lines are not translated; <card> is a placeholder the reader replaces with a card's reference."
+    },
+    "refusal.dinah.already-redacted": {
+      "text": "The text of {detail} was already redacted, and nothing restores it.",
+      "context": "The sentence printed after the refusal name dinah.already-redacted. {detail} is the member's identifier. A redaction replaces a comment's or an item's text with its digest for good, so a second one has nothing left to replace."
+    },
+    "refusal.dinah.torn-sidecar-present": {
+      "text": "{detail} holds a torn journal fragment, which may carry the text and cannot be read to find it.",
+      "context": "The sentence printed after the refusal name dinah.torn-sidecar-present. {detail} is the torn-tail sidecar standing beside the journal, or the journal itself where its last line is torn. A redaction would leave a copy of the text in the fragment, so it refuses until a person has dealt with it."
+    },
+    "refusal.dinah.torn-sidecar-present.next": {
+      "text": " Read the fragment, delete it by hand once nothing in it needs keeping, and run the redaction again.",
+      "context": "The next step of refusal.dinah.torn-sidecar-present. No command deletes a torn-tail fragment, because only a person can say it held nothing worth keeping."
+    },
+    "refusal.dinah.redacted": {
+      "text": "The text of {detail} was redacted, and no command writes it again.",
+      "context": "The sentence printed after the refusal name dinah.redacted, raised by a write to a redacted comment's body, by accepting a divergence of it, or by a write to a redacted item's text. {detail} is the reference as the caller typed it. The member's other fields stay writable."
+    },
+    "check.redact-leftover": {
+      "text": "a dinah redact that stopped before replacing its journal left {detail} behind, and the journal beside it still holds the old content; check removed it",
+      "context": "A check finding at cleanup severity: the file a stopped dinah redact composed a journal's new content in and never renamed over the journal. {detail} is that file's name. dinah check removes it, and nothing was lost, since the journal was never replaced. dinah redact is a command name and is not translated."
+    },
+    "param.redact.member.summary": {
+      "text": "the comment or checklist item whose text is replaced with its digest",
+      "context": "The meaning of the member argument of `dinah redact`, printed in that command's arguments table. The digest is the text's SHA-256."
+    },
+    "cmd.redact.summary": {
+      "text": "Replace a comment's or an item's text with its digest, for good",
+      "context": "The one-line summary of the redact command, printed in the command list and above its own help. The digest is the text's SHA-256."
+    },
+    "cmd.redact.note": {
+      "text": "Only the workbench operator may redact. Without --yes it says what it would rewrite and writes nothing. The digest names the removed text only to somebody who already holds it, but a short or guessable text can be recovered by trying candidates. Text that has already left the store, in an answer dinah changes delivered, a clone, git history or a migration backup, is beyond its reach, and a redacted comment's attachments stay until dinah delete removes them.",
+      "context": "The note printed under the redact command's own help, after its summary. It says who may run it, what the run without --yes does, what the digest does and does not protect, and what the redaction cannot reach. --yes, dinah changes and dinah delete are command vocabulary and are not translated."
+    },
+    "show.redacted": {
+      "text": "Redacted by {actor} at {ts}.",
+      "context": "The line show prints in place of a redacted comment's body or a redacted item's text. {actor} is the operator who ran dinah redact and {ts} the time of the redaction, as the journal records it."
+    },
+    "redact.leftover": {
+      "text": "Removed {path}, which a stopped dinah redact left behind.",
+      "context": "The first line of dinah redact's account where it found and removed the file an earlier run composed a journal in and never put in place. {path} is that file."
+    },
+    "redact.done": {
+      "text": "Redacted {member} in {journal}.",
+      "context": "The heading of dinah redact's account after it rewrote the lines. {member} is the reference as typed and {journal} the journal the lines stand in."
+    },
+    "redact.planned": {
+      "text": "Would redact {member} in {journal}; nothing was written, and --yes rewrites the lines.",
+      "context": "The heading of dinah redact's account when it ran without --yes and wrote nothing. {member} is the reference as typed and {journal} the journal the lines stand in. --yes is a flag and is not translated."
+    },
+    "redact.own": {
+      "text": "Its own lines: {count}",
+      "context": "A label and value in dinah redact's account: how many of the member's own journal lines carry its text."
+    },
+    "redact.legacy": {
+      "text": "Legacy answer lines: {count}",
+      "context": "A label and value in dinah redact's account: how many lines from before answers were comments carry a version of the member's text, as an item's note once did."
+    },
+    "redact.lines": {
+      "text": "Lines in all: {count}",
+      "context": "A label and value in dinah redact's account: the sum of the two counts above it, which the redacted line records."
+    },
+    "redact.attachments-left": {
+      "text": "Attachments left:",
+      "context": "The label above the attachments a redacted comment keeps, which the redaction does not touch."
+    },
+    "redact.attachment-left": {
+      "text": "{ref} ({filename})",
+      "context": "One attachment a redaction left in place, printed under redact.attachments-left. {ref} is the attachment's reference and {filename} its file's name; the line carries nothing to translate."
+    },
+    "redact.attachments-note": {
+      "text": "These attachments are still readable; remove them with dinah delete if they must go.",
+      "context": "The sentence under the attachments a redacted comment keeps. dinah delete is a command and is not translated."
+    },
+    "redact.beyond-reach": {
+      "text": "Text that has already left the store, in an answer dinah changes delivered, a clone, git history or a migration backup, is beyond this command's reach.",
+      "context": "The last line of dinah redact's account. dinah changes is a command and is not translated."
+    },
+    "interactive.menu.redact": {
+      "text": "comment or item whose text is replaced with its digest, for good:",
+      "context": "The title of the menu of a card's comments and items that dinah tui offers the workbench operator to redact. Choosing a row redacts at once, and nothing undoes it."
+    },
+    "interactive.actions.redact": {
+      "text": "redact a comment's or an item's text",
+      "context": "A row of dinah tui's actions menu, which replaces a comment's or an item's text with its digest for good."
+    },
+    "interactive.acted.redact": {
+      "text": "redacted a member of {ref}",
+      "context": "Shown in dinah tui's message row after a comment's or an item's text was redacted. {ref} is the card's reference."
+    },
     "check.comment-body-diverged": {
       "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all."

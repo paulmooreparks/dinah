@@ -551,6 +551,10 @@ type memberReplay struct {
 	// deleted, read off lines naming no member.
 	archivedColumns map[string]bool
 	deletedColumns  map[string]bool
+	// deleted are the members a deleted line removed, an item's comments
+	// with it, so a redacted line written afterwards is not read as naming a
+	// member the replay never established.
+	deleted map[string]bool
 	// onColumns are the comments that hang on a column rather than on a
 	// card or an item.
 	onColumns map[string]bool
@@ -738,6 +742,7 @@ func replayMembers(events []Event) *memberReplay {
 		named:           map[string]bool{},
 		archivedColumns: map[string]bool{},
 		deletedColumns:  map[string]bool{},
+		deleted:         map[string]bool{},
 		onColumns:       map[string]bool{},
 		keys:            map[string]*keyOrder{},
 	}
@@ -1095,15 +1100,18 @@ func (r *memberReplay) remove(i int, ev Event) {
 			return
 		}
 		delete(r.comments, ev.Comment)
+		r.deleted[ev.Comment] = true
 	case ev.Item != "":
 		if _, ok := r.items[ev.Item]; !ok {
 			r.unknown = append(r.unknown, i+1)
 			return
 		}
 		delete(r.items, ev.Item)
+		r.deleted[ev.Item] = true
 		for id, comment := range r.comments {
 			if comment.Holder == ev.Item {
 				delete(r.comments, id)
+				r.deleted[id] = true
 			}
 		}
 	case ev.Note != "":
@@ -1112,11 +1120,16 @@ func (r *memberReplay) remove(i int, ev Event) {
 }
 
 // redact records that a member's text was replaced by its digest: the text
-// reads empty, and the member says who redacted it and when.
+// reads empty, and the member says who redacted it and when. A member deleted
+// before its redaction is out of every read already, so its line changes
+// nothing.
 func (r *memberReplay) redact(i int, ev Event) {
 	switch ev.Kind {
 	case KindComment:
 		comment, ok := r.comments[ev.Comment]
+		if !ok && r.deleted[ev.Comment] {
+			return
+		}
 		if !ok {
 			r.unknown = append(r.unknown, i+1)
 			return
@@ -1126,6 +1139,9 @@ func (r *memberReplay) redact(i int, ev Event) {
 		comment.Redacted = &Redaction{By: ev.Actor.Name, At: ev.TS}
 	case KindItem:
 		item, ok := r.items[ev.Item]
+		if !ok && r.deleted[ev.Item] {
+			return
+		}
 		if !ok {
 			r.unknown = append(r.unknown, i+1)
 			return

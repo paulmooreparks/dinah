@@ -139,6 +139,8 @@ var referenceKinds = map[string][]ReferenceKind{
 	// below-card addresses and the third is a column's own, so the two
 	// kinds together are what a comment can be reached by.
 	"accept-divergence": {ReferenceKindColumn, ReferenceKindBelowCard},
+	// redact names a comment or an item, which the same two kinds reach.
+	"redact": {ReferenceKindColumn, ReferenceKindBelowCard},
 }
 
 // ArgumentMeaning composes one argument's written meaning: the sentence written

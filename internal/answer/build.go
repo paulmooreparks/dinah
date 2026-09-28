@@ -66,6 +66,10 @@ func assignValue(req *verb.Request, name, field, value string) {
 	// reason "item" does.
 	case "comment":
 		req.Ref = value
+	// redact names its target "member", because it takes a comment or an
+	// item and nothing else. It lands on the same field for the same reason.
+	case "member":
+		req.Ref = value
 	case "scheme":
 		req.Scheme = value
 	case "target":

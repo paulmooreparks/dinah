@@ -83,11 +83,17 @@ const (
 	// body. SeverityCleanup: the next write to the card witnesses it, and
 	// dinah check --witness witnesses every such card.
 	FindingCardProjectionDiverged = "check.card-projection-diverged"
-	FindingUnknownState           = "check.unknown-state"
-	FindingInterruptedAct         = "check.interrupted-act"
-	FindingEntityAtBothPaths      = "check.entity-at-both-paths"
-	FindingOrdinalMissing         = "check.ordinal-missing"
-	FindingOrdinalDuplicate       = "check.ordinal-duplicate"
+	// FindingRedactLeftover names a journal.ndjson.redact a dinah redact
+	// left beside a journal by stopping before it renamed the file over the
+	// journal, which holds the old content. Path is the leftover and Detail
+	// its file name; dinah check removes it. SeverityCleanup: nothing reads
+	// it.
+	FindingRedactLeftover    = "check.redact-leftover"
+	FindingUnknownState      = "check.unknown-state"
+	FindingInterruptedAct    = "check.interrupted-act"
+	FindingEntityAtBothPaths = "check.entity-at-both-paths"
+	FindingOrdinalMissing    = "check.ordinal-missing"
+	FindingOrdinalDuplicate  = "check.ordinal-duplicate"
 	// FindingUnarchivedDone names a card standing live in a done-kind
 	// column. A card that reaches such a column is archived immediately
 	// (dinah-634), so a live one found there is one of three things: the

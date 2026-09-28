@@ -54,6 +54,8 @@ WORK
                                               history
   accept-divergence <comment>               Make a comment's edited body the
                                               record
+  redact <member> [--yes]                   Replace a comment's or an item's
+                                              text with its digest, for good
   rename <ref> <name>                       Rename an attachment
 
 READ

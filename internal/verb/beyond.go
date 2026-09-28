@@ -1773,5 +1773,16 @@ func (l *Library) canAcceptDivergence(req *Request) (*bench.EntityRef, *Response
 	if entity.Kind != bench.KindComment {
 		return nil, l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
 	}
+	// A redacted comment's recorded digest is the empty text's, so it is
+	// never diverged and there is no body left to ratify.
+	if l.Bench.CardUnit() {
+		fm, _, err := l.Bench.MemberAnchor(entity)
+		if err != nil {
+			return nil, l.FromError(req, err)
+		}
+		if redactedAnchor(entity, fm) {
+			return nil, l.refuse(req, entity.Card, contract.Redacted, entity.Ref)
+		}
+	}
 	return entity, nil
 }

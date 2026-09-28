@@ -416,6 +416,7 @@ var guides = map[string][]string{
 	"attach":            {"references"},
 	"comment":           {"references"},
 	"accept-divergence": {"references"},
+	"redact":            {"references"},
 	"cite":              {"references"},
 	"resolve":           {"references"},
 	"verify":            {"references"},
@@ -639,6 +640,14 @@ var params = map[string][]Param{
 	},
 	"accept-divergence": {
 		{Name: "comment", Required: true, Guide: "references", Field: "Ref", Complete: CompleteItem},
+	},
+	// redact's confirmation is not required, since without it the command
+	// answers what it would rewrite and writes nothing, which is how the
+	// operator reads the account before committing to an act no command
+	// undoes.
+	"redact": {
+		{Name: "member", Required: true, Guide: "references", Field: "Ref", Complete: CompleteReference},
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
 	},
 	// rename writes its own sentence for ref rather than taking the shared
 	// one, because the shared sentence names a column, a card or anything

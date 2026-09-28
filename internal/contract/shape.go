@@ -1852,6 +1852,30 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.card-projection-unreadable.next"},
 	},
 	{
+		// The detail is the reference as typed.
+		Name:      NotRedactable,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-redactable.next"}},
+		NextStep:  []string{"refusal.dinah.not-redactable.next"},
+	},
+	{
+		// The detail is the member's identifier. No command restores a
+		// redacted text, so there is nothing to do again.
+		Name:   AlreadyRedacted,
+		NoNext: "the text is already gone and no command restores it, so there is nothing left to do to it",
+	},
+	{
+		// The detail is the sidecar, or the journal whose tail is torn,
+		// and the next step says to read and delete it first.
+		Name:      TornSidecarPresent,
+		Fragments: []Fragment{{Key: "refusal.dinah.torn-sidecar-present.next"}},
+		NextStep:  []string{"refusal.dinah.torn-sidecar-present.next"},
+	},
+	{
+		// The detail is the reference as typed.
+		Name:   Redacted,
+		NoNext: "the text is gone for good and no command writes it again; the member's other fields stay writable, which the sentence already says by naming the text alone",
+	},
+	{
 		// The detail is the reference as typed. The next step names the
 		// command that shows the member and the file that holds it.
 		Name:      NotAFile,

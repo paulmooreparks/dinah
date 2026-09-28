@@ -56,6 +56,7 @@ var runners = map[string]runner{
 	"restore":             func(l *verb.Library, r *verb.Request) any { return l.Restore(r) },
 	"delete":              func(l *verb.Library, r *verb.Request) any { return l.Delete(r) },
 	"accept-divergence":   func(l *verb.Library, r *verb.Request) any { return l.AcceptDivergence(r) },
+	"redact":              doRedact,
 	"rename":              func(l *verb.Library, r *verb.Request) any { return l.Rename(r) },
 	"status":              readStatus,
 	"list":                readList,
@@ -496,6 +497,24 @@ func readExport(l *verb.Library, r *verb.Request) any {
 // member added to CheckReport reaches the heads the day it is added, and the
 // omitempty each optional member declares is honoured here exactly as the
 // terminal honours it.
+// doRedact answers redact with its account, which is the same object whether
+// the run rewrote the lines or, without the confirmation, only counted them.
+func doRedact(l *verb.Library, r *verb.Request) any {
+	report, err := l.Redact(r)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		return l.FromError(r, err)
+	}
+	decoded := map[string]any{}
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		return l.FromError(r, err)
+	}
+	return Wrap(decoded, readAffordances)
+}
+
 func readCheck(l *verb.Library, r *verb.Request) any {
 	report, err := l.Check(r)
 	if err != nil {

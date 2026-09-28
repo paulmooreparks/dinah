@@ -418,6 +418,14 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 	if report, err := rebuilding.Check(rebuild); err != nil || len(report.RebuiltCards) != 1 {
 		t.Fatalf("%s: %v %+v", contract.EventCardRebuilt, err, report)
 	}
+	// The redaction's own line, which only a store in the card-unit layout
+	// admits.
+	redacting := acting("redact")
+	redacting.Ref = ref + "/comments/1"
+	redacting.Confirm = true
+	if _, err := rebuilding.Redact(redacting); err != nil {
+		t.Fatalf("%s: %v", contract.EventRedacted, err)
+	}
 
 	// One rule, read over every line of every journal the store holds.
 	families, lines := map[string]bool{}, 0

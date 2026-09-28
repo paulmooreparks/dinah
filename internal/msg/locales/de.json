@@ -7543,6 +7543,127 @@
       "context": "The line the rebuild prints for what it wrote, for any other number, zero included. Followed by one line per rebuilt card identifier.",
       "source": "24ba6920c427f10a"
     },
+    "refusal.dinah.not-redactable": {
+      "text": "{detail} ist weder ein Kommentar noch ein Checklistenpunkt, und dinah redact ersetzt nur deren Text.",
+      "context": "The sentence printed after the refusal name dinah.not-redactable. {detail} is the reference as the caller typed it, which reached a card, a column, a workstream, the workbench, an attachment or a payload. dinah redact is a command name and is not translated.",
+      "source": "e00740c3c342a846"
+    },
+    "refusal.dinah.not-redactable.next": {
+      "text": " Nenne einen Kommentar oder einen Punkt, etwa `dinah redact <card>/comments/1`; ein Anhang wird mit `dinah delete` entfernt.",
+      "context": "The next step of refusal.dinah.not-redactable. The two command lines are not translated; <card> is a placeholder the reader replaces with a card's reference.",
+      "source": "abcaaa8fc519cdb4"
+    },
+    "refusal.dinah.already-redacted": {
+      "text": "Der Text von {detail} wurde bereits geschwärzt, und nichts stellt ihn wieder her.",
+      "context": "The sentence printed after the refusal name dinah.already-redacted. {detail} is the member's identifier. A redaction replaces a comment's or an item's text with its digest for good, so a second one has nothing left to replace.",
+      "source": "37f59b9eef54da78"
+    },
+    "refusal.dinah.torn-sidecar-present": {
+      "text": "{detail} enthält ein abgerissenes Protokollfragment, das den Text enthalten kann und sich nicht lesen lässt, um ihn zu finden.",
+      "context": "The sentence printed after the refusal name dinah.torn-sidecar-present. {detail} is the torn-tail sidecar standing beside the journal, or the journal itself where its last line is torn. A redaction would leave a copy of the text in the fragment, so it refuses until a person has dealt with it.",
+      "source": "db32cafdc7011d98"
+    },
+    "refusal.dinah.torn-sidecar-present.next": {
+      "text": " Lies das Fragment, lösche es von Hand, sobald nichts darin aufbewahrt werden muss, und führe die Schwärzung erneut aus.",
+      "context": "The next step of refusal.dinah.torn-sidecar-present. No command deletes a torn-tail fragment, because only a person can say it held nothing worth keeping.",
+      "source": "789365f960b35004"
+    },
+    "refusal.dinah.redacted": {
+      "text": "Der Text von {detail} wurde geschwärzt, und kein Befehl schreibt ihn erneut.",
+      "context": "The sentence printed after the refusal name dinah.redacted, raised by a write to a redacted comment's body, by accepting a divergence of it, or by a write to a redacted item's text. {detail} is the reference as the caller typed it. The member's other fields stay writable.",
+      "source": "19cb9d4226858284"
+    },
+    "check.redact-leftover": {
+      "text": "ein dinah redact, das vor dem Ersetzen seines Protokolls anhielt, hat {detail} zurückgelassen, und das Protokoll daneben enthält noch den alten Inhalt; check hat es entfernt",
+      "context": "A check finding at cleanup severity: the file a stopped dinah redact composed a journal's new content in and never renamed over the journal. {detail} is that file's name. dinah check removes it, and nothing was lost, since the journal was never replaced. dinah redact is a command name and is not translated.",
+      "source": "e59c88739c15bf41"
+    },
+    "param.redact.member.summary": {
+      "text": "der Kommentar oder Checklistenpunkt, dessen Text durch seinen Hashwert ersetzt wird",
+      "context": "The meaning of the member argument of `dinah redact`, printed in that command's arguments table. The digest is the text's SHA-256.",
+      "source": "2b0617a78435974a"
+    },
+    "cmd.redact.summary": {
+      "text": "Den Text eines Kommentars oder Punkts endgültig durch seinen Hashwert ersetzen",
+      "context": "The one-line summary of the redact command, printed in the command list and above its own help. The digest is the text's SHA-256.",
+      "source": "13a4c6dc07c823fd"
+    },
+    "cmd.redact.note": {
+      "text": "Nur der Operator der Werkbank darf schwärzen. Ohne --yes nennt der Befehl, was er umschreiben würde, und schreibt nichts. Der Hashwert verrät den entfernten Text nur jemandem, der ihn bereits kennt, doch ein kurzer oder erratbarer Text lässt sich durch Ausprobieren zurückgewinnen. Text, der den Speicher bereits verlassen hat, in einer Antwort von dinah changes, einem Klon, der Git-Historie oder einer Migrationssicherung, liegt außerhalb seiner Reichweite, und die Anhänge eines geschwärzten Kommentars bleiben, bis dinah delete sie entfernt.",
+      "context": "The note printed under the redact command's own help, after its summary. It says who may run it, what the run without --yes does, what the digest does and does not protect, and what the redaction cannot reach. --yes, dinah changes and dinah delete are command vocabulary and are not translated.",
+      "source": "3e192b465d237877"
+    },
+    "show.redacted": {
+      "text": "Geschwärzt von {actor} am {ts}.",
+      "context": "The line show prints in place of a redacted comment's body or a redacted item's text. {actor} is the operator who ran dinah redact and {ts} the time of the redaction, as the journal records it.",
+      "source": "b9815f869a029d87"
+    },
+    "redact.leftover": {
+      "text": "{path} entfernt, das ein angehaltenes dinah redact zurückgelassen hatte.",
+      "context": "The first line of dinah redact's account where it found and removed the file an earlier run composed a journal in and never put in place. {path} is that file.",
+      "source": "265c1aa8dc198831"
+    },
+    "redact.done": {
+      "text": "{member} in {journal} geschwärzt.",
+      "context": "The heading of dinah redact's account after it rewrote the lines. {member} is the reference as typed and {journal} the journal the lines stand in.",
+      "source": "461dfc9e76f4fb2b"
+    },
+    "redact.planned": {
+      "text": "Würde {member} in {journal} schwärzen; nichts wurde geschrieben, und --yes schreibt die Zeilen um.",
+      "context": "The heading of dinah redact's account when it ran without --yes and wrote nothing. {member} is the reference as typed and {journal} the journal the lines stand in. --yes is a flag and is not translated.",
+      "source": "1653faebbdce53fe"
+    },
+    "redact.own": {
+      "text": "Eigene Zeilen: {count}",
+      "context": "A label and value in dinah redact's account: how many of the member's own journal lines carry its text.",
+      "source": "dc833efb74655e27"
+    },
+    "redact.legacy": {
+      "text": "Alte Antwortzeilen: {count}",
+      "context": "A label and value in dinah redact's account: how many lines from before answers were comments carry a version of the member's text, as an item's note once did.",
+      "source": "27f38e6cc77076ec"
+    },
+    "redact.lines": {
+      "text": "Zeilen insgesamt: {count}",
+      "context": "A label and value in dinah redact's account: the sum of the two counts above it, which the redacted line records.",
+      "source": "cbdb95338f6b5f95"
+    },
+    "redact.attachments-left": {
+      "text": "Verbliebene Anhänge:",
+      "context": "The label above the attachments a redacted comment keeps, which the redaction does not touch.",
+      "source": "f6bc2a9618dadcf0"
+    },
+    "redact.attachment-left": {
+      "text": "{ref} ({filename})",
+      "context": "One attachment a redaction left in place, printed under redact.attachments-left. {ref} is the attachment's reference and {filename} its file's name; the line carries nothing to translate.",
+      "verbatim": true,
+      "source": "784ca8c0cf5a3128"
+    },
+    "redact.attachments-note": {
+      "text": "Diese Anhänge sind weiterhin lesbar; entferne sie mit dinah delete, wenn sie weg müssen.",
+      "context": "The sentence under the attachments a redacted comment keeps. dinah delete is a command and is not translated.",
+      "source": "6478794b7f2820b4"
+    },
+    "redact.beyond-reach": {
+      "text": "Text, der den Speicher bereits verlassen hat, in einer Antwort von dinah changes, einem Klon, der Git-Historie oder einer Migrationssicherung, liegt außerhalb der Reichweite dieses Befehls.",
+      "context": "The last line of dinah redact's account. dinah changes is a command and is not translated.",
+      "source": "5f6c39197a6c5224"
+    },
+    "interactive.menu.redact": {
+      "text": "Kommentar oder Punkt, dessen Text endgültig durch seinen Hashwert ersetzt wird:",
+      "context": "The title of the menu of a card's comments and items that dinah tui offers the workbench operator to redact. Choosing a row redacts at once, and nothing undoes it.",
+      "source": "4ae323f00b4807cf"
+    },
+    "interactive.actions.redact": {
+      "text": "den Text eines Kommentars oder Punkts schwärzen",
+      "context": "A row of dinah tui's actions menu, which replaces a comment's or an item's text with its digest for good.",
+      "source": "c5f3836a16f1796c"
+    },
+    "interactive.acted.redact": {
+      "text": "ein Element von {ref} geschwärzt",
+      "context": "Shown in dinah tui's message row after a comment's or an item's text was redacted. {ref} is the card's reference.",
+      "source": "5b331946e23e45c"
+    },
     "check.comment-body-diverged": {
       "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

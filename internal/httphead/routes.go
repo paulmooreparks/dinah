@@ -434,6 +434,7 @@ var routeExemptions = map[string]exemption{
 	"restore":           {GroundLaterCard, laterCard},
 	"delete":            {GroundLaterCard, laterCard},
 	"accept-divergence": {GroundLaterCard, laterCard},
+	"redact":            {GroundLaterCard, laterCard},
 	"rename":            {GroundLaterCard, laterCard},
 	"guide":             {GroundLaterCard, laterCard},
 	"export":            {GroundLaterCard, laterCard},

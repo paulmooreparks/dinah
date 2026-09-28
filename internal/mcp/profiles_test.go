@@ -43,8 +43,8 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 	}
 
 	operator := namesOf(toolsFor(ProfileOperator))
-	if len(operator) != 44 {
-		t.Errorf("ProfileOperator carries %d tools, wanted 44: %v", len(operator), operator)
+	if len(operator) != 45 {
+		t.Errorf("ProfileOperator carries %d tools, wanted 45: %v", len(operator), operator)
 	}
 	wantOperator := append(append([]string{}, wantStation...), operatorOnlyMembers...)
 	sort.Strings(wantOperator)
@@ -55,8 +55,8 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 	all := namesOf(toolsFor(ProfileAll))
 	bare := namesOf(toolsFor(""))
 	registry := namesOf(tools)
-	if len(all) != 50 {
-		t.Errorf("ProfileAll carries %d tools, wanted 50: %v", len(all), all)
+	if len(all) != 51 {
+		t.Errorf("ProfileAll carries %d tools, wanted 51: %v", len(all), all)
 	}
 	if strings.Join(all, " ") != strings.Join(registry, " ") {
 		t.Errorf("ProfileAll is\n  %s\nand the unfiltered registry is\n  %s", strings.Join(all, " "), strings.Join(registry, " "))
@@ -128,7 +128,7 @@ func TestToolsListRespectsTheServedProfile(t *testing.T) {
 	}
 
 	operator := servedNames(t, askUnderProfile(t, library.Bench.Root, ProfileOperator, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
-	if len(operator) != 44 {
+	if len(operator) != 45 {
 		t.Errorf("tools/list under operator carried %d tools, wanted 44: %v", len(operator), operator)
 	}
 	wantOperator := namesOf(toolsFor(ProfileOperator))
