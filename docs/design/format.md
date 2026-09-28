@@ -1513,6 +1513,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `retirement_revoked` | | |
 | `designations_migrated` | | `cards`, the references of the cards whose claim the run passed, written by a forced run alone and absent from every other; a forced run that passed none writes the line carrying no card, so the flag is never a silent no-op |
 | `lock_reclaimed` | `note` (the dead lock's own record line) | `column`, the identifier of the column whose occupancy lock was reclaimed, written only on a line about a column's occupancy lock |
+| `spend` | `unit` (one lowercase word the caller chose), `column` and `column_title` (the column the work was performed in, as of the write) | `input`, `output`, `cached` and `total`, each a number that is not negative and each written only where the provider reported that figure, so the line says which shape its provider reports in; `unreported`, true only on a line whose harness reported no figure, which is never written beside a figure; `round`, the pass of the station the line belongs to, counted from one; `consumer_provider` and `consumer_model`, the provider and model that consumed what the line records, written only where they are not the actor's own; `note` |
 
 A `lock_reclaimed` line lands on the journal of the entity the reclaimed lock
 covered: a card's lock on that card's journal, a workstream's on the

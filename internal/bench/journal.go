@@ -210,6 +210,36 @@ type Event struct {
 	// wrong.
 	Scheme string `json:"scheme,omitempty"`
 	Target string `json:"target,omitempty"`
+	// Unit is the unit a spend line's figures are counted in, one lowercase
+	// word the caller chose, such as tokens, minutes or usd. A figure is
+	// never summed across units, because a token is not one unit across
+	// providers and a minute is not a token.
+	Unit string `json:"unit,omitempty"`
+	// Input, Output, Cached and Total are a spend line's figures, each
+	// carried only where the provider reported it, so the line says which
+	// shape its provider reports in: input and output apart, a cached share
+	// of the input apart from both, or one total. A pointer rather than a
+	// number, because a reported zero and an unreported figure are different
+	// facts and the encoding has to tell them apart.
+	Input  *float64 `json:"input,omitempty"`
+	Output *float64 `json:"output,omitempty"`
+	Cached *float64 `json:"cached,omitempty"`
+	Total  *float64 `json:"total,omitempty"`
+	// Unreported marks a spend line whose harness reported no figure at all,
+	// which is recorded as that fact rather than as a zero, so a sum over the
+	// station counts the lines it could not price.
+	Unreported bool `json:"unreported,omitempty"`
+	// Round is which pass of the same station a spend line belongs to,
+	// counted from one, so a resumed agent's second pass is its own line.
+	// Absent where the caller did not say.
+	Round int `json:"round,omitempty"`
+	// ConsumerProvider and ConsumerModel name the provider and model that
+	// consumed what a spend line records, written only where they are not the
+	// actor's own, which is the case when a dispatcher records for a subagent
+	// whose harness reports to the dispatcher alone. The actor block stays
+	// the recorder's, because the line says who wrote it as every line does.
+	ConsumerProvider string `json:"consumer_provider,omitempty"`
+	ConsumerModel    string `json:"consumer_model,omitempty"`
 	// Note is the human's free prose, unparseable by design.
 	Note string `json:"note,omitempty"`
 }

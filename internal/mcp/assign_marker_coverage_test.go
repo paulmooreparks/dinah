@@ -63,8 +63,8 @@ func TestAssignMarkerCoversEveryPublishedMarker(t *testing.T) {
 	}
 	sort.Strings(names)
 	t.Logf("%d tools walked, %d distinct markers swept: %v", walked, len(names), names)
-	if len(names) != 36 {
-		t.Fatalf("swept %d markers, wanted 36 (twenty-four already wired, plus migrate-designations, rehearse and force-claims from dinah-472, plus migrate-applies-when from dinah-590, plus file-standing and migrate-raw-lines from dinah-593, plus explain from dinah-602, plus plain and watch from dinah-288, plus migrate-schedule from dinah-605, plus migrate-holds from dinah-608, plus no-archive from dinah-634)", len(names))
+	if len(names) != 37 {
+		t.Fatalf("swept %d markers, wanted 37 (twenty-four already wired, plus migrate-designations, rehearse and force-claims from dinah-472, plus migrate-applies-when from dinah-590, plus file-standing and migrate-raw-lines from dinah-593, plus explain from dinah-602, plus plain and watch from dinah-288, plus migrate-schedule from dinah-605, plus migrate-holds from dinah-608, plus no-archive from dinah-634, plus unreported from dinah-647)", len(names))
 	}
 
 	// Each marker is exercised for real, through the builder itself, rather

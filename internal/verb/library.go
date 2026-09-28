@@ -243,6 +243,20 @@ type Request struct {
 	// two say different things: a note is what the check showed, and a
 	// reason is why a closed item is being opened again.
 	Note string
+	// Unit, Input, Output, Cached, Total, Unreported, By and Round are what
+	// spend takes: the unit its figures are counted in, the figures as the
+	// caller wrote them, the marker that the harness reported none, the
+	// consumer written provider/model, and the pass number. The figures and
+	// the round are carried as written and parsed inside Spend, for the
+	// reason Observed is.
+	Unit       string
+	Input      string
+	Output     string
+	Cached     string
+	Total      string
+	Unreported bool
+	By         string
+	Round      string
 	// File is the path an attachment's bytes are copied from.
 	File string
 	// Description is an attachment's optional description.

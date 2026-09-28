@@ -1,0 +1,55 @@
+{"ts":"2026-09-28T23:01:18Z","event":"created","actor":{"name":"sam"},"title":"first card","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-28T23:01:19Z","event":"commented","actor":{"name":"sam"},"comment":"60ed894a117f"}
+{"ts":"2026-09-28T23:01:19Z","event":"commented","actor":{"name":"sam"},"comment":"0e26608423c2"}
+{"ts":"2026-09-28T23:01:19Z","event":"archived","actor":{"name":"sam"},"note":"60ed894a117f"}
+{"ts":"2026-09-28T23:01:19Z","event":"attached","actor":{"name":"sam"},"attachment":"48af52048870","filename":"payload-one.txt"}
+{"ts":"2026-09-28T23:01:20Z","event":"attached","actor":{"name":"sam"},"attachment":"58d7f52444ef","filename":"payload-two.txt"}
+{"ts":"2026-09-28T23:01:20Z","event":"attachment_replaced","actor":{"name":"sam"},"attachment":"48af52048870","filename":"payload-two.txt"}
+{"ts":"2026-09-28T23:01:20Z","event":"attachment_removed","actor":{"name":"sam"},"attachment":"58d7f52444ef","filename":"payload-two.txt","note":"58d7f52444ef"}
+{"ts":"2026-09-28T23:01:20Z","event":"attached","actor":{"name":"sam"},"attachment":"61eb79d2d496","filename":"payload-three.txt"}
+{"ts":"2026-09-28T23:01:20Z","event":"archived","actor":{"name":"sam"},"note":"61eb79d2d496"}
+{"ts":"2026-09-28T23:01:20Z","event":"attached","actor":{"name":"sam"},"attachment":"22ac86eba931","filename":"payload-two.txt"}
+{"ts":"2026-09-28T23:01:20Z","event":"attachment_renamed","actor":{"name":"sam"},"from":"payload-two.txt","attachment":"48af52048870","filename":"renamed-payload.txt"}
+{"ts":"2026-09-28T23:01:22Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"3f9c17ade5b2","from_title":"Intake","to_title":"Review"}
+{"ts":"2026-09-28T23:01:22Z","event":"card_updated","actor":{"name":"sam"},"to":"apex","field":"tier"}
+{"ts":"2026-09-28T23:01:22Z","event":"tier_overridden","actor":{"name":"sam"},"to":"frontier","column":"7b5cfe51cb3b","expr":"frontier"}
+{"ts":"2026-09-28T23:01:22Z","event":"tier_overridden","actor":{"name":"sam"},"to":"apex","column":"3f9c17ade5b2","expr":"+1","against":"frontier"}
+{"ts":"2026-09-28T23:01:22Z","event":"tier_overridden","actor":{"name":"sam"},"from":"frontier","to":"apex","column":"7b5cfe51cb3b","expr":"apex"}
+{"ts":"2026-09-28T23:01:24Z","event":"card_updated","actor":{"name":"sam"},"to":"minor","field":"severity"}
+{"ts":"2026-09-28T23:01:25Z","event":"card_updated","actor":{"name":"sam"},"from":"minor","to":"major","field":"severity"}
+{"ts":"2026-09-28T23:01:25Z","event":"card_updated","actor":{"name":"sam"},"to":"now","field":"priority"}
+{"ts":"2026-09-28T23:01:26Z","event":"item_filed","actor":{"name":"sam"},"kind":"acceptance_criterion","item":"e0fcec1c0f1e"}
+{"ts":"2026-09-28T23:01:26Z","event":"item_filed","actor":{"name":"sam"},"kind":"open_question","item":"e8d00140552a"}
+{"ts":"2026-09-28T23:01:26Z","event":"item_filed","actor":{"name":"sam"},"kind":"decision","item":"fcd21df8fd89"}
+{"ts":"2026-09-28T23:01:26Z","event":"item_cited","actor":{"name":"sam"},"item":"e0fcec1c0f1e","scheme":"test","target":"internal/verb/mutate_test.go#TestTheCardLockCoversTheWholeTransaction"}
+{"ts":"2026-09-28T23:01:27Z","event":"spend","actor":{"name":"sam"},"column":"3f9c17ade5b2","column_title":"Review","unit":"tokens","input":1200,"output":300,"cached":200,"round":1,"consumer_provider":"openai","consumer_model":"gpt-5","note":"the first pass"}
+{"ts":"2026-09-28T23:01:27Z","event":"spend","actor":{"name":"sam"},"column":"3f9c17ade5b2","column_title":"Review","unit":"tokens","unreported":true,"round":2}
+{"ts":"2026-09-28T23:01:27Z","event":"commented","actor":{"name":"sam"},"comment":"d35058b8e57d","item":"e0fcec1c0f1e"}
+{"ts":"2026-09-28T23:01:27Z","event":"item_verified","actor":{"name":"sam"},"from":"pending","to":"verified","item":"e0fcec1c0f1e"}
+{"ts":"2026-09-28T23:01:27Z","event":"item_reopened","actor":{"name":"sam"},"from":"verified","to":"pending","reason":"the reviewer found the fixture predates the fix","item":"e0fcec1c0f1e"}
+{"ts":"2026-09-28T23:01:27Z","event":"commented","actor":{"name":"sam"},"comment":"497b09c7bbd6","item":"e0fcec1c0f1e"}
+{"ts":"2026-09-28T23:01:27Z","event":"item_failed","actor":{"name":"sam"},"from":"pending","to":"failed","item":"e0fcec1c0f1e"}
+{"ts":"2026-09-28T23:01:27Z","event":"commented","actor":{"name":"sam"},"comment":"8b8ae0b9b8e4","item":"e8d00140552a"}
+{"ts":"2026-09-28T23:01:27Z","event":"item_resolved","actor":{"name":"sam"},"from":"pending","to":"resolved","item":"e8d00140552a"}
+{"ts":"2026-09-28T23:01:27Z","event":"commented","actor":{"name":"sam"},"comment":"7806e2e50b4e","item":"fcd21df8fd89"}
+{"ts":"2026-09-28T23:01:27Z","event":"item_resolved","actor":{"name":"sam"},"from":"pending","to":"resolved","item":"fcd21df8fd89"}
+{"ts":"2026-09-28T23:01:27Z","event":"linked","actor":{"name":"sam"},"to":"3458290d5a11","kind":"duplicates"}
+{"ts":"2026-09-28T23:01:28Z","event":"linked","actor":{"name":"sam"},"to":"5df25135154f","kind":"relates"}
+{"ts":"2026-09-28T23:01:28Z","event":"linked","actor":{"name":"sam"},"to":"3458290d5a11","kind":"spawned_from"}
+{"ts":"2026-09-28T23:01:28Z","event":"unlinked","actor":{"name":"sam"},"to":"3458290d5a11","kind":"spawned_from"}
+{"ts":"2026-09-28T23:01:28Z","event":"commented","actor":{"name":"sam"},"comment":"922304911e37","item":"e8d00140552a"}
+{"ts":"2026-09-28T23:01:28Z","event":"item_updated","actor":{"name":"sam"},"from":"8b8ae0b9b8e4","to":"922304911e37","field":"resolution","note":"e8d00140552a"}
+{"ts":"2026-09-28T23:01:29Z","event":"commented","actor":{"name":"sam"},"comment":"9c96cbe9cebc"}
+{"ts":"2026-09-28T23:01:29Z","event":"archived","actor":{"name":"sam"},"note":"9c96cbe9cebc"}
+{"ts":"2026-09-28T23:01:29Z","event":"restored","actor":{"name":"sam"},"note":"9c96cbe9cebc"}
+{"ts":"2026-09-28T23:01:29Z","event":"item_filed","actor":{"name":"sam"},"kind":"acceptance_criterion","item":"7d50207af709"}
+{"ts":"2026-09-28T23:01:29Z","event":"commented","actor":{"name":"sam"},"comment":"6cc245e9bc6c","item":"7d50207af709"}
+{"ts":"2026-09-28T23:01:29Z","event":"item_waived","actor":{"name":"sam"},"from":"pending","to":"waived","item":"7d50207af709"}
+{"ts":"2026-09-28T23:01:29Z","event":"item_filed","actor":{"name":"sam"},"kind":"open_question","item":"876dbae572f8"}
+{"ts":"2026-09-28T23:01:29Z","event":"commented","actor":{"name":"sam"},"comment":"04ef736daff1","item":"876dbae572f8"}
+{"ts":"2026-09-28T23:01:29Z","event":"item_withdrawn","actor":{"name":"sam"},"from":"pending","to":"withdrawn","item":"876dbae572f8"}
+{"ts":"2026-09-28T23:01:30Z","event":"retirement_granted","actor":{"name":"sam"},"to":"3f9c17ade5b2"}
+{"ts":"2026-09-28T23:01:30Z","event":"retirement_revoked","actor":{"name":"sam"}}
+{"ts":"2026-09-28T23:01:30Z","event":"moved","actor":{"name":"sam"},"from":"3f9c17ade5b2","to":"7b5cfe51cb3b","from_title":"Review","to_title":"Doing, renamed","reshape":true}
+{"ts":"2026-09-28T23:01:30Z","event":"tier_override_dropped","actor":{"name":"sam"},"from":"apex","column":"3f9c17ade5b2"}
+{"ts":"2026-09-28T23:01:30Z","event":"item_filed","actor":{"name":"sam"},"kind":"decision","column":"7b5cfe51cb3b","column_title":"Doing, renamed","item":"e3385a9ea7de","standing":"handoff-posted"}

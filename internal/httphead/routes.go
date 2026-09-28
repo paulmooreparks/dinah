@@ -419,6 +419,7 @@ var routeExemptions = map[string]exemption{
 	"attach":            {GroundLaterCard, laterCard},
 	"file":              {GroundLaterCard, laterCard},
 	"cite":              {GroundLaterCard, laterCard},
+	"spend":             {GroundLaterCard, laterCard},
 	"resolve":           {GroundLaterCard, laterCard},
 	"verify":            {GroundLaterCard, laterCard},
 	"fail":              {GroundLaterCard, laterCard},

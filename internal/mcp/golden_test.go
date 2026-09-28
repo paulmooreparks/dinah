@@ -222,6 +222,11 @@ func goldenSequence(f *goldenFixture) []goldenCall {
 		{tool: "changes", kase: "later", arguments: actor(map[string]any{})},
 		{tool: "export", arguments: actor(map[string]any{})},
 		{tool: "check", arguments: actor(map[string]any{})},
+		// spend stands late in the sequence so that the goldens before it keep
+		// their numbers, since a golden's file name is its position; the card
+		// it records on is the one card the sequence never deletes.
+		{tool: "spend", arguments: actor(map[string]any{"card": "gd-1", "unit": "tokens", "input": "1200", "output": "300"})},
+		{tool: "spend", kase: "report", arguments: actor(map[string]any{"card": "gd-1"})},
 		{tool: "status", kase: "no-workbench", arguments: actor(map[string]any{"workbench": filepath.Join(f.base, "nowhere")})},
 	}
 }
