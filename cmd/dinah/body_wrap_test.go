@@ -37,7 +37,7 @@ func TestWrapBodyTextWrapsEachLine(t *testing.T) {
 		t.Fatalf("wrapped body:\n%s\nwant:\n%s", got, want)
 	}
 	for _, line := range strings.Split(got, "\n") {
-		if displayWidth(line) > 30 {
+		if len([]rune(line)) > 30 {
 			t.Errorf("line %q is wider than the window", line)
 		}
 	}
@@ -59,5 +59,15 @@ func TestWrapBodyTextKeepsCodeAndPipedText(t *testing.T) {
 	long := "words " + strings.Repeat("and more words ", 20)
 	if got := wrapBodyText(long, 0); got != long {
 		t.Errorf("an unknown window changed the body")
+	}
+}
+
+// A marker taking half the window or more is not hung under: the line wraps
+// from the window's edge instead.
+func TestWrapBodyTextDropsAWideHang(t *testing.T) {
+	got := wrapBodyText("            - words that run past the edge", 20)
+	want := "- words that run\npast the edge"
+	if got != want {
+		t.Errorf("wide marker wrapped as:\n%s\nwant:\n%s", got, want)
 	}
 }

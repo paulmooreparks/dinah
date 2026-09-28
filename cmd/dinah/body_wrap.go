@@ -51,20 +51,27 @@ func wrapBodyText(text string, width int) string {
 // as written, the words after it are broken to the room the marker leaves,
 // and every continuation is indented to the marker's width. A line that fits
 // and a line whose leading spaces make it indented code come back unchanged.
+//
+// The marker's width is its byte length, which is exact because bodyMarker
+// matches nothing but ASCII; the words themselves are measured by breakWords,
+// the renderer's one measure.
 func wrapBodyLine(line string, width int) []string {
-	if displayWidth(line) <= width {
-		return []string{line}
-	}
 	marker := bodyMarker.FindString(line)
 	rest := line[len(marker):]
 	if strings.TrimSpace(marker) == "" && guideIsIndentedCode(line) {
 		return []string{line}
 	}
-	hang := displayWidth(marker)
+	hang := len(marker)
 	if hang >= width/2 {
 		// A marker taking half the window leaves too little room to be worth
 		// hanging under, so the continuations start at the edge instead.
 		marker, rest, hang = "", strings.TrimSpace(line), 0
 	}
-	return strings.Split(marker+breakWords(rest, hang, width-hang), "\n")
+	wrapped := strings.Split(marker+breakWords(rest, hang, width-hang), "\n")
+	if len(wrapped) == 1 {
+		// A line that fits is kept as its author spaced it, rather than
+		// with its runs of spaces closed up the way breakWords joins words.
+		return []string{line}
+	}
+	return wrapped
 }
