@@ -154,6 +154,37 @@ jobs:
             exit 1
           fi
 
+  # The completion callback's timing checks (dinah-646), the wall-clock
+  # ceiling and the paired margins over the reads it cannot avoid, on the same
+  # rationale as the read budgets above: a timing measured while `go test
+  # ./...` runs every other package in parallel measures the runner's
+  # contention, not the callback, and that is what made both miss on a busy
+  # macOS runner with nothing slower in the callback itself. macOS is the
+  # platform because that is the runner they were measured against and missed
+  # on; the completion paths they exercise are not OS-specific the way the
+  # read budgets above are. With DINAH_PERF unset, everywhere else this test
+  # runs, both timing checks are skipped and only its functional check runs.
+  completion-budget:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: Completion callback budget
+        shell: bash
+        env:
+          DINAH_PERF: ci
+        run: |
+          go test -count=1 -timeout 8m -run '^TestTheCallbackStaysInsideItsBudget$' -v ./cmd/dinah | tee "$RUNNER_TEMP/completion-budget.log"
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
+          if ! grep -q '^--- PASS: TestTheCallbackStaysInsideItsBudget' "$RUNNER_TEMP/completion-budget.log"; then
+            echo "::error::TestTheCallbackStaysInsideItsBudget did not report a pass; it skipped or did not run."
+            exit 1
+          fi
+
   # zsh and fish are not on an Ubuntu runner until they are installed, and this
   # is the one leg that tests both (dinah-601). The test fails rather than
   # skips when a shell COMPLETION_REQUIRE_SHELLS names is missing.
