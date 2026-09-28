@@ -70,8 +70,12 @@ func TestRedactAtTheTerminal(t *testing.T) {
 	if done.code != 0 {
 		t.Fatalf("redact --yes: %d %s", done.code, done.errw)
 	}
+	// The removed file is matched by its name rather than its whole path,
+	// because a temporary directory reaches the binary through whatever
+	// spelling of it the platform resolves, which on macOS is /private/var.
 	for _, want := range []string{
-		"Removed " + leftover,
+		"Removed ",
+		filepath.Base(leftover) + ", which a stopped dinah redact left behind.",
 		"Redacted fx-1/comments/1",
 		"Attachments left:",
 		"fx-1/comments/1/attachments/1 (first.txt)",
