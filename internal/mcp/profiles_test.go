@@ -21,21 +21,22 @@ func namesOf(list []tool) []string {
 }
 
 // TestProfileMembershipByNameAndCount pins dinah-544's three profiles: the
-// thirty station tools (dinah-573 adds prime, dinah-582 adds workstream,
-// dinah-600 adds view), the forty-four operator tools (station's thirty plus
-// fourteen), and that ProfileAll and the empty string (what every existing
-// call site now passes) both answer the whole registry, unfiltered, at fifty.
+// thirty-one station tools (dinah-573 adds prime, dinah-582 adds workstream,
+// dinah-600 adds view, dinah-647 adds spend), the forty-five operator tools
+// (station's thirty-one plus fourteen), and that ProfileAll and the empty
+// string (what every existing call site now passes) both answer the whole
+// registry, unfiltered, at fifty-one.
 func TestProfileMembershipByNameAndCount(t *testing.T) {
 	station := namesOf(toolsFor(ProfileStation))
-	if len(station) != 30 {
-		t.Errorf("ProfileStation carries %d tools, wanted 30: %v", len(station), station)
+	if len(station) != 31 {
+		t.Errorf("ProfileStation carries %d tools, wanted 31: %v", len(station), station)
 	}
 	wantStation := []string{
 		"add_card", "attach", "block", "cite_item", "claim", "comment",
 		"changes", "file_item", "get_field", "instructions", "join_workstream",
 		"leave_workstream", "link_card", "list", "move", "next_card",
 		"prime", "pull", "query", "raise", "release", "search_cards", "set_field",
-		"settle", "show", "tree", "unlink_card", "view", "whoami", "workstream",
+		"settle", "show", "spend", "tree", "unlink_card", "view", "whoami", "workstream",
 	}
 	sort.Strings(wantStation)
 	if got := strings.Join(station, " "); got != strings.Join(wantStation, " ") {
@@ -43,8 +44,8 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 	}
 
 	operator := namesOf(toolsFor(ProfileOperator))
-	if len(operator) != 44 {
-		t.Errorf("ProfileOperator carries %d tools, wanted 44: %v", len(operator), operator)
+	if len(operator) != 45 {
+		t.Errorf("ProfileOperator carries %d tools, wanted 45: %v", len(operator), operator)
 	}
 	wantOperator := append(append([]string{}, wantStation...), operatorOnlyMembers...)
 	sort.Strings(wantOperator)
@@ -55,8 +56,8 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 	all := namesOf(toolsFor(ProfileAll))
 	bare := namesOf(toolsFor(""))
 	registry := namesOf(tools)
-	if len(all) != 50 {
-		t.Errorf("ProfileAll carries %d tools, wanted 50: %v", len(all), all)
+	if len(all) != 51 {
+		t.Errorf("ProfileAll carries %d tools, wanted 51: %v", len(all), all)
 	}
 	if strings.Join(all, " ") != strings.Join(registry, " ") {
 		t.Errorf("ProfileAll is\n  %s\nand the unfiltered registry is\n  %s", strings.Join(all, " "), strings.Join(registry, " "))
@@ -112,15 +113,15 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 }
 
 // TestToolsListRespectsTheServedProfile asserts that a connection served
-// under ProfileStation sees exactly the thirty station tools over
+// under ProfileStation sees exactly the thirty-one station tools over
 // tools/list, and one served under ProfileOperator sees exactly the
-// forty-four.
+// forty-five.
 func TestToolsListRespectsTheServedProfile(t *testing.T) {
 	library := newLibrary(t)
 
 	station := servedNames(t, askUnderProfile(t, library.Bench.Root, ProfileStation, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
-	if len(station) != 30 {
-		t.Errorf("tools/list under station carried %d tools, wanted 30: %v", len(station), station)
+	if len(station) != 31 {
+		t.Errorf("tools/list under station carried %d tools, wanted 31: %v", len(station), station)
 	}
 	wantStation := namesOf(toolsFor(ProfileStation))
 	if got := strings.Join(station, " "); got != strings.Join(wantStation, " ") {
@@ -128,8 +129,8 @@ func TestToolsListRespectsTheServedProfile(t *testing.T) {
 	}
 
 	operator := servedNames(t, askUnderProfile(t, library.Bench.Root, ProfileOperator, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
-	if len(operator) != 44 {
-		t.Errorf("tools/list under operator carried %d tools, wanted 44: %v", len(operator), operator)
+	if len(operator) != 45 {
+		t.Errorf("tools/list under operator carried %d tools, wanted 45: %v", len(operator), operator)
 	}
 	wantOperator := namesOf(toolsFor(ProfileOperator))
 	if got := strings.Join(operator, " "); got != strings.Join(wantOperator, " ") {

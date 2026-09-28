@@ -26,6 +26,11 @@ WORK
     [--column <column>] [--owner <owner>]
   cite <item> <scheme> <target>             Cite evidence on a checklist item
     [--observed <before:after>]
+  spend [card] [unit] [--input <n>]         Record what a station spent on a
+    [--output <n>] [--cached <n>]             card, or read what was spent
+    [--total <n>] [--unreported]
+    [--by <provider/model>] [--round <n>]
+    [--column <column>] [--note <text>]
   resolve <item> [comment]                  Resolve an open question or a
     [--text <text|->]                         decision
   verify <item> [comment]                   Record an acceptance criterion as

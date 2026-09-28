@@ -61,6 +61,9 @@ type sweptRecord struct {
 	// checklist are the checklist items the checklist fixture typed into
 	// files, in the order it wrote them.
 	checklist []sweptItemRecord
+	// spend are the spend lines the spend fixture recorded, in the order it
+	// wrote them, which is the order the records block draws them in.
+	spend []sweptSpendRecord
 	// searchHits are the hits the search fixture planted, which is what the
 	// search block's own expectation is built from.
 	searchHits []sweptSearchRecord
@@ -1372,6 +1375,141 @@ func expectAttachments(t *testing.T, r *sweptRecord, tag string) sweptExpectatio
 		rows = append(rows, sweptTexts(ref, filenames[i], attachment.description))
 	}
 	return sweptExpectation{rows: rows, source: "the record's attachments, with renames applied"}
+}
+
+// sweptSpendRecord is one spend line the spend fixture recorded through
+// `dinah spend`: the card, the recorder, the unit, the figures as typed,
+// whether the line was unreported, the round, and the consumer as the by flag
+// took it. A figure the fixture did not type is the empty string, which is
+// what the block draws for a figure the line does not carry.
+type sweptSpendRecord struct {
+	card, actor, unit            string
+	input, output, cached, total string
+	unreported                   bool
+	round, by                    string
+}
+
+// sweptSpendCell is what the spend blocks draw for a value the fixture did not
+// type, which is the renderer's absent glyph rather than an empty cell.
+func sweptSpendCell(typed string) string {
+	if typed == "" {
+		return spendAbsent
+	}
+	return typed
+}
+
+// sweptSpendFigures composes the folded figures cell the way the renderer
+// composes it, from figures typed as text: each figure the line carries under
+// its flag word, then the marker and the round, joined by commas, and the
+// absent glyph where a line carries none.
+func sweptSpendFigures(input, output, cached, total string, unreported bool, round string) string {
+	var parts []string
+	for _, figure := range []struct{ word, typed string }{
+		{"input", input}, {"output", output}, {"cached", cached}, {"total", total},
+	} {
+		if figure.typed != "" {
+			parts = append(parts, figure.word+" "+figure.typed)
+		}
+	}
+	if unreported {
+		parts = append(parts, "unreported")
+	}
+	if round != "" {
+		parts = append(parts, "round "+round)
+	}
+	if len(parts) == 0 {
+		return spendAbsent
+	}
+	return strings.Join(parts, ", ")
+}
+
+// expectSpendRecords is the records block of `dinah spend <card>`: one row per
+// line the fixture recorded, in the order it recorded them, with the stamp
+// column opaque. The consumer column draws the by flag's own spelling and the
+// absent glyph where the line named none, the column is the card's own, which
+// is the first column of the tree the fixture filed it at, and the figures
+// are folded as the renderer folds them.
+func expectSpendRecords(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	var rows [][]sweptCell
+	for _, line := range r.spend {
+		rows = append(rows, sweptTexts("", r.columns[0].title, sweptSpendCell(line.by), line.unit,
+			sweptSpendFigures(line.input, line.output, line.cached, line.total, line.unreported, line.round)))
+	}
+	opaque, why := sweptStampColumn(0, "a spend line's stamp is the moment the fixture ran, which the fixture cannot know before it runs")
+	return sweptExpectation{
+		rows:         rows,
+		source:       "the record's spend lines",
+		opaque:       opaque,
+		opaqueReason: why,
+	}
+}
+
+// expectSpendTotals is the totals block of `dinah spend <card>`: one row per
+// column, consumer and unit the fixture's lines share, in the order the
+// renderer sorts them, which puts the recorder's own consumer, an empty
+// provider and model drawn as the absent glyph, ahead of the named one. The
+// sums are composed here by the same rule the verb sums by, a figure present
+// where any line of the group carried it and absent otherwise, so a total
+// that printed a zero for an absent figure would fail the row.
+func expectSpendTotals(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
+	t.Helper()
+	type key struct{ by, unit string }
+	type total struct {
+		input, output, cached, total             float64
+		hasInput, hasOutput, hasCached, hasTotal bool
+		records, unreported                      int
+	}
+	order := []key{}
+	sums := map[key]*total{}
+	for _, line := range r.spend {
+		k := key{line.by, line.unit}
+		if _, seen := sums[k]; !seen {
+			sums[k] = &total{}
+			order = append(order, k)
+		}
+		sum := sums[k]
+		sum.records++
+		if line.unreported {
+			sum.unreported++
+		}
+		add := func(written string, into *float64, has *bool) {
+			if written == "" {
+				return
+			}
+			value, err := strconv.ParseFloat(written, 64)
+			if err != nil {
+				t.Fatalf("the fixture typed the figure %q, which is not a number", written)
+			}
+			*into += value
+			*has = true
+		}
+		add(line.input, &sum.input, &sum.hasInput)
+		add(line.output, &sum.output, &sum.hasOutput)
+		add(line.cached, &sum.cached, &sum.hasCached)
+		add(line.total, &sum.total, &sum.hasTotal)
+	}
+	sort.SliceStable(order, func(i, j int) bool {
+		if order[i].by != order[j].by {
+			return order[i].by < order[j].by
+		}
+		return order[i].unit < order[j].unit
+	})
+	cell := func(value float64, has bool) string {
+		if !has {
+			return ""
+		}
+		return strconv.FormatFloat(value, 'f', -1, 64)
+	}
+	var rows [][]sweptCell
+	for _, k := range order {
+		sum := sums[k]
+		counted := msg.For(tag).T("spend.counted", "records", strconv.Itoa(sum.records), "unreported", strconv.Itoa(sum.unreported))
+		figures := sweptSpendFigures(cell(sum.input, sum.hasInput), cell(sum.output, sum.hasOutput),
+			cell(sum.cached, sum.hasCached), cell(sum.total, sum.hasTotal), false, "")
+		rows = append(rows, sweptTexts(r.columns[0].title, sweptSpendCell(k.by), k.unit, figures+"; "+counted))
+	}
+	return sweptExpectation{rows: rows, source: "the record's spend lines, summed by consumer and unit"}
 }
 
 // expectHistory is dinah log against the held card: the card's own creation

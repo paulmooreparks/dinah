@@ -237,10 +237,13 @@ func TestNoOwnerGuardsEveryMutatingVerb(t *testing.T) {
 			_, err := h.library.Check(&Request{Verb: "check", MigrateSlugs: true})
 			return fromError(err)
 		},
+		"spend": func() (string, string) {
+			return fromResponse(h.library.Spend(&Request{Verb: "spend", Card: card, Unit: "tokens", Total: "1"}))
+		},
 	}
 
-	if len(historyWriters) != 30 {
-		t.Fatalf("historyWriters carries %d names, wanted 30; this test's own driver table needs updating alongside it", len(historyWriters))
+	if len(historyWriters) != 31 {
+		t.Fatalf("historyWriters carries %d names, wanted 31; this test's own driver table needs updating alongside it", len(historyWriters))
 	}
 	driven := 0
 	for name := range historyWriters {

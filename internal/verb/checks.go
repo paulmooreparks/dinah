@@ -248,7 +248,7 @@ var historyWriters = map[string]bool{
 	"restore": true, "delete": true, "rename": true, "workstream": true,
 	"set": true, "column": true, "file": true, "resolve": true, "verify": true,
 	"fail": true, "reopen": true, "cite": true, "link": true, "unlink": true,
-	"reshape": true, "check": true, "settle": true,
+	"reshape": true, "check": true, "settle": true, "spend": true,
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -282,6 +282,21 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.NoOwner, Key: "check.comment.2"},
 		{Refusal: contract.NotCommentable, Key: "check.comment.5"},
 		{Refusal: contract.Malformed, Key: "check.comment.3"},
+	},
+	// spend's rows are its record's alone. The report it answers when the
+	// call carries no unit and no figure refuses only over a card that does
+	// not exist, which is the first row.
+	"spend": {
+		{Refusal: contract.UnknownCard, Key: "check.spend.1"},
+		{Refusal: contract.NoOwner, Key: "check.spend.2"},
+		// The four malformed rows are read in the order Spend checks them,
+		// and the column row runs last, which is why its key is the fourth:
+		// a key number is a catalog key here and not a printed position.
+		{Refusal: contract.Malformed, Key: "check.spend.3"},
+		{Refusal: contract.Malformed, Key: "check.spend.5"},
+		{Refusal: contract.Malformed, Key: "check.spend.6"},
+		{Refusal: contract.Malformed, Key: "check.spend.7"},
+		{Refusal: contract.UnknownColumn, Key: "check.spend.4"},
 	},
 	"attach": {
 		{Refusal: contract.UnknownPath, Key: "check.attach.1"},

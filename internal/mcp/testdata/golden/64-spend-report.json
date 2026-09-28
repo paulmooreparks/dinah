@@ -1,0 +1,28 @@
+{
+  "card": "gd-1",
+  "records": [
+    {
+      "ts": "<ts>",
+      "actor": "alka",
+      "provider": "golden-provider",
+      "model": "golden-model",
+      "unit": "tokens",
+      "input": 1200,
+      "output": 300,
+      "column": "<id-1>",
+      "column_title": "Review"
+    }
+  ],
+  "totals": [
+    {
+      "column": "<id-1>",
+      "column_title": "Review",
+      "provider": "golden-provider",
+      "model": "golden-model",
+      "unit": "tokens",
+      "input": 1200,
+      "output": 300,
+      "records": 1
+    }
+  ]
+}

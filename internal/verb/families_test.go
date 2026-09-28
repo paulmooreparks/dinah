@@ -181,6 +181,14 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 			req.CiteTarget = "somewhere"
 			return h.library.Cite(req)
 		}},
+		{contract.EventSpend, func() *Response {
+			req := acting("spend")
+			req.Card = ref
+			req.Unit = "tokens"
+			req.Input = "1200"
+			req.Output = "300"
+			return h.library.Spend(req)
+		}},
 		{contract.EventItemResolved, func() *Response {
 			req := acting("resolve")
 			req.Ref = ref + "/decisions/1"

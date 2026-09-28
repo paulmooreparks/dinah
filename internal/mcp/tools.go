@@ -85,6 +85,7 @@ var tools = []tool{
 	{name: "attach", command: "attach"},
 	{name: "file_item", command: "file"},
 	{name: "cite_item", command: "cite"},
+	{name: "spend", command: "spend"},
 	{name: "resolve_item", command: "resolve"},
 	{name: "verify_item", command: "verify"},
 	{name: "fail_item", command: "fail"},
@@ -332,7 +333,7 @@ func indexTools() map[string]tool {
 // the card it is standing on.
 var stationMembers = []string{
 	"claim", "move", "release", "block", "comment", "attach",
-	"add_card", "file_item", "cite_item", "settle",
+	"add_card", "file_item", "cite_item", "settle", "spend",
 	"link_card", "unlink_card", "join_workstream", "leave_workstream", "workstream",
 	"get_field", "set_field", "raise",
 	"show", "list", "query", "search_cards", "tree", "view", "changes",

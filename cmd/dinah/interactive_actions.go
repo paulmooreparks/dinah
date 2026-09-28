@@ -237,7 +237,20 @@ func init() {
 				textStep("text", "interactive.prompt.file"),
 			},
 		},
-		"cite":     itemEntry("cite", func(i verb.OfferedItem) bool { return i.Cite }),
+		"cite": itemEntry("cite", func(i verb.OfferedItem) bool { return i.Cite }),
+		// spend takes the unit and the three figures a person is likely to
+		// hold; the cached share, the consumer, the round and the column are
+		// a harness's to write and stay on the command line.
+		"spend": {
+			offered: func(m *interactiveModel) bool { return m.acts().Spend },
+			target:  "card",
+			steps: []interactiveStep{
+				lineStep("unit", "interactive.prompt.spend-unit"),
+				{param: "input", kind: stepLine, label: "interactive.prompt.spend-input", optional: true},
+				{param: "output", kind: stepLine, label: "interactive.prompt.spend-output", optional: true},
+				{param: "total", kind: stepLine, label: "interactive.prompt.spend-total", optional: true},
+			},
+		},
 		"resolve":  itemEntry("resolve", func(i verb.OfferedItem) bool { return i.Resolve }),
 		"verify":   itemEntry("verify", func(i verb.OfferedItem) bool { return i.Verify }),
 		"fail":     itemEntry("fail", func(i verb.OfferedItem) bool { return i.Fail }),
