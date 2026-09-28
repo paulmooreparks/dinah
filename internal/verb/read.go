@@ -753,6 +753,13 @@ type Detail struct {
 	Attachments []AttachmentView `json:"attachments,omitempty"`
 	// Comments are the card's comments in timestamp order.
 	Comments []CommentView `json:"comments,omitempty"`
+	// Handoff is the comments the last station that said anything left on
+	// the card, each carried with its body, which is what the station now
+	// holding the card reads first. handoffOf says how the journal picks them
+	// out. It has no index form and no .full modifier, because a handoff
+	// served without its bodies is a list of things to fetch rather than a
+	// handoff.
+	Handoff []CommentView `json:"handoff,omitempty"`
 	// Checklist are the card's checklist items in creation order.
 	Checklist []ItemView `json:"checklist,omitempty"`
 	// Path is the file the card lives in.
@@ -790,7 +797,7 @@ type Detail struct {
 
 // MarshalJSON writes the members this answer carries and no others.
 //
-// Three of Detail's members are absent from a payload whenever they are empty,
+// The collection members are absent from a payload whenever they are empty,
 // because their own tags say so. The other three are present whatever they
 // hold: every unshaped answer carries a card view, a body, and a path, and a
 // reader of the wire format may rely on that. A shaped answer has to leave a
@@ -818,6 +825,7 @@ func (d Detail) MarshalJSON() ([]byte, error) {
 		Links       []LinkView       `json:"links,omitempty"`
 		Attachments []AttachmentView `json:"attachments,omitempty"`
 		Comments    []CommentView    `json:"comments,omitempty"`
+		Handoff     []CommentView    `json:"handoff,omitempty"`
 		Checklist   []ItemView       `json:"checklist,omitempty"`
 		Path        *string          `json:"path,omitempty"`
 		Withheld    []string         `json:"withheld,omitempty"`
@@ -827,6 +835,7 @@ func (d Detail) MarshalJSON() ([]byte, error) {
 		Links:       d.Links,
 		Attachments: d.Attachments,
 		Comments:    d.Comments,
+		Handoff:     d.Handoff,
 		Checklist:   d.Checklist,
 		Withheld:    d.Withheld,
 		Reread:      d.Reread,
@@ -884,7 +893,7 @@ func (d Detail) NarrowedBy() []string {
 // DetailSelectors is the set the fields argument accepts, and it is what the
 // vocabulary table, the refusal sentence and the selection all read, so the
 // help table, the refusal sentence and the selection cannot drift apart.
-var DetailFields = []string{"card", "body", "links", "attachments", "comments", "checklist", "path"}
+var DetailFields = []string{"card", "body", "links", "attachments", "comments", "handoff", "checklist", "path"}
 
 // DetailModifiers are the names show's fields argument accepts that are not
 // members of a Detail. Each one names a member and asks for that member in
@@ -895,7 +904,7 @@ var DetailModifiers = []string{"comments.full", "checklist.full"}
 // withheld reports them: the members of a Detail, with each modifier inserted
 // after the member it names.
 var DetailSelectors = []string{"card", "body", "links", "attachments",
-	"comments", "comments.full", "checklist", "checklist.full", "path"}
+	"comments", "comments.full", "handoff", "checklist", "checklist.full", "path"}
 
 // modifierSuffix is what a selector carries beyond the member's own name when
 // it asks for that member's bodies. It is syntax a caller types rather than
@@ -947,23 +956,35 @@ const (
 	flagSince      = "--since"
 	flagUnresolved = "--unresolved"
 	flagAll        = "--all"
+	flagBrief      = "--brief"
 )
 
-// detailFilters are the two narrowings a caller may put on show, already
-// parsed. sinceSet tells an ordinal of zero, which serves every body, apart
-// from no ordinal at all, which serves none.
+// detailFilters are the narrowings a caller may put on show, already parsed.
+// sinceSet tells an ordinal of zero, which serves every body, apart from no
+// ordinal at all, which serves none. brief is carried here beside the two
+// filters because it narrows the checklist the way unresolved does, on top
+// of naming a field set, and a refusal or a recovery sentence about a
+// narrowed checklist has to name the flag the caller actually wrote.
 type detailFilters struct {
 	since      int
 	sinceSet   bool
 	unresolved bool
+	brief      bool
 }
 
-// named reports whether the caller wrote either filter.
-func (f detailFilters) named() bool { return f.sinceSet || f.unresolved }
+// named reports whether the caller wrote any of the three.
+func (f detailFilters) named() bool { return f.sinceSet || f.unresolved || f.brief }
+
+// narrowsChecklist reports whether the answer carries only the checklist
+// items that release no column hold, which either of two flags asks for.
+func (f detailFilters) narrowsChecklist() bool { return f.unresolved || f.brief }
 
 // flagWord is the filter a refusal about this call names: the first one the
 // caller wrote, in the order show's own parameters declare them.
 func (f detailFilters) flagWord() string {
+	if f.brief {
+		return flagBrief
+	}
 	if f.sinceSet {
 		return flagSince
 	}
@@ -973,7 +994,7 @@ func (f detailFilters) flagWord() string {
 	return ""
 }
 
-// parseDetailFilters reads show's two filter arguments off the request.
+// parseDetailFilters reads show's filter arguments off the request.
 //
 // An ordinal that is not a non-negative whole number is refused dinah.usage,
 // which is the name this tool already raises over an argument it declares and
@@ -982,7 +1003,7 @@ func (f detailFilters) flagWord() string {
 // with an ordinal it remembers must not be turned away for having remembered
 // a comment that has since been deleted.
 func parseDetailFilters(req *Request) (detailFilters, error) {
-	filters := detailFilters{unresolved: req.Unresolved}
+	filters := detailFilters{unresolved: req.Unresolved, brief: req.Brief}
 	written := strings.TrimSpace(req.SinceComment)
 	if written == "" {
 		return filters, nil
@@ -1122,18 +1143,42 @@ func unknownDetailField(detail, reference string) error {
 }
 
 // effectiveSelection is what a card's own detail read carries: every member
-// under --all, the caller's own map under --fields, and the narrow default
-// otherwise. It is never nil, so a filter's compatibility is always checked
-// against what the answer will actually carry rather than bypassed on an
-// unshaped call the way it was before this default existed.
-func effectiveSelection(chosen detailSelection, all bool) detailSelection {
+// under --all, the brief under --brief, the caller's own map under --fields,
+// and the narrow default otherwise. It is never nil, so a filter's
+// compatibility is always checked against what the answer will actually carry
+// rather than bypassed on an unshaped call the way it was before this default
+// existed. Show has already refused a call naming two of the three flags by
+// the time this runs, so the order of the tests here decides nothing.
+func effectiveSelection(chosen detailSelection, all, brief bool) detailSelection {
 	if all {
 		return allSelection()
+	}
+	if brief {
+		return briefSelection()
 	}
 	if chosen != nil {
 		return chosen
 	}
 	return defaultSelection()
+}
+
+// briefSelection is what --brief carries: the narrow default, the handoff and
+// the checklist in full, which the same flag narrows to the items that
+// release no column hold. It is the card a station opens on, read in one
+// call: the framing, where the contract attachment is, what the last station
+// said, and what still holds the card. The checklist is carried in full
+// rather than as an index because an item's text past its first line is
+// often the instruction the station needs, and a failed criterion's
+// designated comment is the evidence the station is answering. The settled
+// items, the superseded handoffs and the comment history are left for a
+// caller that asks for them, since a station that reads them by default reads
+// them on every dispatch.
+func briefSelection() detailSelection {
+	chosen := defaultSelection()
+	chosen["handoff"] = true
+	chosen["checklist"] = true
+	chosen[modifierFor("checklist")] = true
+	return chosen
 }
 
 // allSelection is every member DetailSelectors names, each one true,
@@ -1532,10 +1577,18 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 		return nil, nil, nil, "", err
 	}
 	// --all and --fields both name a field set, and one call cannot name two.
+	// --brief names a third, so it is refused beside either of them on the
+	// same terms.
 	if req.All && strings.TrimSpace(req.Fields) != "" {
 		return nil, nil, nil, "", contract.Refuse(contract.Usage, flagAll+" conflicts with --fields")
 	}
-	effective := effectiveSelection(chosen, req.All)
+	if req.Brief && strings.TrimSpace(req.Fields) != "" {
+		return nil, nil, nil, "", contract.Refuse(contract.Usage, flagBrief+" conflicts with --fields")
+	}
+	if req.Brief && req.All {
+		return nil, nil, nil, "", contract.Refuse(contract.Usage, flagBrief+" conflicts with "+flagAll)
+	}
+	effective := effectiveSelection(chosen, req.All, req.Brief)
 	if err := checkDetailFilters(effective, filters); err != nil {
 		return nil, nil, nil, "", err
 	}
@@ -1862,6 +1915,13 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	if err != nil {
 		return nil, "", err
 	}
+	// The handoff is picked out before the comments are reduced to an index
+	// below, because each of its entries is a copy of a comment view carrying
+	// its body, and the copy has to be taken while the body is still there.
+	handoff, err := l.handoffOf(card.JournalPath(), comments)
+	if err != nil {
+		return nil, "", err
+	}
 	items, err := positions.Items(card.Dir)
 	if err != nil {
 		return nil, "", err
@@ -1906,13 +1966,16 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		view.ResolutionID = item.Resolution
 		view.Resolution = l.designationReference(view.Ref, item, positions)
+		// Whether the answer carries this item is decided here, ahead of the
+		// designated comment, so that an item a filter drops costs no open.
+		carried := !filters.narrowsChecklist() || !bench.ItemLiftsColumnHold(item)
 		// The designated comment is opened only where the caller asked for
-		// the checklist in full. This is the one line that decides whether
-		// dinah show opens thirty-three further files or none of them, and
-		// it sits here rather than after the loop because a build that
-		// filled the field and cleared it afterwards would have paid the
-		// opens either way.
-		if chosen.full("checklist") {
+		// the checklist in full and the answer carries the item. This is the
+		// one line that decides whether dinah show opens thirty-three further
+		// files or none of them, and it sits here rather than after the loop
+		// because a build that filled the field and cleared it afterwards
+		// would have paid the opens either way.
+		if carried && chosen.full("checklist") {
 			designated, err := l.designatedComment(item, view.Resolution)
 			if err != nil {
 				return nil, "", err
@@ -1930,7 +1993,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			}
 		}
 		checklist = append(checklist, view)
-		if !filters.unresolved || !bench.ItemLiftsColumnHold(item) {
+		if carried {
 			carriedChecklist = append(carriedChecklist, view)
 		}
 	}
@@ -1964,6 +2027,9 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	if chosen.carries("comments") {
 		detail.Comments = comments
 	}
+	if chosen.carries("handoff") {
+		detail.Handoff = handoff
+	}
 	if chosen.carries("checklist") {
 		detail.Checklist = carriedChecklist
 	}
@@ -1987,15 +2053,22 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 		"links":       len(links) > 0,
 		"attachments": len(views) > 0,
 		"comments":    len(comments) > 0,
+		"handoff":     len(handoff) > 0,
 		"checklist":   len(checklist) > 0,
 		"path":        card.AnchorPath() != "",
 	}
 	// A filter that dropped nothing narrowed nothing, so the recovery the
 	// terminal offers names a flag only where dropping it would change the
-	// answer.
+	// answer, and it names each flag the caller wrote that narrowed it, since
+	// dropping one of two leaves the other narrowing.
 	narrowedChecklist := len(carriedChecklist) < len(checklist)
 	if narrowedChecklist {
-		detail.narrowedBy = append(detail.narrowedBy, flagUnresolved)
+		if filters.brief {
+			detail.narrowedBy = append(detail.narrowedBy, flagBrief)
+		}
+		if filters.unresolved {
+			detail.narrowedBy = append(detail.narrowedBy, flagUnresolved)
+		}
 	}
 	for _, name := range DetailSelectors {
 		if base := baseOfModifier(name); base != name {
@@ -2019,6 +2092,63 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 		detail.Reread = cardRef
 	}
 	return detail, "", nil
+}
+
+// handoffOf picks out of a card's comments the ones the last station to say
+// anything left behind, which is the handoff the station now holding the card
+// reads.
+//
+// The card's journal is what tells the stations apart. Each moved event
+// closes one stay in a column and opens the next, so the commented lines
+// between two moves are the comments one stay wrote, and the handoff is the
+// most recent closed stay that wrote any. A queue the card crossed in silence
+// is skipped rather than served as an empty handoff, a push-back's findings
+// are what the station receiving the push-back reads, and a comment written
+// after the latest move belongs to the stay under way rather than to the
+// handoff, which is what keeps a station from being served its own remarks
+// back. A line for a comment on a checklist item carries the item and is not a
+// card comment, so it never enters the handoff, and nor does a comment the
+// card no longer holds, whose line names an identifier no view answers to.
+// The entries come back in the card's own comment order, whatever order the
+// journal recorded them in.
+//
+// Nothing is stored for this. A designation written at move time would need a
+// format change and a verb, and it would say no more than the journal already
+// says, since the stage that moves a card is the stage that wrote the
+// comments before the move.
+func (l *Library) handoffOf(journalPath string, comments []CommentView) ([]CommentView, error) {
+	events, _, err := l.Bench.ReadJournal(journalPath)
+	if err != nil {
+		return nil, err
+	}
+	var closed, open []string
+	for _, ev := range events {
+		switch ev.Event {
+		case contract.EventMoved:
+			if len(open) > 0 {
+				closed = open
+			}
+			open = nil
+		case contract.EventCommented:
+			if ev.Comment != "" && ev.Item == "" && ev.Column == "" {
+				open = append(open, ev.Comment)
+			}
+		}
+	}
+	if len(closed) == 0 {
+		return nil, nil
+	}
+	wanted := make(map[string]bool, len(closed))
+	for _, id := range closed {
+		wanted[id] = true
+	}
+	var handoff []CommentView
+	for _, view := range comments {
+		if wanted[view.ID] {
+			handoff = append(handoff, view)
+		}
+	}
+	return handoff, nil
 }
 
 // commentListing builds a CommentListing from the collection's comments,

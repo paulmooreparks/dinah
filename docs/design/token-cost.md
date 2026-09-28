@@ -1831,3 +1831,44 @@ Station serves 61.4% of all's tools and pays 65.3% of its tokens, because
 several of the largest schemas (`set_field`, `list`, `show`, `file_item`,
 `tree`, `changes`, `add_card`) are all station tools by necessity, being the
 ordinary column work every agent does.
+
+## 2026-09-29: the brief, one read in place of four (dinah-648)
+
+`dinah show <card> --brief` serves the card a station opens on in one call:
+the narrow default, a new `handoff` member, and the checklist in full narrowed
+to the items that release no column hold. The handoff is derived from the
+card's journal rather than stored: each `moved` event closes one stay in a
+column, and the handoff is the most recent stay that was closed by a move and
+wrote any card comment, so a queue crossed in silence is skipped, a
+push-back's findings are what the receiving station reads, and a comment
+written since the latest move belongs to the stay under way. Nothing about the
+storage format, the profile or the interchange form changed.
+
+The figures are bytes of the human rendering and of `--json`, read off
+dinah-605 (twenty comments, six attachments, a settled checklist, 102 KB under
+`--all`) with a binary built from this card's branch on the live workbench:
+
+```
+  show dinah-605 --brief                                 3782 human    4742 json
+  show dinah-605                                         2109          3103
+  show dinah-605 --fields checklist.full --unresolved     230           164
+  show dinah-605 --fields comments                       3762          6065
+  show dinah-605/comments/20 (the handoff)               1535
+  show dinah-605 --fields handoff                        1772          1803
+  show dinah-605 --fields comments.full                 74061         77049
+  show dinah-605 --all                                 102366        119747
+```
+
+The opening sequence the thin agent definitions instructed before this card
+was four reads: the narrow default, the unresolved checklist, the comment
+index to find the latest handoff, and the handoff comment itself, which on
+this card is 7,636 bytes of human rendering over four round trips. The brief
+is 3,782 bytes over one, and the three round trips it saves matter more than
+the bytes, since each one re-sends the conversation so far. An agent that
+opened with a bare `show` before dinah-527 read the 102 KB instead.
+
+What the brief does not cut is the instruction chain, 17 to 25 KB on this
+workbench, and the specification attachment, 69 KB on dinah-605, which a
+station reads from the attachment's path. Those are the two remaining costs
+of orientation, and dinah-647 is where the spend that measures them is
+recorded.
