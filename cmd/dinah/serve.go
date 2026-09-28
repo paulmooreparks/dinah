@@ -114,7 +114,7 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 			Port:           bound,
 			Lang:           s.r.Tag,
 			ParseLine:      typedLineParser(s.cfg),
-			Notices:        s.errw,
+			Notify:         s.errLine,
 			InstallWaiting: installWaiting,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

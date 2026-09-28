@@ -347,8 +347,7 @@ func (s *Server) log(kind int, key string, pairs ...string) error {
 // act is waiting may already hold the server's.
 func (s *Server) Waiting(wait durable.Wait) {
 	roots := []string{s.opts.Workbench, s.opts.Root}
-	text := verb.WaitingNotice(s.messages, roots, wait)
-	s.conn.notify(methodLogMessage, logMessageParams{Type: messageTypeWarning, Message: text})
+	s.log(messageTypeWarning, verb.WaitingNoticeKey, verb.WaitingNoticeValues(roots, wait)...)
 }
 
 // show sends one line to the client's own message area, from the catalogue

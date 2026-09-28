@@ -41,7 +41,7 @@ func TestAWaitReachesStandardErrorAndTheCommandLog(t *testing.T) {
 	stderr := &lockedBuffer{}
 	var sink func(durable.Wait)
 	f := newFixture(t, func(cfg *Config) {
-		cfg.Notices = stderr
+		cfg.Notify = func(line string) { stderr.Write([]byte(line + "\n")) }
 		cfg.InstallWaiting = func(installed func(durable.Wait)) { sink = installed }
 	})
 	if sink == nil {

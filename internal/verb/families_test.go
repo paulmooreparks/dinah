@@ -23,7 +23,7 @@ var composedWithoutARequest = map[string]string{
 	contract.EventExpired:          "the lapse sweep writes it from the lapsed holder's name, and the caller whose read triggered the sweep is not the owner the line is attributed to",
 	contract.EventManualCorrection: "the witness writes it from the name of whoever touched the workbench, reconciling an edit made outside every verb",
 	contract.EventRenumbered:       "the two number repairs write it, and the card whose number moved was claimed by nobody",
-	contract.EventLockReclaimed:    "the lock layer writes it inside an acquisition, and bench.Acquire, which every write path calls, is handed the acquiring owner's name and nothing more",
+	contract.EventLockReclaimed:    "the lock layer writes it inside an acquisition, and Acquire, which every write path calls, is handed the acquiring owner's name and nothing more",
 }
 
 // TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers drives

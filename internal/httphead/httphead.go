@@ -12,7 +12,6 @@ package httphead
 
 import (
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -62,10 +61,10 @@ type Config struct {
 	// with the terminal's own parser. When it is nil, POST /commands answers
 	// 501 and parses nothing.
 	ParseLine func(words []string) (TypedLine, *contract.Refusal)
-	// Notices is where a wait notice is printed, which is the process's
-	// standard error. Nil prints nothing, and the notice still reaches the
-	// command log.
-	Notices io.Writer
+	// Notify prints one line of a wait notice to the process's standard
+	// error. Nil prints nothing, and the notice still reaches the command
+	// log.
+	Notify func(line string)
 	// InstallWaiting, when set, is handed the function that surfaces a
 	// durable wait on this head, and makes it the one durable.Waiting
 	// reaches. Handler calls it before it returns.
@@ -108,8 +107,8 @@ func Handler(cfg Config) http.Handler {
 // is answered when the act finishes, and other requests are served meanwhile.
 func (h *head) waiting(wait durable.Wait) {
 	text := verb.WaitingNotice(msg.For(h.cfg.Lang), []string{h.cfg.Root}, wait)
-	if h.cfg.Notices != nil {
-		io.WriteString(h.cfg.Notices, "dinah: "+text+"\n")
+	if h.cfg.Notify != nil {
+		h.cfg.Notify("dinah: " + text)
 	}
 	h.log.record(LogEntry{Source: logSourceNotice, Outcome: logOutcomeWaiting, Detail: text})
 }

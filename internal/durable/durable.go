@@ -317,14 +317,33 @@ func Open(path string) (*os.File, error) {
 	return f, err
 }
 
-// ReadFile reads a whole file through Open.
+// ReadFile reads a whole file through Open, sizing its buffer from the file's
+// length the way os.ReadFile does, and reading on to the end in case the file
+// grew or reports no length, as a file under /proc does.
 func ReadFile(path string) ([]byte, error) {
 	f, err := Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return io.ReadAll(f)
+	size := 512
+	if info, err := f.Stat(); err == nil && info.Size() > 0 && info.Size() < 1<<30 {
+		size = int(info.Size()) + 1
+	}
+	data := make([]byte, 0, size)
+	for {
+		n, err := f.Read(data[len(data):cap(data)])
+		data = data[:len(data)+n]
+		if errors.Is(err, io.EOF) {
+			return data, nil
+		}
+		if err != nil {
+			return data, err
+		}
+		if len(data) == cap(data) {
+			data = append(data, 0)[:len(data)]
+		}
+	}
 }
 
 // WriteFile replaces the file at path with data. The bytes go to a temporary
