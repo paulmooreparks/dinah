@@ -849,6 +849,40 @@ const (
 	// of its own. The detail is the reference as typed, and the sentence
 	// names the command that shows the member and the file holding it.
 	NotAFile = LayerPrefix + "not-a-file"
+	// BackupRequired is a writing storage migration given no --backup
+	// directory. The detail is the workbench's directory.
+	BackupRequired = LayerPrefix + "backup-required"
+	// BackupInsideStore is a storage migration given a --backup directory
+	// inside the store it is migrating. The detail is the directory.
+	BackupInsideStore = LayerPrefix + "backup-inside-store"
+	// BackupNotEmpty is a storage migration given a --backup directory that
+	// holds anything but a backup this migration itself started of this
+	// workbench. The detail is the directory.
+	BackupNotEmpty = LayerPrefix + "backup-not-empty"
+	// BackupMismatch is a resumed storage migration given a --backup
+	// directory other than the one its progress file records. The detail is
+	// the directory given, and recorded names the other.
+	BackupMismatch = LayerPrefix + "backup-mismatch"
+	// BackupUnverified is a storage migration whose copy of the store does
+	// not hash to what the store hashes to. The detail is the copy.
+	BackupUnverified = LayerPrefix + "backup-unverified"
+	// MigrationAwaitsCapabilities is a writing storage migration run by a
+	// build whose card-unit layout is switched off. Only a rehearsal runs
+	// until dinah-638 switches the layout on. The detail is the workbench's
+	// directory.
+	MigrationAwaitsCapabilities = LayerPrefix + "migration-awaits-capabilities"
+	// NotADifference is --accept-difference naming a manifest key that is
+	// not one of the lines the storage migration's proof found differing.
+	// The detail is the key.
+	NotADifference = LayerPrefix + "not-a-difference"
+	// StoragePrecondition is a storage migration refused over files of the
+	// store it could not carry: an anchor that will not parse or carries a
+	// key or a citation member no baseline can carry, a member with no
+	// ordinal or sharing one, two members sharing an identifier, or an
+	// attachment whose destination holds a different tree. The detail is the
+	// first such file, rule names what is wrong with it, and files lists
+	// every one.
+	StoragePrecondition = LayerPrefix + "storage-precondition"
 	// UnknownRoute is a write naming a route the workbench does not declare.
 	// The sentence lists the routes it does declare, read off the workbench
 	// rather than written into a catalog, so a route declared later reaches
@@ -961,6 +995,8 @@ var Introduced = []string{
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
 	JournalUnlocked, JournalUnreadable, StoreFormatChanged, NotAFile,
+	BackupRequired, BackupInsideStore, BackupNotEmpty, BackupMismatch, BackupUnverified,
+	MigrationAwaitsCapabilities, NotADifference, StoragePrecondition,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
@@ -1355,11 +1391,11 @@ const (
 // containment does not hold the other way. EventRestored is listed and no
 // command writes it, so a query naming it is accepted and selects nothing.
 //
-// EventWorkbenchUpdated, EventWorkstreamUpdated, EventColumnUpdated and
-// EventDesignationsMigrated are the four declared names this list holds out,
-// and each is held out for the same reason: it lands on the workbench's
-// journal or on a workstream's, never on a card's, so no card a query reads
-// can ever carry it. EventCardUpdated is the
+// EventWorkbenchUpdated, EventWorkstreamUpdated, EventColumnUpdated,
+// EventDesignationsMigrated and EventStorageMigrated are the five declared
+// names this list holds out, and each is held out for the same reason: it
+// lands on the workbench's journal or on a workstream's, never on a card's,
+// so no card a query reads can ever carry it. EventCardUpdated is the
 // fourth of the *_updated family and is listed, because it lands on a card's
 // own journal and an event a card carries that nobody can ask for is exactly
 // what the containment above forbids.
@@ -1378,6 +1414,7 @@ var Events = []string{
 	EventRenumbered,
 	EventLockReclaimed,
 	EventJournalTailTrimmed,
+	EventItemBaseline, EventCommentBaseline, EventCardBaseline,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one
@@ -1485,13 +1522,13 @@ func With(err error, name, value string) error {
 // EventNames are every event name this build declares, which is the closed set
 // a journal line's event member is drawn from.
 //
-// It is Events plus the four an entity other than a card records: a column's
-// own rewrite, a workstream's own rewrite, the workbench's own, and the
-// designation conversion's account of the claims it passed. Events stayed the
-// card-journal set it has always been, and a caller asking what names exist at
-// all reads this.
+// It is Events plus the five an entity other than a card records: a column's
+// own rewrite, a workstream's own rewrite, the workbench's own, the
+// designation conversion's account of the claims it passed, and the storage
+// migration's record of its run. Events stayed the card-journal set it has
+// always been, and a caller asking what names exist at all reads this.
 func EventNames() []string {
 	return append(append([]string(nil), Events...),
 		EventColumnUpdated, EventWorkstreamUpdated, EventWorkbenchUpdated,
-		EventDesignationsMigrated)
+		EventDesignationsMigrated, EventStorageMigrated)
 }

@@ -1794,6 +1794,80 @@ func (s *session) renderDesignationMigration(run *bench.DesignationMigration) {
 	}
 }
 
+// renderStorageMigration prints a storage migration's own account: what it
+// carried, the proof, and either how the store now stands or where the run
+// stopped and what the operator does next.
+func (s *session) renderStorageMigration(run *bench.StorageMigration) {
+	title := ""
+	root := ""
+	if s.library != nil {
+		title, root = s.library.Bench.Title, s.library.Bench.ID
+	}
+	s.line(s.r.T("storage.heading", "title", title, "detail", root))
+	if run.Backup != nil && run.Backup.Path != "" {
+		s.line(s.r.T("storage.backup", "path", run.Backup.Path, "digest", run.Backup.Digest))
+	}
+	count := strconv.Itoa
+	s.line(s.r.T("storage.format", "from", count(run.From), "to", count(run.To)))
+	s.line(s.r.T("storage.cards", "live", count(run.Cards.Live), "archived", count(run.Cards.Archived)))
+	s.line(s.r.T("storage.items", "count", count(run.Items), "live", count(run.ItemsLive), "archived", count(run.ItemsArchived)))
+	s.line(s.r.T("storage.comments", "count", count(run.Comments.Card+run.Comments.Item+run.Comments.Column),
+		"card", count(run.Comments.Card), "item", count(run.Comments.Item), "column", count(run.Comments.Column)))
+	s.line(s.r.T("storage.attachments", "checked", count(run.Attachments.Checked), "moved", count(run.Attachments.Moved)))
+	s.storageList("storage.divergences", run.Divergences, "storage.divergence")
+	s.storageList("storage.strays", run.Strays, "storage.row")
+	s.storageList("storage.written-during", run.WrittenDuringRun, "storage.row")
+	s.storageList("storage.accepted", run.Accepted, "storage.row")
+	s.line(s.r.T("storage.files", "before", count(run.Files.Before), "after", count(run.Files.After)))
+	s.line(s.r.T("storage.manifest-before", "hash", run.Manifest.Before, "lines", count(run.Manifest.Lines)))
+	if run.Manifest.After != "" {
+		s.line(s.r.T("storage.manifest-after", "hash", run.Manifest.After, "lines", count(run.Manifest.Lines)))
+	}
+	s.storageList("storage.claims-passed", run.ClaimsPassed, "storage.row")
+	if run.Outcome == contract.ReadFindings {
+		s.renderStorageStop(run)
+		return
+	}
+	if run.Rehearsal {
+		s.line(s.r.T("storage.rehearsed"))
+		return
+	}
+	s.line(s.r.T("storage.done", "to", count(run.To)))
+	s.line(s.r.T("storage.stop-processes"))
+}
+
+// storageList prints a label counting a list and one row per entry.
+func (s *session) storageList(key string, entries []string, row string) {
+	s.line(s.r.TN(key, len(entries)))
+	for _, entry := range entries {
+		s.line(s.r.T(row, "entry", entry))
+	}
+}
+
+// renderStorageStop prints where a storage migration stopped and what to do
+// before running it again.
+func (s *session) renderStorageStop(run *bench.StorageMigration) {
+	s.line(s.r.T("storage.stopped", "phase", run.Phase))
+	if run.Held != nil {
+		s.line(s.r.T("storage.held", "card", run.Held.Card, "owner", run.Held.Holder))
+	}
+	if run.Refused != nil {
+		s.line(s.r.T("storage.refused", "path", run.Refused.Path, "error", run.Refused.Error))
+	}
+	for _, difference := range run.Differences {
+		s.line(s.r.T("storage.difference", "key", difference.Key))
+		if difference.Before != "" {
+			s.line(s.r.T("storage.difference-before", "entry", difference.Before))
+		}
+		if difference.After != "" {
+			s.line(s.r.T("storage.difference-after", "entry", difference.After))
+		}
+	}
+	if len(run.Differences) > 0 && run.RemovalStarted && run.Backup != nil {
+		s.line(s.r.T("storage.accept-or-restore", "backup", run.Backup.Path))
+	}
+}
+
 // renderDesignationGroup prints one conversion group's count and then one
 // sentence per entry, each naming the item, the verb that settled it, the
 // comment identifier the run wrote and that comment's author.

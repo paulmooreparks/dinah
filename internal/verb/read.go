@@ -3005,6 +3005,21 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	if req != nil && req.Repairs() && req.Actor == "" {
 		return report, contract.RefuseWith(contract.NoOwner, "", harnessExtra(req))
 	}
+	// A store below the card-unit format, checked by a build whose layout is
+	// switched on, is reported as awaiting the storage migration together
+	// with whatever would refuse that migration, and nothing else is
+	// checked, since every other check reads the layout the store does not
+	// have yet. The repairs still run, because the older ones are how a
+	// precondition of the storage migration is met.
+	if bench.CardUnitOn() && (l.Bench.Format < bench.CardUnitFormat || l.Bench.Migrating != "") && (req == nil || !req.Repairs()) {
+		findings, err := l.Bench.AwaitingStorageFindings()
+		report.Findings = findings
+		if err != nil {
+			return report, err
+		}
+		report.stampOutcome()
+		return report, nil
+	}
 	if req != nil && req.MigrateSlugs {
 		assigned, reported := l.Bench.BackfillColumnSlugs()
 		report.MigratedSlugs = true

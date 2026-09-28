@@ -169,6 +169,8 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.File = value
 	case "remint":
 		req.Remint = value
+	case "backup":
+		req.Backup = value
 	case "expires":
 		if parsed, err := verb.ParseDuration(value); err == nil {
 			req.Expires = parsed
@@ -234,6 +236,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateHolds = value
 	case "migrate-raw-lines":
 		req.MigrateRawLines = value
+	case "migrate-storage":
+		req.MigrateStorage = value
 	case "rehearse":
 		req.Rehearse = value
 	case "force-claims":
@@ -276,5 +280,7 @@ func assignList(req *verb.Request, name string, values []string) {
 	switch name {
 	case "map":
 		req.Map = append([]string(nil), values...)
+	case "accept-difference":
+		req.AcceptDifference = append([]string(nil), values...)
 	}
 }

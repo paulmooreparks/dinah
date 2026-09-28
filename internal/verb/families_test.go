@@ -372,6 +372,29 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 	}
 	h.reopen()
 
+	// The storage migration's own lines: every member's baseline, each
+	// card's card.md, and the workbench journal's record of the run. The
+	// store is carried as the acts above left it, with the layout switched
+	// on for the run, and forced past any claim they left standing.
+	bench.EnableCardUnitForTest(t)
+	carried, err := bench.OpenAwaitingResolution(h.root)
+	if err != nil {
+		t.Fatalf("open the store for its migration: %v", err)
+	}
+	migrating := New(carried, h.home)
+	migrating.Now = h.library.Now
+	migrate := acting("check")
+	migrate.MigrateStorage = true
+	migrate.ForceClaims = true
+	migrate.Backup = filepath.Join(t.TempDir(), "backup")
+	migrated, err := migrating.MigrateStorage(migrate)
+	if err != nil {
+		t.Fatalf("migrate the store: %v", err)
+	}
+	if migrated.Outcome != contract.ReadOK {
+		t.Fatalf("the migration stopped at phase %s: %+v", migrated.Phase, migrated)
+	}
+
 	// One rule, read over every line of every journal the store holds.
 	families, lines := map[string]bool{}, 0
 	err = filepath.Walk(h.root, func(path string, info os.FileInfo, err error) error {

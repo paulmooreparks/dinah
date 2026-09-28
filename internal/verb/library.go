@@ -360,6 +360,19 @@ type Request struct {
 	// scalar text. Without Confirm it names the lines and writes nothing,
 	// which is why it carries no rehearsal of its own.
 	MigrateRawLines bool
+	// MigrateStorage asks check to carry the workbench from the old layout,
+	// where every comment and checklist item is a directory of its own, to
+	// the card-unit layout, where each is lines of its journal. It is the
+	// operator's alone, it runs as a rehearsal while the layout is switched
+	// off, and a writing run takes a backup of the store first.
+	MigrateStorage bool
+	// Backup is the directory a storage migration copies the store into
+	// before its first change.
+	Backup string
+	// AcceptDifference are the manifest keys a storage migration's operator
+	// accepts the after line of, where the proof found them differing after
+	// the old layout had begun to be removed.
+	AcceptDifference []string
 	// Rehearse turns the conversion into a rehearsal: it decides every item
 	// by the same rules, answers the identical report, and writes no anchor,
 	// no journal line and no format stamp. A rehearsal is refused to nobody

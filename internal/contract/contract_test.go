@@ -132,17 +132,20 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// and the standing authorization that admits one of them, and to
 	// thirty-nine when dinah-640 minted lock_reclaimed for the reclaim of a
 	// lock whose holder was proven dead, and to forty when dinah-637 minted
-	// journal_tail_trimmed for the repair of a torn journal tail. Each of
-	// those paid the coordinated compat-fixture change this guard exists to
-	// make somebody notice.
+	// journal_tail_trimmed for the repair of a torn journal tail, and to
+	// forty-three when the same card minted item_baseline, comment_baseline
+	// and card_baseline for the storage migration. Each of those paid the
+	// coordinated compat-fixture change this guard exists to make somebody
+	// notice.
 	//
-	// The designation conversion's own designations_migrated is not counted
-	// here, and the omission is deliberate rather than an oversight: it lands
-	// on the workbench's journal and never on a card's, so Events holds it out
-	// for the reason it holds out the three *_updated names, and EventNames is
-	// where it is counted.
-	if len(Events) != 40 {
-		t.Errorf("the event set carries %d names, and this build declares forty", len(Events))
+	// The designation conversion's own designations_migrated and the storage
+	// migration's storage_migrated are not counted here, and the omission is
+	// deliberate rather than an oversight: each lands on the workbench's
+	// journal and never on a card's, so Events holds it out for the reason it
+	// holds out the three *_updated names, and EventNames is where it is
+	// counted.
+	if len(Events) != 43 {
+		t.Errorf("the event set carries %d names, and this build declares forty-three", len(Events))
 	}
 }
 

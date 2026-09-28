@@ -193,6 +193,8 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateSchedule:     parsed.has("migrate-schedule"),
 		MigrateHolds:        parsed.has("migrate-holds"),
 		MigrateRawLines:     parsed.has("migrate-raw-lines"),
+		MigrateStorage:      parsed.has("migrate-storage"),
+		Backup:              parsed.value("backup"),
 		Rehearse:            parsed.has("rehearse"),
 		ForceClaims:         parsed.has("force-claims"),
 		Renumber:            parsed.has("renumber"),
@@ -1805,7 +1807,11 @@ func runCheck(s *session, parsed *arguments) int {
 		return runMigrateContainer(s, parsed, walk)
 	}
 	req := s.request("check", parsed)
+	req.AcceptDifference = parsed.values("accept-difference")
 	s.diagnostic = true
+	if req.MigrateStorage {
+		return runMigrateStorage(s, req)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
 		if err != nil {
@@ -1816,6 +1822,26 @@ func runCheck(s *session, parsed *arguments) int {
 			return contract.ExitCodeForRead(report.Outcome)
 		}
 		return s.renderCheck(report)
+	})
+}
+
+// runMigrateStorage runs dinah check --migrate-storage, which answers the
+// migration's own account rather than a check report: the run is the whole of
+// what the invocation asks for, and the checks a report carries read the
+// layout the run is replacing. A run that stopped part way exits as findings
+// do, and a refusal exits as every refusal does.
+func runMigrateStorage(s *session, req *verb.Request) int {
+	return s.withBench(func(l *verb.Library) int {
+		report, err := l.MigrateStorage(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			s.emitMachine(report)
+			return contract.ExitCodeForRead(report.Outcome)
+		}
+		s.renderStorageMigration(report)
+		return contract.ExitCodeForRead(report.Outcome)
 	})
 }
 

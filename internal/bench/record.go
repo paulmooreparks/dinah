@@ -551,6 +551,9 @@ type memberReplay struct {
 	// deleted, read off lines naming no member.
 	archivedColumns map[string]bool
 	deletedColumns  map[string]bool
+	// onColumns are the comments that hang on a column rather than on a
+	// card or an item.
+	onColumns map[string]bool
 	// keys track, for each item, the order the old layout's writers would
 	// have put its anchor keys in, which RenderItemAnchor composes by.
 	keys map[string]*keyOrder
@@ -735,6 +738,7 @@ func replayMembers(events []Event) *memberReplay {
 		named:           map[string]bool{},
 		archivedColumns: map[string]bool{},
 		deletedColumns:  map[string]bool{},
+		onColumns:       map[string]bool{},
 		keys:            map[string]*keyOrder{},
 	}
 	marker := migrationMarker(events)
@@ -751,12 +755,22 @@ func replayMembers(events []Event) *memberReplay {
 			r.baselineComment(i, ev)
 			continue
 		}
-		if i <= marker {
+		// A column's own archive, restore or deletion is about the column
+		// rather than any member, and no baseline restates it, so it
+		// applies wherever it stands: the half a column comment reads in
+		// follows it after the migration exactly as before.
+		if i <= marker && !namesAColumnAlone(ev) {
 			continue
 		}
 		r.apply(i, ev)
 	}
+	// A line naming no member names a column on the workbench journal and
+	// a card or an item on a card's, so it reaches only the comments that
+	// hang on a column.
 	for id, comment := range r.comments {
+		if !r.onColumns[id] {
+			continue
+		}
 		if r.deletedColumns[comment.Holder] {
 			delete(r.comments, id)
 			continue
@@ -771,6 +785,16 @@ func replayMembers(events []Event) *memberReplay {
 		}
 	}
 	return r
+}
+
+// namesAColumnAlone reports an archive, restore or deletion line naming no
+// member, which on the workbench journal records a column's own act.
+func namesAColumnAlone(ev Event) bool {
+	switch ev.Event {
+	case contract.EventArchived, contract.EventRestored, contract.EventDeleted:
+		return ev.Comment == "" && ev.Item == "" && ev.Note != ""
+	}
+	return false
 }
 
 // migrationMarker answers the index of the last card_baseline, or failing
@@ -869,6 +893,7 @@ func (r *memberReplay) baselineComment(i int, ev Event) {
 		r.rank[ev.Comment] = i
 	}
 	holder := commentHolder(ev)
+	r.onColumns[ev.Comment] = ev.Item == "" && ev.Column != ""
 	r.comments[ev.Comment] = &Comment{
 		ID:                  ev.Comment,
 		Holder:              holder,
@@ -950,6 +975,7 @@ func (r *memberReplay) create(i int, ev Event) {
 		r.collide(ev.Comment, i)
 	}
 	holder := commentHolder(ev)
+	r.onColumns[ev.Comment] = ev.Item == "" && ev.Column != ""
 	r.rank[ev.Comment] = i
 	r.comments[ev.Comment] = &Comment{
 		ID:             ev.Comment,

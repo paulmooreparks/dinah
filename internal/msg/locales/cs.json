@@ -7158,6 +7158,311 @@
       "context": "A check finding at defect severity: two comments or checklist items of one card carry one identifier. {detail} is the 12-hex identifier, a colon, and the one-based numbers of the two journal lines that established a member under it. Every read of the card is refused dinah.journal-unreadable until it is repaired.",
       "skeleton": true
     },
+    "refusal.dinah.backup-required": {
+      "text": "A storage migration that writes needs a backup directory, and none was given for the workbench at {detail}.",
+      "context": "The sentence printed after the refusal name dinah.backup-required, raised by dinah check --migrate-storage. {detail} is the workbench's directory. A run that writes copies the whole store into the backup directory before its first change.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-required.next": {
+      "text": " Run it again with `--backup <dir>` naming an empty directory outside the workbench; the run copies the whole store there before it changes anything.",
+      "context": "The next step of refusal.dinah.backup-required. --backup <dir> is a flag and its placeholder and is not translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-inside-store": {
+      "text": "The backup directory {detail} stands inside the workbench the migration would copy.",
+      "context": "The sentence printed after the refusal name dinah.backup-inside-store. {detail} is the directory given with --backup. A copy inside the store would copy itself.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-inside-store.next": {
+      "text": " Name a directory outside the workbench's own directory.",
+      "context": "The next step of refusal.dinah.backup-inside-store.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-not-empty": {
+      "text": "The backup directory {detail} holds something other than a backup this migration started of this workbench.",
+      "context": "The sentence printed after the refusal name dinah.backup-not-empty. {detail} is the directory given with --backup. A directory holding a backup this migration itself started of this workbench is accepted, so a run can be repeated.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-not-empty.next": {
+      "text": " Name an empty directory, or the one a run of this migration on this workbench already started.",
+      "context": "The next step of refusal.dinah.backup-not-empty.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-mismatch": {
+      "text": "The backup directory {detail} is not the one this migration recorded when it started, which is {recorded}.",
+      "context": "The sentence printed after the refusal name dinah.backup-mismatch, raised on a resumed storage migration. {detail} is the directory given with --backup and {recorded} is the copy the run's progress file records.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-mismatch.next": {
+      "text": " Run it again with no --backup, or with the recorded directory.",
+      "context": "The next step of refusal.dinah.backup-mismatch. --backup is a flag and is not translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-unverified": {
+      "text": "The copy of the workbench at {detail} does not hash to what the workbench hashes to, so it is not a backup.",
+      "context": "The sentence printed after the refusal name dinah.backup-unverified. {detail} is the copy. The run compares a SHA-256 over every path and byte of the copy with the same digest of the store before it relies on the copy.",
+      "skeleton": true
+    },
+    "refusal.dinah.backup-unverified.next": {
+      "text": " Nothing was removed; check the disk the backup is on, then run the migration again, which takes the copy again.",
+      "context": "The next step of refusal.dinah.backup-unverified.",
+      "skeleton": true
+    },
+    "refusal.dinah.migration-awaits-capabilities": {
+      "text": "This build carries the storage migration switched off, so it rehearses the migration of the workbench at {detail} and does not run it.",
+      "context": "The sentence printed after the refusal name dinah.migration-awaits-capabilities. {detail} is the workbench's directory. The card-unit layout ships switched off until the card that declares its capabilities turns it on, and until then only a rehearsal runs.",
+      "skeleton": true
+    },
+    "refusal.dinah.migration-awaits-capabilities.next": {
+      "text": " Run `dinah check --migrate-storage --rehearse` to see what the migration would do; a build that switches the card-unit layout on runs it.",
+      "context": "The next step of refusal.dinah.migration-awaits-capabilities. dinah check --migrate-storage --rehearse is a command line and is not translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-a-difference": {
+      "text": "{detail} is not one of the manifest lines the migration's proof found differing.",
+      "context": "The sentence printed after the refusal name dinah.not-a-difference. {detail} is the manifest key given with --accept-difference. No difference is accepted that the operator did not name, and a name that matches nothing is refused rather than ignored.",
+      "skeleton": true
+    },
+    "refusal.dinah.not-a-difference.next": {
+      "text": " Name only keys the stopped run printed; run the migration again with no --accept-difference to see them.",
+      "context": "The next step of refusal.dinah.not-a-difference. --accept-difference is a flag and is not translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition": {
+      "text": "The storage migration cannot carry the workbench over the files listed below, starting with {detail}.",
+      "context": "The sentence printed after the refusal name dinah.storage-precondition. {detail} is the first file the migration cannot carry; every such file follows on a row of its own, each after the machine token naming what is wrong with it. A fragment spliced after this sentence says what is wrong with the first.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.unparseable": {
+      "text": " That file does not parse as an anchor.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file does not open with a frontmatter block that closes.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.unknown-key": {
+      "text": " That file carries a frontmatter key this build does not write, which no baseline can carry.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file carries a key outside the set the build writes for a comment or an item. A baseline is the journal line the migration writes to state a member in full.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.unknown-citation-member": {
+      "text": " That file carries a citation member other than scheme, target and observed.",
+      "context": "Spliced onto refusal.dinah.storage-precondition. scheme, target and observed are the members a citation entry carries and are not translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.ordinal-missing": {
+      "text": " That file carries no ordinal.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file's member carries no creation ordinal.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.ordinal-duplicate": {
+      "text": " That file carries an ordinal another member of its collection carries too.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where two members of one collection, live or archived, carry one creation ordinal.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.identifier-shared": {
+      "text": " That file's member carries an identifier another member of its card carries too.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where two members of one card, a comment and an item or two comments on different holders, carry one identifier.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.destination-differs": {
+      "text": " An attachment would move onto that directory, which already holds a different tree.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where an attachment of an item's comment would move to the comments collection of its card and something different already stands there.",
+      "skeleton": true
+    },
+    "refusal.dinah.storage-precondition.next": {
+      "text": " Repair each file listed, by hand or, for a missing ordinal, with `dinah check --migrate-ordinals`, then run the migration again; nothing was written.",
+      "context": "The next step of refusal.dinah.storage-precondition. dinah check --migrate-ordinals is a command line and is not translated.",
+      "skeleton": true
+    },
+    "check.stray-member-file": {
+      "text": "the comment or item {detail} stands in a file of its own in a workbench whose members are lines of their journals, written by an older build; run `dinah check --migrate-storage` to carry it",
+      "context": "A check finding at defect severity: a comment.md or item.md file standing in a store in the card-unit layout, which only a process of an older build that had the store open before its migration can have written. {detail} is the member's identifier, and the file's path follows the sentence. dinah check --migrate-storage is a command line and is not translated; a run on a migrated store carries the file as a baseline and deletes it.",
+      "skeleton": true
+    },
+    "check.store-awaiting-migration": {
+      "text": "the workbench still keeps its comments and items in the old layout; stop every Dinah process that has it open, then run `dinah check --migrate-storage --backup <dir>`",
+      "context": "A check finding printed on a store below the card-unit format by a build whose layout is switched on, where check runs none of its other checks. dinah check --migrate-storage --backup <dir> is a command line and its placeholder and is not translated.",
+      "skeleton": true
+    },
+    "storage.heading": {
+      "text": "Storage migration of \"{title}\" ({detail})",
+      "context": "The first line of the storage migration's account. {title} is the workbench's title and {detail} its identifier.",
+      "skeleton": true
+    },
+    "storage.backup": {
+      "text": "Backup: {path} (verified, {digest})",
+      "context": "A label and value line of the storage migration's account: the copy of the store and the SHA-256 it was verified by. {digest} is a machine value.",
+      "skeleton": true
+    },
+    "storage.format": {
+      "text": "Format: {from} to {to}",
+      "context": "A label and value line of the storage migration's account: the storage format the store declared and the one it moves to.",
+      "skeleton": true
+    },
+    "storage.cards": {
+      "text": "Cards: {live} live, {archived} archived",
+      "context": "A label and value line of the storage migration's account: how many live and archived cards it carries.",
+      "skeleton": true
+    },
+    "storage.items": {
+      "text": "Items carried: {count} ({live} on live cards, {archived} on archived cards)",
+      "context": "A label and value line of the storage migration's account: the checklist items it carries.",
+      "skeleton": true
+    },
+    "storage.comments": {
+      "text": "Comments carried: {count} ({card} on cards, {item} on items, {column} on columns)",
+      "context": "A label and value line of the storage migration's account: the comments it carries, by what they hang on.",
+      "skeleton": true
+    },
+    "storage.attachments": {
+      "text": "Attachments: {checked} checked, {moved} moved",
+      "context": "A label and value line of the storage migration's account: how many attachments the proof covers and how many the run moved to the comments collection of their card or column.",
+      "skeleton": true
+    },
+    "storage.divergences.one": {
+      "text": "Divergences kept: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the comments whose body differs from their recorded digest, carried with that digest, each named on a row below.",
+      "skeleton": true
+    },
+    "storage.divergences.other": {
+      "text": "Divergences kept: {count}",
+      "context": "The same line as storage.divergences.one, for any other number, zero included.",
+      "skeleton": true
+    },
+    "storage.divergence": {
+      "text": "  {entry} (run dinah accept-divergence to clear it)",
+      "context": "One row under storage.divergences: a diverged comment's reference. dinah accept-divergence is a command and is not translated.",
+      "skeleton": true
+    },
+    "storage.row": {
+      "text": "  {entry}",
+      "context": "One row under a list of the storage migration's account: a manifest key, a stray file's key, or a card reference.",
+      "skeleton": true
+    },
+    "storage.strays.one": {
+      "text": "Strays carried: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: comment or item files an older build's process wrote after their card's baselines, carried as baselines and deleted.",
+      "skeleton": true
+    },
+    "storage.strays.other": {
+      "text": "Strays carried: {count}",
+      "context": "The same line as storage.strays.one, for any other number, zero included.",
+      "skeleton": true
+    },
+    "storage.written-during.one": {
+      "text": "Written during the run: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: members some already-open process wrote while the run was in progress, named by manifest key on rows below.",
+      "skeleton": true
+    },
+    "storage.written-during.other": {
+      "text": "Written during the run: {count}",
+      "context": "The same line as storage.written-during.one, for any other number, zero included.",
+      "skeleton": true
+    },
+    "storage.accepted.one": {
+      "text": "Accepted: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the manifest keys the operator accepted with --accept-difference.",
+      "skeleton": true
+    },
+    "storage.accepted.other": {
+      "text": "Accepted: {count}",
+      "context": "The same line as storage.accepted.one, for any other number, zero included.",
+      "skeleton": true
+    },
+    "storage.claims-passed.one": {
+      "text": "Claims passed: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the claimed cards a forced run passed, named on rows below.",
+      "skeleton": true
+    },
+    "storage.claims-passed.other": {
+      "text": "Claims passed: {count}",
+      "context": "The same line as storage.claims-passed.one, for any other number, zero included.",
+      "skeleton": true
+    },
+    "storage.files": {
+      "text": "Files: {before} before, {after} after",
+      "context": "A label and value line of the storage migration's account: the files the store held before the run and after it, or on a rehearsal after the run it would make.",
+      "skeleton": true
+    },
+    "storage.manifest-before": {
+      "text": "Manifest before: {hash} ({lines} lines)",
+      "context": "A label and value line of the storage migration's account: the SHA-256 of the manifest the old layout states, and its line count. {hash} is a machine value.",
+      "skeleton": true
+    },
+    "storage.manifest-after": {
+      "text": "Manifest after: {hash} ({lines} lines)",
+      "context": "A label and value line of the storage migration's account: the SHA-256 of the manifest the journals state after the run. Equal to the line above when nothing was lost.",
+      "skeleton": true
+    },
+    "storage.rehearsed": {
+      "text": "Nothing was written.",
+      "context": "The last line of a rehearsed storage migration's account.",
+      "skeleton": true
+    },
+    "storage.done": {
+      "text": "The store now declares format {to}. A build older than this one refuses it.",
+      "context": "The line a finished storage migration prints.",
+      "skeleton": true
+    },
+    "storage.stop-processes": {
+      "text": "Stop every Dinah process before migrating another workbench.",
+      "context": "The last line a finished storage migration prints. A process of an older build that already has a store open is the one writer the migration cannot keep out.",
+      "skeleton": true
+    },
+    "storage.stopped": {
+      "text": "The migration stopped in phase {phase}; running the same command again resumes it.",
+      "context": "The line a storage migration prints where it stopped part way. {phase} is the phase number, 0 to 4.",
+      "skeleton": true
+    },
+    "storage.held": {
+      "text": "The lock of {card} is held by {owner}; run the same command again once it is released.",
+      "context": "The reason a storage migration stopped: another process holds a card's lock. {card} is the card's reference and {owner} who holds the lock.",
+      "skeleton": true
+    },
+    "storage.refused": {
+      "text": "The filesystem refused {path}: {error}. Run the same command again once nothing holds it open.",
+      "context": "The reason a storage migration stopped: a rename or a removal was refused, as Windows refuses one while a process holds the file open. {error} is the operating system's own message and is not translated.",
+      "skeleton": true
+    },
+    "storage.difference": {
+      "text": "{key} differs:",
+      "context": "The line naming one manifest line the storage migration's proof found differing. {key} is the manifest key, which --accept-difference takes.",
+      "skeleton": true
+    },
+    "storage.difference-before": {
+      "text": "  before: {entry}",
+      "context": "The manifest line the old layout states, under storage.difference. {entry} is the machine line.",
+      "skeleton": true
+    },
+    "storage.difference-after": {
+      "text": "  after: {entry}",
+      "context": "The manifest line the journals state, under storage.difference. {entry} is the machine line.",
+      "skeleton": true
+    },
+    "storage.accept-or-restore": {
+      "text": "Part of the old layout is already gone, so restore the backup at {backup}, or accept each line named with --accept-difference <key>.",
+      "context": "The line a storage migration prints where its proof found a difference after it had begun removing the old layout, so nothing can be recomputed. --accept-difference <key> is a flag and its placeholder and is not translated.",
+      "skeleton": true
+    },
+    "check.storage-precondition": {
+      "text": "this file stops the storage migration ({detail}); repair it, then run `dinah check --migrate-storage`",
+      "context": "A check finding at defect severity, printed on a store below the card-unit format once the layout is switched on: a file the storage migration would refuse to run over. {detail} is the machine token naming the precondition it breaks, which dinah.storage-precondition's rows carry too, and the file's path follows the sentence. dinah check --migrate-storage is a command line and is not translated.",
+      "skeleton": true
+    },
+    "param.check.migrate-storage.summary": {
+      "text": "carries every comment and checklist item into its journal, proves nothing was lost, removes the old layout and stamps the workbench with the card-unit format",
+      "context": "The written meaning of the --migrate-storage flag of check. It is the workbench operator's own act, takes a backup first, and is refused while any card is held.",
+      "skeleton": true
+    },
+    "param.check.backup.summary": {
+      "text": "the directory the storage migration copies the whole store into before it changes anything",
+      "context": "The written meaning of the --backup flag of check, which takes one directory, empty or holding a backup this migration already started of this workbench.",
+      "skeleton": true
+    },
+    "param.check.accept-difference.summary": {
+      "text": "takes the line the storage migration's proof found differing under this manifest key as the record, once part of the old layout is gone",
+      "context": "The written meaning of the --accept-difference flag of check, which may be given once per manifest key the stopped run named.",
+      "skeleton": true
+    },
     "check.comment-body-diverged": {
       "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

@@ -329,6 +329,43 @@ func AppendEvent(held *Lock, path string, ev Event) error {
 	return durable.AppendLine(path, append(prefix, line...))
 }
 
+// AppendEvents appends several lines to one journal in one write and one
+// flush, on the terms AppendEvent appends one: the caller holds the lock of
+// the journal's own entity, every line names an actor, and a torn tail is
+// repaired first. A failed write is cut back, so either every line lands or
+// none does. It serves a writer with many lines for one entity at once, which
+// is the storage migration's baselines, where a flush per line is most of the
+// run's cost.
+func AppendEvents(held *Lock, path string, events []Event) error {
+	if len(events) == 0 {
+		return nil
+	}
+	for _, ev := range events {
+		if strings.TrimSpace(ev.Actor.Name) == "" {
+			return contract.Refuse(contract.NoOwner, "")
+		}
+	}
+	if !held.guards(filepath.Dir(path)) {
+		return contract.Refuse(contract.JournalUnlocked, path)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	lines := make([][]byte, 0, len(events))
+	for _, ev := range events {
+		line, err := EncodeEvent(ev)
+		if err != nil {
+			return err
+		}
+		lines = append(lines, line)
+	}
+	prefix, err := repairTail(path, events[0].TS, events[0].Actor.Name)
+	if err != nil {
+		return err
+	}
+	return durable.AppendLine(path, append(prefix, bytes.Join(lines, []byte("\n"))...))
+}
+
 // EncodeEvent is the one encoding of a journal line: every string member
 // normalised as NormalizeNewlines normalises it, and the JSON written with
 // HTML escaping switched off, so a line carries <, > and & as themselves

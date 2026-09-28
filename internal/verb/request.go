@@ -74,15 +74,15 @@ func (r *Request) Repairs() bool {
 		r.Converts()
 }
 
-// Converts reports whether the request asks for the designation conversion in
-// its writing form, which is the form that rewrites item anchors and stamps
-// the store.
+// Converts reports whether the request asks for the designation conversion or
+// the storage migration in its writing form, which is the form that rewrites
+// the store and stamps its format.
 //
 // A rehearsal is not a repair. It decides everything the conversion decides
 // and writes nothing at all, so holding it to the owner and harness gates a
 // repair is held to would refuse a read for naming no actor.
 func (r *Request) Converts() bool {
-	return r != nil && r.MigrateDesignations && !r.Rehearse
+	return r != nil && (r.MigrateDesignations || r.MigrateStorage) && !r.Rehearse
 }
 
 // harnessExtra is the named value a no-owner or a not-operator refusal carries

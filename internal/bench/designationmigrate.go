@@ -639,3 +639,38 @@ func DesignationRefusalWorkbenchInUse(claimed ClaimedCard) error {
 		"owner": claimed.Holder,
 	})
 }
+
+// ClaimedCardsBothHalves reports every card standing claimed, live or
+// archived, in card order within each half. The storage migration reads both
+// halves, since it rewrites an archived card's journal as well and a claim
+// travels into the archive with its card.
+func (b *Bench) ClaimedCardsBothHalves() ([]ClaimedCard, error) {
+	claimed, err := b.ClaimedCards()
+	if err != nil {
+		return nil, err
+	}
+	archived, err := cardsWith(b.ArchivedCardsRoot(), b.LoadCardIn, true)
+	if err != nil {
+		return nil, err
+	}
+	for _, card := range archived {
+		if card.Holder != "" {
+			claimed = append(claimed, ClaimedCard{Ref: card.Ref(b.Slug), Holder: card.Holder})
+		}
+	}
+	return claimed, nil
+}
+
+// StorageRefusalWorkbenchInUse is the refusal a storage migration raises over
+// claimed cards: the first card and its owner in the sentence, and every
+// claimed card with its owner on a row of its own.
+func StorageRefusalWorkbenchInUse(claimed []ClaimedCard) error {
+	rows := make([]string, 0, len(claimed))
+	for _, card := range claimed {
+		rows = append(rows, card.Ref+" "+card.Holder)
+	}
+	return contract.RefuseWith(contract.WorkbenchInUse, claimed[0].Ref, map[string]string{
+		"owner": claimed[0].Holder,
+		"cards": strings.Join(rows, "\n"),
+	})
+}

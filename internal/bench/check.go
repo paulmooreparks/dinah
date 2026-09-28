@@ -58,11 +58,25 @@ const (
 	// fragment, and it is kept only because nobody but a person can say
 	// it held nothing worth keeping.
 	FindingJournalTornQuarantined = "check.journal-torn-quarantined"
-	FindingUnknownState           = "check.unknown-state"
-	FindingInterruptedAct         = "check.interrupted-act"
-	FindingEntityAtBothPaths      = "check.entity-at-both-paths"
-	FindingOrdinalMissing         = "check.ordinal-missing"
-	FindingOrdinalDuplicate       = "check.ordinal-duplicate"
+	// FindingStrayMemberFile names a comment.md or an item.md standing in a
+	// store in the card-unit layout, which only an older build's process
+	// that had the store open before its migration can have written. Detail
+	// is the member's identifier, and Path the file. dinah check
+	// --migrate-storage carries it.
+	FindingStrayMemberFile = "check.stray-member-file"
+	// FindingStoreAwaitingMigration names a store below the card-unit format
+	// checked by a build whose layout is switched on, which reads no other
+	// check over it, since every other one reads the card-unit layout.
+	FindingStoreAwaitingMigration = "check.store-awaiting-migration"
+	// FindingStoragePrecondition names a file of a store below the
+	// card-unit format that the storage migration cannot carry. Detail is
+	// the precondition it breaks, as the refusal's rule token spells it.
+	FindingStoragePrecondition = "check.storage-precondition"
+	FindingUnknownState        = "check.unknown-state"
+	FindingInterruptedAct      = "check.interrupted-act"
+	FindingEntityAtBothPaths   = "check.entity-at-both-paths"
+	FindingOrdinalMissing      = "check.ordinal-missing"
+	FindingOrdinalDuplicate    = "check.ordinal-duplicate"
 	// FindingUnarchivedDone names a card standing live in a done-kind
 	// column. A card that reaches such a column is archived immediately
 	// (dinah-634), so a live one found there is one of three things: the
@@ -689,6 +703,18 @@ func (b *Bench) Check() ([]Finding, error) {
 	// that what the sentence prints is what a reader pastes after --workbench.
 	for _, dir := range b.Damaged {
 		findings = append(findings, Finding{Path: dir, Key: FindingDamagedWorkbench, Detail: dir})
+	}
+	// A comment.md or item.md in a store in the card-unit layout is a write
+	// an older build's process made after the store was migrated, which no
+	// read reaches until the migration carries it.
+	if b.CardUnit() {
+		strays, err := b.StrayMemberFiles()
+		if err != nil {
+			return findings, err
+		}
+		for _, stray := range strays {
+			findings = append(findings, Finding{Path: stray.Path, Key: FindingStrayMemberFile, Detail: stray.ID})
+		}
 	}
 	cardIDs, err := ListIDs(b.CardsRoot())
 	if err != nil {

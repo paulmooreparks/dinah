@@ -963,6 +963,11 @@ var checkAdviceNeedingNoScope = map[string]string{
 	"refusal.dinah.journal-unreadable.next":               "the reader has just been refused a read of the workbench they addressed, and the sentence names the check to run once the line is repaired by hand, from where the refused command resolved that same workbench",
 	"refusal.dinah.store-awaiting-migration.storage.next": "the reader has just been refused an open of the workbench they addressed, and the sentence names the storage migration to run against that same workbench, which the refusal's detail names by its path",
 	"refusal.dinah.journal-unreadable.member.next":        "the reader has just been refused a read of the workbench they addressed, and the sentence names the check to run once the identifier is repaired by hand, from where the refused command resolved that same workbench",
+	"refusal.dinah.migration-awaits-capabilities.next":    "the reader has just run the storage migration against the workbench they addressed, and the sentence names the rehearsal of that same run, which repeats the scope they gave it",
+	"refusal.dinah.storage-precondition.next":             "the reader has just run the storage migration against the workbench they addressed, and the sentence names the repair and the rerun of that same scope once the files listed are repaired",
+	"check.storage-precondition":                          "a finding row printed by a check the caller has already scoped, naming the migration to run on that same workbench once the file is repaired",
+	"check.store-awaiting-migration":                      "a finding row printed by a check the caller has already scoped, naming the migration that workbench is owed",
+	"check.stray-member-file":                             "a finding row printed by a check the caller has already scoped, naming the migration that carries the file on that same workbench",
 }
 
 // TestEveryCheckAdviceIsDispositioned holds the family of catalog sentences

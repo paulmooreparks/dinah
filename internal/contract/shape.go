@@ -1724,6 +1724,7 @@ var Shapes = []Shape{
 		// that owner rather than hunting for which card stopped the run.
 		Name:      WorkbenchInUse,
 		Values:    []string{"owner"},
+		Carried:   "cards",
 		Fragments: []Fragment{{Key: "refusal.dinah.workbench-in-use.next"}},
 		NextStep:  []string{"refusal.dinah.workbench-in-use.next"},
 	},
@@ -1849,6 +1850,68 @@ var Shapes = []Shape{
 		Name:      NotAFile,
 		Fragments: []Fragment{{Key: "refusal.dinah.not-a-file.next"}},
 		NextStep:  []string{"refusal.dinah.not-a-file.next"},
+	},
+	{
+		// The detail is the workbench's directory.
+		Name:      BackupRequired,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-required.next"}},
+		NextStep:  []string{"refusal.dinah.backup-required.next"},
+	},
+	{
+		// The detail is the directory given.
+		Name:      BackupInsideStore,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-inside-store.next"}},
+		NextStep:  []string{"refusal.dinah.backup-inside-store.next"},
+	},
+	{
+		// The detail is the directory given.
+		Name:      BackupNotEmpty,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-not-empty.next"}},
+		NextStep:  []string{"refusal.dinah.backup-not-empty.next"},
+	},
+	{
+		// The detail is the directory given, and recorded is the one the
+		// progress file names.
+		Name:      BackupMismatch,
+		Values:    []string{"recorded"},
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-mismatch.next"}},
+		NextStep:  []string{"refusal.dinah.backup-mismatch.next"},
+	},
+	{
+		// The detail is the copy that did not verify.
+		Name:      BackupUnverified,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-unverified.next"}},
+		NextStep:  []string{"refusal.dinah.backup-unverified.next"},
+	},
+	{
+		// The detail is the workbench's directory.
+		Name:      MigrationAwaitsCapabilities,
+		Fragments: []Fragment{{Key: "refusal.dinah.migration-awaits-capabilities.next"}},
+		NextStep:  []string{"refusal.dinah.migration-awaits-capabilities.next"},
+	},
+	{
+		// The detail is the manifest key the operator named.
+		Name:      NotADifference,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-a-difference.next"}},
+		NextStep:  []string{"refusal.dinah.not-a-difference.next"},
+	},
+	{
+		// The detail is the first offending file and rule the precondition
+		// it breaks, as a token; files carries every offending file, each
+		// on a row with its own rule.
+		Name:    StoragePrecondition,
+		Carried: "files",
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.storage-precondition.unparseable", When: "rule", Equals: "unparseable"},
+			{Key: "refusal.dinah.storage-precondition.unknown-key", When: "rule", Equals: "unknown-key"},
+			{Key: "refusal.dinah.storage-precondition.unknown-citation-member", When: "rule", Equals: "unknown-citation-member"},
+			{Key: "refusal.dinah.storage-precondition.ordinal-missing", When: "rule", Equals: "ordinal-missing"},
+			{Key: "refusal.dinah.storage-precondition.ordinal-duplicate", When: "rule", Equals: "ordinal-duplicate"},
+			{Key: "refusal.dinah.storage-precondition.identifier-shared", When: "rule", Equals: "identifier-shared"},
+			{Key: "refusal.dinah.storage-precondition.destination-differs", When: "rule", Equals: "destination-differs"},
+			{Key: "refusal.dinah.storage-precondition.next"},
+		},
+		NextStep: []string{"refusal.dinah.storage-precondition.next"},
 	},
 	{
 		Name:      ObservationRequired,

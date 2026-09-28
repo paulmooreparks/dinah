@@ -1394,14 +1394,14 @@ storage format 11
 Catalogs:
   Language  Translated
   --------  ----------
-  en        2006/2006
-  af        0/2006
-  cs        0/2006
-  de        2006/2006
-  es        0/2006
-  fil       0/2006
-  hi        2006/2006
-  id        0/2006
+  en        2067/2067
+  af        0/2067
+  cs        0/2067
+  de        2067/2067
+  es        0/2067
+  fil       0/2067
+  hi        2067/2067
+  id        0/2067
 [exit 0]
 ```
 
