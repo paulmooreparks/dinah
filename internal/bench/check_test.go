@@ -150,7 +150,7 @@ Column text.
 // fixture whose subject is an older format derives one from benchDefinition
 // by replacing the literal, which is what the container tests do.
 var registryBenchDefinition = strings.Replace(
-	benchDefinition, "format: 7", "format: "+strconv.Itoa(StorageFormat), 1)
+	benchDefinition, "format: 7", "format: "+strconv.Itoa(EffectiveStorageFormat()), 1)
 
 // cleanCard is a card carrying no defect, which every case below breaks in
 // exactly one way. Its number lives in the registry line newFixture writes

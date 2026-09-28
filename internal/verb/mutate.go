@@ -40,7 +40,7 @@ func (l *Library) Do(req *Request) *Response {
 		return refused
 	}
 	l.interpose(doStepAdmitted)
-	lock, err := bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
+	lock, err := l.Bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -1133,7 +1133,7 @@ func (l *Library) lapseRead(card *bench.Card, actor string) error {
 	if !card.Lapsed(l.Now()) {
 		return nil
 	}
-	lock, err := bench.Acquire(card.Dir, "", bench.Stamp(l.Now()))
+	lock, err := l.Bench.Acquire(card.Dir, "", bench.Stamp(l.Now()))
 	if err != nil {
 		return nil
 	}

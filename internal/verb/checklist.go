@@ -83,7 +83,7 @@ func (l *Library) File(req *Request) *Response {
 		column = named.ID
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(found.Card.Dir, req.Actor, now)
+	lock, err := l.Bench.Acquire(found.Card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -581,7 +581,7 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	}
 	l.interpose(itemStepUnlocked)
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(entity.Card.Dir, req.Actor, now)
+	lock, err := l.Bench.Acquire(entity.Card.Dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}

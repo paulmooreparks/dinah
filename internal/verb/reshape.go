@@ -397,7 +397,7 @@ func readReshapeSource(source string) (*bench.Definition, string, error) {
 // refusal this verb can raise. It writes nothing, and a preview is this
 // function and the report composed from what it returns.
 func (l *Library) planReshape(req *Request, definition *bench.Definition, digest, now string) (*reshapePlan, error) {
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return nil, err
 	}
@@ -1001,7 +1001,7 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 	if len(added) == 0 {
 		return 0, nil
 	}
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return 0, err
 	}
@@ -1153,7 +1153,7 @@ func matchingAttachment(present []*bench.Attachment, matched map[string]bool, ca
 // card no longer carries.
 func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string) (map[string]int, error) {
 	carried := map[string]int{}
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return carried, err
 	}
@@ -1172,7 +1172,7 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 		}
 		for _, standing := range entry.cards {
 			l.interpose(reshapeStepCard)
-			cardLock, err := bench.Acquire(standing.Dir, req.Actor, now)
+			cardLock, err := l.Bench.Acquire(standing.Dir, req.Actor, now)
 			if err != nil {
 				return carried, err
 			}
@@ -1302,7 +1302,7 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 			if len(instances) == 0 {
 				continue
 			}
-			cardLock, err := bench.Acquire(dir, req.Actor, now)
+			cardLock, err := l.Bench.Acquire(dir, req.Actor, now)
 			if err != nil {
 				return withdrawn, err
 			}
@@ -1506,7 +1506,7 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 // follows. A refusal raised here is late, and what it leaves behind is
 // described under applyReshape.
 func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string) ([]string, error) {
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return nil, err
 	}
@@ -1586,7 +1586,7 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 // against the plan's two lists, so an identifier the plan saw and deliberately
 // dropped stays dropped.
 func (l *Library) writeColumnOrder(req *Request, plan *reshapePlan, now string) error {
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return err
 	}

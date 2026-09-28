@@ -7108,6 +7108,21 @@
       "context": "A check finding at cleanup severity: a sidecar file holding the torn tail an append moved out of a journal. {detail} is the sidecar's file name, which the journal_tail_trimmed line that moved it names too. No command deletes it, because only a person can say the fragment held nothing worth keeping.",
       "skeleton": true
     },
+    "refusal.dinah.store-awaiting-migration.storage.next": {
+      "text": " Stop every Dinah process that has this workbench open, then run `dinah check --migrate-storage --backup <directory>` against it; the backup is the way back to the old layout, since the migration cannot undo itself.",
+      "context": "The next step of refusal.dinah.store-awaiting-migration when the store is owed the storage migration: it stands below the card-unit format while this build reads that layout, or a storage migration is part way through it. dinah check --migrate-storage --backup <directory> is a command line and is not translated; <directory> is the placeholder the reader replaces with a directory of their own choosing outside the workbench. The processes are named first because a process that already has the store open is the one writer the migration cannot keep out.",
+      "skeleton": true
+    },
+    "refusal.dinah.store-format-changed": {
+      "text": "This process opened the workbench at format {detail}, and workbench.md now declares format {now}.",
+      "context": "The sentence printed after the refusal name dinah.store-format-changed, which a write raises when the workbench's declared storage format, or the migration in progress beside it, has changed since the process opened it. {detail} is the format the process opened, and {now} is what workbench.md declares now; each is a number, with the migration in progress named beside it in parentheses where there is one, and neither is translated. workbench.md is a file name and is not translated.",
+      "skeleton": true
+    },
+    "refusal.dinah.store-format-changed.next": {
+      "text": " Nothing was written; open the workbench again, which a new command does by itself, and repeat the act.",
+      "context": "The next step of refusal.dinah.store-format-changed. A long-lived head such as the MCP server or the language server reopens on this refusal by itself; a person at a terminal simply runs the command again.",
+      "skeleton": true
+    },
     "check.comment-body-diverged": {
       "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

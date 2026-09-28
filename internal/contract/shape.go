@@ -1790,9 +1790,31 @@ var Shapes = []Shape{
 		// The detail is the workbench's own path, because a person meeting
 		// this is running a read against a store and the path is what tells
 		// them which one.
-		Name:      StoreAwaitingMigration,
-		Fragments: []Fragment{{Key: "refusal.dinah.store-awaiting-migration.next"}},
-		NextStep:  []string{"refusal.dinah.store-awaiting-migration.next"},
+		//
+		// The migration rides as a value, and names the storage migration
+		// where the store is below the card-unit format with the layout
+		// switched on, or carries a storage migration part way through. The
+		// sentence holds for both, since either store keeps its checklist in
+		// a form this build does not read, and the next step names the
+		// command each one is owed.
+		Name: StoreAwaitingMigration,
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.store-awaiting-migration.storage.next", When: "migration", Equals: "storage"},
+			{Key: "refusal.dinah.store-awaiting-migration.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.store-awaiting-migration.storage.next",
+			"refusal.dinah.store-awaiting-migration.next",
+		},
+	},
+	{
+		// The detail spells the format the process opened the workbench
+		// at, and now spells what workbench.md declares, each with the
+		// migration in progress beside it where one is.
+		Name:      StoreFormatChanged,
+		Values:    []string{"now"},
+		Fragments: []Fragment{{Key: "refusal.dinah.store-format-changed.next"}},
+		NextStep:  []string{"refusal.dinah.store-format-changed.next"},
 	},
 	{
 		// The detail is the journal's path. Nothing a person does raises

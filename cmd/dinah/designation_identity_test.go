@@ -220,8 +220,8 @@ func TestADesignatedCommentIsArchivableAndStillRefusesAnUnforcedDeletion(t *test
 // TestAStoreOfEitherVintageIsRefusedByTheOther is dinah-472/criteria/62 and
 // /65. Neither build reads the other's store silently.
 func TestAStoreOfEitherVintageIsRefusedByTheOther(t *testing.T) {
-	if bench.StorageFormat != 11 {
-		t.Fatalf("the storage format is %d, and this case is written against the 11 dinah-608 moved it to; the older vintage it plants is still the one dinah-472 left behind", bench.StorageFormat)
+	if bench.EffectiveStorageFormat() != 11 {
+		t.Fatalf("the storage format is %d, and this case is written against the 11 dinah-608 moved it to; the older vintage it plants is still the one dinah-472 left behind", bench.EffectiveStorageFormat())
 	}
 	root := statesFixture(t, "a card of the older vintage")
 	dir := soleBenchDir(t, root)
@@ -241,7 +241,7 @@ func TestAStoreOfEitherVintageIsRefusedByTheOther(t *testing.T) {
 
 	// A store of a later vintage is refused too, naming the version this
 	// build wanted.
-	stampFormat(t, dir, bench.StorageFormat+1)
+	stampFormat(t, dir, bench.EffectiveStorageFormat()+1)
 	newer := mustRefuse(t, root, "show", "fx-1")
 	assertRefusal(t, newer, contract.UnsupportedVer, "a read of a store declaring a later format")
 }

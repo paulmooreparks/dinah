@@ -713,9 +713,9 @@ func TestTheConversionIsMadeUnderTheWorkbenchLock(t *testing.T) {
 func TestTheConversionNeverStampsAStoreDown(t *testing.T) {
 	root := designationCards(t)
 	dir := soleBenchDir(t, root)
-	stampFormat(t, dir, bench.StorageFormat)
-	if bench.StorageFormat <= bench.DesignationFormat {
-		t.Fatalf("StorageFormat is %d, so no store can stand past DesignationFormat %d and this test reads nothing", bench.StorageFormat, bench.DesignationFormat)
+	stampFormat(t, dir, bench.EffectiveStorageFormat())
+	if bench.EffectiveStorageFormat() <= bench.DesignationFormat {
+		t.Fatalf("EffectiveStorageFormat() is %d, so no store can stand past DesignationFormat %d and this test reads nothing", bench.EffectiveStorageFormat(), bench.DesignationFormat)
 	}
 
 	converted := runCLI(t, root, "check", "--migrate-designations", "--actor", "alka")
@@ -737,8 +737,8 @@ func TestTheConversionNeverStampsAStoreDown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	if want := "\nformat: " + strconv.Itoa(bench.StorageFormat) + "\n"; !strings.Contains(text, want) {
-		t.Errorf("the anchor no longer declares format %d after the conversion:\n%s", bench.StorageFormat, text)
+	if want := "\nformat: " + strconv.Itoa(bench.EffectiveStorageFormat()) + "\n"; !strings.Contains(text, want) {
+		t.Errorf("the anchor no longer declares format %d after the conversion:\n%s", bench.EffectiveStorageFormat(), text)
 	}
 }
 

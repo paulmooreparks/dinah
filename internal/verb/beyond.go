@@ -134,7 +134,7 @@ func (l *Library) Add(req *Request) *Response {
 	// after taking it. It stops two filings from writing at once, but a caller
 	// holding a stale in-memory snapshot from before the lock was ever
 	// contested would still mint a number another process already took.
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -225,7 +225,7 @@ func (l *Library) Add(req *Request) *Response {
 	// once the anchor has landed. No other process can know the directory
 	// yet, so the acquisition cannot contend, and it is what every append
 	// to a card's journal is made under.
-	cardLock, err := bench.Acquire(dir, req.Actor, now)
+	cardLock, err := l.Bench.Acquire(dir, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -289,7 +289,7 @@ func (l *Library) Comment(req *Request) *Response {
 	// and the workbench's for a column comment, because a column bears no
 	// journal of its own. The write happens under that entity's own lock like
 	// any other.
-	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -446,7 +446,7 @@ func (l *Library) Attach(req *Request) *Response {
 	// is appended to the journal of the nearest enclosing journal-bearing
 	// entity, so one acquisition covers both writes and nothing lands
 	// before it is taken.
-	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -905,7 +905,7 @@ func (l *Library) Rename(req *Request) *Response {
 		return l.refuse(req, entity.Card, contract.Malformed, "name")
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -1608,7 +1608,7 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 		return l.refuse(req, nil, contract.NoOwner, "")
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -1648,7 +1648,7 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 // release gives the workbench lock back.
 func (l *Library) appendUnderWorkstreamLock(actor, now string, workstream *bench.Workstream, ev bench.Event) error {
 	l.interpose(stepWorkstreamWritten)
-	held, err := bench.Acquire(workstream.Dir, actor, now)
+	held, err := l.Bench.Acquire(workstream.Dir, actor, now)
 	if err != nil {
 		durable.Remove(filepath.Join(workstream.Dir, bench.WorkstreamAnchor))
 		if entries, readErr := os.ReadDir(workstream.Dir); readErr == nil && len(entries) == 0 {
@@ -1685,7 +1685,7 @@ func (l *Library) AcceptDivergence(req *Request) *Response {
 		return refused
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -1761,7 +1761,7 @@ func (l *Library) RecordCommentEdit(req *Request) *Response {
 		return l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}

@@ -451,7 +451,7 @@ func Instantiate(root, slug, operator string, definition *Definition) error {
 		return err
 	}
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", definition.Title)
 	if slug != "" {

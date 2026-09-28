@@ -723,7 +723,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 		return refused
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.lockDirFor(entity), req.Actor, now)
+	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}

@@ -1105,7 +1105,7 @@ func TestAnUnmigratedStoreIsRefusedByName(t *testing.T) {
 
 	// A store at the current format opens, so the refusals above are the gate
 	// rather than a fixture that never opened.
-	fm.Set("format", strconv.Itoa(bench.StorageFormat))
+	fm.Set("format", strconv.Itoa(bench.EffectiveStorageFormat()))
 	if err := bench.WriteText(path, fm.Render(body)); err != nil {
 		t.Fatalf("restore the anchor: %v", err)
 	}

@@ -18,7 +18,7 @@ func newStrandedFixture(t *testing.T) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
@@ -38,7 +38,7 @@ func newSoleStrandedFixture(t *testing.T) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
@@ -228,7 +228,7 @@ func newOrphanedDirectoryFixture(t *testing.T, carriesAnchor bool) (root, orphan
 	root = containedPath(t.TempDir())
 	orphan = "b00000000003"
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
@@ -305,7 +305,7 @@ func TestTheTwoColumnDirectoryFindingsNeverNameEachOthersIdentifier(t *testing.T
 	stranded := "b00000000002"
 	orphan := "b00000000003"
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", ProfileVersion)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")

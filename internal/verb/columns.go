@@ -83,7 +83,7 @@ func (l *Library) NewColumn(req *Request) *Response {
 		return l.refuse(req, nil, contract.NoOwner, "")
 	}
 	now := bench.Stamp(l.Now())
-	lock, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+	lock, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
 	if err != nil {
 		return l.FromError(req, err)
 	}

@@ -3562,7 +3562,7 @@ func Version(withCatalogs bool) *VersionReport {
 	release := &VersionReport{
 		Tool:    ToolRelease,
 		Profile: bench.ProfileVersion,
-		Format:  bench.StorageFormat,
+		Format:  bench.EffectiveStorageFormat(),
 	}
 	// A binary that cannot say where it is reports nothing rather than a
 	// guess, and omitempty turns the empty string into an absent key.

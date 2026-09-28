@@ -837,6 +837,12 @@ const (
 	// line number. No command deletes the line, since it may hold the text
 	// of a comment.
 	JournalUnreadable = LayerPrefix + "journal-unreadable"
+	// StoreFormatChanged is a write whose workbench now declares a storage
+	// format, or a migration in progress, other than the one this process
+	// opened it at. The detail spells the format the process opened, and
+	// the value now spells what workbench.md declares, so a long-lived head
+	// reopens rather than writing into a layout the store no longer keeps.
+	StoreFormatChanged = LayerPrefix + "store-format-changed"
 	// UnknownRoute is a write naming a route the workbench does not declare.
 	// The sentence lists the routes it does declare, read off the workbench
 	// rather than written into a catalog, so a route declared later reaches
@@ -948,7 +954,7 @@ var Introduced = []string{
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
-	JournalUnlocked, JournalUnreadable,
+	JournalUnlocked, JournalUnreadable, StoreFormatChanged,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,

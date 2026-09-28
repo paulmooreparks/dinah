@@ -241,8 +241,8 @@ func ReservedStateCards() (claimed, blocked int) {
 
 // Generate writes a new workbench under dir and returns it. dir must exist
 // and must not already hold a .dinah directory. The workbench is written at
-// the StorageFormat and ProfileVersion of the binary the caller is linked
-// into.
+// the EffectiveStorageFormat and ProfileVersion of the binary the caller is
+// linked into.
 func Generate(dir string, seed uint64, shape Shape) (*Store, error) {
 	if err := shape.validate(); err != nil {
 		return nil, err

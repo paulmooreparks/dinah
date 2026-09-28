@@ -48,7 +48,7 @@ func conditionedFixture(t *testing.T, format int, blocks string) string {
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	stamped := strings.Replace(text, "format: "+strconv.Itoa(StorageFormat), "format: "+strconv.Itoa(format), 1)
+	stamped := strings.Replace(text, "format: "+strconv.Itoa(EffectiveStorageFormat()), "format: "+strconv.Itoa(format), 1)
 	write(t, path, strings.Replace(stamped, "columns:\n", blocks+"columns:\n", 1))
 	return root
 }
@@ -178,7 +178,7 @@ type malformedCase struct {
 // were declared.
 func assertMalformed(t *testing.T, c malformedCase) {
 	t.Helper()
-	root := conditionedFixture(t, StorageFormat, c.blocks)
+	root := conditionedFixture(t, EffectiveStorageFormat(), c.blocks)
 	b := openConditioned(t, root)
 	detail := c.slot + " (" + c.reason + ")"
 	findings := findingsOf(t, b)
@@ -262,7 +262,7 @@ func TestAConditionNamingAConditionedGateIsRefused(t *testing.T) {
 // never hold is reported, and the condition otherwise stands.
 func TestAnUnmatchableIsValueIsReportedAndAWellTypedOneIsNot(t *testing.T) {
 	const gate = "fields:\n  vendor.confirmed:\n    type: boolean\n    meaning: whether the vendor has confirmed\n    on: [card]\n  vendor.deposit-required:\n    type: boolean\n    meaning: whether the vendor asks for a deposit\n    on: [card]\n    applies_when:\n      field: vendor.confirmed\n      is: [%s]\n"
-	unmatchable := openConditioned(t, conditionedFixture(t, StorageFormat, strings.Replace(gate, "%s", "maybe", 1)))
+	unmatchable := openConditioned(t, conditionedFixture(t, EffectiveStorageFormat(), strings.Replace(gate, "%s", "maybe", 1)))
 	findings := findingsOf(t, unmatchable)
 	if !findingWith(findings, FindingAppliesWhenValueUnmatchable, "vendor.deposit-required (maybe)") {
 		t.Errorf("check reports no %s for a boolean gate asked for maybe; findings: %+v", FindingAppliesWhenValueUnmatchable, findings)
@@ -270,7 +270,7 @@ func TestAnUnmatchableIsValueIsReportedAndAWellTypedOneIsNot(t *testing.T) {
 	if unmatchable.ConditionOn("vendor.deposit-required") == nil {
 		t.Error("an unmatchable value undeclared the whole condition, and the rest of it should stand")
 	}
-	typed := openConditioned(t, conditionedFixture(t, StorageFormat, strings.Replace(gate, "%s", "true", 1)))
+	typed := openConditioned(t, conditionedFixture(t, EffectiveStorageFormat(), strings.Replace(gate, "%s", "true", 1)))
 	if n := countOf(findingsOf(t, typed), FindingAppliesWhenValueUnmatchable); n != 0 {
 		t.Errorf("check reports %d unmatchable values for is: [true] on a boolean gate", n)
 	}
@@ -295,7 +295,7 @@ func TestApplicabilityAnswersTheFourStatesAndOrdersTheSlots(t *testing.T) {
 		{name: "orphaned", taskType: "own", severity: "safety", gateValue: "own", orphaned: true},
 	}
 	for _, c := range cases {
-		root := conditionedFixture(t, StorageFormat, blocks)
+		root := conditionedFixture(t, EffectiveStorageFormat(), blocks)
 		if c.taskType != "" {
 			storeOnCard(t, root, "task.type", c.taskType)
 		}
@@ -315,7 +315,7 @@ func TestApplicabilityAnswersTheFourStatesAndOrdersTheSlots(t *testing.T) {
 	}
 	// A card storing nothing for the gate has every conditioned slot
 	// inapplicable, in the one order every report lists them.
-	b := openConditioned(t, conditionedFixture(t, StorageFormat, blocks))
+	b := openConditioned(t, conditionedFixture(t, EffectiveStorageFormat(), blocks))
 	if got := strings.Join(b.InapplicableSlots(fixtureCard(t, b)), ","); got != "severity,priority,task.trade" {
 		t.Errorf("the inapplicable slots are %q, wanted severity, then priority, then the declared key", got)
 	}
@@ -467,7 +467,7 @@ func TestTheFormatFindingFiresOnlyWhereAConditionIsCarried(t *testing.T) {
 // returns no finding for either.
 func TestANoticeNamesAColumnRequiringAConditionedKey(t *testing.T) {
 	for _, required := range []string{"task.trade", "task.type"} {
-		root := conditionedFixture(t, StorageFormat, constructionFields)
+		root := conditionedFixture(t, EffectiveStorageFormat(), constructionFields)
 		write(t, filepath.Join(root, ColumnsDir, "b00000000001", ColumnAnchor), "---\ntitle: Only\nslug: only\nkind: work\nrequire_fields: ["+required+"]\n---\nColumn text.\n")
 		b := openConditioned(t, root)
 		if findings := findingsOf(t, b); len(findings) != 0 {

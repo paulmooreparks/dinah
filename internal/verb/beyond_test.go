@@ -663,8 +663,8 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	if release.Tool == release.Profile {
 		t.Error("the tool's release number and the conformance claim must not be conflated")
 	}
-	if release.Format != bench.StorageFormat {
-		t.Errorf("storage format: wanted %d, got %d", bench.StorageFormat, release.Format)
+	if release.Format != bench.EffectiveStorageFormat() {
+		t.Errorf("storage format: wanted %d, got %d", bench.EffectiveStorageFormat(), release.Format)
 	}
 	// The roster of which catalogs ship complete lives once, as msg.Complete
 	// and msg.Skeleton, so this test reads the same declaration

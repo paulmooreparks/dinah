@@ -132,7 +132,7 @@ func (l *Library) fileStanding(req *Request) (*StandingRepair, error) {
 			}
 			continue
 		}
-		lock, err := bench.Acquire(card.Dir, req.Actor, now)
+		lock, err := l.Bench.Acquire(card.Dir, req.Actor, now)
 		if err != nil {
 			return report, err
 		}

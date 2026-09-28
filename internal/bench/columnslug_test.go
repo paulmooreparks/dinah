@@ -594,7 +594,7 @@ func newTwoColumnFixture(t *testing.T, profile, first, second string) string {
 	t.Helper()
 	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", profile)
 	fm.Set("title", "Fixture")
 	fm.Set("slug", "fx")
