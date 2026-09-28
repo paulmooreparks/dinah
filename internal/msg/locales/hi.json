@@ -7138,9 +7138,9 @@
       "source": "aa2648743d84b1ab"
     },
     "refusal.dinah.store-awaiting-migration.storage.next": {
-      "text": " इस कार्यक्षेत्र को खोले हुए हर Dinah प्रक्रिया को रोकें, फिर उस पर `dinah check --migrate-storage --backup <directory>` चलाएँ; पुराने ढाँचे पर लौटने का रास्ता वही बैकअप है, क्योंकि माइग्रेशन खुद को पलट नहीं सकता।",
-      "context": "The next step of refusal.dinah.store-awaiting-migration when the store is owed the storage migration: it stands below the card-unit format while this build reads that layout, or a storage migration is part way through it. dinah check --migrate-storage --backup <directory> is a command line and is not translated; <directory> is the placeholder the reader replaces with a directory of their own choosing outside the workbench. The processes are named first because a process that already has the store open is the one writer the migration cannot keep out.",
-      "source": "dfaea76373043012"
+      "text": " इस कार्यक्षेत्र को खोले हुए हर Dinah प्रक्रिया को रोकें, फिर उस पर `dinah check --migrate-storage --backup <dir>` चलाएँ; पुराने ढाँचे पर लौटने का रास्ता वही बैकअप है, क्योंकि माइग्रेशन खुद को पलट नहीं सकता।",
+      "context": "The next step of refusal.dinah.store-awaiting-migration when the store is owed the storage migration: it stands below the card-unit format while this build reads that layout, or a storage migration is part way through it. dinah check --migrate-storage --backup <dir> is a command line and is not translated; <dir> is the placeholder the reader replaces with a directory of their own choosing outside the workbench. The processes are named first because a process that already has the store open is the one writer the migration cannot keep out.",
+      "source": "795af182c88e5dca"
     },
     "refusal.dinah.store-format-changed": {
       "text": "इस प्रक्रिया ने कार्यक्षेत्र को फ़ॉर्मेट {detail} पर खोला था, और workbench.md अब फ़ॉर्मेट {now} घोषित करता है।",
