@@ -76,8 +76,8 @@ READ
   view [view] [ref] [--explain] [--all]     List the views you can see, or draw
     [--plain] [--watch]                       one by name
   show <ref> [--fields <list>] [--all]      The detail of an entity of this
-    [--archived] [--since <ordinal>]          workbench
-    [--unresolved]
+    [--brief] [--archived]                    workbench
+    [--since <ordinal>] [--unresolved]
   changes [--since <cursor>] [--wait]       What has happened on this workbench
     [--timeout <duration>] [--card <ref>]     since a cursor
     [--column <column>] [--root <path>]

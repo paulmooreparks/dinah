@@ -519,6 +519,13 @@ type Request struct {
 	// form even on a first call a bare request would otherwise serve in
 	// full, and it never marks a layer served in req.HeldChain, since a
 	// caller who forced brevity on one call was not shown the text on it.
+	//
+	// On show it names the field set a station opens a card on: the narrow
+	// default, the handoff in full, and the checklist narrowed to the items
+	// that release no column hold. It is refused beside Fields and beside
+	// All, since one call cannot name two field sets. The two verbs share the
+	// field because the MCP head assigns a marker by its name alone, which is
+	// the arrangement All already has with view.
 	Brief bool
 	// HeldChain is the set of instruction-layer keys this caller's connection
 	// has already been sent and has not yet re-served, each one written

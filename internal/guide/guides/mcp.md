@@ -157,25 +157,36 @@ to read the bytes from, which over this surface is the one route to them.
 ## Ask show for the members you want
 
 `show` takes an optional `fields` argument, and it selects which members of a
-card the answer carries. The card has seven members, which are `card`, `body`,
-`links`, `attachments`, `comments`, `checklist`, and `path`. Two further names
-are written in the same argument and are not members of the card: `comments.full`
-and `checklist.full` each name a member and ask for it in full rather than as an
-index, so there are nine names you may write over seven members. Write them
-comma-separated:
+card the answer carries. The card has eight members, which are `card`, `body`,
+`links`, `attachments`, `comments`, `handoff`, `checklist`, and `path`. Two
+further names are written in the same argument and are not members of the
+card: `comments.full` and `checklist.full` each name a member and ask for it in
+full rather than as an index, so there are ten names you may write over eight members.
+Write them comma-separated:
 
 ```json
 {"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"show","arguments":{"card":"wb-1","fields":"card,body"}}}
 ```
 
-Leave the argument out and you are served every member, with two of them
-served as indexes. A comment index entry carries the comment's reference, its
-ordinal, when it was written, who wrote it, its first line and how many bytes
-its body runs to, and it carries the body empty. A checklist index entry
-carries the item's first line and no resolution note. On a card that has
-passed several stations those two members are most of what a whole answer
-costs, so an index is what an unasked read serves and the bodies are what you
-ask for.
+Leave the argument out and you are served the narrow default, which is `card`,
+`body`, `links` and `attachments`. Name `comments` or `checklist` without its
+`.full` form and that member is served as an index. A comment index entry
+carries the comment's reference, its ordinal, when it was written, who wrote
+it, its first line and how many bytes its body runs to, and it carries the
+body empty. A checklist index entry carries the item's first line and no
+resolution note. On a card that has passed several stations those two members
+are most of what a whole answer costs, so an index is what the bare name
+serves and the bodies are what you ask for with `.full`. The `all` argument
+serves every member with every body, which is the whole card.
+
+`handoff` is the comments the last station that said anything left on the
+card, served in full. The journal's moves cut the card's comments into one
+stay per column, and the handoff is the most recent stay that was closed by a
+move and wrote any card comment. A column the card crossed in silence is
+skipped, a push-back's findings are the handoff the station receiving the
+push-back reads, and a comment written since the latest move belongs to the
+stay under way rather than to the handoff. There is no `handoff.full`, because
+the member is served with its bodies or not at all.
 
 Two filters answer the two questions a reader usually has, and each answers it
 in the round that opens the card. `since` takes a comment's one-based ordinal
@@ -188,6 +199,20 @@ it refuses:
 
 ```json
 {"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"show","arguments":{"card":"wb-1","since":"28"}}}
+```
+
+`brief` is the field set a station opens a card on, and it stands in for
+`fields`: the narrow default, `handoff`, and `checklist.full` narrowed to the
+items that release no column hold, so a pending item's whole text and a
+failed item's designated comment travel with it. It is one call for the
+framing, where the contract attachment is, what the last station said, and
+what still holds the card, with the settled items, the superseded handoffs
+and the comment history left for a later call that asks for them. It is
+refused beside `fields` and beside `all`, since one call cannot name two field
+sets:
+
+```json
+{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"show","arguments":{"card":"wb-1","brief":true}}}
 ```
 
 Naming what you want on the first call costs nothing. Coming back for a member
@@ -211,9 +236,10 @@ neither carried nor named is empty on the card, and no second call is needed
 to learn that. `reread` is the card's own reference, and you pass it back to
 `show` with the names you now want.
 
-An unasked read therefore announces `comments.full` and `checklist.full` on a
-card holding either, which is the announcement teaching you the recovery you
-were not asked to know about.
+A read naming `comments` and `checklist` without `.full` therefore announces
+`comments.full` and `checklist.full` on a card holding either, and a read
+under the narrow default announces `handoff` on a card holding one, which is
+the announcement teaching you the recovery you were not asked to know about.
 
 A filter is refused with `dinah.usage` where the answer it shapes is not one
 this call carries: `since` beside a field list leaving the comments out,
@@ -223,7 +249,7 @@ the same question about the same member twice. `unresolved` beside
 `checklist.full` is not refused, because one chooses which items the answer
 carries and the other how much of each.
 
-A name outside the nine is refused with `dinah.unknown-field`. The refusal
+A name outside the ten is refused with `dinah.unknown-field`. The refusal
 names every unrecognised name you gave, sorted, together with the set you may
 choose from, and nothing is read before it is raised.
 
