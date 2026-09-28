@@ -9,14 +9,16 @@ import (
 	"dinah/internal/contract"
 )
 
-// newCardUnitHarness is newHarness over a workbench instantiated at the
-// card-unit format, which is what the switch has to be on for. It fails where
-// the workbench did not come out at that format, because every assertion in a
-// card-unit test is about a layout the store has to be in first.
+// newCardUnitHarness is newSerialHarness over a workbench instantiated at the
+// card-unit format, which is what the switch has to be on for. The switch is
+// process-global, so the test stays out of the parallel set, which runs only
+// once every serial test has finished. It fails where the workbench did not
+// come out at that format, because every assertion in a card-unit test is
+// about a layout the store has to be in first.
 func newCardUnitHarness(t *testing.T) *harness {
 	t.Helper()
 	bench.EnableCardUnitForTest(t)
-	h := newHarness(t)
+	h := newSerialHarness(t)
 	if h.library.Bench.Format != bench.CardUnitFormat {
 		t.Fatalf("the harness opened a workbench at format %d, wanted the card-unit format %d", h.library.Bench.Format, bench.CardUnitFormat)
 	}

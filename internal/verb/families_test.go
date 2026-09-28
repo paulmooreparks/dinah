@@ -42,6 +42,9 @@ var composedWithoutARequest = map[string]string{
 // assertion afterwards is one rule read over every line every journal in the
 // store holds.
 func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
+	// The run turns the card-unit layout on part way through to migrate the
+	// store, and the switch is process-global.
+	keepSerial(t)
 	h := tieredHarness(t)
 	acting := func(verb string) *Request {
 		return &Request{

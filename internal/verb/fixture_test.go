@@ -99,6 +99,15 @@ type harness struct {
 // second Parallel call.
 var markedParallel sync.Map
 
+// keepSerial keeps a test out of the parallel set although a helper it calls
+// builds its harness through newHarness, for a test that changes
+// process-global state part way through, such as turning the card-unit
+// layout on to migrate the store it built. It marks t as seen, so the later
+// markParallel call does nothing.
+func keepSerial(t *testing.T) {
+	markedParallel.Store(t, struct{}{})
+}
+
 // markParallel calls t.Parallel() the first time it sees t and does nothing
 // on every later call for the same t.
 func markParallel(t *testing.T) {
