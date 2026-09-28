@@ -21,6 +21,9 @@ import (
 // not cover. It also clears the variables isolatedEnv names, so a shell that
 // exports one does not reach a test that never asked to see it.
 func TestMain(m *testing.M) {
+	if mode := os.Getenv(lockHelperVariable); mode != "" {
+		os.Exit(runLockHelper(mode))
+	}
 	restore := testenv.IsolateTempDir()
 	restoreIsolated := testenv.ClearVars(isolatedEnv...)
 	code := m.Run()

@@ -486,7 +486,13 @@ func openJournalClassed(path string, c class) (*os.File, bool, error) {
 
 // AppendLine appends one line and its newline to a journal in a single write
 // at the end of the file, flushes it, and closes the file. When the open
-// created the journal on Linux, the directory is flushed as well.
+// created the journal on Linux, the directory is flushed as well. A write or a
+// flush that fails cuts the file back to the length it had before, so a
+// failed append leaves the journal as it found it. Every append to a card's
+// journal is made under that card's lock, so nothing can have landed after
+// the failed line there. The appends dinah-637 lists as made without the
+// owning entity's lock write the workbench's and the workstreams' journals,
+// where a failure racing one of them could cut its line too.
 func AppendLine(path string, line []byte) error {
 	c := classify(path, true)
 	unclassed := c
@@ -498,12 +504,20 @@ func AppendLine(path string, line []byte) error {
 	whole := make([]byte, 0, len(line)+1)
 	whole = append(whole, line...)
 	whole = append(whole, '\n')
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return err
+	}
+	before := info.Size()
 	observe("append", path, 0)
 	if err := appendAtEnd(f, whole); err != nil {
+		f.Truncate(before)
 		f.Close()
 		return err
 	}
 	if err := syncFile(f); err != nil {
+		f.Truncate(before)
 		f.Close()
 		return err
 	}

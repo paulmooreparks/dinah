@@ -1,8 +1,11 @@
 package bench
 
 import (
+	"errors"
 	"path/filepath"
 	"time"
+
+	"dinah/internal/durable"
 )
 
 // FindingStaleLock names an entity lock whose holder check could not show to
@@ -106,6 +109,16 @@ func tornUnderLock(card *Card) bool {
 	defer lock.Release()
 	_, torn, err := ReadJournal(card.JournalPath())
 	return err == nil && torn
+}
+
+// isBusy reports whether err carries a *durable.BusyError: the operating
+// system kept refusing a file for the whole retry budget. A reader that turns
+// its own failures into a refusal naming the entity lets this one travel, so
+// the reader of the answer is told the file was busy rather than that the
+// entity does not exist.
+func isBusy(err error) bool {
+	var busy *durable.BusyError
+	return errors.As(err, &busy)
 }
 
 // clearDeadLocks reclaims every entity lock judged dead, which records a

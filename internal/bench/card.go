@@ -158,6 +158,9 @@ func loadCard(collection, id string, refuseRetired bool) (*Card, error) {
 	// One read answers both the text and the revision, so the revision a card
 	// carries is the revision of the very bytes its fields were parsed from.
 	text, revision, err := readTextAndRevision(anchor)
+	if isBusy(err) {
+		return nil, err
+	}
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownCard, id)
 	}
