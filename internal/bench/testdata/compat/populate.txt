@@ -66,6 +66,8 @@ file sample-1 acceptance_criterion "the endpoint returns 404 for an unknown id"
 file sample-1 open_question "does the deadline move?" --owner operator
 file sample-1 decision "the write path takes the card's own lock" --column review
 cite sample-1/ac/1 test internal/verb/mutate_test.go#TestTheCardLockCoversTheWholeTransaction --observed fail:pass
+spend sample-1 tokens --input 1200 --output 300 --cached 200 --round 1 --by openai/gpt-5 --note "the first pass"
+spend sample-1 tokens --unreported --round 2
 verify sample-1/ac/1 --text "the new fixture drives the unknown-id path and the handler answers 404"
 reopen sample-1/ac/1 "the reviewer found the fixture predates the fix"
 fail sample-1/ac/1 --text "the handler still answers 200 for an unknown id"
