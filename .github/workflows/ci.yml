@@ -23,6 +23,12 @@ jobs:
   # script's path for a bash without compopt runs there for real. The verbose
   # step after the checks prints each script test's own log, which is where a
   # reader confirms which shells ran and which bash version the ASCII rule met.
+  # The untagged build, vet and test. cmd/dinah's own coverage sweep runs
+  # inside this job's Test step and doubles that package's share of it, so the
+  # tui-tagged pass, which repeats the same cmd/dinah tests a second time, is
+  # a separate job below rather than a later step here: nothing makes it wait
+  # on this job, and cmd/dinah dominates both, so running them on two runners
+  # at once is most of the wall time this split buys back (dinah-644).
   test:
     strategy:
       fail-fast: false
@@ -36,19 +42,56 @@ jobs:
             require_shells: bash,zsh
             bash: /bin/bash
     runs-on: ${{ matrix.os }}
-    # go-checks runs cmd/dinah twice, untagged and tagged tui, and the
-    # untagged run starts its coverage pass on top, so the limit allows for
-    # both on a slow Windows runner.
-    timeout-minutes: 40
+    # cmd/dinah's own coverage sweep runs a second untagged pass inside the
+    # Test step, so the limit allows for that on a slow Windows runner.
+    timeout-minutes: 25
     env:
       COMPLETION_REQUIRE_SHELLS: ${{ matrix.require_shells }}
       COMPLETION_BASH: ${{ matrix.bash }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/go-checks
+        with:
+          phase: main
       - name: Completion script tests, with each test's log
         shell: bash
         run: go test -count=1 -v -run '^TestCompletionScript' ./cmd/dinah
+
+  # The tui-tagged vet and test, split out of the job above so it runs on its
+  # own runner concurrently rather than after the untagged pass finishes on
+  # one runner. It repeats cmd/dinah's untagged tests as well as running the
+  # terminal UI's own, since a build tag adds files and removes none, but
+  # skips the coverage sweep the job above already ran (dinah-644).
+  test-tui:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/go-checks
+        with:
+          phase: tui
+
+  # internal/verb under the race detector, on the one platform whose runner
+  # ships a C toolchain by default (dinah-644). Most of the package's tests
+  # call t.Parallel() through the newHarness helper in fixture_test.go, and
+  # this is what proves that safe: -race needs cgo, which a bare Windows or
+  # macOS runner does not carry, so this cannot join the ubuntu leg of the
+  # test matrix above without slowing every other package's job down with it.
+  verb-race:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: internal/verb, race detector
+        shell: bash
+        run: go test -race -count=1 -tags nofixtureflush ./internal/verb/...
 
   # The read budgets (dinah-621). A dedicated job on one platform, because a
   # timing measured while `go test ./...` runs every other package in

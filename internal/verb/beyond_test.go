@@ -595,7 +595,7 @@ func TestInitFromATemplateCarriesTheStandingInstruction(t *testing.T) {
 // TestActorLadderAndConfig asserts the actor ladder, the config surface and
 // the preservation of a key the tool does not know.
 func TestActorLadderAndConfig(t *testing.T) {
-	h := newHarness(t)
+	h := newSerialHarness(t)
 	cfg := bench.LoadConfig(h.home)
 	if err := cfg.Set("actor", "from-config"); err != nil {
 		t.Fatalf("set actor: %v", err)

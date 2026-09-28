@@ -157,7 +157,7 @@ func exactlyOnce(t *testing.T, what string, counts map[string]int, paths []strin
 // Arming: restoring memberPosition in detailOf reddens it, with each item
 // anchor opened 37 times or more.
 func TestShowReadsEachAnchorAndListsEachCollectionOnce(t *testing.T) {
-	h := newHarness(t)
+	h := newSerialHarness(t)
 	ref := heavyCard(t, h)
 	card := h.card(ref)
 	items, err := bench.Items(card.Dir)
@@ -216,7 +216,7 @@ func TestShowReadsEachAnchorAndListsEachCollectionOnce(t *testing.T) {
 // card neither held nor blocked reddens this test, with the two untouched
 // cards' item anchors and mounts opened once each instead of not at all.
 func TestStatusReadsEachCardOnceAndComposesOnlyWhatItPrints(t *testing.T) {
-	h := newHarness(t)
+	h := newSerialHarness(t)
 	heavy := heavyCard(t, h) // ready: neither held nor blocked
 	held := filledCard(t, h)
 	h.mustDo(&Request{Verb: Claim, Card: held, Actor: "alka"})
@@ -404,7 +404,7 @@ const offerItemsOpenMultiple = 3
 // reddens this: see the card comment for the count that shape reached against
 // the heavy card's 36 items.
 func TestOfferItemsOpensAConstantMultipleOfItemCount(t *testing.T) {
-	h := newHarness(t)
+	h := newSerialHarness(t)
 	ref := heavyCard(t, h)
 	card := h.card(ref)
 	items, err := bench.Items(card.Dir)

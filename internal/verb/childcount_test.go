@@ -106,7 +106,7 @@ func marshalled(t *testing.T, view *CardView) map[string]any {
 // Arming: making TallyItems list the checklist itself through ListIDs again
 // reddens this test by name with four listings against three.
 func TestOneCardViewMakesOneListingPerMount(t *testing.T) {
-	h := newHarness(t)
+	h := newSerialHarness(t)
 	ref := filledCard(t, h)
 	card := h.card(ref)
 
