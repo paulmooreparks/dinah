@@ -146,9 +146,13 @@ func moveOnce(from, to string) error {
 	return moveFileEx("move", from, to, moveFlags)
 }
 
-// moveFileEx reports the step to Observe and calls MoveFileEx once.
+// moveFileEx reports the step to Observe and calls MoveFileEx once. A test
+// fixture skipping its flushes renames without MOVEFILE_WRITE_THROUGH.
 func moveFileEx(op, from, to string, flags uint32) error {
 	observe(op, to, flags)
+	if skipsFlush(to) {
+		flags &^= windows.MOVEFILE_WRITE_THROUGH
+	}
 	source, err := utf16(op, from)
 	if err != nil {
 		return err

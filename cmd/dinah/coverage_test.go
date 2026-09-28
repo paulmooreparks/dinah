@@ -77,7 +77,11 @@ func TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed(t *testing.T) {
 	// an unstated timeout is ten minutes whatever the run above was given. The
 	// child is the heavier half of this package, so leaving it at the default
 	// would move the cliff rather than remove it.
-	command := exec.Command("go", "test", "-count=1", "-timeout", "30m", "-coverprofile="+profile, ".")
+	arguments := []string{"test", "-count=1", "-timeout", "30m", "-coverprofile=" + profile}
+	if fixtureFlushTags != "" {
+		arguments = append(arguments, "-tags", fixtureFlushTags)
+	}
+	command := exec.Command("go", append(arguments, ".")...)
 	command.Env = append(os.Environ(), coverageChildMarker+"=1")
 	if out, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("the coverage run failed, so nothing below can be read: %v\n%s", err, out)

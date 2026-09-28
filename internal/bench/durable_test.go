@@ -14,6 +14,15 @@ import (
 	"dinah/internal/durable"
 )
 
+// newDurableFixture is newFixture for a durability test, whose workbench
+// flushes every write as a production binary does whatever the build.
+func newDurableFixture(t *testing.T) string {
+	t.Helper()
+	root := newFixture(t)
+	t.Cleanup(durable.KeepFlushingUnder(root))
+	return root
+}
+
 // traced records the steps durable reports while a test runs, and makes a
 // sync step fail when failSync is set.
 type traced struct {
@@ -132,7 +141,7 @@ func temporariesIn(t *testing.T, dir string) []string {
 // rename carries MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH on Windows,
 // and the directory is flushed after it on Linux alone.
 func TestEveryDurableWriteFlushesBeforeItRenames(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	card := fixtureCardDir(root)
 	recorder := trace(t)
 
@@ -190,7 +199,7 @@ func TestEveryDurableWriteFlushesBeforeItRenames(t *testing.T) {
 // trace seam fails the flush, each write answers that error, the destination
 // keeps the bytes it had, and no temporary is left behind.
 func TestAFailedFlushLeavesTheDestinationAsItWas(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	card := fixtureCardDir(root)
 	attached, err := AddAttachmentBytes(card, "notes.txt", []byte("first"), "", "test")
 	if err != nil {
@@ -248,7 +257,7 @@ func TestAFailedFlushLeavesTheDestinationAsItWas(t *testing.T) {
 // is not reported torn, since an append may be in flight, and that the same
 // journal with the lock free is.
 func TestACardJournalIsCalledTornOnlyWhenItIsTornUnderTheLock(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	card := fixtureCardDir(root)
 	appendText(t, filepath.Join(card, JournalName), `{"ts":"2026-09-28T00:00:00Z","ev`)
 	held, err := Acquire(card, "brin", "2026-09-28T00:00:00Z")
@@ -290,7 +299,7 @@ func tornFindings(t *testing.T, opened *Bench) int {
 // the archived directory, and that such a writer's own acquisition refuses
 // and completes its refusal.
 func TestALockPlantedDuringTheArchiveDoesNotTravel(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	card := fixtureCardDir(root)
 	opened, err := Open(root)
 	if err != nil {

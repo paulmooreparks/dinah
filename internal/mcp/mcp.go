@@ -144,7 +144,12 @@ func serveWith(root string, defaultLib *verb.Library, libraries map[string]*verb
 			continue
 		}
 		notices.token = progressToken(req.Params)
-		answer := dispatch(root, defaultLib, libraries, &req, profile, memory)
+		var answer *response
+		if req.Method == "logging/setLevel" {
+			answer = notices.setLevel(&req)
+		} else {
+			answer = dispatch(root, defaultLib, libraries, &req, profile, memory)
+		}
 		notices.token = nil
 		if answer == nil {
 			continue
@@ -178,17 +183,80 @@ type waitNotices struct {
 	// token is the progressToken of the request being answered, nil when it
 	// carried none or when no request is being answered.
 	token json.RawMessage
+	// level is the least severe level the client asked to be sent through
+	// logging/setLevel, empty until it asks, when every level is sent.
+	level string
+}
+
+// logLevels are the MCP specification's log levels, the syslog severities of
+// RFC 5424, from the least severe to the most.
+var logLevels = []string{"debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"}
+
+// noticeLevel is the level every wait notice is sent at, the only level this
+// server logs at.
+const noticeLevel = "warning"
+
+// severity answers a level's place in logLevels, and false for a name that is
+// not a level.
+func severity(level string) (int, bool) {
+	for i, known := range logLevels {
+		if known == level {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// setLevel answers logging/setLevel, which the MCP specification's logging
+// section gives a client of a server that declares the logging capability:
+// the level it names is the least severe one the server sends from then on.
+// Every notice this server logs is at warning, so a level of warning or below
+// changes nothing, and a level above it stops the log messages while the
+// progress notifications, which are not logging, go on. A level that is not
+// one of the specification's answers invalid params, as the specification's
+// error handling for this request says.
+func (n *waitNotices) setLevel(req *request) *response {
+	if len(req.ID) == 0 {
+		return nil
+	}
+	answer := &response{JSONRPC: "2.0", ID: req.ID}
+	var params struct {
+		Level string `json:"level"`
+	}
+	if len(req.Params) > 0 && json.Unmarshal(req.Params, &params) != nil {
+		params.Level = ""
+	}
+	if _, ok := severity(params.Level); !ok {
+		answer.Error = &rpcError{Code: codeInvalidParams, Message: "invalid log level: " + params.Level}
+		return answer
+	}
+	n.level = params.Level
+	answer.Result = map[string]any{}
+	return answer
+}
+
+// logs reports whether a notice at level reaches the client under the level
+// it asked for.
+func (n *waitNotices) logs(level string) bool {
+	if n.level == "" {
+		return true
+	}
+	wanted, _ := severity(n.level)
+	sent, _ := severity(level)
+	return sent >= wanted
 }
 
 // send writes the notices for one wait.
 func (n *waitNotices) send(wait durable.Wait) {
 	text := verb.WaitingNotice(msg.For(msg.Base), n.roots(), wait)
-	logged := notification{
-		JSONRPC: "2.0",
-		Method:  "notifications/message",
-		Params:  map[string]any{"level": "warning", "logger": "dinah", "data": text},
+	if n.logs(noticeLevel) {
+		logged := notification{
+			JSONRPC: "2.0",
+			Method:  "notifications/message",
+			Params:  map[string]any{"level": noticeLevel, "logger": "dinah", "data": text},
+		}
+		n.encoder.Encode(logged)
 	}
-	n.encoder.Encode(logged)
 	if len(n.token) == 0 {
 		return
 	}

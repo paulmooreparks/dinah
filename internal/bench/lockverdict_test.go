@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // fixtureCardDir is the one card newFixture writes.
@@ -153,6 +154,45 @@ func TestARecordNamingThisProcessFollowsTheRegistry(t *testing.T) {
 	held.abandon()
 	if _, verdict := JudgeLock(path); verdict != VerdictDead {
 		t.Errorf("this process's own orphan, %+v, judged %s, wanted dead", record, verdict)
+	}
+}
+
+// TestALockReleasedMidJudgementIsGone asserts that a lock whose holder lets it
+// go after the judge has opened the file, and before the judge takes the
+// operating-system lock, is judged gone, which sends an acquisition round
+// again, rather than judged on the record the released file still carries;
+// and that a lock nobody releases in that window is still judged on its
+// record.
+func TestALockReleasedMidJudgementIsGone(t *testing.T) {
+	root := newFixture(t)
+	dir := fixtureCardDir(root)
+	path := filepath.Join(dir, LockName)
+	held, err := Acquire(dir, "alka", "2026-09-28T00:00:00Z")
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+	judgeOpened = func() { held.Release() }
+	t.Cleanup(func() { judgeOpened = nil })
+	judged := judge(path)
+	judgeOpened = nil
+	if judged.file != nil {
+		durable.CloseLockFile(judged.file)
+	}
+	if !judged.gone {
+		t.Errorf("a lock released while it was judged answered %s on %+v, wanted gone", judged.verdict, judged.record)
+	}
+
+	held, err = Acquire(dir, "alka", "2026-09-28T00:00:00Z")
+	if err != nil {
+		t.Fatalf("acquire again: %v", err)
+	}
+	held.abandon()
+	judged = judge(path)
+	if judged.file != nil {
+		durable.CloseLockFile(judged.file)
+	}
+	if judged.gone || judged.verdict != VerdictDead {
+		t.Errorf("this process's own orphan, nobody releasing it, answered gone=%v %s, wanted dead", judged.gone, judged.verdict)
 	}
 }
 

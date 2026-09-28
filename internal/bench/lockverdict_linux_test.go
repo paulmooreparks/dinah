@@ -3,6 +3,7 @@
 package bench
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -48,6 +49,36 @@ func linuxOnlyUnknowns(t *testing.T, dead LockRecord) []plantedCase {
 		{"another boot of another machine", withIdentity(t, dead, "0123456789abcdef0123456789abcdef", "another-boot", "")},
 		{"another boot with no machine identity", withIdentity(t, dead, "", "another-boot", "")},
 		{"another PID namespace", withIdentity(t, dead, fields.machine, "", "1.2")},
+	}
+}
+
+// TestAnUnrecordedStartTimeIsNotAMismatch asserts that a Linux record naming
+// this test's own live PID, from this boot and this PID namespace, whose
+// starttime is empty and whose operating-system lock is free, is judged
+// unknown rather than dead: an identity that was never recorded is not one
+// the process table contradicts. A record carrying a starttime this PID does
+// not have is still judged dead beside it.
+func TestAnUnrecordedStartTimeIsNotAMismatch(t *testing.T) {
+	host, start := selfIdentity()
+	mine, ok := parseLinuxIdentity(start)
+	if !ok || mine.boot == "" || mine.namespace == "" || mine.start == "" {
+		t.Skipf("this process's own identity %q is incomplete, so no record can name its process table", start)
+	}
+	root := newFixture(t)
+	path := filepath.Join(fixtureCardDir(root), LockName)
+	self := os.Getpid()
+	record := LockRecord{Actor: "brin", PID: self, TS: "2026-09-28T00:00:00Z", Host: host, OSLock: true}
+
+	record.Start = "linux:" + strings.Join([]string{mine.machine, mine.boot, mine.namespace, ""}, "/")
+	plantRecord(t, path, record)
+	if _, verdict := JudgeLock(path); verdict != VerdictUnknown {
+		t.Errorf("a record with no starttime naming the live PID %d judged %s, wanted unknown", self, verdict)
+	}
+
+	record.Start = "linux:" + strings.Join([]string{mine.machine, mine.boot, mine.namespace, "1"}, "/")
+	plantRecord(t, path, record)
+	if _, verdict := JudgeLock(path); verdict != VerdictDead {
+		t.Errorf("a record whose starttime the live PID %d does not have judged %s, wanted dead", self, verdict)
 	}
 }
 

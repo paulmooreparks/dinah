@@ -15,7 +15,7 @@ import (
 // the write lands the new bytes over an open reader on its first attempt,
 // with no wait, and leaves no temporary.
 func TestARenameIntoPlaceSurvivesAForeignReader(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	path := filepath.Join(fixtureCardDir(root), CardAnchor)
 	reader, err := os.Open(path)
 	if err != nil {

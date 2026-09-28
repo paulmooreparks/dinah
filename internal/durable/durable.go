@@ -1,8 +1,16 @@
 // Package durable holds every open, write, rename, removal and append that
 // Dinah performs on a workbench tree or on the setup ledger, together with the
 // operating-system file lock an entity lock's holder keeps and the in-process
-// registry of held locks. No other package opens, renames or removes a file;
-// guard_test.go in this package holds the module to that.
+// registry of held locks. No other package opens, renames or removes a file
+// on a workbench tree. guard_test.go in this package holds the module to that
+// through the type checker: every package-level function of os, io/fs and
+// io/ioutil and every method of os.Root is refused outside this package unless
+// the guard permits it by name, and a list of functions is refused from
+// syscall, golang.org/x/sys/windows and golang.org/x/sys/unix. The guard does
+// not see a function of those three packages missing from its list, a
+// third-party library opening a path Dinah hands it, or the four packages it
+// leaves out with their reasons; the comment at the top of guard_test.go names
+// each.
 //
 // Three properties live here so that no call site can forget them. A write
 // reaches the disk before the rename that publishes it. Dinah's own readers
@@ -18,10 +26,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -108,158 +112,6 @@ func observe(op, path string, flags uint32) error {
 	return Observe(Step{Op: op, Path: path, Flags: flags})
 }
 
-// Hold is an entry of the in-process registry of held locks. A lock's holder
-// inserts one before it creates its lock file and removes it when it lets the
-// lock go, and a judge or a reclaimer inserts one before it opens the file, so
-// two goroutines of one process never hold, judge or reclaim one lock at once.
-type Hold struct {
-	// Dir is the directory the lock protects, which is the lock file's own
-	// directory.
-	Dir string
-	// Wrote is set by the first mutating operation that succeeds inside Dir
-	// while this entry is the nearest one above it. Until then an operation
-	// there may give up; after it, an operation waits until it succeeds.
-	Wrote atomic.Bool
-
-	key    string
-	dirKey string
-	owner  any
-}
-
-// Owner answers what inserted the entry, or what it was handed to since.
-func (h *Hold) Owner() any {
-	registry.Lock()
-	defer registry.Unlock()
-	return h.owner
-}
-
-// Hand makes owner the entry's owner, which is how a judge's entry becomes
-// the reclaiming lock's own.
-func (h *Hold) Hand(owner any) {
-	registry.Lock()
-	defer registry.Unlock()
-	h.owner = owner
-}
-
-// Unregister removes the entry, but only while it is still the one standing
-// under its path, so a failed acquisition can never remove the entry of the
-// acquisition that beat it.
-func (h *Hold) Unregister() {
-	if h == nil {
-		return
-	}
-	registry.Lock()
-	defer registry.Unlock()
-	if registry.entries[h.key] == h {
-		delete(registry.entries, h.key)
-	}
-}
-
-// registry is the process-wide map from a lock file's path, compared under
-// pathKey, to the entry that owns it.
-var registry = struct {
-	sync.Mutex
-	entries map[string]*Hold
-}{entries: map[string]*Hold{}}
-
-// Register inserts an entry for the lock file at path, owned by owner. When
-// an entry already stands under that path it inserts nothing and answers a nil
-// entry together with the owner of the one that stands.
-func Register(path string, owner any) (*Hold, any) {
-	key := pathKey(path)
-	registry.Lock()
-	defer registry.Unlock()
-	if present, ok := registry.entries[key]; ok {
-		return nil, present.owner
-	}
-	dir := filepath.Dir(filepath.Clean(path))
-	hold := &Hold{Dir: dir, key: key, dirKey: pathKey(dir), owner: owner}
-	registry.entries[key] = hold
-	return hold, nil
-}
-
-// Registered answers the owner of the entry standing under path, and whether
-// one stands.
-func Registered(path string) (any, bool) {
-	registry.Lock()
-	defer registry.Unlock()
-	hold, ok := registry.entries[pathKey(path)]
-	if !ok {
-		return nil, false
-	}
-	return hold.owner, true
-}
-
-// pathKey is the form a path is compared in: cleaned, and folded to lower
-// case on the two platforms whose file systems compare names without regard
-// to case by default. Folding where a volume is case-sensitive only makes two
-// distinct names collide, which refuses an acquisition and never grants one.
-func pathKey(path string) string {
-	cleaned := filepath.Clean(path)
-	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
-		return strings.ToLower(cleaned)
-	}
-	return cleaned
-}
-
-// nearestHold answers the registry entry whose Dir is the nearest ancestor of
-// path, or nil when none is.
-func nearestHold(path string) *Hold {
-	target := pathKey(path)
-	registry.Lock()
-	defer registry.Unlock()
-	var nearest *Hold
-	for _, hold := range registry.entries {
-		if !within(target, hold.dirKey) {
-			continue
-		}
-		if nearest == nil || len(hold.dirKey) > len(nearest.dirKey) {
-			nearest = hold
-		}
-	}
-	return nearest
-}
-
-// within reports whether path lies strictly below dir, both already in
-// pathKey form, testing whole segments rather than a text prefix.
-func within(path, dir string) bool {
-	if !strings.HasPrefix(path, dir) || len(path) == len(dir) {
-		return false
-	}
-	if strings.HasSuffix(dir, string(filepath.Separator)) {
-		return true
-	}
-	return path[len(dir)] == filepath.Separator
-}
-
-// class is where an operation falls in its act: whether it may give up once
-// RetryBudget has passed, and the entry whose Wrote it sets on success.
-type class struct {
-	hold     *Hold
-	mayGive  bool
-	mutating bool
-}
-
-// classify reads the registry for an operation on path. A mutating operation
-// sets Wrote on its entry when it succeeds; a read only follows it.
-func classify(path string, mutating bool) class {
-	hold := nearestHold(path)
-	mayGive := hold == nil || !hold.Wrote.Load()
-	return class{hold: hold, mayGive: mayGive, mutating: mutating}
-}
-
-// alwaysGiveUp is the class of an operation that gives up at RetryBudget
-// wherever it falls and never touches an entry: a directory move, a tree
-// removal, a lock creation, and the removal of a lock file on release.
-var alwaysGiveUp = class{mayGive: true}
-
-// done records a successful operation of this class on its entry.
-func (c class) done() {
-	if c.mutating && c.hold != nil {
-		c.hold.Wrote.Store(true)
-	}
-}
-
 // retry runs attempt until it succeeds, fails with an error retryable does not
 // accept, or, for a class that may give up, RetryBudget has passed. A class
 // that may not give up calls Waiting each time another RetryBudget passes.
@@ -307,7 +159,7 @@ func notify(op, path string, last error, elapsed time.Duration, notice int) {
 // delete access, so Dinah's own reading never refuses Dinah's own rename,
 // append or removal.
 func Open(path string) (*os.File, error) {
-	c := classify(path, false)
+	c := classify(false)
 	var f *os.File
 	err := retry("open", path, c, openRetryable, func() error {
 		var err error
@@ -365,7 +217,7 @@ func WriteFile(path string, data []byte, perm os.FileMode) error {
 		os.Remove(name)
 		return err
 	}
-	c := classify(path, true)
+	c := classify(true)
 	if err := replaceClassed("write", name, path, c); err != nil {
 		os.Remove(name)
 		return err
@@ -400,13 +252,16 @@ func syncFile(f *os.File) error {
 	if err := observe("sync", f.Name(), 0); err != nil {
 		return err
 	}
+	if skipsFlush(f.Name()) {
+		return nil
+	}
 	return f.Sync()
 }
 
 // Replace renames a file over an existing file, or over nothing. On Linux the
 // directory is flushed afterwards.
 func Replace(from, to string) error {
-	c := classify(to, true)
+	c := classify(true)
 	if err := replaceClassed("replace", from, to, c); err != nil {
 		return err
 	}
@@ -445,7 +300,7 @@ func MoveDir(from, to string) error {
 // operating system gives for it, which callers test with errors.Is and
 // fs.ErrNotExist.
 func Remove(path string) error {
-	c := classify(path, true)
+	c := classify(true)
 	observe("remove", path, 0)
 	return retry("remove", path, c, replaceRetryable(path), func() error {
 		return removeOnce(path)
@@ -485,7 +340,7 @@ func structural(err error) error {
 // OpenJournal opens a journal for reading and writing, creating it when it is
 // absent. Appends made through AppendLine land at the end of the file.
 func OpenJournal(path string) (*os.File, error) {
-	c := classify(path, true)
+	c := classify(true)
 	f, _, err := openJournalClassed(path, c)
 	return f, err
 }
@@ -513,7 +368,7 @@ func openJournalClassed(path string, c class) (*os.File, bool, error) {
 // owning entity's lock write the workbench's and the workstreams' journals,
 // where a failure racing one of them could cut its line too.
 func AppendLine(path string, line []byte) error {
-	c := classify(path, true)
+	c := classify(true)
 	unclassed := c
 	unclassed.mutating = false
 	f, created, err := openJournalClassed(path, unclassed)
@@ -569,9 +424,15 @@ func CreateExclusive(path string) (*os.File, error) {
 // OpenLockFile opens an existing lock file for reading and writing, with the
 // access its holder needs to delete it on release. An absent file answers an
 // error for which errors.Is(err, fs.ErrNotExist) holds.
+//
+// A denial is tried again until RetryBudget has passed, as CreateExclusive
+// tries it, because a lock released while another handle still has it open
+// answers one on Windows until that handle closes, and the retry then meets
+// the file gone.
 func OpenLockFile(path string) (*os.File, error) {
 	var f *os.File
-	err := retry("open", path, alwaysGiveUp, openRetryable, func() error {
+	retryable := func(err error) bool { return openRetryable(err) || createRetryable(err) }
+	err := retry("open", path, alwaysGiveUp, retryable, func() error {
 		var err error
 		f, err = openLockFileOnce(path)
 		return err

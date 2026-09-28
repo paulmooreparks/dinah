@@ -48,6 +48,11 @@ func (v Verdict) String() string {
 // the reclaim's first step, so a test can hold two reclaimers there together.
 var ReclaimInterpose func()
 
+// judgeOpened, nil in production, is called once the judge has opened the lock
+// file and before it tries the operating-system lock, so a test can release
+// the lock in that window.
+var judgeOpened func()
+
 // judgement is what the verdict found: the record the file carries, the
 // verdict, whether the file was gone before it could be opened, and, for a
 // VerdictDead, the handle the judge holds the operating-system lock on.
@@ -96,14 +101,25 @@ func holderRecord(owner any, path string) LockRecord {
 // judge applies the verdict's rules 2 to 6 to the lock file at path, for a
 // caller that already holds the path's registry entry, which is rule 1. It
 // keeps the handle and its operating-system lock only for a VerdictDead.
+//
+// A lock released while the judge works is gone, not unknown: a file whose
+// name is no longer there once the open has failed, and a handle whose file
+// the name no longer reaches once the operating-system lock is taken, both
+// mean the holder let it go, and the caller tries again.
 func judge(path string) judgement {
 	f, err := durable.OpenLockFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return judgement{gone: true}
 	}
 	if err != nil {
+		if _, statErr := os.Lstat(path); errors.Is(statErr, fs.ErrNotExist) {
+			return judgement{gone: true}
+		}
 		record, _ := ReadLockRecord(path)
 		return judgement{record: record, verdict: VerdictUnknown}
+	}
+	if judgeOpened != nil {
+		judgeOpened()
 	}
 	taken, err := durable.TryOSLock(f)
 	if err != nil || !taken {
@@ -114,6 +130,10 @@ func judge(path string) judgement {
 			verdict = VerdictUnknown
 		}
 		return judgement{record: record, verdict: verdict}
+	}
+	if named, err := durable.StillNamed(f, path); err == nil && !named {
+		durable.CloseLockFile(f)
+		return judgement{gone: true}
 	}
 	data, err := durable.ReadHeld(f)
 	if err != nil {

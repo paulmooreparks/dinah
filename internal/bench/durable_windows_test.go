@@ -66,7 +66,7 @@ func noticesTo(t *testing.T, also func(durable.Wait)) *[]durable.Wait {
 // not delete: the first rename is refused, the handle closes, the retry lands
 // the new bytes, and no temporary is left.
 func TestARenameIntoPlaceSurvivesAForeignReader(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	path := filepath.Join(fixtureCardDir(root), CardAnchor)
 	closeReader := foreignHandle(t, path, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE)
 	replaces := 0
@@ -101,7 +101,7 @@ func TestARenameIntoPlaceSurvivesAForeignReader(t *testing.T) {
 // and that a destination carrying FILE_ATTRIBUTE_READONLY answers its error at
 // once.
 func TestARenameThatNeverLandsGivesUpWithinTheBudget(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	path := filepath.Join(fixtureCardDir(root), CardAnchor)
 	before, _ := ReadText(path)
 	shortBudget(t, 100*time.Millisecond)
@@ -144,6 +144,112 @@ func TestARenameThatNeverLandsGivesUpWithinTheBudget(t *testing.T) {
 	}
 }
 
+// TestAReadInAnotherRequestGivesUpWhileAnActWaits asserts that a read made on
+// one goroutine while another goroutine's act holds a card's lock and has
+// already written there gives up with *durable.BusyError within the budget,
+// as a read in one request of serve or ui does while another request is part
+// way through its act; and that the same read made by the act itself waits,
+// with notices, until the handle closes.
+func TestAReadInAnotherRequestGivesUpWhileAnActWaits(t *testing.T) {
+	root := newDurableFixture(t)
+	card := fixtureCardDir(root)
+	anchor := filepath.Join(card, CardAnchor)
+	shortBudget(t, 100*time.Millisecond)
+
+	written := make(chan struct{})
+	readByOther := make(chan struct{})
+	actRead := make(chan error, 1)
+	var closeReader func()
+	notices := noticesTo(t, func(durable.Wait) { closeReader() })
+	go func() {
+		lock, err := Acquire(card, "alka", "2026-09-28T00:00:00Z")
+		if err != nil {
+			actRead <- err
+			close(written)
+			return
+		}
+		defer lock.Release()
+		if err := WriteText(anchor, cleanCard); err != nil {
+			actRead <- err
+			close(written)
+			return
+		}
+		close(written)
+		<-readByOther
+		_, err = durable.ReadFile(anchor)
+		actRead <- err
+	}()
+	<-written
+	closeReader = foreignHandle(t, anchor, 0)
+
+	answered := make(chan error, 1)
+	began := time.Now()
+	go func() {
+		_, err := durable.ReadFile(anchor)
+		answered <- err
+	}()
+	select {
+	case err := <-answered:
+		var busy *durable.BusyError
+		if !errors.As(err, &busy) || time.Since(began) > time.Second {
+			t.Errorf("a read in another request answered %v after %v, wanted *durable.BusyError within the budget", err, time.Since(began))
+		}
+	case <-time.After(3 * time.Second):
+		closeReader()
+		<-answered
+		t.Error("a read in another request was still waiting after three seconds, so it took on the other act's write")
+	}
+	if len(*notices) != 0 {
+		t.Errorf("the other request's read called Waiting %d times", len(*notices))
+	}
+
+	close(readByOther)
+	if err := <-actRead; err != nil {
+		t.Fatalf("the act's own read after its write answered %v, wanted it to wait for the handle", err)
+	}
+	if len(*notices) == 0 {
+		t.Error("the act's own read never waited, so the handle refused nothing")
+	}
+}
+
+// TestAReleasedLockUnderADinahReaderIsGone asserts that a lock released while
+// Dinah's own reader holds it open, which leaves its deletion pending and
+// makes every open of it answer ERROR_ACCESS_DENIED, is judged gone once the
+// reader closes, rather than unknown, and that check run in the same window
+// reports no stale lock.
+func TestAReleasedLockUnderADinahReaderIsGone(t *testing.T) {
+	root := newDurableFixture(t)
+	dir := fixtureCardDir(root)
+	path := filepath.Join(dir, LockName)
+	releaseUnderReader := func() {
+		t.Helper()
+		held, err := Acquire(dir, "alka", "2026-09-28T00:00:00Z")
+		if err != nil {
+			t.Fatalf("acquire: %v", err)
+		}
+		reader, err := durable.Open(path)
+		if err != nil {
+			t.Fatalf("read the lock the way Dinah does: %v", err)
+		}
+		held.Release()
+		timer := time.AfterFunc(200*time.Millisecond, func() { reader.Close() })
+		t.Cleanup(func() { timer.Stop(); reader.Close() })
+	}
+
+	releaseUnderReader()
+	if record, verdict := JudgeLock(path); verdict != VerdictLive || record != (LockRecord{}) {
+		t.Errorf("a lock released under a reader judged %s on %+v, wanted the gone answer: live with no record", verdict, record)
+	}
+	releaseUnderReader()
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if stale := staleLocksIn(t, opened); len(stale) != 0 {
+		t.Errorf("check reported %+v for a lock its holder had released", stale)
+	}
+}
+
 // TestAReaderAndAnAppenderCoexist asserts that an append to a journal Dinah's
 // own reader holds lands without waiting; that with the journal held by a
 // handle that does not share write and the budget at 100 ms, an append made
@@ -152,7 +258,7 @@ func TestARenameThatNeverLandsGivesUpWithinTheBudget(t *testing.T) {
 // Waiting at least twice with rising notice numbers, and lands once the handle
 // closes.
 func TestAReaderAndAnAppenderCoexist(t *testing.T) {
-	root := newFixture(t)
+	root := newDurableFixture(t)
 	card := fixtureCardDir(root)
 	journal := filepath.Join(card, JournalName)
 	ev := Event{TS: "2026-09-28T00:00:00Z", Event: contract.EventCommented, Actor: NamedActor("alka")}

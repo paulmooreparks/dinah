@@ -4055,18 +4055,24 @@ holds the file open, and Dinah tries it again, starting 10 ms apart and
 backing off to 250 ms. Dinah's own readers open with every sharing flag, so
 one Dinah process never refuses another's rename or append. How long a
 refused operation keeps trying depends on where it falls in its act, meaning
-the stretch during which a process holds an entity lock. Before the act's
-first write, and outside any act, an operation gives up after five seconds
-and the act is refused `dinah.busy`, whose text says that nothing was changed,
-which is then true. After the act's first write, an operation keeps trying
-until it succeeds, with a notice every five seconds and no ceiling, because
-stopping there would leave the anchor and the journal disagreeing. Every head
-surfaces the notice in its own channel, and ending the process is what ends a
-wait that will not end. A structural act's directory move and a tree removal
-give up after five seconds wherever they fall, and past the act's point of
-record that is reported as an interruption. No other platform retries,
-because POSIX `rename(2)`, `unlink(2)`, and `open(2)` are not refused by
-another process's open handle.
+the stretch during which one request holds entity locks. Every lock a request
+takes while it already holds one belongs to the same act, and a `reshape`
+that applies is one act across all its steps, whatever locks those steps take
+and give back. Before the act's first write, and outside any act, an operation
+gives up after five seconds and the act is refused `dinah.busy`, whose text
+says that nothing was changed, which is then true. After the act's first
+write, every operation of that act keeps trying until it succeeds, with a
+notice every five seconds and no ceiling, because stopping there would leave
+the anchor and the journal disagreeing or a reshape half applied. Another
+request running in the same process, such as a read in `dinah serve`, `dinah
+ui`, or the terminal UI while an act of another request is waiting, is outside
+that act and gives up after five seconds. Every head surfaces the notice in
+its own channel, and ending the process is what ends a wait that will not end.
+A structural act's directory move and a tree removal give up after five
+seconds wherever they fall, and past the act's point of record that is
+reported as an interruption. No other platform retries, because POSIX
+`rename(2)`, `unlink(2)`, and `open(2)` are not refused by another process's
+open handle.
 
 Filing a card is the one creation that takes a lock above its own
 directory. The registry's high-water mark is read and then claimed in two
@@ -4106,8 +4112,12 @@ live holder among the processes that share that lock. The proof then asks
 three more questions of the record. It has to parse and carry `os_lock` true,
 its platform tag has to be the judge's own, and it has to name the judge's
 own process table (the same host, and on Linux the same boot and PID
-namespace). The recorded process has to be gone from that table. A Linux lock
-from an earlier boot of the same machine, carrying the same machine ID and
+namespace). The recorded process has to be gone from that table, and on Linux
+a record carrying no start time proves that only by a PID that is absent or
+ended, since a start time never recorded is not one the table contradicts. A
+lock its holder releases while the judge is reading it is neither dead nor
+unknown but gone, and the writer that met it tries to take it again. A Linux
+lock from an earlier boot of the same machine, carrying the same machine ID and
 another boot ID, is dead as well, because every process of an earlier boot
 has ended. Anything short of that proof is judged unknown and refused like a
 live lock. The writer that proves a holder dead rewrites the record in place

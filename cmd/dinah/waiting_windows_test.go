@@ -22,6 +22,7 @@ import (
 // then answers ok once the handle closes.
 func TestTheCommandLinePrintsAWaitToStandardError(t *testing.T) {
 	root := newBench(t)
+	t.Cleanup(durable.KeepFlushingUnder(root))
 	mustRun(t, root, "add", "waiting")
 	anchor := strings.TrimSpace(mustRun(t, root, "path", "fx-1").out)
 	journal := filepath.Join(filepath.Dir(anchor), bench.JournalName)

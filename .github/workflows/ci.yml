@@ -38,11 +38,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     # go-checks runs cmd/dinah twice, untagged and tagged tui, and the
     # untagged run starts its coverage pass on top, so the limit allows for
-    # both on a slow Windows runner. dinah-640 made every write flush to the
-    # disk before its rename, and on a Windows runner that roughly tripled the
-    # suites that write most: cmd/dinah's untagged run went from about nine
-    # minutes to about twenty-eight.
-    timeout-minutes: 90
+    # both on a slow Windows runner.
+    timeout-minutes: 40
     env:
       COMPLETION_REQUIRE_SHELLS: ${{ matrix.require_shells }}
       COMPLETION_BASH: ${{ matrix.bash }}

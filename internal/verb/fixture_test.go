@@ -12,6 +12,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // The identifiers of the fixture's five columns, which the tests name
@@ -93,6 +94,31 @@ type harness struct {
 
 // newHarness builds a bench from the fixture definition and opens it.
 func newHarness(t *testing.T) *harness {
+	t.Helper()
+	return buildHarness(t)
+}
+
+// TestMain makes every fixture under the temporary directory skip its
+// flushes in a binary built with the nofixtureflush tag. The durability tests
+// keep flushing through newDurableHarness.
+func TestMain(m *testing.M) {
+	restore := durable.SkipFlushUnder(os.TempDir())
+	code := m.Run()
+	restore()
+	os.Exit(code)
+}
+
+// newDurableHarness is newHarness for a durability test, whose workbench
+// flushes every write as a production binary does whatever the build.
+func newDurableHarness(t *testing.T) *harness {
+	t.Helper()
+	h := buildHarness(t)
+	t.Cleanup(durable.KeepFlushingUnder(h.root))
+	return h
+}
+
+// buildHarness builds the harness newHarness and newDurableHarness answer.
+func buildHarness(t *testing.T) *harness {
 	t.Helper()
 	base := t.TempDir()
 	home := filepath.Join(base, "home")

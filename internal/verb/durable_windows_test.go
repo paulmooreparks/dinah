@@ -96,7 +96,7 @@ func findingsAbout(findings []bench.Finding, card *bench.Card) []bench.Finding {
 // act answers dinah.interrupted with the sibling standing, which check
 // --finish then completes.
 func TestAnArchiveSurvivesAReaderInsideTheCard(t *testing.T) {
-	h := newHarness(t)
+	h := newDurableHarness(t)
 	ref := h.add("archived while read")
 	card := h.card(ref)
 	closeReader := foreignHandle(t, filepath.Join(card.Dir, bench.CardAnchor), windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE)
@@ -156,7 +156,7 @@ func TestAnArchiveSurvivesAReaderInsideTheCard(t *testing.T) {
 // and that an acquisition started while the reader still holds it succeeds
 // once it closes rather than refusing.
 func TestAReleasedLockDoesNotStickUnderDinahsOwnReader(t *testing.T) {
-	h := newHarness(t)
+	h := newDurableHarness(t)
 	ref := h.add("locked")
 	dir := h.card(ref).Dir
 	path := filepath.Join(dir, bench.LockName)
@@ -192,7 +192,7 @@ func TestAReleasedLockDoesNotStickUnderDinahsOwnReader(t *testing.T) {
 // acquisition refuses dinah.busy naming the lock relative to the workbench
 // root and carrying the last error, and changes nothing on the card.
 func TestALockThatCannotBeCreatedRefusesBusy(t *testing.T) {
-	h := newHarness(t)
+	h := newDurableHarness(t)
 	ref := h.add("locked")
 	card := h.card(ref)
 	path := filepath.Join(card.Dir, bench.LockName)
@@ -251,7 +251,7 @@ func everyFileOf(t *testing.T, dir string) map[string]string {
 // up with dinah.busy and leaves the card byte for byte as it was.
 func TestNoActStopsBetweenItsOwnWrites(t *testing.T) {
 	t.Run("a move", func(t *testing.T) {
-		h := newHarness(t)
+		h := newDurableHarness(t)
 		ref := h.add("moving")
 		card := h.card(ref)
 		journal := card.JournalPath()
@@ -272,7 +272,7 @@ func TestNoActStopsBetweenItsOwnWrites(t *testing.T) {
 		}
 	})
 	t.Run("a pull", func(t *testing.T) {
-		h := newHarness(t)
+		h := newDurableHarness(t)
 		ref := h.add("pulled")
 		card := h.card(ref)
 		journal := card.JournalPath()
@@ -291,7 +291,7 @@ func TestNoActStopsBetweenItsOwnWrites(t *testing.T) {
 		}
 	})
 	t.Run("an add", func(t *testing.T) {
-		h := newHarness(t)
+		h := newDurableHarness(t)
 		h.add("first")
 		numbers := filepath.Join(h.root, bench.CardNumbersName)
 		shortBudget(t, 100*time.Millisecond)
@@ -310,7 +310,7 @@ func TestNoActStopsBetweenItsOwnWrites(t *testing.T) {
 		assertRisingNotices(t, *notices, numbers)
 	})
 	t.Run("a first write that gives up", func(t *testing.T) {
-		h := newHarness(t)
+		h := newDurableHarness(t)
 		ref := h.add("untouched")
 		card := h.card(ref)
 		before := everyFileOf(t, card.Dir)
@@ -334,6 +334,60 @@ func TestNoActStopsBetweenItsOwnWrites(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestAReshapeWaitsRatherThanStoppingBetweenTwoCards asserts that a reshape
+// carrying two cards out of a retired column, whose second card's card.md is
+// held by a handle sharing nothing from the moment the first card has been
+// carried, waits with notices naming that file and then completes, rather
+// than answering dinah.busy with the first card already carried. The reshape
+// is one act and its first write was the first card's.
+func TestAReshapeWaitsRatherThanStoppingBetweenTwoCards(t *testing.T) {
+	h := newDurableHarness(t)
+	refs := []string{h.readyAt("carried one", aftercare), h.readyAt("carried two", aftercare)}
+	shortBudget(t, 100*time.Millisecond)
+	var held string
+	var closeHeld func()
+	notices := &[]durable.Wait{}
+	durable.Waiting = func(wait durable.Wait) {
+		*notices = append(*notices, wait)
+		closeHeld()
+	}
+	t.Cleanup(func() { durable.Waiting = nil })
+	cardSteps := 0
+	h.library.Interpose = func(step string) {
+		if step != reshapeStepCard {
+			return
+		}
+		cardSteps++
+		if cardSteps != 2 {
+			return
+		}
+		for _, ref := range refs {
+			card := h.card(ref)
+			if card.Column == aftercare {
+				held = filepath.Join(card.Dir, bench.CardAnchor)
+			}
+		}
+		closeHeld = foreignHandle(t, held, 0)
+	}
+	t.Cleanup(func() { h.library.Interpose = nil })
+
+	report, err := h.reshape(h.source(dropsAftercare), true, aftercare+"="+review)
+	if err != nil {
+		t.Fatalf("the reshape answered %v with the report %+v, wanted it to wait for the second card", err, report)
+	}
+	if cardSteps != 2 || held == "" {
+		t.Fatalf("the carry reached %d cards and held %q, so the second card was never held", cardSteps, held)
+	}
+	for _, ref := range refs {
+		if column := h.card(ref).Column; column != review {
+			t.Errorf("%s stands at %s after the reshape", ref, column)
+		}
+	}
+	if len(*notices) == 0 || (*notices)[0].Path != held {
+		t.Errorf("the reshape sent the notices %+v, wanted at least one naming %s", *notices, held)
+	}
 }
 
 // assertLastEvents fails unless a journal ends with the named events in

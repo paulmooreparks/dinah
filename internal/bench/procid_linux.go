@@ -138,7 +138,9 @@ func sameProcessTable(record LockRecord, host, self string) Verdict {
 // recordedProcessGone is rule 6 of the verdict on Linux: /proc/<pid>/stat
 // absent is gone; a state of Z or X, which proc(5) documents as zombie and
 // dead, is gone; a starttime that differs from the record is gone; anything
-// else is not.
+// else is not. A record whose starttime is empty, which startTimeOf leaves
+// when the holder could not read its own stat file, names no process the
+// table can be compared with, so only an absent or ended PID proves it gone.
 func recordedProcessGone(record LockRecord) bool {
 	theirs, ok := parseLinuxIdentity(record.Start)
 	if !ok {
@@ -154,6 +156,9 @@ func recordedProcessGone(record LockRecord) bool {
 	state := fields[0]
 	if state == "Z" || state == "X" {
 		return true
+	}
+	if theirs.start == "" {
+		return false
 	}
 	return fields[22-3] != theirs.start
 }

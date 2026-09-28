@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/testenv"
 )
 
@@ -26,7 +27,12 @@ func TestMain(m *testing.M) {
 	}
 	restore := testenv.IsolateTempDir()
 	restoreIsolated := testenv.ClearVars(isolatedEnv...)
+	// Every fixture is made under the temporary directory, so none of them
+	// flushes in a binary built with the nofixtureflush tag. The durability
+	// tests keep flushing through newDurableFixture.
+	restoreFlush := durable.SkipFlushUnder(os.TempDir())
 	code := m.Run()
+	restoreFlush()
 	restoreIsolated()
 	restore()
 	os.Exit(code)

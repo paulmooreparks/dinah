@@ -3,12 +3,32 @@ package durable
 // The guard below holds every non-test package of the module except this one
 // and the four named in excludedFromGuard to durable's primitives: it
 // type-checks each package and fails on every identifier the type checker
-// resolves to a forbidden function, whether it is called, stored, passed or
-// selected through an aliased import.
+// resolves to a refused function, whether it is called, stored, passed,
+// taken as a method value or selected through an aliased import.
 //
-// What it cannot see is a third-party library opening a path Dinah hands it.
-// Such a call is inside the library's own package, which the guard does not
-// check, and resolves to nothing in the module's own source.
+// For os, io/fs and io/ioutil the guard is an allowlist. Every package-level
+// function of those packages is refused unless permittedFunctions names it,
+// and every method of os.Root is refused unless permittedMethods names it, so
+// a function a later Go release adds is refused until somebody reads it and
+// permits it. Methods of every other type in those packages are permitted,
+// because none of them takes a path: an *os.File method acts on a handle
+// already open, and a handle on a workbench file comes from durable. For
+// syscall, golang.org/x/sys/windows and golang.org/x/sys/unix the guard keeps
+// a list of refused functions, because those packages are large and most of
+// what they hold has nothing to do with files.
+//
+// What it cannot see:
+//
+//   - a third-party library opening a path Dinah hands it. Such a call is
+//     inside the library's own package, which the guard does not check, and
+//     resolves to nothing in the module's own source;
+//   - a function of syscall, golang.org/x/sys/windows or golang.org/x/sys/unix
+//     that opens, renames or removes a file and is not in forbiddenFunctions,
+//     such as unix.Linkat or windows.CreateHardLink;
+//   - a method of an os or io/fs type other than os.Root, which the guard
+//     permits because none takes a path, and an interface's method such as
+//     fs.FS.Open, whose file system came from somewhere the guard does check;
+//   - the four packages besides this one that excludedFromGuard names.
 
 import (
 	"go/ast"
@@ -26,12 +46,42 @@ import (
 	"testing"
 )
 
-// forbiddenFunctions are the functions no package but this one may use, keyed
-// by import path, each set holding the function names.
+// permittedFunctions are, for each package the guard holds to an allowlist,
+// the package-level functions a package outside durable may use. Each one
+// neither opens, creates, writes, renames, links nor removes a file, nor
+// hands out a file system that would.
+var permittedFunctions = map[string]map[string]bool{
+	"os": setOf(
+		// The process and its environment.
+		"Chdir", "Clearenv", "Environ", "Executable", "Exit", "Expand", "ExpandEnv",
+		"Getegid", "Getenv", "Geteuid", "Getgid", "Getgroups", "Getpagesize", "Getpid",
+		"Getppid", "Getuid", "Getwd", "Hostname", "LookupEnv", "Setenv", "Unsetenv",
+		"UserCacheDir", "UserConfigDir", "UserHomeDir", "TempDir",
+		// Other processes, and pipes and handles the process already has.
+		"FindProcess", "NewFile", "Pipe", "StartProcess",
+		// Reading what a path names, and making directories.
+		"Lstat", "Mkdir", "MkdirAll", "ReadDir", "Readlink", "SameFile", "Stat",
+		// Classifying errors and paths.
+		"IsExist", "IsNotExist", "IsPathSeparator", "IsPermission", "IsTimeout", "NewSyscallError",
+	),
+	"io/fs": setOf(
+		"FileInfoToDirEntry", "FormatDirEntry", "FormatFileInfo", "Glob", "Lstat", "ReadDir",
+		"ReadFile", "ReadLink", "Stat", "Sub", "ValidPath", "WalkDir",
+	),
+	"io/ioutil": setOf("NopCloser", "ReadAll"),
+}
+
+// permittedMethods are, for each type whose methods the guard holds to an
+// allowlist, the methods a package outside durable may use. Every method of
+// os.Root but these takes a path inside the root.
+var permittedMethods = map[string]map[string]bool{
+	"os.Root": setOf("Close", "Name"),
+}
+
+// forbiddenFunctions are, for each package the guard holds to a list of
+// refusals rather than an allowlist, the functions no package but this one may
+// use.
 var forbiddenFunctions = map[string]map[string]bool{
-	"os": setOf("Open", "OpenFile", "ReadFile", "WriteFile", "Create", "CreateTemp",
-		"Rename", "Remove", "RemoveAll", "Truncate", "DirFS"),
-	"io/ioutil":                setOf("ReadFile", "WriteFile", "TempFile"),
 	"syscall":                  setOf("Open", "CreateFile", "Rename", "Unlink", "DeleteFile", "MoveFile"),
 	"golang.org/x/sys/windows": setOf("CreateFile", "MoveFile", "MoveFileEx", "DeleteFile"),
 	"golang.org/x/sys/unix":    setOf("Open", "Openat", "Rename", "Renameat", "Unlink", "Unlinkat"),
@@ -93,15 +143,15 @@ func forbiddenUses(fset *token.FileSet, files []*ast.File, path string, imp type
 		if !ok || function.Pkg() == nil {
 			continue
 		}
-		names := forbiddenFunctions[function.Pkg().Path()]
-		if !names[function.Name()] {
+		name, refused := refusedFunction(function)
+		if !refused {
 			continue
 		}
 		position := fset.Position(ident.Pos())
 		found = append(found, violation{
 			file:     position.Filename,
 			line:     position.Line,
-			function: function.Pkg().Path() + "." + function.Name(),
+			function: name,
 		})
 	}
 	sort.Slice(found, func(i, j int) bool {
@@ -111,6 +161,35 @@ func forbiddenUses(fset *token.FileSet, files []*ast.File, path string, imp type
 		return found[i].line < found[j].line
 	})
 	return found, nil
+}
+
+// refusedFunction answers whether a function the type checker resolved is one
+// the guard refuses, and the name it reports it by: pkg.Function for a
+// package-level function and (*pkg.Type).Method for a method.
+func refusedFunction(function *types.Func) (string, bool) {
+	path := function.Pkg().Path()
+	signature, _ := function.Type().(*types.Signature)
+	if signature != nil && signature.Recv() != nil {
+		receiver := signature.Recv().Type()
+		if pointer, ok := receiver.(*types.Pointer); ok {
+			receiver = pointer.Elem()
+		}
+		named, ok := receiver.(*types.Named)
+		if !ok {
+			return "", false
+		}
+		typeName := path + "." + named.Obj().Name()
+		permitted, restricted := permittedMethods[typeName]
+		if !restricted || permitted[function.Name()] {
+			return "", false
+		}
+		return "(*" + typeName + ")." + function.Name(), true
+	}
+	name := path + "." + function.Name()
+	if permitted, allowlisted := permittedFunctions[path]; allowlisted {
+		return name, !permitted[function.Name()]
+	}
+	return name, forbiddenFunctions[path][function.Name()]
 }
 
 // listedPackage is one line of go list's answer.
@@ -225,6 +304,30 @@ var plantedUses = []struct {
 		line:     9,
 		function: "os.DirFS",
 	},
+	{
+		name:     "os.OpenInRoot",
+		source:   "package planted\n\nimport \"os\"\n\nfunc open() (*os.File, error) {\n\treturn os.OpenInRoot(\"dir\", \"card.md\")\n}\n",
+		line:     6,
+		function: "os.OpenInRoot",
+	},
+	{
+		name:     "os.CopyFS",
+		source:   "package planted\n\nimport \"os\"\n\nvar copyTree = os.CopyFS\n",
+		line:     5,
+		function: "os.CopyFS",
+	},
+	{
+		name:     "os.Link",
+		source:   "package planted\n\nimport \"os\"\n\nfunc link() error {\n\treturn os.Link(\"a\", \"b\")\n}\n",
+		line:     6,
+		function: "os.Link",
+	},
+	{
+		name:     "a method of os.Root taken as a value",
+		source:   "package planted\n\nimport \"os\"\n\nfunc rename(root *os.Root) func(string, string) error {\n\treturn root.Rename\n}\n",
+		line:     6,
+		function: "(*os.Root).Rename",
+	},
 }
 
 // TestTheGuardNamesEachPlantedUse asserts that the guard's own check turns
@@ -252,7 +355,7 @@ func TestTheGuardNamesEachPlantedUse(t *testing.T) {
 			}
 		})
 	}
-	clean := "package planted\n\nimport \"os\"\n\nfunc look() (bool, error) {\n\t_, err := os.Stat(\"a\")\n\treturn err == nil, os.MkdirAll(\"b\", 0o755)\n}\n"
+	clean := "package planted\n\nimport \"os\"\n\nfunc look(f *os.File) (bool, error) {\n\t_, err := os.Stat(\"a\")\n\tos.Getwd()\n\tf.Close()\n\treturn err == nil, os.MkdirAll(\"b\", 0o755)\n}\n"
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "clean.go", clean, 0)
 	if err != nil {
@@ -263,6 +366,6 @@ func TestTheGuardNamesEachPlantedUse(t *testing.T) {
 		t.Fatalf("type-check: %v", err)
 	}
 	if len(found) != 0 {
-		t.Errorf("os.Stat and os.MkdirAll are permitted, and the guard named %v", found)
+		t.Errorf("os.Stat, os.Getwd, os.MkdirAll and (*os.File).Close are permitted, and the guard named %v", found)
 	}
 }
