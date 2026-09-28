@@ -53,11 +53,13 @@ runs:
     # roughly three minutes on a developer machine and close to ten on a
     # Windows runner, so the package has been finishing just inside the
     # default and a slow runner kills a build that is doing nothing wrong.
-    # The number is a ceiling on a hang, not a budget for the suite.
+    # Since dinah-640 every write flushes to the disk before its rename, and
+    # on a Windows runner the package's untagged run takes about twenty-eight
+    # minutes. The number is a ceiling on a hang, not a budget for the suite.
     - name: Test
       shell: bash
       working-directory: ${{ inputs.path }}
-      run: go test -count=1 -timeout 30m ./...
+      run: go test -count=1 -timeout 60m ./...
     # The tagged run repeats cmd/dinah's untagged tests as well as running the
     # terminal UI's own, since a build tag adds files and removes none. The
     # coverage sweep, which starts a second untagged run of the package, skips
@@ -65,4 +67,4 @@ runs:
     - name: Test the terminal UI
       shell: bash
       working-directory: ${{ inputs.path }}
-      run: go test -count=1 -timeout 30m -tags tui ./cmd/dinah/... ./internal/screen/...
+      run: go test -count=1 -timeout 60m -tags tui ./cmd/dinah/... ./internal/screen/...
