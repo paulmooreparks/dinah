@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -92,8 +93,44 @@ type harness struct {
 	t *testing.T
 }
 
-// newHarness builds a bench from the fixture definition and opens it.
+// markedParallel remembers which *testing.T this package has already called
+// Parallel on, because many tests build more than one harness of their own
+// (a before-and-after or a two-actor comparison) and *testing.T panics on a
+// second Parallel call.
+var markedParallel sync.Map
+
+// markParallel calls t.Parallel() the first time it sees t and does nothing
+// on every later call for the same t.
+func markParallel(t *testing.T) {
+	t.Helper()
+	if _, seen := markedParallel.LoadOrStore(t, struct{}{}); seen {
+		return
+	}
+	t.Parallel()
+}
+
+// newHarness builds a bench from the fixture definition and opens it. It
+// marks the test parallel first: every caller owns its own temporary
+// directory and its own *Library, and touches no process-global state (the
+// actor, the working directory, an environment variable), so nothing here
+// stops it running alongside every other test that calls newHarness
+// (dinah-644). newDurableHarness does not share this call: the Windows
+// durability tests in durable_windows_test.go set durable.Observe,
+// durable.Waiting and durable.RetryBudget, which are process-global, and stay
+// serial for that reason.
 func newHarness(t *testing.T) *harness {
+	t.Helper()
+	markParallel(t)
+	return buildHarness(t)
+}
+
+// newSerialHarness is newHarness without the Parallel call, for a test that
+// cannot share the process with a concurrent sibling: one that calls
+// t.Setenv, which testing.T refuses to combine with t.Parallel, or one that
+// sets a package-level bench hook (bench.AnchorReadObserver,
+// bench.ListIDsObserver) that fires for every bench operation in the process,
+// not just its own harness's.
+func newSerialHarness(t *testing.T) *harness {
 	t.Helper()
 	return buildHarness(t)
 }
