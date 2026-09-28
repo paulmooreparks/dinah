@@ -21,6 +21,17 @@ inputs:
     description: The directory holding go.mod, relative to the workspace.
     required: false
     default: "."
+  phase:
+    description: >-
+      Which part of the pass to run: "all" runs every step in one job, as
+      promote.yml needs, because the tree it assembles exists only in that
+      job's own checkout. "main" runs version, build, vet and the untagged
+      test. "tui" runs the tui-tagged vet and test alone. ci.yml splits main
+      and tui across two jobs on the same runner OS so they run concurrently
+      instead of one after the other, since cmd/dinah dominates both and nothing
+      makes the second wait on the first (dinah-644).
+    required: false
+    default: "all"
 
 runs:
   using: composite
@@ -29,14 +40,17 @@ runs:
       with:
         go-version-file: ${{ inputs.path }}/go.mod
     - name: Go version
+      if: inputs.phase == 'all' || inputs.phase == 'main'
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go version
     - name: Build
+      if: inputs.phase == 'all' || inputs.phase == 'main'
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go build ./...
     - name: Vet
+      if: inputs.phase == 'all' || inputs.phase == 'main'
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go vet ./...
@@ -44,16 +58,14 @@ runs:
     # tag, and the files that tag adds are invisible to the untagged vet and
     # test, so both run again with it (dinah-603).
     - name: Vet the terminal UI
+      if: inputs.phase == 'all' || inputs.phase == 'tui'
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go vet -tags tui ./cmd/dinah/...
-    # The timeout is stated rather than left to Go's ten-minute default,
-    # because cmd/dinah runs its own suite a second time under a coverage
-    # profile and therefore costs about twice what its tests cost. That is
-    # roughly three minutes on a developer machine and close to ten on a
-    # Windows runner, so the package has been finishing just inside the
-    # default and a slow runner kills a build that is doing nothing wrong.
-    # The number is a ceiling on a hang, not a budget for the suite.
+    # The timeout leaves room for a slow runner, not for the coverage sweep:
+    # that sweep is off by default (see the DINAH_COVERAGE_CHECK env below)
+    # and it is the dedicated coverage-cmd-dinah job below that carries the
+    # 30m the sweep itself needs.
     #
     # Every write flushes to the disk before its rename (dinah-640), which on
     # a Windows runner roughly tripled the suites that write most. The
@@ -62,14 +74,35 @@ runs:
     # while the durability tests keep flushing. A production binary is built
     # without the tag, and in it the switch does nothing.
     - name: Test
+      if: inputs.phase == 'all' || inputs.phase == 'main'
       shell: bash
       working-directory: ${{ inputs.path }}
+      # cmd/dinah's statement-coverage sweep (TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed)
+      # relaunches the whole untagged package under a coverage profile and
+      # doubles cmd/dinah's cost, so it is off here (dinah-644) and runs only
+      # in phase "all", which is promote.yml's one full-tree verification, and
+      # in the dedicated coverage-cmd-dinah job ci.yml runs on every push.
+      env:
+        DINAH_COVERAGE_CHECK: ${{ inputs.phase == 'all' && '1' || '' }}
       run: go test -count=1 -timeout 30m -tags nofixtureflush ./...
     # The tagged run repeats cmd/dinah's untagged tests as well as running the
     # terminal UI's own, since a build tag adds files and removes none. The
     # coverage sweep, which starts a second untagged run of the package, skips
-    # itself here because the step above already ran it.
+    # itself here because tuiEntry is true for every test built with the tui
+    # tag, and the test itself treats that as reason enough to skip, since the
+    # untagged job is where that sweep belongs.
+    #
+    # This step runs the whole tui-tagged suite in one process rather than
+    # split across shards (dinah-644 considered and rejected sharding it):
+    # TestMain records, package-wide, which table-drawing call site each test
+    # reaches over the run, and unreachedTableSites() at the end of the
+    # process fails on any site no test in that same process reached. Splitting
+    # the suite across two `go test` invocations means each invocation only
+    # sees its own tests, so a site only some other shard's test reaches
+    # reports as unreached in this one, which is not a flake: it is this same
+    # check finding a real gap in what that one invocation proves on its own.
     - name: Test the terminal UI
+      if: inputs.phase == 'all' || inputs.phase == 'tui'
       shell: bash
       working-directory: ${{ inputs.path }}
       run: go test -count=1 -timeout 30m -tags "tui nofixtureflush" ./cmd/dinah/... ./internal/screen/...

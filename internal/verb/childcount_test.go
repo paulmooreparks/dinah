@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"dinah/internal/bench"
@@ -106,12 +107,20 @@ func marshalled(t *testing.T, view *CardView) map[string]any {
 // Arming: making TallyItems list the checklist itself through ListIDs again
 // reddens this test by name with four listings against three.
 func TestOneCardViewMakesOneListingPerMount(t *testing.T) {
-	h := newHarness(t)
+	h := newSerialHarness(t)
 	ref := filledCard(t, h)
 	card := h.card(ref)
 
+	// A card view may read a card's own collections through more than one
+	// goroutine, so the observer below guards its append with a mutex rather
+	// than assuming its own caller is the only writer (dinah-644).
+	var mu sync.Mutex
 	var listed []string
-	bench.ListIDsObserver = func(collection string) { listed = append(listed, collection) }
+	bench.ListIDsObserver = func(collection string) {
+		mu.Lock()
+		listed = append(listed, collection)
+		mu.Unlock()
+	}
 	t.Cleanup(func() { bench.ListIDsObserver = nil })
 
 	if _, err := h.library.viewToday(card); err != nil {

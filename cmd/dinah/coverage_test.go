@@ -58,7 +58,18 @@ var uncoveredAllowlist = filepath.Join("testdata", "uncovered.txt")
 // correctly aligned hand-rolled table in a branch no test reaches remains
 // outside all of it, which is the admission this card makes rather than
 // papers over.
+// coverageCheckMarker turns this test on. It relaunches the whole untagged
+// package under a coverage profile, doubling that package's cost, so it runs
+// only where DINAH_COVERAGE_CHECK is set: a dedicated CI job (dinah-644).
+// Every other invocation of this package, local or in the main/tui CI jobs,
+// skips it, and the statement-coverage guarantee it proves lives entirely in
+// that one job rather than being paid for on every run.
+const coverageCheckMarker = "DINAH_COVERAGE_CHECK"
+
 func TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed(t *testing.T) {
+	if os.Getenv(coverageCheckMarker) == "" {
+		t.Skip("this check runs only where DINAH_COVERAGE_CHECK is set, in its own CI job, because it relaunches the whole package under a coverage profile (dinah-644)")
+	}
 	if os.Getenv(coverageChildMarker) != "" {
 		t.Skip("this is the run that produces the profile, and it does not start another")
 	}
