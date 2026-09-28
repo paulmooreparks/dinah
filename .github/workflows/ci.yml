@@ -62,13 +62,24 @@ jobs:
   # one runner. It repeats cmd/dinah's untagged tests as well as running the
   # terminal UI's own, since a build tag adds files and removes none, but
   # skips the coverage sweep the job above already ran (dinah-644).
+  #
+  # This job runs the whole tui-tagged suite in one process rather than split
+  # across shards: dinah-644 tried sharding it by test name to bring the
+  # Windows leg under ten minutes, and found that TestMain records, across the
+  # whole process, which table-drawing call site each test reaches, failing at
+  # the end of the run on any site nothing in that same process reached.
+  # Splitting the suite across two `go test` invocations makes each invocation
+  # see only its own tests, so a site only the other shard's test reaches
+  # reports as unreached in this one: not a flake, but this same check finding
+  # a real gap in what that one invocation proves alone. Shortening this job
+  # means shortening what dominates it (see WHAT I CUT on the card).
   test-tui:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/go-checks
@@ -92,6 +103,29 @@ jobs:
       - name: internal/verb, race detector
         shell: bash
         run: go test -race -count=1 -tags nofixtureflush ./internal/verb/...
+
+  # cmd/dinah's statement-coverage sweep, on its own (dinah-644).
+  # TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed relaunches the whole
+  # untagged package under a coverage profile, doubling cmd/dinah's cost, so
+  # it is off by default (DINAH_COVERAGE_CHECK unset) in the test job above
+  # and runs only here, where doubling one package's time does not also
+  # double the wall time of every other package's job. Ubuntu is the platform
+  # because it is the fastest of the three for this package and the sweep
+  # itself is platform-independent: it reads a coverage profile Go always
+  # writes the same way.
+  coverage-cmd-dinah:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: cmd/dinah, statement coverage
+        shell: bash
+        env:
+          DINAH_COVERAGE_CHECK: "1"
+        run: go test -count=1 -timeout 20m -tags nofixtureflush ./cmd/dinah/...
 
   # The read budgets (dinah-621). A dedicated job on one platform, because a
   # timing measured while `go test ./...` runs every other package in
