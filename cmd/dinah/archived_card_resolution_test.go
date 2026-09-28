@@ -263,10 +263,11 @@ var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "E", axis: "reading",
 		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     22,
-		mentions:  52,
-		functions: 41,
+		files:     23,
+		mentions:  53,
+		functions: 42,
 		sites: []resolutionSite{
+			{"internal/verb/spend.go", "SpendReport", 1, "naming the card a spend report is about, on the report itself; the card came off ResolveCard, which resolves against the live half alone, so no archived card reaches this call"},
 			{"internal/bench/designationmigrate.go", "ClaimedCards", 1, "naming a live card the designation conversion found claimed, which is what the in-use refusal reports; the walk reads the live cards collection alone, so no archived card reaches this call"},
 			{"internal/bench/designationmigrate.go", "plannedDesignations", 1, "naming the card one converted item hangs below, in the conversion's own report; the conversion walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
 			{"internal/bench/designationmigrate.go", "itemRefOf", 1, "composing the reference the conversion's report names one item by; it reaches both halves for plannedDesignations' reason and composes rather than resolves"},
