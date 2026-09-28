@@ -2503,21 +2503,35 @@ func (b *Bench) cardLoader() func(string, string) (*Card, error) {
 // cardsWith is the body both readers share, given the one-card reader that
 // separates them, and whether a card that will not load is skipped or fails
 // the walk.
+//
+// The load of each id runs across parallelRead's bounded pool rather than one
+// at a time. LoadCardIn and loadRetiredCardIn only read files and stamp a
+// number off a map this walk never writes to, so nothing here takes a lock,
+// and the result comes back in the ascending order ListIDs already sorted the
+// ids into, unchanged by which worker happened to read which card first.
 func cardsWith(src Source, root string, load func(string, string) (*Card, error), skipUnreadable bool) ([]*Card, error) {
 	ids, err := listIDs(src, root)
 	if err != nil {
 		return nil, err
 	}
-	var cards []*Card
-	for _, id := range ids {
-		card, err := load(root, id)
+	loaded, err := parallelRead(len(ids), func(i int) (*Card, error) {
+		card, err := load(root, ids[i])
 		if err != nil {
 			if skipUnreadable {
-				continue
+				return nil, nil
 			}
 			return nil, err
 		}
-		cards = append(cards, card)
+		return card, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	var cards []*Card
+	for _, card := range loaded {
+		if card != nil {
+			cards = append(cards, card)
+		}
 	}
 	return cards, nil
 }

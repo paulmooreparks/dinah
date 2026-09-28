@@ -1,8 +1,28 @@
 // Package seamguard is the parse that dinah-619's two read-seam guards share:
 // the bench guard (internal/bench, TestTheBenchReadsOnlyThroughItsSource) and
 // the library guard (internal/verb, TestTheLibraryReadsOnlyThroughTheBench).
-// Only those tests import it, and it imports nothing of Dinah's, so package
-// bench can use it from its own tests without a cycle.
+// Only those tests import it, and the one package of Dinah's it imports is
+// internal/durable, which imports none, so package bench can use it from its
+// own tests without a cycle.
+//
+// The seam guards stand beside dinah-640's guard in internal/durable
+// (TestNoPackageOutsideDurableUsesAFilePrimitive), which refuses every open,
+// write, rename and removal outside durable, and they judge only what that
+// guard leaves open. Its allowlist refuses every function of io/ioutil that
+// takes a path, and os.OpenFile, os.Open, os.ReadFile and every os write,
+// in every package but durable, so neither io/ioutil nor those os members
+// need a judgement here, and the flag-value rule that once told a write-only
+// os.OpenFile from a read is gone with them. What durable's guard permits and
+// these guards still judge a read: os.ReadDir, os.Stat, os.Lstat and the
+// other os functions it permits, the walkers of io/fs and path/filepath,
+// syscall, whose list of refusals in durable's guard is shorter than an
+// allowlist, and durable's own readers, Open, ReadFile, OpenDir and the rest,
+// which that guard exists to route every read through.
+//
+// Each guard loads its package once for every file set the configurations in
+// Shipped select, so a file a build constraint keeps out of one binary is
+// still judged under the configuration that builds it, and each guard asserts
+// that the files it loaded are every non-test Go file of its directory.
 //
 // Both guards judge a read by what the named thing is, through go/types, and
 // never by how it is spelled. A use is resolved to the object Info.Uses or
@@ -18,7 +38,7 @@
 // The rules a guard applies are these, each stated where it is implemented.
 // The member rule (Classify) judges every member of the packages Judged
 // names, and every method of a type they declare, a read unless Allowed names
-// it, with os.OpenFile judged by the constant value of its flag. The bottom
+// it. The bottom
 // rule (OfTheBottom, HoldsTheBottom) finds every expression whose type is the
 // seam's bottom, Disk, or holds it in a field at any depth. The outside-Go
 // rule (OutsideGo) refuses every //go:linkname directive and every function
@@ -49,6 +69,12 @@
 //     which no Source-shaped type appears, such as any, and is then read by
 //     reflection, since reflect is not judged. Plant: verb
 //     residue/reflectsource.go.
+//  7. A read through golang.org/x/sys/windows or golang.org/x/sys/unix, which
+//     neither guard judges beyond the opens durable's guard refuses: a method
+//     of *Bench calling windows.FindFirstFile(pattern, &data) lists a
+//     directory and passes both. No plant reproduces it, because a plant is
+//     loaded outside the build constraints that select it, and a file
+//     importing either package type-checks on one family of platforms only.
 package seamguard
 
 import (
@@ -57,7 +83,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/constant"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -67,48 +92,46 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"dinah/internal/durable"
 )
+
+// DurablePath is the import path of the package every open, write, rename and
+// removal of a workbench file goes through (dinah-640).
+const DurablePath = "dinah/internal/durable"
 
 // Judged are the import paths whose members, and the methods of whose types,
 // are reads unless Allowed names them: the standard library's filesystem
-// surface, including the raw system calls a handle can be opened through.
-var Judged = []string{"os", "io/ioutil", "io/fs", "path/filepath", "syscall"}
+// surface that durable's guard permits outside durable, the raw system calls,
+// and durable itself. io/ioutil is not judged, because durable's guard
+// refuses every one of its functions that takes a path.
+var Judged = []string{"os", "io/fs", "path/filepath", "syscall", DurablePath}
 
 // Allowed names, for each judged package, the members that read no file, each
 // with its reason. A method is written as its type and its name, as
-// "File.Write". Every name in it is one package bench or package verb uses
+// "File.Close". Every name in it is one package bench or package verb uses
 // today on some platform; a member neither uses stays out, so its first use is
-// refused and has to be argued for here. io/ioutil allows nothing: it is
-// deprecated, and each of its members that touches a file has an os
-// counterpart.
+// refused and has to be argued for here. os's writes are not listed, because
+// durable's guard refuses each of them outside durable.
 var Allowed = map[string]map[string]string{
 	"os": {
-		"Create":           "creates or truncates a file for writing",
-		"CreateTemp":       "creates a new file for writing",
-		"Mkdir":            "creates a directory",
-		"MkdirAll":         "creates directories",
-		"Remove":           "removes a file or an empty directory",
-		"RemoveAll":        "removes a tree",
-		"Rename":           "renames a path",
-		"WriteFile":        "writes a file",
-		"IsExist":          "classifies an error already returned",
-		"IsNotExist":       "classifies an error already returned",
-		"IsPathSeparator":  "classifies a byte",
-		"SameFile":         "compares two FileInfo values already read",
-		"ErrNotExist":      "an error value",
-		"DirEntry":         "a type",
-		"File":             "the handle type every write goes through; the open that makes one is judged where it is named, and each method that reads through it is judged by its own name",
-		"File.Close":       "releases a handle",
-		"File.Name":        "answers the name the handle was opened with",
-		"File.Sync":        "flushes what was written",
-		"File.Write":       "writes",
-		"File.WriteString": "writes",
-		"LinkError":        "a type",
-		"ModeSymlink":      "a mode bit",
-		"Executable":       "the running program's own path, never a path below a workbench",
-		"Getenv":           "the process environment",
-		"Getpid":           "the process's own identifier",
-		"UserHomeDir":      "the home directory's path, read from the environment",
+		"Mkdir":           "creates a directory",
+		"MkdirAll":        "creates directories",
+		"IsExist":         "classifies an error already returned",
+		"IsNotExist":      "classifies an error already returned",
+		"IsPathSeparator": "classifies a byte",
+		"SameFile":        "compares two FileInfo values, which on Windows opens each file by its path to read its identity when the FileInfo does not already carry one, so it is a read only of files a caller has just stat-ed; every use pairs it with an os.Stat that is judged where it is named",
+		"ErrNotExist":     "an error value",
+		"DirEntry":        "a type",
+		"File":            "the handle type durable hands out; the open that makes one is judged where it is named, and each method that reads through it is judged by its own name",
+		"File.Close":      "releases a handle",
+		"LinkError":       "a type",
+		"ModeSymlink":     "a mode bit",
+		"Executable":      "the running program's own path, never a path below a workbench",
+		"Getenv":          "the process environment",
+		"Getpid":          "the process's own identifier",
+		"Hostname":        "the machine's own name, never a path below a workbench",
+		"UserHomeDir":     "the home directory's path, read from the environment",
 	},
 	"io/fs": {
 		"DirEntry":           "a type; each of its methods is judged by its own name",
@@ -120,7 +143,9 @@ var Allowed = map[string]map[string]string{
 		"FileInfo.IsDir":     "answers for an info a source stat-ed",
 		"FileInfo.Mode":      "answers for an info a source stat-ed",
 		"FileInfo.Size":      "answers for an info a source stat-ed",
+		"FileInfo.Sys":       "answers for an info already stat-ed",
 		"FileMode.IsRegular": "classifies a mode already read",
+		"ErrExist":           "an error value",
 		"ErrNotExist":        "an error value",
 	},
 	"path/filepath": {
@@ -129,29 +154,48 @@ var Allowed = map[string]map[string]string{
 		"Clean":     "lexical",
 		"Dir":       "lexical",
 		"Ext":       "lexical",
+		"IsLocal":   "lexical",
 		"Join":      "lexical",
 		"Rel":       "lexical",
 		"Separator": "a constant",
 		"SkipDir":   "an error value a walk callback answers",
 		"ToSlash":   "lexical",
 	},
-	"io/ioutil": {},
 	"syscall": {
-		"Errno":                      "an error number type",
-		"ERROR_ACCESS_DENIED":        "an error number",
-		"ERROR_DIR_NOT_EMPTY":        "an error number",
-		"EXDEV":                      "an error number",
-		"FILE_FLAG_BACKUP_SEMANTICS": "a flag constant",
-		"FILE_SHARE_DELETE":          "a share-mode constant",
-		"FILE_SHARE_READ":            "a share-mode constant",
-		"FILE_SHARE_WRITE":           "a share-mode constant",
-		"OPEN_EXISTING":              "a disposition constant",
+		"ESRCH":  "an error number",
+		"EXDEV":  "an error number",
+		"Kill":   "signals a process, here with signal 0 to ask whether it exists",
+		"Stat_t": "the type a FileInfo's Sys answers on Linux",
+	},
+	DurablePath: {
+		"AppendLine":      "appends a line to a journal",
+		"BusyError":       "a type",
+		"CloseLockFile":   "releases a lock file's handle",
+		"CreateExclusive": "creates a lock file that must not exist",
+		"CurrentAct":      "answers the act the calling goroutine runs in",
+		"ActRef.Enter":    "joins a goroutine to an act",
+		"BeginAct":        "starts an act",
+		"Act.End":         "ends an act",
+		"DeleteHeld":      "deletes a lock file through its holder's handle",
+		"Hold":            "a type",
+		"Hold.Unregister": "gives back an entry of the in-process lock registry",
+		"MoveDir":         "renames a directory",
+		"Register":        "takes an entry of the in-process lock registry",
+		"RemoveAll":       "removes a tree",
+		"RemoveLock":      "removes a lock file",
+		"Replace":         "renames a file over another",
+		"StillNamed":      "asks whether a handle already open still refers to the file its path names, which only the file system can answer",
+		"TakeOSLock":      "takes the operating-system lock on a handle already open",
+		"TryOSLock":       "asks for the operating-system lock on a handle already open, which only the file system can answer",
+		"Wait":            "a type",
+		"WriteFile":       "writes a file",
+		"WriteHeld":       "writes a lock file through its holder's handle",
 	},
 }
 
 // AllowedSize is the number of names Allowed carries across every package,
 // which each guard asserts so that a widened list is a visible edit.
-const AllowedSize = 56
+const AllowedSize = 67
 
 // IsJudged reports whether an import path is one of Judged.
 func IsJudged(path string) bool {
@@ -195,14 +239,8 @@ func namedOf(t types.Type) *types.Named {
 	return named
 }
 
-// Allows reports whether Allowed names a member. Every os.O_ flag is a
-// constant that reads nothing, so the family is allowed by its prefix rather
-// than listed: a flag does nothing until an open uses it, and the open is
-// what os.OpenFile's rule judges.
+// Allows reports whether Allowed names a member.
 func Allows(member string) bool {
-	if strings.HasPrefix(member, "os.O_") {
-		return true
-	}
 	for _, path := range Judged {
 		if rest, ok := strings.CutPrefix(member, path+"."); ok {
 			if _, allowed := Allowed[path][rest]; allowed {
@@ -214,48 +252,16 @@ func Allows(member string) bool {
 }
 
 // Classify judges one use under the member rule. It answers the judged
-// member and whether the use is a read. os.OpenFile is a write when call is
-// its call and the flag argument is a constant whose access mode, masked with
-// os.O_RDONLY|os.O_WRONLY|os.O_RDWR as package os declares them, is
-// os.O_WRONLY; any other constant, and any flag that is not constant, is a
-// read.
-func Classify(info *types.Info, obj types.Object, call *ast.CallExpr) (string, bool) {
+// member and whether the use is a read. Every member Allowed does not name is
+// a read, os.OpenFile whatever its flag and every os.O_ flag with it: durable's
+// guard refuses os.OpenFile outside durable, so no use of it or of its flags
+// reaches a package this rule judges.
+func Classify(obj types.Object) (string, bool) {
 	member := Member(obj)
 	if member == "" {
 		return "", false
 	}
-	if member == "os.OpenFile" {
-		return member, !writeOpen(info, obj, call)
-	}
 	return member, !Allows(member)
-}
-
-// writeOpen reports whether an os.OpenFile call opens for writing alone.
-func writeOpen(info *types.Info, obj types.Object, call *ast.CallExpr) bool {
-	if call == nil || len(call.Args) < 2 {
-		return false
-	}
-	flag, ok := info.Types[call.Args[1]]
-	if !ok || flag.Value == nil {
-		return false
-	}
-	scope := obj.Pkg().Scope()
-	mode := func(name string) (constant.Value, bool) {
-		c, ok := scope.Lookup(name).(*types.Const)
-		if !ok {
-			return nil, false
-		}
-		return c.Val(), true
-	}
-	rdonly, ok1 := mode("O_RDONLY")
-	wronly, ok2 := mode("O_WRONLY")
-	rdwr, ok3 := mode("O_RDWR")
-	if !ok1 || !ok2 || !ok3 {
-		return false
-	}
-	mask := constant.BinaryOp(constant.BinaryOp(rdonly, token.OR, wronly), token.OR, rdwr)
-	access := constant.BinaryOp(flag.Value, token.AND, mask)
-	return constant.Compare(access, token.EQL, wronly)
 }
 
 // Package is one type-checked package: its syntax, its types, and the Info
@@ -270,27 +276,115 @@ type Package struct {
 	Info  *types.Info
 }
 
-// LoadOptions shape a Load.
-type LoadOptions struct {
-	// Importer answers every import. SourceImporter and NewImporter build
-	// one; a guard makes one per test and reuses it, so each imported package
-	// is checked once.
-	Importer types.Importer
+// Config is one build configuration: a platform and the build tags given.
+type Config struct {
+	GOOS, GOARCH string
+	Tags         []string
 }
 
-// Load parses and type-checks one package: the directory's non-test Go files
-// that go/build.Default.MatchFile accepts on this platform, plus extra (a
-// planted file). A type error is returned, and the caller fails naming it, so
-// a plant that does not compile can never pass by going unread.
-func Load(dir string, extra []string, opts LoadOptions) (*Package, error) {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, err
+// String names a configuration as "windows/amd64" or "windows/amd64 tui".
+func (c Config) String() string {
+	name := c.GOOS + "/" + c.GOARCH
+	if len(c.Tags) > 0 {
+		name += " " + strings.Join(c.Tags, ",")
 	}
-	path, err := importPathOf(abs)
-	if err != nil {
-		return nil, err
+	return name
+}
+
+// Context answers go/build's default context set to this configuration, with
+// cgo off, as every shipped binary is built.
+func (c Config) Context() build.Context {
+	ctxt := build.Default
+	ctxt.GOOS = c.GOOS
+	ctxt.GOARCH = c.GOARCH
+	ctxt.BuildTags = append([]string(nil), c.Tags...)
+	ctxt.CgoEnabled = false
+	return ctxt
+}
+
+// Shipped are the configurations the project builds a binary for: the six
+// platforms .github/workflows/promote.yml loops over, each built once with no
+// tags (dinah) and once with the tui tag (dinah-tui), as that workflow and
+// release.yml build them. TestShippedMatchesThePromoteWorkflow holds the
+// platform list to the workflow's.
+var Shipped = func() []Config {
+	var configs []Config
+	for _, platform := range [][2]string{
+		{"windows", "amd64"}, {"windows", "arm64"},
+		{"linux", "amd64"}, {"linux", "arm64"},
+		{"darwin", "amd64"}, {"darwin", "arm64"},
+	} {
+		configs = append(configs, Config{GOOS: platform[0], GOARCH: platform[1]})
+		configs = append(configs, Config{GOOS: platform[0], GOARCH: platform[1], Tags: []string{"tui"}})
 	}
+	return configs
+}()
+
+// Host is the configuration this process was built for, with no tags, which
+// is what a planted file is checked under.
+func Host() Config {
+	return Config{GOOS: build.Default.GOOS, GOARCH: build.Default.GOARCH}
+}
+
+// Distinct answers the configurations among configs that select distinct
+// sets of non-test Go files from dirs, taken together, each the first of
+// configs to select its set; how many files they select between them; and
+// every non-test Go file of dirs, as a path, that none of configs selects.
+// Two configurations selecting the same files are checked once, because the
+// rules judge the files' syntax and the objects it resolves to. That assumes
+// a package imported under both declares the members the files name alike.
+func Distinct(configs []Config, dirs ...string) (distinct []Config, loaded int, unselected []string, err error) {
+	type listing struct {
+		abs string
+		all []string
+	}
+	var listings []listing
+	for _, dir := range dirs {
+		abs, err := filepath.Abs(dir)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		all, err := nonTestGoFiles(abs)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		listings = append(listings, listing{abs: abs, all: all})
+	}
+	selected := map[string]bool{}
+	seen := map[string]bool{}
+	for _, config := range configs {
+		var key []string
+		for _, l := range listings {
+			names, err := matching(l.abs, l.all, config.Context())
+			if err != nil {
+				return nil, 0, nil, err
+			}
+			for _, name := range names {
+				full := filepath.Join(l.abs, name)
+				key = append(key, full)
+				selected[full] = true
+			}
+		}
+		joined := strings.Join(key, "\n")
+		if !seen[joined] {
+			seen[joined] = true
+			distinct = append(distinct, config)
+		}
+	}
+	for _, l := range listings {
+		for _, name := range l.all {
+			full := filepath.Join(l.abs, name)
+			if !selected[full] {
+				unselected = append(unselected, full)
+			}
+		}
+	}
+	return distinct, len(selected), unselected, nil
+}
+
+// nonTestGoFiles answers every file of a directory whose name ends in .go and
+// not in _test.go, sorted.
+func nonTestGoFiles(abs string) ([]string, error) {
 	entries, err := os.ReadDir(abs)
 	if err != nil {
 		return nil, err
@@ -301,17 +395,49 @@ func Load(dir string, extra []string, opts LoadOptions) (*Package, error) {
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		if ok, err := build.Default.MatchFile(abs, name); err != nil || !ok {
-			continue
-		}
-		names = append(names, filepath.Join(abs, name))
+		names = append(names, name)
 	}
-	for _, name := range extra {
-		full, err := filepath.Abs(name)
+	sort.Strings(names)
+	return names, nil
+}
+
+// matching answers the names ctxt.MatchFile accepts.
+func matching(abs string, names []string, ctxt build.Context) ([]string, error) {
+	var matched []string
+	for _, name := range names {
+		ok, err := ctxt.MatchFile(abs, name)
 		if err != nil {
 			return nil, err
 		}
-		names = append(names, full)
+		if ok {
+			matched = append(matched, name)
+		}
+	}
+	return matched, nil
+}
+
+// LoadOptions shape a Load.
+type LoadOptions struct {
+	// Importer answers every import. SourceImporter, SourceImporterFor and
+	// NewImporter build one; a guard makes one per configuration and reuses
+	// it, so each imported package is checked once. The package's own files
+	// are the ones the Importer's configuration selects.
+	Importer types.Importer
+}
+
+// Load parses and type-checks one package: the directory's non-test Go files
+// that the configuration of opts.Importer selects, the host's when it is not
+// an *Importer, plus extra (a planted file). A type error is returned, and
+// the caller fails naming it, so a plant that does not compile can never pass
+// by going unread.
+func Load(dir string, extra []string, opts LoadOptions) (*Package, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, err
+	}
+	path, err := importPathOf(abs)
+	if err != nil {
+		return nil, err
 	}
 	fset := token.NewFileSet()
 	importer := opts.Importer
@@ -320,6 +446,29 @@ func Load(dir string, extra []string, opts LoadOptions) (*Package, error) {
 	}
 	if importer == nil {
 		importer = SourceImporter(fset)
+	}
+	ctxt := build.Default
+	if im, ok := importer.(*Importer); ok {
+		ctxt = im.ctxt
+	}
+	all, err := nonTestGoFiles(abs)
+	if err != nil {
+		return nil, err
+	}
+	matched, err := matching(abs, all, ctxt)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, name := range matched {
+		names = append(names, filepath.Join(abs, name))
+	}
+	for _, name := range extra {
+		full, err := filepath.Abs(name)
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, full)
 	}
 	pkg := &Package{Path: path, Fset: fset, Names: names, Info: &types.Info{
 		Types:      map[ast.Expr]types.TypeAndValue{},
@@ -336,10 +485,10 @@ func Load(dir string, extra []string, opts LoadOptions) (*Package, error) {
 		pkg.Files = append(pkg.Files, file)
 	}
 	if len(pkg.Files) == 0 {
-		return nil, fmt.Errorf("seamguard: %s holds no Go file for this platform", abs)
+		return nil, fmt.Errorf("seamguard: %s holds no Go file for this configuration", abs)
 	}
 	var errs []error
-	conf := types.Config{Importer: importer, Error: func(err error) { errs = append(errs, err) }}
+	conf := types.Config{Importer: importer, Sizes: types.SizesFor("gc", ctxt.GOARCH), Error: func(err error) { errs = append(errs, err) }}
 	pkg.Types, _ = conf.Check(path, fset, pkg.Files, pkg.Info)
 	if len(errs) > 0 {
 		if len(errs) > 10 {
@@ -355,7 +504,7 @@ func Load(dir string, extra []string, opts LoadOptions) (*Package, error) {
 // directory's path below that file.
 func importPathOf(dir string) (string, error) {
 	for at := dir; ; at = filepath.Dir(at) {
-		data, err := os.ReadFile(filepath.Join(at, "go.mod"))
+		data, err := durable.ReadFile(filepath.Join(at, "go.mod"))
 		if err == nil {
 			scanner := bufio.NewScanner(strings.NewReader(string(data)))
 			for scanner.Scan() {
@@ -401,12 +550,17 @@ type Importer struct {
 	affected map[string]bool
 }
 
-// SourceImporter answers a base Importer: every package it is asked for is
-// checked from source once, with function bodies ignored, and kept.
+// SourceImporter answers a base Importer for the host's configuration: every
+// package it is asked for is checked from source once, with function bodies
+// ignored, and kept.
 func SourceImporter(fset *token.FileSet) *Importer {
-	ctxt := build.Default
-	ctxt.CgoEnabled = false
-	return &Importer{fset: fset, ctxt: ctxt, checked: map[string]*types.Package{}}
+	return SourceImporterFor(fset, Host())
+}
+
+// SourceImporterFor answers a base Importer that checks every package, and
+// selects the files of the package a Load checks, as config builds them.
+func SourceImporterFor(fset *token.FileSet, config Config) *Importer {
+	return &Importer{fset: fset, ctxt: config.Context(), checked: map[string]*types.Package{}}
 }
 
 // NewImporter answers an Importer over base in which each import path named in
@@ -462,7 +616,7 @@ func (im *Importer) ImportFrom(path, dir string, _ types.ImportMode) (*types.Pac
 		files = append(files, file)
 	}
 	var firstErr error
-	conf := types.Config{Importer: im, IgnoreFuncBodies: true, FakeImportC: true,
+	conf := types.Config{Importer: im, IgnoreFuncBodies: true, FakeImportC: true, Sizes: types.SizesFor("gc", im.ctxt.GOARCH),
 		Error: func(err error) {
 			if firstErr == nil {
 				firstErr = err
@@ -553,15 +707,17 @@ type Violation struct {
 }
 
 // OutsideGo answers the outside-Go rule's violations over every file of a
-// package: every comment whose text begins with //go:linkname, which the
-// cmd/compile documentation defines as instructing "the compiler to use
-// 'importpath.name' as the object file symbol name for the variable or
-// function declared as 'localname' in the source code" (its own quotation
-// marks written here as apostrophes), and every function
-// declared without a body, which the Go specification says "provides the
-// signature for a function implemented outside Go, such as an assembly
-// routine". Neither is ever exempt, and neither is keyed on an import of
-// unsafe, which package bench makes for reasons of its own.
+// package: every comment whose text begins with //go:linkname, of which Go
+// 1.26's cmd/compile documentation says "This directive determines the
+// object-file symbol used for a Go var or func declaration, allowing two Go
+// symbols to alias the same object-file symbol, thereby enabling one package
+// to access a symbol in another package even when this would violate the
+// usual encapsulation of unexported declarations, or even type safety.", and
+// every function declared without a body, which the Go specification says
+// "provides the signature for a function implemented outside Go, such as an
+// assembly routine". Neither is ever exempt. The same documentation enables
+// the directive only in files that import unsafe, and the rule is still not
+// keyed on that import, which package bench makes for reasons of its own.
 func OutsideGo(pkg *Package) []Violation {
 	var found []Violation
 	for i, file := range pkg.Files {
@@ -711,7 +867,7 @@ func BuildGraph(pkg *Package, opts GraphOptions) *Graph {
 				case token.TYPE:
 					ast.Inspect(d, func(node ast.Node) bool {
 						if id, ok := node.(*ast.Ident); ok {
-							if member, read := Classify(pkg.Info, pkg.Info.Uses[id], nil); read {
+							if member, read := Classify(pkg.Info.Uses[id]); read {
 								g.TypeReads = append(g.TypeReads, Read{Member: member, At: pkg.At(id.Pos()), File: name})
 							}
 						}
@@ -862,7 +1018,7 @@ func (b *graphBuilder) use(n *Node, id *ast.Ident, stack []ast.Node) {
 	if obj == nil {
 		return
 	}
-	if member, read := Classify(pkg.Info, obj, EnclosingCall(id, stack)); read {
+	if member, read := Classify(obj); read {
 		n.Reads = append(n.Reads, Read{Member: member, At: pkg.At(id.Pos()), File: pkg.FileOf(id.Pos())})
 	}
 	fn, isFunc := obj.(*types.Func)
@@ -909,9 +1065,8 @@ func (b *graphBuilder) use(n *Node, id *ast.Ident, stack []ast.Node) {
 	}
 }
 
-// EnclosingCall answers the call an identifier is the function of, as the
-// member rule's os.OpenFile judgement needs, or nil.
-func EnclosingCall(id *ast.Ident, stack []ast.Node) *ast.CallExpr {
+// enclosingCall answers the call an identifier is the function of, or nil.
+func enclosingCall(id *ast.Ident, stack []ast.Node) *ast.CallExpr {
 	i := len(stack) - 1
 	var inner ast.Node = id
 	if i >= 0 {
@@ -934,7 +1089,7 @@ func EnclosingCall(id *ast.Ident, stack []ast.Node) *ast.CallExpr {
 // whose method is called through it. The selector itself is judged as its
 // own use.
 func called(id *ast.Ident, stack []ast.Node) bool {
-	if EnclosingCall(id, stack) != nil {
+	if enclosingCall(id, stack) != nil {
 		return true
 	}
 	if len(stack) > 0 {

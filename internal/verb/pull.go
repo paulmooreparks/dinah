@@ -99,7 +99,7 @@ func (l *Library) pullHead(req *Request) (*bench.Card, *Response) {
 	// no such card does the pull look further back, through the columns that
 	// carry into this destination, nearest first.
 	by := selectionAdmission(l.Bench, req)
-	head, _, sawTier, _, held := headOfReadyFor(l.Bench, upstream.ID, l.immediateLanding(upstream, destination), hold, cards, by)
+	head, _, sawTier, _, held := headOfReadyFor(l.Bench, l.immediateLanding(upstream, destination), hold, readyIn(cards, upstream.ID), by)
 	if head == nil {
 		// The further walk does not reconsider the immediate upstream, which
 		// is what the source predicate excludes it for. The predicate carries
@@ -321,7 +321,7 @@ func (l *Library) pullableCards(destination *bench.Column, cards []*bench.Card, 
 		if fromSource != nil && !fromSource(source) {
 			continue
 		}
-		head, _, sawTier, _, withheld := headOfReadyFor(l.Bench, source.ID, landing, hold, cards, by)
+		head, _, sawTier, _, withheld := headOfReadyFor(l.Bench, landing, hold, readyIn(cards, source.ID), by)
 		if head != nil {
 			taken = append(taken, head)
 			continue
@@ -564,7 +564,19 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 // so canRoute resolves the destination exactly as the named form of a move
 // would. Rows 3 to 5 run again here, harmlessly, because they are the front
 // of the move's list and answering them twice cannot change an answer.
+//
+// A destination declaring a capacity is counted under its occupancy lock, on
+// the terms move counts one.
 func (l *Library) pull(req *Request, card *bench.Card) *Response {
+	routed, _, refusal := l.canRoute(req, card)
+	if refusal != nil {
+		return refusal
+	}
+	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath())
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer occupancy.Release()
 	destination, departure, override, refusal, err := l.canPull(req, card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -572,6 +584,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
+	l.interpose(stepCapacityCounted)
 	now := l.Now()
 	stamp := bench.Stamp(now)
 	events := make([]bench.Event, 0, 2)
@@ -614,6 +627,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 		Override:  override,
 	})
 	response, err := l.commit(req, card, events...)
+	occupancy.Release()
 	if err != nil {
 		return l.FromError(req, err)
 	}

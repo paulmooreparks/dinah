@@ -15,6 +15,7 @@ import (
 	"unsafe"
 
 	"dinah/internal/bench"
+	"dinah/internal/durable"
 	"golang.org/x/sys/windows"
 )
 
@@ -712,7 +713,7 @@ func TestAResidentReadNeverRefusesADelete(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "card.md")
 	writeFile(t, target, "held open")
-	file, err := openShared(target)
+	file, err := durable.Open(target)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -740,7 +741,7 @@ func TestAResidentListingNeverRefusesADelete(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, filepath.Join(listed, "comment.md"), "listed")
-	file, err := openDirShared(listed)
+	file, err := durable.OpenDir(listed)
 	if err != nil {
 		t.Fatal(err)
 	}

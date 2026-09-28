@@ -156,12 +156,21 @@ func (l *Library) Status(req *Request) (*Status, error) {
 		AttachmentCount: benchAttachments,
 	}
 	counts := map[string]int{}
+	day := l.dayOf(req)
 	for _, card := range cards {
 		if err := l.lapseRead(card, req.Actor); err != nil {
 			return nil, err
 		}
 		counts[card.Column]++
-		view, err := l.view(card, l.dayOf(req))
+		// Status prints only the cards it holds and the cards blocked, so a
+		// card in neither set never earns the full view: view composes a
+		// checklist tally, a schedule and a hold graph, none of which this
+		// answer discards, since it is never built for a card status will
+		// not print.
+		if !isHolder(card, req.Actor) && card.State != contract.StateBlocked {
+			continue
+		}
+		view, err := l.view(card, day)
 		if err != nil {
 			return nil, err
 		}
@@ -501,7 +510,7 @@ func (l *Library) offerFor(column *bench.Column, cards []*bench.Card, admit admi
 		}
 	}
 	ready := readyIn(cards, column.ID)
-	head, at, sawTier, withheld, held := headOfReadyFor(l.Bench, column.ID, landing, hold, cards, admit)
+	head, at, sawTier, withheld, held := headOfReadyFor(l.Bench, landing, hold, ready, admit)
 	if head == nil && held.NotYetFrom != "" {
 		offer.NotYet = true
 		offer.StartableFrom = held.NotYetFrom
@@ -651,10 +660,10 @@ func readyIn(cards []*bench.Card, columnID string) []*bench.Card {
 //
 // landing answers, for each card, the column this scan is being run to decide
 // whether a claim or a pull could take that card into, and the admission is
-// read there. It differs from columnID when the scan crosses a buffer a pull
-// would carry the card through, which is the same distinction TakenByPull
-// already reports, and it differs from card to card once two cards standing in
-// one column walk two routes.
+// read there. It differs from the column ready's own cards stand in when the
+// scan crosses a buffer a pull would carry the card through, which is the
+// same distinction TakenByPull already reports, and it differs from card to
+// card once two cards standing in one column walk two routes.
 //
 // A card whose landing is nil is passed over without being counted as ready
 // work withheld for tier, because no tier floor withheld it. It is work this
@@ -704,10 +713,15 @@ func readyIn(cards []*bench.Card, columnID string) []*bench.Card {
 // on a claim. This filters what a caller is shown; it establishes nothing
 // about the caller. Where the act being selected for is one no requirement can
 // refuse, by carries no filter and every ready card is eligible.
-func headOfReadyFor(b *bench.Bench, columnID string, landing landingFor, hold startHold,
-	cards []*bench.Card, by admission) (head *bench.Card, at *bench.Column, sawTier bool,
+//
+// ready is the source column's own ready cards in arrival order, from
+// readyIn, passed in rather than recomputed here: every call site already
+// has readyIn's answer at hand, or would otherwise ask it again for the same
+// column and open every ready card's journal a second time.
+func headOfReadyFor(b *bench.Bench, landing landingFor, hold startHold,
+	ready []*bench.Card, by admission) (head *bench.Card, at *bench.Column, sawTier bool,
 	withheldTier string, held heldWork) {
-	for _, card := range readyIn(cards, columnID) {
+	for _, card := range ready {
 		landed := landing(card)
 		if landed == nil {
 			continue
@@ -2761,7 +2775,8 @@ func (l *Library) primePending(cards []*bench.Card, req *Request, isOperator boo
 // own build already is and what AC2's byte-identical requirement pins
 // Prime.Holding to). Reread cannot read holding[0].Column and call that
 // "earliest-arrival": the earliest-arrival card among heldCards is found
-// explicitly here, by bench.ByArrival, without touching holding's own order.
+// explicitly here, by bench.EarliestArrival, without touching holding's own
+// order.
 func (l *Library) primeInstructions(req *Request, holding []CardView, heldCards []*bench.Card) (Instructions, []string) {
 	if req.Brief {
 		instructions := Instructions{}
@@ -2779,12 +2794,7 @@ func (l *Library) primeInstructions(req *Request, holding []CardView, heldCards 
 	s.layer(LayerGlobal, bench.GlobalInstructions(l.Home), &s.instructions.Global)
 	s.layer(LayerStanding, l.Bench.Standing, &s.instructions.Standing)
 	if len(s.instructions.Withheld) > 0 && len(heldCards) > 0 {
-		earliest := heldCards[0]
-		for _, card := range heldCards[1:] {
-			if bench.ByArrival(card, earliest) {
-				earliest = card
-			}
-		}
+		earliest := bench.EarliestArrival(heldCards)
 		if column := l.Bench.Column(earliest.Column); column != nil {
 			s.instructions.Reread = columnRef(column)
 		}
@@ -2815,6 +2825,11 @@ type CheckReport struct {
 	// outcome or the exit code. Bench.Notices is where they come from, and
 	// the member is absent where there are none.
 	Notices []bench.Finding `json:"notices,omitempty"`
+	// ClearedLocks are the locks dinah check --finish reclaimed from a holder
+	// proven dead and then released, each naming the dead record's owner and
+	// process. It is absent from a check that was not asked to finish and
+	// from a finish that found no dead lock.
+	ClearedLocks []bench.ClearedLock `json:"cleared_locks,omitempty"`
 	// StampedOrdinals counts the creation ordinals the migration wrote, and
 	// is absent from a request that did not ask for the migration.
 	StampedOrdinals *int `json:"stamped_ordinals,omitempty"`
@@ -3146,10 +3161,11 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		report.stampOutcome()
 		return report, nil
 	}
-	unresolved, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
+	unresolved, cleared, err := l.Bench.FinishInterrupted(req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return nil, err
 	}
+	report.ClearedLocks = cleared
 	remaining, err := l.Bench.Check()
 	if err != nil {
 		return nil, err

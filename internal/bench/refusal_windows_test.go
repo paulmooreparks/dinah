@@ -7,7 +7,20 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"dinah/internal/durable"
 )
+
+// refusedByAReader reports whether a plain rename or removal was refused the
+// way a handle open below the directory refuses it: ERROR_ACCESS_DENIED, or
+// ERROR_SHARING_VIOLATION (32), which Microsoft's System Error Codes list
+// gives as "The process cannot access the file because it is being used by
+// another process." These are the codes durable.MoveDir and durable.RemoveAll
+// retry, so a test that meets neither is not in the position it means to
+// test.
+func refusedByAReader(err error) bool {
+	return errors.Is(err, syscall.ERROR_ACCESS_DENIED) || errors.Is(err, syscall.Errno(32))
+}
 
 // holdShared opens a file the way dinah serve's resident reads one, sharing
 // read, write and delete, and answers a function that closes it.
@@ -61,7 +74,7 @@ func TestAFolderMoveWaitsOutAReaderBelowIt(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Rename(dir, target); err == nil || !transientRenameRefusal(err) {
+	if err := os.Rename(dir, target); err == nil || !refusedByAReader(err) {
 		t.Fatalf("a plain rename with a reader below the directory answered %v, wanted the transient refusal the retry exists for, so this test is not in the position it means to test", err)
 	}
 	go func() {
@@ -72,7 +85,7 @@ func TestAFolderMoveWaitsOutAReaderBelowIt(t *testing.T) {
 	if err := MoveEntity(dir, target); err != nil {
 		t.Fatalf("the move with a reader below the directory for 150ms answered %v, wanted it to wait the reader out", err)
 	}
-	if elapsed := time.Since(started); elapsed < 100*time.Millisecond || elapsed > folderRetryBudget {
+	if elapsed := time.Since(started); elapsed < 100*time.Millisecond || elapsed > durable.RetryBudget {
 		t.Errorf("the move took %v, wanted it to wait for the reader (about 150ms) and no longer than the budget", elapsed)
 	}
 	if _, err := os.Stat(filepath.Join(target, "journal.jsonl")); err != nil {
@@ -86,7 +99,7 @@ func TestAFolderMoveWaitsOutAReaderBelowIt(t *testing.T) {
 // holds it, so deleting the file is refused while the handle is open. (A
 // reader that shares delete, as the resident's does, may leave the file only
 // marked for deletion, and the directory's removal then answers
-// ERROR_DIR_NOT_EMPTY, which removeFolder retries too.)
+// ERROR_DIR_NOT_EMPTY, which durable.RemoveAll retries too.)
 func TestAFolderRemovalWaitsOutAReaderBelowIt(t *testing.T) {
 	dir, file := entityWithAFile(t)
 	held, err := os.Open(file)
@@ -94,7 +107,7 @@ func TestAFolderRemovalWaitsOutAReaderBelowIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { held.Close() })
-	if err := os.Remove(file); err == nil || !transientRemoveRefusal(err) {
+	if err := os.Remove(file); err == nil || !refusedByAReader(err) {
 		t.Fatalf("a plain delete of the held file answered %v, wanted the transient refusal the retry exists for, so this test is not in the position it means to test", err)
 	}
 	go func() {
@@ -105,7 +118,7 @@ func TestAFolderRemovalWaitsOutAReaderBelowIt(t *testing.T) {
 	if err := DeleteEntity(dir); err != nil {
 		t.Fatalf("the delete with a reader below the directory for 150ms answered %v, wanted it to wait the reader out", err)
 	}
-	if elapsed := time.Since(started); elapsed < 100*time.Millisecond || elapsed > folderRetryBudget {
+	if elapsed := time.Since(started); elapsed < 100*time.Millisecond || elapsed > durable.RetryBudget {
 		t.Errorf("the delete took %v, wanted it to wait for the reader (about 150ms) and no longer than the budget", elapsed)
 	}
 	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
@@ -118,9 +131,9 @@ func TestAFolderRemovalWaitsOutAReaderBelowIt(t *testing.T) {
 // into the interruption it has always reported, and it gave up once the budget
 // was spent rather than at once or never.
 func TestAFolderHeldPastTheBudgetFailsAsBefore(t *testing.T) {
-	previous := folderRetryBudget
-	folderRetryBudget = 200 * time.Millisecond
-	t.Cleanup(func() { folderRetryBudget = previous })
+	previous := durable.RetryBudget
+	durable.RetryBudget = 200 * time.Millisecond
+	t.Cleanup(func() { durable.RetryBudget = previous })
 	dir, file := entityWithAFile(t)
 	holdShared(t, file)
 	target := filepath.Join(filepath.Dir(dir), "moved")
@@ -128,11 +141,11 @@ func TestAFolderHeldPastTheBudgetFailsAsBefore(t *testing.T) {
 	err := MoveEntity(dir, target)
 	elapsed := time.Since(started)
 	var link *os.LinkError
-	if err == nil || !errors.As(err, &link) || !transientRenameRefusal(err) {
+	if err == nil || !errors.As(err, &link) || !refusedByAReader(err) {
 		t.Fatalf("a move refused past the budget answered %v, wanted the rename's own refusal", err)
 	}
-	if elapsed < folderRetryBudget || elapsed > folderRetryBudget+time.Second {
-		t.Errorf("the move gave up after %v, wanted it to spend the %v budget and stop", elapsed, folderRetryBudget)
+	if elapsed < durable.RetryBudget || elapsed > durable.RetryBudget+time.Second {
+		t.Errorf("the move gave up after %v, wanted it to spend the %v budget and stop", elapsed, durable.RetryBudget)
 	}
 	if _, err := os.Stat(file); err != nil {
 		t.Errorf("the refused move disturbed the directory: %v", err)

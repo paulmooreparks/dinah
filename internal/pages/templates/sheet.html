@@ -1,5 +1,5 @@
 {{define "card"}}      <div class="card">
-        <h1><span class="num">{{.Ref}}</span> {{.Title}}</h1>
+        <h1 class="card-title"><span class="num">{{.Ref}}</span> {{.Title}}</h1>
         <p><a href="/?open={{.Ref}}&amp;top={{.Ref}}">{{t "page.open-as-window"}}</a></p>
 {{template "sheet" .}}
       </div>{{end}}
@@ -17,46 +17,67 @@
 {{- if .Body}}
           <p class="card-body">{{.Body}}</p>
 {{- end}}
-          <details open="open"><summary>{{t "page.sheet.checklist"}}</summary>
-            <table class="kv-table">
+          <div class="tabs">
+            <div class="tablist" role="tablist" aria-label="{{t "page.sheet.details"}}">
+              <button role="tab" type="button" id="{{.ID}}-tab-checklist" aria-controls="{{.ID}}-checklist" aria-selected="{{if .InstructionsOpen}}false{{else}}true{{end}}">{{t "page.sheet.checklist"}}</button>
+              <button role="tab" type="button" id="{{.ID}}-tab-comments" aria-controls="{{.ID}}-comments" aria-selected="false">{{t "page.sheet.comments"}}</button>
+              <button role="tab" type="button" id="{{.ID}}-tab-links" aria-controls="{{.ID}}-links" aria-selected="false">{{t "page.sheet.links"}}</button>
+              <button role="tab" type="button" id="{{.ID}}-tab-instructions" aria-controls="{{.ID}}-instructions" aria-selected="{{if .InstructionsOpen}}true{{else}}false{{end}}">{{.InstructionsTitle}}</button>
+            </div>
+            <section role="tabpanel" id="{{.ID}}-checklist" aria-labelledby="{{.ID}}-tab-checklist">
+{{- if .Checklist}}
+              <ul class="sheet-list">
 {{- range .Checklist}}
-              <tr><th><span class="badge{{if .State.Class}} {{.State.Class}}{{end}}">{{.State.Text}}</span></th><td>{{.Kind}}{{if .Column}}, {{.Column}}{{end}}{{if .Owner}}, {{.Owner}}{{end}}: {{.Text}}</td></tr>
+                <li><span class="badge{{if .State.Class}} {{.State.Class}}{{end}}">{{.State.Text}}</span> {{.Kind}}{{if .Column}}, {{.Column}}{{end}}{{if .Owner}}, {{.Owner}}{{end}}: {{.Text}}</li>
 {{- end}}
-            </table>
-          </details>
-          <details><summary>{{t "page.sheet.comments"}}</summary>
-            <ol class="comment-index">
+              </ul>
+{{- else}}
+              <p class="sheet-empty">{{t "page.sheet.empty"}}</p>
+{{- end}}
+            </section>
+            <section role="tabpanel" id="{{.ID}}-comments" aria-labelledby="{{.ID}}-tab-comments">
+{{- if .Comments}}
+              <ul class="sheet-list">
 {{- range .Comments}}
-              <li><a href="{{.Href}}">{{.Subject}}</a> {{.Author}}, <time datetime="{{.TS}}">{{.TS}}</time></li>
+                <li><a href="{{.Href}}">{{.Subject}}</a> {{.Author}}, <time datetime="{{.TS}}">{{.TS}}</time></li>
 {{- end}}
-            </ol>
+              </ul>
+{{- else}}
+              <p class="sheet-empty">{{t "page.sheet.empty"}}</p>
+{{- end}}
 {{- with .Comment}}{{template "act" .}}{{end}}
-          </details>
-          <details><summary>{{t "page.sheet.links"}}</summary>
-            <ul>
+            </section>
+            <section role="tabpanel" id="{{.ID}}-links" aria-labelledby="{{.ID}}-tab-links">
+{{- if or .Links .Attachments}}
+              <ul class="sheet-list">
 {{- range .Links}}
-              <li><a href="{{.Href}}">{{.Text}}</a></li>
+                <li><a href="{{.Href}}">{{.Text}}</a></li>
 {{- end}}
-            </ul>
-            <ul>
 {{- range .Attachments}}
-              <li>{{.Name}}{{if .Value}}: {{.Value}}{{end}}</li>
+                <li>{{.Name}}{{if .Value}}: {{.Value}}{{end}}</li>
 {{- end}}
-            </ul>
-          </details>
-          <details{{if .InstructionsOpen}} open="open"{{end}}><summary>{{.InstructionsTitle}}</summary>
+              </ul>
+{{- else}}
+              <p class="sheet-empty">{{t "page.sheet.empty"}}</p>
+{{- end}}
+            </section>
+            <section role="tabpanel" id="{{.ID}}-instructions" aria-labelledby="{{.ID}}-tab-instructions">
 {{- range .Layers}}
-            <h3>{{.Name}}</h3>
-            <p class="card-body">{{.Value}}</p>
+              <h3 class="card-subtitle">{{.Name}}</h3>
+              <p class="card-body">{{.Value}}</p>
+{{- else}}
+              <p class="sheet-empty">{{t "page.sheet.empty"}}</p>
 {{- end}}
-          </details>
+            </section>
+          </div>
         </div>{{end}}
 
-{{define "act"}}{{if .Link}}<a class="btn" href="{{.Link}}">{{.Button}}</a>{{else if eq .Control "block"}}<details class="act-block"><summary class="btn">{{.Button}}</summary><form method="post" action="{{.Action}}">{{template "hidden" .Hidden}}<input class="form-input" name="reason" required="required" aria-label="{{t "page.act.reason"}}" /><input class="form-input" name="kind" aria-label="{{t "page.act.kind"}}" /><button class="{{if .Primary}}btn btn-primary{{else}}btn{{end}}" type="submit">{{.Button}}</button></form></details>{{else}}<form method="post" action="{{.Action}}">{{template "hidden" .Hidden}}
+{{define "act"}}{{if .Link}}<a class="btn" href="{{.Link}}">{{.Button}}</a>{{else}}<form class="act-{{.Name}}" method="post" action="{{.Action}}">{{template "hidden" .Hidden}}
 {{- if eq .Control "move"}}<label class="form-label" for="{{.ID}}-column">{{t "page.act.move-to"}}</label><select class="form-select" id="{{.ID}}-column" name="column">{{range .Options}}<option value="{{.Value}}">{{.Name}}</option>{{end}}</select>
-{{- else if eq .Control "unblock"}}<input class="form-input" name="reason" aria-label="{{t "page.act.reason"}}" />
+{{- else if eq .Control "block"}}<input class="form-input" name="reason" required="required" aria-label="{{t "page.act.reason"}}" placeholder="{{t "page.act.reason"}}" /><input class="form-input" name="kind" aria-label="{{t "page.act.kind"}}" placeholder="{{t "page.act.kind"}}" />
+{{- else if eq .Control "unblock"}}<input class="form-input" name="reason" aria-label="{{t "page.act.reason"}}" placeholder="{{t "page.act.reason"}}" />
 {{- else if eq .Control "comment"}}<textarea class="form-textarea" name="text" required="required" aria-label="{{t "page.act.comment-text"}}"></textarea>
-{{- end}}<button class="{{if .Primary}}btn btn-primary{{else}}btn{{end}}" type="submit">{{.Button}}</button>{{if .Note}}<span class="act-note">{{.Note}}</span>{{end}}</form>{{end}}{{end}}
+{{- end}}<button class="{{if .Primary}}btn btn-primary{{else}}btn{{end}}" type="submit">{{.Button}}</button>{{if .Note}}<span class="form-help">{{.Note}}</span>{{end}}</form>{{end}}{{end}}
 
 {{define "hidden"}}{{range .}}<input type="hidden" name="{{.Name}}" value="{{.Value}}" />{{end}}{{end}}
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"dinah/internal/bench"
+	"dinah/internal/durable"
 )
 
 // Snapshot is one immutable state of the workbench's files. It implements
@@ -354,7 +355,8 @@ func (s *Snapshot) passThrough(path string) bench.Disk {
 	return bench.Disk{}
 }
 
-// ReadFile is os.ReadFile, answered from the held bytes.
+// ReadFile is bench.Disk's ReadFile, durable.ReadFile, answered from the held
+// bytes.
 func (s *Snapshot) ReadFile(path string) ([]byte, error) {
 	where, _, file := s.place(path)
 	switch where {
@@ -516,7 +518,8 @@ func readDirOfFileError(path string) error {
 	return withPath(fileErrors.readDir, path)
 }
 
-// readFileOfDirError replays the error os.ReadFile answers for a directory.
+// readFileOfDirError replays the error durable.ReadFile, which bench.Disk's
+// ReadFile calls, answers for a directory.
 func readFileOfDirError(path string) error {
 	fileErrors.once.Do(probeFileErrors)
 	return withPath(fileErrors.readFile, path)
@@ -529,20 +532,14 @@ var fileErrors struct {
 	readFile error
 }
 
-// probeFileErrors takes the two errors from real reads.
+// probeFileErrors takes the two errors from real reads that write nothing: a
+// listing of the running program's own file, and a read of the directory
+// that holds it.
 func probeFileErrors() {
-	dir, err := os.MkdirTemp("", "dinah-resident-probe-")
-	if err != nil {
-		fileErrors.readDir = errors.New("resident: readdir of a file")
-		fileErrors.readFile = errors.New("resident: read of a directory")
-		return
-	}
-	defer os.RemoveAll(dir)
-	file := filepath.Join(dir, "file")
-	if err := os.WriteFile(file, nil, 0o644); err == nil {
+	if file, err := os.Executable(); err == nil {
 		_, fileErrors.readDir = os.ReadDir(file)
+		_, fileErrors.readFile = durable.ReadFile(filepath.Dir(file))
 	}
-	_, fileErrors.readFile = os.ReadFile(dir)
 	if fileErrors.readDir == nil {
 		fileErrors.readDir = errors.New("resident: readdir of a file")
 	}

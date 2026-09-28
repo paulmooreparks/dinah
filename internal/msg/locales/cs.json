@@ -1794,6 +1794,11 @@
       "context": "One row of the precondition list of a command outside the five the profile specifies.",
       "skeleton": true
     },
+    "check.unarchived-done": {
+      "text": "a live card stands at done-kind column {detail}",
+      "context": "A check finding: a card that reaches a done-kind column is archived immediately, so a live card found there afterward is one of three things: the archive step failed and the caller was warned, the move carried --no-archive, or the card was filed straight into a done-kind column with dinah add. {detail} is the column.",
+      "skeleton": true
+    },
     "check.unblock.1": {
       "text": "the card exists",
       "context": "One row of the ordered precondition list of unblock, quoted from section 6 of the core profile.",
@@ -3461,12 +3466,17 @@
     },
     "page.board": {
       "text": "Board",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The board page's title and the topbar link to it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The board page's title and the section tab that leads to it.",
       "skeleton": true
     },
     "page.cards": {
       "text": "Cards",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The card list page's title and the topbar link to it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The card list page's title and the section tab that leads to it.",
+      "skeleton": true
+    },
+    "page.cards.none": {
+      "text": "No card matches.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The only row of the card table when it lists no card.",
       "skeleton": true
     },
     "page.cards.query": {
@@ -3519,6 +3529,11 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the toolbar's query box.",
       "skeleton": true
     },
+    "page.filter.apply": {
+      "text": "Apply the filter",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name and tooltip of the search-glyph button beside the toolbar's query box, which applies the query.",
+      "skeleton": true
+    },
     "page.filter.clear": {
       "text": "Remove this filter",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the link that removes the query filter chip.",
@@ -3546,7 +3561,7 @@
     },
     "page.log": {
       "text": "Command log",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The command log's title, the topbar link to its page, and the accessible name of the log panel.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The command log's title, the section tab that leads to its page, and the accessible name of the log panel.",
       "skeleton": true
     },
     "page.log.again": {
@@ -3576,7 +3591,7 @@
     },
     "page.nav": {
       "text": "Pages",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the topbar's navigation.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the row of section tabs below the topbar.",
       "skeleton": true
     },
     "page.new-card": {
@@ -3602,6 +3617,11 @@
     "page.search": {
       "text": "Search",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The search page's title.",
+      "skeleton": true
+    },
+    "page.search.none": {
+      "text": "Nothing matches these words.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The only row of the search page's table when the search found nothing.",
       "skeleton": true
     },
     "page.search.phrase": {
@@ -3644,6 +3664,16 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The summary of a card sheet's comments.",
       "skeleton": true
     },
+    "page.sheet.details": {
+      "text": "Card sections",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the row of tabs on a card's sheet, which switches between its checklist, comments, links and instructions.",
+      "skeleton": true
+    },
+    "page.sheet.empty": {
+      "text": "Nothing here yet.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. What a tab of a card's sheet says when it holds nothing, such as a card with no comments.",
+      "skeleton": true
+    },
     "page.sheet.held-since": {
       "text": "{holder}, since {since}",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The holder row's value with the claim's start. {since} is a time stamp.",
@@ -3679,6 +3709,11 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card sheet row naming the card's workstreams.",
       "skeleton": true
     },
+    "page.sidebar.resize": {
+      "text": "Resize the column list",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of the divider between the column list and the page beside it, which can be dragged or moved with the arrow keys.",
+      "skeleton": true
+    },
     "page.state.active": {
       "text": "active",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The reader's word for a card somebody holds.",
@@ -3707,6 +3742,11 @@
     "page.table.holder": {
       "text": "Held by",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. A card table's column heading for the holder.",
+      "skeleton": true
+    },
+    "page.table.match": {
+      "text": "Match",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The heading of the search table's column that shows the words around each match.",
       "skeleton": true
     },
     "page.table.ref": {
@@ -3751,7 +3791,12 @@
     },
     "page.views": {
       "text": "Views",
-      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The views page's title and the topbar link to it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The views page's title and the section tab that leads to it.",
+      "skeleton": true
+    },
+    "page.views.none": {
+      "text": "This workbench defines no views.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The title of the empty state the views page draws when the workbench has no views.",
       "skeleton": true
     },
     "page.window": {
@@ -3764,6 +3809,11 @@
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's close button.",
       "skeleton": true
     },
+    "page.window.head": {
+      "text": "Window: {title}. Arrow keys move it, Shift with arrow keys resizes it, Enter maximizes or restores it.",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's title bar, which a keyboard reader focuses to move the window. {title} is the window's title and must be kept exactly as written.",
+      "skeleton": true
+    },
     "page.window.maximize": {
       "text": "Maximize",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's maximize button.",
@@ -3772,6 +3822,11 @@
     "page.window.minimize": {
       "text": "Minimize",
       "context": "A string the pages of dinah ui and dinah serve draw in a browser. The accessible name of a window's minimize button.",
+      "skeleton": true
+    },
+    "page.window.minimized": {
+      "text": "{title} (minimized)",
+      "context": "A string the pages of dinah ui and dinah serve draw in a browser. The tooltip of a minimised window's tab in the dock. {title} is the window's title and must be kept exactly as written.",
       "skeleton": true
     },
     "page.window.page": {
@@ -4217,6 +4272,11 @@
     "param.move.column.summary": {
       "text": "which column to carry the card to, also written --column <column>",
       "context": "The meaning of the column argument of `dinah move`, printed in that command's arguments table.",
+      "skeleton": true
+    },
+    "param.move.no-archive.summary": {
+      "text": "land the card at a done-kind column without archiving it",
+      "context": "The meaning of the --no-archive flag of `dinah move`, printed in that command's arguments table.",
       "skeleton": true
     },
     "param.move.override.summary": {
@@ -4834,6 +4894,46 @@
       "context": "The sibling of refusal.dinah.inapplicable-field rendered when the card stores no value under the gating field at all, which the condition reads as excluding the card: nobody has yet said this card is one the question is asked of. {detail}, {gate} and {admits} are as on the base entry, and there is no {value}. refusal.dinah.inapplicable-field.next is spliced on after this one.",
       "skeleton": true
     },
+    "check.lock-cleared": {
+      "text": "cleared {path} ({actor}, pid {pid}, ended)",
+      "context": "A line `dinah check --finish` prints for each lock it reclaimed from a holder proven dead and then released. {path} is the lock file, {actor} is the owner the dead lock named, and {pid} is the process it named, a number. The word pid is machine vocabulary.",
+      "skeleton": true
+    },
+    "check.stale-lock": {
+      "text": "a lock stands whose holder is not shown to be running: {detail}",
+      "context": "A check finding: an entity lock file whose holder check could not show to be live. {detail} is the owner the lock names followed by the verdict word, dead or unknown, or the verdict word alone when the lock names nobody; both verdict words are machine vocabulary and are not translated. One of check.stale-lock.dead.next and check.stale-lock.unknown.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "check.stale-lock.dead.next": {
+      "text": "; that process has ended, and `dinah check --finish` clears the lock",
+      "context": "Spliced onto check.stale-lock for a lock judged dead: the process it names is proven to have ended. The command spelling is machine vocabulary and is not translated.",
+      "skeleton": true
+    },
+    "check.stale-lock.unknown.next": {
+      "text": "; Dinah cannot prove its holder has ended, so only a person can clear it: confirm that no Dinah process that could hold it is still running, meaning the holder and process the lock names, or every Dinah process on the machines sharing this workbench when it names nobody, and then delete the file by hand. An empty lock is what a crash leaves behind while a lock is being created or reclaimed",
+      "context": "Spliced onto check.stale-lock for a lock judged unknown, which no command clears. It names the hand repair and the two crash windows that leave an empty lock: one while a lock is created, and one while a dead lock is being reclaimed.",
+      "skeleton": true
+    },
+    "notice.durable.waiting": {
+      "text": "waiting for {path}: the operating system has refused this for {seconds} seconds ({error}); close whatever has it open, or end this process",
+      "context": "Printed each time another five seconds pass while an act that has already written part of itself waits for the operating system to stop refusing a file, so that the act does not stop half done. {path} is the file relative to the workbench root, {seconds} is a whole number, and {error} is the last error the operating system gave, in its own language.",
+      "skeleton": true
+    },
+    "refusal.dinah.busy": {
+      "text": "the operating system kept refusing access to {detail} for five seconds, and the last error it gave was: {error}",
+      "context": "The sentence printed after the refusal name dinah.busy: the operating system refused to open, write, rename or remove a file for the whole of Dinah's retry, before the act had written anything. {detail} is the file relative to the workbench root, and {error} is the last error the operating system gave, in its own language. The sentence names no cause, because a denial can come from another process or from the file system itself. refusal.dinah.busy.next is spliced on after this one.",
+      "skeleton": true
+    },
+    "refusal.dinah.busy.next": {
+      "text": "; nothing was changed, so run the command again",
+      "context": "Spliced onto refusal.dinah.busy as the next step. dinah.busy is only ever raised before an act has written anything, so the clause is always true.",
+      "skeleton": true
+    },
+    "token.lock_reclaimed": {
+      "text": "lock reclaimed",
+      "context": "How the canonical token lock_reclaimed is rendered where a person reads it. The machine surface always carries the canonical spelling.",
+      "skeleton": true
+    },
     "refusal.dinah.interrupted": {
       "text": "the action on {detail} was interrupted after it was recorded",
       "context": "The sentence printed after the refusal name dinah.interrupted. {detail} carries the identifier, owner or column the refusal is about.",
@@ -5027,6 +5127,11 @@
     "refusal.dinah.no-levels.next": {
       "text": "; declare them under levels: in {anchor}",
       "context": "The next step of refusal.dinah.no-levels. {anchor} is the workbench.md path the declaration belongs in. The key name levels: is the frontmatter key itself and stays as it is.",
+      "skeleton": true
+    },
+    "refusal.dinah.no-longer-done": {
+      "text": "{detail} no longer stands in a done-kind column",
+      "context": "The sentence printed after the refusal name dinah.no-longer-done, which fires only inside archiveOnDone's own re-check under Archive's own lock: a concurrent move carried the card out of Done in the window between Do releasing the card's lock and Archive re-acquiring it, so the archive that had decided to run is skipped. It never renders as the Refusal of a request a caller made directly; it surfaces only as the WarningDetail of warn.archive-on-done-failed on the move whose own archive step this stops. {detail} is the card's reference, never translated.",
       "skeleton": true
     },
     "refusal.dinah.no-tier-default": {
@@ -6846,6 +6951,11 @@
     "version.tool": {
       "text": "dinah {release}",
       "context": "The tool's own release number.",
+      "skeleton": true
+    },
+    "warn.archive-on-done-failed": {
+      "text": "the card reached a done-kind column but could not be archived ({detail}); it is left live, and `dinah check` will report it",
+      "context": "A warning on a move whose own outcome is ok: the move succeeded and the card stands in the done-kind column it was sent to, but the archive step this card runs immediately afterward failed. {detail} is the refusal name that archive step raised.",
       "skeleton": true
     },
     "warn.inapplicable-value": {

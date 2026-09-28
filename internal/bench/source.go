@@ -7,17 +7,20 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"dinah/internal/durable"
 )
 
 // Source is where a Bench reads the files below its root. Disk reads the
 // filesystem; a resident snapshot answers from memory. Every method takes an
-// absolute path and answers what the named os or bench function answers for
-// it, errors included, so a caller cannot tell the two apart by result.
+// absolute path and answers what the named durable, os or bench function
+// answers for it, errors included, so a caller cannot tell the two apart by
+// result.
 type Source interface {
-	// ReadFile is os.ReadFile. The bytes are the caller's own.
+	// ReadFile is durable.ReadFile. The bytes are the caller's own.
 	ReadFile(path string) ([]byte, error)
 	// ReadHead is at most n bytes from the start of a file, read as
-	// os.Open followed by io.ReadFull, with io.EOF and io.ErrUnexpectedEOF
+	// durable.Open followed by io.ReadFull, with io.EOF and io.ErrUnexpectedEOF
 	// answered as a short read and not as an error.
 	ReadHead(path string, n int) ([]byte, error)
 	// ReadDir is os.ReadDir: every entry, sorted by name.
@@ -50,8 +53,8 @@ const (
 )
 
 // Disk is the Source every Bench reads through unless it was opened over
-// another. Its methods call os and the existing readers, and Derive calls
-// derive every time.
+// another. Its methods call durable, os and the existing readers, and Derive
+// calls derive every time.
 type Disk struct{}
 
 // AttachmentHeadBytes is how much of an attachment's payload a read may take
@@ -59,15 +62,15 @@ type Disk struct{}
 // holds no more than this of any payload.
 const AttachmentHeadBytes = 65536
 
-// ReadFile is os.ReadFile.
+// ReadFile is durable.ReadFile.
 func (Disk) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
+	return durable.ReadFile(path)
 }
 
-// ReadHead is os.Open followed by io.ReadFull into an n-byte buffer, with a
-// file shorter than n answered as a short read.
+// ReadHead is durable.Open followed by io.ReadFull into an n-byte buffer,
+// with a file shorter than n answered as a short read.
 func (Disk) ReadHead(path string, n int) ([]byte, error) {
-	file, err := os.Open(path)
+	file, err := durable.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +119,7 @@ func (Disk) Derive(path string, _ DeriveKind, derive func(path, text, revision s
 
 // diskText is Disk's Text, which Derive shares without holding a Disk value.
 func diskText(path string) (text, revision string, err error) {
-	data, err := os.ReadFile(path)
+	data, err := durable.ReadFile(path)
 	if err != nil {
 		return "", "", err
 	}

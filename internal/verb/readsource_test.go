@@ -50,6 +50,13 @@ import (
 //     Source-shaped type appears, read by reflection: residue/reflectsource.go
 //     takes one as any from its bench companion and calls ReadFile through
 //     reflect.
+//  5. A read through golang.org/x/sys/windows or golang.org/x/sys/unix, which
+//     no plant reproduces for the reason seamguard's header gives.
+//
+// Verb and bench are judged together once for every distinct set of their
+// files that a configuration in seamguard.Shipped builds, and the guard fails
+// on any non-test Go file of either directory none of them builds. The
+// planted files run under the host's configuration alone.
 
 // libraryReadExemptions are the reads package verb may make below the seam,
 // keyed on the FullName of the function that makes one and then on what it
@@ -70,16 +77,16 @@ var libraryReadExemptions = map[string]map[string]string{
 		"dinah/internal/bench.Exists": "asks whether the definition a new workbench is instantiated from is a workbench directory, " +
 			"a path the caller named outside any workbench",
 		"dinah/internal/bench.OpenUncontained": "opens that definition when it is a workbench directory, outside any workbench",
-		"os.ReadFile":                          "reads that definition when it is a file, outside any workbench",
+		"dinah/internal/durable.ReadFile":      "reads that definition when it is a file, outside any workbench",
 	},
 	"dinah/internal/verb.readReshapeSource": {
 		"dinah/internal/bench.Exists": "asks whether the definition reshape applies is a workbench directory, a path the caller " +
 			"named outside any workbench; reshape is grounded on the HTTP head",
 		"dinah/internal/bench.OpenUncontained": "opens that definition when it is a workbench directory, outside any workbench",
-		"os.ReadFile":                          "reads that definition when it is a file, outside any workbench",
+		"dinah/internal/durable.ReadFile":      "reads that definition when it is a file, outside any workbench",
 	},
 	"dinah/internal/verb.matchingAttachment": {
-		"os.ReadFile": "compares a payload a reshape is about to write with one already present, inside a write, " +
+		"dinah/internal/durable.ReadFile": "compares a payload a reshape is about to write with one already present, inside a write, " +
 			"which reads the disk as every act does",
 	},
 	"dinah/internal/verb.openCandidate": {
@@ -333,14 +340,10 @@ func libraryFindings(pkg *seamguard.Package, s *seam) []libraryFinding {
 		fileName := pkg.Names[i]
 		for _, decl := range file.Decls {
 			function := declName(info, decl)
-			var stack []ast.Node
 			ast.Inspect(decl, func(node ast.Node) bool {
 				if node == nil {
-					stack = stack[:len(stack)-1]
 					return true
 				}
-				parents := stack
-				stack = append(stack, node)
 				at := pkg.At(node.Pos())
 				if e, ok := node.(ast.Expr); ok {
 					if tv, ok := info.Types[e]; ok && tv.Type != nil {
@@ -363,7 +366,7 @@ func libraryFindings(pkg *seamguard.Package, s *seam) []libraryFinding {
 				if obj == nil {
 					return true
 				}
-				if member, read := seamguard.Classify(info, obj, seamguard.EnclosingCall(id, parents)); read {
+				if member, read := seamguard.Classify(obj); read {
 					add(libraryFinding{function, member, "reads " + member + " at " + at, fileName})
 				}
 				if full := fullName(obj); full != "" {
@@ -550,19 +553,45 @@ func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
 		t.Errorf("the allowlist names %d members, wanted %d; widen it only with a reason per member", allowed, seamguard.AllowedSize)
 	}
 
-	trunk, err := seamguard.Load(".", nil, seamguard.LoadOptions{Importer: seamguard.NewImporter(base, map[string]*types.Package{benchPath: trunkSeam.pkg.Types})})
+	// Package verb and the package bench it is judged against are loaded
+	// together once for every distinct set of their files a shipped
+	// configuration builds, so a file a build constraint keeps out of this
+	// platform's build is still judged under one that builds it, and the
+	// binding set is bench's own under that configuration.
+	configs, loaded, unselected, err := seamguard.Distinct(seamguard.Shipped, ".", filepath.FromSlash("../bench"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(trunk.Files) < 30 {
-		t.Fatalf("found %d non-test sources, and this package has far more", len(trunk.Files))
+	for _, name := range unselected {
+		t.Errorf("no shipped configuration builds %s, so the guard judges it under none", name)
 	}
-	findings := libraryFindings(trunk, trunkSeam)
-	for _, f := range unexcused(findings, libraryReadExemptions) {
-		t.Errorf("%s: %s", f.function, f.what)
+	if len(configs) < 3 {
+		t.Fatalf("the shipped configurations select %d distinct file sets from verb and bench, and bench's Windows, Linux and other Unix files make at least three", len(configs))
+	}
+	t.Logf("judging %d files of verb and bench under %d configurations: %v", loaded, len(configs), configs)
+	var findings []libraryFinding
+	reported := map[string]bool{}
+	for _, config := range configs {
+		configBase := seamguard.SourceImporterFor(token.NewFileSet(), config)
+		configSeam := loadSeam(t, configBase)
+		trunk, err := seamguard.Load(".", nil, seamguard.LoadOptions{Importer: seamguard.NewImporter(configBase, map[string]*types.Package{benchPath: configSeam.pkg.Types})})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(trunk.Files) < 30 {
+			t.Fatalf("%s: found %d non-test sources, and this package has far more", config, len(trunk.Files))
+		}
+		found := libraryFindings(trunk, configSeam)
+		findings = append(findings, found...)
+		for _, f := range unexcused(found, libraryReadExemptions) {
+			if !reported[f.function+"|"+f.what] {
+				reported[f.function+"|"+f.what] = true
+				t.Errorf("%s: %s: %s", config, f.function, f.what)
+			}
+		}
 	}
 	for _, pair := range staleExemptions(findings) {
-		t.Errorf("%s is exempt but no longer occurs, so its exemption has outlived what it excused; remove the entry", pair)
+		t.Errorf("%s is exempt but no longer occurs under any shipped configuration, so its exemption has outlived what it excused; remove the entry", pair)
 	}
 
 	planted, err := filepath.Glob(filepath.Join("testdata", "readsource", "*.go"))
@@ -570,7 +599,7 @@ func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(planted) != 24 {
-		t.Fatalf("found %d planted files under testdata/readsource, wanted twenty-four: the twenty-three section 12.2 of dinah-619 names and statplant.go, which dinah-619/questions/3 added", len(planted))
+		t.Fatalf("found %d planted files under testdata/readsource, wanted twenty-four: the twenty-three section 12.2 of dinah-619 names, with durableread.go in ioutilread.go's place, and statplant.go, which dinah-619/questions/3 added", len(planted))
 	}
 	residue, err := filepath.Glob(filepath.Join("testdata", "readsource", "residue", "*.go"))
 	if err != nil {

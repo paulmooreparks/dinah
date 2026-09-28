@@ -101,6 +101,8 @@ go test ./...
 
 The second line builds `dinah-tui`, the terminal UI's program, from the same package under the `tui` build tag. `go vet -tags tui ./cmd/dinah/...` and `go test -tags tui ./cmd/dinah/... ./internal/screen/...` check the files that tag adds.
 
+Every write Dinah makes is flushed to the disk before it is renamed into place, and on Windows that makes the suite several times slower. `go test -tags nofixtureflush ./...` runs it the way continuous integration does: the fixtures the tests build under the temporary directory skip the flush, and the tests of durability itself keep it. The tag is for test binaries only, and a binary built without it always flushes.
+
 The first command produces a single binary named `dinah` at the repository root; naming it explicitly with `-o` avoids depending on Go's default output-file rule for a module with a single command package.
 
 ## License

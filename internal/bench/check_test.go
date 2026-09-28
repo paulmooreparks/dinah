@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/testenv"
 )
 
@@ -21,9 +22,18 @@ import (
 // not cover. It also clears the variables isolatedEnv names, so a shell that
 // exports one does not reach a test that never asked to see it.
 func TestMain(m *testing.M) {
+	processGone = endedByThisTestOrGone
+	if mode := os.Getenv(lockHelperVariable); mode != "" {
+		os.Exit(runLockHelper(mode))
+	}
 	restore := testenv.IsolateTempDir()
 	restoreIsolated := testenv.ClearVars(isolatedEnv...)
+	// Every fixture is made under the temporary directory, so none of them
+	// flushes in a binary built with the nofixtureflush tag. The durability
+	// tests keep flushing through newDurableFixture.
+	restoreFlush := durable.SkipFlushUnder(os.TempDir())
 	code := m.Run()
+	restoreFlush()
 	restoreIsolated()
 	restore()
 	os.Exit(code)

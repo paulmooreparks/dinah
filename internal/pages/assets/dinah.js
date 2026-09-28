@@ -1,4 +1,4 @@
-/* Dinah's pages script. It does four things, and no act depends on any of
+/* Dinah's pages script. It does five things, and no act depends on any of
    them: with script off a page is correct when drawn and stale until
    reloaded, and every form still works.
 
@@ -9,17 +9,26 @@
       carries data-live with the same region of the new document, leaving
       alone any region holding the focus or a control the reader has changed.
       The windows themselves, their placement and their chrome are never
-      replaced, so the windows script's state is not disturbed.
+      replaced, so the windows script's state is not disturbed. A set of
+      tabs keeps the tab the reader chose, and after a redraw it announces
+      pudl:regions-swap, on which PUDL's windows script marks the new rows
+      and its tabs script readies the new tabs.
    3. Keys. The / key, pressed outside a text control, focuses the command
       line.
    4. Chrome. It inserts the theme toggle, which only script could work, and
       a copy button beside each command line, inside windows the windows
       script fetches as well. Every string it writes is read from an
-      attribute the server filled from the catalog. */
+      attribute the server filled from the catalog.
+   5. Layout. PUDL's windows script shows the list pane of a narrow layout
+      whenever no window is open, which is right for the board and wrong for
+      a page that is itself a detail, such as a card or the card list, so
+      the pane the server drew, in data-page-pane, is put back. The width
+      the reader drags the column list to is remembered in this browser. */
 (function () {
   'use strict';
 
   var POLL_MS = 3000;
+  var WIDTH_KEY = 'dinah-md-sidebar-w';
   var cursor = '';
   var timer = 0;
   var busy = false;
@@ -35,8 +44,14 @@
       var c = controls[i];
       if (c.type === 'hidden') continue;
       if (c.tagName === 'SELECT') {
-        for (var j = 0; j < c.options.length; j++) {
-          if (c.options[j].selected !== c.options[j].defaultSelected) return true;
+        /* A select whose options carry no selected attribute starts on its
+           first option, which is its drawn value although that option's
+           defaultSelected is false. */
+        var drawn = [];
+        for (var j = 0; j < c.options.length; j++) drawn.push(c.options[j].defaultSelected);
+        if (!c.multiple && c.size <= 1 && drawn.indexOf(true) < 0 && drawn.length) drawn[0] = true;
+        for (var k = 0; k < c.options.length; k++) {
+          if (c.options[k].selected !== drawn[k]) return true;
         }
       } else if (c.type === 'checkbox' || c.type === 'radio') {
         if (c.checked !== c.defaultChecked) return true;
@@ -45,6 +60,19 @@
       }
     }
     return false;
+  }
+
+  /* A set of tabs in a region about to be replaced keeps the reader's
+     choice: each fresh tab list is marked with the tab chosen in the old. */
+  function keepTabs(old, fresh) {
+    old.querySelectorAll('.tabs-ready > [role="tablist"] > [role="tab"][aria-selected="true"]').forEach(function (chosen) {
+      var id = chosen.getAttribute('aria-controls');
+      var twin = id && fresh.querySelector('[role="tab"][aria-controls="' + CSS.escape(id) + '"]');
+      if (!twin) return;
+      Array.prototype.forEach.call(twin.parentElement.children, function (tab) {
+        if (tab.getAttribute('role') === 'tab') tab.setAttribute('aria-selected', tab === twin ? 'true' : 'false');
+      });
+    });
   }
 
   /* The live regions of a document outside the window layer, keyed by their
@@ -79,14 +107,21 @@
         var fresh = new DOMParser().parseFromString(html, 'text/html');
         var now = regions(document);
         var next = regions(fresh);
+        var swapped = [];
         Object.keys(now).forEach(function (key) {
           var replacement = next[key];
           if (!replacement || busyRegion(now[key])) return;
-          now[key].replaceWith(document.importNode(replacement, true));
+          var incoming = document.importNode(replacement, true);
+          keepTabs(now[key], incoming);
+          now[key].replaceWith(incoming);
+          swapped.push(key);
         });
         var freshLayout = fresh.querySelector('.md-layout');
         if (freshLayout) cursor = freshLayout.getAttribute('data-changes-cursor') || cursor;
         addCopyButtons(document);
+        if (swapped.length) {
+          document.dispatchEvent(new CustomEvent('pudl:regions-swap', { detail: { url: location.href, regions: swapped } }));
+        }
       })
       .catch(function () { /* the next change redraws it */ })
       .then(function () { busy = false; });
@@ -135,6 +170,29 @@
     chrome.appendChild(button);
   }
 
+  /* The pane a narrow layout shows: the server's detail pane stays a
+     detail pane whatever the windows script decided. */
+  function keepPane() {
+    var l = layout();
+    if (l && l.getAttribute('data-page-pane') === 'detail') l.setAttribute('data-md-pane', 'detail');
+  }
+
+  /* The column list's width, as the reader last dragged it. Storage that is
+     blocked or full only means the width is not remembered. */
+  function restoreWidth() {
+    var l = layout();
+    if (!l) return;
+    var width = null;
+    try { width = localStorage.getItem(WIDTH_KEY); } catch (e) { /* not remembered */ }
+    if (width && /^\d+(\.\d+)?$/.test(width)) l.style.setProperty('--md-sidebar-w', width + 'px');
+    l.addEventListener('pudl:md-resize', function (e) {
+      try {
+        if (e.detail.reset) localStorage.removeItem(WIDTH_KEY);
+        else localStorage.setItem(WIDTH_KEY, String(Math.round(e.detail.width)));
+      } catch (err) { /* not remembered */ }
+    });
+  }
+
   function copyLabel() {
     var holder = document.querySelector('[data-copy-label]');
     return holder ? holder.getAttribute('data-copy-label') : '';
@@ -159,6 +217,9 @@
     var l = layout();
     if (l) cursor = l.getAttribute('data-changes-cursor') || '';
     insertThemeToggle();
+    restoreWidth();
+    keepPane();
+    document.addEventListener('pudl:windows-change', keepPane);
     addCopyButtons(document);
     document.addEventListener('keydown', onKey);
     document.addEventListener('pudl:window-open', function (e) { addCopyButtons(e.target); });

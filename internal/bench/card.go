@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -175,6 +176,9 @@ func loadCard(src Source, collection, id string, refuseRetired bool) (*Card, err
 		kind, derive = DeriveCardRetired, retiredCardFromText
 	}
 	value, err := src.Derive(anchor, kind, derive)
+	if isBusy(err) {
+		return nil, err
+	}
 	if err != nil {
 		var refusal *contract.Refusal
 		if errors.As(err, &refusal) {
@@ -759,21 +763,78 @@ func (c *Card) Lapsed(now time.Time) bool {
 // first, ties broken by ascending creation ordinal. It reports whether a comes
 // before b, which is what sort.Slice wants.
 //
+// It reads both cards' arrivals fresh on every call, which is the right cost
+// for the one-off comparison a caller with two cards already in hand makes,
+// and the wrong cost for a sort or a scan, which asks the same card's arrival
+// many times over. SortByArrival and EarliestArrival are that shared path:
+// each reads a card's arrival once for the whole composition and applies
+// LessArrival to the values it already holds.
+func ByArrival(a, b *Card) bool {
+	return LessArrival(a.Arrival(), a.Number, b.Arrival(), b.Number)
+}
+
+// LessArrival is CORE-QUEUE-3's tie-break rule over two arrivals already in
+// hand: the earlier arrival first, ties broken by ascending creation ordinal.
+// ByArrival, SortByArrival and EarliestArrival all apply this one rule to
+// whichever arrivals they hold, so the tie-break is written once rather than
+// once per caller.
+//
 // The ordinal is the card's own number, set at birth and never reused, so the
 // tie-break is stable across every tool that reads the workbench. The
 // identifier was what the retired CORE-QUEUE-1 named, and a random hex string
 // makes the order total without making it meaningful.
-func ByArrival(a, b *Card) bool {
-	return ArrivedBefore(a, a.Arrival(), b, b.Arrival())
+func LessArrival(aArrival time.Time, aNumber int, bArrival time.Time, bNumber int) bool {
+	if !aArrival.Equal(bArrival) {
+		return aArrival.Before(bArrival)
+	}
+	return aNumber < bNumber
 }
 
-// ArrivedBefore is ByArrival over arrivals a caller has already read, so a
-// sort reads each card's history once rather than once per comparison.
-func ArrivedBefore(a *Card, first time.Time, b *Card, second time.Time) bool {
-	if !first.Equal(second) {
-		return first.Before(second)
+// SortByArrival orders cards the way CORE-QUEUE-3 fixes, reading each card's
+// arrival once for the whole sort rather than once per comparison the way
+// sorting directly by ByArrival would. A composition sorting the live
+// workbench makes O(n log n) comparisons over n cards; reading each
+// comparison's two arrivals fresh, as ByArrival does on its own, opens each
+// card's journal on the order of n log n times where n would do.
+func SortByArrival(cards []*Card) {
+	arrivals := make([]time.Time, len(cards))
+	for i, c := range cards {
+		arrivals[i] = c.Arrival()
 	}
-	return a.Number < b.Number
+	order := make([]int, len(cards))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(i, j int) bool {
+		x, y := order[i], order[j]
+		return LessArrival(arrivals[x], cards[x].Number, arrivals[y], cards[y].Number)
+	})
+	sorted := make([]*Card, len(cards))
+	for i, idx := range order {
+		sorted[i] = cards[idx]
+	}
+	copy(cards, sorted)
+}
+
+// EarliestArrival is the earliest-arrival member of cards on the terms
+// SortByArrival orders them by, and nil for an empty slice. It reads each
+// card's arrival once, which is what makes it safe to call over a caller's
+// held or selected cards without opening a journal once per card compared
+// against the running earliest.
+func EarliestArrival(cards []*Card) *Card {
+	if len(cards) == 0 {
+		return nil
+	}
+	earliest := cards[0]
+	earliestArrival := earliest.Arrival()
+	for _, c := range cards[1:] {
+		arrival := c.Arrival()
+		if LessArrival(arrival, c.Number, earliestArrival, earliest.Number) {
+			earliest = c
+			earliestArrival = arrival
+		}
+	}
+	return earliest
 }
 
 // cardHeaderLimit is the most of an anchor ReadCardHeader reads looking for

@@ -14,10 +14,10 @@
 {{- end}}
       </div>{{end}}
 
-{{define "lanecard"}}<a class="lane-card"{{if .ID}} id="{{.ID}}"{{end}} href="/cards/{{.Ref}}" data-win-open="{{.Ref}}"><span class="num">{{.Ref}}</span>{{.Title}}{{with .Badge}}<br /><span class="badge {{.Class}}">{{.Text}}</span>{{end}}</a>{{end}}
+{{define "lanecard"}}<div class="md-row lane-row"><a class="md-item"{{if .ID}} id="{{.ID}}"{{end}} href="/cards/{{.Ref}}" data-win-open="{{.Ref}}">{{.Title}}<span class="md-meta"><span class="num">{{.Ref}}</span>{{with .Badge}} <span class="badge {{.Class}}">{{.Text}}</span>{{end}}</span></a></div>{{end}}
 
 {{define "column"}}      <div class="card">
-        <h2>{{.Title}}</h2>
+        <h2 class="card-title">{{.Title}}</h2>
         <div class="card-badges">{{range .Badges}}<span class="badge{{if .Class}} {{.Class}}{{end}}">{{.Text}}</span> {{end}}</div>
 {{- if .Instructions}}
         <details><summary>{{t "page.layer.column"}}</summary><p class="card-body">{{.Instructions}}</p></details>
@@ -25,14 +25,18 @@
       </div>
 {{template "lanes" .Lanes}}{{end}}
 
-{{define "cardtable"}}      <table class="kv-table card-table">
-        <thead><tr><th>{{t "page.table.ref"}}</th><th>{{t "page.table.title"}}</th><th>{{t "page.table.column"}}</th><th>{{t "page.table.state"}}</th><th>{{t "page.table.holder"}}</th></tr></thead>
-        <tbody>
+{{define "cardtable"}}      <div class="data-table-wrap">
+        <table class="data-table stack">
+          <thead><tr><th>{{t "page.table.ref"}}</th><th>{{t "page.table.title"}}</th><th>{{t "page.table.column"}}</th><th>{{t "page.table.state"}}</th><th>{{t "page.table.holder"}}</th></tr></thead>
+          <tbody>
 {{- range .}}
-          <tr><td><a href="/cards/{{.Ref}}" data-win-open="{{.Ref}}">{{.Ref}}</a></td><td>{{.Title}}</td><td>{{.Column}}</td><td><span class="badge{{if .State.Class}} {{.State.Class}}{{end}}">{{.State.Text}}</span></td><td>{{.Holder}}</td></tr>
+            <tr><td data-label="{{t "page.table.ref"}}"><a class="num" href="/cards/{{.Ref}}" data-win-open="{{.Ref}}">{{.Ref}}</a></td><td data-label="{{t "page.table.title"}}">{{.Title}}</td><td data-label="{{t "page.table.column"}}">{{.Column}}</td><td data-label="{{t "page.table.state"}}"><span class="badge{{if .State.Class}} {{.State.Class}}{{end}}">{{.State.Text}}</span></td><td data-label="{{t "page.table.holder"}}">{{.Holder}}</td></tr>
+{{- else}}
+            <tr class="data-table-empty"><td colspan="5">{{t "page.cards.none"}}</td></tr>
 {{- end}}
-        </tbody>
-      </table>{{end}}
+          </tbody>
+        </table>
+      </div>{{end}}
 
 {{define "cards"}}      <form method="get" action="/cards" role="search" class="query-form">
         <label class="form-label" for="cards-query">{{t "page.cards.query"}}</label>
@@ -40,7 +44,8 @@
         <button class="btn" type="submit">{{t "page.cards.run-query"}}</button>
       </form>
 {{template "cardtable" .Rows}}
-      <form method="post" action="/cards" id="add" class="add-form">
+      <form method="post" action="/cards" id="add" class="card add-form">
+        <h2 class="card-title">{{t "page.new-card"}}</h2>
         <div class="form-group"><label class="form-label" for="add-title">{{t "page.add.title"}}</label>
           <input class="form-input" id="add-title" name="title" required="required" /></div>
         <div class="form-group"><label class="form-label" for="add-column">{{t "page.add.column"}}</label>
@@ -63,7 +68,7 @@
 {{define "treesections"}}{{range .}}      <section class="tree-group">
         <h3>{{.Heading}}</h3>
 {{- if .Hidden}}
-        <p class="tree-hidden">{{.Hidden}}</p>
+        <p class="form-help">{{.Hidden}}</p>
 {{- end}}
 {{- range .Cards}}
         {{template "lanecard" .}}
@@ -79,19 +84,26 @@
         <input class="form-input" id="search-query" name="query" value="{{.Query}}" />
         <button class="btn" type="submit">{{t "page.search.run"}}</button>
       </form>
-      <table class="kv-table card-table">
-        <tbody>
+      <div class="data-table-wrap">
+        <table class="data-table stack">
+          <thead><tr><th>{{t "page.table.ref"}}</th><th>{{t "page.table.title"}}</th><th>{{t "page.table.column"}}</th><th>{{t "page.table.match"}}</th></tr></thead>
+          <tbody>
 {{- range .Hits}}
-          <tr><td>{{if eq .Kind "card"}}<a href="/cards/{{.Ref}}" data-win-open="{{.Ref}}">{{.Ref}}</a>{{else if eq .Kind "column"}}<a href="/columns/{{.Ref}}">{{.Ref}}</a>{{else}}{{.Ref}}{{end}}</td><td>{{.Title}}</td><td>{{.ColumnTitle}}</td><td>{{.Snippet}}</td></tr>
+            <tr><td data-label="{{t "page.table.ref"}}">{{if eq .Kind "card"}}<a class="num" href="/cards/{{.Ref}}" data-win-open="{{.Ref}}">{{.Ref}}</a>{{else if eq .Kind "column"}}<a href="/columns/{{.Ref}}">{{.Ref}}</a>{{else}}<span class="num">{{.Ref}}</span>{{end}}</td><td data-label="{{t "page.table.title"}}">{{.Title}}</td><td data-label="{{t "page.table.column"}}">{{.ColumnTitle}}</td><td data-label="{{t "page.table.match"}}">{{.Snippet}}</td></tr>
+{{- else}}
+            <tr class="data-table-empty"><td colspan="4">{{t "page.search.none"}}</td></tr>
 {{- end}}
-        </tbody>
-      </table>{{end}}
+          </tbody>
+        </table>
+      </div>{{end}}
 
-{{define "views"}}      <ul class="view-list">
+{{define "views"}}{{if .}}      <nav class="card view-list" aria-label="{{t "page.views"}}">
 {{- range .}}
-        <li><a href="{{.Href}}">{{.Text}}</a></li>
+        <div class="md-row"><a class="md-item" href="{{.Href}}">{{.Text}}</a></div>
 {{- end}}
-      </ul>{{end}}
+      </nav>{{else}}      <div class="empty-state">
+        <p class="empty-state-title">{{t "page.views.none"}}</p>
+      </div>{{end}}{{end}}
 
 {{define "view"}}{{range .Sections}}      <section class="view-section">
         <h2>{{.Title}}</h2>
@@ -100,16 +112,18 @@
 {{end}}{{end}}
 
 {{define "generic"}}      <div class="card">
-        <h2>{{.Heading}}</h2>
+        <h2 class="card-title">{{.Heading}}</h2>
 {{- if .Acts}}
         <section class="card-acts" aria-label="{{t "page.acts"}}">{{range .Acts}}{{template "act" .}}{{end}}</section>
 {{- end}}
         <pre class="payload"><code>{{.Payload}}</code></pre>
       </div>{{end}}
 
-{{define "refusal"}}<div class="card refusal">
-        <p><code>{{.Name}}</code>{{if .Detail}} <code>{{.Detail}}</code>{{end}}</p>
-        <p class="refusal-why">{{.Sentence}}</p>
+{{define "refusal"}}<div class="notice danger" role="alert">
+        <div class="notice-content">
+          <p class="notice-title"><code>{{.Name}}</code>{{if .Detail}} <code>{{.Detail}}</code>{{end}}</p>
+          <p class="notice-body">{{.Sentence}}</p>
+        </div>
       </div>{{end}}
 
 {{define "error"}}      {{template "refusal" .}}{{end}}

@@ -941,6 +941,7 @@ var checkAdviceNeedingNoScope = map[string]string{
 	"check.bare-workbench":                          "a finding row printed by a sweep the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
 	"check.damaged-workbench":                       "a finding row printed by a sweep the caller has already scoped, describing what that sweep does not repair rather than naming a fresh invocation",
 	"check.stranded-column":                         "a finding row printed by a check the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
+	"check.stale-lock.dead.next":                    "a finding row printed by a check the caller has already scoped, saying that the finish on that same scope clears the lock rather than naming a fresh invocation",
 	"check.duplicate-workbench-id":                  "a finding row printed by a check the caller has already scoped, describing what --remint would do rather than naming a fresh invocation",
 	"refusal.dinah.repair-would-empty-columns":      "the sentence names the command that just refused, which is the reader's own invocation carrying whatever scope he gave it",
 	"refusal.dinah.repair-would-empty-columns.next": "the reader is told to run again the invocation he has just run, so the scope he typed is the scope he repeats",
@@ -957,6 +958,7 @@ var checkAdviceNeedingNoScope = map[string]string{
 	"param.reshape.map.summary":                     "a help page describing what dinah check reports about a stranded column identifier, rather than asking the reader to type anything",
 	"refusal.dinah.reshape-map-source-empty.next":   "the reader has just been refused by a reshape they scoped themselves, and reshape takes neither --root nor a downward walk, so the bare dinah check they are told to run resolves the workbench the refused command resolved",
 	"reshape.stranded":                              "a report line printed inside a reshape the caller has already scoped, and reshape takes neither --root nor a downward walk, so the bare dinah check it names resolves the same workbench the report was written for",
+	"warn.archive-on-done-failed":                   "a prediction printed on the move that just landed the card, describing what a later, unscoped dinah check will find rather than asking the reader to type anything now",
 }
 
 // TestEveryCheckAdviceIsDispositioned holds the family of catalog sentences

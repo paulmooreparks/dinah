@@ -2,8 +2,9 @@ package resident
 
 import (
 	"io/fs"
-	"os"
-	"path/filepath"
+	"sort"
+
+	"dinah/internal/durable"
 )
 
 // listDirHeld, when set, runs inside listDir while the listing's handle is
@@ -13,22 +14,43 @@ import (
 // might stop calling.
 var listDirHeld func(path string)
 
-// listedEntry is one entry of a listing Windows' listDir reads record by
-// record rather than through os.ReadDir.
-type listedEntry struct {
-	dir, name string
-	typ       fs.FileMode
-	// attributes are the FileAttributes member of the entry's
-	// FILE_FULL_DIR_INFO record, which isLink reads.
-	attributes uint32
-}
-
-func (e *listedEntry) Name() string      { return e.name }
-func (e *listedEntry) IsDir() bool       { return e.typ.IsDir() }
-func (e *listedEntry) Type() fs.FileMode { return e.typ }
-
-// Info answers the entry's own FileInfo, not following a link, as
-// fs.DirEntry's Info is documented to.
-func (e *listedEntry) Info() (fs.FileInfo, error) {
-	return os.Lstat(filepath.Join(e.dir, e.name))
+// listDir stats and lists one directory through a single handle, and closes
+// it the moment the listing ends, before any file in the directory is read.
+// The handle is durable.OpenDir's, which on Windows shares read, write and
+// delete, so a directory the resident is listing never refuses another
+// process's rename or removal of it for the length of the listing. The one
+// handle also answers the directory's own stat, where os.Stat would open a
+// second one.
+//
+// The enumeration is (*os.File).ReadDir, whose documentation is the whole of
+// the contract this rests on: "ReadDir reads the contents of the directory
+// associated with the file f and returns a slice of DirEntry values in
+// directory order." and "If n <= 0, ReadDir returns all the DirEntry records
+// remaining in the directory. When it succeeds, it returns a nil error (not
+// io.EOF)." Which codes the operating system answers at the end of a
+// directory is the os package's to know, and nothing here reads one.
+//
+// The entries are sorted by name, as os.ReadDir sorts them.
+func listDir(path string) (fs.FileInfo, []fs.DirEntry, error) {
+	file, err := durable.OpenDir(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, nil, err
+	}
+	if !info.IsDir() {
+		return info, nil, nil
+	}
+	entries, err := file.ReadDir(-1)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	if listDirHeld != nil {
+		listDirHeld(path)
+	}
+	return info, entries, nil
 }

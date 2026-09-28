@@ -200,6 +200,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		MigrateWitness:     parsed.has("witness"),
 		NoClaim:            parsed.has("no-claim"),
+		NoArchive:          parsed.has("no-archive"),
 	}
 	return req
 }
@@ -1954,7 +1955,7 @@ func runMCP(s *session, parsed *arguments) int {
 		return contract.ExitCode(contract.OutcomeRefused)
 	case openErr != nil:
 		libraries := map[string]*verb.Library{}
-		if err := mcp.Serve(s.mcpRoot, nil, libraries, s.in, s.out, profile); err != nil {
+		if err := mcp.ServeNotifying(s.mcpRoot, nil, libraries, s.in, s.out, profile, installWaiting); err != nil {
 			return s.reportError(err)
 		}
 		return 0
@@ -1971,7 +1972,7 @@ func runMCP(s *session, parsed *arguments) int {
 		}
 	}
 	libraries := map[string]*verb.Library{}
-	if err := mcp.Serve(s.mcpRoot, library, libraries, s.in, s.out, profile); err != nil {
+	if err := mcp.ServeNotifying(s.mcpRoot, library, libraries, s.in, s.out, profile, installWaiting); err != nil {
 		return s.reportError(err)
 	}
 	return 0
@@ -2042,6 +2043,7 @@ func runLSP(s *session, parsed *arguments) int {
 		Messages:      s.r,
 		Version:       verb.ToolRelease,
 	}, s.in, s.out)
+	installWaiting(server.Waiting)
 	if err := server.Serve(); err != nil {
 		return s.reportError(err)
 	}

@@ -140,7 +140,9 @@ var keyRows = []keyRowCase{
 		wantModel(t, "fx-1's column", columnOf(t, root, "fx-1"), "Acceptance")
 	}},
 	{name: "browse a accepts into the done column", keys: "laq", check: func(t *testing.T, root string, run tuiRun) {
-		wantModel(t, "fx-3's column", columnOf(t, root, "fx-3"), "Done")
+		// dinah-634 archives fx-3 in the same act that lands it in Done, so
+		// its column is read from the archived half.
+		wantModel(t, "fx-3's column", columnOfArchived(t, root, "fx-3"), "Done")
 	}},
 	{name: "browse b sends the card back", keys: "lbq", check: func(t *testing.T, root string, run tuiRun) {
 		wantModel(t, "fx-3's column", columnOf(t, root, "fx-3"), "Implement")
@@ -311,6 +313,20 @@ var keyRows = []keyRowCase{
 func columnOf(t *testing.T, root, ref string) string {
 	t.Helper()
 	got := runCLI(t, root, "show", ref, "--json", "--fields", "card")
+	for _, line := range strings.Split(got.out, "\n") {
+		if at := strings.Index(line, `"column_title": "`); at >= 0 {
+			return strings.TrimSuffix(strings.TrimSpace(line[at+len(`"column_title": "`):]), `",`)
+		}
+	}
+	return ""
+}
+
+// columnOfArchived is columnOf for a card dinah-634's archive-on-done has
+// already moved into the archive mirror, reading the archived half rather
+// than the live one.
+func columnOfArchived(t *testing.T, root, ref string) string {
+	t.Helper()
+	got := runCLI(t, root, "show", ref, "--archived", "--json", "--fields", "card")
 	for _, line := range strings.Split(got.out, "\n") {
 		if at := strings.Index(line, `"column_title": "`); at >= 0 {
 			return strings.TrimSuffix(strings.TrimSpace(line[at+len(`"column_title": "`):]), `",`)

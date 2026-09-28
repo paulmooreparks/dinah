@@ -16,6 +16,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/guide"
 	"dinah/internal/msg"
 	"dinah/internal/profile"
@@ -35,6 +36,10 @@ import (
 func TestMain(m *testing.M) {
 	restoreTemp := testenv.IsolateTempDir()
 	restoreIsolated := testenv.ClearVars(isolatedEnv...)
+	// Every fixture is made under the temporary directory, so none of them
+	// flushes in a binary built with the nofixtureflush tag. The tests of a
+	// wait keep flushing through keepFlushing.
+	restoreFlush := durable.SkipFlushUnder(os.TempDir())
 	tableSiteRecorder = recordReachedTableSite
 	// No test may leave the test binary standing elsewhere than it started:
 	// the in-process callers of serveUntil replace serveChdir with a recorder
@@ -46,6 +51,7 @@ func TestMain(m *testing.M) {
 		code = 1
 	}
 	tableSiteRecorder = nil
+	restoreFlush()
 	for _, complaint := range unreachedTableSites() {
 		fmt.Fprintln(os.Stderr, complaint)
 		code = 1
@@ -1746,7 +1752,7 @@ func TestTheRemainingRefusalsLeadStderr(t *testing.T) {
 			build: func(t *testing.T) (string, []string) {
 				root := newLimitedBench(t)
 				runCLI(t, root, "add", "First")
-				runCLI(t, root, "move", "lim-1", "Finished")
+				runCLI(t, root, "move", "lim-1", "Finished", "--no-archive")
 				return root, []string{"move", "lim-1", "Aftercare"}
 			},
 			token: contract.Terminal,
@@ -7525,7 +7531,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-container", "migrate-designations", "migrate-holds", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals", "migrate-raw-lines", "migrate-schedule",
 		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
-		"no-browser", "no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
+		"no-archive", "no-browser", "no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
 		"unresolved", "version", "wait", "watch", "witness", "yes",
 	}

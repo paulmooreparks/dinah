@@ -77,7 +77,14 @@ func TestGenerateRefusesTooFewItemComments(t *testing.T) {
 }
 
 // TestGeneratedStoreChecksClean asserts that the small store opens and that
-// dinah check finds nothing in it.
+// dinah check finds nothing in it beyond the one expected condition
+// placeCards's own doc comment describes: a fifth of the live cards are
+// planted straight in the Done column, mirroring a workbench snapshot taken
+// before dinah-634's archive-on-done existed. check.unarchived-done is
+// dinah-634's own passive backstop for exactly that shape (section 5 of its
+// specification: a card filed straight into a done-kind column, one of the
+// three ways a live card ends up there), so it is expected here rather than
+// a defect, and is the one finding this assertion excuses.
 func TestGeneratedStoreChecksClean(t *testing.T) {
 	t.Parallel()
 	store := generate(t, perfstore.DefaultSeed)
@@ -90,6 +97,9 @@ func TestGeneratedStoreChecksClean(t *testing.T) {
 		t.Fatalf("check: %v", err)
 	}
 	for _, finding := range findings {
+		if finding.Key == bench.FindingUnarchivedDone {
+			continue
+		}
 		t.Errorf("finding %s %s at %s", finding.Key, finding.Detail, finding.Path)
 	}
 }
@@ -284,8 +294,8 @@ func readBackArchive(t *testing.T, b *bench.Bench, want int) {
 
 // TestPerfstoreIsNotInTheBinary asserts that no production binary links the
 // generator, and that the generator imports nothing from this module beyond
-// internal/bench and internal/contract, which is what lets an external test
-// package of either import it.
+// internal/bench, internal/contract and internal/durable, which is what lets
+// an external test package of any of them import it.
 func TestPerfstoreIsNotInTheBinary(t *testing.T) {
 	t.Parallel()
 	deps := goList(t, "-deps", "dinah/cmd/dinah")
@@ -296,7 +306,11 @@ func TestPerfstoreIsNotInTheBinary(t *testing.T) {
 		t.Errorf("dinah/cmd/dinah depends on dinah/internal/perfstore")
 	}
 	imports := goList(t, "-f", "{{join .Imports \"\\n\"}}", "dinah/internal/perfstore")
-	allowed := map[string]bool{"dinah/internal/bench": true, "dinah/internal/contract": true}
+	allowed := map[string]bool{
+		"dinah/internal/bench":    true,
+		"dinah/internal/contract": true,
+		"dinah/internal/durable":  true,
+	}
 	moduleImports := 0
 	for _, path := range imports {
 		if !strings.HasPrefix(path, "dinah/") {

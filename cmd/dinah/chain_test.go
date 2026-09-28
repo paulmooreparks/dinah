@@ -49,7 +49,7 @@ func TestTheCliHeadNeverWithholdsALayer(t *testing.T) {
 		{argv: []string{"instructions", "fx-1"}, serves: true},
 		{argv: []string{"instructions", "doing"}, serves: true},
 		{argv: []string{"release", "fx-1"}},
-		{argv: []string{"move", "fx-1", "done"}, serves: true},
+		{argv: []string{"move", "fx-1", "done", "--no-archive"}, serves: true},
 		{argv: []string{"move", "fx-1", "doing"}, serves: true},
 		{argv: []string{"claim", "fx-2"}, serves: true},
 		{argv: []string{"instructions", "fx-2"}, serves: true},

@@ -73,6 +73,33 @@ type Watched struct {
 // every caller of Changes. A separate term costs one more sha256 and keeps
 // the two questions apart.
 func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) {
+	return b.WatchedEntitiesCached(nil)
+}
+
+// WatchedEntitiesCached is WatchedEntities over a cache of archived entries a
+// caller keeps across repeated calls, such as a waiting changes call's poll
+// loop.
+//
+// dinah-620 first shipped this cache on the premise that an archived card's
+// journal does not change once it is archived, and invalidated an entry only
+// when a poll's own listing showed its identifier gone from the archive root.
+// That premise does not hold: a card restored, edited and re-archived faster
+// than one poll interval never produces a listing where the identifier goes
+// missing, so the presence-keyed cache kept serving the pre-round-trip entry
+// and a waiting caller silently missed the change (dinah-620/criteria/1). The
+// journal's byte size, not the identifier's presence, is what the value
+// actually depends on, and the size cannot be read except by statting the
+// journal, so there is no cheaper correctness key than the one WatchedEntities
+// always paid for every archived card on every call. This function now pays
+// that same cost every call, cache or no cache: every archived journal in
+// archivedIDs is statted fresh, which is the one piece of documented behavior
+// (os.Stat's reported size) the digest term can safely rest on, since the
+// journal is append-only and any write to it, restore-edit-archive included,
+// grows it. The cache parameter is kept so a caller can still read back what
+// the walk found for a given identifier, and entries for identifiers no
+// longer listed are dropped from it, but no lookup here ever answers instead
+// of statting.
+func (b *Bench) WatchedEntitiesCached(cache map[string]Watched) (live, archive, columns []Watched, err error) {
 	// A collection directory that does not exist is an ordinary, legitimate
 	// shape (a fresh bench carries no workstreams yet, for one), and
 	// readCollection reads that as empty rather than as an error, which is
@@ -92,26 +119,39 @@ func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for _, id := range workstreamIDs {
-		dir := filepath.Join(b.WorkstreamsRoot(), id)
-		live = append(live, watch(b.source(), WorkstreamsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, WorkstreamAnchor)))
+	src := b.source()
+	workstreamEntries, err := parallelRead(len(workstreamIDs), func(i int) (Watched, error) {
+		dir := filepath.Join(b.WorkstreamsRoot(), workstreamIDs[i])
+		return watch(src, WorkstreamsDir+"/"+workstreamIDs[i], filepath.Join(dir, JournalName), filepath.Join(dir, WorkstreamAnchor)), nil
+	})
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	live = append(live, workstreamEntries...)
 	cardIDs, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for _, id := range cardIDs {
-		dir := filepath.Join(b.CardsRoot(), id)
-		live = append(live, watch(b.source(), CardsDir+"/"+id, filepath.Join(dir, JournalName), filepath.Join(dir, CardAnchor)))
+	// This is the walk that mints a change cursor: one stat and one content
+	// hash per live card, run across parallelRead's pool the same way
+	// cardsWith runs a card's own load, and watch takes no lock either.
+	cardEntries, err := parallelRead(len(cardIDs), func(i int) (Watched, error) {
+		dir := filepath.Join(b.CardsRoot(), cardIDs[i])
+		return watch(src, CardsDir+"/"+cardIDs[i], filepath.Join(dir, JournalName), filepath.Join(dir, CardAnchor)), nil
+	})
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	live = append(live, cardEntries...)
 	archivedIDs, err := b.ListIDs(b.ArchivedCardsRoot())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for _, id := range archivedIDs {
-		dir := filepath.Join(b.ArchivedCardsRoot(), id)
-		archive = append(archive, watch(b.source(), CardsDir+"/"+id, filepath.Join(dir, JournalName), ""))
+	archiveEntries, err := b.watchArchived(archivedIDs, cache)
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	archive = append(archive, archiveEntries...)
 	// The column half reads the flow the bench opened with rather than
 	// listing the collection, so a directory carrying no anchor, which
 	// dinah check reports as orphaned, contributes nothing here either.
@@ -124,6 +164,40 @@ func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) 
 	return live, archive, columns, nil
 }
 
+// watchArchived answers the archived half of the walk, in the identifier
+// order the listing gave it. Every call, cached or not, stats every
+// identifier's journal fresh: a card's residency in the archive proves
+// nothing about its journal's byte count, since a restore, an edit and a
+// re-archive can all complete between two listings, so presence is never
+// substituted for the stat that alone reports the current size. cache, when
+// non-nil, is still updated with what this call found, and an identifier the
+// listing no longer carries is dropped from it, so a caller reading it back
+// never sees an entry for a card that has left the archive; nothing here ever
+// reads a value out of it in place of statting.
+func (b *Bench) watchArchived(archivedIDs []string, cache map[string]Watched) ([]Watched, error) {
+	src := b.source()
+	archive, err := parallelRead(len(archivedIDs), func(i int) (Watched, error) {
+		dir := filepath.Join(b.ArchivedCardsRoot(), archivedIDs[i])
+		return watch(src, CardsDir+"/"+archivedIDs[i], filepath.Join(dir, JournalName), ""), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if cache != nil {
+		seen := make(map[string]bool, len(archivedIDs))
+		for i, id := range archivedIDs {
+			seen[id] = true
+			cache[id] = archive[i]
+		}
+		for id := range cache {
+			if !seen[id] {
+				delete(cache, id)
+			}
+		}
+	}
+	return archive, nil
+}
+
 // watch reads one entity's two values off the filesystem. An absent journal
 // is size zero and an anchor that will not read carries no revision, which is
 // the absent-means-empty rule applied to a comparison rather than to a
@@ -132,6 +206,9 @@ func (b *Bench) WatchedEntities() (live, archive, columns []Watched, err error) 
 func watch(src Source, key, journal, anchor string) Watched {
 	entry := Watched{Key: key, Journal: journal, Anchor: anchor}
 	if journal != "" {
+		if JournalStatObserver != nil {
+			JournalStatObserver(journal)
+		}
 		if info, err := src.Stat(journal); err == nil {
 			entry.Size = info.Size()
 		}
@@ -143,6 +220,12 @@ func watch(src Source, key, journal, anchor string) Watched {
 	}
 	return entry
 }
+
+// JournalStatObserver is a seam over the journal stat watch makes, on the
+// terms AnchorReadObserver and ListIDsObserver already carry, so a test can
+// count how many of a walk's journals it actually statted rather than served
+// from a cache.
+var JournalStatObserver func(path string)
 
 // sortWatched puts a half of the walk in key order, which is the order the
 // digest renders and the order a merged read breaks its timestamp ties by.

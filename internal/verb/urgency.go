@@ -286,9 +286,12 @@ func (d *viewDraw) history(card *bench.Card) cardHistory {
 
 // rank orders one section's cards by urgency: score highest first, then
 // arrival in the current column earliest first, then card number lowest
-// first. It is the queue's own tie-break applied to the per-draw arrival
-// rather than through bench.ByArrival, which reads the journal twice per
-// comparison, and it answers each card's score in the order it sorted them.
+// first. The arrival tie-break is bench.LessArrival, the same rule
+// SortByArrival applies elsewhere, read from the per-draw history cache
+// rather than from a fresh journal read per comparison; the history cache
+// already opens each ranked card's journal once for the whole draw, since
+// staleClaim and age need its events too. It answers each card's score in
+// the order it sorted them.
 func (d *viewDraw) rank(cards []*bench.Card) ([]urgencyScore, error) {
 	scores := make(map[string]urgencyScore, len(cards))
 	for _, card := range cards {
@@ -304,10 +307,7 @@ func (d *viewDraw) rank(cards []*bench.Card) ([]urgencyScore, error) {
 			return first > second
 		}
 		early, late := d.history(cards[i]).arrival, d.history(cards[j]).arrival
-		if !early.Equal(late) {
-			return early.Before(late)
-		}
-		return cards[i].Number < cards[j].Number
+		return bench.LessArrival(early, cards[i].Number, late, cards[j].Number)
 	})
 	ordered := make([]urgencyScore, 0, len(cards))
 	for _, card := range cards {

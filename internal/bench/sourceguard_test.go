@@ -26,6 +26,12 @@ import (
 // rule), and no file carries a //go:linkname directive or a function declared
 // without a body (the outside-Go rule).
 //
+// The package is judged once for every distinct set of its files that a
+// configuration in seamguard.Shipped builds, and the guard fails on any
+// non-test Go file of the directory none of them builds, so a file behind the
+// tui tag or named for one platform is judged under the configuration that
+// builds it. The planted files run under the host's configuration alone.
+//
 // What this guard cannot see, each item with the plant under
 // testdata/sourceguard/residue that reproduces it; seamguard's header states
 // the residue of both guards. The guard is asserted to pass each residue
@@ -42,6 +48,8 @@ import (
 //  5. A second read of the same member inside an exempt function:
 //     residue/samepair.go, run against a table extended by one pair for its
 //     own function.
+//  6. A read through golang.org/x/sys/windows or golang.org/x/sys/unix, which
+//     no plant reproduces for the reason seamguard's header gives.
 
 // seamExemptions are the reads the guard lets through, keyed on the FullName
 // of the function that makes one and then on the member it reads, each with
@@ -55,7 +63,31 @@ var seamExemptions = map[string]map[string]string{
 			"reaches it; and WalkDir classifies the root with os.Lstat, which Source does not offer, so a conversion would " +
 			"change which files a symbolic-link root yields on Disk",
 	},
+	// dinah-640's lock verdict asks the operating system whether a lock
+	// file's holder still holds the lock on it, which only a handle on the
+	// file can answer; a record it cannot take that lock on it reads through
+	// the bench's source.
+	"dinah/internal/bench.judge": {
+		"dinah/internal/durable.OpenLockFile": "opens the lock file for the operating-system lock the verdict asks about, which no Source holds",
+		"dinah/internal/durable.ReadHeld":     "reads the record through the handle the judge holds that lock on, so the record is the holder's",
+		"os.Lstat":                            "asks whether a lock file whose open failed is gone, which the retry after a release depends on seeing at once",
+	},
+	// The identity a lock record carries on Linux comes from the kernel's
+	// own files, which lie outside every workbench.
+	"dinah/internal/bench.firstLine": {
+		"dinah/internal/durable.ReadFile": "reads one line of a file under /proc or /sys, outside every workbench",
+	},
+	"dinah/internal/bench.namespaceOf": {
+		"os.Stat": "reads the device and inode of a namespace link under /proc, outside every workbench",
+	},
+	"dinah/internal/bench.statFields": {
+		"dinah/internal/durable.ReadFile": "reads /proc/<pid>/stat, outside every workbench",
+	},
 }
+
+// seamExemptionPairs is the number of pairs seamExemptions carries, which the
+// guard asserts so that a widened table is a visible edit.
+const seamExemptionPairs = 7
 
 // residueExemptions extend seamExemptions for one residue plant alone: a
 // plant cannot add a statement to a function trunk declares, so the plant
@@ -140,8 +172,12 @@ func belongs(v seamguard.Violation, plant string) bool {
 
 // TestTheBenchReadsOnlyThroughItsSource is dinah-619/criteria/13's bench half.
 func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
-	if len(seamExemptions) != 1 || len(seamExemptions["(*dinah/internal/bench.Bench).newlineFiles"]) != 1 { // retired spelling, named deliberately
-		t.Errorf("the exemption table holds %v, and section 2.3 of dinah-619 names exactly one read, newlineFiles's filepath.WalkDir", seamExemptions)
+	pairs := 0
+	for _, members := range seamExemptions {
+		pairs += len(members)
+	}
+	if pairs != seamExemptionPairs {
+		t.Errorf("the exemption table holds %d pairs, wanted %d; widen it only with a reason per pair", pairs, seamExemptionPairs)
 	}
 	allowed := 0
 	for _, members := range seamguard.Allowed {
@@ -153,44 +189,59 @@ func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
 	if len(outsideTheRead) != 2 {
 		t.Errorf("the walk leaves out the methods of %d types, wanted the two named", len(outsideTheRead))
 	}
-	importer := seamguard.SourceImporter(token.NewFileSet())
-	trunk := runGuard(t, importer, seamExemptions)
-
-	roots := 0
-	for _, n := range trunk.graph.Nodes {
-		if isGuardRoot(n) {
-			roots++
+	// The package is judged once for every distinct set of its files a
+	// shipped configuration builds, so a file a build constraint keeps out of
+	// this platform's build is still judged under one that builds it.
+	configs, loaded, unselected, err := seamguard.Distinct(seamguard.Shipped, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range unselected {
+		t.Errorf("no shipped configuration builds %s, so the guard judges it under none", name)
+	}
+	if len(configs) < 3 {
+		t.Fatalf("the shipped configurations select %d distinct file sets from this package, and its Windows, Linux and other Unix files make at least three", len(configs))
+	}
+	t.Logf("judging %d files under %d configurations: %v", loaded, len(configs), configs)
+	occurs := map[string]bool{}
+	reported := map[string]bool{}
+	for _, config := range configs {
+		run := runGuard(t, seamguard.SourceImporterFor(token.NewFileSet(), config), seamExemptions)
+		roots := 0
+		for _, n := range run.graph.Nodes {
+			if isGuardRoot(n) {
+				roots++
+			}
+			for _, read := range n.Reads {
+				occurs[n.Name+"|"+read.Member] = true
+			}
+		}
+		if roots < 100 {
+			t.Fatalf("%s: found %d declarations to walk from, and the package declares far more, so the guard proves nothing", config, roots)
+		}
+		t.Logf("%s: walked from %d declarations over %d nodes in %d files", config, roots, len(run.graph.Nodes), len(run.pkg.Files))
+		for _, v := range run.violations {
+			if !reported[v.What] {
+				reported[v.What] = true
+				t.Errorf("%s: %s: %s (via %s)", config, v.Root, v.What, v.Via)
+			}
 		}
 	}
-	if roots < 100 {
-		t.Fatalf("found %d declarations to walk from, and the package declares far more, so the guard proves nothing", roots)
-	}
-	t.Logf("walked from %d declarations over %d nodes", roots, len(trunk.graph.Nodes))
-
 	for name, members := range seamExemptions {
-		n := trunk.graph.Nodes[name]
 		for member := range members {
-			occurs := false
-			if n != nil {
-				for _, read := range n.Reads {
-					occurs = occurs || read.Member == member
-				}
-			}
-			if !occurs {
-				t.Errorf("%s is exempt to read %s but no longer does, so its exemption has outlived the read it excused; remove the entry", name, member)
+			if !occurs[name+"|"+member] {
+				t.Errorf("%s is exempt to read %s but no longer does under any shipped configuration, so its exemption has outlived the read it excused; remove the entry", name, member)
 			}
 		}
 	}
-	for _, v := range trunk.violations {
-		t.Errorf("%s: %s (via %s)", v.Root, v.What, v.Via)
-	}
+	importer := seamguard.SourceImporter(token.NewFileSet())
 
 	planted, err := filepath.Glob(filepath.Join("testdata", "sourceguard", "*.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(planted) != 27 {
-		t.Fatalf("found %d planted files under testdata/sourceguard, wanted twenty-seven: the eighteen of the name-keyed guard and the nine section 12.1 of dinah-619 adds", len(planted))
+		t.Fatalf("found %d planted files under testdata/sourceguard, wanted twenty-seven: the eighteen of the name-keyed guard and the nine section 12.1 of dinah-619 adds, with durableread.go in ioutilread.go's place", len(planted))
 	}
 	// The residue this file's header states is planted too, and asserted to
 	// pass, so the header cannot drift from what the guard does: a guard that

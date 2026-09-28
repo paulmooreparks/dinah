@@ -16,6 +16,7 @@ import (
 	"github.com/charmbracelet/colorprofile"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/screen"
 	"dinah/internal/screen/keyboard"
 	"dinah/internal/verb"
@@ -66,6 +67,7 @@ type interactiveSeams struct {
 	view           func()                           // called at the top of View, where a test plants a panic
 	frame          func(string)                     // called with the content of every frame View answers
 	command        func()                           // called at the top of every command the head returns
+	readGate       func()                           // called at the top of rereadAsync's own command, ahead of the board-wide read, apart from command so a test can hold that read alone without holding the change wait too
 	init           func()                           // called at the top of Init, where a test holds a program's start past its renderer's first tick
 	discard        func()                           // called by the reader on every flush it makes
 	finish         func(*interactiveModel, error)   // called with the final model and Run's error
@@ -369,6 +371,13 @@ func (s *session) cycle(model *interactiveModel, entry *screen.Terminfo) (error,
 	options, frames := s.interactiveOptions(model.width, model.height)
 	program := tea.NewProgram(model, options...)
 	model.program = program
+	// A wait notice reaches the status line through tea.Program.Send, from a
+	// goroutine of its own, because the act that waits may be running on the
+	// goroutine the event loop is waiting to hear from.
+	installWaiting(func(wait durable.Wait) {
+		text := verb.WaitingNotice(s.r, []string{s.workbenchRoot}, wait)
+		go program.Send(waitingMsg{text: text})
+	})
 	model.gate = &changeGate{}
 	if frames != nil {
 		// A piece the console wrote short asks for the whole screen on the

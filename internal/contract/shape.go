@@ -543,6 +543,16 @@ var Shapes = []Shape{
 		},
 	},
 	{
+		// The operating system kept refusing a file for the whole retry
+		// budget before the act wrote anything. The sentence names the file
+		// and the last error and no cause, because a denial can come from
+		// another process or from the file system itself.
+		Name:      Busy,
+		Values:    []string{"error"},
+		Fragments: []Fragment{{Key: "refusal.dinah.busy.next"}},
+		NextStep:  []string{"refusal.dinah.busy.next"},
+	},
+	{
 		Name:      LastColumn,
 		Fragments: []Fragment{{Key: "refusal.dinah.last-column.next"}},
 		NextStep:  []string{"refusal.dinah.last-column.next"},
@@ -1553,6 +1563,14 @@ var Shapes = []Shape{
 		Carried:   "columns",
 		Fragments: []Fragment{{Key: "refusal.dinah.ambiguous-column.next"}},
 		NextStep:  []string{"refusal.dinah.ambiguous-column.next"},
+	},
+	{
+		// NoLongerDone never reaches a reader as the Refusal of a request
+		// they made: it fires only inside archiveOnDone's own re-check
+		// under Archive's own lock and is absorbed into WarningDetail on
+		// the move whose archive step it stops.
+		Name:   NoLongerDone,
+		NoNext: "nothing a reader could type would change the outcome; the card already stands wherever the concurrent move left it, and this refusal never reaches a reader as a top-level answer to a request they made",
 	},
 	{
 		// A column standing first in the flow refuses at the named form,

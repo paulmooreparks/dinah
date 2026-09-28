@@ -1,6 +1,7 @@
 package verb
 
 import (
+	"path/filepath"
 	"slices"
 
 	"dinah/internal/bench"
@@ -204,6 +205,17 @@ func (l *Library) offerArchived(req *Request) *OfferedActs {
 	return offered
 }
 
+// OfferPull is offerPull exported: whether a pull into the column the request
+// names would take a card and pass every row the pull runs before it writes.
+// The answer depends only on the named column, never on any card a caller
+// asking about a different reason for the same request might also be
+// carrying, so a caller offering several acts for one column across several
+// cards asks this once and keeps the answer rather than asking OfferActs
+// about the same column again for each card.
+func (l *Library) OfferPull(req *Request) (bool, error) {
+	return l.offerPull(req)
+}
+
 // offerPull answers whether a pull into the column the request names would
 // take a card and pass every row the pull runs before it writes. The head
 // selection runs as Pull runs it, through pullHead, and the rows of the pull
@@ -273,13 +285,23 @@ func (l *Library) offerCardEntity(req *Request, card *bench.Card, offered *Offer
 }
 
 // offerItems answers every item of the card with the item acts whose checks
-// pass. Each item's target is built from the item's own files without taking
-// the card's lock, and each act's shared check function is asked of it:
+// pass. One bench.Positions serves the whole call: it lists the checklist and
+// sorts it once, rather than once per item as memberPosition and
+// bench.ResolveEntity each did on their own, and every anchor it reads is
+// read at most once whichever of Items, Of and Text asks for it.
+//
+// Each item's target is built from the item's own files without taking the
+// card's lock, and each act's shared check function is asked of it:
 // canCloseItem and canCloseItemEvidence for resolve, verify and fail,
-// canWaive, canWithdraw, canReopen, and admitItem for cite, which every
-// other act's check follows too.
+// canWaive, canWithdraw and canReopen, and admitResolvedItem for cite, which
+// every other act's check follows too. Each answers a bare reason rather
+// than a composed refusal, so a check that refuses costs nothing beyond the
+// row it is asked about; admitItem still composes the full refusal a real
+// cite runs, from admitResolvedItem's same answer, for the reference it
+// resolves itself.
 func (l *Library) offerItems(req *Request, card *bench.Card) ([]OfferedItem, error) {
-	items, err := l.Bench.Items(card.Dir)
+	positions := l.Bench.NewPositions()
+	items, err := positions.Items(card.Dir)
 	if err != nil {
 		return nil, err
 	}
@@ -288,40 +310,38 @@ func (l *Library) offerItems(req *Request, card *bench.Card) ([]OfferedItem, err
 	var offered []OfferedItem
 	for _, item := range items {
 		kindPosition[item.Kind]++
-		position, err := l.memberPosition(item.Dir, bench.ItemAnchor)
+		position, err := positions.Of(item.Dir, bench.ItemAnchor)
 		if err != nil {
 			return nil, err
 		}
 		ref := itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
-		fm, body, err := l.Bench.ReadItemAnchor(item.Dir)
-		if err != nil {
-			return nil, err
-		}
 		row := OfferedItem{
 			Ref:    ref,
 			Kind:   item.Kind,
 			State:  item.State,
-			Owner:  fm.Value(bench.ItemOwnerField),
-			Scheme: fm.Value(bench.ItemEvidenceField),
-			Text:   capRunes(firstLine(body), subjectCap),
+			Owner:  item.Owner,
+			Scheme: item.Evidence,
+			Text:   capRunes(firstLine(item.Text), subjectCap),
 		}
+		entity := &bench.EntityRef{Kind: bench.KindItem, Dir: item.Dir, ID: item.ID, Ref: ref, Card: card}
 		citing := cardAsking(req, "cite", ref)
-		if _, refused := l.admitItem(citing); refused != nil {
+		if bare := l.admitResolvedItem(citing, entity); bare != nil {
 			offered = append(offered, row)
 			continue
 		}
-		loaded, err := l.Bench.LoadItem(item.Dir)
+		text, err := positions.Text(filepath.Join(item.Dir, bench.ItemAnchor))
 		if err != nil {
 			return nil, err
 		}
-		target := &itemTarget{ref: ref, dir: item.Dir, card: card, item: loaded, fm: fm, body: body}
+		fm, body := bench.ParseAnchor(text)
+		target := &itemTarget{ref: ref, dir: item.Dir, card: card, item: item, fm: fm, body: body}
 		row.Cite = true
 		row.Resolve = l.closeOffered(cardAsking(req, "resolve", ref), target, bench.ItemResolved)
 		row.Verify = l.closeOffered(cardAsking(req, "verify", ref), target, bench.ItemVerified)
 		row.Fail = l.closeOffered(cardAsking(req, "fail", ref), target, bench.ItemFailed)
 		row.Waive = l.canWaive(cardAsking(req, "waive", ref), target) == nil
-		_, refused := l.canWithdraw(cardAsking(req, "withdraw", ref), target)
-		row.Withdraw = refused == nil
+		_, bare := l.canWithdraw(cardAsking(req, "withdraw", ref), target)
+		row.Withdraw = bare == nil
 		row.Reopen = l.canReopen(cardAsking(req, "reopen", ref), target) == nil
 		offered = append(offered, row)
 	}

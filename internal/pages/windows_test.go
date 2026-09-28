@@ -17,7 +17,7 @@ func stateOf(t *testing.T, raw string) WindowState {
 }
 
 // TestWindowStateMirrorsTheScript holds the Go window state to
-// pudl-windows.js 0.5.0. Each row is a URL, an operation, and the URL the
+// pudl-windows.js 0.21.0. Each row is a URL, an operation, and the URL the
 // script's own functions (readURL, raised, minimized, maximizeToggled,
 // closed, tabbed, urlFor) produce for it, worked through by hand from the
 // script: a key missing a placement takes the cascade, as sync gives it at

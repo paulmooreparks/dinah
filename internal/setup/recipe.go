@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"dinah/internal/bench"
+	"dinah/internal/durable"
 )
 
 //go:embed recipes
@@ -639,11 +640,11 @@ func places(container, userBase string, projectScope bool) []place {
 	var found []place
 	if projectScope && container != "" && !sameDirectory(container, userBase) {
 		root := filepath.Join(container, "recipes")
-		found = append(found, place{source: SourceProject, root: root, fsys: os.DirFS(root)})
+		found = append(found, place{source: SourceProject, root: root, fsys: durable.DirFS(root)})
 	}
 	if userBase != "" {
 		root := filepath.Join(userBase, "recipes")
-		found = append(found, place{source: SourceUser, root: root, fsys: os.DirFS(root)})
+		found = append(found, place{source: SourceUser, root: root, fsys: durable.DirFS(root)})
 	}
 	embedded, _ := fs.Sub(shippedRecipes, "recipes")
 	found = append(found, place{source: SourceShipped, fsys: embedded})

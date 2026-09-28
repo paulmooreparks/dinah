@@ -319,7 +319,7 @@ func scriptFault(root *node) string {
 				}
 			}
 		}
-		if n.name == "button" && !n.inside("form") {
+		if n.name == "button" && !n.inside("form") && !isPageTab(n) {
 			return "a button outside a form"
 		}
 		if n.name == "form" {
@@ -333,6 +333,18 @@ func scriptFault(root *node) string {
 		}
 	}
 	return ""
+}
+
+// isPageTab reports whether a button is a tab of PUDL's tabs within a page:
+// a role="tab" button of type button, directly in a role="tablist" .tablist
+// directly in a .tabs. PUDL's stylesheet hides that tab list until
+// pudl-tabs.js marks the tabs ready and shows every panel instead, so a page
+// read without script never draws the button.
+func isPageTab(n *node) bool {
+	list := n.parent
+	return n.attr["role"] == "tab" && n.attr["type"] == "button" &&
+		list != nil && list.attr["role"] == "tablist" && withClass("tablist")(list) &&
+		list.parent != nil && withClass("tabs")(list.parent)
 }
 
 // TestNoPageNeedsScript holds every page of the sweep and every window to
@@ -411,7 +423,7 @@ func TestEveryPageNamesItsPane(t *testing.T) {
 			}
 			ids[n.attr["id"]] = true
 		}
-		for _, row := range root.all(withClass("md-row")) {
+		for _, row := range root.first(withClass("md-sidebar")).all(withClass("md-row")) {
 			if !strings.HasPrefix(row.attr["id"], "col-") {
 				t.Errorf("%s: a sidebar row carries the id %q", path, row.attr["id"])
 			}
@@ -507,7 +519,7 @@ func TestFormsAreTheAffordances(t *testing.T) {
 	blocked := f.add("Blocked", "build")
 	f.act(&verb.Request{Verb: verb.Block, Actor: "alka", Card: blocked, Reason: "An obstacle."})
 	finished := f.add("Finished", "build")
-	f.act(&verb.Request{Verb: verb.Move, Actor: "alka", Card: finished, Column: "finished", Override: true})
+	f.act(&verb.Request{Verb: verb.Move, Actor: "alka", Card: finished, Column: "finished", Override: true, NoArchive: true})
 	rows := map[string]answer.AffordanceRow{}
 	for _, row := range affordanceDocument(t, f.fixture) {
 		rows[row.Affordance] = row
@@ -850,6 +862,7 @@ func TestTheAssetsRouteAnswersTheFixedTable(t *testing.T) {
 	for path, contentType := range map[string]string{
 		"/assets/pudl/pudl.css": "text/css; charset=utf-8", "/assets/pudl/pudl-windows.css": "text/css; charset=utf-8", "/assets/dinah.css": "text/css; charset=utf-8",
 		"/assets/pudl/pudl-theme.js": "text/javascript; charset=utf-8", "/assets/pudl/pudl-windows.js": "text/javascript; charset=utf-8", "/assets/dinah.js": "text/javascript; charset=utf-8",
+		"/assets/pudl/pudl-md.js": "text/javascript; charset=utf-8", "/assets/pudl/pudl-tabs.js": "text/javascript; charset=utf-8", "/assets/pudl/pudl-tooltip.js": "text/javascript; charset=utf-8",
 		"/assets/dinah-lantern.svg": "image/svg+xml",
 	} {
 		got := f.get(path, "Accept", "text/css,*/*;q=0.1")

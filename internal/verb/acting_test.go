@@ -330,7 +330,7 @@ func TestNoEventIsBuiltWithAnActorComposedAnywhereElse(t *testing.T) {
 	// between them. It is exact: a literal added or removed fails here until
 	// somebody writes the new number down, which is what stops the population
 	// shrinking quietly.
-	const constructionSites = 52
+	const constructionSites = 53
 	// actorAssignments is how many assignments to an Actor field the two
 	// packages carry, which is none: every event names its actor in the literal
 	// that builds it.
@@ -531,7 +531,7 @@ var harnessCheckedElsewhere = map[string]string{
 	"Attach":                "runs canAttach before it reads the file, and canAttach runs the refusal as its second row",
 	"File":                  "runs canFile before it reads the kind, and canFile runs the refusal as its second row",
 	"Raise":                 "runs canRaise before it reads the reason, and canRaise runs the refusal as its second row",
-	"Archive":               "runs admitRemoval before anything else, and admitRemoval runs the refusal as its second row",
+	"archive":               "Archive's shared body; runs admitRemoval before anything else, and admitRemoval runs the refusal as its second row",
 	"Delete":                "the same",
 	"Restore":               "runs canRestore before anything else, and canRestore runs the refusal as its second row",
 	"Rename":                "runs canRename before it reads the new name, and canRename runs the refusal as its second row",

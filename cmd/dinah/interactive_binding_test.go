@@ -5,11 +5,56 @@ package main
 import (
 	"os"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
+
+// settleProbe is a message a test sends the running program to read, on the
+// event loop, whether the model has finished with everything it was given.
+// Update ignores it.
+type settleProbe struct{}
+
+// modelSettled reports whether a model that has met keys key messages has handled
+// all of them: none is queued behind a read, no read of the view is in flight
+// (readSeq and readAnswered, the generation tags every read carries, agree),
+// and no line is waiting on its own read to report itself done. An act and a
+// line both run on the event loop and then read the view off it, so a model
+// in this state has run every act and every line its keys asked for.
+func modelSettled(m *interactiveModel, seen, keys int) bool {
+	return seen >= keys && len(m.queued) == 0 && m.readSeq == m.readAnswered && m.pendingLine == nil
+}
+
+// awaitSettled blocks until the model has met keys key messages and handled
+// them all, probing it from outside with settleProbe and reading its answer
+// through the seam's observe hook, and fails the test at tuiWait.
+func awaitSettled(t *testing.T, s *script, answers <-chan bool) {
+	t.Helper()
+	deadline := time.After(tuiWait)
+	for {
+		s.send(settleProbe{})
+		select {
+		case done := <-answers:
+			if done {
+				return
+			}
+		case <-deadline:
+			t.Error("the program never finished handling the keys it was given")
+			return
+		}
+		select {
+		case <-deadline:
+			t.Error("the program never finished handling the keys it was given")
+			return
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
 
 // bindKey stores a key binding and its label in the user's configuration,
 // past the command line, as a test arranging one before the head starts.
@@ -26,14 +71,54 @@ func bindKey(t *testing.T, key, template, label string) {
 	}
 }
 
-// boundRun runs the head over keys, recording the words every line ran.
+// boundRun runs the head over keys, recording the words every line ran. Every
+// line a bound key runs, and every act a key makes, ends off the event loop,
+// so keys is written whole and then boundRun waits for the model to report
+// that it has handled every one of them before it writes ctrl+c: a key still
+// queued behind an outstanding read when ctrl+c reaches the program is
+// answered never, since ctrl+c quits ahead of the queue rather than behind
+// it. Each byte of keys is one key, which holds for every caller here, since
+// none writes an escape sequence.
 func boundRun(t *testing.T, root, actor, keys string) (tuiRun, [][]string) {
 	t.Helper()
+	return boundRunWith(t, root, actor, keys, nil)
+}
+
+// boundRunWith is boundRun with arrange called on the seam before the run
+// starts, where a test sets a hook boundRun leaves alone.
+func boundRunWith(t *testing.T, root, actor, keys string, arrange func(*interactiveSeams)) (tuiRun, [][]string) {
+	t.Helper()
 	asActor(t, actor)
+	var mu sync.Mutex
 	var ran [][]string
-	seam := tuiSeam(t, strings.NewReader(keys+keyCtrlC), actWidth, actHeight)
-	seam.lineDone = func(result *lineResult) { ran = append(ran, result.words) }
-	run := runTUIThrough(t, root, seam)
+	s, seam := newScript(t, actWidth, actHeight, true)
+	if arrange != nil {
+		arrange(seam)
+	}
+	seam.lineDone = func(result *lineResult) {
+		mu.Lock()
+		ran = append(ran, result.words)
+		mu.Unlock()
+	}
+	answers := make(chan bool, 1)
+	seen := 0
+	seam.observe = func(m *interactiveModel, msg tea.Msg) {
+		switch msg.(type) {
+		case keyMsg:
+			seen++
+		case settleProbe:
+			answers <- modelSettled(m, seen, len(keys))
+		}
+	}
+	run := s.run(root, seam, func() {
+		if keys != "" {
+			s.write(keys)
+		}
+		awaitSettled(t, s, answers)
+		s.write(keyCtrlC)
+	})
+	mu.Lock()
+	defer mu.Unlock()
 	if run.model == nil {
 		t.Fatalf("the run never finished: %q", run.errw)
 	}
@@ -73,7 +158,7 @@ func TestABindingRunsItsLineWithTheValuesSubstituted(t *testing.T) {
 	if last.Event != contract.EventCommented || last.Actor.Name != "alka" || last.Actor.Model != "m1" {
 		t.Errorf("the comment was journaled as %+v", last)
 	}
-	seam := tuiSeam(t, strings.NewReader("u"+keyBackspace+keyCtrlC), actWidth, actHeight)
+	s, seam := newScript(t, actWidth, actHeight, true)
 	seam.bindingValue = func(placeholder, value string) string {
 		if placeholder == "view" {
 			return "sorted --override later"
@@ -81,8 +166,13 @@ func TestABindingRunsItsLineWithTheValuesSubstituted(t *testing.T) {
 		return value
 	}
 	var words []string
-	seam.lineDone = func(result *lineResult) { words = result.words }
-	runTUIThrough(t, root, seam)
+	done := make(chan *lineResult, 1)
+	seam.lineDone = func(result *lineResult) { words = result.words; done <- result }
+	s.run(root, seam, func() {
+		s.write("u")
+		<-done
+		s.write(keyBackspace + keyCtrlC)
+	})
 	if len(words) != 3 || words[2] != "sorted --override later" {
 		t.Errorf("the binding handed %q, wanted three words with the value whole", words)
 	}
@@ -240,7 +330,14 @@ func TestABindingsLabelIsTheUsersOwn(t *testing.T) {
 // TestABindingIsReadInBrowseAndCardModeAlone is dinah-623/criteria/51: with
 // v, f and o bound, v, f and o in item mode still verify, fail and reopen,
 // and v typed at the command line puts v in the prompt.
+//
+// Every read of the view is held for slowRead, longer than the 300 ms this
+// test once waited for the head to fall quiet, which stands for a loaded
+// runner whose flushed writes and rereads are slow: the three acts' keys queue
+// behind those reads, and the run must wait for the model to have handled
+// them rather than for a quiet period.
 func TestABindingIsReadInBrowseAndCardModeAlone(t *testing.T) {
+	const slowRead = 400 * time.Millisecond
 	root := tuiBench(t)
 	for _, key := range []string{"v", "f", "o"} {
 		bindKey(t, key, "status", "")
@@ -249,7 +346,8 @@ func TestABindingIsReadInBrowseAndCardModeAlone(t *testing.T) {
 	step(t, root, "file", "fx-1", "acceptance_criterion", "It rejects a torn line")
 	step(t, root, "file", "fx-1", "open_question", "Which vendor?")
 	step(t, root, "resolve", "fx-1/questions/1", "--text", "the usual")
-	_, ran := boundRun(t, root, "alka", "iv"+"it read them"+keyCtrlD+"jf"+"it tore"+keyCtrlD+"jjo"+"closed wrongly"+keyCtrlD)
+	slow := func(seam *interactiveSeams) { seam.readGate = func() { time.Sleep(slowRead) } }
+	_, ran := boundRunWith(t, root, "alka", "iv"+"it read them"+keyCtrlD+"jf"+"it tore"+keyCtrlD+"jjo"+"closed wrongly"+keyCtrlD, slow)
 	if len(ran) != 0 {
 		t.Errorf("a letter in item mode ran a binding: %q", ran)
 	}

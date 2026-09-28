@@ -507,7 +507,7 @@ func TestNoStringLiteralReachesTheEditorsOwnChannels(t *testing.T) {
 	if payloads != 2 {
 		t.Errorf("the scan read %d constructions of the message payload, and this server builds two", payloads)
 	}
-	if helpers != 5 {
-		t.Errorf("the scan inspected %d helper call sites, and this server sends a person five messages", helpers)
+	if helpers != 6 {
+		t.Errorf("the scan inspected %d helper call sites, and this server sends a person six messages", helpers)
 	}
 }

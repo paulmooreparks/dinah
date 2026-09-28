@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"dinah/internal/durable"
 	"golang.org/x/sys/windows"
 )
 
@@ -217,15 +218,9 @@ func finalPaths(path string) (guidFinal, dosFinal string, err error) {
 }
 
 // openForQuery opens a file or a directory for its attributes alone, sharing
-// everything, which is the open every query here makes.
+// everything, which is the open every query here makes (durable.OpenQuery).
 func openForQuery(path string) (windows.Handle, error) {
-	name, err := windows.UTF16PtrFromString(path)
-	if err != nil {
-		return 0, err
-	}
-	return windows.CreateFile(name, windows.FILE_READ_ATTRIBUTES,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
-		nil, windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	return durable.OpenQuery(path)
 }
 
 // finalPathOf answers GetFinalPathNameByHandle for a handle, growing the
@@ -285,8 +280,10 @@ func driveTypeOf(path string) (uint32, error) {
 // the event and the region, and issues the first call. Its successful return
 // is the moment a change is certain to be reported: "When you first call
 // ReadDirectoryChangesW, the system allocates a buffer to store change
-// information ... Changes that occur between calls to this function are added
-// to the buffer and then returned with the next call."
+// information. This buffer is associated with the directory handle until it
+// is closed and its size does not change during its lifetime. Directory
+// changes that occur between calls to this function are added to the buffer
+// and then returned with the next call."
 //
 // The volume root is opened for FILE_LIST_DIRECTORY, the access
 // ReadDirectoryChangesW requires ("This directory must be opened with the
@@ -299,15 +296,7 @@ func (n *winNotifier) Arm(root string) error {
 	if err != nil {
 		return err
 	}
-	path, err := windows.UTF16PtrFromString(where.volumeRoot)
-	if err != nil {
-		return err
-	}
-	handle, err := windows.CreateFile(path,
-		windows.FILE_LIST_DIRECTORY,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
-		nil, windows.OPEN_EXISTING,
-		windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OVERLAPPED, 0)
+	handle, err := durable.OpenWatch(where.volumeRoot)
 	if err != nil {
 		return err
 	}

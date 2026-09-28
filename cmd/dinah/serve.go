@@ -154,15 +154,17 @@ func serveUntil(ctx context.Context, s *session, parsed *arguments, listen liste
 	s.announce(url, root, readsOf(openErr), stays)
 	server := &http.Server{
 		Handler: serveHandler(httphead.Config{
-			Root:         root,
-			Home:         home,
-			DefaultActor: s.actor,
-			Agent:        s.agent,
-			Host:         bind,
-			Port:         bound,
-			Lang:         s.r.Tag,
-			ParseLine:    typedLineParser(s.cfg),
-			Resident:     held,
+			Root:           root,
+			Home:           home,
+			DefaultActor:   s.actor,
+			Agent:          s.agent,
+			Host:           bind,
+			Port:           bound,
+			Lang:           s.r.Tag,
+			ParseLine:      typedLineParser(s.cfg),
+			Notify:         s.errLine,
+			InstallWaiting: installWaiting,
+			Resident:       held,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}

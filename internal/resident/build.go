@@ -10,6 +10,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // builder reads directories from disk into held nodes. A build reads every
@@ -167,7 +168,7 @@ func (b *builder) entryOf(dir string, entry fs.DirEntry, payloads bool, node *di
 // the same open and the file is held open once, for the length of the read.
 // It answers nil when the file has vanished.
 func readFile(path string, payload bool) *fileNode {
-	file, err := openShared(path)
+	file, err := durable.Open(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // knownBenchKeys are the workbench frontmatter keys the interchange form
@@ -775,7 +776,7 @@ func extractAttachments(src Source, sourceColumn, targetColumn string) error {
 		if err := os.MkdirAll(filepath.Dir(copied), 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(copied, data, 0o644); err != nil {
+		if err := durable.WriteFile(copied, data, 0o644); err != nil {
 			return err
 		}
 	}

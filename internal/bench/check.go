@@ -25,6 +25,10 @@ type Finding struct {
 	// defect, which is what every finding written before the severities
 	// existed carries and what every structural invariant means.
 	Severity string
+	// Next is the catalog key of the step a reader takes about this finding,
+	// rendered after the finding's own sentence, and empty on a finding whose
+	// sentence already says it or that carries none.
+	Next string `json:",omitempty"`
 }
 
 // The catalog keys check reports its findings under. Each names one invariant
@@ -44,6 +48,15 @@ const (
 	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
 	FindingOrdinalMissing     = "check.ordinal-missing"
 	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
+	// FindingUnarchivedDone names a card standing live in a done-kind
+	// column. A card that reaches such a column is archived immediately
+	// (dinah-634), so a live one found there is one of three things: the
+	// archive step failed and the caller was warned, the move that landed
+	// it carried --no-archive, or the card was filed straight into the
+	// column with `dinah add`. Detail is the column. SeverityCleanup, on
+	// the same ground FindingInapplicableValue uses it: nothing here is
+	// corrupt, and `dinah archive <ref>` clears the finding by hand.
+	FindingUnarchivedDone = "check.unarchived-done"
 	// FindingCardNumberDuplicate names a registry line claiming a number
 	// another well-formed line claims as well. It is modelled on
 	// FindingOrdinalDuplicate, and it parts company with it in reporting
@@ -759,6 +772,7 @@ func (b *Bench) Check() ([]Finding, error) {
 	for _, interrupted := range standing {
 		findings = append(findings, interrupted.finding())
 	}
+	findings = append(findings, b.checkStaleLocks()...)
 	return findings, nil
 }
 
@@ -1095,6 +1109,14 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	if column == nil {
 		findings = append(findings, Finding{Path: anchor, Key: FindingUnknownColumn, Detail: card.Column})
 	}
+	if column != nil && column.Terminal() {
+		findings = append(findings, Finding{
+			Path:     anchor,
+			Key:      FindingUnarchivedDone,
+			Detail:   column.Ref(),
+			Severity: SeverityCleanup,
+		})
+	}
 	findings = append(findings, checkScheduleDates(card)...)
 	// A claim standing where no owner takes work up is history rather than
 	// something a card acquires afresh, since claim, move and pull all refuse
@@ -1209,7 +1231,7 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	if err != nil {
 		return findings, nil
 	}
-	if torn {
+	if torn && b.tornUnderLock(card) {
 		findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingTornJournal, Detail: card.ID})
 	}
 	if position := ReplayPosition(events); position != "" && position != card.Column {

@@ -1,10 +1,11 @@
 package bench
 
 import (
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"dinah/internal/durable"
 )
 
 // NumberRegistry is the workbench's card-number registry as read from
@@ -164,15 +165,7 @@ func (b *Bench) ReloadNumbers() {
 // on the same terms AppendEvent writes a journal: a crash can tear at most the
 // final line and never the numbers already in the file.
 func AppendNumberLine(path string, number int, id string) error {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if _, err := f.WriteString(strconv.Itoa(number) + " " + id + "\n"); err != nil {
-		return err
-	}
-	return f.Sync()
+	return durable.AppendLine(path, []byte(strconv.Itoa(number)+" "+id))
 }
 
 // WriteNumberLines rewrites the registry from whole lines, which is the write a

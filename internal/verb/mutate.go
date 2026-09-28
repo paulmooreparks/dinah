@@ -24,21 +24,33 @@ import (
 // disk at the moment of the write rather than a snapshot taken before it. Two
 // processes reaching the same card therefore cannot both see it ready, since
 // the second is refused the lock outright.
+// doStepAdmitted and doStepArchiving are Do's two Interpose windows, each a
+// stretch where nothing refuses a second process: doStepAdmitted is between
+// the reference resolving and Do's own lock being taken, and doStepArchiving
+// is between Do releasing that lock and archiveOnDone re-acquiring it. Ordinary
+// use sets Interpose to nil and neither ever fires.
+const (
+	doStepAdmitted  = "admitted"
+	doStepArchiving = "archiving"
+)
+
 func (l *Library) Do(req *Request) *Response {
 	found, refused := l.admit(req)
 	if refused != nil {
 		return refused
 	}
+	l.interpose(doStepAdmitted)
 	lock, err := l.Bench.Acquire(found.Card.Dir, req.Actor, bench.Stamp(l.Now()))
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	defer lock.Release()
 	card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), found.Card.ID)
 	if err != nil {
+		lock.Release()
 		return l.FromError(req, err)
 	}
 	if err := l.lapse(card); err != nil {
+		lock.Release()
 		return l.FromError(req, err)
 	}
 	if l.Interleave != nil {
@@ -47,26 +59,94 @@ func (l *Library) Do(req *Request) *Response {
 	if req.Basis != "" && req.Basis != card.Revision {
 		view, err := l.view(card, l.dayOf(req))
 		if err != nil {
+			lock.Release()
 			return l.FromError(req, err)
 		}
-		response := &Response{
+		lock.Release()
+		return &Response{
 			Outcome:     contract.OutcomeStale,
 			Verb:        req.Verb,
 			Card:        view,
 			Basis:       req.Basis,
 			Affordances: l.affordances(card),
 		}
-		return response
 	}
 	if _, err := l.Bench.WitnessDivergence(req.Actor, bench.Stamp(l.Now()), card); err != nil {
+		lock.Release()
 		return l.FromError(req, err)
 	}
 	response := l.evaluate(req, card)
+	// The card's own lock comes off here, before anything else runs, because
+	// archiving below re-acquires this same lock file through Bench.Run and
+	// would self-refuse against it were it still held. No defer covers this
+	// release: a deferred release fired a second time, after a concurrent
+	// caller has since taken the same file, would remove a lock that call
+	// owns rather than this one. Bench.Run already keeps every one of its own
+	// locks this way, and Do now matches it rather than inventing a second
+	// convention for the same hazard.
+	lock.Release()
 	if found.StalePrefix != "" && response.Outcome == contract.OutcomeOK {
 		response.Warning = "warn.stale-prefix"
 		response.WarningDetail = found.StalePrefix
 	}
+	if req.Verb == Move && response.Outcome == contract.OutcomeOK && !req.NoArchive {
+		l.interpose(doStepArchiving)
+		l.archiveOnDone(req, response)
+	}
 	return response
+}
+
+// archiveOnDone runs the second half of a move that landed a card in a
+// done-kind column: archiving it, under its own lock, once Do's own lock on
+// the card has already been released above. Called only from Do, and only
+// when req.Verb is Move, the move's own outcome is ok, and the caller did
+// not pass NoArchive.
+//
+// The column read here, off response.Card, is a snapshot Do took before its
+// own lock came off; a concurrent move could carry the card out of Done in
+// the window before Archive's own lock is taken (doStepArchiving is exactly
+// that window). This function's own check only decides whether to call
+// Archive at all, so the verify closure below is what actually protects
+// against that race: it re-reads the card under Archive's own entity lock
+// and refuses to let the archive proceed if the card no longer sits in a
+// done-kind column, on the terms bench.StructuralAct.Verify documents.
+func (l *Library) archiveOnDone(moveReq *Request, response *Response) {
+	if response.Card == nil {
+		return
+	}
+	column := l.Bench.Column(response.Card.Column)
+	if column == nil || !column.Terminal() {
+		return
+	}
+	archiveReq := &Request{
+		Verb:     "archive",
+		Ref:      response.Card.Ref,
+		Actor:    moveReq.Actor,
+		Harness:  moveReq.Harness,
+		Model:    moveReq.Model,
+		Provider: moveReq.Provider,
+		Server:   moveReq.Server,
+	}
+	id := response.Card.ID
+	ref := response.Card.Ref
+	verify := func() error {
+		fresh, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id)
+		if err != nil {
+			return contract.Refuse(contract.NoLongerDone, ref)
+		}
+		stillDone := l.Bench.Column(fresh.Column)
+		if stillDone == nil || !stillDone.Terminal() {
+			return contract.Refuse(contract.NoLongerDone, ref)
+		}
+		return nil
+	}
+	archived := l.archive(archiveReq, verify)
+	if archived.Outcome == contract.OutcomeOK {
+		response.Archived = true
+		return
+	}
+	response.Warning = "warn.archive-on-done-failed"
+	response.WarningDetail = archived.Refusal
 }
 
 // admit runs the rows Do runs before it takes the card's lock, in Do's order:
@@ -661,7 +741,20 @@ func (l *Library) missingRequiredField(card *bench.Card, destination *bench.Colu
 
 // move carries a card from one column to another. The list is CORE-MOVE's, in
 // the order section 6.4 declares it.
+//
+// A destination declaring a capacity is counted under its occupancy lock,
+// taken after the route resolves it and held until the moved line is written,
+// so two moves into its last free place cannot both count it free.
 func (l *Library) move(req *Request, card *bench.Card) *Response {
+	routed, _, refusal := l.canRoute(req, card)
+	if refusal != nil {
+		return refusal
+	}
+	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath())
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer occupancy.Release()
 	destination, departure, override, refusal, err := l.canMove(req, card)
 	if err != nil {
 		return l.FromError(req, err)
@@ -669,6 +762,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
+	l.interpose(stepCapacityCounted)
 	ev := bench.Event{
 		TS:        bench.Stamp(l.Now()),
 		Event:     contract.EventMoved,
@@ -696,6 +790,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	card.RetirementGrant = ""
 	card.Column = destination.ID
 	response, err := l.commit(req, card, ev)
+	occupancy.Release()
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -726,6 +821,25 @@ func titleOf(column *bench.Column) string {
 		return ""
 	}
 	return column.Title
+}
+
+// stepCapacityCounted is the Interpose window move, pull and add open after
+// the capacity row has passed and before the card is written, which is the
+// stretch the column occupancy lock exists to cover.
+const stepCapacityCounted = "capacity-counted"
+
+// takeOccupancy takes a destination column's occupancy lock when the column
+// declares a capacity and the request does not carry an override, which skips
+// the capacity row; otherwise it takes nothing and answers a nil lock, whose
+// Release does nothing. It is always the last lock an act takes, and nothing
+// is acquired while it is held. A reclaim of a dead holder's occupancy lock
+// is recorded in journal.
+func (l *Library) takeOccupancy(req *Request, destination *bench.Column, journal string) (*bench.Lock, error) {
+	if destination == nil || destination.Capacity <= 0 || req.Override {
+		return nil, nil
+	}
+	dir := l.Bench.ColumnDir(destination.ID)
+	return l.Bench.AcquireRecording(dir, req.Acting(), bench.Stamp(l.Now()), journal)
 }
 
 // atCapacity reports whether a column has reached its declared limit. The

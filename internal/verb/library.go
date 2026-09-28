@@ -3,11 +3,12 @@ package verb
 import (
 	"encoding/json"
 	"errors"
-	"sort"
+	"path/filepath"
 	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // Library is the one implementation of every verb, over one opened bench.
@@ -70,6 +71,14 @@ type Library struct {
 	// requests are chosen so that no claim has lapsed at their instant, which
 	// makes this a backstop: a read that reaches it is a defect.
 	ReadOnly bool
+	// archiveWatch holds a waiting changes call's archived entries across its
+	// poll loop, keyed by archived card identifier, for a caller that wants
+	// to read one back. WatchedEntitiesCached stats every archived journal
+	// on every poll regardless of what this map holds (dinah-620/criteria/1:
+	// a restore, an edit and a re-archive can complete inside one poll
+	// interval, so an archived card's presence proves nothing about whether
+	// its journal changed). It is nil outside a waiting call.
+	archiveWatch map[string]bench.Watched
 }
 
 // ErrReadOnly is what a ReadOnly library answers for a read that would write:
@@ -191,6 +200,11 @@ type Request struct {
 	// The marker weakens no precondition: a pull still runs the claim's own
 	// rows, so a card a claim would refuse is a card a pull refuses.
 	NoClaim bool
+	// NoArchive is the marker a move carries to land a card at a done-kind
+	// column without archiving it, mirroring NoClaim's own per-invocation
+	// shape. It weakens nothing about the move itself; it only stops the
+	// follow-on archive step Do runs after a move that lands ok.
+	NoArchive bool
 	// Basis is the revision the owner read before deciding.
 	Basis string
 	// Title is the title a new card carries.
@@ -861,6 +875,12 @@ type Response struct {
 	Warning string `json:"warning,omitempty"`
 	// WarningDetail is the token the warning is about.
 	WarningDetail string `json:"warning_detail,omitempty"`
+	// Archived is true exactly when a move's own follow-on archive step ran
+	// and succeeded: the card landed in a done-kind column, the caller did
+	// not pass NoArchive, and the archive itself came back ok. Absent on a
+	// move to any other column, on one carrying NoArchive, and on one whose
+	// archive step failed.
+	Archived bool `json:"archived,omitempty"`
 	// Context carries the refusal's named values as data, absent on a
 	// response that needs none. It is what refusalReport already calls
 	// context, so a caller parsing --json reads one shape whichever layer
@@ -1337,6 +1357,31 @@ func (l *Library) refuse(req *Request, card *bench.Card, name, detail string) *R
 	return l.refuseWith(req, card, name, detail, extra)
 }
 
+// itemRefusal answers the refusal refuse would build, without the card view:
+// the harness-declared extra for a no-owner or not-operator refusal, inlined
+// at the RefuseWith call exactly as read.go and reshape.go already inline it,
+// and contract.Refuse's plain two-argument form for everything else. A shared
+// check function an act and the offer both call answers this instead of
+// refuse, so the offer, which discards the view, never pays to compose one.
+func itemRefusal(req *Request, name, detail string) *contract.Refusal {
+	if name == contract.NoOwner || name == contract.NotOperator {
+		return contract.RefuseWith(name, detail, harnessExtra(req))
+	}
+	return contract.Refuse(name, detail)
+}
+
+// refuseFrom turns a bare refusal a shared check function answered into the
+// full response an act needs, composing the card view refuseWith composes.
+// It is the seam between a check answering a bare reason and an act that
+// still needs the view: the check decides once, and each caller pays for
+// only the shape it asked for.
+func (l *Library) refuseFrom(req *Request, card *bench.Card, bare *contract.Refusal) *Response {
+	if bare == nil {
+		return nil
+	}
+	return l.refuseWith(req, card, bare.Name, bare.Detail, bare.Extra)
+}
+
 // refuseWith builds a refused response carrying the refusal's named values,
 // for a raise site holding something the sentence needs and the detail alone
 // cannot say.
@@ -1402,6 +1447,9 @@ func (l *Library) FromError(req *Request, err error) *Response {
 			Affordances: l.affordances(nil),
 		}
 	}
+	if refusal := l.busyRefusal(err); refusal != nil {
+		return ComposeRefusal(req, refusal)
+	}
 	return &Response{
 		Outcome:     contract.OutcomeUnreachable,
 		Verb:        req.Verb,
@@ -1410,16 +1458,29 @@ func (l *Library) FromError(req *Request, err error) *Response {
 	}
 }
 
-// sortByArrival orders cards the way CORE-QUEUE-3 fixes.
-//
-// Each card's arrival is read once, before the sort, rather than twice per
-// comparison, and the order is bench.ByArrival's.
-func sortByArrival(cards []*bench.Card) {
-	arrivals := make(map[*bench.Card]time.Time, len(cards))
-	for _, card := range cards {
-		arrivals[card] = card.Arrival()
+// busyRefusal composes dinah.busy from a *durable.BusyError anywhere in err's
+// chain, naming the path relative to the workbench root with forward slashes
+// and carrying the last error the operating system gave. It answers nil for
+// every other error, and for a structural one from MoveDir or RemoveAll, which
+// a structural act reports as an interruption instead.
+func (l *Library) busyRefusal(err error) *contract.Refusal {
+	var busy *durable.BusyError
+	if !errors.As(err, &busy) || busy.Structural {
+		return nil
 	}
-	sort.SliceStable(cards, func(i, j int) bool {
-		return bench.ArrivedBefore(cards[i], arrivals[cards[i]], cards[j], arrivals[cards[j]])
-	})
+	path := busy.Path
+	if relative, relErr := filepath.Rel(l.Bench.Root, busy.Path); relErr == nil && filepath.IsLocal(relative) {
+		path = filepath.ToSlash(relative)
+	}
+	return contract.RefuseWith(contract.Busy, path, map[string]string{"error": busy.Err.Error()})
+}
+
+// sortByArrival orders cards the way CORE-QUEUE-3 fixes, through
+// bench.SortByArrival, which reads each card's arrival once for the whole
+// sort rather than once per comparison. This is the one place every caller
+// that orders cards by arrival reaches: Query, readyIn, the tree producers,
+// a view's own sections and the containment projection's card listing all
+// call this function rather than sorting against bench.ByArrival themselves.
+func sortByArrival(cards []*bench.Card) {
+	bench.SortByArrival(cards)
 }

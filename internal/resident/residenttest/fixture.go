@@ -7,13 +7,13 @@ package residenttest
 import (
 	"bytes"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
 	"dinah/internal/bench"
+	"dinah/internal/durable"
 	"dinah/internal/perfstore"
 )
 
@@ -84,7 +84,7 @@ func Fixture(t testing.TB) *Built {
 
 	built.LargePayload = payloads[0]
 	large := bytes.Repeat([]byte("large payload line, well past the head a snapshot holds\n"), LargePayloadBytes/56+1)
-	if err := os.WriteFile(built.LargePayload, large[:LargePayloadBytes], 0o644); err != nil {
+	if err := durable.WriteFile(built.LargePayload, large[:LargePayloadBytes], 0o644); err != nil {
 		t.Fatalf("grow a payload: %v", err)
 	}
 
@@ -102,11 +102,11 @@ func Fixture(t testing.TB) *Built {
 // rewrite replaces a file's bytes with what change makes of them.
 func rewrite(t testing.TB, path string, change func([]byte) []byte) {
 	t.Helper()
-	data, err := os.ReadFile(path)
+	data, err := durable.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
-	if err := os.WriteFile(path, change(data), 0o644); err != nil {
+	if err := durable.WriteFile(path, change(data), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }

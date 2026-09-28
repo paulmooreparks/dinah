@@ -23,6 +23,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 )
 
 // The change tokens a report carries. They are canonical and appear
@@ -265,7 +266,7 @@ func resolveRecipe(opts Options) (*Recipe, error) {
 		if err != nil || !info.IsDir() {
 			return nil, contract.Refuse(contract.UnknownPath, dir)
 		}
-		r, err := readRecipe(os.DirFS(dir), filepath.Base(dir), SourcePath, dir)
+		r, err := readRecipe(durable.DirFS(dir), filepath.Base(dir), SourcePath, dir)
 		if err != nil {
 			return nil, contract.Refuse(contract.MalformedRecipe, err.Error())
 		}
@@ -416,11 +417,11 @@ func homeOrAbove(dir, home string) bool {
 	if home == "" {
 		return false
 	}
-	resolvedDir, err := bench.FinalPath(dir)
+	resolvedDir, err := durable.FinalPath(dir)
 	if err != nil {
 		return true
 	}
-	resolvedHome, err := bench.FinalPath(home)
+	resolvedHome, err := durable.FinalPath(home)
 	if err != nil {
 		resolvedHome = filepath.Clean(home)
 	}
@@ -581,7 +582,7 @@ func (p *planner) file(rel string) *fileState {
 		p.noteUnreadable(f)
 		return f
 	}
-	data, err := os.ReadFile(abs)
+	data, err := durable.ReadFile(abs)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 	case err != nil:
@@ -614,7 +615,7 @@ func (p *planner) fileByKey(key string) *fileState {
 // as plain directories. A prefix or a base that cannot be resolved, such as a
 // link whose target is missing, is refused rather than guessed at.
 func (p *planner) contained(abs string) bool {
-	resolvedBase, err := bench.FinalPath(p.base)
+	resolvedBase, err := durable.FinalPath(p.base)
 	if err != nil {
 		return false
 	}
@@ -631,7 +632,7 @@ func (p *planner) contained(abs string) bool {
 		rest = append([]string{filepath.Base(existing)}, rest...)
 		existing = parent
 	}
-	resolved, err := bench.FinalPath(existing)
+	resolved, err := durable.FinalPath(existing)
 	if err != nil {
 		return false
 	}

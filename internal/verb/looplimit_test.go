@@ -195,7 +195,7 @@ func TestARegressiveMovePastTheLoopLimitIsRefused(t *testing.T) {
 		ref := h.ready("looping")
 		h.sendBack(ref)
 
-		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished})
+		h.mustDo(&Request{Verb: Move, Card: ref, Actor: "alka", Column: finished, NoArchive: true})
 		if got := h.card(ref).Column; got != finished {
 			t.Errorf("wanted the forward move to land, got %s", got)
 		}

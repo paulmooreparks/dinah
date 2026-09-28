@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1265,9 +1266,10 @@ func TestDeletingACardRecordsItOnTheBenchJournal(t *testing.T) {
 }
 
 // TestAnOrdinaryLockLineIsUnchangedAndNoLockTravels asserts that the lock a
-// contract verb takes carries the three members it has always carried and
-// neither of the two a sibling adds, so a hand-written lock line stays valid,
-// and that no lock of either kind reaches interchange or a template.
+// contract verb takes carries the six members an entity lock carries and
+// neither of the two a sibling adds, with os_lock true and a start beginning
+// with the platform tag, and that no lock of either kind reaches interchange
+// or a template.
 func TestAnOrdinaryLockLineIsUnchangedAndNoLockTravels(t *testing.T) {
 	h := newHarness(t)
 	ref := h.add("locked")
@@ -1283,13 +1285,19 @@ func TestAnOrdinaryLockLineIsUnchangedAndNoLockTravels(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(text)), &members); err != nil {
 		t.Fatalf("the lock line should be one JSON object: %v", err)
 	}
-	if len(members) != 3 {
-		t.Errorf("an ordinary lock line carries actor, pid and ts alone, got %v", members)
+	if len(members) != 6 {
+		t.Errorf("an ordinary lock line carries actor, pid, ts, host, start and os_lock alone, got %v", members)
 	}
-	for _, member := range []string{"actor", "pid", "ts"} {
+	for _, member := range []string{"actor", "pid", "ts", "host", "start", "os_lock"} {
 		if _, ok := members[member]; !ok {
 			t.Errorf("the lock line carries no %s", member)
 		}
+	}
+	if members["os_lock"] != true {
+		t.Errorf("an entity lock taken here records os_lock true, got %v", members["os_lock"])
+	}
+	if start, _ := members["start"].(string); !strings.HasPrefix(start, runtime.GOOS+":") {
+		t.Errorf("the lock line's start %q does not begin with %s:", start, runtime.GOOS)
 	}
 
 	record := bench.LockRecord{Actor: "someone", PID: 4242, TS: bench.Stamp(h.clock), Op: bench.OpArchive}

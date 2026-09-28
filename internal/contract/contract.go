@@ -168,6 +168,13 @@ const (
 	AliasShadow       = LayerPrefix + "alias-shadows-command"
 	AliasMissing      = LayerPrefix + "missing-alias-argument"
 
+	// Busy is the operating system refusing an open, a write, a rename or a
+	// removal for as long as Dinah retries one that may give up, which is
+	// only ever before an act has written anything, so nothing was changed.
+	// The detail is the path relative to the workbench root, and the extra
+	// "error" carries the last error the operating system gave.
+	Busy = LayerPrefix + "busy"
+
 	// NoWorkbenchFound is the walk coming up empty, which NoWorkbench once
 	// shared a sentence with. The two are separated because one template
 	// cannot honestly describe both a path the caller named and a search
@@ -626,6 +633,15 @@ const (
 	// for. The detail names the reference as typed; holder, slug and
 	// collection each ride beside it on the one case that fills them.
 	NotArchived = LayerPrefix + "not-archived"
+	// NoLongerDone is archiveOnDone's own re-check under Archive's own lock
+	// finding that the card no longer sits in a done-kind column: a
+	// concurrent move carried it out of Done in the window between Do
+	// releasing the card's lock and Archive re-acquiring it. It never
+	// reaches a reader as the Refusal of a request they made; it surfaces
+	// only as the WarningDetail on the move whose own archive step this
+	// stops, through warn.archive-on-done-failed. The detail names the
+	// card's reference.
+	NoLongerDone = LayerPrefix + "no-longer-done"
 	// IsACollection is a command that takes one entity handed a reference
 	// naming a whole collection. The detail names the reference as typed,
 	// the member count rides beside it, and so does the reference of the
@@ -906,7 +922,7 @@ var Introduced = []string{
 	NotLoopback, ForeignHost, ForeignOrigin, OriginRequired, BodyTooLarge, UnknownResource,
 	MethodNotAllowed, NotAcceptable, UnsupportedMediaType, BasisRequired, NotImplemented, NotServed,
 	AmbiguousName, NotRenamable, NotAttachable, NotCommentable, IsACollection, NotArchived,
-	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork,
+	AmbiguousCard, AmbiguousColumn, NoUpstream, AwaitingOutside, TakesNoWork, NoLongerDone,
 	NoLevels, UnknownLevel, UnknownFormat, InapplicableField,
 	NoTierDefault, TierOutOfRange, BelowTier, TierNotHigher,
 	UnlistedModel, UndeclaredModel, MalformedHarness, MalformedMemberName,
@@ -1262,6 +1278,14 @@ const (
 	// this is its lifecycle event, where the prefix is reserved for what
 	// Dinah invents beyond what the format declares.
 	EventRenumbered = "renumbered"
+	// EventLockReclaimed records that a lock whose holder was proven dead was
+	// taken over by the actor the line names. Its Note is the dead lock's
+	// own record line, and it carries Column when the lock was a column's
+	// occupancy lock. It lands on the journal of the entity the lock
+	// protected, or, for an occupancy lock, on the journal of the card whose
+	// move or pull reclaimed it, or the workbench journal for an add or a
+	// repair.
+	EventLockReclaimed = "lock_reclaimed"
 )
 
 // Events lists the event names a query over cards accepts in its event field,
@@ -1293,6 +1317,7 @@ var Events = []string{
 	EventRetirementGranted, EventRetirementRevoked,
 	EventLinked, EventUnlinked,
 	EventRenumbered,
+	EventLockReclaimed,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

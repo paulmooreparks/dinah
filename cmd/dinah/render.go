@@ -660,7 +660,8 @@ func (s *session) renderPrimeInstructions(primer *verb.Primer, brief bool) {
 // Bench.Cards()' own directory-listing order, sorted by the card's random
 // ID rather than by when it arrived, matching Status.Holding), so this
 // re-reads the bench's cards and picks the earliest-arrival one by
-// bench.ByArrival, the same rule Library.Prime's own Reread member uses.
+// bench.EarliestArrival, the same rule Library.Prime's own Reread member
+// uses.
 func (s *session) primeInstructionsExample(primer *verb.Primer) string {
 	if len(primer.Holding) > 0 && s.library != nil {
 		if ref := s.earliestHeldColumnRef(primer.Identity.Actor); ref != "" {
@@ -674,22 +675,20 @@ func (s *session) primeInstructionsExample(primer *verb.Primer) string {
 }
 
 // earliestHeldColumnRef finds the column of the earliest-arrival card actor
-// holds, by bench.ByArrival, empty where the bench cannot be read or actor
-// holds nothing.
+// holds, by bench.EarliestArrival, empty where the bench cannot be read or
+// actor holds nothing.
 func (s *session) earliestHeldColumnRef(actor string) string {
 	cards, err := s.library.Bench.Cards()
 	if err != nil {
 		return ""
 	}
-	var earliest *bench.Card
+	var held []*bench.Card
 	for _, card := range cards {
-		if card.Holder != actor {
-			continue
-		}
-		if earliest == nil || bench.ByArrival(card, earliest) {
-			earliest = card
+		if card.Holder == actor {
+			held = append(held, card)
 		}
 	}
+	earliest := bench.EarliestArrival(held)
 	if earliest == nil {
 		return ""
 	}
@@ -1153,7 +1152,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	}
 	if detail.Body != "" {
 		gap()
-		s.write(detail.Body)
+		s.write(wrapBodyText(detail.Body, s.width))
 	}
 	if len(detail.Links) > 0 {
 		gap()
@@ -1245,7 +1244,7 @@ func (s *session) renderComments(comments []verb.CommentView) {
 	for _, comment := range comments {
 		size := strconv.Itoa(comment.Size)
 		fields := []string{comment.Ref, comment.TS, comment.Author, comment.Subject, size}
-		block.rows = append(block.rows, tableRow{fields: fields, note: comment.Body})
+		block.rows = append(block.rows, tableRow{fields: fields, note: wrapBodyText(comment.Body, s.width)})
 	}
 	s.table(block)
 }
@@ -1254,7 +1253,7 @@ func (s *session) renderComments(comments []verb.CommentView) {
 // the item's anchor, unchanged from what show printed for it before item
 // comments existed, then the item's comments where it carries any.
 func (s *session) renderItemDetail(item *verb.ItemDetail) {
-	s.write(item.Text)
+	s.write(wrapBodyText(item.Text, s.width))
 	if len(item.Comments) > 0 {
 		s.line("")
 		s.line(s.r.T("show.comments"))
@@ -1395,6 +1394,10 @@ func (s *session) eventDetail(ev bench.Event) string {
 		return s.r.T("log.manual-correction", "from", ev.FromTitle, "to", ev.ToTitle)
 	case contract.EventRenumbered:
 		return s.r.T("log.renumbered", "from", ev.From, "to", ev.To)
+	case contract.EventLockReclaimed:
+		// The dead lock's own record line is the detail, because it is what
+		// names the holder that ended and the process it ran as.
+		return ev.Note
 	case contract.EventTierOverridden:
 		return s.tierOverriddenDetail(ev)
 	case contract.EventItemFiled:
@@ -1581,6 +1584,10 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 	// check.card-number-renumbered finding naming it immediately below.
 	if report.MigratedNumbers || report.RenumberedNumbers {
 		s.line(s.r.TN("check.cards-renumbered", len(report.RenumberedCards)))
+	}
+	for _, cleared := range report.ClearedLocks {
+		pid := strconv.Itoa(cleared.PID)
+		s.line(s.r.T("check.lock-cleared", "path", cleared.Path, "actor", cleared.Actor, "pid", pid))
 	}
 	code := s.renderFindings(report.Findings)
 	s.renderNotices(report.Notices)
@@ -1894,7 +1901,11 @@ func (s *session) renderFindings(findings []bench.Finding) int {
 	}
 	t := table{indent: 2, columns: listColumn()}
 	for _, finding := range findings {
-		reported := s.r.T(finding.Key, "detail", finding.Detail) + " (" + finding.Path + ")"
+		reported := s.r.T(finding.Key, "detail", finding.Detail)
+		if finding.Next != "" {
+			reported += s.r.T(finding.Next, "detail", finding.Detail)
+		}
+		reported += " (" + finding.Path + ")"
 		t.rows = append(t.rows, tableRow{fields: []string{reported}})
 	}
 	s.table(t)

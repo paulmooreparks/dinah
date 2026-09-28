@@ -284,7 +284,7 @@ func TestAColumnRequiringAFieldHoldsOnEntry(t *testing.T) {
 		t.Errorf("a non-operator carrying the marker answered %s %s", stranger.Outcome, stranger.Refusal)
 	}
 	h.reopen()
-	carried := h.library.Do(&Request{Verb: Move, Card: other, Actor: "alka", Column: finished, Override: true})
+	carried := h.library.Do(&Request{Verb: Move, Card: other, Actor: "alka", Column: finished, Override: true, NoArchive: true})
 	if carried.Outcome != contract.OutcomeOK {
 		t.Fatalf("the operator's override answered %s %s", carried.Outcome, carried.Refusal)
 	}
