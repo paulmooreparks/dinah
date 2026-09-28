@@ -1152,7 +1152,7 @@ func (s *session) renderDetail(detail *verb.Detail) {
 	}
 	if detail.Body != "" {
 		gap()
-		s.write(detail.Body)
+		s.write(wrapBodyText(detail.Body, s.width))
 	}
 	if len(detail.Links) > 0 {
 		gap()
@@ -1244,7 +1244,7 @@ func (s *session) renderComments(comments []verb.CommentView) {
 	for _, comment := range comments {
 		size := strconv.Itoa(comment.Size)
 		fields := []string{comment.Ref, comment.TS, comment.Author, comment.Subject, size}
-		block.rows = append(block.rows, tableRow{fields: fields, note: comment.Body})
+		block.rows = append(block.rows, tableRow{fields: fields, note: wrapBodyText(comment.Body, s.width)})
 	}
 	s.table(block)
 }
@@ -1253,7 +1253,7 @@ func (s *session) renderComments(comments []verb.CommentView) {
 // the item's anchor, unchanged from what show printed for it before item
 // comments existed, then the item's comments where it carries any.
 func (s *session) renderItemDetail(item *verb.ItemDetail) {
-	s.write(item.Text)
+	s.write(wrapBodyText(item.Text, s.width))
 	if len(item.Comments) > 0 {
 		s.line("")
 		s.line(s.r.T("show.comments"))
