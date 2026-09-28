@@ -55,11 +55,23 @@ func TestRedactAtTheTerminal(t *testing.T) {
 		t.Error("redact without --yes changed the store")
 	}
 
+	// A file an earlier redaction left when it stopped before its rename is
+	// removed by the next one, which says so.
+	cardDir := filepath.Join(soleBenchDir(t, root), bench.CardsDir)
+	cards, err := bench.ListIDs(cardDir)
+	if err != nil || len(cards) != 1 {
+		t.Fatalf("wanted one card under %s: %v %v", cardDir, cards, err)
+	}
+	leftover := filepath.Join(cardDir, cards[0], bench.JournalName+bench.RedactLeftoverSuffix)
+	if err := os.WriteFile(leftover, []byte("a stale composition\n"), 0o644); err != nil {
+		t.Fatalf("plant %s: %v", leftover, err)
+	}
 	done := runCLI(t, root, "redact", "fx-1/comments/1", "--yes")
 	if done.code != 0 {
 		t.Fatalf("redact --yes: %d %s", done.code, done.errw)
 	}
 	for _, want := range []string{
+		"Removed " + leftover,
 		"Redacted fx-1/comments/1",
 		"Attachments left:",
 		"fx-1/comments/1/attachments/1 (first.txt)",
@@ -94,6 +106,25 @@ func TestRedactAtTheTerminal(t *testing.T) {
 	found := runCLI(t, root, "search", token)
 	if strings.Contains(found.out, "fx-1") {
 		t.Errorf("a search for the redacted token matched:\n%s", found.out)
+	}
+
+	// The card's own listing of its comments, and an item's own show, print
+	// the redaction in place of the text as well.
+	listed := runCLI(t, root, "show", "fx-1", "--all")
+	if listed.code != 0 || !strings.Contains(listed.out, "Redacted by alka at ") {
+		t.Errorf("show of the card does not print the redaction among its comments:\n%s%s", listed.out, listed.errw)
+	}
+	for _, argv := range [][]string{
+		{"file", "fx-1", "decision", "A decision whose text goes."},
+		{"redact", "fx-1/decisions/1", "--yes"},
+	} {
+		if got := runCLI(t, root, argv...); got.code != 0 {
+			t.Fatalf("%v: %d %s", argv, got.code, got.errw)
+		}
+	}
+	item := runCLI(t, root, "show", "fx-1/decisions/1")
+	if item.code != 0 || !strings.Contains(item.out, "Redacted by alka at ") || strings.Contains(item.out, "whose text goes") {
+		t.Errorf("show of the redacted item printed:\n%s%s", item.out, item.errw)
 	}
 }
 
