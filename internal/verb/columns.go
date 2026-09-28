@@ -124,7 +124,7 @@ func (l *Library) NewColumn(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Acting(), Title: title, Note: column.ID}
-	if err := bench.AppendEvent(fresh.JournalPath(), ev); err != nil {
+	if err := bench.AppendEvent(lock, fresh.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, nil)

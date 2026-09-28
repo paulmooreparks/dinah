@@ -117,6 +117,11 @@ type Store struct {
 	Digest string // Digest(Root) at the end of Generate
 	// ProbeCard is the reference every per-card measurement reads: "perf-1".
 	ProbeCard string
+	// JournalWrites counts every write the generator made to a journal,
+	// and JournalLocks every entity lock held while one was made. The two
+	// are equal when no journal was written without its entity's lock.
+	JournalWrites int
+	JournalLocks  int
 }
 
 // The names the generated workbench carries. The operator is the one actor
@@ -275,13 +280,15 @@ func Generate(dir string, seed uint64, shape Shape) (*Store, error) {
 		return nil, err
 	}
 	store := &Store{
-		Root:      g.root,
-		Slug:      workbenchSlug,
-		Seed:      seed,
-		Shape:     shape,
-		Files:     g.files,
-		Digest:    digest,
-		ProbeCard: workbenchSlug + "-1",
+		Root:          g.root,
+		Slug:          workbenchSlug,
+		Seed:          seed,
+		Shape:         shape,
+		Files:         g.files,
+		Digest:        digest,
+		ProbeCard:     workbenchSlug + "-1",
+		JournalWrites: g.journalWrites,
+		JournalLocks:  g.journalLocks,
 	}
 	if files != g.files {
 		return store, fmt.Errorf("generated %d files but the tree holds %d", g.files, files)
@@ -379,6 +386,12 @@ type generator struct {
 	// running count rather than an entity's own position.
 	counters map[string]int
 	files    int
+	// journalWrites counts every write the generator makes to a journal,
+	// and journalLocks every entity lock it held while making one, taken
+	// by save itself or by the structural act that hands its lock to the
+	// archived line's Record. A test compares the two.
+	journalWrites int
+	journalLocks  int
 
 	columnIDs   []string
 	workstreams []workstreamPlan
@@ -895,7 +908,14 @@ func (g *generator) archive() error {
 			Op:      bench.OpArchive,
 			Actor:   operatorName,
 			Now:     plan.archivedAt,
-			Record:  func() error { return bench.AppendEvent(journalPath, archived) },
+			Record: func(locks bench.ActLocks) error {
+				held := locks.For(journalPath)
+				g.journalWrites++
+				if held != nil {
+					g.journalLocks++
+				}
+				return bench.AppendEvent(held, journalPath, archived)
+			},
 		}
 		if err := b.Run(act); err != nil {
 			return err
@@ -1051,7 +1071,7 @@ func (g *generator) writeWorkstream(w int) error {
 	if err := journal.add(created); err != nil {
 		return err
 	}
-	if err := journal.save(workstream.JournalPath()); err != nil {
+	if err := journal.save(g, workstream.JournalPath()); err != nil {
 		return err
 	}
 	g.files += 2
@@ -1077,8 +1097,20 @@ func (j *journal) add(ev bench.Event) error {
 	return nil
 }
 
-// save writes the collected lines to path.
-func (j *journal) save(path string) error {
+// save writes the collected lines to path under the lock of the entity the
+// journal belongs to, taken through bench.Acquire like every other writer's,
+// so the generator gets no exemption from the rule that a journal is written
+// only by the holder of its entity's lock. A generated store is private to
+// its test, so the lock never contends, and the cost is one create and one
+// delete per journal.
+func (j *journal) save(g *generator, path string) error {
+	held, err := bench.Acquire(filepath.Dir(path), operatorName, bench.Stamp(epoch))
+	if err != nil {
+		return err
+	}
+	defer held.Release()
+	g.journalLocks++
+	g.journalWrites++
 	return durable.WriteFile(path, j.buffer.Bytes(), 0o644)
 }
 
@@ -1210,7 +1242,7 @@ func (g *generator) writeCard(index int, plan *cardPlan, archived bool) error {
 	if err := card.Save(); err != nil {
 		return err
 	}
-	if err := events.save(card.JournalPath()); err != nil {
+	if err := events.save(g, card.JournalPath()); err != nil {
 		return err
 	}
 	g.files += 2

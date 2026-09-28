@@ -697,8 +697,10 @@ type StructuralAct struct {
 	WorkstreamRef string
 	// Record appends the act's event, and is called at the fourth step. It
 	// is the point of record: a failure before it unwinds everything, and a
-	// failure after it leaves the sibling standing.
-	Record func() error
+	// failure after it leaves the sibling standing. locks are the locks the
+	// act holds when Record runs, and For answers the one an append to a
+	// given journal is made under.
+	Record func(locks ActLocks) error
 	// Verify, when set, runs immediately after the entity lock is taken and
 	// before Record, so a caller can re-confirm a precondition it read
 	// before this act's own lock existed rather than trusting that earlier
@@ -814,7 +816,7 @@ func (b *Bench) Run(act *StructuralAct) error {
 		return unwind(err, entityLock, sibling, benchLock)
 	}
 
-	if err := act.Record(); err != nil {
+	if err := act.Record(ActLocks{bench: benchLock, entity: entityLock}); err != nil {
 		return unwind(err, entityLock, sibling, benchLock)
 	}
 	if err := b.step(4); err != nil {
@@ -907,6 +909,30 @@ func (b *Bench) takeEntityLock(act *StructuralAct, record LockRecord) (*Lock, er
 		return nil, nil
 	}
 	return acquireTolerating(act.LockDir, act.Actor, act.Now, record)
+}
+
+// ActLocks are the locks a structural act holds when its Record runs: the
+// bench lock its first step took, and the entity lock its third step took,
+// which is nil for an act whose scope is the bench.
+type ActLocks struct {
+	bench  *Lock
+	entity *Lock
+}
+
+// For answers the lock an append to journal is made under: whichever of the
+// act's locks guards the journal's own directory, and nil when neither does,
+// which AppendEvent then refuses. A card's deletion is recorded on the bench
+// journal and its archiving on the card's own, and this is what lets one
+// Record serve both without naming a lock of its own.
+func (a ActLocks) For(journal string) *Lock {
+	dir := filepath.Dir(journal)
+	if a.entity.guards(dir) {
+		return a.entity
+	}
+	if a.bench.guards(dir) {
+		return a.bench
+	}
+	return nil
 }
 
 // step runs the injected failure a test asks for at one numbered step of the

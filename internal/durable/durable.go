@@ -362,11 +362,10 @@ func openJournalClassed(path string, c class) (*os.File, bool, error) {
 // at the end of the file, flushes it, and closes the file. When the open
 // created the journal on Linux, the directory is flushed as well. A write or a
 // flush that fails cuts the file back to the length it had before, so a
-// failed append leaves the journal as it found it. Every append to a card's
-// journal is made under that card's lock, so nothing can have landed after
-// the failed line there. The appends dinah-637 lists as made without the
-// owning entity's lock write the workbench's and the workstreams' journals,
-// where a failure racing one of them could cut its line too.
+// failed append leaves the journal as it found it. Every append to a journal
+// is made under the lock of the entity the journal belongs to, which
+// bench.AppendEvent refuses to do without, so nothing can have landed after
+// the failed line.
 func AppendLine(path string, line []byte) error {
 	c := classify(true)
 	unclassed := c
@@ -404,6 +403,42 @@ func AppendLine(path string, line []byte) error {
 		return nil
 	}
 	return syncDir(filepath.Dir(path))
+}
+
+// Truncate cuts a journal back to size bytes and flushes it. It is the one
+// shortening of a journal Dinah performs, which is the tail repair's cut back
+// to the journal's last whole line, made by the holder of the journal's lock
+// after the fragment it removes has been written somewhere else and flushed.
+func Truncate(path string, size int64) error {
+	c := classify(true)
+	unclassed := c
+	unclassed.mutating = false
+	f, _, err := openJournalClassed(path, unclassed)
+	if err != nil {
+		return err
+	}
+	observe("truncate", path, 0)
+	if err := f.Truncate(size); err != nil {
+		f.Close()
+		return err
+	}
+	if err := syncFile(f); err != nil {
+		f.Close()
+		return err
+	}
+	observe("close", path, 0)
+	if err := f.Close(); err != nil {
+		return err
+	}
+	c.done()
+	return nil
+}
+
+// SamePath reports whether two paths name one file in the form lock paths are
+// compared in: cleaned, and folded to lower case on the platforms whose file
+// systems compare names without regard to case by default.
+func SamePath(a, b string) bool {
+	return pathKey(a) == pathKey(b)
 }
 
 // CreateExclusive creates a lock file that must not already exist, opened for

@@ -787,7 +787,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	ev := fieldEvent(req, entity, target, was, value)
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
 	ev.TS = now
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	if entity.Kind == bench.KindWorkbench {

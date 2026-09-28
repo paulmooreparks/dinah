@@ -124,10 +124,11 @@ func isBusy(err error) bool {
 // clearDeadLocks reclaims every entity lock judged dead, which records a
 // lock_reclaimed line in the journal of the entity it protected, and then
 // releases it, leaving the entity unlocked. The caller holds the workbench
-// lock, so a column's lock records in the workbench journal. A lock inside a
-// directory whose sibling stands belongs to the interrupted act's own finish
-// and is left to it, and a lock judged unknown is left for a person.
-func (b *Bench) clearDeadLocks(actor, now string) []ClearedLock {
+// lock and hands it over as benchLock, so a column's lock records in the
+// workbench journal under it. A lock inside a directory whose sibling stands
+// belongs to the interrupted act's own finish and is left to it, and a lock
+// judged unknown is left for a person.
+func (b *Bench) clearDeadLocks(benchLock *Lock, actor, now string) []ClearedLock {
 	var cleared []ClearedLock
 	rootLock := filepath.Join(b.Root, LockName)
 	for _, path := range b.entityLockFiles() {
@@ -142,11 +143,11 @@ func (b *Bench) clearDeadLocks(actor, now string) []ClearedLock {
 		if verdict != VerdictDead {
 			continue
 		}
-		journal := journalFor(dir)
+		journal, journalLock := journalFor(dir), (*Lock)(nil)
 		if journal == "" {
-			journal = filepath.Join(b.Root, JournalName)
+			journal, journalLock = filepath.Join(b.Root, JournalName), benchLock
 		}
-		lock, err := AcquireRecording(dir, NamedActor(actor), now, journal)
+		lock, err := AcquireRecording(dir, NamedActor(actor), now, journal, journalLock)
 		if err != nil {
 			continue
 		}

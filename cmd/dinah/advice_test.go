@@ -959,6 +959,8 @@ var checkAdviceNeedingNoScope = map[string]string{
 	"refusal.dinah.reshape-map-source-empty.next":   "the reader has just been refused by a reshape they scoped themselves, and reshape takes neither --root nor a downward walk, so the bare dinah check they are told to run resolves the workbench the refused command resolved",
 	"reshape.stranded":                              "a report line printed inside a reshape the caller has already scoped, and reshape takes neither --root nor a downward walk, so the bare dinah check it names resolves the same workbench the report was written for",
 	"warn.archive-on-done-failed":                   "a prediction printed on the move that just landed the card, describing what a later, unscoped dinah check will find rather than asking the reader to type anything now",
+	"check.journal-unreadable":                      "a finding row printed by a check the caller has already scoped, naming the check to run again once the reader has repaired the line by hand, which repeats the scope that found it",
+	"refusal.dinah.journal-unreadable.next":         "the reader has just been refused a read of the workbench they addressed, and the sentence names the check to run once the line is repaired by hand, from where the refused command resolved that same workbench",
 }
 
 // TestEveryCheckAdviceIsDispositioned holds the family of catalog sentences

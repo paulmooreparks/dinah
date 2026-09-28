@@ -198,7 +198,7 @@ func verdictOn(record LockRecord, parsed bool) Verdict {
 // nobody reaches by name. The rewrite is not atomic: a reclaimer that dies
 // between the truncation and the flush leaves an empty or partial record,
 // which the verdict judges unknown and only a person clears.
-func (l *Lock) reclaim(judged judgement, dir string, actor Actor, now, journal string, tolerated *LockRecord) (*Lock, error) {
+func (l *Lock) reclaim(judged judgement, dir string, actor Actor, now, journal string, journalLock *Lock, tolerated *LockRecord) (*Lock, error) {
 	f := judged.file
 	if ReclaimInterpose != nil {
 		ReclaimInterpose()
@@ -231,7 +231,11 @@ func (l *Lock) reclaim(judged judgement, dir string, actor Actor, now, journal s
 		Note:   judged.line,
 		Column: columnOf(dir),
 	}
-	if err := AppendEvent(journal, ev); err != nil {
+	held := journalLock
+	if held == nil {
+		held = l
+	}
+	if err := AppendEvent(held, journal, ev); err != nil {
 		l.Release()
 		return nil, err
 	}

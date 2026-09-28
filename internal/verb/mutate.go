@@ -44,12 +44,14 @@ func (l *Library) Do(req *Request) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
+	req.cardLock = lock
+	defer func() { req.cardLock = nil }()
 	card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), found.Card.ID)
 	if err != nil {
 		lock.Release()
 		return l.FromError(req, err)
 	}
-	if err := l.lapse(card); err != nil {
+	if err := l.lapse(lock, card); err != nil {
 		lock.Release()
 		return l.FromError(req, err)
 	}
@@ -71,7 +73,7 @@ func (l *Library) Do(req *Request) *Response {
 			Affordances: l.affordances(card),
 		}
 	}
-	if _, err := l.Bench.WitnessDivergence(req.Actor, bench.Stamp(l.Now()), card); err != nil {
+	if _, err := l.Bench.WitnessDivergence(lock, req.Actor, bench.Stamp(l.Now()), card); err != nil {
 		lock.Release()
 		return l.FromError(req, err)
 	}
@@ -262,7 +264,7 @@ func (l *Library) warnWithheld(response *Response, answer holdAnswer) *Response 
 // It writes, so its caller holds the card's lock. A verb calls it inside its
 // own transaction; a read calls it through lapseRead, which takes the lock
 // itself.
-func (l *Library) lapse(card *bench.Card) error {
+func (l *Library) lapse(held *bench.Lock, card *bench.Card) error {
 	if !card.Lapsed(l.Now()) {
 		return nil
 	}
@@ -277,7 +279,7 @@ func (l *Library) lapse(card *bench.Card) error {
 	if err := card.Save(); err != nil {
 		return err
 	}
-	return bench.AppendEvent(card.JournalPath(), ev)
+	return bench.AppendEvent(held, card.JournalPath(), ev)
 }
 
 // clearLapsedClaim is what a lapse does to the card in memory: the card is
@@ -750,7 +752,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
-	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath())
+	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath(), req.cardLock)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -798,7 +800,7 @@ func (l *Library) move(req *Request, card *bench.Card) *Response {
 	// under the lock this act already holds, and after every refusal above
 	// has passed, so a move an override carried in still mints and a
 	// refused move mints nothing.
-	if err := l.mintStandingItems(req, card, destination, ev.TS); err != nil {
+	if err := l.mintStandingItems(req.cardLock, req, card, destination, ev.TS); err != nil {
 		return l.FromError(req, err)
 	}
 	response.Instructions, response.ChainServed, err = l.serve(req, card)
@@ -832,14 +834,16 @@ const stepCapacityCounted = "capacity-counted"
 // declares a capacity and the request does not carry an override, which skips
 // the capacity row; otherwise it takes nothing and answers a nil lock, whose
 // Release does nothing. It is always the last lock an act takes, and nothing
-// is acquired while it is held. A reclaim of a dead holder's occupancy lock
-// is recorded in journal.
-func (l *Library) takeOccupancy(req *Request, destination *bench.Column, journal string) (*bench.Lock, error) {
+// is acquired while it is held but the lock of the card an add is creating,
+// whose directory no other process can know yet. A reclaim of a dead holder's
+// occupancy lock is recorded in journal, under journalLock, which the caller
+// holds on the entity that journal belongs to.
+func (l *Library) takeOccupancy(req *Request, destination *bench.Column, journal string, journalLock *bench.Lock) (*bench.Lock, error) {
 	if destination == nil || destination.Capacity <= 0 || req.Override {
 		return nil, nil
 	}
 	dir := l.Bench.ColumnDir(destination.ID)
-	return bench.AcquireRecording(dir, req.Acting(), bench.Stamp(l.Now()), journal)
+	return bench.AcquireRecording(dir, req.Acting(), bench.Stamp(l.Now()), journal, journalLock)
 }
 
 // atCapacity reports whether a column has reached its declared limit. The
@@ -1138,14 +1142,14 @@ func (l *Library) lapseRead(card *bench.Card, actor string) error {
 	if err != nil {
 		return nil
 	}
-	if _, err := l.Bench.WitnessDivergence(actor, bench.Stamp(l.Now()), fresh); err != nil {
+	if _, err := l.Bench.WitnessDivergence(lock, actor, bench.Stamp(l.Now()), fresh); err != nil {
 		return err
 	}
 	if !fresh.Lapsed(l.Now()) {
 		*card = *fresh
 		return nil
 	}
-	if err := l.lapse(fresh); err != nil {
+	if err := l.lapse(lock, fresh); err != nil {
 		return err
 	}
 	*card = *fresh
@@ -1167,7 +1171,7 @@ func (l *Library) commit(req *Request, card *bench.Card, events ...bench.Event) 
 		return nil, err
 	}
 	for _, ev := range events {
-		if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
+		if err := bench.AppendEvent(req.cardLock, card.JournalPath(), ev); err != nil {
 			return nil, err
 		}
 	}

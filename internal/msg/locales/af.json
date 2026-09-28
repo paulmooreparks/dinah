@@ -7078,6 +7078,36 @@
       "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated, and the command line is the one invocation the sentence carries, so a reader following it types that and nothing else. The backup is named first because both migrations write in place and neither can undo itself.",
       "skeleton": true
     },
+    "refusal.dinah.journal-unlocked": {
+      "text": "An append to {detail} was made without the lock of the entity that journal belongs to.",
+      "context": "The sentence printed after the refusal name dinah.journal-unlocked. {detail} is the journal's path. Every append to a journal is made by the holder of the lock of the entity the journal belongs to, and this refusal is raised before the file is opened when a caller does not hold it.",
+      "skeleton": true
+    },
+    "refusal.dinah.journal-unlocked.next": {
+      "text": " This is a defect in Dinah rather than something to work around; report it together with the command that raised it.",
+      "context": "The next step of refusal.dinah.journal-unlocked, spliced onto the sentence that named the journal. No person's act raises it, so the step asks for a report rather than naming a repair.",
+      "skeleton": true
+    },
+    "refusal.dinah.journal-unreadable": {
+      "text": "The journal line at {detail} does not decode, and it is not the journal's last line.",
+      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, a colon and the one-based line number, which is the spelling an editor opens at. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves, so every read of the entity is refused.",
+      "skeleton": true
+    },
+    "refusal.dinah.journal-unreadable.next": {
+      "text": " Restore the line from a backup or from git, or delete it by hand, then run `dinah check` again; no command deletes it, since it may hold the text of a comment.",
+      "context": "The next step of refusal.dinah.journal-unreadable. dinah check is a command line and is not translated. The step names the hand repair because no command deletes a line that may hold a comment's text.",
+      "skeleton": true
+    },
+    "check.journal-unreadable": {
+      "text": "the journal line at {detail} does not decode and is not the last line; restore it from a backup or from git, or delete it by hand, and run `dinah check` again",
+      "context": "A check finding at defect severity: a journal line that is not the last one and does not decode. {detail} is the journal's path, a colon and the one-based line number. Every read of the entity is refused while it stands, and no command deletes the line.",
+      "skeleton": true
+    },
+    "check.journal-torn-quarantined": {
+      "text": "the torn tail of a journal was moved to {detail}; read it, and delete it by hand once nothing in it needs keeping",
+      "context": "A check finding at cleanup severity: a sidecar file holding the torn tail an append moved out of a journal. {detail} is the sidecar's file name, which the journal_tail_trimmed line that moved it names too. No command deletes it, because only a person can say the fragment held nothing worth keeping.",
+      "skeleton": true
+    },
     "check.comment-body-diverged": {
       "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

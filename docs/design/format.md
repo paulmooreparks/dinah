@@ -1513,6 +1513,15 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `retirement_revoked` | | |
 | `designations_migrated` | | `cards`, the references of the cards whose claim the run passed, written by a forced run alone and absent from every other; a forced run that passed none writes the line carrying no card, so the flag is never a silent no-op |
 | `lock_reclaimed` | `note` (the dead lock's own record line) | `column`, the identifier of the column whose occupancy lock was reclaimed, written only on a line about a column's occupancy lock |
+| `journal_tail_trimmed` | `trimmed` (the byte count moved out of the journal), `note` (the sidecar's file name) | none |
+
+A `journal_tail_trimmed` line is written by an append that found its journal
+ending in a fragment that does not decode. The append holds the lock of the
+journal's own entity, writes the fragment to a `journal.torn.<stamp>` sidecar
+beside the journal, cuts the journal back to just after its last newline, and
+writes this line ahead of its own. The actor is the appending owner, named
+alone. The sidecar is kept until a person has read it and deleted it, and
+`dinah check` reports it until then.
 
 A `lock_reclaimed` line lands on the journal of the entity the reclaimed lock
 covered: a card's lock on that card's journal, a workstream's on the

@@ -128,7 +128,7 @@ func SiblingPath(dir string) string {
 // here rather than at each call site so that every acquirer inherits it and
 // no future one can be written without it.
 func Acquire(dir, actor string, now string) (*Lock, error) {
-	return AcquireRecording(dir, NamedActor(actor), now, journalFor(dir))
+	return AcquireRecording(dir, NamedActor(actor), now, journalFor(dir), nil)
 }
 
 // AcquireRecording takes the lock of an entity directory and names the
@@ -139,10 +139,12 @@ func Acquire(dir, actor string, now string) (*Lock, error) {
 // A lock another process holds is refused with the holder named from the
 // lock's own content. A lock whose holder is proven dead is reclaimed and the
 // reclaim appended to journal as a lock_reclaimed line; anything short of
-// that proof refuses. An acquisition with an empty journal, or whose actor
+// that proof refuses. journalLock is the lock the caller holds on the entity
+// that journal belongs to, which the append is made under; nil means the
+// journal is dir's own, and the reclaimed lock is the one that guards it. An acquisition with an empty journal, or whose actor
 // names nobody, never reclaims.
-func AcquireRecording(dir string, actor Actor, now string, journal string) (*Lock, error) {
-	return acquire(dir, actor, now, journal, nil)
+func AcquireRecording(dir string, actor Actor, now string, journal string, journalLock *Lock) (*Lock, error) {
+	return acquire(dir, actor, now, journal, journalLock, nil)
 }
 
 // journalFor is the journal a lock on dir records a reclaim in: the
@@ -169,7 +171,7 @@ func columnOf(dir string) string {
 // sibling's whole record rather than a flag, so a second process cannot ask
 // for the same exemption and a stale sibling from a dead process grants none.
 func acquireTolerating(dir, actor, now string, tolerated LockRecord) (*Lock, error) {
-	return acquire(dir, NamedActor(actor), now, journalFor(dir), &tolerated)
+	return acquire(dir, NamedActor(actor), now, journalFor(dir), nil, &tolerated)
 }
 
 // acquireAttempts bounds how many times an acquisition goes round when the
@@ -178,7 +180,7 @@ const acquireAttempts = 3
 
 // acquire is the one exclusive-create of an entity lock file in this
 // codebase, which is what keeps the sibling check unforgettable.
-func acquire(dir string, actor Actor, now, journal string, tolerated *LockRecord) (*Lock, error) {
+func acquire(dir string, actor Actor, now, journal string, journalLock *Lock, tolerated *LockRecord) (*Lock, error) {
 	path := filepath.Join(dir, LockName)
 	for range acquireAttempts {
 		lock := &Lock{path: path, actor: actor.Name}
@@ -208,7 +210,7 @@ func acquire(dir string, actor Actor, now, journal string, tolerated *LockRecord
 			hold.Unregister()
 			return nil, contract.Refuse(contract.Locked, judged.record.Actor)
 		}
-		return lock.reclaim(judged, dir, actor, now, journal, tolerated)
+		return lock.reclaim(judged, dir, actor, now, journal, journalLock, tolerated)
 	}
 	return nil, contract.Refuse(contract.Locked, LockHolder(path))
 }
@@ -355,6 +357,19 @@ func parseLockRecord(text string) (LockRecord, bool) {
 func LockHolder(path string) string {
 	record, _ := ReadLockRecord(path)
 	return record.Actor
+}
+
+// guards reports whether this is a held entity lock on dir: a lock Acquire
+// returned for that directory and not yet released. A sibling lock guards no
+// directory's journal, since it stands beside the directory rather than in
+// it, and nil guards nothing. The directories are compared in the form
+// durable compares lock paths in, cleaned and folded to lower case where the
+// file system ignores case, so two spellings of one directory agree.
+func (l *Lock) guards(dir string) bool {
+	if l == nil || l.path == "" || filepath.Base(l.path) != LockName {
+		return false
+	}
+	return durable.SamePath(filepath.Dir(l.path), dir)
 }
 
 // Release lets the lock go. An entity lock's file is deleted through its own

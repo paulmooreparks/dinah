@@ -3223,6 +3223,20 @@ func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration
 		passed = claimed
 	}
 	now := bench.Stamp(l.Now())
+	// A converting run holds the workbench lock from before its first write
+	// to after its own line on the workbench journal, which is the lock that
+	// journal's appends are made under. A run that meets the lock held is
+	// refused before it writes anything, rather than converting every card
+	// and then failing to record that it did.
+	var benchLock *bench.Lock
+	if !req.Rehearse {
+		held, err := bench.Acquire(l.Bench.Root, req.Actor, now)
+		if err != nil {
+			return nil, err
+		}
+		defer held.Release()
+		benchLock = held
+	}
 	migrated, err := l.Bench.MigrateDesignations(req.Acting(), now, !req.Rehearse)
 	if migrated != nil {
 		migrated.PassedClaims = passed
@@ -3247,7 +3261,7 @@ func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration
 			Actor: req.Acting(),
 			Cards: names,
 		}
-		if err := bench.AppendEvent(l.Bench.JournalPath(), ev); err != nil {
+		if err := bench.AppendEvent(benchLock, l.Bench.JournalPath(), ev); err != nil {
 			return migrated, err
 		}
 	}
@@ -3318,7 +3332,7 @@ func (l *Library) adoptWorkstreams(req *Request) ([]string, error) {
 			return adopted, err
 		}
 		ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Acting()}
-		if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
+		if err := l.appendUnderWorkstreamLock(req.Actor, now, workstream, ev); err != nil {
 			return adopted, err
 		}
 		adopted = append(adopted, id)

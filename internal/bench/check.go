@@ -43,11 +43,26 @@ const (
 	FindingPositionDiverges   = "check.position-diverges"
 	FindingMissingAnchor      = "check.missing-anchor"
 	FindingTornJournal        = "check.torn-journal"
-	FindingUnknownState       = "check.unknown-state"
-	FindingInterruptedAct     = "check.interrupted-act"
-	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
-	FindingOrdinalMissing     = "check.ordinal-missing"
-	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
+	// FindingJournalUnreadable names a journal holding a line that does
+	// not decode and is not the last line, which is damage rather than a
+	// crash's torn tail, so every read of the entity is refused
+	// dinah.journal-unreadable. Detail is the file and the one-based line
+	// number. No command deletes the line, since it may hold a comment's
+	// text; the remedy is to restore it from a backup or from git, or to
+	// delete it by hand.
+	FindingJournalUnreadable = "check.journal-unreadable"
+	// FindingJournalTornQuarantined names a sidecar a torn journal tail was
+	// moved to, which stays until a person has read it and deleted it.
+	// Detail is the sidecar's file name, which the journal_tail_trimmed
+	// line that moved it names too. SeverityCleanup: nothing reads the
+	// fragment, and it is kept only because nobody but a person can say
+	// it held nothing worth keeping.
+	FindingJournalTornQuarantined = "check.journal-torn-quarantined"
+	FindingUnknownState           = "check.unknown-state"
+	FindingInterruptedAct         = "check.interrupted-act"
+	FindingEntityAtBothPaths      = "check.entity-at-both-paths"
+	FindingOrdinalMissing         = "check.ordinal-missing"
+	FindingOrdinalDuplicate       = "check.ordinal-duplicate"
 	// FindingUnarchivedDone names a card standing live in a done-kind
 	// column. A card that reaches such a column is archived immediately
 	// (dinah-634), so a live one found there is one of three things: the
@@ -1227,8 +1242,12 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, designationFindings...)
+	findings = append(findings, tornSidecarFindings(card.Dir)...)
 	events, torn, err := ReadJournal(card.JournalPath())
 	if err != nil {
+		if refusal, ok := err.(*contract.Refusal); ok && refusal.Name == contract.JournalUnreadable {
+			findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingJournalUnreadable, Detail: refusal.Detail})
+		}
 		return findings, nil
 	}
 	if torn && tornUnderLock(card) {
@@ -1991,6 +2010,21 @@ func (b *Bench) checkRequiredFields() []Finding {
 				Detail: column.Ref() + " " + key,
 			})
 		}
+	}
+	return findings
+}
+
+// tornSidecarFindings reports every torn-tail sidecar standing in an entity's
+// directory, one finding each at cleanup severity, naming the sidecar.
+func tornSidecarFindings(dir string) []Finding {
+	var findings []Finding
+	for _, sidecar := range TornSidecars(dir) {
+		findings = append(findings, Finding{
+			Path:     sidecar,
+			Key:      FindingJournalTornQuarantined,
+			Detail:   filepath.Base(sidecar),
+			Severity: SeverityCleanup,
+		})
 	}
 	return findings
 }

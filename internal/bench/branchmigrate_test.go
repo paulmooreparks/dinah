@@ -50,9 +50,17 @@ func cardBody(extra, body string) string {
 // anchors would call a run clean that had written a journal line.
 func everyFileUnder(t *testing.T, root string) map[string]string {
 	t.Helper()
+	return everyFileUnderExcept(t, root, "")
+}
+
+// everyFileUnderExcept is everyFileUnder leaving out one file, which is a lock
+// the test itself holds open and which cannot be read while it is held on
+// Windows.
+func everyFileUnderExcept(t *testing.T, root, except string) map[string]string {
+	t.Helper()
 	files := map[string]string{}
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil || info.IsDir() || path == except {
 			return err
 		}
 		text, readErr := os.ReadFile(path)

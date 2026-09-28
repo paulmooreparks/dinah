@@ -824,6 +824,19 @@ const (
 	// refusal a user meets is named like any other even where the migration
 	// behind it carries no surface of its own.
 	StoreAwaitingMigration = LayerPrefix + "store-awaiting-migration"
+	// JournalUnlocked is an append to a journal made without the lock of the
+	// entity that journal belongs to: no lock at all, a lock already
+	// released, or the lock of another entity. It is raised before the file
+	// is opened, and it is a defect in the caller rather than a condition a
+	// person can meet, because every append path hands over the lock it
+	// holds. The detail names the journal.
+	JournalUnlocked = LayerPrefix + "journal-unlocked"
+	// JournalUnreadable is a read of an entity whose journal holds a line
+	// that does not decode and is not the last line, which is damage rather
+	// than a crash's torn tail. The detail names the file and the one-based
+	// line number. No command deletes the line, since it may hold the text
+	// of a comment.
+	JournalUnreadable = LayerPrefix + "journal-unreadable"
 	// UnknownRoute is a write naming a route the workbench does not declare.
 	// The sentence lists the routes it does declare, read off the workbench
 	// rather than written into a catalog, so a route declared later reaches
@@ -935,6 +948,7 @@ var Introduced = []string{
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
+	JournalUnlocked, JournalUnreadable,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
@@ -1286,6 +1300,11 @@ const (
 	// move or pull reclaimed it, or the workbench journal for an add or a
 	// repair.
 	EventLockReclaimed = "lock_reclaimed"
+	// EventJournalTailTrimmed records that an append found the journal ending
+	// in a fragment that does not decode, moved the fragment to the sidecar
+	// its Note names, and cut the journal back to its last whole line. It
+	// lands on whichever journal the append was made to.
+	EventJournalTailTrimmed = "journal_tail_trimmed"
 )
 
 // Events lists the event names a query over cards accepts in its event field,
@@ -1318,6 +1337,7 @@ var Events = []string{
 	EventLinked, EventUnlinked,
 	EventRenumbered,
 	EventLockReclaimed,
+	EventJournalTailTrimmed,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

@@ -293,7 +293,7 @@ func (b *Bench) FinishInterrupted(actor, now string) ([]Finding, []ClearedLock, 
 	if rootVerdict == VerdictDead {
 		cleared = append(cleared, ClearedLock{Path: rootLock, Actor: rootRecord.Actor, PID: rootRecord.PID})
 	}
-	cleared = append(cleared, b.clearDeadLocks(actor, now)...)
+	cleared = append(cleared, b.clearDeadLocks(benchLock, actor, now)...)
 	interrupted, err := b.interruptions()
 	if err != nil {
 		return nil, cleared, err

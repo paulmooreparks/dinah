@@ -1795,6 +1795,22 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.store-awaiting-migration.next"},
 	},
 	{
+		// The detail is the journal's path. Nothing a person does raises
+		// this, so the next step says what the defect is rather than how to
+		// work around it.
+		Name:      JournalUnlocked,
+		Fragments: []Fragment{{Key: "refusal.dinah.journal-unlocked.next"}},
+		NextStep:  []string{"refusal.dinah.journal-unlocked.next"},
+	},
+	{
+		// The detail is the journal's path and the one-based number of the
+		// line that does not decode, joined by a colon, which is the
+		// spelling an editor opens at.
+		Name:      JournalUnreadable,
+		Fragments: []Fragment{{Key: "refusal.dinah.journal-unreadable.next"}},
+		NextStep:  []string{"refusal.dinah.journal-unreadable.next"},
+	},
+	{
 		Name:      ObservationRequired,
 		Fragments: []Fragment{{Key: "refusal.dinah.observation-required.next"}},
 		NextStep:  []string{"refusal.dinah.observation-required.next"},

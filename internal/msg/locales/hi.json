@@ -7107,6 +7107,36 @@
       "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated, and the command line is the one invocation the sentence carries, so a reader following it types that and nothing else. The backup is named first because both migrations write in place and neither can undo itself.",
       "source": "cb34d7dd84da0e31"
     },
+    "refusal.dinah.journal-unlocked": {
+      "text": "{detail} में एक पंक्ति उस इकाई का लॉक लिए बिना जोड़ी गई जिसका यह जर्नल है।",
+      "context": "The sentence printed after the refusal name dinah.journal-unlocked. {detail} is the journal's path. Every append to a journal is made by the holder of the lock of the entity the journal belongs to, and this refusal is raised before the file is opened when a caller does not hold it.",
+      "source": "6b072f7de4b724d2"
+    },
+    "refusal.dinah.journal-unlocked.next": {
+      "text": " यह Dinah का दोष है, इससे बचकर निकलने की चीज़ नहीं; जिस कमांड ने इसे उठाया उसके साथ इसकी सूचना दें।",
+      "context": "The next step of refusal.dinah.journal-unlocked, spliced onto the sentence that named the journal. No person's act raises it, so the step asks for a report rather than naming a repair.",
+      "source": "1f0e40dcd1eab0a4"
+    },
+    "refusal.dinah.journal-unreadable": {
+      "text": "{detail} पर की जर्नल पंक्ति डिकोड नहीं होती, और वह जर्नल की अंतिम पंक्ति नहीं है।",
+      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, a colon and the one-based line number, which is the spelling an editor opens at. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves, so every read of the entity is refused.",
+      "source": "5c01dfda90f3c032"
+    },
+    "refusal.dinah.journal-unreadable.next": {
+      "text": " उस पंक्ति को किसी बैकअप से या git से वापस लाएँ, या हाथ से हटाएँ, फिर `dinah check` दोबारा चलाएँ; कोई कमांड उसे नहीं हटाता, क्योंकि उसमें किसी टिप्पणी का पाठ हो सकता है।",
+      "context": "The next step of refusal.dinah.journal-unreadable. dinah check is a command line and is not translated. The step names the hand repair because no command deletes a line that may hold a comment's text.",
+      "source": "76e37cf4e97ef4b1"
+    },
+    "check.journal-unreadable": {
+      "text": "{detail} पर की जर्नल पंक्ति डिकोड नहीं होती और वह अंतिम पंक्ति नहीं है; उसे किसी बैकअप से या git से वापस लाएँ, या हाथ से हटाएँ, और `dinah check` दोबारा चलाएँ",
+      "context": "A check finding at defect severity: a journal line that is not the last one and does not decode. {detail} is the journal's path, a colon and the one-based line number. Every read of the entity is refused while it stands, and no command deletes the line.",
+      "source": "e889d76c018e32a7"
+    },
+    "check.journal-torn-quarantined": {
+      "text": "एक जर्नल का फटा हुआ अंत {detail} में ले जाया गया; उसे पढ़ें, और जब उसमें रखने लायक कुछ न रहे तो हाथ से हटाएँ",
+      "context": "A check finding at cleanup severity: a sidecar file holding the torn tail an append moved out of a journal. {detail} is the sidecar's file name, which the journal_tail_trimmed line that moved it names too. No command deletes it, because only a person can say the fragment held nothing worth keeping.",
+      "source": "aa2648743d84b1ab"
+    },
     "check.comment-body-diverged": {
       "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

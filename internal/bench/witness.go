@@ -17,8 +17,9 @@ import (
 // column the anchor names, never the reverse. A journal that says nothing
 // about position at all is not a divergence and is left alone.
 //
-// The caller already holds the card's lock; this takes none of its own.
-func (b *Bench) WitnessDivergence(actor, now string, card *Card) (bool, error) {
+// The caller holds the card's lock and hands it over as held; this takes
+// none of its own.
+func (b *Bench) WitnessDivergence(held *Lock, actor, now string, card *Card) (bool, error) {
 	events, _, err := ReadJournal(card.JournalPath())
 	if err != nil {
 		return false, err
@@ -43,7 +44,7 @@ func (b *Bench) WitnessDivergence(actor, now string, card *Card) (bool, error) {
 		To:        card.Column,
 		ToTitle:   toTitle,
 	}
-	if err := AppendEvent(card.JournalPath(), ev); err != nil {
+	if err := AppendEvent(held, card.JournalPath(), ev); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -51,7 +52,9 @@ func (b *Bench) WitnessDivergence(actor, now string, card *Card) (bool, error) {
 
 // WriteWitnesses witnesses every live card whose anchor and journal disagree,
 // which is the batch form of the same repair the verb path performs on the
-// next touch. It returns the identifiers of the cards it wrote a line for.
+// next touch, and repairs a journal ending in a torn tail on the writer's own
+// two cases while it holds the card's lock. It returns the identifiers of the
+// cards it wrote to.
 //
 // The walk mirrors Check's own: a card a structural act is in the middle of, a
 // card with no anchor, and a card the reader refuses are each stepped over, and
@@ -87,7 +90,12 @@ func (b *Bench) WriteWitnesses(actor, now string) ([]string, []Finding, error) {
 			findings = append(findings, Finding{Path: dir, Key: unreadableCardFinding(err), Detail: id})
 			continue
 		}
-		wrote, err := b.WitnessDivergence(actor, now, card)
+		wrote, err := b.WitnessDivergence(lock, actor, now, card)
+		if err == nil {
+			var repaired bool
+			repaired, err = RepairJournalTail(lock, card.JournalPath(), actor, now)
+			wrote = wrote || repaired
+		}
 		lock.Release()
 		if err != nil {
 			return witnessed, findings, err

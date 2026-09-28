@@ -1394,14 +1394,14 @@ storage format 11
 Catalogs:
   Language  Translated
   --------  ----------
-  en        1990/1990
-  af        0/1990
-  cs        0/1990
-  de        1990/1990
-  es        0/1990
-  fil       0/1990
-  hi        1990/1990
-  id        0/1990
+  en        1996/1996
+  af        0/1996
+  cs        0/1996
+  de        1996/1996
+  es        0/1996
+  fil       0/1996
+  hi        1996/1996
+  id        0/1996
 [exit 0]
 ```
 

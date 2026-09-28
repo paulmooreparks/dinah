@@ -153,7 +153,7 @@ func (l *Library) Add(req *Request) *Response {
 	// identifier is claimed, but it is advice; this one is the answer.
 	var occupancy *bench.Lock
 	if req.Column != "" {
-		occupancy, err = l.takeOccupancy(req, destination, filepath.Join(l.Bench.Root, bench.JournalName))
+		occupancy, err = l.takeOccupancy(req, destination, filepath.Join(l.Bench.Root, bench.JournalName), lock)
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -221,7 +221,16 @@ func (l *Library) Add(req *Request) *Response {
 		To:      destination.ID,
 		ToTitle: destination.Title,
 	}
-	if err := bench.AppendEvent(filepath.Join(dir, bench.JournalName), ev); err != nil {
+	// The created line is appended under the new card's own lock, taken
+	// once the anchor has landed. No other process can know the directory
+	// yet, so the acquisition cannot contend, and it is what every append
+	// to a card's journal is made under.
+	cardLock, err := bench.Acquire(dir, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer cardLock.Release()
+	if err := bench.AppendEvent(cardLock, filepath.Join(dir, bench.JournalName), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	occupancy.Release()
@@ -243,9 +252,9 @@ func (l *Library) Add(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	// A filing is an arrival at the destination, so the column's standing
-	// items are minted here, after the created line and the registry line.
-	// No lock is needed: the card is new and nobody else can name it yet.
-	if err := l.mintStandingItems(req, card, destination, now); err != nil {
+	// items are minted here, after the created line and the registry line,
+	// under the card lock the created line was appended under.
+	if err := l.mintStandingItems(cardLock, req, card, destination, now); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, card)
@@ -309,7 +318,7 @@ func (l *Library) Comment(req *Request) *Response {
 			ev.ColumnTitle = column.Title
 		}
 	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
@@ -468,7 +477,7 @@ func (l *Library) Attach(req *Request) *Response {
 		ev.Attachment = attachment.ID
 		ev.Filename = attachment.Filename
 	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
@@ -546,7 +555,7 @@ func (l *Library) archive(req *Request, verify func() error) *Response {
 		ColumnID:  columnSubject(entity),
 		ColumnRef: columnRefSubject(entity),
 		Verify:    verify,
-		Record:    func() error { return bench.AppendEvent(journal, ev) },
+		Record:    func(locks bench.ActLocks) error { return bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
@@ -587,7 +596,7 @@ func (l *Library) Restore(req *Request) *Response {
 		Now:       now,
 		ColumnID:  columnSubject(entity),
 		ColumnRef: columnRefSubject(entity),
-		Record:    func() error { return bench.AppendEvent(journal, ev) },
+		Record:    func(locks bench.ActLocks) error { return bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
 	if err := l.Bench.Run(act); err != nil {
 		return l.FromError(req, err)
@@ -706,8 +715,8 @@ func (l *Library) Delete(req *Request) *Response {
 		ColumnRef:     columnRefSubject(entity),
 		WorkstreamID:  workstreamSubject(entity),
 		WorkstreamRef: workstreamRefSubject(entity),
-		Record: func() error {
-			if err := bench.AppendEvent(journal, ev); err != nil {
+		Record: func(locks bench.ActLocks) error {
+			if err := bench.AppendEvent(locks.For(journal), journal, ev); err != nil {
 				return err
 			}
 			if entity.Kind != bench.KindCard {
@@ -922,7 +931,7 @@ func (l *Library) Rename(req *Request) *Response {
 		From:       before.Filename,
 	}
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
@@ -1617,7 +1626,7 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 		Actor: req.Acting(),
 		Title: title,
 	}
-	if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
+	if err := l.appendUnderWorkstreamLock(req.Actor, now, workstream, ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, nil)
@@ -1626,6 +1635,35 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	response.Detail = workstream.ID
 	return response
 }
+
+// appendUnderWorkstreamLock appends a new workstream's created line under that
+// workstream's own lock, which is the lock of the entity the journal belongs
+// to. The caller holds the workbench lock, so the order is the protocol's
+// outer before inner: the workbench, then the entity. Acquire refuses rather
+// than waits, so a process never holds one lock while waiting for another. A
+// refused workstream lock unwinds the creation: the anchor the creation wrote
+// is removed, and the directory with it when nothing else stands in it, so no
+// workstream is left standing without the line that records it and whatever
+// the lock's holder put there is left alone. The caller's own deferred
+// release gives the workbench lock back.
+func (l *Library) appendUnderWorkstreamLock(actor, now string, workstream *bench.Workstream, ev bench.Event) error {
+	l.interpose(stepWorkstreamWritten)
+	held, err := bench.Acquire(workstream.Dir, actor, now)
+	if err != nil {
+		durable.Remove(filepath.Join(workstream.Dir, bench.WorkstreamAnchor))
+		if entries, readErr := os.ReadDir(workstream.Dir); readErr == nil && len(entries) == 0 {
+			durable.RemoveAll(workstream.Dir)
+		}
+		return err
+	}
+	defer held.Release()
+	return bench.AppendEvent(held, workstream.JournalPath(), ev)
+}
+
+// stepWorkstreamWritten is the Interpose window a workstream's creation and
+// its adoption open after the anchor is written and before the workstream's
+// own lock is taken for the created line.
+const stepWorkstreamWritten = "workstream-written"
 
 // AcceptDivergence ratifies a comment body somebody edited outside the tool.
 //
@@ -1666,7 +1704,7 @@ func (l *Library) AcceptDivergence(req *Request) *Response {
 		Comment: entity.ID,
 		Note:    entity.ID,
 	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
@@ -1762,7 +1800,7 @@ func (l *Library) RecordCommentEdit(req *Request) *Response {
 		Field: bench.BodyField,
 		Note:  entity.ID,
 	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)

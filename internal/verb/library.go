@@ -536,6 +536,12 @@ type Request struct {
 	// when a different workbench asks, and no walk has to clear the day
 	// before crossing.
 	day *requestDay
+	// cardLock is the card lock Do or Pull holds for the length of the act,
+	// set once the lock is taken and cleared when it is given back. commit
+	// hands it to every append it makes, and bench.AppendEvent refuses an
+	// append whose lock does not guard the card's own directory, so an act
+	// that reached commit without it is refused rather than written.
+	cardLock *bench.Lock
 }
 
 // requestDay is the day a request was answered on and the workbench it was
