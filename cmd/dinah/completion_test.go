@@ -1221,14 +1221,11 @@ func completeOnce(t *testing.T, dir string, args ...string) (time.Duration, stri
 	return took, out.String()
 }
 
-// percentile95 is the 95th percentile of twenty runs of a measurement.
-func percentile95(runs int, measure func() time.Duration) time.Duration {
-	taken := make([]time.Duration, 0, runs)
-	for i := 0; i < runs; i++ {
-		taken = append(taken, measure())
-	}
-	sort.Slice(taken, func(i, j int) bool { return taken[i] < taken[j] })
-	return taken[(runs*95+99)/100-1]
+// p95Of is the 95th percentile of durations already taken.
+func p95Of(taken []time.Duration) time.Duration {
+	sorted := append([]time.Duration(nil), taken...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	return sorted[(len(sorted)*95+99)/100-1]
 }
 
 // topLiveIDs are the ids of the n highest-numbered live cards buildLargeFixture
@@ -1303,13 +1300,21 @@ func TestTheCallbackStaysInsideItsBudget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	headersTime := percentile95(20, func() time.Duration {
+	// Each case's bound is the time of the reads it cannot avoid plus a
+	// margin. The reads are timed afresh right before every run of the case,
+	// and the case is judged on the 95th percentile of the paired
+	// differences, so the baseline and the callback it bounds always share
+	// the runner's load of the moment. Sampling the baselines once up front
+	// and comparing separately sampled p95s let a busy moment land on one
+	// sample and not the other, and a shared runner then missed the bound by
+	// a millisecond or two with nothing slower.
+	headersTime := func() time.Duration {
 		started := time.Now()
 		if _, err := opened.LiveCardHeaders(); err != nil {
 			t.Fatal(err)
 		}
 		return time.Since(started)
-	})
+	}
 	// scanIDs is every id completionCall.cards' loop visits on its way to
 	// `show dinah-`'s 200 candidates, archived numbers included, and
 	// scanArchived marks which of them firstLive finds nothing at.
@@ -1318,7 +1323,7 @@ func TestTheCallbackStaysInsideItsBudget(t *testing.T) {
 	// bench.Exists stat runs for every entry, live or archived, and title's
 	// bench.ReadCardHeader runs only for the live ones, because the shell
 	// describes its candidates.
-	headerBatchTime := percentile95(20, func() time.Duration {
+	headerBatchTime := func() time.Duration {
 		started := time.Now()
 		for i, id := range scanIDs {
 			dir := filepath.Join(opened.CardsRoot(), id)
@@ -1331,62 +1336,62 @@ func TestTheCallbackStaysInsideItsBudget(t *testing.T) {
 			}
 		}
 		return time.Since(started)
-	})
+	}
 	// statBatchTime is `show under bash`'s own read: bash never describes a
 	// candidate, so completionCall.title opens nothing and firstLive's
 	// bench.Exists stat, over the same full scan, is the only file operation.
-	statBatchTime := percentile95(20, func() time.Duration {
+	statBatchTime := func() time.Duration {
 		started := time.Now()
 		for _, id := range scanIDs {
 			bench.Exists(filepath.Join(opened.CardsRoot(), id))
 		}
 		return time.Since(started)
-	})
+	}
 	// overhead is what running the callback costs before any card-reading
 	// begins: parsing the line, opening the session and the workbench, and
 	// encoding the answer. `query priority` pays it and touches no card file
 	// at all, so timing it end to end through completeOnce is a direct
-	// measurement of that fixed cost rather than a guess, on the same terms
-	// the move case already added a flat margin on top of headersTime for.
-	overhead := percentile95(20, func() time.Duration {
+	// measurement of that fixed cost rather than a guess.
+	overhead := func() time.Duration {
 		d, _ := completeOnce(t, root, "zsh", "--", "query", "priority:")
 		return d
-	})
-	// jitter covers the sampling noise between two independently measured p95
-	// values of the same underlying work: headerBatchTime, statBatchTime and
-	// overhead are each their own 20-run sample, and the show cases below are
-	// a fourth, so comparing sums of separate samples without any margin
-	// flaps on noise alone even when the two are the same work. The move
-	// case already carries exactly this margin, at this size, in its own
-	// headersTime + 30 ms bound, for the same reason; this names the margin
-	// so both cases carry it explicitly instead of one having it by
-	// coincidence.
-	const jitter = 30 * time.Millisecond
+	}
+	// margin covers what pairing cannot: the callback's own work beyond the
+	// reads it is compared with, and the noise left between two back-to-back
+	// timings of the same work.
+	const margin = 30 * time.Millisecond
 	cases := []struct {
-		name  string
-		args  []string
-		bound time.Duration
+		name     string
+		args     []string
+		baseline func() time.Duration
 	}{
-		{"show under zsh", []string{"zsh", "--", "show", "dinah-"}, headerBatchTime + overhead + jitter},
-		{"show under bash", []string{"bash", " \t\n\"'><=;|&(:", "dinah show dinah-"}, statBatchTime + overhead + jitter},
+		{"show under zsh", []string{"zsh", "--", "show", "dinah-"}, func() time.Duration { return headerBatchTime() + overhead() }},
+		{"show under bash", []string{"bash", " \t\n\"'><=;|&(:", "dinah show dinah-"}, func() time.Duration { return statBatchTime() + overhead() }},
 		// query priority reads no card at all: QueryFieldValues answers a
 		// declared field's levels straight from the workbench definition, so
 		// nothing here calibrates it beyond overhead itself, and the flat
 		// 100 ms budget below is the only bound that applies.
-		{"query priority", []string{"zsh", "--", "query", "priority:"}, 100 * time.Millisecond},
-		{"move", []string{"zsh", "--", "move", "dinah-1", ""}, headersTime + 30*time.Millisecond},
+		{"query priority", []string{"zsh", "--", "query", "priority:"}, nil},
+		{"move", []string{"zsh", "--", "move", "dinah-1", ""}, headersTime},
 	}
 	for _, c := range cases {
-		took := percentile95(20, func() time.Duration {
+		var took, over []time.Duration
+		for i := 0; i < 20; i++ {
+			var base time.Duration
+			if c.baseline != nil {
+				base = c.baseline()
+			}
 			d, _ := completeOnce(t, root, c.args...)
-			return d
-		})
-		t.Logf("%s: p95 %v; bound %v; reading every header p95 %v; fixed overhead p95 %v", c.name, took, c.bound, headersTime, overhead)
-		if took > 100*time.Millisecond {
-			t.Errorf("%s took %v at the 95th percentile, over the 100 ms budget", c.name, took)
+			took = append(took, d)
+			over = append(over, d-base)
 		}
-		if took > c.bound {
-			t.Errorf("%s took %v at the 95th percentile, over its bound of %v", c.name, took, c.bound)
+		p95took, p95over := p95Of(took), p95Of(over)
+		t.Logf("%s: p95 %v; p95 over its paired baseline %v; margin %v", c.name, p95took, p95over, margin)
+		if p95took > 100*time.Millisecond {
+			t.Errorf("%s took %v at the 95th percentile, over the 100 ms budget", c.name, p95took)
+		}
+		if c.baseline != nil && p95over > margin {
+			t.Errorf("%s took %v more than the reads it cannot avoid at the 95th percentile, over its margin of %v", c.name, p95over, margin)
 		}
 	}
 	completeOnce(t, root, "zsh", "--", "move", "dinah-1", "")
