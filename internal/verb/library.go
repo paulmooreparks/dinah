@@ -917,22 +917,15 @@ func (l *Library) view(card *bench.Card, day *requestDay) (*CardView, error) {
 }
 
 // viewWith is view over a Positions the caller made, so a composition that
-// goes on to read the card's members reads them through the listings and the
-// anchor texts the view already took. The checklist count and the tallies
-// come from one listing of the checklist, and each item is read once for both.
+// goes on to read the card's members reads them through the record the view
+// already took. The checklist count and the tallies come from one read of the
+// card's members, and each item is read once for both.
 func (l *Library) viewWith(card *bench.Card, day *requestDay, positions *bench.Positions) (*CardView, error) {
-	listed, err := positions.ChildIDs(card.Dir, bench.KindCard)
+	counts, items, err := positions.CardCounts(l.Bench, card)
 	if err != nil {
 		return nil, err
 	}
-	counts := make(map[string]int, len(listed))
-	for mount, ids := range listed {
-		counts[mount] = len(ids)
-	}
-	tally, err := l.Bench.TallyItems(card.Dir, listed[bench.ChecklistDir], positions.Item)
-	if err != nil {
-		return nil, err
-	}
+	tally := l.Bench.TallyItems(items)
 	v := &CardView{
 		ID:       card.ID,
 		Ref:      card.Ref(l.Bench.Slug),
@@ -957,7 +950,7 @@ func (l *Library) viewWith(card *bench.Card, day *requestDay, positions *bench.P
 		Revision:        card.Revision,
 
 		AttachmentCount: counts[bench.AttachmentsDir],
-		ChecklistCount:  counts[bench.ChecklistDir],
+		ChecklistCount:  counts[bench.ChecklistSegment],
 		BlockingItems:   tally.Blocking,
 		OperatorPending: tally.AwaitingOperator,
 		ChildCount:      bench.ChildTotal(counts),

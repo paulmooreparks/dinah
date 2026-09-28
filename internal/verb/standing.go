@@ -36,7 +36,7 @@ func fileStandingItems(held *bench.Lock, req *Request, b *bench.Bench, card *ben
 	}
 	var written []bench.Event
 	for _, entry := range missing {
-		item, err := bench.AddStandingItem(card.Dir, column.ID, entry, ts)
+		item, err := b.AddStandingItem(card, column.ID, entry, ts)
 		if err != nil {
 			return written, err
 		}
@@ -50,6 +50,7 @@ func fileStandingItems(held *bench.Lock, req *Request, b *bench.Bench, card *ben
 			ColumnTitle: column.Title,
 			Standing:    entry.Key,
 		}
+		b.CompleteFiled(&ev, item)
 		if err := bench.AppendEvent(held, card.JournalPath(), ev); err != nil {
 			return written, err
 		}

@@ -1825,12 +1825,30 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.journal-unlocked.next"},
 	},
 	{
-		// The detail is the journal's path and the one-based number of the
-		// line that does not decode, joined by a colon, which is the
-		// spelling an editor opens at.
-		Name:      JournalUnreadable,
-		Fragments: []Fragment{{Key: "refusal.dinah.journal-unreadable.next"}},
-		NextStep:  []string{"refusal.dinah.journal-unreadable.next"},
+		// The detail is the journal's path, joined by a colon to the
+		// one-based number of the line that does not decode where that is
+		// the damage, which is the spelling an editor opens at. Where two
+		// members carry one identifier, member names it and lines names
+		// the two lines that established a member under it.
+		Name:   JournalUnreadable,
+		Values: []string{"member", "lines"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.journal-unreadable.member", When: "member"},
+			{Key: "refusal.dinah.journal-unreadable.line", Unless: "member"},
+			{Key: "refusal.dinah.journal-unreadable.member.next", When: "member"},
+			{Key: "refusal.dinah.journal-unreadable.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.journal-unreadable.member.next",
+			"refusal.dinah.journal-unreadable.next",
+		},
+	},
+	{
+		// The detail is the reference as typed. The next step names the
+		// command that shows the member and the file that holds it.
+		Name:      NotAFile,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-a-file.next"}},
+		NextStep:  []string{"refusal.dinah.not-a-file.next"},
 	},
 	{
 		Name:      ObservationRequired,

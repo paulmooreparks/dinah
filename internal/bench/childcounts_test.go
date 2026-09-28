@@ -24,15 +24,29 @@ func childCountsFixture(t *testing.T) string {
 	return root
 }
 
+// childCountsOf opens a fixture workbench and answers the child counts of its
+// one card.
+func childCountsOf(t *testing.T, root string) (map[string]int, error) {
+	t.Helper()
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	card, err := opened.LoadCardIn(opened.CardsRoot(), "c00000000001")
+	if err != nil {
+		t.Fatalf("load the card: %v", err)
+	}
+	return opened.ChildCounts(card)
+}
+
 // TestChildCountsAnswersOneEntryPerMountAndSumsThem asserts dinah-519
 // criteria/12's first half. The entry count is asserted beside the sum,
 // because a walk that read no mount at all answers an empty map summing to
 // zero, which is what a card holding nothing also answers.
 func TestChildCountsAnswersOneEntryPerMountAndSumsThem(t *testing.T) {
 	root := childCountsFixture(t)
-	card := filepath.Join(root, CardsDir, "c00000000001")
 
-	counts, err := ChildCounts(card, KindCard)
+	counts, err := childCountsOf(t, root)
 	if err != nil {
 		t.Fatalf("child counts over the filled card: %v", err)
 	}
@@ -44,8 +58,7 @@ func TestChildCountsAnswersOneEntryPerMountAndSumsThem(t *testing.T) {
 	}
 
 	empty := newFixture(t)
-	bare := filepath.Join(empty, CardsDir, "c00000000001")
-	counts, err = ChildCounts(bare, KindCard)
+	counts, err = childCountsOf(t, empty)
 	if err != nil {
 		t.Fatalf("child counts over the empty card: %v", err)
 	}
@@ -77,9 +90,8 @@ func TestChildCountsAnswersOneEntryPerMountAndSumsThem(t *testing.T) {
 // half of this test by name, while the first half stays green.
 func TestChildCountsAnswersTheMountsTheGrammarDeclares(t *testing.T) {
 	root := childCountsFixture(t)
-	card := filepath.Join(root, CardsDir, "c00000000001")
 
-	counts, err := ChildCounts(card, KindCard)
+	counts, err := childCountsOf(t, root)
 	if err != nil {
 		t.Fatalf("child counts: %v", err)
 	}
@@ -100,9 +112,10 @@ func TestChildCountsAnswersTheMountsTheGrammarDeclares(t *testing.T) {
 	containment[KindCard] = append(append([]Mount{}, restore...), Mount{
 		Dir: grown, Kind: "sketch", Anchor: "sketch.md",
 	})
+	card := filepath.Join(root, CardsDir, "c00000000001")
 	write(t, filepath.Join(card, grown, "a00000000007", "sketch.md"), "---\n---\nA sketch.\n")
 
-	counts, err = ChildCounts(card, KindCard)
+	counts, err = childCountsOf(t, root)
 	if err != nil {
 		t.Fatalf("child counts over the grown grammar: %v", err)
 	}

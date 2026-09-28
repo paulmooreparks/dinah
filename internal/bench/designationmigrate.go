@@ -301,6 +301,9 @@ func (b *Bench) everyItem(card *Card) ([]*Item, error) {
 		return nil, err
 	}
 	archived, err := Items(filepath.Join(card.Dir, ArchiveDir))
+	for _, item := range archived {
+		item.Archived = true
+	}
 	if err != nil {
 		return items, nil
 	}
@@ -316,7 +319,7 @@ func (b *Bench) itemDirOf(card *Card, ref string) (string, bool) {
 	}
 	for _, item := range items {
 		if b.itemRefOf(card, item) == ref {
-			return item.Dir, true
+			return item.dir, true
 		}
 	}
 	return "", false
@@ -493,7 +496,7 @@ func (b *Bench) commentsOfItem(item *Item) map[string]designatedComment {
 	for _, half := range []struct {
 		dir      string
 		archived bool
-	}{{item.Dir, false}, {filepath.Join(item.Dir, ArchiveDir), true}} {
+	}{{item.dir, false}, {filepath.Join(item.dir, ArchiveDir), true}} {
 		comments, err := Comments(half.dir)
 		if err != nil {
 			continue
@@ -522,7 +525,7 @@ func (b *Bench) commentsElsewhere(card *Card, item *Item) map[string]bool {
 			if other.ID == item.ID {
 				continue
 			}
-			holders = append(holders, other.Dir, filepath.Join(other.Dir, ArchiveDir))
+			holders = append(holders, other.dir, filepath.Join(other.dir, ArchiveDir))
 		}
 	}
 	for _, holder := range holders {
@@ -545,7 +548,7 @@ func (b *Bench) commentAtPosition(item *Item, resolution string) (designatedComm
 	if !ok {
 		return designatedComment{}, false
 	}
-	comments, err := Comments(item.Dir)
+	comments, err := Comments(item.dir)
 	if err != nil || ordinal < 1 || ordinal > len(comments) {
 		return designatedComment{}, false
 	}

@@ -480,7 +480,7 @@ func (l *Library) admitDesignationClear(req *Request, entity *bench.EntityRef, f
 	if entity.Kind != bench.KindItem || field.Name != bench.ItemResolutionField || value != "" {
 		return nil
 	}
-	item, err := bench.LoadItem(entity.Dir)
+	item, err := l.itemOf(entity)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -694,6 +694,9 @@ func storedHold(typed string) string {
 // it did not touch, which is CORE-CARD-9's guarantee for a key this build has
 // never heard of.
 func (l *Library) entityAnchor(entity *bench.EntityRef) (*bench.Frontmatter, string, error) {
+	if entity.Kind == bench.KindComment || entity.Kind == bench.KindItem {
+		return l.Bench.MemberAnchor(entity)
+	}
 	path, declared := bench.AnchorPathOf(entity)
 	if !declared {
 		return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
@@ -763,23 +766,23 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 		response.Detail = value
 		return response
 	}
-	// entityAnchor above has already refused a kind declaring no anchor, so
-	// this reads the same join rather than guarding it a second time; the
-	// second answer is checked because swallowing it is what let a caller
-	// join an empty filename and get a directory back.
-	path, declared := bench.AnchorPathOf(entity)
-	if !declared {
-		return l.FromError(req, contract.Refuse(contract.UnknownPath, entity.Ref))
-	}
-	// A comment's anchor is written through bench.WriteCommentAnchor and
-	// through nothing else, which is what makes "the digest is recomputed by
-	// every verb that writes the anchor" a property of one function rather
-	// than a rule each call site has to remember. This site used to stamp
-	// the digest and then write the file itself, which held the property by
-	// remembering it here.
-	write := func() error { return bench.WriteText(path, fm.Render(body)) }
-	if entity.Kind == bench.KindComment {
-		write = func() error { return bench.WriteCommentAnchor(entity.Dir, fm, body) }
+	// A comment's and an item's anchor is written through the member writer
+	// and through nothing else, which stamps a comment's digest on the old
+	// layout and writes nothing in the card-unit layout, where the line below
+	// is the change. Every other kind's anchor is the file entityAnchor read.
+	member := entity.Kind == bench.KindComment || entity.Kind == bench.KindItem
+	write := func() error { return l.Bench.WriteMemberAnchor(entity, fm, body) }
+	if !member {
+		// entityAnchor above has already refused a kind declaring no
+		// anchor, so this reads the same join rather than guarding it a
+		// second time; the second answer is checked because swallowing it
+		// is what let a caller join an empty filename and get a directory
+		// back.
+		path, declared := bench.AnchorPathOf(entity)
+		if !declared {
+			return l.FromError(req, contract.Refuse(contract.UnknownPath, entity.Ref))
+		}
+		write = func() error { return bench.WriteText(path, fm.Render(body)) }
 	}
 	if err := write(); err != nil {
 		return l.FromError(req, err)
@@ -787,6 +790,9 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	ev := fieldEvent(req, entity, target, was, value)
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
 	ev.TS = now
+	if member {
+		l.Bench.CompleteMemberLine(&ev, entity, fm, body)
+	}
 	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
@@ -929,10 +935,7 @@ func (l *Library) admitResolutionValue(req *Request, entity *bench.EntityRef, va
 	if err != nil {
 		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
-	if found.Kind != bench.KindComment {
-		return l.refuse(req, entity.Card, contract.NotADesignation, value)
-	}
-	if !sameDir(filepath.Dir(filepath.Dir(found.Dir)), entity.Dir) {
+	if !hangsOn(found, entity.Card, entity.ID) {
 		return l.refuse(req, entity.Card, contract.NotADesignation, value)
 	}
 	return nil
@@ -1016,12 +1019,8 @@ func (l *Library) admitCommentWrite(req *Request, entity *bench.EntityRef, fm *b
 // the item in the same slot, because the two acts meet one rule: an answer of
 // record cannot be changed or destroyed while it is still the answer.
 func (l *Library) admitDesignatedCommentWrite(req *Request, entity *bench.EntityRef) *Response {
-	if entity.Kind != bench.KindComment || entity.Card == nil {
-		return nil
-	}
-	holder := filepath.Dir(filepath.Dir(entity.Dir))
-	item, err := bench.LoadItem(holder)
-	if err != nil || item.Resolution != entity.ID {
+	item, _ := l.designatingItem(entity)
+	if item == nil {
 		return nil
 	}
 	named, err := l.itemCanonicalRef(entity.Card, item.ID)

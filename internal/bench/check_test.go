@@ -2048,7 +2048,7 @@ func TestAWriteBeforeTheMigrationKeepsItsPlaceInTheOrder(t *testing.T) {
 	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
 	appendText(t, journal, commentedEvent("e00000000005", "2026-08-17T09:02:00Z"))
 
-	third, err := AddComment(cardDir, "alka", "2026-08-17T09:03:00Z", "written third")
+	third, err := legacyAddComment(cardDir, "alka", "2026-08-17T09:03:00Z", "written third")
 	if err != nil {
 		t.Fatalf("comment: %v", err)
 	}

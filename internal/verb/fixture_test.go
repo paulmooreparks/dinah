@@ -291,6 +291,17 @@ func (h *harness) card(ref string) *bench.Card {
 	return found.Card
 }
 
+// designatedComment answers the comment an item of card designates as its
+// answer, read from the card's record, and false where it designates none.
+func (h *harness) designatedComment(card *bench.Card, item *bench.Item) (*bench.Comment, bool) {
+	h.t.Helper()
+	record, err := h.library.Bench.LoadCardRecord(card)
+	if err != nil {
+		h.t.Fatalf("read the record of %s: %v", card.ID, err)
+	}
+	return record.Designated(item)
+}
+
 // renumber rewrites a card's creation ordinal, which is how a test builds a
 // fixture whose ordinal order and identifier order disagree. Nothing in the
 // tool offers this, because a number is set at birth and never reused. The

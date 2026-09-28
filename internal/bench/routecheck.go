@@ -136,19 +136,16 @@ func (b *Bench) checkCardRoute(card *Card) []Finding {
 //
 // An item naming no column names nothing to be off the route, and a card on the
 // default route walks every column, so neither reaches the report.
-func (b *Bench) checkItemRoutes(card *Card) ([]Finding, error) {
+func (b *Bench) checkItemRoutes(card *Card, record *CardRecord) []Finding {
 	route := b.DeclaredRouteOf(card)
 	if route == nil {
-		return nil, nil
-	}
-	holding, err := itemsWhere(card.Dir, func(item *Item) bool {
-		return item.Column != "" && !ItemLiftsColumnHold(item)
-	})
-	if err != nil {
-		return nil, err
+		return nil
 	}
 	var findings []Finding
-	for _, item := range holding {
+	for _, item := range record.ItemsIn(LiveHalf, "") {
+		if item.Column == "" || ItemLiftsColumnHold(item) {
+			continue
+		}
 		named := b.ColumnByRef(item.Column)
 		// A column value that resolves to nothing is checkItemColumns'
 		// finding, whose repair is a different one.
@@ -156,12 +153,12 @@ func (b *Bench) checkItemRoutes(card *Card) ([]Finding, error) {
 			continue
 		}
 		findings = append(findings, Finding{
-			Path:   filepath.Join(item.Dir, ItemAnchor),
+			Path:   record.FileOf(KindItem, item.ID),
 			Key:    FindingItemOffRoute,
 			Detail: card.Ref(b.Slug) + " " + item.ID + " " + named.Ref(),
 		})
 	}
-	return findings, nil
+	return findings
 }
 
 // StrandedItemOf returns the first item of a card whose state does not release
@@ -183,7 +180,7 @@ func (b *Bench) StrandedItemOf(card *Card, route string) (*Item, *Column, error)
 		return nil, nil, nil
 	}
 	carried := RouteColumnsIn(ids, b.Columns)
-	holding, err := itemsWhere(card.Dir, func(item *Item) bool {
+	holding, err := b.itemsWhere(card, func(item *Item) bool {
 		return item.Column != "" && !ItemLiftsColumnHold(item)
 	})
 	if err != nil {

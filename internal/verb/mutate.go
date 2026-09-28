@@ -339,7 +339,7 @@ func (l *Library) canClaim(req *Request, card *bench.Card) *Response {
 // side, so pull's own row answers the same way at the column the card leaves
 // and at the column it lands in.
 func (l *Library) claimableItems(req *Request, card *bench.Card) *Response {
-	blocking, err := l.Bench.BlockingItems(card.Dir)
+	blocking, err := l.Bench.BlockingItems(card)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -606,7 +606,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// about what to go and settle.
 	gateHeld := false
 	if destination.HoldsOnEntry() {
-		holding, err := bench.GatingItems(card.Dir, destination.ID)
+		holding, err := l.Bench.GatingItems(card, destination.ID)
 		if err != nil {
 			return false, nil, err
 		}
@@ -672,7 +672,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// is escaped by sending the card back upstream.
 	exitGateHeld := false
 	if departure != nil && departure.HoldsOnExit() && !regressive {
-		holding, err := bench.GatingItems(card.Dir, departure.ID)
+		holding, err := l.Bench.GatingItems(card, departure.ID)
 		if err != nil {
 			return false, nil, err
 		}
@@ -991,7 +991,7 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 		}
 		return response
 	}
-	comment, err := bench.AddComment(card.Dir, req.Actor, now, reason)
+	comment, err := l.Bench.AddComment(bench.MemberHolder{Card: card}, req.Actor, now, reason)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -1001,6 +1001,7 @@ func (l *Library) unblock(req *Request, card *bench.Card) *Response {
 		Actor:   req.Acting(),
 		Comment: comment.ID,
 	}
+	l.Bench.CompleteCommented(&commented, comment)
 	ev.Reason = reason
 	ev.Comment = comment.ID
 	response, err := l.commit(req, card, commented, ev)

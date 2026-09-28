@@ -464,7 +464,7 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 	}
 	plan.stranded = strandedCards(plan, fresh, cards, retiring)
 	for _, entry := range plan.retirements {
-		count, err := countStandingInstances(cards, entry.id)
+		count, err := countStandingInstances(fresh, cards, entry.id)
 		if err != nil {
 			return nil, err
 		}
@@ -476,10 +476,10 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 // countStandingInstances counts the pending standing-item instances naming one
 // retiring column across every live card, which is what the write phase's
 // withdrawal step will withdraw and what the preview reports for it.
-func countStandingInstances(cards []*bench.Card, retiring string) (int, error) {
+func countStandingInstances(b *bench.Bench, cards []*bench.Card, retiring string) (int, error) {
 	count := 0
 	for _, card := range cards {
-		instances, err := bench.PendingStandingInstances(card.Dir, retiring)
+		instances, err := b.PendingStandingInstances(card, retiring)
 		if err != nil {
 			return 0, err
 		}
@@ -1294,8 +1294,12 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 	}
 	for _, id := range ids {
 		dir := filepath.Join(l.Bench.CardsRoot(), id)
+		card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id)
+		if err != nil {
+			return withdrawn, err
+		}
 		for _, entry := range plan.retirements {
-			instances, err := bench.StandingInstancesOwedAWithdrawal(dir, entry.id)
+			instances, err := l.Bench.StandingInstancesOwedAWithdrawal(card, entry.id)
 			if err != nil {
 				return withdrawn, err
 			}
@@ -1306,7 +1310,7 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 			if err != nil {
 				return withdrawn, err
 			}
-			count, err := l.withdrawInstancesOf(cardLock, req, dir, entry, now)
+			count, err := l.withdrawInstancesOf(cardLock, req, card, entry, now)
 			cardLock.Release()
 			withdrawn[entry.id] += count
 			if err != nil {
@@ -1334,12 +1338,12 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 // it, and writes the two lines it is owed, keyed on the anchor's own record of
 // which comment settled it, so the journal ends up carrying exactly one
 // withdrawal for the instance.
-func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, cardDir string, entry *reshapeRetirement, now string) (int, error) {
-	instances, err := bench.StandingInstancesOwedAWithdrawal(cardDir, entry.id)
+func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, card *bench.Card, entry *reshapeRetirement, now string) (int, error) {
+	instances, err := l.Bench.StandingInstancesOwedAWithdrawal(card, entry.id)
 	if err != nil {
 		return 0, err
 	}
-	journal := filepath.Join(cardDir, bench.JournalName)
+	journal := card.JournalPath()
 	title := reshapeDepartureTitle(entry)
 	if title == "" {
 		title = entry.id
@@ -1347,21 +1351,25 @@ func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, cardDir st
 	text := msg.For(msg.Base).T("reshape.standing-withdrawn", "column", title)
 	count := 0
 	for _, instance := range instances {
-		var designated string
-		if instance.State == bench.ItemWithdrawn {
-			designated = instance.Resolution
-		} else {
-			comment, err := bench.AddComment(instance.Dir, req.Actor, now, text)
-			if err != nil {
-				return count, err
-			}
-			fm, body, err := bench.ReadItemAnchor(instance.Dir)
+		record, err := l.Bench.LoadCardRecord(card)
+		if err != nil {
+			return count, err
+		}
+		entity := record.ItemEntity(instance, "")
+		fm, body, err := l.Bench.MemberAnchor(entity)
+		if err != nil {
+			return count, err
+		}
+		var comment *bench.Comment
+		designated := instance.Resolution
+		if instance.State != bench.ItemWithdrawn {
+			comment, err = l.Bench.AddComment(bench.MemberHolder{Card: card, Item: instance.ID}, req.Actor, now, text)
 			if err != nil {
 				return count, err
 			}
 			fm.Set(bench.ItemStateField, bench.ItemWithdrawn)
 			fm.Set(bench.ItemResolutionField, comment.ID)
-			if err := bench.WriteItemAnchor(instance.Dir, fm, body); err != nil {
+			if err := l.Bench.WriteMemberAnchor(entity, fm, body); err != nil {
 				return count, err
 			}
 			designated = comment.ID
@@ -1373,6 +1381,9 @@ func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, cardDir st
 			Actor:   req.Acting(),
 			Item:    instance.ID,
 			Comment: designated,
+		}
+		if comment != nil {
+			l.Bench.CompleteCommented(&commented, comment)
 		}
 		if err := bench.AppendEvent(held, journal, commented); err != nil {
 			return count, err
@@ -1386,6 +1397,7 @@ func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, cardDir st
 			To:      bench.ItemWithdrawn,
 			Reshape: true,
 		}
+		l.Bench.CompleteMemberLine(&withdrawnLine, entity, fm, body)
 		if err := bench.AppendEvent(held, journal, withdrawnLine); err != nil {
 			return count, err
 		}

@@ -228,7 +228,7 @@ func TestCommentAndAttach(t *testing.T) {
 		t.Fatalf("attach to a comment: %s %s", below.Outcome, below.Refusal)
 	}
 	h.reopen()
-	onComment, err := bench.LoadAttachment(filepath.Join(comments[0].Dir, bench.AttachmentsDir, below.Detail))
+	onComment, err := bench.LoadAttachment(filepath.Join(comments[0].Home, bench.AttachmentsDir, below.Detail))
 	if err != nil {
 		t.Fatalf("load the comment's attachment: %v", err)
 	}

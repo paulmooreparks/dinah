@@ -1045,26 +1045,23 @@ func (b *Bench) checkTierOverrides(card *Card) []Finding {
 // It reads rather than repairs, as checkTierOverrides does and as everything
 // else in this file does. The repair is a write through the field, which
 // resolves the spelling it is given and refuses one that resolves to nothing.
-func (b *Bench) checkItemColumns(card *Card) ([]Finding, error) {
+func (b *Bench) checkItemColumns(card *Card, record *CardRecord) []Finding {
 	var findings []Finding
-	named, err := itemsWhere(card.Dir, func(item *Item) bool {
-		return item.Column != "" && item.State != ItemWithdrawn
-	})
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range named {
+	for _, item := range record.ItemsIn(LiveHalf, "") {
+		if item.Column == "" || item.State == ItemWithdrawn {
+			continue
+		}
 		resolved := b.ColumnByRef(item.Column)
 		if resolved != nil && resolved.ID == item.Column {
 			continue
 		}
 		findings = append(findings, Finding{
-			Path:   filepath.Join(item.Dir, ItemAnchor),
+			Path:   record.FileOf(KindItem, item.ID),
 			Key:    FindingItemColumnUnresolved,
 			Detail: card.Ref(b.Slug) + " " + item.ID + " " + item.Column,
 		})
 	}
-	return findings, nil
+	return findings
 }
 
 // kindStandsWrong reports whether one column's kind is disallowed at the
@@ -1185,21 +1182,30 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	}
 	findings = append(findings, b.checkTierOverrides(card)...)
 	findings = append(findings, b.checkCardRoute(card)...)
-	itemColumnFindings, err := b.checkItemColumns(card)
+	// The card's members are read once for every check below that asks about
+	// them. A record that will not read is its own finding, and the member
+	// checks are passed over rather than reporting a card with no members.
+	record, err := b.LoadCardRecord(card)
 	if err != nil {
-		return findings, err
+		refusal, ok := err.(*contract.Refusal)
+		if !ok || refusal.Name != contract.JournalUnreadable {
+			return findings, err
+		}
+		finding := Finding{Path: card.JournalPath(), Key: FindingJournalUnreadable, Detail: refusal.Detail}
+		if member := refusal.Extra["member"]; member != "" {
+			finding.Key, finding.Detail = FindingMemberIDCollision, member+": "+refusal.Extra["lines"]
+		}
+		findings = append(findings, finding)
+		findings = append(findings, tornSidecarFindings(card.Dir)...)
+		return findings, nil
 	}
-	findings = append(findings, itemColumnFindings...)
-	standingFindings, err := b.checkStandingItems(card)
+	findings = append(findings, b.checkItemColumns(card, record)...)
+	standingFindings, err := b.checkStandingItems(card, record)
 	if err != nil {
 		return findings, err
 	}
 	findings = append(findings, standingFindings...)
-	itemRouteFindings, err := b.checkItemRoutes(card)
-	if err != nil {
-		return findings, err
-	}
-	findings = append(findings, itemRouteFindings...)
+	findings = append(findings, b.checkItemRoutes(card, record)...)
 	// A card carrying no registry line is checkCardNumbers' finding rather
 	// than this walk's, because the line lives in the registry file rather
 	// than in the anchor this walk reads. checkCardNumbers itself only runs
@@ -1227,21 +1233,14 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, filenameFindings...)
-	commentFindings, err := b.checkComments(card)
-	if err != nil {
-		return findings, err
-	}
-	findings = append(findings, commentFindings...)
+	findings = append(findings, b.checkComments(card, record)...)
 	noteFindings, err := b.checkRetiredNotes(card)
 	if err != nil {
 		return findings, err
 	}
 	findings = append(findings, noteFindings...)
-	designationFindings, err := b.checkMissingDesignations(card)
-	if err != nil {
-		return findings, err
-	}
-	findings = append(findings, designationFindings...)
+	findings = append(findings, b.checkMissingDesignations(record)...)
+	findings = append(findings, b.checkReplayedMembers(card, record)...)
 	findings = append(findings, tornSidecarFindings(card.Dir)...)
 	events, torn, err := ReadJournal(card.JournalPath())
 	if err != nil {
@@ -1598,7 +1597,7 @@ func unreadableCardFinding(err error) string {
 // and the item sweep runs only where the workbench declares an evidence block
 // at all, because where none is declared Cite accepts any scheme and an item
 // naming one is in the same position as a citation naming one.
-func (b *Bench) checkStandingItems(card *Card) ([]Finding, error) {
+func (b *Bench) checkStandingItems(card *Card, record *CardRecord) ([]Finding, error) {
 	var findings []Finding
 	if column := b.Column(card.Column); column != nil {
 		missing, err := b.MissingStandingItems(card, column)
@@ -1618,15 +1617,12 @@ func (b *Bench) checkStandingItems(card *Card) ([]Finding, error) {
 		return findings, nil
 	}
 	declared := b.EvidenceSchemes()
-	demanding, err := itemsWhere(card.Dir, func(item *Item) bool {
-		return item.Evidence != "" && !declared[item.Evidence]
-	})
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range demanding {
+	for _, item := range record.ItemsIn(LiveHalf, "") {
+		if item.Evidence == "" || declared[item.Evidence] {
+			continue
+		}
 		findings = append(findings, Finding{
-			Path:     filepath.Join(item.Dir, ItemAnchor),
+			Path:     record.FileOf(KindItem, item.ID),
 			Key:      FindingEvidenceSchemeUndeclared,
 			Detail:   card.Ref(b.Slug) + " " + item.ID + " " + item.Evidence,
 			Severity: SeverityCleanup,

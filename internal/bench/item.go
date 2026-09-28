@@ -2,11 +2,7 @@ package bench
 
 import (
 	"encoding/json"
-	"path/filepath"
-	"strconv"
 	"strings"
-
-	"dinah/internal/contract"
 )
 
 // The frontmatter keys a checklist item carries, per docs/design/format.md's
@@ -128,109 +124,6 @@ type Citation struct {
 	// both empty where the entry records none.
 	Before string
 	After  string
-}
-
-// AddItem writes a checklist item under a card and returns it. The caller
-// holds the card's lock, which is what makes the ordinal scan race-free, and
-// the sequence mirrors AddComment's exactly.
-//
-// The column and the owner are written only when the caller supplies one.
-// Absence is legal for both, on the terms severity and priority already
-// follow. A column that is supplied arrives resolved to its identifier,
-// because GatingItems matches on the identifier and a caller's own spelling
-// would match nothing there; File is where that resolution happens, and this
-// writer takes the value it is given.
-func AddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
-	collection := filepath.Join(cardDir, ChecklistDir)
-	id, err := ClaimID(collection, nil)
-	if err != nil {
-		return nil, err
-	}
-	ordinal, err := nextOrdinal(collection, ItemAnchor)
-	if err != nil {
-		return nil, err
-	}
-	dir := filepath.Join(collection, id)
-	fm := NewFrontmatter()
-	fm.Set(ItemKindField, kind)
-	fm.Set(ItemStateField, ItemPending)
-	if column != "" {
-		fm.Set(ItemColumnField, column)
-	}
-	if owner != "" {
-		fm.Set(ItemOwnerField, owner)
-	}
-	fm.Set("ts", ts)
-	fm.Set(OrdinalField, strconv.Itoa(ordinal))
-	if err := WriteText(filepath.Join(dir, ItemAnchor), fm.Render(text)); err != nil {
-		return nil, err
-	}
-	return &Item{ID: id, Dir: dir, Kind: kind, State: ItemPending}, nil
-}
-
-// AddStandingItem writes one instance of a standing entry under a card, on
-// AddItem's own terms: the caller holds the card's lock. It writes the entry's
-// kind, the pending state, the declaring column, the owner where the entry
-// declares one, the standing key, the evidence scheme where the entry declares
-// one, the stamp and the ordinal, and the entry's text as the body, which is a
-// copy taken at minting so one card's instance can be edited without touching
-// every other card's.
-func AddStandingItem(cardDir, columnID string, entry StandingItem, ts string) (*Item, error) {
-	collection := filepath.Join(cardDir, ChecklistDir)
-	id, err := ClaimID(collection, nil)
-	if err != nil {
-		return nil, err
-	}
-	ordinal, err := nextOrdinal(collection, ItemAnchor)
-	if err != nil {
-		return nil, err
-	}
-	dir := filepath.Join(collection, id)
-	fm := NewFrontmatter()
-	fm.Set(ItemKindField, entry.Kind)
-	fm.Set(ItemStateField, ItemPending)
-	fm.Set(ItemColumnField, columnID)
-	if entry.Owner != "" {
-		fm.Set(ItemOwnerField, entry.Owner)
-	}
-	fm.Set(ItemStandingField, entry.Key)
-	if entry.Evidence != "" {
-		fm.Set(ItemEvidenceField, entry.Evidence)
-	}
-	fm.Set("ts", ts)
-	fm.Set(OrdinalField, strconv.Itoa(ordinal))
-	if err := WriteText(filepath.Join(dir, ItemAnchor), fm.Render(entry.Text)); err != nil {
-		return nil, err
-	}
-	return &Item{
-		ID:       id,
-		Dir:      dir,
-		Kind:     entry.Kind,
-		State:    ItemPending,
-		Column:   columnID,
-		Owner:    entry.Owner,
-		Standing: entry.Key,
-		Evidence: entry.Evidence,
-		Text:     entry.Text,
-	}, nil
-}
-
-// ReadItemAnchor opens an item's anchor for a write, returning its whole
-// header and its body rather than the two fields LoadItem reads. A write has
-// to put back every key it did not touch, which is what reading the header
-// rather than the entity gives it.
-func ReadItemAnchor(dir string) (*Frontmatter, string, error) {
-	text, err := ReadText(filepath.Join(dir, ItemAnchor))
-	if err != nil {
-		return nil, "", contract.Refuse(contract.UnknownPath, dir)
-	}
-	fm, body := ParseAnchor(text)
-	return fm, body, nil
-}
-
-// WriteItemAnchor rewrites an item's anchor from a header and a body.
-func WriteItemAnchor(dir string, fm *Frontmatter, body string) error {
-	return WriteText(filepath.Join(dir, ItemAnchor), fm.Render(body))
 }
 
 // CountCitations reports how many entries an item's citations sequence

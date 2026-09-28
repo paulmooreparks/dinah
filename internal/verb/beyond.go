@@ -294,7 +294,8 @@ func (l *Library) Comment(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	comment, err := bench.AddComment(entity.Dir, req.Actor, now, req.Text)
+	holder, _ := bench.HolderOf(entity)
+	comment, err := l.Bench.AddComment(holder, req.Actor, now, req.Text)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -304,6 +305,7 @@ func (l *Library) Comment(req *Request) *Response {
 		Actor:   req.Acting(),
 		Comment: comment.ID,
 	}
+	l.Bench.CompleteCommented(&ev, comment)
 	// A commented line carries one locator naming the holder, and a line
 	// carrying none means the holder is the journal's own entity. An item
 	// comment carries the item, a column comment carries the column and its
@@ -419,7 +421,11 @@ func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) 
 	if holder == "" {
 		return comment.ID
 	}
-	ordinal, err := memberPosition(comment.Dir, bench.CommentAnchor)
+	held, ok := bench.HolderOf(entity)
+	if !ok {
+		return comment.ID
+	}
+	ordinal, err := l.Bench.CommentPosition(held, comment.ID)
 	if err != nil || ordinal == 0 {
 		return comment.ID
 	}
@@ -546,6 +552,7 @@ func (l *Library) archive(req *Request, verify func() error) *Response {
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Acting(), Note: entity.ID}
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
+	l.Bench.CompleteMemberLine(&ev, entity, nil, "")
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -557,7 +564,7 @@ func (l *Library) archive(req *Request, verify func() error) *Response {
 		Verify:    verify,
 		Record:    func(locks bench.ActLocks) error { return bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
-	if err := l.Bench.Run(act); err != nil {
+	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, nil)
@@ -588,6 +595,7 @@ func (l *Library) Restore(req *Request) *Response {
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventRestored, Actor: req.Acting(), Note: entity.ID}
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
+	l.Bench.CompleteMemberLine(&ev, entity, nil, "")
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -598,7 +606,7 @@ func (l *Library) Restore(req *Request) *Response {
 		ColumnRef: columnRefSubject(entity),
 		Record:    func(locks bench.ActLocks) error { return bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
-	if err := l.Bench.Run(act); err != nil {
+	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, nil)
@@ -705,6 +713,7 @@ func (l *Library) Delete(req *Request) *Response {
 	}
 	now := bench.Stamp(l.Now())
 	journal, ev := l.removalRecord(req, entity, now)
+	l.Bench.CompleteMemberLine(&ev, entity, nil, "")
 	act := &bench.StructuralAct{
 		Dir:           entity.Dir,
 		LockDir:       l.lockDirFor(entity),
@@ -725,7 +734,7 @@ func (l *Library) Delete(req *Request) *Response {
 			return l.tombstoneNumber(entity.ID)
 		},
 	}
-	if err := l.Bench.Run(act); err != nil {
+	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
 	if entity.Kind == bench.KindCard {
@@ -764,20 +773,8 @@ func (l *Library) Delete(req *Request) *Response {
 // there. A force that did not respect that would be a way to unsettle an
 // operator's ruling without being the operator.
 func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*designatedBy, *Response) {
-	if entity.Kind != bench.KindComment || entity.Card == nil {
-		return nil, nil
-	}
-	holder := filepath.Dir(filepath.Dir(entity.Dir))
-	item, err := bench.LoadItem(holder)
-	if err != nil || item.Resolution == "" {
-		return nil, nil
-	}
-	// The stored value is the comment's own identifier, so the comparison is
-	// against this entity's own directory name with no resolution step and
-	// nothing to go stale. It used to resolve the stored reference and
-	// compare directories, which is what a positional designation obliged it
-	// to do.
-	if item.Resolution != entity.ID {
+	item, record := l.designatingItem(entity)
+	if item == nil {
 		return nil, nil
 	}
 	// Composed before the refusal rather than after it, because the refusal
@@ -804,11 +801,29 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 	// The reference is composed under the item's own canonical spelling
 	// rather than taken from the resolver's, so the reason a reader meets in
 	// the journal is the address that item's comments answer to.
-	ordinal, err := memberPosition(entity.Dir, bench.CommentAnchor)
-	if err != nil {
-		return nil, l.FromError(req, err)
-	}
+	ordinal := record.Position(bench.MemberCollection{Kind: bench.KindComment, Holder: item.ID}, bench.LiveHalf, entity.ID)
 	return &designatedBy{item: named, designation: commentRef(named, ordinal)}, nil
+}
+
+// designatingItem answers the item a comment is the answer of record for,
+// together with the card's record, and nil where no item designates it. A
+// designation names a comment of the very item that carries it, so the only
+// item that can designate a comment is the one it hangs on, and the stored
+// value is the comment's own identifier, so the comparison has no resolution
+// step and nothing to go stale.
+func (l *Library) designatingItem(entity *bench.EntityRef) (*bench.Item, *bench.CardRecord) {
+	if entity.Kind != bench.KindComment || entity.Card == nil || entity.Holder == "" {
+		return nil, nil
+	}
+	record, err := l.Bench.LoadCardRecord(entity.Card)
+	if err != nil {
+		return nil, nil
+	}
+	item, found := record.Item(entity.Holder)
+	if !found || item.Resolution == "" || item.Resolution != entity.ID {
+		return nil, nil
+	}
+	return item, record
 }
 
 // designatedBy is the item a comment being deleted is the answer of record
@@ -1211,7 +1226,7 @@ func (l *Library) operatorOnlyRemoval(entity *bench.EntityRef) bool {
 	if entity.Kind != bench.KindItem {
 		return false
 	}
-	item, err := bench.LoadItem(entity.Dir)
+	item, err := l.itemOf(entity)
 	if err != nil {
 		// An item whose anchor will not open cannot be shown to be
 		// unprotected, and the safe direction here is the reserved one: a
@@ -1322,7 +1337,7 @@ func (l *Library) removalRecord(req *Request, entity *bench.EntityRef, now strin
 	// which rules it was judged under, and a reader of the journal meeting
 	// this line has no other source for either.
 	if entity.Kind == bench.KindItem {
-		if item, err := bench.LoadItem(entity.Dir); err == nil {
+		if item, err := l.itemOf(entity); err == nil {
 			ev.Kind = item.Kind
 		}
 	}
@@ -1345,7 +1360,7 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 	// text, and a journal line saying that something with an identifier went
 	// away says nothing about what that thing required.
 	if entity.Kind == bench.KindItem {
-		item, err := bench.LoadItem(entity.Dir)
+		item, err := l.itemOf(entity)
 		if err != nil {
 			return ""
 		}
@@ -1690,11 +1705,11 @@ func (l *Library) AcceptDivergence(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	fm, body, err := bench.ReadCommentAnchor(entity.Dir)
+	fm, body, err := l.Bench.MemberAnchor(entity)
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	if err := bench.WriteCommentAnchor(entity.Dir, fm, body); err != nil {
+	if err := l.Bench.WriteMemberAnchor(entity, fm, body); err != nil {
 		return l.FromError(req, err)
 	}
 	ev := bench.Event{

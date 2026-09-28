@@ -5678,8 +5678,8 @@
       "context": "The next step of refusal.dinah.journal-unlocked, spliced onto the sentence that named the journal. No person's act raises it, so the step asks for a report rather than naming a repair."
     },
     "refusal.dinah.journal-unreadable": {
-      "text": "The journal line at {detail} does not decode, and it is not the journal's last line.",
-      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, a colon and the one-based line number, which is the spelling an editor opens at. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves, so every read of the entity is refused."
+      "text": "The journal at {detail} cannot be read.",
+      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, followed by a colon and the one-based line number where one line does not decode, which is the spelling an editor opens at. A fragment spliced after it says which damage was found: a line that is not the last and does not decode, or two members carrying one identifier. Either way every read of the entity is refused."
     },
     "refusal.dinah.journal-unreadable.next": {
       "text": " Restore the line from a backup or from git, or delete it by hand, then run `dinah check` again; no command deletes it, since it may hold the text of a comment.",
@@ -5704,6 +5704,34 @@
     "refusal.dinah.store-format-changed.next": {
       "text": " Nothing was written; open the workbench again, which a new command does by itself, and repeat the act.",
       "context": "The next step of refusal.dinah.store-format-changed. A long-lived head such as the MCP server or the language server reopens on this refusal by itself; a person at a terminal simply runs the command again."
+    },
+    "refusal.dinah.journal-unreadable.line": {
+      "text": " That line does not decode, and it is not the journal's last line.",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when the journal holds a line that does not decode. The detail the base sentence printed is the journal's path, a colon and the one-based line number, so 'that line' is the line it named. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves."
+    },
+    "refusal.dinah.journal-unreadable.member": {
+      "text": " Two of its members carry the identifier {member}, established at lines {lines}.",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when two members of one card, comments or checklist items, carry one identifier. {member} is the 12-hex identifier and {lines} the one-based numbers of the two journal lines that established a member under it, separated by a comma. No read can tell the two apart, so the card is refused."
+    },
+    "refusal.dinah.journal-unreadable.member.next": {
+      "text": " Give one of the two members a new identifier by hand on every line that names it, or restore the journal from a backup or from git, then run `dinah check` again.",
+      "context": "The next step of refusal.dinah.journal-unreadable when two members carry one identifier. dinah check is a command line and is not translated. No command renames a member, so the repair is by hand."
+    },
+    "refusal.dinah.not-a-file": {
+      "text": "{detail} is a comment or a checklist item, which this workbench keeps as lines of a journal rather than as a file of its own.",
+      "context": "The sentence printed after the refusal name dinah.not-a-file, raised by dinah path. {detail} is the reference as the reader typed it. In the card-unit layout a comment or a checklist item has no file, so there is no path to print."
+    },
+    "refusal.dinah.not-a-file.next": {
+      "text": " Run `dinah show <ref>` for its content; the file that holds it is its card's journal, which `dinah path <card>/journal` answers, or for a column's comment the workbench's own journal.ndjson.",
+      "context": "The next step of refusal.dinah.not-a-file. dinah show <ref>, dinah path <card>/journal and journal.ndjson are a command line and a file name and are not translated; <ref> and <card> are placeholders the reader replaces."
+    },
+    "check.member-unknown": {
+      "text": "the journal line at {detail} names a comment or a checklist item no earlier line established, so it contributes nothing; restore the line that created the member from a backup or from git, or delete this line by hand",
+      "context": "A check finding at defect severity: a line of a card's journal naming a comment or an item the replay never established. {detail} is the journal's path, a colon and the one-based line number. Such a line is damage or the residue of a hand edit that removed the line creating the member."
+    },
+    "check.member-id-collision": {
+      "text": "two members of the card carry one identifier, given with the journal lines that established each: {detail}; give one of them a new identifier by hand on every line that names it, or restore the journal from a backup or from git",
+      "context": "A check finding at defect severity: two comments or checklist items of one card carry one identifier. {detail} is the 12-hex identifier, a colon, and the one-based numbers of the two journal lines that established a member under it. Every read of the card is refused dinah.journal-unreadable until it is repaired."
     },
     "check.comment-body-diverged": {
       "text": "the body of comment {detail} no longer matches the digest Dinah recorded over it",

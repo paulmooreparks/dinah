@@ -2,7 +2,6 @@ package bench
 
 import (
 	"encoding/json"
-	"path/filepath"
 	"strings"
 
 	"dinah/internal/contract"
@@ -289,7 +288,7 @@ func (b *Bench) MissingStandingItems(card *Card, column *Column) ([]StandingItem
 	if len(column.StandingItems) == 0 {
 		return nil, nil
 	}
-	instances, err := itemsWhere(card.Dir, func(item *Item) bool {
+	instances, err := b.itemsWhere(card, func(item *Item) bool {
 		return item.Column == column.ID && item.Standing != ""
 	})
 	if err != nil {
@@ -314,8 +313,8 @@ func (b *Bench) MissingStandingItems(card *Card, column *Column) ([]StandingItem
 // instances a reshape retiring that column withdraws. An instance in any other
 // state is a record of a judgement taken and is left as it stands, and a
 // hand-filed item naming the column carries no standing key and is not one.
-func PendingStandingInstances(cardDir, columnID string) ([]*Item, error) {
-	return itemsWhere(cardDir, func(item *Item) bool {
+func (b *Bench) PendingStandingInstances(card *Card, columnID string) ([]*Item, error) {
+	return b.itemsWhere(card, func(item *Item) bool {
 		return item.Column == columnID && item.Standing != "" && item.State == ItemPending
 	})
 }
@@ -328,8 +327,8 @@ func PendingStandingInstances(cardDir, columnID string) ([]*Item, error) {
 // lines leaves behind, and the re-run completes the record rather than passing
 // over an anchor nothing accounts for. A withdrawn instance whose line stands
 // is not answered, so nothing is written twice.
-func StandingInstancesOwedAWithdrawal(cardDir, columnID string) ([]*Item, error) {
-	candidates, err := itemsWhere(cardDir, func(item *Item) bool {
+func (b *Bench) StandingInstancesOwedAWithdrawal(card *Card, columnID string) ([]*Item, error) {
+	candidates, err := b.itemsWhere(card, func(item *Item) bool {
 		if item.Column != columnID || item.Standing == "" {
 			return false
 		}
@@ -347,7 +346,7 @@ func StandingInstancesOwedAWithdrawal(cardDir, columnID string) ([]*Item, error)
 		}
 		if recorded == nil {
 			recorded = map[string]bool{}
-			events, _, err := ReadJournal(filepath.Join(cardDir, JournalName))
+			events, _, err := ReadJournal(card.JournalPath())
 			if err != nil {
 				return nil, err
 			}

@@ -7118,9 +7118,9 @@
       "source": "1f0e40dcd1eab0a4"
     },
     "refusal.dinah.journal-unreadable": {
-      "text": "{detail} पर की जर्नल पंक्ति डिकोड नहीं होती, और वह जर्नल की अंतिम पंक्ति नहीं है।",
-      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, a colon and the one-based line number, which is the spelling an editor opens at. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves, so every read of the entity is refused.",
-      "source": "5c01dfda90f3c032"
+      "text": "{detail} पर का जर्नल पढ़ा नहीं जा सकता।",
+      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, followed by a colon and the one-based line number where one line does not decode, which is the spelling an editor opens at. A fragment spliced after it says which damage was found: a line that is not the last and does not decode, or two members carrying one identifier. Either way every read of the entity is refused.",
+      "source": "48f6b567d452b849"
     },
     "refusal.dinah.journal-unreadable.next": {
       "text": " उस पंक्ति को किसी बैकअप से या git से वापस लाएँ, या हाथ से हटाएँ, फिर `dinah check` दोबारा चलाएँ; कोई कमांड उसे नहीं हटाता, क्योंकि उसमें किसी टिप्पणी का पाठ हो सकता है।",
@@ -7151,6 +7151,41 @@
       "text": " कुछ भी नहीं लिखा गया; कार्यक्षेत्र को फिर से खोलें, जो एक नया कमांड अपने आप करता है, और वह काम दोहराएँ।",
       "context": "The next step of refusal.dinah.store-format-changed. A long-lived head such as the MCP server or the language server reopens on this refusal by itself; a person at a terminal simply runs the command again.",
       "source": "38f6f1dcf77b00a8"
+    },
+    "refusal.dinah.journal-unreadable.line": {
+      "text": " वह पंक्ति डिकोड नहीं होती, और वह जर्नल की अंतिम पंक्ति नहीं है।",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when the journal holds a line that does not decode. The detail the base sentence printed is the journal's path, a colon and the one-based line number, so 'that line' is the line it named. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves.",
+      "source": "396d6a9460908615"
+    },
+    "refusal.dinah.journal-unreadable.member": {
+      "text": " उसके दो सदस्य एक ही पहचानकर्ता {member} रखते हैं, जो पंक्तियों {lines} पर स्थापित हुए।",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when two members of one card, comments or checklist items, carry one identifier. {member} is the 12-hex identifier and {lines} the one-based numbers of the two journal lines that established a member under it, separated by a comma. No read can tell the two apart, so the card is refused.",
+      "source": "32ff89077db50e01"
+    },
+    "refusal.dinah.journal-unreadable.member.next": {
+      "text": " दोनों में से एक सदस्य को, हर उस पंक्ति पर जो उसका नाम लेती है, हाथ से नया पहचानकर्ता दें, या जर्नल को किसी बैकअप से या git से वापस लाएँ, फिर `dinah check` दोबारा चलाएँ।",
+      "context": "The next step of refusal.dinah.journal-unreadable when two members carry one identifier. dinah check is a command line and is not translated. No command renames a member, so the repair is by hand.",
+      "source": "443546c2e3c41b72"
+    },
+    "refusal.dinah.not-a-file": {
+      "text": "{detail} एक टिप्पणी या चेकलिस्ट मद है, जिसे यह कार्यक्षेत्र अपनी अलग फ़ाइल के रूप में नहीं, बल्कि एक जर्नल की पंक्तियों के रूप में रखता है।",
+      "context": "The sentence printed after the refusal name dinah.not-a-file, raised by dinah path. {detail} is the reference as the reader typed it. In the card-unit layout a comment or a checklist item has no file, so there is no path to print.",
+      "source": "21405e0a700167a0"
+    },
+    "refusal.dinah.not-a-file.next": {
+      "text": " उसकी सामग्री के लिए `dinah show <ref>` चलाएँ; उसे रखने वाली फ़ाइल उसके कार्ड का जर्नल है, जिसे `dinah path <card>/journal` बताता है, या किसी कॉलम की टिप्पणी के लिए कार्यक्षेत्र की अपनी journal.ndjson।",
+      "context": "The next step of refusal.dinah.not-a-file. dinah show <ref>, dinah path <card>/journal and journal.ndjson are a command line and a file name and are not translated; <ref> and <card> are placeholders the reader replaces.",
+      "source": "62c5f2c51e9f40e3"
+    },
+    "check.member-unknown": {
+      "text": "{detail} पर की जर्नल पंक्ति ऐसी टिप्पणी या चेकलिस्ट मद का नाम लेती है जिसे किसी पहले की पंक्ति ने स्थापित नहीं किया, इसलिए उसका कोई योगदान नहीं; सदस्य बनाने वाली पंक्ति को किसी बैकअप से या git से वापस लाएँ, या इस पंक्ति को हाथ से हटाएँ",
+      "context": "A check finding at defect severity: a line of a card's journal naming a comment or an item the replay never established. {detail} is the journal's path, a colon and the one-based line number. Such a line is damage or the residue of a hand edit that removed the line creating the member.",
+      "source": "c99f89ac2f38c259"
+    },
+    "check.member-id-collision": {
+      "text": "कार्ड के दो सदस्य एक ही पहचानकर्ता रखते हैं, जो यहाँ उन जर्नल पंक्तियों के साथ दिया है जिन्होंने हर एक को स्थापित किया: {detail}; उनमें से एक को, हर उस पंक्ति पर जो उसका नाम लेती है, हाथ से नया पहचानकर्ता दें, या जर्नल को किसी बैकअप से या git से वापस लाएँ",
+      "context": "A check finding at defect severity: two comments or checklist items of one card carry one identifier. {detail} is the 12-hex identifier, a colon, and the one-based numbers of the two journal lines that established a member under it. Every read of the card is refused dinah.journal-unreadable until it is repaired.",
+      "source": "398490740874e031"
     },
     "check.comment-body-diverged": {
       "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",

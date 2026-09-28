@@ -4325,13 +4325,21 @@ var anchorConstants = map[string]bool{
 // construct this guard reads and are not a copy of the containment grammar,
 // keyed by the file they stand in and named by the function.
 //
-// bench.CardOwnFile is the one such function. It is a table of the segments a
+// bench.CardOwnFile is one such function. It is a table of the segments a
 // reader may type below a card, keyed on what somebody wrote and answering
 // which of the card's own two files they meant, and it names CardAnchor only so
 // that the anchor's own spelling is not written out a second time. Nothing in
 // it maps a kind to an anchor, which is what the grammar declares.
+//
+// bench.legacyAnchorOf is the other. Since dinah-637 a comment and an item are
+// members of a journal and the grammar declares no anchor for either, so the
+// anchors the layout below the card-unit format gave them are no longer the
+// grammar's to state. That layout's reader states them once, in this one
+// function, and every other reader of the old layout asks it; it is a record
+// of a retired layout rather than a second copy of the live grammar.
 var exemptedAnchorTables = map[string]string{
-	"internal/bench/resolve.go": "CardOwnFile",
+	"internal/bench/resolve.go":        "CardOwnFile",
+	"internal/bench/storagemigrate.go": "legacyAnchorOf",
 }
 
 // TestTheContainmentGrammarIsDeclaredOnce asserts that no anchor constant
@@ -4370,7 +4378,7 @@ var exemptedAnchorTables = map[string]string{
 // the tag can be a parameter, a field, a call, or absent altogether, so the
 // guard would be answering a question about meaning off a shape that varies.
 // That trades a blind spot a reader can check, which is this paragraph and a
-// two-line exemption table, for one nobody can, which is a heuristic that
+// short exemption table, for one nobody can, which is a heuristic that
 // quietly reads a copy as a table.
 func TestTheContainmentGrammarIsDeclaredOnce(t *testing.T) {
 	root := filepath.Join("..", "..")

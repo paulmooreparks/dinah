@@ -467,7 +467,7 @@ func memberActs(t *testing.T, root string, card *bench.Card) []oracleAct {
 		t.Fatal(err)
 	}
 	for i, comment := range comments {
-		fm, body, err := bench.ReadCommentAnchor(comment.Dir)
+		fm, body, err := bench.ReadCommentAnchor(comment.Home)
 		if err != nil || !bench.CommentDiverged(fm, body) {
 			continue
 		}

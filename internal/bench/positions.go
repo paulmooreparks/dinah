@@ -2,25 +2,25 @@ package bench
 
 import (
 	"path/filepath"
-
-	"dinah/internal/contract"
 )
 
-// Positions answers listings, anchor texts, collection order and member
-// position for one read composition, listing each collection at most once and
-// reading each anchor at most once. It is not safe to keep past the
-// composition that made it, because it never re-lists a collection or
-// re-reads an anchor. It is not safe for concurrent use.
+// Positions answers listings, anchor texts, collection order, member position
+// and each card's record for one read composition, listing each collection at
+// most once, reading each anchor at most once, and reading each card's members
+// once. It is not safe to keep past the composition that made it, because it
+// never re-lists a collection, re-reads an anchor or re-reads a card. It is
+// not safe for concurrent use.
 //
-// The uncached readers it stands beside, ListIDs, SortByOrdinal,
-// MemberPosition, Items, Comments and Attachments, stay what every other
-// caller uses. A composition that asks one question many times, which is
-// show deriving the position of every member of a collection, asks it here
-// instead, so the collection is sorted once rather than once per member.
+// The uncached readers it stands beside, ListIDs, SortByOrdinal, Attachments
+// and LoadCardRecord, stay what every other caller uses. A composition that
+// asks one question many times, which is show deriving the position of every
+// member of a collection, asks it here instead, so the collection is sorted
+// once rather than once per member.
 type Positions struct {
-	listed map[string]listing    // collection path -> what ListIDs answered
-	texts  map[string]anchorText // anchor path -> what ReadText answered
-	sorted map[string][]string   // collection path -> ids in SortByOrdinal order
+	listed  map[string]listing     // collection path -> what ListIDs answered
+	texts   map[string]anchorText  // anchor path -> what ReadText answered
+	sorted  map[string][]string    // collection path -> ids in SortByOrdinal order
+	records map[string]cardRecords // card directory -> what LoadCardRecord answered
 }
 
 // listing is what one ListIDs call answered, error included, so a collection
@@ -37,12 +37,19 @@ type anchorText struct {
 	err  error
 }
 
+// cardRecords is what one LoadCardRecord call answered, error included.
+type cardRecords struct {
+	record *CardRecord
+	err    error
+}
+
 // NewPositions makes an empty memo for one composition.
 func NewPositions() *Positions {
 	return &Positions{
-		listed: map[string]listing{},
-		texts:  map[string]anchorText{},
-		sorted: map[string][]string{},
+		listed:  map[string]listing{},
+		texts:   map[string]anchorText{},
+		sorted:  map[string][]string{},
+		records: map[string]cardRecords{},
 	}
 }
 
@@ -66,30 +73,47 @@ func (p *Positions) Text(path string) (string, error) {
 	return text, err
 }
 
-// ChildIDs is IDs of each collection the containment grammar gives a kind,
-// keyed by the collection's directory name, walking Contains(kind) as
-// ChildCounts does. A collection that will not read is reported rather than
-// answered as empty, on the terms ChildCounts states.
-func (p *Positions) ChildIDs(dir, kind string) (map[string][]string, error) {
-	listed := map[string][]string{}
-	for _, mount := range Contains(kind) {
-		ids, err := p.IDs(filepath.Join(dir, mount.Dir))
-		if err != nil {
-			return nil, err
-		}
-		listed[mount.Dir] = ids
+// Record is b.LoadCardRecord(card), called at most once per card.
+func (p *Positions) Record(b *Bench, card *Card) (*CardRecord, error) {
+	if kept, ok := p.records[card.Dir]; ok {
+		return kept.record, kept.err
 	}
-	return listed, nil
+	record, err := b.LoadCardRecord(card)
+	p.records[card.Dir] = cardRecords{record: record, err: err}
+	return record, err
 }
 
-// Item is LoadItem(dir) answered from Text, refusing with the path LoadItem
-// refuses with when the anchor will not read.
-func (p *Positions) Item(dir string) (*Item, error) {
-	text, err := p.Text(filepath.Join(dir, ItemAnchor))
+// CardCounts is how many members sit in each collection a card mounts, keyed
+// by the collection's segment, together with the card's live items: the live
+// comments and the live checklist from the card's record, and the attachments
+// from their directory. A collection that will not read is reported rather
+// than counted as none, since a zero is what a card holding nothing answers.
+func (p *Positions) CardCounts(b *Bench, card *Card) (map[string]int, []*Item, error) {
+	record, err := p.Record(b, card)
 	if err != nil {
-		return nil, contract.Refuse(contract.UnknownPath, dir)
+		return nil, nil, err
 	}
-	return itemFromText(dir, text), nil
+	counts := map[string]int{}
+	for _, mount := range Contains(KindCard) {
+		if mount.Journaled && mount.Kind == KindComment {
+			count, err := record.HeldCount("", LiveHalf)
+			if err != nil {
+				return nil, nil, err
+			}
+			counts[mount.Dir] = count
+			continue
+		}
+		if mount.Journaled {
+			counts[mount.Dir] = len(record.MemberIDs(MemberCollection{Kind: mount.Kind}, LiveHalf, ""))
+			continue
+		}
+		ids, err := p.IDs(filepath.Join(card.Dir, mount.Dir))
+		if err != nil {
+			return nil, nil, err
+		}
+		counts[mount.Dir] = len(ids)
+	}
+	return counts, record.ItemsIn(LiveHalf, ""), nil
 }
 
 // Sorted is IDs(collection) sorted as SortByOrdinal sorts it, with each
@@ -116,9 +140,8 @@ func (p *Positions) Sorted(collection, anchor string) ([]string, error) {
 	return ordered, nil
 }
 
-// Of is MemberPosition(dir, anchor) answered from Sorted: the one-based place
-// the member holds in the unfiltered sorted collection, and zero when the
-// directory is not a member of it.
+// Of is the one-based place a directory member holds in its unfiltered sorted
+// collection, and zero when the directory is not a member of it.
 func (p *Positions) Of(dir, anchor string) (int, error) {
 	ordered, err := p.Sorted(filepath.Dir(dir), anchor)
 	if err != nil {
@@ -131,46 +154,6 @@ func (p *Positions) Of(dir, anchor string) (int, error) {
 		}
 	}
 	return 0, nil
-}
-
-// Items is Items(cardDir), in Sorted order, each item built by Item. An item
-// whose anchor will not read is skipped, as Items skips it.
-func (p *Positions) Items(cardDir string) ([]*Item, error) {
-	collection := filepath.Join(cardDir, ChecklistDir)
-	ordered, err := p.Sorted(collection, ItemAnchor)
-	if err != nil {
-		return nil, err
-	}
-	var items []*Item
-	for _, id := range ordered {
-		item, err := p.Item(filepath.Join(collection, id))
-		if err != nil {
-			continue
-		}
-		items = append(items, item)
-	}
-	return items, nil
-}
-
-// Comments is Comments(holderDir), in Sorted order, each comment built by
-// commentFromText from Text. A comment whose anchor will not read is skipped,
-// as Comments skips it.
-func (p *Positions) Comments(holderDir string) ([]*Comment, error) {
-	collection := filepath.Join(holderDir, CommentsDir)
-	ordered, err := p.Sorted(collection, CommentAnchor)
-	if err != nil {
-		return nil, err
-	}
-	var comments []*Comment
-	for _, id := range ordered {
-		dir := filepath.Join(collection, id)
-		text, err := p.Text(filepath.Join(dir, CommentAnchor))
-		if err != nil {
-			continue
-		}
-		comments = append(comments, commentFromText(dir, id, text))
-	}
-	return comments, nil
 }
 
 // Attachments is Attachments(dir), in Sorted order, each attachment built by
@@ -192,41 +175,4 @@ func (p *Positions) Attachments(dir string) ([]*Attachment, error) {
 		attachments = append(attachments, attachmentFromText(member, id, text))
 	}
 	return attachments, nil
-}
-
-// CountComments is CountComments(dir) answered from IDs.
-func (p *Positions) CountComments(dir string) (int, error) {
-	ids, err := p.IDs(filepath.Join(dir, CommentsDir))
-	if err != nil {
-		return 0, err
-	}
-	return len(ids), nil
-}
-
-// DesignatedCommentDir is Bench.DesignatedCommentDir(item) answered from IDs
-// and Text. It searches the same two holders in the same order, the item's own
-// comments and then its archived ones, and a member matching item.Resolution
-// counts only when its anchor reads, because Comments skips a member whose
-// anchor will not read and the uncached lookup therefore cannot find one.
-func (p *Positions) DesignatedCommentDir(item *Item) (string, bool) {
-	if item == nil || item.Resolution == "" {
-		return "", false
-	}
-	for _, holder := range []string{item.Dir, filepath.Join(item.Dir, ArchiveDir)} {
-		collection := filepath.Join(holder, CommentsDir)
-		ids, err := p.IDs(collection)
-		if err != nil {
-			continue
-		}
-		for _, id := range ids {
-			if id != item.Resolution {
-				continue
-			}
-			dir := filepath.Join(collection, id)
-			if _, err := p.Text(filepath.Join(dir, CommentAnchor)); err == nil {
-				return dir, true
-			}
-		}
-	}
-	return "", false
 }

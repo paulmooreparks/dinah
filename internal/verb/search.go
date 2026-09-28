@@ -222,9 +222,9 @@ func (l *Library) searchCard(results *SearchResults, card *bench.Card, phrase st
 	if at, length, ok := substringIn(phrase, card.Body); ok {
 		results.add(hit, tierFraming, MatchedInFraming, card.Body, at, length)
 	}
-	comments, err := bench.Comments(card.Dir)
+	record, err := l.Bench.LoadCardRecord(card)
 	if err == nil {
-		for _, comment := range comments {
+		for _, comment := range record.HeldComments("", bench.LiveHalf) {
 			if at, length, ok := substringIn(phrase, comment.Body); ok {
 				results.add(hit, tierComment, MatchedInComment, comment.Body, at, length)
 			}

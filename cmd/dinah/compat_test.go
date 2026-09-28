@@ -161,6 +161,12 @@ var absentEvents = map[string]string{
 	contract.EventRenumbered:         "only the two repair flags write it, and the population sequence runs no repair, so no capture the sequence drives can carry it",
 	contract.EventLockReclaimed:      "only a reclaim of a lock whose holding process has ended writes it, and the population sequence is a list of commands that each run to completion and release every lock they take, so no line of it can leave a lock for a later one to reclaim",
 	contract.EventJournalTailTrimmed: "only an append to a journal ending in a torn fragment writes it, and every command of the population sequence runs to completion, so no line of it leaves a fragment for a later append to quarantine",
+	contract.EventItemBaseline:       "only the storage migration writes it",
+	contract.EventCommentBaseline:    "only the storage migration writes it",
+	contract.EventCardBaseline:       "only the storage migration writes it",
+	contract.EventStorageMigrated:    "only the storage migration writes it",
+	contract.EventCardRebuilt:        "only dinah check --rebuild writes it, over a card whose card.md is missing, unparseable or conflicted, and the population sequence leaves every card.md whole",
+	contract.EventRedacted:           "only dinah redact writes it, which refuses a store below the card-unit format, and the sample is replayed with that layout switched off",
 }
 
 // shape is what a fixture and a freshly populated workbench are compared on.

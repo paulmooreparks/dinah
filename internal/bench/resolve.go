@@ -307,11 +307,19 @@ func (b *Bench) resolvePathBody(half ResolutionHalf, ref string) (string, error)
 		if below == "" {
 			return workstream.Dir, nil
 		}
-		return descend(workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, nil, half)
+		at := &walkAt{dir: workstream.Dir, kind: KindWorkstream, ref: workstream.Ref()}
+		return b.descend(at, strings.Split(below, "/"), nil, nil, half)
 	}
-	path, _, err := b.resolveBelowLanding(half, ref, nil)
+	landed := &landing{}
+	path, _, err := b.resolveBelowLanding(half, ref, landed)
 	if err != nil {
 		return "", err
+	}
+	// A comment or an item in the card-unit layout is lines of its card's
+	// journal rather than a file, so there is no path to answer with, and
+	// the refusal names where its content is read and which file holds it.
+	if landed.journaled && path == "" {
+		return "", contract.Refuse(contract.NotAFile, strings.TrimSpace(ref))
 	}
 	return path, nil
 }
@@ -506,7 +514,7 @@ func (b *Bench) resolveReferenceBody(half ResolutionHalf, ref string) (*EntityRe
 		return &EntityRef{Kind: KindCard, Dir: found.Card.Dir, ID: found.Card.ID, Ref: found.Card.Ref(b.Slug), Card: found.Card, Archived: half == ArchivedHalf}, nil, nil
 	}
 	landed := &landing{}
-	path, card, err := b.resolveBelowLanding(half, ref, landed)
+	_, card, err := b.resolveBelowLanding(half, ref, landed)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -517,8 +525,10 @@ func (b *Bench) resolveReferenceBody(half ResolutionHalf, ref string) (*EntityRe
 		}
 		return nil, collection, nil
 	}
-	kind, named := KindOfAnchor(filepath.Base(path))
-	if !named {
+	// A walk that ends on anything but an entity below a head reached a file
+	// the grammar names without naming an entity: a card's journal, or an
+	// attachment's payload.
+	if landed.kind == "" {
 		return nil, nil, contract.Refuse(contract.UnknownPath, rest)
 	}
 	// No reference reaches this guard today, because descend refuses a
@@ -527,37 +537,32 @@ func (b *Bench) resolveReferenceBody(half ResolutionHalf, ref string) (*EntityRe
 	// the invariant belongs on this function rather than in the caller that
 	// happens to enforce it, and a reader meeting it here is told what every
 	// caller of ResolveEntity may assume.
-	if kind == KindCard && card == nil {
+	if landed.kind == KindCard && card == nil {
 		return nil, nil, contract.Refuse(contract.UnknownCard, ref)
 	}
-	dir := filepath.Dir(path)
-	headKind, headRef, headDir := KindWorkbench, b.Slug, b.Root
-	if card != nil {
-		headKind, headRef, headDir = KindCard, card.Ref(b.Slug), card.Dir
-	} else if !IsWorkbenchRef(head) && head != b.Slug {
-		column, err := b.columnByRefIn(headHalf(half, rest), head)
-		if err != nil {
-			return nil, nil, err
-		}
-		if column != nil {
-			headKind, headRef = KindColumn, column.Ref()
-			headDir = b.columnDirIn(headHalf(half, rest), column.ID)
-		}
-	}
-	// The composed reference is hoisted out of the composite literal because
-	// a field of one takes a single value, and this call now answers two.
-	below, err := b.refBelowHead(half, headKind, headRef, headDir, dir)
-	if err != nil {
-		return nil, nil, err
+	return b.landedEntity(landed, card, half), nil, nil
+}
+
+// landedEntity answers the entity a walk landed on. Below the card-unit
+// format every entity is a directory, and the landing's directory is it. In
+// that layout an item has no directory at all, and a comment's is the one its
+// attachments would hang from, which need not exist.
+func (b *Bench) landedEntity(landed *landing, card *Card, half ResolutionHalf) *EntityRef {
+	dir := landed.entityDir
+	journaled := landed.journaled && b.CardUnit()
+	if journaled && landed.kind == KindItem {
+		dir = ""
 	}
 	return &EntityRef{
-		Kind:     kind,
-		Dir:      dir,
-		ID:       filepath.Base(dir),
-		Ref:      below,
-		Card:     card,
-		Archived: half == ArchivedHalf,
-	}, nil, nil
+		Kind:      landed.kind,
+		Dir:       dir,
+		ID:        landed.id,
+		Ref:       landed.ref,
+		Card:      card,
+		Holder:    landed.holder,
+		Archived:  half == ArchivedHalf,
+		Journaled: journaled,
+	}
 }
 
 // orAWorkstreamNamedBarely carries the workstream a bare reference names onto
@@ -591,13 +596,7 @@ func (b *Bench) orAWorkstreamNamedBarely(ref string, err error) error {
 // answers and the position a screen prints are one number.
 func (b *Bench) collectionAt(half ResolutionHalf, ref string, landed *landing) (*CollectionRef, error) {
 	ref = strings.TrimSpace(ref)
-	members, err := MemberIDs(landed.dir, landed.mount)
-	if err != nil {
-		return nil, err
-	}
-	if landed.narrow != "" {
-		members = filterByKind(landed.dir, landed.mount.Anchor, members, landed.narrow)
-	}
+	members := landed.members
 	holder, err := b.collectionHolder(ref)
 	if err != nil {
 		return nil, err
@@ -661,7 +660,8 @@ func (b *Bench) resolveBelowLanding(half ResolutionHalf, ref string, landed *lan
 		if rest == "" {
 			return filepath.Join(b.Root, WorkbenchAnchor), nil, nil
 		}
-		path, err := descend(b.Root, KindWorkbench, strings.Split(rest, "/"), nil, landed, half)
+		at := &walkAt{dir: b.Root, kind: KindWorkbench, ref: b.Slug}
+		path, err := b.descend(at, strings.Split(rest, "/"), nil, landed, half)
 		return path, nil, err
 	}
 	withinColumn, err := b.columnByRefIn(within, head)
@@ -673,20 +673,21 @@ func (b *Bench) resolveBelowLanding(half ResolutionHalf, ref string, landed *lan
 		if rest == "" {
 			return filepath.Join(dir, ColumnAnchor), nil, nil
 		}
-		path, err := descend(dir, KindColumn, strings.Split(rest, "/"), nil, landed, half)
+		at := &walkAt{dir: dir, kind: KindColumn, holder: column.ID, ref: column.Ref()}
+		path, err := b.descend(at, strings.Split(rest, "/"), nil, landed, half)
 		return path, nil, err
 	}
 	found, err := b.resolveCardIn(b.cardsRootIn(within), head)
 	if err != nil {
 		return "", nil, err
 	}
-	path, err := walkBelowCard(found.Card, rest, landed, half)
+	path, err := b.walkBelowCard(found.Card, rest, landed, half)
 	return path, found.Card, err
 }
 
 // walkBelowCard resolves the segments below a card. An empty rest is the
 // card's own anchor, which is what makes `path <card>` open the card.
-func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf) (string, error) {
+func (b *Bench) walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf) (string, error) {
 	if rest == "" {
 		return card.AnchorPath(), nil
 	}
@@ -698,19 +699,25 @@ func walkBelowCard(card *Card, rest string, landed *landing, half ResolutionHalf
 	// journal is content.
 	if file, own := CardOwnFile(head); own {
 		if file == CardFileAnchor {
+			// The anchor is the card itself, so the entity resolver
+			// answers the card, under no composed reference of its own.
+			if landed != nil {
+				landed.kind, landed.id, landed.entityDir = KindCard, card.ID, card.Dir
+			}
 			return card.AnchorPath(), nil
 		}
 		return card.JournalPath(), nil
 	}
+	at := &walkAt{dir: card.Dir, kind: KindCard, card: card, ref: card.Ref(b.Slug)}
 	if kind, ok := checklistKinds[head]; ok {
 		items, ok := checklistMount()
 		if !ok {
 			return "", contract.Refuse(contract.UnknownPath, rest)
 		}
 		aliased := append([]string{items.Dir}, segments[1:]...)
-		return descend(card.Dir, KindCard, aliased, &kind, landed, half)
+		return b.descend(at, aliased, &kind, landed, half)
 	}
-	return descend(card.Dir, KindCard, segments, nil, landed, half)
+	return b.descend(at, segments, nil, landed, half)
 }
 
 // The two files a card owns, as CardOwnFile names them. They are the answer
@@ -770,18 +777,29 @@ func checklistMount() (Mount, bool) {
 	return Mount{}, false
 }
 
-// landing is what the walk reports about where it stopped, filled only by
-// the branch that stops on a collection. A caller wanting the answer passes
-// a landing to write into; every other caller passes nil.
+// landing is what the walk reports about where it stopped. A walk stopping on
+// a collection fills the first five members; one stopping on an entity below
+// a head fills the rest, which is what lets a caller name a journaled member
+// that has no file of its own. A caller wanting the answer passes a landing
+// to write into; every other caller passes nil.
 type landing struct {
 	collection bool
 	dir        string
 	mount      Mount
 	narrow     string
+	members    []string
+
+	kind      string
+	id        string
+	entityDir string
+	holder    string
+	ref       string
+	journaled bool
 }
 
-// MemberIDs are one collection's live members, in the creation order a
-// positional reference counts in.
+// MemberIDs are one directory collection's live members, in the creation
+// order a positional reference counts in. A journaled collection's members are
+// the card's record's to answer, since they are not directories.
 //
 // The resolver counts a position in this list and the containment walk draws
 // its rows from it, so the two read one statement of the order rather than
@@ -792,102 +810,6 @@ func MemberIDs(collection string, mount Mount) ([]string, error) {
 		return nil, err
 	}
 	return SortByOrdinal(collection, mount.Anchor, ids), nil
-}
-
-// descend resolves the segments below one entity by walking the containment
-// grammar a collection at a time. A pair of segments names a collection and
-// then a member of it, and the member's own kind decides what the pair after
-// that may name, so a reference reaches as deep as the grammar goes.
-//
-// A collection holding a kind that is addressed in its own right is refused,
-// so the workbench's cards and columns are reached by the address a person
-// types for them and by nothing else. See AddressedInItsOwnRight.
-//
-// A segment the grammar does not know is refused rather than dropped. The
-// resolver used to read the first collection and discard everything past the
-// entity it found, which made `<card>/comments/1/attachments/1` open the
-// comment: an address the containment walk prints and a different file behind
-// it, with nothing said.
-//
-// A kind narrows the collection's members first, which is what a checklist
-// segment such as questions selects on. Position counts in creation order rather than
-// in the listing's ascending-hex order, so `<card>/comment/2` names the second
-// comment somebody wrote and keeps naming it however the identifiers happened
-// to fall.
-func descend(dir, kind string, segments []string, narrow *string, landed *landing, half ResolutionHalf) (string, error) {
-	mount, ok := MountOf(kind, segments[0])
-	if !ok {
-		return "", contract.Refuse(contract.UnknownPath, segments[0])
-	}
-	if AddressedInItsOwnRight(mount.Kind) {
-		// The segment names a collection this workbench plainly has, so a
-		// refusal quoting the segment alone tells a reader that something
-		// they can see does not exist. What is refused is the addressing
-		// rather than the word, so the whole path below the head is quoted
-		// and the next step says how the thing is named instead.
-		return "", contract.RefuseWith(
-			contract.UnknownPath,
-			strings.Join(segments, "/"),
-			map[string]string{"addressed": mount.Kind},
-		)
-	}
-	// Whether this call is the reference's deepest collection step is decided
-	// from the segment count and the mount kind, and it is decided here,
-	// before the collection path is joined. Written in terms of tail and
-	// below it would decide after the join has already chosen the live
-	// directory and after the member listing has been read out of it, which
-	// compiles and reads the live members in silence.
-	deepest := len(segments) == 1 ||
-		len(segments) == 2 ||
-		(mount.Kind == KindAttachment && len(segments) > 2 && segments[2] == PayloadDir)
-	collection := filepath.Join(dir, mount.Dir)
-	if deepest && half == ArchivedHalf {
-		collection = filepath.Join(dir, ArchiveDir, mount.Dir)
-	}
-	tail := segments[1:]
-	if len(tail) == 0 {
-		// A collection the containment table declares for this kind is
-		// there whether or not anything has been written into it, so the
-		// walk answers with the directory a first member would be written
-		// into rather than refusing over a directory nobody has made yet.
-		// ListIDs reads an absent directory as an empty one, so a
-		// positional selector below this point still refuses through pick.
-		if landed != nil {
-			landed.collection = true
-			landed.dir = collection
-			landed.mount = mount
-			landed.narrow = ""
-			if narrow != nil {
-				landed.narrow = *narrow
-			}
-		}
-		return collection, nil
-	}
-	ids, err := MemberIDs(collection, mount)
-	if err != nil {
-		return "", err
-	}
-	if narrow != nil {
-		ids = filterByKind(collection, mount.Anchor, ids, *narrow)
-	}
-	id, err := pick(collection, mount, ids, tail[0])
-	if err != nil {
-		return "", err
-	}
-	member := filepath.Join(collection, id)
-	below := tail[1:]
-	if len(below) == 0 {
-		return filepath.Join(member, mount.Anchor), nil
-	}
-	// An attachment wraps bytes rather than containing entities, so the one
-	// segment that may follow one names the payload it wraps.
-	if mount.Kind == KindAttachment && below[0] == PayloadDir {
-		if len(below) > 1 {
-			return "", contract.Refuse(contract.UnknownPath, below[1])
-		}
-		return payloadOf(member)
-	}
-	return descend(member, mount.Kind, below, nil, landed, half)
 }
 
 // AddressedInItsOwnRight reports whether a kind is one a person names directly
@@ -1295,7 +1217,7 @@ func (b *Bench) probe(ref string) (string, string, bool, error) {
 			return "", "", workstream != nil, nil
 		}
 		segments := strings.Split(below, "/")
-		return b.probeBelow(workstream.Dir, KindWorkstream, handle, "", segments, segments, nil)
+		return b.probeBelow(&walkAt{dir: workstream.Dir, kind: KindWorkstream}, handle, "", segments, segments, nil)
 	}
 	head, rest, _ := strings.Cut(ref, "/")
 	if IsWorkbenchRef(head) || (rest != "" && b.Slug != "" && head == b.Slug) {
@@ -1303,14 +1225,14 @@ func (b *Bench) probe(ref string) (string, string, bool, error) {
 			return "", "", true, nil
 		}
 		segments := strings.Split(rest, "/")
-		return b.probeBelow(b.Root, KindWorkbench, head, "", segments, segments, nil)
+		return b.probeBelow(&walkAt{dir: b.Root, kind: KindWorkbench}, head, "", segments, segments, nil)
 	}
 	if column := b.ColumnByRef(head); column != nil {
 		if rest == "" {
 			return "", "", true, nil
 		}
 		segments := strings.Split(rest, "/")
-		return b.probeBelow(b.ColumnDir(column.ID), KindColumn, head, "", segments, segments, nil)
+		return b.probeBelow(&walkAt{dir: b.ColumnDir(column.ID), kind: KindColumn, holder: column.ID}, head, "", segments, segments, nil)
 	}
 	archivedColumn, err := b.ArchivedColumnByRef(head)
 	if err != nil {
@@ -1321,7 +1243,7 @@ func (b *Bench) probe(ref string) (string, string, bool, error) {
 			return head, "", true, nil
 		}
 		segments := strings.Split(rest, "/")
-		return b.probeBelow(b.columnDirIn(ArchivedHalf, column.ID), KindColumn, head, head, segments, segments, nil)
+		return b.probeBelow(&walkAt{dir: b.columnDirIn(ArchivedHalf, column.ID), kind: KindColumn, holder: column.ID}, head, head, segments, segments, nil)
 	}
 	var card *Card
 	holder := ""
@@ -1349,7 +1271,7 @@ func (b *Bench) probe(ref string) (string, string, bool, error) {
 		walk = append([]string{items.Dir}, segments[1:]...)
 		narrow = &kind
 	}
-	return b.probeBelow(card.Dir, KindCard, head, holder, segments, walk, narrow)
+	return b.probeBelow(&walkAt{dir: card.Dir, kind: KindCard, card: card}, head, holder, segments, walk, narrow)
 }
 
 // probeBelow is the probe's walk below one entity. typed carries the segments
@@ -1357,9 +1279,11 @@ func (b *Bench) probe(ref string) (string, string, bool, error) {
 // composed from, and walk carries the same segments with a checklist word
 // aliased onto the collection it narrows, which is what the containment
 // grammar is walked with. The two are the same length, so one indexes the
-// other.
-func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, narrow *string) (string, string, bool, error) {
-	mount, ok := MountOf(kind, walk[0])
+// other. A journaled collection's members come from the card's record, or the
+// workbench journal for a column's comments, as the resolver's own walk reads
+// them.
+func (b *Bench) probeBelow(at *walkAt, ref, holder string, typed, walk []string, narrow *string) (string, string, bool, error) {
+	mount, ok := MountOf(at.kind, walk[0])
 	if !ok {
 		return "", "", false, nil
 	}
@@ -1368,17 +1292,18 @@ func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, 
 		// in either half whether or not anything was written into it.
 		return holder, "", true, nil
 	}
+	kind := ""
+	if narrow != nil {
+		kind = *narrow
+	}
 	for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
-		collection := filepath.Join(dir, mount.Dir)
+		collection := filepath.Join(at.dir, mount.Dir)
 		if half == ArchivedHalf {
-			collection = filepath.Join(dir, ArchiveDir, mount.Dir)
+			collection = filepath.Join(at.dir, ArchiveDir, mount.Dir)
 		}
-		members, err := MemberIDs(collection, mount)
+		members, err := b.members(at, mount, collection, half, kind)
 		if err != nil {
 			return "", "", false, err
-		}
-		if narrow != nil {
-			members = filterByKind(collection, mount.Anchor, members, *narrow)
 		}
 		id, err := pick(collection, mount, members, walk[1])
 		if err != nil {
@@ -1391,17 +1316,20 @@ func (b *Bench) probeBelow(dir, kind, ref, holder string, typed, walk []string, 
 		if len(walk) == 2 {
 			return holder, ref + "/" + typed[0], true, nil
 		}
-		member := filepath.Join(collection, id)
+		next, err := b.memberAt(at, mount, collection, id, below, half)
+		if err != nil {
+			return "", "", false, err
+		}
 		if mount.Kind == KindAttachment && walk[2] == PayloadDir {
 			if len(walk) > 3 {
 				return "", "", false, nil
 			}
-			if _, err := payloadOf(member); err != nil {
+			if _, err := payloadOf(next.dir); err != nil {
 				return "", "", false, nil
 			}
 			return holder, "", true, nil
 		}
-		return b.probeBelow(member, mount.Kind, below, holder, typed[2:], walk[2:], nil)
+		return b.probeBelow(next, below, holder, typed[2:], walk[2:], nil)
 	}
 	return "", "", false, nil
 }

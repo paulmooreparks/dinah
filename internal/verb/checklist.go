@@ -88,7 +88,7 @@ func (l *Library) File(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	item, err := bench.AddItem(found.Card.Dir, kind, column, req.Owner, now, req.Text)
+	item, err := l.Bench.AddItem(found.Card, kind, column, req.Owner, now, req.Text)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -99,6 +99,7 @@ func (l *Library) File(req *Request) *Response {
 		Item:  item.ID,
 		Kind:  kind,
 	}
+	l.Bench.CompleteFiled(&ev, item)
 	if err := bench.AppendEvent(lock, found.Card.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
@@ -522,12 +523,14 @@ func kindClosedBy(state string) map[string]bool {
 // needs: the card whose lock and journal cover the write, the item's own two
 // read fields, and the header and body a rewrite has to put back.
 type itemTarget struct {
-	ref  string
-	dir  string
-	card *bench.Card
-	item *bench.Item
-	fm   *bench.Frontmatter
-	body string
+	ref string
+	// entity is the item as the resolver answered it, which the member
+	// writers are handed the item by.
+	entity *bench.EntityRef
+	card   *bench.Card
+	item   *bench.Item
+	fm     *bench.Frontmatter
+	body   string
 	// now is the stamp the whole write carries, so a comment the work body
 	// mints bears the same instant as the settling that designated it
 	// rather than a second reading of the clock.
@@ -586,20 +589,24 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	item, err := bench.LoadItem(entity.Dir)
+	record, err := l.Bench.LoadCardRecord(entity.Card)
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	fm, body, err := bench.ReadItemAnchor(entity.Dir)
+	item, found := record.Item(entity.ID)
+	if !found {
+		return l.FromError(req, contract.Refuse(contract.UnknownPath, entity.Ref))
+	}
+	fm, body, err := l.Bench.MemberAnchor(entity)
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	target := &itemTarget{ref: req.Ref, dir: entity.Dir, card: entity.Card, item: item, fm: fm, body: body, now: now}
+	target := &itemTarget{ref: req.Ref, entity: entity, card: entity.Card, item: item, fm: fm, body: body, now: now}
 	ev, refused := work(target)
 	if refused != nil {
 		return refused
 	}
-	if err := bench.WriteItemAnchor(target.dir, target.fm, target.body); err != nil {
+	if err := l.Bench.WriteMemberAnchor(entity, target.fm, target.body); err != nil {
 		return l.FromError(req, err)
 	}
 	// A comment the work body minted is journalled before the act that
@@ -614,6 +621,7 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	}
 	ev.TS = now
 	ev.Item = item.ID
+	l.Bench.CompleteMemberLine(ev, entity, target.fm, target.body)
 	if err := bench.AppendEvent(lock, entity.Card.JournalPath(), *ev); err != nil {
 		return l.FromError(req, err)
 	}
@@ -731,20 +739,19 @@ func (l *Library) mintDesignation(req *Request, entity *itemTarget) (string, *Re
 			"echo": "1",
 		})
 	}
-	comment, err := bench.AddComment(entity.dir, req.Actor, entity.now, req.Text)
+	holder := bench.MemberHolder{Card: entity.card, Item: entity.item.ID}
+	comment, err := l.Bench.AddComment(holder, req.Actor, entity.now, req.Text)
 	if err != nil {
 		return "", l.FromError(req, err)
 	}
-	entity.also = append(entity.also, bench.Event{
+	commented := bench.Event{
 		Actor:   req.Acting(),
 		Event:   contract.EventCommented,
 		Comment: comment.ID,
-	})
-	ref, err := l.designationRef(entity, comment.Dir)
-	if err != nil {
-		return "", l.FromError(req, err)
 	}
-	return ref, nil
+	l.Bench.CompleteCommented(&commented, comment)
+	entity.also = append(entity.also, commented)
+	return comment.ID, nil
 }
 
 // designationOf admits a reference naming a comment of the item being settled
@@ -768,45 +775,51 @@ func (l *Library) designationOf(req *Request, entity *itemTarget, named string) 
 	if err != nil {
 		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
 	}
-	if found.Kind != bench.KindComment {
+	if !hangsOn(found, entity.card, entity.item.ID) {
 		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
 	}
-	if !sameDir(filepath.Dir(filepath.Dir(found.Dir)), entity.dir) {
-		return "", l.refuse(req, entity.card, contract.NotADesignation, named)
-	}
-	ref, err := l.designationRef(entity, found.Dir)
-	if err != nil {
-		return "", l.FromError(req, err)
-	}
-	return ref, nil
+	// The value stored is the designated comment's own 12-hex identifier.
+	// It used to be a positional reference, and a position is not an
+	// identity: archiving an earlier comment of the item renumbered the
+	// survivors, so the stored reference came to name a different comment.
+	// The identifier is minted when the comment is written and is never
+	// rewritten by anything.
+	return found.ID, nil
 }
 
-// sameDir compares two directory paths for the one question this file asks of
-// them, which is whether a comment hangs below the item being settled. The
-// comparison is Clean's rather than a byte one, because one path was composed
-// from a resolved entity's own directory and the other by climbing out of a
-// comment's, and the two spellings need not agree character for character.
+// hangsOn reports whether a resolved entity is a comment hanging on one item
+// of one card, which is the one question a designation asks of the comment it
+// names.
+func hangsOn(found *bench.EntityRef, card *bench.Card, itemID string) bool {
+	if found.Kind != bench.KindComment || found.Card == nil || card == nil {
+		return false
+	}
+	return found.Card.ID == card.ID && found.Holder == itemID
+}
+
+// itemOf reads the item an entity reference names out of its card's record,
+// in whichever half it stands.
+func (l *Library) itemOf(entity *bench.EntityRef) (*bench.Item, error) {
+	if entity.Card == nil {
+		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
+	}
+	record, err := l.Bench.LoadCardRecord(entity.Card)
+	if err != nil {
+		return nil, err
+	}
+	item, found := record.Item(entity.ID)
+	if !found {
+		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
+	}
+	return item, nil
+}
+
+// sameDir compares two directory paths by Clean's reading rather than byte
+// for byte, because one path is often composed from a resolved entity's own
+// directory and the other by climbing out of another's, and the two spellings
+// need not agree character for character.
 func sameDir(a, b string) bool {
 	return filepath.Clean(a) == filepath.Clean(b)
-}
-
-// designationRef answers the value a settling stores as the item's answer of
-// record, which is the designated comment's own 12-hex identifier.
-//
-// It used to compose a positional reference, and a position is not an
-// identity. Archiving any earlier comment of the item renumbers the survivors,
-// so the stored reference came to name a different comment and the item went
-// on citing an answer nobody had written for it; deleting one reached the same
-// place and left no archive behind to notice. The identifier is minted when
-// the comment is written and is never rewritten by anything.
-//
-// The identifier is read out of the comment's own directory name, which is
-// what it is, rather than resolved: the key sits on the item, a designation
-// names a comment of that same item, and designationOf refuses anything else,
-// so the item's own comments are the scope the identifier is read in and no
-// path is needed to disambiguate it.
-func (l *Library) designationRef(entity *itemTarget, commentDir string) (string, error) {
-	return filepath.Base(commentDir), nil
 }
 
 // itemCanonicalRef composes the reference a person types to reach one item of
@@ -819,21 +832,18 @@ func (l *Library) designationRef(entity *itemTarget, commentDir string) (string,
 // item's bare identifier does not resolve, so handing that over is how the
 // forced form came back unknown-card.
 func (l *Library) itemCanonicalRef(card *bench.Card, itemID string) (string, error) {
-	items, err := bench.Items(card.Dir)
+	record, err := l.Bench.LoadCardRecord(card)
 	if err != nil {
 		return "", err
 	}
 	cardRef := card.Ref(l.Bench.Slug)
 	kindPosition := map[string]int{}
-	for _, item := range items {
+	for _, item := range record.ItemsIn(bench.LiveHalf, "") {
 		kindPosition[item.Kind]++
 		if item.ID != itemID {
 			continue
 		}
-		position, err := memberPosition(item.Dir, bench.ItemAnchor)
-		if err != nil {
-			return "", err
-		}
+		position := record.Position(bench.MemberCollection{Kind: bench.KindItem}, bench.LiveHalf, item.ID)
 		return itemRef(cardRef, item.Kind, kindPosition[item.Kind], position), nil
 	}
 	return "", contract.Refuse(contract.UnknownPath, itemID)

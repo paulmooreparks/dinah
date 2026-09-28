@@ -163,11 +163,10 @@ func plainKey(name string) bool {
 func scalarSlots(key string, line int, text string, from int) []slot {
 	switch key {
 	case keyColumn, keyRejectTo:
-		// card.md and item.md both spell the column position column, and
-		// column.md spells its own reject_to. All three are scalars, and a
-		// key of one name in an anchor that does not declare it holds
-		// nothing this scan would annotate anyway, because the value would
-		// resolve to no column.
+		// card.md spells the column position column, and column.md spells
+		// its own reject_to. Both are scalars, and a key of one name in an
+		// anchor that does not declare it holds nothing this scan would
+		// annotate anyway, because the value would resolve to no column.
 		return []slot{valueSlot(slotColumn, line, text, from)}
 	case keyColumns:
 		return flowSlots(slotColumn, line, text, from)

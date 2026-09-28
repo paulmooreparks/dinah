@@ -34,7 +34,7 @@ func preChangeOrdinalCollections(cardDir string) ([]ordinalCollection, error) {
 	var collections []ordinalCollection
 	for _, mount := range Contains(KindCard) {
 		dir := filepath.Join(cardDir, mount.Dir)
-		collections = append(collections, ordinalCollection{dir: dir, anchor: mount.Anchor})
+		collections = append(collections, ordinalCollection{dir: dir, anchor: AnchorOf(mount.Kind)})
 		if mount.Kind != KindComment {
 			continue
 		}
@@ -46,7 +46,7 @@ func preChangeOrdinalCollections(cardDir string) ([]ordinalCollection, error) {
 			for _, below := range Contains(KindComment) {
 				collections = append(collections, ordinalCollection{
 					dir:    filepath.Join(dir, id, below.Dir),
-					anchor: below.Anchor,
+					anchor: AnchorOf(below.Kind),
 				})
 			}
 		}

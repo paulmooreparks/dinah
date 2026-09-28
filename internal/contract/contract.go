@@ -843,6 +843,12 @@ const (
 	// the value now spells what workbench.md declares, so a long-lived head
 	// reopens rather than writing into a layout the store no longer keeps.
 	StoreFormatChanged = LayerPrefix + "store-format-changed"
+	// NotAFile is `dinah path` asked for a comment or a checklist item of a
+	// store in the card-unit layout, where the member is lines of its card's
+	// journal, or the workbench's for a column comment, rather than a file
+	// of its own. The detail is the reference as typed, and the sentence
+	// names the command that shows the member and the file holding it.
+	NotAFile = LayerPrefix + "not-a-file"
 	// UnknownRoute is a write naming a route the workbench does not declare.
 	// The sentence lists the routes it does declare, read off the workbench
 	// rather than written into a catalog, so a route declared later reaches
@@ -954,7 +960,7 @@ var Introduced = []string{
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
-	JournalUnlocked, JournalUnreadable, StoreFormatChanged,
+	JournalUnlocked, JournalUnreadable, StoreFormatChanged, NotAFile,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
@@ -1311,6 +1317,34 @@ const (
 	// its Note names, and cut the journal back to its last whole line. It
 	// lands on whichever journal the append was made to.
 	EventJournalTailTrimmed = "journal_tail_trimmed"
+	// EventItemBaseline states one checklist item in full, as the storage
+	// migration carried it out of its item.md. The storage migration is the
+	// only writer. A baseline replaces the whole state of the item it names
+	// wherever it stands in the journal, so a member baselined twice takes
+	// the later line.
+	EventItemBaseline = "item_baseline"
+	// EventCommentBaseline states one comment in full, as the storage
+	// migration carried it out of its comment.md, on the card's journal or,
+	// for a column comment, on the workbench's. The storage migration is the
+	// only writer.
+	EventCommentBaseline = "comment_baseline"
+	// EventCardBaseline carries a card's card.md exactly as it stood when the
+	// storage migration reached the card, and is that migration's per-card
+	// marker: every line before the last one is history the baselines
+	// already state.
+	EventCardBaseline = "card_baseline"
+	// EventStorageMigrated records a completed storage migration on the
+	// workbench journal, naming the format it carried the store from and to.
+	// It never lands on a card's journal.
+	EventStorageMigrated = "storage_migrated"
+	// EventCardRebuilt records that dinah check --rebuild wrote a card's
+	// card.md from its journal, which it does only when card.md is absent,
+	// will not parse, or carries git's conflict markers.
+	EventCardRebuilt = "card_rebuilt"
+	// EventRedacted records that dinah redact replaced the text of one
+	// comment or one checklist item with its SHA-256 on every line that
+	// carried it. It carries neither the text nor the digest.
+	EventRedacted = "redacted"
 )
 
 // Events lists the event names a query over cards accepts in its event field,

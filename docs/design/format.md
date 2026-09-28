@@ -1514,6 +1514,12 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `designations_migrated` | | `cards`, the references of the cards whose claim the run passed, written by a forced run alone and absent from every other; a forced run that passed none writes the line carrying no card, so the flag is never a silent no-op |
 | `lock_reclaimed` | `note` (the dead lock's own record line) | `column`, the identifier of the column whose occupancy lock was reclaimed, written only on a line about a column's occupancy lock |
 | `journal_tail_trimmed` | `trimmed` (the byte count moved out of the journal), `note` (the sidecar's file name) | none |
+| `item_baseline` | `item` (the item's own id), `kind`, `ordinal`, `state`, `text`, `written` (when the item was filed) | `column` and `column_title`, the item's own station, written whenever the item names one; `owner`; `evidence`; `standing`; `resolution`, the identifier of the designated comment; `citations`, each entry carrying `scheme`, `target` and, where the entry recorded one, `observed`; `archived`, true only on an item that stood in the archived half |
+| `comment_baseline` | `comment` (the comment's own id), `ordinal`, `written` (when the comment was written) | `text`, absent where the body is empty; `author`, or `author_unrecoverable` where the store could not say who wrote it; `digest`, the recorded digest the comment's anchor carried; `item`, on a comment on an item; `column` and `column_title`, on a comment on a column; `archived`, true only on a comment that stood in the archived half in its own right |
+| `card_baseline` | `text` (the card's `card.md` as it stood, after newline normalisation) | none |
+| `storage_migrated` | `from` (the format the store declared), `to` | `cards`, the references of the cards whose claim a forced run passed, as `designations_migrated` carries them; `accepted`, the manifest keys an operator accepted; `written_during_run`, the manifest keys found written while the run was in progress |
+| `card_rebuilt` | | |
+| `redacted` | `kind` (`comment` or `item`), `lines` (how many lines were rewritten), and `comment` or `item`, the redacted member's own id | `item` beside `comment`, on a comment on an item; `column` and `column_title`, on a comment on a column |
 
 A `journal_tail_trimmed` line is written by an append that found its journal
 ending in a fragment that does not decode. The append holds the lock of the

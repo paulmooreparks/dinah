@@ -1494,7 +1494,7 @@ func TestEachEarlyReturnInDoReleasesTheCardsLock(t *testing.T) {
 		h := newHarness(t)
 		ref := h.ready("broken view case")
 		// A plain file where the comments collection would stand makes
-		// ChildIDs' directory read fail outright, which is what forces
+		// CardCounts' directory read fail outright, which is what forces
 		// l.view to error inside the stale-basis branch rather than reach
 		// its ordinary success return.
 		comments := filepath.Join(h.card(ref).Dir, bench.CommentsDir)

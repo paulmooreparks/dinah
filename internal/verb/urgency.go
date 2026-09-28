@@ -257,7 +257,7 @@ func (d *viewDraw) itemsOf(card *bench.Card) ([]*bench.Item, error) {
 	if items, ok := d.items[card.ID]; ok {
 		return items, nil
 	}
-	items, err := bench.Items(card.Dir)
+	items, err := d.l.Bench.Items(card)
 	if err != nil {
 		return nil, err
 	}

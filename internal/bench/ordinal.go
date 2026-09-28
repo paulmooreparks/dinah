@@ -471,7 +471,7 @@ func ordinalCollections(dir, kind string, skip map[string]bool) ([]ordinalCollec
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
 		if mount.Stamped {
-			collections = append(collections, ordinalCollection{dir: collection, anchor: mount.Anchor})
+			collections = append(collections, ordinalCollection{dir: collection, anchor: AnchorOf(mount.Kind)})
 		}
 		if skip[mount.Kind] {
 			continue

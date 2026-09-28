@@ -3,9 +3,6 @@ package bench
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"path/filepath"
-
-	"dinah/internal/contract"
 )
 
 // The two frontmatter keys a comment gained with dinah-525. Each is written
@@ -72,53 +69,4 @@ func CommentDiverged(fm *Frontmatter, body string) bool {
 		return false
 	}
 	return stored != CommentDigest(body)
-}
-
-// ReadCommentAnchor opens a comment's anchor for a write, returning its whole
-// header and its body rather than the fields Comments reads. It is
-// ReadItemAnchor's mirror, and it exists for the same reason: a write has to
-// put back every key it did not touch.
-func ReadCommentAnchor(dir string) (*Frontmatter, string, error) {
-	text, err := ReadText(filepath.Join(dir, CommentAnchor))
-	if err != nil {
-		return nil, "", contract.Refuse(contract.UnknownPath, dir)
-	}
-	fm, body := ParseAnchor(text)
-	return fm, body, nil
-}
-
-// WriteCommentAnchor rewrites a comment's anchor from a header and a body,
-// stamping the digest over the body being written.
-//
-// Every writer of a comment's anchor goes through this rather than calling
-// WriteText itself, which is what makes "recomputed by every verb that writes
-// the anchor" a property of one function instead of a rule each call site has
-// to remember.
-func WriteCommentAnchor(dir string, fm *Frontmatter, body string) error {
-	StampCommentDigest(fm, body)
-	return WriteText(filepath.Join(dir, CommentAnchor), fm.Render(body))
-}
-
-// MemberPosition is the one-based position of one member within its
-// collection, counted over the collection as the resolver counts it: every
-// identifier the directory holds, in the order SortByOrdinal puts them, with
-// nothing filtered out.
-//
-// Counting the unfiltered collection is what makes the number a reader can
-// type. A reader that skipped a member whose anchor will not open would number
-// every member after it one place low, so the reference it printed would reach
-// a different entity.
-func MemberPosition(dir, anchor string) (int, error) {
-	collection := filepath.Dir(dir)
-	id := filepath.Base(dir)
-	ids, err := ListIDs(collection)
-	if err != nil {
-		return 0, err
-	}
-	for n, member := range SortByOrdinal(collection, anchor, ids) {
-		if member == id {
-			return n + 1, nil
-		}
-	}
-	return 0, nil
 }

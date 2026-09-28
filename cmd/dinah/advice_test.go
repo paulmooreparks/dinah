@@ -962,6 +962,7 @@ var checkAdviceNeedingNoScope = map[string]string{
 	"check.journal-unreadable":                            "a finding row printed by a check the caller has already scoped, naming the check to run again once the reader has repaired the line by hand, which repeats the scope that found it",
 	"refusal.dinah.journal-unreadable.next":               "the reader has just been refused a read of the workbench they addressed, and the sentence names the check to run once the line is repaired by hand, from where the refused command resolved that same workbench",
 	"refusal.dinah.store-awaiting-migration.storage.next": "the reader has just been refused an open of the workbench they addressed, and the sentence names the storage migration to run against that same workbench, which the refusal's detail names by its path",
+	"refusal.dinah.journal-unreadable.member.next":        "the reader has just been refused a read of the workbench they addressed, and the sentence names the check to run once the identifier is repaired by hand, from where the refused command resolved that same workbench",
 }
 
 // TestEveryCheckAdviceIsDispositioned holds the family of catalog sentences

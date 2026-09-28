@@ -231,7 +231,7 @@ func readBackCard(t *testing.T, card *bench.Card, counts *storeCounts) {
 			t.Errorf("item %s of %s is a %s standing %s", item.ID, card.ID, item.Kind, item.State)
 		}
 		written[item.ID] = contract.EventItemFiled
-		itemComments, err := bench.Comments(item.Dir)
+		itemComments, err := bench.Comments(item.LegacyDir())
 		if err != nil {
 			t.Fatalf("comments of item %s: %v", item.ID, err)
 		}
