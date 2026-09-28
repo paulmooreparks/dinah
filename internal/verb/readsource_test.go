@@ -566,9 +566,9 @@ func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
 		t.Errorf("no shipped configuration builds %s, so the guard judges it under none", name)
 	}
 	if len(configs) < 3 {
-		t.Fatalf("the shipped configurations select %d distinct file sets from verb and bench, and bench's Windows, Linux and other Unix files make at least three", len(configs))
+		t.Fatalf("the shipped configurations select %d distinct file sets from verb and %s, and the Windows, Linux and other Unix files of %s make at least three", len(configs), benchPath, benchPath)
 	}
-	t.Logf("judging %d files of verb and bench under %d configurations: %v", loaded, len(configs), configs)
+	t.Logf("judging %d files of verb and %s under %d configurations: %v", loaded, benchPath, len(configs), configs)
 	var findings []libraryFinding
 	reported := map[string]bool{}
 	for _, config := range configs {

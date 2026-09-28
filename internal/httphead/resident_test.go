@@ -439,7 +439,7 @@ func numberOf(ref string) int {
 // when it draws the card in none.
 func laneOf(page *node, ref string) string {
 	for _, lane := range page.all(withClass("lane")) {
-		for _, card := range lane.all(withClass("lane-card")) {
+		for _, card := range lane.all(withClass("md-item")) {
 			if card.attr["data-win-open"] == ref {
 				return lane.attr["aria-label"]
 			}
@@ -462,7 +462,7 @@ func detailText(page *node) string {
 // given title, empty when none does.
 func laneHolding(page *node, title string) string {
 	for _, lane := range page.all(withClass("lane")) {
-		for _, card := range lane.all(withClass("lane-card")) {
+		for _, card := range lane.all(withClass("md-item")) {
 			if strings.Contains(card.allText(), title) {
 				return lane.attr["aria-label"]
 			}
