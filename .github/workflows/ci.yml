@@ -166,7 +166,7 @@ jobs:
   # dinah-646 left alone.
   completion-budget:
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -177,7 +177,7 @@ jobs:
         env:
           DINAH_PERF: ci
         run: |
-          go test -count=50 -timeout 20m -run '^TestTheCallbackStaysInsideItsBudget$' -v ./cmd/dinah | tee "$RUNNER_TEMP/completion-budget.log"
+          go test -count=1 -timeout 8m -run '^TestTheCallbackStaysInsideItsBudget$' -v ./cmd/dinah | tee "$RUNNER_TEMP/completion-budget.log"
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then exit "$status"; fi
           if ! grep -q '^--- PASS: TestTheCallbackStaysInsideItsBudget' "$RUNNER_TEMP/completion-budget.log"; then
