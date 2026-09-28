@@ -595,12 +595,19 @@ func (m *interactiveModel) changed(msg changeMsg) tea.Cmd {
 // workbench routinely share one actor, harness, provider and model, so a
 // genuine change from a different session carrying that same identity would
 // be misattributed as an echo if identity alone decided it, reopening the
-// very bug this check exists to close. A batch reporting no events, or one
-// following an act whose response named no card to compare against, is not
-// attributable to anything named here, so it answers false rather than
-// vacuously true.
+// very bug this check exists to close. A batch following an act whose
+// response named no card to compare against, one reporting a column, and one
+// reporting neither an event nor a card are not attributable to anything
+// named here, so they answer false rather than vacuously true.
+//
+// A batch can report cards with no event at all: when the digest moved after
+// the previous wait took its cursor, the next wait finds nothing new in the
+// journal and reports the live cards as they stand. That batch is still an
+// echo when every card it reports is either the act's own card at the act's
+// revision or a card the view already draws at the same revision, and a card
+// standing anywhere else, or one the view does not draw, makes it not one.
 func (m *interactiveModel) batchIsOwnAct(set *verb.ChangeSet) bool {
-	if len(set.Events) == 0 || m.ownActRef == "" {
+	if m.ownActRef == "" || len(set.Columns) > 0 || (len(set.Events) == 0 && len(set.Cards) == 0) {
 		return false
 	}
 	for _, event := range set.Events {
@@ -609,7 +616,13 @@ func (m *interactiveModel) batchIsOwnAct(set *verb.ChangeSet) bool {
 		}
 	}
 	for _, card := range set.Cards {
-		if card.Ref == m.ownActRef && card.Revision != m.ownActRevision {
+		if card.Ref == m.ownActRef {
+			if card.Revision != m.ownActRevision {
+				return false
+			}
+			continue
+		}
+		if drawn, ok := m.cardInLanes(card.Ref); !ok || drawn.Revision != card.Revision {
 			return false
 		}
 	}
