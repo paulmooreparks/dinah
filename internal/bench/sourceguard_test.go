@@ -6,6 +6,7 @@ import (
 	"go/types"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"dinah/internal/seamguard"
@@ -203,30 +204,45 @@ func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
 		t.Fatalf("the shipped configurations select %d distinct file sets from this package, and its Windows, Linux and other Unix files make at least three", len(configs))
 	}
 	t.Logf("judging %d files under %d configurations: %v", loaded, len(configs), configs)
+	// Each configuration lists the package once and resolves every import
+	// from that listing (seamguard.ListedImporter), and the configurations
+	// run in parallel, each with its own file set and importer.
+	var mu sync.Mutex
 	occurs := map[string]bool{}
 	reported := map[string]bool{}
-	for _, config := range configs {
-		run := runGuard(t, seamguard.SourceImporterFor(token.NewFileSet(), config), seamExemptions)
-		roots := 0
-		for _, n := range run.graph.Nodes {
-			if isGuardRoot(n) {
-				roots++
-			}
-			for _, read := range n.Reads {
-				occurs[n.Name+"|"+read.Member] = true
-			}
+	t.Run("configurations", func(t *testing.T) {
+		for _, config := range configs {
+			t.Run(config.String(), func(t *testing.T) {
+				t.Parallel()
+				importer, err := seamguard.ListedImporter(".", config, ".")
+				if err != nil {
+					t.Fatal(err)
+				}
+				run := runGuard(t, importer, seamExemptions)
+				roots := 0
+				mu.Lock()
+				defer mu.Unlock()
+				for _, n := range run.graph.Nodes {
+					if isGuardRoot(n) {
+						roots++
+					}
+					for _, read := range n.Reads {
+						occurs[n.Name+"|"+read.Member] = true
+					}
+				}
+				if roots < 100 {
+					t.Fatalf("%s: found %d declarations to walk from, and the package declares far more, so the guard proves nothing", config, roots)
+				}
+				t.Logf("%s: walked from %d declarations over %d nodes in %d files", config, roots, len(run.graph.Nodes), len(run.pkg.Files))
+				for _, v := range run.violations {
+					if !reported[v.What] {
+						reported[v.What] = true
+						t.Errorf("%s: %s: %s (via %s)", config, v.Root, v.What, v.Via)
+					}
+				}
+			})
 		}
-		if roots < 100 {
-			t.Fatalf("%s: found %d declarations to walk from, and the package declares far more, so the guard proves nothing", config, roots)
-		}
-		t.Logf("%s: walked from %d declarations over %d nodes in %d files", config, roots, len(run.graph.Nodes), len(run.pkg.Files))
-		for _, v := range run.violations {
-			if !reported[v.What] {
-				reported[v.What] = true
-				t.Errorf("%s: %s: %s (via %s)", config, v.Root, v.What, v.Via)
-			}
-		}
-	}
+	})
 	for name, members := range seamExemptions {
 		for member := range members {
 			if !occurs[name+"|"+member] {
@@ -234,7 +250,10 @@ func TestTheBenchReadsOnlyThroughItsSource(t *testing.T) {
 			}
 		}
 	}
-	importer := seamguard.SourceImporter(token.NewFileSet())
+	importer, err := seamguard.ListedImporter(".", seamguard.Host(), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	planted, err := filepath.Glob(filepath.Join("testdata", "sourceguard", "*.go"))
 	if err != nil {

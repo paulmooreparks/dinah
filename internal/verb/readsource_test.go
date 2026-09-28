@@ -2,12 +2,12 @@ package verb
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"dinah/internal/seamguard"
@@ -527,7 +527,10 @@ func plantRun(t *testing.T, base *seamguard.Importer, trunkSeam *seam, plant str
 
 // TestTheLibraryReadsOnlyThroughTheBench is dinah-619/criteria/13's verb half.
 func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
-	base := seamguard.SourceImporter(token.NewFileSet())
+	base, err := seamguard.ListedImporter(".", seamguard.Host(), ".", "../bench")
+	if err != nil {
+		t.Fatal(err)
+	}
 	trunkSeam := loadSeam(t, base)
 	t.Logf("%s declares %d binding objects", benchPath, len(trunkSeam.binding))
 	if len(trunkSeam.binding) < 30 {
@@ -569,27 +572,41 @@ func TestTheLibraryReadsOnlyThroughTheBench(t *testing.T) {
 		t.Fatalf("the shipped configurations select %d distinct file sets from verb and %s, and the Windows, Linux and other Unix files of %s make at least three", len(configs), benchPath, benchPath)
 	}
 	t.Logf("judging %d files of verb and %s under %d configurations: %v", loaded, benchPath, len(configs), configs)
+	// Each configuration lists verb and bench once and resolves every import
+	// from that listing (seamguard.ListedImporter), and the configurations
+	// run in parallel, each with its own file set and importer.
+	var mu sync.Mutex
 	var findings []libraryFinding
 	reported := map[string]bool{}
-	for _, config := range configs {
-		configBase := seamguard.SourceImporterFor(token.NewFileSet(), config)
-		configSeam := loadSeam(t, configBase)
-		trunk, err := seamguard.Load(".", nil, seamguard.LoadOptions{Importer: seamguard.NewImporter(configBase, map[string]*types.Package{benchPath: configSeam.pkg.Types})})
-		if err != nil {
-			t.Fatal(err)
+	t.Run("configurations", func(t *testing.T) {
+		for _, config := range configs {
+			t.Run(config.String(), func(t *testing.T) {
+				t.Parallel()
+				configBase, err := seamguard.ListedImporter(".", config, ".", "../bench")
+				if err != nil {
+					t.Fatal(err)
+				}
+				configSeam := loadSeam(t, configBase)
+				trunk, err := seamguard.Load(".", nil, seamguard.LoadOptions{Importer: seamguard.NewImporter(configBase, map[string]*types.Package{benchPath: configSeam.pkg.Types})})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(trunk.Files) < 30 {
+					t.Fatalf("%s: found %d non-test sources, and this package has far more", config, len(trunk.Files))
+				}
+				found := libraryFindings(trunk, configSeam)
+				mu.Lock()
+				defer mu.Unlock()
+				findings = append(findings, found...)
+				for _, f := range unexcused(found, libraryReadExemptions) {
+					if !reported[f.function+"|"+f.what] {
+						reported[f.function+"|"+f.what] = true
+						t.Errorf("%s: %s: %s", config, f.function, f.what)
+					}
+				}
+			})
 		}
-		if len(trunk.Files) < 30 {
-			t.Fatalf("%s: found %d non-test sources, and this package has far more", config, len(trunk.Files))
-		}
-		found := libraryFindings(trunk, configSeam)
-		findings = append(findings, found...)
-		for _, f := range unexcused(found, libraryReadExemptions) {
-			if !reported[f.function+"|"+f.what] {
-				reported[f.function+"|"+f.what] = true
-				t.Errorf("%s: %s: %s", config, f.function, f.what)
-			}
-		}
-	}
+	})
 	for _, pair := range staleExemptions(findings) {
 		t.Errorf("%s is exempt but no longer occurs under any shipped configuration, so its exemption has outlived what it excused; remove the entry", pair)
 	}

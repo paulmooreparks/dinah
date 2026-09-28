@@ -1,9 +1,17 @@
 // Package seamguard is the parse that dinah-619's two read-seam guards share:
 // the bench guard (internal/bench, TestTheBenchReadsOnlyThroughItsSource) and
 // the library guard (internal/verb, TestTheLibraryReadsOnlyThroughTheBench).
-// Only those tests import it, and the one package of Dinah's it imports is
-// internal/durable, which imports none, so package bench can use it from its
+// Only tests import it: those two, and dinah-640's guard in internal/durable,
+// which uses its listing importer from the external test package
+// durable_test. The packages of Dinah's it imports are internal/durable and
+// internal/shipped, which import none, so package bench can use it from its
 // own tests without a cycle.
+//
+// Every guard resolves imports through List and ListedImporter: one
+// `go list -deps -json` run per configuration answers every package and its
+// files, where go/build in module mode starts a go list process for each
+// import path it resolves outside GOROOT, which was most of what the guards
+// cost.
 //
 // The seam guards stand beside dinah-640's guard in internal/durable
 // (TestNoPackageOutsideDurableUsesAFilePrimitive), which refuses every open,
@@ -79,6 +87,8 @@ package seamguard
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -87,6 +97,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -513,6 +524,107 @@ type Importer struct {
 	// affected memoises whether a package depends, at any depth, on a path
 	// override names.
 	affected map[string]bool
+	// listing, when set, answers every import from one go list run rather
+	// than from go/build, which in module mode starts a go list process for
+	// each import path it resolves outside GOROOT (Listing).
+	listing *Listing
+}
+
+// Listed is one package as `go list -deps -json` answers it for one
+// configuration.
+type Listed struct {
+	ImportPath string
+	Dir        string
+	GoFiles    []string
+	Imports    []string
+	ImportMap  map[string]string
+	Goroot     bool
+	DepOnly    bool
+}
+
+// Listing is every package a go list run named, and the module's own
+// packages among them in the order it named them.
+type Listing struct {
+	byPath map[string]*Listed
+	byDir  map[string]*Listed
+	// Module are the packages the patterns matched, as against the
+	// dependencies -deps added.
+	Module []*Listed
+}
+
+// List runs `go list -deps -json` over patterns in dir as config builds, and
+// answers the listing. The go command selects each package's files by the
+// configuration's GOOS, GOARCH and tags, with cgo off.
+func List(dir string, config Config, patterns ...string) (*Listing, error) {
+	args := append([]string{"list", "-deps", "-json=ImportPath,Dir,GoFiles,Imports,ImportMap,Goroot,DepOnly"}, config.Flags()...)
+	args = append(args, patterns...)
+	command := exec.Command("go", args...)
+	command.Dir = dir
+	command.Env = append(os.Environ(), config.Env()...)
+	out, err := command.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list for %s: %w", config, err)
+	}
+	listing := &Listing{byPath: map[string]*Listed{}, byDir: map[string]*Listed{}}
+	decoder := json.NewDecoder(bytes.NewReader(out))
+	for decoder.More() {
+		pkg := &Listed{}
+		if err := decoder.Decode(pkg); err != nil {
+			return nil, fmt.Errorf("go list for %s: %w", config, err)
+		}
+		listing.byPath[pkg.ImportPath] = pkg
+		listing.byDir[filepath.Clean(pkg.Dir)] = pkg
+		if !pkg.DepOnly {
+			listing.Module = append(listing.Module, pkg)
+		}
+	}
+	return listing, nil
+}
+
+// ListedImporter lists patterns from dir as config builds them and answers a
+// base Importer over that listing, which is what a guard wants: every import
+// resolved from one go list run.
+func ListedImporter(dir string, config Config, patterns ...string) (*Importer, error) {
+	listing, err := List(dir, config, patterns...)
+	if err != nil {
+		return nil, err
+	}
+	return SourceImporterListed(token.NewFileSet(), config, listing), nil
+}
+
+// SourceImporterListed answers a base Importer for config that resolves
+// every import from listing and never runs go/build's own resolution.
+func SourceImporterListed(fset *token.FileSet, config Config, listing *Listing) *Importer {
+	im := SourceImporterFor(fset, config)
+	im.listing = listing
+	return im
+}
+
+// find answers the package an import path names from a directory: from the
+// listing when the importer has one and the listing names the path, through
+// the importing package's ImportMap, and from go/build otherwise.
+func (im *Importer) find(path, dir string) (*build.Package, error) {
+	if im.listing == nil {
+		return im.ctxt.Import(path, dir, 0)
+	}
+	if from, ok := im.listing.byDir[filepath.Clean(dir)]; ok {
+		if mapped, ok := from.ImportMap[path]; ok {
+			path = mapped
+		}
+	}
+	pkg, ok := im.listing.byPath[path]
+	if !ok {
+		// A planted file may import a package nothing listed depends on.
+		return im.ctxt.Import(path, dir, 0)
+	}
+	imports := make([]string, 0, len(pkg.Imports))
+	for _, imported := range pkg.Imports {
+		if mapped, ok := pkg.ImportMap[imported]; ok {
+			imported = mapped
+		}
+		imports = append(imports, imported)
+	}
+	return &build.Package{ImportPath: pkg.ImportPath, Dir: pkg.Dir, GoFiles: pkg.GoFiles, Imports: imports, Goroot: pkg.Goroot}, nil
 }
 
 // SourceImporter answers a base Importer for the host's configuration: every
@@ -539,7 +651,7 @@ func SourceImporterFor(fset *token.FileSet, config Config) *Importer {
 // open which importer checks package bench with its companion, and a second
 // one would break the comparison the type comment above describes.
 func NewImporter(base *Importer, override map[string]*types.Package) *Importer {
-	return &Importer{fset: base.fset, ctxt: base.ctxt, base: base, override: override,
+	return &Importer{fset: base.fset, ctxt: base.ctxt, base: base, override: override, listing: base.listing,
 		checked: map[string]*types.Package{}, affected: map[string]bool{}}
 }
 
@@ -556,7 +668,7 @@ func (im *Importer) ImportFrom(path, dir string, _ types.ImportMode) (*types.Pac
 	if pkg, ok := im.override[path]; ok {
 		return pkg, nil
 	}
-	bp, err := im.ctxt.Import(path, dir, 0)
+	bp, err := im.find(path, dir)
 	if err != nil {
 		return nil, err
 	}
@@ -609,7 +721,7 @@ func (im *Importer) dependsOnOverride(bp *build.Package) bool {
 				result = true
 				break
 			}
-			dep, err := im.ctxt.Import(path, bp.Dir, 0)
+			dep, err := im.find(path, bp.Dir)
 			if err == nil && im.dependsOnOverride(dep) {
 				result = true
 				break
