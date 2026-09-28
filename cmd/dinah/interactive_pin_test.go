@@ -80,6 +80,7 @@ func pinFixtures(p pinPaths) map[string][]pinLine {
 		"attach":            opens("attach fx-1 " + p.file),
 		"file":              opens("file fx-1 decision decided"),
 		"cite":              opens("cite fx-1/decisions/1 test cmd/dinah/pin_test.go"),
+		"spend":             opens("spend fx-1 tokens --total 1"),
 		"resolve":           opens("resolve fx-1/decisions/1 --text done"),
 		"verify":            opens("verify fx-1/criteria/1 --text shown"),
 		"fail":              opens("fail fx-1/criteria/2 --text broken"),
