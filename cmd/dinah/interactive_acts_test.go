@@ -13,6 +13,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
 
@@ -31,18 +32,23 @@ const (
 // head's actor, nil for a read, which nothing refuses for want of permission.
 type actFixture struct {
 	definition string
-	actor      string
-	arrange    func(t *testing.T, root string)
-	reach      string
-	steps      string
-	effect     func(t *testing.T, root string, run tuiRun)
-	refuse     *actRefusal
+	// cardUnit builds the workbench in the card-unit layout, with that
+	// layout switched on for the fixture's own run, which an act that only
+	// that layout admits needs.
+	cardUnit bool
+	actor    string
+	arrange  func(t *testing.T, root string)
+	reach    string
+	steps    string
+	effect   func(t *testing.T, root string, run tuiRun)
+	refuse   *actRefusal
 }
 
 // actRefusal is a position where the library refuses an act for the head's
 // actor.
 type actRefusal struct {
 	definition string
+	cardUnit   bool
 	actor      string
 	arrange    func(t *testing.T, root string)
 	reach      string
@@ -346,6 +352,12 @@ var actFixtures = map[string]actFixture{
 	}, refuse: noActor(nil, "")},
 	"menu:accept-divergence": {actor: "alka", arrange: editedComment, steps: "1",
 		effect: wantEvent("fx-1", contract.EventDivergenceAccepted), refuse: noActor(editedComment, "")},
+	// redact is offered to the operator alone, on a store in the card-unit
+	// layout, so the accepting position runs as alka on that layout and the
+	// refusing one as brin on the same.
+	"menu:redact": {cardUnit: true, actor: "alka", arrange: redactableComment, steps: "1",
+		effect: wantEvent("fx-1", contract.EventRedacted),
+		refuse: &actRefusal{cardUnit: true, actor: "brin", arrange: redactableComment}},
 	"menu:rename": {actor: "alka", arrange: attachedFile, steps: "1" + "renamed.txt" + keyEnter,
 		effect: wantEvent("fx-1", contract.EventAttachmentRenamed), refuse: noActor(attachedFile, "")},
 	"menu:set": {actor: "alka", steps: "1" + "A new title" + keyCtrlD, effect: wantEvent("fx-1", contract.EventCardUpdated), refuse: noActor(nil, "")},
@@ -354,6 +366,12 @@ var actFixtures = map[string]actFixture{
 			t.Errorf("the editor was launched %d times: %v", len(launches), launches)
 		}
 	}, refuse: &actRefusal{actor: "alka", arrange: func(t *testing.T, root string) { step(t, root, "archive", "fx-1") }, reach: ":fx-1" + keyEnter}},
+}
+
+// redactableComment leaves fx-1 with a comment whose text can be redacted.
+func redactableComment(t *testing.T, root string) {
+	t.Helper()
+	step(t, root, "comment", "fx-1", "a remark somebody wants gone")
 }
 
 // editedComment leaves fx-1 with a comment whose body was edited outside the
@@ -463,6 +481,9 @@ func menuIndex(m *interactiveModel, verb string) int {
 // the head offers there, and once to perform the act.
 func checkAccepted(t *testing.T, name string, fixture actFixture) {
 	t.Helper()
+	if fixture.cardUnit {
+		bench.EnableCardUnitForTest(t)
+	}
 	root := actBench(t, fixture.definition)
 	if fixture.arrange != nil {
 		fixture.arrange(t, root)
@@ -507,6 +528,9 @@ func checkAccepted(t *testing.T, name string, fixture actFixture) {
 // would have had, and hold the workbench byte-identical.
 func checkRefused(t *testing.T, name string, refusal *actRefusal) {
 	t.Helper()
+	if refusal.cardUnit {
+		bench.EnableCardUnitForTest(t)
+	}
 	root := actBench(t, refusal.definition)
 	if refusal.arrange != nil {
 		refusal.arrange(t, root)
