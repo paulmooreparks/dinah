@@ -62,6 +62,14 @@ type Library struct {
 	// taken, where a test runs a whole second write and then asserts that the
 	// first one reads it rather than overwriting it.
 	Interpose func(step string)
+	// archiveWatch holds a waiting changes call's archived entries across its
+	// poll loop, keyed by archived card identifier, for a caller that wants
+	// to read one back. WatchedEntitiesCached stats every archived journal
+	// on every poll regardless of what this map holds (dinah-620/criteria/1:
+	// a restore, an edit and a re-archive can complete inside one poll
+	// interval, so an archived card's presence proves nothing about whether
+	// its journal changed). It is nil outside a waiting call.
+	archiveWatch map[string]bench.Watched
 }
 
 // New returns a library over an opened bench, on the real clock.

@@ -87,12 +87,20 @@ var operationNames = []string{
 // faster against their own bases, so neither row moved. show was not
 // recalibrated either: its own basis is dinah-618's, and 19-20ms on these
 // runs sits well inside its 30ms budget.
+//
+// dinah-620 stopped status building a full card view for a card it does not
+// print, which page-card also reaches while rendering the sidebar, and ran
+// three perf-job runs on its own pull request, on the trunk dinah-634's
+// archive-at-Done had already landed on: status-warm 15, 16 and 10ms, a basis
+// of 15ms; page-card 241, 251 and 173ms, a basis of 241ms; status-cold 96,
+// 100 and 78ms, a basis of 96ms. It recalibrated all three by the rule. The
+// other seven rows were left alone: this card touches no read behind them.
 var budgets = map[string][]budget{
 	"windows": {
-		{op: "status-warm", limit: 910 * time.Millisecond, basis: 302 * time.Millisecond, setBy: "dinah-635"},
+		{op: "status-warm", limit: 50 * time.Millisecond, basis: 15 * time.Millisecond, setBy: "dinah-620"},
 		{op: "show", limit: 30 * time.Millisecond, basis: 6 * time.Millisecond, setBy: "dinah-618"},
-		{op: "page-card", limit: 1460 * time.Millisecond, basis: 486 * time.Millisecond, setBy: "dinah-630"},
-		{op: "status-cold", limit: 1210 * time.Millisecond, basis: 402 * time.Millisecond, setBy: "dinah-635"},
+		{op: "page-card", limit: 730 * time.Millisecond, basis: 241 * time.Millisecond, setBy: "dinah-620"},
+		{op: "status-cold", limit: 290 * time.Millisecond, basis: 96 * time.Millisecond, setBy: "dinah-620"},
 		{op: "view-board", limit: 1140 * time.Millisecond, basis: 379 * time.Millisecond, setBy: "dinah-635"},
 		{op: "view-agenda", limit: 290 * time.Millisecond, basis: 95 * time.Millisecond, setBy: "dinah-635"},
 		{op: "next", limit: 290 * time.Millisecond, basis: 96 * time.Millisecond, setBy: "dinah-635"},

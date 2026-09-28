@@ -369,6 +369,13 @@ func (l *Library) waitForChange(req *Request) (*ChangeSet, error) {
 	if req.Timeout > 0 {
 		deadline = time.Now().Add(req.Timeout)
 	}
+	// Priming the map here, rather than leaving it nil until the first
+	// iteration's checkpoint sees it, gives a caller of l.archiveWatch
+	// something to read back across this loop's polls; it changes nothing
+	// about what gets statted, since WatchedEntitiesCached stats every
+	// archived journal on every call whether this is nil or not.
+	l.archiveWatch = map[string]bench.Watched{}
+	defer func() { l.archiveWatch = nil }()
 	for {
 		started := time.Now()
 		// Each poll is its own answer and reads its own day, so a wait
@@ -407,8 +414,16 @@ func (l *Library) waitForChange(req *Request) (*ChangeSet, error) {
 // it once per iteration; every caller that does not set req.Wait reaches it
 // directly through Changes and sees no behavior below this point that did not
 // exist before this card.
+//
+// The archive half is read through l.archiveWatch, which is nil outside a
+// waiting call. Every call, waiting or one-shot, stats every archived
+// journal fresh: WatchedEntitiesCached no longer answers out of the map
+// without statting, since an archived card's presence across two polls proves
+// nothing about whether its journal changed in between (dinah-620/criteria/1).
+// The map still lets a caller read back what the walk found for a given
+// identifier.
 func (l *Library) checkpoint(req *Request) (*ChangeSet, error) {
-	live, archive, columns, err := l.Bench.WatchedEntities()
+	live, archive, columns, err := l.Bench.WatchedEntitiesCached(l.archiveWatch)
 	if err != nil {
 		return nil, err
 	}

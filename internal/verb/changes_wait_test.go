@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
 
@@ -290,6 +291,63 @@ func TestAWaitingCallDoesNotSpuriouslyReturnAnErrorWhenNothingIsDeleted(t *testi
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("the wait never returned; hard test deadline hit")
+	}
+}
+
+// TestAPollLoopCatchesARestoreEditReArchiveInsideOneInterval drives
+// dinah-620/criteria/1: a card restored, edited and re-archived between two
+// polls of the same loop reports as changed, even though the archive listing
+// looks identical at both polls (the card is archived at the first poll and
+// archived again at the second, its own identifier never seen missing). It is
+// driven through two direct calls to Library.checkpoint sharing one primed
+// archiveWatch, on the terms waitForChange itself primes and reuses one
+// across its loop, so no sleep and no real poll loop is needed: the round
+// trip is complete before the second call is even made.
+//
+// Arming: reintroducing a presence-keyed skip in watchArchived (answer an
+// identifier the cache already holds without statting its journal, as long as
+// the listing still carries it) reddens this test, since the second poll's
+// archive digest would then equal the first poll's and the round trip would
+// go unreported.
+func TestAPollLoopCatchesARestoreEditReArchiveInsideOneInterval(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("A card that round-trips inside one poll")
+	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: ref}); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("archive: %s %s", response.Outcome, response.Refusal)
+	}
+	cursor := h.mint()
+
+	// Prime the cache exactly as waitForChange does before its own loop, so
+	// the second checkpoint below reuses it across polls the way a real wait
+	// does.
+	h.library.archiveWatch = map[string]bench.Watched{}
+	t.Cleanup(func() { h.library.archiveWatch = nil })
+
+	first, err := h.library.checkpoint(&Request{Since: cursor})
+	if err != nil {
+		t.Fatalf("first poll: %v", err)
+	}
+	if first.Changed {
+		t.Fatal("the first poll reported a change before anything happened")
+	}
+
+	// Restore, edit and re-archive, all between the two polls this test
+	// makes: exactly the round trip a card completing inside one 500ms
+	// interval performs.
+	if response := h.library.Restore(&Request{Verb: "restore", Actor: "alka", Ref: ref}); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("restore: %s %s", response.Outcome, response.Refusal)
+	}
+	mustCommentOn(t, h.library, ref, "edited while briefly restored")
+	if response := h.library.Archive(&Request{Verb: "archive", Actor: "alka", Ref: ref}); response.Outcome != contract.OutcomeOK {
+		t.Fatalf("re-archive: %s %s", response.Outcome, response.Refusal)
+	}
+
+	second, err := h.library.checkpoint(&Request{Since: first.Cursor})
+	if err != nil {
+		t.Fatalf("second poll: %v", err)
+	}
+	if !second.Changed {
+		t.Fatal("the second poll did not report the restore, edit and re-archive completed since the first poll")
 	}
 }
 
