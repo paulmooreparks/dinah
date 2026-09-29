@@ -51,6 +51,16 @@ func EnableCardUnitForTest(t testing.TB) {
 	t.Cleanup(func() { cardUnitEnabled = previous })
 }
 
+// refusedFormat, when set, is called with the root and the declared format of
+// every store an opener refuses for declaring a format above
+// EffectiveStorageFormat, which is the one place every opener and dinah check
+// refuse such a store. Nothing in the tree sets it. The format census of
+// dinah-637/criteria/39 adds testdata/formatcensus/census.go to this package
+// through go test -overlay, and that file sets it to record each format-12
+// store the suite opens with the card-unit layout switched off, and the test
+// on whose stack the open happened.
+var refusedFormat func(root string, declared int)
+
 // EffectiveStorageFormat is the highest storage format this build opens and
 // the format it creates new stores at: StorageFormat while the card-unit
 // layout is switched on, and the format below CardUnitFormat while it is off.

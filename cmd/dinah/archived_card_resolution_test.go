@@ -217,8 +217,8 @@ var archivedResolutionFamilies = []resolutionFamily{
 		name: "D", axis: "reaching",
 		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
 		files:     26,
-		mentions:  61,
-		functions: 50,
+		mentions:  62,
+		functions: 51,
 		sites: []resolutionSite{
 			{"internal/bench/designationmigrate.go", "ClaimedCardsBothHalves", 1, "listing the archived cards for the claims the storage migration is refused over, since it rewrites an archived card's journal too; it reads each card's holder and resolves no reference"},
 			{"internal/bench/migratestorage_phases.go", "readOldLayout", 1, "the storage migration walking both halves of the cards collection, because an archived card's members are carried as a live card's are; it reads each card by identifier from the root it walks and resolves no reference"},
@@ -231,6 +231,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 			{"internal/bench/cardreplay.go", "RebuildCards", 1, "the rebuild walking both halves of the cards collection, because an archived card's card.md is written back from its journal as a live card's is; it reads each card by identifier from the root it walks and resolves no reference"},
 			{"internal/bench/switch.go", "witnessOnAcquire", 1, "telling whether the directory a lock is taken on is a card's, live or archived, by the root it stands under, so the witness runs before the holder writes; it resolves no reference"},
 			{"internal/bench/migratestorage_phases.go", "strayOf", 1, "reading from a stray file's own path whether it stood in an archive mirror; it resolves no card"},
+			{"internal/bench/migratestorage_phases.go", "anchorLine", 1, "reading from a member file's own path whether its item stands in the archive mirror, so the removal compares the line the file states with the line the proof covered; it resolves no card"},
 			{"internal/bench/stalelock.go", "entityLockFiles", 1, "listing the lock file standing in each archived card, workstream and column directory, so check can judge a lock that travelled into the archive; it stats one fixed file name per directory and reads no anchor and no number"},
 			{"internal/bench/storagemigrate.go", "legacyCollection", 1, "composing the archive mirror of one member collection below a holder the old layout keeps, for the reader of a card it was handed; it reaches a comment or an item below that card and resolves no card"},
 			{"internal/bench/storagemigrate.go", "legacyHolderDir", 1, "finding the directory an archived item occupies on the old layout, so a comment written on it lands below it; the card is the holder the caller resolved and no card is resolved here"},

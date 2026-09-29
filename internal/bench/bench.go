@@ -1966,6 +1966,9 @@ func openWithVocabulary(src Source, root string, vocab columnVocabulary, admit f
 			return nil, contract.RefuseWith(contract.Malformed, "format", anchor)
 		}
 		if n > EffectiveStorageFormat() {
+			if refusedFormat != nil {
+				refusedFormat(root, n)
+			}
 			return nil, contract.Refuse(contract.UnsupportedVer, "format "+declared)
 		}
 		b.Format = n
