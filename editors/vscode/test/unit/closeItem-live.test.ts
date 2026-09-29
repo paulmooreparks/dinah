@@ -48,7 +48,9 @@ function binary(): FixtureRoot {
 
 after(() => {
 	if (built !== undefined) {
-		rmSync(built.tempRoot, { recursive: true, force: true });
+		// A Windows runner can still be deleting a file the binary just closed,
+		// which rmdir reports as ENOTEMPTY, so the removal is retried.
+		rmSync(built.tempRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 	}
 });
 
