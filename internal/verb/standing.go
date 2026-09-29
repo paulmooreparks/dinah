@@ -51,7 +51,7 @@ func fileStandingItems(held *bench.Lock, req *Request, b *bench.Bench, card *ben
 			Standing:    entry.Key,
 		}
 		b.CompleteFiled(&ev, item)
-		if err := bench.AppendEvent(held, card.JournalPath(), ev); err != nil {
+		if err := b.AppendEvent(held, card.JournalPath(), ev); err != nil {
 			return written, err
 		}
 		written = append(written, ev)
@@ -109,7 +109,7 @@ func (l *Library) fileStanding(req *Request) (*StandingRepair, error) {
 		return nil, contract.Refuse(contract.NotOperator, req.Actor)
 	}
 	report := &StandingRepair{Preview: !req.Confirm}
-	ids, err := bench.ListIDs(l.Bench.CardsRoot())
+	ids, err := l.Bench.ListIDs(l.Bench.CardsRoot())
 	if err != nil {
 		return report, err
 	}

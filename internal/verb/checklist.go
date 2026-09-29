@@ -100,7 +100,7 @@ func (l *Library) File(req *Request) *Response {
 		Kind:  kind,
 	}
 	l.Bench.CompleteFiled(&ev, item)
-	if err := bench.AppendEvent(lock, found.Card.JournalPath(), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, found.Card.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, found.Card)
@@ -615,14 +615,14 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	for _, extra := range target.also {
 		extra.TS = now
 		extra.Item = item.ID
-		if err := bench.AppendEvent(lock, entity.Card.JournalPath(), extra); err != nil {
+		if err := l.Bench.AppendEvent(lock, entity.Card.JournalPath(), extra); err != nil {
 			return l.FromError(req, err)
 		}
 	}
 	ev.TS = now
 	ev.Item = item.ID
 	l.Bench.CompleteMemberLine(ev, entity, target.fm, target.body)
-	if err := bench.AppendEvent(lock, entity.Card.JournalPath(), *ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, entity.Card.JournalPath(), *ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)

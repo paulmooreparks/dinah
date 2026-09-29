@@ -355,14 +355,14 @@ func (b *Bench) MigrateStorage(run StorageMigrationRun) (*StorageMigration, erro
 	}
 
 	now := run.Template.TS
-	held, err := Acquire(b.Root, run.Template.Actor.Name, now)
+	held, err := b.takeLock(b.Root, run.Template.Actor.Name, now)
 	if err != nil {
 		return nil, err
 	}
 	defer held.Release()
 
 	if !resumed {
-		original, err := durable.ReadFile(filepath.Join(b.Root, WorkbenchAnchor))
+		original, err := b.source().ReadFile(filepath.Join(b.Root, WorkbenchAnchor))
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +384,7 @@ func (b *Bench) MigrateStorage(run StorageMigrationRun) (*StorageMigration, erro
 	}
 	report.Backup = &StorageBackup{Path: state.Backup, Digest: state.BackupDigest}
 	if state.Manifest == nil {
-		files, err := countFiles(b.Root)
+		files, err := countFiles(b.source(), b.Root)
 		if err != nil {
 			return nil, err
 		}
@@ -429,7 +429,7 @@ func (b *Bench) MigrateStorage(run StorageMigrationRun) (*StorageMigration, erro
 	// A run that stopped after writing its own line and before unstamping
 	// the store does not write the line a second time.
 	recorded := false
-	for _, ev := range mustEvents(b.JournalPath()) {
+	for _, ev := range mustEvents(b.source(), b.JournalPath()) {
 		if ev.Event == contract.EventStorageMigrated {
 			recorded = true
 		}
@@ -449,7 +449,7 @@ func (b *Bench) MigrateStorage(run StorageMigrationRun) (*StorageMigration, erro
 	if err := passPoint("phase-4"); err != nil {
 		return nil, err
 	}
-	text, err := ReadText(filepath.Join(b.Root, WorkbenchAnchor))
+	text, err := b.ReadText(filepath.Join(b.Root, WorkbenchAnchor))
 	if err != nil {
 		return nil, err
 	}
@@ -462,7 +462,7 @@ func (b *Bench) MigrateStorage(run StorageMigrationRun) (*StorageMigration, erro
 	if err := removeIfPresent(filepath.Join(b.Root, StorageMigrationFile)); err != nil {
 		return nil, err
 	}
-	after, err := countFiles(b.Root)
+	after, err := countFiles(b.source(), b.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +499,7 @@ func (b *Bench) migratedAlready(run StorageMigrationRun, report *StorageMigratio
 	if len(strays) == 0 {
 		return report, nil
 	}
-	held, err := Acquire(b.Root, run.Template.Actor.Name, run.Template.TS)
+	held, err := b.takeLock(b.Root, run.Template.Actor.Name, run.Template.TS)
 	if err != nil {
 		return nil, err
 	}
@@ -539,7 +539,7 @@ func (b *Bench) readStorageState() (*storageState, bool, error) {
 		return nil, false, nil
 	}
 	path := filepath.Join(b.Root, StorageMigrationFile)
-	data, err := durable.ReadFile(path)
+	data, err := b.source().ReadFile(path)
 	if err != nil {
 		return nil, false, contract.Refuse(contract.Malformed, path)
 	}
@@ -561,11 +561,45 @@ func (b *Bench) writeStorageState(state *storageState) error {
 }
 
 // removeIfPresent removes a file, answering nothing where it is already gone.
+// It asks the removal itself rather than a stat first, so it reads nothing.
 func removeIfPresent(path string) error {
-	if _, err := os.Lstat(path); errors.Is(err, fs.ErrNotExist) {
+	if err := durable.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
+// walkTree visits every entry below root, depth first and in name order, with
+// its path relative to root, reading each directory through src. It descends
+// into an entry the listing answers as a directory, so, as with
+// filepath.WalkDir, a symbolic link below root is visited and not followed.
+// Unlike filepath.WalkDir it lists root itself through src.ReadDir, which
+// follows a root that is a symbolic link, and it does not visit root. A
+// directory that will not list stops the walk with its error.
+func walkTree(src Source, root string, visit func(rel string, entry fs.DirEntry) error) error {
+	var walk func(dir, rel string) error
+	walk = func(dir, rel string) error {
+		entries, err := src.ReadDir(dir)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			child := entry.Name()
+			if rel != "" {
+				child = filepath.Join(rel, entry.Name())
+			}
+			if err := visit(child, entry); err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				if err := walk(joinMember(dir, entry.Name()), child); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	}
-	return durable.Remove(path)
+	return walk(root, "")
 }
 
 // checkBackupArgument applies the first precondition: a writing run names a
@@ -593,7 +627,7 @@ func (b *Bench) checkBackupArgument(run StorageMigrationRun, state *storageState
 	if within(b.Root, directory) {
 		return contract.Refuse(contract.BackupInsideStore, directory)
 	}
-	entries, err := os.ReadDir(directory)
+	entries, err := b.source().ReadDir(directory)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -604,7 +638,7 @@ func (b *Bench) checkBackupArgument(run StorageMigrationRun, state *storageState
 		return nil
 	}
 	if len(entries) == 1 && entries[0].IsDir() && entries[0].Name() == b.ID {
-		marker, err := readBackupMarker(filepath.Join(directory, b.ID))
+		marker, err := readBackupMarker(b.source(), filepath.Join(directory, b.ID))
 		if err == nil && marker.Workbench == b.ID {
 			return nil
 		}
@@ -632,8 +666,8 @@ func within(root, path string) bool {
 }
 
 // readBackupMarker reads the marker a backup carries.
-func readBackupMarker(copy string) (*backupMarker, error) {
-	data, err := durable.ReadFile(filepath.Join(copy, StorageBackupMarker))
+func readBackupMarker(src Source, copy string) (*backupMarker, error) {
+	data, err := src.ReadFile(filepath.Join(copy, StorageBackupMarker))
 	if err != nil {
 		return nil, err
 	}
@@ -651,13 +685,13 @@ func readBackupMarker(copy string) (*backupMarker, error) {
 // rehearsal takes no lock and writes nothing, so it is not refused over one.
 func (b *Bench) checkLocksForStorage() error {
 	var sibling string
-	err := filepath.WalkDir(b.Root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() || sibling != "" {
+	err := walkTree(b.source(), b.Root, func(rel string, entry fs.DirEntry) error {
+		if entry.IsDir() || sibling != "" {
 			return nil
 		}
 		name := entry.Name()
 		if strings.HasSuffix(name, ".lock") && IsID(strings.TrimSuffix(name, ".lock")) {
-			sibling = path
+			sibling = filepath.Join(b.Root, rel)
 		}
 		return nil
 	})
@@ -681,8 +715,8 @@ func (b *Bench) takeBackup(run StorageMigrationRun, state *storageState) error {
 		return err
 	}
 	copy := state.Backup
-	if marker, err := readBackupMarker(copy); err == nil && marker.Complete && state.BackupDigest != "" {
-		if digest, err := storeDigest(copy, ""); err == nil && digest == state.BackupDigest {
+	if marker, err := readBackupMarker(b.source(), copy); err == nil && marker.Complete && state.BackupDigest != "" {
+		if digest, err := storeDigest(b.source(), copy, ""); err == nil && digest == state.BackupDigest {
 			return nil
 		}
 	}
@@ -697,18 +731,15 @@ func (b *Bench) takeBackup(run StorageMigrationRun, state *storageState) error {
 		return err
 	}
 	copied := 0
-	err := filepath.WalkDir(b.Root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(b.Root, path)
+	src := b.source()
+	err := walkTree(src, b.Root, func(rel string, entry fs.DirEntry) error {
 		if entry.IsDir() {
 			return os.MkdirAll(filepath.Join(copy, rel), 0o755)
 		}
 		if excludedFromBackup(rel) {
 			return nil
 		}
-		data, err := durable.ReadFile(path)
+		data, err := src.ReadFile(filepath.Join(b.Root, rel))
 		if err != nil {
 			return err
 		}
@@ -727,11 +758,11 @@ func (b *Bench) takeBackup(run StorageMigrationRun, state *storageState) error {
 	if err != nil {
 		return err
 	}
-	want, err := storeDigest(b.Root, state.OriginalWorkbench)
+	want, err := storeDigest(b.source(), b.Root, state.OriginalWorkbench)
 	if err != nil {
 		return err
 	}
-	got, err := storeDigest(copy, "")
+	got, err := storeDigest(b.source(), copy, "")
 	if err != nil {
 		return err
 	}
@@ -775,16 +806,12 @@ func excludedFromBackup(rel string) bool {
 // leaving out what a backup leaves out. Where workbench is not empty it
 // stands in for workbench.md's own bytes, which is how the source is
 // compared with a copy taken before the run stamped it.
-func storeDigest(root, workbench string) (string, error) {
+func storeDigest(src Source, root, workbench string) (string, error) {
 	var files []string
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
+	err := walkTree(src, root, func(rel string, entry fs.DirEntry) error {
 		if entry.IsDir() {
 			return nil
 		}
-		rel, _ := filepath.Rel(root, path)
 		if excludedFromBackup(rel) {
 			return nil
 		}
@@ -797,7 +824,7 @@ func storeDigest(root, workbench string) (string, error) {
 	sort.Slice(files, func(i, j int) bool { return filepath.ToSlash(files[i]) < filepath.ToSlash(files[j]) })
 	hash := sha256.New()
 	for _, rel := range files {
-		data, err := durable.ReadFile(filepath.Join(root, rel))
+		data, err := src.ReadFile(filepath.Join(root, rel))
 		if err != nil {
 			return "", err
 		}
@@ -816,13 +843,9 @@ func storeDigest(root, workbench string) (string, error) {
 // countFiles counts the regular files below a store that are the store's
 // own, leaving out what a backup leaves out: the locks a run holds and the
 // progress file it keeps, which stand only while it runs.
-func countFiles(root string) (int, error) {
+func countFiles(src Source, root string) (int, error) {
 	count := 0
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, _ := filepath.Rel(root, path)
+	err := walkTree(src, root, func(rel string, entry fs.DirEntry) error {
 		if !entry.IsDir() && !excludedFromBackup(rel) {
 			count++
 		}

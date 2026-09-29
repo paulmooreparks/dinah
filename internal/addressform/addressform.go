@@ -348,7 +348,7 @@ type Exemption struct {
 	Reason string
 }
 
-// exemptions are the fifty-six functions the sweep finds that answer a
+// exemptions are the sixty-nine functions the sweep finds that answer a
 // caller's string with an entity without deciding which entity a spelling
 // names.
 //
@@ -419,6 +419,19 @@ var exemptions = []Exemption{
 	{Function: "RouteSkipsOperatorColumn", Ground: GroundLists, Reason: "walks the live columns a declared route omits and answers the first the workbench reserves ahead of the card, and its string is the route name saying which declaration to read"},
 	{Function: "StrandedItemOf", Ground: GroundLists, Reason: "walks a card's pending checklist items and answers the first naming a column a declared route omits, and its string is the route name saying which declaration to read"},
 
+	{Function: "loadItem", Ground: GroundLoadsByIdentifier, Reason: "LoadItem's body, reading through the source it is handed (dinah-619's read seam)"},
+	{Function: "loadAttachment", Ground: GroundLoadsByIdentifier, Reason: "LoadAttachment's body, reading through the source it is handed"},
+	{Function: "loadWorkstream", Ground: GroundLoadsByIdentifier, Reason: "LoadWorkstream's body, reading through the source it is handed"},
+	{Function: "itemAt", Ground: GroundLoadsByIdentifier, Reason: "reads a checklist item's anchor out of the directory its identifier names, through the source's memoised parse"},
+	{Function: "commentAt", Ground: GroundLoadsByIdentifier, Reason: "reads a comment's anchor out of the directory its identifier names, through the source's memoised parse"},
+	{Function: "attachmentAt", Ground: GroundLoadsByIdentifier, Reason: "reads an attachment's anchor out of the directory its identifier names, through the source's memoised parse"},
+	{Function: "parseCard", Ground: GroundLoadsByIdentifier, Reason: "builds a card from the anchor text loadCard read out of the directory the card's identifier names"},
+	{Function: "addAttachmentBytes", Ground: GroundCreates, Reason: "AddAttachmentBytes's body, reading through the source it is handed"},
+	{Function: "replaceAttachment", Ground: GroundCreates, Reason: "ReplaceAttachment's body, reading through the source it is handed"},
+	{Function: "renameAttachment", Ground: GroundCreates, Reason: "RenameAttachment's body, reading through the source it is handed"},
+	{Function: "legacyComments", Ground: GroundLists, Reason: "Comments's body on the old layout, reading through the source it is handed"},
+	{Function: "legacyItems", Ground: GroundLists, Reason: "Items's body on the old layout, reading through the source it is handed"},
+	{Function: "attachments", Ground: GroundLists, Reason: "Attachments's body, reading through the source it is handed"},
 	{Function: "ResolveCard", Ground: GroundDelegates, Reason: "one line, handing the reference to resolveCardIn"},
 	{Function: "ResolveArchivedCard", Ground: GroundDelegates, Reason: "one line, handing the reference to resolveCardIn against the archived half"},
 	{Function: "ResolveReference", Ground: GroundDelegates, Reason: "one line, handing the reference to ResolveReferenceIn"},

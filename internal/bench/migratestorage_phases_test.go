@@ -245,7 +245,7 @@ func TestAnInterruptedRunResumesToTheSameResult(t *testing.T) {
 			if baselines["card"] != 1 {
 				t.Errorf("the main card's journal carries %d card baselines, wanted one", baselines["card"])
 			}
-			bench := mustEvents(reopened.JournalPath())
+			bench := mustEvents(Disk{}, reopened.JournalPath())
 			migrated := 0
 			for _, ev := range bench {
 				if ev.Event == contract.EventStorageMigrated {
@@ -279,7 +279,7 @@ func TestABackupIsThePreRunStoreTakenAfterTheLockOut(t *testing.T) {
 	if err := os.WriteFile(cardLock, []byte(`{"actor":"ghost","pid":1,"ts":"2026-01-01T00:00:00Z"}`+"\n"), 0o644); err != nil {
 		t.Fatalf("plant a card lock: %v", err)
 	}
-	pristine, err := storeDigest(store, "")
+	pristine, err := storeDigest(Disk{}, store, "")
 	if err != nil {
 		t.Fatalf("digest the pristine store: %v", err)
 	}
@@ -289,7 +289,7 @@ func TestABackupIsThePreRunStoreTakenAfterTheLockOut(t *testing.T) {
 	plant(t, &storageMigrationPoint, func(at string) error {
 		switch at {
 		case "before-backup":
-			fm, _ := loadAnchor(filepath.Join(store, WorkbenchAnchor))
+			fm, _ := loadAnchor(Disk{}, filepath.Join(store, WorkbenchAnchor))
 			stampedFirst = fm.Value(MigratingKey) == MigratingStorage
 		case "backup-copying":
 			if !copying {
@@ -306,7 +306,7 @@ func TestABackupIsThePreRunStoreTakenAfterTheLockOut(t *testing.T) {
 		t.Error("the store did not declare the migration in progress before its copy was taken")
 	}
 	copy := filepath.Join(backup, filepath.Base(store))
-	marker, err := readBackupMarker(copy)
+	marker, err := readBackupMarker(Disk{}, copy)
 	if err != nil || marker.Complete {
 		t.Fatalf("the interrupted copy's marker reads %+v (%v), wanted an incomplete one", marker, err)
 	}
@@ -317,11 +317,11 @@ func TestABackupIsThePreRunStoreTakenAfterTheLockOut(t *testing.T) {
 	if err != nil || report.Outcome != contract.ReadFindings || report.Held == nil {
 		t.Fatalf("the rerun: %v %+v", err, report)
 	}
-	marker, err = readBackupMarker(copy)
+	marker, err = readBackupMarker(Disk{}, copy)
 	if err != nil || !marker.Complete {
 		t.Errorf("the rerun's copy marker reads %+v (%v), wanted a complete one", marker, err)
 	}
-	digest, err := storeDigest(copy, "")
+	digest, err := storeDigest(Disk{}, copy, "")
 	if err != nil {
 		t.Fatalf("digest the copy: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestABackupIsThePreRunStoreTakenAfterTheLockOut(t *testing.T) {
 func TestARehearsalWritesNothingAndPrintsWhatTheRunPrints(t *testing.T) {
 	EnableCardUnitForTest(t)
 	store := copyMigrationFixture(t)
-	before, err := storeDigest(store, "")
+	before, err := storeDigest(Disk{}, store, "")
 	if err != nil {
 		t.Fatalf("digest: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestARehearsalWritesNothingAndPrintsWhatTheRunPrints(t *testing.T) {
 	if err != nil || rehearsal.Outcome != contract.ReadOK || !rehearsal.Rehearsal {
 		t.Fatalf("the rehearsal: %v %+v", err, rehearsal)
 	}
-	after, err := storeDigest(store, "")
+	after, err := storeDigest(Disk{}, store, "")
 	if err != nil {
 		t.Fatalf("digest: %v", err)
 	}
@@ -422,13 +422,13 @@ func TestTheBackupArgumentIsRefusedWhereItCannotServe(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			store := copyMigrationFixture(t)
-			before, _ := storeDigest(store, "")
+			before, _ := storeDigest(Disk{}, store, "")
 			_, err := migrateFixture(t, store, migrationRun(tc.backup(store)))
 			var refusal *contract.Refusal
 			if !errors.As(err, &refusal) || refusal.Name != tc.refusal {
 				t.Fatalf("wanted %s, got %v", tc.refusal, err)
 			}
-			if after, _ := storeDigest(store, ""); after != before {
+			if after, _ := storeDigest(Disk{}, store, ""); after != before {
 				t.Error("the refused run changed the store")
 			}
 		})
@@ -518,7 +518,7 @@ func TestEachPreconditionRefusesNamingTheFile(t *testing.T) {
 			ids, _ := ListIDs(filepath.Join(store, card, CommentsDir))
 			first := filepath.Join(store, card, CommentsDir, ids[0], legacyAnchorOf(KindComment))
 			second := filepath.Join(store, card, CommentsDir, ids[1], legacyAnchorOf(KindComment))
-			fm, _ := loadAnchor(first)
+			fm, _ := loadAnchor(Disk{}, first)
 			edit(t, second, func(text string) string {
 				other, body := ParseAnchor(text)
 				other.Set(OrdinalField, fm.Value(OrdinalField))
@@ -537,7 +537,7 @@ func TestEachPreconditionRefusesNamingTheFile(t *testing.T) {
 			return filepath.Join(to, legacyAnchorOf(KindComment))
 		}},
 		{"an attachment destination holding a different tree", PreconditionDestination, func(t *testing.T, store string) string {
-			moves := legacyMoves(filepath.Join(store, card), true)
+			moves := legacyMoves(Disk{}, filepath.Join(store, card), true)
 			if len(moves) == 0 {
 				t.Fatal("the fixture carries no attachment to move")
 			}
@@ -550,7 +550,7 @@ func TestEachPreconditionRefusesNamingTheFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			store := copyMigrationFixture(t)
 			named := tc.plant(t, store)
-			before, _ := storeDigest(store, "")
+			before, _ := storeDigest(Disk{}, store, "")
 			_, err := migrateFixture(t, store, migrationRun(filepath.Join(t.TempDir(), "backup")))
 			var refusal *contract.Refusal
 			if !errors.As(err, &refusal) || refusal.Name != contract.StoragePrecondition {
@@ -559,7 +559,7 @@ func TestEachPreconditionRefusesNamingTheFile(t *testing.T) {
 			if !strings.Contains(refusal.Extra["files"], tc.rule+" "+named) {
 				t.Errorf("the refusal lists %q, wanted %s %s among them", refusal.Extra["files"], tc.rule, named)
 			}
-			if after, _ := storeDigest(store, ""); after != before {
+			if after, _ := storeDigest(Disk{}, store, ""); after != before {
 				t.Error("the refused run changed the store")
 			}
 		})
@@ -624,7 +624,7 @@ func TestAStrayIsCarriedByPhaseFour(t *testing.T) {
 	var stray *Comment
 	plant(t, &storageMigrationPoint, func(at string) error {
 		if at == "phase-1" && stray == nil {
-			written, err := legacyAddComment(cardDir, "an older process", "2026-09-28T12:01:00Z", "written after the baselines")
+			written, err := legacyAddComment(Disk{}, cardDir, "an older process", "2026-09-28T12:01:00Z", "written after the baselines")
 			if err != nil {
 				return err
 			}
@@ -660,7 +660,7 @@ func TestAStrayIsCarriedByPhaseFour(t *testing.T) {
 
 	// A stray on a store the migration finished is a finding, and a rerun
 	// carries it.
-	late, err := legacyAddComment(cardDir, "a later older process", "2026-09-28T12:02:00Z", "written after the migration")
+	late, err := legacyAddComment(Disk{}, cardDir, "a later older process", "2026-09-28T12:02:00Z", "written after the migration")
 	if err != nil {
 		t.Fatalf("plant a late stray: %v", err)
 	}
@@ -745,7 +745,7 @@ func TestAWriteDuringTheRunIsRecomputedOnce(t *testing.T) {
 			if at != "phase-1" || written != nil {
 				return nil
 			}
-			comment, err := legacyAddComment(cardDir, "sam", "2026-09-28T12:03:00Z", "written while the run was in progress")
+			comment, err := legacyAddComment(Disk{}, cardDir, "sam", "2026-09-28T12:03:00Z", "written while the run was in progress")
 			if err != nil {
 				return err
 			}
@@ -831,7 +831,7 @@ func TestAWriteDuringTheRunIsRecomputedOnce(t *testing.T) {
 		}
 		opened, _ := Open(store)
 		recorded := false
-		for _, ev := range mustEvents(opened.JournalPath()) {
+		for _, ev := range mustEvents(Disk{}, opened.JournalPath()) {
 			if ev.Event == contract.EventStorageMigrated && len(ev.Accepted) == 1 && ev.Accepted[0] == key {
 				recorded = true
 			}

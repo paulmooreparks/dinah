@@ -102,7 +102,7 @@ func (b *Bench) FindRedactTarget(card *Card, column, kind, id string) (*RedactTa
 	default:
 		return nil, false, nil
 	}
-	events, _, err := ReadJournal(target.Journal)
+	events, _, err := b.ReadJournal(target.Journal)
 	if err != nil {
 		return nil, false, err
 	}
@@ -140,22 +140,22 @@ func (b *Bench) FindRedactTarget(card *Card, column, kind, id string) (*RedactTa
 // over the journal, so the journal holds either the old content or the new.
 // A failure before the rename removes the composed file and leaves the
 // journal as it was.
-func Redact(held *Lock, target RedactTarget, template Event, write bool) (RedactionAccount, error) {
+func (b *Bench) Redact(held *Lock, target RedactTarget, template Event, write bool) (RedactionAccount, error) {
 	account := RedactionAccount{Journal: target.Journal}
 	if write && !held.guards(filepath.Dir(target.Journal)) {
 		return account, contract.Refuse(contract.JournalUnlocked, target.Journal)
 	}
 	leftover := target.Journal + RedactLeftoverSuffix
-	if Exists(leftover) && write {
+	if b.Exists(leftover) && write {
 		if err := durable.Remove(leftover); err != nil {
 			return account, err
 		}
 		account.Leftover = leftover
 	}
-	if sidecars := TornSidecars(filepath.Dir(target.Journal)); len(sidecars) > 0 {
+	if sidecars := tornSidecars(b.source(), filepath.Dir(target.Journal)); len(sidecars) > 0 {
 		return account, contract.Refuse(contract.TornSidecarPresent, sidecars[0])
 	}
-	raw, err := durable.ReadFile(target.Journal)
+	raw, err := b.source().ReadFile(target.Journal)
 	if err != nil && !os.IsNotExist(err) {
 		return account, err
 	}
@@ -233,11 +233,11 @@ func Redact(held *Lock, target RedactTarget, template Event, write bool) (Redact
 	return account, nil
 }
 
-// RemoveRedactLeftover removes a stale journal.ndjson.redact beside a journal,
+// removeRedactLeftover removes a stale journal.ndjson.redact beside a journal,
 // under the lock of the journal's entity, and reports whether one stood there.
-func RemoveRedactLeftover(held *Lock, journal string) (bool, error) {
+func (b *Bench) removeRedactLeftover(held *Lock, journal string) (bool, error) {
 	leftover := journal + RedactLeftoverSuffix
-	if !Exists(leftover) {
+	if !b.Exists(leftover) {
 		return false, nil
 	}
 	if !held.guards(filepath.Dir(journal)) {
@@ -267,7 +267,7 @@ func (b *Bench) MemberRedaction(entity *EntityRef) (*Redaction, error) {
 func (b *Bench) RedactLeftovers(actor, now string) ([]Finding, error) {
 	dirs := []string{b.Root}
 	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
-		ids, err := ListIDs(root)
+		ids, err := b.ListIDs(root)
 		if err != nil {
 			return nil, err
 		}
@@ -279,15 +279,15 @@ func (b *Bench) RedactLeftovers(actor, now string) ([]Finding, error) {
 	for _, dir := range dirs {
 		journal := filepath.Join(dir, JournalName)
 		leftover := journal + RedactLeftoverSuffix
-		if !Exists(leftover) {
+		if !b.Exists(leftover) {
 			continue
 		}
 		findings = append(findings, Finding{Path: leftover, Key: FindingRedactLeftover, Detail: filepath.Base(leftover), Severity: SeverityCleanup})
-		lock, err := Acquire(dir, actor, now)
+		lock, err := b.takeLock(dir, actor, now)
 		if err != nil {
 			continue
 		}
-		_, err = RemoveRedactLeftover(lock, journal)
+		_, err = b.removeRedactLeftover(lock, journal)
 		lock.Release()
 		if err != nil {
 			return findings, err

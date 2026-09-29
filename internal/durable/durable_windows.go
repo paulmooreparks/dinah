@@ -62,11 +62,16 @@ func utf16(op, path string) (*uint16, error) {
 
 // createFile opens path with CreateFile and wraps the handle as an *os.File.
 func createFile(op, path string, access, share, disposition uint32) (*os.File, error) {
+	return createFileFlags(op, path, access, share, disposition, windows.FILE_ATTRIBUTE_NORMAL)
+}
+
+// createFileFlags is createFile with the flags and attributes argument given.
+func createFileFlags(op, path string, access, share, disposition, flags uint32) (*os.File, error) {
 	name, err := utf16(op, path)
 	if err != nil {
 		return nil, err
 	}
-	handle, err := windows.CreateFile(name, access, share, nil, disposition, windows.FILE_ATTRIBUTE_NORMAL, 0)
+	handle, err := windows.CreateFile(name, access, share, nil, disposition, flags, 0)
 	if err != nil {
 		return nil, &os.PathError{Op: op, Path: path, Err: err}
 	}
@@ -76,6 +81,14 @@ func createFile(op, path string, access, share, disposition uint32) (*os.File, e
 // openRead opens a file for reading with every sharing flag.
 func openRead(path string) (*os.File, error) {
 	return createFile("open", path, windows.GENERIC_READ, shareAll, windows.OPEN_EXISTING)
+}
+
+// openDirOnce opens a directory, or a file, for reading with every sharing
+// flag. CreateFile opens a directory only when it is given
+// FILE_FLAG_BACKUP_SEMANTICS, which its documentation names as the flag "to
+// obtain a handle to a directory".
+func openDirOnce(path string) (*os.File, error) {
+	return createFileFlags("open", path, windows.GENERIC_READ, shareAll, windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS)
 }
 
 // openRetryable accepts a sharing violation alone. CreateFile also answers

@@ -17,6 +17,7 @@ import (
 // member of a collection, asks it here instead, so the collection is sorted
 // once rather than once per member.
 type Positions struct {
+	src     Source                 // where the composition reads
 	listed  map[string]listing     // collection path -> what ListIDs answered
 	texts   map[string]anchorText  // anchor path -> what ReadText answered
 	sorted  map[string][]string    // collection path -> ids in SortByOrdinal order
@@ -33,8 +34,9 @@ type listing struct {
 // anchorText is what one ReadText call answered, error included, so an anchor
 // that would not read is skipped by every reader in the composition alike.
 type anchorText struct {
-	text string
-	err  error
+	text     string
+	revision string
+	err      error
 }
 
 // cardRecords is what one LoadCardRecord call answered, error included.
@@ -45,7 +47,19 @@ type cardRecords struct {
 
 // NewPositions makes an empty memo for one composition.
 func NewPositions() *Positions {
+	return newPositions(Disk{})
+}
+
+// NewPositions makes an empty memo for one composition that reads through
+// this bench's source.
+func (b *Bench) NewPositions() *Positions {
+	return newPositions(b.source())
+}
+
+// newPositions makes an empty memo reading through src.
+func newPositions(src Source) *Positions {
 	return &Positions{
+		src:     src,
 		listed:  map[string]listing{},
 		texts:   map[string]anchorText{},
 		sorted:  map[string][]string{},
@@ -54,23 +68,54 @@ func NewPositions() *Positions {
 }
 
 // IDs is ListIDs(collection), called at most once per collection.
+//
+// Over a source that memoises, the listing is the source's own and nothing is
+// kept here, since asking again costs a lookup rather than a read.
 func (p *Positions) IDs(collection string) ([]string, error) {
+	if _, rereads := p.src.(rereader); !rereads {
+		return listIDs(p.src, collection)
+	}
 	if kept, ok := p.listed[collection]; ok {
 		return kept.ids, kept.err
 	}
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(p.src, collection)
 	p.listed[collection] = listing{ids: ids, err: err}
 	return ids, err
 }
 
 // Text is ReadText(path), called at most once per path.
 func (p *Positions) Text(path string) (string, error) {
+	kept := p.textAndRevision(path)
+	return kept.text, kept.err
+}
+
+// textAndRevision is what one read of an anchor answered, read at most once
+// per path.
+func (p *Positions) textAndRevision(path string) anchorText {
 	if kept, ok := p.texts[path]; ok {
-		return kept.text, kept.err
+		return kept
 	}
-	text, err := ReadText(path)
-	p.texts[path] = anchorText{text: text, err: err}
-	return text, err
+	text, revision, err := readTextAndRevision(p.src, path)
+	kept := anchorText{text: text, revision: revision, err: err}
+	p.texts[path] = kept
+	return kept
+}
+
+// derive answers Derive for one anchor. Over a source that rereads, the
+// composition keeps the text itself and derives from it, so an anchor is read
+// at most once however many readers of the composition ask for it; over a
+// source that memoises, it asks the source, whose memo is shared beyond the
+// composition.
+func (p *Positions) derive(path string, kind DeriveKind, derive func(path, text, revision string) (any, error)) (any, error) {
+	if _, rereads := p.src.(rereader); rereads {
+		kept := p.textAndRevision(path)
+		if kept.err != nil {
+			return nil, kept.err
+		}
+		return derive(path, kept.text, kept.revision)
+	}
+	observeAnchor(path)
+	return p.src.Derive(path, kind, derive)
 }
 
 // Record is b.LoadCardRecord(card), called at most once per card.
@@ -128,13 +173,12 @@ func (p *Positions) Sorted(collection, anchor string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	ordered := sortByOrdinalWith(collection, ids, func(id string) int {
-		text, err := p.Text(filepath.Join(collection, id, anchor))
+	ordered := sortByOrdinalWith(p.src, collection, ids, func(id string) int {
+		value, err := p.derive(joinMember(collection, id, anchor), DeriveAnchor, deriveAnchor)
 		if err != nil {
 			return 0
 		}
-		fm, _ := ParseAnchor(text)
-		return OrdinalOf(fm)
+		return OrdinalOf(value.(*parsedAnchor).fm)
 	})
 	p.sorted[collection] = ordered
 	return ordered, nil
@@ -167,12 +211,13 @@ func (p *Positions) Attachments(dir string) ([]*Attachment, error) {
 	}
 	var attachments []*Attachment
 	for _, id := range ordered {
-		member := filepath.Join(collection, id)
-		text, err := p.Text(filepath.Join(member, AttachmentAnchor))
+		value, err := p.derive(joinMember(collection, id, AttachmentAnchor), DeriveAttachment, deriveAttachment)
 		if err != nil {
 			continue
 		}
-		attachments = append(attachments, attachmentFromText(member, id, text))
+		attachment := value.(*Attachment).Clone()
+		withPayload(p.src, attachment)
+		attachments = append(attachments, attachment)
 	}
 	return attachments, nil
 }

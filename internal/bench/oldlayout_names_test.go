@@ -24,6 +24,7 @@ var oldLayoutReaders = map[string]string{
 	"migratestorage_phases.go":              "holds the storage migration's phases, which read the old layout, carry its files and remove them",
 	"designationmigrate.go":                 "runs the designation conversion, which reads a store in the old layout",
 	"../../cmd/dinah-migrate-notes/main.go": "converts the notes of a store older still, in the old layout",
+	"../resident/residenttest/fixture.go":   "builds the resident snapshot's test store, which a build with the card-unit layout switched off writes in the old layout, and finds its item and item-comment anchors to change them",
 }
 
 // TestNothingButTheOldLayoutsReadersNamesIt drives dinah-637/criteria/17. It

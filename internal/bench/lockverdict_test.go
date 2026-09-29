@@ -173,7 +173,7 @@ func TestALockReleasedMidJudgementIsGone(t *testing.T) {
 	}
 	judgeOpened = func() { held.Release() }
 	t.Cleanup(func() { judgeOpened = nil })
-	judged := judge(path)
+	judged := judge(Disk{}, path)
 	judgeOpened = nil
 	if judged.file != nil {
 		durable.CloseLockFile(judged.file)
@@ -187,7 +187,7 @@ func TestALockReleasedMidJudgementIsGone(t *testing.T) {
 		t.Fatalf("acquire again: %v", err)
 	}
 	held.abandon()
-	judged = judge(path)
+	judged = judge(Disk{}, path)
 	if judged.file != nil {
 		durable.CloseLockFile(judged.file)
 	}

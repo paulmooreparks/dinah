@@ -69,7 +69,7 @@ func (b *Bench) readOldLayout(state *storageState) (*storageSource, error) {
 	source := &storageSource{b: b}
 	for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
 		root := b.cardsRootIn(half)
-		ids, err := ListIDs(root)
+		ids, err := b.ListIDs(root)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (b *Bench) readOldLayout(state *storageState) (*storageSource, error) {
 // readOldCard reads one card's members through the old layout's reader and
 // checks the files it holds.
 func (b *Bench) readOldCard(source *storageSource, card *Card, archived bool) (*storageCard, error) {
-	events, _, err := ReadJournal(card.JournalPath())
+	events, _, err := b.ReadJournal(card.JournalPath())
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (b *Bench) readOldCard(source *storageSource, card *Card, archived bool) (*
 			held.comments = append(held.comments, record.HeldComments(holder, half)...)
 		}
 	}
-	anchors := legacyAnchorsBelow(card.Dir)
+	anchors := legacyAnchorsBelow(b.source(), card.Dir)
 	source.anchors += len(anchors)
 	if !held.done {
 		for _, anchor := range anchors {
@@ -148,7 +148,7 @@ func (b *Bench) readOldColumns(source *storageSource) error {
 		columns = append(columns, &storageColumn{id: column.ID, title: column.Title, dir: b.ColumnDir(column.ID)})
 		seen[column.ID] = true
 	}
-	archivedIDs, err := ListIDs(b.ArchivedColumnsRoot())
+	archivedIDs, err := b.ListIDs(b.ArchivedColumnsRoot())
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (b *Bench) readOldColumns(source *storageSource) error {
 			}
 			column.comments = append(column.comments, comments...)
 		}
-		anchors := legacyAnchorsBelowColumn(column.dir)
+		anchors := legacyAnchorsBelowColumn(b.source(), column.dir)
 		source.anchors += len(anchors)
 		for _, anchor := range anchors {
 			source.checkAnchor(anchor)
@@ -189,11 +189,11 @@ func (b *Bench) readOldColumns(source *storageSource) error {
 
 // legacyHolders are the directories below a card that hold members on the
 // old layout: the card itself and every item directory, in both halves.
-func legacyItemDirs(cardDir string) []string {
+func legacyItemDirs(src Source, cardDir string) []string {
 	var dirs []string
 	for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
 		collection := legacyCollection(cardDir, ChecklistDir, half)
-		ids, err := ListIDs(collection)
+		ids, err := listIDs(src, collection)
 		if err != nil {
 			continue
 		}
@@ -206,11 +206,11 @@ func legacyItemDirs(cardDir string) []string {
 
 // legacyCommentDirs are the comment directories below one holder on the old
 // layout, in both halves.
-func legacyCommentDirs(holderDir string) []string {
+func legacyCommentDirs(src Source, holderDir string) []string {
 	var dirs []string
 	for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
 		collection := legacyCollection(holderDir, CommentsDir, half)
-		ids, err := ListIDs(collection)
+		ids, err := listIDs(src, collection)
 		if err != nil {
 			continue
 		}
@@ -223,19 +223,19 @@ func legacyCommentDirs(holderDir string) []string {
 
 // legacyAnchorsBelow are every comment.md and item.md file standing below a
 // card on the old layout.
-func legacyAnchorsBelow(cardDir string) []string {
+func legacyAnchorsBelow(src Source, cardDir string) []string {
 	var anchors []string
 	commentAnchor, itemAnchor := legacyAnchorOf(KindComment), legacyAnchorOf(KindItem)
 	holders := []string{cardDir}
-	for _, item := range legacyItemDirs(cardDir) {
-		if Exists(filepath.Join(item, itemAnchor)) {
+	for _, item := range legacyItemDirs(src, cardDir) {
+		if exists(src, filepath.Join(item, itemAnchor)) {
 			anchors = append(anchors, filepath.Join(item, itemAnchor))
 		}
 		holders = append(holders, item)
 	}
 	for _, holder := range holders {
-		for _, dir := range legacyCommentDirs(holder) {
-			if Exists(filepath.Join(dir, commentAnchor)) {
+		for _, dir := range legacyCommentDirs(src, holder) {
+			if exists(src, filepath.Join(dir, commentAnchor)) {
 				anchors = append(anchors, filepath.Join(dir, commentAnchor))
 			}
 		}
@@ -245,11 +245,11 @@ func legacyAnchorsBelow(cardDir string) []string {
 
 // legacyAnchorsBelowColumn are every comment.md file standing below a column
 // on the old layout.
-func legacyAnchorsBelowColumn(columnDir string) []string {
+func legacyAnchorsBelowColumn(src Source, columnDir string) []string {
 	var anchors []string
 	commentAnchor := legacyAnchorOf(KindComment)
-	for _, dir := range legacyCommentDirs(columnDir) {
-		if Exists(filepath.Join(dir, commentAnchor)) {
+	for _, dir := range legacyCommentDirs(src, columnDir) {
+		if exists(src, filepath.Join(dir, commentAnchor)) {
 			anchors = append(anchors, filepath.Join(dir, commentAnchor))
 		}
 	}
@@ -260,7 +260,7 @@ func legacyAnchorsBelowColumn(columnDir string) []string {
 // parses, carries no key outside the set the build writes for its kind, and
 // carries no citation member a baseline could not carry.
 func (s *storageSource) checkAnchor(path string) {
-	text, err := ReadText(path)
+	text, err := s.b.ReadText(path)
 	if err != nil || !anchorParses(text) {
 		s.problems = append(s.problems, storageProblem{rule: PreconditionUnparseable, path: path})
 		return
@@ -398,23 +398,23 @@ type attachmentMove struct {
 // column, with the archive mirror of that collection beside it. They are
 // read off the directories rather than off the comments, so a rerun after a
 // partial removal still finds what is left to move.
-func legacyMoves(holderDir string, cardDir bool) []attachmentMove {
+func legacyMoves(src Source, holderDir string, cardDir bool) []attachmentMove {
 	var moves []attachmentMove
 	var commentDirs []string
-	for _, dir := range legacyCommentDirs(holderDir) {
+	for _, dir := range legacyCommentDirs(src, holderDir) {
 		if filepath.Base(filepath.Dir(filepath.Dir(dir))) == ArchiveDir {
 			commentDirs = append(commentDirs, dir)
 		}
 	}
 	if cardDir {
-		for _, item := range legacyItemDirs(holderDir) {
-			commentDirs = append(commentDirs, legacyCommentDirs(item)...)
+		for _, item := range legacyItemDirs(src, holderDir) {
+			commentDirs = append(commentDirs, legacyCommentDirs(src, item)...)
 		}
 	}
 	for _, dir := range commentDirs {
 		home := filepath.Join(holderDir, CommentsDir, filepath.Base(dir))
 		for _, collection := range []string{AttachmentsDir, filepath.Join(ArchiveDir, AttachmentsDir)} {
-			ids, err := ListIDs(filepath.Join(dir, collection))
+			ids, err := listIDs(src, filepath.Join(dir, collection))
 			if err != nil {
 				continue
 			}
@@ -432,8 +432,8 @@ func legacyMoves(holderDir string, cardDir bool) []attachmentMove {
 // checkMoves applies the seventh precondition to a card: no attachment would
 // move onto a destination that already holds a different tree.
 func (s *storageSource) checkMoves(cardDir string) {
-	for _, move := range legacyMoves(cardDir, true) {
-		if Exists(move.to) && !sameTree(move.from, move.to) {
+	for _, move := range legacyMoves(s.b.source(), cardDir, true) {
+		if exists(s.b.source(), move.to) && !sameTree(s.b.source(), move.from, move.to) {
 			s.problems = append(s.problems, storageProblem{rule: PreconditionDestination, path: move.to})
 		}
 	}
@@ -441,8 +441,8 @@ func (s *storageSource) checkMoves(cardDir string) {
 
 // checkColumnMoves applies the seventh precondition to a column.
 func (s *storageSource) checkColumnMoves(columnDir string) {
-	for _, move := range legacyMoves(columnDir, false) {
-		if Exists(move.to) && !sameTree(move.from, move.to) {
+	for _, move := range legacyMoves(s.b.source(), columnDir, false) {
+		if exists(s.b.source(), move.to) && !sameTree(s.b.source(), move.from, move.to) {
 			s.problems = append(s.problems, storageProblem{rule: PreconditionDestination, path: move.to})
 		}
 	}
@@ -450,19 +450,19 @@ func (s *storageSource) checkColumnMoves(columnDir string) {
 
 // sameTree reports whether two directories hold the same files by relative
 // path and SHA-256.
-func sameTree(a, b string) bool {
-	left, err := treeDigest(a)
+func sameTree(src Source, a, b string) bool {
+	left, err := treeDigest(src, a)
 	if err != nil {
 		return false
 	}
-	right, err := treeDigest(b)
+	right, err := treeDigest(src, b)
 	return err == nil && left == right
 }
 
 // treeDigest is a SHA-256 over every relative path and byte below a
 // directory.
-func treeDigest(root string) (string, error) {
-	return storeDigest(root, "")
+func treeDigest(src Source, root string) (string, error) {
+	return storeDigest(src, root, "")
 }
 
 // preconditions refuses the run over every file a precondition names, or
@@ -556,13 +556,14 @@ func (s *storageSource) commentRef(card *storageCard, comment *Comment) string {
 // manifest is one side of the proof: a line per member and per attachment,
 // keyed by the line's first fields.
 type manifest struct {
+	src         Source
 	lines       map[string]string
 	attachments int
 }
 
 // newManifest makes an empty manifest.
-func newManifest() *manifest {
-	return &manifest{lines: map[string]string{}}
+func newManifest(src Source) *manifest {
+	return &manifest{src: src, lines: map[string]string{}}
 }
 
 // add records one line under its key.
@@ -670,7 +671,7 @@ func (m *manifest) attachLines(owner, holder string, dirs ...string) error {
 	seen := map[string]bool{}
 	for _, dir := range dirs {
 		for _, collection := range []string{AttachmentsDir, filepath.Join(ArchiveDir, AttachmentsDir)} {
-			ids, err := ListIDs(filepath.Join(dir, collection))
+			ids, err := listIDs(m.src, filepath.Join(dir, collection))
 			if err != nil {
 				return err
 			}
@@ -680,14 +681,14 @@ func (m *manifest) attachLines(owner, holder string, dirs ...string) error {
 				}
 				seen[id] = true
 				member := filepath.Join(dir, collection, id)
-				text, err := ReadText(filepath.Join(member, AttachmentAnchor))
+				text, err := readText(m.src, filepath.Join(member, AttachmentAnchor))
 				if err != nil {
 					continue
 				}
 				attachment := attachmentFromText(member, id, text)
 				payload := ""
 				if attachment.Path != "" {
-					data, err := durable.ReadFile(attachment.Path)
+					data, err := m.src.ReadFile(attachment.Path)
 					if err != nil {
 						return err
 					}
@@ -706,7 +707,7 @@ func (m *manifest) attachLines(owner, holder string, dirs ...string) error {
 
 // oldManifest is the manifest the old layout states.
 func (s *storageSource) oldManifest() (*manifest, error) {
-	built := newManifest()
+	built := newManifest(s.b.source())
 	for _, card := range s.cards {
 		for _, item := range card.items {
 			built.add(itemLine(card.card.ID, item, item.Archived))
@@ -750,7 +751,7 @@ func (s *storageSource) allColumns() []*storageColumn {
 		}
 		columns = append(columns, &storageColumn{id: column.ID, title: column.Title, dir: s.b.ColumnDir(column.ID)})
 	}
-	ids, _ := ListIDs(s.b.ArchivedColumnsRoot())
+	ids, _ := s.b.ListIDs(s.b.ArchivedColumnsRoot())
 	for _, id := range ids {
 		if s.b.Column(id) != nil {
 			continue
@@ -770,7 +771,7 @@ func (s *storageSource) allColumns() []*storageColumn {
 // home the card-unit layout gives a comment's attachments or where the old
 // layout kept it.
 func (s *storageSource) newManifestFrom(cardEvents func(*storageCard) ([]Event, error), benchEvents []Event) (*manifest, error) {
-	built := newManifest()
+	built := newManifest(s.b.source())
 	for _, card := range s.cards {
 		events, err := cardEvents(card)
 		if err != nil {
@@ -906,14 +907,14 @@ func (b *Bench) columnTitleAnyHalf(id string) string {
 	if column := b.Column(id); column != nil {
 		return column.Title
 	}
-	fm, _ := loadAnchor(filepath.Join(b.ArchivedColumnsRoot(), id, ColumnAnchor))
+	fm, _ := loadAnchor(b.source(), filepath.Join(b.ArchivedColumnsRoot(), id, ColumnAnchor))
 	return fm.Value(TitleField)
 }
 
 // cardBaseline is the card_baseline line carrying a card's card.md.
-func cardBaseline(template Event, card *Card) (Event, error) {
+func cardBaseline(src Source, template Event, card *Card) (Event, error) {
 	ev := template
-	text, err := ReadText(card.AnchorPath())
+	text, err := readText(src, card.AnchorPath())
 	if err != nil {
 		return ev, err
 	}
@@ -987,7 +988,7 @@ func (s *storageSource) columnBaselinesOwed(template Event, events []Event, stor
 // the manifest they state with the old layout's.
 func (b *Bench) rehearseStorage(run StorageMigrationRun, source *storageSource, report *StorageMigration) (*StorageMigration, error) {
 	report.From = b.Format
-	files, err := countFiles(b.Root)
+	files, err := countFiles(b.source(), b.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -995,13 +996,13 @@ func (b *Bench) rehearseStorage(run StorageMigrationRun, source *storageSource, 
 	report.Files.After = files - source.anchors
 	stored := source.manifest.lines
 	composed := func(card *storageCard) ([]Event, error) {
-		events, _, err := ReadJournal(card.card.JournalPath())
+		events, _, err := b.ReadJournal(card.card.JournalPath())
 		if err != nil {
 			return nil, err
 		}
 		events = append(events, b.baselinesOwed(run.Template, card, events, stored)...)
 		if !card.done {
-			baseline, err := cardBaseline(run.Template, card.card)
+			baseline, err := cardBaseline(b.source(), run.Template, card.card)
 			if err != nil {
 				return nil, err
 			}
@@ -1009,7 +1010,7 @@ func (b *Bench) rehearseStorage(run StorageMigrationRun, source *storageSource, 
 		}
 		return events, nil
 	}
-	benchEvents, _, err := ReadJournal(b.JournalPath())
+	benchEvents, _, err := b.ReadJournal(b.JournalPath())
 	if err != nil {
 		return nil, err
 	}
@@ -1044,9 +1045,9 @@ func (b *Bench) baselineAndProve(run StorageMigrationRun, held *Lock, state *sto
 		}
 		report.Phase = StoragePhaseProof
 		after, err := source.newManifestFrom(func(card *storageCard) ([]Event, error) {
-			events, _, err := ReadJournal(card.card.JournalPath())
+			events, _, err := b.ReadJournal(card.card.JournalPath())
 			return events, err
-		}, mustEvents(b.JournalPath()))
+		}, mustEvents(b.source(), b.JournalPath()))
 		if err != nil {
 			return false, err
 		}
@@ -1092,8 +1093,8 @@ func (b *Bench) baselineAndProve(run StorageMigrationRun, held *Lock, state *sto
 
 // mustEvents reads a journal, answering no lines where it will not read, so
 // the proof reports what it could not find rather than failing on it.
-func mustEvents(path string) []Event {
-	events, _, err := ReadJournal(path)
+func mustEvents(src Source, path string) []Event {
+	events, _, err := readJournal(src, path)
 	if err != nil {
 		return nil
 	}
@@ -1131,7 +1132,7 @@ func (b *Bench) acceptDifferences(run StorageMigrationRun, state *storageState, 
 				delete(lines, key)
 			}
 		}
-		rebuilt := newManifest()
+		rebuilt := newManifest(b.source())
 		for _, line := range lines {
 			rebuilt.add(line)
 		}
@@ -1153,7 +1154,7 @@ func (b *Bench) acceptDifferences(run StorageMigrationRun, state *storageState, 
 // workbench journal, and then every card's member baselines and its card
 // baseline under the card's own lock.
 func (b *Bench) writeBaselines(run StorageMigrationRun, held *Lock, source *storageSource, stored map[string]string, report *StorageMigration) (bool, error) {
-	benchEvents, _, err := ReadJournal(b.JournalPath())
+	benchEvents, _, err := b.ReadJournal(b.JournalPath())
 	if err != nil {
 		return false, err
 	}
@@ -1161,7 +1162,7 @@ func (b *Bench) writeBaselines(run StorageMigrationRun, held *Lock, source *stor
 		return false, err
 	}
 	for _, card := range source.cards {
-		lock, err := Acquire(card.card.Dir, run.Template.Actor.Name, run.Template.TS)
+		lock, err := b.takeLock(card.card.Dir, run.Template.Actor.Name, run.Template.TS)
 		if err != nil {
 			var refusal *contract.Refusal
 			if errors.As(err, &refusal) && refusal.Name == contract.Locked {
@@ -1182,7 +1183,7 @@ func (b *Bench) writeBaselines(run StorageMigrationRun, held *Lock, source *stor
 // baselineCard writes one card's owed member baselines and, where the
 // journal does not carry it yet, its card baseline.
 func (b *Bench) baselineCard(run StorageMigrationRun, lock *Lock, card *storageCard, stored map[string]string) (bool, error) {
-	events, _, err := ReadJournal(card.card.JournalPath())
+	events, _, err := b.ReadJournal(card.card.JournalPath())
 	if err != nil {
 		return false, err
 	}
@@ -1195,7 +1196,7 @@ func (b *Bench) baselineCard(run StorageMigrationRun, lock *Lock, card *storageC
 	if err := passPoint("members:" + card.card.ID); err != nil {
 		return false, err
 	}
-	baseline, err := cardBaseline(run.Template, card.card)
+	baseline, err := cardBaseline(b.source(), run.Template, card.card)
 	if err != nil {
 		return false, err
 	}
@@ -1211,7 +1212,7 @@ func (b *Bench) baselineCard(run StorageMigrationRun, lock *Lock, card *storageC
 // deletes what the old layout kept its members in.
 func (b *Bench) removeOldLayout(run StorageMigrationRun, state *storageState, source *storageSource, report *StorageMigration) (bool, error) {
 	for _, card := range source.cards {
-		lock, err := Acquire(card.card.Dir, run.Template.Actor.Name, run.Template.TS)
+		lock, err := b.takeLock(card.card.Dir, run.Template.Actor.Name, run.Template.TS)
 		if err != nil {
 			var refusal *contract.Refusal
 			if errors.As(err, &refusal) && refusal.Name == contract.Locked {
@@ -1236,9 +1237,9 @@ func (b *Bench) removeOldLayout(run StorageMigrationRun, state *storageState, so
 
 // removeBelow moves and deletes below one card or column directory.
 func (b *Bench) removeBelow(state *storageState, dir string, card bool, report *StorageMigration) (bool, error) {
-	for _, move := range legacyMoves(dir, card) {
-		if Exists(move.to) {
-			if !sameTree(move.from, move.to) {
+	for _, move := range legacyMoves(b.source(), dir, card) {
+		if exists(b.source(), move.to) {
+			if !sameTree(b.source(), move.from, move.to) {
 				return false, contract.RefuseWith(contract.StoragePrecondition, move.to, map[string]string{
 					"rule": PreconditionDestination, "files": PreconditionDestination + " " + move.to,
 				})
@@ -1265,9 +1266,9 @@ func (b *Bench) removeBelow(state *storageState, dir string, card bool, report *
 	carried := storedLines(state.Manifest)
 	var anchors []string
 	if card {
-		anchors = legacyAnchorsBelow(dir)
+		anchors = legacyAnchorsBelow(b.source(), dir)
 	} else {
-		anchors = legacyAnchorsBelowColumn(dir)
+		anchors = legacyAnchorsBelowColumn(b.source(), dir)
 	}
 	owner := filepath.Base(dir)
 	for _, anchor := range anchors {
@@ -1278,7 +1279,7 @@ func (b *Bench) removeBelow(state *storageState, dir string, card bool, report *
 			return stopped, err
 		}
 	}
-	return pruneOldLayout(dir, report)
+	return pruneOldLayout(b.source(), dir, report)
 }
 
 // anchorKey is the manifest key of the member an old layout's anchor states.
@@ -1294,7 +1295,7 @@ func anchorKey(owner, anchor string) string {
 // below a card or a column that nothing is left in: the checklist, the
 // member archive mirror, and each comment's own directory except where it
 // holds that comment's attachments.
-func pruneOldLayout(dir string, report *StorageMigration) (bool, error) {
+func pruneOldLayout(src Source, dir string, report *StorageMigration) (bool, error) {
 	roots := []string{
 		filepath.Join(dir, ChecklistDir),
 		filepath.Join(dir, ArchiveDir, ChecklistDir),
@@ -1302,21 +1303,21 @@ func pruneOldLayout(dir string, report *StorageMigration) (bool, error) {
 		filepath.Join(dir, CommentsDir),
 	}
 	for _, root := range roots {
-		if stopped, err := pruneEmpty(root, report); err != nil || stopped {
+		if stopped, err := pruneEmpty(src, root, report); err != nil || stopped {
 			return stopped, err
 		}
 	}
-	return pruneEmpty(filepath.Join(dir, ArchiveDir), report)
+	return pruneEmpty(src, filepath.Join(dir, ArchiveDir), report)
 }
 
 // pruneEmpty removes a directory tree's empty directories from the leaves
 // up, the root included where nothing is left in it.
-func pruneEmpty(root string, report *StorageMigration) (bool, error) {
-	info, err := os.Stat(root)
+func pruneEmpty(src Source, root string, report *StorageMigration) (bool, error) {
+	info, err := src.Stat(root)
 	if err != nil || !info.IsDir() {
 		return false, nil
 	}
-	entries, err := os.ReadDir(root)
+	entries, err := src.ReadDir(root)
 	if err != nil {
 		return false, err
 	}
@@ -1324,11 +1325,11 @@ func pruneEmpty(root string, report *StorageMigration) (bool, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		if stopped, err := pruneEmpty(filepath.Join(root, entry.Name()), report); err != nil || stopped {
+		if stopped, err := pruneEmpty(src, filepath.Join(root, entry.Name()), report); err != nil || stopped {
 			return stopped, err
 		}
 	}
-	if left, err := os.ReadDir(root); err != nil || len(left) > 0 {
+	if left, err := src.ReadDir(root); err != nil || len(left) > 0 {
 		return false, err
 	}
 	return storageStep(report, "remove", root, func() error { return durable.RemoveAll(root) })
@@ -1393,7 +1394,7 @@ func (b *Bench) StrayMemberFiles() ([]StrayMember, error) {
 	var strays []StrayMember
 	for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
 		root := b.cardsRootIn(half)
-		ids, err := ListIDs(root)
+		ids, err := b.ListIDs(root)
 		if err != nil {
 			return nil, err
 		}
@@ -1402,22 +1403,22 @@ func (b *Bench) StrayMemberFiles() ([]StrayMember, error) {
 			if err != nil {
 				continue
 			}
-			for _, anchor := range legacyAnchorsBelow(card.Dir) {
+			for _, anchor := range legacyAnchorsBelow(b.source(), card.Dir) {
 				strays = append(strays, strayOf(anchor, card, ""))
 			}
 		}
 	}
 	for _, column := range b.Columns {
-		for _, anchor := range legacyAnchorsBelowColumn(b.ColumnDir(column.ID)) {
+		for _, anchor := range legacyAnchorsBelowColumn(b.source(), b.ColumnDir(column.ID)) {
 			strays = append(strays, strayOf(anchor, nil, column.ID))
 		}
 	}
-	ids, err := ListIDs(b.ArchivedColumnsRoot())
+	ids, err := b.ListIDs(b.ArchivedColumnsRoot())
 	if err != nil {
 		return nil, err
 	}
 	for _, id := range ids {
-		for _, anchor := range legacyAnchorsBelowColumn(filepath.Join(b.ArchivedColumnsRoot(), id)) {
+		for _, anchor := range legacyAnchorsBelowColumn(b.source(), filepath.Join(b.ArchivedColumnsRoot(), id)) {
 			strays = append(strays, strayOf(anchor, nil, id))
 		}
 	}
@@ -1446,7 +1447,7 @@ func strayOf(anchor string, card *Card, column string) StrayMember {
 
 // carryStray appends one stray as a baseline and deletes it.
 func (b *Bench) carryStray(run StorageMigrationRun, held *Lock, stray StrayMember, state *storageState, report *StorageMigration) (bool, error) {
-	text, err := ReadText(stray.Path)
+	text, err := b.ReadText(stray.Path)
 	if err != nil {
 		return false, err
 	}
@@ -1474,7 +1475,7 @@ func (b *Bench) carryStray(run StorageMigrationRun, held *Lock, stray StrayMembe
 			return false, err
 		}
 	} else {
-		lock, err := Acquire(stray.Card.Dir, run.Template.Actor.Name, run.Template.TS)
+		lock, err := b.takeLock(stray.Card.Dir, run.Template.Actor.Name, run.Template.TS)
 		if err != nil {
 			var refusal *contract.Refusal
 			if errors.As(err, &refusal) && refusal.Name == contract.Locked {
@@ -1498,7 +1499,7 @@ func (b *Bench) carryStray(run StorageMigrationRun, held *Lock, stray StrayMembe
 	} else if b.Column(stray.Column) == nil {
 		ownerDir = filepath.Join(b.ArchivedColumnsRoot(), stray.Column)
 	}
-	if stopped, err := pruneOldLayout(ownerDir, report); err != nil || stopped {
+	if stopped, err := pruneOldLayout(b.source(), ownerDir, report); err != nil || stopped {
 		return stopped, err
 	}
 	state.Strays = append(state.Strays, key)

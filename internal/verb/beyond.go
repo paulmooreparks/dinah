@@ -236,7 +236,7 @@ func (l *Library) Add(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer cardLock.Release()
-	if err := bench.AppendEvent(cardLock, filepath.Join(dir, bench.JournalName), ev); err != nil {
+	if err := l.Bench.AppendEvent(cardLock, filepath.Join(dir, bench.JournalName), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	occupancy.Release()
@@ -326,7 +326,7 @@ func (l *Library) Comment(req *Request) *Response {
 			ev.ColumnTitle = column.Title
 		}
 	}
-	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
@@ -450,7 +450,7 @@ func (l *Library) Attach(req *Request) *Response {
 	// so one expression decides both the refusal in canAttach and the branch
 	// that writes, and the two cannot drift apart.
 	replacing := attachReplaces(req, entity)
-	if !bench.Exists(req.File) {
+	if !l.Bench.Exists(req.File) {
 		return l.refuseWith(req, entity.Card, contract.UnknownPath, req.File, map[string]string{"file": req.File})
 	}
 	now := bench.Stamp(l.Now())
@@ -473,7 +473,7 @@ func (l *Library) Attach(req *Request) *Response {
 		locateColumnAttachment(&ev, l.Bench.Column(entity.ID))
 	}
 	if replacing {
-		attachment, err := bench.ReplaceAttachment(entity.Dir, req.File)
+		attachment, err := l.Bench.ReplaceAttachment(entity.Dir, req.File)
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -489,7 +489,7 @@ func (l *Library) Attach(req *Request) *Response {
 		ev.Attachment = attachment.ID
 		ev.Filename = attachment.Filename
 	}
-	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
@@ -568,7 +568,7 @@ func (l *Library) archive(req *Request, verify func() error) *Response {
 		ColumnID:  columnSubject(entity),
 		ColumnRef: columnRefSubject(entity),
 		Verify:    verify,
-		Record:    func(locks bench.ActLocks) error { return bench.AppendEvent(locks.For(journal), journal, ev) },
+		Record:    func(locks bench.ActLocks) error { return l.Bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
 	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
@@ -610,7 +610,7 @@ func (l *Library) Restore(req *Request) *Response {
 		Now:       now,
 		ColumnID:  columnSubject(entity),
 		ColumnRef: columnRefSubject(entity),
-		Record:    func(locks bench.ActLocks) error { return bench.AppendEvent(locks.For(journal), journal, ev) },
+		Record:    func(locks bench.ActLocks) error { return l.Bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
 	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
@@ -731,7 +731,7 @@ func (l *Library) Delete(req *Request) *Response {
 		WorkstreamID:  workstreamSubject(entity),
 		WorkstreamRef: workstreamRefSubject(entity),
 		Record: func(locks bench.ActLocks) error {
-			if err := bench.AppendEvent(locks.For(journal), journal, ev); err != nil {
+			if err := l.Bench.AppendEvent(locks.For(journal), journal, ev); err != nil {
 				return err
 			}
 			if entity.Kind != bench.KindCard {
@@ -934,7 +934,7 @@ func (l *Library) Rename(req *Request) *Response {
 	if l.Interleave != nil {
 		l.Interleave()
 	}
-	before, after, err := bench.RenameAttachment(entity.Dir, req.Value)
+	before, after, err := l.Bench.RenameAttachment(entity.Dir, req.Value)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -952,7 +952,7 @@ func (l *Library) Rename(req *Request) *Response {
 		From:       before.Filename,
 	}
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
-	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)
@@ -1267,11 +1267,11 @@ func (l *Library) lockDirFor(entity *bench.EntityRef) string {
 // retirement is already in flight.
 func (l *Library) retiring(columnID string) (string, bool) {
 	dir := filepath.Join(l.Bench.Root, bench.ColumnsDir, columnID)
-	path := bench.SiblingPath(dir)
-	if path == "" || !bench.Exists(path) {
+	path := l.Bench.SiblingPath(dir)
+	if path == "" || !l.Bench.Exists(path) {
 		return "", false
 	}
-	return bench.LockHolder(path), true
+	return l.Bench.LockHolder(path), true
 }
 
 // columnSubject names the column a structural act is retiring, and is empty for
@@ -1330,7 +1330,7 @@ func (l *Library) removalRecord(req *Request, entity *bench.EntityRef, now strin
 	if entity.Kind == bench.KindAttachment {
 		ev.Event = contract.EventAttachmentRemoved
 		ev.Attachment = entity.ID
-		if attachment, err := bench.LoadAttachment(entity.Dir); err == nil {
+		if attachment, err := l.Bench.LoadAttachment(entity.Dir); err == nil {
 			ev.Filename = attachment.Filename
 		}
 		locateColumnAttachment(&ev, l.attachmentColumn(entity))
@@ -1691,13 +1691,11 @@ func (l *Library) appendUnderWorkstreamLock(actor, now string, workstream *bench
 	held, err := l.Bench.Acquire(workstream.Dir, actor, now)
 	if err != nil {
 		durable.Remove(filepath.Join(workstream.Dir, bench.WorkstreamAnchor))
-		if entries, readErr := os.ReadDir(workstream.Dir); readErr == nil && len(entries) == 0 {
-			durable.RemoveAll(workstream.Dir)
-		}
+		l.Bench.RemoveIfEmpty(workstream.Dir)
 		return err
 	}
 	defer held.Release()
-	return bench.AppendEvent(held, workstream.JournalPath(), ev)
+	return l.Bench.AppendEvent(held, workstream.JournalPath(), ev)
 }
 
 // stepWorkstreamWritten is the Interpose window a workstream's creation and
@@ -1744,7 +1742,7 @@ func (l *Library) AcceptDivergence(req *Request) *Response {
 		Comment: entity.ID,
 		Note:    entity.ID,
 	}
-	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, entity.Card)

@@ -248,24 +248,24 @@ func (b *Bench) RebuildCards(template Event) ([]string, []Finding, error) {
 	var rebuilt []string
 	var findings []Finding
 	for _, root := range []string{b.CardsRoot(), b.ArchivedCardsRoot()} {
-		ids, err := ListIDs(root)
+		ids, err := b.ListIDs(root)
 		if err != nil {
 			return rebuilt, findings, err
 		}
 		for _, id := range ids {
 			dir := filepath.Join(root, id)
-			if Exists(SiblingPath(dir)) {
+			if b.Exists(b.SiblingPath(dir)) {
 				continue
 			}
 			if _, err := b.LoadCardIn(root, id); !isProjectionUnreadable(err) {
 				continue
 			}
-			lock, err := Acquire(dir, template.Actor.Name, template.TS)
+			lock, err := b.takeLock(dir, template.Actor.Name, template.TS)
 			if err != nil {
 				findings = append(findings, Finding{Path: dir, Key: FindingWitnessLocked, Detail: id})
 				continue
 			}
-			err = rebuildCard(lock, dir, template)
+			err = rebuildCard(b.source(), lock, dir, template)
 			lock.Release()
 			if err != nil {
 				return rebuilt, findings, err
@@ -285,9 +285,9 @@ func isProjectionUnreadable(err error) bool {
 
 // rebuildCard writes one card's card.md from its journal, rendered as Save
 // renders it, and appends card_rebuilt, holding the card's lock.
-func rebuildCard(lock *Lock, dir string, template Event) error {
+func rebuildCard(src Source, lock *Lock, dir string, template Event) error {
 	journal := filepath.Join(dir, JournalName)
-	events, _, err := ReadJournal(journal)
+	events, _, err := readJournal(src, journal)
 	if err != nil {
 		return err
 	}

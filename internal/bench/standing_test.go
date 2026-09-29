@@ -697,7 +697,7 @@ func TestAddStandingItemWritesWhatTheEntryDeclaresAndNoMore(t *testing.T) {
 	root := newFixture(t)
 	cardDir := filepath.Join(root, CardsDir, "c00000000001")
 	for at, entry := range wellFormedEntries {
-		item, err := legacyAddStandingItem(cardDir, "b00000000001", entry, "2026-09-24T09:14:02Z")
+		item, err := legacyAddStandingItem(Disk{}, cardDir, "b00000000001", entry, "2026-09-24T09:14:02Z")
 		if err != nil {
 			t.Fatalf("mint %s: %v", entry.Key, err)
 		}

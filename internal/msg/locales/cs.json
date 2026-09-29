@@ -2255,8 +2255,8 @@
       "skeleton": true
     },
     "cmd.serve.note": {
-      "text": "Every request is answered from the workbench as it stands on disk, with the JSON every other machine surface answers with. It prints the address it is listening on and runs until interrupted. It listens on the loopback interface and nowhere else, and it asks no request who sent it. A request names the actor it acts as in a Dinah-Actor header, and a request that names none acts as whoever started dinah serve, which is normally you. Any process on this machine that can reach the address, run by any account, can therefore act on this workbench in your name. Keeping other accounts out and serving beyond this machine both need authentication, which this command does not have.",
-      "context": "The note printed under the serve command's own help, after its summary. It says what the server answers with, that it listens on the loopback interface alone, that a request naming no actor acts as whoever started the server, and that any process or account on the machine can reach it because the command authenticates nobody. Dinah-Actor is an HTTP header name and dinah serve is a command, and both stay as they are.",
+      "text": "On Windows it keeps the workbench in memory, current through the file system's own change notifications, so reads are answered from memory while every act reads and writes the files themselves; elsewhere every request opens the workbench afresh. Every answer is the JSON every other machine surface answers with. It prints the address it is listening on and runs until interrupted. It listens on the loopback interface and nowhere else, and it asks no request who sent it. A request names the actor it acts as in a Dinah-Actor header, and a request that names none acts as whoever started dinah serve, which is normally you. Any process on this machine that can reach the address, run by any account, can therefore act on this workbench in your name. Keeping other accounts out and serving beyond this machine both need authentication, which this command does not have.",
+      "context": "The note printed under the serve command's own help, after its summary. It says what the server answers with and where it answers reads from, that it listens on the loopback interface alone, that a request naming no actor acts as whoever started the server, and that any process or account on the machine can reach it because the command authenticates nobody. Dinah-Actor is an HTTP header name and dinah serve is a command, and both stay as they are.",
       "skeleton": true
     },
     "cmd.serve.summary": {
@@ -6486,6 +6486,41 @@
     "serve.listening": {
       "text": "Serving {workbench} at {url}",
       "context": "The one line dinah serve prints to stdout once it is listening. {workbench} is the absolute path of the workbench it serves and {url} is the address it listens on, such as http://127.0.0.1:7340/.",
+      "skeleton": true
+    },
+    "serve.reads.disk": {
+      "text": "(reads answered from disk: {why})",
+      "context": "The clause dinah serve and dinah ui add to their one startup line, after serve.listening, when every request reads the workbench from disk. {why} is one of the serve.reads.why texts, or an error's own text.",
+      "skeleton": true
+    },
+    "serve.reads.memory": {
+      "text": "(reads answered from memory)",
+      "context": "The clause dinah serve and dinah ui add to their one startup line, after serve.listening, when reads are answered from a copy of the workbench held in memory.",
+      "skeleton": true
+    },
+    "serve.reads.why.mounted-in-folder": {
+      "text": "the workbench's volume is mounted in a folder",
+      "context": "Why dinah serve reads the workbench from disk: the disk holding it is mounted in a folder of another disk rather than at a drive letter. It fills {why} in serve.reads.disk.",
+      "skeleton": true
+    },
+    "serve.reads.why.no-dos-path": {
+      "text": "Windows gives the workbench's volume no drive path",
+      "context": "Why dinah serve reads the workbench from disk: Windows gives the disk holding it neither a drive letter nor a folder it is mounted in. It fills {why} in serve.reads.disk.",
+      "skeleton": true
+    },
+    "serve.reads.why.platform": {
+      "text": "this system has no file-change watcher Dinah uses",
+      "context": "Why dinah serve reads the workbench from disk: the operating system has no file-change notification that Dinah uses. It fills {why} in serve.reads.disk.",
+      "skeleton": true
+    },
+    "serve.reads.why.volume-type": {
+      "text": "the workbench is not on a fixed local disk",
+      "context": "Why dinah serve reads the workbench from disk: the workbench is on a network share, a removable drive or a RAM disk. It fills {why} in serve.reads.disk.",
+      "skeleton": true
+    },
+    "serve.workdir.stays": {
+      "text": "(working directory left at {dir}: no volume root could be confirmed to move to, so {dir} and the folders above it may stay locked while this runs)",
+      "context": "The clause dinah serve and dinah ui add to their startup line, after the reads clause, when they could not move their working directory to the root of a disk and stay in the folder they were started in. {dir} is that folder's path, written twice. The folders may stay locked rather than will, because whether a working directory holds its folder is not documented.",
       "skeleton": true
     },
     "show.attachments": {

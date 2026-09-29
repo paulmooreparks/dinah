@@ -79,12 +79,23 @@ type judgeOwner struct{}
 // while it judges, and removes it before it returns. A file that is gone
 // answers VerdictLive with an empty record.
 func JudgeLock(path string) (LockRecord, Verdict) {
+	return judgeLock(Disk{}, path)
+}
+
+// JudgeLock is the free JudgeLock reading a record it cannot hold the
+// operating-system lock on through this bench's source.
+func (b *Bench) JudgeLock(path string) (LockRecord, Verdict) {
+	return judgeLock(b.source(), path)
+}
+
+// judgeLock is JudgeLock's body, reading through src.
+func judgeLock(src Source, path string) (LockRecord, Verdict) {
 	hold, owner := durable.Register(path, judgeOwner{})
 	if hold == nil {
-		return holderRecord(owner, path), VerdictLive
+		return holderRecord(src, owner, path), VerdictLive
 	}
 	defer hold.Unregister()
-	judged := judge(path)
+	judged := judge(src, path)
 	if judged.file != nil {
 		durable.CloseLockFile(judged.file)
 	}
@@ -96,11 +107,11 @@ func JudgeLock(path string) (LockRecord, Verdict) {
 
 // holderRecord answers the record of the acquisition in this process that owns
 // a lock's registry entry, or what the file records when a judge owns it.
-func holderRecord(owner any, path string) LockRecord {
+func holderRecord(src Source, owner any, path string) LockRecord {
 	if held, ok := owner.(*Lock); ok && held.record.Actor != "" {
 		return held.record
 	}
-	record, _ := ReadLockRecord(path)
+	record, _ := readLockRecord(src, path)
 	return record
 }
 
@@ -112,7 +123,11 @@ func holderRecord(owner any, path string) LockRecord {
 // name is no longer there once the open has failed, and a handle whose file
 // the name no longer reaches once the operating-system lock is taken, both
 // mean the holder let it go, and the caller tries again.
-func judge(path string) judgement {
+//
+// The judge opens the lock file itself, because the operating-system lock it
+// asks about lives on a handle, which no Source can answer for; a record it
+// could not take that lock on it reads through src.
+func judge(src Source, path string) judgement {
 	f, err := durable.OpenLockFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return judgement{gone: true}
@@ -121,7 +136,7 @@ func judge(path string) judgement {
 		if _, statErr := os.Lstat(path); errors.Is(statErr, fs.ErrNotExist) {
 			return judgement{gone: true}
 		}
-		record, _ := ReadLockRecord(path)
+		record, _ := readLockRecord(src, path)
 		return judgement{record: record, verdict: VerdictUnknown}
 	}
 	if judgeOpened != nil {
@@ -130,7 +145,7 @@ func judge(path string) judgement {
 	taken, err := durable.TryOSLock(f)
 	if err != nil || !taken {
 		f.Close()
-		record, _ := ReadLockRecord(path)
+		record, _ := readLockRecord(src, path)
 		verdict := VerdictLive
 		if err != nil {
 			verdict = VerdictUnknown
@@ -198,7 +213,7 @@ func verdictOn(record LockRecord, parsed bool) Verdict {
 // nobody reaches by name. The rewrite is not atomic: a reclaimer that dies
 // between the truncation and the flush leaves an empty or partial record,
 // which the verdict judges unknown and only a person clears.
-func (l *Lock) reclaim(judged judgement, dir string, actor Actor, now, journal string, journalLock *Lock, tolerated *LockRecord) (*Lock, error) {
+func (l *Lock) reclaim(src Source, judged judgement, dir string, actor Actor, now, journal string, journalLock *Lock, tolerated *LockRecord) (*Lock, error) {
 	f := judged.file
 	if ReclaimInterpose != nil {
 		ReclaimInterpose()
@@ -206,7 +221,7 @@ func (l *Lock) reclaim(judged judgement, dir string, actor Actor, now, journal s
 	refuse := func() (*Lock, error) {
 		durable.CloseLockFile(f)
 		l.hold.Unregister()
-		return nil, contract.Refuse(contract.Locked, LockHolder(l.path))
+		return nil, contract.Refuse(contract.Locked, lockHolder(src, l.path))
 	}
 	if named, err := durable.StillNamed(f, l.path); err != nil || !named {
 		return refuse()
@@ -221,7 +236,7 @@ func (l *Lock) reclaim(judged judgement, dir string, actor Actor, now, journal s
 	}
 	l.file = f
 	l.record = record
-	if err := l.refuseOnSibling(dir, tolerated); err != nil {
+	if err := l.refuseOnSibling(src, dir, tolerated); err != nil {
 		return nil, err
 	}
 	ev := Event{

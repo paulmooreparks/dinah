@@ -100,7 +100,7 @@ func (l *Library) Raise(req *Request) *Response {
 		Against:     against,
 		Reason:      reason,
 	}
-	if err := bench.AppendEvent(lock, reloaded.JournalPath(), raised); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), raised); err != nil {
 		return l.FromError(req, err)
 	}
 	freed := bench.Event{
@@ -108,7 +108,7 @@ func (l *Library) Raise(req *Request) *Response {
 		Event: contract.EventReleased,
 		Actor: req.Acting(),
 	}
-	if err := bench.AppendEvent(lock, reloaded.JournalPath(), freed); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), freed); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, reloaded)

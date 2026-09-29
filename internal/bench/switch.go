@@ -89,14 +89,15 @@ func (b *Bench) CardUnit() bool {
 }
 
 // Acquire takes the lock of an entity directory on this workbench, as the
-// package-level Acquire does, and then reads workbench.md's format and
-// migrating keys again. A store that has moved on since this process opened
-// it is refused dinah.store-format-changed, naming the format it was opened
-// at and the one it declares now, and the lock is given back: a write made
-// against a layout the store no longer declares would land in files nothing
-// reads. The long-lived heads reopen the workbench on that refusal.
+// package-level Acquire does but reading the lock's sibling and holder through
+// this bench's source, and then reads workbench.md's format and migrating keys
+// again. A store that has moved on since this process opened it is refused
+// dinah.store-format-changed, naming the format it was opened at and the one
+// it declares now, and the lock is given back: a write made against a layout
+// the store no longer declares would land in files nothing reads. The
+// long-lived heads reopen the workbench on that refusal.
 func (b *Bench) Acquire(dir, actor, now string) (*Lock, error) {
-	held, err := Acquire(dir, actor, now)
+	held, err := acquire(b.source(), dir, NamedActor(actor), now, journalFor(dir), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +125,7 @@ func (b *Bench) witnessOnAcquire(held *Lock, dir, actor, now string) error {
 	if !durable.SamePath(parent, b.CardsRoot()) && !durable.SamePath(parent, b.ArchivedCardsRoot()) {
 		return nil
 	}
-	if !Exists(filepath.Join(dir, JournalName)) {
+	if !b.Exists(filepath.Join(dir, JournalName)) {
 		return nil
 	}
 	card, err := b.LoadCardIn(parent, filepath.Base(dir))
@@ -139,7 +140,7 @@ func (b *Bench) witnessOnAcquire(held *Lock, dir, actor, now string) error {
 // when its format or migrating key differs from what this process opened, or
 // nil when both still agree.
 func (b *Bench) formatChanged() error {
-	text, err := ReadText(filepath.Join(b.Root, WorkbenchAnchor))
+	text, err := b.ReadText(filepath.Join(b.Root, WorkbenchAnchor))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

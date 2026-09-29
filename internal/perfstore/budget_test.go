@@ -2,6 +2,8 @@ package perfstore_test
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,12 +16,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"dinah/internal/bench"
 	"dinah/internal/httphead"
 	"dinah/internal/perfstore"
+	"dinah/internal/resident"
 	"dinah/internal/verb"
 )
 
@@ -97,11 +101,17 @@ var operationNames = []string{
 // of 15ms; page-card 241, 251 and 173ms, a basis of 241ms; status-cold 96,
 // 100 and 78ms, a basis of 96ms. It recalibrated all three by the rule. The
 // other seven rows were left alone: this card touches no read behind them.
+//
+// dinah-619 serves page-card from a resident copy of the workbench, which left
+// its row hundreds of times over the median, so it recalibrated that row from
+// three perf-job runs on its own pull request, and again after the resident
+// came to read only inside the request that asks: page-card 9, 12 and 9ms, a
+// basis of 9ms, which the rule turns into 30ms.
 var budgets = map[string][]budget{
 	"windows": {
 		{op: "status-warm", limit: 50 * time.Millisecond, basis: 15 * time.Millisecond, setBy: "dinah-620"},
 		{op: "show", limit: 30 * time.Millisecond, basis: 6 * time.Millisecond, setBy: "dinah-618"},
-		{op: "page-card", limit: 730 * time.Millisecond, basis: 241 * time.Millisecond, setBy: "dinah-620"},
+		{op: "page-card", limit: 30 * time.Millisecond, basis: 9 * time.Millisecond, setBy: "dinah-619"},
 		{op: "status-cold", limit: 290 * time.Millisecond, basis: 96 * time.Millisecond, setBy: "dinah-620"},
 		{op: "view-board", limit: 1140 * time.Millisecond, basis: 379 * time.Millisecond, setBy: "dinah-635"},
 		{op: "view-agenda", limit: 290 * time.Millisecond, basis: 95 * time.Millisecond, setBy: "dinah-635"},
@@ -128,10 +138,100 @@ const reproduce = "DINAH_PERF=measure go test -count=1 -run '^TestReadBudgets$' 
 
 // operation is one measured read. run performs one execution, measuring
 // exactly its span, and checks the answer it produced outside that span.
+// library, when set, collects each run's library reads: the time the head's
+// TimeRead saw across the request's library acquisition and every library
+// call it made, which leaves encoding and rendering out.
 type operation struct {
-	name string
-	run  func() (time.Duration, error)
+	name    string
+	run     func() (time.Duration, error)
+	library *libraryReads
 }
+
+// libraryReads sums the TimeRead calls of the run in progress and keeps one
+// sum per run.
+type libraryReads struct {
+	mu      sync.Mutex
+	current time.Duration
+	runs    []time.Duration
+	// calls and byCall hold, per command, the run in progress's time and
+	// every recorded run's, so the log can say where the sum went.
+	calls  map[string]time.Duration
+	byCall map[string][]time.Duration
+}
+
+// add is the head's TimeRead.
+func (l *libraryReads) add(command string, took time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.current += took
+	if l.calls == nil {
+		l.calls = map[string]time.Duration{}
+	}
+	l.calls[command] += took
+}
+
+// begin starts a run's sum.
+func (l *libraryReads) begin() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.current = 0
+	l.calls = map[string]time.Duration{}
+}
+
+// end records the run's sum.
+func (l *libraryReads) end() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.runs = append(l.runs, l.current)
+	if l.byCall == nil {
+		l.byCall = map[string][]time.Duration{}
+	}
+	for command, took := range l.calls {
+		l.byCall[command] = append(l.byCall[command], took)
+	}
+}
+
+// breakdown answers each command's median over the runs recorded since the
+// last take, as one line.
+func (l *libraryReads) breakdown() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var commands []string
+	for command := range l.byCall {
+		commands = append(commands, command)
+	}
+	sort.Strings(commands)
+	parts := make([]string, 0, len(commands))
+	for _, command := range commands {
+		runs := append([]time.Duration(nil), l.byCall[command]...)
+		sort.Slice(runs, func(i, j int) bool { return runs[i] < runs[j] })
+		parts = append(parts, command+" "+fine(runs[len(runs)/2]))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// take answers the sums recorded since the last take, ascending, and their
+// median.
+func (l *libraryReads) take() ([]time.Duration, time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.byCall = nil
+	runs := append([]time.Duration(nil), l.runs...)
+	l.runs = nil
+	sort.Slice(runs, func(i, j int) bool { return runs[i] < runs[j] })
+	if len(runs) < 2 {
+		return runs, 0
+	}
+	return runs, (runs[len(runs)/2-1] + runs[len(runs)/2]) / 2
+}
+
+// libraryReadLimit is dinah-619's acceptance number: on Windows, the median of
+// a warm card page's library reads is under it, in both modes. The operator
+// made it a standing gate on every pull request on 2026-09-27
+// (dinah-619/questions/2), and only he moves it. It is not a row of budgets,
+// so the budget rule never re-bases it and TestBudgetsFollowTheRule does not
+// judge it.
+const libraryReadLimit = 10 * time.Millisecond
 
 // sample is ten measured runs of one operation, after one discarded warm-up.
 type sample struct {
@@ -208,9 +308,14 @@ func readBudgets(t *testing.T, layout perfstore.Layout) {
 			line := fmt.Sprintf("%s median %s", op.name, millis(first.median))
 			measured = append(measured, line)
 			t.Logf("%-12s median %s  min %s  max %s  (no budget pinned)", op.name, millis(first.median), millis(first.runs[0]), millis(first.runs[len(first.runs)-1]))
+			if op.library != nil {
+				_, median := op.library.take()
+				t.Logf("%-12s library reads median %s", op.name, fine(median))
+			}
 			continue
 		}
 		judge(t, store, op, row)
+		judgeLibraryReads(t, store, op)
 	}
 	if !calibrated {
 		t.Skipf("no budgets pinned for %s; measured: %s", runtime.GOOS, strings.Join(measured, ", "))
@@ -371,16 +476,20 @@ func budgetOperations(t *testing.T, store *perfstore.Store, b *bench.Bench, bina
 		}
 		return elapsed, checkDetail(detail, probe, len(attachments))
 	}
-	config := httphead.Config{Root: store.Root, Home: home, DefaultActor: "perf", Host: "127.0.0.1", Port: 8080, Lang: "en"}
+	library := &libraryReads{}
+	config := httphead.Config{Root: store.Root, Home: home, DefaultActor: "perf", Host: "127.0.0.1", Port: 8080, Lang: "en", TimeRead: library.add}
+	config.Resident = openResident(t, store.Root)
 	handler := httphead.Handler(config)
 	pageCard := func() (time.Duration, error) {
 		request := httptest.NewRequest(http.MethodGet, "/cards/"+store.ProbeCard, nil)
 		request.Host = "127.0.0.1:8080"
 		request.Header.Set("Accept", "text/html")
 		recorder := httptest.NewRecorder()
+		library.begin()
 		start := time.Now()
 		handler.ServeHTTP(recorder, request)
 		elapsed := time.Since(start)
+		library.end()
 		return elapsed, checkPage(recorder, probe.Title)
 	}
 	childDir := t.TempDir()
@@ -488,7 +597,7 @@ func budgetOperations(t *testing.T, store *perfstore.Store, b *bench.Bench, bina
 	return []operation{
 		{name: "status-warm", run: statusWarm},
 		{name: "show", run: show},
-		{name: "page-card", run: pageCard},
+		{name: "page-card", run: pageCard, library: library},
 		{name: "status-cold", run: statusCold},
 		{name: "view-board", run: viewBoard},
 		{name: "view-agenda", run: viewAgenda},
@@ -497,6 +606,77 @@ func budgetOperations(t *testing.T, store *perfstore.Store, b *bench.Bench, bina
 		{name: "query", run: query},
 		{name: "offer", run: offer},
 	}
+}
+
+// openResident opens the resident page-card reads and makes the first
+// request, one Current, which builds the snapshot inside it; that time is
+// what the first request after dinah serve starts costs on this store, and
+// it is logged with what the snapshot holds. Where this platform has no
+// watcher it answers nil, names why, and the page reads the disk.
+func openResident(t *testing.T, root string) *resident.Workbench {
+	t.Helper()
+	w, err := resident.Open(root, resident.Options{})
+	if err != nil {
+		var unsupported *resident.Unsupported
+		if errors.As(err, &unsupported) {
+			t.Logf("perfstore: no resident (%s), so page-card reads the disk", unsupported.Why)
+		} else {
+			t.Logf("perfstore: no resident (%v), so page-card reads the disk", err)
+		}
+		return nil
+	}
+	t.Cleanup(func() { w.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	start := time.Now()
+	pick := w.Current(ctx, time.Now())
+	took := time.Since(start)
+	if pick.Snapshot == nil {
+		t.Fatalf("the first request answered no snapshot (lapsing %v)", pick.Lapsing)
+	}
+	files, bytes := w.Held()
+	t.Logf("perfstore: resident cold load %s, %s files, %s bytes", millis(took), thousands(int64(files)), thousands(bytes))
+	return w
+}
+
+// judgeLibraryReads holds a warm card page's library reads under
+// libraryReadLimit on Windows, in both modes, measuring once more before it
+// fails, as a budget does. The sums judged are those of the operation's last
+// ten measured runs, which is the retry when judge measured one.
+func judgeLibraryReads(t *testing.T, store *perfstore.Store, op operation) {
+	t.Helper()
+	if op.library == nil {
+		return
+	}
+	calls := op.library.breakdown()
+	first, median := op.library.take()
+	t.Logf("%-12s library reads median %s (%s)", op.name, fine(median), calls)
+	if runtime.GOOS != "windows" || median < libraryReadLimit {
+		return
+	}
+	measureOp(t, op)
+	retry, retryMedian := op.library.take()
+	t.Logf("%-12s library reads median %s", op.name, fine(retryMedian))
+	if retryMedian < libraryReadLimit {
+		return
+	}
+	t.Errorf("%s library reads over %s: median %s (retry %s)\n  runs:  %s\n  retry: %s\n  reproduce: %s\n  the store is seed %d, DevelopmentShape, digest %s",
+		op.name, fine(libraryReadLimit), fine(median), fine(retryMedian), fineList(first), fineList(retry), reproduce, store.Seed, store.Digest)
+}
+
+// fine renders a duration as milliseconds to two decimal places, which a
+// library-read sum under 10ms needs.
+func fine(d time.Duration) string {
+	return strconv.FormatFloat(float64(d)/float64(time.Millisecond), 'f', 2, 64) + "ms"
+}
+
+// fineList renders sums as fine does, ascending.
+func fineList(runs []time.Duration) string {
+	parts := make([]string, len(runs))
+	for i, run := range runs {
+		parts[i] = fine(run)
+	}
+	return strings.Join(parts, " ")
 }
 
 // probeCard finds perf-1 among the live cards.
@@ -684,6 +864,9 @@ func measureOp(t *testing.T, op operation) sample {
 	t.Helper()
 	if _, err := op.run(); err != nil {
 		t.Fatalf("%s warm-up: %v", op.name, err)
+	}
+	if op.library != nil {
+		op.library.take()
 	}
 	runs := make([]time.Duration, 0, measuredRuns)
 	for i := 0; i < measuredRuns; i++ {

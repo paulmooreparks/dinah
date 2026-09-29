@@ -38,12 +38,12 @@ type ClearedLock struct {
 func (b *Bench) entityLockFiles() []string {
 	var found []string
 	root := filepath.Join(b.Root, LockName)
-	if Exists(root) {
+	if b.Exists(root) {
 		found = append(found, root)
 	}
 	for _, half := range []string{b.Root, filepath.Join(b.Root, ArchiveDir)} {
 		for _, collection := range []string{CardsDir, WorkstreamsDir, ColumnsDir} {
-			found = append(found, lockFilesIn(filepath.Join(half, collection))...)
+			found = append(found, lockFilesIn(b.source(), filepath.Join(half, collection))...)
 		}
 	}
 	return found
@@ -52,15 +52,15 @@ func (b *Bench) entityLockFiles() []string {
 // lockFilesIn answers the lock file standing in each entity directory of one
 // collection. A collection that cannot be listed holds none this walk can
 // report.
-func lockFilesIn(collection string) []string {
-	ids, err := ListIDs(collection)
+func lockFilesIn(src Source, collection string) []string {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil
 	}
 	var found []string
 	for _, id := range ids {
 		path := filepath.Join(collection, id, LockName)
-		if Exists(path) {
+		if exists(src, path) {
 			found = append(found, path)
 		}
 	}
@@ -72,7 +72,7 @@ func lockFilesIn(collection string) []string {
 func (b *Bench) checkStaleLocks() []Finding {
 	var findings []Finding
 	for _, path := range b.entityLockFiles() {
-		record, verdict := JudgeLock(path)
+		record, verdict := b.JudgeLock(path)
 		if verdict == VerdictLive {
 			continue
 		}
@@ -101,13 +101,13 @@ func staleLockFinding(path string, record LockRecord, verdict Verdict) Finding {
 // so the second read is the one that can tell a tear from an append in
 // flight. When another holder has the lock, an append may be in flight and
 // nothing is reported this run.
-func tornUnderLock(card *Card) bool {
-	lock, err := Acquire(card.Dir, "", Stamp(time.Now()))
+func (b *Bench) tornUnderLock(card *Card) bool {
+	lock, err := b.Acquire(card.Dir, "", Stamp(time.Now()))
 	if err != nil {
 		return false
 	}
 	defer lock.Release()
-	_, torn, err := ReadJournal(card.JournalPath())
+	_, torn, err := b.ReadJournal(card.JournalPath())
 	return err == nil && torn
 }
 
@@ -136,10 +136,10 @@ func (b *Bench) clearDeadLocks(benchLock *Lock, actor, now string) []ClearedLock
 			continue
 		}
 		dir := filepath.Dir(path)
-		if Exists(SiblingPath(dir)) {
+		if b.Exists(b.SiblingPath(dir)) {
 			continue
 		}
-		record, verdict := JudgeLock(path)
+		record, verdict := b.JudgeLock(path)
 		if verdict != VerdictDead {
 			continue
 		}
@@ -147,7 +147,7 @@ func (b *Bench) clearDeadLocks(benchLock *Lock, actor, now string) []ClearedLock
 		if journal == "" {
 			journal, journalLock = filepath.Join(b.Root, JournalName), benchLock
 		}
-		lock, err := AcquireRecording(dir, NamedActor(actor), now, journal, journalLock)
+		lock, err := acquire(b.source(), dir, NamedActor(actor), now, journal, journalLock, nil)
 		if err != nil {
 			continue
 		}

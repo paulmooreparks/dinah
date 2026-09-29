@@ -346,7 +346,7 @@ func (b *Bench) StandingInstancesOwedAWithdrawal(card *Card, columnID string) ([
 		}
 		if recorded == nil {
 			recorded = map[string]bool{}
-			events, _, err := ReadJournal(card.JournalPath())
+			events, _, err := b.ReadJournal(card.JournalPath())
 			if err != nil {
 				return nil, err
 			}

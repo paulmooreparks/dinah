@@ -155,7 +155,7 @@ func (b *Bench) LoadCardRecord(card *Card) (*CardRecord, error) {
 	if !b.CardUnit() {
 		return b.recordFromDirectories(card)
 	}
-	events, torn, err := ReadJournal(card.JournalPath())
+	events, torn, err := b.ReadJournal(card.JournalPath())
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (b *Bench) ColumnComments(columnID string, half ResolutionHalf) ([]*Comment
 	if !b.CardUnit() {
 		return b.columnCommentsFromDirectories(columnID, half)
 	}
-	events, _, err := ReadJournal(b.JournalPath())
+	events, _, err := b.ReadJournal(b.JournalPath())
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +339,7 @@ func (b *Bench) ColumnComments(columnID string, half ResolutionHalf) ([]*Comment
 // it counts the column's comments directory without reading an anchor.
 func (b *Bench) ColumnCommentCount(columnID string) (int, error) {
 	if !b.CardUnit() {
-		return CountComments(b.ColumnDir(columnID))
+		return countComments(b.source(), b.ColumnDir(columnID))
 	}
 	comments, err := b.ColumnComments(columnID, LiveHalf)
 	if err != nil {
@@ -352,7 +352,7 @@ func (b *Bench) ColumnCommentCount(columnID string) (int, error) {
 // one more than the highest the workbench journal has ever recorded for that
 // column's comments.
 func (b *Bench) NextColumnOrdinal(columnID string) (int, error) {
-	events, _, err := ReadJournal(b.JournalPath())
+	events, _, err := b.ReadJournal(b.JournalPath())
 	if err != nil {
 		return 0, err
 	}
@@ -363,7 +363,7 @@ func (b *Bench) NextColumnOrdinal(columnID string) (int, error) {
 // MintColumnCommentID draws a new column comment's identifier, redrawn until
 // it differs from every comment identifier the workbench journal has named.
 func (b *Bench) MintColumnCommentID() (string, error) {
-	events, _, err := ReadJournal(b.JournalPath())
+	events, _, err := b.ReadJournal(b.JournalPath())
 	if err != nil {
 		return "", err
 	}

@@ -3,7 +3,6 @@ package bench
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -812,11 +811,21 @@ type landing struct {
 // its rows from it, so the two read one statement of the order rather than
 // two statements that agree today.
 func MemberIDs(collection string, mount Mount) ([]string, error) {
-	ids, err := ListIDs(collection)
+	return memberIDs(Disk{}, collection, mount)
+}
+
+// MemberIDs is the free MemberIDs read through this bench's source.
+func (b *Bench) MemberIDs(collection string, mount Mount) ([]string, error) {
+	return memberIDs(b.source(), collection, mount)
+}
+
+// memberIDs is MemberIDs's body, reading through src.
+func memberIDs(src Source, collection string, mount Mount) ([]string, error) {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
-	return SortByOrdinal(collection, mount.Anchor, ids), nil
+	return sortByOrdinal(src, collection, mount.Anchor, ids), nil
 }
 
 // AddressedInItsOwnRight reports whether a kind is one a person names directly
@@ -838,9 +847,9 @@ func AddressedInItsOwnRight(kind string) bool {
 
 // payloadOf is the file an attachment wraps, which is the one file its payload
 // directory holds.
-func payloadOf(dir string) (string, error) {
+func payloadOf(src Source, dir string) (string, error) {
 	payload := filepath.Join(dir, PayloadDir)
-	entries, err := os.ReadDir(payload)
+	entries, err := src.ReadDir(payload)
 	if err != nil || len(entries) == 0 {
 		return "", contract.Refuse(contract.UnknownPath, payload)
 	}
@@ -849,14 +858,13 @@ func payloadOf(dir string) (string, error) {
 
 // filterByKind narrows a collection to the entities whose anchor declares a
 // kind, which is how the checklist segments select one of the three.
-func filterByKind(collection, anchor string, ids []string, kind string) []string {
+func filterByKind(src Source, collection, anchor string, ids []string, kind string) []string {
 	var kept []string
 	for _, id := range ids {
-		text, err := ReadText(filepath.Join(collection, id, anchor))
+		fm, _, err := anchorOf(src, filepath.Join(collection, id, anchor))
 		if err != nil {
 			continue
 		}
-		fm, _ := ParseAnchor(text)
 		if fm.Value("kind") == kind {
 			kept = append(kept, id)
 		}
@@ -879,7 +887,7 @@ func filterByKind(collection, anchor string, ids []string, kind string) []string
 // one entity refuses ambiguous-name and carries the position of every match
 // alongside the selector, so the caller retries with attachments/<n> and the
 // number it retries with is one this same function's position arm answers.
-func pick(collection string, mount Mount, ids []string, selector string) (string, error) {
+func pick(src Source, collection string, mount Mount, ids []string, selector string) (string, error) {
 	if IsID(selector) {
 		for _, id := range ids {
 			if id == selector {
@@ -896,7 +904,7 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 		return "", contract.Refuse(contract.UnknownPath, selector)
 	}
 	if mount.NameField != "" {
-		matches := matchByName(collection, mount, ids, selector)
+		matches := matchByName(src, collection, mount, ids, selector)
 		switch len(matches) {
 		case 1:
 			return ids[matches[0]], nil
@@ -927,10 +935,10 @@ func pick(collection string, mount Mount, ids []string, selector string) (string
 // no ordinal at all and a gapped collection carries ordinals that have drifted
 // off their positions. The caller reaches the identifier of a single match as
 // ids[position].
-func matchByName(collection string, mount Mount, ids []string, selector string) []int {
+func matchByName(src Source, collection string, mount Mount, ids []string, selector string) []int {
 	var matches []int
 	for index, id := range ids {
-		fm, _ := loadAnchor(filepath.Join(collection, id, mount.Anchor))
+		fm, _ := loadAnchor(src, filepath.Join(collection, id, mount.Anchor))
 		if fm.Value(mount.NameField) == selector {
 			matches = append(matches, index)
 		}
@@ -1073,7 +1081,7 @@ func (b *Bench) ArchivedColumnByRef(ref string) (*Column, error) {
 		return nil, nil
 	}
 	root := filepath.Join(b.Root, ArchiveDir)
-	ids, err := ListIDs(b.ArchivedColumnsRoot())
+	ids, err := b.ListIDs(b.ArchivedColumnsRoot())
 	if err != nil {
 		return nil, err
 	}
@@ -1082,7 +1090,7 @@ func (b *Bench) ArchivedColumnByRef(ref string) (*Column, error) {
 		// A directory the reader refuses is skipped rather than refused
 		// over, which is what leaves the rest of the mirror reachable when
 		// one anchor in it is damaged.
-		column, err := readColumnIn(root, currentVocabulary, id, n+1)
+		column, err := readColumnIn(b.source(), root, currentVocabulary, id, n+1)
 		if err != nil {
 			continue
 		}
@@ -1118,7 +1126,7 @@ func (b *Bench) workstreamByRefIn(half ResolutionHalf, ref string) (*Workstream,
 	if handle == "" {
 		return nil, nil
 	}
-	archived, err := workstreamsIn(b.workstreamsRootIn(ArchivedHalf))
+	archived, err := workstreamsIn(b.source(), b.workstreamsRootIn(ArchivedHalf))
 	if err != nil {
 		return nil, err
 	}
@@ -1312,7 +1320,7 @@ func (b *Bench) probeBelow(at *walkAt, ref, holder string, typed, walk []string,
 		if err != nil {
 			return "", "", false, err
 		}
-		id, err := pick(collection, mount, members, walk[1])
+		id, err := pick(b.source(), collection, mount, members, walk[1])
 		if err != nil {
 			continue
 		}
@@ -1331,7 +1339,7 @@ func (b *Bench) probeBelow(at *walkAt, ref, holder string, typed, walk []string,
 			if len(walk) > 3 {
 				return "", "", false, nil
 			}
-			if _, err := payloadOf(next.dir); err != nil {
+			if _, err := payloadOf(b.source(), next.dir); err != nil {
 				return "", "", false, nil
 			}
 			return holder, "", true, nil
@@ -1377,7 +1385,17 @@ func (b *Bench) CollectionRootIn(half ResolutionHalf, dir string) string {
 // into yet is an ordinary state of a workbench rather than a fault, so it
 // counts zero rather than refusing.
 func CountIn(collection string) (int, error) {
-	ids, err := ListIDs(collection)
+	return countIn(Disk{}, collection)
+}
+
+// CountIn is the free CountIn read through this bench's source.
+func (b *Bench) CountIn(collection string) (int, error) {
+	return countIn(b.source(), collection)
+}
+
+// countIn is CountIn's body, reading through src.
+func countIn(src Source, collection string) (int, error) {
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return 0, err
 	}

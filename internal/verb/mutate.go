@@ -279,7 +279,7 @@ func (l *Library) lapse(held *bench.Lock, card *bench.Card) error {
 	if err := card.Save(); err != nil {
 		return err
 	}
-	return bench.AppendEvent(held, card.JournalPath(), ev)
+	return l.Bench.AppendEvent(held, card.JournalPath(), ev)
 }
 
 // clearLapsedClaim is what a lapse does to the card in memory: the card is
@@ -648,7 +648,7 @@ func (l *Library) canLand(req *Request, card *bench.Card, destination, departure
 	// standing exemption.
 	loopReached := false
 	if departure != nil && departure.LoopLimit > 0 && regressive {
-		events, _, err := bench.ReadJournal(card.JournalPath())
+		events, _, err := l.Bench.ReadJournal(card.JournalPath())
 		if err != nil {
 			return false, nil, err
 		}
@@ -843,7 +843,7 @@ func (l *Library) takeOccupancy(req *Request, destination *bench.Column, journal
 		return nil, nil
 	}
 	dir := l.Bench.ColumnDir(destination.ID)
-	return bench.AcquireRecording(dir, req.Acting(), bench.Stamp(l.Now()), journal, journalLock)
+	return l.Bench.AcquireRecording(dir, req.Acting(), bench.Stamp(l.Now()), journal, journalLock)
 }
 
 // atCapacity reports whether a column has reached its declared limit. The
@@ -1134,6 +1134,9 @@ func (l *Library) lapseRead(card *bench.Card, actor string) error {
 	if !card.Lapsed(l.Now()) {
 		return nil
 	}
+	if l.ReadOnly {
+		return ErrReadOnly
+	}
 	lock, err := l.Bench.Acquire(card.Dir, "", bench.Stamp(l.Now()))
 	if err != nil {
 		return nil
@@ -1177,7 +1180,7 @@ func (l *Library) commit(req *Request, card *bench.Card, events ...bench.Event) 
 		}
 	}
 	for _, ev := range events {
-		if err := bench.AppendEvent(req.cardLock, card.JournalPath(), ev); err != nil {
+		if err := l.Bench.AppendEvent(req.cardLock, card.JournalPath(), ev); err != nil {
 			return nil, err
 		}
 	}

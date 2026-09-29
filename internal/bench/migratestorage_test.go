@@ -128,7 +128,7 @@ func TestTheMigrationCarriesTheFixture(t *testing.T) {
 	if reopened.Format != CardUnitFormat || reopened.Migrating != "" {
 		t.Errorf("the migrated store declares format %d migrating %q", reopened.Format, reopened.Migrating)
 	}
-	fm, _ := loadAnchor(filepath.Join(store, WorkbenchAnchor))
+	fm, _ := loadAnchor(Disk{}, filepath.Join(store, WorkbenchAnchor))
 	if fm.Has(MigratingKey) || fm.Has(MigratingFromKey) {
 		t.Errorf("workbench.md still carries the migration's keys")
 	}

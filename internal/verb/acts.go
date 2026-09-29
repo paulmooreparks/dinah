@@ -482,12 +482,12 @@ func (l *Library) offerMembers(req *Request, card *bench.Card, offered *OfferedA
 		}
 	}
 	l.offerRedactions(req, card, record, offered)
-	attachments, err := bench.Attachments(card.Dir)
+	attachments, err := l.Bench.Attachments(card.Dir)
 	if err != nil {
 		return err
 	}
 	for _, attachment := range attachments {
-		position, err := memberPosition(attachment.Dir, bench.AttachmentAnchor)
+		position, err := l.memberPosition(attachment.Dir, bench.AttachmentAnchor)
 		if err != nil || position == 0 {
 			continue
 		}

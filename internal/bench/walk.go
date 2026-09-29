@@ -52,12 +52,12 @@ func (b *Bench) recordOf(at *walkAt) (*CardRecord, error) {
 // card's record, or of the workbench journal for a column's comments.
 func (b *Bench) members(at *walkAt, mount Mount, collection string, half ResolutionHalf, kind string) ([]string, error) {
 	if !mount.Journaled {
-		ids, err := MemberIDs(collection, mount)
+		ids, err := b.MemberIDs(collection, mount)
 		if err != nil {
 			return nil, err
 		}
 		if kind != "" {
-			ids = filterByKind(collection, mount.Anchor, ids, kind)
+			ids = filterByKind(b.source(), collection, mount.Anchor, ids, kind)
 		}
 		return ids, nil
 	}
@@ -219,7 +219,7 @@ func (b *Bench) descend(at *walkAt, segments []string, narrow *string, landed *l
 			return "", err
 		}
 	}
-	id, err := pick(collection, mount, selectable, tail[0])
+	id, err := pick(b.source(), collection, mount, selectable, tail[0])
 	if err != nil {
 		return "", err
 	}
@@ -256,7 +256,7 @@ func (b *Bench) descend(at *walkAt, segments []string, narrow *string, landed *l
 		if len(below) > 1 {
 			return "", contract.Refuse(contract.UnknownPath, below[1])
 		}
-		return payloadOf(next.dir)
+		return payloadOf(b.source(), next.dir)
 	}
 	return b.descend(next, below, nil, landed, half)
 }

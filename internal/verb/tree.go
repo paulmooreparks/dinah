@@ -881,7 +881,7 @@ func (l *Library) axisValues(axis string, card *bench.Card) []string {
 	if !actPlane[axis] {
 		return l.readableValues(axis, l.cardValues(axis, card))
 	}
-	events, _, err := bench.ReadJournal(card.JournalPath())
+	events, _, err := l.Bench.ReadJournal(card.JournalPath())
 	if err != nil {
 		return []string{""}
 	}
@@ -1642,7 +1642,7 @@ func (l *Library) containmentMembersOf(at *containedAt, collection string, mount
 		return ids, nil
 	}
 	l.observe(ObserveList, collection)
-	return bench.MemberIDs(collection, mount)
+	return l.Bench.MemberIDs(collection, mount)
 }
 
 // journaledMembers lists the live members of a journaled collection in the
@@ -1736,12 +1736,12 @@ func (l *Library) containedCount(at *containedAt) (int, error) {
 			}
 			ids = members
 		} else {
-			listed, err := bench.ListIDs(collection)
+			listed, err := l.Bench.ListIDs(collection)
 			if err != nil {
 				return 0, err
 			}
 			for _, id := range listed {
-				if bench.Exists(filepath.Join(collection, id, mount.Anchor)) {
+				if l.Bench.Exists(filepath.Join(collection, id, mount.Anchor)) {
 					ids = append(ids, id)
 				}
 			}
@@ -1766,7 +1766,7 @@ func (l *Library) containedCount(at *containedAt) (int, error) {
 // member's anchor's naming fields.
 func (l *Library) titleOf(at, below *containedAt, mount bench.Mount, id string) string {
 	if !mount.Journaled {
-		return anchorTitle(below.dir, mount.Anchor)
+		return l.anchorTitle(below.dir, mount.Anchor)
 	}
 	if mount.Kind == bench.KindComment {
 		comment, err := l.commentAt(at, id)
@@ -1790,7 +1790,7 @@ func (l *Library) titleOf(at, below *containedAt, mount bench.Mount, id string) 
 // naming fields.
 func (l *Library) entityTitle(entity *bench.EntityRef) string {
 	if entity.Kind != bench.KindComment && entity.Kind != bench.KindItem {
-		return anchorTitle(entity.Dir, bench.AnchorOf(entity.Kind))
+		return l.anchorTitle(entity.Dir, bench.AnchorOf(entity.Kind))
 	}
 	text, err := l.Bench.MemberText(entity)
 	if err != nil {
@@ -1806,11 +1806,11 @@ func (l *Library) entityTitle(entity *bench.EntityRef) string {
 // anchorTitle is what an entity below a card is called. The format gives these
 // kinds no title field, so the anchor's own naming fields answer in turn and a
 // node with nothing to say carries no title at all.
-func anchorTitle(dir, anchor string) string {
+func (l *Library) anchorTitle(dir, anchor string) string {
 	if anchor == "" {
 		return ""
 	}
-	text, err := bench.ReadText(filepath.Join(dir, anchor))
+	text, err := l.Bench.ReadText(filepath.Join(dir, anchor))
 	if err != nil {
 		return ""
 	}

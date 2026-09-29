@@ -1343,6 +1343,17 @@ Caught at Implement on dinah-603, 2026-09-26, by the implementer's own arming ru
 
 **Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, is the same failure from the input side: there the run never produced the case, and here the case was produced and then filtered out before anything looked at it.
 
+## A test of a retry whose setup the platform already tolerates, so the retry never runs
+
+Caught at Implement on dinah-619, 2026-09-26, by the implementer reading a timing the test logged. The change retries a folder removal that Windows refuses while a reader holds a file below it open, and the test held a file open with the share modes the server's own reader uses, read, write and delete, then asked the removal to wait the reader out.
+
+**Wrong:** hold the file with `FILE_SHARE_DELETE`, start the removal, and assert that it succeeded. On this build of Windows a file opened with that share mode is deleted at once rather than left marked for deletion, so the removal succeeded on its first attempt in half a millisecond, the retry loop never ran, and the test passed whether the retry was there or not.
+
+**Right:** hold the file as an ordinary reader does, with `os.Open`, which shares read and write but not delete, and first assert that a plain `os.Remove` of the held file is refused with the error the retry exists for: `if err := os.Remove(file); err == nil || !transientRemoveRefusal(err) { t.Fatalf(...) }`. Then assert that the retried removal took at least as long as the reader held the file, so a removal that never waited cannot pass.
+
+**The test:** a test of a recovery path asserts, before it exercises the code, that the unrecovered operation fails in the way the recovery handles, and it asserts something only the recovery can produce, such as the time it waited. Arm it by removing the retry and watching both the precondition hold and the test go red. Where the platform's own semantics decide whether the failure happens at all, the precondition is what tells a passing test from a test that never reached its subject.
+
+**Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, and the workbench memory "A test passes by avoiding the hard position".
 
 ## A test that changes one target and then acts on another, so the refresh it claims to prove is never needed
 
@@ -1355,6 +1366,18 @@ Caught at Agent Code Review on dinah-623, 2026-09-26, by a reviewer who removed 
 **The test:** when a test claims that state changed by step one is picked up by step two, check that step two reads the thing step one wrote, the same card, the same item, the same file. Then arm it by removing the pickup and watching it go red. A test whose two steps touch different targets proves that step two works on its own, and nothing about the refresh between them.
 
 **Related:** "An output-set assertion over a run whose frames the renderer is free to diff," above, is the same family: the test is green because its input never reaches the position where the code under test matters. This instance is cheaper to spot, since the two target names sit side by side in one call.
+
+## A detection test that asserts the outcome, which a second path can produce without the detection
+
+Caught at Implement on dinah-619, 2026-09-27, by the implementer's own arming run. The feature is the resident's check that the path `dinah serve` was started on still resolves where it did: the workbench is served through a junction, the junction is re-pointed at another tree, and no change record says so, so only a comparison of the root's final path can notice. The test re-pointed the junction, made one request, and asserted that the snapshot it answered mirrored the new tree. With the comparison removed it stayed green three runs out of three. Late last-write records of the old tree's own creation were still arriving, the reconcile they caused read through the served path, and the served path by then resolved to the new tree, so the snapshot came to mirror it by another road.
+
+**Wrong:** `mirrors(t, pick.Snapshot, via)` after the re-point, as the whole of the assertion. The mirror is the outcome the detection is for, and the resident has a second way to reach it that has nothing to do with the detection.
+
+**Right:** assert the act only the detection performs, beside the outcome. Here the detection makes that request re-arm and rebuild, so the test drains the request's publishes and requires one with `Rebuilt` set, then checks the mirror. Removing the comparison now fails with "the request after the junction was re-pointed did not rebuild, so the re-point was not detected", three runs of three.
+
+**The test:** before trusting a test of a detection, name every road by which the asserted outcome could come about, and arm the detection alone. If the test stays green, assert something the detection does and the other roads do not, such as the rebuild, the refusal or the event it causes.
+
+**Related:** "A test that changes one target and then acts on another, so the refresh it claims to prove is never needed," above, where the test passed without the code it named; here the code was needed, and the assertion was satisfied without it.
 
 ## An offer moved off the event loop on every keystroke, where Bubble Tea promises no order between a command's answer and the next key
 
@@ -1379,3 +1402,17 @@ Caught at Implement on dinah-636, 2026-09-27, by the implementer's own suite run
 **The test:** where a value is cached against something that changed it in the past, name every input the value depends on, not only the one the cache key tracks, and check whether any of the others can move on their own. Arm it by restoring the cache and watching a test that waits across a lapse, or any other clock-driven change of legality, go red.
 
 **Related:** "An offer moved off the event loop on every keystroke," directly above, is the same feature's other near-miss: that one moved a cheap read to the wrong place, and this one kept it in the right place but let it answer stale by a different route. dinah-636 later adds `pullCache`, which does cache part of an offer, the answer to whether pulling the next ready card into a column would succeed, for the read now on screen. That answer is not this entry's counterexample: it depends on the column, not on the card, and on mutations rather than the clock, and a mutation that could move it always produces a fresh read of its own before the head could ask again. The two are not the same claim, and telling them apart by what each answer actually depends on, rather than by whether either one is called "the offer," is the point of this entry.
+
+## A guard whose file set is the running platform's while its claim names every shipped binary
+
+Caught at Agent Code Review on dinah-619, 2026-09-27 (dinah-619/comments/32), the second catch of the class "A source-walking guard rooted at the package's parent while its claim names the tree" records. The two read-seam guards claim that no non-test file of `internal/bench` or `internal/verb` reads below the seam, and `seamguard.Load` kept only the files `go/build.Default.MatchFile` accepts. That context carries the running platform and no build tags, while the release builds `dinah-tui` with the `tui` tag and ships windows/arm64, which no CI runner checks. The reviewer put a method reading with `os.ReadFile` in a file headed `//go:build tui`, and both guards passed, even run with `-tags tui`, because that flag reaches the compiler and not the guard's own `go/build` context.
+
+**Wrong:** `if ok, _ := build.Default.MatchFile(dir, name); !ok { continue }` as the whole of a guard's file selection, under a header saying every file is checked on some CI platform.
+
+**Right:** derive the configurations from what the project ships, load the package once for each distinct set of files they select, and assert that the files loaded are every non-test Go file of the directory, so a file no shipped configuration builds fails the guard instead of passing unread. On dinah-619 `seamguard.Shipped` lists the twelve configurations `promote.yml` builds, a test holds that list to the workflow, and each guard names every file none of them selects. The first run under the Linux configuration named three reads in `procid_linux.go` that the Windows run had never loaded.
+
+**The test:** for a guard over source files, list what decides which files it reads (a build context, a glob, a walk root) and compare that with the set its claim names. Plant a violation in a file only the widest configuration selects, a tagged file or one named for a platform no runner has, and watch the guard miss it before you trust the header.
+
+**The delegation variant.** The same card's next round widened the two guards and in the same change handed `io/ioutil`, `os.OpenFile` and os's writes to dinah-640's guard in `internal/durable`, on the ground that it already refuses them. That guard loaded each platform on amd64 with no tags, so the delegated checks went back to the narrow file set the round had just widened, and a `//go:build tui` file in `internal/verb` calling `ioutil.ReadFile` passed both guards (dinah-619/questions/4). Before a guard stops judging something because another guard covers it, compare the two guards' file sets as well as their rules; the fix was one list of shipped configurations, `internal/shipped`, which every guard over the module now loads.
+
+**Related:** "A source-walking guard rooted at the package's parent while its claim names the tree" (convention-counterexamples-2.md) is the same narrowing made by a walk root, where this one was made by a build context.

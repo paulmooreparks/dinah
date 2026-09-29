@@ -1163,7 +1163,7 @@ func (l *Library) actWitnessed(q *query, card *bench.Card) (bool, error) {
 	if len(q.actTerms) == 0 {
 		return true, nil
 	}
-	events, _, err := bench.ReadJournal(card.JournalPath())
+	events, _, err := l.Bench.ReadJournal(card.JournalPath())
 	if err != nil {
 		return false, err
 	}

@@ -402,7 +402,7 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 		return nil, err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return nil, err
 	}
@@ -1006,7 +1006,7 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 		return 0, err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return 0, err
 	}
@@ -1021,7 +1021,7 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 		if err := bench.WriteColumnFromElement(fresh.Root, element.id, element.slug, element.element); err != nil {
 			return written, err
 		}
-		lines, err := writeAddedAttachments(req, fresh.ColumnDir(element.id), element, now)
+		lines, err := writeAddedAttachments(req, fresh, fresh.ColumnDir(element.id), element, now)
 		if err != nil {
 			return written, err
 		}
@@ -1040,12 +1040,12 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 	for _, element := range added {
 		ev.Title = element.title()
 		ev.Note = element.id
-		if err := bench.AppendEvent(lock, fresh.JournalPath(), ev); err != nil {
+		if err := l.Bench.AppendEvent(lock, fresh.JournalPath(), ev); err != nil {
 			return written, err
 		}
 	}
 	for _, line := range attached {
-		if err := bench.AppendEvent(lock, fresh.JournalPath(), line); err != nil {
+		if err := l.Bench.AppendEvent(lock, fresh.JournalPath(), line); err != nil {
 			return written, err
 		}
 	}
@@ -1064,7 +1064,7 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 // interrupted before then journaled none of them. A kept column is never
 // passed here, so its attachments stay as they stand whatever the new
 // definition's element carries.
-func writeAddedAttachments(req *Request, columnDir string, element *reshapeElement, now string) ([]bench.Event, error) {
+func writeAddedAttachments(req *Request, b *bench.Bench, columnDir string, element *reshapeElement, now string) ([]bench.Event, error) {
 	carried, err := bench.ColumnAttachmentsOf(element.element)
 	if err != nil {
 		return nil, err
@@ -1072,7 +1072,7 @@ func writeAddedAttachments(req *Request, columnDir string, element *reshapeEleme
 	if len(carried) == 0 {
 		return nil, nil
 	}
-	present, err := bench.Attachments(columnDir)
+	present, err := b.Attachments(columnDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1085,7 +1085,7 @@ func writeAddedAttachments(req *Request, columnDir string, element *reshapeEleme
 			if provenance == "" {
 				provenance = req.Actor
 			}
-			written, err = bench.AddAttachmentBytes(columnDir, attachment.Filename, attachment.Payload, attachment.Description, provenance)
+			written, err = b.AddAttachmentBytes(columnDir, attachment.Filename, attachment.Payload, attachment.Description, provenance)
 			if err != nil {
 				return nil, err
 			}
@@ -1158,7 +1158,7 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 		return carried, err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return carried, err
 	}
@@ -1231,7 +1231,7 @@ func (l *Library) carryOneCard(held *bench.Lock, req *Request, entry *reshapeRet
 	if err := card.Save(); err != nil {
 		return false, err
 	}
-	if err := bench.AppendEvent(held, card.JournalPath(), ev); err != nil {
+	if err := l.Bench.AppendEvent(held, card.JournalPath(), ev); err != nil {
 		return false, err
 	}
 	if dropped != "" {
@@ -1243,7 +1243,7 @@ func (l *Library) carryOneCard(held *bench.Lock, req *Request, entry *reshapeRet
 			ColumnRef: fresh.JournaledTierRef(spelled, entry.id),
 			From:      dropped,
 		}
-		if err := bench.AppendEvent(held, card.JournalPath(), drop); err != nil {
+		if err := l.Bench.AppendEvent(held, card.JournalPath(), drop); err != nil {
 			return false, err
 		}
 	}
@@ -1289,7 +1289,7 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 	if len(plan.retirements) == 0 {
 		return withdrawn, nil
 	}
-	ids, err := bench.ListIDs(l.Bench.CardsRoot())
+	ids, err := l.Bench.ListIDs(l.Bench.CardsRoot())
 	if err != nil {
 		return withdrawn, err
 	}
@@ -1386,7 +1386,7 @@ func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, card *benc
 		if comment != nil {
 			l.Bench.CompleteCommented(&commented, comment)
 		}
-		if err := bench.AppendEvent(held, journal, commented); err != nil {
+		if err := l.Bench.AppendEvent(held, journal, commented); err != nil {
 			return count, err
 		}
 		withdrawnLine := bench.Event{
@@ -1399,7 +1399,7 @@ func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, card *benc
 			Reshape: true,
 		}
 		l.Bench.CompleteMemberLine(&withdrawnLine, entity, fm, body)
-		if err := bench.AppendEvent(held, journal, withdrawnLine); err != nil {
+		if err := l.Bench.AppendEvent(held, journal, withdrawnLine); err != nil {
 			return count, err
 		}
 		count++
@@ -1470,10 +1470,10 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 			continue
 		}
 		dir := filepath.Join(l.Bench.Root, bench.ColumnsDir, entry.id)
-		if !bench.Exists(dir) {
+		if !l.Bench.Exists(dir) {
 			continue
 		}
-		fresh, err := bench.Open(l.Bench.Root)
+		fresh, err := l.Bench.Reopen()
 		if err != nil {
 			return archived, err
 		}
@@ -1486,7 +1486,7 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 			ColumnRef: entry.column.Ref(),
 			Record: func(locks bench.ActLocks) error {
 				ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Acting(), Note: entry.id}
-				return bench.AppendEvent(locks.For(fresh.JournalPath()), fresh.JournalPath(), ev)
+				return l.Bench.AppendEvent(locks.For(fresh.JournalPath()), fresh.JournalPath(), ev)
 			},
 		}
 		if err := fresh.Run(act); err != nil {
@@ -1525,7 +1525,7 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 		return nil, err
 	}
 	defer lock.Release()
-	current, err := bench.Open(l.Bench.Root)
+	current, err := l.Bench.Reopen()
 	if err != nil {
 		return nil, err
 	}
@@ -1563,7 +1563,7 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 	}
 	for _, id := range updated {
 		ev := bench.Event{TS: now, Event: contract.EventColumnUpdated, Actor: req.Acting(), Note: id}
-		if err := bench.AppendEvent(lock, current.JournalPath(), ev); err != nil {
+		if err := l.Bench.AppendEvent(lock, current.JournalPath(), ev); err != nil {
 			return updated, err
 		}
 	}
@@ -1605,7 +1605,7 @@ func (l *Library) writeColumnOrder(req *Request, plan *reshapePlan, now string) 
 		return err
 	}
 	defer lock.Release()
-	fresh, err := bench.Open(l.Bench.Root)
+	fresh, err := l.Bench.Reopen()
 	if err != nil {
 		return err
 	}

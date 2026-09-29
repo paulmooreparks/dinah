@@ -50,7 +50,7 @@ func HolderOf(entity *EntityRef) (MemberHolder, bool) {
 // them.
 func (b *Bench) AddComment(holder MemberHolder, author, ts, body string) (*Comment, error) {
 	if !b.CardUnit() {
-		comment, err := legacyAddComment(b.legacyHolderDir(holder), author, ts, body)
+		comment, err := legacyAddComment(b.source(), b.legacyHolderDir(holder), author, ts, body)
 		if err != nil {
 			return nil, err
 		}
@@ -125,7 +125,7 @@ func (b *Bench) CompleteCommented(ev *Event, comment *Comment) {
 // recorded only when the caller supplies one.
 func (b *Bench) AddItem(card *Card, kind, column, owner, ts, text string) (*Item, error) {
 	if !b.CardUnit() {
-		return legacyAddItem(card.Dir, kind, column, owner, ts, text)
+		return legacyAddItem(b.source(), card.Dir, kind, column, owner, ts, text)
 	}
 	item, err := b.mintItem(card, ts, text)
 	if err != nil {
@@ -142,7 +142,7 @@ func (b *Bench) AddItem(card *Card, kind, column, owner, ts, text string) (*Item
 // card's instance can be edited without touching every other card's.
 func (b *Bench) AddStandingItem(card *Card, columnID string, entry StandingItem, ts string) (*Item, error) {
 	if !b.CardUnit() {
-		return legacyAddStandingItem(card.Dir, columnID, entry, ts)
+		return legacyAddStandingItem(b.source(), card.Dir, columnID, entry, ts)
 	}
 	item, err := b.mintItem(card, ts, entry.Text)
 	if err != nil {
@@ -207,7 +207,7 @@ func (b *Bench) MemberAnchor(entity *EntityRef) (*Frontmatter, string, error) {
 		if !ok {
 			return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
 		}
-		text, err := ReadText(path)
+		text, err := b.ReadText(path)
 		if err != nil {
 			return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
 		}
@@ -231,7 +231,7 @@ func (b *Bench) MemberText(entity *EntityRef) (string, error) {
 		if !ok {
 			return "", contract.Refuse(contract.UnknownPath, entity.Ref)
 		}
-		text, err := ReadText(path)
+		text, err := b.ReadText(path)
 		if err != nil {
 			return "", contract.Refuse(contract.UnknownPath, entity.Ref)
 		}
@@ -440,7 +440,7 @@ func (b *Bench) RunEntityAct(act *StructuralAct, entity *EntityRef) error {
 		return err
 	}
 	for _, home := range homes {
-		if Exists(home) {
+		if b.Exists(home) {
 			if err := durable.RemoveAll(home); err != nil {
 				return err
 			}

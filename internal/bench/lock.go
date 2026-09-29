@@ -113,7 +113,17 @@ func newRecord(actor, now string) LockRecord {
 // entirely, no legitimate writer ever creates it, and a stray foreign file
 // there would refuse every bench-scoped acquisition on the bench forever.
 func SiblingPath(dir string) string {
-	if Exists(filepath.Join(dir, WorkbenchAnchor)) {
+	return siblingPath(Disk{}, dir)
+}
+
+// SiblingPath is the free SiblingPath read through this bench's source.
+func (b *Bench) SiblingPath(dir string) string {
+	return siblingPath(b.source(), dir)
+}
+
+// siblingPath is SiblingPath's body, reading through src.
+func siblingPath(src Source, dir string) string {
+	if exists(src, filepath.Join(dir, WorkbenchAnchor)) {
 		return ""
 	}
 	return filepath.Join(filepath.Dir(dir), filepath.Base(dir)+SiblingSuffix)
@@ -141,10 +151,27 @@ func Acquire(dir, actor string, now string) (*Lock, error) {
 // reclaim appended to journal as a lock_reclaimed line; anything short of
 // that proof refuses. journalLock is the lock the caller holds on the entity
 // that journal belongs to, which the append is made under; nil means the
-// journal is dir's own, and the reclaimed lock is the one that guards it. An acquisition with an empty journal, or whose actor
-// names nobody, never reclaims.
+// journal is dir's own, and the reclaimed lock is the one that guards it. An
+// acquisition with an empty journal, or whose actor names nobody, never
+// reclaims.
 func AcquireRecording(dir string, actor Actor, now string, journal string, journalLock *Lock) (*Lock, error) {
-	return acquire(dir, actor, now, journal, journalLock, nil)
+	return acquire(Disk{}, dir, actor, now, journal, journalLock, nil)
+}
+
+// AcquireRecording is the free AcquireRecording reading the lock's sibling
+// and holder through this bench's source.
+func (b *Bench) AcquireRecording(dir string, actor Actor, now string, journal string, journalLock *Lock) (*Lock, error) {
+	return acquire(b.source(), dir, actor, now, journal, journalLock, nil)
+}
+
+// takeLock is the free Acquire reading the lock's sibling and holder through
+// this bench's source, without the re-read of the store's format and the
+// witness that (*Bench).Acquire adds. The storage migration takes its locks
+// through it, because it changes the format the re-read would refuse it
+// over, and so do the repairs of dinah check that write a card whose card.md
+// the witness could not read.
+func (b *Bench) takeLock(dir, actor, now string) (*Lock, error) {
+	return acquire(b.source(), dir, NamedActor(actor), now, journalFor(dir), nil, nil)
 }
 
 // journalFor is the journal a lock on dir records a reclaim in: the
@@ -170,8 +197,8 @@ func columnOf(dir string) string {
 // record it read back from the standing sibling. The tolerance matches the
 // sibling's whole record rather than a flag, so a second process cannot ask
 // for the same exemption and a stale sibling from a dead process grants none.
-func acquireTolerating(dir, actor, now string, tolerated LockRecord) (*Lock, error) {
-	return acquire(dir, NamedActor(actor), now, journalFor(dir), nil, &tolerated)
+func acquireTolerating(src Source, dir, actor, now string, tolerated LockRecord) (*Lock, error) {
+	return acquire(src, dir, NamedActor(actor), now, journalFor(dir), nil, &tolerated)
 }
 
 // acquireAttempts bounds how many times an acquisition goes round when the
@@ -179,19 +206,20 @@ func acquireTolerating(dir, actor, now string, tolerated LockRecord) (*Lock, err
 const acquireAttempts = 3
 
 // acquire is the one exclusive-create of an entity lock file in this
-// codebase, which is what keeps the sibling check unforgettable.
-func acquire(dir string, actor Actor, now, journal string, journalLock *Lock, tolerated *LockRecord) (*Lock, error) {
+// codebase, which is what keeps the sibling check unforgettable. It reads the
+// holder's record and the sibling through src.
+func acquire(src Source, dir string, actor Actor, now, journal string, journalLock *Lock, tolerated *LockRecord) (*Lock, error) {
 	path := filepath.Join(dir, LockName)
 	for range acquireAttempts {
 		lock := &Lock{path: path, actor: actor.Name}
 		hold, owner := durable.Register(path, lock)
 		if hold == nil {
-			return nil, contract.Refuse(contract.Locked, holderNamed(owner, path))
+			return nil, contract.Refuse(contract.Locked, holderNamed(src, owner, path))
 		}
 		lock.hold = hold
 		f, err := durable.CreateExclusive(path)
 		if err == nil {
-			return lock.take(f, dir, now, tolerated)
+			return lock.take(src, f, dir, now, tolerated)
 		}
 		if !errors.Is(err, fs.ErrExist) {
 			hold.Unregister()
@@ -199,9 +227,9 @@ func acquire(dir string, actor Actor, now, journal string, journalLock *Lock, to
 		}
 		if journal == "" || strings.TrimSpace(actor.Name) == "" {
 			hold.Unregister()
-			return nil, contract.Refuse(contract.Locked, LockHolder(path))
+			return nil, contract.Refuse(contract.Locked, lockHolder(src, path))
 		}
-		judged := judge(path)
+		judged := judge(src, path)
 		if judged.gone {
 			hold.Unregister()
 			continue
@@ -210,19 +238,19 @@ func acquire(dir string, actor Actor, now, journal string, journalLock *Lock, to
 			hold.Unregister()
 			return nil, contract.Refuse(contract.Locked, judged.record.Actor)
 		}
-		return lock.reclaim(judged, dir, actor, now, journal, journalLock, tolerated)
+		return lock.reclaim(src, judged, dir, actor, now, journal, journalLock, tolerated)
 	}
-	return nil, contract.Refuse(contract.Locked, LockHolder(path))
+	return nil, contract.Refuse(contract.Locked, lockHolder(src, path))
 }
 
 // holderNamed names the holder of a lock this process already has an entry
 // for: the actor of the acquisition that owns it, or, for a judge's entry,
-// whatever the file itself records.
-func holderNamed(owner any, path string) string {
+// whatever the file itself records, read through src.
+func holderNamed(src Source, owner any, path string) string {
 	if held, ok := owner.(*Lock); ok && held.actor != "" {
 		return held.actor
 	}
-	return LockHolder(path)
+	return lockHolder(src, path)
 }
 
 // take completes an acquisition whose exclusive create succeeded: it takes the
@@ -233,7 +261,7 @@ func holderNamed(owner any, path string) string {
 // record a judge can parse was written by a process that held the lock when
 // it wrote it. A file system offering no such lock is held without one, and
 // the record says so.
-func (l *Lock) take(f *os.File, dir, now string, tolerated *LockRecord) (*Lock, error) {
+func (l *Lock) take(src Source, f *os.File, dir, now string, tolerated *LockRecord) (*Lock, error) {
 	taken, err := durable.TakeOSLock(f)
 	if err != nil {
 		f.Close()
@@ -251,7 +279,7 @@ func (l *Lock) take(f *os.File, dir, now string, tolerated *LockRecord) (*Lock, 
 	}
 	l.file = f
 	l.record = record
-	if err := l.refuseOnSibling(dir, tolerated); err != nil {
+	if err := l.refuseOnSibling(src, dir, tolerated); err != nil {
 		return nil, err
 	}
 	return l, nil
@@ -273,17 +301,27 @@ func writeHeldRecord(f *os.File, record LockRecord) error {
 // sibling holds no handle and no operating-system lock, and is never
 // reclaimed; dinah check --finish is its repair.
 func AcquireSibling(dir, actor, now, op, to string) (*Lock, LockRecord, error) {
+	return acquireSibling(Disk{}, dir, actor, now, op, to)
+}
+
+// AcquireSibling is the free AcquireSibling read through this bench's source.
+func (b *Bench) AcquireSibling(dir, actor, now, op, to string) (*Lock, LockRecord, error) {
+	return acquireSibling(b.source(), dir, actor, now, op, to)
+}
+
+// acquireSibling is AcquireSibling's body, reading through src.
+func acquireSibling(src Source, dir, actor, now, op, to string) (*Lock, LockRecord, error) {
 	record := newRecord(actor, now)
 	record.Op = op
 	record.To = to
-	path := SiblingPath(dir)
+	path := siblingPath(src, dir)
 	if path == "" {
 		return nil, record, contract.Refuse(contract.UnknownPath, dir)
 	}
 	f, err := durable.CreateExclusive(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrExist) {
-			return nil, record, contract.Refuse(contract.Locked, LockHolder(path))
+			return nil, record, contract.Refuse(contract.Locked, lockHolder(src, path))
 		}
 		return nil, record, err
 	}
@@ -309,12 +347,12 @@ func adoptLock(path string) *Lock {
 // refuseOnSibling gives a freshly taken lock back when a structural act's
 // sibling stands beside the directory it protects, which is the window
 // between the act's release of that lock and its move of the directory.
-func (l *Lock) refuseOnSibling(dir string, tolerated *LockRecord) error {
-	path := SiblingPath(dir)
+func (l *Lock) refuseOnSibling(src Source, dir string, tolerated *LockRecord) error {
+	path := siblingPath(src, dir)
 	if path == "" {
 		return nil
 	}
-	record, present := ReadLockRecord(path)
+	record, present := readLockRecord(src, path)
 	if !present {
 		return nil
 	}
@@ -329,7 +367,17 @@ func (l *Lock) refuseOnSibling(dir string, tolerated *LockRecord) error {
 // whether a lock stands at that path at all, so a file whose content will not
 // parse still counts as one held rather than as one absent.
 func ReadLockRecord(path string) (LockRecord, bool) {
-	text, err := ReadText(path)
+	return readLockRecord(Disk{}, path)
+}
+
+// ReadLockRecord is the free ReadLockRecord read through this bench's source.
+func (b *Bench) ReadLockRecord(path string) (LockRecord, bool) {
+	return readLockRecord(b.source(), path)
+}
+
+// readLockRecord is ReadLockRecord's body, reading through src.
+func readLockRecord(src Source, path string) (LockRecord, bool) {
+	text, err := readText(src, path)
 	if err != nil {
 		return LockRecord{}, false
 	}
@@ -355,7 +403,17 @@ func parseLockRecord(text string) (LockRecord, bool) {
 // reports one. A lock whose content will not parse names no holder rather
 // than failing, since the refusal is more useful than a second error.
 func LockHolder(path string) string {
-	record, _ := ReadLockRecord(path)
+	return lockHolder(Disk{}, path)
+}
+
+// LockHolder is the free LockHolder read through this bench's source.
+func (b *Bench) LockHolder(path string) string {
+	return lockHolder(b.source(), path)
+}
+
+// lockHolder is LockHolder's body, reading through src.
+func lockHolder(src Source, path string) string {
+	record, _ := readLockRecord(src, path)
 	return record.Actor
 }
 

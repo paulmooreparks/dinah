@@ -340,6 +340,15 @@ func AppendEvent(held *Lock, path string, ev Event) error {
 	return durable.AppendLine(path, append(prefix, line...))
 }
 
+// AppendEvent is the free AppendEvent reached through this bench, which is how
+// the library appends. The tail repair every append makes reads the end of
+// the file the line lands in, a read this package's seam allows inside it
+// (internal/bench/sourceguard_test.go names it) and which a caller outside it
+// therefore reaches only through a method.
+func (b *Bench) AppendEvent(held *Lock, path string, ev Event) error {
+	return AppendEvent(held, path, ev)
+}
+
 // AppendEvents appends several lines to one journal in one write and one
 // flush, on the terms AppendEvent appends one: the caller holds the lock of
 // the journal's own entity, every line names an actor, and a torn tail is
@@ -535,7 +544,7 @@ func quarantineTail(dir string, tail []byte, ts string) (string, error) {
 		if n > 1 {
 			candidate = base + "-" + strconv.Itoa(n)
 		}
-		if Exists(candidate) {
+		if _, err := os.Lstat(candidate); err == nil {
 			continue
 		}
 		if err := durable.WriteFile(candidate, tail, 0o644); err != nil {
@@ -550,7 +559,12 @@ func quarantineTail(dir string, tail []byte, ts string) (string, error) {
 // question is asked of a directory the caller has already read something
 // from.
 func TornSidecars(dir string) []string {
-	entries, err := os.ReadDir(dir)
+	return tornSidecars(Disk{}, dir)
+}
+
+// tornSidecars is TornSidecars's body, reading through src.
+func tornSidecars(src Source, dir string) []string {
+	entries, err := src.ReadDir(dir)
 	if err != nil {
 		return nil
 	}
@@ -579,13 +593,94 @@ func TornSidecars(dir string) []string {
 // naming the file and the one-based line number, so a card's members are
 // never answered from a journal a reader cannot fully read.
 func ReadJournal(path string) ([]Event, bool, error) {
-	text, err := ReadText(path)
+	return readJournal(Disk{}, path)
+}
+
+// ReadJournal is the free ReadJournal read through this bench's source.
+func (b *Bench) ReadJournal(path string) ([]Event, bool, error) {
+	return readJournal(b.source(), path)
+}
+
+// readJournal is ReadJournal's body, reading through src.
+func readJournal(src Source, path string) ([]Event, bool, error) {
+	observeAnchor(path)
+	value, err := src.Derive(path, DeriveJournal, deriveJournal)
 	if os.IsNotExist(err) {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
+	parsed := value.(*parsedJournal)
+	if parsed.err != nil {
+		return nil, parsed.torn, parsed.err
+	}
+	return cloneEvents(parsed.events), parsed.torn, nil
+}
+
+// readJournalShared is readJournal for a reader inside this package that only
+// reads the events: it answers the parse a memoising source shares rather
+// than a copy, so the caller must not change what it is handed. Arrival is
+// such a reader, and a sort asks it once per card.
+func readJournalShared(src Source, path string) (*parsedJournal, error) {
+	observeAnchor(path)
+	value, err := src.Derive(path, DeriveJournal, deriveJournal)
+	if os.IsNotExist(err) {
+		return &parsedJournal{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	parsed := value.(*parsedJournal)
+	if parsed.err != nil {
+		return nil, parsed.err
+	}
+	return parsed, nil
+}
+
+// JournalLines visits each event of a journal in file order with its index,
+// its stored stamp, the stamp parsed as ParseStamp parses it, and its event
+// name, as ReadJournal would answer them, and answers ReadJournal's error. It
+// copies no event: a reader that needs only the stamps, which a cursor over
+// every journal on the workbench does, pays for no copy of every event's
+// other members, and a source that memoises the parse parses each stamp once.
+// An absent journal visits nothing.
+func (b *Bench) JournalLines(path string, visit func(index int, ts string, at time.Time, event string)) error {
+	parsed, err := readJournalShared(b.source(), path)
+	if err != nil {
+		return err
+	}
+	for index, event := range parsed.events {
+		visit(index, event.TS, parsed.stamps[index], event.Event)
+	}
+	return nil
+}
+
+// parsedJournal is what DeriveJournal memoises: the events, whether a torn
+// final line was skipped, and the error a line that is not the last one
+// raised, which is part of the answer rather than a failure to read.
+type parsedJournal struct {
+	events []Event
+	// stamps are the events' stamps parsed as ParseStamp parses them, one
+	// per event.
+	stamps []time.Time
+	torn   bool
+	err    error
+}
+
+// deriveJournal is DeriveJournal's derive function: readJournal's body after
+// its read.
+func deriveJournal(path string, text, _ string) (any, error) {
+	events, torn, err := parseJournal(path, text)
+	stamps := make([]time.Time, len(events))
+	for i, event := range events {
+		stamps[i] = ParseStamp(event.TS)
+	}
+	return &parsedJournal{events: events, stamps: stamps, torn: torn, err: err}, nil
+}
+
+// parseJournal reads the text of the journal at path into its events.
+func parseJournal(path, text string) ([]Event, bool, error) {
 	var events []Event
 	torn := false
 	lines := SplitLines(text)

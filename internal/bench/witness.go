@@ -20,7 +20,7 @@ import (
 // The caller holds the card's lock and hands it over as held; this takes
 // none of its own.
 func (b *Bench) WitnessDivergence(held *Lock, actor, now string, card *Card) (bool, error) {
-	events, _, err := ReadJournal(card.JournalPath())
+	events, _, err := b.ReadJournal(card.JournalPath())
 	if err != nil {
 		return false, err
 	}
@@ -64,11 +64,10 @@ func (b *Bench) WitnessDivergence(held *Lock, actor, now string, card *Card) (bo
 // replayed and the anchor's value, the raw lines of a structured key joined
 // by a newline. The actor is whoever's touch found the difference.
 func (b *Bench) witnessProjection(held *Lock, actor, now string, card *Card, fm *Frontmatter, body string) (bool, error) {
-	text, err := ReadText(card.AnchorPath())
+	anchor, anchorBody, err := anchorOf(b.source(), card.AnchorPath())
 	if err != nil {
 		return false, err
 	}
-	anchor, anchorBody := ParseAnchor(text)
 	differ := ProjectionDifferences(anchor, anchorBody, fm, body)
 	if len(differ) == 0 {
 		return false, nil
@@ -136,19 +135,19 @@ func (b *Bench) witnessProjection(held *Lock, actor, now string, card *Card, fm 
 func (b *Bench) WriteWitnesses(actor, now string) ([]string, []Finding, error) {
 	var witnessed []string
 	var findings []Finding
-	cardIDs, err := ListIDs(b.CardsRoot())
+	cardIDs, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, id := range cardIDs {
 		dir := filepath.Join(b.CardsRoot(), id)
-		if Exists(SiblingPath(dir)) {
+		if b.Exists(b.SiblingPath(dir)) {
 			continue
 		}
-		if !Exists(filepath.Join(dir, CardAnchor)) {
+		if !b.Exists(filepath.Join(dir, CardAnchor)) {
 			continue
 		}
-		lock, err := Acquire(dir, actor, now)
+		lock, err := b.Acquire(dir, actor, now)
 		if err != nil {
 			findings = append(findings, Finding{Path: dir, Key: FindingWitnessLocked, Detail: id})
 			continue

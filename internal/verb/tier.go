@@ -97,7 +97,7 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 		Expr:      expr,
 		Against:   against,
 	}
-	if err := bench.AppendEvent(lock, reloaded.JournalPath(), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, nil)

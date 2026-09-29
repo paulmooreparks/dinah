@@ -701,7 +701,7 @@ func (l *Library) entityAnchor(entity *bench.EntityRef) (*bench.Frontmatter, str
 	if !declared {
 		return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
 	}
-	text, err := bench.ReadText(path)
+	text, err := l.Bench.ReadText(path)
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, entity.Ref)
 	}
@@ -798,7 +798,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 	if member {
 		l.Bench.CompleteMemberLine(&ev, entity, fm, body)
 	}
-	if err := bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	if entity.Kind == bench.KindWorkbench {

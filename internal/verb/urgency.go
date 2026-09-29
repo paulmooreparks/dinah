@@ -275,7 +275,7 @@ func (d *viewDraw) history(card *bench.Card) cardHistory {
 	}
 	path := card.JournalPath()
 	d.l.observe(ObserveJournal, path)
-	events, _, err := bench.ReadJournal(path)
+	events, _, err := d.l.Bench.ReadJournal(path)
 	known := cardHistory{}
 	if err == nil {
 		known = cardHistory{arrival: bench.ArrivalFrom(events, card.Column), events: events}

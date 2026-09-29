@@ -1,4 +1,4 @@
-package durable
+package durable_test
 
 // The guard below holds every non-test package of the module except this one
 // and the four named in excludedFromGuard to durable's primitives: it
@@ -17,8 +17,18 @@ package durable
 // a list of refused functions, because those packages are large and most of
 // what they hold has nothing to do with files.
 //
+// It type-checks the module once for every distinct set of files the
+// configurations in internal/shipped select, which are every platform,
+// architecture and tag the release builds, so a file only dinah-tui, one
+// architecture or one platform is built from is judged under the
+// configuration that builds it. checkModule says how that stays cheap enough
+// to run in every test run. The read-seam guards of dinah-619 load their
+// packages under the same list.
+//
 // What it cannot see:
 //
+//   - a file no shipped configuration builds, such as one behind a tag
+//     nothing ships;
 //   - a third-party library opening a path Dinah hands it. Such a call is
 //     inside the library's own package, which the guard does not check, and
 //     resolves to nothing in the module's own source;
@@ -31,19 +41,23 @@ package durable
 //   - the four packages besides this one that excludedFromGuard names.
 
 import (
+	"fmt"
 	"go/ast"
-	"go/build"
 	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"dinah/internal/seamguard"
+	"dinah/internal/shipped"
 )
 
 // permittedFunctions are, for each package the guard holds to an allowlist,
@@ -96,9 +110,6 @@ var excludedFromGuard = map[string]string{
 	"dinah/internal/testenv":          "it is test support that writes its own logs under the test's temporary directory",
 	"dinah/internal/bench/compattest": "it reads a manifest checked in under testdata and is imported only by tests",
 }
-
-// guardTargets are the platforms the guard checks the module for.
-var guardTargets = []string{"windows", "linux", "darwin"}
 
 // minimumGuardedPackages is the fewest packages a target may check, so that a
 // listing that silently returned nothing, or returned part of the module,
@@ -192,83 +203,200 @@ func refusedFunction(function *types.Func) (string, bool) {
 	return name, forbiddenFunctions[path][function.Name()]
 }
 
-// listedPackage is one line of go list's answer.
-type listedPackage struct {
-	path  string
-	dir   string
-	files []string
+// moduleCheck is what checkModule found under one configuration it
+// type-checked.
+type moduleCheck struct {
+	config   shipped.Config
+	packages int
+	files    int
+	took     time.Duration
+	found    []violation
+	err      error
 }
 
-// listModule lists the module's packages for one target.
-func listModule(t *testing.T, root, goos string) []listedPackage {
+// checkModule lists the module under root for each configuration, and
+// type-checks every package outside excluded once for each distinct set of
+// files the listings select, under the first configuration to select it. It
+// answers one moduleCheck per configuration it type-checked, in the order of
+// configs. Two configurations that list the same files are checked once,
+// which assumes a package imported under both declares the members those
+// files name alike.
+//
+// Each configuration is listed once with `go list -deps -json`
+// (seamguard.List), and its importer resolves every import from that listing
+// rather than through go/build, which in module mode starts a go list process
+// per import path. The importer type-checks the dependencies without their
+// function bodies, so only the packages the guard judges are checked whole.
+// The listings run in parallel, and so do the distinct configurations'
+// checks. Each check holds its own token.FileSet, its own parsed files and
+// its own importer, so nothing is shared between two checks but the files on
+// disk. The syntax trees are not shared across configurations: go/types does
+// not document that one *ast.File may be checked by two concurrent Checks.
+func checkModule(t *testing.T, root string, configs []shipped.Config, excluded map[string]string) []moduleCheck {
 	t.Helper()
-	format := `{{.ImportPath}} {{.Dir}} {{join .GoFiles " "}}`
-	command := exec.Command("go", "list", "-f", format, "./...")
-	command.Dir = root
-	command.Env = append(os.Environ(), "GOOS="+goos, "GOARCH=amd64", "CGO_ENABLED=0")
-	out, err := command.Output()
-	if err != nil {
-		t.Fatalf("go list for %s: %v", goos, err)
+	listings := make([]*seamguard.Listing, len(configs))
+	errs := make([]error, len(configs))
+	var wg sync.WaitGroup
+	for i, config := range configs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			listings[i], errs[i] = seamguard.List(root, config, "./...")
+		}()
 	}
-	var listed []listedPackage
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
+	wg.Wait()
+	seen := map[string]bool{}
+	var checks []moduleCheck
+	var chosen []*seamguard.Listing
+	for i, listing := range listings {
+		if errs[i] != nil {
+			t.Fatal(errs[i])
+		}
+		var key []string
+		for _, pkg := range listing.Module {
+			for _, name := range pkg.GoFiles {
+				key = append(key, filepath.Join(pkg.Dir, name))
+			}
+		}
+		joined := strings.Join(key, "\n")
+		if seen[joined] {
 			continue
 		}
-		listed = append(listed, listedPackage{path: fields[0], dir: fields[1], files: fields[2:]})
+		seen[joined] = true
+		checks = append(checks, moduleCheck{config: configs[i]})
+		chosen = append(chosen, listing)
 	}
-	return listed
+	for i := range checks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			checks[i] = checkListing(checks[i].config, chosen[i], excluded)
+		}()
+	}
+	wg.Wait()
+	for _, check := range checks {
+		if check.err != nil {
+			t.Fatalf("%s: %v", check.config, check.err)
+		}
+	}
+	return checks
 }
 
-// TestNoPackageOutsideDurableUsesAFilePrimitive asserts that, for Windows,
-// Linux and macOS, no package of the module but durable and the four named in
-// excludedFromGuard uses a function the concurrency contract forbids, as the
-// type checker resolves each use, and that each target checked at least
-// minimumGuardedPackages packages.
-func TestNoPackageOutsideDurableUsesAFilePrimitive(t *testing.T) {
-	if testing.Short() {
-		t.Skip("the guard type-checks the module three times from source")
+// checkListing parses and type-checks one configuration's listing of the
+// module and answers what it found.
+func checkListing(config shipped.Config, listing *seamguard.Listing, excluded map[string]string) moduleCheck {
+	started := time.Now()
+	check := moduleCheck{config: config}
+	fset := token.NewFileSet()
+	imp := seamguard.SourceImporterListed(fset, config, listing)
+	for _, pkg := range listing.Module {
+		if _, skip := excluded[pkg.ImportPath]; skip || len(pkg.GoFiles) == 0 {
+			continue
+		}
+		parsed := make([]*ast.File, 0, len(pkg.GoFiles))
+		for _, name := range pkg.GoFiles {
+			file, err := parser.ParseFile(fset, filepath.Join(pkg.Dir, name), nil, 0)
+			if err != nil {
+				check.err = fmt.Errorf("parse %s: %w", name, err)
+				return check
+			}
+			parsed = append(parsed, file)
+		}
+		found, err := forbiddenUses(fset, parsed, pkg.ImportPath, imp)
+		if err != nil {
+			check.err = fmt.Errorf("type-check %s: %w", pkg.ImportPath, err)
+			return check
+		}
+		check.found = append(check.found, found...)
+		check.packages++
+		check.files += len(parsed)
 	}
+	check.took = time.Since(started)
+	return check
+}
+
+// TestNoPackageOutsideDurableUsesAFilePrimitive asserts that, under every
+// configuration the release ships (shipped.Configs: Windows, Linux and macOS
+// on amd64 and arm64, each with and without the tui tag), no package of the
+// module but durable and the four named in excludedFromGuard uses a function
+// the concurrency contract forbids, as the type checker resolves each use,
+// and that each configuration checked at least minimumGuardedPackages
+// packages. A file only the tui tag, one architecture or one platform builds
+// is judged under the configuration that builds it.
+func TestNoPackageOutsideDurableUsesAFilePrimitive(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("resolve the module root: %v", err)
 	}
-	saved := build.Default
-	t.Cleanup(func() { build.Default = saved })
-	for _, goos := range guardTargets {
-		build.Default.GOOS = goos
-		build.Default.GOARCH = "amd64"
-		build.Default.CgoEnabled = false
-		fset := token.NewFileSet()
-		imp := importer.ForCompiler(fset, "source", nil)
-		packages, files := 0, 0
-		for _, listed := range listModule(t, root, goos) {
-			if _, excluded := excludedFromGuard[listed.path]; excluded || len(listed.files) == 0 {
-				continue
-			}
-			parsed := make([]*ast.File, 0, len(listed.files))
-			for _, name := range listed.files {
-				file, err := parser.ParseFile(fset, filepath.Join(listed.dir, name), nil, 0)
-				if err != nil {
-					t.Fatalf("%s: parse %s: %v", goos, name, err)
-				}
-				parsed = append(parsed, file)
-			}
-			found, err := forbiddenUses(fset, parsed, listed.path, imp)
-			if err != nil {
-				t.Fatalf("%s: type-check %s: %v", goos, listed.path, err)
-			}
-			for _, use := range found {
-				t.Errorf("%s: %s", goos, use)
-			}
-			packages++
-			files += len(parsed)
+	started := time.Now()
+	checks := checkModule(t, root, shipped.Configs, excludedFromGuard)
+	t.Logf("checked %d distinct configurations of %d in %v", len(checks), len(shipped.Configs), time.Since(started))
+	if len(checks) < 6 {
+		t.Errorf("the shipped configurations list %d distinct file sets, and three platforms each with and without tui make at least six", len(checks))
+	}
+	reported := map[violation]bool{}
+	for _, check := range checks {
+		t.Logf("%s: checked %d packages and %d files in %v", check.config, check.packages, check.files, check.took)
+		if check.packages < minimumGuardedPackages {
+			t.Errorf("%s: checked %d packages, fewer than %d, so the listing returned less than the module", check.config, check.packages, minimumGuardedPackages)
 		}
-		t.Logf("%s: checked %d packages and %d files", goos, packages, files)
-		if packages < minimumGuardedPackages {
-			t.Errorf("%s: checked %d packages, fewer than %d, so the listing returned less than the module", goos, packages, minimumGuardedPackages)
+		for _, use := range check.found {
+			if !reported[use] {
+				reported[use] = true
+				t.Errorf("%s: %s", check.config, use)
+			}
 		}
+	}
+}
+
+// constrainedFiles are the files of the module TestTheGuardSeesEveryShippedFile
+// writes: each uses io/ioutil.ReadFile from a file only some shipped
+// configurations build, and one is built by none.
+var constrainedFiles = map[string]string{
+	"go.mod":           "module planted\n\ngo 1.26\n",
+	"plain.go":         "package planted\n",
+	"tuionly.go":       "//go:build tui\n\npackage planted\n\nimport \"io/ioutil\"\n\nfunc tuiRead() ([]byte, error) {\n\treturn ioutil.ReadFile(\"a\")\n}\n",
+	"only_windows.go":  "package planted\n\nimport \"io/ioutil\"\n\nfunc windowsRead() ([]byte, error) {\n\treturn ioutil.ReadFile(\"a\")\n}\n",
+	"only_darwin.go":   "package planted\n\nimport \"io/ioutil\"\n\nfunc darwinRead() ([]byte, error) {\n\treturn ioutil.ReadFile(\"a\")\n}\n",
+	"never.go":         "//go:build ignore\n\npackage planted\n\nimport \"io/ioutil\"\n\nfunc neverRead() ([]byte, error) {\n\treturn ioutil.ReadFile(\"a\")\n}\n",
+	"planted_test.go":  "package planted\n",
+	"only_linux.go":    "package planted\n\nconst onLinux = true\n",
+	"only_freebsd.go":  "package planted\n\nconst onFreeBSD = true\n",
+	"arch_arm64.go":    "package planted\n\nconst onArm = true\n",
+	"notui_windows.go": "//go:build !tui\n\npackage planted\n\nconst plainWindows = true\n",
+}
+
+// TestTheGuardSeesEveryShippedFile runs the module check over a module whose
+// forbidden uses sit in a file only the tui tag builds, a file only Windows
+// builds and a file only macOS builds, and asserts that each is named under
+// a configuration that builds it, and that the file no shipped configuration
+// builds is named under none.
+func TestTheGuardSeesEveryShippedFile(t *testing.T) {
+	root := t.TempDir()
+	for name, text := range constrainedFiles {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	checks := checkModule(t, root, shipped.Configs, nil)
+	named := map[string][]string{}
+	for _, check := range checks {
+		for _, use := range check.found {
+			base := filepath.Base(use.file)
+			named[base] = append(named[base], check.config.String())
+			if use.function != "io/ioutil.ReadFile" {
+				t.Errorf("%s: %s, wanted io/ioutil.ReadFile", check.config, use)
+			}
+		}
+	}
+	t.Logf("checked %d distinct configurations; named %v", len(checks), named)
+	for _, file := range []string{"tuionly.go", "only_windows.go", "only_darwin.go"} {
+		if len(named[file]) == 0 {
+			t.Errorf("the ioutil.ReadFile in %s passed every shipped configuration, so a file a build constraint keeps out of one binary goes unjudged", file)
+		}
+	}
+	if len(named["never.go"]) != 0 {
+		t.Errorf("never.go, which no configuration builds, was named under %v", named["never.go"])
 	}
 }
 
@@ -321,6 +449,12 @@ var plantedUses = []struct {
 		source:   "package planted\n\nimport \"os\"\n\nfunc link() error {\n\treturn os.Link(\"a\", \"b\")\n}\n",
 		line:     6,
 		function: "os.Link",
+	},
+	{
+		name:     "io/ioutil.ReadFile",
+		source:   "package planted\n\nimport \"io/ioutil\"\n\nfunc read() ([]byte, error) {\n\treturn ioutil.ReadFile(\"a\")\n}\n",
+		line:     6,
+		function: "io/ioutil.ReadFile",
 	},
 	{
 		name:     "a method of os.Root taken as a value",

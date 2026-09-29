@@ -85,7 +85,7 @@ func (l *Library) Redact(req *Request) (*RedactionReport, error) {
 	}
 	report := &RedactionReport{Member: req.Ref, Kind: target.Kind, Journal: target.Journal, AttachmentsLeft: []AttachmentLeft{}}
 	if target.Kind == bench.KindComment && dir != "" {
-		attachments, err := bench.Attachments(dir)
+		attachments, err := l.Bench.Attachments(dir)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (l *Library) Redact(req *Request) (*RedactionReport, error) {
 		}
 		defer held.Release()
 	}
-	account, err := bench.Redact(held, *target, bench.Event{TS: now, Actor: req.Acting()}, req.Confirm)
+	account, err := l.Bench.Redact(held, *target, bench.Event{TS: now, Actor: req.Acting()}, req.Confirm)
 	if err != nil {
 		return nil, err
 	}

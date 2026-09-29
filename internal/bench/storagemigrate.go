@@ -34,7 +34,8 @@ import (
 // that order even when its anchor will not read, because a position counts
 // the directory unfiltered.
 func (b *Bench) recordFromDirectories(card *Card) (*CardRecord, error) {
-	events, torn, err := ReadJournal(card.JournalPath())
+	src := b.source()
+	events, torn, err := readJournal(src, card.JournalPath())
 	if err != nil {
 		events = nil
 	}
@@ -59,7 +60,7 @@ func (b *Bench) recordFromDirectories(card *Card) (*CardRecord, error) {
 		if kept, ok := listings[collection]; ok {
 			return kept.ids, kept.err
 		}
-		ids, err := ListIDs(collection)
+		ids, err := listIDs(src, collection)
 		listings[collection] = listing{ids: ids, err: err}
 		return ids, err
 	}
@@ -80,7 +81,7 @@ func (b *Bench) recordFromDirectories(card *Card) (*CardRecord, error) {
 	r.itemHalves = map[ResolutionHalf]bool{}
 	r.loadItems = func(half ResolutionHalf) error {
 		collection := legacyCollection(card.Dir, ChecklistDir, half)
-		ids, texts, err := legacyTexts(list, collection, ItemAnchor)
+		ids, texts, err := legacyTexts(src, list, collection, ItemAnchor)
 		if err != nil {
 			return err
 		}
@@ -113,7 +114,7 @@ func (b *Bench) recordFromDirectories(card *Card) (*CardRecord, error) {
 		}
 		for _, half := range []ResolutionHalf{LiveHalf, ArchivedHalf} {
 			collection := legacyCollection(home, CommentsDir, half)
-			ids, texts, err := legacyTexts(list, collection, CommentAnchor)
+			ids, texts, err := legacyTexts(src, list, collection, CommentAnchor)
 			if err != nil {
 				continue
 			}
@@ -152,22 +153,22 @@ func (b *Bench) recordFromDirectories(card *Card) (*CardRecord, error) {
 }
 
 // legacyTexts lists a collection directory on the old layout and reads each
-// member's anchor once. It answers the identifiers in the order SortByOrdinal
-// puts them in, with a member whose anchor will not read still in its place,
-// and the text of every anchor that did read. An absent directory answers as
-// an empty one.
-func legacyTexts(list func(string) ([]string, error), collection, anchor string) ([]string, map[string]string, error) {
+// member's anchor once, through src. It answers the identifiers in the order
+// SortByOrdinal puts them in, with a member whose anchor will not read still
+// in its place, and the text of every anchor that did read. An absent
+// directory answers as an empty one.
+func legacyTexts(src Source, list func(string) ([]string, error), collection, anchor string) ([]string, map[string]string, error) {
 	ids, err := list(collection)
 	if err != nil {
 		return nil, nil, err
 	}
 	texts := make(map[string]string, len(ids))
 	for _, id := range ids {
-		if text, err := ReadText(filepath.Join(collection, id, anchor)); err == nil {
+		if text, err := readText(src, joinMember(collection, id, anchor)); err == nil {
 			texts[id] = text
 		}
 	}
-	ordered := sortByOrdinalWith(collection, ids, func(id string) int {
+	ordered := sortByOrdinalWith(src, collection, ids, func(id string) int {
 		text, ok := texts[id]
 		if !ok {
 			return 0
@@ -208,9 +209,11 @@ func (b *Bench) columnCommentsFromDirectories(columnID string, half ResolutionHa
 		dir := b.columnDirIn(ArchivedHalf, columnID)
 		holders = []string{legacyCollection(dir, CommentsDir, LiveHalf), legacyCollection(dir, CommentsDir, ArchivedHalf)}
 	}
+	src := b.source()
+	list := func(collection string) ([]string, error) { return listIDs(src, collection) }
 	var found []*Comment
 	for _, collection := range holders {
-		ids, texts, err := legacyTexts(ListIDs, collection, CommentAnchor)
+		ids, texts, err := legacyTexts(src, list, collection, CommentAnchor)
 		if err != nil {
 			return nil, err
 		}
@@ -241,21 +244,60 @@ func (b *Bench) columnCommentsFromDirectories(columnID string, half ResolutionHa
 // them in. For a collection below a column, journalPathFor answers the empty
 // string, so nothing is recovered and the listing order stands.
 func Comments(holderDir string) ([]*Comment, error) {
+	return legacyComments(Disk{}, holderDir)
+}
+
+// legacyComments is Comments's body, reading through src.
+func legacyComments(src Source, holderDir string) ([]*Comment, error) {
 	collection := filepath.Join(holderDir, CommentsDir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
-	var comments []*Comment
-	for _, id := range SortByOrdinal(collection, CommentAnchor, ids) {
-		dir := filepath.Join(collection, id)
-		text, err := ReadText(filepath.Join(dir, CommentAnchor))
+	var found []*Comment
+	for _, id := range sortByOrdinal(src, collection, CommentAnchor, ids) {
+		comment, err := commentAt(src, joinMember(collection, id))
 		if err != nil {
 			continue
 		}
-		comments = append(comments, commentFromText(dir, id, text))
+		found = append(found, comment)
 	}
-	return comments, nil
+	return found, nil
+}
+
+// deriveItem is DeriveItem's derive function.
+func deriveItem(path, text, _ string) (any, error) {
+	return itemFromText(filepath.Dir(path), text), nil
+}
+
+// deriveComment is DeriveComment's derive function.
+func deriveComment(path, text, _ string) (any, error) {
+	dir := filepath.Dir(path)
+	return commentFromText(dir, filepath.Base(dir), text), nil
+}
+
+// itemAt reads the item whose directory is dir on the old layout through
+// src. Its error is the anchor's read error.
+func itemAt(src Source, dir string) (*Item, error) {
+	anchor := joinMember(dir, ItemAnchor)
+	observeAnchor(anchor)
+	value, err := src.Derive(anchor, DeriveItem, deriveItem)
+	if err != nil {
+		return nil, err
+	}
+	return value.(*Item).Clone(), nil
+}
+
+// commentAt reads the comment whose directory is dir on the old layout
+// through src.
+func commentAt(src Source, dir string) (*Comment, error) {
+	anchor := joinMember(dir, CommentAnchor)
+	observeAnchor(anchor)
+	value, err := src.Derive(anchor, DeriveComment, deriveComment)
+	if err != nil {
+		return nil, err
+	}
+	return value.(*Comment).Clone(), nil
 }
 
 // commentFromText builds a comment from the text of its anchor on the old
@@ -278,7 +320,12 @@ func commentFromText(dir, id, text string) *Comment {
 // CountComments reports how many comments a directory's own collection holds
 // on the old layout, and it opens no comment's anchor to do it.
 func CountComments(dir string) (int, error) {
-	ids, err := ListIDs(filepath.Join(dir, CommentsDir))
+	return countComments(Disk{}, dir)
+}
+
+// countComments is CountComments's body, reading through src.
+func countComments(src Source, dir string) (int, error) {
+	ids, err := listIDs(src, filepath.Join(dir, CommentsDir))
 	if err != nil {
 		return 0, err
 	}
@@ -288,7 +335,7 @@ func CountComments(dir string) (int, error) {
 // CountItems is how many checklist items a card's collection holds on the old
 // layout. It reads the collection's directory and opens no item anchor.
 func CountItems(cardDir string) (int, error) {
-	ids, err := ListIDs(filepath.Join(cardDir, ChecklistDir))
+	ids, err := listIDs(Disk{}, filepath.Join(cardDir, ChecklistDir))
 	if err != nil {
 		return 0, err
 	}
@@ -302,11 +349,16 @@ func CountItems(cardDir string) (int, error) {
 // answers the claim exactly as it did: a key a header does not carry reads as
 // empty, and an empty column names no column any workbench declares.
 func LoadItem(dir string) (*Item, error) {
-	text, err := ReadText(filepath.Join(dir, ItemAnchor))
+	return loadItem(Disk{}, dir)
+}
+
+// loadItem is LoadItem's body, reading through src.
+func loadItem(src Source, dir string) (*Item, error) {
+	item, err := itemAt(src, dir)
 	if err != nil {
 		return nil, contract.Refuse(contract.UnknownPath, dir)
 	}
-	return itemFromText(dir, text), nil
+	return item, nil
 }
 
 // itemFromText builds a checklist item from the text of its anchor on the old
@@ -343,20 +395,25 @@ func (i *Item) LegacyDir() string {
 // Items reads a card's live checklist items on the old layout, in creation
 // order. An item whose anchor will not open is skipped.
 func Items(cardDir string) ([]*Item, error) {
+	return legacyItems(Disk{}, cardDir)
+}
+
+// legacyItems is Items's body, reading through src.
+func legacyItems(src Source, cardDir string) ([]*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return nil, err
 	}
-	var items []*Item
-	for _, id := range SortByOrdinal(collection, ItemAnchor, ids) {
-		item, err := LoadItem(filepath.Join(collection, id))
+	var found []*Item
+	for _, id := range sortByOrdinal(src, collection, ItemAnchor, ids) {
+		item, err := loadItem(src, joinMember(collection, id))
 		if err != nil {
 			continue
 		}
-		items = append(items, item)
+		found = append(found, item)
 	}
-	return items, nil
+	return found, nil
 }
 
 // CitationsOf reads every entry of an item's citations sequence, in stored
@@ -390,11 +447,15 @@ func CitationsOf(fm *Frontmatter) []Citation {
 // it did not touch, which is what reading the header rather than the entity
 // gives it.
 func ReadItemAnchor(dir string) (*Frontmatter, string, error) {
-	text, err := ReadText(filepath.Join(dir, ItemAnchor))
+	return readItemAnchor(Disk{}, dir)
+}
+
+// readItemAnchor is ReadItemAnchor's body, reading through src.
+func readItemAnchor(src Source, dir string) (*Frontmatter, string, error) {
+	fm, body, err := anchorOf(src, filepath.Join(dir, ItemAnchor))
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, dir)
 	}
-	fm, body := ParseAnchor(text)
 	return fm, body, nil
 }
 
@@ -413,11 +474,15 @@ func WriteItemAnchor(dir string, fm *Frontmatter, body string) error {
 // ReadCommentAnchor opens a comment's anchor on the old layout for a write,
 // returning its whole header and its body.
 func ReadCommentAnchor(dir string) (*Frontmatter, string, error) {
-	text, err := ReadText(filepath.Join(dir, CommentAnchor))
+	return readCommentAnchor(Disk{}, dir)
+}
+
+// readCommentAnchor is ReadCommentAnchor's body, reading through src.
+func readCommentAnchor(src Source, dir string) (*Frontmatter, string, error) {
+	fm, body, err := anchorOf(src, filepath.Join(dir, CommentAnchor))
 	if err != nil {
 		return nil, "", contract.Refuse(contract.UnknownPath, dir)
 	}
-	fm, body := ParseAnchor(text)
 	return fm, body, nil
 }
 
@@ -438,13 +503,25 @@ func WriteCommentAnchor(dir string, fm *Frontmatter, body string) error {
 // counts it: every identifier the directory holds, in the order SortByOrdinal
 // puts them, with nothing filtered out.
 func MemberPosition(dir, anchor string) (int, error) {
+	return memberPosition(Disk{}, dir, anchor)
+}
+
+// MemberPosition is the free MemberPosition read through this bench's source.
+// An attachment is positioned through it on either layout, since attachments
+// keep their directories.
+func (b *Bench) MemberPosition(dir, anchor string) (int, error) {
+	return memberPosition(b.source(), dir, anchor)
+}
+
+// memberPosition is MemberPosition's body, reading through src.
+func memberPosition(src Source, dir, anchor string) (int, error) {
 	collection := filepath.Dir(dir)
 	id := filepath.Base(dir)
-	ids, err := ListIDs(collection)
+	ids, err := listIDs(src, collection)
 	if err != nil {
 		return 0, err
 	}
-	for n, member := range SortByOrdinal(collection, anchor, ids) {
+	for n, member := range sortByOrdinal(src, collection, anchor, ids) {
 		if member == id {
 			return n + 1, nil
 		}
@@ -461,7 +538,7 @@ func (b *Bench) legacyHolderDir(holder MemberHolder) string {
 		return b.columnDirIn(columnHalf(b, holder.Column), holder.Column)
 	case holder.Item != "":
 		live := filepath.Join(holder.Card.Dir, ChecklistDir, holder.Item)
-		if Exists(live) {
+		if b.Exists(live) {
 			return live
 		}
 		return filepath.Join(holder.Card.Dir, ArchiveDir, ChecklistDir, holder.Item)
@@ -486,13 +563,13 @@ func halfOf(archived bool) ResolutionHalf {
 // legacyAddComment writes a comment entity under its holder directory on the
 // old layout. The caller holds the holder's lock, which is what makes the
 // ordinal scan race-free.
-func legacyAddComment(holderDir, author, ts, body string) (*Comment, error) {
+func legacyAddComment(src Source, holderDir, author, ts, body string) (*Comment, error) {
 	collection := filepath.Join(holderDir, CommentsDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
-	ordinal, err := nextOrdinal(collection, CommentAnchor)
+	ordinal, err := nextOrdinal(src, collection, CommentAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -521,13 +598,13 @@ func legacyAddComment(holderDir, author, ts, body string) (*Comment, error) {
 // legacyAddItem writes a checklist item under a card on the old layout. The
 // caller holds the card's lock. The column and the owner are written only when
 // the caller supplies one.
-func legacyAddItem(cardDir, kind, column, owner, ts, text string) (*Item, error) {
+func legacyAddItem(src Source, cardDir, kind, column, owner, ts, text string) (*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
-	ordinal, err := nextOrdinal(collection, ItemAnchor)
+	ordinal, err := nextOrdinal(src, collection, ItemAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -564,13 +641,13 @@ func legacyAddItem(cardDir, kind, column, owner, ts, text string) (*Item, error)
 // state, the declaring column, the owner and the evidence scheme where the
 // entry declares them, the standing key, the stamp and the ordinal, and the
 // entry's text as the body.
-func legacyAddStandingItem(cardDir, columnID string, entry StandingItem, ts string) (*Item, error) {
+func legacyAddStandingItem(src Source, cardDir, columnID string, entry StandingItem, ts string) (*Item, error) {
 	collection := filepath.Join(cardDir, ChecklistDir)
 	id, err := ClaimID(collection, nil)
 	if err != nil {
 		return nil, err
 	}
-	ordinal, err := nextOrdinal(collection, ItemAnchor)
+	ordinal, err := nextOrdinal(src, collection, ItemAnchor)
 	if err != nil {
 		return nil, err
 	}
@@ -663,14 +740,14 @@ func (b *Bench) checkRetiredNotes(card *Card) ([]Finding, error) {
 		return nil, nil
 	}
 	collection := filepath.Join(card.Dir, ChecklistDir)
-	ids, err := ListIDs(collection)
+	ids, err := b.ListIDs(collection)
 	if err != nil {
 		return nil, err
 	}
 	var findings []Finding
 	for _, id := range ids {
 		dir := filepath.Join(collection, id)
-		fm, _, err := ReadItemAnchor(dir)
+		fm, _, err := readItemAnchor(b.source(), dir)
 		if err != nil {
 			continue
 		}
