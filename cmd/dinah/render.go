@@ -1173,6 +1173,13 @@ func (s *session) renderDetail(detail *verb.Detail) {
 		s.line(s.r.T("show.comments"))
 		s.renderComments(detail.Comments)
 	}
+	// The handoff draws in the comments' own shape, with every row carrying
+	// its body as the note, since a handoff is served in full or not at all.
+	if len(detail.Handoff) > 0 {
+		gap()
+		s.line(s.r.T("show.handoff"))
+		s.renderComments(detail.Handoff)
+	}
 	if len(detail.Checklist) > 0 {
 		gap()
 		s.line(s.r.T("show.checklist"))

@@ -4439,6 +4439,11 @@
       "context": "The meaning of the all argument of `dinah show`, printed in that command's arguments table. It is the flag that restores the whole-card answer show gave before the narrow default, and it is refused together with --fields.",
       "skeleton": true
     },
+    "param.show.brief.summary": {
+      "text": "serve the brief a station opens a card on: the narrow default, the latest handoff in full, and the checklist in full narrowed to the items whose state does not release a column hold; refused beside --fields and beside --all",
+      "context": "The meaning of the brief argument of `dinah show`, printed in that command's arguments table. The flag spellings inside it are syntax and stay as they are, and handoff is the name of a member of the card, which is machine vocabulary.",
+      "skeleton": true
+    },
     "param.show.since.summary": {
       "text": "serve the bodies of the comments after this one-based ordinal, and the index alone for the rest",
       "context": "The meaning of the since argument of `dinah show`, printed in that command's arguments table. The word is spelled as it is on `dinah changes`, and this sentence is where the two part: that one takes an opaque cursor and this one takes a comment's position.",
@@ -6541,6 +6546,11 @@
     "show.comments": {
       "text": "Comments:",
       "context": "The label above a card's comments.",
+      "skeleton": true
+    },
+    "show.handoff": {
+      "text": "Handoff:",
+      "context": "The label above the comments the last station left on the card, each printed with its body, drawn between the comments block and the checklist block when the answer carries the handoff member.",
       "skeleton": true
     },
     "show.links": {
