@@ -31,6 +31,10 @@ var cardUnitWantedEvents = map[string][]string{
 	contract.EventItemWithdrawn:      {"item", "from", "to", "resolution"},
 	contract.EventItemReopened:       {"item", "from"},
 	contract.EventRedacted:           {"kind", "lines", "comment"},
+	// dinah-647's spend names no member, and a store at the card-unit format
+	// writes it with every member the older layout's replay does, which is
+	// what makes the capture of this layout carry it.
+	contract.EventSpend: {"unit", "column", "column_title", "input", "output", "cached", "unreported", "round", "consumer_provider", "consumer_model", "note"},
 }
 
 // TestReplayingThePopulationSequenceInTheCardUnitLayout drives
