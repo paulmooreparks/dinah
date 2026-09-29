@@ -3,7 +3,10 @@ package bench
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // TestSortByArrivalReadsEachCardsJournalOnce drives dinah-630. A sort over n
@@ -42,11 +45,16 @@ func TestSortByArrivalReadsEachCardsJournalOnce(t *testing.T) {
 		t.Fatalf("read %d cards, wanted %d", len(cards), n)
 	}
 
+	// SortByArrival reads the arrivals on parallelRead's workers, so the
+	// observer counts under a lock.
 	opens := map[string]int{}
+	var mu sync.Mutex
 	t.Cleanup(func() { AnchorReadObserver = nil })
 	AnchorReadObserver = func(path string) {
 		if filepath.Base(path) == JournalName {
+			mu.Lock()
 			opens[filepath.Dir(path)]++
+			mu.Unlock()
 		}
 	}
 	SortByArrival(cards)
@@ -64,6 +72,57 @@ func TestSortByArrivalReadsEachCardsJournalOnce(t *testing.T) {
 		if cards[i].Arrival().After(cards[i+1].Arrival()) {
 			t.Fatalf("cards[%d] arrived after cards[%d]: the sort did not order by arrival", i, i+1)
 		}
+	}
+}
+
+// TestArrivalReadsTheLinesArrivalFromReads answers dinah-637/questions/26,
+// which moved Arrival onto a narrow read of the journal: only a line carrying
+// created, moved or manual_correction is decoded, and then into the three
+// members an arrival needs. The narrow read has to answer what ArrivalFrom
+// answers over the whole parse, for every column the card could stand in, on
+// a journal that holds each kind of arrival line and lines that carry those
+// words in text without being one: a comment whose text names moved, and a
+// cited item whose target does. The comparison runs over each column the
+// journal names and one it does not, so a line read wrongly moves some
+// column's answer.
+//
+// Arming: leaving manual_correction out of the narrow read's events moves the
+// answer for Review, which only a correction names at its last stamp.
+func TestArrivalReadsTheLinesArrivalFromReads(t *testing.T) {
+	root := newFixture(t)
+	id := "c00000000002"
+	lines := []string{
+		`{"ts":"2026-08-17T09:00:00Z","event":"created","actor":{"name":"alka"},"title":"A card","to":"b00000000001","to_title":"Only"}`,
+		`{"ts":"2026-08-17T09:01:00Z","event":"moved","actor":{"name":"alka"},"from":"b00000000001","to":"doing","to_title":"Doing"}`,
+		`{"ts":"2026-08-17T09:02:00Z","event":"commented","actor":{"name":"alka"},"comment":"0123456789ab","ordinal":1,"text":"the card moved to review, \"event\":\"moved\",\"to\":\"review\""}`,
+		`{"ts":"2026-08-17T09:03:00Z","event":"item_cited","actor":{"name":"alka"},"item":"0123456789ac","scheme":"test","target":"manual_correction moved created"}`,
+		`{"ts":"2026-08-17T09:04:00Z","event":"moved","actor":{"name":"alka"},"from":"doing","to":"review","to_title":"Review"}`,
+		`{"ts":"2026-08-17T09:05:00Z","event":"moved","actor":{"name":"alka"},"from":"review","to":"doing","to_title":"Doing"}`,
+		`{"ts":"2026-08-17T09:06:00Z","event":"manual_correction","actor":{"name":"alka"},"from":"doing","to":"review","to_title":"Review"}`,
+	}
+	write(t, filepath.Join(root, CardsDir, id, CardAnchor), cleanCard)
+	write(t, filepath.Join(root, CardsDir, id, JournalName), strings.Join(lines, "\n")+"\n")
+	opened, err := Open(root)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	card, err := opened.LoadCardIn(opened.CardsRoot(), id)
+	if err != nil {
+		t.Fatalf("load %s: %v", id, err)
+	}
+	events, _, err := ReadJournal(card.JournalPath())
+	if err != nil || len(events) != len(lines) {
+		t.Fatalf("read the journal: %d events, %v", len(events), err)
+	}
+	for _, column := range []string{"b00000000001", "doing", "review", "nowhere"} {
+		card.Column = column
+		if got, want := card.Arrival(), ArrivalFrom(events, column); !got.Equal(want) {
+			t.Errorf("standing in %s the card arrived at %s, and ArrivalFrom reads %s", column, got, want)
+		}
+	}
+	card.Column = "review"
+	if got := card.Arrival(); got.Format(time.RFC3339) != "2026-08-17T09:06:00Z" {
+		t.Errorf("standing in review the card arrived at %s, wanted the correction's stamp", got.Format(time.RFC3339))
 	}
 }
 

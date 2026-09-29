@@ -3,6 +3,7 @@ package bench
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -798,29 +799,73 @@ func (c *Card) SetLevel(field, value string) {
 // whose position was reconciled rather than moved carries no move naming the
 // column it stands in, and reading only moves would report the zero time and
 // sort it ahead of every card that arrived by one.
+//
+// It reads the journal through DeriveArrival rather than through the whole
+// parse: a journal in the card-unit layout carries every comment's and item's
+// text, and a sort by arrival asks every ready card, so decoding each line of
+// each journal whole to find three events cost most of what next and the
+// agenda spend (dinah-637/questions/26).
 func (c *Card) Arrival() time.Time {
-	parsed, err := readJournalShared(c.source(), c.JournalPath())
+	observeAnchor(c.JournalPath())
+	value, err := c.source().Derive(c.JournalPath(), DeriveArrival, deriveArrival)
 	if err != nil {
 		return time.Time{}
 	}
-	return arrivalFromParsed(parsed.events, parsed.stamps, c.Column)
-}
-
-// arrivalFromParsed is ArrivalFrom over events whose stamps are already
-// parsed, one per event.
-func arrivalFromParsed(events []Event, stamps []time.Time, column string) time.Time {
 	arrival := time.Time{}
-	for i, ev := range events {
-		switch ev.Event {
-		case contract.EventCreated:
-			arrival = stamps[i]
-		case contract.EventMoved, contract.EventManualCorrection:
-			if ev.To == column {
-				arrival = stamps[i]
-			}
+	for _, line := range value.([]arrivalLine) {
+		if line.event == contract.EventCreated || line.to == c.Column {
+			arrival = line.at
 		}
 	}
 	return arrival
+}
+
+// arrivalLine is one line of a journal a card's arrival is read from: a
+// created line, or a moved or manual_correction line with the column it names.
+type arrivalLine struct {
+	event string
+	to    string
+	at    time.Time
+}
+
+// arrivalEvents are the events whose lines an arrival is read from.
+var arrivalEvents = []string{contract.EventCreated, contract.EventMoved, contract.EventManualCorrection}
+
+// deriveArrival is DeriveArrival's derive function: the created, moved and
+// manual_correction lines of a journal in file order, each with its parsed
+// stamp. A line is decoded only where its bytes carry one of those event names
+// at all, and then into the three members the arrival reads, so a line
+// carrying a comment's text costs a substring search rather than a decode. A
+// line that will not decode is passed over, as a torn final line is by every
+// reader; a damaged line that is not the last one is the card read's refusal
+// to raise, and the arrival reads around it.
+func deriveArrival(_ string, text, _ string) (any, error) {
+	var lines []arrivalLine
+	for _, line := range SplitLines(text) {
+		named := false
+		for _, event := range arrivalEvents {
+			if strings.Contains(line, event) {
+				named = true
+				break
+			}
+		}
+		if !named {
+			continue
+		}
+		var ev struct {
+			TS    string `json:"ts"`
+			Event string `json:"event"`
+			To    string `json:"to"`
+		}
+		if json.Unmarshal([]byte(line), &ev) != nil {
+			continue
+		}
+		switch ev.Event {
+		case contract.EventCreated, contract.EventMoved, contract.EventManualCorrection:
+			lines = append(lines, arrivalLine{event: ev.Event, to: ev.To, at: ParseStamp(ev.TS)})
+		}
+	}
+	return lines, nil
 }
 
 // ArrivalFrom is the moment a card standing in column entered it, read out of
@@ -896,10 +941,12 @@ func LessArrival(aArrival time.Time, aNumber int, bArrival time.Time, bNumber in
 // comparison's two arrivals fresh, as ByArrival does on its own, opens each
 // card's journal on the order of n log n times where n would do.
 func SortByArrival(cards []*Card) {
-	arrivals := make([]time.Time, len(cards))
-	for i, c := range cards {
-		arrivals[i] = c.Arrival()
-	}
+	// Each card's arrival is one journal read, and a queue sorts every ready
+	// card, so the reads run on parallelRead's workers as loading the cards
+	// did. An arrival that will not read is the zero time, so no read fails.
+	arrivals, _ := parallelRead(len(cards), func(i int) (time.Time, error) {
+		return cards[i].Arrival(), nil
+	})
 	order := make([]int, len(cards))
 	for i := range order {
 		order[i] = i
