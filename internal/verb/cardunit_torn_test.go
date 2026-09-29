@@ -105,6 +105,50 @@ func TestATornTailOnACardUnitCardIsQuarantinedByTheNextWrite(t *testing.T) {
 	}
 }
 
+// TestAFinalObjectThatIsNotALineIsQuarantined answers dinah-637/questions/28.
+// A final line with no newline after it that is a JSON object but not a
+// journal line, here a hand-edited commented line whose ordinal is a string,
+// is what the reader skips as torn, so the writer takes it for a torn tail too:
+// the next comment moves it to a sidecar, answers ok, and the card reads its
+// earlier comment and the new one. Were the writer to keep it, the line would
+// stop being the last one, and every later read of the card would be refused.
+//
+// Arming: deciding a tail is whole when it decodes as any JSON object, as
+// decodesAsObject did, keeps the line; the comment is then answered refused
+// dinah.journal-unreadable, which the first assertion reports.
+func TestAFinalObjectThatIsNotALineIsQuarantined(t *testing.T) {
+	h := newCardUnitHarness(t)
+	card := h.add("A card whose last line was edited into a shape no line has")
+	h.comment(card, "The comment written before the edit.")
+	journal := h.card(card).JournalPath()
+	const edited = `{"ts":"2026-08-17T09:00:00Z","event":"commented","actor":{"name":"alka"},"comment":"0123456789ab","ordinal":"2","text":"an edit"}`
+	handle, err := os.OpenFile(journal, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatalf("open the journal: %v", err)
+	}
+	if _, err := handle.WriteString(edited); err != nil {
+		t.Fatalf("plant the edited line: %v", err)
+	}
+	handle.Close()
+	h.reopen()
+
+	response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: card, Text: "The comment written after the edit."})
+	if response.Outcome != contract.OutcomeOK {
+		t.Fatalf("the comment after the edit answered %s %s naming %s, wanted ok", response.Outcome, response.Refusal, response.Detail)
+	}
+	h.reopen()
+	sidecars := bench.TornSidecars(filepath.Dir(journal))
+	if len(sidecars) != 1 {
+		t.Fatalf("wanted the edited line in one sidecar beside the journal, got %v", sidecars)
+	}
+	if kept, _ := os.ReadFile(sidecars[0]); string(kept) != edited {
+		t.Errorf("the sidecar holds %q, wanted the edited line byte for byte", kept)
+	}
+	if comments, _, err := h.memberCounts(card); err != nil || comments != 2 {
+		t.Errorf("after the comment the card reads %d comments (%v), wanted the one before the edit and the new one", comments, err)
+	}
+}
+
 // TestAWholeFinalLineWithoutItsNewlineIsKept drives dinah-637/criteria/30. A
 // card-unit journal whose final line is a complete commented line with its
 // newline removed answers that comment; the next comment writes a newline and

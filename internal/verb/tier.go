@@ -78,8 +78,7 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 	was := reloaded.ColumnTierFor(l.Bench, ref)
 	spelled := l.Bench.JournaledTierRef(reloaded.ColumnTierRef(l.Bench, ref), ref)
 	if was == absolute {
-		response := l.ok(req, nil)
-		response.Detail = absolute
+		response := l.okWithDetail(req, nil, absolute)
 		return response
 	}
 	reloaded.SetColumnTier(l.Bench, ref, absolute)
@@ -100,8 +99,7 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, nil)
-	response.Detail = absolute
+	response := l.okWithDetail(req, nil, absolute)
 	return response
 }
 

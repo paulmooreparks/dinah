@@ -329,8 +329,7 @@ func (l *Library) Comment(req *Request) *Response {
 	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = l.commentRefOf(entity, comment)
+	response := l.okWithDetail(req, entity.Card, l.commentRefOf(entity, comment))
 	return response
 }
 
@@ -492,8 +491,7 @@ func (l *Library) Attach(req *Request) *Response {
 	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = ev.Attachment
+	response := l.okWithDetail(req, entity.Card, ev.Attachment)
 	return response
 }
 
@@ -573,8 +571,7 @@ func (l *Library) archive(req *Request, verify func() error) *Response {
 	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, nil)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, nil, entity.ID)
 	return response
 }
 
@@ -615,8 +612,7 @@ func (l *Library) Restore(req *Request) *Response {
 	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, nil)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, nil, entity.ID)
 	return response
 }
 
@@ -755,8 +751,7 @@ func (l *Library) Delete(req *Request) *Response {
 			return refused
 		}
 	}
-	response := l.ok(req, nil)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, nil, entity.ID)
 	return response
 }
 
@@ -939,8 +934,7 @@ func (l *Library) Rename(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	if before.Filename == after.Filename {
-		response := l.ok(req, entity.Card)
-		response.Detail = entity.ID
+		response := l.okWithDetail(req, entity.Card, entity.ID)
 		return response
 	}
 	ev := bench.Event{
@@ -955,8 +949,7 @@ func (l *Library) Rename(req *Request) *Response {
 	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, entity.Card, entity.ID)
 	return response
 }
 
@@ -1745,8 +1738,7 @@ func (l *Library) AcceptDivergence(req *Request) *Response {
 	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, entity.Card, entity.ID)
 	return response
 }
 

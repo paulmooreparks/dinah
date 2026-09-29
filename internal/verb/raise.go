@@ -111,8 +111,7 @@ func (l *Library) Raise(req *Request) *Response {
 	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), freed); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, reloaded)
-	response.Detail = absolute
+	response := l.okWithDetail(req, reloaded, absolute)
 	return response
 }
 

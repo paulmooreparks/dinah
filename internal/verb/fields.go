@@ -767,8 +767,7 @@ func (l *Library) writeField(req *Request, entity *bench.EntityRef, target field
 		fm.Set(target.key, value)
 	}
 	if was == value && !restampsComment(entity, fm, value) {
-		response := l.ok(req, entity.Card)
-		response.Detail = value
+		response := l.okWithDetail(req, entity.Card, value)
 		return response
 	}
 	// A comment's and an item's anchor is written through the member writer
@@ -831,8 +830,7 @@ func (l *Library) wroteField(req *Request, entity *bench.EntityRef, value string
 			card = reloaded
 		}
 	}
-	response := l.ok(req, card)
-	response.Detail = value
+	response := l.okWithDetail(req, card, value)
 	if entity.Kind != bench.KindWorkstream {
 		return response
 	}

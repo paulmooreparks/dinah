@@ -1460,6 +1460,19 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 	return response
 }
 
+// okWithDetail is ok carrying detail, the reference or value the act answers
+// with. The detail is written only on an answer that is ok: where reading the
+// card back for the answer failed, the refusal keeps the detail its own error
+// named, the journal and line of a damaged journal among them, rather than
+// reporting the act's own answer under that refusal's name.
+func (l *Library) okWithDetail(req *Request, card *bench.Card, detail string) *Response {
+	response := l.ok(req, card)
+	if response.Outcome == contract.OutcomeOK {
+		response.Detail = detail
+	}
+	return response
+}
+
 // FromError turns an error the format layer returned into a response, so that
 // a head never has to decide what an error means.
 func (l *Library) FromError(req *Request, err error) *Response {

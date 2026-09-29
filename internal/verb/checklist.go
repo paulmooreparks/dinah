@@ -103,8 +103,7 @@ func (l *Library) File(req *Request) *Response {
 	if err := l.Bench.AppendEvent(lock, found.Card.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, found.Card)
-	response.Detail = item.ID
+	response := l.okWithDetail(req, found.Card, item.ID)
 	return response
 }
 
@@ -625,8 +624,7 @@ func (l *Library) withItem(req *Request, work func(*itemTarget) (*bench.Event, *
 	if err := l.Bench.AppendEvent(lock, entity.Card.JournalPath(), *ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = item.ID
+	response := l.okWithDetail(req, entity.Card, item.ID)
 	return response
 }
 
