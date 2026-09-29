@@ -240,6 +240,36 @@ func TestARerunOverAMigratedStoreAnswersAlreadyMigrated(t *testing.T) {
 	if redactedTreeBytes(t, store) != before {
 		t.Error("a rerun over the migrated store changed it")
 	}
+
+	// The one thing a rerun over a migrated store still does is carry a
+	// comment.md an older build wrote since. While another process holds the
+	// card's lock the rerun stops and says so, still as a run over a store
+	// already migrated; once the lock is given back it carries the stray and
+	// names it.
+	cardDir := filepath.Join(store, bench.CardsDir, "7035845dc37b")
+	stray := filepath.Join(cardDir, bench.CommentsDir, "0badc0ffee01", "comment.md")
+	if err := os.MkdirAll(filepath.Dir(stray), 0o755); err != nil {
+		t.Fatalf("make the stray's directory: %v", err)
+	}
+	if err := os.WriteFile(stray, []byte("---\nts: 2026-09-29T09:00:00Z\nauthor: an older build\nordinal: 99\n---\nwritten by an older build\n"), 0o644); err != nil {
+		t.Fatalf("plant the stray: %v", err)
+	}
+	held, err := bench.Acquire(cardDir, "another process", "2026-09-29T09:00:01Z")
+	if err != nil {
+		t.Fatalf("hold the card's lock: %v", err)
+	}
+	stopped := at("check", "--migrate-storage")
+	held.Release()
+	if stopped.code != 5 || !strings.Contains(stopped.out, "The store already declares format 12") || !strings.Contains(stopped.out, "another process") {
+		t.Errorf("the rerun over a held card answered %d:\n%s%s", stopped.code, stopped.out, stopped.errw)
+	}
+	carried := at("check", "--migrate-storage")
+	if carried.code != 0 || !strings.Contains(carried.out, "The store already declares format 12") || !strings.Contains(carried.out, "0badc0ffee01") {
+		t.Errorf("the rerun carrying a stray answered %d:\n%s%s", carried.code, carried.out, carried.errw)
+	}
+	if _, err := os.Stat(stray); !os.IsNotExist(err) {
+		t.Errorf("the stray survived the rerun: %v", err)
+	}
 }
 
 func TestADivergenceIsCarriedAndStillReported(t *testing.T) {
