@@ -942,10 +942,10 @@
 			"context": "Error when the comment verb answered ok and carried no identifier. {ref} is the holder's reference. It is a defect in the answer rather than anything the reader did, and it says so.",
 			"source": "a01a81f2ce06e3cc"
 		},
-		"comment.composeNoPath": {
-			"text": "Dinah kennt den Kommentar {ref} und meldet keine Datei dazu.",
-			"context": "Error when `dinah path` answered ok with no path for a comment that was just minted. {ref} is the comment's own reference.",
-			"source": "6c2fa367c3f93105"
+		"member.itemFieldsChanged": {
+			"text": "Von hier lässt sich nur der Text von {ref} speichern, und sein Kopfbereich hat sich geändert. Ändern Sie ein Feld mit den Befehlen des Punkts: resolve, verify, fail, waive, withdraw, reopen oder dinah set.",
+			"context": "Error when an item document is saved with its front matter changed. {ref} is the item's reference. A save writes the item's text alone, so a field is changed through the item's commands, whose names are not translated.",
+			"source": "ff8104a10d418f38"
 		},
 		"item.answer": {
 			"text": "Antwort:",

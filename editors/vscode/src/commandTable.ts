@@ -44,6 +44,7 @@ import {
 } from "./columnCommands";
 import { invokeDeleteComment, invokeOpenComment } from "./commentCommands";
 import type { CommentBodyHost, OpenComments } from "./commentBody";
+import type { OpenItems } from "./memberDocument";
 import { invokeAttachFile, invokeNewCard } from "./creationCommands";
 import {
 	invokeAddCriterion,
@@ -135,6 +136,12 @@ export interface Wiring {
 	 * as tabs open and close and every command shares the one window's answer.
 	 */
 	readonly openComments: OpenComments;
+	/**
+	 * The item documents this window has opened, with the front matter each
+	 * opened with, so a save of one can tell a change of its text from a
+	 * change of a field. Mutable for the reason openComments is.
+	 */
+	readonly openItems: OpenItems;
 	/**
 	 * The catalogue the filing form reads its kind choices from.
 	 *

@@ -302,7 +302,7 @@ func (b *Bench) writeBranchMigrant(migrant branchMigrant, actor, now string) (bo
 		From:  was,
 		To:    value,
 	}
-	return true, AppendEvent(filepath.Join(migrant.dir, JournalName), ev)
+	return true, AppendEvent(held, filepath.Join(migrant.dir, JournalName), ev)
 }
 
 // liftBranchHeading reads the value one heading carries and answers the body

@@ -13,13 +13,29 @@ import (
 )
 
 // Comment is one comment: an entity like every other, ordered by the creation
-// ordinal its anchor carries rather than by its directory name. It hangs below
-// a card, below one of that card's checklist items, or below a column.
+// ordinal it was written with. It hangs below a card, below one of that card's
+// checklist items, or below a column. On a store in the card-unit layout it is
+// a member of its nearest journal; below that format it is a directory of its
+// own, and CardRecord reads both the same way.
 type Comment struct {
 	// ID is the comment's 12-hex identifier.
 	ID string
-	// Dir is the comment's directory.
-	Dir string
+	// Holder is what the comment hangs on: empty for the card, the item's
+	// identifier for an item comment, and the column's identifier for a
+	// column comment.
+	Holder string
+	// Home is the directory the comment's attachments collection hangs
+	// from. It is not a file of the comment's own: in the card-unit layout
+	// it is comments/<id> below the holding card or column and need not
+	// exist, and below that format it is the comment's own directory.
+	Home string
+	// Archived reports whether the comment was archived in its own right.
+	// Its half is also the archived one when the item it hangs on is
+	// archived, which CardRecord answers.
+	Archived bool
+	// Redacted is who replaced the comment's text with its digest and when,
+	// nil on a comment nobody redacted.
+	Redacted *Redaction
 	// TS is when the comment was written.
 	TS string
 	// Ordinal is the comment's one-based position among its holder's
@@ -34,140 +50,18 @@ type Comment struct {
 	// so a word standing for the absence would collide with a person of
 	// that name; absence itself collides with nothing.
 	AuthorUnrecoverable bool
-	// Digest is the hex-encoded SHA-256 the last verb to write this
-	// comment's anchor recorded over its body, and is empty on a comment no
-	// verb has written since dinah-525. CommentDiverged compares it against
-	// the body beside it.
-	Digest string
+	// RecordedDigest is the hex-encoded SHA-256 the last verb to write this
+	// comment recorded over its body, and is empty on a comment no verb has
+	// written since dinah-525. The comment is diverged exactly when it
+	// differs from CommentDigest of the body beside it.
+	RecordedDigest string
 	// Body is the comment itself.
 	Body string
-}
 
-// AddComment writes a comment entity under its holder and returns it. The
-// holder is a card, a checklist item or a column, and the caller holds that
-// holder's own lock, which is the card's directory for the first two and the
-// workbench root for a column, and which is what makes the ordinal scan
-// race-free.
-func AddComment(holderDir, author, ts, body string) (*Comment, error) {
-	return addComment(Disk{}, holderDir, author, ts, body)
-}
-
-// AddComment is the free AddComment read through this bench's source.
-func (b *Bench) AddComment(holderDir, author, ts, body string) (*Comment, error) {
-	return addComment(b.source(), holderDir, author, ts, body)
-}
-
-// addComment is AddComment's body, reading through src.
-func addComment(src Source, holderDir, author, ts, body string) (*Comment, error) {
-	collection := filepath.Join(holderDir, CommentsDir)
-	id, err := ClaimID(collection, nil)
-	if err != nil {
-		return nil, err
-	}
-	ordinal, err := nextOrdinal(src, collection, CommentAnchor)
-	if err != nil {
-		return nil, err
-	}
-	dir := filepath.Join(collection, id)
-	fm := NewFrontmatter()
-	fm.Set("ts", ts)
-	if author != "" {
-		fm.Set("author", author)
-	}
-	fm.Set(OrdinalField, strconv.Itoa(ordinal))
-	if err := WriteCommentAnchor(dir, fm, body); err != nil {
-		return nil, err
-	}
-	comment := &Comment{
-		ID:      id,
-		Dir:     dir,
-		TS:      ts,
-		Ordinal: ordinal,
-		Author:  author,
-		Body:    body,
-	}
-	return comment, nil
-}
-
-// Comments reads a holder's comments in creation order. The holder is a card,
-// a checklist item or a column.
-//
-// The order is the ordinal's rather than the timestamp's, because a timestamp
-// is wall-clock and two processes commenting inside one second record the same
-// one, which leaves the reader's order to the directory listing. A comment
-// carrying no ordinal sorts ahead of every stamped one. For a collection below
-// a card, SortByOrdinal recovers the order such comments were written in from
-// the card's journal, which is the order check --migrate-ordinals will stamp
-// them in. For a collection below a column, journalPathFor answers the empty
-// string, so nothing is recovered and the listing order stands.
-func Comments(holderDir string) ([]*Comment, error) {
-	return comments(Disk{}, holderDir)
-}
-
-// Comments is the free Comments read through this bench's source.
-func (b *Bench) Comments(holderDir string) ([]*Comment, error) {
-	return comments(b.source(), holderDir)
-}
-
-// comments is Comments's body, reading through src.
-func comments(src Source, holderDir string) ([]*Comment, error) {
-	collection := filepath.Join(holderDir, CommentsDir)
-	ids, err := listIDs(src, collection)
-	if err != nil {
-		return nil, err
-	}
-	var comments []*Comment
-	for _, id := range sortByOrdinal(src, collection, CommentAnchor, ids) {
-		comment, err := commentAt(src, filepath.Join(collection, id))
-		if err != nil {
-			continue
-		}
-		comments = append(comments, comment)
-	}
-	return comments, nil
-}
-
-// commentFromText builds a comment from the text of its anchor, which is the
-// parse Comments and Positions.Comments share so the two cannot drift apart.
-func commentFromText(dir, id, text string) *Comment {
-	fm, body := ParseAnchor(text)
-	return &Comment{
-		ID:                  id,
-		Dir:                 dir,
-		TS:                  fm.Value("ts"),
-		Ordinal:             OrdinalOf(fm),
-		Author:              fm.Value("author"),
-		AuthorUnrecoverable: fm.Value(CommentAuthorUnrecoverableField) == "true",
-		Digest:              fm.Value(CommentDigestField),
-		Body:                body,
-	}
-}
-
-// CountComments reports how many comments a directory's own collection
-// holds, and it opens no comment's anchor to do it, on the terms
-// CountAttachments already carries for attachments: one directory read
-// instead of one file read per comment.
-//
-// A card here carries up to thirty-six checklist items, and detailOf counts
-// every one of them on every dinah show <card>, which is the most-run read
-// on this workbench. Loading every comment's body to answer len() would pay
-// that cost on disk for a number the caller never reads the body to get.
-func CountComments(dir string) (int, error) {
-	return countComments(Disk{}, dir)
-}
-
-// CountComments is the free CountComments read through this bench's source.
-func (b *Bench) CountComments(dir string) (int, error) {
-	return countComments(b.source(), dir)
-}
-
-// countComments is CountComments's body, reading through src.
-func countComments(src Source, dir string) (int, error) {
-	ids, err := listIDs(src, filepath.Join(dir, CommentsDir))
-	if err != nil {
-		return 0, err
-	}
-	return len(ids), nil
+	// raw is the whole anchor file as the old layout stored it, which is
+	// what a show of the comment prints there without reading the file
+	// again; it is empty in the card-unit layout.
+	raw string
 }
 
 // Attachments reads a card's attachments in creation order.
@@ -250,59 +144,20 @@ func countAttachments(src Source, dir string) (int, error) {
 	return len(ids), nil
 }
 
-// CountItems is how many checklist items a card's collection holds. It reads
-// the collection's directory and opens no item anchor, which is what makes it
-// affordable on a listing that renders every card.
-func CountItems(cardDir string) (int, error) {
-	return countItems(Disk{}, cardDir)
-}
-
-// CountItems is the free CountItems read through this bench's source.
-func (b *Bench) CountItems(cardDir string) (int, error) {
-	return countItems(b.source(), cardDir)
-}
-
-// countItems is CountItems's body, reading through src.
-func countItems(src Source, cardDir string) (int, error) {
-	ids, err := listIDs(src, filepath.Join(cardDir, ChecklistDir))
-	if err != nil {
-		return 0, err
-	}
-	return len(ids), nil
-}
-
 // ChildCounts is how many members sit in each collection the containment
 // grammar gives a kind, keyed by the collection's directory name. It is the
 // one place a caller can learn what an entity holds without naming the
 // collections, so a kind that gains a mount is counted here with no edit.
 //
-// One level only, and one directory listing per mount rather than a walk of
-// the subtree, which is what keeps it affordable on a listing that renders
-// every card.
+// One level only: the card's own live comments and checklist from its record,
+// and one directory listing for its attachments.
 //
 // A collection that will not read is reported rather than counted as none, on
 // the terms CountAttachments already states: a zero is what an entity holding
 // nothing answers, and a caller cannot tell the two apart.
-func ChildCounts(dir, kind string) (map[string]int, error) {
-	return childCounts(Disk{}, dir, kind)
-}
-
-// ChildCounts is the free ChildCounts read through this bench's source.
-func (b *Bench) ChildCounts(dir, kind string) (map[string]int, error) {
-	return childCounts(b.source(), dir, kind)
-}
-
-// childCounts is ChildCounts's body, reading through src.
-func childCounts(src Source, dir, kind string) (map[string]int, error) {
-	listed, err := newPositions(src).ChildIDs(dir, kind)
-	if err != nil {
-		return nil, err
-	}
-	counts := make(map[string]int, len(listed))
-	for mount, ids := range listed {
-		counts[mount] = len(ids)
-	}
-	return counts, nil
+func (b *Bench) ChildCounts(card *Card) (map[string]int, error) {
+	counts, _, err := b.NewPositions().CardCounts(b, card)
+	return counts, err
 }
 
 // ChildTotal sums what ChildCounts answered.
@@ -637,8 +492,8 @@ func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRe
 		return entity, nil, true, nil
 	}
 	landed := &landing{}
-	path, err := descend(b.source(), workstream.Dir, KindWorkstream, strings.Split(below, "/"), nil, landed, half)
-	if err != nil {
+	at := &walkAt{dir: workstream.Dir, kind: KindWorkstream, ref: workstream.Ref()}
+	if _, err := b.descend(at, strings.Split(below, "/"), nil, landed, half); err != nil {
 		return nil, nil, true, err
 	}
 	if landed.collection {
@@ -648,22 +503,10 @@ func (b *Bench) resolveWorkstreamRef(half ResolutionHalf, ref string) (*EntityRe
 		}
 		return nil, collection, true, nil
 	}
-	kind, known := KindOfAnchor(filepath.Base(path))
-	if !known {
+	if landed.kind == "" {
 		return nil, nil, true, contract.Refuse(contract.UnknownPath, below)
 	}
-	dir := filepath.Dir(path)
-	composed, err := b.refBelowHead(half, KindWorkstream, workstream.Ref(), workstream.Dir, dir)
-	if err != nil {
-		return nil, nil, true, err
-	}
-	return &EntityRef{
-		Kind:     kind,
-		Dir:      dir,
-		ID:       filepath.Base(dir),
-		Ref:      composed,
-		Archived: half == ArchivedHalf,
-	}, nil, true, nil
+	return b.landedEntity(landed, nil, half), nil, true, nil
 }
 
 // MoveEntity carries an entity's whole directory to another path, history and
@@ -800,8 +643,10 @@ type StructuralAct struct {
 	WorkstreamRef string
 	// Record appends the act's event, and is called at the fourth step. It
 	// is the point of record: a failure before it unwinds everything, and a
-	// failure after it leaves the sibling standing.
-	Record func() error
+	// failure after it leaves the sibling standing. locks are the locks the
+	// act holds when Record runs, and For answers the one an append to a
+	// given journal is made under.
+	Record func(locks ActLocks) error
 	// Verify, when set, runs immediately after the entity lock is taken and
 	// before Record, so a caller can re-confirm a precondition it read
 	// before this act's own lock existed rather than trusting that earlier
@@ -917,7 +762,7 @@ func (b *Bench) Run(act *StructuralAct) error {
 		return unwind(err, entityLock, sibling, benchLock)
 	}
 
-	if err := act.Record(); err != nil {
+	if err := act.Record(ActLocks{bench: benchLock, entity: entityLock}); err != nil {
 		return unwind(err, entityLock, sibling, benchLock)
 	}
 	if err := b.step(4); err != nil {
@@ -1012,6 +857,30 @@ func (b *Bench) takeEntityLock(act *StructuralAct, record LockRecord) (*Lock, er
 	return acquireTolerating(b.source(), act.LockDir, act.Actor, act.Now, record)
 }
 
+// ActLocks are the locks a structural act holds when its Record runs: the
+// bench lock its first step took, and the entity lock its third step took,
+// which is nil for an act whose scope is the bench.
+type ActLocks struct {
+	bench  *Lock
+	entity *Lock
+}
+
+// For answers the lock an append to journal is made under: whichever of the
+// act's locks guards the journal's own directory, and nil when neither does,
+// which AppendEvent then refuses. A card's deletion is recorded on the bench
+// journal and its archiving on the card's own, and this is what lets one
+// Record serve both without naming a lock of its own.
+func (a ActLocks) For(journal string) *Lock {
+	dir := filepath.Dir(journal)
+	if a.entity.guards(dir) {
+		return a.entity
+	}
+	if a.bench.guards(dir) {
+		return a.bench
+	}
+	return nil
+}
+
 // step runs the injected failure a test asks for at one numbered step of the
 // protocol, and is a no-op on every bench nobody is testing.
 func (b *Bench) step(n int) error {
@@ -1061,7 +930,10 @@ type EntityRef struct {
 	// above, because nothing contains one, and what hangs below that prefix
 	// is walked through the containment grammar like anything else.
 	Kind string
-	// Dir is the entity's directory.
+	// Dir is the entity's directory. A checklist item in the card-unit layout
+	// has none and it is empty; a comment in that layout has none of its own
+	// either, and it names the directory the comment's attachments would live
+	// in, which need not exist.
 	Dir string
 	// ID is the entity's identifier, empty for the bench itself.
 	ID string
@@ -1077,23 +949,31 @@ type EntityRef struct {
 	Ref string
 	// Card is the card the entity belongs to, when one does.
 	Card *Card
+	// Holder is, for a comment, what it hangs on: the item's identifier, the
+	// column's identifier, or empty for a comment on the card itself. It is
+	// empty for every other kind.
+	Holder string
 	// Archived reports whether this answer came out of the archive mirror,
 	// which is what a renderer reads to mark a listing and what the machine
 	// views carry.
 	Archived bool
+	// Journaled reports a comment or an item of a card-unit store, which is
+	// lines of a journal and has no file of its own to open.
+	Journaled bool
 }
 
 // AnchorPathOf is the path of the file that IS an entity: the entity's own
 // directory joined with the anchor filename its kind declares. The second
-// answer reports whether the kind declares one at all, which is false only
-// for a kind outside the grammar. It is reported rather than swallowed
+// answer reports whether the kind declares one at all, which is false for a
+// kind outside the grammar and for a journaled member of a card-unit store,
+// which has no file of its own. It is reported rather than swallowed
 // because AnchorOf answers such a kind with the empty string, and a caller
 // joining that gets the entity's directory back, which is a directory where
 // it asked for a file. That is the defect dinah-467 fixed for the one kind
 // that had it.
 func AnchorPathOf(entity *EntityRef) (string, bool) {
 	anchor := AnchorOf(entity.Kind)
-	if anchor == "" {
+	if anchor == "" || entity.Journaled {
 		return "", false
 	}
 	return filepath.Join(entity.Dir, anchor), true
@@ -1135,78 +1015,6 @@ func (b *Bench) ResolveEntityIn(half ResolutionHalf, ref string) (*EntityRef, er
 	return entity, nil
 }
 
-// refBelowHead composes the reference of an entity sitting below a head: the
-// head's own reference, then one collection name and one position for each
-// level down to the entity. The head is whichever of the workbench, a column,
-// a card, or a workstream the reference was resolved through.
-//
-// A position is the entity's place in its collection's creation order, which
-// is what a containment walk draws and what a person types, rather than the
-// identifier its directory is named for. Composing it here is what gives one
-// entity one spelling however the caller reached it, whether by an identifier,
-// by a narrowed checklist segment, or by the position itself.
-//
-// An entity this composer cannot name comes back with no reference at all,
-// because a reference naming the head instead would send a reader somewhere
-// they did not ask for, and an absent answer is one a caller can see.
-func (b *Bench) refBelowHead(half ResolutionHalf, headKind, headRef, headDir, dir string) (string, error) {
-	below, err := filepath.Rel(headDir, dir)
-	if err != nil {
-		return "", nil
-	}
-	segments := strings.Split(filepath.ToSlash(below), "/")
-	// Under the archived half the entity sits inside its holder's mirror, so
-	// the path below the head carries one extra archive segment at the step
-	// the flag names. Lifting it out here leaves the alternating pairs the
-	// rest of this composer walks, and the position is still counted in the
-	// mirror, because the loop rebuilds that one collection under it.
-	mirrored := -1
-	if half == ArchivedHalf {
-		for i, segment := range segments {
-			if segment != ArchiveDir {
-				continue
-			}
-			mirrored = i
-			segments = append(segments[:i:i], segments[i+1:]...)
-			break
-		}
-	}
-	// The path below a head alternates a collection's directory with one
-	// member's identifier, so every level is two segments and an odd count is
-	// a path this composer was never meant to be given.
-	if len(segments)%2 != 0 {
-		return "", nil
-	}
-	ref, kind, at := headRef, headKind, headDir
-	for i := 0; i < len(segments); i += 2 {
-		mount, ok := MountOf(kind, segments[i])
-		if !ok {
-			return "", nil
-		}
-		collection := filepath.Join(at, mount.Dir)
-		if i == mirrored {
-			collection = filepath.Join(at, ArchiveDir, mount.Dir)
-		}
-		ids, err := b.ListIDs(collection)
-		if err != nil {
-			return "", err
-		}
-		position := 0
-		for n, id := range b.SortByOrdinal(collection, mount.Anchor, ids) {
-			if id == segments[i+1] {
-				position = n + 1
-				break
-			}
-		}
-		if position == 0 {
-			return "", nil
-		}
-		ref = ref + "/" + mount.Dir + "/" + strconv.Itoa(position)
-		kind, at = mount.Kind, filepath.Join(collection, segments[i+1])
-	}
-	return ref, nil
-}
-
 // Item is one checklist item: a card's own recorded judgement, per
 // docs/design/format.md's "Checklist items" section. The fields read here are
 // the ones a claim decides on and the ones a read reports; a field the format
@@ -1215,8 +1023,16 @@ func (b *Bench) refBelowHead(half ResolutionHalf, headKind, headRef, headDir, di
 type Item struct {
 	// ID is the item's 12-hex identifier.
 	ID string
-	// Dir is the item's directory.
-	Dir string
+	// Archived reports whether the item stands in the archived half.
+	Archived bool
+	// TS is when the item was filed, empty on an item whose anchor carried
+	// no stamp.
+	TS string
+	// Citations are the item's citations in stored order.
+	Citations []Citation
+	// Redacted is who replaced the item's text with its digest and when,
+	// nil on an item nobody redacted.
+	Redacted *Redaction
 	// Kind is one of acceptance_criterion, open_question and decision.
 	Kind string
 	// State is one of pending, resolved, verified and failed, and it is
@@ -1257,81 +1073,19 @@ type Item struct {
 	// and either would otherwise report a trailing newline no reader asked
 	// for, in a field a row of a table and a payload of one line both print.
 	Text string
-}
 
-// LoadItem reads one checklist item from its directory.
-//
-// Every field but the three CORE-CLAIM-10 decides on is read for a reader
-// rather than for the claim, and an anchor carrying none of them still
-// answers the claim exactly as it did: a key a header does not carry reads as
-// empty, and an empty column names no column any workbench declares.
-func LoadItem(dir string) (*Item, error) {
-	return loadItem(Disk{}, dir)
-}
-
-// LoadItem is the free LoadItem read through this bench's source.
-func (b *Bench) LoadItem(dir string) (*Item, error) {
-	return loadItem(b.source(), dir)
-}
-
-// loadItem is LoadItem's body, reading through src.
-func loadItem(src Source, dir string) (*Item, error) {
-	item, err := itemAt(src, dir)
-	if err != nil {
-		return nil, contract.Refuse(contract.UnknownPath, dir)
-	}
-	return item, nil
-}
-
-// itemFromText builds a checklist item from the text of its anchor, which is
-// the parse LoadItem and Positions.Item share so the two cannot drift apart.
-func itemFromText(dir, text string) *Item {
-	fm, body := ParseAnchor(text)
-	return &Item{
-		ID:         filepath.Base(dir),
-		Dir:        dir,
-		Kind:       fm.Value("kind"),
-		State:      fm.Value("state"),
-		Ordinal:    OrdinalOf(fm),
-		Column:     fm.Value("column"),
-		Owner:      fm.Value("owner"),
-		Resolution: fm.Value(ItemResolutionField),
-		Standing:   fm.Value(ItemStandingField),
-		Evidence:   fm.Value(ItemEvidenceField),
-		Text:       strings.TrimRight(body, "\n"),
-	}
-}
-
-// Items reads a card's checklist items in creation order, on the terms
-// Comments and Attachments already read their own collections: the ordinal's
-// order rather than the listing's, so an item keeps its place however the
-// identifiers happened to fall. An item whose anchor will not open is skipped,
-// on the terms BlockingItems already reads past one.
-func Items(cardDir string) ([]*Item, error) {
-	return items(Disk{}, cardDir)
-}
-
-// Items is the free Items read through this bench's source.
-func (b *Bench) Items(cardDir string) ([]*Item, error) {
-	return items(b.source(), cardDir)
-}
-
-// items is Items's body, reading through src.
-func items(src Source, cardDir string) ([]*Item, error) {
-	collection := filepath.Join(cardDir, ChecklistDir)
-	ids, err := listIDs(src, collection)
-	if err != nil {
-		return nil, err
-	}
-	var items []*Item
-	for _, id := range sortByOrdinal(src, collection, ItemAnchor, ids) {
-		item, err := loadItem(src, filepath.Join(collection, id))
-		if err != nil {
-			continue
-		}
-		items = append(items, item)
-	}
-	return items, nil
+	// body is the text exactly as the item's anchor carried it, trailing
+	// newline and all, which RenderItemAnchor composes the anchor's body
+	// from.
+	body string
+	// dir is the item's own directory on the old layout, which that
+	// layout's own readers and migrations use and nothing else; it is empty
+	// in the card-unit layout.
+	dir string
+	// raw is the whole anchor file as the old layout stored it, which is
+	// what a show of the item prints there without reading the file again;
+	// it is empty in the card-unit layout.
+	raw string
 }
 
 // ItemBlocksClaim reports whether an item is one CORE-CLAIM-10 refuses a claim
@@ -1447,83 +1201,6 @@ func ItemLiftsColumnHold(item *Item) bool {
 	}
 }
 
-// BlockingItems reads the checklist items of a card that would refuse a claim
-// right now, in identifier order. The reading itself, and what it does with an
-// item whose anchor will not open, are itemsWhere's below.
-//
-// It is a method because the question it puts to each item reads the columns
-// the workbench declares, and itemsWhere stays a free function taking a
-// predicate, so the receiver reaches it through the closure alone.
-func (b *Bench) BlockingItems(cardDir string) ([]*Item, error) {
-	return itemsWhere(b.source(), cardDir, b.ItemBlocksClaim)
-}
-
-// GatingItems reads the checklist items of a card that hold it against one
-// column right now, in the order BlockingItems reads its own. An item holds
-// when its own column field names the column and its state does not lift the
-// hold, and that is the whole test: every kind an item can carry holds on the
-// same terms, because CORE-GATE-1 puts the selectivity in which items name a
-// column rather than in the column or in the tool.
-//
-// Which side of that column the items hold is the caller's question rather
-// than this one's. canLand asks twice for a move, once against the column the
-// card would arrive at and once against the column it would leave, and this
-// answers the same way both times.
-//
-// The column is named by identifier, which is what an item's column field
-// carries and what the reader beside it resolves a title from.
-func GatingItems(cardDir, columnID string) ([]*Item, error) {
-	return gatingItems(Disk{}, cardDir, columnID)
-}
-
-// GatingItems is the free GatingItems read through this bench's source.
-func (b *Bench) GatingItems(cardDir, columnID string) ([]*Item, error) {
-	return gatingItems(b.source(), cardDir, columnID)
-}
-
-// gatingItems is GatingItems's body, reading through src.
-func gatingItems(src Source, cardDir, columnID string) ([]*Item, error) {
-	if columnID == "" {
-		return nil, nil
-	}
-	return itemsWhere(src, cardDir, func(item *Item) bool {
-		return item.Column == columnID && !ItemLiftsColumnHold(item)
-	})
-}
-
-// itemsWhere reads a card's checklist items and keeps the ones a predicate
-// admits, in identifier order. It opens each item's anchor, where
-// CountAttachments counts a directory listing, because the answer depends on
-// what the anchor says rather than on the item existing. An item whose anchor
-// will not open is skipped, on the same terms Attachments already reads past
-// one, since an unreadable file is a defect dinah check reports rather than
-// one a claim or a move discovers.
-func itemsWhere(src Source, cardDir string, keep func(*Item) bool) ([]*Item, error) {
-	collection := filepath.Join(cardDir, ChecklistDir)
-	ids, err := listIDs(src, collection)
-	if err != nil {
-		return nil, err
-	}
-	var kept []*Item
-	for _, id := range ids {
-		item, err := loadItem(src, filepath.Join(collection, id))
-		if err == nil && keep(item) {
-			kept = append(kept, item)
-		}
-	}
-	return kept, nil
-}
-
-// CountBlockingItems reports how many of a card's checklist items would refuse
-// a claim right now, for a reader that wants the number rather than the items.
-func (b *Bench) CountBlockingItems(cardDir string) (int, error) {
-	items, err := b.BlockingItems(cardDir)
-	if err != nil {
-		return 0, err
-	}
-	return len(items), nil
-}
-
 // ItemAwaitsOperator reports whether an item is in the operator's queue: a
 // pending open question or decision that names the operator as its owner or
 // names no owner at all.
@@ -1552,33 +1229,4 @@ type ItemTally struct {
 	Blocking int
 	// AwaitingOperator is how many items ItemAwaitsOperator admits.
 	AwaitingOperator int
-}
-
-// TallyItems counts, over the given item identifiers of a card's checklist,
-// the items that would refuse a claim and the items waiting on the operator,
-// so a caller wanting both numbers pays for one walk of the collection rather
-// than two.
-//
-// It takes the listing its caller already made and the function that loads an
-// item, rather than listing and reading for itself, so a card view whose
-// counts and tallies come from one Positions lists the checklist once and
-// reads each item once. An item whose load fails is skipped, on the terms
-// itemsWhere reads past one: an unreadable file is a defect dinah check
-// reports rather than one a read discovers.
-func (b *Bench) TallyItems(cardDir string, ids []string, load func(dir string) (*Item, error)) (ItemTally, error) {
-	collection := joinMember(cardDir, ChecklistDir)
-	var tally ItemTally
-	for _, id := range ids {
-		item, err := load(joinMember(collection, id))
-		if err != nil {
-			continue
-		}
-		if b.ItemBlocksClaim(item) {
-			tally.Blocking++
-		}
-		if ItemAwaitsOperator(item) {
-			tally.AwaitingOperator++
-		}
-	}
-	return tally, nil
 }

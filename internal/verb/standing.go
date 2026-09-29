@@ -12,9 +12,9 @@ import (
 // `dinah check --file-standing` repair, so the anchors and the lines a repair
 // writes are byte for byte what an arrival would have written.
 //
-// The caller holds the card's lock and has already appended its own line, so
-// the minted lines land after the line recording the arrival, at the same
-// instant. For each entry in declaration order the anchor is written and then
+// The caller holds the card's lock, handed over as held, and has already
+// appended its own line, so the minted lines land after the line recording
+// the arrival, at the same instant. For each entry in declaration order the anchor is written and then
 // its line appended, so a crash between the two leaves an item with no line,
 // which is the shape a crashed `dinah file` already leaves and which the next
 // arrival does not duplicate, since the identity check reads the anchor.
@@ -29,14 +29,14 @@ import (
 // before this is reached, and the destination's own entry hold was read
 // before the instances existed, so a first arrival is never held by the items
 // it is about to receive.
-func fileStandingItems(req *Request, b *bench.Bench, card *bench.Card, column *bench.Column, ts string) ([]bench.Event, error) {
+func fileStandingItems(held *bench.Lock, req *Request, b *bench.Bench, card *bench.Card, column *bench.Column, ts string) ([]bench.Event, error) {
 	missing, err := b.MissingStandingItems(card, column)
 	if err != nil {
 		return nil, err
 	}
 	var written []bench.Event
 	for _, entry := range missing {
-		item, err := b.AddStandingItem(card.Dir, column.ID, entry, ts)
+		item, err := b.AddStandingItem(card, column.ID, entry, ts)
 		if err != nil {
 			return written, err
 		}
@@ -50,7 +50,8 @@ func fileStandingItems(req *Request, b *bench.Bench, card *bench.Card, column *b
 			ColumnTitle: column.Title,
 			Standing:    entry.Key,
 		}
-		if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
+		b.CompleteFiled(&ev, item)
+		if err := b.AppendEvent(held, card.JournalPath(), ev); err != nil {
 			return written, err
 		}
 		written = append(written, ev)
@@ -63,8 +64,8 @@ func fileStandingItems(req *Request, b *bench.Bench, card *bench.Card, column *b
 // the request's actor, and it answers nothing, because an arrival reports the
 // card rather than the items. It is the site add, move and pull share; the
 // reshape carry reads a fresh bench of its own and calls the helper directly.
-func (l *Library) mintStandingItems(req *Request, card *bench.Card, destination *bench.Column, ts string) error {
-	_, err := fileStandingItems(req, l.Bench, card, destination, ts)
+func (l *Library) mintStandingItems(held *bench.Lock, req *Request, card *bench.Card, destination *bench.Column, ts string) error {
+	_, err := fileStandingItems(held, req, l.Bench, card, destination, ts)
 	return err
 }
 
@@ -136,7 +137,7 @@ func (l *Library) fileStanding(req *Request) (*StandingRepair, error) {
 		if err != nil {
 			return report, err
 		}
-		written, err := fileStandingItems(req, l.Bench, card, column, now)
+		written, err := fileStandingItems(lock, req, l.Bench, card, column, now)
 		lock.Release()
 		for _, ev := range written {
 			report.Filed = append(report.Filed, StandingFiling{Card: card.Ref(l.Bench.Slug), Column: column.Ref(), Key: ev.Standing})

@@ -187,8 +187,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 51 {
-		t.Errorf("wanted fifty-one tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != 52 {
+		t.Errorf("wanted fifty-two tools, got %d", len(listed.Tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -1306,6 +1306,10 @@ func sentinelFor(t *testing.T, tool string, param verb.Param, empty *verb.Reques
 		return true, true
 	case field.Kind() == reflect.String:
 		return "sentinel-value", "sentinel-value"
+	case field.Kind() == reflect.Slice && field.Type().Elem().Kind() == reflect.String:
+		// A repeatable flag reaches the builder as the list of its
+		// occurrences, and lands in the order they were written.
+		return []string{"sentinel-value", "sentinel-other"}, []string{"sentinel-value", "sentinel-other"}
 	}
 	t.Errorf("%s: %q declares the request field %s, whose type %s this check does not know how to drive",
 		tool, param.Name, param.Field, field.Type())

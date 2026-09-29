@@ -385,8 +385,8 @@ func TestTheMigrationIsIdempotentOverItsOwnHalfStates(t *testing.T) {
 		if comments[0].Ordinal != 1 {
 			t.Errorf("the converted comment stands at ordinal %d, wanted the one the run that wrote it stamped", comments[0].Ordinal)
 		}
-		if got := bench.CommentDigest(comments[0].Body); got != comments[0].Digest {
-			t.Errorf("the converted comment's digest is %q and its body hashes to %q", comments[0].Digest, got)
+		if got := bench.CommentDigest(comments[0].Body); got != comments[0].RecordedDigest {
+			t.Errorf("the converted comment's digest is %q and its body hashes to %q", comments[0].RecordedDigest, got)
 		}
 	}
 

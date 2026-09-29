@@ -158,8 +158,15 @@ var wantedEvents = map[string][]string{
 // card that next moves the build's claim grows the sequence past a repair
 // and captures a fresh sample.
 var absentEvents = map[string]string{
-	contract.EventRenumbered:    "only the two repair flags write it, and the population sequence runs no repair, so no capture the sequence drives can carry it",
-	contract.EventLockReclaimed: "only a reclaim of a lock whose holding process has ended writes it, and the population sequence is a list of commands that each run to completion and release every lock they take, so no line of it can leave a lock for a later one to reclaim",
+	contract.EventRenumbered:         "only the two repair flags write it, and the population sequence runs no repair, so no capture the sequence drives can carry it",
+	contract.EventLockReclaimed:      "only a reclaim of a lock whose holding process has ended writes it, and the population sequence is a list of commands that each run to completion and release every lock they take, so no line of it can leave a lock for a later one to reclaim",
+	contract.EventJournalTailTrimmed: "only an append to a journal ending in a torn fragment writes it, and every command of the population sequence runs to completion, so no line of it leaves a fragment for a later append to quarantine",
+	contract.EventItemBaseline:       "only the storage migration writes it",
+	contract.EventCommentBaseline:    "only the storage migration writes it",
+	contract.EventCardBaseline:       "only the storage migration writes it",
+	contract.EventStorageMigrated:    "only the storage migration writes it",
+	contract.EventCardRebuilt:        "only dinah check --rebuild writes it, over a card whose card.md is missing, unparseable or conflicted, and the population sequence leaves every card.md whole",
+	contract.EventRedacted:           "only dinah redact writes it, which refuses a store below the card-unit format, and the sample is replayed with that layout switched off",
 }
 
 // shape is what a fixture and a freshly populated workbench are compared on.
@@ -462,6 +469,15 @@ func anchorProfile(t *testing.T, root string) string {
 // result.
 func replayPopulation(t *testing.T) string {
 	t.Helper()
+	return replayPopulationWith(t, nil)
+}
+
+// replayPopulationWith is replayPopulation calling after, where it is not
+// nil, once every command of the sequence has run, with the line it ran and
+// the directory it ran in. A hand-edit step and a pause are not commands and
+// are not reported.
+func replayPopulationWith(t *testing.T, after func(line, root string)) string {
+	t.Helper()
 	base := t.TempDir()
 	root := filepath.Join(base, "workbench")
 	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
@@ -508,6 +524,9 @@ func replayPopulation(t *testing.T) string {
 		}
 		if got := runCLI(t, root, argv...); got.code != 0 {
 			t.Fatalf("%s line %d (%s): exit %d, %s", populateName, number+1, line, got.code, got.errw)
+		}
+		if after != nil {
+			after(line, root)
 		}
 	}
 	return benchDir(t, root)
@@ -812,7 +831,7 @@ func TestTheUnsupportedVersionRefusalNamesTheWindow(t *testing.T) {
 	}
 
 	other := newBench(t)
-	editAnchor(t, other, "format: "+strconv.Itoa(bench.StorageFormat), "format: 99")
+	editAnchor(t, other, "format: "+strconv.Itoa(bench.EffectiveStorageFormat()), "format: 99")
 	storage := runCLI(t, other, "status")
 	if storage.code != 2 {
 		t.Fatalf("a workbench declaring a newer storage format exited %d, wanted 2", storage.code)

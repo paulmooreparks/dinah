@@ -21,30 +21,41 @@ import {
 	splitAnchorBody,
 } from "../../src/commentBody";
 import { ENGLISH } from "../../src/l10n";
+import { memberKey, memberLocation } from "../../src/memberDocument";
 import { itemTooltip } from "../../src/tree";
 import type { ItemView } from "../../src/wire";
 
 const ROOT = "C:/bench";
 const FOLDER = "C:/work";
-const COMMENT_PATH = "C:/bench/cards/c1/comments/a1/comment.md";
+const MINTED = "a00000000001";
+const COMMENT_REF = "wb-1/comments/1";
+
+/** The key and the document location of one comment of the fixture. */
+function keyOf(ref: string): string {
+	return memberKey({ ref, root: ROOT });
+}
+function locationOf(ref: string): string {
+	return memberLocation({ ref, root: ROOT });
+}
 
 /**
- * The bytes the fake window reads, keyed by path.
+ * The anchors `dinah show` answers, keyed by the comment's reference.
  *
- * Composing a comment reads the file it just made, to learn which digest the
- * anchor records, so a fixture that answered nothing there would leave every
- * session with no remembered digest and quietly test the wrong path.
+ * Composing a comment reads back the comment it just made, to learn which
+ * digest the anchor records, so a fixture that answered nothing there would
+ * leave every session with no remembered digest and quietly test the wrong
+ * path.
  */
-const files = new Map<string, string>([
+const anchors = new Map<string, string>([
 	[
-		COMMENT_PATH,
+		MINTED,
 		["---", "ts: 2026-08-01T09:00:00Z", "author: ana", "ordinal: 1", "digest: abc123", "---", ""].join("\n"),
 	],
 ]);
 
 /** A session over the comment above, remembering the digest its anchor records. */
 function session(): { root: string; folder: string; ref: string; digest: string } {
-	return { root: ROOT, folder: FOLDER, ref: "wb-1/comments/1", digest: "abc123" };
+	return { root: ROOT, folder: FOLDER, ref: COMMENT_REF, digest: "abc123" };
 }
 
 /** Everything the fake host was asked to do. */
@@ -63,7 +74,7 @@ function emptyLog(): Log {
 function host(log: Log): CommentBodyHost {
 	return {
 		t: ENGLISH,
-		readFile: async (path: string) => files.get(path),
+		readFile: async () => undefined,
 		openDocument: async (path: string) => {
 			log.opened.push(path);
 		},
@@ -98,15 +109,17 @@ function recorder(): {
 	const calls: { argv: string[]; stdin?: string }[] = [];
 	const spawner: Spawner = async (_exe, argv, options): Promise<SpawnOutcome> => {
 		calls.push({ argv: [...argv], stdin: options?.stdin });
-		const stdout = argv.includes("path")
-			? JSON.stringify({ path: COMMENT_PATH })
-			: JSON.stringify({ outcome: "ok", verb: "comment", detail: "a00000000001" });
+		const shown = argv.indexOf("show");
+		const stdout =
+			shown >= 0
+				? (anchors.get(argv[shown + 1] ?? "") ?? "")
+				: JSON.stringify({ outcome: "ok", verb: "comment", detail: MINTED });
 		return { code: 0, stdout, stderr: "" };
 	};
 	return { spawner, calls };
 }
 
-test("the empty form mints the comment and the extension opens its file", async () => {
+test("the empty form mints the comment and the extension opens its document", async () => {
 	const log = emptyLog();
 	const { spawner, calls } = recorder();
 	const opened: OpenComments = new Map();
@@ -126,31 +139,35 @@ test("the empty form mints the comment and the extension opens its file", async 
 	assert.equal(minted.includes("-"), false, "the comment verb was handed a dash");
 	assert.equal(calls[0]?.stdin, undefined, "the comment verb was handed a pipe");
 
-	// Then the file, asked for by the identifier the answer carried.
-	const located = calls[1]?.argv ?? [];
-	assert.ok(located.includes("path"), `the second call is ${located.join(" ")}`);
-	assert.ok(located.includes("a00000000001"), "the path call named some other comment");
-	assert.deepEqual(log.opened, [COMMENT_PATH]);
+	// Then the comment read back, by the identifier the answer carried, and
+	// opened as its member document rather than as a file: no `dinah path` is
+	// asked, since a comment has no file from storage format 12.
+	const shown = calls[1]?.argv ?? [];
+	assert.ok(shown.includes("show"), `the second call is ${shown.join(" ")}`);
+	assert.ok(shown.includes(MINTED), "the show call named some other comment");
+	assert.equal(calls.some((call) => call.argv.includes("path")), false, "the extension asked dinah path");
+	assert.deepEqual(log.opened, [locationOf(MINTED)]);
 	assert.equal(log.errors.length, 0, log.errors.join("\n"));
 
-	// And the extension remembers it, which is what makes a later save of the
-	// tab reach the verb rather than leaving the editor's own bytes on disk.
-	assert.equal(opened.get(COMMENT_PATH)?.ref, "a00000000001");
-	assert.equal(opened.get(COMMENT_PATH)?.root, ROOT);
+	// And the extension remembers it with the digest the anchor carried, which
+	// is what makes a later save of the tab reach the verb.
+	assert.equal(opened.get(keyOf(MINTED))?.ref, MINTED);
+	assert.equal(opened.get(keyOf(MINTED))?.root, ROOT);
+	assert.equal(opened.get(keyOf(MINTED))?.digest, "abc123");
 });
 
-test("saving a comment's file writes its body through the verb", async () => {
+test("saving a comment's document writes its body through the verb", async () => {
 	const log = emptyLog();
 	const { spawner, calls } = recorder();
 	const opened: OpenComments = new Map();
-	noteOpenComment(opened, COMMENT_PATH, session());
+	noteOpenComment(opened, keyOf(COMMENT_REF), session());
 
 	const saved = await saveCommentBody(
 		host(log),
 		spawner,
 		"dinah",
 		opened,
-		COMMENT_PATH,
+		keyOf(COMMENT_REF),
 		"---\nts: 2026-08-01T09:00:00Z\nauthor: ana\n---\nThe body somebody typed.\n",
 	);
 
@@ -164,7 +181,7 @@ test("saving a comment's file writes its body through the verb", async () => {
 	assert.equal(calls[0]?.stdin, "The body somebody typed.\n");
 });
 
-test("a file this window opened no comment into is left alone", async () => {
+test("a document this window opened no comment into is left alone", async () => {
 	const log = emptyLog();
 	const { spawner, calls } = recorder();
 	const opened: OpenComments = new Map();
@@ -182,19 +199,19 @@ test("a file this window opened no comment into is left alone", async () => {
 	assert.deepEqual(calls, [], "saving an unrelated file spawned dinah");
 });
 
-test("closing a comment's tab forgets it, so a later save of that path writes nothing", async () => {
+test("closing a comment's tab forgets it, so a later save of it writes nothing", async () => {
 	const log = emptyLog();
 	const { spawner, calls } = recorder();
 	const opened: OpenComments = new Map();
-	noteOpenComment(opened, COMMENT_PATH, session());
-	forgetComment(opened, COMMENT_PATH);
+	noteOpenComment(opened, keyOf(COMMENT_REF), session());
+	forgetComment(opened, keyOf(COMMENT_REF));
 
 	const saved = await saveCommentBody(
 		host(log),
 		spawner,
 		"dinah",
 		opened,
-		COMMENT_PATH,
+		keyOf(COMMENT_REF),
 		"---\nauthor: ana\n---\nwords\n",
 	);
 	assert.equal(saved, false);
@@ -312,9 +329,9 @@ test("a settled item's row draws the answer it designates", () => {
  * A comment whose anchor records a digest its body no longer matches, which
  * is what a hand edit outside an editing session leaves behind.
  */
-const DIVERGED_PATH = "C:/bench/cards/c1/comments/a2/comment.md";
-files.set(
-	DIVERGED_PATH,
+const DIVERGED_REF = "wb-1/comments/2";
+anchors.set(
+	DIVERGED_REF,
 	[
 		"---",
 		"ts: 2026-08-01T09:00:00Z",
@@ -331,15 +348,15 @@ test("opening a diverged comment says so and adopts no session", async () => {
 	const log = emptyLog();
 	const opened: OpenComments = new Map();
 
-	await openExistingComment(host(log), opened, DIVERGED_PATH, {
+	await openExistingComment(host(log), recorder().spawner, "dinah", opened, {
 		ref: "wb-1/comments/2",
 		root: ROOT,
 		folder: FOLDER,
 	});
 
-	assert.equal(opened.has(DIVERGED_PATH), false, "a diverged comment was adopted");
+	assert.equal(opened.has(keyOf(DIVERGED_REF)), false, "a diverged comment was adopted");
 	assert.equal(log.errors.length, 1, "the divergence was not reported");
-	assert.deepEqual(log.opened, [DIVERGED_PATH], "the file was not opened for the author to repair");
+	assert.deepEqual(log.opened, [locationOf(DIVERGED_REF)], "the document was not opened for the author to read");
 });
 
 test("opening a diverged comment clears a session already standing for it", async () => {
@@ -350,30 +367,30 @@ test("opening a diverged comment clears a session already standing for it", asyn
 	// that clears it leaves this red and every other case in this file green.
 	const log = emptyLog();
 	const opened: OpenComments = new Map();
-	noteOpenComment(opened, DIVERGED_PATH, {
+	noteOpenComment(opened, keyOf(DIVERGED_REF), {
 		ref: "wb-1/comments/2",
 		root: ROOT,
 		folder: FOLDER,
 		digest: "0000000000000000000000000000000000000000000000000000000000000000",
 	});
 
-	await openExistingComment(host(log), opened, DIVERGED_PATH, {
+	await openExistingComment(host(log), recorder().spawner, "dinah", opened, {
 		ref: "wb-1/comments/2",
 		root: ROOT,
 		folder: FOLDER,
 	});
 
 	assert.equal(
-		opened.has(DIVERGED_PATH),
+		opened.has(keyOf(DIVERGED_REF)),
 		false,
 		"a session standing from an earlier open survived, so a save would absorb the hand edit",
 	);
 	assert.equal(log.errors.length, 1, "the divergence was not reported");
 });
 
-const UNDIGESTED_PATH = "C:/bench/cards/c1/comments/a3/comment.md";
-files.set(
-	UNDIGESTED_PATH,
+const UNDIGESTED_REF = "wb-1/comments/3";
+anchors.set(
+	UNDIGESTED_REF,
 	["---", "ts: 2026-08-01T09:00:00Z", "author: ana", "ordinal: 3", "---", "written before this card", ""].join(
 		String.fromCharCode(10),
 	),
@@ -387,13 +404,13 @@ test("opening a comment that records no digest adopts a session anyway", async (
 	const log = emptyLog();
 	const opened: OpenComments = new Map();
 
-	await openExistingComment(host(log), opened, UNDIGESTED_PATH, {
+	await openExistingComment(host(log), recorder().spawner, "dinah", opened, {
 		ref: "wb-1/comments/3",
 		root: ROOT,
 		folder: FOLDER,
 	});
 
 	assert.equal(log.errors.length, 0, "a comment recording no digest was reported as diverged");
-	assert.equal(opened.has(UNDIGESTED_PATH), true, "a comment recording no digest was not adopted");
-	assert.equal(opened.get(UNDIGESTED_PATH)?.digest, "");
+	assert.equal(opened.has(keyOf(UNDIGESTED_REF)), true, "a comment recording no digest was not adopted");
+	assert.equal(opened.get(keyOf(UNDIGESTED_REF))?.digest, "");
 });

@@ -59,6 +59,27 @@ func TestGenerateIsDeterministic(t *testing.T) {
 	}
 }
 
+// TestEveryJournalWriteHoldsItsEntitysLock is dinah-637/criteria/33's
+// generator half. Every journal the generator writes is written holding the
+// lock of the entity the journal belongs to, taken through bench.Acquire or
+// handed to an archived line's Record by the structural act, so the count of
+// locks held equals the count of journal writes. The writes are counted too:
+// one journal for every card, live and archived, and every workstream, and
+// one archived line for every archived card, so a generator that wrote no
+// journal cannot pass on two zeros.
+func TestEveryJournalWriteHoldsItsEntitysLock(t *testing.T) {
+	t.Parallel()
+	shape := perfstore.SmallShape()
+	store := generate(t, perfstore.DefaultSeed)
+	want := shape.Cards + 2*shape.ArchivedCards + shape.Workstreams
+	if store.JournalWrites != want {
+		t.Errorf("the generator made %d journal writes, wanted %d", store.JournalWrites, want)
+	}
+	if store.JournalLocks != store.JournalWrites {
+		t.Errorf("the generator held %d entity locks across %d journal writes", store.JournalLocks, store.JournalWrites)
+	}
+}
+
 // TestGenerateRefusesTooFewItemComments asserts that a shape with fewer item
 // comments than settled items is refused, beside the accepting case one
 // comment higher, so a Generate refusing every shape cannot pass.
@@ -210,7 +231,7 @@ func readBackCard(t *testing.T, card *bench.Card, counts *storeCounts) {
 			t.Errorf("item %s of %s is a %s standing %s", item.ID, card.ID, item.Kind, item.State)
 		}
 		written[item.ID] = contract.EventItemFiled
-		itemComments, err := bench.Comments(item.Dir)
+		itemComments, err := bench.Comments(item.LegacyDir())
 		if err != nil {
 			t.Fatalf("comments of item %s: %v", item.ID, err)
 		}

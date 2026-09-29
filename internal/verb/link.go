@@ -80,7 +80,7 @@ func (l *Library) Link(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	ev := bench.Event{TS: now, Event: contract.EventLinked, Actor: req.Acting(), Kind: kind, To: to}
-	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, reloaded)
@@ -137,7 +137,7 @@ func (l *Library) Unlink(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	ev := bench.Event{TS: now, Event: contract.EventUnlinked, Actor: req.Acting(), Kind: kind, To: to}
-	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	return l.ok(req, reloaded)

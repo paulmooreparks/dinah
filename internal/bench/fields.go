@@ -350,9 +350,10 @@ func WriteAuthorityOf(kind string) string {
 }
 
 // AnchorOf reports the anchor filename a kind's entity carries, and the empty
-// string for a kind the grammar does not name.
+// string for a kind the grammar does not name and for a comment or an item,
+// each of which is lines of a journal rather than a file.
 //
-// The five mounted kinds are read off the containment table rather than listed
+// The mounted kinds are read off the containment table rather than listed
 // again here, so the anchor of a kind stays written down once. The workbench
 // and the workstream are named directly, because no mount names either as its
 // kind and the loop below therefore cannot reach them: the workbench is the

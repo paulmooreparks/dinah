@@ -83,13 +83,13 @@ func TestOneProjectionReadsEachItemOnce(t *testing.T) {
 	writeItemOfKind(t, card.Dir, "decision", "the first decision", 3)
 
 	reads := map[string]int{}
-	listings := map[string]int{}
+	records := map[string]int{}
 	h.library.Observe = func(event, target string) {
 		switch event {
 		case ObserveItemAnchor:
 			reads[filepath.Base(target)]++
-		case ObserveList:
-			listings[filepath.Base(target)]++
+		case ObserveRecord:
+			records[filepath.Base(target)]++
 		}
 	}
 
@@ -102,12 +102,14 @@ func TestOneProjectionReadsEachItemOnce(t *testing.T) {
 			t.Errorf("the projection read item %s %d times, and one projection reads each item once", id, count)
 		}
 	}
-	// The other half of the bound: the physical checklist is listed once, not
+	// The other half of the bound: the card's checklist is read once, not
 	// once per branch. A grouping that resolved each narrowed collection to
-	// find its members would list it three times.
-	if listings[bench.ChecklistDir] != 1 {
-		t.Errorf("the projection listed the checklist %d times, and one projection lists it once",
-			listings[bench.ChecklistDir])
+	// find its members would read the card's record three times. Since
+	// dinah-637 the checklist is read as part of the card's record, which
+	// in the card-unit layout is the card's journal rather than a listing.
+	if records[card.ID] != 1 {
+		t.Errorf("the projection read the card's members %d times, and one projection reads them once",
+			records[card.ID])
 	}
 	// The branches were still drawn, so the count above is the count of a
 	// projection that did the work rather than of one that skipped it.

@@ -243,7 +243,14 @@ func TestTheWatcherReportsAChangeMadeAfterArming(t *testing.T) {
 		t.Errorf("no publish named %s: %+v", anchor, publishes)
 	}
 	journal := "cards/0123456789ab/journal.ndjson"
-	if err := bench.AppendEvent(filepath.Join(root, filepath.FromSlash(journal)), bench.Event{TS: "2026-09-26T00:00:00Z", Event: "moved", Actor: bench.Actor{Name: "alka"}}); err != nil {
+	journalPath := filepath.Join(root, filepath.FromSlash(journal))
+	held, err := bench.Acquire(filepath.Dir(journalPath), "alka", "2026-09-26T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = bench.AppendEvent(held, journalPath, bench.Event{TS: "2026-09-26T00:00:00Z", Event: "moved", Actor: bench.Actor{Name: "alka"}})
+	held.Release()
+	if err != nil {
 		t.Fatal(err)
 	}
 	r.receiveNaming("naming the appended journal", false, exactly(journal))

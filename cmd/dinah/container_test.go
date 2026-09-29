@@ -127,7 +127,7 @@ func TestTheContainerMigrationReportsADuplicateAndRemintRepairsIt(t *testing.T) 
 		// rule, which is the one state the stamp still has work to do on. It
 		// is left undone here, because the report says these directories were
 		// untouched.
-		editAnchorAt(t, filepath.Join(where, bench.WorkbenchAnchor), "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
+		editAnchorAt(t, filepath.Join(where, bench.WorkbenchAnchor), "format: "+strconv.Itoa(bench.EffectiveStorageFormat()), "format: 1")
 	}
 
 	swept := runCLI(t, tree, "check", "--root", ".", "--migrate-container", "--yes")
@@ -698,7 +698,7 @@ func TestTheSweepFinishesAWorkbenchThatMovedBeforeItWasStamped(t *testing.T) {
 	// A bare workbench in the field predates the containment rule, so it
 	// declares the format the rule replaced, and that is the workbench the
 	// stamp has real work to do on.
-	editAnchorAt(t, anchorWas, "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
+	editAnchorAt(t, anchorWas, "format: "+strconv.Itoa(bench.EffectiveStorageFormat()), "format: 1")
 	beyond := bench.ProfileName + "/" + strconv.Itoa(bench.ProfileMajor+1) + ".0"
 	editAnchorAt(t, anchorWas, "profile: "+bench.ProfileVersion, "profile: "+beyond)
 
@@ -798,7 +798,7 @@ func TestTheSweepLeavesAContainedWorkbenchItCannotOpenAlone(t *testing.T) {
 	// init stamps this build's own storage number, and the fixture wants the
 	// containment rule's, which is the older number the rule arrived at, so
 	// the line is rewritten down to it before the premise is asserted.
-	editAnchorAt(t, anchor, "format: "+strconv.Itoa(bench.StorageFormat), "format: "+strconv.Itoa(bench.ContainerFormat))
+	editAnchorAt(t, anchor, "format: "+strconv.Itoa(bench.EffectiveStorageFormat()), "format: "+strconv.Itoa(bench.ContainerFormat))
 	if !anchorDeclares(t, anchor, "format: "+strconv.Itoa(bench.ContainerFormat)) {
 		t.Fatalf("the fixture does not declare the format the containment rule arrived at:\n%s", readAnchorText(t, anchor))
 	}
@@ -878,7 +878,7 @@ func TestOneSweepRefusesEveryHeldWorkbenchItMeets(t *testing.T) {
 	tree := resolvedDir(t, emptyTree(t))
 	bare := bareWorkbench(t, filepath.Join(tree, "myproject"))
 	bareAnchor := filepath.Join(bare, bench.WorkbenchAnchor)
-	editAnchorAt(t, bareAnchor, "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
+	editAnchorAt(t, bareAnchor, "format: "+strconv.Itoa(bench.EffectiveStorageFormat()), "format: 1")
 
 	contained := filepath.Join(tree, "other")
 	if err := os.MkdirAll(contained, 0o755); err != nil {
@@ -892,7 +892,7 @@ func TestOneSweepRefusesEveryHeldWorkbenchItMeets(t *testing.T) {
 	// The stamp has real work to do only on a workbench interrupted between
 	// its last move and its stamp, which is a contained workbench under a
 	// minted name still declaring the format the rule replaced.
-	editAnchorAt(t, heldAnchor, "format: "+strconv.Itoa(bench.StorageFormat), "format: 1")
+	editAnchorAt(t, heldAnchor, "format: "+strconv.Itoa(bench.EffectiveStorageFormat()), "format: 1")
 
 	for _, root := range []string{bare, held} {
 		if err := os.WriteFile(filepath.Join(root, bench.LockName), []byte("{\"holder\":\"alka\"}\n"), 0o644); err != nil {

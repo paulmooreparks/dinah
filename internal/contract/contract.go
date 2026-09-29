@@ -824,6 +824,92 @@ const (
 	// refusal a user meets is named like any other even where the migration
 	// behind it carries no surface of its own.
 	StoreAwaitingMigration = LayerPrefix + "store-awaiting-migration"
+	// JournalUnlocked is an append to a journal made without the lock of the
+	// entity that journal belongs to: no lock at all, a lock already
+	// released, or the lock of another entity. It is raised before the file
+	// is opened, and it is a defect in the caller rather than a condition a
+	// person can meet, because every append path hands over the lock it
+	// holds. The detail names the journal.
+	JournalUnlocked = LayerPrefix + "journal-unlocked"
+	// JournalUnreadable is a read of an entity whose journal holds a line
+	// that does not decode and is not the last line, which is damage rather
+	// than a crash's torn tail. The detail names the file and the one-based
+	// line number. No command deletes the line, since it may hold the text
+	// of a comment.
+	JournalUnreadable = LayerPrefix + "journal-unreadable"
+	// StoreFormatChanged is a write whose workbench now declares a storage
+	// format, or a migration in progress, other than the one this process
+	// opened it at. The detail spells the format the process opened, and
+	// the value now spells what workbench.md declares, so a long-lived head
+	// reopens rather than writing into a layout the store no longer keeps.
+	StoreFormatChanged = LayerPrefix + "store-format-changed"
+	// NotAFile is `dinah path` asked for a comment or a checklist item of a
+	// store in the card-unit layout, where the member is lines of its card's
+	// journal, or the workbench's for a column comment, rather than a file
+	// of its own. The detail is the reference as typed, and the sentence
+	// names the command that shows the member and the file holding it.
+	NotAFile = LayerPrefix + "not-a-file"
+	// BackupRequired is a writing storage migration given no --backup
+	// directory. The detail is the workbench's directory.
+	BackupRequired = LayerPrefix + "backup-required"
+	// BackupInsideStore is a storage migration given a --backup directory
+	// inside the store it is migrating. The detail is the directory.
+	BackupInsideStore = LayerPrefix + "backup-inside-store"
+	// BackupNotEmpty is a storage migration given a --backup directory that
+	// holds anything but a backup this migration itself started of this
+	// workbench. The detail is the directory.
+	BackupNotEmpty = LayerPrefix + "backup-not-empty"
+	// BackupMismatch is a resumed storage migration given a --backup
+	// directory other than the one its progress file records. The detail is
+	// the directory given, and recorded names the other.
+	BackupMismatch = LayerPrefix + "backup-mismatch"
+	// BackupUnverified is a storage migration whose copy of the store does
+	// not hash to what the store hashes to. The detail is the copy.
+	BackupUnverified = LayerPrefix + "backup-unverified"
+	// MigrationAwaitsCapabilities is a writing storage migration run by a
+	// build whose card-unit layout is switched off. Only a rehearsal runs
+	// until dinah-638 switches the layout on. The detail is the workbench's
+	// directory.
+	MigrationAwaitsCapabilities = LayerPrefix + "migration-awaits-capabilities"
+	// NotADifference is --accept-difference naming a manifest key that is
+	// not one of the lines the storage migration's proof found differing.
+	// The detail is the key.
+	NotADifference = LayerPrefix + "not-a-difference"
+	// StoragePrecondition is a storage migration refused over files of the
+	// store it could not carry: an anchor that will not parse or carries a
+	// key or a citation member no baseline can carry, a member with no
+	// ordinal or sharing one, two members sharing an identifier, or an
+	// attachment whose destination holds a different tree. The detail is the
+	// first such file, rule names what is wrong with it, and files lists
+	// every one.
+	StoragePrecondition = LayerPrefix + "storage-precondition"
+	// CardProjectionUnreadable is a card in the card-unit layout whose
+	// card.md is absent, will not parse, or carries git's conflict markers,
+	// while its journal, which states the whole of it, reads. The detail is
+	// card.md's path, and dinah check --rebuild writes it back.
+	CardProjectionUnreadable = LayerPrefix + "card-projection-unreadable"
+	// NotRedactable is a dinah redact naming something other than a comment
+	// or a checklist item: a card, a column, a workstream, the workbench, an
+	// attachment or a payload. The detail is the reference as typed.
+	NotRedactable = LayerPrefix + "not-redactable"
+	// AlreadyRedacted is a dinah redact on a member whose journal already
+	// records a redaction of it. The detail is the member's identifier.
+	AlreadyRedacted = LayerPrefix + "already-redacted"
+	// NothingToRedact is a dinah redact on a member no line of whose journal
+	// carries any of its text: a comment deleted before the card-unit format,
+	// whose text lived only in the file the deletion removed, or a comment
+	// written empty. The detail is the member's identifier.
+	NothingToRedact = LayerPrefix + "nothing-to-redact"
+	// TornSidecarPresent is a dinah redact on a journal beside which a
+	// torn-tail sidecar stands, or whose own tail is torn, since a
+	// quarantined fragment may hold the text and cannot be parsed to find
+	// it. The detail is the sidecar, or the journal whose tail is torn.
+	TornSidecarPresent = LayerPrefix + "torn-sidecar-present"
+	// Redacted is a write to the text of a member dinah redact replaced: a
+	// redacted comment's body, including accepting a divergence of it, or a
+	// redacted item's text. No command restores the text. The detail is the
+	// reference as typed.
+	Redacted = LayerPrefix + "redacted"
 	// UnknownRoute is a write naming a route the workbench does not declare.
 	// The sentence lists the routes it does declare, read off the workbench
 	// rather than written into a catalog, so a route declared later reaches
@@ -935,6 +1021,10 @@ var Introduced = []string{
 	UnresolvedItemExit,
 	ObservationRequired, UnknownLink,
 	CommentBodyDiverged, NotADesignation, NotDesignatable, StoreAwaitingMigration,
+	JournalUnlocked, JournalUnreadable, StoreFormatChanged, NotAFile,
+	BackupRequired, BackupInsideStore, BackupNotEmpty, BackupMismatch, BackupUnverified,
+	MigrationAwaitsCapabilities, NotADifference, StoragePrecondition, CardProjectionUnreadable,
+	NotRedactable, AlreadyRedacted, NothingToRedact, TornSidecarPresent, Redacted,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
@@ -1286,6 +1376,39 @@ const (
 	// move or pull reclaimed it, or the workbench journal for an add or a
 	// repair.
 	EventLockReclaimed = "lock_reclaimed"
+	// EventJournalTailTrimmed records that an append found the journal ending
+	// in a fragment that does not decode, moved the fragment to the sidecar
+	// its Note names, and cut the journal back to its last whole line. It
+	// lands on whichever journal the append was made to.
+	EventJournalTailTrimmed = "journal_tail_trimmed"
+	// EventItemBaseline states one checklist item in full, as the storage
+	// migration carried it out of its item.md. The storage migration is the
+	// only writer. A baseline replaces the whole state of the item it names
+	// wherever it stands in the journal, so a member baselined twice takes
+	// the later line.
+	EventItemBaseline = "item_baseline"
+	// EventCommentBaseline states one comment in full, as the storage
+	// migration carried it out of its comment.md, on the card's journal or,
+	// for a column comment, on the workbench's. The storage migration is the
+	// only writer.
+	EventCommentBaseline = "comment_baseline"
+	// EventCardBaseline carries a card's card.md exactly as it stood when the
+	// storage migration reached the card, and is that migration's per-card
+	// marker: every line before the last one is history the baselines
+	// already state.
+	EventCardBaseline = "card_baseline"
+	// EventStorageMigrated records a completed storage migration on the
+	// workbench journal, naming the format it carried the store from and to.
+	// It never lands on a card's journal.
+	EventStorageMigrated = "storage_migrated"
+	// EventCardRebuilt records that dinah check --rebuild wrote a card's
+	// card.md from its journal, which it does only when card.md is absent,
+	// will not parse, or carries git's conflict markers.
+	EventCardRebuilt = "card_rebuilt"
+	// EventRedacted records that dinah redact replaced the text of one
+	// comment or one checklist item with its SHA-256 on every line that
+	// carried it. It carries neither the text nor the digest.
+	EventRedacted = "redacted"
 	// EventSpend records what a station consumed working the card, on the
 	// card's own journal: a unit, the figures the provider reported in it, or
 	// the fact that the harness reported none, the provider and model that
@@ -1303,11 +1426,11 @@ const (
 // containment does not hold the other way. EventRestored is listed and no
 // command writes it, so a query naming it is accepted and selects nothing.
 //
-// EventWorkbenchUpdated, EventWorkstreamUpdated, EventColumnUpdated and
-// EventDesignationsMigrated are the four declared names this list holds out,
-// and each is held out for the same reason: it lands on the workbench's
-// journal or on a workstream's, never on a card's, so no card a query reads
-// can ever carry it. EventCardUpdated is the
+// EventWorkbenchUpdated, EventWorkstreamUpdated, EventColumnUpdated,
+// EventDesignationsMigrated and EventStorageMigrated are the five declared
+// names this list holds out, and each is held out for the same reason: it
+// lands on the workbench's journal or on a workstream's, never on a card's,
+// so no card a query reads can ever carry it. EventCardUpdated is the
 // fourth of the *_updated family and is listed, because it lands on a card's
 // own journal and an event a card carries that nobody can ask for is exactly
 // what the containment above forbids.
@@ -1325,6 +1448,9 @@ var Events = []string{
 	EventLinked, EventUnlinked,
 	EventRenumbered,
 	EventLockReclaimed,
+	EventJournalTailTrimmed,
+	EventItemBaseline, EventCommentBaseline, EventCardBaseline, EventCardRebuilt,
+	EventRedacted,
 	EventSpend,
 }
 
@@ -1433,13 +1559,13 @@ func With(err error, name, value string) error {
 // EventNames are every event name this build declares, which is the closed set
 // a journal line's event member is drawn from.
 //
-// It is Events plus the four an entity other than a card records: a column's
-// own rewrite, a workstream's own rewrite, the workbench's own, and the
-// designation conversion's account of the claims it passed. Events stayed the
-// card-journal set it has always been, and a caller asking what names exist at
-// all reads this.
+// It is Events plus the five an entity other than a card records: a column's
+// own rewrite, a workstream's own rewrite, the workbench's own, the
+// designation conversion's account of the claims it passed, and the storage
+// migration's record of its run. Events stayed the card-journal set it has
+// always been, and a caller asking what names exist at all reads this.
 func EventNames() []string {
 	return append(append([]string(nil), Events...),
 		EventColumnUpdated, EventWorkstreamUpdated, EventWorkbenchUpdated,
-		EventDesignationsMigrated)
+		EventDesignationsMigrated, EventStorageMigrated)
 }

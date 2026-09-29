@@ -59,6 +59,8 @@ WORK
                                               history
   accept-divergence <comment>               Make a comment's edited body the
                                               record
+  redact <member> [--yes]                   Replace a comment's or an item's
+                                              text with its digest, for good
   rename <ref> <name>                       Rename an attachment
 
 READ
@@ -119,7 +121,9 @@ WORKBENCH
     [--migrate-vocabulary]
     [--migrate-container]
     [--migrate-numbers]
-    [--migrate-designations] [--rehearse]
+    [--migrate-designations]
+    [--migrate-storage] [--backup <dir>]
+    [--accept-difference <key>] [--rehearse]
     [--force-claims] [--migrate-branches]
     [--migrate-newlines]
     [--migrate-applies-when]
@@ -127,7 +131,7 @@ WORKBENCH
     [--migrate-raw-lines] [--file-standing]
     [--renumber] [--remint <dir>]
     [--migrate-workstreams] [--witness]
-    [--yes] [--root <path>]
+    [--rebuild] [--yes] [--root <path>]
     [--max-depth <n>]
   whoami                                    The actor your actions carry, and
                                               whether it is the operator

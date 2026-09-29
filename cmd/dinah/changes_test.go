@@ -462,8 +462,22 @@ func writeAnchorlessCard(t *testing.T, container string) string {
 		t.Fatalf("mkdir %s: %v", dir, err)
 	}
 	event := bench.Event{TS: bench.Stamp(bench.ParseStamp("2099-01-01T00:00:00Z")), Event: contract.EventCreated, Actor: bench.NamedActor("alka"), Title: "A card with no anchor"}
-	if err := bench.AppendEvent(filepath.Join(dir, bench.JournalName), event); err != nil {
+	if err := appendLockedForTest(t, filepath.Join(dir, bench.JournalName), event); err != nil {
 		t.Fatalf("write the history: %v", err)
 	}
 	return id
+}
+
+// appendLockedForTest appends one line to a journal under the lock of the
+// journal's own entity, taking it for the one append, which is what a test
+// writing a line outside any verb has to do now that bench.AppendEvent refuses
+// an append made without that lock.
+func appendLockedForTest(t *testing.T, path string, ev bench.Event) error {
+	t.Helper()
+	held, err := bench.Acquire(filepath.Dir(path), "test", bench.Stamp(time.Now().UTC()))
+	if err != nil {
+		return err
+	}
+	defer held.Release()
+	return bench.AppendEvent(held, path, ev)
 }

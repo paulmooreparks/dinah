@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -278,7 +279,7 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 		plantChecklistItem(t, card, "b00000000003",
 			"kind: acceptance_criterion\nstate: pending\ncolumn: "+held+"\nordinal: 3\n", "A criterion.")
 
-		got, gotErr7 := GatingItems(card, held)
+		got, gotErr7 := gatingItemsIn(card, held)
 		if gotErr7 != nil {
 			t.Fatalf("GatingItems: %v", gotErr7)
 		}
@@ -297,7 +298,7 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 		card := t.TempDir()
 		plantChecklistItem(t, card, "b00000000001",
 			"kind: acceptance_criterion\nstate: pending\ncolumn: "+held+"\nordinal: 1\n", "A criterion.")
-		got6, gotErr6 := GatingItems(card, held)
+		got6, gotErr6 := gatingItemsIn(card, held)
 		if gotErr6 != nil {
 			t.Fatalf("GatingItems: %v", gotErr6)
 		}
@@ -316,7 +317,7 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 			plantChecklistItem(t, card, "b00000000003",
 				"kind: acceptance_criterion\nstate: pending\ncolumn: "+held+"\nordinal: 3\n", "A criterion.")
 
-			got, gotErr5 := GatingItems(card, held)
+			got, gotErr5 := gatingItemsIn(card, held)
 			if gotErr5 != nil {
 				t.Fatalf("GatingItems: %v", gotErr5)
 			}
@@ -332,7 +333,7 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 			"kind: decision\nstate: pending\ncolumn: e00000000001\nordinal: 1\n", "A decision.")
 		plantChecklistItem(t, card, "b00000000002",
 			"kind: decision\nstate: pending\nordinal: 2\n", "A decision naming no column.")
-		got4, gotErr4 := GatingItems(card, held)
+		got4, gotErr4 := gatingItemsIn(card, held)
 		if gotErr4 != nil {
 			t.Fatalf("GatingItems: %v", gotErr4)
 		}
@@ -345,7 +346,7 @@ func TestGatingItemsExcludesNoKind(t *testing.T) {
 		card := t.TempDir()
 		plantChecklistItem(t, card, "b00000000001",
 			"kind: decision\nstate: pending\nordinal: 1\n", "A decision naming no column.")
-		got3, gotErr3 := GatingItems(card, "")
+		got3, gotErr3 := gatingItemsIn(card, "")
 		if gotErr3 != nil {
 			t.Fatalf("GatingItems: %v", gotErr3)
 		}
@@ -375,7 +376,7 @@ func TestGatingItemsSkipsAnItemWhoseAnchorWillNotOpen(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(card, ChecklistDir, "b00000000002"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	got2, gotErr2 := GatingItems(card, "e00000000002")
+	got2, gotErr2 := gatingItemsIn(card, "e00000000002")
 	if gotErr2 != nil {
 		t.Fatalf("GatingItems: %v", gotErr2)
 	}
@@ -418,7 +419,7 @@ func TestAFailedItemHoldsAColumnThatTheClaimRefusalLetsThrough(t *testing.T) {
 		card := t.TempDir()
 		plantChecklistItem(t, card, "b00000000001",
 			"kind: acceptance_criterion\nstate: "+ItemFailed+"\ncolumn: "+held+"\nnote: the endpoint still answers 200\nordinal: 1\n", "A criterion.")
-		got1, gotErr1 := GatingItems(card, held)
+		got1, gotErr1 := gatingItemsIn(card, held)
 		if gotErr1 != nil {
 			t.Fatalf("GatingItems: %v", gotErr1)
 		}
@@ -564,6 +565,28 @@ func TestAnUnreadableHoldMemberIsDroppedRatherThanRefused(t *testing.T) {
 //
 // The guard reads the source rather than the behaviour on purpose. What it
 // catches is a sentence, and no run of the tool can go red over one.
+// gatingItemsIn is Bench.GatingItems's reading over a bare checklist
+// directory on the old layout, which is what the cases above plant: the live
+// items naming the column whose state does not lift the hold, in identifier
+// order.
+func gatingItemsIn(cardDir, columnID string) ([]*Item, error) {
+	if columnID == "" {
+		return nil, nil
+	}
+	items, err := Items(cardDir)
+	if err != nil {
+		return nil, err
+	}
+	var kept []*Item
+	for _, item := range items {
+		if item.Column == columnID && !ItemLiftsColumnHold(item) {
+			kept = append(kept, item)
+		}
+	}
+	sort.Slice(kept, func(i, j int) bool { return kept[i].ID < kept[j].ID })
+	return kept, nil
+}
+
 func TestTheOwnerFieldNamesWhatEnforcesIt(t *testing.T) {
 	text, err := os.ReadFile("item.go")
 	if err != nil {

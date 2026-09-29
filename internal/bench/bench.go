@@ -103,7 +103,13 @@ const (
 // scheduling dates that an older build would ignore and so hand out early. It
 // moved from 10 to 11 at dinah-608, when a link began to hold a card back from
 // selection. An older build would ignore the hold and hand the card out early.
-const StorageFormat = 11
+// It moved from 11 to 12 at dinah-637, which made the card the unit of storage:
+// a build that did not refuse such a store would read an empty checklist on
+// every card. Format 12 is the last integer bump, and dinah-638 declares its
+// capabilities on a format-12 store. The layout ships switched off, and while
+// CardUnitEnabled is false EffectiveStorageFormat is the number this build
+// opens up to and creates stores at.
+const StorageFormat = 12
 
 // ContainerFormat is the storage format from which the containment rule binds.
 // A workbench declaring this number or a higher one is held to Contained; one
@@ -623,6 +629,10 @@ type Bench struct {
 	RouteNames []string
 	// Format is the declared storage format version.
 	Format int
+	// Migrating is the migration workbench.md says is in progress, empty on
+	// every store no migration is carrying. The storage migration writes
+	// MigratingStorage as its first write and removes it as its last.
+	Migrating string
 	// Profile is the declared conformance target.
 	Profile string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
@@ -1955,7 +1965,10 @@ func openWithVocabulary(src Source, root string, vocab columnVocabulary, admit f
 		if err != nil {
 			return nil, contract.RefuseWith(contract.Malformed, "format", anchor)
 		}
-		if n > StorageFormat {
+		if n > EffectiveStorageFormat() {
+			if refusedFormat != nil {
+				refusedFormat(root, n)
+			}
 			return nil, contract.Refuse(contract.UnsupportedVer, "format "+declared)
 		}
 		b.Format = n
@@ -1995,6 +2008,20 @@ func openWithVocabulary(src Source, root string, vocab columnVocabulary, admit f
 	// a format key is the oldest one he has.
 	if requireResolution && b.Format < DesignationFormat {
 		return nil, contract.Refuse(contract.StoreAwaitingMigration, root)
+	}
+	// A store the storage migration is part way through is refused whatever
+	// the switch says, because its members sit partly in one layout and
+	// partly in the other and no ordinary reader reads both. With the switch
+	// on, a store below the card-unit format is refused the same way, since
+	// this build would read its checklist from a journal that does not carry
+	// it. Both refusals name the storage migration, which reaches the store
+	// through the openers that skip this gate.
+	b.Migrating = fm.Value(MigratingKey)
+	awaitingStorage := b.Migrating != "" || (cardUnitEnabled && b.Format < CardUnitFormat)
+	if requireResolution && awaitingStorage {
+		return nil, contract.RefuseWith(contract.StoreAwaitingMigration, root, map[string]string{
+			ValueMigration: MigratingStorage,
+		})
 	}
 	// The card-number registry is read once here, after the format gate, so
 	// every later read of a number comes from one load and one parser.

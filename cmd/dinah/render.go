@@ -1251,9 +1251,19 @@ func (s *session) renderComments(comments []verb.CommentView) {
 	for _, comment := range comments {
 		size := strconv.Itoa(comment.Size)
 		fields := []string{comment.Ref, comment.TS, comment.Author, comment.Subject, size}
-		block.rows = append(block.rows, tableRow{fields: fields, note: wrapBodyText(comment.Body, s.width)})
+		note := wrapBodyText(comment.Body, s.width)
+		if comment.Redaction != nil {
+			note = s.redactionLine(comment.Redaction)
+		}
+		block.rows = append(block.rows, tableRow{fields: fields, note: note})
 	}
 	s.table(block)
+}
+
+// redactionLine is the line show prints in place of a redacted member's body
+// or text, naming who redacted it and when.
+func (s *session) redactionLine(redaction *bench.Redaction) string {
+	return s.r.T("show.redacted", "actor", redaction.By, "ts", redaction.At)
 }
 
 // renderItemDetail prints the item show answers for the item's own reference:
@@ -1261,6 +1271,9 @@ func (s *session) renderComments(comments []verb.CommentView) {
 // comments existed, then the item's comments where it carries any.
 func (s *session) renderItemDetail(item *verb.ItemDetail) {
 	s.write(wrapBodyText(item.Text, s.width))
+	if item.Redaction != nil {
+		s.line(s.redactionLine(item.Redaction))
+	}
 	if len(item.Comments) > 0 {
 		s.line("")
 		s.line(s.r.T("show.comments"))
@@ -1552,6 +1565,14 @@ func (s *session) renderCheck(report *verb.CheckReport) int {
 		}
 		s.table(removed)
 	}
+	if report.Rebuilt {
+		s.line(s.r.TN("check.rebuilt", len(report.RebuiltCards)))
+		rebuilt := table{indent: 2, columns: listColumn()}
+		for _, id := range report.RebuiltCards {
+			rebuilt.rows = append(rebuilt.rows, tableRow{fields: []string{id}})
+		}
+		s.table(rebuilt)
+	}
 	if report.MigratedWitness {
 		s.line(s.r.TN("check.witnessed", len(report.WitnessedCards)))
 		witnessed := table{indent: 2, columns: listColumn()}
@@ -1798,6 +1819,117 @@ func (s *session) renderDesignationMigration(run *bench.DesignationMigration) {
 	}
 	if unanswered > 0 {
 		s.line(s.r.TN("check.designations-unanswered-total", unanswered))
+	}
+}
+
+// renderStorageMigration prints a storage migration's own account: what it
+// carried, the proof, and either how the store now stands or where the run
+// stopped and what the operator does next.
+func (s *session) renderStorageMigration(run *bench.StorageMigration) {
+	title := ""
+	root := ""
+	if s.library != nil {
+		title, root = s.library.Bench.Title, s.library.Bench.ID
+	}
+	s.line(s.r.T("storage.heading", "title", title, "detail", root))
+	if run.AlreadyMigrated {
+		s.line(s.r.T("storage.already", "to", strconv.Itoa(run.To)))
+		if len(run.Strays) > 0 {
+			s.storageList("storage.strays", run.Strays, "storage.row")
+		}
+		if run.Outcome == contract.ReadFindings {
+			s.renderStorageStop(run)
+		}
+		return
+	}
+	if run.Backup != nil && run.Backup.Path != "" {
+		s.line(s.r.T("storage.backup", "path", run.Backup.Path, "digest", run.Backup.Digest))
+	}
+	count := strconv.Itoa
+	s.line(s.r.T("storage.format", "from", count(run.From), "to", count(run.To)))
+	s.line(s.r.T("storage.cards", "live", count(run.Cards.Live), "archived", count(run.Cards.Archived)))
+	s.line(s.r.T("storage.items", "count", count(run.Items), "live", count(run.ItemsLive), "archived", count(run.ItemsArchived)))
+	s.line(s.r.T("storage.comments", "count", count(run.Comments.Card+run.Comments.Item+run.Comments.Column),
+		"card", count(run.Comments.Card), "item", count(run.Comments.Item), "column", count(run.Comments.Column)))
+	s.line(s.r.T("storage.attachments", "checked", count(run.Attachments.Checked), "moved", count(run.Attachments.Moved)))
+	s.storageList("storage.divergences", run.Divergences, "storage.divergence")
+	s.storageList("storage.strays", run.Strays, "storage.row")
+	s.storageList("storage.written-during", run.WrittenDuringRun, "storage.row")
+	s.storageList("storage.accepted", run.Accepted, "storage.row")
+	s.line(s.r.T("storage.files", "before", count(run.Files.Before), "after", count(run.Files.After)))
+	s.line(s.r.T("storage.manifest-before", "hash", run.Manifest.Before, "lines", count(run.Manifest.Lines)))
+	if run.Manifest.After != "" {
+		s.line(s.r.T("storage.manifest-after", "hash", run.Manifest.After, "lines", count(run.Manifest.Lines)))
+	}
+	s.storageList("storage.claims-passed", run.ClaimsPassed, "storage.row")
+	if run.Outcome == contract.ReadFindings {
+		s.renderStorageStop(run)
+		return
+	}
+	if run.Rehearsal {
+		s.line(s.r.T("storage.rehearsed"))
+		return
+	}
+	s.line(s.r.T("storage.done", "to", count(run.To)))
+	s.line(s.r.T("storage.stop-processes"))
+}
+
+// renderRedaction prints what dinah redact rewrote, or would rewrite: the
+// member and its journal, its own lines and the legacy answer lines counted
+// apart, the attachments it leaves readable, and what the redaction cannot
+// reach.
+func (s *session) renderRedaction(report *verb.RedactionReport) {
+	if report.LeftoverRemoved != "" {
+		s.line(s.r.T("redact.leftover", "path", report.LeftoverRemoved))
+	}
+	if report.Written {
+		s.line(s.r.T("redact.done", "member", report.Member, "journal", report.Journal))
+	} else {
+		s.line(s.r.T("redact.planned", "member", report.Member, "journal", report.Journal))
+	}
+	count := strconv.Itoa
+	s.line(s.r.T("redact.own", "count", count(report.OwnLines)))
+	s.line(s.r.T("redact.legacy", "count", count(report.LegacyLines)))
+	s.line(s.r.T("redact.lines", "count", count(report.Lines)))
+	if len(report.AttachmentsLeft) > 0 {
+		s.line(s.r.T("redact.attachments-left"))
+		for _, attachment := range report.AttachmentsLeft {
+			s.line(s.r.T("redact.attachment-left", "ref", attachment.Ref, "filename", attachment.Filename))
+		}
+		s.line(s.r.T("redact.attachments-note"))
+	}
+	s.line(s.r.T("redact.beyond-reach"))
+}
+
+// storageList prints a label counting a list and one row per entry.
+func (s *session) storageList(key string, entries []string, row string) {
+	s.line(s.r.TN(key, len(entries)))
+	for _, entry := range entries {
+		s.line(s.r.T(row, "entry", entry))
+	}
+}
+
+// renderStorageStop prints where a storage migration stopped and what to do
+// before running it again.
+func (s *session) renderStorageStop(run *bench.StorageMigration) {
+	s.line(s.r.T("storage.stopped", "phase", run.Phase))
+	if run.Held != nil {
+		s.line(s.r.T("storage.held", "card", run.Held.Card, "owner", run.Held.Holder))
+	}
+	if run.Refused != nil {
+		s.line(s.r.T("storage.refused", "path", run.Refused.Path, "error", run.Refused.Error))
+	}
+	for _, difference := range run.Differences {
+		s.line(s.r.T("storage.difference", "key", difference.Key))
+		if difference.Before != "" {
+			s.line(s.r.T("storage.difference-before", "entry", difference.Before))
+		}
+		if difference.After != "" {
+			s.line(s.r.T("storage.difference-after", "entry", difference.After))
+		}
+	}
+	if len(run.Differences) > 0 && run.RemovalStarted && run.Backup != nil {
+		s.line(s.r.T("storage.accept-or-restore", "backup", run.Backup.Path))
 	}
 }
 

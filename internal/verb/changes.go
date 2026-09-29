@@ -139,8 +139,21 @@ var archiveEvents = map[string]bool{
 }
 
 // cursorVersion is the shape number the token carries, so a token minted by a
-// later shape is refused by an earlier binary rather than misread by it.
-const cursorVersion = 3
+// later shape is refused by an earlier binary rather than misread by it. It
+// moved to 4 with the card-unit layout, so a token minted before the storage
+// migration is answered by the version mismatch rather than handed the whole
+// block of lines the migration wrote.
+const cursorVersion = 4
+
+// migrationLines are the lines the storage migration writes, which restate
+// what the store already held rather than recording anything anybody did, so
+// no answer ever carries one.
+var migrationLines = map[string]bool{
+	contract.EventItemBaseline:    true,
+	contract.EventCommentBaseline: true,
+	contract.EventCardBaseline:    true,
+	contract.EventStorageMigrated: true,
+}
 
 // cursor is what a caller hands back, rendered as base64url of this object.
 //
@@ -704,6 +717,9 @@ func readHalf(b *bench.Bench, entries []bench.Watched, held cursor, only map[str
 func (l *Library) eventsFrom(delivered []position, wantedCard string, wantedColumn *bench.Column) []ChangeEvent {
 	var events []ChangeEvent
 	for _, at := range delivered {
+		if migrationLines[at.event.Event] {
+			continue
+		}
 		scope, id := splitKey(at.key)
 		if wantedCard != "" && (scope != ScopeCard || id != wantedCard) {
 			continue

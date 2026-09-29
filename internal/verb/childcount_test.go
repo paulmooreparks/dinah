@@ -167,6 +167,12 @@ func TestOneCardViewMakesOneListingPerMount(t *testing.T) {
 // through a Positions of its own and a view calling it beside ChildIDs lists
 // every mount twice.
 //
+// Since dinah-637, the walk is Positions.CardCounts, which reads the comments
+// and the checklist through the card's record, since in the card-unit layout
+// neither is a directory to list, and hands the tallies the live items it
+// read. The guard requires CardCounts exactly once for the reason it required
+// ChildIDs.
+//
 // Arming: restoring the bench.CountAttachments and bench.CountItems calls in
 // Library.view reddens this test by name, and moving them into a helper
 // Library.view calls reddens it too. Restoring the old
@@ -200,8 +206,8 @@ func TestLibraryViewReachesNoPerCollectionCount(t *testing.T) {
 				forbidden, calls[forbidden])
 		}
 	}
-	if calls["ChildIDs"] != 1 {
-		t.Errorf("ChildIDs is called %d times in what Library.view reaches, wanted exactly once", calls["ChildIDs"])
+	if calls["CardCounts"] != 1 {
+		t.Errorf("CardCounts is called %d times in what Library.view reaches, wanted exactly once", calls["CardCounts"])
 	}
 	if calls["TallyItems"] != 1 {
 		t.Errorf("TallyItems is called %d times in what Library.view reaches, wanted exactly once: it is not foldable, it opens each item's anchor", calls["TallyItems"])

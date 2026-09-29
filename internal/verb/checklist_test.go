@@ -211,7 +211,7 @@ func TestAnItemFiledBySlugHoldsTheColumnItNames(t *testing.T) {
 		t.Fatalf("file: %s %s", response.Outcome, response.Refusal)
 	}
 	h.reopen()
-	holding, gotErr13 := bench.GatingItems(h.card(card).Dir, review)
+	holding, gotErr13 := h.library.Bench.GatingItems(h.card(card), review)
 	if gotErr13 != nil {
 		t.Fatalf("GatingItems: %v", gotErr13)
 	}
@@ -390,15 +390,15 @@ func designatedBody(t *testing.T, h *harness, ref string, fm *bench.Frontmatter)
 	if err != nil {
 		t.Fatalf("load %s: %v", ref, err)
 	}
-	dir, found := h.library.Bench.DesignatedCommentDir(item)
+	record, err := h.library.Bench.LoadCardRecord(entity.Card)
+	if err != nil {
+		t.Fatalf("read the record of %s: %v", ref, err)
+	}
+	comment, found := record.Designated(item)
 	if !found {
 		t.Fatalf("the resolution %q names no comment of %s", resolution, ref)
 	}
-	_, body, err := bench.ReadCommentAnchor(dir)
-	if err != nil {
-		t.Fatalf("read the designated comment: %v", err)
-	}
-	return body
+	return comment.Body
 }
 
 // onlyCommentBody reports the body of the single comment an item carries, and

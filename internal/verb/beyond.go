@@ -153,7 +153,7 @@ func (l *Library) Add(req *Request) *Response {
 	// identifier is claimed, but it is advice; this one is the answer.
 	var occupancy *bench.Lock
 	if req.Column != "" {
-		occupancy, err = l.takeOccupancy(req, destination, filepath.Join(l.Bench.Root, bench.JournalName))
+		occupancy, err = l.takeOccupancy(req, destination, filepath.Join(l.Bench.Root, bench.JournalName), lock)
 		if err != nil {
 			return l.FromError(req, err)
 		}
@@ -221,7 +221,22 @@ func (l *Library) Add(req *Request) *Response {
 		To:      destination.ID,
 		ToTitle: destination.Title,
 	}
-	if err := bench.AppendEvent(filepath.Join(dir, bench.JournalName), ev); err != nil {
+	// In the card-unit layout the created line states everything the filing
+	// wrote into card.md, so a rebuild can write it back; the old layout's
+	// line is written as it always was.
+	if l.Bench.CardUnit() {
+		ev.Text, ev.Fields = req.Text, createdFields(fm)
+	}
+	// The created line is appended under the new card's own lock, taken
+	// once the anchor has landed. No other process can know the directory
+	// yet, so the acquisition cannot contend, and it is what every append
+	// to a card's journal is made under.
+	cardLock, err := l.Bench.Acquire(dir, req.Actor, now)
+	if err != nil {
+		return l.FromError(req, err)
+	}
+	defer cardLock.Release()
+	if err := l.Bench.AppendEvent(cardLock, filepath.Join(dir, bench.JournalName), ev); err != nil {
 		return l.FromError(req, err)
 	}
 	occupancy.Release()
@@ -243,9 +258,9 @@ func (l *Library) Add(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	// A filing is an arrival at the destination, so the column's standing
-	// items are minted here, after the created line and the registry line.
-	// No lock is needed: the card is new and nobody else can name it yet.
-	if err := l.mintStandingItems(req, card, destination, now); err != nil {
+	// items are minted here, after the created line and the registry line,
+	// under the card lock the created line was appended under.
+	if err := l.mintStandingItems(cardLock, req, card, destination, now); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, card)
@@ -285,7 +300,8 @@ func (l *Library) Comment(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	comment, err := l.Bench.AddComment(entity.Dir, req.Actor, now, req.Text)
+	holder, _ := bench.HolderOf(entity)
+	comment, err := l.Bench.AddComment(holder, req.Actor, now, req.Text)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -295,6 +311,7 @@ func (l *Library) Comment(req *Request) *Response {
 		Actor:   req.Acting(),
 		Comment: comment.ID,
 	}
+	l.Bench.CompleteCommented(&ev, comment)
 	// A commented line carries one locator naming the holder, and a line
 	// carrying none means the holder is the journal's own entity. An item
 	// comment carries the item, a column comment carries the column and its
@@ -309,11 +326,10 @@ func (l *Library) Comment(req *Request) *Response {
 			ev.ColumnTitle = column.Title
 		}
 	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = l.commentRefOf(entity, comment)
+	response := l.okWithDetail(req, entity.Card, l.commentRefOf(entity, comment))
 	return response
 }
 
@@ -410,7 +426,11 @@ func (l *Library) commentRefOf(entity *bench.EntityRef, comment *bench.Comment) 
 	if holder == "" {
 		return comment.ID
 	}
-	ordinal, err := l.memberPosition(comment.Dir, bench.CommentAnchor)
+	held, ok := bench.HolderOf(entity)
+	if !ok {
+		return comment.ID
+	}
+	ordinal, err := l.Bench.CommentPosition(held, comment.ID)
 	if err != nil || ordinal == 0 {
 		return comment.ID
 	}
@@ -468,11 +488,10 @@ func (l *Library) Attach(req *Request) *Response {
 		ev.Attachment = attachment.ID
 		ev.Filename = attachment.Filename
 	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = ev.Attachment
+	response := l.okWithDetail(req, entity.Card, ev.Attachment)
 	return response
 }
 
@@ -537,6 +556,7 @@ func (l *Library) archive(req *Request, verify func() error) *Response {
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Acting(), Note: entity.ID}
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
+	l.Bench.CompleteMemberLine(&ev, entity, nil, "")
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -546,13 +566,12 @@ func (l *Library) archive(req *Request, verify func() error) *Response {
 		ColumnID:  columnSubject(entity),
 		ColumnRef: columnRefSubject(entity),
 		Verify:    verify,
-		Record:    func() error { return bench.AppendEvent(journal, ev) },
+		Record:    func(locks bench.ActLocks) error { return l.Bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
-	if err := l.Bench.Run(act); err != nil {
+	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, nil)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, nil, entity.ID)
 	return response
 }
 
@@ -579,6 +598,7 @@ func (l *Library) Restore(req *Request) *Response {
 	journal := l.journalFor(entity)
 	ev := bench.Event{TS: now, Event: contract.EventRestored, Actor: req.Acting(), Note: entity.ID}
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
+	l.Bench.CompleteMemberLine(&ev, entity, nil, "")
 	act := &bench.StructuralAct{
 		Dir:       entity.Dir,
 		LockDir:   l.lockDirFor(entity),
@@ -587,13 +607,12 @@ func (l *Library) Restore(req *Request) *Response {
 		Now:       now,
 		ColumnID:  columnSubject(entity),
 		ColumnRef: columnRefSubject(entity),
-		Record:    func() error { return bench.AppendEvent(journal, ev) },
+		Record:    func(locks bench.ActLocks) error { return l.Bench.AppendEvent(locks.For(journal), journal, ev) },
 	}
-	if err := l.Bench.Run(act); err != nil {
+	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, nil)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, nil, entity.ID)
 	return response
 }
 
@@ -696,6 +715,7 @@ func (l *Library) Delete(req *Request) *Response {
 	}
 	now := bench.Stamp(l.Now())
 	journal, ev := l.removalRecord(req, entity, now)
+	l.Bench.CompleteMemberLine(&ev, entity, nil, "")
 	act := &bench.StructuralAct{
 		Dir:           entity.Dir,
 		LockDir:       l.lockDirFor(entity),
@@ -706,8 +726,8 @@ func (l *Library) Delete(req *Request) *Response {
 		ColumnRef:     columnRefSubject(entity),
 		WorkstreamID:  workstreamSubject(entity),
 		WorkstreamRef: workstreamRefSubject(entity),
-		Record: func() error {
-			if err := bench.AppendEvent(journal, ev); err != nil {
+		Record: func(locks bench.ActLocks) error {
+			if err := l.Bench.AppendEvent(locks.For(journal), journal, ev); err != nil {
 				return err
 			}
 			if entity.Kind != bench.KindCard {
@@ -716,7 +736,7 @@ func (l *Library) Delete(req *Request) *Response {
 			return l.tombstoneNumber(entity.ID)
 		},
 	}
-	if err := l.Bench.Run(act); err != nil {
+	if err := l.Bench.RunEntityAct(act, entity); err != nil {
 		return l.FromError(req, err)
 	}
 	if entity.Kind == bench.KindCard {
@@ -731,8 +751,7 @@ func (l *Library) Delete(req *Request) *Response {
 			return refused
 		}
 	}
-	response := l.ok(req, nil)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, nil, entity.ID)
 	return response
 }
 
@@ -755,20 +774,8 @@ func (l *Library) Delete(req *Request) *Response {
 // there. A force that did not respect that would be a way to unsettle an
 // operator's ruling without being the operator.
 func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*designatedBy, *Response) {
-	if entity.Kind != bench.KindComment || entity.Card == nil {
-		return nil, nil
-	}
-	holder := filepath.Dir(filepath.Dir(entity.Dir))
-	item, err := l.Bench.LoadItem(holder)
-	if err != nil || item.Resolution == "" {
-		return nil, nil
-	}
-	// The stored value is the comment's own identifier, so the comparison is
-	// against this entity's own directory name with no resolution step and
-	// nothing to go stale. It used to resolve the stored reference and
-	// compare directories, which is what a positional designation obliged it
-	// to do.
-	if item.Resolution != entity.ID {
+	item, record := l.designatingItem(entity)
+	if item == nil {
 		return nil, nil
 	}
 	// Composed before the refusal rather than after it, because the refusal
@@ -795,11 +802,29 @@ func (l *Library) admitCommentDeletion(req *Request, entity *bench.EntityRef) (*
 	// The reference is composed under the item's own canonical spelling
 	// rather than taken from the resolver's, so the reason a reader meets in
 	// the journal is the address that item's comments answer to.
-	ordinal, err := l.memberPosition(entity.Dir, bench.CommentAnchor)
-	if err != nil {
-		return nil, l.FromError(req, err)
-	}
+	ordinal := record.Position(bench.MemberCollection{Kind: bench.KindComment, Holder: item.ID}, bench.LiveHalf, entity.ID)
 	return &designatedBy{item: named, designation: commentRef(named, ordinal)}, nil
+}
+
+// designatingItem answers the item a comment is the answer of record for,
+// together with the card's record, and nil where no item designates it. A
+// designation names a comment of the very item that carries it, so the only
+// item that can designate a comment is the one it hangs on, and the stored
+// value is the comment's own identifier, so the comparison has no resolution
+// step and nothing to go stale.
+func (l *Library) designatingItem(entity *bench.EntityRef) (*bench.Item, *bench.CardRecord) {
+	if entity.Kind != bench.KindComment || entity.Card == nil || entity.Holder == "" {
+		return nil, nil
+	}
+	record, err := l.Bench.LoadCardRecord(entity.Card)
+	if err != nil {
+		return nil, nil
+	}
+	item, found := record.Item(entity.Holder)
+	if !found || item.Resolution == "" || item.Resolution != entity.ID {
+		return nil, nil
+	}
+	return item, record
 }
 
 // designatedBy is the item a comment being deleted is the answer of record
@@ -909,8 +934,7 @@ func (l *Library) Rename(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	if before.Filename == after.Filename {
-		response := l.ok(req, entity.Card)
-		response.Detail = entity.ID
+		response := l.okWithDetail(req, entity.Card, entity.ID)
 		return response
 	}
 	ev := bench.Event{
@@ -922,11 +946,10 @@ func (l *Library) Rename(req *Request) *Response {
 		From:       before.Filename,
 	}
 	locateColumnAttachment(&ev, l.attachmentColumn(entity))
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, entity.Card, entity.ID)
 	return response
 }
 
@@ -1202,7 +1225,7 @@ func (l *Library) operatorOnlyRemoval(entity *bench.EntityRef) bool {
 	if entity.Kind != bench.KindItem {
 		return false
 	}
-	item, err := l.Bench.LoadItem(entity.Dir)
+	item, err := l.itemOf(entity)
 	if err != nil {
 		// An item whose anchor will not open cannot be shown to be
 		// unprotected, and the safe direction here is the reserved one: a
@@ -1313,7 +1336,7 @@ func (l *Library) removalRecord(req *Request, entity *bench.EntityRef, now strin
 	// which rules it was judged under, and a reader of the journal meeting
 	// this line has no other source for either.
 	if entity.Kind == bench.KindItem {
-		if item, err := l.Bench.LoadItem(entity.Dir); err == nil {
+		if item, err := l.itemOf(entity); err == nil {
 			ev.Kind = item.Kind
 		}
 	}
@@ -1336,7 +1359,7 @@ func (l *Library) titleOfEntity(entity *bench.EntityRef) string {
 	// text, and a journal line saying that something with an identifier went
 	// away says nothing about what that thing required.
 	if entity.Kind == bench.KindItem {
-		item, err := l.Bench.LoadItem(entity.Dir)
+		item, err := l.itemOf(entity)
 		if err != nil {
 			return ""
 		}
@@ -1617,7 +1640,7 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 		Actor: req.Acting(),
 		Title: title,
 	}
-	if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
+	if err := l.appendUnderWorkstreamLock(req.Actor, now, workstream, ev); err != nil {
 		return l.FromError(req, err)
 	}
 	response := l.ok(req, nil)
@@ -1626,6 +1649,52 @@ func (l *Library) NewWorkstream(req *Request) *Response {
 	response.Detail = workstream.ID
 	return response
 }
+
+// createdFields are the card fields a filing wrote into a new card's anchor
+// beside its title, its column and its state, keyed by frontmatter key: the
+// levels, the route and the dates it named. The created line carries them so
+// that the journal states everything the filing wrote into card.md.
+func createdFields(fm *bench.Frontmatter) map[string]string {
+	fields := map[string]string{}
+	for _, key := range fm.Keys() {
+		switch key {
+		case "title", "column", "state":
+			continue
+		}
+		fields[key] = fm.Value(key)
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return fields
+}
+
+// appendUnderWorkstreamLock appends a new workstream's created line under that
+// workstream's own lock, which is the lock of the entity the journal belongs
+// to. The caller holds the workbench lock, so the order is the protocol's
+// outer before inner: the workbench, then the entity. Acquire refuses rather
+// than waits, so a process never holds one lock while waiting for another. A
+// refused workstream lock unwinds the creation: the anchor the creation wrote
+// is removed, and the directory with it when nothing else stands in it, so no
+// workstream is left standing without the line that records it and whatever
+// the lock's holder put there is left alone. The caller's own deferred
+// release gives the workbench lock back.
+func (l *Library) appendUnderWorkstreamLock(actor, now string, workstream *bench.Workstream, ev bench.Event) error {
+	l.interpose(stepWorkstreamWritten)
+	held, err := l.Bench.Acquire(workstream.Dir, actor, now)
+	if err != nil {
+		durable.Remove(filepath.Join(workstream.Dir, bench.WorkstreamAnchor))
+		l.Bench.RemoveIfEmpty(workstream.Dir)
+		return err
+	}
+	defer held.Release()
+	return l.Bench.AppendEvent(held, workstream.JournalPath(), ev)
+}
+
+// stepWorkstreamWritten is the Interpose window a workstream's creation and
+// its adoption open after the anchor is written and before the workstream's
+// own lock is taken for the created line.
+const stepWorkstreamWritten = "workstream-written"
 
 // AcceptDivergence ratifies a comment body somebody edited outside the tool.
 //
@@ -1652,11 +1721,11 @@ func (l *Library) AcceptDivergence(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
-	fm, body, err := l.Bench.ReadCommentAnchor(entity.Dir)
+	fm, body, err := l.Bench.MemberAnchor(entity)
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	if err := bench.WriteCommentAnchor(entity.Dir, fm, body); err != nil {
+	if err := l.Bench.WriteMemberAnchor(entity, fm, body); err != nil {
 		return l.FromError(req, err)
 	}
 	ev := bench.Event{
@@ -1666,120 +1735,11 @@ func (l *Library) AcceptDivergence(req *Request) *Response {
 		Comment: entity.ID,
 		Note:    entity.ID,
 	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, l.journalFor(entity), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, entity.Card)
-	response.Detail = entity.ID
+	response := l.okWithDetail(req, entity.Card, entity.ID)
 	return response
-}
-
-// RecordCommentEdit is the return half of dinah edit on a comment: the head
-// opens the file in the author's editor, and this decides what, if anything,
-// that edit means.
-//
-// It claims nothing about when the editor returned, and that is the point.
-// runEdit calls Run, and a GUI editor that hands the file to an
-// already-running instance returns at once, so an implementation asserting the
-// author had finished would attribute an edit that had not happened yet. What
-// the tool has is the body before and the body after, and it says only what
-// those two support.
-//
-// Three outcomes, decided against the digest the anchor carries:
-//
-//   - The body agrees with the recorded digest. Nothing is written and nothing
-//     is journalled. This is the answer both when the author changed nothing
-//     and when the editor returned before the author started, and the tool
-//     cannot tell those apart, which is exactly why it must do the same thing
-//     in both. It is also the answer when an author restored a diverged body
-//     by hand, which is the remedy that needs no command at all.
-//   - The body disagrees with the recorded digest and already disagreed before
-//     the editor opened it. Somebody else's edit is standing in the file, and
-//     this author's own change cannot be told from it, so the write is refused
-//     rather than attributed. dinah accept-divergence settles what the record
-//     is, and then an ordinary edit works again.
-//   - The body disagrees and did not before. The author finished before the
-//     editor returned, which is now a fact rather than an assumption. The new
-//     digest is recorded and the edit is journalled as theirs.
-//
-// An author still typing when the editor returns falls into the first case,
-// and their edit is caught later by dinah check like any other hand edit.
-// Nothing is lost and nothing is asserted that was not observed.
-func (l *Library) RecordCommentEdit(req *Request) *Response {
-	if l.Bench.Operator == "" {
-		return l.refuse(req, nil, contract.NoOperator, "")
-	}
-	if refused := l.malformedHarness(req, nil); refused != nil {
-		return refused
-	}
-	entity, err := l.Bench.ResolveEntity(req.Ref)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	if req.Actor == "" {
-		return l.refuse(req, entity.Card, contract.NoOwner, "")
-	}
-	if entity.Kind != bench.KindComment {
-		return l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
-	}
-	now := bench.Stamp(l.Now())
-	lock, err := l.Bench.Acquire(l.lockDirFor(entity), req.Actor, now)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	defer lock.Release()
-	fm, body, err := l.Bench.ReadCommentAnchor(entity.Dir)
-	if err != nil {
-		return l.FromError(req, err)
-	}
-	// Whether this author changed anything is asked first, and a no ends the
-	// run whatever the header says. The spec's first bullet is unconditional:
-	// an unchanged body does nothing and journals nothing. Asking about a
-	// divergence ahead of it made `dinah edit` on a diverged comment answer a
-	// refusal for an edit that never happened, which told the reader nothing
-	// they could act on and nothing dinah check would not have told them.
-	stored := fm.Value(bench.CommentDigestField)
-	standing := bench.CommentDigest(body)
-	if standing == req.PriorDigest || (stored != "" && stored == standing) {
-		response := l.ok(req, entity.Card)
-		response.Detail = entity.ID
-		return response
-	}
-	// The body did change under this author's hand, so there is an edit to
-	// attribute. A comment that was already diverged when edit opened it is
-	// where that attribution would be wrong, because this author's change
-	// cannot be told from the one already standing in the file.
-	if stored != "" && stored != req.PriorDigest {
-		return l.refuse(req, entity.Card, contract.CommentBodyDiverged, entity.Ref)
-	}
-	if err := bench.WriteCommentAnchor(entity.Dir, fm, body); err != nil {
-		return l.FromError(req, err)
-	}
-	ev := bench.Event{
-		TS:    now,
-		Event: contract.EventCommentUpdated,
-		Actor: req.Acting(),
-		Field: bench.BodyField,
-		Note:  entity.ID,
-	}
-	if err := bench.AppendEvent(l.journalFor(entity), ev); err != nil {
-		return l.FromError(req, err)
-	}
-	response := l.ok(req, entity.Card)
-	response.Detail = entity.ID
-	return response
-}
-
-// CommentBodyDigest reports the digest of a comment's body as it stands, for
-// a caller that has to observe it before handing the file to something else.
-// It is dinah edit's own need and nobody else's, which is why it reads rather
-// than resolving: the caller has already resolved the entity.
-func (l *Library) CommentBodyDigest(dir string) (string, error) {
-	_, body, err := l.Bench.ReadCommentAnchor(dir)
-	if err != nil {
-		return "", err
-	}
-	return bench.CommentDigest(body), nil
 }
 
 // canAcceptDivergence runs AcceptDivergence's rows before it takes the lock:
@@ -1802,6 +1762,17 @@ func (l *Library) canAcceptDivergence(req *Request) (*bench.EntityRef, *Response
 	}
 	if entity.Kind != bench.KindComment {
 		return nil, l.refuse(req, entity.Card, contract.UnknownPath, req.Ref)
+	}
+	// A redacted comment's recorded digest is the empty text's, so it is
+	// never diverged and there is no body left to ratify.
+	if l.Bench.CardUnit() {
+		fm, _, err := l.Bench.MemberAnchor(entity)
+		if err != nil {
+			return nil, l.FromError(req, err)
+		}
+		if redactedAnchor(entity, fm) {
+			return nil, l.refuse(req, entity.Card, contract.Redacted, entity.Ref)
+		}
 	}
 	return entity, nil
 }

@@ -23,15 +23,14 @@ import { runBulk } from "./bulk";
 import type { CommandHost, PickItem } from "./cardCommands";
 import {
 	isRow,
-	pinnedArgv,
 	refusalMessage,
 	rowOutcomeFor,
 	rowRef,
 	runVerb,
 } from "./cardCommands";
 import type { CliOutcome, Spawner } from "./cli";
-import { runDinah } from "./cli";
 import type { Wiring } from "./commandTable";
+import type { CommentBodyHost } from "./commentBody";
 import { composeComment } from "./commentBody";
 import type { Localizer } from "./l10n";
 import type { HoldDirection, TreeElement, WorkbenchData } from "./tree";
@@ -42,7 +41,9 @@ import {
 	itemHoldDirection,
 } from "./tree";
 import type { CatalogBuild, CatalogOk } from "./verbCatalog";
-import type { ItemView, PathAnswer } from "./wire";
+import type { OpenItems } from "./memberDocument";
+import { openItemDocument } from "./memberDocument";
+import type { ItemView } from "./wire";
 
 /** The tool whose schema publishes the kinds an item may be filed under. */
 export const FILE_ITEM_TOOL = "file_item";
@@ -65,7 +66,7 @@ export interface ItemCommandContext {
 	 *
 	 * A row drawn without one carries no contextValue, so no menu clause
 	 * matches it and none of the acting commands can be aimed at it. Open Item
-	 * is the exception and it reads no view: it asks `path` about the item's
+	 * is the exception and it reads no view: it asks `show` about the item's
 	 * own reference.
 	 */
 	readonly view?: ItemView;
@@ -106,67 +107,30 @@ export function contextForItem(
 }
 
 /**
- * Opens the anchor file one reference resolves to.
+ * Opens the item's anchor as a `dinah-member` document.
  *
- * `dinah path <ref>` takes the entity's own reference and resolves it whatever
- * holds it, so no holder is composed and nothing is cut off the reference. The
- * call is pinned and run from the root like every other call this extension
- * makes, and a refusal is shown and nothing is opened, which is what openCard
- * already does on both of those arms. No catalogue key is needed for the
- * failure, because refusalMessage composes one out of what the binary said.
- *
- * `path` rather than `show`, and that is forced rather than preferred:
- * `show <item> --fields path` is refused, because only a card takes a field
- * selector, and `show <comment>` answers the anchor's raw text rather than
- * JSON at all. openCard reads its path off `show` and is left alone, because
- * rewriting a working handler is not this card's work.
- *
- * It lives here rather than beside each of its two callers because there is
- * one call and one hand-off, and a second copy of them is a second thing to
- * get wrong. It reads no item and takes none.
+ * No page is composed over it. Clicking a card already opens `card.md` with
+ * its front matter and lets the reader edit it, and an item behaves the same
+ * way from here: the operator ruled on 2026-09-15 that he wants to deal with
+ * what is in the workbench rather than with a page this extension assembles
+ * over it. From storage format 12 an item has no file of its own, so the
+ * document is its anchor as `dinah show` prints it, and a save writes changed
+ * text through `set <ref> text`, refusing one whose front matter changed, as
+ * memberDocument.ts describes and as the operator ruled on
+ * dinah-637/questions/2.
  */
-export async function openAnchorFile(
-	spawner: Spawner,
-	exe: string,
-	host: CommandHost,
-	root: string,
-	ref: string,
+export async function openItem(
+	context: ItemCommandContext,
+	host: CommentBodyHost,
+	opened: OpenItems,
 ): Promise<void> {
-	const outcome = await runDinah(spawner, exe, pinnedArgv(root, ["path", ref]), {
-		cwd: root,
-	});
-	if (outcome.kind !== "ok") {
-		host.showError(refusalMessage(outcome));
-		return;
-	}
-	const path = (outcome.json as PathAnswer).path;
-	if (path === undefined || path === "") {
-		host.log(`dinah path ${ref} answered with no path`);
-		return;
-	}
-	await host.openDocument(path);
-}
-
-/**
- * Opens the item's own anchor file.
- *
- * No document is composed over it. Clicking a card already opens `card.md`
- * with its front matter and lets the reader edit it, and an item behaves the
- * same way from here: the operator ruled on 2026-09-15 that he wants to deal
- * with what is in the workbench rather than with a page this extension
- * assembles over it.
- *
- * Editing that file bypasses the verb, so no journal entry is made. That is
- * already true of `card.md` and of `workbench.md`, whose own format
- * documentation calls a hand edit legal and deliberately unjournaled.
- */
-export async function openItem(context: ItemCommandContext): Promise<void> {
-	await openAnchorFile(
+	await openItemDocument(
+		host,
 		context.spawner,
 		context.exe,
-		context.host,
-		context.root,
-		context.ref,
+		opened,
+		{ ref: context.ref, root: context.root },
+		context.folder,
 	);
 }
 
@@ -596,7 +560,7 @@ export async function invokeOpenItem(
 		},
 		async () => true as const,
 		async (context, _answer, host) => {
-			await openItem({ ...context, host });
+			await openItem({ ...context, host }, wiring.commentHost, wiring.openItems);
 			return { kind: "done" } as const;
 		},
 	);

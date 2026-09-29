@@ -504,6 +504,8 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 		return l.FromError(req, err)
 	}
 	defer lock.Release()
+	req.cardLock = lock
+	defer func() { req.cardLock = nil }()
 	if l.Interleave != nil {
 		l.Interleave()
 	}
@@ -511,7 +513,7 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 	if err != nil {
 		return l.FromError(req, err)
 	}
-	if err := l.lapse(card); err != nil {
+	if err := l.lapse(lock, card); err != nil {
 		return l.FromError(req, err)
 	}
 	if req.Basis != "" && req.Basis != card.Revision {
@@ -527,7 +529,7 @@ func (l *Library) pullTransaction(req *Request, head *bench.Card) *Response {
 			Affordances: l.affordances(card),
 		}
 	}
-	if _, err := l.Bench.WitnessDivergence(req.Actor, bench.Stamp(l.Now()), card); err != nil {
+	if _, err := l.Bench.WitnessDivergence(lock, req.Actor, bench.Stamp(l.Now()), card); err != nil {
 		return l.FromError(req, err)
 	}
 	return l.pull(req, card)
@@ -572,7 +574,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	if refusal != nil {
 		return refusal
 	}
-	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath())
+	occupancy, err := l.takeOccupancy(req, routed, card.JournalPath(), req.cardLock)
 	if err != nil {
 		return l.FromError(req, err)
 	}
@@ -633,7 +635,7 @@ func (l *Library) pull(req *Request, card *bench.Card) *Response {
 	}
 	// A pull is an arrival too, so the destination's standing items are
 	// minted on the terms move mints them, after the moved line.
-	if err := l.mintStandingItems(req, card, destination, stamp); err != nil {
+	if err := l.mintStandingItems(req.cardLock, req, card, destination, stamp); err != nil {
 		return l.FromError(req, err)
 	}
 	response.Instructions, response.ChainServed, err = l.serve(req, card)

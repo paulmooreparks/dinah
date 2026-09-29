@@ -114,7 +114,7 @@ func TestReadHoldsFallsBackMemberByMember(t *testing.T) {
 // each defect becomes the finding its kind names, at the workbench anchor.
 func TestCheckReportsEveryHoldsDefect(t *testing.T) {
 	block := "dinah.holds:\n  start_at: nowhere\n  colour: red\n  kinds:\n    blocks: named\n    parked_behind:\n      held: both\n    needs:\n      held: carrier\n      lag: 2\n"
-	root := conditionedFixture(t, StorageFormat, block)
+	root := conditionedFixture(t, EffectiveStorageFormat(), block)
 	findings := findingsOf(t, openConditioned(t, root))
 	anchor := filepath.Join(root, WorkbenchAnchor)
 	want := map[string]string{
@@ -140,19 +140,19 @@ func TestCheckReportsEveryHoldsDefect(t *testing.T) {
 	if seen != len(want) {
 		t.Errorf("check reported %d holds findings, want %d: %+v", seen, len(want), findings)
 	}
-	scalar := conditionedFixture(t, StorageFormat, "dinah.holds: blocks\n")
+	scalar := conditionedFixture(t, EffectiveStorageFormat(), "dinah.holds: blocks\n")
 	if !findingWith(findingsOf(t, openConditioned(t, scalar)), FindingHoldsMalformed, "dinah.holds not a mapping") {
 		t.Error("a scalar block raised no finding")
 	}
 }
 
 // TestTheHoldsFormatIsAFloorAndItsFindingNeedsARule is dinah-608/criteria/15
-// at the store: StorageFormat is 11, the finding is raised on a format-10
+// at the store: EffectiveStorageFormat() is 11, the finding is raised on a format-10
 // workbench declaring a usable rule and not otherwise, and the stamp writes
 // the one format line only with the confirmation.
 func TestTheHoldsFormatIsAFloorAndItsFindingNeedsARule(t *testing.T) {
-	if StorageFormat != 11 || HoldsFormat != 11 {
-		t.Fatalf("the formats are %d and %d, want 11", StorageFormat, HoldsFormat)
+	if EffectiveStorageFormat() != 11 || HoldsFormat != 11 {
+		t.Fatalf("the formats are %d and %d, want 11", EffectiveStorageFormat(), HoldsFormat)
 	}
 	rule := "dinah.holds:\n  kinds:\n    blocks:\n      held: named\n"
 	for name, c := range map[string]struct {

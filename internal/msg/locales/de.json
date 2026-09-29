@@ -7342,6 +7342,558 @@
       "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated, and the command line is the one invocation the sentence carries, so a reader following it types that and nothing else. The backup is named first because both migrations write in place and neither can undo itself.",
       "source": "cb34d7dd84da0e31"
     },
+    "refusal.dinah.journal-unlocked": {
+      "text": "Ein Anhängen an {detail} wurde ohne die Sperre der Entität versucht, zu der dieses Protokoll gehört.",
+      "context": "The sentence printed after the refusal name dinah.journal-unlocked. {detail} is the journal's path. Every append to a journal is made by the holder of the lock of the entity the journal belongs to, and this refusal is raised before the file is opened when a caller does not hold it.",
+      "source": "6b072f7de4b724d2"
+    },
+    "refusal.dinah.journal-unlocked.next": {
+      "text": " Das ist ein Fehler in Dinah und nichts, das umgangen werden sollte; melde ihn zusammen mit dem Befehl, der ihn ausgelöst hat.",
+      "context": "The next step of refusal.dinah.journal-unlocked, spliced onto the sentence that named the journal. No person's act raises it, so the step asks for a report rather than naming a repair.",
+      "source": "1f0e40dcd1eab0a4"
+    },
+    "refusal.dinah.journal-unreadable": {
+      "text": "Das Protokoll unter {detail} lässt sich nicht lesen.",
+      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, followed by a colon and the one-based line number where one line does not decode, which is the spelling an editor opens at. A fragment spliced after it says which damage was found: a line that is not the last and does not decode, or two members carrying one identifier. Either way every read of the entity is refused.",
+      "source": "48f6b567d452b849"
+    },
+    "refusal.dinah.journal-unreadable.next": {
+      "text": " Stelle die Zeile aus einer Sicherung oder aus git wieder her oder lösche sie von Hand, und führe dann `dinah check` erneut aus; kein Befehl löscht sie, da sie den Text eines Kommentars enthalten kann.",
+      "context": "The next step of refusal.dinah.journal-unreadable. dinah check is a command line and is not translated. The step names the hand repair because no command deletes a line that may hold a comment's text.",
+      "source": "76e37cf4e97ef4b1"
+    },
+    "check.journal-unreadable": {
+      "text": "die Protokollzeile unter {detail} lässt sich nicht dekodieren und ist nicht die letzte Zeile; stelle sie aus einer Sicherung oder aus git wieder her oder lösche sie von Hand, und führe `dinah check` erneut aus",
+      "context": "A check finding at defect severity: a journal line that is not the last one and does not decode. {detail} is the journal's path, a colon and the one-based line number. Every read of the entity is refused while it stands, and no command deletes the line.",
+      "source": "e889d76c018e32a7"
+    },
+    "check.journal-torn-quarantined": {
+      "text": "das abgerissene Ende eines Protokolls wurde nach {detail} verschoben; lies die Datei und lösche sie von Hand, sobald nichts darin aufbewahrt werden muss",
+      "context": "A check finding at cleanup severity: a sidecar file holding the torn tail an append moved out of a journal. {detail} is the sidecar's file name, which the journal_tail_trimmed line that moved it names too. No command deletes it, because only a person can say the fragment held nothing worth keeping.",
+      "source": "aa2648743d84b1ab"
+    },
+    "refusal.dinah.store-awaiting-migration.storage.next": {
+      "text": " Beende jeden Dinah-Prozess, der diese Werkbank geöffnet hat, und führe dann `dinah check --migrate-storage --backup <dir>` gegen sie aus; die Sicherung ist der Weg zurück zum alten Aufbau, da die Migration sich nicht selbst rückgängig machen kann.",
+      "context": "The next step of refusal.dinah.store-awaiting-migration when the store is owed the storage migration: it stands below the card-unit format while this build reads that layout, or a storage migration is part way through it. dinah check --migrate-storage --backup <dir> is a command line and is not translated; <dir> is the placeholder the reader replaces with a directory of their own choosing outside the workbench. The processes are named first because a process that already has the store open is the one writer the migration cannot keep out.",
+      "source": "795af182c88e5dca"
+    },
+    "refusal.dinah.store-format-changed": {
+      "text": "Dieser Prozess hat die Werkbank im Format {detail} geöffnet, und workbench.md deklariert jetzt das Format {now}.",
+      "context": "The sentence printed after the refusal name dinah.store-format-changed, which a write raises when the workbench's declared storage format, or the migration in progress beside it, has changed since the process opened it. {detail} is the format the process opened, and {now} is what workbench.md declares now; each is a number, with the migration in progress named beside it in parentheses where there is one, and neither is translated. workbench.md is a file name and is not translated.",
+      "source": "34cf096b94075dbd"
+    },
+    "refusal.dinah.store-format-changed.next": {
+      "text": " Es wurde nichts geschrieben; öffne die Werkbank erneut, was ein neuer Befehl von selbst tut, und wiederhole die Handlung.",
+      "context": "The next step of refusal.dinah.store-format-changed. A long-lived head such as the MCP server or the language server reopens on this refusal by itself; a person at a terminal simply runs the command again.",
+      "source": "38f6f1dcf77b00a8"
+    },
+    "refusal.dinah.journal-unreadable.line": {
+      "text": " Diese Zeile lässt sich nicht dekodieren, und sie ist nicht die letzte Zeile des Protokolls.",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when the journal holds a line that does not decode. The detail the base sentence printed is the journal's path, a colon and the one-based line number, so 'that line' is the line it named. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves.",
+      "source": "396d6a9460908615"
+    },
+    "refusal.dinah.journal-unreadable.member": {
+      "text": " Zwei seiner Mitglieder tragen die Kennung {member}, angelegt in den Zeilen {lines}.",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when two members of one card, comments or checklist items, carry one identifier. {member} is the 12-hex identifier and {lines} the one-based numbers of the two journal lines that established a member under it, separated by a comma. No read can tell the two apart, so the card is refused.",
+      "source": "32ff89077db50e01"
+    },
+    "refusal.dinah.journal-unreadable.member.next": {
+      "text": " Gib einem der beiden Mitglieder von Hand auf jeder Zeile, die es nennt, eine neue Kennung, oder stelle das Protokoll aus einer Sicherung oder aus git wieder her, und führe dann `dinah check` erneut aus.",
+      "context": "The next step of refusal.dinah.journal-unreadable when two members carry one identifier. dinah check is a command line and is not translated. No command renames a member, so the repair is by hand.",
+      "source": "443546c2e3c41b72"
+    },
+    "refusal.dinah.not-a-file": {
+      "text": "{detail} ist ein Kommentar oder ein Checklistenpunkt, den diese Werkbank als Zeilen eines Protokolls führt und nicht als eigene Datei.",
+      "context": "The sentence printed after the refusal name dinah.not-a-file, raised by dinah path. {detail} is the reference as the reader typed it. In the card-unit layout a comment or a checklist item has no file, so there is no path to print.",
+      "source": "21405e0a700167a0"
+    },
+    "refusal.dinah.not-a-file.next": {
+      "text": " Führe `dinah show <ref>` aus, um den Inhalt zu sehen; die Datei, die ihn enthält, ist das Protokoll seiner Karte, das `dinah path <card>/journal` nennt, oder bei einem Kommentar einer Spalte die journal.ndjson der Werkbank selbst.",
+      "context": "The next step of refusal.dinah.not-a-file. dinah show <ref>, dinah path <card>/journal and journal.ndjson are a command line and a file name and are not translated; <ref> and <card> are placeholders the reader replaces.",
+      "source": "62c5f2c51e9f40e3"
+    },
+    "check.member-unknown": {
+      "text": "die Protokollzeile unter {detail} nennt einen Kommentar oder Checklistenpunkt, den keine frühere Zeile angelegt hat, und trägt daher nichts bei; stelle die Zeile, die das Mitglied angelegt hat, aus einer Sicherung oder aus git wieder her, oder lösche diese Zeile von Hand",
+      "context": "A check finding at defect severity: a line of a card's journal naming a comment or an item the replay never established. {detail} is the journal's path, a colon and the one-based line number. Such a line is damage or the residue of a hand edit that removed the line creating the member.",
+      "source": "c99f89ac2f38c259"
+    },
+    "check.member-id-collision": {
+      "text": "zwei Mitglieder der Karte tragen dieselbe Kennung, hier mit den Protokollzeilen, die jedes angelegt haben: {detail}; gib einem von ihnen von Hand auf jeder Zeile, die es nennt, eine neue Kennung, oder stelle das Protokoll aus einer Sicherung oder aus git wieder her",
+      "context": "A check finding at defect severity: two comments or checklist items of one card carry one identifier. {detail} is the 12-hex identifier, a colon, and the one-based numbers of the two journal lines that established a member under it. Every read of the card is refused dinah.journal-unreadable until it is repaired.",
+      "source": "398490740874e031"
+    },
+    "refusal.dinah.backup-required": {
+      "text": "Eine Speichermigration, die schreibt, braucht ein Sicherungsverzeichnis, und für die Werkbank unter {detail} wurde keines angegeben.",
+      "context": "The sentence printed after the refusal name dinah.backup-required, raised by dinah check --migrate-storage. {detail} is the workbench's directory. A run that writes copies the whole store into the backup directory before its first change.",
+      "source": "5315ab903ab1ac9d"
+    },
+    "refusal.dinah.backup-required.next": {
+      "text": " Führe sie erneut mit `--backup <dir>` aus und nenne dabei ein leeres Verzeichnis außerhalb der Werkbank; der Lauf kopiert den ganzen Speicher dorthin, bevor er etwas ändert.",
+      "context": "The next step of refusal.dinah.backup-required. --backup <dir> is a flag and its placeholder and is not translated.",
+      "source": "f88875a5e92bffde"
+    },
+    "refusal.dinah.backup-inside-store": {
+      "text": "Das Sicherungsverzeichnis {detail} liegt innerhalb der Werkbank, die die Migration kopieren würde.",
+      "context": "The sentence printed after the refusal name dinah.backup-inside-store. {detail} is the directory given with --backup. A copy inside the store would copy itself.",
+      "source": "87219053abca191a"
+    },
+    "refusal.dinah.backup-inside-store.next": {
+      "text": " Nenne ein Verzeichnis außerhalb des Verzeichnisses der Werkbank.",
+      "context": "The next step of refusal.dinah.backup-inside-store.",
+      "source": "c563ff2331db22f2"
+    },
+    "refusal.dinah.backup-not-empty": {
+      "text": "Das Sicherungsverzeichnis {detail} enthält etwas anderes als eine Sicherung, die diese Migration von dieser Werkbank begonnen hat.",
+      "context": "The sentence printed after the refusal name dinah.backup-not-empty. {detail} is the directory given with --backup. A directory holding a backup this migration itself started of this workbench is accepted, so a run can be repeated.",
+      "source": "6c4c1ab8340db645"
+    },
+    "refusal.dinah.backup-not-empty.next": {
+      "text": " Nenne ein leeres Verzeichnis oder das, in dem ein Lauf dieser Migration auf dieser Werkbank schon begonnen hat.",
+      "context": "The next step of refusal.dinah.backup-not-empty.",
+      "source": "f7607dabdfb84349"
+    },
+    "refusal.dinah.backup-mismatch": {
+      "text": "Das Sicherungsverzeichnis {detail} ist nicht das, das diese Migration bei ihrem Beginn festgehalten hat; das ist {recorded}.",
+      "context": "The sentence printed after the refusal name dinah.backup-mismatch, raised on a resumed storage migration. {detail} is the directory given with --backup and {recorded} is the copy the run's progress file records.",
+      "source": "36c1ece0d527b42b"
+    },
+    "refusal.dinah.backup-mismatch.next": {
+      "text": " Führe sie erneut ohne --backup aus oder mit dem festgehaltenen Verzeichnis.",
+      "context": "The next step of refusal.dinah.backup-mismatch. --backup is a flag and is not translated.",
+      "source": "fee73d9c1ec496b1"
+    },
+    "refusal.dinah.backup-unverified": {
+      "text": "Die Kopie der Werkbank unter {detail} hat nicht denselben Hashwert wie die Werkbank und ist daher keine Sicherung.",
+      "context": "The sentence printed after the refusal name dinah.backup-unverified. {detail} is the copy. The run compares a SHA-256 over every path and byte of the copy with the same digest of the store before it relies on the copy.",
+      "source": "7f9d0447ffc3e2cd"
+    },
+    "refusal.dinah.backup-unverified.next": {
+      "text": " Nichts wurde entfernt; prüfe den Datenträger, auf dem die Sicherung liegt, und führe die Migration dann erneut aus, die die Kopie noch einmal anlegt.",
+      "context": "The next step of refusal.dinah.backup-unverified.",
+      "source": "4c57c9191a06f424"
+    },
+    "refusal.dinah.migration-awaits-capabilities": {
+      "text": "Dieser Build führt die Speichermigration abgeschaltet mit, daher probt er die Migration der Werkbank unter {detail} nur und führt sie nicht aus.",
+      "context": "The sentence printed after the refusal name dinah.migration-awaits-capabilities. {detail} is the workbench's directory. The card-unit layout ships switched off until the card that declares its capabilities turns it on, and until then only a rehearsal runs.",
+      "source": "d68aea77476fe454"
+    },
+    "refusal.dinah.migration-awaits-capabilities.next": {
+      "text": " Führe `dinah check --migrate-storage --rehearse` aus, um zu sehen, was die Migration tun würde; ein Build, der den Karteneinheit-Aufbau einschaltet, führt sie aus.",
+      "context": "The next step of refusal.dinah.migration-awaits-capabilities. dinah check --migrate-storage --rehearse is a command line and is not translated.",
+      "source": "7436f689df0eff6"
+    },
+    "refusal.dinah.not-a-difference": {
+      "text": "{detail} ist keine der Manifestzeilen, die der Nachweis der Migration als abweichend gefunden hat.",
+      "context": "The sentence printed after the refusal name dinah.not-a-difference. {detail} is the manifest key given with --accept-difference. No difference is accepted that the operator did not name, and a name that matches nothing is refused rather than ignored.",
+      "source": "ea59127b130b752a"
+    },
+    "refusal.dinah.not-a-difference.next": {
+      "text": " Nenne nur Schlüssel, die der angehaltene Lauf ausgegeben hat; führe die Migration ohne --accept-difference erneut aus, um sie zu sehen.",
+      "context": "The next step of refusal.dinah.not-a-difference. --accept-difference is a flag and is not translated.",
+      "source": "ae5988275e86cf47"
+    },
+    "refusal.dinah.storage-precondition": {
+      "text": "Die Speichermigration kann die Werkbank wegen der unten aufgeführten Dateien nicht überführen, beginnend mit {detail}.",
+      "context": "The sentence printed after the refusal name dinah.storage-precondition. {detail} is the first file the migration cannot carry; every such file follows on a row of its own, each after the machine token naming what is wrong with it. A fragment spliced after this sentence says what is wrong with the first.",
+      "source": "51c42a592f8a9e3a"
+    },
+    "refusal.dinah.storage-precondition.unparseable": {
+      "text": " Diese Datei lässt sich nicht als Anker lesen.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file does not open with a frontmatter block that closes.",
+      "source": "85133f183b21003d"
+    },
+    "refusal.dinah.storage-precondition.unknown-key": {
+      "text": " Diese Datei trägt einen Frontmatter-Schlüssel, den dieser Build nicht schreibt und den keine Basiszeile tragen kann.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file carries a key outside the set the build writes for a comment or an item. A baseline is the journal line the migration writes to state a member in full.",
+      "source": "922e3f82d2b8005a"
+    },
+    "refusal.dinah.storage-precondition.unknown-citation-member": {
+      "text": " Diese Datei trägt ein Zitierungsmitglied außer scheme, target und observed.",
+      "context": "Spliced onto refusal.dinah.storage-precondition. scheme, target and observed are the members a citation entry carries and are not translated.",
+      "source": "18915e2f6390771b"
+    },
+    "refusal.dinah.storage-precondition.ordinal-missing": {
+      "text": " Diese Datei trägt keine Ordnungszahl.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file's member carries no creation ordinal.",
+      "source": "2f59ad2940f4bebb"
+    },
+    "refusal.dinah.storage-precondition.ordinal-duplicate": {
+      "text": " Diese Datei trägt eine Ordnungszahl, die auch ein anderes Mitglied ihrer Sammlung trägt.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where two members of one collection, live or archived, carry one creation ordinal.",
+      "source": "defe70ff9cfbda64"
+    },
+    "refusal.dinah.storage-precondition.identifier-shared": {
+      "text": " Das Mitglied dieser Datei trägt eine Kennung, die auch ein anderes Mitglied seiner Karte trägt.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where two members of one card, a comment and an item or two comments on different holders, carry one identifier.",
+      "source": "54d99f30a62ad81c"
+    },
+    "refusal.dinah.storage-precondition.destination-differs": {
+      "text": " Ein Anhang würde in dieses Verzeichnis verschoben, das bereits einen anderen Baum enthält.",
+      "context": "Spliced onto refusal.dinah.storage-precondition where an attachment of an item's comment would move to the comments collection of its card and something different already stands there.",
+      "source": "ed059a990bae19b6"
+    },
+    "refusal.dinah.storage-precondition.next": {
+      "text": " Repariere jede aufgeführte Datei, von Hand oder bei einer fehlenden Ordnungszahl mit `dinah check --migrate-ordinals`, und führe die Migration dann erneut aus; nichts wurde geschrieben.",
+      "context": "The next step of refusal.dinah.storage-precondition. dinah check --migrate-ordinals is a command line and is not translated.",
+      "source": "aa1f38a90711fd53"
+    },
+    "check.stray-member-file": {
+      "text": "der Kommentar oder Punkt {detail} steht in einer eigenen Datei in einer Werkbank, deren Mitglieder Zeilen ihrer Protokolle sind, von einem älteren Build geschrieben; führe `dinah check --migrate-storage` aus, um ihn zu überführen",
+      "context": "A check finding at defect severity: a comment.md or item.md file standing in a store in the card-unit layout, which only a process of an older build that had the store open before its migration can have written. {detail} is the member's identifier, and the file's path follows the sentence. dinah check --migrate-storage is a command line and is not translated; a run on a migrated store carries the file as a baseline and deletes it.",
+      "source": "fb0042eb4798ecf5"
+    },
+    "check.store-awaiting-migration": {
+      "text": "die Werkbank führt ihre Kommentare und Punkte noch im alten Aufbau; beende jeden Dinah-Prozess, der sie geöffnet hat, und führe dann `dinah check --migrate-storage --backup <dir>` aus",
+      "context": "A check finding printed on a store below the card-unit format by a build whose layout is switched on, where check runs none of its other checks. dinah check --migrate-storage --backup <dir> is a command line and its placeholder and is not translated.",
+      "source": "1ede8bdced056dd8"
+    },
+    "storage.heading": {
+      "text": "Speichermigration von \"{title}\" ({detail})",
+      "context": "The first line of the storage migration's account. {title} is the workbench's title and {detail} its identifier.",
+      "source": "cd2667b27f91d96f"
+    },
+    "storage.backup": {
+      "text": "Sicherung: {path} (geprüft, {digest})",
+      "context": "A label and value line of the storage migration's account: the copy of the store and the SHA-256 it was verified by. {digest} is a machine value.",
+      "source": "97c316180e4b67d3"
+    },
+    "storage.format": {
+      "text": "Format: {from} zu {to}",
+      "context": "A label and value line of the storage migration's account: the storage format the store declared and the one it moves to.",
+      "source": "54ad1d9af0f0e3d8"
+    },
+    "storage.cards": {
+      "text": "Karten: {live} aktiv, {archived} archiviert",
+      "context": "A label and value line of the storage migration's account: how many live and archived cards it carries.",
+      "source": "2d3cbaa8e40c192a"
+    },
+    "storage.items": {
+      "text": "Überführte Punkte: {count} ({live} auf aktiven Karten, {archived} auf archivierten Karten)",
+      "context": "A label and value line of the storage migration's account: the checklist items it carries.",
+      "source": "43d5cbf3e84f9721"
+    },
+    "storage.comments": {
+      "text": "Überführte Kommentare: {count} ({card} auf Karten, {item} auf Punkten, {column} auf Spalten)",
+      "context": "A label and value line of the storage migration's account: the comments it carries, by what they hang on.",
+      "source": "26575108718274ab"
+    },
+    "storage.attachments": {
+      "text": "Anhänge: {checked} geprüft, {moved} verschoben",
+      "context": "A label and value line of the storage migration's account: how many attachments the proof covers and how many the run moved to the comments collection of their card or column.",
+      "source": "9a1c91d5c4f08f8b"
+    },
+    "storage.divergences.one": {
+      "text": "Beibehaltene Abweichungen: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the comments whose body differs from their recorded digest, carried with that digest, each named on a row below.",
+      "source": "93ed6eaf74692ba1"
+    },
+    "storage.divergences.other": {
+      "text": "Beibehaltene Abweichungen: {count}",
+      "context": "The same line as storage.divergences.one, for any other number, zero included.",
+      "source": "93ed6eaf74692ba1"
+    },
+    "storage.divergence": {
+      "text": "  {entry} (dinah accept-divergence hebt sie auf)",
+      "context": "One row under storage.divergences: a diverged comment's reference. dinah accept-divergence is a command and is not translated.",
+      "source": "734f5fca5d637cd3"
+    },
+    "storage.row": {
+      "text": "  {entry}",
+      "context": "One row under a list of the storage migration's account: a manifest key, a stray file's key, or a card reference.",
+      "verbatim": true,
+      "source": "a3b68000c1db3155"
+    },
+    "storage.strays.one": {
+      "text": "Überführte Nachzügler: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: comment or item files an older build's process wrote after their card's baselines, carried as baselines and deleted.",
+      "source": "e258053cde1e281e"
+    },
+    "storage.strays.other": {
+      "text": "Überführte Nachzügler: {count}",
+      "context": "The same line as storage.strays.one, for any other number, zero included.",
+      "source": "e258053cde1e281e"
+    },
+    "storage.written-during.one": {
+      "text": "Während des Laufs geschrieben: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: members some already-open process wrote while the run was in progress, named by manifest key on rows below.",
+      "source": "d8105d526ab2ff0c"
+    },
+    "storage.written-during.other": {
+      "text": "Während des Laufs geschrieben: {count}",
+      "context": "The same line as storage.written-during.one, for any other number, zero included.",
+      "source": "d8105d526ab2ff0c"
+    },
+    "storage.accepted.one": {
+      "text": "Akzeptiert: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the manifest keys the operator accepted with --accept-difference.",
+      "source": "16c3ce7ca4d302ad"
+    },
+    "storage.accepted.other": {
+      "text": "Akzeptiert: {count}",
+      "context": "The same line as storage.accepted.one, for any other number, zero included.",
+      "source": "16c3ce7ca4d302ad"
+    },
+    "storage.claims-passed.one": {
+      "text": "Übergangene Übernahmen: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the claimed cards a forced run passed, named on rows below.",
+      "source": "1cc58fdb7d34c1c9"
+    },
+    "storage.claims-passed.other": {
+      "text": "Übergangene Übernahmen: {count}",
+      "context": "The same line as storage.claims-passed.one, for any other number, zero included.",
+      "source": "1cc58fdb7d34c1c9"
+    },
+    "storage.files": {
+      "text": "Dateien: {before} vorher, {after} nachher",
+      "context": "A label and value line of the storage migration's account: the files the store held before the run and after it, or on a rehearsal after the run it would make.",
+      "source": "f96336c2dc15d890"
+    },
+    "storage.manifest-before": {
+      "text": "Manifest vorher: {hash} ({lines} Zeilen)",
+      "context": "A label and value line of the storage migration's account: the SHA-256 of the manifest the old layout states, and its line count. {hash} is a machine value.",
+      "source": "4438b2d3eacba26"
+    },
+    "storage.manifest-after": {
+      "text": "Manifest nachher: {hash} ({lines} Zeilen)",
+      "context": "A label and value line of the storage migration's account: the SHA-256 of the manifest the journals state after the run. Equal to the line above when nothing was lost.",
+      "source": "c7813d0a57fd1c5b"
+    },
+    "storage.rehearsed": {
+      "text": "Nichts wurde geschrieben.",
+      "context": "The last line of a rehearsed storage migration's account.",
+      "source": "1ab13ac9f128f69a"
+    },
+    "storage.already": {
+      "text": "Der Speicher deklariert bereits das Format {to}, daher gibt es nichts zu migrieren.",
+      "context": "The line a storage migration prints in place of its account when the store already declares the card-unit format and carries no migration in progress. {to} is that format. A comment.md or item.md an older build wrote since is still carried, and listed after this line.",
+      "source": "678c2caed5979819"
+    },
+    "storage.done": {
+      "text": "Der Speicher deklariert jetzt das Format {to}. Ein älterer Build als dieser verweigert ihn.",
+      "context": "The line a finished storage migration prints.",
+      "source": "485aa9e171dde498"
+    },
+    "storage.stop-processes": {
+      "text": "Beende jeden Dinah-Prozess, bevor du eine weitere Werkbank migrierst.",
+      "context": "The last line a finished storage migration prints. A process of an older build that already has a store open is the one writer the migration cannot keep out.",
+      "source": "b10bc744d2385faa"
+    },
+    "storage.stopped": {
+      "text": "Die Migration hat in Phase {phase} angehalten; derselbe Befehl setzt sie fort.",
+      "context": "The line a storage migration prints where it stopped part way. {phase} is the phase number, 0 to 4.",
+      "source": "e984fdc252f7e659"
+    },
+    "storage.held": {
+      "text": "Die Sperre von {card} hält {owner}; führe denselben Befehl erneut aus, sobald sie freigegeben ist.",
+      "context": "The reason a storage migration stopped: another process holds a card's lock. {card} is the card's reference and {owner} who holds the lock.",
+      "source": "1196c4ce9f1e6dfc"
+    },
+    "storage.refused": {
+      "text": "Das Dateisystem hat {path} verweigert: {error}. Führe denselben Befehl erneut aus, sobald nichts die Datei mehr offen hält.",
+      "context": "The reason a storage migration stopped: a rename or a removal was refused, as Windows refuses one while a process holds the file open. {error} is the operating system's own message and is not translated.",
+      "source": "27970366c105c740"
+    },
+    "storage.difference": {
+      "text": "{key} weicht ab:",
+      "context": "The line naming one manifest line the storage migration's proof found differing. {key} is the manifest key, which --accept-difference takes.",
+      "source": "23e26d452c5cfed1"
+    },
+    "storage.difference-before": {
+      "text": "  vorher: {entry}",
+      "context": "The manifest line the old layout states, under storage.difference. {entry} is the machine line.",
+      "source": "2205ce447e63befa"
+    },
+    "storage.difference-after": {
+      "text": "  nachher: {entry}",
+      "context": "The manifest line the journals state, under storage.difference. {entry} is the machine line.",
+      "source": "c92b6b0520e166d3"
+    },
+    "storage.accept-or-restore": {
+      "text": "Ein Teil des alten Aufbaus ist bereits entfernt; stelle daher die Sicherung unter {backup} wieder her, oder akzeptiere jede genannte Zeile mit --accept-difference <key>.",
+      "context": "The line a storage migration prints where its proof found a difference after it had begun removing the old layout, so nothing can be recomputed. --accept-difference <key> is a flag and its placeholder and is not translated.",
+      "source": "d415f143ee0328f8"
+    },
+    "check.storage-precondition": {
+      "text": "diese Datei hält die Speichermigration auf ({detail}); repariere sie und führe dann `dinah check --migrate-storage` aus",
+      "context": "A check finding at defect severity, printed on a store below the card-unit format once the layout is switched on: a file the storage migration would refuse to run over. {detail} is the machine token naming the precondition it breaks, which dinah.storage-precondition's rows carry too, and the file's path follows the sentence. dinah check --migrate-storage is a command line and is not translated.",
+      "source": "a84983d06763568a"
+    },
+    "param.check.migrate-storage.summary": {
+      "text": "überführt jeden Kommentar und jeden Checklistenpunkt in sein Protokoll, weist nach, dass nichts verloren ging, entfernt den alten Aufbau und stempelt die Werkbank mit dem Karteneinheit-Format",
+      "context": "The written meaning of the --migrate-storage flag of check. It is the workbench operator's own act, takes a backup first, and is refused while any card is held.",
+      "source": "ce5f169be3f0938b"
+    },
+    "param.check.backup.summary": {
+      "text": "das Verzeichnis, in das die Speichermigration den ganzen Speicher kopiert, bevor sie etwas ändert",
+      "context": "The written meaning of the --backup flag of check, which takes one directory, empty or holding a backup this migration already started of this workbench.",
+      "source": "b3156eb9ee19ef80"
+    },
+    "param.check.accept-difference.summary": {
+      "text": "übernimmt die Zeile, die der Nachweis der Speichermigration unter diesem Manifestschlüssel als abweichend gefunden hat, als Aufzeichnung, sobald ein Teil des alten Aufbaus entfernt ist",
+      "context": "The written meaning of the --accept-difference flag of check, which may be given once per manifest key the stopped run named.",
+      "source": "a88ec663f961b47e"
+    },
+    "refusal.dinah.card-projection-unreadable": {
+      "text": "Die Kartendatei {detail} fehlt, lässt sich nicht lesen oder enthält Konfliktmarkierungen, und ihr Protokoll beschreibt die Karte weiterhin.",
+      "context": "The sentence printed after the refusal name dinah.card-projection-unreadable. {detail} is the card's card.md. In the card-unit layout card.md is a projection the card's journal can reproduce, so a card whose card.md is damaged is refused every read and write until it is written back.",
+      "source": "a7b32301dcfda975"
+    },
+    "refusal.dinah.card-projection-unreadable.next": {
+      "text": " Führe `dinah check --rebuild` aus, um sie aus dem Protokoll neu zu schreiben, oder löse den Konflikt von Hand.",
+      "context": "The next step of refusal.dinah.card-projection-unreadable. dinah check --rebuild is a command line and is not translated.",
+      "source": "f82161bda86883c7"
+    },
+    "check.card-projection-unreadable": {
+      "text": "die Kartendatei von {detail} fehlt, lässt sich nicht lesen oder enthält Konfliktmarkierungen, während ihr Protokoll lesbar ist; führe `dinah check --rebuild` aus, um sie neu zu schreiben",
+      "context": "A check finding at defect severity: a card in the card-unit layout whose card.md is damaged while its journal reads. {detail} is the card's identifier. dinah check --rebuild is a command line and is not translated.",
+      "source": "7d8ca505684601f9"
+    },
+    "check.card-projection-diverged": {
+      "text": "Kartendatei und Protokoll der Karte stimmen bei {detail} nicht überein; das ist eine Bearbeitung von Hand, die noch kein Schreibvorgang bezeugt hat; der nächste Schreibvorgang auf der Karte bezeugt sie, oder führe `dinah check --witness` aus",
+      "context": "A check finding at cleanup severity: a card in the card-unit layout whose card.md differs from the replay of its journal. {detail} is the keys that differ, separated by commas, the body named body. dinah check --witness is a command line and is not translated.",
+      "source": "665ab9bc1f84477d"
+    },
+    "param.check.rebuild.summary": {
+      "text": "schreibt jede beschädigte Kartendatei aus dem Protokoll ihrer Karte neu",
+      "context": "The written meaning of the --rebuild flag of check, which writes card.md back from the journal for every card in the card-unit layout whose card.md is missing, will not parse or carries conflict markers.",
+      "source": "87c75c9ce7cbe1e9"
+    },
+    "check.rebuilt.one": {
+      "text": "{count} Kartendatei aus ihrem Protokoll neu geschrieben.",
+      "context": "The line the rebuild prints for what it wrote, for exactly one card. Followed by one line per rebuilt card identifier.",
+      "source": "eb214149551feff2"
+    },
+    "check.rebuilt.other": {
+      "text": "{count} Kartendateien aus ihren Protokollen neu geschrieben.",
+      "context": "The line the rebuild prints for what it wrote, for any other number, zero included. Followed by one line per rebuilt card identifier.",
+      "source": "24ba6920c427f10a"
+    },
+    "refusal.dinah.not-redactable": {
+      "text": "{detail} ist weder ein Kommentar noch ein Checklistenpunkt, und dinah redact ersetzt nur deren Text.",
+      "context": "The sentence printed after the refusal name dinah.not-redactable. {detail} is the reference as the caller typed it, which reached a card, a column, a workstream, the workbench, an attachment or a payload. dinah redact is a command name and is not translated.",
+      "source": "e00740c3c342a846"
+    },
+    "refusal.dinah.not-redactable.next": {
+      "text": " Nenne einen Kommentar oder einen Punkt, etwa `dinah redact <card>/comments/1`; ein Anhang wird mit `dinah delete` entfernt.",
+      "context": "The next step of refusal.dinah.not-redactable. The two command lines are not translated; <card> is a placeholder the reader replaces with a card's reference.",
+      "source": "abcaaa8fc519cdb4"
+    },
+    "refusal.dinah.already-redacted": {
+      "text": "Der Text von {detail} wurde bereits geschwärzt, und nichts stellt ihn wieder her.",
+      "context": "The sentence printed after the refusal name dinah.already-redacted. {detail} is the member's identifier. A redaction replaces a comment's or an item's text with its digest for good, so a second one has nothing left to replace.",
+      "source": "37f59b9eef54da78"
+    },
+    "refusal.dinah.nothing-to-redact": {
+      "text": "Keine Zeile des Protokolls enthält Text von {detail}, daher wurde nichts geschwärzt und nichts geschrieben.",
+      "context": "The sentence printed after the refusal name dinah.nothing-to-redact. {detail} is the member's identifier. The member's text is in no line of the journal: a comment deleted before the storage migration kept its text only in the file the deletion removed, and an empty comment has none, so a redaction would record a removal that did not happen.",
+      "source": "b219739a1c7badd"
+    },
+    "refusal.dinah.torn-sidecar-present": {
+      "text": "{detail} enthält ein abgerissenes Protokollfragment, das den Text enthalten kann und sich nicht lesen lässt, um ihn zu finden.",
+      "context": "The sentence printed after the refusal name dinah.torn-sidecar-present. {detail} is the torn-tail sidecar standing beside the journal, or the journal itself where its last line is torn. A redaction would leave a copy of the text in the fragment, so it refuses until a person has dealt with it.",
+      "source": "db32cafdc7011d98"
+    },
+    "refusal.dinah.torn-sidecar-present.next": {
+      "text": " Lies das Fragment, lösche es von Hand, sobald nichts darin aufbewahrt werden muss, und führe die Schwärzung erneut aus.",
+      "context": "The next step of refusal.dinah.torn-sidecar-present. No command deletes a torn-tail fragment, because only a person can say it held nothing worth keeping.",
+      "source": "789365f960b35004"
+    },
+    "refusal.dinah.redacted": {
+      "text": "Der Text von {detail} wurde geschwärzt, und kein Befehl schreibt ihn erneut.",
+      "context": "The sentence printed after the refusal name dinah.redacted, raised by a write to a redacted comment's body, by accepting a divergence of it, or by a write to a redacted item's text. {detail} is the reference as the caller typed it. The member's other fields stay writable.",
+      "source": "19cb9d4226858284"
+    },
+    "check.redact-leftover": {
+      "text": "ein dinah redact, das vor dem Ersetzen seines Protokolls anhielt, hat {detail} zurückgelassen, und das Protokoll daneben enthält noch den alten Inhalt; check hat es entfernt",
+      "context": "A check finding at cleanup severity: the file a stopped dinah redact composed a journal's new content in and never renamed over the journal. {detail} is that file's name. dinah check removes it, and nothing was lost, since the journal was never replaced. dinah redact is a command name and is not translated.",
+      "source": "e59c88739c15bf41"
+    },
+    "param.redact.member.summary": {
+      "text": "der Kommentar oder Checklistenpunkt, dessen Text durch seinen Hashwert ersetzt wird",
+      "context": "The meaning of the member argument of `dinah redact`, printed in that command's arguments table. The digest is the text's SHA-256.",
+      "source": "2b0617a78435974a"
+    },
+    "cmd.redact.summary": {
+      "text": "Den Text eines Kommentars oder Punkts endgültig durch seinen Hashwert ersetzen",
+      "context": "The one-line summary of the redact command, printed in the command list and above its own help. The digest is the text's SHA-256.",
+      "source": "13a4c6dc07c823fd"
+    },
+    "cmd.redact.note": {
+      "text": "Nur der Operator der Werkbank darf schwärzen. Ohne --yes nennt der Befehl, was er umschreiben würde, und schreibt nichts. Der Hashwert verrät den entfernten Text nur jemandem, der ihn bereits kennt, doch ein kurzer oder erratbarer Text lässt sich durch Ausprobieren zurückgewinnen. Text, der den Speicher bereits verlassen hat, in einer Antwort von dinah changes, einem Klon, der Git-Historie oder einer Migrationssicherung, liegt außerhalb seiner Reichweite, und die Anhänge eines geschwärzten Kommentars bleiben, bis dinah delete sie entfernt.",
+      "context": "The note printed under the redact command's own help, after its summary. It says who may run it, what the run without --yes does, what the digest does and does not protect, and what the redaction cannot reach. --yes, dinah changes and dinah delete are command vocabulary and are not translated.",
+      "source": "3e192b465d237877"
+    },
+    "show.redacted": {
+      "text": "Geschwärzt von {actor} am {ts}.",
+      "context": "The line show prints in place of a redacted comment's body or a redacted item's text. {actor} is the operator who ran dinah redact and {ts} the time of the redaction, as the journal records it.",
+      "source": "b9815f869a029d87"
+    },
+    "redact.leftover": {
+      "text": "{path} entfernt, das ein angehaltenes dinah redact zurückgelassen hatte.",
+      "context": "The first line of dinah redact's account where it found and removed the file an earlier run composed a journal in and never put in place. {path} is that file.",
+      "source": "265c1aa8dc198831"
+    },
+    "redact.done": {
+      "text": "{member} in {journal} geschwärzt.",
+      "context": "The heading of dinah redact's account after it rewrote the lines. {member} is the reference as typed and {journal} the journal the lines stand in.",
+      "source": "461dfc9e76f4fb2b"
+    },
+    "redact.planned": {
+      "text": "Würde {member} in {journal} schwärzen; nichts wurde geschrieben, und --yes schreibt die Zeilen um.",
+      "context": "The heading of dinah redact's account when it ran without --yes and wrote nothing. {member} is the reference as typed and {journal} the journal the lines stand in. --yes is a flag and is not translated.",
+      "source": "1653faebbdce53fe"
+    },
+    "redact.own": {
+      "text": "Eigene Zeilen: {count}",
+      "context": "A label and value in dinah redact's account: how many of the member's own journal lines carry its text.",
+      "source": "dc833efb74655e27"
+    },
+    "redact.legacy": {
+      "text": "Alte Antwortzeilen: {count}",
+      "context": "A label and value in dinah redact's account: how many lines from before answers were comments carry a version of the member's text, as an item's note once did.",
+      "source": "27f38e6cc77076ec"
+    },
+    "redact.lines": {
+      "text": "Zeilen insgesamt: {count}",
+      "context": "A label and value in dinah redact's account: the sum of the two counts above it, which the redacted line records.",
+      "source": "cbdb95338f6b5f95"
+    },
+    "redact.attachments-left": {
+      "text": "Verbliebene Anhänge:",
+      "context": "The label above the attachments a redacted comment keeps, which the redaction does not touch.",
+      "source": "f6bc2a9618dadcf0"
+    },
+    "redact.attachment-left": {
+      "text": "{ref} ({filename})",
+      "context": "One attachment a redaction left in place, printed under redact.attachments-left. {ref} is the attachment's reference and {filename} its file's name; the line carries nothing to translate.",
+      "verbatim": true,
+      "source": "784ca8c0cf5a3128"
+    },
+    "redact.attachments-note": {
+      "text": "Diese Anhänge sind weiterhin lesbar; entferne sie mit dinah delete, wenn sie weg müssen.",
+      "context": "The sentence under the attachments a redacted comment keeps. dinah delete is a command and is not translated.",
+      "source": "6478794b7f2820b4"
+    },
+    "redact.beyond-reach": {
+      "text": "Text, der den Speicher bereits verlassen hat, in einer Antwort von dinah changes, einem Klon, der Git-Historie oder einer Migrationssicherung, liegt außerhalb der Reichweite dieses Befehls.",
+      "context": "The last line of dinah redact's account. dinah changes is a command and is not translated.",
+      "source": "5f6c39197a6c5224"
+    },
+    "interactive.menu.redact": {
+      "text": "Kommentar oder Punkt, dessen Text endgültig durch seinen Hashwert ersetzt wird:",
+      "context": "The title of the menu of a card's comments and items that dinah tui offers the workbench operator to redact. Choosing a row redacts at once, and nothing undoes it.",
+      "source": "4ae323f00b4807cf"
+    },
+    "interactive.actions.redact": {
+      "text": "den Text eines Kommentars oder Punkts schwärzen",
+      "context": "A row of dinah tui's actions menu, which replaces a comment's or an item's text with its digest for good.",
+      "source": "c5f3836a16f1796c"
+    },
+    "interactive.acted.redact": {
+      "text": "ein Element von {ref} geschwärzt",
+      "context": "Shown in dinah tui's message row after a comment's or an item's text was redacted. {ref} is the card's reference.",
+      "source": "5b331946e23e45c"
+    },
     "check.comment-body-diverged": {
       "text": "Der Text des Kommentars {detail} stimmt nicht mehr mit der Pruefsumme ueberein, die Dinah darueber aufgezeichnet hat",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

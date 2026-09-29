@@ -65,6 +65,11 @@ type Library struct {
 	// taken, where a test runs a whole second write and then asserts that the
 	// first one reads it rather than overwriting it.
 	Interpose func(step string)
+	// commitFailure, when set, is called by commit after card.md is saved
+	// and before the act's journal lines are appended, and an error it
+	// answers stops the act there as a crash between the two writes would.
+	// Only tests set it.
+	commitFailure func(card *bench.Card) error
 	// ReadOnly, when set, makes the library refuse any write a read would make.
 	// A read that finds a claim lapsed answers ErrReadOnly rather than taking the
 	// lock. The HTTP head sets it on a library over a resident snapshot, whose
@@ -265,29 +270,18 @@ type Request struct {
 	Replace bool
 	// Confirm is the deliberate flag a delete requires.
 	Confirm bool
-	// PriorDigest is the digest of a comment's body as it stood before an
-	// editor was handed the file, which RecordCommentEdit reads to tell an
-	// edit this author made from one that was already there. The head
-	// computes it, because the head is what opens the editor.
-	PriorDigest string
 	// ExpectedDigest is the digest the caller last observed recorded on a
 	// comment's anchor, which turns a write of that comment into a
 	// compare-and-swap on the digest key rather than on the body.
 	//
-	// It is a second field rather than a second use of PriorDigest, and the
-	// two are not the same value. PriorDigest is what the tool computed from
-	// a body it read; this is what the tool read out of the header. They
-	// coincide on a comment nobody has hand-edited, and they part company on
-	// one somebody has, which is exactly the case each is used to judge.
-	//
-	// Which one a caller can supply is decided by what it was able to
-	// observe. `dinah edit` opens the file itself and sees the body before
-	// and after, so it compares bodies. An editor writes the file on save,
-	// so by the time an extension's save handler runs the body it would have
-	// compared against is gone; what survives is the header, and the digest
-	// in it is the only thing left to compare. A caller supplying this
+	// It is what the tool read out of the header rather than a digest of a
+	// body it read, and the two part company exactly on a comment somebody
+	// has hand-edited. `dinah edit` and the editor extension each read the
+	// comment before a person started typing and write the change after,
+	// so by then the body they would compare against may have moved; the
+	// recorded digest is what they last saw. A caller supplying this
 	// therefore says: I last saw this digest recorded, nothing has written
-	// the comment through a verb since, and the change on disk is mine.
+	// the comment through a verb since, and the change I am writing is mine.
 	ExpectedDigest string
 	// Force carries a delete past the refusal an item's designation raises,
 	// reopening that item as part of the same act. It inherits the reopen's
@@ -396,6 +390,19 @@ type Request struct {
 	// scalar text. Without Confirm it names the lines and writes nothing,
 	// which is why it carries no rehearsal of its own.
 	MigrateRawLines bool
+	// MigrateStorage asks check to carry the workbench from the old layout,
+	// where every comment and checklist item is a directory of its own, to
+	// the card-unit layout, where each is lines of its journal. It is the
+	// operator's alone, it runs as a rehearsal while the layout is switched
+	// off, and a writing run takes a backup of the store first.
+	MigrateStorage bool
+	// Backup is the directory a storage migration copies the store into
+	// before its first change.
+	Backup string
+	// AcceptDifference are the manifest keys a storage migration's operator
+	// accepts the after line of, where the proof found them differing after
+	// the old layout had begun to be removed.
+	AcceptDifference []string
 	// Rehearse turns the conversion into a rehearsal: it decides every item
 	// by the same rules, answers the identical report, and writes no anchor,
 	// no journal line and no format stamp. A rehearsal is refused to nobody
@@ -481,6 +488,12 @@ type Request struct {
 	// migrate- prefix on the flag because it repairs a disagreement that is
 	// true right now rather than carrying a workbench past an older shape.
 	MigrateWitness bool
+	// Rebuild asks check to write card.md back from the journal for every
+	// card in the card-unit layout whose card.md is absent, will not parse
+	// or carries conflict markers while its journal reads. It is open to any
+	// owner, as the witness is, since it writes only what the journal
+	// already records.
+	Rebuild bool
 	// WorkbenchSource names the rung that resolved the active workbench for
 	// this invocation (flag, environment, search, or config), set by the
 	// head once discovery has run, since that is the earliest point the
@@ -568,6 +581,12 @@ type Request struct {
 	// when a different workbench asks, and no walk has to clear the day
 	// before crossing.
 	day *requestDay
+	// cardLock is the card lock Do or Pull holds for the length of the act,
+	// set once the lock is taken and cleared when it is given back. commit
+	// hands it to every append it makes, and bench.AppendEvent refuses an
+	// append whose lock does not guard the card's own directory, so an act
+	// that reached commit without it is refused rather than written.
+	cardLock *bench.Lock
 }
 
 // requestDay is the day a request was answered on and the workbench it was
@@ -943,22 +962,15 @@ func (l *Library) view(card *bench.Card, day *requestDay) (*CardView, error) {
 }
 
 // viewWith is view over a Positions the caller made, so a composition that
-// goes on to read the card's members reads them through the listings and the
-// anchor texts the view already took. The checklist count and the tallies
-// come from one listing of the checklist, and each item is read once for both.
+// goes on to read the card's members reads them through the record the view
+// already took. The checklist count and the tallies come from one read of the
+// card's members, and each item is read once for both.
 func (l *Library) viewWith(card *bench.Card, day *requestDay, positions *bench.Positions) (*CardView, error) {
-	listed, err := positions.ChildIDs(card.Dir, bench.KindCard)
+	counts, items, err := positions.CardCounts(l.Bench, card)
 	if err != nil {
 		return nil, err
 	}
-	counts := make(map[string]int, len(listed))
-	for mount, ids := range listed {
-		counts[mount] = len(ids)
-	}
-	tally, err := l.Bench.TallyItems(card.Dir, listed[bench.ChecklistDir], positions.Item)
-	if err != nil {
-		return nil, err
-	}
+	tally := l.Bench.TallyItems(items)
 	v := &CardView{
 		ID:       card.ID,
 		Ref:      card.Ref(l.Bench.Slug),
@@ -983,7 +995,7 @@ func (l *Library) viewWith(card *bench.Card, day *requestDay, positions *bench.P
 		Revision:        card.Revision,
 
 		AttachmentCount: counts[bench.AttachmentsDir],
-		ChecklistCount:  counts[bench.ChecklistDir],
+		ChecklistCount:  counts[bench.ChecklistSegment],
 		BlockingItems:   tally.Blocking,
 		OperatorPending: tally.AwaitingOperator,
 		ChildCount:      bench.ChildTotal(counts),
@@ -1444,6 +1456,19 @@ func (l *Library) ok(req *Request, card *bench.Card) *Response {
 		}
 		response.Card = view
 		response.Basis = card.Revision
+	}
+	return response
+}
+
+// okWithDetail is ok carrying detail, the reference or value the act answers
+// with. The detail is written only on an answer that is ok: where reading the
+// card back for the answer failed, the refusal keeps the detail its own error
+// named, the journal and line of a damaged journal among them, rather than
+// reporting the act's own answer under that refusal's name.
+func (l *Library) okWithDetail(req *Request, card *bench.Card, detail string) *Response {
+	response := l.ok(req, card)
+	if response.Outcome == contract.OutcomeOK {
+		response.Detail = detail
 	}
 	return response
 }

@@ -160,7 +160,7 @@ func (l *Library) Spend(req *Request) *Response {
 	}
 	defer lock.Release()
 	ev.TS = now
-	if err := bench.AppendEvent(card.JournalPath(), *ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, card.JournalPath(), *ev); err != nil {
 		return l.FromError(req, err)
 	}
 	return l.ok(req, card)

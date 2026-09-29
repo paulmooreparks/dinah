@@ -78,6 +78,7 @@ func (l *Library) Raise(req *Request) *Response {
 	}
 	ref := columnRef(column)
 	was := reloaded.ColumnTierFor(l.Bench, ref)
+	spelled := l.Bench.JournaledTierRef(reloaded.ColumnTierRef(l.Bench, ref), ref)
 	reloaded.SetColumnTier(l.Bench, ref, absolute)
 	reloaded.State = contract.StateReady
 	reloaded.Holder = ""
@@ -92,13 +93,14 @@ func (l *Library) Raise(req *Request) *Response {
 		Actor:       req.Acting(),
 		Column:      column.ID,
 		ColumnTitle: column.Title,
+		ColumnRef:   spelled,
 		From:        was,
 		To:          absolute,
 		Expr:        expr,
 		Against:     against,
 		Reason:      reason,
 	}
-	if err := bench.AppendEvent(reloaded.JournalPath(), raised); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), raised); err != nil {
 		return l.FromError(req, err)
 	}
 	freed := bench.Event{
@@ -106,11 +108,10 @@ func (l *Library) Raise(req *Request) *Response {
 		Event: contract.EventReleased,
 		Actor: req.Acting(),
 	}
-	if err := bench.AppendEvent(reloaded.JournalPath(), freed); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), freed); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, reloaded)
-	response.Detail = absolute
+	response := l.okWithDetail(req, reloaded, absolute)
 	return response
 }
 

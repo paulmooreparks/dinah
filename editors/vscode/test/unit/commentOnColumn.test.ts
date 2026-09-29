@@ -26,6 +26,7 @@ import { ENGLISH } from "../../src/l10n";
 import type { RootRow, TreeElement } from "../../src/tree";
 import { columnActionsFor } from "../../src/tree";
 import type { ColumnView } from "../../src/wire";
+import { memberKey, memberLocation } from "../../src/memberDocument";
 
 const extensionRoot = join(__dirname, "..", "..", "..");
 const manifest = JSON.parse(
@@ -164,7 +165,7 @@ const silentHost: ColumnCommandHost = {
 	log: () => undefined,
 };
 
-test("Comment on Column mints the comment and opens its file", async () => {
+test("Comment on Column mints the comment and opens its document", async () => {
 	// The row carries no ColumnView, which is the case the manifest clause
 	// exists to admit, and the whole act still resolves: a build resolving
 	// through the creation commands' own column context answers undefined
@@ -172,14 +173,14 @@ test("Comment on Column mints the comment and opens its file", async () => {
 	//
 	// Two calls are asserted rather than one, because the second is what the
 	// author sees. `dinah comment <column>` with no text mints the entity and
-	// answers with its identifier, and `dinah path` turns that into the file
+	// answers with its identifier, and `dinah show` reads it back as the document
 	// the window opens; a build that made the comment and opened nothing would
 	// satisfy a check on the first call alone.
 	const argvs: string[][] = [];
 	const spawner: Spawner = async (_exe, argv): Promise<SpawnOutcome> => {
 		argvs.push([...argv]);
-		const stdout = argv.includes("path")
-			? JSON.stringify({ path: "C:/bench/columns/c1/comments/a1/comment.md" })
+		const stdout = argv.includes("show")
+			? ["---", "ts: 2026-08-01T09:00:00Z", "author: ana", "ordinal: 1", "digest: abc123", "---", ""].join("\n")
 			: JSON.stringify({ outcome: "ok", verb: "comment", detail: "a00000000001" });
 		return { code: 0, stdout, stderr: "" };
 	};
@@ -212,6 +213,7 @@ test("Comment on Column mints the comment and opens its file", async () => {
 		t: ENGLISH,
 		commentHost,
 		openComments: new Map(),
+		openItems: new Map(),
 	};
 
 	const report = await invokeCommentOnColumn(
@@ -232,16 +234,18 @@ test("Comment on Column mints the comment and opens its file", async () => {
 		false,
 		"the comment verb was handed a dash, which is the form that reads a body from a pipe",
 	);
-	const located = argvs.find((argv) => argv.includes("path"));
-	assert.notEqual(located, undefined, "nothing asked where the new comment's file is");
-	assert.ok(located?.includes("a00000000001"), "the path call named some other comment");
+	const located = argvs.find((argv) => argv.includes("show"));
+	assert.notEqual(located, undefined, "nothing read the new comment back");
+	assert.ok(located?.includes("a00000000001"), "the show call named some other comment");
+	const root = located?.[(located?.indexOf("--workbench") ?? -2) + 1] ?? "";
+	const address = { ref: "a00000000001", root };
 	assert.deepEqual(
 		opened,
-		["C:/bench/columns/c1/comments/a1/comment.md"],
-		"the file the path call named was not opened",
+		[memberLocation(address)],
+		"the new comment's member document was not opened",
 	);
 	assert.equal(
-		wiring.openComments.get("C:/bench/columns/c1/comments/a1/comment.md")?.ref,
+		wiring.openComments.get(memberKey(address))?.ref,
 		"a00000000001",
 		"the opened comment was not recorded, so a save of it would leave the editor's own bytes on disk",
 	);

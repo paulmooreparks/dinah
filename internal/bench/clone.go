@@ -35,6 +35,13 @@ func (i *Item) Clone() *Item {
 		return nil
 	}
 	clone := *i
+	if i.Citations != nil {
+		clone.Citations = append([]Citation(nil), i.Citations...)
+	}
+	if i.Redacted != nil {
+		redacted := *i.Redacted
+		clone.Redacted = &redacted
+	}
 	return &clone
 }
 
@@ -44,6 +51,10 @@ func (c *Comment) Clone() *Comment {
 		return nil
 	}
 	clone := *c
+	if c.Redacted != nil {
+		redacted := *c.Redacted
+		clone.Redacted = &redacted
+	}
 	return &clone
 }
 
@@ -66,6 +77,22 @@ func cloneEvents(events []Event) []Event {
 	for n := range clone {
 		if clone[n].Cards != nil {
 			clone[n].Cards = append([]string(nil), clone[n].Cards...)
+		}
+		if clone[n].Citations != nil {
+			clone[n].Citations = append([]CitationRecord(nil), clone[n].Citations...)
+		}
+		if clone[n].Accepted != nil {
+			clone[n].Accepted = append([]string(nil), clone[n].Accepted...)
+		}
+		if clone[n].WrittenDuringRun != nil {
+			clone[n].WrittenDuringRun = append([]string(nil), clone[n].WrittenDuringRun...)
+		}
+		if clone[n].Fields != nil {
+			fields := make(map[string]string, len(clone[n].Fields))
+			for key, value := range clone[n].Fields {
+				fields[key] = value
+			}
+			clone[n].Fields = fields
 		}
 	}
 	return clone

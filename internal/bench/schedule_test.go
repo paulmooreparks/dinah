@@ -23,7 +23,7 @@ func scheduleFixture(t *testing.T, format int, block string) string {
 // carries the block given.
 func readScheduleOf(t *testing.T, block string) (ScheduleSettings, []ScheduleDefect) {
 	t.Helper()
-	return openConditioned(t, scheduleFixture(t, StorageFormat, block)).Schedule()
+	return openConditioned(t, scheduleFixture(t, EffectiveStorageFormat(), block)).Schedule()
 }
 
 // defectOn reports the first defect naming a member, and false where none does.
@@ -134,11 +134,11 @@ func TestTheScheduleKeyIsMintedAndReadFromTheWorkbenchAlone(t *testing.T) {
 // which.
 func TestTodayIsReadInTheDeclaredZone(t *testing.T) {
 	instant := time.Date(2026, 10, 2, 17, 0, 0, 0, time.UTC)
-	singapore := openConditioned(t, scheduleFixture(t, StorageFormat, "dinah.schedule:\n  time_zone: Asia/Singapore\n"))
+	singapore := openConditioned(t, scheduleFixture(t, EffectiveStorageFormat(), "dinah.schedule:\n  time_zone: Asia/Singapore\n"))
 	if got := singapore.Today(instant).String(); got != "2026-10-03" {
 		t.Errorf("Singapore reads today as %s, want 2026-10-03", got)
 	}
-	plain := openConditioned(t, scheduleFixture(t, StorageFormat, ""))
+	plain := openConditioned(t, scheduleFixture(t, EffectiveStorageFormat(), ""))
 	if got := plain.Today(instant).String(); got != "2026-10-02" {
 		t.Errorf("a workbench naming no zone reads today as %s, want 2026-10-02", got)
 	}
@@ -212,7 +212,7 @@ func TestAQuotedDateIsHonoured(t *testing.T) {
 // no other, and a clean dated workbench at the current format reports none.
 func TestCheckReportsEveryScheduleDefect(t *testing.T) {
 	t.Run("a clean dated card", func(t *testing.T) {
-		root := scheduleFixture(t, StorageFormat, "dinah.schedule:\n  time_zone: Asia/Singapore\n")
+		root := scheduleFixture(t, EffectiveStorageFormat(), "dinah.schedule:\n  time_zone: Asia/Singapore\n")
 		edit(t, root, "state: ready", "state: ready\nstart_after: 2026-10-06\nstart_by: 2026-10-06\ndue: 2026-10-10")
 		for _, finding := range findingsOf(t, openConditioned(t, root)) {
 			if strings.HasPrefix(finding.Key, "check.schedule") {
@@ -251,14 +251,14 @@ func TestCheckReportsEveryScheduleDefect(t *testing.T) {
 			"dinah.schedule:\n  soon_days: 400\n":          "dinah.schedule soon_days 400",
 			"dinah.schedule:\n  soon_days: \"7\"\n":        `dinah.schedule soon_days "7"`,
 		} {
-			findings := findingsOf(t, openConditioned(t, scheduleFixture(t, StorageFormat, block)))
+			findings := findingsOf(t, openConditioned(t, scheduleFixture(t, EffectiveStorageFormat(), block)))
 			if !findingWith(findings, FindingScheduleMalformed, detail) {
 				t.Errorf("%q raised no finding reading %q: %+v", block, detail, findings)
 			}
 		}
 	})
 	t.Run("an unknown member", func(t *testing.T) {
-		findings := findingsOf(t, openConditioned(t, scheduleFixture(t, StorageFormat, "dinah.schedule:\n  timezone: UTC\n")))
+		findings := findingsOf(t, openConditioned(t, scheduleFixture(t, EffectiveStorageFormat(), "dinah.schedule:\n  timezone: UTC\n")))
 		if !findingWith(findings, FindingScheduleMemberUnknown, "timezone") {
 			t.Errorf("the unknown member was not reported: %+v", findings)
 		}
@@ -282,7 +282,7 @@ func TestTheBelowFormatFindingWaitsForADatedCard(t *testing.T) {
 	if !findingWith(findingsOf(t, openConditioned(t, root)), FindingScheduleBelowFormat, "9") {
 		t.Error("a format-9 workbench with a dated card raised no below-format finding naming 9")
 	}
-	current := scheduleFixture(t, StorageFormat, "")
+	current := scheduleFixture(t, EffectiveStorageFormat(), "")
 	edit(t, current, "state: ready", "state: ready\nstart_after: 2026-10-06")
 	if n := countOf(findingsOf(t, openConditioned(t, current)), FindingScheduleBelowFormat); n != 0 {
 		t.Errorf("a workbench at the current format raised %d", n)
@@ -302,16 +302,16 @@ func TestTheZoneNoticeNeedsADatedCardAndNoZone(t *testing.T) {
 		}
 		return false
 	}
-	undated := scheduleFixture(t, StorageFormat, "")
+	undated := scheduleFixture(t, EffectiveStorageFormat(), "")
 	if noticed(undated) {
 		t.Error("a workbench with no dated card was noticed")
 	}
-	dated := scheduleFixture(t, StorageFormat, "")
+	dated := scheduleFixture(t, EffectiveStorageFormat(), "")
 	edit(t, dated, "state: ready", "state: ready\ndue: 2026-10-10")
 	if !noticed(dated) {
 		t.Error("a dated workbench declaring no zone was not noticed, or not at its workbench.md")
 	}
-	zoned := scheduleFixture(t, StorageFormat, "dinah.schedule:\n  time_zone: UTC\n")
+	zoned := scheduleFixture(t, EffectiveStorageFormat(), "dinah.schedule:\n  time_zone: UTC\n")
 	edit(t, zoned, "state: ready", "state: ready\ndue: 2026-10-10")
 	if noticed(zoned) {
 		t.Error("a dated workbench declaring its zone was noticed")

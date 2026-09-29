@@ -171,7 +171,7 @@ func benchWithSomethingInEveryCollection(t *testing.T, library *verb.Library) *v
 	if err := handle.Close(); err != nil {
 		t.Fatalf("close %s: %v", journal, err)
 	}
-	if err := bench.AppendEvent(journal, bench.Event{TS: bench.Stamp(time.Now().UTC()), Event: contract.EventCommented, Actor: bench.NamedActor("alka")}); err != nil {
+	if err := appendLockedForTest(t, journal, bench.Event{TS: bench.Stamp(time.Now().UTC()), Event: contract.EventCommented, Actor: bench.NamedActor("alka")}); err != nil {
 		t.Fatalf("append past the bad line: %v", err)
 	}
 	return newLibraryAt(t, root)
@@ -360,4 +360,18 @@ func keysOf(surface map[string]listedTool) string {
 		names = append(names, name)
 	}
 	return strings.Join(names, " ")
+}
+
+// appendLockedForTest appends one line to a journal under the lock of the
+// journal's own entity, taking it for the one append, which is what a test
+// writing a line outside any verb has to do now that bench.AppendEvent refuses
+// an append made without that lock.
+func appendLockedForTest(t *testing.T, path string, ev bench.Event) error {
+	t.Helper()
+	held, err := bench.Acquire(filepath.Dir(path), "test", bench.Stamp(time.Now().UTC()))
+	if err != nil {
+		return err
+	}
+	defer held.Release()
+	return bench.AppendEvent(held, path, ev)
 }

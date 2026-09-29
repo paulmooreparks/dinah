@@ -455,7 +455,7 @@ func (b *Bench) backfillCard(dir string) (int, []Finding, error) {
 	order := journalOrder(events)
 	stamped := 0
 	var findings []Finding
-	collections, err := ordinalCollections(b.source(), dir, KindCard, nil)
+	collections, err := ordinalCollections(b.source(), dir, KindCard, nil, b.CardUnit())
 	if err != nil {
 		return 0, nil, err
 	}
@@ -496,12 +496,23 @@ type ordinalCollection struct {
 // of them as missing one; skip names the kinds the walk does not descend into,
 // and a caller rooting the walk at the workbench passes KindCard so that each
 // card keeps the per-card sweep a card-rooted walk applies to it.
-func ordinalCollections(src Source, dir, kind string, skip map[string]bool) ([]ordinalCollection, error) {
+//
+// A journaled mount is a collection of directories only below the card-unit
+// format, where its members carry the anchors the old layout gives them. In
+// the card-unit layout its members are lines of a journal, whose ordinals the
+// replay checks, and the one directory it may hold per member is the home of
+// that member's attachments, which the walk still descends into; cardUnit
+// says which layout the store is in.
+func ordinalCollections(src Source, dir, kind string, skip map[string]bool, cardUnit bool) ([]ordinalCollection, error) {
 	var collections []ordinalCollection
 	for _, mount := range Contains(kind) {
 		collection := filepath.Join(dir, mount.Dir)
-		if mount.Stamped {
-			collections = append(collections, ordinalCollection{dir: collection, anchor: mount.Anchor})
+		anchor := mount.Anchor
+		if mount.Journaled {
+			anchor = legacyAnchorOf(mount.Kind)
+		}
+		if mount.Stamped && !(mount.Journaled && cardUnit) {
+			collections = append(collections, ordinalCollection{dir: collection, anchor: anchor})
 		}
 		if skip[mount.Kind] {
 			continue
@@ -511,7 +522,7 @@ func ordinalCollections(src Source, dir, kind string, skip map[string]bool) ([]o
 			return nil, err
 		}
 		for _, id := range ids {
-			below, err := ordinalCollections(src, filepath.Join(collection, id), mount.Kind, skip)
+			below, err := ordinalCollections(src, filepath.Join(collection, id), mount.Kind, skip, cardUnit)
 			if err != nil {
 				return nil, err
 			}

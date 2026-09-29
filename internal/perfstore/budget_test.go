@@ -9,7 +9,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -237,12 +239,15 @@ type sample struct {
 	median time.Duration
 }
 
-// TestReadBudgets generates the development shape, confirms dinah check finds
-// nothing in it, and holds every operation operationNames lists to the budget
-// pinned for it on this GOOS. DINAH_PERF selects the mode: unset skips, and
-// measure and ci both fail an operation over its budget. Neither mode fails
-// an operation sitting in slack, which is CI variance rather than a defect;
-// see judge and slack.
+// TestReadBudgets generates the development shape in each storage layout,
+// confirms dinah check finds nothing in it, and holds every operation
+// operationNames lists to the budget pinned for it on this GOOS, one set of
+// budgets for both layouts. The card-unit layout is generated and read with
+// that layout switched on, in this process and in the binary the reads that
+// start one run, and the directories layout with it off, as the build ships.
+// DINAH_PERF selects the mode: unset skips, and measure and ci both fail an
+// operation over its budget. Neither mode fails an operation sitting in
+// slack, which is CI variance rather than a defect; see judge and slack.
 func TestReadBudgets(t *testing.T) {
 	mode := os.Getenv("DINAH_PERF")
 	switch mode {
@@ -252,8 +257,20 @@ func TestReadBudgets(t *testing.T) {
 	default:
 		t.Fatalf("DINAH_PERF is %q; the accepted values are measure and ci", mode)
 	}
+	for _, layout := range []perfstore.Layout{perfstore.LayoutDirectories, perfstore.LayoutCardUnit} {
+		t.Run(layout.String(), func(t *testing.T) {
+			if layout == perfstore.LayoutCardUnit {
+				bench.EnableCardUnitForTest(t)
+			}
+			readBudgets(t, layout)
+		})
+	}
+}
+
+// readBudgets is one layout's run of TestReadBudgets.
+func readBudgets(t *testing.T, layout perfstore.Layout) {
 	shape := perfstore.DevelopmentShape()
-	store := generateForBudgets(t, shape)
+	store := generateForBudgets(t, shape, layout)
 	b, err := bench.Open(store.Root)
 	if err != nil {
 		t.Fatalf("open the generated store: %v", err)
@@ -279,7 +296,7 @@ func TestReadBudgets(t *testing.T) {
 		t.FailNow()
 	}
 	t.Logf("perfstore: check clean apart from %d expected %s findings", len(findings), bench.FindingUnarchivedDone)
-	binary := buildBinary(t)
+	binary := buildBinary(t, layout == perfstore.LayoutCardUnit)
 	home := t.TempDir()
 	operations := budgetOperations(t, store, b, binary, home)
 	pinned, calibrated := budgets[runtime.GOOS]
@@ -346,27 +363,28 @@ func TestBudgetsFollowTheRule(t *testing.T) {
 	}
 }
 
-// generateForBudgets writes the development shape into a temporary directory,
-// or into the directory DINAH_PERF_KEEP names, which is left in place for
-// profiling, and logs the seed, the file count, the digest and the time taken.
-func generateForBudgets(t *testing.T, shape perfstore.Shape) *perfstore.Store {
+// generateForBudgets writes the development shape in one layout into a
+// temporary directory, or into a directory named for the layout below the one
+// DINAH_PERF_KEEP names, which is left in place for profiling, and logs the
+// seed, the file count, the digest and the time taken.
+func generateForBudgets(t *testing.T, shape perfstore.Shape, layout perfstore.Layout) *perfstore.Store {
 	t.Helper()
 	dir := t.TempDir()
 	keep := os.Getenv("DINAH_PERF_KEEP")
 	if keep != "" {
-		if err := os.MkdirAll(keep, 0o755); err != nil {
+		dir = filepath.Join(keep, layout.String())
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("DINAH_PERF_KEEP %s: %v", keep, err)
 		}
-		dir = keep
 	}
 	start := time.Now()
-	store, err := perfstore.Generate(dir, perfstore.DefaultSeed, shape)
+	store, err := perfstore.GenerateLayout(dir, perfstore.DefaultSeed, shape, layout)
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
 	elapsed := time.Since(start)
-	t.Logf("perfstore: seed %d, %s files, digest %s, generated in %.1fs",
-		store.Seed, thousands(int64(store.Files)), store.Digest, elapsed.Seconds())
+	t.Logf("perfstore: %s layout, seed %d, %s files, digest %s, generated in %.1fs",
+		layout, store.Seed, thousands(int64(store.Files)), store.Digest, elapsed.Seconds())
 	if keep != "" {
 		t.Logf("perfstore: kept at %s", store.Root)
 	}
@@ -374,8 +392,11 @@ func generateForBudgets(t *testing.T, shape perfstore.Shape) *perfstore.Store {
 }
 
 // buildBinary builds cmd/dinah into a temporary directory, as the serve tests
-// do, and logs how long the build took.
-func buildBinary(t *testing.T) string {
+// do, and logs how long the build took. With cardUnit set the binary is built
+// with the card-unit layout switched on, through a build overlay adding one
+// file to internal/bench that turns the switch on at start, so no source file
+// the shipped build compiles is touched.
+func buildBinary(t *testing.T, cardUnit bool) string {
 	t.Helper()
 	name := "dinah"
 	if runtime.GOOS == "windows" {
@@ -383,12 +404,41 @@ func buildBinary(t *testing.T) string {
 	}
 	path := filepath.Join(t.TempDir(), name)
 	start := time.Now()
-	build := exec.Command("go", "build", "-o", path, "dinah/cmd/dinah")
+	args := []string{"build", "-o", path}
+	if cardUnit {
+		args = append(args, "-overlay", switchOnOverlay(t))
+	}
+	build := exec.Command("go", append(args, "dinah/cmd/dinah")...)
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build dinah: %v\n%s", err, out)
 	}
 	t.Logf("perfstore: built the binary in %.1fs", time.Since(start).Seconds())
 	return path
+}
+
+// switchOnOverlay writes a go build overlay that adds to internal/bench one
+// file turning the card-unit layout on at start, and answers the overlay's
+// path.
+func switchOnOverlay(t *testing.T) string {
+	t.Helper()
+	// The package is named from its own import path rather than spelled
+	// out, so the overlay follows the package wherever it is.
+	pkg := path.Base(reflect.TypeOf(bench.Bench{}).PkgPath())
+	pkgDir, err := filepath.Abs(filepath.Join("..", pkg))
+	if err != nil {
+		t.Fatalf("locate the store package: %v", err)
+	}
+	dir := t.TempDir()
+	source := filepath.Join(dir, "switch_on.go")
+	if err := os.WriteFile(source, []byte("package "+pkg+"\n\nfunc init() { cardUnitEnabled = true }\n"), 0o644); err != nil {
+		t.Fatalf("write the switch: %v", err)
+	}
+	overlay := filepath.Join(dir, "overlay.json")
+	encoded := fmt.Sprintf(`{"Replace":{%q:%q}}`, filepath.Join(pkgDir, "zz_switch_on.go"), source)
+	if err := os.WriteFile(overlay, []byte(encoded), 0o644); err != nil {
+		t.Fatalf("write the overlay: %v", err)
+	}
+	return overlay
 }
 
 // budgetOperations composes the four measured reads over one store, in the

@@ -50,6 +50,7 @@ const (
 	DeriveComment     DeriveKind = "comment"      // *Comment
 	DeriveAttachment  DeriveKind = "attachment"   // *Attachment
 	DeriveJournal     DeriveKind = "journal"      // *parsedJournal: ReadJournal's events and torn flag
+	DeriveArrival     DeriveKind = "arrival"      // []arrivalLine: the lines a card's arrival is read from
 )
 
 // Disk is the Source every Bench reads through unless it was opened over

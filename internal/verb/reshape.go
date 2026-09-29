@@ -464,7 +464,7 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 	}
 	plan.stranded = strandedCards(plan, fresh, cards, retiring)
 	for _, entry := range plan.retirements {
-		count, err := countStandingInstances(l.Bench, cards, entry.id)
+		count, err := countStandingInstances(fresh, cards, entry.id)
 		if err != nil {
 			return nil, err
 		}
@@ -479,7 +479,7 @@ func (l *Library) planReshape(req *Request, definition *bench.Definition, digest
 func countStandingInstances(b *bench.Bench, cards []*bench.Card, retiring string) (int, error) {
 	count := 0
 	for _, card := range cards {
-		instances, err := b.PendingStandingInstances(card.Dir, retiring)
+		instances, err := b.PendingStandingInstances(card, retiring)
 		if err != nil {
 			return 0, err
 		}
@@ -1040,12 +1040,12 @@ func (l *Library) writeAddedColumns(req *Request, plan *reshapePlan, now string)
 	for _, element := range added {
 		ev.Title = element.title()
 		ev.Note = element.id
-		if err := bench.AppendEvent(fresh.JournalPath(), ev); err != nil {
+		if err := l.Bench.AppendEvent(lock, fresh.JournalPath(), ev); err != nil {
 			return written, err
 		}
 	}
 	for _, line := range attached {
-		if err := bench.AppendEvent(fresh.JournalPath(), line); err != nil {
+		if err := l.Bench.AppendEvent(lock, fresh.JournalPath(), line); err != nil {
 			return written, err
 		}
 	}
@@ -1176,7 +1176,7 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 			if err != nil {
 				return carried, err
 			}
-			carriedOne, err := l.carryOneCard(req, entry, destination, standing.ID, fresh, now)
+			carriedOne, err := l.carryOneCard(cardLock, req, entry, destination, standing.ID, fresh, now)
 			cardLock.Release()
 			if err != nil {
 				return carried, err
@@ -1189,7 +1189,7 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 	return carried, nil
 }
 
-// carryOneCard is the whole of one card's carry, run with that card's lock
+// carryOneCard is the whole of one card's carry, run with that card's lock,
 // already held by the caller. It reports whether the card counts as carried,
 // which a card a prior attempt already carried does.
 //
@@ -1199,7 +1199,7 @@ func (l *Library) carryReshapedCards(req *Request, plan *reshapePlan, now string
 // otherwise be carried into a column where no owner takes work up, which is
 // the state the severe half of reshapeHeldCards refuses and the state no other
 // guard would ever report.
-func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destination *bench.Column, id string, fresh *bench.Bench, now string) (bool, error) {
+func (l *Library) carryOneCard(held *bench.Lock, req *Request, entry *reshapeRetirement, destination *bench.Column, id string, fresh *bench.Bench, now string) (bool, error) {
 	card, err := fresh.LoadCardIn(fresh.CardsRoot(), id)
 	if err != nil {
 		return false, err
@@ -1226,30 +1226,31 @@ func (l *Library) carryOneCard(req *Request, entry *reshapeRetirement, destinati
 		ToTitle:   destination.Title,
 		Reshape:   true,
 	}
-	dropped := dropTierOverrideFor(card, fresh, entry.id)
+	dropped, spelled := dropTierOverrideFor(card, fresh, entry.id)
 	card.Column = destination.ID
 	if err := card.Save(); err != nil {
 		return false, err
 	}
-	if err := bench.AppendEvent(card.JournalPath(), ev); err != nil {
+	if err := l.Bench.AppendEvent(held, card.JournalPath(), ev); err != nil {
 		return false, err
 	}
 	if dropped != "" {
 		drop := bench.Event{
-			TS:     now,
-			Event:  contract.EventTierOverrideDropped,
-			Actor:  req.Acting(),
-			Column: entry.id,
-			From:   dropped,
+			TS:        now,
+			Event:     contract.EventTierOverrideDropped,
+			Actor:     req.Acting(),
+			Column:    entry.id,
+			ColumnRef: fresh.JournaledTierRef(spelled, entry.id),
+			From:      dropped,
 		}
-		if err := bench.AppendEvent(card.JournalPath(), drop); err != nil {
+		if err := l.Bench.AppendEvent(held, card.JournalPath(), drop); err != nil {
 			return false, err
 		}
 	}
 	// A carry is an arrival at the destination, so its standing items are
 	// minted here on the terms move mints them, against the bench this step
 	// opened under the lock it writes beneath.
-	if _, err := fileStandingItems(req, fresh, card, destination, now); err != nil {
+	if _, err := fileStandingItems(held, req, fresh, card, destination, now); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -1294,8 +1295,12 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 	}
 	for _, id := range ids {
 		dir := filepath.Join(l.Bench.CardsRoot(), id)
+		card, err := l.Bench.LoadCardIn(l.Bench.CardsRoot(), id)
+		if err != nil {
+			return withdrawn, err
+		}
 		for _, entry := range plan.retirements {
-			instances, err := l.Bench.StandingInstancesOwedAWithdrawal(dir, entry.id)
+			instances, err := l.Bench.StandingInstancesOwedAWithdrawal(card, entry.id)
 			if err != nil {
 				return withdrawn, err
 			}
@@ -1306,7 +1311,7 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 			if err != nil {
 				return withdrawn, err
 			}
-			count, err := l.withdrawInstancesOf(req, dir, entry, now)
+			count, err := l.withdrawInstancesOf(cardLock, req, card, entry, now)
 			cardLock.Release()
 			withdrawn[entry.id] += count
 			if err != nil {
@@ -1334,12 +1339,12 @@ func (l *Library) withdrawStandingItems(req *Request, plan *reshapePlan, now str
 // it, and writes the two lines it is owed, keyed on the anchor's own record of
 // which comment settled it, so the journal ends up carrying exactly one
 // withdrawal for the instance.
-func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *reshapeRetirement, now string) (int, error) {
-	instances, err := l.Bench.StandingInstancesOwedAWithdrawal(cardDir, entry.id)
+func (l *Library) withdrawInstancesOf(held *bench.Lock, req *Request, card *bench.Card, entry *reshapeRetirement, now string) (int, error) {
+	instances, err := l.Bench.StandingInstancesOwedAWithdrawal(card, entry.id)
 	if err != nil {
 		return 0, err
 	}
-	journal := filepath.Join(cardDir, bench.JournalName)
+	journal := card.JournalPath()
 	title := reshapeDepartureTitle(entry)
 	if title == "" {
 		title = entry.id
@@ -1347,21 +1352,25 @@ func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *resha
 	text := msg.For(msg.Base).T("reshape.standing-withdrawn", "column", title)
 	count := 0
 	for _, instance := range instances {
-		var designated string
-		if instance.State == bench.ItemWithdrawn {
-			designated = instance.Resolution
-		} else {
-			comment, err := l.Bench.AddComment(instance.Dir, req.Actor, now, text)
-			if err != nil {
-				return count, err
-			}
-			fm, body, err := l.Bench.ReadItemAnchor(instance.Dir)
+		record, err := l.Bench.LoadCardRecord(card)
+		if err != nil {
+			return count, err
+		}
+		entity := record.ItemEntity(instance, "")
+		fm, body, err := l.Bench.MemberAnchor(entity)
+		if err != nil {
+			return count, err
+		}
+		var comment *bench.Comment
+		designated := instance.Resolution
+		if instance.State != bench.ItemWithdrawn {
+			comment, err = l.Bench.AddComment(bench.MemberHolder{Card: card, Item: instance.ID}, req.Actor, now, text)
 			if err != nil {
 				return count, err
 			}
 			fm.Set(bench.ItemStateField, bench.ItemWithdrawn)
 			fm.Set(bench.ItemResolutionField, comment.ID)
-			if err := bench.WriteItemAnchor(instance.Dir, fm, body); err != nil {
+			if err := l.Bench.WriteMemberAnchor(entity, fm, body); err != nil {
 				return count, err
 			}
 			designated = comment.ID
@@ -1374,7 +1383,10 @@ func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *resha
 			Item:    instance.ID,
 			Comment: designated,
 		}
-		if err := bench.AppendEvent(journal, commented); err != nil {
+		if comment != nil {
+			l.Bench.CompleteCommented(&commented, comment)
+		}
+		if err := l.Bench.AppendEvent(held, journal, commented); err != nil {
 			return count, err
 		}
 		withdrawnLine := bench.Event{
@@ -1386,7 +1398,8 @@ func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *resha
 			To:      bench.ItemWithdrawn,
 			Reshape: true,
 		}
-		if err := bench.AppendEvent(journal, withdrawnLine); err != nil {
+		l.Bench.CompleteMemberLine(&withdrawnLine, entity, fm, body)
+		if err := l.Bench.AppendEvent(held, journal, withdrawnLine); err != nil {
 			return count, err
 		}
 		count++
@@ -1408,17 +1421,18 @@ func (l *Library) withdrawInstancesOf(req *Request, cardDir string, entry *resha
 // unmapped card rather than guessing at one.
 //
 // An override naming any other column is untouched, since the match is against
-// the one column this call is carrying the card out of.
-func dropTierOverrideFor(card *bench.Card, fresh *bench.Bench, retiring string) string {
+// the one column this call is carrying the card out of. It answers the tier
+// dropped and the reference the entry was written under.
+func dropTierOverrideFor(card *bench.Card, fresh *bench.Bench, retiring string) (string, string) {
 	for i, override := range card.ColumnTiers {
 		target := fresh.ColumnByRef(override.Column)
 		if target == nil || target.ID != retiring {
 			continue
 		}
 		card.ColumnTiers = append(card.ColumnTiers[:i], card.ColumnTiers[i+1:]...)
-		return override.Tier
+		return override.Tier, override.Column
 	}
-	return ""
+	return "", ""
 }
 
 // reshapeDepartureTitle is the title a carried card's moved event records for
@@ -1470,9 +1484,9 @@ func (l *Library) archiveRetiredColumns(req *Request, plan *reshapePlan, now str
 			Now:       now,
 			ColumnID:  entry.id,
 			ColumnRef: entry.column.Ref(),
-			Record: func() error {
+			Record: func(locks bench.ActLocks) error {
 				ev := bench.Event{TS: now, Event: contract.EventArchived, Actor: req.Acting(), Note: entry.id}
-				return bench.AppendEvent(fresh.JournalPath(), ev)
+				return l.Bench.AppendEvent(locks.For(fresh.JournalPath()), fresh.JournalPath(), ev)
 			},
 		}
 		if err := fresh.Run(act); err != nil {
@@ -1549,7 +1563,7 @@ func (l *Library) rewriteKeptColumns(req *Request, plan *reshapePlan, now string
 	}
 	for _, id := range updated {
 		ev := bench.Event{TS: now, Event: contract.EventColumnUpdated, Actor: req.Acting(), Note: id}
-		if err := bench.AppendEvent(current.JournalPath(), ev); err != nil {
+		if err := l.Bench.AppendEvent(lock, current.JournalPath(), ev); err != nil {
 			return updated, err
 		}
 	}

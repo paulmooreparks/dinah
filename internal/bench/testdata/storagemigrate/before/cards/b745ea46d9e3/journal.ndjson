@@ -1,0 +1,6 @@
+{"ts":"2026-09-28T06:51:30Z","event":"created","actor":{"name":"sam"},"title":"the card with hand-edited comments","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-28T06:51:34Z","event":"commented","actor":{"name":"sam"},"comment":"6a2e3cd4023e"}
+{"ts":"2026-09-28T06:51:34Z","event":"commented","actor":{"name":"sam"},"comment":"6580937ea6f2"}
+{"ts":"2026-09-28T06:51:34Z","event":"blocked","actor":{"name":"sam"},"reason":"a vendor has not answered","kind":"external"}
+{"ts":"2026-09-28T06:51:34Z","event":"commented","actor":{"name":"sam"},"comment":"fa57b145f78d"}
+{"ts":"2026-09-28T06:51:34Z","event":"unblocked","actor":{"name":"sam"},"reason":"the vendor answered","comment":"fa57b145f78d"}

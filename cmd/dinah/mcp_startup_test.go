@@ -269,13 +269,13 @@ func TestMCPToolsFlagStartsAndServesTheNamedProfile(t *testing.T) {
 	if got := mcpServedToolCount(t, workbench, "--tools", "station"); got != 31 {
 		t.Errorf("mcp --tools station served %d tools, wanted 31", got)
 	}
-	if got := mcpServedToolCount(t, workbench, "--tools", "operator"); got != 45 {
-		t.Errorf("mcp --tools operator served %d tools, wanted 45", got)
+	if got := mcpServedToolCount(t, workbench, "--tools", "operator"); got != 46 {
+		t.Errorf("mcp --tools operator served %d tools, wanted 46", got)
 	}
-	if got := mcpServedToolCount(t, workbench); got != 51 {
-		t.Errorf("mcp with no --tools flag served %d tools, wanted 51", got)
+	if got := mcpServedToolCount(t, workbench); got != 52 {
+		t.Errorf("mcp with no --tools flag served %d tools, wanted 52", got)
 	}
-	if got := mcpServedToolCount(t, workbench, "--tools", "all"); got != 51 {
-		t.Errorf("mcp --tools all served %d tools, wanted 51", got)
+	if got := mcpServedToolCount(t, workbench, "--tools", "all"); got != 52 {
+		t.Errorf("mcp --tools all served %d tools, wanted 52", got)
 	}
 }

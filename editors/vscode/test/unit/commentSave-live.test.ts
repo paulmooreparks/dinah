@@ -7,8 +7,9 @@
 // save works is what the verb says back and what the store holds afterwards,
 // and neither is visible to a mocked spawner. So this file builds a binary,
 // makes a workbench, mints an empty comment through the extension's own
-// compose path, writes into the file the way an editor does, runs the real
-// save handler, and reads the store.
+// compose path, hands the real save handler the document the dinah-member
+// provider serves with the author's text below it, as a save of the tab does,
+// and reads the store.
 //
 // This unit file starts a process, and test/unit/layers.test.ts carries the
 // exemption with the reason. The cost is one `go build`, shared across the
@@ -30,6 +31,7 @@ import {
 	splitAnchorBody,
 } from "../../src/commentBody";
 import { ENGLISH } from "../../src/l10n";
+import { readMember } from "../../src/memberDocument";
 import { nodeSpawner } from "../../src/spawn";
 import type { FixtureRoot } from "../support/fixtures";
 import { buildBinary, fixtureEnv, initBench } from "../support/fixtures";
@@ -47,7 +49,9 @@ function binary(): FixtureRoot {
 
 after(() => {
 	if (built !== undefined) {
-		rmSync(built.tempRoot, { recursive: true, force: true });
+		// A Windows runner can still be deleting a file the binary just closed,
+		// which rmdir reports as ENOTEMPTY, so the removal is retried.
+		rmSync(built.tempRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 	}
 });
 
@@ -145,6 +149,16 @@ function anchor(path: string): string {
 }
 
 /**
+ * A comment's anchor as the dinah-member provider serves it, which is what
+ * `dinah show` prints for it.
+ */
+async function shownAnchor(root: FixtureRoot, bench: string, ref: string): Promise<string> {
+	const read = await readMember(fixtureSpawner(root), root.binary, { ref, root: bench });
+	assert.equal(read.kind, "ok", `show ${ref} was refused: ${JSON.stringify(read)}`);
+	return read.kind === "ok" ? read.text : "";
+}
+
+/**
  * Every event name the card's journal carries, in order.
  *
  * The file is read rather than asked for. Dinah publishes no verb that prints
@@ -184,29 +198,24 @@ test("an edit made in the editor is written through the verb and re-stamped", as
 		ref: "fx-1",
 	});
 	assert.deepEqual(log.errors, [], "composing the comment reported an error");
-	assert.equal(log.opened.length, 1, "the comment's file was not opened");
-	const path = log.opened[0];
-	const before = recordedDigest(anchor(path));
+	assert.equal(log.opened.length, 1, "the comment's document was not opened");
+	const [key, session] = [...opened.entries()][0] ?? ["", undefined];
+	assert.notEqual(session, undefined, "no session was opened over the comment");
+	const ref = session?.ref ?? "";
+	const before = recordedDigest(await shownAnchor(root, bench, ref));
 	assert.notEqual(before, "", "the minted comment carries no digest");
-	assert.equal(
-		opened.get(path)?.digest,
-		before,
-		"the session did not remember the digest the anchor records",
-	);
+	assert.equal(session?.digest, before, "the session did not remember the digest the anchor records");
 
-	// The editor writes the author's text into the file when they save, which
-	// is what makes the body comparison impossible by the time the handler
-	// runs. The fixture does exactly that.
+	// The document the author saves is the anchor they opened with their text
+	// below it, which the file system provider hands the save handler.
 	const typed = "The author typed this, in the editor.\n";
-	writeFileSync(path, anchor(path) + typed, "utf8");
-
 	const saved = await saveCommentBody(
 		window,
 		fixtureSpawner(root),
 		root.binary,
 		opened,
-		path,
-		anchor(path),
+		key,
+		(await shownAnchor(root, bench, ref)) + typed,
 	);
 
 	// The answer, which is the whole of what this file exists to assert.
@@ -215,7 +224,7 @@ test("an edit made in the editor is written through the verb and re-stamped", as
 
 	// And the store afterwards: the body is what was typed, and the digest
 	// describes it rather than the empty body it was minted over.
-	const after = anchor(path);
+	const after = await shownAnchor(root, bench, ref);
 	assert.equal(splitAnchorBody(after), typed);
 	assert.notEqual(
 		recordedDigest(after),
@@ -243,13 +252,19 @@ test("an edit made in the editor is written through the verb and re-stamped", as
 	// The session's remembered digest moved with the write, so a second save
 	// of the same tab is not refused as one edit stale.
 	const again = "The author typed this, and then more.\n";
-	writeFileSync(path, anchor(path) + again, "utf8");
 	assert.equal(
-		await saveCommentBody(window, fixtureSpawner(root), root.binary, opened, path, anchor(path)),
+		await saveCommentBody(
+			window,
+			fixtureSpawner(root),
+			root.binary,
+			opened,
+			key,
+			(await shownAnchor(root, bench, ref)) + again,
+		),
 		true,
 		`the second save of the same tab was refused: ${log.errors.join("\n")}`,
 	);
-	assert.equal(splitAnchorBody(anchor(path)), typed + again);
+	assert.equal(splitAnchorBody(await shownAnchor(root, bench, ref)), typed + again);
 });
 
 test("a write landing between the open and the save refuses the save", async (t) => {
@@ -261,31 +276,29 @@ test("a write landing between the open and the save refuses the save", async (t)
 		folder: bench,
 		ref: "fx-1",
 	});
-	const path = log.opened[0];
+	const [key, session] = [...opened.entries()][0] ?? ["", undefined];
+	const ref = session?.ref ?? "";
+	const opening = await shownAnchor(root, bench, ref);
 
 	// Somebody else writes the comment through a verb while the author is
 	// still typing, which moves the digest the anchor records away from the
-	// one this session remembered. It lands before the editor's save, because
-	// the author's text is not on the file until they save and a verb write
-	// over a file already carrying it would be refused as a hand edit.
+	// one this session remembered.
 	run(root, bench, ["set", "fx-1/comments/1", "body", "somebody else's words"]);
 	assert.notEqual(
-		recordedDigest(anchor(path)),
-		opened.get(path)?.digest,
+		recordedDigest(await shownAnchor(root, bench, ref)),
+		session?.digest,
 		"the fixture did not move the recorded digest, so this case proves nothing",
 	);
 
-	// Then the author saves, and the editor puts their text on the file.
+	// Then the author saves the document they opened, with their text below.
 	const typed = "What the author was typing.\n";
-	writeFileSync(path, anchor(path) + typed, "utf8");
-
 	const saved = await saveCommentBody(
 		window,
 		fixtureSpawner(root),
 		root.binary,
 		opened,
-		path,
-		anchor(path),
+		key,
+		opening + typed,
 	);
 
 	assert.equal(saved, false, "the save overwrote work the author never saw");
@@ -294,17 +307,10 @@ test("a write landing between the open and the save refuses the save", async (t)
 		`the refusal does not name the comment: ${log.errors.join("\n")}`,
 	);
 	// Nothing was written through a verb, so the record is what the other
-	// write made it. The author's text is still on the file, because the
-	// editor put it there and a refused save takes nothing off; dinah check
-	// reports that file, which is the state a refusal is meant to leave rather
-	// than silently resolve.
+	// write made it, and the author's text is still in their open tab.
 	assert.ok(
-		splitAnchorBody(anchor(path)).startsWith("somebody else's words"),
+		splitAnchorBody(await shownAnchor(root, bench, ref)).startsWith("somebody else's words"),
 		"the refused save overwrote the other write",
-	);
-	assert.ok(
-		splitAnchorBody(anchor(path)).includes(typed.trim()),
-		"the refused save took the author's own text off the file",
 	);
 });
 

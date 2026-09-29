@@ -22,10 +22,10 @@ func namesOf(list []tool) []string {
 
 // TestProfileMembershipByNameAndCount pins dinah-544's three profiles: the
 // thirty-one station tools (dinah-573 adds prime, dinah-582 adds workstream,
-// dinah-600 adds view, dinah-647 adds spend), the forty-five operator tools
-// (station's thirty-one plus fourteen), and that ProfileAll and the empty
-// string (what every existing call site now passes) both answer the whole
-// registry, unfiltered, at fifty-one.
+// dinah-600 adds view, dinah-647 adds spend), the forty-six operator tools
+// (station's thirty-one plus fifteen, dinah-637 adding redact), and that
+// ProfileAll and the empty string (what every existing call site now passes)
+// both answer the whole registry, unfiltered, at fifty-two.
 func TestProfileMembershipByNameAndCount(t *testing.T) {
 	station := namesOf(toolsFor(ProfileStation))
 	if len(station) != 31 {
@@ -44,8 +44,8 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 	}
 
 	operator := namesOf(toolsFor(ProfileOperator))
-	if len(operator) != 45 {
-		t.Errorf("ProfileOperator carries %d tools, wanted 45: %v", len(operator), operator)
+	if len(operator) != 46 {
+		t.Errorf("ProfileOperator carries %d tools, wanted 46: %v", len(operator), operator)
 	}
 	wantOperator := append(append([]string{}, wantStation...), operatorOnlyMembers...)
 	sort.Strings(wantOperator)
@@ -56,8 +56,8 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 	all := namesOf(toolsFor(ProfileAll))
 	bare := namesOf(toolsFor(""))
 	registry := namesOf(tools)
-	if len(all) != 51 {
-		t.Errorf("ProfileAll carries %d tools, wanted 51: %v", len(all), all)
+	if len(all) != 52 {
+		t.Errorf("ProfileAll carries %d tools, wanted 52: %v", len(all), all)
 	}
 	if strings.Join(all, " ") != strings.Join(registry, " ") {
 		t.Errorf("ProfileAll is\n  %s\nand the unfiltered registry is\n  %s", strings.Join(all, " "), strings.Join(registry, " "))
@@ -115,7 +115,7 @@ func TestProfileMembershipByNameAndCount(t *testing.T) {
 // TestToolsListRespectsTheServedProfile asserts that a connection served
 // under ProfileStation sees exactly the thirty-one station tools over
 // tools/list, and one served under ProfileOperator sees exactly the
-// forty-five.
+// forty-six.
 func TestToolsListRespectsTheServedProfile(t *testing.T) {
 	library := newLibrary(t)
 
@@ -129,8 +129,8 @@ func TestToolsListRespectsTheServedProfile(t *testing.T) {
 	}
 
 	operator := servedNames(t, askUnderProfile(t, library.Bench.Root, ProfileOperator, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
-	if len(operator) != 45 {
-		t.Errorf("tools/list under operator carried %d tools, wanted 45: %v", len(operator), operator)
+	if len(operator) != 46 {
+		t.Errorf("tools/list under operator carried %d tools, wanted 46: %v", len(operator), operator)
 	}
 	wantOperator := namesOf(toolsFor(ProfileOperator))
 	if got := strings.Join(operator, " "); got != strings.Join(wantOperator, " ") {

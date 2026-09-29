@@ -228,6 +228,11 @@ func goldenSequence(f *goldenFixture) []goldenCall {
 		{tool: "spend", arguments: actor(map[string]any{"card": "gd-1", "unit": "tokens", "input": "1200", "output": "300"})},
 		{tool: "spend", kase: "report", arguments: actor(map[string]any{"card": "gd-1"})},
 		{tool: "status", kase: "no-workbench", arguments: actor(map[string]any{"workbench": filepath.Join(f.base, "nowhere")})},
+		// redact refuses a store below the card-unit format, which this
+		// sequence runs on while that layout ships switched off, so its one
+		// call here pins that refusal; internal/verb's redaction tests
+		// assert its answers on a card-unit store.
+		{tool: "redact", kase: "old-layout", arguments: actor(map[string]any{"member": "gd-1/comments/1", "yes": true})},
 	}
 }
 
@@ -335,6 +340,7 @@ var goldenRefusalCases = map[string]string{
 	"claim-held":          "refused",
 	"move-stale":          "stale",
 	"status-no-workbench": "refused",
+	"redact-old-layout":   "refused",
 }
 
 // goldenReportOutcomes are the calls whose successful answer is a report

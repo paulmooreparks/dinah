@@ -76,9 +76,9 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	was := reloaded.ColumnTierFor(l.Bench, ref)
+	spelled := l.Bench.JournaledTierRef(reloaded.ColumnTierRef(l.Bench, ref), ref)
 	if was == absolute {
-		response := l.ok(req, nil)
-		response.Detail = absolute
+		response := l.okWithDetail(req, nil, absolute)
 		return response
 	}
 	reloaded.SetColumnTier(l.Bench, ref, absolute)
@@ -86,20 +86,20 @@ func (l *Library) SetCardTierAt(req *Request) *Response {
 		return l.FromError(req, err)
 	}
 	ev := bench.Event{
-		TS:      now,
-		Event:   contract.EventTierOverridden,
-		Actor:   req.Acting(),
-		Column:  column.ID,
-		From:    was,
-		To:      absolute,
-		Expr:    expr,
-		Against: against,
+		TS:        now,
+		Event:     contract.EventTierOverridden,
+		Actor:     req.Acting(),
+		Column:    column.ID,
+		ColumnRef: spelled,
+		From:      was,
+		To:        absolute,
+		Expr:      expr,
+		Against:   against,
 	}
-	if err := bench.AppendEvent(reloaded.JournalPath(), ev); err != nil {
+	if err := l.Bench.AppendEvent(lock, reloaded.JournalPath(), ev); err != nil {
 		return l.FromError(req, err)
 	}
-	response := l.ok(req, nil)
-	response.Detail = absolute
+	response := l.okWithDetail(req, nil, absolute)
 	return response
 }
 

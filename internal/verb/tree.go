@@ -960,7 +960,8 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 		Archived: entity.Archived,
 	}
 	rank := rankOfKind(entity.Kind)
-	count, err := l.containedCount(entity.Dir, entity.Kind)
+	rootAt := l.containedRoot(entity)
+	count, err := l.containedCount(rootAt)
 	if err != nil {
 		return nil, err
 	}
@@ -976,7 +977,7 @@ func (l *Library) Contents(req *Request, level string) (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := l.fillContained(&tree.Root, entity.Dir, entity.Kind, childRef, rank, contentsLimit(level, rank)); err != nil {
+	if err := l.fillContained(&tree.Root, rootAt, childRef, rank, contentsLimit(level, rank)); err != nil {
 		return nil, err
 	}
 	return tree, nil
@@ -1032,19 +1033,23 @@ func (l *Library) collectionContents(collection *bench.CollectionRef, level stri
 	if err != nil {
 		return nil, err
 	}
-	children, kinds, err := l.memberNodes(collection.Dir, collection.Mount, collection.Members, seed)
+	holder := l.containedRoot(collection.Holder)
+	children, kinds, err := l.memberNodes(holder, collection.Dir, collection.Mount, collection.Members, seed)
 	if err != nil {
 		return nil, err
 	}
 	for i := range children {
-		member := filepath.Join(collection.Dir, children[i].ID)
-		if err := l.fillContained(&children[i], member, collection.Mount.Kind, children[i].Ref, rank+1, limit); err != nil {
+		member, err := l.memberAt(holder, collection.Dir, collection.Mount, children[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		if err := l.fillContained(&children[i], member, children[i].Ref, rank+1, limit); err != nil {
 			return nil, err
 		}
 		// The count is walked rather than added up from the children the
 		// projection drew, so it is the same number whatever the depth left
 		// out, which is the rule containedCount already carries.
-		count, err := l.containedCount(member, collection.Mount.Kind)
+		count, err := l.containedCount(member)
 		if err != nil {
 			return nil, err
 		}
@@ -1136,11 +1141,11 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 	// The workstream's own attachments, drawn ahead of the membership. The
 	// count is the walk's own measure rather than the children this depth
 	// level happened to draw, which is the rule containedCount carries.
-	_, attachments, err := l.containedChildren(entity.Dir, bench.KindWorkstream, entity.Ref, rank, limit)
+	_, attachments, err := l.containedChildren(l.containedRoot(entity), entity.Ref, rank, limit)
 	if err != nil {
 		return nil, err
 	}
-	carried, err := l.containedCount(entity.Dir, bench.KindWorkstream)
+	carried, err := l.containedCount(l.containedRoot(entity))
 	if err != nil {
 		return nil, err
 	}
@@ -1151,7 +1156,8 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 		// The count is walked rather than added up from the children the
 		// projection drew, so it is the same number whatever the depth left
 		// out, which is the rule containedCount already carries.
-		count, err := l.containedCount(card.Dir, bench.KindCard)
+		cardAt := &containedAt{dir: card.Dir, kind: bench.KindCard, card: card}
+		count, err := l.containedCount(cardAt)
 		if err != nil {
 			return nil, err
 		}
@@ -1162,7 +1168,7 @@ func (l *Library) workstreamContents(req *Request, entity *bench.EntityRef, leve
 			Title: card.Title,
 			Count: count,
 		}
-		if err := l.fillContained(&node, card.Dir, bench.KindCard, node.Ref, rank+1, limit); err != nil {
+		if err := l.fillContained(&node, cardAt, node.Ref, rank+1, limit); err != nil {
 			return nil, err
 		}
 		tree.Root.Count += 1 + count
@@ -1222,7 +1228,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) (TreeNode, error) {
 			Kind:  entity.Kind,
 			ID:    entity.ID,
 			Ref:   itemReference,
-			Title: l.anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
+			Title: l.entityTitle(entity),
 		}, nil
 	}
 	// Every kind reaching this branch sits below a head, and the resolver
@@ -1234,7 +1240,7 @@ func (l *Library) rootOf(entity *bench.EntityRef) (TreeNode, error) {
 		Kind:  entity.Kind,
 		ID:    entity.ID,
 		Ref:   entity.Ref,
-		Title: l.anchorTitle(entity.Dir, anchorOfKind(entity.Kind)),
+		Title: l.entityTitle(entity),
 	}, nil
 }
 
@@ -1247,29 +1253,75 @@ func (l *Library) itemRefOf(entity *bench.EntityRef) (string, error) {
 	if entity.Card == nil {
 		return entity.Ref, nil
 	}
-	cardRef := entity.Card.Ref(l.Bench.Slug)
-	collection := filepath.Dir(entity.Dir)
-	id := filepath.Base(entity.Dir)
-	ids, err := l.Bench.ListIDs(collection)
+	record, err := l.Bench.LoadCardRecord(entity.Card)
 	if err != nil {
 		return "", err
 	}
+	cardRef := entity.Card.Ref(l.Bench.Slug)
+	half := bench.LiveHalf
+	if entity.Archived {
+		half = bench.ArchivedHalf
+	}
 	kindSeen := map[string]int{}
-	for n, member := range l.Bench.SortByOrdinal(collection, bench.ItemAnchor, ids) {
-		kind := l.itemKindAt(filepath.Join(collection, member))
+	for n, member := range record.MemberIDs(bench.MemberCollection{Kind: bench.KindItem}, half, "") {
+		kind := ""
+		if item, ok := record.Item(member); ok {
+			kind = item.Kind
+		}
 		kindSeen[kind]++
-		if member == id {
+		if member == entity.ID {
 			return itemRef(cardRef, kind, kindSeen[kind], n+1), nil
 		}
 	}
 	return entity.Ref, nil
 }
 
+// containedAt is where the containment walk stands: one entity, the card the
+// walk is inside when it is inside one, and that card's record, read once. A
+// checklist item and a comment are members of the card's journal in the
+// card-unit layout and have no directory of their own, so the walk asks the
+// record for them rather than listing a directory.
+type containedAt struct {
+	dir  string
+	kind string
+	card *bench.Card
+	// holder is the item's own identifier for an item, the column's own for
+	// a column, and empty otherwise, which is what a comment below it hangs
+	// on.
+	holder string
+	record *bench.CardRecord
+}
+
+// at answers the walk's position for an entity reached by a reference.
+func (l *Library) containedRoot(entity *bench.EntityRef) *containedAt {
+	at := &containedAt{dir: entity.Dir, kind: entity.Kind, card: entity.Card}
+	switch entity.Kind {
+	case bench.KindItem, bench.KindColumn:
+		at.holder = entity.ID
+	}
+	return at
+}
+
+// recordOf answers the record of the card the walk is inside, read the first
+// time a step asks.
+func (l *Library) recordOf(at *containedAt) (*bench.CardRecord, error) {
+	if at.record != nil || at.card == nil {
+		return at.record, nil
+	}
+	l.observe(ObserveRecord, at.card.Dir)
+	record, err := l.Bench.LoadCardRecord(at.card)
+	if err != nil {
+		return nil, err
+	}
+	at.record = record
+	return record, nil
+}
+
 // fillContained gives one node of the containment tree its children and its
 // depth report. The filter never reaches this producer, so a containment node
 // hides nothing but what the depth cut off.
-func (l *Library) fillContained(node *TreeNode, dir, kind, ref string, rank, limit int) error {
-	children, entities, err := l.containedChildren(dir, kind, ref, rank, limit)
+func (l *Library) fillContained(node *TreeNode, at *containedAt, ref string, rank, limit int) error {
+	children, entities, err := l.containedChildren(at, ref, rank, limit)
 	if err != nil {
 		return err
 	}
@@ -1377,26 +1429,30 @@ func groupChecklist(kinds []bench.ChecklistKind, items []kindedNode, holderRef s
 // The workbench's own two collections are ordered by their own rules: columns
 // come in the flow's declared order and cards in arrival order. Every other
 // collection comes in the creation order a positional reference counts in.
-func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) ([]TreeNode, []TreeNode, error) {
+func (l *Library) containedChildren(at *containedAt, ref string, rank, limit int) ([]TreeNode, []TreeNode, error) {
 	var nodes []TreeNode
 	var entities []TreeNode
-	for _, mount := range bench.Contains(kind) {
-		collection := filepath.Join(dir, mount.Dir)
-		members, err := l.containmentMembersOf(collection, mount)
+	for _, mount := range bench.Contains(at.kind) {
+		collection := filepath.Join(at.dir, mount.Dir)
+		members, err := l.containmentMembersOf(at, collection, mount)
 		if err != nil {
 			return nil, nil, err
 		}
-		children, kinds, err := l.memberNodes(collection, mount, members, ref)
+		children, kinds, err := l.memberNodes(at, collection, mount, members, ref)
 		if err != nil {
 			return nil, nil, err
 		}
 		for i := range children {
-			if err := l.fillContained(&children[i], filepath.Join(collection, children[i].ID), mount.Kind, children[i].Ref, rank+1, limit); err != nil {
+			below, err := l.memberAt(at, collection, mount, children[i].ID)
+			if err != nil {
+				return nil, nil, err
+			}
+			if err := l.fillContained(&children[i], below, children[i].Ref, rank+1, limit); err != nil {
 				return nil, nil, err
 			}
 		}
 		entities = append(entities, children...)
-		if mount.Kind == bench.KindItem && kind == bench.KindCard {
+		if mount.Kind == bench.KindItem && at.kind == bench.KindCard {
 			// The kinds come from the walk that already read them. Grouping
 			// opens no anchor of its own, which is what keeps one projection
 			// to one read of each item.
@@ -1426,7 +1482,7 @@ func (l *Library) containedChildren(dir, kind, ref string, rank, limit int) ([]T
 // only over an item whose anchor will not open: itemKindAt reads that item's
 // kind as the empty string, so it lands in a bucket of its own here and Show
 // never draws it at all.
-func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string, seed string) ([]TreeNode, []string, error) {
+func (l *Library) memberNodes(at *containedAt, collection string, mount bench.Mount, ids []string, seed string) ([]TreeNode, []string, error) {
 	nodes := make([]TreeNode, 0, len(ids))
 	kinds := make([]string, 0, len(ids))
 	kindSeen := map[string]int{}
@@ -1434,11 +1490,11 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 		itemKind, kindPosition := "", 0
 		if mount.Kind == bench.KindItem {
 			l.observe(ObserveItemAnchor, id)
-			itemKind = l.itemKindAt(filepath.Join(collection, id))
+			itemKind = l.itemKindAt(at, id)
 			kindSeen[itemKind]++
 			kindPosition = kindSeen[itemKind]
 		}
-		node, err := l.containedNode(collection, id, position+1, itemKind, kindPosition, mount, seed)
+		node, err := l.containedNode(at, collection, id, position+1, itemKind, kindPosition, mount, seed)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1448,25 +1504,92 @@ func (l *Library) memberNodes(collection string, mount bench.Mount, ids []string
 	return nodes, kinds, nil
 }
 
-// itemKindAt is the kind an item's own anchor records, and the empty string
-// where the anchor will not read. An unreadable anchor composes the
+// itemKindAt is the kind an item records, and the empty string where its
+// anchor will not read on the old layout. An unreadable anchor composes the
 // collection reference, which is what the walk printed for every item before
 // this card and which still resolves.
-func (l *Library) itemKindAt(dir string) string {
-	item, err := l.Bench.LoadItem(dir)
-	if err != nil {
+func (l *Library) itemKindAt(at *containedAt, id string) string {
+	record, err := l.recordOf(at)
+	if err != nil || record == nil {
+		return ""
+	}
+	item, ok := record.Item(id)
+	if !ok {
 		return ""
 	}
 	return item.Kind
 }
 
-// The events Library.Observe reports. The first two are the two ways the
-// containment projection reaches the store; the third belongs to the card
-// detail read and the fourth to the urgency order, neither of which the
+// memberAt answers where the walk stands once it steps onto one member of a
+// collection.
+func (l *Library) memberAt(at *containedAt, collection string, mount bench.Mount, id string) (*containedAt, error) {
+	below := &containedAt{dir: filepath.Join(collection, id), kind: mount.Kind, card: at.card, record: at.record}
+	if mount.Kind == bench.KindCard {
+		// A card starts a record of its own, and a card that will not load
+		// is drawn with nothing below it, as a directory with no anchor
+		// always was.
+		below.card, below.record = nil, nil
+		if card, err := l.Bench.LoadCardIn(collection, id); err == nil {
+			below.card = card
+		}
+		return below, nil
+	}
+	if mount.Kind == bench.KindColumn {
+		below.holder = id
+	}
+	if !mount.Journaled {
+		return below, nil
+	}
+	switch mount.Kind {
+	case bench.KindItem:
+		below.holder = id
+	case bench.KindComment:
+		comment, err := l.commentAt(at, id)
+		if err != nil {
+			return nil, err
+		}
+		if comment != nil {
+			below.dir = comment.Home
+		}
+	}
+	return below, nil
+}
+
+// commentAt answers one comment below where the walk stands, nil where it is
+// not one of the holder's.
+func (l *Library) commentAt(at *containedAt, id string) (*bench.Comment, error) {
+	if at.kind == bench.KindColumn {
+		comments, err := l.Bench.ColumnComments(at.holder, bench.LiveHalf)
+		if err != nil {
+			return nil, err
+		}
+		for _, comment := range comments {
+			if comment.ID == id {
+				return comment, nil
+			}
+		}
+		return nil, nil
+	}
+	record, err := l.recordOf(at)
+	if err != nil || record == nil {
+		return nil, err
+	}
+	comment, _ := record.Comment(id)
+	return comment, nil
+}
+
+// The events Library.Observe reports. The first three are the ways the
+// containment projection reaches the store; the fourth belongs to the card
+// detail read and the fifth to the urgency order, neither of which the
 // projection is part of.
 const (
 	// ObserveList is one collection listed, named by its path.
 	ObserveList = "list"
+	// ObserveRecord is one card's comments and checklist read, named by the
+	// card's directory. A card's members are read as one record rather than
+	// as collections, so this is the count that says the projection read a
+	// card's checklist once however many branches it drew from it.
+	ObserveRecord = "record"
 	// ObserveItemAnchor is one item's anchor opened for its kind, named by
 	// the item's directory.
 	ObserveItemAnchor = "item-anchor"
@@ -1495,7 +1618,10 @@ func (l *Library) observe(event, target string) {
 // walk draws them. Named distinctly from Library.membersOf in beyond.go,
 // which lists a workstream's own member cards: same shape, different
 // question, and the two would otherwise collide under one name.
-func (l *Library) containmentMembersOf(collection string, mount bench.Mount) ([]string, error) {
+func (l *Library) containmentMembersOf(at *containedAt, collection string, mount bench.Mount) ([]string, error) {
+	if mount.Journaled {
+		return l.journaledMembers(at, mount)
+	}
 	switch mount.Kind {
 	case bench.KindColumn:
 		ids := make([]string, 0, len(l.Bench.Columns))
@@ -1519,9 +1645,36 @@ func (l *Library) containmentMembersOf(collection string, mount bench.Mount) ([]
 	return l.Bench.MemberIDs(collection, mount)
 }
 
+// journaledMembers lists the live members of a journaled collection in the
+// order the walk draws them: a card's own comments or its checklist, an item's
+// comments, or a column's comments.
+func (l *Library) journaledMembers(at *containedAt, mount bench.Mount) ([]string, error) {
+	if at.kind == bench.KindColumn {
+		comments, err := l.Bench.ColumnComments(at.holder, bench.LiveHalf)
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]string, 0, len(comments))
+		for _, comment := range comments {
+			ids = append(ids, comment.ID)
+		}
+		return ids, nil
+	}
+	record, err := l.recordOf(at)
+	if err != nil || record == nil {
+		return nil, err
+	}
+	collection := bench.MemberCollection{Kind: mount.Kind}
+	if mount.Kind == bench.KindComment && at.kind == bench.KindItem {
+		collection.Holder = at.holder
+	}
+	return record.MemberIDs(collection, bench.LiveHalf, ""), nil
+}
+
 // containedNode is one entity as a node of the containment tree, with the
 // reference a person types to reach it.
 func (l *Library) containedNode(
+	at *containedAt,
 	collection, id string,
 	position int,
 	itemKind string,
@@ -1529,15 +1682,18 @@ func (l *Library) containedNode(
 	mount bench.Mount,
 	parentRef string,
 ) (TreeNode, error) {
-	dir := filepath.Join(collection, id)
-	count, err := l.containedCount(dir, mount.Kind)
+	below, err := l.memberAt(at, collection, mount, id)
+	if err != nil {
+		return TreeNode{}, err
+	}
+	count, err := l.containedCount(below)
 	if err != nil {
 		return TreeNode{}, err
 	}
 	node := TreeNode{
 		Kind:  mount.Kind,
 		ID:    id,
-		Title: l.anchorTitle(dir, mount.Anchor),
+		Title: l.titleOf(at, below, mount, id),
 		Count: count,
 	}
 	switch mount.Kind {
@@ -1568,20 +1724,34 @@ func (l *Library) containedNode(
 // node's count equals its children plus their counts follows from the walk
 // rather than producing it, because a containment tree partitions its entities
 // and nothing appears in it twice.
-func (l *Library) containedCount(dir, kind string) (int, error) {
+func (l *Library) containedCount(at *containedAt) (int, error) {
 	total := 0
-	for _, mount := range bench.Contains(kind) {
-		collection := filepath.Join(dir, mount.Dir)
-		ids, err := l.Bench.ListIDs(collection)
-		if err != nil {
-			return 0, err
+	for _, mount := range bench.Contains(at.kind) {
+		collection := filepath.Join(at.dir, mount.Dir)
+		var ids []string
+		if mount.Journaled {
+			members, err := l.journaledMembers(at, mount)
+			if err != nil {
+				return 0, err
+			}
+			ids = members
+		} else {
+			listed, err := l.Bench.ListIDs(collection)
+			if err != nil {
+				return 0, err
+			}
+			for _, id := range listed {
+				if l.Bench.Exists(filepath.Join(collection, id, mount.Anchor)) {
+					ids = append(ids, id)
+				}
+			}
 		}
 		for _, id := range ids {
-			member := filepath.Join(collection, id)
-			if !l.Bench.Exists(filepath.Join(member, mount.Anchor)) {
-				continue
+			member, err := l.memberAt(at, collection, mount, id)
+			if err != nil {
+				return 0, err
 			}
-			below, err := l.containedCount(member, mount.Kind)
+			below, err := l.containedCount(member)
 			if err != nil {
 				return 0, err
 			}
@@ -1591,21 +1761,46 @@ func (l *Library) containedCount(dir, kind string) (int, error) {
 	return total, nil
 }
 
-// anchorOfKind is the anchor filename one entity kind carries, read off the
-// containment grammar.
-func anchorOfKind(kind string) string {
-	for _, mounts := range [][]bench.Mount{
-		bench.Contains(bench.KindWorkbench),
-		bench.Contains(bench.KindCard),
-		bench.Contains(bench.KindComment),
-	} {
-		for _, mount := range mounts {
-			if mount.Kind == kind {
-				return mount.Anchor
-			}
+// titleOf is what an entity below a head is called: a journaled member's own
+// text read from the card's record or the workbench journal, and every other
+// member's anchor's naming fields.
+func (l *Library) titleOf(at, below *containedAt, mount bench.Mount, id string) string {
+	if !mount.Journaled {
+		return l.anchorTitle(below.dir, mount.Anchor)
+	}
+	if mount.Kind == bench.KindComment {
+		comment, err := l.commentAt(at, id)
+		if err != nil || comment == nil {
+			return ""
 		}
+		return firstLine(comment.Body)
+	}
+	record, err := l.recordOf(at)
+	if err != nil || record == nil {
+		return ""
+	}
+	if item, ok := record.Item(id); ok {
+		return firstLine(item.Text)
 	}
 	return ""
+}
+
+// entityTitle is what an entity reached by a reference is called, on titleOf's
+// terms: a comment's or an item's own text, and every other kind's anchor's
+// naming fields.
+func (l *Library) entityTitle(entity *bench.EntityRef) string {
+	if entity.Kind != bench.KindComment && entity.Kind != bench.KindItem {
+		return l.anchorTitle(entity.Dir, bench.AnchorOf(entity.Kind))
+	}
+	text, err := l.Bench.MemberText(entity)
+	if err != nil {
+		return ""
+	}
+	fm, body := bench.ParseAnchor(text)
+	if value := fm.Value("text"); value != "" {
+		return value
+	}
+	return firstLine(body)
 }
 
 // anchorTitle is what an entity below a card is called. The format gives these

@@ -2,7 +2,6 @@ package bench
 
 import (
 	"encoding/json"
-	"path/filepath"
 	"strings"
 
 	"dinah/internal/contract"
@@ -289,7 +288,7 @@ func (b *Bench) MissingStandingItems(card *Card, column *Column) ([]StandingItem
 	if len(column.StandingItems) == 0 {
 		return nil, nil
 	}
-	instances, err := itemsWhere(b.source(), card.Dir, func(item *Item) bool {
+	instances, err := b.itemsWhere(card, func(item *Item) bool {
 		return item.Column == column.ID && item.Standing != ""
 	})
 	if err != nil {
@@ -314,18 +313,8 @@ func (b *Bench) MissingStandingItems(card *Card, column *Column) ([]StandingItem
 // instances a reshape retiring that column withdraws. An instance in any other
 // state is a record of a judgement taken and is left as it stands, and a
 // hand-filed item naming the column carries no standing key and is not one.
-func PendingStandingInstances(cardDir, columnID string) ([]*Item, error) {
-	return pendingStandingInstances(Disk{}, cardDir, columnID)
-}
-
-// PendingStandingInstances is the free PendingStandingInstances read through this bench's source.
-func (b *Bench) PendingStandingInstances(cardDir, columnID string) ([]*Item, error) {
-	return pendingStandingInstances(b.source(), cardDir, columnID)
-}
-
-// pendingStandingInstances is PendingStandingInstances's body, reading through src.
-func pendingStandingInstances(src Source, cardDir, columnID string) ([]*Item, error) {
-	return itemsWhere(src, cardDir, func(item *Item) bool {
+func (b *Bench) PendingStandingInstances(card *Card, columnID string) ([]*Item, error) {
+	return b.itemsWhere(card, func(item *Item) bool {
 		return item.Column == columnID && item.Standing != "" && item.State == ItemPending
 	})
 }
@@ -338,18 +327,8 @@ func pendingStandingInstances(src Source, cardDir, columnID string) ([]*Item, er
 // lines leaves behind, and the re-run completes the record rather than passing
 // over an anchor nothing accounts for. A withdrawn instance whose line stands
 // is not answered, so nothing is written twice.
-func StandingInstancesOwedAWithdrawal(cardDir, columnID string) ([]*Item, error) {
-	return standingInstancesOwedAWithdrawal(Disk{}, cardDir, columnID)
-}
-
-// StandingInstancesOwedAWithdrawal is the free StandingInstancesOwedAWithdrawal read through this bench's source.
-func (b *Bench) StandingInstancesOwedAWithdrawal(cardDir, columnID string) ([]*Item, error) {
-	return standingInstancesOwedAWithdrawal(b.source(), cardDir, columnID)
-}
-
-// standingInstancesOwedAWithdrawal is StandingInstancesOwedAWithdrawal's body, reading through src.
-func standingInstancesOwedAWithdrawal(src Source, cardDir, columnID string) ([]*Item, error) {
-	candidates, err := itemsWhere(src, cardDir, func(item *Item) bool {
+func (b *Bench) StandingInstancesOwedAWithdrawal(card *Card, columnID string) ([]*Item, error) {
+	candidates, err := b.itemsWhere(card, func(item *Item) bool {
 		if item.Column != columnID || item.Standing == "" {
 			return false
 		}
@@ -367,7 +346,7 @@ func standingInstancesOwedAWithdrawal(src Source, cardDir, columnID string) ([]*
 		}
 		if recorded == nil {
 			recorded = map[string]bool{}
-			events, _, err := readJournal(src, filepath.Join(cardDir, JournalName))
+			events, _, err := b.ReadJournal(card.JournalPath())
 			if err != nil {
 				return nil, err
 			}

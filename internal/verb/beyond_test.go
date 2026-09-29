@@ -228,7 +228,7 @@ func TestCommentAndAttach(t *testing.T) {
 		t.Fatalf("attach to a comment: %s %s", below.Outcome, below.Refusal)
 	}
 	h.reopen()
-	onComment, err := bench.LoadAttachment(filepath.Join(comments[0].Dir, bench.AttachmentsDir, below.Detail))
+	onComment, err := bench.LoadAttachment(filepath.Join(comments[0].Home, bench.AttachmentsDir, below.Detail))
 	if err != nil {
 		t.Fatalf("load the comment's attachment: %v", err)
 	}
@@ -663,8 +663,8 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	if release.Tool == release.Profile {
 		t.Error("the tool's release number and the conformance claim must not be conflated")
 	}
-	if release.Format != bench.StorageFormat {
-		t.Errorf("storage format: wanted %d, got %d", bench.StorageFormat, release.Format)
+	if release.Format != bench.EffectiveStorageFormat() {
+		t.Errorf("storage format: wanted %d, got %d", bench.EffectiveStorageFormat(), release.Format)
 	}
 	// The roster of which catalogs ship complete lives once, as msg.Complete
 	// and msg.Skeleton, so this test reads the same declaration
@@ -2299,6 +2299,100 @@ func TestAWorkstreamIsBornWithASlugAStatusAnOrdinalAndAJournal(t *testing.T) {
 	}
 	if len(listing.Workstreams) != 1 || listing.Workstreams[0].Cards != 0 {
 		t.Errorf("the listing reads %+v, wanted the one workstream with no cards", listing.Workstreams)
+	}
+}
+
+// TestAWorkstreamsCreatedLineIsWrittenUnderItsOwnLock is
+// dinah-637/criteria/33 for the two acts that create a workstream. Each
+// appends its created line holding the new workstream's own lock, taken after
+// the workbench lock and given back before it: a creation lands, and with the
+// workstream's lock planted as held by another owner in the window between
+// the anchor and the line, each act is refused dinah.locked, leaves no
+// journal line, and leaves the workbench lock free.
+func TestAWorkstreamsCreatedLineIsWrittenUnderItsOwnLock(t *testing.T) {
+	plantInWindow := func(h *harness, dir func() string) {
+		h.library.Interpose = func(step string) {
+			if step == stepWorkstreamWritten {
+				h.plant(filepath.Join(dir(), bench.LockName), bench.LockRecord{Actor: "someone", PID: 4242, TS: bench.Stamp(h.clock)})
+			}
+		}
+	}
+
+	t.Run("a creation lands under the workstream lock", func(t *testing.T) {
+		h := newHarness(t)
+		var seen []string
+		h.library.Interpose = func(step string) { seen = append(seen, step) }
+		view := h.newWorkstream("Portfolio work")
+		if len(seen) != 1 || seen[0] != stepWorkstreamWritten {
+			t.Errorf("the creation opened %v, wanted the one window before the workstream lock", seen)
+		}
+		if events := h.workstreamEvents(view.ID); len(events) != 1 {
+			t.Errorf("the journal carries %d lines, wanted the created line", len(events))
+		}
+		if locks := h.locks(); len(locks) != 0 {
+			t.Errorf("locks stand after the creation: %v", locks)
+		}
+	})
+
+	t.Run("a creation meeting the workstream lock held is refused", func(t *testing.T) {
+		h := newHarness(t)
+		collection := filepath.Join(h.root, bench.WorkstreamsDir)
+		plantInWindow(h, func() string {
+			ids, err := bench.ListIDs(collection)
+			if err != nil || len(ids) != 1 {
+				t.Fatalf("the window found %v, %v in the workstreams collection, wanted the one new workstream", ids, err)
+			}
+			return filepath.Join(collection, ids[0])
+		})
+		response := h.library.NewWorkstream(&Request{Verb: "workstream", Action: "new", Actor: "alka", Workstream: "Portfolio work"})
+		if response.Refusal != contract.Locked {
+			t.Fatalf("wanted %s, got %s %s", contract.Locked, response.Outcome, response.Refusal)
+		}
+		assertNoWorkstreamLine(t, h, collection)
+	})
+
+	t.Run("an adoption meeting the workstream lock held is refused", func(t *testing.T) {
+		h := newHarness(t)
+		ref := h.add("a card naming a workstream nobody made")
+		card := h.card(ref)
+		const dangling = "d00000000001"
+		text, err := bench.ReadText(filepath.Join(card.Dir, bench.CardAnchor))
+		if err != nil {
+			t.Fatalf("read the card: %v", err)
+		}
+		fm, body := bench.ParseAnchor(text)
+		fm.SetSeq("workstreams", []string{dangling})
+		if err := bench.WriteText(filepath.Join(card.Dir, bench.CardAnchor), fm.Render(body)); err != nil {
+			t.Fatalf("plant the dangling membership: %v", err)
+		}
+		h.reopen()
+		collection := filepath.Join(h.root, bench.WorkstreamsDir)
+		plantInWindow(h, func() string { return filepath.Join(collection, dangling) })
+		_, err = h.library.adoptWorkstreams(&Request{Verb: "check", Actor: "alka", MigrateWorkstreams: true})
+		if refusal, ok := err.(*contract.Refusal); !ok || refusal.Name != contract.Locked {
+			t.Fatalf("wanted %s, got %v", contract.Locked, err)
+		}
+		assertNoWorkstreamLine(t, h, collection)
+	})
+}
+
+// assertNoWorkstreamLine fails when any workstream journal stands in the
+// collection or the workbench lock is still held, which is what a refused
+// creation has to leave.
+func assertNoWorkstreamLine(t *testing.T, h *harness, collection string) {
+	t.Helper()
+	ids, _ := bench.ListIDs(collection)
+	journals := 0
+	for _, id := range ids {
+		if bench.Exists(filepath.Join(collection, id, bench.JournalName)) {
+			journals++
+		}
+	}
+	if journals != 0 {
+		t.Errorf("a refused creation left %d workstream journals", journals)
+	}
+	if bench.Exists(filepath.Join(h.root, bench.LockName)) {
+		t.Errorf("the refused act left the workbench lock standing")
 	}
 }
 

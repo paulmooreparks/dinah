@@ -444,14 +444,14 @@ func TestRoutesTravelThroughInterchangeUntouched(t *testing.T) {
 // further, so the pin travels with every later move rather than asserting a
 // number routes never had anything to do with.
 func TestTheStorageFormatDoesNotMoveForRoutes(t *testing.T) {
-	if StorageFormat != HoldsFormat {
-		t.Fatalf("the storage format is %d, and routes are additive and optional, so it does not move past the %d dinah-608 left it at", StorageFormat, HoldsFormat)
+	if EffectiveStorageFormat() != HoldsFormat {
+		t.Fatalf("the storage format is %d, and routes are additive and optional, so it does not move past the %d dinah-608 left it at", EffectiveStorageFormat(), HoldsFormat)
 	}
 	// The route drops Review, whose reject_to names Doing, and carries Doing,
 	// which declares none, so no finding of any kind is owed.
 	b := routeFixture(t, []string{"  short:", "    - f00000000001", "    - f00000000002", "    - f00000000004"})
-	if b.Format != StorageFormat {
-		t.Errorf("the workbench declares format %d on a build stamped %d", b.Format, StorageFormat)
+	if b.Format != EffectiveStorageFormat() {
+		t.Errorf("the workbench declares format %d on a build stamped %d", b.Format, EffectiveStorageFormat())
 	}
 	findings, err := b.Check()
 	if err != nil {

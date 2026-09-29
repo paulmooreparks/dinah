@@ -2,6 +2,7 @@ package verb
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -224,5 +225,43 @@ func TestTheBusyRefusalStatesTheDefaultBudget(t *testing.T) {
 	}
 	if !strings.Contains(entry.Text, "five seconds") || defaultRetryBudget != 5*time.Second {
 		t.Errorf("the sentence %q and the budget %v disagree", entry.Text, defaultRetryBudget)
+	}
+}
+
+// TestALongLivedLibraryIsRefusedAStoreWhoseFormatMoved is
+// dinah-637/criteria/26. A library opened on a format-11 store, whose
+// workbench.md is then rewritten to declare format 12 with migrating: storage,
+// has its next comment refused dinah.store-format-changed naming both formats,
+// and the refused comment writes nothing: the card's directory and journal
+// stand exactly as they did.
+func TestALongLivedLibraryIsRefusedAStoreWhoseFormatMoved(t *testing.T) {
+	h := newHarness(t)
+	ref := h.add("a card the migration reaches under a running server")
+	card := h.card(ref)
+	before := hashDirectory(t, card.Dir)
+
+	anchor := filepath.Join(h.root, bench.WorkbenchAnchor)
+	text, err := bench.ReadText(anchor)
+	if err != nil {
+		t.Fatalf("read the anchor: %v", err)
+	}
+	declared := "format: " + strconv.Itoa(bench.EffectiveStorageFormat())
+	if !strings.Contains(text, declared) {
+		t.Fatalf("the fixture anchor does not declare %q", declared)
+	}
+	stamped := strings.Replace(text, declared, "format: 12\nmigrating: storage", 1)
+	if err := bench.WriteText(anchor, stamped); err != nil {
+		t.Fatalf("stamp the anchor: %v", err)
+	}
+
+	response := h.library.Comment(&Request{Verb: "comment", Actor: "alka", Card: ref, Text: "a comment written after the stamp"})
+	if response.Refusal != contract.StoreFormatChanged {
+		t.Fatalf("wanted %s, got %s %s", contract.StoreFormatChanged, response.Outcome, response.Refusal)
+	}
+	if response.Detail != "11" || response.Context["now"] != "12 (migrating: storage)" {
+		t.Errorf("the refusal names %q and now %q, wanted 11 and 12 (migrating: storage)", response.Detail, response.Context["now"])
+	}
+	if after := hashDirectory(t, card.Dir); after != before {
+		t.Errorf("the refused comment changed the card's directory:\nbefore %s\nafter  %s", before, after)
 	}
 }

@@ -34,7 +34,7 @@ func preChangeOrdinalCollections(cardDir string) ([]ordinalCollection, error) {
 	var collections []ordinalCollection
 	for _, mount := range Contains(KindCard) {
 		dir := filepath.Join(cardDir, mount.Dir)
-		collections = append(collections, ordinalCollection{dir: dir, anchor: mount.Anchor})
+		collections = append(collections, ordinalCollection{dir: dir, anchor: layoutAnchorOf(mount)})
 		if mount.Kind != KindComment {
 			continue
 		}
@@ -46,12 +46,23 @@ func preChangeOrdinalCollections(cardDir string) ([]ordinalCollection, error) {
 			for _, below := range Contains(KindComment) {
 				collections = append(collections, ordinalCollection{
 					dir:    filepath.Join(dir, id, below.Dir),
-					anchor: below.Anchor,
+					anchor: layoutAnchorOf(below),
 				})
 			}
 		}
 	}
 	return collections, nil
+}
+
+// layoutAnchorOf is the anchor a mount's members carry on the layout this
+// test's fixture is written in, which is the one below the card-unit format:
+// the mount's own anchor, or for a comment and an item the one the old
+// layout gave them.
+func layoutAnchorOf(mount Mount) string {
+	if mount.Anchor != "" {
+		return mount.Anchor
+	}
+	return legacyAnchorOf(mount.Kind)
 }
 
 // missingOrdinals counts, over one set of collections, how many entities
@@ -118,7 +129,7 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 	}
 
 	// The walk this card ships reaches both.
-	after, err := ordinalCollections(Disk{}, cardDir, KindCard, nil)
+	after, err := ordinalCollections(Disk{}, cardDir, KindCard, nil, false)
 	if err != nil {
 		t.Fatalf("ordinalCollections: %v", err)
 	}
@@ -131,7 +142,7 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	findings, err := checkOrdinals(Disk{}, cardDir)
+	findings, err := opened.checkOrdinals(cardDir)
 	if err != nil {
 		t.Fatalf("checkOrdinals: %v", err)
 	}
@@ -160,7 +171,7 @@ func TestOrdinalCheckAndMigrationReachAnItemsComments(t *testing.T) {
 	if stamped != 2 {
 		t.Fatalf("the migration stamped %d entities, wanted 2", stamped)
 	}
-	again, err := checkOrdinals(Disk{}, cardDir)
+	again, err := opened.checkOrdinals(cardDir)
 	if err != nil {
 		t.Fatalf("checkOrdinals after backfill: %v", err)
 	}

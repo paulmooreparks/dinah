@@ -1207,7 +1207,7 @@ func TestTheWorkbenchWalkDrawsItsCollectionsInOrder(t *testing.T) {
 	if err != nil || len(comments) != 1 {
 		t.Fatalf("read the comment back: %v", err)
 	}
-	if _, err := bench.AddAttachment(comments[0].Dir, writeFile(t, "evidence.txt"), "", "test"); err != nil {
+	if _, err := bench.AddAttachment(comments[0].Home, writeFile(t, "evidence.txt"), "", "test"); err != nil {
 		t.Fatalf("attach to the comment: %v", err)
 	}
 	h.reopen()
