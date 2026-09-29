@@ -1643,13 +1643,16 @@ the line carried it, and it gains `redacted`, true. The lines rewritten are the
 member's own: a comment's `commented`, `comment_updated` and
 `comment_baseline` text and the `reason` of the `unblocked` line naming it, and
 an item's `item_filed`, `item_updated` and `item_baseline` text and the `title`
-of the line that deleted it. The `item_updated` lines with `field: note`
+of the line that deleted it, which a deletion written before storage format 12
+spells with the item in `note` alone. The `item_updated` lines with `field: note`
 written before answers were comments are rewritten too, since their `from` and
 `to` hold versions of an answer: every value for the item they name, and for a
 comment an item designates, the values equal to a version of that comment's
 own text. A value a redaction already replaced is never hashed again. The
 replay reads a redacted member's text as empty, and `lines` counts every line
-rewritten.
+rewritten. A redaction that would rewrite no line, as for a comment deleted
+before storage format 12, whose text lived only in the file its deletion
+removed, is refused `dinah.nothing-to-redact` and writes nothing.
 
 A `lock_reclaimed` line lands on the journal of the entity the reclaimed lock
 covered: a card's lock on that card's journal, a workstream's on the
