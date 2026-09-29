@@ -38,6 +38,15 @@ type goldenRow struct {
 // the store's directory and the directory a command runs from.
 func migratedFixture(t *testing.T) (store, root string) {
 	t.Helper()
+	store, root, _ = migratedFixtureReport(t, nil)
+	return store, root
+}
+
+// migratedFixtureReport is migratedFixture answering the migration's own
+// report too, as its --json answer printed it. prepare, where given, runs on
+// the copied store before the migration.
+func migratedFixtureReport(t *testing.T, prepare func(store string)) (store, root, report string) {
+	t.Helper()
 	bench.EnableCardUnitForTest(t)
 	id, err := os.ReadFile(filepath.Join(storageFixture, "workbench-id.txt"))
 	if err != nil {
@@ -47,16 +56,19 @@ func migratedFixture(t *testing.T) (store, root string) {
 	root = filepath.Join(base, "wb")
 	store = filepath.Join(root, bench.UserBaseName, strings.TrimSpace(string(id)))
 	copyFixtureTree(t, filepath.Join(storageFixture, "before"), store)
+	if prepare != nil {
+		prepare(store)
+	}
 	t.Setenv("DINAH_HOME", filepath.Join(base, "home"))
 	t.Setenv("DINAH_ACTOR", "sam")
 	t.Setenv("DINAH_LANG", "")
 	t.Setenv("DINAH_FORMAT", "")
 	t.Setenv("DINAH_WORKBENCH", "")
-	got := runCLI(t, root, "--workbench", store, "check", "--migrate-storage", "--backup", filepath.Join(base, "backup"))
+	got := runCLI(t, root, "--workbench", store, "--json", "check", "--migrate-storage", "--backup", filepath.Join(base, "backup"))
 	if got.code != 0 {
 		t.Fatalf("migrate the fixture: %d\n%s%s", got.code, got.out, got.errw)
 	}
-	return store, root
+	return store, root, got.out
 }
 
 // copyFixtureTree copies every file below one directory into another.

@@ -686,6 +686,67 @@ func TestAStrayIsCarriedByPhaseFour(t *testing.T) {
 	}
 }
 
+// TestAnEditMadeDuringTheRemovalIsCarriedByPhaseFour answers
+// dinah-637/questions/25. An older process that already had the store open
+// rewrites an existing comment.md of a card phase 3 has not reached yet, at
+// the moment phase 3 makes its first removal on another card. The proof has
+// passed by then, so the comment's manifest key is in the stored manifest,
+// but its file no longer states the stored line. Phase 3 leaves it, phase 4
+// carries it as a baseline and names it among the strays, and the comment
+// then reads with the edited text; nothing written after the proof is lost.
+//
+// Arming: letting phase 3 remove an anchor on its manifest key alone, as it
+// did, deletes the edited file before phase 4 sees it, so the run names no
+// stray and the comment reads with the text the proof covered.
+func TestAnEditMadeDuringTheRemovalIsCarriedByPhaseFour(t *testing.T) {
+	EnableCardUnitForTest(t)
+	store := copyMigrationFixture(t)
+	const laterCard, edited = "b745ea46d9e3", "fa57b145f78d"
+	const text = "rewritten by an older process after the proof passed"
+	anchor := filepath.Join(store, CardsDir, laterCard, CommentsDir, edited, legacyAnchorOf(KindComment))
+	if !strings.Contains(mustRead(t, anchor), "---") {
+		t.Fatalf("the fixture holds no comment at %s", anchor)
+	}
+	rewritten := false
+	plant(t, &storageMigrationStep, func(op, path string) error {
+		if rewritten || op != "remove" || !strings.Contains(filepath.ToSlash(path), "/"+mainCard+"/") {
+			return nil
+		}
+		rewritten = true
+		fm, _ := ParseAnchor(mustRead(t, anchor))
+		return WriteText(anchor, fm.Render(text))
+	})
+	report, err := migrateFixture(t, store, migrationRun(filepath.Join(t.TempDir(), "backup")))
+	if err != nil || report.Outcome != contract.ReadOK {
+		t.Fatalf("migrate: %v %+v", err, report)
+	}
+	if !rewritten {
+		t.Fatal("the plant never ran, so phase 3 made no removal on the main card")
+	}
+	key := "comment/" + laterCard + "/" + edited
+	if len(report.Strays) != 1 || report.Strays[0] != key {
+		t.Errorf("the run carried the strays %v, wanted %s", report.Strays, key)
+	}
+	if Exists(anchor) {
+		t.Errorf("the edited file survived at %s", anchor)
+	}
+	opened, err := Open(store)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	card, err := opened.LoadCardIn(opened.CardsRoot(), laterCard)
+	if err != nil {
+		t.Fatalf("load %s: %v", laterCard, err)
+	}
+	record, err := opened.LoadCardRecord(card)
+	if err != nil {
+		t.Fatalf("record: %v", err)
+	}
+	if carried, ok := record.Comment(edited); !ok || carried.Body != text {
+		t.Errorf("the edited comment reads %+v, wanted the text written after the proof", carried)
+	}
+}
+
 // TestARefusedRemovalStopsTheRunAndARerunCompletes drives dinah-637/criteria/28
 // through the test failure hook: a removal the filesystem refuses stops the
 // run with outcome findings naming the path and the error, deletes nothing

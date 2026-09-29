@@ -126,29 +126,58 @@ func (b *Bench) checkComments(card *Card, record *CardRecord) []Finding {
 	// spelling they could not use to open it, while the verb refusal over
 	// the same comment printed the reference correctly and the two surfaces
 	// disagreed about how to name one thing.
-	type holder struct {
-		id  string
-		ref string
-	}
 	cardRef := card.Ref(b.Slug)
-	holders := []holder{{ref: cardRef}}
-	seen := map[string]int{}
+	itemRefs := record.liveItemRefs(cardRef)
+	holders := []string{""}
 	for _, item := range items {
-		seen[item.Kind]++
-		itemRef := cardRef + "/" + ChecklistSegment + "/" + strconv.Itoa(seen[item.Kind])
-		if word, ok := WordForItemKind(item.Kind); ok {
-			itemRef = cardRef + "/" + word + "/" + strconv.Itoa(seen[item.Kind])
-		}
-		holders = append(holders, holder{id: item.ID, ref: itemRef})
+		holders = append(holders, item.ID)
 	}
 	for _, held := range holders {
-		for _, comment := range record.CommentsOf(held.id, LiveHalf) {
-			reference := held.ref + "/" + CommentsDir + "/" + strconv.Itoa(comment.Ordinal)
+		holderRef := cardRef
+		if held != "" {
+			holderRef = itemRefs[held]
+		}
+		for _, comment := range record.CommentsOf(held, LiveHalf) {
+			reference := record.commentReference(holderRef, comment)
 			path := record.FileOf(KindComment, comment.ID)
 			findings = append(findings, commentBodyFindings(comment, path, reference, designated[comment.ID])...)
 		}
 	}
 	return findings
+}
+
+// liveItemRefs are the references a reader types for each live item of a
+// card, keyed by the item's identifier: the card's reference, the word of the
+// item's kind, and the item's place among the card's live items of that kind.
+// A finding of dinah check and the storage migration's report both name an
+// item this way, so the two never name one item two ways.
+func (r *CardRecord) liveItemRefs(cardRef string) map[string]string {
+	refs := map[string]string{}
+	seen := map[string]int{}
+	for _, item := range r.ItemsIn(LiveHalf, "") {
+		seen[item.Kind]++
+		ref := cardRef + "/" + ChecklistSegment + "/" + strconv.Itoa(seen[item.Kind])
+		if word, ok := WordForItemKind(item.Kind); ok {
+			ref = cardRef + "/" + word + "/" + strconv.Itoa(seen[item.Kind])
+		}
+		refs[item.ID] = ref
+	}
+	return refs
+}
+
+// commentReference is the reference a finding or a report names a live
+// comment by: its holder's reference, then comments and the comment's place
+// among its holder's live comments, which is what the resolver counts, and
+// the comment's identifier where it holds no place there. The ordinal is not
+// the place once an earlier comment of the holder is deleted or archived, and
+// a finding that named the ordinal named a reference that reached another
+// comment or none.
+func (r *CardRecord) commentReference(holderRef string, comment *Comment) string {
+	position := r.HeldPosition(comment.Holder, LiveHalf, comment.ID)
+	if position == 0 {
+		return holderRef + "/" + CommentsDir + "/" + comment.ID
+	}
+	return holderRef + "/" + CommentsDir + "/" + strconv.Itoa(position)
 }
 
 // commentBodyFindings judges one comment's body, given whether an item

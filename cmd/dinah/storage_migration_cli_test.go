@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -167,9 +168,36 @@ func TestTheMigrationIsTheOperatorsAndRefusedOverClaims(t *testing.T) {
 // TestADivergenceIsCarriedAndStillReported drives the divergence clause of
 // dinah-637/criteria/13: a comment whose body was edited by hand after its
 // digest was recorded is carried with that digest, and after the migration
-// dinah check reports it until dinah accept-divergence clears it.
+// dinah check reports it until dinah accept-divergence clears it. The
+// migration's report names each kept divergence by the reference dinah check
+// names it by, which is dinah-637/questions/29's second part: besides the
+// fixture's own hand-edited card comment, the test edits the second comment of
+// the fixture's second question by hand before migrating, so one of the two
+// hangs on an item that is not the checklist's first.
+//
+// Arming: composing the report's reference from the item's place in the whole
+// checklist, as the report did, names the question's comment
+// fx-1/checklist/8/comments/2 where check names it fx-1/questions/2/comments/2,
+// which the comparison reports; and naming a comment by its ordinal, as check
+// did, names that comment fx-1/questions/2/comments/4, which reaches nothing,
+// so accept-divergence over it is refused.
 func TestADivergenceIsCarriedAndStillReported(t *testing.T) {
-	store, root := migratedFixture(t)
+	store, root, migrated := migratedFixtureReport(t, func(store string) {
+		anchor := filepath.Join(store, bench.CardsDir, "7035845dc37b", "checklist", "87b95a15aacc", bench.CommentsDir, "6ebdf797b337", "comment.md")
+		text, err := os.ReadFile(anchor)
+		if err != nil {
+			t.Fatalf("read %s: %v", anchor, err)
+		}
+		if err := os.WriteFile(anchor, append(text, []byte("edited by hand after its digest was recorded\n")...), 0o644); err != nil {
+			t.Fatalf("edit %s: %v", anchor, err)
+		}
+	})
+	var migration struct {
+		Divergences []string `json:"divergences"`
+	}
+	if err := json.Unmarshal([]byte(migrated), &migration); err != nil {
+		t.Fatalf("decode the migration's report %s: %v", migrated, err)
+	}
 	at := func(args ...string) invocation {
 		return runCLI(t, root, append([]string{"--workbench", store}, args...)...)
 	}
@@ -178,17 +206,25 @@ func TestADivergenceIsCarriedAndStillReported(t *testing.T) {
 		Findings []bench.Finding `json:"findings"`
 	}
 	json.Unmarshal([]byte(got.out), &report)
-	diverged := ""
+	var diverged []string
 	for _, finding := range report.Findings {
 		if finding.Key == bench.FindingCommentBodyDiverged {
-			diverged = finding.Detail
+			diverged = append(diverged, finding.Detail)
 		}
 	}
-	if diverged == "" {
-		t.Fatalf("check on the migrated fixture reports no diverged comment: %s", got.out)
+	if len(diverged) != 2 {
+		t.Fatalf("check on the migrated fixture reports the diverged comments %v, wanted the fixture's own and the one edited here: %s", diverged, got.out)
 	}
-	if got := at("accept-divergence", diverged); got.code != 0 {
-		t.Fatalf("accept-divergence %s: %d %s", diverged, got.code, got.errw)
+	sort.Strings(diverged)
+	kept := append([]string(nil), migration.Divergences...)
+	sort.Strings(kept)
+	if strings.Join(kept, " ") != strings.Join(diverged, " ") {
+		t.Errorf("the migration's report names the kept divergences %v, and check names the comments %v", kept, diverged)
+	}
+	for _, reference := range diverged {
+		if got := at("accept-divergence", reference); got.code != 0 {
+			t.Fatalf("accept-divergence %s: %d %s", reference, got.code, got.errw)
+		}
 	}
 	got = at("check", "--json")
 	json.Unmarshal([]byte(got.out), &report)

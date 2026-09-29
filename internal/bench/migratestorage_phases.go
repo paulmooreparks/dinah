@@ -534,23 +534,23 @@ func (s *storageSource) count(report *StorageMigration) {
 	report.Manifest.Lines = len(s.manifest.lines)
 }
 
-// commentRef composes the reference a report names a comment by: its
-// positions where the comment and its item stand live, and identifiers
+// commentRef composes the reference a report names a comment by, which is the
+// reference dinah check names the same comment by where the comment and its
+// item stand live (liveItemRefs and commentReference), and identifiers
 // otherwise, which the resolver accepts in the same place.
 func (s *storageSource) commentRef(card *storageCard, comment *Comment) string {
-	ref := card.card.Ref(s.b.Slug)
+	cardRef := card.card.Ref(s.b.Slug)
+	holderRef, live := cardRef, true
 	if comment.Holder != "" {
-		segment := comment.Holder
-		if position := card.record.Position(MemberCollection{Kind: KindItem}, LiveHalf, comment.Holder); position > 0 {
-			segment = strconv.Itoa(position)
+		holderRef, live = card.record.liveItemRefs(cardRef)[comment.Holder]
+		if !live {
+			holderRef = cardRef + "/" + ChecklistSegment + "/" + comment.Holder
 		}
-		ref += "/" + ChecklistSegment + "/" + segment
 	}
-	segment := comment.ID
-	if position := card.record.HeldPosition(comment.Holder, LiveHalf, comment.ID); position > 0 {
-		segment = strconv.Itoa(position)
+	if live && !comment.Archived {
+		return card.record.commentReference(holderRef, comment)
 	}
-	return ref + "/" + CommentsDir + "/" + segment
+	return holderRef + "/" + CommentsDir + "/" + comment.ID
 }
 
 // manifest is one side of the proof: a line per member and per attachment,
@@ -1260,9 +1260,11 @@ func (b *Bench) removeBelow(state *storageState, dir string, card bool, report *
 			return false, err
 		}
 	}
-	// Only an anchor the proof covered goes. One standing for a member the
-	// stored manifest does not carry was written since phase 1 by a process
-	// the run could not keep out, and phase 4 carries it before deleting it.
+	// Only an anchor the proof covered goes, and only while it still states
+	// the line the proof covered. One standing for a member the stored
+	// manifest does not carry, or one whose member now reads differently
+	// from the stored line, was written since phase 1 by a process the run
+	// could not keep out, and phase 4 carries it before deleting it.
 	carried := storedLines(state.Manifest)
 	var anchors []string
 	if card {
@@ -1271,8 +1273,13 @@ func (b *Bench) removeBelow(state *storageState, dir string, card bool, report *
 		anchors = legacyAnchorsBelowColumn(b.source(), dir)
 	}
 	owner := filepath.Base(dir)
+	columnArchived := !card && durable.SamePath(filepath.Dir(dir), b.ArchivedColumnsRoot())
 	for _, anchor := range anchors {
-		if _, ok := carried[anchorKey(owner, anchor)]; !ok {
+		want, ok := carried[anchorKey(owner, anchor)]
+		if !ok {
+			continue
+		}
+		if line, read := anchorLine(b.source(), owner, anchor, card, columnArchived); !read || line != want {
 			continue
 		}
 		if stopped, err := storageStep(report, "remove", anchor, func() error { return removeIfPresent(anchor) }); err != nil || stopped {
@@ -1280,6 +1287,34 @@ func (b *Bench) removeBelow(state *storageState, dir string, card bool, report *
 		}
 	}
 	return pruneOldLayout(b.source(), dir, report)
+}
+
+// anchorLine is the manifest line of the member an old layout's anchor states,
+// read from the anchor as it stands now, and false where the anchor will not
+// read. The halves are read off the anchor's path as the old layout's reader
+// reads them: an item in its card's archive mirror, a comment in its holder's
+// archive mirror, and a comment hanging on an archived item or on an archived
+// column, which card and columnArchived say.
+func anchorLine(src Source, owner, anchor string, card, columnArchived bool) (string, bool) {
+	text, err := readText(src, anchor)
+	if err != nil {
+		return "", false
+	}
+	member := strayOf(anchor, nil, "")
+	dir := filepath.Dir(anchor)
+	if member.Kind == KindItem {
+		return itemLine(owner, itemFromText(dir, text), member.Archived), true
+	}
+	comment := commentFromText(dir, member.ID, text)
+	archived := member.Archived
+	if card {
+		comment.Holder = member.Item
+		archived = archived || strings.Contains(filepath.ToSlash(anchor), "/"+ArchiveDir+"/"+ChecklistDir+"/")
+	} else {
+		comment.Holder = owner
+		archived = archived || columnArchived
+	}
+	return commentLine(owner, comment, archived), true
 }
 
 // anchorKey is the manifest key of the member an old layout's anchor states.
