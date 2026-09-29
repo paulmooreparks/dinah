@@ -602,6 +602,18 @@ func replayMembers(events []Event) *memberReplay {
 			r.baselineComment(i, ev)
 			continue
 		}
+		// A member deleted before the migration was never baselined, so the
+		// replay knows it only from this line, which a line written before
+		// the card-unit format spells with the member in note alone. It is
+		// recorded as deleted, so a redaction of it read later names a member
+		// a deletion removed rather than one the replay never established.
+		if i <= marker && ev.Event == contract.EventDeleted {
+			for _, id := range []string{ev.Item, ev.Comment, ev.Note} {
+				if id != "" {
+					r.deleted[id] = true
+				}
+			}
+		}
 		// A column's own archive, restore or deletion is about the column
 		// rather than any member, and no baseline restates it, so it
 		// applies wherever it stands: the half a column comment reads in

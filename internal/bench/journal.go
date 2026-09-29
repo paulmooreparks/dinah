@@ -448,7 +448,7 @@ const TornSidecarPrefix = "journal.torn."
 // quarantined, and nothing when the journal already ends in a newline.
 //
 // A final line with no newline after it is one of two things. When its bytes
-// decode as one JSON object it is complete, and a hand edit, an editor or a
+// decode as a journal line it is complete, and a hand edit, an editor or a
 // merge removed the newline; nothing is removed, and the newline is written
 // ahead of the new line. Otherwise it is the torn tail of an act that crashed
 // before returning success, so quarantining it removes nothing any caller
@@ -464,7 +464,7 @@ func repairTail(path, ts, actor string) ([]byte, error) {
 	if tail == nil {
 		return nil, nil
 	}
-	if decodesAsObject(tail) {
+	if decodesAsLine(tail) {
 		return []byte("\n"), nil
 	}
 	sidecar, err := quarantineTail(filepath.Dir(path), tail, ts)
@@ -549,12 +549,17 @@ func finalLine(path string) (int64, []byte, error) {
 	return 0, tail, nil
 }
 
-// decodesAsObject reports whether a final line's bytes decode as one whole
-// JSON object, which is what separates a complete line that only lacks its
-// newline from the torn fragment of an append that never finished.
-func decodesAsObject(line []byte) bool {
-	var object map[string]json.RawMessage
-	return json.Unmarshal(bytes.TrimSpace(line), &object) == nil
+// decodesAsLine reports whether a final line's bytes decode as a journal line,
+// which is what separates a complete line that only lacks its newline from the
+// torn fragment of an append that never finished. It is the reader's own test,
+// the one ReadJournal skips a final line by, so the writer keeps exactly the
+// final lines a reader keeps. A JSON object that is not a journal line, such
+// as a hand edit writing a member in the wrong type, is a torn tail to both:
+// kept by the writer, it would stop being the last line and turn every later
+// read of the entity into a refusal.
+func decodesAsLine(line []byte) bool {
+	var ev Event
+	return json.Unmarshal(line, &ev) == nil
 }
 
 // quarantineTail writes a torn tail's bytes to a fresh sidecar beside the

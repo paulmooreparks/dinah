@@ -7778,6 +7778,11 @@
       "context": "The sentence printed after the refusal name dinah.already-redacted. {detail} is the member's identifier. A redaction replaces a comment's or an item's text with its digest for good, so a second one has nothing left to replace.",
       "source": "37f59b9eef54da78"
     },
+    "refusal.dinah.nothing-to-redact": {
+      "text": "Keine Zeile des Protokolls enthält Text von {detail}, daher wurde nichts geschwärzt und nichts geschrieben.",
+      "context": "The sentence printed after the refusal name dinah.nothing-to-redact. {detail} is the member's identifier. The member's text is in no line of the journal: a comment deleted before the storage migration kept its text only in the file the deletion removed, and an empty comment has none, so a redaction would record a removal that did not happen.",
+      "source": "b219739a1c7badd"
+    },
     "refusal.dinah.torn-sidecar-present": {
       "text": "{detail} enthält ein abgerissenes Protokollfragment, das den Text enthalten kann und sich nicht lesen lässt, um ihn zu finden.",
       "context": "The sentence printed after the refusal name dinah.torn-sidecar-present. {detail} is the torn-tail sidecar standing beside the journal, or the journal itself where its last line is torn. A redaction would leave a copy of the text in the fragment, so it refuses until a person has dealt with it.",

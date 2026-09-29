@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -130,6 +131,113 @@ func TestRedactAtTheTerminal(t *testing.T) {
 	if item.code != 0 || !strings.Contains(item.out, "Redacted by alka at ") || strings.Contains(item.out, "whose text goes") {
 		t.Errorf("show of the redacted item printed:\n%s%s", item.out, item.errw)
 	}
+}
+
+// TestRedactReachesAMemberDeletedBeforeTheMigration answers
+// dinah-637/questions/24 on the migrated fixture. The fixture deleted an item
+// before its migration, and that deletion's line names the item in note alone
+// and carries its text as title, which is the one line anywhere in the store
+// still holding the text. Redacting the item by its identifier rewrites that
+// line, after which a byte search of every file of the store finds the text
+// nowhere, the answer counts the line, and dinah check reports no defect: the
+// redacted line names a member a deletion before the migration removed, which
+// the replay knows. A comment deleted before the migration kept its text only
+// in the file its deletion removed, so no line carries it, and redacting it is
+// refused dinah.nothing-to-redact and changes no file.
+//
+// Arming: matching a deleted line to an item by its item member alone, as
+// ownTexts did, leaves the title in place, so the redaction is refused
+// nothing-to-redact and the byte search finds the text; recording no deletion
+// before the migration marker in the replay leaves the redacted line naming a
+// member the replay never established, which check reports as
+// check.member-unknown.
+func TestRedactReachesAMemberDeletedBeforeTheMigration(t *testing.T) {
+	store, root := migratedFixture(t)
+	const deletedItem, deletedItemText = "9a485947b98f", "a decision deleted afterwards"
+	const deletedComment = "b4856c895544"
+	if hits := storeTextHits(t, store, deletedItemText); hits != 1 {
+		t.Fatalf("the migrated store holds the deleted item's text %d times, wanted the one deletion line", hits)
+	}
+	// The fixture carries findings of its own, a comment edited by hand among
+	// them, so the check is compared with what it reported before.
+	findingsBefore := checkFindingKeys(t, root, store)
+	if !strings.Contains(findingsBefore, "check.comment-body-diverged") {
+		t.Fatalf("check on the migrated fixture reported %s, and the fixture's hand-edited comment is missing from it, so the comparison below would prove nothing", findingsBefore)
+	}
+
+	done := runCLI(t, root, "--workbench", store, "--json", "redact", "fx-1/checklist/"+deletedItem, "--yes")
+	if done.code != 0 {
+		t.Fatalf("redact the deleted item: %d\n%s%s", done.code, done.out, done.errw)
+	}
+	var answer struct {
+		OwnLines int `json:"own_lines"`
+		Lines    int `json:"lines"`
+	}
+	if err := json.Unmarshal([]byte(done.out), &answer); err != nil {
+		t.Fatalf("decode %s: %v", done.out, err)
+	}
+	if answer.OwnLines != 1 || answer.Lines != 1 {
+		t.Errorf("the redaction counts %d own lines and %d in all, wanted the one deletion line", answer.OwnLines, answer.Lines)
+	}
+	if hits := storeTextHits(t, store, deletedItemText); hits != 0 {
+		t.Errorf("after the redaction the store still holds the deleted item's text %d times", hits)
+	}
+	if after := checkFindingKeys(t, root, store); after != findingsBefore {
+		t.Errorf("check reported %s before the redaction and %s after it", findingsBefore, after)
+	}
+
+	before := redactedTreeBytes(t, store)
+	refused := runCLI(t, root, "--workbench", store, "redact", "fx-1/comments/"+deletedComment, "--yes")
+	if refused.code != 2 || !strings.Contains(refused.errw, "dinah.nothing-to-redact") {
+		t.Errorf("redacting a comment deleted before the migration answered %d:\n%s%s", refused.code, refused.out, refused.errw)
+	}
+	if redactedTreeBytes(t, store) != before {
+		t.Error("the refused redaction changed the store")
+	}
+}
+
+// checkFindingKeys answers the finding keys dinah check reports on a store,
+// sorted and joined, with each finding's detail beside its key.
+func checkFindingKeys(t *testing.T, root, store string) string {
+	t.Helper()
+	got := runCLI(t, root, "--workbench", store, "--json", "check")
+	var answer struct {
+		Findings []struct {
+			Key    string `json:"Key"`
+			Detail string `json:"Detail"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(got.out), &answer); err != nil {
+		t.Fatalf("decode the check answer %s: %v", got.out, err)
+	}
+	var keys []string
+	for _, finding := range answer.Findings {
+		keys = append(keys, finding.Key+" "+finding.Detail)
+	}
+	sort.Strings(keys)
+	return "[" + strings.Join(keys, "; ") + "]"
+}
+
+// storeTextHits counts the occurrences of a text in every file under a store,
+// byte for byte, which is the search a redaction has to defeat.
+func storeTextHits(t *testing.T, store, text string) int {
+	t.Helper()
+	hits := 0
+	err := filepath.WalkDir(store, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		hits += strings.Count(string(data), text)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", store, err)
+	}
+	return hits
 }
 
 // redactedTreeBytes reads every file under a directory into one string, in walk

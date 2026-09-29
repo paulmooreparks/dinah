@@ -526,14 +526,16 @@ func sameStore(before, after map[string]string) string {
 }
 
 // TestRedactWithoutConfirmationAndAfterAFailureWritesNothing drives the first
-// three clauses of dinah-637/criteria/38. Without --yes the answer names the
-// member, its line counts and its journal and the store stays byte-identical;
-// a failure planted before the rename leaves the journal byte-identical and no
-// journal.ndjson.redact behind; and a planted leftover is reported by dinah
-// check as check.redact-leftover and removed.
+// and third clauses of dinah-637/criteria/38. Without --yes the answer names
+// the member, its line counts and its journal and the store stays
+// byte-identical, and a planted leftover is reported by dinah check as
+// check.redact-leftover and removed. The second clause, a failure planted
+// before the rename, is internal/bench's
+// TestARedactionThatFailsBeforeItsRenameLeavesTheJournal, since the hook it
+// plants is that package's own.
 //
-// Arming: dropping the removal of the composed file on a failed rename leaves
-// journal.ndjson.redact behind, which the second assertion finds.
+// Arming: making check leave the leftover in place reddens the last
+// assertion.
 func TestRedactWithoutConfirmationAndAfterAFailureWritesNothing(t *testing.T) {
 	h := newCardUnitHarness(t)
 	card := h.add("A card whose comment is nearly redacted")
@@ -552,20 +554,6 @@ func TestRedactWithoutConfirmationAndAfterAFailureWritesNothing(t *testing.T) {
 	if report.Written || report.Member != comment || report.Journal != journal || report.OwnLines != 1 || report.OwnLines+report.LegacyLines != report.Lines {
 		t.Errorf("the dry run answered %+v, wanted the comment, its journal and one own line, unwritten", report)
 	}
-
-	planted := errors.New("the disk refused the rename")
-	bench.SetRedactStepForTest(t, func(string) error { return planted })
-	journalBefore := journalBytes(t, journal)
-	if _, err := h.library.Redact(&Request{Verb: "redact", Actor: "alka", Ref: comment, Confirm: true}); !errors.Is(err, planted) {
-		t.Errorf("the redaction with a failure planted before its rename answered %v, wanted the planted failure", err)
-	}
-	if !bytes.Equal(journalBytes(t, journal), journalBefore) {
-		t.Error("the failed redaction changed the journal")
-	}
-	if bench.Exists(journal + bench.RedactLeftoverSuffix) {
-		t.Error("the failed redaction left journal.ndjson.redact behind")
-	}
-	bench.SetRedactStepForTest(t, nil)
 
 	leftover := journal + bench.RedactLeftoverSuffix
 	if err := os.WriteFile(leftover, []byte("a stale composition\n"), 0o644); err != nil {

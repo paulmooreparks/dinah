@@ -1864,6 +1864,12 @@ var Shapes = []Shape{
 		NoNext: "the text is already gone and no command restores it, so there is nothing left to do to it",
 	},
 	{
+		// The detail is the member's identifier. No line of the journal
+		// carries its text, so there is nothing a command could rewrite.
+		Name:   NothingToRedact,
+		NoNext: "no line of the store carries the member's text, so nothing is left to remove",
+	},
+	{
 		// The detail is the sidecar, or the journal whose tail is torn,
 		// and the next step says to read and delete it first.
 		Name:      TornSidecarPresent,

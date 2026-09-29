@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"testing"
 
 	"dinah/internal/contract"
 	"dinah/internal/durable"
@@ -62,19 +61,10 @@ func (a RedactionAccount) Lines() int {
 
 // redactStep, when set, is called with the path of the composed journal just
 // before it is renamed over the journal, and an error it answers is taken as
-// the rename failing there. Only tests set it.
+// the rename failing there. Only tests in this package set it, as they set
+// storageMigrationStep, and a test setting it must not run in parallel with
+// one that redacts.
 var redactStep func(path string) error
-
-// SetRedactStepForTest plants step as the failure a test drives dinah redact
-// into just before its rename, and takes it out again when the test ends. It
-// sets a process-global hook, so a test calling it must not run in parallel
-// with one that redacts.
-func SetRedactStepForTest(t testing.TB, step func(path string) error) {
-	t.Helper()
-	previous := redactStep
-	redactStep = step
-	t.Cleanup(func() { redactStep = previous })
-}
 
 // redactedDigest matches a value a redaction already replaced.
 var redactedDigest = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
@@ -118,6 +108,15 @@ func (b *Bench) FindRedactTarget(card *Card, column, kind, id string) (*RedactTa
 			return target, true, nil
 		}
 	}
+	// An item deleted before the card-unit format may have been filed by a
+	// build whose item_filed line predates the item member, and its deletion
+	// line names it in note alone while carrying its text as title, which is
+	// still the member's text to redact.
+	for _, ev := range events {
+		if kind == KindItem && ev.Event == contract.EventDeleted && ev.Item == "" && ev.Comment == "" && ev.Note == id && ev.Title != "" {
+			return target, true, nil
+		}
+	}
 	return nil, false, nil
 }
 
@@ -132,9 +131,11 @@ func (b *Bench) FindRedactTarget(card *Card, column, kind, id string) (*RedactTa
 // and named in the account. The run is refused
 // dinah.torn-sidecar-present while a torn-tail sidecar stands beside the
 // journal, and on a journal whose tail is torn, since a quarantined fragment
-// may hold the text and cannot be parsed to find it; and
+// may hold the text and cannot be parsed to find it;
 // dinah.already-redacted where the journal already records a redaction of
-// the member.
+// the member; and dinah.nothing-to-redact where no line of the journal
+// carries any of the member's text, so that a redaction never records a
+// removal that did not happen.
 //
 // The new content goes to journal.ndjson.redact and is flushed, then renamed
 // over the journal, so the journal holds either the old content or the new.
@@ -162,7 +163,7 @@ func (b *Bench) Redact(held *Lock, target RedactTarget, template Event, write bo
 	lines := bytes.Split(raw, []byte("\n"))
 	if len(lines) > 0 && len(lines[len(lines)-1]) == 0 {
 		lines = lines[:len(lines)-1]
-	} else if len(lines) > 0 && !decodesAsObject(lines[len(lines)-1]) {
+	} else if len(lines) > 0 && !decodesAsLine(lines[len(lines)-1]) {
 		return account, contract.Refuse(contract.TornSidecarPresent, target.Journal)
 	}
 	events := make([]*Event, len(lines))
@@ -179,6 +180,12 @@ func (b *Bench) Redact(held *Lock, target RedactTarget, template Event, write bo
 	plan := planRedaction(events, target)
 	if plan.already {
 		return account, contract.Refuse(contract.AlreadyRedacted, target.ID)
+	}
+	// A redaction that would rewrite no line would record that a text was
+	// removed when none was, and would then refuse the retry that a missed
+	// line calls for, so it is refused and writes nothing.
+	if plan.own+plan.legacy == 0 {
+		return account, contract.Refuse(contract.NothingToRedact, target.ID)
 	}
 	account.Own, account.Legacy = plan.own, plan.legacy
 	if !write {
@@ -407,11 +414,23 @@ func ownTexts(ev *Event, target RedactTarget) []*string {
 			return []*string{&ev.Text}
 		case ev.Event == contract.EventItemUpdated && ev.Note == target.ID && ev.Field == "text":
 			return []*string{&ev.Text}
-		case ev.Event == contract.EventDeleted && ev.Item == target.ID && ev.Comment == "":
+		case ev.Event == contract.EventDeleted && ev.Comment == "" && deletes(*ev, target.ID):
 			return []*string{&ev.Title}
 		}
 	}
 	return nil
+}
+
+// deletes reports whether a deleted line records the deletion of the member
+// id. A line this build writes names the member in its item or comment member.
+// A line written before the card-unit format named it in note alone, which
+// for an item carried the item's text as title, so a line naming no member
+// is matched by its note.
+func deletes(ev Event, id string) bool {
+	if ev.Item != "" || ev.Comment != "" {
+		return ev.Item == id || ev.Comment == id
+	}
+	return ev.Note == id
 }
 
 // memberOfLine is the member a line of one kind names.

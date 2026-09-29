@@ -895,6 +895,11 @@ const (
 	// AlreadyRedacted is a dinah redact on a member whose journal already
 	// records a redaction of it. The detail is the member's identifier.
 	AlreadyRedacted = LayerPrefix + "already-redacted"
+	// NothingToRedact is a dinah redact on a member no line of whose journal
+	// carries any of its text: a comment deleted before the card-unit format,
+	// whose text lived only in the file the deletion removed, or a comment
+	// written empty. The detail is the member's identifier.
+	NothingToRedact = LayerPrefix + "nothing-to-redact"
 	// TornSidecarPresent is a dinah redact on a journal beside which a
 	// torn-tail sidecar stands, or whose own tail is torn, since a
 	// quarantined fragment may hold the text and cannot be parsed to find
@@ -1019,7 +1024,7 @@ var Introduced = []string{
 	JournalUnlocked, JournalUnreadable, StoreFormatChanged, NotAFile,
 	BackupRequired, BackupInsideStore, BackupNotEmpty, BackupMismatch, BackupUnverified,
 	MigrationAwaitsCapabilities, NotADifference, StoragePrecondition, CardProjectionUnreadable,
-	NotRedactable, AlreadyRedacted, TornSidecarPresent, Redacted,
+	NotRedactable, AlreadyRedacted, NothingToRedact, TornSidecarPresent, Redacted,
 	UnknownRoute, RouteStrandsItem, RouteSkipsOperatorColumn, ItemOffRoute, RouteOffColumn,
 	UnknownRecipe, MalformedRecipe, UnknownScope, SetupNoTarget, SetupAgentIsOperator,
 	SetupUnreadableTarget, SetupConflict, UntrustedRecipe, SetupRelocatedHome,
