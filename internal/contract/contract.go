@@ -1404,6 +1404,13 @@ const (
 	// comment or one checklist item with its SHA-256 on every line that
 	// carried it. It carries neither the text nor the digest.
 	EventRedacted = "redacted"
+	// EventSpend records what a station consumed working the card, on the
+	// card's own journal: a unit, the figures the provider reported in it, or
+	// the fact that the harness reported none, the provider and model that
+	// consumed it where they are not the actor's own, the round, and the
+	// column the work was performed in. Nothing reads it to refuse anything;
+	// it is a record whose sums a report reads back.
+	EventSpend = "spend"
 )
 
 // Events lists the event names a query over cards accepts in its event field,
@@ -1439,6 +1446,7 @@ var Events = []string{
 	EventJournalTailTrimmed,
 	EventItemBaseline, EventCommentBaseline, EventCardBaseline, EventCardRebuilt,
 	EventRedacted,
+	EventSpend,
 }
 
 // Refusal is the error a verb returns when a rule says no. It carries the one

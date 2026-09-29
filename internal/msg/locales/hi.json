@@ -2063,6 +2063,181 @@
       "context": "The one-line summary of the cite command, printed in the command list and above its own help.",
       "source": "b5f18cd4441203e6"
     },
+    "cmd.spend.summary": {
+      "text": "दर्ज करें कि किसी स्टेशन ने कार्ड पर क्या खर्च किया, या पढ़ें कि क्या खर्च हुआ",
+      "context": "The one-line summary of the spend command, printed in the command list and above its own help.",
+      "source": "2ec734e2f31be9bb"
+    },
+    "param.spend.card.summary": {
+      "text": "वह कार्ड जिस पर खर्च दर्ज होता है या जिसके लिए रिपोर्ट दी जाती है, जैसे wb-1; कोई न नामित करने पर वर्कबेंच का हर सक्रिय कार्ड",
+      "context": "The written meaning of spend's card argument. wb-1 stands for a card reference and is not translated.",
+      "source": "30fcda672fc755a0"
+    },
+    "param.spend.unit.summary": {
+      "text": "वह इकाई जिसमें आँकड़े गिने जाते हैं, एक छोटे अक्षरों वाला शब्द जैसे tokens, minutes या usd; इसे नामित करने से कॉल एक रिकॉर्ड बन जाती है",
+      "context": "The written meaning of spend's unit argument. tokens, minutes and usd are example unit words a caller types and are never translated.",
+      "source": "6d8000076e4feccc"
+    },
+    "param.spend.input.summary": {
+      "text": "मॉडल ने जो ग्रहण किया, इकाई में गिना हुआ",
+      "context": "The written meaning of spend's input flag.",
+      "source": "45e04ba757613ca5"
+    },
+    "param.spend.output.summary": {
+      "text": "मॉडल ने जो निकाला, इकाई में गिना हुआ",
+      "context": "The written meaning of spend's output flag.",
+      "source": "9fc63808adf253c8"
+    },
+    "param.spend.cached.summary": {
+      "text": "इनपुट का वह हिस्सा जो प्रदाता ने अपने कैश से दिया, इकाई में गिना हुआ, जहाँ प्रदाता इसे अलग से बताता है",
+      "context": "The written meaning of spend's cached flag.",
+      "source": "1880e18a4d067e83"
+    },
+    "param.spend.total.summary": {
+      "text": "पूरा आँकड़ा, इकाई में गिना हुआ, जहाँ प्रदाता इनपुट और आउटपुट के बजाय एक ही आँकड़ा बताता है",
+      "context": "The written meaning of spend's total flag.",
+      "source": "28567c1133187f28"
+    },
+    "param.spend.unreported.summary": {
+      "text": "दर्ज करें कि हार्नेस ने कोई आँकड़ा बताया ही नहीं, जो एक तथ्य है जिसे योग गिनते हैं, न कि शून्य जिसे वे जोड़ते हैं",
+      "context": "The written meaning of spend's unreported flag.",
+      "source": "2d812325dd72d6bb"
+    },
+    "param.spend.by.summary": {
+      "text": "वह प्रदाता और मॉडल जिसने इसे खर्च किया, provider/model के रूप में लिखा, जब वे इस कॉल में घोषित वालों से भिन्न हों",
+      "context": "The written meaning of spend's by flag. provider/model is the spelling of its value and is never translated.",
+      "source": "770062731e7517f"
+    },
+    "param.spend.round.summary": {
+      "text": "एक ही स्टेशन का यह कौन-सा दौर था, 1 से गिना हुआ, ताकि फिर से शुरू किए गए एजेंट का दूसरा दौर अपनी अलग पंक्ति हो",
+      "context": "The written meaning of spend's round flag.",
+      "source": "88953262ed65bef"
+    },
+    "param.spend.column.summary": {
+      "text": "वह कॉलम जिसमें काम किया गया, जब कार्ड तब से आगे बढ़ चुका हो; कोई न नामित करने पर कार्ड का अपना कॉलम",
+      "context": "The written meaning of spend's column flag.",
+      "source": "6b9430f016ab6b3d"
+    },
+    "param.spend.note.summary": {
+      "text": "आँकड़ों के साथ रखी गई एक टिप्पणी",
+      "context": "The written meaning of spend's note flag.",
+      "source": "766568171220ac8c"
+    },
+    "check.spend.1": {
+      "text": "कार्ड मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "37dac5acd188c446"
+    },
+    "check.spend.2": {
+      "text": "निवेदन किसी स्वामी को नामता है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.spend.3": {
+      "text": "इकाई एक छोटे अक्षरों वाला शब्द है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "488776cc797c1931"
+    },
+    "check.spend.4": {
+      "text": "नामित कॉलम मौजूद है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked last, after check.spend.7, which is why it keeps the fourth key: a key number is a catalog key here and not a printed position.",
+      "source": "f75a8f2e217c407d"
+    },
+    "check.spend.5": {
+      "text": "हर आँकड़ा एक ऐसी संख्या है जो ऋणात्मक नहीं है",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "ae6fa98693a190e1"
+    },
+    "check.spend.6": {
+      "text": "कॉल में कोई आँकड़ा है या वह कहती है कि खर्च बताया नहीं गया",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "770c6a57b7ce1454"
+    },
+    "check.spend.7": {
+      "text": "उपभोक्ता और दौर, जहाँ नामित हों, सही रूप में हैं",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The consumer is the by flag's provider/model pair and the round is a whole number from 1.",
+      "source": "40e8866b3fcf285d"
+    },
+    "column.spend.when": {
+      "text": "कब",
+      "context": "Heading over the time a spend line was written, in the records table of `dinah spend`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "c683c10250a1b719"
+    },
+    "column.spend.by": {
+      "text": "द्वारा",
+      "context": "Heading over the provider and model that consumed what a spend line or a total counts, drawn provider/model, in both tables of `dinah spend`. A column heading.",
+      "source": "9134b07b5aacab4"
+    },
+    "column.spend.unit": {
+      "text": "इकाई",
+      "context": "Heading over the unit the figures of a row are counted in, in both tables of `dinah spend`. A column heading.",
+      "source": "8f26e0f086cc2787"
+    },
+    "column.spend.column": {
+      "text": "कॉलम",
+      "context": "Heading over the column the work of a row was performed in, in both tables of `dinah spend`. A column heading.",
+      "source": "9e40e59654c8ad67"
+    },
+    "spend.counted": {
+      "text": "{records} दर्ज, {unreported} अ-सूचित",
+      "context": "The tail of a total's figures cell in `dinah spend`, after the sums and a semicolon: how many spend lines the total sums and how many of them carried no figure. {records} and {unreported} are counts.",
+      "source": "5729471687638757"
+    },
+    "column.spend.figures": {
+      "text": "आँकड़े",
+      "context": "Heading over the folded figures of a row, in both tables of `dinah spend`: each figure the row carries under its flag word, then the unreported marker and the round where the row carries them, joined by commas, and a dash where it carries none. The flag words inside the cell are machine vocabulary and never translated. A column heading.",
+      "source": "394eb7d48e9a8eee"
+    },
+    "spend.records": {
+      "text": "पंक्तियाँ:",
+      "context": "The label above a card's spend lines, printed by `dinah spend <card>`.",
+      "source": "7dfffde9adb23e35"
+    },
+    "spend.totals": {
+      "text": "योग:",
+      "context": "The label above the sums of spend lines by column, consumer and unit, printed by `dinah spend` with or without a card.",
+      "source": "d24670f2a3eb9730"
+    },
+    "spend.none": {
+      "text": "{ref} पर कोई खर्च दर्ज नहीं है।",
+      "context": "Printed by `dinah spend <card>` on a card whose journal carries no spend line. {ref} is the card's reference. No table follows and the call succeeds, because a card nobody has priced is an answer rather than a mistake.",
+      "source": "d5e7ccfe70bae117"
+    },
+    "spend.none.workbench": {
+      "text": "इस वर्कबेंच पर कोई खर्च दर्ज नहीं है।",
+      "context": "Printed by a bare `dinah spend` when no live card of the workbench carries a spend line. No table follows and the call succeeds.",
+      "source": "339d1ae05428aac1"
+    },
+    "interactive.actions.spend": {
+      "text": "एक खर्च दर्ज करें",
+      "context": "A row of dinah tui's actions menu, which records what a station spent on the card.",
+      "source": "5507a52bb50a3a7b"
+    },
+    "interactive.acted.spend": {
+      "text": "{ref} पर खर्च दर्ज किया",
+      "context": "Shown in dinah tui's message row after a spend was recorded on a card. {ref} is the card's reference.",
+      "source": "3a7d2b4cabeb6ae2"
+    },
+    "interactive.prompt.spend-unit": {
+      "text": "{ref} के लिए वह इकाई जिसमें आँकड़े गिने जाते हैं:",
+      "context": "The label of the line a person types the unit of a spend in, from dinah tui's actions menu. {ref} is the card's reference.",
+      "source": "1aa83f7a35bdf680"
+    },
+    "interactive.prompt.spend-input": {
+      "text": "इनपुट आँकड़ा, या कुछ नहीं:",
+      "context": "The label of the line a person types a spend's input figure in, from dinah tui's actions menu, which they may leave empty.",
+      "source": "24149e9627d6142d"
+    },
+    "interactive.prompt.spend-output": {
+      "text": "आउटपुट आँकड़ा, या कुछ नहीं:",
+      "context": "The label of the line a person types a spend's output figure in, from dinah tui's actions menu, which they may leave empty.",
+      "source": "b8446dae1fd2e6a6"
+    },
+    "interactive.prompt.spend-total": {
+      "text": "कुल आँकड़ा, या कुछ नहीं:",
+      "context": "The label of the line a person types a spend's total figure in, from dinah tui's actions menu, which they may leave empty.",
+      "source": "3b534f0e1c51865f"
+    },
     "cmd.claim.summary": {
       "text": "तैयार कार्ड को उठाएँ",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block.",

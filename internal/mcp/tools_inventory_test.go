@@ -44,6 +44,7 @@ var publishedProperties = map[string][]string{
 	"attach":            {"actor", "description", "file", "harness", "model", "provider", "ref", "replace", "server", "workbench"},
 	"file_item":         {"actor", "card", "column", "harness", "kind", "model", "owner", "provider", "server", "text", "workbench"},
 	"cite_item":         {"actor", "harness", "item", "model", "observed", "provider", "scheme", "server", "target", "workbench"},
+	"spend":             {"actor", "by", "cached", "card", "column", "harness", "input", "model", "note", "output", "provider", "round", "server", "total", "unit", "unreported", "workbench"},
 	"resolve_item":      {"actor", "designation", "harness", "item", "model", "provider", "server", "text", "workbench"},
 	"verify_item":       {"actor", "designation", "harness", "item", "model", "provider", "server", "text", "workbench"},
 	"fail_item":         {"actor", "designation", "harness", "item", "model", "provider", "server", "text", "workbench"},

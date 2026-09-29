@@ -47,6 +47,14 @@ type addressExemption struct {
 // reasoning.
 var addressExemptions = []addressExemption{
 	{
+		site:   renderSite{File: "spend.go", Function: "renderSpend", Label: "records", Ordinal: 1},
+		ground: groundActNotEntity, reason: "the rows are spend lines, which are recorded acts on the card the caller named, and a line has no address of its own",
+	},
+	{
+		site:   renderSite{File: "spend.go", Function: "renderSpend", Label: "totals", Ordinal: 1},
+		ground: groundActNotEntity, reason: "the rows are sums over spend lines by column, consumer and unit, which are arithmetic about recorded acts rather than entities, and the column a row names is the one a line was recorded in rather than a thing to open",
+	},
+	{
 		site:   renderSite{File: "setup.go", Function: "emitSetupList", Label: "listing", Ordinal: 1},
 		ground: groundNoEntity, reason: "the rows are setup recipes, which are directories of harness configuration rather than entities of a workbench",
 	},

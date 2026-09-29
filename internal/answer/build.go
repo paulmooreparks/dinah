@@ -82,6 +82,23 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.LinkTo = value
 	case "observed":
 		req.Observed = value
+	// spend's unit and figures land on fields of their own, carried as
+	// written, because the verb parses them and reports which one would not
+	// do; the round and the consumer travel the same way.
+	case "unit":
+		req.Unit = value
+	case "input":
+		req.Input = value
+	case "output":
+		req.Output = value
+	case "cached":
+		req.Cached = value
+	case "total":
+		req.Total = value
+	case "by":
+		req.By = value
+	case "round":
+		req.Round = value
 	case "expect-digest":
 		req.ExpectedDigest = value
 	case "note":
@@ -208,6 +225,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.ReadyOnly = value
 	case "unresolved":
 		req.Unresolved = value
+	case "unreported":
+		req.Unreported = value
 	case "all":
 		req.All = value
 	case "finish":

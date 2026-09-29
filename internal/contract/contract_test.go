@@ -136,8 +136,10 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// forty-four when the same card minted item_baseline, comment_baseline
 	// and card_baseline for the storage migration and card_rebuilt for the
 	// rebuild of a damaged card.md, and to forty-five when it minted
-	// redacted for dinah redact. Each of those paid the coordinated
-	// compat-fixture change this guard exists to make somebody notice.
+	// redacted for dinah redact, and to forty-six when dinah-647 minted spend
+	// for what a station consumed working a card. Each of those paid the
+	// coordinated compat-fixture change this guard exists to make somebody
+	// notice.
 	//
 	// The designation conversion's own designations_migrated and the storage
 	// migration's storage_migrated are not counted here, and the omission is
@@ -145,8 +147,8 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	// journal and never on a card's, so Events holds it out for the reason it
 	// holds out the three *_updated names, and EventNames is where it is
 	// counted.
-	if len(Events) != 45 {
-		t.Errorf("the event set carries %d names, and this build declares forty-five", len(Events))
+	if len(Events) != 46 {
+		t.Errorf("the event set carries %d names, and this build declares forty-six", len(Events))
 	}
 }
 

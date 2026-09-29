@@ -207,6 +207,15 @@ type sweptWorkbenches struct {
 	// checklistCard is the reference of the card the checklist tree's items
 	// hang from.
 	checklistCard string
+	// spend holds the tree the two spend blocks draw from, which is a tree of
+	// its own for the reason the checklist tree is: a spend line on a card of
+	// the healthy corpus would add a row to the history block every journal
+	// expectation is built against. Nothing the blocks run writes to it, so
+	// one tree serves every language and every pass.
+	spend string
+	// spendCard is the reference of the card the spend tree's lines are
+	// recorded on.
+	spendCard string
 	// card is a reference the healthy tree carries.
 	card string
 	// held is the reference of the card claimed in the healthy tree.
@@ -1672,6 +1681,24 @@ func sweptBlocks() []sweptBlock {
 			},
 		},
 		{
+			site: renderSite{File: "spend.go", Function: "renderSpend", Label: "records", Ordinal: 1}, label: "a card's spend lines",
+			keys: []string{"column.spend.when", "column.spend.column", "column.spend.by", "column.spend.unit",
+				"column.spend.figures"}, varies: 2, wrapsTail: true,
+			opensAt: "spend.records", expect: expectSpendRecords,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.spend, tag, "spend", w.spendCard)
+			},
+		},
+		{
+			site: renderSite{File: "spend.go", Function: "renderSpend", Label: "totals", Ordinal: 1}, label: "a card's spend totals",
+			keys:   []string{"column.spend.column", "column.spend.by", "column.spend.unit", "column.spend.figures"},
+			varies: 1, wrapsTail: true,
+			opensAt: "spend.totals", expect: expectSpendTotals,
+			render: func(t *testing.T, w *sweptWorkbenches, tag string) string {
+				return sweptRun(t, w.spend, tag, "spend", w.spendCard)
+			},
+		},
+		{
 			site: renderSite{File: "render.go", Function: "renderCommentListing", Label: "block", Ordinal: 1}, label: "a card's comment listing",
 			keys: []string{"column.comments.ref", "column.comments.when", "column.comments.who",
 				"column.comments.subject", "column.comments.size"}, varies: lastCell,
@@ -2127,6 +2154,7 @@ func buildSweptWorkbenches(t *testing.T) *sweptWorkbenches {
 
 	benches.search = sweptSearchTree(t, base, benches.record)
 	benches.checklist, benches.checklistCard = sweptChecklistTree(t, base, benches.record)
+	benches.spend, benches.spendCard = sweptSpendTree(t, base, benches.record)
 
 	rooms := populateBase(t, filepath.Join(benches.ambiguous, bench.UserBaseName), "one", "twoandthree")
 	sweptRetitle(t, rooms[0], wideTitle)
@@ -3074,6 +3102,62 @@ func sweptChecklistTree(t *testing.T, base string, record *sweptRecord) (string,
 		}
 	}
 	record.checklist = sweptChecklistItems
+	return dir, ref
+}
+
+// sweptSpendTree builds the tree the two spend blocks draw from: one card
+// carrying three spend lines through `dinah spend`, one with three figures
+// from the recorder's own model, one total on a second round that a
+// dispatcher recorded for another consumer, and one unreported line on a
+// third. Every figure column is filled by some line, because the table
+// leaves out a column nobody fills and the block declares every heading;
+// lines whose consumer and round differ are what make a column of each block
+// vary between rows; and the unreported line is what makes the totals count a
+// line the sum leaves out.
+func sweptSpendTree(t *testing.T, base string, record *sweptRecord) (string, string) {
+	t.Helper()
+	dir := filepath.Join(base, "spend")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sweptDo(t, dir, "init", "--slug", "sp", "--operator", "alka")
+	sweptDo(t, dir, "add", wideTitle)
+	ref := "sp-1"
+	// The line with three figures is the one recorded for a named consumer,
+	// so the one row of each block that wraps at eighty columns is a row too
+	// wide for the window however its columns are chosen, and the two rows
+	// carrying a bare consumer draw on one line each.
+	lines := []sweptSpendRecord{
+		{card: ref, actor: record.actor, unit: "tokens", input: "1200", output: "300", cached: "200", by: "openai/gpt-5"},
+		{card: ref, actor: record.actor, unit: "tokens", total: "5000", round: "2"},
+		{card: ref, actor: record.actor, unit: "tokens", unreported: true, round: "3"},
+	}
+	for _, line := range lines {
+		args := []string{"spend", line.card, line.unit}
+		if line.input != "" {
+			args = append(args, "--input", line.input)
+		}
+		if line.output != "" {
+			args = append(args, "--output", line.output)
+		}
+		if line.cached != "" {
+			args = append(args, "--cached", line.cached)
+		}
+		if line.total != "" {
+			args = append(args, "--total", line.total)
+		}
+		if line.unreported {
+			args = append(args, "--unreported")
+		}
+		if line.round != "" {
+			args = append(args, "--round", line.round)
+		}
+		if line.by != "" {
+			args = append(args, "--by", line.by)
+		}
+		sweptDo(t, dir, args...)
+	}
+	record.spend = lines
 	return dir, ref
 }
 

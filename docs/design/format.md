@@ -1624,6 +1624,7 @@ so a `claimed` line with no `expires` records an unbounded claim.
 | `storage_migrated` | `from` (the format the store declared), `to` | `cards`, the references of the cards whose claim a forced run passed, as `designations_migrated` carries them; `accepted`, the manifest keys an operator accepted; `written_during_run`, the manifest keys found written while the run was in progress |
 | `card_rebuilt` | | |
 | `redacted` | `kind` (`comment` or `item`), `lines` (how many lines were rewritten), and `comment` or `item`, the redacted member's own id | `item` beside `comment`, on a comment on an item; `column` and `column_title`, on a comment on a column |
+| `spend` | `unit` (one lowercase word the caller chose), `column` and `column_title` (the column the work was performed in, as of the write) | `input`, `output`, `cached` and `total`, each a number that is not negative and each written only where the provider reported that figure, so the line says which shape its provider reports in; `unreported`, true only on a line whose harness reported no figure, which is never written beside a figure; `round`, the pass of the station the line belongs to, counted from one; `consumer_provider` and `consumer_model`, the provider and model that consumed what the line records, written only where they are not the actor's own; `note` |
 
 A `journal_tail_trimmed` line is written by an append that found its journal
 ending in a fragment that does not decode. The append holds the lock of the
@@ -1746,9 +1747,12 @@ carries `kind`, `column`, `owner`, `state`, `resolution`, `citations`,
 `standing`, `evidence`, timestamps, and a creation ordinal, and the item's text.
 From storage format 12 an item is a member of its card's journal: `item_filed`
 creates it with its text, the lines of the History section's table change it,
-and a read replays them. `dinah show <item>` composes the anchor the older
-layout stored, keys in the order its writers wrote them, from the replayed
-item, and `dinah path <item>` is refused `dinah.not-a-file`, since no file holds
+and a read replays them. `dinah show <item>` composes an anchor of the older
+layout's shape from the replayed item, its keys in one fixed order (`kind`,
+`state`, `column`, `owner`, `standing`, `evidence`, `ts`, `ordinal`,
+`resolution`, `citations`, each only where it holds a value), whatever order
+the item's `item.md` carried them in before the migration, and
+`dinah path <item>` is refused `dinah.not-a-file`, since no file holds
 the item alone. A store below format 12 keeps each item in
 `checklist/<12-hex>/item.md`, with those keys in frontmatter and the text as
 the body. `dinah redact <item>`, the workbench operator's alone, replaces every

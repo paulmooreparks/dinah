@@ -41,6 +41,7 @@ var runners = map[string]runner{
 	"attach":              func(l *verb.Library, r *verb.Request) any { return l.Attach(r) },
 	"file":                func(l *verb.Library, r *verb.Request) any { return l.File(r) },
 	"cite":                func(l *verb.Library, r *verb.Request) any { return l.Cite(r) },
+	"spend":               func(l *verb.Library, r *verb.Request) any { return l.SpendCall(r) },
 	"resolve":             func(l *verb.Library, r *verb.Request) any { return l.Resolve(r) },
 	"verify":              func(l *verb.Library, r *verb.Request) any { return l.Verify(r) },
 	"fail":                func(l *verb.Library, r *verb.Request) any { return l.Fail(r) },

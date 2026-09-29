@@ -321,7 +321,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists sixty-four commands, and every command the binary offers
+	// The block lists sixty-five commands, and every command the binary offers
 	// is either one of them or `help`, which the block's own last line names.
 	listed := 0
 	for _, c := range commands {
@@ -336,8 +336,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 64 {
-		t.Errorf("wanted sixty-four listed commands, got %d", listed)
+	if listed != 65 {
+		t.Errorf("wanted sixty-five listed commands, got %d", listed)
 	}
 }
 
@@ -7515,12 +7515,12 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"accept-difference", "actor", "agent", "at", "backup", "before", "capacity", "card", "column", "depth",
-		"description", "due", "expect-digest", "expires", "fields", "format", "from", "group-by", "kind",
-		"lang", "listen", "map", "max-depth", "model", "note", "observed", "operator", "owner",
-		"poll-seconds", "priority", "provider", "query", "reason", "recipe", "remint", "root", "route",
+		"accept-difference", "actor", "agent", "at", "backup", "before", "by", "cached", "capacity", "card", "column", "depth",
+		"description", "due", "expect-digest", "expires", "fields", "format", "from", "group-by", "input", "kind",
+		"lang", "listen", "map", "max-depth", "model", "note", "observed", "operator", "output", "owner",
+		"poll-seconds", "priority", "provider", "query", "reason", "recipe", "remint", "root", "round", "route",
 		"scope", "server", "severity", "since", "slug", "start-after", "start-by", "target", "text", "tier", "timeout", "tools",
-		"workbench",
+		"total", "workbench",
 	}
 	wantMarkers := []string{
 		"all", "allow-run", "annotate-prose", "archived", "brief", "catalogs", "dry-run", "explain", "file-standing", "finish", "force",
@@ -7533,7 +7533,7 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-slugs", "migrate-storage", "migrate-vocabulary", "migrate-workstreams",
 		"no-archive", "no-browser", "no-claim", "override", "plain", "quiet", "ready", "rebuild", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
-		"unresolved", "version", "wait", "watch", "witness", "yes",
+		"unreported", "unresolved", "version", "wait", "watch", "witness", "yes",
 	}
 	if got := strings.Join(valuedFlags, " "); got != strings.Join(wantValued, " ") {
 		t.Errorf("the derived valued flags are %q and the parser accepted %q", got, strings.Join(wantValued, " "))

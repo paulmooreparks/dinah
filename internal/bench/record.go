@@ -558,160 +558,6 @@ type memberReplay struct {
 	// onColumns are the comments that hang on a column rather than on a
 	// card or an item.
 	onColumns map[string]bool
-	// keys track, for each item, the order the old layout's writers would
-	// have put its anchor keys in, which RenderItemAnchor composes by.
-	keys map[string]*keyOrder
-}
-
-// keyOrder is one item's anchor keys in the order the old writers would have
-// written them: the keys a filing writes, in the filing's own order, then
-// each key a later act added, in the order the acts added them. A key an act
-// rewrites keeps its place, and a key an act clears goes.
-type keyOrder struct {
-	list  []string
-	filed map[string]bool
-}
-
-// has reports whether the order carries a key.
-func (k *keyOrder) has(key string) bool {
-	for _, present := range k.list {
-		if present == key {
-			return true
-		}
-	}
-	return false
-}
-
-// add places a key at the end of the order unless it is already there.
-func (k *keyOrder) add(key string) {
-	if !k.has(key) {
-		k.list = append(k.list, key)
-	}
-}
-
-// drop takes a key out of the order.
-func (k *keyOrder) drop(key string) {
-	kept := k.list[:0]
-	for _, present := range k.list {
-		if present != key {
-			kept = append(kept, present)
-		}
-	}
-	k.list = kept
-}
-
-// filingKeys is the order the old layout's filing writers put an item's keys
-// in, every key present only where the item carries a value for it.
-var filingKeys = []string{
-	ItemKindField, ItemStateField, ItemColumnField, ItemOwnerField,
-	ItemStandingField, ItemEvidenceField, "ts", OrdinalField,
-}
-
-// itemKeyValues answers which of an item's anchor keys carry a value.
-func itemKeyValues(item *Item) map[string]bool {
-	return map[string]bool{
-		ItemKindField:       item.Kind != "",
-		ItemStateField:      item.State != "",
-		ItemColumnField:     item.Column != "",
-		ItemOwnerField:      item.Owner != "",
-		ItemStandingField:   item.Standing != "",
-		ItemEvidenceField:   item.Evidence != "",
-		"ts":                item.TS != "",
-		OrdinalField:        item.Ordinal > 0,
-		ItemResolutionField: item.Resolution != "",
-		CitationsField:      len(item.Citations) > 0,
-	}
-}
-
-// track follows one line's effect on an item's key order, whatever side of
-// the migration marker it stands on, since the lines before the marker are
-// the acts the old writers performed and are what orders a baselined item's
-// keys.
-func (r *memberReplay) track(ev Event) {
-	switch ev.Event {
-	case contract.EventItemFiled:
-		order := &keyOrder{filed: map[string]bool{}}
-		present := map[string]bool{
-			ItemKindField: true, ItemStateField: true, "ts": true, OrdinalField: true,
-			ItemColumnField: ev.Column != "", ItemOwnerField: ev.Owner != "",
-			ItemStandingField: ev.Standing != "", ItemEvidenceField: ev.Evidence != "",
-		}
-		for _, key := range filingKeys {
-			if present[key] {
-				order.list = append(order.list, key)
-				order.filed[key] = true
-			}
-		}
-		r.keys[ev.Item] = order
-	case contract.EventItemUpdated:
-		order := r.keys[ev.Note]
-		if order == nil {
-			return
-		}
-		switch ev.Field {
-		case ItemColumnField, ItemOwnerField, ItemEvidenceField, ItemResolutionField:
-		default:
-			return
-		}
-		switch {
-		case ev.To == "":
-			order.drop(ev.Field)
-		case ev.From != "" && !order.has(ev.Field):
-			order.filed[ev.Field] = true
-		default:
-			order.add(ev.Field)
-		}
-	case contract.EventItemCited:
-		if order := r.keys[ev.Item]; order != nil {
-			order.add(CitationsField)
-		}
-	case contract.EventItemResolved, contract.EventItemVerified, contract.EventItemFailed,
-		contract.EventItemWaived, contract.EventItemWithdrawn:
-		if order := r.keys[ev.Item]; order != nil {
-			order.add(ItemResolutionField)
-		}
-	case contract.EventItemReopened:
-		if order := r.keys[ev.Item]; order != nil {
-			order.drop(ItemResolutionField)
-		}
-	}
-}
-
-// baselineKeys orders a baselined item's keys: the filing keys it carries a
-// value for, in the filing writers' order, except those a later act added,
-// then the keys the history shows later acts adding, in that order, then any
-// key it carries that the history accounts for neither way.
-func (r *memberReplay) baselineKeys(item *Item) *keyOrder {
-	present := itemKeyValues(item)
-	history := r.keys[item.ID]
-	appended := map[string]bool{}
-	var later []string
-	if history != nil {
-		for _, key := range history.list {
-			if !history.filed[key] {
-				appended[key] = true
-				later = append(later, key)
-			}
-		}
-	}
-	order := &keyOrder{filed: map[string]bool{}}
-	for _, key := range filingKeys {
-		if present[key] && !appended[key] {
-			order.list = append(order.list, key)
-			order.filed[key] = true
-		}
-	}
-	for _, key := range later {
-		if present[key] {
-			order.list = append(order.list, key)
-		}
-	}
-	for _, key := range []string{ItemResolutionField, CitationsField} {
-		if present[key] && !order.has(key) {
-			order.list = append(order.list, key)
-		}
-	}
-	return order
 }
 
 // ReplayMembers walks a journal's lines in file order and answers every
@@ -744,14 +590,10 @@ func replayMembers(events []Event) *memberReplay {
 		deletedColumns:  map[string]bool{},
 		deleted:         map[string]bool{},
 		onColumns:       map[string]bool{},
-		keys:            map[string]*keyOrder{},
 	}
 	marker := migrationMarker(events)
 	for i, ev := range events {
 		r.name(ev)
-		if ev.Event != contract.EventItemBaseline {
-			r.track(ev)
-		}
 		switch ev.Event {
 		case contract.EventItemBaseline:
 			r.baselineItem(i, ev)
@@ -782,11 +624,6 @@ func replayMembers(events []Event) *memberReplay {
 		}
 		if r.archivedColumns[comment.Holder] {
 			comment.Archived = true
-		}
-	}
-	for id, item := range r.items {
-		if order := r.keys[id]; order != nil {
-			item.keys = append([]string(nil), order.list...)
 		}
 	}
 	return r
@@ -884,7 +721,6 @@ func (r *memberReplay) baselineItem(i int, ev Event) {
 		item.Citations = append(item.Citations, citationOf(cited))
 	}
 	r.items[ev.Item] = item
-	r.keys[ev.Item] = r.baselineKeys(item)
 	r.count(MemberCollection{Kind: KindItem}, ev.Ordinal)
 }
 

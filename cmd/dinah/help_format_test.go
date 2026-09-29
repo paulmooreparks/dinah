@@ -49,6 +49,10 @@ WORK
     [--owner <owner>]
   cite <item> <scheme> <target>                          Cite evidence on a checklist item
     [--observed <before:after>]
+  spend [card] [unit] [--input <n>] [--output <n>]       Record what a station spent on a card, or read
+    [--cached <n>] [--total <n>] [--unreported]            what was spent
+    [--by <provider/model>] [--round <n>]
+    [--column <column>] [--note <text>]
   resolve <item> [comment] [--text <text|->]             Resolve an open question or a decision
   verify <item> [comment] [--text <text|->]              Record an acceptance criterion as verified
   fail <item> [comment] [--text <text|->]                Record an acceptance criterion as failed
@@ -181,6 +185,8 @@ WORK
   attach <ref> <file> [--description <text>] [--replace]                                                Attach a file, or replace its bytes
   file <card> <kind> <text|-> [--column <column>] [--owner <owner>]                                     File a checklist item on a card
   cite <item> <scheme> <target> [--observed <before:after>]                                             Cite evidence on a checklist item
+  spend [card] [unit] [--input <n>] [--output <n>] [--cached <n>] [--total <n>] [--unreported]          Record what a station spent on a card, or read what was spent
+    [--by <provider/model>] [--round <n>] [--column <column>] [--note <text>]
   resolve <item> [comment] [--text <text|->]                                                            Resolve an open question or a decision
   verify <item> [comment] [--text <text|->]                                                             Record an acceptance criterion as verified
   fail <item> [comment] [--text <text|->]                                                               Record an acceptance criterion as failed

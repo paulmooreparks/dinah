@@ -584,15 +584,24 @@ func RenderCommentAnchor(comment *Comment) string {
 	return fm.Render(comment.Body)
 }
 
-// RenderItemAnchor composes the anchor the old writers would have written for
-// an item. Those writers put a filing's keys in one order, kind, state,
-// column, owner, standing, evidence, ts and ordinal, and appended every key a
-// later act added, in the order the acts added it, so the replay tracks that
-// order and this follows it; an item carrying no tracked order takes the
-// filing order with resolution and citations after it. Each key is present
-// only where it holds a value, and the text follows exactly as the anchor
-// carried it. A redacted item carries redacted: true after the ordinal and no
-// text.
+// itemAnchorKeys is the one order a composed item anchor carries its keys in,
+// the order section 6.1 of dinah-637's specification fixes. The old layout's
+// writers appended a key when an act first set it, so an item.md whose
+// evidence was set after filing, or which was cited before it was settled,
+// carried its keys in another order; the operator ruled on
+// dinah-637/questions/23 that every item in the card-unit layout prints this
+// one order instead, its content unchanged.
+var itemAnchorKeys = []string{
+	ItemKindField, ItemStateField, ItemColumnField, ItemOwnerField,
+	ItemStandingField, ItemEvidenceField, "ts", OrdinalField,
+	ItemResolutionField, CitationsField,
+}
+
+// RenderItemAnchor composes an item's anchor with its keys in the fixed order
+// itemAnchorKeys names: kind, state, column, owner, standing, evidence, ts,
+// ordinal, resolution and citations, each present only where it holds a
+// value, and then the text exactly as the item carries it. A redacted item
+// carries redacted: true after the ordinal and no text.
 func RenderItemAnchor(item *Item) string {
 	values := map[string]string{
 		ItemKindField:       item.Kind,
@@ -607,12 +616,8 @@ func RenderItemAnchor(item *Item) string {
 	if item.Ordinal > 0 {
 		values[OrdinalField] = strconv.Itoa(item.Ordinal)
 	}
-	order := item.keys
-	if order == nil {
-		order = append(append([]string(nil), filingKeys...), ItemResolutionField, CitationsField)
-	}
 	fm := NewFrontmatter()
-	for _, key := range order {
+	for _, key := range itemAnchorKeys {
 		switch {
 		case key == CitationsField:
 			for _, citation := range item.Citations {

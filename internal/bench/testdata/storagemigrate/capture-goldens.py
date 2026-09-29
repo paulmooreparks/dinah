@@ -7,6 +7,16 @@ changed. cmd/dinah's storage migration test replays every row of golden.json
 against the migrated fixture with the new build and compares the answers byte
 for byte after the one normalisation both sides apply, normalise() below.
 
+One transformation follows the capture. The old layout's writers appended an
+item's key when an act first set it, so an item.md whose evidence was set
+after filing, or which was cited before it was settled, carries its keys out
+of the order section 6.1 of the specification fixes. The operator ruled on
+dinah-637/questions/23 that every item in the card-unit layout prints that
+fixed order, its content unchanged, and that the goldens are re-captured to
+it, so canonical_item_keys() below puts the keys of every item anchor an
+answer carries into that order and changes nothing else. A merge that moves
+the merge base re-captures with the new base's build and runs it again.
+
 Usage: capture-goldens.py <dinah binary> <scratch directory>
 
 The scratch directory must not exist. The fixture is copied into it inside a
@@ -41,6 +51,42 @@ def normalise(text, store):
     return re.sub(r"<store>[^\s\"']*",
                   lambda m: m.group(0).replace("\\\\", "/").replace("\\", "/"),
                   text)
+
+
+# ITEM_KEYS is the order section 6.1 fixes for a composed item anchor. A key
+# outside it, which no build writes, would keep its place after these.
+ITEM_KEYS = ["kind", "state", "column", "owner", "standing", "evidence", "ts",
+             "ordinal", "resolution", "citations"]
+
+# ITEM_ANCHOR matches the frontmatter of an anchor carried as a JSON string
+# member named text, whose newlines an answer spells as the two characters
+# backslash and n, which is how show --json and the MCP show tool carry an
+# item's anchor.
+ITEM_ANCHOR = re.compile(r'"text": "---\\n(.*?)\\n---\\n')
+
+
+def canonical_item_keys(text):
+    """Put the keys of every item anchor in text into ITEM_KEYS order. A key's
+    entry is its own line and the indented or dashed lines under it, which is
+    how a block value such as citations is written, and entries move whole.
+    An anchor whose first key is not kind is not an item's and is left as it
+    stands."""
+    def reorder(match):
+        entries = []
+        for line in match.group(1).split("\\n"):
+            if entries and line[:1] in (" ", "-"):
+                entries[-1].append(line)
+            else:
+                entries.append([line])
+        if not entries or not entries[0][0].startswith("kind:"):
+            return match.group(0)
+        def rank(entry):
+            key = entry[0].split(":", 1)[0]
+            return ITEM_KEYS.index(key) if key in ITEM_KEYS else len(ITEM_KEYS)
+        entries.sort(key=rank)
+        lines = [line for entry in entries for line in entry]
+        return '"text": "---\\n' + "\\n".join(lines) + '\\n---\\n'
+    return ITEM_ANCHOR.sub(reorder, text)
 
 
 def run(binary, store, env, args, stdin=b""):
@@ -96,7 +142,7 @@ def main():
     def capture(args, name):
         code, out, err = run(binary, store, env, args)
         rows.append({"args": args, "exit": code,
-                     "stdout": normalise(out, store), "stderr": normalise(err, store)})
+                     "stdout": canonical_item_keys(normalise(out, store)), "stderr": normalise(err, store)})
 
     # The members every card holds, counted from the machine answer of its
     # own show so that no position is guessed.
@@ -184,7 +230,7 @@ def main():
 
     mcp = mcp_show(binary, store, env, ["fx-1", "fx-1/questions/2"])
     for ref, text in zip(["fx-1", "fx-1/questions/2"], mcp):
-        rows.append({"mcp_show": ref, "stdout": normalise(text, store)})
+        rows.append({"mcp_show": ref, "stdout": canonical_item_keys(normalise(text, store))})
 
     os.makedirs(GOLDEN, exist_ok=True)
     with open(os.path.join(GOLDEN, "golden.json"), "w", newline="\n", encoding="utf-8") as out:

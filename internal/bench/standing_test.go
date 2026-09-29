@@ -705,7 +705,7 @@ func TestAddStandingItemWritesWhatTheEntryDeclaresAndNoMore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("load %s: %v", entry.Key, err)
 		}
-		want := &Item{ID: item.ID, dir: loaded.dir, body: loaded.body, keys: loaded.keys, raw: loaded.raw, TS: "2026-09-24T09:14:02Z", Kind: entry.Kind, State: ItemPending, Ordinal: at + 1, Column: "b00000000001", Owner: entry.Owner, Standing: entry.Key, Evidence: entry.Evidence, Text: entry.Text}
+		want := &Item{ID: item.ID, dir: loaded.dir, body: loaded.body, raw: loaded.raw, TS: "2026-09-24T09:14:02Z", Kind: entry.Kind, State: ItemPending, Ordinal: at + 1, Column: "b00000000001", Owner: entry.Owner, Standing: entry.Key, Evidence: entry.Evidence, Text: entry.Text}
 		if !reflect.DeepEqual(loaded, want) {
 			t.Errorf("the minted %s reads back as %+v, wanted %+v", entry.Key, loaded, want)
 		}

@@ -1075,12 +1075,9 @@ type Item struct {
 	Text string
 
 	// body is the text exactly as the item's anchor carried it, trailing
-	// newline and all, and keys are its anchor keys in the order the old
-	// layout's writers put them in. RenderItemAnchor composes an item's
-	// anchor from both, so the composed anchor is the one those writers
-	// would have written.
+	// newline and all, which RenderItemAnchor composes the anchor's body
+	// from.
 	body string
-	keys []string
 	// dir is the item's own directory on the old layout, which that
 	// layout's own readers and migrations use and nothing else; it is empty
 	// in the card-unit layout.

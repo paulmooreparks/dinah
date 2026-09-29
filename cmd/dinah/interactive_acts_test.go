@@ -304,6 +304,8 @@ var actFixtures = map[string]actFixture{
 		effect: wantEvent("fx-1", contract.EventItemFiled), refuse: noActor(nil, "")},
 	"menu:cite": {actor: "brin", arrange: pendingCriterion, steps: "1" + "cmd/dinah/parser_test.go" + keyEnter + "cmd/dinah/parser_test.go" + keyEnter,
 		effect: wantEvent("fx-1", contract.EventItemCited), refuse: noActor(pendingCriterion, "")},
+	"menu:spend": {actor: "alka", steps: "tokens" + keyEnter + "1200" + keyEnter + "300" + keyEnter + keyEnter,
+		effect: wantEvent("fx-1", contract.EventSpend), refuse: noActor(nil, "")},
 	"menu:resolve": {actor: "brin", arrange: pendingQuestion, steps: "1" + "the usual vendor" + keyCtrlD,
 		effect: wantEvent("fx-1", contract.EventItemResolved), refuse: &actRefusal{actor: "brin", arrange: operatorQuestion}},
 	"menu:verify": {actor: "brin", arrange: pendingCriterion, steps: "1" + "it read every line" + keyCtrlD,

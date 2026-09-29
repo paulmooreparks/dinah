@@ -380,7 +380,6 @@ func itemFromText(dir, text string) *Item {
 		Citations:  CitationsOf(fm),
 		Text:       strings.TrimRight(body, "\n"),
 		body:       body,
-		keys:       fm.Keys(),
 		raw:        text,
 	}
 }

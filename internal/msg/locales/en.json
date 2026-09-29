@@ -1649,6 +1649,146 @@
       "text": "Cite evidence on a checklist item",
       "context": "The one-line summary of the cite command, printed in the command list and above its own help."
     },
+    "cmd.spend.summary": {
+      "text": "Record what a station spent on a card, or read what was spent",
+      "context": "The one-line summary of the spend command, printed in the command list and above its own help."
+    },
+    "param.spend.card.summary": {
+      "text": "the card the spend is recorded on or reported for, such as wb-1; every live card of the workbench when you name none",
+      "context": "The written meaning of spend's card argument. wb-1 stands for a card reference and is not translated."
+    },
+    "param.spend.unit.summary": {
+      "text": "the unit the figures are counted in, one lowercase word such as tokens, minutes or usd; naming one makes the call a record",
+      "context": "The written meaning of spend's unit argument. tokens, minutes and usd are example unit words a caller types and are never translated."
+    },
+    "param.spend.input.summary": {
+      "text": "what the model took in, counted in the unit",
+      "context": "The written meaning of spend's input flag."
+    },
+    "param.spend.output.summary": {
+      "text": "what the model put out, counted in the unit",
+      "context": "The written meaning of spend's output flag."
+    },
+    "param.spend.cached.summary": {
+      "text": "the share of the input the provider served from its cache, counted in the unit, where the provider reports it apart",
+      "context": "The written meaning of spend's cached flag."
+    },
+    "param.spend.total.summary": {
+      "text": "the whole figure, counted in the unit, where the provider reports one figure rather than input and output",
+      "context": "The written meaning of spend's total flag."
+    },
+    "param.spend.unreported.summary": {
+      "text": "record that the harness reported no figure at all, which is a fact the sums count rather than a zero they add",
+      "context": "The written meaning of spend's unreported flag."
+    },
+    "param.spend.by.summary": {
+      "text": "the provider and model that consumed it, written provider/model, when they are not the ones this call declares",
+      "context": "The written meaning of spend's by flag. provider/model is the spelling of its value and is never translated."
+    },
+    "param.spend.round.summary": {
+      "text": "which pass of the same station this was, counted from 1, so a resumed agent's second pass is its own line",
+      "context": "The written meaning of spend's round flag."
+    },
+    "param.spend.column.summary": {
+      "text": "the column the work was performed in, when the card has since moved on; the card's own column when you name none",
+      "context": "The written meaning of spend's column flag."
+    },
+    "param.spend.note.summary": {
+      "text": "a remark kept beside the figures",
+      "context": "The written meaning of spend's note flag."
+    },
+    "check.spend.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.spend.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.spend.3": {
+      "text": "the unit is one lowercase word",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.spend.4": {
+      "text": "the column named exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked last, after check.spend.7, which is why it keeps the fourth key: a key number is a catalog key here and not a printed position."
+    },
+    "check.spend.5": {
+      "text": "every figure is a number that is not negative",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.spend.6": {
+      "text": "the call carries a figure or says the spend is unreported",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.spend.7": {
+      "text": "the consumer and the round, where named, are well formed",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The consumer is the by flag's provider/model pair and the round is a whole number from 1."
+    },
+    "column.spend.when": {
+      "text": "When",
+      "context": "Heading over the time a spend line was written, in the records table of `dinah spend`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
+    },
+    "column.spend.by": {
+      "text": "By",
+      "context": "Heading over the provider and model that consumed what a spend line or a total counts, drawn provider/model, in both tables of `dinah spend`. A column heading."
+    },
+    "column.spend.unit": {
+      "text": "Unit",
+      "context": "Heading over the unit the figures of a row are counted in, in both tables of `dinah spend`. A column heading."
+    },
+    "column.spend.column": {
+      "text": "Column",
+      "context": "Heading over the column the work of a row was performed in, in both tables of `dinah spend`. A column heading."
+    },
+    "spend.counted": {
+      "text": "{records} recorded, {unreported} unreported",
+      "context": "The tail of a total's figures cell in `dinah spend`, after the sums and a semicolon: how many spend lines the total sums and how many of them carried no figure. {records} and {unreported} are counts."
+    },
+    "column.spend.figures": {
+      "text": "Figures",
+      "context": "Heading over the folded figures of a row, in both tables of `dinah spend`: each figure the row carries under its flag word, then the unreported marker and the round where the row carries them, joined by commas, and a dash where it carries none. The flag words inside the cell are machine vocabulary and never translated. A column heading."
+    },
+    "spend.records": {
+      "text": "Records:",
+      "context": "The label above a card's spend lines, printed by `dinah spend <card>`."
+    },
+    "spend.totals": {
+      "text": "Totals:",
+      "context": "The label above the sums of spend lines by column, consumer and unit, printed by `dinah spend` with or without a card."
+    },
+    "spend.none": {
+      "text": "{ref} records no spend.",
+      "context": "Printed by `dinah spend <card>` on a card whose journal carries no spend line. {ref} is the card's reference. No table follows and the call succeeds, because a card nobody has priced is an answer rather than a mistake."
+    },
+    "spend.none.workbench": {
+      "text": "This workbench records no spend.",
+      "context": "Printed by a bare `dinah spend` when no live card of the workbench carries a spend line. No table follows and the call succeeds."
+    },
+    "interactive.actions.spend": {
+      "text": "record a spend",
+      "context": "A row of dinah tui's actions menu, which records what a station spent on the card."
+    },
+    "interactive.acted.spend": {
+      "text": "recorded a spend on {ref}",
+      "context": "Shown in dinah tui's message row after a spend was recorded on a card. {ref} is the card's reference."
+    },
+    "interactive.prompt.spend-unit": {
+      "text": "unit the figures are counted in, for {ref}:",
+      "context": "The label of the line a person types the unit of a spend in, from dinah tui's actions menu. {ref} is the card's reference."
+    },
+    "interactive.prompt.spend-input": {
+      "text": "input figure, or nothing:",
+      "context": "The label of the line a person types a spend's input figure in, from dinah tui's actions menu, which they may leave empty."
+    },
+    "interactive.prompt.spend-output": {
+      "text": "output figure, or nothing:",
+      "context": "The label of the line a person types a spend's output figure in, from dinah tui's actions menu, which they may leave empty."
+    },
+    "interactive.prompt.spend-total": {
+      "text": "total figure, or nothing:",
+      "context": "The label of the line a person types a spend's total figure in, from dinah tui's actions menu, which they may leave empty."
+    },
     "cmd.claim.summary": {
       "text": "Take up a ready card",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block."

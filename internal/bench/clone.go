@@ -42,9 +42,6 @@ func (i *Item) Clone() *Item {
 		redacted := *i.Redacted
 		clone.Redacted = &redacted
 	}
-	if i.keys != nil {
-		clone.keys = append([]string(nil), i.keys...)
-	}
 	return &clone
 }
 

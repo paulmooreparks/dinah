@@ -2063,6 +2063,181 @@
       "context": "The one-line summary of the cite command, printed in the command list and above its own help.",
       "source": "b5f18cd4441203e6"
     },
+    "cmd.spend.summary": {
+      "text": "Aufzeichnen, was eine Station für eine Karte aufgewendet hat, oder ablesen, was aufgewendet wurde",
+      "context": "The one-line summary of the spend command, printed in the command list and above its own help.",
+      "source": "2ec734e2f31be9bb"
+    },
+    "param.spend.card.summary": {
+      "text": "die Karte, auf der der Aufwand festgehalten oder für die er berichtet wird, etwa wb-1; jede lebende Karte der Werkbank, wenn du keine nennst",
+      "context": "The written meaning of spend's card argument. wb-1 stands for a card reference and is not translated.",
+      "source": "30fcda672fc755a0"
+    },
+    "param.spend.unit.summary": {
+      "text": "die Einheit, in der die Zahlen gezählt werden, ein kleingeschriebenes Wort wie tokens, minutes oder usd; sie zu nennen macht den Aufruf zu einer Aufzeichnung",
+      "context": "The written meaning of spend's unit argument. tokens, minutes and usd are example unit words a caller types and are never translated.",
+      "source": "6d8000076e4feccc"
+    },
+    "param.spend.input.summary": {
+      "text": "was das Modell aufgenommen hat, in der Einheit gezählt",
+      "context": "The written meaning of spend's input flag.",
+      "source": "45e04ba757613ca5"
+    },
+    "param.spend.output.summary": {
+      "text": "was das Modell ausgegeben hat, in der Einheit gezählt",
+      "context": "The written meaning of spend's output flag.",
+      "source": "9fc63808adf253c8"
+    },
+    "param.spend.cached.summary": {
+      "text": "der Anteil der Eingabe, den der Anbieter aus seinem Cache bedient hat, in der Einheit gezählt, wo der Anbieter ihn gesondert meldet",
+      "context": "The written meaning of spend's cached flag.",
+      "source": "1880e18a4d067e83"
+    },
+    "param.spend.total.summary": {
+      "text": "die Gesamtzahl, in der Einheit gezählt, wo der Anbieter eine Zahl statt Eingabe und Ausgabe meldet",
+      "context": "The written meaning of spend's total flag.",
+      "source": "28567c1133187f28"
+    },
+    "param.spend.unreported.summary": {
+      "text": "festhalten, dass der Harness gar keine Zahl gemeldet hat, was eine Tatsache ist, die die Summen zählen, und keine Null, die sie addieren",
+      "context": "The written meaning of spend's unreported flag.",
+      "source": "2d812325dd72d6bb"
+    },
+    "param.spend.by.summary": {
+      "text": "der Anbieter und das Modell, die es verbraucht haben, geschrieben provider/model, wenn es nicht die sind, die dieser Aufruf angibt",
+      "context": "The written meaning of spend's by flag. provider/model is the spelling of its value and is never translated.",
+      "source": "770062731e7517f"
+    },
+    "param.spend.round.summary": {
+      "text": "der wievielte Durchgang derselben Station dies war, ab 1 gezählt, damit der zweite Durchgang eines fortgesetzten Agenten seine eigene Zeile ist",
+      "context": "The written meaning of spend's round flag.",
+      "source": "88953262ed65bef"
+    },
+    "param.spend.column.summary": {
+      "text": "die Spalte, in der die Arbeit geleistet wurde, wenn die Karte seither weitergezogen ist; die eigene Spalte der Karte, wenn du keine nennst",
+      "context": "The written meaning of spend's column flag.",
+      "source": "6b9430f016ab6b3d"
+    },
+    "param.spend.note.summary": {
+      "text": "eine Bemerkung, die neben den Zahlen aufbewahrt wird",
+      "context": "The written meaning of spend's note flag.",
+      "source": "766568171220ac8c"
+    },
+    "check.spend.1": {
+      "text": "die Karte existiert",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "37dac5acd188c446"
+    },
+    "check.spend.2": {
+      "text": "die Anfrage nennt einen Akteur",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "bc538e33f1fcc933"
+    },
+    "check.spend.3": {
+      "text": "die Einheit ist ein kleingeschriebenes Wort",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "488776cc797c1931"
+    },
+    "check.spend.4": {
+      "text": "die genannte Spalte existiert",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. This row is checked last, after check.spend.7, which is why it keeps the fourth key: a key number is a catalog key here and not a printed position.",
+      "source": "f75a8f2e217c407d"
+    },
+    "check.spend.5": {
+      "text": "jede Zahl ist eine Zahl, die nicht negativ ist",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "ae6fa98693a190e1"
+    },
+    "check.spend.6": {
+      "text": "der Aufruf trägt eine Zahl oder sagt, dass der Aufwand nicht gemeldet wurde",
+      "context": "One row of the precondition list of a command outside the five the profile specifies.",
+      "source": "770c6a57b7ce1454"
+    },
+    "check.spend.7": {
+      "text": "der Verbraucher und der Durchgang sind, wo genannt, wohlgeformt",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The consumer is the by flag's provider/model pair and the round is a whole number from 1.",
+      "source": "40e8866b3fcf285d"
+    },
+    "column.spend.when": {
+      "text": "Wann",
+      "context": "Heading over the time a spend line was written, in the records table of `dinah spend`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it.",
+      "source": "c683c10250a1b719"
+    },
+    "column.spend.by": {
+      "text": "Durch",
+      "context": "Heading over the provider and model that consumed what a spend line or a total counts, drawn provider/model, in both tables of `dinah spend`. A column heading.",
+      "source": "9134b07b5aacab4"
+    },
+    "column.spend.unit": {
+      "text": "Einheit",
+      "context": "Heading over the unit the figures of a row are counted in, in both tables of `dinah spend`. A column heading.",
+      "source": "8f26e0f086cc2787"
+    },
+    "column.spend.column": {
+      "text": "Spalte",
+      "context": "Heading over the column the work of a row was performed in, in both tables of `dinah spend`. A column heading.",
+      "source": "9e40e59654c8ad67"
+    },
+    "spend.counted": {
+      "text": "{records} erfasst, {unreported} ungemeldet",
+      "context": "The tail of a total's figures cell in `dinah spend`, after the sums and a semicolon: how many spend lines the total sums and how many of them carried no figure. {records} and {unreported} are counts.",
+      "source": "5729471687638757"
+    },
+    "column.spend.figures": {
+      "text": "Zahlen",
+      "context": "Heading over the folded figures of a row, in both tables of `dinah spend`: each figure the row carries under its flag word, then the unreported marker and the round where the row carries them, joined by commas, and a dash where it carries none. The flag words inside the cell are machine vocabulary and never translated. A column heading.",
+      "source": "394eb7d48e9a8eee"
+    },
+    "spend.records": {
+      "text": "Zeilen:",
+      "context": "The label above a card's spend lines, printed by `dinah spend <card>`.",
+      "source": "7dfffde9adb23e35"
+    },
+    "spend.totals": {
+      "text": "Summen:",
+      "context": "The label above the sums of spend lines by column, consumer and unit, printed by `dinah spend` with or without a card.",
+      "source": "d24670f2a3eb9730"
+    },
+    "spend.none": {
+      "text": "{ref} verzeichnet keinen Aufwand.",
+      "context": "Printed by `dinah spend <card>` on a card whose journal carries no spend line. {ref} is the card's reference. No table follows and the call succeeds, because a card nobody has priced is an answer rather than a mistake.",
+      "source": "d5e7ccfe70bae117"
+    },
+    "spend.none.workbench": {
+      "text": "Diese Werkbank verzeichnet keinen Aufwand.",
+      "context": "Printed by a bare `dinah spend` when no live card of the workbench carries a spend line. No table follows and the call succeeds.",
+      "source": "339d1ae05428aac1"
+    },
+    "interactive.actions.spend": {
+      "text": "einen Aufwand festhalten",
+      "context": "A row of dinah tui's actions menu, which records what a station spent on the card.",
+      "source": "5507a52bb50a3a7b"
+    },
+    "interactive.acted.spend": {
+      "text": "Aufwand auf {ref} festgehalten",
+      "context": "Shown in dinah tui's message row after a spend was recorded on a card. {ref} is the card's reference.",
+      "source": "3a7d2b4cabeb6ae2"
+    },
+    "interactive.prompt.spend-unit": {
+      "text": "Einheit, in der die Zahlen gezählt werden, für {ref}:",
+      "context": "The label of the line a person types the unit of a spend in, from dinah tui's actions menu. {ref} is the card's reference.",
+      "source": "1aa83f7a35bdf680"
+    },
+    "interactive.prompt.spend-input": {
+      "text": "Eingabezahl oder nichts:",
+      "context": "The label of the line a person types a spend's input figure in, from dinah tui's actions menu, which they may leave empty.",
+      "source": "24149e9627d6142d"
+    },
+    "interactive.prompt.spend-output": {
+      "text": "Ausgabezahl oder nichts:",
+      "context": "The label of the line a person types a spend's output figure in, from dinah tui's actions menu, which they may leave empty.",
+      "source": "b8446dae1fd2e6a6"
+    },
+    "interactive.prompt.spend-total": {
+      "text": "Gesamtzahl oder nichts:",
+      "context": "The label of the line a person types a spend's total figure in, from dinah tui's actions menu, which they may leave empty.",
+      "source": "3b534f0e1c51865f"
+    },
     "cmd.claim.summary": {
       "text": "Eine bereite Karte übernehmen",
       "context": "The one-line summary of the claim command, shown beside its syntax in the help block.",

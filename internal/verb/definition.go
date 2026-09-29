@@ -418,6 +418,7 @@ var guides = map[string][]string{
 	"accept-divergence": {"references"},
 	"redact":            {"references"},
 	"cite":              {"references"},
+	"spend":             {"references"},
 	"resolve":           {"references"},
 	"verify":            {"references"},
 	"fail":              {"references"},
@@ -552,6 +553,25 @@ var params = map[string][]Param{
 		{Name: "scheme", Required: true, Field: "Scheme", Complete: CompleteNone},
 		{Name: "target", Required: true, Field: "CiteTarget", Complete: CompleteNone},
 		{Name: "observed", Flag: true, Value: "before:after", Field: "Observed", Complete: CompleteNone},
+	},
+	// spend records with two positionals, the card and the unit, and reports
+	// with neither or with the card alone: a call naming a unit or any figure
+	// is a record, and a call naming nothing but the card is a read of it.
+	// The four figures are flags rather than positionals because a provider
+	// reports any subset of them, and a positional slot for a figure that is
+	// absent would be the one a caller fills by accident.
+	"spend": {
+		{Name: "card", Guide: "references", Field: "Card", Complete: CompleteCard},
+		{Name: "unit", Field: "Unit", Complete: CompleteNone},
+		{Name: "input", Flag: true, Value: "n", Field: "Input", Complete: CompleteNone},
+		{Name: "output", Flag: true, Value: "n", Field: "Output", Complete: CompleteNone},
+		{Name: "cached", Flag: true, Value: "n", Field: "Cached", Complete: CompleteNone},
+		{Name: "total", Flag: true, Value: "n", Field: "Total", Complete: CompleteNone},
+		{Name: "unreported", Flag: true, Marker: true, Field: "Unreported"},
+		{Name: "by", Flag: true, Value: "provider/model", Field: "By", Complete: CompleteNone},
+		{Name: "round", Flag: true, Value: "n", Field: "Round", Complete: CompleteNone},
+		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
+		{Name: "note", Flag: true, Value: "text", Field: "Note", Complete: CompleteNone},
 	},
 	"resolve": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},

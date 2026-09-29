@@ -330,7 +330,7 @@ func TestNoEventIsBuiltWithAnActorComposedAnywhereElse(t *testing.T) {
 	// between them. It is exact: a literal added or removed fails here until
 	// somebody writes the new number down, which is what stops the population
 	// shrinking quietly.
-	const constructionSites = 59
+	const constructionSites = 60
 	// actorAssignments is how many assignments to an Actor field the two
 	// packages carry, which is none: every event names its actor in the literal
 	// that builds it.
@@ -500,6 +500,7 @@ func actorElement(literal *ast.CompositeLit) (ast.Expr, bool) {
 var harnessCheckedElsewhere = map[string]string{
 	"Check":                 "refuses a malformed harness at its head for every run carrying a repair marker, the rebuild among them, before any repair writes, which is the refusal malformedHarness raises written out on Check's own error path",
 	"removalRecord":         "composes the deletion's own record for Delete, which runs the refusal before it resolves anything",
+	"spendEvent":            "composes the line for Spend, which runs canSpend ahead of it, and canSpend runs the refusal as its third row, which is how OfferActs asks the same rows",
 	"Comment":               "runs canComment before it takes the lock, and canComment runs the refusal as its second row, which is how OfferActs asks the same rows",
 	"fieldEvent":            "composes the write's own record for writeField, which runs the refusal at its head",
 	"lapse":                 "composes from the lapsed holder's name through the composer that declares nothing, so no declared harness reaches the line and a read that lapses a claim is never refused",

@@ -170,6 +170,10 @@
       "statement": "The first acceptance criterion on wb-12 is satisfied by a Go test I just wrote, and I want that test recorded against the criterion as evidence."
     },
     {
+      "tool": "spend",
+      "statement": "My harness says this pass on wb-12 took 42,000 input tokens and 3,100 output tokens, and I want that written against the card so the operator can see what the station cost."
+    },
+    {
       "tool": "resolve_item",
       "statement": "The operator has answered the first open question on wb-12, and I want the answer recorded against it so the question stops standing open."
     },

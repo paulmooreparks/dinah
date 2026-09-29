@@ -60,6 +60,10 @@ func init() {
 		// lets the reason run, which is block's shape for the same reason.
 		{name: "file", group: groupWork, run: runFile, bounded: 2, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		{name: "cite", group: groupWork, run: runCite, bounded: 3, terminal: terminalDirect, actsOnCard: true},
+		// spend binds the card and the unit and takes its figures as flags,
+		// because a provider reports any subset of them and a positional slot
+		// for an absent figure would be the one a caller fills by accident.
+		{name: "spend", group: groupWork, run: runSpend, bounded: 2, terminal: terminalDirect, actsOnCard: true},
 		{name: "resolve", group: groupWork, run: runResolve, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		{name: "verify", group: groupWork, run: runVerify, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		{name: "fail", group: groupWork, run: runFail, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},

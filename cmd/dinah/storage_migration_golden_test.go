@@ -106,11 +106,15 @@ var itemCommentHome = regexp.MustCompile(`(<store>/cards/[0-9a-f]{12})/checklist
 // member reference rows and their refusals included, is reproduced byte for
 // byte by this build on the fixture once migrated, after the capture's own
 // normalisation. The one path the migration moves, an item comment's
-// attachment payload, is compared at the home it moved to.
+// attachment payload, is compared at the home it moved to. An item's anchor is
+// compared in the fixed key order section 6.1 names, which the capture puts
+// every item anchor of the goldens into (the operator's ruling on
+// dinah-637/questions/23), so an item whose item.md carried its keys in
+// another order prints them in that order after the migration.
 //
-// Arming: composing an item's anchor in a fixed key order rather than the
-// order its writers put the keys in reddens the show rows of every item whose
-// history set a key after filing, which is the order the goldens pin.
+// Arming: composing an item's anchor with resolution after citations, the
+// order the old writers left on an item cited before it was settled, reddens
+// the rows showing fx-1/criteria/2.
 func TestTheMigratedFixtureAnswersEveryGolden(t *testing.T) {
 	data, err := os.ReadFile(storageGoldens)
 	if err != nil {

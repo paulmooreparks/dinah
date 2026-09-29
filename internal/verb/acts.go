@@ -22,9 +22,9 @@ type OfferedActs struct {
 	// Add says a card may be filed on the workbench, and Pull that the
 	// column the request names would give the owner a card to pull.
 	Add, Pull bool
-	// Block, Unblock, Raise, Attach and File say the card verb of that name
-	// would pass the rows it runs before reading what the person types.
-	Block, Unblock, Raise, Attach, File bool
+	// Block, Unblock, Raise, Attach, File and Spend say the card verb of that
+	// name would pass the rows it runs before reading what the person types.
+	Block, Unblock, Raise, Attach, File, Spend bool
 	// RaiseTiers are the declared tiers a raise of the card at its column
 	// would accept, in the order the workbench declares them.
 	RaiseTiers []string
@@ -272,6 +272,8 @@ func (l *Library) offerCardEntity(req *Request, card *bench.Card, offered *Offer
 	offered.Attach = refused == nil
 	_, refused = l.canFile(asking(req, "file"))
 	offered.File = refused == nil
+	_, refused = l.canSpend(cardAsking(req, "spend", ref))
+	offered.Spend = refused == nil
 	for _, verb := range []string{"archive", "delete"} {
 		removing := cardAsking(req, verb, ref)
 		entity, refused := l.admitRemoval(removing)

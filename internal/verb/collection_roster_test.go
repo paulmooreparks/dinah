@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestTheReferenceTakingRosterIsTwentyThree derives the roster at the commit
+// TestTheReferenceTakingRosterIsTwentyFour derives the roster at the commit
 // under test rather than reading it off a card, because three separate
 // statements of this number, in a card's own framing and in its parent's
 // prose, disagreed with the tables.
@@ -15,22 +15,23 @@ import (
 // as a genuine reference-taking command: its item argument names a checklist
 // item exactly as resolve's, verify's, fail's and reopen's do. It grew to
 // twenty-two on dinah-472, which added waive and withdraw, whose item
-// argument names one the same way. It grew to twenty-three on dinah-637,
+// argument names one the same way, to twenty-three on dinah-647, which added
+// spend, whose card argument names a card, and to twenty-four on dinah-637,
 // which added redact, whose member argument names a comment or an item.
 //
 // It cannot pass vacuously. An empty parse yields nothing rather than a
 // count, and the two declarations that carry the fact are compared against
 // each other as well as against the named set, so a command declaring the
 // guide on one of them and not the other is left out and the count fails.
-func TestTheReferenceTakingRosterIsTwentyThree(t *testing.T) {
+func TestTheReferenceTakingRosterIsTwentyFour(t *testing.T) {
 	roster := ReferenceTakingCommands()
-	if len(roster) != 23 {
-		t.Fatalf("the roster holds %d commands and it is twenty-three: %s", len(roster), strings.Join(roster, " "))
+	if len(roster) != 24 {
+		t.Fatalf("the roster holds %d commands and it is twenty-four: %s", len(roster), strings.Join(roster, " "))
 	}
 	want := []string{
 		"accept-divergence", "archive", "attach", "cite", "comment", "delete", "edit",
 		"fail", "get", "instructions", "list", "path", "redact", "rename", "reopen", "resolve",
-		"restore", "set", "settle", "show", "verify", "waive", "withdraw",
+		"restore", "set", "settle", "show", "spend", "verify", "waive", "withdraw",
 	}
 	if strings.Join(roster, " ") != strings.Join(want, " ") {
 		t.Errorf("the roster is\n  %s\nand the set the card names is\n  %s", strings.Join(roster, " "), strings.Join(want, " "))
@@ -55,8 +56,8 @@ func TestTheReferenceTakingRosterIsTwentyThree(t *testing.T) {
 			}
 		}
 	}
-	if byGuide != 23 || byParam != 23 {
-		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are twenty-three", byGuide, byParam)
+	if byGuide != 24 || byParam != 24 {
+		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are twenty-four", byGuide, byParam)
 	}
 	t.Logf("the roster derived at this commit holds %d commands", len(roster))
 }
