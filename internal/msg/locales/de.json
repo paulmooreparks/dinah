@@ -7663,6 +7663,11 @@
       "context": "The last line of a rehearsed storage migration's account.",
       "source": "1ab13ac9f128f69a"
     },
+    "storage.already": {
+      "text": "Der Speicher deklariert bereits das Format {to}, daher gibt es nichts zu migrieren.",
+      "context": "The line a storage migration prints in place of its account when the store already declares the card-unit format and carries no migration in progress. {to} is that format. A comment.md or item.md an older build wrote since is still carried, and listed after this line.",
+      "source": "678c2caed5979819"
+    },
     "storage.done": {
       "text": "Der Speicher deklariert jetzt das Format {to}. Ein älterer Build als dieser verweigert ihn.",
       "context": "The line a finished storage migration prints.",

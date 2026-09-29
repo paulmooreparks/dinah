@@ -31,8 +31,14 @@ func (l *Library) MigrateStorage(req *Request) (*bench.StorageMigration, error) 
 	if req.ForceClaims && req.Actor != l.Bench.Operator {
 		return nil, contract.Refuse(contract.NotOperator, req.Actor)
 	}
+	// A store already at the card-unit format with no migration in progress
+	// has nothing to migrate, so the claims a writing run is refused over are
+	// not asked about: the answer is that it is already migrated, and telling
+	// the operator to release claims first would be advice for a run with
+	// nothing to do.
+	migrated := l.Bench.Format >= bench.CardUnitFormat && l.Bench.Migrating == ""
 	var passed []string
-	if !req.Rehearse {
+	if !req.Rehearse && !migrated {
 		claimed, err := l.Bench.ClaimedCardsBothHalves()
 		if err != nil {
 			return nil, err

@@ -181,6 +181,67 @@ func TestTheMigrationIsTheOperatorsAndRefusedOverClaims(t *testing.T) {
 // which the comparison reports; and naming a comment by its ordinal, as check
 // did, names that comment fx-1/questions/2/comments/4, which reaches nothing,
 // so accept-divergence over it is refused.
+// TestARerunOverAMigratedStoreAnswersAlreadyMigrated drives the rerun clause
+// of dinah-637/criteria/13. A second dinah check --migrate-storage on a store
+// the migration finished answers that the store is already migrated, in the
+// human answer by the catalogue sentence and in the --json answer by
+// already_migrated, names no claim passed, and writes nothing. It is asked
+// with a card claimed, and it answers without the workbench-in-use refusal,
+// since a run with nothing to migrate has no claims to be refused over; the
+// forced form answers the same and names no claim either.
+//
+// Arming: answering the rerun with the zero-count account, as the command did,
+// prints "The store now declares format 12" and no already sentence; and
+// asking about claims before the format refuses the unforced rerun
+// dinah.workbench-in-use.
+func TestARerunOverAMigratedStoreAnswersAlreadyMigrated(t *testing.T) {
+	store, root := migratedFixture(t)
+	at := func(args ...string) invocation {
+		return runCLI(t, root, append([]string{"--workbench", store}, args...)...)
+	}
+	// A claim a session left standing, planted as the card file records one,
+	// as TestTheMigrationIsTheOperatorsAndRefusedOverClaims plants it.
+	anchor := filepath.Join(store, bench.CardsDir, "8fadf319a45a", bench.CardAnchor)
+	text, err := os.ReadFile(anchor)
+	if err != nil {
+		t.Fatalf("read %s: %v", anchor, err)
+	}
+	fm, body := bench.ParseAnchor(string(text))
+	fm.Set("state", "claimed")
+	fm.Set("claim_holder", "alex")
+	fm.Set("claim_since", "2026-09-28T09:00:00Z")
+	if err := os.WriteFile(anchor, []byte(fm.Render(body)), 0o644); err != nil {
+		t.Fatalf("plant the claim: %v", err)
+	}
+	before := redactedTreeBytes(t, store)
+
+	human := at("check", "--migrate-storage")
+	if human.code != 0 || !strings.Contains(human.out, "The store already declares format 12, so there is nothing to migrate.") {
+		t.Errorf("the rerun answered %d:\n%s%s", human.code, human.out, human.errw)
+	}
+	for _, stale := range []string{"now declares format", "alex", "Cards"} {
+		if strings.Contains(human.out, stale) {
+			t.Errorf("the rerun's answer carries %q, which belongs to a run that migrated something:\n%s", stale, human.out)
+		}
+	}
+
+	forced := at("--json", "check", "--migrate-storage", "--force-claims")
+	var answer struct {
+		Outcome         string   `json:"outcome"`
+		AlreadyMigrated *bool    `json:"already_migrated"`
+		ClaimsPassed    []string `json:"claims_passed"`
+	}
+	if err := json.Unmarshal([]byte(forced.out), &answer); err != nil {
+		t.Fatalf("decode the forced rerun's answer %q (%s): %v", forced.out, forced.errw, err)
+	}
+	if forced.code != 0 || answer.Outcome != "ok" || answer.AlreadyMigrated == nil || !*answer.AlreadyMigrated || len(answer.ClaimsPassed) != 0 {
+		t.Errorf("the forced rerun answered %d %s", forced.code, forced.out)
+	}
+	if redactedTreeBytes(t, store) != before {
+		t.Error("a rerun over the migrated store changed it")
+	}
+}
+
 func TestADivergenceIsCarriedAndStillReported(t *testing.T) {
 	store, root, migrated := migratedFixtureReport(t, func(store string) {
 		anchor := filepath.Join(store, bench.CardsDir, "7035845dc37b", "checklist", "87b95a15aacc", bench.CommentsDir, "6ebdf797b337", "comment.md")

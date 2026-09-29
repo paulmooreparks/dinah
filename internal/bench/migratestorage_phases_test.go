@@ -602,9 +602,20 @@ func TestEachPreconditionRefusesNamingTheFile(t *testing.T) {
 		if report, err := migrateFixture(t, store, migrationRun(filepath.Join(t.TempDir(), "backup"))); err != nil || report.Outcome != contract.ReadOK {
 			t.Fatalf("the migration: %v %+v", err, report)
 		}
-		report, err := migrateFixture(t, store, migrationRun(""))
+		// The rerun is handed a claim a forced run passed, so an answer that
+		// echoes it names a claim passed by a run that migrated nothing.
+		before, _ := storeDigest(Disk{}, store, "")
+		run := migrationRun("")
+		run.Claims = []string{"fx-1"}
+		report, err := migrateFixture(t, store, run)
 		if err != nil || report.Outcome != contract.ReadOK || report.From != CardUnitFormat {
 			t.Fatalf("a run over a migrated store answered %v %+v, wanted ok", err, report)
+		}
+		if !report.AlreadyMigrated || len(report.ClaimsPassed) != 0 || report.Backup != nil {
+			t.Errorf("a run over a migrated store answered already-migrated %t, claims passed %v and backup %+v, wanted already-migrated, none and none", report.AlreadyMigrated, report.ClaimsPassed, report.Backup)
+		}
+		if after, _ := storeDigest(Disk{}, store, ""); after != before {
+			t.Error("the run over a migrated store changed the store")
 		}
 	})
 }

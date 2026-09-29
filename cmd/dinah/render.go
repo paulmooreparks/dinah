@@ -1832,6 +1832,16 @@ func (s *session) renderStorageMigration(run *bench.StorageMigration) {
 		title, root = s.library.Bench.Title, s.library.Bench.ID
 	}
 	s.line(s.r.T("storage.heading", "title", title, "detail", root))
+	if run.AlreadyMigrated {
+		s.line(s.r.T("storage.already", "to", strconv.Itoa(run.To)))
+		if len(run.Strays) > 0 {
+			s.storageList("storage.strays", run.Strays, "storage.row")
+		}
+		if run.Outcome == contract.ReadFindings {
+			s.renderStorageStop(run)
+		}
+		return
+	}
 	if run.Backup != nil && run.Backup.Path != "" {
 		s.line(s.r.T("storage.backup", "path", run.Backup.Path, "digest", run.Backup.Digest))
 	}

@@ -6101,6 +6101,10 @@
       "text": "Nothing was written.",
       "context": "The last line of a rehearsed storage migration's account."
     },
+    "storage.already": {
+      "text": "The store already declares format {to}, so there is nothing to migrate.",
+      "context": "The line a storage migration prints in place of its account when the store already declares the card-unit format and carries no migration in progress. {to} is that format. A comment.md or item.md an older build wrote since is still carried, and listed after this line."
+    },
     "storage.done": {
       "text": "The store now declares format {to}. A build older than this one refuses it.",
       "context": "The line a finished storage migration prints."

@@ -7648,6 +7648,11 @@
       "context": "The last line of a rehearsed storage migration's account.",
       "source": "1ab13ac9f128f69a"
     },
+    "storage.already": {
+      "text": "भंडार पहले से ही प्रारूप {to} घोषित करता है, इसलिए माइग्रेट करने के लिए कुछ नहीं है।",
+      "context": "The line a storage migration prints in place of its account when the store already declares the card-unit format and carries no migration in progress. {to} is that format. A comment.md or item.md an older build wrote since is still carried, and listed after this line.",
+      "source": "678c2caed5979819"
+    },
     "storage.done": {
       "text": "भंडार अब प्रारूप {to} घोषित करता है। इससे पुराना कोई भी बिल्ड इसे अस्वीकार करता है।",
       "context": "The line a finished storage migration prints.",

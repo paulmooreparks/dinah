@@ -95,8 +95,13 @@ type StorageMigrationRun struct {
 // StorageMigration is a storage migration's own account of what it did, or
 // on a rehearsal of what it would do.
 type StorageMigration struct {
-	Outcome          string                 `json:"outcome"`
-	Rehearsal        bool                   `json:"rehearsal"`
+	Outcome   string `json:"outcome"`
+	Rehearsal bool   `json:"rehearsal"`
+	// AlreadyMigrated says the store already declared the card-unit format
+	// with no migration in progress, so the run carried nothing, took no
+	// backup and passed no claim; only a stray an older build wrote since is
+	// carried, and listed under Strays.
+	AlreadyMigrated  bool                   `json:"already_migrated"`
 	Resumed          bool                   `json:"resumed"`
 	Backup           *StorageBackup         `json:"backup,omitempty"`
 	From             int                    `json:"from"`
@@ -483,6 +488,10 @@ func (b *Bench) MigrateStorage(run StorageMigrationRun) (*StorageMigration, erro
 func (b *Bench) migratedAlready(run StorageMigrationRun, report *StorageMigration) (*StorageMigration, error) {
 	report.From = b.Format
 	report.Outcome = contract.ReadOK
+	report.AlreadyMigrated = true
+	// Nothing is migrated, so no claim was passed, whatever the caller
+	// forced.
+	report.ClaimsPassed = []string{}
 	strays, err := b.StrayMemberFiles()
 	if err != nil {
 		return nil, err
