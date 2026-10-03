@@ -28,6 +28,21 @@ REQUIRED_HELP = (
 )
 ARMS = ("direct", "direct-review", "lean")
 MCP_VERSION = "2024-11-05"
+ENV_ALLOWLIST = (
+    "APPDATA",
+    "COMSPEC",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "LOCALAPPDATA",
+    "PATH",
+    "PATHEXT",
+    "SYSTEMDRIVE",
+    "SYSTEMROOT",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "WINDIR",
+)
 BUILDER_ROLE = "You are the builder. Implement the task contract in the current workspace. Inspect the existing files, make the smallest complete change, run relevant checks, and record the checks in RESULT.md."
 REVIEWER_ROLE = "You are the independent reviewer. Inspect the workspace beyond the builder report, evaluate the task contract and changed files, and run relevant checks. Do not edit the implementation. Write REVIEW.md with VERDICT: PASS or VERDICT: REPAIR on its first line, followed by findings and evidence."
 
@@ -70,6 +85,19 @@ def implementation_revision(root: Path) -> str:
     manifest.pop("RESULT.md", None)
     manifest.pop("REVIEW.md", None)
     return digest_bytes(canonical(manifest))
+
+
+def changed_file_manifest(before: dict[str, str], after: dict[str, str]) -> dict[str, dict[str, str | None]]:
+    return {
+        name: {"before": before.get(name), "after": after.get(name)}
+        for name in sorted(before.keys() | after.keys())
+        if before.get(name) != after.get(name)
+    }
+
+
+def subprocess_environment(source: dict[str, str] | None = None) -> dict[str, str]:
+    values = os.environ if source is None else source
+    return {name: values[name] for name in ENV_ALLOWLIST if name in values}
 
 
 def acceptance_file(fixture: Path, manifest: dict[str, Any]) -> Path:
@@ -346,13 +374,14 @@ def check_state(exit_statuses: list[int]) -> str:
 
 def run_codex(executable: str, model: str, workspace: Path, prompt: bytes, evidence: Path, run_id: str, task: bytes, acceptance: bytes, command_facts: dict[str, str], role: str, timeout: int = 600) -> dict[str, Any]:
     argv = codex_command(executable, model, workspace)
+    environment = subprocess_environment()
     starting_revision = manifest_revision(workspace)
     transcript = evidence / (run_id + ".jsonl")
     stderr = evidence / (run_id + ".stderr.txt")
     started = time.time()
     with transcript.open("wb") as out, stderr.open("wb") as err:
         try:
-            done = subprocess.run(argv, input=prompt, stdout=out, stderr=err, check=False, timeout=timeout)
+            done = subprocess.run(argv, input=prompt, stdout=out, stderr=err, check=False, timeout=timeout, env=environment)
             exit_status = done.returncode
         except subprocess.TimeoutExpired:
             exit_status = -1
@@ -366,6 +395,7 @@ def run_codex(executable: str, model: str, workspace: Path, prompt: bytes, evide
         "workspace": str(workspace),
         "transcript_sha256": file_hash(transcript),
         "model": model,
+        "environment_allowlist": environment,
     }
     record = {
         "run_id": run_id,
@@ -378,8 +408,9 @@ def run_codex(executable: str, model: str, workspace: Path, prompt: bytes, evide
         "usage_state": state,
         "identity": identity,
         "transcript": str(transcript),
+        "environment_allowlist": environment,
     }
-    receipt = evidence_receipt(workspace, task, acceptance, argv, {"model": model, "command": command_facts, "role_sha256": digest_bytes(role.encode()), "prompt_sha256": digest_bytes(prompt)}, exit_status, transcript.read_bytes(), starting_revision)
+    receipt = evidence_receipt(workspace, task, acceptance, argv, {"model": model, "command": command_facts, "role_sha256": digest_bytes(role.encode()), "prompt_sha256": digest_bytes(prompt), "environment_allowlist": environment}, exit_status, transcript.read_bytes(), starting_revision)
     receipt_path = evidence / (run_id + ".receipt.json")
     write_json(receipt_path, receipt)
     record["receipt"] = str(receipt_path)
@@ -424,11 +455,20 @@ def reviewer_prompt(contract: str, lean: bool, packet: dict[str, Any] | None) ->
     return (lead + "TASK CONTRACT\n" + contract).encode()
 
 
-def review_verdict(workspace: Path) -> tuple[str, str]:
+def review_verdict(workspace: Path, process: dict[str, Any]) -> tuple[str, str]:
+    if process.get("exit_status") != 0:
+        return "unknown", "review process did not succeed"
     path = workspace / "REVIEW.md"
     if not path.exists():
         return "unknown", "REVIEW.md is absent"
+    receipt_path = process.get("receipt")
+    if not receipt_path or not Path(receipt_path).exists():
+        return "unknown", "review receipt is absent"
+    receipt = json.loads(Path(receipt_path).read_text(encoding="utf-8"))
+    if receipt.get("exit_status") != 0 or receipt.get("merge_candidate_sha256") != manifest_revision(workspace):
+        return "unknown", "review verdict is not bound to the current successful process"
     text = path.read_text(encoding="utf-8")
+    process["verdict_sha256"] = file_hash(path)
     first = text.splitlines()[0].strip() if text.splitlines() else ""
     if first == "VERDICT: PASS":
         return "pass", text
@@ -437,8 +477,8 @@ def review_verdict(workspace: Path) -> tuple[str, str]:
     return "unknown", text
 
 
-def recovery_prompt(contract: str, findings: str, prior_result: str, packet: dict[str, Any] | None) -> bytes:
-    coordination = {"kind": "explicit-recovery", "findings": findings, "prior_result": prior_result, "packet": packet}
+def recovery_prompt(contract: str, findings: str, prior_result: str, packet: dict[str, Any] | None, changes: dict[str, dict[str, str | None]]) -> bytes:
+    coordination = {"kind": "explicit-recovery", "findings": findings, "prior_result": prior_result, "changed_file_manifest": changes, "packet": packet}
     return (BUILDER_ROLE + "\n\nCOORDINATION\n" + json.dumps(coordination, indent=2) + "\n\nTASK CONTRACT\n" + contract).encode()
 
 
@@ -465,6 +505,7 @@ def run_pilot(root: Path, model: str, executable: str, dinah: str, fixtures: lis
             if workspace.exists():
                 raise Refused("pilot workspace already exists: %s" % workspace)
             shutil.copytree(fixture / manifest["workspace_seed"], workspace)
+            starting_manifest = tree_manifest(workspace)
             task_bytes = contract.encode()
             acceptance_path = acceptance_file(fixture, manifest)
             acceptance_bytes = acceptance_path.read_bytes()
@@ -504,6 +545,7 @@ def run_pilot(root: Path, model: str, executable: str, dinah: str, fixtures: lis
                     require_fresh(packet, session, card["ref"], workspace, evidence / ("%s-lean-review-dispatch-gate.json" % fixture_name), "review-dispatch")
                 review_id = "%s-%s-review" % (fixture_name, arm)
                 before_review = implementation_revision(workspace)
+                (workspace / "REVIEW.md").unlink(missing_ok=True)
                 review = run_codex(executable, model, workspace, reviewer_prompt(contract, arm == "lean", packet), evidence, review_id, task_bytes, acceptance_bytes, command_facts, REVIEWER_ROLE)
                 ledger.import_run(review_id, review["identity"], Usage(**review["usage"]) if review["usage"] else None, review["usage_state"])
                 runs.append(review)
@@ -511,28 +553,36 @@ def run_pilot(root: Path, model: str, executable: str, dinah: str, fixtures: lis
                     raise Refused("reviewer changed implementation files")
                 if arm == "lean" and review["exit_status"] == 0:
                     require_fresh(packet, session, card["ref"], workspace, evidence / ("%s-lean-review-result-gate.json" % fixture_name), "review-result", check_code=False)
-                verdict, findings = review_verdict(workspace)
-                if review["exit_status"] == 0 and verdict == "repair":
+                verdict, findings = review_verdict(workspace, review)
+                if verdict == "repair":
                     if arm == "lean":
                         released = session.call("release", {"card": card["ref"], "basis": card["revision"], "actor": "lean-reviewer"})["card"]
-                        card = session.call("claim", {"card": released["ref"], "basis": released["revision"], "expires": "2h"})["card"]
+                        card = session.call("move", {"card": released["ref"], "column": "working", "basis": released["revision"], "actor": "lean-reviewer"})["card"]
+                        lifecycle.append({"act": "return-for-repair", "column": card["column_title"], "revision": card["revision"]})
+                        card = session.call("claim", {"card": card["ref"], "basis": card["revision"], "expires": "2h"})["card"]
+                        lifecycle.append({"act": "claim-recovery-builder", "column": card["column_title"], "revision": card["revision"]})
                         revisions, _ = read_authority(session, card["ref"], workspace)
                         packet = make_packet(contract, "external acceptance evaluator", "current workspace", revisions, ["review findings", "worker checks"])
                         require_fresh(packet, session, card["ref"], workspace, evidence / ("%s-lean-recovery-dispatch-gate.json" % fixture_name), "recovery-dispatch")
                     result_text = (workspace / "RESULT.md").read_text(encoding="utf-8") if (workspace / "RESULT.md").exists() else "RESULT.md absent"
                     recovery_id = "%s-%s-recovery" % (fixture_name, arm)
-                    recovery = run_codex(executable, model, workspace, recovery_prompt(contract, findings, result_text, packet if arm == "lean" else None), evidence, recovery_id, task_bytes, acceptance_bytes, command_facts, BUILDER_ROLE)
+                    changes = changed_file_manifest(starting_manifest, tree_manifest(workspace))
+                    recovery = run_codex(executable, model, workspace, recovery_prompt(contract, findings, result_text, packet if arm == "lean" else None, changes), evidence, recovery_id, task_bytes, acceptance_bytes, command_facts, BUILDER_ROLE)
                     ledger.import_run(recovery_id, recovery["identity"], Usage(**recovery["usage"]) if recovery["usage"] else None, recovery["usage_state"])
                     runs.append(recovery)
                     if arm == "lean":
                         require_fresh(packet, session, card["ref"], workspace, evidence / ("%s-lean-recovery-result-gate.json" % fixture_name), "recovery-result", check_code=False)
                         released = session.call("release", {"card": card["ref"], "basis": card["revision"]})["card"]
-                        card = session.call("claim", {"card": released["ref"], "basis": released["revision"], "expires": "2h", "actor": "lean-reviewer"})["card"]
+                        card = session.call("move", {"card": released["ref"], "column": "review", "basis": released["revision"]})["card"]
+                        lifecycle.append({"act": "submit-repair", "column": card["column_title"], "revision": card["revision"]})
+                        card = session.call("claim", {"card": card["ref"], "basis": card["revision"], "expires": "2h", "actor": "lean-reviewer"})["card"]
+                        lifecycle.append({"act": "claim-rereviewer", "column": card["column_title"], "revision": card["revision"]})
                         revisions, _ = read_authority(session, card["ref"], workspace)
                         packet = make_packet(contract, "external acceptance evaluator", "current workspace", revisions, ["independent re-review", "external acceptance"])
                         require_fresh(packet, session, card["ref"], workspace, evidence / ("%s-lean-rereview-dispatch-gate.json" % fixture_name), "rereview-dispatch")
                     rereview_id = "%s-%s-rereview" % (fixture_name, arm)
                     before_review = implementation_revision(workspace)
+                    (workspace / "REVIEW.md").unlink(missing_ok=True)
                     rereview = run_codex(executable, model, workspace, reviewer_prompt(contract, arm == "lean", packet), evidence, rereview_id, task_bytes, acceptance_bytes, command_facts, REVIEWER_ROLE)
                     ledger.import_run(rereview_id, rereview["identity"], Usage(**rereview["usage"]) if rereview["usage"] else None, rereview["usage_state"])
                     runs.append(rereview)
@@ -540,7 +590,7 @@ def run_pilot(root: Path, model: str, executable: str, dinah: str, fixtures: lis
                         raise Refused("reviewer changed implementation files")
                     if arm == "lean":
                         require_fresh(packet, session, card["ref"], workspace, evidence / ("%s-lean-rereview-result-gate.json" % fixture_name), "rereview-result", check_code=False)
-                    verdict, findings = review_verdict(workspace)
+                    verdict, findings = review_verdict(workspace, rereview)
                 if verdict != "pass":
                     acceptance = {"argv": [], "exit_status": 2, "output": "review did not reach PASS: %s" % verdict, "output_path": None, "receipt": None}
                 else:
@@ -567,6 +617,7 @@ def run_integration(root: Path, dinah: str) -> dict[str, Any]:
     workspace = root / "workspace"
     workspace.mkdir(parents=True)
     (workspace / "seed.txt").write_text("seed\n", encoding="utf-8")
+    integration_starting_manifest = tree_manifest(workspace)
     workbench, session = create_candidate_workbench(dinah, root)
     result: dict[str, Any] = {"workbench": str(workbench)}
     try:
@@ -603,19 +654,35 @@ def run_integration(root: Path, dinah: str) -> dict[str, Any]:
         recovery_card = session.call("claim", {"card": recovery_card["ref"], "basis": recovery_card["revision"], "expires": "2h", "actor": "lean-reviewer"})["card"]
         before = implementation_revision(workspace)
         (workspace / "REVIEW.md").write_text("VERDICT: REPAIR\nFix the candidate value.\n", encoding="utf-8")
-        if implementation_revision(workspace) != before or review_verdict(workspace)[0] != "repair":
+        repair_receipt_path = evidence / "stub-review-repair.receipt.json"
+        write_json(repair_receipt_path, evidence_receipt(workspace, b"integration task", b"integration acceptance", ["stub-review"], {}, 0, b"repair", before))
+        repair_process = {"exit_status": 0, "receipt": str(repair_receipt_path)}
+        if implementation_revision(workspace) != before or review_verdict(workspace, repair_process)[0] != "repair":
             raise Refused("read-only review integration failed")
         recovery_card = session.call("release", {"card": recovery_card["ref"], "basis": recovery_card["revision"], "actor": "lean-reviewer"})["card"]
+        recovery_card = session.call("move", {"card": recovery_card["ref"], "column": "working", "basis": recovery_card["revision"], "actor": "lean-reviewer"})["card"]
+        recovery_working = recovery_card["column_title"]
         recovery_card = session.call("claim", {"card": recovery_card["ref"], "basis": recovery_card["revision"], "expires": "2h"})["card"]
         revisions, _ = read_authority(session, recovery_card["ref"], workspace)
         recovery_packet = make_packet("integration task", "integration acceptance", "workspace", revisions, ["review findings"])
         require_fresh(recovery_packet, session, recovery_card["ref"], workspace, evidence / "recovery-dispatch-gate.json", "recovery-dispatch")
-        recovery_bytes = recovery_prompt("integration task", "Fix the candidate value.", "prior result", recovery_packet)
+        recovery_changes = changed_file_manifest(integration_starting_manifest, tree_manifest(workspace))
+        recovery_bytes = recovery_prompt("integration task", "Fix the candidate value.", "prior result", recovery_packet, recovery_changes)
         (workspace / "candidate.txt").write_text("repaired\n", encoding="utf-8")
         require_fresh(recovery_packet, session, recovery_card["ref"], workspace, evidence / "recovery-result-gate.json", "recovery-result", check_code=False)
         recovery_card = session.call("release", {"card": recovery_card["ref"], "basis": recovery_card["revision"]})["card"]
+        recovery_card = session.call("move", {"card": recovery_card["ref"], "column": "review", "basis": recovery_card["revision"]})["card"]
+        recovery_review = recovery_card["column_title"]
         recovery_card = session.call("claim", {"card": recovery_card["ref"], "basis": recovery_card["revision"], "expires": "2h", "actor": "lean-reviewer"})["card"]
         (workspace / "REVIEW.md").write_text("VERDICT: PASS\nRepair verified.\n", encoding="utf-8")
+        pass_receipt_path = evidence / "stub-review-pass.receipt.json"
+        write_json(pass_receipt_path, evidence_receipt(workspace, b"integration task", b"integration acceptance", ["stub-rereview"], {}, 0, b"pass", manifest_revision(workspace)))
+        pass_process = {"exit_status": 0, "receipt": str(pass_receipt_path)}
+        pass_verdict = review_verdict(workspace, pass_process)[0]
+        failed_with_stale_pass = review_verdict(workspace, {"exit_status": 1, "receipt": str(pass_receipt_path)})[0]
+        (workspace / "candidate.txt").write_text("changed after review\n", encoding="utf-8")
+        stale_bound_pass = review_verdict(workspace, pass_process)[0]
+        (workspace / "candidate.txt").write_text("repaired\n", encoding="utf-8")
 
         instruction_card = session.call("add_card", {"title": "instruction change task", "column": "ready"})["card"]
         instruction_card = session.call("move", {"card": instruction_card["ref"], "column": "working", "basis": instruction_card["revision"]})["card"]
@@ -642,9 +709,11 @@ def run_integration(root: Path, dinah: str) -> dict[str, Any]:
         revisions, _ = read_authority(session, instruction_card["ref"], workspace)
         decision_packet = make_packet("instruction task", "accept", "workspace", revisions, [])
         require_fresh(decision_packet, session, instruction_card["ref"], workspace, evidence / "refreshed-decision-gate.json", "refreshed-decision")
-        result.update({"valid_gate": "accepted", "stale_gate": stale_gate, "instruction_change_gate": instruction_gate, "late_decision_gate": late_decision_gate, "valid_receipt": valid_receipt, "changed_candidate_receipt": stale_receipt, "recovery_path": review_verdict(workspace)[0], "recovery_prompt_sha256": digest_bytes(recovery_bytes), "builder_role_sha256": digest_bytes(BUILDER_ROLE.encode()), "reviewer_role_sha256": digest_bytes(REVIEWER_ROLE.encode())})
+        result.update({"valid_gate": "accepted", "stale_gate": stale_gate, "instruction_change_gate": instruction_gate, "late_decision_gate": late_decision_gate, "valid_receipt": valid_receipt, "changed_candidate_receipt": stale_receipt, "recovery_path": pass_verdict, "recovery_working_column": recovery_working, "recovery_review_column": recovery_review, "failed_with_stale_pass": failed_with_stale_pass, "stale_bound_pass": stale_bound_pass, "recovery_manifest_count": len(recovery_changes), "recovery_prompt_sha256": digest_bytes(recovery_bytes), "builder_role_sha256": digest_bytes(BUILDER_ROLE.encode()), "reviewer_role_sha256": digest_bytes(REVIEWER_ROLE.encode())})
         write_json(root / "integration-report.json", result)
-        if (valid_receipt, stale_receipt, stale_gate, instruction_gate, late_decision_gate, result["recovery_path"]) != ("valid", "stale", "refused", "refused", "refused", "pass"):
+        expected = ("valid", "stale", "refused", "refused", "refused", "pass", "Working", "Review", "unknown", "unknown")
+        observed = (valid_receipt, stale_receipt, stale_gate, instruction_gate, late_decision_gate, result["recovery_path"], recovery_working, recovery_review, failed_with_stale_pass, stale_bound_pass)
+        if observed != expected or not recovery_changes:
             raise Refused("integration dry run did not enforce the expected gates")
         return result
     finally:

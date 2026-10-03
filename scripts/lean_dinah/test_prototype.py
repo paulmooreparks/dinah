@@ -1,7 +1,9 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.lean_dinah import prototype
 
@@ -23,6 +25,18 @@ class UsageTests(unittest.TestCase):
             _, usage, state = prototype.terminal_usage(path, False)
             self.assertIsNone(usage)
             self.assertIn("failed", state)
+
+    def test_terminal_usage_refuses_multiple_resumed_terminal_events(self):
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "run.jsonl"
+            events = [
+                {"type": "turn.completed", "thread_id": "t1", "usage": {"input_tokens": 10, "cached_input_tokens": 4, "output_tokens": 2}},
+                {"type": "turn.completed", "thread_id": "t1", "usage": {"input_tokens": 12, "cached_input_tokens": 4, "output_tokens": 3}},
+            ]
+            path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
+            _, usage, state = prototype.terminal_usage(path, True)
+            self.assertIsNone(usage)
+            self.assertIn("expected one terminal usage event, found 2", state)
 
     def test_ledger_is_idempotent_and_rejects_conflict(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -69,7 +83,8 @@ class FreshnessTests(unittest.TestCase):
 class EvidenceTests(unittest.TestCase):
     def test_receipt_accepts_unchanged_candidate_and_refuses_changed_candidate(self):
         with tempfile.TemporaryDirectory() as raw:
-            workspace = Path(raw)
+            workspace = Path(raw) / "workspace"
+            workspace.mkdir()
             (workspace / "one.txt").write_text("one")
             receipt = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], {"model": "m"}, 0, b"ok", "start")
             expected = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], {"model": "m"}, 0, b"ok", "start")
@@ -106,6 +121,55 @@ class PromptTests(unittest.TestCase):
         self.assertTrue(direct.startswith(prototype.BUILDER_ROLE))
         self.assertTrue(lean.startswith(prototype.BUILDER_ROLE))
         self.assertEqual(prototype.digest_bytes(prototype.BUILDER_ROLE.encode()), prototype.digest_bytes(direct.split("\n\nCOORDINATION", 1)[0].encode()))
+
+    def test_recovery_packet_carries_changed_file_manifest(self):
+        prompt = prototype.recovery_prompt("contract", "finding", "result", None, {"code.py": {"before": "a", "after": "b"}}).decode()
+        self.assertIn('"changed_file_manifest"', prompt)
+        self.assertIn('"code.py"', prompt)
+
+
+class ReviewVerdictTests(unittest.TestCase):
+    def test_pass_requires_successful_current_process_and_bound_receipt(self):
+        with tempfile.TemporaryDirectory() as raw:
+            workspace = Path(raw) / "workspace"
+            workspace.mkdir()
+            review = workspace / "REVIEW.md"
+            review.write_text("VERDICT: PASS\nChecked.\n", encoding="utf-8")
+            receipt = prototype.evidence_receipt(workspace, b"task", b"accept", ["review"], {}, 0, b"ok", "start")
+            receipt_path = Path(raw) / "receipt.json"
+            prototype.write_json(receipt_path, receipt)
+            process = {"exit_status": 0, "receipt": str(receipt_path)}
+            self.assertEqual(prototype.review_verdict(workspace, process)[0], "pass")
+            self.assertEqual(prototype.review_verdict(workspace, {**process, "exit_status": 1})[0], "unknown")
+            (workspace / "code.py").write_text("changed", encoding="utf-8")
+            self.assertEqual(prototype.review_verdict(workspace, process)[0], "unknown")
+
+
+class EnvironmentTests(unittest.TestCase):
+    def test_subprocess_environment_keeps_only_explicit_non_secret_names(self):
+        source = {"PATH": "tools", "SYSTEMROOT": "windows", "API_TOKEN": "secret", "DINAH_MODEL": "parent"}
+        environment = prototype.subprocess_environment(source)
+        self.assertEqual(environment, {"PATH": "tools", "SYSTEMROOT": "windows"})
+        self.assertNotIn("API_TOKEN", environment)
+
+    def test_run_codex_enforces_and_records_environment_allowlist(self):
+        def fake_run(argv, *, input, stdout, stderr, check, timeout, env):
+            event = {"type": "turn.completed", "thread_id": "thread", "usage": {"input_tokens": 1, "cached_input_tokens": 0, "output_tokens": 1}}
+            stdout.write((json.dumps(event) + "\n").encode())
+            return subprocess.CompletedProcess(argv, 0)
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workspace = root / "workspace"
+            evidence = root / "evidence"
+            workspace.mkdir()
+            evidence.mkdir()
+            with mock.patch.object(prototype, "subprocess_environment", return_value={"PATH": "allowed"}), mock.patch.object(prototype.subprocess, "run", side_effect=fake_run) as launched:
+                record = prototype.run_codex("codex", "model", workspace, b"prompt", evidence, "run", b"task", b"accept", {"version": "v"}, "role")
+            self.assertEqual(launched.call_args.kwargs["env"], {"PATH": "allowed"})
+            self.assertEqual(record["environment_allowlist"], {"PATH": "allowed"})
+            receipt = json.loads(Path(record["receipt"]).read_text(encoding="utf-8"))
+            self.assertIn("config_sha256", receipt)
 
 
 class CommandTests(unittest.TestCase):
