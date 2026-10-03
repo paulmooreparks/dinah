@@ -1,0 +1,6 @@
+{
+  "task_file": "contract.md",
+  "workspace_seed": "starter",
+  "acceptance_command": ["{python}", "{fixture}/acceptance.py", "{workspace}"],
+  "arm_order": ["direct", "direct-review", "lean"]
+}
