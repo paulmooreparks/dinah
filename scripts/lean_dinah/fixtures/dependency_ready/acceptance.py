@@ -15,6 +15,7 @@ cards = [
     {"id": "d", "state": "ready", "depends_on": []},
 ]
 assert module.ready(cards) == ["a", "d"]
+assert module.ready(iter(cards)) == ["a", "d"]
 try:
     module.ready([{"id": "a", "state": "ready", "depends_on": []}, {"id": "a", "state": "done", "depends_on": []}])
 except ValueError:
@@ -27,4 +28,4 @@ except ValueError:
     pass
 else:
     raise AssertionError("dependency cycle was accepted")
-print("3 acceptance groups passed")
+print("4 acceptance groups passed")

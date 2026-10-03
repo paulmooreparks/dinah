@@ -40,14 +40,20 @@ class FreshnessTests(unittest.TestCase):
         self.packet = prototype.make_packet("task", "accept", "scope", self.revisions, ["test"])
 
     def test_fresh_packet_accepts(self):
-        self.assertEqual(prototype.packet_fresh(self.packet, self.revisions, []), (True, "fresh"))
+        self.assertEqual(prototype.packet_fresh(self.packet, self.revisions, {"changed": False, "events": []}), (True, "fresh"))
 
     def test_instruction_change_refuses(self):
         changed = dict(self.revisions, instructions="later")
-        self.assertEqual(prototype.packet_fresh(self.packet, changed, [])[0], False)
+        self.assertEqual(prototype.packet_fresh(self.packet, changed, {"changed": False})[0], False)
 
     def test_late_decision_refuses(self):
-        self.assertEqual(prototype.packet_fresh(self.packet, self.revisions, [{"affects_task": True}])[0], False)
+        self.assertEqual(prototype.packet_fresh(self.packet, self.revisions, {"changed": True, "events": [{"kind": "decision"}]})[0], False)
+
+    def test_result_gate_allows_worker_code_but_refuses_card_change(self):
+        changed_code = dict(self.revisions, code="worker-result")
+        self.assertTrue(prototype.packet_fresh(self.packet, changed_code, {"changed": False}, check_code=False)[0])
+        changed_card = dict(changed_code, card="later")
+        self.assertFalse(prototype.packet_fresh(self.packet, changed_card, {"changed": False}, check_code=False)[0])
 
     def test_transition_carries_basis_and_stops_on_stale_card(self):
         request = prototype.transition_request("card-1", "Review", "rev-1", "rev-1", ["Review"])
@@ -61,18 +67,45 @@ class FreshnessTests(unittest.TestCase):
 
 
 class EvidenceTests(unittest.TestCase):
-    def test_changed_output_invalidates_receipt(self):
+    def test_receipt_accepts_unchanged_candidate_and_refuses_changed_candidate(self):
         with tempfile.TemporaryDirectory() as raw:
             workspace = Path(raw)
             (workspace / "one.txt").write_text("one")
-            config = {"repository_revision": "abc"}
-            receipt = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], config, 0, b"ok")
-            self.assertTrue(prototype.evidence_matches(receipt, dict(receipt)))
-            changed = dict(receipt, output_sha256=prototype.digest_bytes(b"different"))
-            self.assertFalse(prototype.evidence_matches(receipt, changed))
+            receipt = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], {"model": "m"}, 0, b"ok", "start")
+            expected = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], {"model": "m"}, 0, b"ok", "start")
+            self.assertEqual(prototype.evidence_state(receipt, expected), "valid")
+            (workspace / "one.txt").write_text("changed")
+            changed = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], {"model": "m"}, 0, b"ok", "start")
+            self.assertEqual(prototype.evidence_state(receipt, changed), "stale")
+
+    def test_changed_acceptance_invalidates_receipt(self):
+        with tempfile.TemporaryDirectory() as raw:
+            workspace = Path(raw)
+            receipt = prototype.evidence_receipt(workspace, b"task", b"accept-v1", ["check"], {}, 0, b"ok", "start")
+            changed = prototype.evidence_receipt(workspace, b"task", b"accept-v2", ["check"], {}, 0, b"ok", "start")
+            self.assertEqual(prototype.evidence_state(receipt, changed), "stale")
+
+    def test_changed_output_invalidates_receipt(self):
+        with tempfile.TemporaryDirectory() as raw:
+            workspace = Path(raw)
+            receipt = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], {}, 0, b"first", "start")
+            changed = prototype.evidence_receipt(workspace, b"task", b"accept", ["check"], {}, 0, b"second", "start")
+            self.assertEqual(prototype.evidence_state(receipt, changed), "stale")
 
     def test_empty_check_result_remains_unknown(self):
-        self.assertNotEqual([], ["pass"])
+        self.assertEqual(prototype.check_state([]), "unknown")
+        self.assertEqual(prototype.check_state([0, 0]), "pass")
+        self.assertEqual(prototype.check_state([0, 1]), "fail")
+
+
+class PromptTests(unittest.TestCase):
+    def test_role_instruction_is_identical_across_arms(self):
+        packet = prototype.make_packet("task", "accept", "scope", {"instructions": "i", "code": "c", "workbench": "w", "card": "k", "cursor": "z"}, [])
+        direct = prototype.builder_prompt("contract", False, None).decode()
+        lean = prototype.builder_prompt("contract", True, packet).decode()
+        self.assertTrue(direct.startswith(prototype.BUILDER_ROLE))
+        self.assertTrue(lean.startswith(prototype.BUILDER_ROLE))
+        self.assertEqual(prototype.digest_bytes(prototype.BUILDER_ROLE.encode()), prototype.digest_bytes(direct.split("\n\nCOORDINATION", 1)[0].encode()))
 
 
 class CommandTests(unittest.TestCase):

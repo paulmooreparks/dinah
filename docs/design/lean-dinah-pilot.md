@@ -2,9 +2,9 @@
 
 ## Status and decision
 
-The bounded pilot does not support adopting a lean replacement for Dinah development. All six corrected fixture arms passed their independent acceptance checks, and both lean arms reached the real candidate workbench's operator-owned Acceptance column. Against the primary direct-plus-review baseline, the lean arms reported 682,460 input tokens versus 649,787. Their uncached portions were 67,164 versus 93,371, and their output totals were 13,602 versus 12,426. Cache composition and run order moved in opposite directions, so the lower uncached figure does not establish a saving. The lean arms consumed more reported input and output overall.
+The bounded pilot does not support adopting a lean replacement for Dinah development. In the final frozen campaign, all six fixture arms passed their independent acceptance checks, and both lean arms reached the real candidate workbench's operator-owned Acceptance column. Against the primary direct-plus-review baseline, the lean arms reported 664,097 input tokens versus 606,815. Their uncached portions were 59,937 versus 77,407, and their output totals were 9,690 versus 9,897. Cache composition and run order moved in opposite directions. These two fixtures do not establish a saving or a quality advantage.
 
-The prototype is usable for another isolated run. The two Python fixtures are too small to establish quality equivalence for full Dinah feature work or reduced human coordination burden. They provide no reliable workflow or subscription-savings evidence. A production rollout or shared-core change needs a separate decision after a wider matched study.
+The prototype is usable for another isolated run. The two Python fixtures are too small to establish quality equivalence for full Dinah feature work or reduced human coordination burden. They provide no reliable subscription-savings evidence. Keep the ledger and guarded-control prototype available for experiments, but do not adopt the reduced route broadly. A production rollout or shared-core change needs a separate decision after a wider matched study.
 
 ## Candidate route
 
@@ -20,7 +20,7 @@ A builder packet contains generated run and attempt identifiers, the task contra
 
 The current launcher uses `--ephemeral`, so it does not retain a session for continuation. A later builder round must receive an explicit recovery packet containing the prior result, review findings, current revisions, and the changed-file manifest. The pilot never claims that this reproduces hidden model state.
 
-The reviewer packet is assembled separately. The reviewer may inspect the workspace beyond the builder report. The external acceptance evaluator stays outside both worker prompts and is identical across the three arms of a fixture.
+The reviewer packet is assembled separately. The reviewer may inspect the workspace beyond the builder report but may write only `REVIEW.md`. Its first line records `VERDICT: PASS` or `VERDICT: REPAIR`. A repair verdict returns the card to the builder identity with an explicit recovery packet containing the prior result, findings, current revisions, and changed-file state. One separately claimed reviewer then checks the repair. The campaign allows one such recovery round. An exhausted or unknown verdict is incomplete rather than accepted. The external acceptance evaluator stays outside both worker prompts and is identical across the three arms of a fixture.
 
 ## Launcher
 
@@ -46,7 +46,7 @@ The report separates setup and development activity from measured task execution
 
 A receipt binds the repository revision, dirty-state manifest hash, task hash, acceptance-input hash, command array, relevant configuration hash, exit status, and output hash. A changed output or changed merge candidate invalidates the receipt. An empty automated-check response remains unknown.
 
-The tests exercise matching and stale receipts, changed instructions, late task-affecting decisions, stale card revisions, operator-only completion, duplicate usage delivery, conflicting duplicate delivery, missing usage, and accepted counterparts. The unknown-usage test was armed by replacing a failed process's missing usage with three zero categories. The red run reported that a `Usage` value was not `None`; restoration returned the suite to green.
+The tests exercise matching and stale receipts, changed output, changed acceptance input, changed merge candidates, empty check results, changed instructions, late task changes, stale card revisions, operator-only completion, duplicate usage delivery, conflicting duplicate delivery, missing usage, and accepted counterparts. A real isolated Dinah integration changes a column instruction and posts a late card comment between packet creation and the next gate; each stale packet is refused, while a refreshed packet proceeds. The same integration exercises the builder, read-only reviewer, recovery builder, and re-review claims. Eighteen deterministic tests cover the helper and fixture boundaries.
 
 ## Fixtures and comparison method
 
@@ -62,33 +62,36 @@ The usage-ledger fixture orders the arms direct, direct plus review, then lean. 
 
 ## Measured results
 
-Every corrected arm passed the same external acceptance contract. Reasoning output is a subset of output in the provider event and is shown separately rather than added again.
+Every final frozen arm passed the same external acceptance contract. Reasoning output is a subset of output in the provider event and is shown separately rather than added again.
 
 | Fixture | Arm | Reported input | Cached subset | Derived uncached | Output | Reasoning subset | Worker seconds | Accepted |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Usage ledger | Direct | 149,689 | 124,672 | 25,017 | 3,296 | 467 | 101.4 | yes |
-| Usage ledger | Direct plus review | 368,812 | 326,272 | 42,540 | 8,431 | 2,541 | 260.3 | yes |
-| Usage ledger | Lean | 264,723 | 233,472 | 31,251 | 6,547 | 1,979 | 197.9 | yes |
-| Dependency readiness | Direct | 153,164 | 117,376 | 35,788 | 2,507 | 432 | 81.6 | yes |
-| Dependency readiness | Direct plus review | 280,975 | 230,144 | 50,831 | 3,995 | 430 | 144.0 | yes |
-| Dependency readiness | Lean | 417,737 | 381,824 | 35,913 | 7,055 | 869 | 233.2 | yes |
+| Usage ledger | Direct | 128,614 | 94,976 | 33,638 | 2,585 | 618 | 83.8 | yes |
+| Usage ledger | Direct plus review | 293,593 | 267,136 | 26,457 | 4,823 | 906 | 160.3 | yes |
+| Usage ledger | Lean | 298,873 | 265,984 | 32,889 | 4,604 | 881 | 164.7 | yes |
+| Dependency readiness | Direct | 174,842 | 140,800 | 34,042 | 3,244 | 699 | 111.8 | yes |
+| Dependency readiness | Direct plus review | 313,222 | 262,272 | 50,950 | 5,074 | 1,015 | 155.7 | yes |
+| Dependency readiness | Lean | 365,224 | 338,176 | 27,048 | 5,086 | 865 | 127.4 | yes |
 
 The two primary-baseline arms pooled as follows:
 
 | Arm | Reported input | Cached subset | Derived uncached | Output | Reasoning subset |
 |---|---:|---:|---:|---:|---:|
-| Direct plus review | 649,787 | 556,416 | 93,371 | 12,426 | 2,971 |
-| Lean | 682,460 | 615,296 | 67,164 | 13,602 | 2,848 |
+| Direct | 303,456 | 235,776 | 67,680 | 5,829 | 1,317 |
+| Direct plus review | 606,815 | 529,408 | 77,407 | 9,897 | 1,921 |
+| Lean | 664,097 | 604,160 | 59,937 | 9,690 | 1,746 |
 
-The usage-ledger fixture favored lean on every reported consumption category except cached share. The dependency fixture reversed the reported-input and output result. Counterbalanced order reduces one simple ordering effect, but it does not remove cache warmth, provider variation, or the lack of repeated runs. A median over two fixtures would only restate those two values, so the report does not treat it as an estimate.
+Lean input plus output was 9.25 percent above the reviewed baseline and 117.85 percent above direct prompting. Its uncached input was 22.57 percent below the reviewed baseline and 11.44 percent below direct prompting. The usage-ledger fixture put lean slightly above the reviewed baseline for input and slightly below it for output. The dependency fixture put lean above the reviewed baseline for both. Counterbalanced order reduces one simple ordering effect, but it does not remove cache warmth, provider variation, or the lack of repeated runs. The report does not convert these values to money or subscription capacity.
 
-The independent reviewers found no defect in either usage-ledger result or the dependency direct-plus-review result. The lean dependency reviewer found that one-pass dependency iterables were exhausted during cycle detection and repaired the implementation before acceptance. No fixture carried an intentionally seeded defect, so that one observation does not establish a quality advantage.
+The independent reviewers returned PASS in all four final review arms, so no recovery round ran during the frozen campaign. The deterministic integration separately exercises the required recovery route. No fixture carried an intentionally seeded defect, so the result does not establish a quality advantage.
 
 The first two campaign starts used the older Codex 0.122.0 found on `PATH`. They failed read-only and remain under `measured2`; one reported 120,499 input, 98,432 cached input, 1,375 output, and 135 reasoning-output tokens, while the interrupted attempt has unknown usage. The pinned 0.160.0 probe without the native sandbox override also failed and reported 38,830 input, 19,200 cached input, and 87 output tokens. The successful elevated-mode write probe reported 59,289 input, 45,952 cached input, 226 output, and 47 reasoning-output tokens. The original read-only readiness probe reported 19,339 input, 6,912 cached input, and 5 output tokens. These setup and failed-attempt costs are separate from the matched task table.
 
-The external evaluator initially had two plumbing errors. One import path did not register the candidate module before executing it, and one assertion assumed a storage-inspection property the contract did not require. Both evaluator failures are retained. The corrected evaluator was then run against the same completed artifacts, with no worker rerun or feedback, and accepted them. The corrected usage evaluator hash is `2dd8b9d2a12a0f6e092c2959e222cb40c18ebb12863c59a26fef118b48d198da`; the dependency evaluator hash is `a5648e8bceae6f7bea85758bd0445fedb59481ec324e5eaa7c2075fc6fbf55a2`.
+The earlier campaigns are exploratory and invalid as matched comparisons. They used different role instructions across arms, placeholder authority revisions, and incomplete receipt wiring. Three evaluator-contract mismatches were also found during development: module registration, an unsupported storage-inspection assumption, and totals field names absent from the task contract. The post-hoc corrected acceptance of the original direct artifact is retained under `corrected-acceptance` with its source transcript and artifact hashes; its receipt explicitly says `post-hoc-reconstruction` and does not rescue the earlier comparison.
 
-Raw evidence is under `C:\dinah-scratch\lean-dinah-pilot\measured3` for the retained direct arm and `C:\dinah-scratch\lean-dinah-pilot\measured4` for the remaining arms. Earlier failures remain under `measured` and `measured2`. Lifecycle smoke workbenches and readiness probes remain beside those directories for review.
+Before the frozen run, both fixture evaluators were audited assertion by assertion against explicit contracts. Each evaluator accepts a small conforming reference candidate and rejects a meaningful broken candidate. The dependency contract and evaluator cover a one-shot iterable. The usage contract names the class, methods, row exposure, token fields, totals shape, duplicate behavior, and unknown handling.
+
+The durable frozen evidence is under `C:\dinah-scratch\lean-dinah-pilot\measured8`. Every worker, reviewer, evaluator, authority gate, and transition is represented there by a raw stream or hash-linked receipt. Earlier directories `measured`, `measured2`, `measured3`, and `measured4` retain the exploratory setup and first campaign. `measured5` retains one completed invalid direct run and an interrupted direct-plus-review launch. `measured6` and `measured7` retain interrupted launches made while the contract and recovery defects were being corrected. Their incomplete process usage is unknown where no terminal event exists. Every failed integration directory remains preserved. Development-session usage was not recorded and remains unknown.
 
 ## Reproduction
 
