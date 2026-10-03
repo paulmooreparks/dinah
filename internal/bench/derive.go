@@ -10,16 +10,8 @@ import (
 // content and hand the same value to every request, and each reader clones
 // what Derive answered before it hands it out.
 
-// deriveItem is DeriveItem's derive function.
-func deriveItem(path, text, _ string) (any, error) {
-	return itemFromText(filepath.Dir(path), text), nil
-}
-
-// deriveComment is DeriveComment's derive function.
-func deriveComment(path, text, _ string) (any, error) {
-	dir := filepath.Dir(path)
-	return commentFromText(dir, filepath.Base(dir), text), nil
-}
+// The derive functions of an item and a comment, and their readers, are the
+// old layout's and live beside its other readers in storagemigrate.go.
 
 // deriveAttachment is DeriveAttachment's derive function. It builds what the
 // attachment's anchor says and leaves Path empty, because the payload's name
@@ -28,29 +20,6 @@ func deriveComment(path, text, _ string) (any, error) {
 func deriveAttachment(path, text, _ string) (any, error) {
 	dir := filepath.Dir(path)
 	return attachmentFromText(dir, filepath.Base(dir), text), nil
-}
-
-// itemAt reads the item whose directory is dir through src. Its error is
-// the anchor's read error.
-func itemAt(src Source, dir string) (*Item, error) {
-	anchor := joinMember(dir, ItemAnchor)
-	observeAnchor(anchor)
-	value, err := src.Derive(anchor, DeriveItem, deriveItem)
-	if err != nil {
-		return nil, err
-	}
-	return value.(*Item).Clone(), nil
-}
-
-// commentAt reads the comment whose directory is dir through src.
-func commentAt(src Source, dir string) (*Comment, error) {
-	anchor := joinMember(dir, CommentAnchor)
-	observeAnchor(anchor)
-	value, err := src.Derive(anchor, DeriveComment, deriveComment)
-	if err != nil {
-		return nil, err
-	}
-	return value.(*Comment).Clone(), nil
 }
 
 // attachmentAt reads the attachment whose directory is dir through src,

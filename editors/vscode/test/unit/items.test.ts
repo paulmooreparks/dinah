@@ -28,6 +28,7 @@ import {
 	COMMAND_VERIFY_ITEM,
 } from "../../src/identity";
 import { ENGLISH } from "../../src/l10n";
+import { memberLocation } from "../../src/memberDocument";
 import type { Localizer } from "../../src/l10n";
 import { columnPickItems, publishesKind } from "../../src/itemCommands";
 import type {
@@ -294,31 +295,31 @@ test("Resolve on one row sends the verb, the reference and the text", async () =
 	assert.deepEqual(run.log.checkpoints, [FOLDER]);
 });
 
-test("Open Item asks path for the item's own reference and opens what it answered", async () => {
-	// dinah-519/criteria/9. The composed document is gone: opening an item
-	// opens `item.md`, through one call and with no holder composed out of the
-	// reference. THE ITEM'S REFERENCE IS MADE TO LIE ABOUT ITS SHAPE, carrying
-	// no /checklist/ segment and no segment the deleted resolver would have
-	// cut, so a build that still composes a holder records a different argv
-	// rather than passing by accident.
+test("Open Item asks show for the item's own reference and opens its member document", async () => {
+	// dinah-519/criteria/9 as dinah-637/criteria/18 moved it. Opening an item
+	// opens its anchor, through one call and with no holder composed out of
+	// the reference. THE ITEM'S REFERENCE IS MADE TO LIE ABOUT ITS SHAPE,
+	// carrying no /checklist/ segment and no segment the deleted resolver
+	// would have cut, so a build that still composes a holder records a
+	// different argv rather than passing by accident. From storage format 12
+	// an item has no file, so the call is `show` and what opens is the
+	// dinah-member document the provider serves.
 	const run = await invoke(COMMAND_OPEN_ITEM, [itemRow({ ref: "tr-1/questions/1" })], {
 		answer: () =>
-			ok({ path: "C:\\work\\bench\\cards\\aa\\checklist\\bb\\item.md" }),
+			ok({ ref: "tr-1/questions/1", text: "---\nkind: open_question\nstate: pending\n---\nWhich way?\n" }),
 	});
-	assert.deepEqual(run.calls, [pinned(ROOT, "path", "tr-1/questions/1")]);
-	assert.deepEqual(run.log.opened, [
-		"C:\\work\\bench\\cards\\aa\\checklist\\bb\\item.md",
-	]);
-	assert.deepEqual(run.log.served, [], "opening an anchor file served a composed page");
+	assert.deepEqual(run.calls, [pinned(ROOT, "show", "tr-1/questions/1")]);
+	assert.deepEqual(run.comments.opened, [memberLocation({ ref: "tr-1/questions/1", root: ROOT })]);
+	assert.deepEqual(run.log.served, [], "opening an item served a composed page");
 });
 
-test("a refused path shows the refusal and opens nothing", async () => {
+test("a refused show shows the refusal and opens nothing", async () => {
 	const run = await invoke(COMMAND_OPEN_ITEM, [itemRow({ ref: "tr-1/questions/1" })], {
 		answer: () => refused("dinah.unknown-item", "tr-1/questions/1"),
 	});
-	assert.deepEqual(run.calls, [pinned(ROOT, "path", "tr-1/questions/1")]);
-	assert.deepEqual(run.log.opened, []);
-	assert.deepEqual(run.log.errors, ["dinah.unknown-item: tr-1/questions/1"]);
+	assert.deepEqual(run.calls, [pinned(ROOT, "show", "tr-1/questions/1")]);
+	assert.deepEqual(run.comments.opened, []);
+	assert.deepEqual(run.comments.errors, ["dinah.unknown-item: tr-1/questions/1"]);
 });
 
 // ---------------------------------------------------------------------------

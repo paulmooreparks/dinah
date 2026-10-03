@@ -1075,7 +1075,7 @@ func TestAJournalLineCarriesNoCarriageReturn(t *testing.T) {
 		Actor: Actor{Name: "one\r\ntwo", Provider: "p\r\nq", Model: "m\r\nn", Server: "s\r\nt"},
 		Note:  "a\r\nb",
 	}
-	if err := AppendEvent(path, event); err != nil {
+	if err := appendLocked(t, path, event); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	raw := readFile(t, path)

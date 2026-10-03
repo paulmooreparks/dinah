@@ -634,7 +634,7 @@ func unreadableAnchor(t *testing.T, dir string) {
 	// The format the anchor declares is composed from the constant rather than
 	// spelled here, so a later storage-format bump does not silently turn this
 	// break into a no-op the way dinah-285's bump would have.
-	declared := "format: " + strconv.Itoa(bench.StorageFormat)
+	declared := "format: " + strconv.Itoa(bench.EffectiveStorageFormat())
 	broken := strings.Replace(string(raw), declared, "format: 99", 1)
 	if broken == string(raw) {
 		t.Fatalf("the anchor at %s declares no format to move, so this case cannot be built", dir)

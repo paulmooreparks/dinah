@@ -150,7 +150,7 @@ Column text.
 // fixture whose subject is an older format derives one from benchDefinition
 // by replacing the literal, which is what the container tests do.
 var registryBenchDefinition = strings.Replace(
-	benchDefinition, "format: 7", "format: "+strconv.Itoa(StorageFormat), 1)
+	benchDefinition, "format: 7", "format: "+strconv.Itoa(EffectiveStorageFormat()), 1)
 
 // cleanCard is a card carrying no defect, which every case below breaks in
 // exactly one way. Its number lives in the registry line newFixture writes
@@ -2048,7 +2048,7 @@ func TestAWriteBeforeTheMigrationKeepsItsPlaceInTheOrder(t *testing.T) {
 	appendText(t, journal, commentedEvent("e00000000009", "2026-08-17T09:01:00Z"))
 	appendText(t, journal, commentedEvent("e00000000005", "2026-08-17T09:02:00Z"))
 
-	third, err := AddComment(cardDir, "alka", "2026-08-17T09:03:00Z", "written third")
+	third, err := legacyAddComment(Disk{}, cardDir, "alka", "2026-08-17T09:03:00Z", "written third")
 	if err != nil {
 		t.Fatalf("comment: %v", err)
 	}

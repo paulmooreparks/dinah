@@ -104,6 +104,37 @@ jobs:
         shell: bash
         run: go test -race -count=1 -tags nofixtureflush ./internal/verb/...
 
+  # The format census of dinah-637/criteria/39. The card-unit layout ships
+  # switched off, and a test that opens a store declaring format 12 has to
+  # switch it on first with EnableCardUnitForTest; one that does not meets the
+  # refusal every older build gives such a store, and passes only if it never
+  # reads that refusal. This job runs the whole untagged suite with
+  # internal/bench/testdata/formatcensus/census.go added to the package that
+  # file sits under through go test -overlay. It records every format-12
+  # store an opener refuses while the layout is off, and the test that opened
+  # it; then TestTheFormatCensus holds those opens to the tests that make them
+  # on purpose. The overlay names the file on the command line alone, so no
+  # other job builds it, and ubuntu is the platform because the census is
+  # about the tests rather than the operating system.
+  format-census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: The suite, counting format-12 opens with the layout switched off
+        shell: bash
+        run: |
+          census="$RUNNER_TEMP/census"
+          mkdir -p "$census"
+          printf '{"Replace":{"%s":"%s"}}\n' "$PWD/internal/bench/zz_formatcensus.go" "$PWD/internal/bench/testdata/formatcensus/census.go" > "$RUNNER_TEMP/census-overlay.json"
+          DINAH_FORMAT_CENSUS="$census" go test -count=1 -timeout 30m -tags nofixtureflush -overlay "$RUNNER_TEMP/census-overlay.json" ./...
+      - name: Read the census
+        shell: bash
+        run: DINAH_FORMAT_CENSUS_READ="$RUNNER_TEMP/census" go test -count=1 -v -run '^TestTheFormatCensus$' ./internal/bench
+
   # cmd/dinah's statement-coverage sweep, on its own (dinah-644).
   # TestEveryStatementOfTheRenderingHeadIsCoveredOrNamed relaunches the whole
   # untagged package under a coverage profile, doubling cmd/dinah's cost, so

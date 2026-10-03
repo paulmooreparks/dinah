@@ -940,10 +940,10 @@
 			"context": "Error when the comment verb answered ok and carried no identifier. {ref} is the holder's reference. It is a defect in the answer rather than anything the reader did, and it says so.",
 			"source": "a01a81f2ce06e3cc"
 		},
-		"comment.composeNoPath": {
-			"text": "Dinah टिप्पणी {ref} को जानता है और उसके लिए कोई फ़ाइल नहीं बताता।",
-			"context": "Error when `dinah path` answered ok with no path for a comment that was just minted. {ref} is the comment's own reference.",
-			"source": "6c2fa367c3f93105"
+		"member.itemFieldsChanged": {
+			"text": "यहाँ से केवल {ref} का पाठ सहेजा जा सकता है, और उसका फ़्रंट मैटर बदल गया है। किसी फ़ील्ड को आइटम के अपने कमांड से बदलें: resolve, verify, fail, waive, withdraw, reopen, या dinah set।",
+			"context": "Error when an item document is saved with its front matter changed. {ref} is the item's reference. A save writes the item's text alone, so a field is changed through the item's commands, whose names are not translated.",
+			"source": "ff8104a10d418f38"
 		},
 		"item.answer": {
 			"text": "उत्तर:",

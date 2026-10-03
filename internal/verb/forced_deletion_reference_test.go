@@ -67,10 +67,11 @@ func TestTheForcedDeletionStillHandsReopenAReferenceThatResolves(t *testing.T) {
 		t.Error("an item's bare identifier resolves as a whole reference, so the reasoning this case guards has stopped being true")
 	}
 
-	dir, found := h.library.Bench.DesignatedCommentDir(stored)
+	designated, found := h.designatedComment(entity.Card, stored)
 	if !found {
 		t.Fatalf("the item's answer names no comment of it")
 	}
+	dir := designated.Home
 	forced := h.library.Delete(&Request{
 		Verb: "delete", Actor: "alka", Ref: item + "/" + bench.CommentsDir + "/1", Confirm: true, Force: true,
 	})

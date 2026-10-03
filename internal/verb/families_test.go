@@ -11,19 +11,20 @@ import (
 	"dinah/internal/contract"
 )
 
-// composedWithoutARequest are the four event names no request-bearing verb
+// composedWithoutARequest are the five event names no request-bearing verb
 // writes, each with the reason it carries the owner's name and nothing else.
 //
 // Section 1.8 of dinah-496's contract puts a write with no request through
 // bench.NamedActor, which composes from a name and declares nothing. So no
-// implementation of that contract can make one of these four carry a harness,
+// implementation of that contract can make one of these five carry a harness,
 // a provider, a model or a server, and a guard demanding it would be a guard
 // nothing could satisfy.
 var composedWithoutARequest = map[string]string{
-	contract.EventExpired:          "the lapse sweep writes it from the lapsed holder's name, and the caller whose read triggered the sweep is not the owner the line is attributed to",
-	contract.EventManualCorrection: "the witness writes it from the name of whoever touched the workbench, reconciling an edit made outside every verb",
-	contract.EventRenumbered:       "the two number repairs write it, and the card whose number moved was claimed by nobody",
-	contract.EventLockReclaimed:    "the lock layer writes it inside an acquisition, and Acquire, which every write path calls, is handed the acquiring owner's name and nothing more",
+	contract.EventExpired:            "the lapse sweep writes it from the lapsed holder's name, and the caller whose read triggered the sweep is not the owner the line is attributed to",
+	contract.EventManualCorrection:   "the witness writes it from the name of whoever touched the workbench, reconciling an edit made outside every verb",
+	contract.EventRenumbered:         "the two number repairs write it, and the card whose number moved was claimed by nobody",
+	contract.EventLockReclaimed:      "the lock layer writes it inside an acquisition, and Acquire, which every write path calls, is handed the acquiring owner's name and nothing more",
+	contract.EventJournalTailTrimmed: "the tail repair writes it inside an append, ahead of the appending line, and names the appending owner alone, because the repair is not the act that owner declared",
 }
 
 // TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers drives
@@ -31,7 +32,7 @@ var composedWithoutARequest = map[string]string{
 // sample.
 //
 // The expected set is computed from internal/contract's own event names less
-// the four above, so an event name added later joins this test with no edit
+// the five above, so an event name added later joins this test with no edit
 // here and fails it until somebody drives the family or says why it cannot be
 // driven. That is the half round one of Agent Code Review found missing: the
 // first draft drove nine families and asserted nine, which is a quarter of the
@@ -41,6 +42,9 @@ var composedWithoutARequest = map[string]string{
 // assertion afterwards is one rule read over every line every journal in the
 // store holds.
 func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
+	// The run turns the card-unit layout on part way through to migrate the
+	// store, and the switch is process-global.
+	keepSerial(t)
 	h := tieredHarness(t)
 	acting := func(verb string) *Request {
 		return &Request{
@@ -378,6 +382,58 @@ func TestEveryEventFamilyARequestWritesCarriesTheDeclaredMembers(t *testing.T) {
 		t.Fatal("the reshape answered no report")
 	}
 	h.reopen()
+
+	// The storage migration's own lines: every member's baseline, each
+	// card's card.md, and the workbench journal's record of the run. The
+	// store is carried as the acts above left it, with the layout switched
+	// on for the run, and forced past any claim they left standing.
+	bench.EnableCardUnitForTest(t)
+	carried, err := bench.OpenAwaitingResolution(h.root)
+	if err != nil {
+		t.Fatalf("open the store for its migration: %v", err)
+	}
+	migrating := New(carried, h.home)
+	migrating.Now = h.library.Now
+	migrate := acting("check")
+	migrate.MigrateStorage = true
+	migrate.ForceClaims = true
+	migrate.Backup = filepath.Join(t.TempDir(), "backup")
+	migrated, err := migrating.MigrateStorage(migrate)
+	if err != nil {
+		t.Fatalf("migrate the store: %v", err)
+	}
+	if migrated.Outcome != contract.ReadOK {
+		t.Fatalf("the migration stopped at phase %s: %+v", migrated.Phase, migrated)
+	}
+
+	// The rebuild's own line, over a card whose card.md is gone once the
+	// store is in the card-unit layout.
+	reopened, err := bench.Open(h.root)
+	if err != nil {
+		t.Fatalf("open the migrated store: %v", err)
+	}
+	rebuilding := New(reopened, h.home)
+	rebuilding.Now = h.library.Now
+	gone, err := reopened.ResolveCard(partner)
+	if err != nil {
+		t.Fatalf("resolve %s: %v", partner, err)
+	}
+	if err := os.Remove(gone.Card.AnchorPath()); err != nil {
+		t.Fatalf("remove %s's card.md: %v", partner, err)
+	}
+	rebuild := acting("check")
+	rebuild.Rebuild = true
+	if report, err := rebuilding.Check(rebuild); err != nil || len(report.RebuiltCards) != 1 {
+		t.Fatalf("%s: %v %+v", contract.EventCardRebuilt, err, report)
+	}
+	// The redaction's own line, which only a store in the card-unit layout
+	// admits.
+	redacting := acting("redact")
+	redacting.Ref = ref + "/comments/1"
+	redacting.Confirm = true
+	if _, err := rebuilding.Redact(redacting); err != nil {
+		t.Fatalf("%s: %v", contract.EventRedacted, err)
+	}
 
 	// One rule, read over every line of every journal the store holds.
 	families, lines := map[string]bool{}, 0

@@ -554,9 +554,15 @@ func TestAFreshWorkbenchCarriesTheUnionMergeAttributes(t *testing.T) {
 // a sixth, since scheduling dates are Dinah's own behaviour and the profile
 // names none of them, and dinah-608's move to 11 is a seventh, since a hold
 // carried by a link is Dinah's own layer and the profile gains no statement.
+// dinah-637's move to 12 is an eighth, since the card-unit layout is Dinah's
+// private business, and it ships switched off, so the format this build opens
+// up to and creates stores at is still 11.
 func TestTheStorageFormatMovedAndAnOlderWorkbenchStillOpens(t *testing.T) {
-	if StorageFormat != 11 {
-		t.Errorf("StorageFormat is %d, wanted 11", StorageFormat)
+	if StorageFormat != 12 {
+		t.Errorf("StorageFormat is %d, wanted 12", StorageFormat)
+	}
+	if EffectiveStorageFormat() != 11 {
+		t.Errorf("EffectiveStorageFormat() is %d with the card-unit layout switched off, wanted 11", EffectiveStorageFormat())
 	}
 	older := strings.Replace(olderBenchDefinition, "profile: dinah-core/0.7", "profile: dinah-core/0.9", 1)
 	root := plantBench(t, filepath.Join(t.TempDir(), "workbench"), older)

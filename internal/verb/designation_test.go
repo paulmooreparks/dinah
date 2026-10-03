@@ -248,80 +248,6 @@ func TestCheckReportsAHandEditedBody(t *testing.T) {
 	}
 }
 
-// TestEditClaimsNothingAboutWhenTheEditorReturned asserts
-// dinah-525/criteria/4: on the editor's return the body is compared against
-// the recorded digest, and an unchanged body journals nothing while a changed
-// one records the new digest and journals comment_updated.
-//
-// The unchanged case is the arm that matters. It is the answer both when the
-// author changed nothing and when the editor returned before the author
-// started, and the tool cannot tell those apart, so an implementation
-// asserting that the editor waited records an attributed edit there and fails.
-func TestEditClaimsNothingAboutWhenTheEditorReturned(t *testing.T) {
-	t.Run("the editor returned without touching the file", func(t *testing.T) {
-		h := newHarness(t)
-		card := h.add("a card to comment on")
-		h.comment(card, "what the author wrote")
-		ref := card + "/" + bench.CommentsDir + "/1"
-		dir := commentDirOf(t, h, ref)
-		before := len(h.events(card))
-		digest := storedDigest(t, dir)
-
-		// The editor is the one that returns at once, which is every GUI
-		// editor handing the file to an already-running instance.
-		answer := h.library.RecordCommentEdit(&Request{
-			Verb: "edit", Actor: "alka", Ref: ref, PriorDigest: bench.CommentDigest("what the author wrote"),
-		})
-		if answer.Outcome != contract.OutcomeOK {
-			t.Fatalf("the return: %s %s", answer.Outcome, answer.Refusal)
-		}
-		h.reopen()
-		if got := len(h.events(card)); got != before {
-			t.Errorf("the journal grew by %d lines over an edit that did not happen", got-before)
-		}
-		if got := storedDigest(t, dir); got != digest {
-			t.Errorf("the digest moved from %q to %q over an edit that did not happen", digest, got)
-		}
-	})
-
-	t.Run("the author finished before the editor returned", func(t *testing.T) {
-		h := newHarness(t)
-		card := h.add("a card to comment on")
-		h.comment(card, "what the author wrote")
-		ref := card + "/" + bench.CommentsDir + "/1"
-		dir := commentDirOf(t, h, ref)
-		before := len(h.events(card))
-		prior := bench.CommentDigest("what the author wrote")
-
-		// The editor is the one that rewrote the file, so the change is a
-		// fact rather than an assumption.
-		handEdit(t, dir, "what the author wrote, revised")
-		h.reopen()
-		answer := h.library.RecordCommentEdit(&Request{
-			Verb: "edit", Actor: "alka", Ref: ref, PriorDigest: prior,
-		})
-		if answer.Outcome != contract.OutcomeOK {
-			t.Fatalf("the return: %s %s", answer.Outcome, answer.Refusal)
-		}
-		h.reopen()
-		if got := storedDigest(t, dir); got != bench.CommentDigest("what the author wrote, revised") {
-			t.Errorf("the new digest was not recorded: %q", got)
-		}
-		updated := 0
-		for _, event := range h.events(card) {
-			if event.Event == contract.EventCommentUpdated {
-				updated++
-			}
-		}
-		if updated != 1 {
-			t.Errorf("the journal carries %d comment_updated lines, wanted one", updated)
-		}
-		if got := len(h.events(card)); got != before+1 {
-			t.Errorf("the journal grew by %d lines, wanted one", got-before)
-		}
-	})
-}
-
 // TestATerminalVerbTakesACommentOfTheItemAlone asserts
 // dinah-525/criteria/5: resolve, verify and fail take a reference to a comment
 // of the item being settled, each refuses a reference naming another item's
@@ -703,8 +629,8 @@ func TestReopenTakesProseAndClearsTheDesignation(t *testing.T) {
 
 // TestAWriteOverADivergenceIsRefused asserts dinah-525/criteria/18: a verb
 // writing a comment whose stored digest disagrees with the body it is
-// replacing is refused as dinah.comment-body-diverged, on a plain write and on
-// an edit; accept-divergence ratifies what is on disk and records its actor;
+// replacing is refused as dinah.comment-body-diverged; accept-divergence
+// ratifies what is on disk and records its actor;
 // restoring the body by hand clears the divergence with no command at all; and
 // a comment carrying no digest is written normally.
 //
@@ -728,43 +654,6 @@ func TestAWriteOverADivergenceIsRefused(t *testing.T) {
 		h, _, ref, _ := plant(t)
 		refused := h.library.SetField(&Request{
 			Verb: "set", Actor: "alka", Ref: ref, Field: bench.BodyField, Value: "and now the tool's words",
-		})
-		if refused.Refusal != contract.CommentBodyDiverged {
-			t.Fatalf("wanted %s, got %s %s", contract.CommentBodyDiverged, refused.Outcome, refused.Refusal)
-		}
-	})
-
-	t.Run("an edit that changed nothing does nothing", func(t *testing.T) {
-		// The spec's first bullet is unconditional: an unchanged body does
-		// nothing and journals nothing. Asking about a divergence ahead of it
-		// made dinah edit on a diverged comment answer a refusal for an edit
-		// that never happened, which told the reader nothing they could act
-		// on and nothing dinah check would not have told them.
-		h, card, ref, _ := plant(t)
-		before := len(h.events(card))
-		answer := h.library.RecordCommentEdit(&Request{
-			Verb: "edit", Actor: "alka", Ref: ref,
-			PriorDigest: bench.CommentDigest("what somebody typed instead"),
-		})
-		if answer.Outcome != contract.OutcomeOK {
-			t.Fatalf("an edit that changed nothing over a diverged comment: %s %s", answer.Outcome, answer.Refusal)
-		}
-		h.reopen()
-		if got := len(h.events(card)); got != before {
-			t.Errorf("the journal grew by %d lines over an edit that did not happen", got-before)
-		}
-	})
-
-	t.Run("an edit", func(t *testing.T) {
-		h, _, ref, dir := plant(t)
-		// The author opened the comment, so what they saw is the edited
-		// body, and their own change is on top of it. The tool cannot tell
-		// the two apart, so it refuses rather than attributing both to them.
-		handEdit(t, dir, "what somebody typed instead, and then the author's own line")
-		h.reopen()
-		refused := h.library.RecordCommentEdit(&Request{
-			Verb: "edit", Actor: "alka", Ref: ref,
-			PriorDigest: bench.CommentDigest("what somebody typed instead"),
 		})
 		if refused.Refusal != contract.CommentBodyDiverged {
 			t.Fatalf("wanted %s, got %s %s", contract.CommentBodyDiverged, refused.Outcome, refused.Refusal)
@@ -1105,7 +994,7 @@ func TestAnUnmigratedStoreIsRefusedByName(t *testing.T) {
 
 	// A store at the current format opens, so the refusals above are the gate
 	// rather than a fixture that never opened.
-	fm.Set("format", strconv.Itoa(bench.StorageFormat))
+	fm.Set("format", strconv.Itoa(bench.EffectiveStorageFormat()))
 	if err := bench.WriteText(path, fm.Render(body)); err != nil {
 		t.Fatalf("restore the anchor: %v", err)
 	}

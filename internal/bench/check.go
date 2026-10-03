@@ -43,11 +43,57 @@ const (
 	FindingPositionDiverges   = "check.position-diverges"
 	FindingMissingAnchor      = "check.missing-anchor"
 	FindingTornJournal        = "check.torn-journal"
-	FindingUnknownState       = "check.unknown-state"
-	FindingInterruptedAct     = "check.interrupted-act"
-	FindingEntityAtBothPaths  = "check.entity-at-both-paths"
-	FindingOrdinalMissing     = "check.ordinal-missing"
-	FindingOrdinalDuplicate   = "check.ordinal-duplicate"
+	// FindingJournalUnreadable names a journal holding a line that does
+	// not decode and is not the last line, which is damage rather than a
+	// crash's torn tail, so every read of the entity is refused
+	// dinah.journal-unreadable. Detail is the file and the one-based line
+	// number. No command deletes the line, since it may hold a comment's
+	// text; the remedy is to restore it from a backup or from git, or to
+	// delete it by hand.
+	FindingJournalUnreadable = "check.journal-unreadable"
+	// FindingJournalTornQuarantined names a sidecar a torn journal tail was
+	// moved to, which stays until a person has read it and deleted it.
+	// Detail is the sidecar's file name, which the journal_tail_trimmed
+	// line that moved it names too. SeverityCleanup: nothing reads the
+	// fragment, and it is kept only because nobody but a person can say
+	// it held nothing worth keeping.
+	FindingJournalTornQuarantined = "check.journal-torn-quarantined"
+	// FindingStrayMemberFile names a comment.md or an item.md standing in a
+	// store in the card-unit layout, which only an older build's process
+	// that had the store open before its migration can have written. Detail
+	// is the member's identifier, and Path the file. dinah check
+	// --migrate-storage carries it.
+	FindingStrayMemberFile = "check.stray-member-file"
+	// FindingStoreAwaitingMigration names a store below the card-unit format
+	// checked by a build whose layout is switched on, which reads no other
+	// check over it, since every other one reads the card-unit layout.
+	FindingStoreAwaitingMigration = "check.store-awaiting-migration"
+	// FindingStoragePrecondition names a file of a store below the
+	// card-unit format that the storage migration cannot carry. Detail is
+	// the precondition it breaks, as the refusal's rule token spells it.
+	FindingStoragePrecondition = "check.storage-precondition"
+	// FindingCardProjectionUnreadable names a card in the card-unit layout
+	// whose card.md is absent, will not parse or carries conflict markers
+	// while its journal reads. Detail is the card's identifier. dinah check
+	// --rebuild writes card.md back from the journal.
+	FindingCardProjectionUnreadable = "check.card-projection-unreadable"
+	// FindingCardProjectionDiverged names a card in the card-unit layout
+	// whose card.md and the replay of its journal disagree, which is a hand
+	// edit no write has witnessed yet. Detail is the keys, the body named
+	// body. SeverityCleanup: the next write to the card witnesses it, and
+	// dinah check --witness witnesses every such card.
+	FindingCardProjectionDiverged = "check.card-projection-diverged"
+	// FindingRedactLeftover names a journal.ndjson.redact a dinah redact
+	// left beside a journal by stopping before it renamed the file over the
+	// journal, which holds the old content. Path is the leftover and Detail
+	// its file name; dinah check removes it. SeverityCleanup: nothing reads
+	// it.
+	FindingRedactLeftover    = "check.redact-leftover"
+	FindingUnknownState      = "check.unknown-state"
+	FindingInterruptedAct    = "check.interrupted-act"
+	FindingEntityAtBothPaths = "check.entity-at-both-paths"
+	FindingOrdinalMissing    = "check.ordinal-missing"
+	FindingOrdinalDuplicate  = "check.ordinal-duplicate"
 	// FindingUnarchivedDone names a card standing live in a done-kind
 	// column. A card that reaches such a column is archived immediately
 	// (dinah-634), so a live one found there is one of three things: the
@@ -675,6 +721,18 @@ func (b *Bench) Check() ([]Finding, error) {
 	for _, dir := range b.Damaged {
 		findings = append(findings, Finding{Path: dir, Key: FindingDamagedWorkbench, Detail: dir})
 	}
+	// A comment.md or item.md in a store in the card-unit layout is a write
+	// an older build's process made after the store was migrated, which no
+	// read reaches until the migration carries it.
+	if b.CardUnit() {
+		strays, err := b.StrayMemberFiles()
+		if err != nil {
+			return findings, err
+		}
+		for _, stray := range strays {
+			findings = append(findings, Finding{Path: stray.Path, Key: FindingStrayMemberFile, Detail: stray.ID})
+		}
+	}
 	cardIDs, err := b.ListIDs(b.CardsRoot())
 	if err != nil {
 		return findings, err
@@ -689,7 +747,11 @@ func (b *Bench) Check() ([]Finding, error) {
 			continue
 		}
 		if !b.Exists(filepath.Join(dir, CardAnchor)) {
-			findings = append(findings, Finding{Path: dir, Key: FindingMissingAnchor, Detail: id})
+			key := FindingMissingAnchor
+			if b.CardUnit() && projectionUnreadable(b.source(), dir) != nil {
+				key = FindingCardProjectionUnreadable
+			}
+			findings = append(findings, Finding{Path: dir, Key: key, Detail: id})
 			continue
 		}
 		card, err := b.LoadCardIn(b.CardsRoot(), id)
@@ -1030,26 +1092,23 @@ func (b *Bench) checkTierOverrides(card *Card) []Finding {
 // It reads rather than repairs, as checkTierOverrides does and as everything
 // else in this file does. The repair is a write through the field, which
 // resolves the spelling it is given and refuses one that resolves to nothing.
-func (b *Bench) checkItemColumns(card *Card) ([]Finding, error) {
+func (b *Bench) checkItemColumns(card *Card, record *CardRecord) []Finding {
 	var findings []Finding
-	named, err := itemsWhere(b.source(), card.Dir, func(item *Item) bool {
-		return item.Column != "" && item.State != ItemWithdrawn
-	})
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range named {
+	for _, item := range record.ItemsIn(LiveHalf, "") {
+		if item.Column == "" || item.State == ItemWithdrawn {
+			continue
+		}
 		resolved := b.ColumnByRef(item.Column)
 		if resolved != nil && resolved.ID == item.Column {
 			continue
 		}
 		findings = append(findings, Finding{
-			Path:   filepath.Join(item.Dir, ItemAnchor),
+			Path:   record.FileOf(KindItem, item.ID),
 			Key:    FindingItemColumnUnresolved,
 			Detail: card.Ref(b.Slug) + " " + item.ID + " " + item.Column,
 		})
 	}
-	return findings, nil
+	return findings
 }
 
 // kindStandsWrong reports whether one column's kind is disallowed at the
@@ -1170,21 +1229,30 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 	}
 	findings = append(findings, b.checkTierOverrides(card)...)
 	findings = append(findings, b.checkCardRoute(card)...)
-	itemColumnFindings, err := b.checkItemColumns(card)
+	// The card's members are read once for every check below that asks about
+	// them. A record that will not read is its own finding, and the member
+	// checks are passed over rather than reporting a card with no members.
+	record, err := b.LoadCardRecord(card)
 	if err != nil {
-		return findings, err
+		refusal, ok := err.(*contract.Refusal)
+		if !ok || refusal.Name != contract.JournalUnreadable {
+			return findings, err
+		}
+		finding := Finding{Path: card.JournalPath(), Key: FindingJournalUnreadable, Detail: refusal.Detail}
+		if member := refusal.Extra["member"]; member != "" {
+			finding.Key, finding.Detail = FindingMemberIDCollision, member+": "+refusal.Extra["lines"]
+		}
+		findings = append(findings, finding)
+		findings = append(findings, tornSidecarFindings(b.source(), card.Dir)...)
+		return findings, nil
 	}
-	findings = append(findings, itemColumnFindings...)
-	standingFindings, err := b.checkStandingItems(card)
+	findings = append(findings, b.checkItemColumns(card, record)...)
+	standingFindings, err := b.checkStandingItems(card, record)
 	if err != nil {
 		return findings, err
 	}
 	findings = append(findings, standingFindings...)
-	itemRouteFindings, err := b.checkItemRoutes(card)
-	if err != nil {
-		return findings, err
-	}
-	findings = append(findings, itemRouteFindings...)
+	findings = append(findings, b.checkItemRoutes(card, record)...)
 	// A card carrying no registry line is checkCardNumbers' finding rather
 	// than this walk's, because the line lives in the registry file rather
 	// than in the anchor this walk reads. checkCardNumbers itself only runs
@@ -1202,7 +1270,7 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		}
 		findings = append(findings, Finding{Path: anchor, Key: FindingDanglingWorkstream, Detail: id})
 	}
-	ordinalFindings, err := checkOrdinals(b.source(), card.Dir)
+	ordinalFindings, err := b.checkOrdinals(card.Dir)
 	if err != nil {
 		return findings, err
 	}
@@ -1212,30 +1280,39 @@ func (b *Bench) checkCard(card *Card) ([]Finding, error) {
 		return findings, err
 	}
 	findings = append(findings, filenameFindings...)
-	commentFindings, err := b.checkComments(card)
-	if err != nil {
-		return findings, err
-	}
-	findings = append(findings, commentFindings...)
+	findings = append(findings, b.checkComments(card, record)...)
 	noteFindings, err := b.checkRetiredNotes(card)
 	if err != nil {
 		return findings, err
 	}
 	findings = append(findings, noteFindings...)
-	designationFindings, err := b.checkMissingDesignations(card)
-	if err != nil {
-		return findings, err
-	}
-	findings = append(findings, designationFindings...)
+	findings = append(findings, b.checkMissingDesignations(record)...)
+	findings = append(findings, b.checkReplayedMembers(card, record)...)
+	findings = append(findings, tornSidecarFindings(b.source(), card.Dir)...)
 	events, torn, err := b.ReadJournal(card.JournalPath())
 	if err != nil {
+		if refusal, ok := err.(*contract.Refusal); ok && refusal.Name == contract.JournalUnreadable {
+			findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingJournalUnreadable, Detail: refusal.Detail})
+		}
 		return findings, nil
 	}
 	if torn && b.tornUnderLock(card) {
 		findings = append(findings, Finding{Path: card.JournalPath(), Key: FindingTornJournal, Detail: card.ID})
 	}
-	if position := ReplayPosition(events); position != "" && position != card.Column {
-		findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
+	// In the card-unit layout the journal states the whole of card.md, and
+	// a hand edit to any key or to the body is reported naming the keys; the
+	// column's own finding is the older layout's, where the journal states
+	// nothing else of the card.
+	replayed, replayedBody, stated := ReplayCardFields(events)
+	switch {
+	case b.CardUnit() && stated:
+		if differ := ProjectionDifferences(card.FM, card.Body, replayed, replayedBody); len(differ) > 0 {
+			findings = append(findings, Finding{Path: anchor, Key: FindingCardProjectionDiverged, Detail: strings.Join(differ, ", "), Severity: SeverityCleanup})
+		}
+	default:
+		if position := ReplayPosition(events); position != "" && position != card.Column {
+			findings = append(findings, Finding{Path: anchor, Key: FindingPositionDiverges, Detail: position})
+		}
 	}
 	// The count is read off the events this function has already read, so a
 	// card standing at a column declaring no limit costs nothing and one
@@ -1293,12 +1370,12 @@ func (b *Bench) RegressiveDepartures(events []Event, columnID string) int {
 // deleted neighbour does not change where that was, so closing the gap would
 // rewrite a historical fact on entities nobody touched. A duplicate is
 // reported because it leaves a position with two answers.
-func checkOrdinals(src Source, cardDir string) ([]Finding, error) {
-	collections, err := ordinalCollections(src, cardDir, KindCard, nil)
+func (b *Bench) checkOrdinals(cardDir string) ([]Finding, error) {
+	collections, err := ordinalCollections(b.source(), cardDir, KindCard, nil, b.CardUnit())
 	if err != nil {
 		return nil, err
 	}
-	return ordinalFindings(src, collections)
+	return ordinalFindings(b.source(), collections)
 }
 
 // checkBenchOrdinals applies the ordinal invariants to the collections a
@@ -1312,7 +1389,7 @@ func checkOrdinals(src Source, cardDir string) ([]Finding, error) {
 // workbench's columns and its cards, is outside the sweep because the mount
 // says so rather than because this function names the kinds.
 func (b *Bench) checkBenchOrdinals() ([]Finding, error) {
-	collections, err := ordinalCollections(b.source(), b.Root, KindWorkbench, map[string]bool{KindCard: true})
+	collections, err := ordinalCollections(b.source(), b.Root, KindWorkbench, map[string]bool{KindCard: true}, b.CardUnit())
 	if err != nil {
 		return nil, err
 	}
@@ -1565,6 +1642,8 @@ func unreadableCardFinding(err error) string {
 		return FindingCardVocabularyMixed
 	case contract.VocabularyRetired:
 		return FindingCardVocabularyRetired
+	case contract.CardProjectionUnreadable:
+		return FindingCardProjectionUnreadable
 	}
 	return FindingMissingAnchor
 }
@@ -1579,7 +1658,7 @@ func unreadableCardFinding(err error) string {
 // and the item sweep runs only where the workbench declares an evidence block
 // at all, because where none is declared Cite accepts any scheme and an item
 // naming one is in the same position as a citation naming one.
-func (b *Bench) checkStandingItems(card *Card) ([]Finding, error) {
+func (b *Bench) checkStandingItems(card *Card, record *CardRecord) ([]Finding, error) {
 	var findings []Finding
 	if column := b.Column(card.Column); column != nil {
 		missing, err := b.MissingStandingItems(card, column)
@@ -1599,15 +1678,12 @@ func (b *Bench) checkStandingItems(card *Card) ([]Finding, error) {
 		return findings, nil
 	}
 	declared := b.EvidenceSchemes()
-	demanding, err := itemsWhere(b.source(), card.Dir, func(item *Item) bool {
-		return item.Evidence != "" && !declared[item.Evidence]
-	})
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range demanding {
+	for _, item := range record.ItemsIn(LiveHalf, "") {
+		if item.Evidence == "" || declared[item.Evidence] {
+			continue
+		}
 		findings = append(findings, Finding{
-			Path:     filepath.Join(item.Dir, ItemAnchor),
+			Path:     record.FileOf(KindItem, item.ID),
 			Key:      FindingEvidenceSchemeUndeclared,
 			Detail:   card.Ref(b.Slug) + " " + item.ID + " " + item.Evidence,
 			Severity: SeverityCleanup,
@@ -1991,6 +2067,21 @@ func (b *Bench) checkRequiredFields() []Finding {
 				Detail: column.Ref() + " " + key,
 			})
 		}
+	}
+	return findings
+}
+
+// tornSidecarFindings reports every torn-tail sidecar standing in an entity's
+// directory, one finding each at cleanup severity, naming the sidecar.
+func tornSidecarFindings(src Source, dir string) []Finding {
+	var findings []Finding
+	for _, sidecar := range tornSidecars(src, dir) {
+		findings = append(findings, Finding{
+			Path:     sidecar,
+			Key:      FindingJournalTornQuarantined,
+			Detail:   filepath.Base(sidecar),
+			Severity: SeverityCleanup,
+		})
 	}
 	return findings
 }

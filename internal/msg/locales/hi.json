@@ -7327,6 +7327,558 @@
       "context": "The next step of refusal.dinah.store-awaiting-migration. dinah-migrate-notes is the migration program's own name and dinah check --migrate-designations is a command line; neither is translated, and the command line is the one invocation the sentence carries, so a reader following it types that and nothing else. The backup is named first because both migrations write in place and neither can undo itself.",
       "source": "cb34d7dd84da0e31"
     },
+    "refusal.dinah.journal-unlocked": {
+      "text": "{detail} में एक पंक्ति उस इकाई का लॉक लिए बिना जोड़ी गई जिसका यह जर्नल है।",
+      "context": "The sentence printed after the refusal name dinah.journal-unlocked. {detail} is the journal's path. Every append to a journal is made by the holder of the lock of the entity the journal belongs to, and this refusal is raised before the file is opened when a caller does not hold it.",
+      "source": "6b072f7de4b724d2"
+    },
+    "refusal.dinah.journal-unlocked.next": {
+      "text": " यह Dinah का दोष है, इससे बचकर निकलने की चीज़ नहीं; जिस कमांड ने इसे उठाया उसके साथ इसकी सूचना दें।",
+      "context": "The next step of refusal.dinah.journal-unlocked, spliced onto the sentence that named the journal. No person's act raises it, so the step asks for a report rather than naming a repair.",
+      "source": "1f0e40dcd1eab0a4"
+    },
+    "refusal.dinah.journal-unreadable": {
+      "text": "{detail} पर का जर्नल पढ़ा नहीं जा सकता।",
+      "context": "The sentence printed after the refusal name dinah.journal-unreadable. {detail} is the journal's path, followed by a colon and the one-based line number where one line does not decode, which is the spelling an editor opens at. A fragment spliced after it says which damage was found: a line that is not the last and does not decode, or two members carrying one identifier. Either way every read of the entity is refused.",
+      "source": "48f6b567d452b849"
+    },
+    "refusal.dinah.journal-unreadable.next": {
+      "text": " उस पंक्ति को किसी बैकअप से या git से वापस लाएँ, या हाथ से हटाएँ, फिर `dinah check` दोबारा चलाएँ; कोई कमांड उसे नहीं हटाता, क्योंकि उसमें किसी टिप्पणी का पाठ हो सकता है।",
+      "context": "The next step of refusal.dinah.journal-unreadable. dinah check is a command line and is not translated. The step names the hand repair because no command deletes a line that may hold a comment's text.",
+      "source": "76e37cf4e97ef4b1"
+    },
+    "check.journal-unreadable": {
+      "text": "{detail} पर की जर्नल पंक्ति डिकोड नहीं होती और वह अंतिम पंक्ति नहीं है; उसे किसी बैकअप से या git से वापस लाएँ, या हाथ से हटाएँ, और `dinah check` दोबारा चलाएँ",
+      "context": "A check finding at defect severity: a journal line that is not the last one and does not decode. {detail} is the journal's path, a colon and the one-based line number. Every read of the entity is refused while it stands, and no command deletes the line.",
+      "source": "e889d76c018e32a7"
+    },
+    "check.journal-torn-quarantined": {
+      "text": "एक जर्नल का फटा हुआ अंत {detail} में ले जाया गया; उसे पढ़ें, और जब उसमें रखने लायक कुछ न रहे तो हाथ से हटाएँ",
+      "context": "A check finding at cleanup severity: a sidecar file holding the torn tail an append moved out of a journal. {detail} is the sidecar's file name, which the journal_tail_trimmed line that moved it names too. No command deletes it, because only a person can say the fragment held nothing worth keeping.",
+      "source": "aa2648743d84b1ab"
+    },
+    "refusal.dinah.store-awaiting-migration.storage.next": {
+      "text": " इस कार्यक्षेत्र को खोले हुए हर Dinah प्रक्रिया को रोकें, फिर उस पर `dinah check --migrate-storage --backup <dir>` चलाएँ; पुराने ढाँचे पर लौटने का रास्ता वही बैकअप है, क्योंकि माइग्रेशन खुद को पलट नहीं सकता।",
+      "context": "The next step of refusal.dinah.store-awaiting-migration when the store is owed the storage migration: it stands below the card-unit format while this build reads that layout, or a storage migration is part way through it. dinah check --migrate-storage --backup <dir> is a command line and is not translated; <dir> is the placeholder the reader replaces with a directory of their own choosing outside the workbench. The processes are named first because a process that already has the store open is the one writer the migration cannot keep out.",
+      "source": "795af182c88e5dca"
+    },
+    "refusal.dinah.store-format-changed": {
+      "text": "इस प्रक्रिया ने कार्यक्षेत्र को फ़ॉर्मेट {detail} पर खोला था, और workbench.md अब फ़ॉर्मेट {now} घोषित करता है।",
+      "context": "The sentence printed after the refusal name dinah.store-format-changed, which a write raises when the workbench's declared storage format, or the migration in progress beside it, has changed since the process opened it. {detail} is the format the process opened, and {now} is what workbench.md declares now; each is a number, with the migration in progress named beside it in parentheses where there is one, and neither is translated. workbench.md is a file name and is not translated.",
+      "source": "34cf096b94075dbd"
+    },
+    "refusal.dinah.store-format-changed.next": {
+      "text": " कुछ भी नहीं लिखा गया; कार्यक्षेत्र को फिर से खोलें, जो एक नया कमांड अपने आप करता है, और वह काम दोहराएँ।",
+      "context": "The next step of refusal.dinah.store-format-changed. A long-lived head such as the MCP server or the language server reopens on this refusal by itself; a person at a terminal simply runs the command again.",
+      "source": "38f6f1dcf77b00a8"
+    },
+    "refusal.dinah.journal-unreadable.line": {
+      "text": " वह पंक्ति डिकोड नहीं होती, और वह जर्नल की अंतिम पंक्ति नहीं है।",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when the journal holds a line that does not decode. The detail the base sentence printed is the journal's path, a colon and the one-based line number, so 'that line' is the line it named. A line that is not the last and does not decode is damage rather than the torn tail a crash leaves.",
+      "source": "396d6a9460908615"
+    },
+    "refusal.dinah.journal-unreadable.member": {
+      "text": " उसके दो सदस्य एक ही पहचानकर्ता {member} रखते हैं, जो पंक्तियों {lines} पर स्थापित हुए।",
+      "context": "Spliced onto refusal.dinah.journal-unreadable when two members of one card, comments or checklist items, carry one identifier. {member} is the 12-hex identifier and {lines} the one-based numbers of the two journal lines that established a member under it, separated by a comma. No read can tell the two apart, so the card is refused.",
+      "source": "32ff89077db50e01"
+    },
+    "refusal.dinah.journal-unreadable.member.next": {
+      "text": " दोनों में से एक सदस्य को, हर उस पंक्ति पर जो उसका नाम लेती है, हाथ से नया पहचानकर्ता दें, या जर्नल को किसी बैकअप से या git से वापस लाएँ, फिर `dinah check` दोबारा चलाएँ।",
+      "context": "The next step of refusal.dinah.journal-unreadable when two members carry one identifier. dinah check is a command line and is not translated. No command renames a member, so the repair is by hand.",
+      "source": "443546c2e3c41b72"
+    },
+    "refusal.dinah.not-a-file": {
+      "text": "{detail} एक टिप्पणी या चेकलिस्ट मद है, जिसे यह कार्यक्षेत्र अपनी अलग फ़ाइल के रूप में नहीं, बल्कि एक जर्नल की पंक्तियों के रूप में रखता है।",
+      "context": "The sentence printed after the refusal name dinah.not-a-file, raised by dinah path. {detail} is the reference as the reader typed it. In the card-unit layout a comment or a checklist item has no file, so there is no path to print.",
+      "source": "21405e0a700167a0"
+    },
+    "refusal.dinah.not-a-file.next": {
+      "text": " उसकी सामग्री के लिए `dinah show <ref>` चलाएँ; उसे रखने वाली फ़ाइल उसके कार्ड का जर्नल है, जिसे `dinah path <card>/journal` बताता है, या किसी कॉलम की टिप्पणी के लिए कार्यक्षेत्र की अपनी journal.ndjson।",
+      "context": "The next step of refusal.dinah.not-a-file. dinah show <ref>, dinah path <card>/journal and journal.ndjson are a command line and a file name and are not translated; <ref> and <card> are placeholders the reader replaces.",
+      "source": "62c5f2c51e9f40e3"
+    },
+    "check.member-unknown": {
+      "text": "{detail} पर की जर्नल पंक्ति ऐसी टिप्पणी या चेकलिस्ट मद का नाम लेती है जिसे किसी पहले की पंक्ति ने स्थापित नहीं किया, इसलिए उसका कोई योगदान नहीं; सदस्य बनाने वाली पंक्ति को किसी बैकअप से या git से वापस लाएँ, या इस पंक्ति को हाथ से हटाएँ",
+      "context": "A check finding at defect severity: a line of a card's journal naming a comment or an item the replay never established. {detail} is the journal's path, a colon and the one-based line number. Such a line is damage or the residue of a hand edit that removed the line creating the member.",
+      "source": "c99f89ac2f38c259"
+    },
+    "check.member-id-collision": {
+      "text": "कार्ड के दो सदस्य एक ही पहचानकर्ता रखते हैं, जो यहाँ उन जर्नल पंक्तियों के साथ दिया है जिन्होंने हर एक को स्थापित किया: {detail}; उनमें से एक को, हर उस पंक्ति पर जो उसका नाम लेती है, हाथ से नया पहचानकर्ता दें, या जर्नल को किसी बैकअप से या git से वापस लाएँ",
+      "context": "A check finding at defect severity: two comments or checklist items of one card carry one identifier. {detail} is the 12-hex identifier, a colon, and the one-based numbers of the two journal lines that established a member under it. Every read of the card is refused dinah.journal-unreadable until it is repaired.",
+      "source": "398490740874e031"
+    },
+    "refusal.dinah.backup-required": {
+      "text": "लिखने वाले भंडारण माइग्रेशन को एक बैकअप निर्देशिका चाहिए, और {detail} पर के कार्यक्षेत्र के लिए कोई नहीं दी गई।",
+      "context": "The sentence printed after the refusal name dinah.backup-required, raised by dinah check --migrate-storage. {detail} is the workbench's directory. A run that writes copies the whole store into the backup directory before its first change.",
+      "source": "5315ab903ab1ac9d"
+    },
+    "refusal.dinah.backup-required.next": {
+      "text": " इसे `--backup <dir>` के साथ फिर चलाएँ, जो कार्यक्षेत्र के बाहर की किसी खाली निर्देशिका का नाम ले; कुछ भी बदलने से पहले यह रन पूरा भंडार वहाँ कॉपी करता है।",
+      "context": "The next step of refusal.dinah.backup-required. --backup <dir> is a flag and its placeholder and is not translated.",
+      "source": "f88875a5e92bffde"
+    },
+    "refusal.dinah.backup-inside-store": {
+      "text": "बैकअप निर्देशिका {detail} उसी कार्यक्षेत्र के भीतर है जिसे माइग्रेशन कॉपी करेगा।",
+      "context": "The sentence printed after the refusal name dinah.backup-inside-store. {detail} is the directory given with --backup. A copy inside the store would copy itself.",
+      "source": "87219053abca191a"
+    },
+    "refusal.dinah.backup-inside-store.next": {
+      "text": " कार्यक्षेत्र की अपनी निर्देशिका के बाहर की कोई निर्देशिका बताएँ।",
+      "context": "The next step of refusal.dinah.backup-inside-store.",
+      "source": "c563ff2331db22f2"
+    },
+    "refusal.dinah.backup-not-empty": {
+      "text": "बैकअप निर्देशिका {detail} में इस कार्यक्षेत्र के उस बैकअप के अलावा कुछ और है जिसे इसी माइग्रेशन ने शुरू किया था।",
+      "context": "The sentence printed after the refusal name dinah.backup-not-empty. {detail} is the directory given with --backup. A directory holding a backup this migration itself started of this workbench is accepted, so a run can be repeated.",
+      "source": "6c4c1ab8340db645"
+    },
+    "refusal.dinah.backup-not-empty.next": {
+      "text": " कोई खाली निर्देशिका बताएँ, या वह जिसमें इस कार्यक्षेत्र पर इस माइग्रेशन का कोई रन पहले ही शुरू हो चुका है।",
+      "context": "The next step of refusal.dinah.backup-not-empty.",
+      "source": "f7607dabdfb84349"
+    },
+    "refusal.dinah.backup-mismatch": {
+      "text": "बैकअप निर्देशिका {detail} वह नहीं है जिसे इस माइग्रेशन ने शुरू होते समय दर्ज किया था, जो {recorded} है।",
+      "context": "The sentence printed after the refusal name dinah.backup-mismatch, raised on a resumed storage migration. {detail} is the directory given with --backup and {recorded} is the copy the run's progress file records.",
+      "source": "36c1ece0d527b42b"
+    },
+    "refusal.dinah.backup-mismatch.next": {
+      "text": " इसे बिना --backup के फिर चलाएँ, या दर्ज की गई निर्देशिका के साथ।",
+      "context": "The next step of refusal.dinah.backup-mismatch. --backup is a flag and is not translated.",
+      "source": "fee73d9c1ec496b1"
+    },
+    "refusal.dinah.backup-unverified": {
+      "text": "{detail} पर की कार्यक्षेत्र की कॉपी का हैश कार्यक्षेत्र के हैश से मेल नहीं खाता, इसलिए वह बैकअप नहीं है।",
+      "context": "The sentence printed after the refusal name dinah.backup-unverified. {detail} is the copy. The run compares a SHA-256 over every path and byte of the copy with the same digest of the store before it relies on the copy.",
+      "source": "7f9d0447ffc3e2cd"
+    },
+    "refusal.dinah.backup-unverified.next": {
+      "text": " कुछ भी हटाया नहीं गया; जिस डिस्क पर बैकअप है उसे जाँचें, फिर माइग्रेशन दोबारा चलाएँ, जो कॉपी फिर से लेता है।",
+      "context": "The next step of refusal.dinah.backup-unverified.",
+      "source": "4c57c9191a06f424"
+    },
+    "refusal.dinah.migration-awaits-capabilities": {
+      "text": "इस बिल्ड में भंडारण माइग्रेशन बंद है, इसलिए यह {detail} पर के कार्यक्षेत्र के माइग्रेशन का केवल अभ्यास करता है और उसे चलाता नहीं।",
+      "context": "The sentence printed after the refusal name dinah.migration-awaits-capabilities. {detail} is the workbench's directory. The card-unit layout ships switched off until the card that declares its capabilities turns it on, and until then only a rehearsal runs.",
+      "source": "d68aea77476fe454"
+    },
+    "refusal.dinah.migration-awaits-capabilities.next": {
+      "text": " माइग्रेशन क्या करेगा यह देखने के लिए `dinah check --migrate-storage --rehearse` चलाएँ; जो बिल्ड कार्ड-इकाई ढाँचा चालू करता है वही इसे चलाता है।",
+      "context": "The next step of refusal.dinah.migration-awaits-capabilities. dinah check --migrate-storage --rehearse is a command line and is not translated.",
+      "source": "7436f689df0eff6"
+    },
+    "refusal.dinah.not-a-difference": {
+      "text": "{detail} उन मैनिफ़ेस्ट पंक्तियों में से नहीं है जिन्हें माइग्रेशन के प्रमाण ने भिन्न पाया।",
+      "context": "The sentence printed after the refusal name dinah.not-a-difference. {detail} is the manifest key given with --accept-difference. No difference is accepted that the operator did not name, and a name that matches nothing is refused rather than ignored.",
+      "source": "ea59127b130b752a"
+    },
+    "refusal.dinah.not-a-difference.next": {
+      "text": " केवल वे कुंजियाँ बताएँ जिन्हें रुके हुए रन ने छापा था; उन्हें देखने के लिए माइग्रेशन को बिना --accept-difference के फिर चलाएँ।",
+      "context": "The next step of refusal.dinah.not-a-difference. --accept-difference is a flag and is not translated.",
+      "source": "ae5988275e86cf47"
+    },
+    "refusal.dinah.storage-precondition": {
+      "text": "नीचे सूचीबद्ध फ़ाइलों के कारण भंडारण माइग्रेशन कार्यक्षेत्र को आगे नहीं ले जा सकता, जिनमें पहली {detail} है।",
+      "context": "The sentence printed after the refusal name dinah.storage-precondition. {detail} is the first file the migration cannot carry; every such file follows on a row of its own, each after the machine token naming what is wrong with it. A fragment spliced after this sentence says what is wrong with the first.",
+      "source": "51c42a592f8a9e3a"
+    },
+    "refusal.dinah.storage-precondition.unparseable": {
+      "text": " वह फ़ाइल एंकर के रूप में पार्स नहीं होती।",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file does not open with a frontmatter block that closes.",
+      "source": "85133f183b21003d"
+    },
+    "refusal.dinah.storage-precondition.unknown-key": {
+      "text": " उस फ़ाइल में एक फ़्रंटमैटर कुंजी है जिसे यह बिल्ड नहीं लिखता, और जिसे कोई बेसलाइन नहीं ले जा सकती।",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file carries a key outside the set the build writes for a comment or an item. A baseline is the journal line the migration writes to state a member in full.",
+      "source": "922e3f82d2b8005a"
+    },
+    "refusal.dinah.storage-precondition.unknown-citation-member": {
+      "text": " उस फ़ाइल में scheme, target और observed के अलावा कोई उद्धरण सदस्य है।",
+      "context": "Spliced onto refusal.dinah.storage-precondition. scheme, target and observed are the members a citation entry carries and are not translated.",
+      "source": "18915e2f6390771b"
+    },
+    "refusal.dinah.storage-precondition.ordinal-missing": {
+      "text": " उस फ़ाइल में कोई क्रमसूचक नहीं है।",
+      "context": "Spliced onto refusal.dinah.storage-precondition where the first file's member carries no creation ordinal.",
+      "source": "2f59ad2940f4bebb"
+    },
+    "refusal.dinah.storage-precondition.ordinal-duplicate": {
+      "text": " उस फ़ाइल में वह क्रमसूचक है जो उसके संग्रह का कोई और सदस्य भी रखता है।",
+      "context": "Spliced onto refusal.dinah.storage-precondition where two members of one collection, live or archived, carry one creation ordinal.",
+      "source": "defe70ff9cfbda64"
+    },
+    "refusal.dinah.storage-precondition.identifier-shared": {
+      "text": " उस फ़ाइल का सदस्य वह पहचानकर्ता रखता है जो उसके कार्ड का कोई और सदस्य भी रखता है।",
+      "context": "Spliced onto refusal.dinah.storage-precondition where two members of one card, a comment and an item or two comments on different holders, carry one identifier.",
+      "source": "54d99f30a62ad81c"
+    },
+    "refusal.dinah.storage-precondition.destination-differs": {
+      "text": " एक अनुलग्नक उस निर्देशिका पर ले जाया जाता, जिसमें पहले से एक अलग ट्री है।",
+      "context": "Spliced onto refusal.dinah.storage-precondition where an attachment of an item's comment would move to the comments collection of its card and something different already stands there.",
+      "source": "ed059a990bae19b6"
+    },
+    "refusal.dinah.storage-precondition.next": {
+      "text": " सूचीबद्ध हर फ़ाइल को ठीक करें, हाथ से या किसी छूटे क्रमसूचक के लिए `dinah check --migrate-ordinals` से, फिर माइग्रेशन दोबारा चलाएँ; कुछ भी लिखा नहीं गया।",
+      "context": "The next step of refusal.dinah.storage-precondition. dinah check --migrate-ordinals is a command line and is not translated.",
+      "source": "aa1f38a90711fd53"
+    },
+    "check.stray-member-file": {
+      "text": "टिप्पणी या मद {detail} एक ऐसे कार्यक्षेत्र में अपनी अलग फ़ाइल में है जिसके सदस्य अपने जर्नलों की पंक्तियाँ हैं, जिसे किसी पुराने बिल्ड ने लिखा; इसे आगे ले जाने के लिए `dinah check --migrate-storage` चलाएँ",
+      "context": "A check finding at defect severity: a comment.md or item.md file standing in a store in the card-unit layout, which only a process of an older build that had the store open before its migration can have written. {detail} is the member's identifier, and the file's path follows the sentence. dinah check --migrate-storage is a command line and is not translated; a run on a migrated store carries the file as a baseline and deletes it.",
+      "source": "fb0042eb4798ecf5"
+    },
+    "check.store-awaiting-migration": {
+      "text": "कार्यक्षेत्र अब भी अपनी टिप्पणियाँ और मदें पुराने ढाँचे में रखता है; इसे खोले हुए हर Dinah प्रक्रिया को रोकें, फिर `dinah check --migrate-storage --backup <dir>` चलाएँ",
+      "context": "A check finding printed on a store below the card-unit format by a build whose layout is switched on, where check runs none of its other checks. dinah check --migrate-storage --backup <dir> is a command line and its placeholder and is not translated.",
+      "source": "1ede8bdced056dd8"
+    },
+    "storage.heading": {
+      "text": "\"{title}\" ({detail}) का भंडारण माइग्रेशन",
+      "context": "The first line of the storage migration's account. {title} is the workbench's title and {detail} its identifier.",
+      "source": "cd2667b27f91d96f"
+    },
+    "storage.backup": {
+      "text": "बैकअप: {path} (सत्यापित, {digest})",
+      "context": "A label and value line of the storage migration's account: the copy of the store and the SHA-256 it was verified by. {digest} is a machine value.",
+      "source": "97c316180e4b67d3"
+    },
+    "storage.format": {
+      "text": "प्रारूप: {from} से {to}",
+      "context": "A label and value line of the storage migration's account: the storage format the store declared and the one it moves to.",
+      "source": "54ad1d9af0f0e3d8"
+    },
+    "storage.cards": {
+      "text": "कार्ड: {live} सक्रिय, {archived} संग्रहीत",
+      "context": "A label and value line of the storage migration's account: how many live and archived cards it carries.",
+      "source": "2d3cbaa8e40c192a"
+    },
+    "storage.items": {
+      "text": "ले जाई गई मदें: {count} ({live} सक्रिय कार्डों पर, {archived} संग्रहीत कार्डों पर)",
+      "context": "A label and value line of the storage migration's account: the checklist items it carries.",
+      "source": "43d5cbf3e84f9721"
+    },
+    "storage.comments": {
+      "text": "ले जाई गई टिप्पणियाँ: {count} ({card} कार्डों पर, {item} मदों पर, {column} कॉलमों पर)",
+      "context": "A label and value line of the storage migration's account: the comments it carries, by what they hang on.",
+      "source": "26575108718274ab"
+    },
+    "storage.attachments": {
+      "text": "अनुलग्नक: {checked} जाँचे गए, {moved} स्थानांतरित",
+      "context": "A label and value line of the storage migration's account: how many attachments the proof covers and how many the run moved to the comments collection of their card or column.",
+      "source": "9a1c91d5c4f08f8b"
+    },
+    "storage.divergences.one": {
+      "text": "रखे गए विचलन: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the comments whose body differs from their recorded digest, carried with that digest, each named on a row below.",
+      "source": "93ed6eaf74692ba1"
+    },
+    "storage.divergences.other": {
+      "text": "रखे गए विचलन: {count}",
+      "context": "The same line as storage.divergences.one, for any other number, zero included.",
+      "source": "93ed6eaf74692ba1"
+    },
+    "storage.divergence": {
+      "text": "  {entry} (इसे हटाने के लिए dinah accept-divergence चलाएँ)",
+      "context": "One row under storage.divergences: a diverged comment's reference. dinah accept-divergence is a command and is not translated.",
+      "source": "734f5fca5d637cd3"
+    },
+    "storage.row": {
+      "text": "  {entry}",
+      "context": "One row under a list of the storage migration's account: a manifest key, a stray file's key, or a card reference.",
+      "verbatim": true,
+      "source": "a3b68000c1db3155"
+    },
+    "storage.strays.one": {
+      "text": "ले जाए गए भटके: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: comment or item files an older build's process wrote after their card's baselines, carried as baselines and deleted.",
+      "source": "e258053cde1e281e"
+    },
+    "storage.strays.other": {
+      "text": "ले जाए गए भटके: {count}",
+      "context": "The same line as storage.strays.one, for any other number, zero included.",
+      "source": "e258053cde1e281e"
+    },
+    "storage.written-during.one": {
+      "text": "रन के दौरान लिखे गए: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: members some already-open process wrote while the run was in progress, named by manifest key on rows below.",
+      "source": "d8105d526ab2ff0c"
+    },
+    "storage.written-during.other": {
+      "text": "रन के दौरान लिखे गए: {count}",
+      "context": "The same line as storage.written-during.one, for any other number, zero included.",
+      "source": "d8105d526ab2ff0c"
+    },
+    "storage.accepted.one": {
+      "text": "स्वीकृत: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the manifest keys the operator accepted with --accept-difference.",
+      "source": "16c3ce7ca4d302ad"
+    },
+    "storage.accepted.other": {
+      "text": "स्वीकृत: {count}",
+      "context": "The same line as storage.accepted.one, for any other number, zero included.",
+      "source": "16c3ce7ca4d302ad"
+    },
+    "storage.claims-passed.one": {
+      "text": "पार किए गए दावे: {count}",
+      "context": "A label and value line of the storage migration's account, for exactly one: the claimed cards a forced run passed, named on rows below.",
+      "source": "1cc58fdb7d34c1c9"
+    },
+    "storage.claims-passed.other": {
+      "text": "पार किए गए दावे: {count}",
+      "context": "The same line as storage.claims-passed.one, for any other number, zero included.",
+      "source": "1cc58fdb7d34c1c9"
+    },
+    "storage.files": {
+      "text": "फ़ाइलें: {before} पहले, {after} बाद में",
+      "context": "A label and value line of the storage migration's account: the files the store held before the run and after it, or on a rehearsal after the run it would make.",
+      "source": "f96336c2dc15d890"
+    },
+    "storage.manifest-before": {
+      "text": "मैनिफ़ेस्ट पहले: {hash} ({lines} पंक्तियाँ)",
+      "context": "A label and value line of the storage migration's account: the SHA-256 of the manifest the old layout states, and its line count. {hash} is a machine value.",
+      "source": "4438b2d3eacba26"
+    },
+    "storage.manifest-after": {
+      "text": "मैनिफ़ेस्ट बाद में: {hash} ({lines} पंक्तियाँ)",
+      "context": "A label and value line of the storage migration's account: the SHA-256 of the manifest the journals state after the run. Equal to the line above when nothing was lost.",
+      "source": "c7813d0a57fd1c5b"
+    },
+    "storage.rehearsed": {
+      "text": "कुछ भी लिखा नहीं गया।",
+      "context": "The last line of a rehearsed storage migration's account.",
+      "source": "1ab13ac9f128f69a"
+    },
+    "storage.already": {
+      "text": "भंडार पहले से ही प्रारूप {to} घोषित करता है, इसलिए माइग्रेट करने के लिए कुछ नहीं है।",
+      "context": "The line a storage migration prints in place of its account when the store already declares the card-unit format and carries no migration in progress. {to} is that format. A comment.md or item.md an older build wrote since is still carried, and listed after this line.",
+      "source": "678c2caed5979819"
+    },
+    "storage.done": {
+      "text": "भंडार अब प्रारूप {to} घोषित करता है। इससे पुराना कोई भी बिल्ड इसे अस्वीकार करता है।",
+      "context": "The line a finished storage migration prints.",
+      "source": "485aa9e171dde498"
+    },
+    "storage.stop-processes": {
+      "text": "किसी और कार्यक्षेत्र का माइग्रेशन करने से पहले हर Dinah प्रक्रिया को रोकें।",
+      "context": "The last line a finished storage migration prints. A process of an older build that already has a store open is the one writer the migration cannot keep out.",
+      "source": "b10bc744d2385faa"
+    },
+    "storage.stopped": {
+      "text": "माइग्रेशन चरण {phase} में रुक गया; वही कमांड फिर चलाने से यह आगे बढ़ता है।",
+      "context": "The line a storage migration prints where it stopped part way. {phase} is the phase number, 0 to 4.",
+      "source": "e984fdc252f7e659"
+    },
+    "storage.held": {
+      "text": "{card} का लॉक {owner} के पास है; उसके छूटते ही वही कमांड फिर चलाएँ।",
+      "context": "The reason a storage migration stopped: another process holds a card's lock. {card} is the card's reference and {owner} who holds the lock.",
+      "source": "1196c4ce9f1e6dfc"
+    },
+    "storage.refused": {
+      "text": "फ़ाइल सिस्टम ने {path} अस्वीकार किया: {error}। जब कुछ भी उसे खुला न रखे, तब वही कमांड फिर चलाएँ।",
+      "context": "The reason a storage migration stopped: a rename or a removal was refused, as Windows refuses one while a process holds the file open. {error} is the operating system's own message and is not translated.",
+      "source": "27970366c105c740"
+    },
+    "storage.difference": {
+      "text": "{key} भिन्न है:",
+      "context": "The line naming one manifest line the storage migration's proof found differing. {key} is the manifest key, which --accept-difference takes.",
+      "source": "23e26d452c5cfed1"
+    },
+    "storage.difference-before": {
+      "text": "  पहले: {entry}",
+      "context": "The manifest line the old layout states, under storage.difference. {entry} is the machine line.",
+      "source": "2205ce447e63befa"
+    },
+    "storage.difference-after": {
+      "text": "  बाद में: {entry}",
+      "context": "The manifest line the journals state, under storage.difference. {entry} is the machine line.",
+      "source": "c92b6b0520e166d3"
+    },
+    "storage.accept-or-restore": {
+      "text": "पुराने ढाँचे का कुछ हिस्सा पहले ही हट चुका है, इसलिए {backup} पर का बैकअप वापस लाएँ, या हर नामित पंक्ति को --accept-difference <key> से स्वीकार करें।",
+      "context": "The line a storage migration prints where its proof found a difference after it had begun removing the old layout, so nothing can be recomputed. --accept-difference <key> is a flag and its placeholder and is not translated.",
+      "source": "d415f143ee0328f8"
+    },
+    "check.storage-precondition": {
+      "text": "यह फ़ाइल भंडारण माइग्रेशन को रोकती है ({detail}); इसे ठीक करें, फिर `dinah check --migrate-storage` चलाएँ",
+      "context": "A check finding at defect severity, printed on a store below the card-unit format once the layout is switched on: a file the storage migration would refuse to run over. {detail} is the machine token naming the precondition it breaks, which dinah.storage-precondition's rows carry too, and the file's path follows the sentence. dinah check --migrate-storage is a command line and is not translated.",
+      "source": "a84983d06763568a"
+    },
+    "param.check.migrate-storage.summary": {
+      "text": "हर टिप्पणी और चेकलिस्ट मद को उसके जर्नल में ले जाता है, प्रमाणित करता है कि कुछ खोया नहीं, पुराना ढाँचा हटाता है और कार्यक्षेत्र पर कार्ड-इकाई प्रारूप की मुहर लगाता है",
+      "context": "The written meaning of the --migrate-storage flag of check. It is the workbench operator's own act, takes a backup first, and is refused while any card is held.",
+      "source": "ce5f169be3f0938b"
+    },
+    "param.check.backup.summary": {
+      "text": "वह निर्देशिका जिसमें भंडारण माइग्रेशन कुछ भी बदलने से पहले पूरा भंडार कॉपी करता है",
+      "context": "The written meaning of the --backup flag of check, which takes one directory, empty or holding a backup this migration already started of this workbench.",
+      "source": "b3156eb9ee19ef80"
+    },
+    "param.check.accept-difference.summary": {
+      "text": "भंडारण माइग्रेशन के प्रमाण ने इस मैनिफ़ेस्ट कुंजी के अंतर्गत जो पंक्ति भिन्न पाई, उसे दर्ज रूप मान लेता है, जब पुराने ढाँचे का कुछ हिस्सा हट चुका हो",
+      "context": "The written meaning of the --accept-difference flag of check, which may be given once per manifest key the stopped run named.",
+      "source": "a88ec663f961b47e"
+    },
+    "refusal.dinah.card-projection-unreadable": {
+      "text": "कार्ड फ़ाइल {detail} गायब है, पार्स नहीं होती, या उसमें टकराव चिह्न हैं, और उसका जर्नल अब भी कार्ड को बताता है।",
+      "context": "The sentence printed after the refusal name dinah.card-projection-unreadable. {detail} is the card's card.md. In the card-unit layout card.md is a projection the card's journal can reproduce, so a card whose card.md is damaged is refused every read and write until it is written back.",
+      "source": "a7b32301dcfda975"
+    },
+    "refusal.dinah.card-projection-unreadable.next": {
+      "text": " इसे जर्नल से वापस लिखने के लिए `dinah check --rebuild` चलाएँ, या टकराव को हाथ से सुलझाएँ।",
+      "context": "The next step of refusal.dinah.card-projection-unreadable. dinah check --rebuild is a command line and is not translated.",
+      "source": "f82161bda86883c7"
+    },
+    "check.card-projection-unreadable": {
+      "text": "{detail} की कार्ड फ़ाइल गायब है, पार्स नहीं होती, या उसमें टकराव चिह्न हैं जबकि उसका जर्नल पढ़ा जा सकता है; उसे वापस लिखने के लिए `dinah check --rebuild` चलाएँ",
+      "context": "A check finding at defect severity: a card in the card-unit layout whose card.md is damaged while its journal reads. {detail} is the card's identifier. dinah check --rebuild is a command line and is not translated.",
+      "source": "7d8ca505684601f9"
+    },
+    "check.card-projection-diverged": {
+      "text": "कार्ड फ़ाइल और कार्ड का जर्नल {detail} पर असहमत हैं, जो हाथ से किया गया ऐसा बदलाव है जिसे अभी किसी लेखन ने दर्ज नहीं किया; कार्ड पर अगला लेखन इसे दर्ज करता है, या `dinah check --witness` चलाएँ",
+      "context": "A check finding at cleanup severity: a card in the card-unit layout whose card.md differs from the replay of its journal. {detail} is the keys that differ, separated by commas, the body named body. dinah check --witness is a command line and is not translated.",
+      "source": "665ab9bc1f84477d"
+    },
+    "param.check.rebuild.summary": {
+      "text": "हर क्षतिग्रस्त कार्ड फ़ाइल को उसके कार्ड के जर्नल से वापस लिखता है",
+      "context": "The written meaning of the --rebuild flag of check, which writes card.md back from the journal for every card in the card-unit layout whose card.md is missing, will not parse or carries conflict markers.",
+      "source": "87c75c9ce7cbe1e9"
+    },
+    "check.rebuilt.one": {
+      "text": "{count} कार्ड फ़ाइल उसके जर्नल से फिर से बनाई गई।",
+      "context": "The line the rebuild prints for what it wrote, for exactly one card. Followed by one line per rebuilt card identifier.",
+      "source": "eb214149551feff2"
+    },
+    "check.rebuilt.other": {
+      "text": "{count} कार्ड फ़ाइलें उनके जर्नलों से फिर से बनाई गईं।",
+      "context": "The line the rebuild prints for what it wrote, for any other number, zero included. Followed by one line per rebuilt card identifier.",
+      "source": "24ba6920c427f10a"
+    },
+    "refusal.dinah.not-redactable": {
+      "text": "{detail} न तो टिप्पणी है और न ही चेकलिस्ट आइटम, और dinah redact केवल इन्हीं का पाठ बदलता है।",
+      "context": "The sentence printed after the refusal name dinah.not-redactable. {detail} is the reference as the caller typed it, which reached a card, a column, a workstream, the workbench, an attachment or a payload. dinah redact is a command name and is not translated.",
+      "source": "e00740c3c342a846"
+    },
+    "refusal.dinah.not-redactable.next": {
+      "text": " कोई टिप्पणी या आइटम बताएँ, जैसे `dinah redact <card>/comments/1`; अनुलग्नक `dinah delete` से हटाया जाता है।",
+      "context": "The next step of refusal.dinah.not-redactable. The two command lines are not translated; <card> is a placeholder the reader replaces with a card's reference.",
+      "source": "abcaaa8fc519cdb4"
+    },
+    "refusal.dinah.already-redacted": {
+      "text": "{detail} का पाठ पहले ही मिटाया जा चुका है, और कुछ भी उसे वापस नहीं लाता।",
+      "context": "The sentence printed after the refusal name dinah.already-redacted. {detail} is the member's identifier. A redaction replaces a comment's or an item's text with its digest for good, so a second one has nothing left to replace.",
+      "source": "37f59b9eef54da78"
+    },
+    "refusal.dinah.nothing-to-redact": {
+      "text": "जर्नल की कोई भी पंक्ति {detail} का कोई पाठ नहीं रखती, इसलिए कुछ भी मिटाया नहीं गया और कुछ भी लिखा नहीं गया।",
+      "context": "The sentence printed after the refusal name dinah.nothing-to-redact. {detail} is the member's identifier. The member's text is in no line of the journal: a comment deleted before the storage migration kept its text only in the file the deletion removed, and an empty comment has none, so a redaction would record a removal that did not happen.",
+      "source": "b219739a1c7badd"
+    },
+    "refusal.dinah.torn-sidecar-present": {
+      "text": "{detail} में जर्नल का एक टूटा हुआ टुकड़ा है, जिसमें पाठ हो सकता है और जिसे उसे खोजने के लिए पढ़ा नहीं जा सकता।",
+      "context": "The sentence printed after the refusal name dinah.torn-sidecar-present. {detail} is the torn-tail sidecar standing beside the journal, or the journal itself where its last line is torn. A redaction would leave a copy of the text in the fragment, so it refuses until a person has dealt with it.",
+      "source": "db32cafdc7011d98"
+    },
+    "refusal.dinah.torn-sidecar-present.next": {
+      "text": " टुकड़े को पढ़ें, जब उसमें रखने लायक कुछ न रहे तो उसे हाथ से मिटाएँ, और मिटाने की कार्रवाई फिर से चलाएँ।",
+      "context": "The next step of refusal.dinah.torn-sidecar-present. No command deletes a torn-tail fragment, because only a person can say it held nothing worth keeping.",
+      "source": "789365f960b35004"
+    },
+    "refusal.dinah.redacted": {
+      "text": "{detail} का पाठ मिटाया जा चुका है, और कोई भी कमांड उसे फिर से नहीं लिखता।",
+      "context": "The sentence printed after the refusal name dinah.redacted, raised by a write to a redacted comment's body, by accepting a divergence of it, or by a write to a redacted item's text. {detail} is the reference as the caller typed it. The member's other fields stay writable.",
+      "source": "19cb9d4226858284"
+    },
+    "check.redact-leftover": {
+      "text": "एक dinah redact, जो अपने जर्नल को बदलने से पहले रुक गया, {detail} पीछे छोड़ गया, और उसके पास का जर्नल अब भी पुरानी सामग्री रखता है; check ने उसे हटा दिया",
+      "context": "A check finding at cleanup severity: the file a stopped dinah redact composed a journal's new content in and never renamed over the journal. {detail} is that file's name. dinah check removes it, and nothing was lost, since the journal was never replaced. dinah redact is a command name and is not translated.",
+      "source": "e59c88739c15bf41"
+    },
+    "param.redact.member.summary": {
+      "text": "वह टिप्पणी या चेकलिस्ट आइटम जिसका पाठ उसके डाइजेस्ट से बदला जाता है",
+      "context": "The meaning of the member argument of `dinah redact`, printed in that command's arguments table. The digest is the text's SHA-256.",
+      "source": "2b0617a78435974a"
+    },
+    "cmd.redact.summary": {
+      "text": "किसी टिप्पणी या आइटम के पाठ को हमेशा के लिए उसके डाइजेस्ट से बदलें",
+      "context": "The one-line summary of the redact command, printed in the command list and above its own help. The digest is the text's SHA-256.",
+      "source": "13a4c6dc07c823fd"
+    },
+    "cmd.redact.note": {
+      "text": "केवल वर्कबेंच का ऑपरेटर पाठ मिटा सकता है। --yes के बिना यह बताता है कि यह क्या दोबारा लिखेगा और कुछ नहीं लिखता। डाइजेस्ट हटाए गए पाठ को केवल उसी को बताता है जिसके पास वह पहले से है, लेकिन छोटा या अनुमान लगाने योग्य पाठ उम्मीदवार आज़माकर वापस पाया जा सकता है। जो पाठ स्टोर से पहले ही बाहर जा चुका है, dinah changes के किसी उत्तर में, किसी क्लोन में, git इतिहास में या किसी माइग्रेशन बैकअप में, वह इसकी पहुँच से बाहर है, और मिटाई गई टिप्पणी के अनुलग्नक तब तक रहते हैं जब तक dinah delete उन्हें हटा न दे।",
+      "context": "The note printed under the redact command's own help, after its summary. It says who may run it, what the run without --yes does, what the digest does and does not protect, and what the redaction cannot reach. --yes, dinah changes and dinah delete are command vocabulary and are not translated.",
+      "source": "3e192b465d237877"
+    },
+    "show.redacted": {
+      "text": "{actor} ने {ts} पर मिटाया।",
+      "context": "The line show prints in place of a redacted comment's body or a redacted item's text. {actor} is the operator who ran dinah redact and {ts} the time of the redaction, as the journal records it.",
+      "source": "b9815f869a029d87"
+    },
+    "redact.leftover": {
+      "text": "{path} हटाया, जिसे एक रुका हुआ dinah redact पीछे छोड़ गया था।",
+      "context": "The first line of dinah redact's account where it found and removed the file an earlier run composed a journal in and never put in place. {path} is that file.",
+      "source": "265c1aa8dc198831"
+    },
+    "redact.done": {
+      "text": "{journal} में {member} का पाठ मिटाया।",
+      "context": "The heading of dinah redact's account after it rewrote the lines. {member} is the reference as typed and {journal} the journal the lines stand in.",
+      "source": "461dfc9e76f4fb2b"
+    },
+    "redact.planned": {
+      "text": "{journal} में {member} का पाठ मिटाया जाता; कुछ नहीं लिखा गया, और --yes पंक्तियों को दोबारा लिखता है।",
+      "context": "The heading of dinah redact's account when it ran without --yes and wrote nothing. {member} is the reference as typed and {journal} the journal the lines stand in. --yes is a flag and is not translated.",
+      "source": "1653faebbdce53fe"
+    },
+    "redact.own": {
+      "text": "इसकी अपनी पंक्तियाँ: {count}",
+      "context": "A label and value in dinah redact's account: how many of the member's own journal lines carry its text.",
+      "source": "dc833efb74655e27"
+    },
+    "redact.legacy": {
+      "text": "पुरानी उत्तर पंक्तियाँ: {count}",
+      "context": "A label and value in dinah redact's account: how many lines from before answers were comments carry a version of the member's text, as an item's note once did.",
+      "source": "27f38e6cc77076ec"
+    },
+    "redact.lines": {
+      "text": "कुल पंक्तियाँ: {count}",
+      "context": "A label and value in dinah redact's account: the sum of the two counts above it, which the redacted line records.",
+      "source": "cbdb95338f6b5f95"
+    },
+    "redact.attachments-left": {
+      "text": "बचे हुए अनुलग्नक:",
+      "context": "The label above the attachments a redacted comment keeps, which the redaction does not touch.",
+      "source": "f6bc2a9618dadcf0"
+    },
+    "redact.attachment-left": {
+      "text": "{ref} ({filename})",
+      "context": "One attachment a redaction left in place, printed under redact.attachments-left. {ref} is the attachment's reference and {filename} its file's name; the line carries nothing to translate.",
+      "verbatim": true,
+      "source": "784ca8c0cf5a3128"
+    },
+    "redact.attachments-note": {
+      "text": "ये अनुलग्नक अब भी पढ़े जा सकते हैं; यदि इन्हें जाना ही है तो इन्हें dinah delete से हटाएँ।",
+      "context": "The sentence under the attachments a redacted comment keeps. dinah delete is a command and is not translated.",
+      "source": "6478794b7f2820b4"
+    },
+    "redact.beyond-reach": {
+      "text": "जो पाठ स्टोर से पहले ही बाहर जा चुका है, dinah changes के किसी उत्तर में, किसी क्लोन में, git इतिहास में या किसी माइग्रेशन बैकअप में, वह इस कमांड की पहुँच से बाहर है।",
+      "context": "The last line of dinah redact's account. dinah changes is a command and is not translated.",
+      "source": "5f6c39197a6c5224"
+    },
+    "interactive.menu.redact": {
+      "text": "टिप्पणी या आइटम जिसका पाठ हमेशा के लिए उसके डाइजेस्ट से बदला जाएगा:",
+      "context": "The title of the menu of a card's comments and items that dinah tui offers the workbench operator to redact. Choosing a row redacts at once, and nothing undoes it.",
+      "source": "4ae323f00b4807cf"
+    },
+    "interactive.actions.redact": {
+      "text": "किसी टिप्पणी या आइटम का पाठ मिटाएँ",
+      "context": "A row of dinah tui's actions menu, which replaces a comment's or an item's text with its digest for good.",
+      "source": "c5f3836a16f1796c"
+    },
+    "interactive.acted.redact": {
+      "text": "{ref} का एक सदस्य मिटाया",
+      "context": "Shown in dinah tui's message row after a comment's or an item's text was redacted. {ref} is the card's reference.",
+      "source": "5b331946e23e45c"
+    },
     "check.comment-body-diverged": {
       "text": "टिप्पणी {detail} का पाठ अब उस डाइजेस्ट से मेल नहीं खाता जो Dinah ने उस पर दर्ज किया था",
       "context": "A check finding: a comment whose stored digest disagrees with its body, which means something outside Dinah edited it. It names no editor and no time, because the tool knows neither, and a comment carrying no digest is not reported at all.",

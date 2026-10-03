@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -654,6 +655,51 @@ func TestASecondConversionWritesNothing(t *testing.T) {
 	}
 }
 
+// TestTheConversionIsMadeUnderTheWorkbenchLock is dinah-637/criteria/31's
+// second half. The converting run holds the workbench lock from before its
+// first write to after its designations_migrated line, which is the lock the
+// workbench journal's appends are made under, so a run meeting that lock held
+// by another owner is refused dinah.locked and writes nothing.
+func TestTheConversionIsMadeUnderTheWorkbenchLock(t *testing.T) {
+	root := designationFixture(t)
+	dir := soleBenchDir(t, root)
+	record, err := json.Marshal(bench.LockRecord{Actor: "someone", PID: 4242, TS: "2026-09-28T00:00:00Z"})
+	if err != nil {
+		t.Fatalf("marshal the lock record: %v", err)
+	}
+	lock := filepath.Join(dir, bench.LockName)
+	if err := os.WriteFile(lock, append(record, '\n'), 0o644); err != nil {
+		t.Fatalf("plant the workbench lock: %v", err)
+	}
+	before := treeDigest(t, dir)
+
+	refused := runCLI(t, root, "check", "--migrate-designations", "--force-claims", "--actor", "alka")
+	if refused.code != 2 || !strings.Contains(refused.errw, contract.Locked) {
+		t.Fatalf("a conversion meeting the workbench lock held: wanted %s, got exit %d:\n%s%s", contract.Locked, refused.code, refused.out, refused.errw)
+	}
+	if after := treeDigest(t, dir); after != before {
+		t.Error("the refused conversion changed the store")
+	}
+
+	if err := os.Remove(lock); err != nil {
+		t.Fatalf("clear the planted lock: %v", err)
+	}
+	assertConverted(t, runCLI(t, root, "check", "--migrate-designations", "--force-claims", "--actor", "alka"))
+	events, _, err := bench.ReadJournal(filepath.Join(dir, bench.JournalName))
+	if err != nil {
+		t.Fatalf("read the workbench journal: %v", err)
+	}
+	found := 0
+	for _, ev := range events {
+		if ev.Event == contract.EventDesignationsMigrated {
+			found++
+		}
+	}
+	if found != 1 {
+		t.Errorf("the forced run wrote %d designations_migrated lines, wanted one", found)
+	}
+}
+
 // TestTheConversionNeverStampsAStoreDown runs the converting form on a
 // workbench already past DesignationFormat and reads the anchor afterwards.
 // The stamp was unconditional while 7 was the newest number there was, and
@@ -667,9 +713,9 @@ func TestASecondConversionWritesNothing(t *testing.T) {
 func TestTheConversionNeverStampsAStoreDown(t *testing.T) {
 	root := designationCards(t)
 	dir := soleBenchDir(t, root)
-	stampFormat(t, dir, bench.StorageFormat)
-	if bench.StorageFormat <= bench.DesignationFormat {
-		t.Fatalf("StorageFormat is %d, so no store can stand past DesignationFormat %d and this test reads nothing", bench.StorageFormat, bench.DesignationFormat)
+	stampFormat(t, dir, bench.EffectiveStorageFormat())
+	if bench.EffectiveStorageFormat() <= bench.DesignationFormat {
+		t.Fatalf("EffectiveStorageFormat() is %d, so no store can stand past DesignationFormat %d and this test reads nothing", bench.EffectiveStorageFormat(), bench.DesignationFormat)
 	}
 
 	converted := runCLI(t, root, "check", "--migrate-designations", "--actor", "alka")
@@ -691,8 +737,8 @@ func TestTheConversionNeverStampsAStoreDown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the anchor: %v", err)
 	}
-	if want := "\nformat: " + strconv.Itoa(bench.StorageFormat) + "\n"; !strings.Contains(text, want) {
-		t.Errorf("the anchor no longer declares format %d after the conversion:\n%s", bench.StorageFormat, text)
+	if want := "\nformat: " + strconv.Itoa(bench.EffectiveStorageFormat()) + "\n"; !strings.Contains(text, want) {
+		t.Errorf("the anchor no longer declares format %d after the conversion:\n%s", bench.EffectiveStorageFormat(), text)
 	}
 }
 

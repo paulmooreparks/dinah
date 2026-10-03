@@ -97,6 +97,7 @@ func pinFixtures(p pinPaths) map[string][]pinLine {
 		"restore":           opens("restore fx-4"),
 		"delete":            opens("delete fx-5 --yes"),
 		"accept-divergence": opens("accept-divergence fx-1/comments/1"),
+		"redact":            opens("redact fx-1/comments/1 --yes"),
 		"rename":            opens("rename fx-1/attachments/1 renamed.txt"),
 		"status":            opens("status"),
 		"list":              opens("list"),

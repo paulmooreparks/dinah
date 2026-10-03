@@ -11,6 +11,7 @@ import (
 
 	"dinah/internal/bench"
 	"dinah/internal/contract"
+	"dinah/internal/durable"
 	"dinah/internal/guide"
 	"dinah/internal/lsp"
 	"dinah/internal/mcp"
@@ -85,6 +86,7 @@ func init() {
 		{name: "restore", group: groupWork, run: runRestore, bounded: 1, terminal: terminalDirect, actsOnCard: true},
 		{name: "delete", group: groupWork, run: runDelete, bounded: 1, terminal: terminalDirect, actsOnCard: true},
 		{name: "accept-divergence", group: groupWork, run: runAcceptDivergence, bounded: 1, terminal: terminalDirect, actsOnCard: true},
+		{name: "redact", group: groupWork, run: runRedact, bounded: 1, terminal: terminalDirect, actsOnCard: true},
 		{name: "rename", group: groupWork, run: runRename, bounded: 2, terminal: terminalDirect, actsOnCard: true},
 
 		{name: "status", group: groupRead, run: runStatus, terminal: terminalDirect, frequentRead: true},
@@ -196,6 +198,8 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 		MigrateSchedule:     parsed.has("migrate-schedule"),
 		MigrateHolds:        parsed.has("migrate-holds"),
 		MigrateRawLines:     parsed.has("migrate-raw-lines"),
+		MigrateStorage:      parsed.has("migrate-storage"),
+		Backup:              parsed.value("backup"),
 		Rehearse:            parsed.has("rehearse"),
 		ForceClaims:         parsed.has("force-claims"),
 		Renumber:            parsed.has("renumber"),
@@ -203,6 +207,7 @@ func (s *session) request(name string, parsed *arguments) *verb.Request {
 
 		MigrateWorkstreams: parsed.has("migrate-workstreams"),
 		MigrateWitness:     parsed.has("witness"),
+		Rebuild:            parsed.has("rebuild"),
 		NoClaim:            parsed.has("no-claim"),
 		NoArchive:          parsed.has("no-archive"),
 	}
@@ -602,6 +607,24 @@ func runAcceptDivergence(s *session, parsed *arguments) int {
 	req.Ref = at(parsed.rest(), 0)
 	return s.withBench(func(l *verb.Library) int {
 		return s.emit(l.AcceptDivergence(req))
+	})
+}
+
+// runRedact replaces the text one comment's or one item's journal lines carry
+// with its digest, or, without --yes, says what it would rewrite.
+func runRedact(s *session, parsed *arguments) int {
+	req := s.request("redact", parsed)
+	req.Ref = at(parsed.rest(), 0)
+	return s.withBench(func(l *verb.Library) int {
+		report, err := l.Redact(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			return s.emitMachine(report)
+		}
+		s.renderRedaction(report)
+		return 0
 	})
 }
 
@@ -1083,6 +1106,11 @@ func runShow(s *session, parsed *arguments) int {
 		}
 		if detail == nil {
 			s.write(text)
+			// A redacted comment's composed anchor carries no body, and
+			// the line naming who redacted it stands where the body was.
+			if redaction := l.RedactionOf(req); redaction != nil && s.format == formatHuman {
+				s.line(s.redactionLine(redaction))
+			}
 			return 0
 		}
 		if s.format != formatHuman {
@@ -1466,15 +1494,19 @@ func editCmd(s *session, editor, path string) *exec.Cmd {
 
 // runEdit opens a path in the reader's editor.
 //
-// On a comment it does one thing more, because a comment's body is a record
-// of what somebody said rather than a description of something: it observes
-// the body before the editor is handed the file, and on the editor's return it
-// asks the library what that edit meant. It asserts nothing about when the
-// editor returned, which no editor contracts; RecordCommentEdit carries the
-// whole of that reasoning and this side only supplies the before.
+// A comment or a checklist item is handed to the editor as a file of its own
+// that this command makes, because neither has one in the card-unit layout,
+// and editMember says what happens on the editor's return. Everything else
+// opens the file ResolveEditTarget names.
 func runEdit(s *session, parsed *arguments) int {
 	ref := at(parsed.rest(), 0)
 	return s.withBench(func(l *verb.Library) int {
+		if strings.TrimSpace(ref) != "" {
+			if entity, err := l.Bench.ResolveEntity(ref); err == nil &&
+				(entity.Kind == bench.KindComment || entity.Kind == bench.KindItem) {
+				return editMember(s, parsed, l, ref, entity)
+			}
+		}
 		// What this command opens is declared once, in ResolveEditTarget,
 		// rather than assembled here out of two resolvers.
 		resolved, err := l.Bench.ResolveEditTarget(ref)
@@ -1485,25 +1517,65 @@ func runEdit(s *session, parsed *arguments) int {
 		if err != nil {
 			return s.reportError(err)
 		}
-		comment, err := l.Bench.ResolveEntity(ref)
-		before := ""
-		editing := err == nil && comment.Kind == bench.KindComment
-		if editing {
-			if before, err = l.CommentBodyDigest(comment.Dir); err != nil {
-				return s.reportError(err)
-			}
-		}
 		if err := editCmd(s, editor, resolved).Run(); err != nil {
 			return s.reportError(err)
 		}
-		if !editing {
-			return 0
-		}
-		req := s.request("edit", parsed)
-		req.Ref = ref
-		req.PriorDigest = before
-		return s.emit(l.RecordCommentEdit(req))
+		return 0
 	})
+}
+
+// editMember edits a comment's body or an item's text through a file in a
+// directory of its own under the system's temporary area, named for the
+// reference, which is removed on every way out.
+//
+// The file holds the editable text and nothing else. On the editor's return
+// an unchanged file writes nothing. A changed comment body is written by the
+// ordinary body write with the digest recorded before the editor opened as
+// its expected digest, so a write that landed while the editor was open is
+// refused dinah.comment-body-diverged, as --expect-digest refuses it. A
+// changed item text is written as set <item> text under that field's own
+// authority. Nothing here asserts when the editor returned, which no editor
+// contracts: an editor that hands the file to a running instance and returns
+// at once leaves the file unchanged, and nothing is written.
+func editMember(s *session, parsed *arguments, l *verb.Library, ref string, entity *bench.EntityRef) int {
+	fm, body, err := l.Bench.MemberAnchor(entity)
+	if err != nil {
+		return s.reportError(err)
+	}
+	editor, err := bench.ResolveEditor(s.cfg, runtime.GOOS, onPath)
+	if err != nil {
+		return s.reportError(err)
+	}
+	dir, err := os.MkdirTemp("", "dinah-edit-")
+	if err != nil {
+		return s.reportError(err)
+	}
+	defer durable.RemoveAll(dir)
+	name := strings.ReplaceAll(strings.Trim(strings.TrimSpace(ref), "/"), "/", "-") + ".md"
+	path := filepath.Join(dir, name)
+	if err := durable.WriteFile(path, []byte(body), 0o644); err != nil {
+		return s.reportError(err)
+	}
+	if err := editCmd(s, editor, path).Run(); err != nil {
+		return s.reportError(err)
+	}
+	edited, err := durable.ReadFile(path)
+	if err != nil {
+		return s.reportError(err)
+	}
+	if string(edited) == body {
+		return 0
+	}
+	req := s.request("edit", parsed)
+	req.Ref = ref
+	req.Value = string(edited)
+	req.Field = bench.BodyField
+	if entity.Kind == bench.KindItem {
+		req.Field = bench.TextField
+	} else {
+		req.ExpectedDigest = fm.Value(bench.CommentDigestField)
+	}
+	return s.emit(l.SetField(req))
 }
 
 // onPath reports whether a binary is on the search path, which is what the
@@ -1765,7 +1837,11 @@ func runCheck(s *session, parsed *arguments) int {
 		return runMigrateContainer(s, parsed, walk)
 	}
 	req := s.request("check", parsed)
+	req.AcceptDifference = parsed.values("accept-difference")
 	s.diagnostic = true
+	if req.MigrateStorage {
+		return runMigrateStorage(s, req)
+	}
 	return s.withBench(func(l *verb.Library) int {
 		report, err := l.Check(req)
 		if err != nil {
@@ -1776,6 +1852,26 @@ func runCheck(s *session, parsed *arguments) int {
 			return contract.ExitCodeForRead(report.Outcome)
 		}
 		return s.renderCheck(report)
+	})
+}
+
+// runMigrateStorage runs dinah check --migrate-storage, which answers the
+// migration's own account rather than a check report: the run is the whole of
+// what the invocation asks for, and the checks a report carries read the
+// layout the run is replacing. A run that stopped part way exits as findings
+// do, and a refusal exits as every refusal does.
+func runMigrateStorage(s *session, req *verb.Request) int {
+	return s.withBench(func(l *verb.Library) int {
+		report, err := l.MigrateStorage(req)
+		if err != nil {
+			return s.reportError(err)
+		}
+		if s.format != formatHuman {
+			s.emitMachine(report)
+			return contract.ExitCodeForRead(report.Outcome)
+		}
+		s.renderStorageMigration(report)
+		return contract.ExitCodeForRead(report.Outcome)
 	})
 }
 

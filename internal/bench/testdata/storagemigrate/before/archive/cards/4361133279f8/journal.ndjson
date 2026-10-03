@@ -1,0 +1,6 @@
+{"ts":"2026-09-28T06:51:29Z","event":"created","actor":{"name":"sam"},"title":"the card that will be archived","to":"004acda2c28a","to_title":"Intake"}
+{"ts":"2026-09-28T06:51:34Z","event":"commented","actor":{"name":"sam"},"comment":"ab3b13b910a6"}
+{"ts":"2026-09-28T06:51:34Z","event":"item_filed","actor":{"name":"sam"},"kind":"acceptance_criterion","item":"abb6764e3bea"}
+{"ts":"2026-09-28T06:51:34Z","event":"commented","actor":{"name":"sam"},"comment":"86ffaa05edca","item":"abb6764e3bea"}
+{"ts":"2026-09-28T06:51:34Z","event":"moved","actor":{"name":"sam"},"from":"004acda2c28a","to":"68091798ab26","from_title":"Intake","to_title":"Done"}
+{"ts":"2026-09-28T06:51:34Z","event":"archived","actor":{"name":"sam"},"note":"4361133279f8"}

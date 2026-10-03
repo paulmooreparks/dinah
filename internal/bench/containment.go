@@ -47,6 +47,13 @@ type Mount struct {
 	// A collection of unstamped members is not swept for the ordinal
 	// invariants, because every member of it would be reported as missing one.
 	Stamped bool
+	// Journaled says the collection's members are members of the nearest
+	// enclosing journal rather than directories of their own, which is what
+	// comments and checklist items are. Such a mount carries no Anchor, Dir
+	// is the segment a reference names it by, and every reader that lists a
+	// directory for a mount asks the card's CardRecord, or the workbench
+	// journal for a column's comments, for a journaled one instead.
+	Journaled bool
 }
 
 // containment is the one statement of what contains what. Every reader of the
@@ -81,19 +88,19 @@ var containment = map[string][]Mount{
 		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindColumn: {
-		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor, Stamped: true},
+		{Dir: CommentsDir, Kind: KindComment, Stamped: true, Journaled: true},
 		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindCard: {
-		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor, Stamped: true},
-		{Dir: ChecklistDir, Kind: KindItem, Anchor: ItemAnchor, Stamped: true},
+		{Dir: CommentsDir, Kind: KindComment, Stamped: true, Journaled: true},
+		{Dir: ChecklistSegment, Kind: KindItem, Stamped: true, Journaled: true},
 		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindComment: {
 		{Dir: AttachmentsDir, Kind: KindAttachment, Anchor: AttachmentAnchor, NameField: "filename", Stamped: true},
 	},
 	KindItem: {
-		{Dir: CommentsDir, Kind: KindComment, Anchor: CommentAnchor, Stamped: true},
+		{Dir: CommentsDir, Kind: KindComment, Stamped: true, Journaled: true},
 	},
 	// A workstream mounts attachments and nothing else. It is absent from the
 	// workbench's own mount list above, which is what the comment on
@@ -138,14 +145,23 @@ func MountOf(kind, dir string) (Mount, bool) {
 // down once.
 //
 // The card's own anchor is reachable through the cards collection the
-// workbench mounts, so no caller needs a second statement of it.
+// workbench mounts, so no caller needs a second statement of it. A journaled
+// mount declares no anchor, so the anchor files the old layout kept comments
+// and items in are answered from that layout's own statement of them, which
+// is how a walk over a store below the card-unit format still recognises one.
 func KindOfAnchor(anchor string) (string, bool) {
 	for _, mounts := range containment {
 		for _, mount := range mounts {
-			if mount.Anchor == anchor {
+			if mount.Anchor != "" && mount.Anchor == anchor {
 				return mount.Kind, true
 			}
 		}
 	}
-	return "", false
+	return legacyAnchorKind(anchor)
 }
+
+// ChecklistSegment is the segment a reference names a card's checklist by,
+// in `<card>/checklist/<n>`. It is a segment of the reference grammar and not
+// a directory: in the card-unit layout a card's items are members of its
+// journal.
+const ChecklistSegment = "checklist"

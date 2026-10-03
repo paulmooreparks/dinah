@@ -571,6 +571,7 @@ export function wiringFor(
 		},
 		commentHost: commentHost(comments),
 		openComments,
+		openItems: new Map(),
 		verbCatalog: async () => catalogue,
 	};
 }

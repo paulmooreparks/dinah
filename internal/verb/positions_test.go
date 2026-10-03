@@ -36,7 +36,7 @@ func heavyCard(t *testing.T, h *harness) string {
 		t.Fatalf("the card holds %d filed items, wanted 25", len(filed))
 	}
 	// The thirteenth filed item goes, leaving its ordinal unused.
-	if err := os.RemoveAll(filed[12].Dir); err != nil {
+	if err := os.RemoveAll(filed[12].LegacyDir()); err != nil {
 		t.Fatalf("remove the thirteenth item: %v", err)
 	}
 	for i := 1; i <= 12; i++ {
@@ -75,7 +75,7 @@ func heavyCard(t *testing.T, h *harness) string {
 		if item.Ordinal == 0 {
 			unstamped++
 		}
-		if _, found := h.library.Bench.DesignatedCommentDir(item); found {
+		if _, found := h.designatedComment(card, item); found {
 			designated++
 		}
 	}
@@ -91,7 +91,7 @@ func heavyCard(t *testing.T, h *harness) string {
 		t.Fatalf("the heavy card holds %d items (%d unstamped, %d designating a comment), %d comments and %d attachments; wanted 36 (12, 8), 40 and 1",
 			len(items), unstamped, designated, len(comments), cardAttachments)
 	}
-	commentAttachments, err := bench.CountAttachments(comments[0].Dir)
+	commentAttachments, err := bench.CountAttachments(comments[0].Home)
 	if err != nil || commentAttachments != 1 {
 		t.Fatalf("the first comment holds %d attachments (%v), wanted 1", commentAttachments, err)
 	}
@@ -184,16 +184,16 @@ func TestShowReadsEachAnchorAndListsEachCollectionOnce(t *testing.T) {
 	}
 	var itemAnchors, designatedAnchors, itemComments []string
 	for _, item := range items {
-		itemAnchors = append(itemAnchors, filepath.Join(item.Dir, bench.ItemAnchor))
-		itemComments = append(itemComments, filepath.Join(item.Dir, bench.CommentsDir))
-		if dir, found := h.library.Bench.DesignatedCommentDir(item); found {
-			designatedAnchors = append(designatedAnchors, filepath.Join(dir, bench.CommentAnchor))
+		itemAnchors = append(itemAnchors, filepath.Join(item.LegacyDir(), bench.ItemAnchor))
+		itemComments = append(itemComments, filepath.Join(item.LegacyDir(), bench.CommentsDir))
+		if designated, found := h.designatedComment(card, item); found {
+			designatedAnchors = append(designatedAnchors, filepath.Join(designated.Home, bench.CommentAnchor))
 		}
 	}
 	var commentAnchors, commentAttachments []string
 	for _, comment := range comments {
-		commentAnchors = append(commentAnchors, filepath.Join(comment.Dir, bench.CommentAnchor))
-		commentAttachments = append(commentAttachments, filepath.Join(comment.Dir, bench.AttachmentsDir))
+		commentAnchors = append(commentAnchors, filepath.Join(comment.Home, bench.CommentAnchor))
+		commentAttachments = append(commentAttachments, filepath.Join(comment.Home, bench.AttachmentsDir))
 	}
 	var mounts []string
 	for _, mount := range bench.Contains(bench.KindCard) {
@@ -337,10 +337,10 @@ func TestShowOfAHeavyCardStaysNearItsReads(t *testing.T) {
 	}
 	var anchors []string
 	for _, item := range items {
-		anchors = append(anchors, filepath.Join(item.Dir, bench.ItemAnchor))
+		anchors = append(anchors, filepath.Join(item.LegacyDir(), bench.ItemAnchor))
 	}
 	for _, comment := range comments {
-		anchors = append(anchors, filepath.Join(comment.Dir, bench.CommentAnchor))
+		anchors = append(anchors, filepath.Join(comment.Home, bench.CommentAnchor))
 	}
 	if len(anchors) != 76 {
 		t.Fatalf("the heavy card offers %d anchors to time, wanted 76", len(anchors))

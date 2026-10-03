@@ -2,11 +2,78 @@ package verb
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
+	"dinah/internal/bench"
 	"dinah/internal/contract"
 )
+
+// TestTheHandoffReachesAcrossTheStorageMigration reads dinah-648's handoff off
+// a store dinah-637's storage migration carried into the card-unit layout.
+// Before the migration the card's comments were directories and after it they
+// are payloads of the card's journal, and the handoff is read off the
+// journal's commented and moved lines either way. A card whose last station
+// wrote before the migration answers that station's comment, carried across
+// under its own identifier; once the card has been written on and moved again
+// in the new layout, it answers the comment written since.
+//
+// Arming: making handoffOf pass over every line before the card's
+// card_baseline, as the member replay does, drops the comment written before
+// the migration, and the first assertion reports an empty handoff.
+func TestTheHandoffReachesAcrossTheStorageMigration(t *testing.T) {
+	// The switch is process-global, so the test keeps its siblings out.
+	keepSerial(t)
+	h := newSerialHarness(t)
+	card := h.add("A card handed on across the storage migration")
+	h.comment(card, "## HANDOFF\n\nWritten on the old layout.\n")
+	h.at(card, doing)
+
+	bench.EnableCardUnitForTest(t)
+	carried, err := bench.OpenAwaitingResolution(h.root)
+	if err != nil {
+		t.Fatalf("open the store for its migration: %v", err)
+	}
+	migrating := New(carried, h.home)
+	migrating.Now = h.library.Now
+	migrate := &Request{Verb: "check", Actor: "alka", MigrateStorage: true, ForceClaims: true, Backup: filepath.Join(t.TempDir(), "backup")}
+	migrated, err := migrating.MigrateStorage(migrate)
+	if err != nil {
+		t.Fatalf("migrate the store: %v", err)
+	}
+	if migrated.Outcome != contract.ReadOK || migrated.Comments.Card != 1 {
+		t.Fatalf("the migration answered %s carrying %d card comments, wanted ok carrying one: %+v", migrated.Outcome, migrated.Comments.Card, migrated)
+	}
+	h.reopen()
+	if h.library.Bench.Format != bench.CardUnitFormat {
+		t.Fatalf("the migrated store opened at format %d, wanted %d", h.library.Bench.Format, bench.CardUnitFormat)
+	}
+
+	handoffOf := func(when string) []CommentView {
+		t.Helper()
+		detail, _, _, _, err := h.library.Show(&Request{Verb: "show", Actor: "alka", Card: card, Fields: "handoff"})
+		if err != nil {
+			t.Fatalf("show the handoff %s: %v", when, err)
+		}
+		return detail.Handoff
+	}
+	before := handoffOf("after the migration")
+	if len(before) != 1 || before[0].Subject != "HANDOFF" || !strings.Contains(before[0].Body, "Written on the old layout.") {
+		t.Fatalf("after the migration the handoff is %+v, wanted the one comment written on the old layout", before)
+	}
+
+	h.comment(card, "## FINDINGS\n\nWritten in the card-unit layout.\n")
+	h.at(card, review)
+	after := handoffOf("after a stay in the new layout")
+	if len(after) != 1 || after[0].Subject != "FINDINGS" || !strings.Contains(after[0].Body, "Written in the card-unit layout.") {
+		t.Errorf("after a stay in the new layout the handoff is %+v, wanted the one comment written since the migration", after)
+	}
+	if after[0].ID == before[0].ID {
+		t.Errorf("the handoff still names %s, the comment written before the migration", before[0].ID)
+	}
+}
 
 // TestTheHandoffIsWhatTheLastStationSaid is dinah-648's rule for the handoff
 // member, read off one card that crossed four columns. The filer's remark,

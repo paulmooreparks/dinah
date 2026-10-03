@@ -100,7 +100,7 @@ type derivedMemo struct {
 
 // deriveKinds is how many DeriveKind values bench declares, and kindIndex
 // maps each to its slot in fileNode.derived.
-const deriveKinds = 7
+const deriveKinds = 8
 
 var kindIndex = map[bench.DeriveKind]int{
 	bench.DeriveAnchor:      0,
@@ -110,6 +110,7 @@ var kindIndex = map[bench.DeriveKind]int{
 	bench.DeriveComment:     4,
 	bench.DeriveAttachment:  5,
 	bench.DeriveJournal:     6,
+	bench.DeriveArrival:     7,
 }
 
 // Bench is the workbench opened over this snapshot, and the error OpenWith

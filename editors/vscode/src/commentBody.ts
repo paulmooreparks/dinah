@@ -33,19 +33,25 @@
 // session this module opened has no remembered digest to match, so it meets
 // the verb's own body comparison exactly as before.
 //
-// What is sent is the body alone. The tab holds the anchor file, which is the
-// front matter and the prose below it, and the front matter is the tool's to
-// write. splitAnchorBody is where that cut is made, and it is made on the
+// What is sent is the body alone. The tab holds the comment's anchor, which is
+// the front matter and the prose below it, and the front matter is the tool's
+// to write. splitAnchorBody is where that cut is made, and it is made on the
 // closing fence rather than by counting lines.
+//
+// The tab is a `dinah-member` document rather than a file, as memberDocument.ts
+// describes: from storage format 12 a comment is lines of its card's journal
+// and has no file to open, so the document is read through `dinah show` and
+// its save reaches saveCommentBody through the file system provider
+// extension.ts registers for the scheme. The sessions below are therefore
+// keyed by memberKey rather than by a path.
 //
 // Nothing here imports vscode, on the terms cardCommands.ts's header gives.
 
 import type { VerbContext } from "./cardCommands";
-import { pinnedArgv, refusalMessage, runVerb } from "./cardCommands";
+import { runVerb } from "./cardCommands";
 import type { Spawner } from "./cli";
-import { runDinah } from "./cli";
 import type { Localizer } from "./l10n";
-import type { PathAnswer } from "./wire";
+import { memberKey, memberLocation, readMember } from "./memberDocument";
 
 /**
  * The fence an anchor file's front matter opens and closes with.
@@ -164,16 +170,13 @@ export function headerField(text: string, key: string): string {
 }
 
 /**
- * What the extension knows about the comment files it has opened, keyed by the
- * file's absolute path.
+ * What the extension knows about the comment documents it has opened, keyed
+ * by memberKey of the comment's reference and workbench.
  *
- * A map rather than a resolution from the path, because a path under a
- * workbench says which comment it is only by being parsed, and this extension
- * does not parse references out of paths anywhere else: it asks `dinah path`
- * which file a reference names and remembers the answer. A file this extension
- * did not open is one it writes nothing for, which is the honest answer rather
- * than a restrictive one, since a person who opened `comment.md` from the
- * explorer is editing a file by hand and `dinah check` is what tells them so.
+ * A map rather than a reading of the document, because what a save needs is
+ * the digest the comment carried when this session opened it, which the
+ * document's own text no longer holds once its author has edited it. A
+ * comment this extension did not open is one it writes nothing for.
  */
 export type OpenComments = Map<string, OpenComment>;
 
@@ -204,12 +207,12 @@ export interface ComposeTarget {
 }
 
 /**
- * Mints an empty comment below one holder and opens its file.
+ * Mints an empty comment below one holder and opens its document.
  *
- * Two calls and no state. `dinah comment <ref>` with no text answers with the
- * new comment's own identifier, which resolves like any other reference, and
- * `dinah path` turns that into the file the window opens. What used to be a
- * draft in global storage, an index entry and two commands is now the entity
+ * `dinah comment <ref>` with no text answers with the new comment's own
+ * identifier, which resolves like any other reference, and the comment opens
+ * as the `dinah-member` document of that reference. What used to be a draft
+ * in global storage, an index entry and two commands is now the entity
  * itself, in the workbench, where `dinah show` can see it and where an author
  * who abandons it runs `dinah delete`.
  */
@@ -237,48 +240,39 @@ export async function composeComment(
 		host.showError(host.t("comment.composeNoReference", { ref: target.ref }));
 		return;
 	}
-	const located = await runDinah(spawner, exe, pinnedArgv(target.root, ["path", ref]), {
-		cwd: target.root,
-	});
-	if (located.kind !== "ok") {
-		host.showError(refusalMessage(located));
-		return;
-	}
-	const path = (located.json as PathAnswer).path ?? "";
-	if (path === "") {
-		host.showError(host.t("comment.composeNoPath", { ref }));
-		return;
-	}
 	// The comment was minted a moment ago, so the digest on its header is the
-	// one over an empty body and reading the file is the honest way to learn
-	// it rather than composing it here. host.readFile answers undefined for a
-	// file it cannot read, which leaves the session with no remembered digest
-	// and the save falling to the verb's own body comparison.
-	const digest = recordedDigest((await host.readFile(path)) ?? "");
-	opened.set(path, { root: target.root, folder: target.folder, ref, digest });
-	await host.openDocument(path);
-	host.showInfo(host.t("comment.composed", { ref, path }));
+	// one over an empty body, and reading the member back is the honest way to
+	// learn it rather than composing it here. A read that fails leaves the
+	// session with no remembered digest and the save falling to the verb's own
+	// body comparison.
+	const address = { ref, root: target.root };
+	const read = await readMember(spawner, exe, address);
+	const digest = read.kind === "ok" ? recordedDigest(read.text) : "";
+	const location = memberLocation(address);
+	opened.set(memberKey(address), { root: target.root, folder: target.folder, ref, digest });
+	await host.openDocument(location);
+	host.showInfo(host.t("comment.composed", { ref, path: location }));
 }
 
 /**
- * Remembers that one comment's file is open, so a later save of it reaches the
- * verb rather than leaving the editor's own bytes on disk.
+ * Remembers that one comment's document is open, so a later save of it
+ * reaches the verb.
  *
  * Opening an existing comment goes through this for the same reason composing
- * one does: the two end in the same place, a tab holding `comment.md`, and a
- * save of that tab has to mean the same thing whichever way the reader got
- * there.
+ * one does: the two end in the same place, a tab holding the comment's
+ * document, and a save of that tab has to mean the same thing whichever way
+ * the reader got there.
  */
 export function noteOpenComment(
 	opened: OpenComments,
-	path: string,
+	key: string,
 	standing: OpenComment,
 ): void {
-	opened.set(path, standing);
+	opened.set(key, standing);
 }
 
 /**
- * Opens an existing comment's file and remembers the digest its anchor
+ * Opens an existing comment's document and remembers the digest its anchor
  * records, so that saving the tab reaches the verb the same way a comment
  * composed here does.
  *
@@ -286,61 +280,64 @@ export function noteOpenComment(
  * remembered digest would match the header, so the compare-and-swap would
  * pass and the save would write over somebody's hand edit and re-stamp it,
  * which is the silent absorption the divergence refusal exists to prevent.
- * The file is still opened, because restoring the body by hand is the remedy
- * the format names first and the author needs the file to do it; what is
- * withheld is the session, so a save leaves the editor's bytes where they are
- * and dinah check goes on reporting them.
+ * The document is still opened, so the author can read what stands there;
+ * what is withheld is the session, so a save writes nothing and dinah check
+ * goes on reporting the divergence.
  */
 export async function openExistingComment(
 	host: CommentBodyHost,
+	spawner: Spawner,
+	exe: string,
 	opened: OpenComments,
-	path: string,
 	standing: Omit<OpenComment, "digest">,
 ): Promise<void> {
-	const text = (await host.readFile(path)) ?? "";
-	const digest = recordedDigest(text);
-	if (digest !== "" && digest !== (await digestOf(splitAnchorBody(text)))) {
+	const address = { ref: standing.ref, root: standing.root };
+	const read = await readMember(spawner, exe, address);
+	if (read.kind !== "ok") {
+		host.showError(read.message);
+		return;
+	}
+	const key = memberKey(address);
+	const digest = recordedDigest(read.text);
+	if (digest !== "" && digest !== (await digestOf(splitAnchorBody(read.text)))) {
 		host.showError(host.t("comment.divergedOnOpen", { ref: standing.ref }));
 		// Withholding the session is not enough on its own: a session opened
-		// earlier for this same path is still standing, and a save would use
-		// its digest, pass the compare-and-swap and absorb the hand edit that
-		// was just reported. Declining to adopt a diverged comment has to
+		// earlier for this same comment is still standing, and a save would
+		// use its digest, pass the compare-and-swap and absorb the hand edit
+		// that was just reported. Declining to adopt a diverged comment has to
 		// clear what is there as well as not add to it, or the refusal looks
 		// straight at the edit and then lets the next save swallow it.
-		opened.delete(path);
+		opened.delete(key);
 	} else {
-		opened.set(path, { ...standing, digest });
+		opened.set(key, { ...standing, digest });
 	}
-	await host.openDocument(path);
+	await host.openDocument(memberLocation(address));
 }
 
-/** Forgets a comment file, which is what closing its tab comes to. */
-export function forgetComment(opened: OpenComments, path: string): void {
-	opened.delete(path);
+/** Forgets a comment document, which is what closing its tab comes to. */
+export function forgetComment(opened: OpenComments, key: string): void {
+	opened.delete(key);
 }
 
 /**
- * Writes the body of a saved comment file through the verb.
+ * Writes the body of a saved comment document through the verb.
  *
- * The editor has already put its own bytes on disk by the time this runs, and
- * that is the state this call exists to correct rather than to prevent: the
- * write below re-renders the anchor from the body it is given and records the
- * digest over it, so the record and the file agree again and the journal says
- * who changed it. An implementation that let the editor's save stand would
- * leave a comment `dinah check` reports as diverged on every save.
+ * The file system provider hands a save of a `dinah-member` document here, so
+ * the body reaches the store through the verb and the journal says who changed
+ * it. The write is a compare-and-swap on the digest the session remembered,
+ * as this module's header describes.
  *
- * A file this extension did not open is left alone and answers false, which is
- * what lets the caller keep its listener cheap.
+ * A comment this extension did not open is left alone and answers false.
  */
 export async function saveCommentBody(
 	host: CommentBodyHost,
 	spawner: Spawner,
 	exe: string,
 	opened: OpenComments,
-	path: string,
+	key: string,
 	text: string,
 ): Promise<boolean> {
-	const standing = opened.get(path);
+	const standing = opened.get(key);
 	if (standing === undefined) {
 		return false;
 	}
@@ -366,7 +363,7 @@ export async function saveCommentBody(
 	// digest that is one edit stale and be refused. The new value is computed
 	// rather than read back, because the verb hashes the body it was given
 	// and that is the body in hand.
-	opened.set(path, { ...standing, digest: await digestOf(body) });
+	opened.set(key, { ...standing, digest: await digestOf(body) });
 	return true;
 }
 

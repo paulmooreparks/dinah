@@ -797,7 +797,7 @@ func preNumberRegistryFixture(t *testing.T) (tree, project, workbench string) {
 	// the registry arrived at, and the filing meets the number migration's
 	// own refusal.
 	rewriteFile(t, filepath.Join(workbench, bench.WorkbenchAnchor), func(text string) string {
-		return strings.Replace(text, "format: "+strconv.Itoa(bench.StorageFormat)+"\n", "", 1)
+		return strings.Replace(text, "format: "+strconv.Itoa(bench.EffectiveStorageFormat())+"\n", "", 1)
 	})
 	ids, err := bench.ListIDs(filepath.Join(workbench, bench.CardsDir))
 	if err != nil {
@@ -938,27 +938,39 @@ var checkAdviceProvenByRunning = map[string]string{
 // adding a raise site to any of these refusals is a card that has to come back
 // to this map.
 var checkAdviceNeedingNoScope = map[string]string{
-	"check.bare-workbench":                          "a finding row printed by a sweep the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
-	"check.damaged-workbench":                       "a finding row printed by a sweep the caller has already scoped, describing what that sweep does not repair rather than naming a fresh invocation",
-	"check.stranded-column":                         "a finding row printed by a check the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
-	"check.stale-lock.dead.next":                    "a finding row printed by a check the caller has already scoped, saying that the finish on that same scope clears the lock rather than naming a fresh invocation",
-	"check.duplicate-workbench-id":                  "a finding row printed by a check the caller has already scoped, describing what --remint would do rather than naming a fresh invocation",
-	"refusal.dinah.repair-would-empty-columns":      "the sentence names the command that just refused, which is the reader's own invocation carrying whatever scope he gave it",
-	"refusal.dinah.repair-would-empty-columns.next": "the reader is told to run again the invocation he has just run, so the scope he typed is the scope he repeats",
-	"refusal.dinah.no-workbench-found.next":         "the sentence teaches the scope flags themselves rather than naming an invocation to repeat, and it is the one sentence here whose reader has no workbench for a scope to name",
-	"refusal.dinah.vocabulary-retired.next":         "the instruction is the hand edit, and the command is named only to say which rename to perform by hand; running it would do nothing, because the workbench this refusal fires on already declares the current vocabulary and the sweep skips it",
-	"refusal.layer-collision.next":                  "contract.LayerCollisionErr is declared and never raised, so no reader ever stands anywhere when this sentence prints; TestNothingRaisesTheLayerCollisionRefusal fails on the day that stops being true",
-	"refusal.dinah.needs-vocabulary-migration.next": "the alternation's unconditional last member, which no invocation renders today, for the reasons written above this map",
-	"refusal.dinah.vocabulary-mixed.next":           "the alternation's unconditional last member, unrendered on the same evidence",
-	"refusal.dinah.interrupted.next":                "the alternation's unconditional last member, unrendered on the same evidence",
-	"refusal.dinah.locked.next":                     "the alternation's unconditional last member, unrendered on the same evidence",
-	"refusal.dinah.add-needs-a-column.next":         "the alternation's unconditional last member, unrendered on the same evidence",
-	"refusal.no-operator.next":                      "the alternation's unconditional last member, unrendered on the same evidence",
-	"refusal.malformed.fix":                         "the alternation's member for a malformed file whose workbench nothing named, unrendered today because every raise site carrying a path attaches the workbench beside it",
-	"param.reshape.map.summary":                     "a help page describing what dinah check reports about a stranded column identifier, rather than asking the reader to type anything",
-	"refusal.dinah.reshape-map-source-empty.next":   "the reader has just been refused by a reshape they scoped themselves, and reshape takes neither --root nor a downward walk, so the bare dinah check they are told to run resolves the workbench the refused command resolved",
-	"reshape.stranded":                              "a report line printed inside a reshape the caller has already scoped, and reshape takes neither --root nor a downward walk, so the bare dinah check it names resolves the same workbench the report was written for",
-	"warn.archive-on-done-failed":                   "a prediction printed on the move that just landed the card, describing what a later, unscoped dinah check will find rather than asking the reader to type anything now",
+	"check.bare-workbench":                                "a finding row printed by a sweep the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
+	"check.damaged-workbench":                             "a finding row printed by a sweep the caller has already scoped, describing what that sweep does not repair rather than naming a fresh invocation",
+	"check.stranded-column":                               "a finding row printed by a check the caller has already scoped, describing what the pending repair does rather than naming a fresh invocation",
+	"check.stale-lock.dead.next":                          "a finding row printed by a check the caller has already scoped, saying that the finish on that same scope clears the lock rather than naming a fresh invocation",
+	"check.duplicate-workbench-id":                        "a finding row printed by a check the caller has already scoped, describing what --remint would do rather than naming a fresh invocation",
+	"refusal.dinah.repair-would-empty-columns":            "the sentence names the command that just refused, which is the reader's own invocation carrying whatever scope he gave it",
+	"refusal.dinah.repair-would-empty-columns.next":       "the reader is told to run again the invocation he has just run, so the scope he typed is the scope he repeats",
+	"refusal.dinah.no-workbench-found.next":               "the sentence teaches the scope flags themselves rather than naming an invocation to repeat, and it is the one sentence here whose reader has no workbench for a scope to name",
+	"refusal.dinah.vocabulary-retired.next":               "the instruction is the hand edit, and the command is named only to say which rename to perform by hand; running it would do nothing, because the workbench this refusal fires on already declares the current vocabulary and the sweep skips it",
+	"refusal.layer-collision.next":                        "contract.LayerCollisionErr is declared and never raised, so no reader ever stands anywhere when this sentence prints; TestNothingRaisesTheLayerCollisionRefusal fails on the day that stops being true",
+	"refusal.dinah.needs-vocabulary-migration.next":       "the alternation's unconditional last member, which no invocation renders today, for the reasons written above this map",
+	"refusal.dinah.vocabulary-mixed.next":                 "the alternation's unconditional last member, unrendered on the same evidence",
+	"refusal.dinah.interrupted.next":                      "the alternation's unconditional last member, unrendered on the same evidence",
+	"refusal.dinah.locked.next":                           "the alternation's unconditional last member, unrendered on the same evidence",
+	"refusal.dinah.add-needs-a-column.next":               "the alternation's unconditional last member, unrendered on the same evidence",
+	"refusal.no-operator.next":                            "the alternation's unconditional last member, unrendered on the same evidence",
+	"refusal.malformed.fix":                               "the alternation's member for a malformed file whose workbench nothing named, unrendered today because every raise site carrying a path attaches the workbench beside it",
+	"param.reshape.map.summary":                           "a help page describing what dinah check reports about a stranded column identifier, rather than asking the reader to type anything",
+	"refusal.dinah.reshape-map-source-empty.next":         "the reader has just been refused by a reshape they scoped themselves, and reshape takes neither --root nor a downward walk, so the bare dinah check they are told to run resolves the workbench the refused command resolved",
+	"reshape.stranded":                                    "a report line printed inside a reshape the caller has already scoped, and reshape takes neither --root nor a downward walk, so the bare dinah check it names resolves the same workbench the report was written for",
+	"warn.archive-on-done-failed":                         "a prediction printed on the move that just landed the card, describing what a later, unscoped dinah check will find rather than asking the reader to type anything now",
+	"check.journal-unreadable":                            "a finding row printed by a check the caller has already scoped, naming the check to run again once the reader has repaired the line by hand, which repeats the scope that found it",
+	"refusal.dinah.journal-unreadable.next":               "the reader has just been refused a read of the workbench they addressed, and the sentence names the check to run once the line is repaired by hand, from where the refused command resolved that same workbench",
+	"refusal.dinah.store-awaiting-migration.storage.next": "the reader has just been refused an open of the workbench they addressed, and the sentence names the storage migration to run against that same workbench, which the refusal's detail names by its path",
+	"refusal.dinah.journal-unreadable.member.next":        "the reader has just been refused a read of the workbench they addressed, and the sentence names the check to run once the identifier is repaired by hand, from where the refused command resolved that same workbench",
+	"refusal.dinah.migration-awaits-capabilities.next":    "the reader has just run the storage migration against the workbench they addressed, and the sentence names the rehearsal of that same run, which repeats the scope they gave it",
+	"refusal.dinah.storage-precondition.next":             "the reader has just run the storage migration against the workbench they addressed, and the sentence names the repair and the rerun of that same scope once the files listed are repaired",
+	"check.storage-precondition":                          "a finding row printed by a check the caller has already scoped, naming the migration to run on that same workbench once the file is repaired",
+	"check.store-awaiting-migration":                      "a finding row printed by a check the caller has already scoped, naming the migration that workbench is owed",
+	"check.stray-member-file":                             "a finding row printed by a check the caller has already scoped, naming the migration that carries the file on that same workbench",
+	"check.card-projection-unreadable":                    "a finding row printed by a check the caller has already scoped, naming the rebuild to run on that same workbench",
+	"check.card-projection-diverged":                      "a finding row printed by a check the caller has already scoped, naming the witness to run on that same workbench",
+	"refusal.dinah.card-projection-unreadable.next":       "the reader has just been refused a card of the workbench they addressed, and the sentence names the rebuild to run from where the refused command resolved that same workbench",
 }
 
 // TestEveryCheckAdviceIsDispositioned holds the family of catalog sentences

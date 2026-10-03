@@ -66,6 +66,10 @@ func assignValue(req *verb.Request, name, field, value string) {
 	// reason "item" does.
 	case "comment":
 		req.Ref = value
+	// redact names its target "member", because it takes a comment or an
+	// item and nothing else. It lands on the same field for the same reason.
+	case "member":
+		req.Ref = value
 	case "scheme":
 		req.Scheme = value
 	case "target":
@@ -186,6 +190,8 @@ func assignValue(req *verb.Request, name, field, value string) {
 		req.File = value
 	case "remint":
 		req.Remint = value
+	case "backup":
+		req.Backup = value
 	case "expires":
 		if parsed, err := verb.ParseDuration(value); err == nil {
 			req.Expires = parsed
@@ -253,6 +259,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateHolds = value
 	case "migrate-raw-lines":
 		req.MigrateRawLines = value
+	case "migrate-storage":
+		req.MigrateStorage = value
 	case "rehearse":
 		req.Rehearse = value
 	case "force-claims":
@@ -261,6 +269,8 @@ func assignMarker(req *verb.Request, name string, value bool) {
 		req.MigrateWorkstreams = value
 	case "witness":
 		req.MigrateWitness = value
+	case "rebuild":
+		req.Rebuild = value
 	case "renumber":
 		req.Renumber = value
 	case "no-claim":
@@ -295,5 +305,7 @@ func assignList(req *verb.Request, name string, values []string) {
 	switch name {
 	case "map":
 		req.Map = append([]string(nil), values...)
+	case "accept-difference":
+		req.AcceptDifference = append([]string(nil), values...)
 	}
 }

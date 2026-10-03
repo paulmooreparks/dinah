@@ -157,7 +157,7 @@ func TestExtractCarriesTheLiveAttachmentsAndNothingElse(t *testing.T) {
 	archived := filepath.Join(column, ArchiveDir, AttachmentsDir, "e00000000009")
 	write(t, filepath.Join(archived, AttachmentAnchor), "---\nfilename: old.md\nprovenance: alka\nordinal: 1\n---\n")
 	write(t, filepath.Join(archived, PayloadDir, "old.md"), "old\n")
-	if _, err := AddComment(column, "alka", "2026-09-21T09:00:00Z", "a remark"); err != nil {
+	if _, err := legacyAddComment(Disk{}, column, "alka", "2026-09-21T09:00:00Z", "a remark"); err != nil {
 		t.Fatalf("comment: %v", err)
 	}
 

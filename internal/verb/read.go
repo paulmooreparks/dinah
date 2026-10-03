@@ -211,7 +211,7 @@ func (l *Library) columnViews(counts map[string]int) ([]ColumnView, error) {
 		if err != nil {
 			return nil, err
 		}
-		comments, err := l.Bench.CountComments(l.Bench.ColumnDir(column.ID))
+		comments, err := l.Bench.ColumnCommentCount(column.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -1283,6 +1283,13 @@ type CommentView struct {
 	// and a card's comments are bounded by that card, so the list costs
 	// what the one card costs rather than what a listing costs.
 	Attachments []AttachmentView `json:"attachments,omitempty"`
+	// Redacted reports a comment dinah redact replaced the text of, whose
+	// body, subject and size then describe the empty text.
+	Redacted bool `json:"redacted,omitempty"`
+	// Redaction is who redacted it and when, which the terminal prints in
+	// place of the body. It is not published, since Redacted already says
+	// what a machine reader needs and the journal says the rest.
+	Redaction *bench.Redaction `json:"-"`
 }
 
 // ItemView is one checklist item as a read reports it.
@@ -1360,6 +1367,9 @@ type ItemView struct {
 	// are reached through the item's own reference, which ItemDetail
 	// answers.
 	CommentCount int `json:"comment_count,omitempty"`
+	// Redacted reports an item dinah redact replaced the text of, whose
+	// text is then empty. Its state and resolution read as before.
+	Redacted bool `json:"redacted,omitempty"`
 }
 
 // DesignatedComment is the comment an item's resolution names, as the full
@@ -1399,6 +1409,11 @@ type ItemDetail struct {
 	Text string `json:"text"`
 	// Comments are the comments written on the item, in ordinal order.
 	Comments []CommentView `json:"comments,omitempty"`
+	// Redacted reports an item dinah redact replaced the text of.
+	Redacted bool `json:"redacted,omitempty"`
+	// Redaction is who redacted it and when, which the terminal prints in
+	// place of the text, and is not published.
+	Redaction *bench.Redaction `json:"-"`
 }
 
 // CommentListing is what list answers for a reference naming a comment
@@ -1733,6 +1748,16 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 				}
 				return nil, nil, item, "", nil
 			}
+			// A comment answers its anchor: the file the old layout keeps
+			// it in, and in the card-unit layout the anchor composed from
+			// the journal lines that state it, which has no file to read.
+			if entity != nil && entity.Kind == bench.KindComment {
+				text, err := l.Bench.MemberText(entity)
+				if err != nil {
+					return nil, nil, nil, "", err
+				}
+				return nil, nil, nil, text, nil
+			}
 		}
 		// The discarded error above stays discarded under the flag too, and
 		// that is safe rather than lucky: ResolvePathIn on this line raises
@@ -1764,13 +1789,9 @@ func (l *Library) Show(req *Request) (*Detail, *Record, *ItemDetail, string, err
 // reference: the item's anchor, unchanged from what show printed for it
 // before this change, and its comments in ordinal order.
 func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
-	anchor, ok := bench.AnchorPathOf(entity)
-	if !ok {
-		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
-	}
-	text, err := l.Bench.ReadText(anchor)
+	text, err := l.Bench.MemberText(entity)
 	if err != nil {
-		return nil, contract.Refuse(contract.UnknownPath, entity.Ref)
+		return nil, err
 	}
 	// The reference this prints is the kind-narrowed one the checklist table
 	// already composes for the item, on the rule itemListing's own doc
@@ -1782,11 +1803,39 @@ func (l *Library) itemDetailOf(entity *bench.EntityRef) (*ItemDetail, error) {
 	if err != nil {
 		return nil, err
 	}
-	comments, err := l.commentViews(entity.Dir, ref, l.Bench.NewPositions())
+	comments, err := l.commentViews(entity, bench.LiveHalf, ref, l.Bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
-	return &ItemDetail{Ref: ref, Text: text, Comments: comments}, nil
+	detail := &ItemDetail{Ref: ref, Text: text, Comments: comments}
+	if entity.Journaled {
+		redaction, err := l.Bench.MemberRedaction(entity)
+		if err != nil {
+			return nil, err
+		}
+		detail.Redacted, detail.Redaction = redaction != nil, redaction
+	}
+	return detail, nil
+}
+
+// RedactionOf answers who redacted the comment or item a show request names
+// and when, and nil for a member nobody redacted or a reference that names no
+// member, which is what the terminal reads to print the redaction in place of
+// a comment's body.
+func (l *Library) RedactionOf(req *Request) *bench.Redaction {
+	half := bench.LiveHalf
+	if req.Archived {
+		half = bench.ArchivedHalf
+	}
+	entity, err := l.Bench.ResolveEntityIn(half, req.Card)
+	if err != nil || !entity.Journaled {
+		return nil
+	}
+	redaction, err := l.Bench.MemberRedaction(entity)
+	if err != nil {
+		return nil
+	}
+	return redaction
 }
 
 // subjectCap is how many runes of a first line an index entry carries. It is
@@ -1838,17 +1887,14 @@ func capRunes(value string, limit int) string {
 // The comments, their positions and their attachments are read through the
 // caller's Positions, so the collection is sorted once rather than once per
 // comment.
-func (l *Library) commentViews(dir, holderRef string, positions *bench.Positions) ([]CommentView, error) {
-	stored, err := positions.Comments(dir)
+func (l *Library) commentViews(holder *bench.EntityRef, half bench.ResolutionHalf, holderRef string, positions *bench.Positions) ([]CommentView, error) {
+	stored, position, err := l.heldComments(holder, half, positions)
 	if err != nil {
 		return nil, err
 	}
 	var comments []CommentView
 	for _, comment := range stored {
-		position, err := positions.Of(comment.Dir, bench.CommentAnchor)
-		if err != nil {
-			return nil, err
-		}
+		position := position(comment.ID)
 		ref := commentRef(holderRef, position)
 		view := CommentView{
 			ID:      comment.ID,
@@ -1859,11 +1905,14 @@ func (l *Library) commentViews(dir, holderRef string, positions *bench.Positions
 			Subject: subjectOf(comment.Body),
 			Size:    len(comment.Body),
 			Body:    comment.Body,
+
+			Redacted:  comment.Redacted != nil,
+			Redaction: comment.Redacted,
 		}
 		// A comment's attachments compose their references against the
 		// comment's own address rather than the holder's, so a reference the
 		// view prints reaches the attachment the view describes.
-		below, err := attachmentViews(comment.Dir, ref, positions)
+		below, err := attachmentViews(comment.Home, ref, positions)
 		if err != nil {
 			return nil, err
 		}
@@ -1871,6 +1920,36 @@ func (l *Library) commentViews(dir, holderRef string, positions *bench.Positions
 		comments = append(comments, view)
 	}
 	return comments, nil
+}
+
+// heldComments answers the comments written directly below one holder in one
+// half, in position order, and how to read each one's position: a card's and
+// an item's from the card's record, a column's from the workbench journal.
+func (l *Library) heldComments(holder *bench.EntityRef, half bench.ResolutionHalf, positions *bench.Positions) ([]*bench.Comment, func(string) int, error) {
+	if holder.Kind == bench.KindColumn {
+		comments, err := l.Bench.ColumnComments(holder.ID, half)
+		if err != nil {
+			return nil, nil, err
+		}
+		places := map[string]int{}
+		for n, comment := range comments {
+			places[comment.ID] = n + 1
+		}
+		return comments, func(id string) int { return places[id] }, nil
+	}
+	if holder.Card == nil {
+		return nil, func(string) int { return 0 }, nil
+	}
+	record, err := positions.Record(l.Bench, holder.Card)
+	if err != nil {
+		return nil, nil, err
+	}
+	on := ""
+	if holder.Kind == bench.KindItem {
+		on = holder.ID
+	}
+	place := func(id string) int { return record.HeldPosition(on, half, id) }
+	return record.HeldComments(on, half), place, nil
 }
 
 // detailOf builds the answer show gives for one card: every member the card
@@ -1911,7 +1990,7 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	if err != nil {
 		return nil, "", err
 	}
-	comments, err := l.commentViews(card.Dir, cardRef, positions)
+	comments, err := l.commentViews(&bench.EntityRef{Kind: bench.KindCard, Card: card}, bench.LiveHalf, cardRef, positions)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1922,10 +2001,11 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	if err != nil {
 		return nil, "", err
 	}
-	items, err := positions.Items(card.Dir)
+	record, err := positions.Record(l.Bench, card)
 	if err != nil {
 		return nil, "", err
 	}
+	items := record.ItemsIn(bench.LiveHalf, "")
 	var checklist []ItemView
 	// The unresolved filter is applied over the items the card holds rather
 	// than over the views this answer carries, so the announcement can say
@@ -1939,19 +2019,16 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 	// counted the same way over the same order rather than composed from the
 	// overall ordinal and hoped to agree.
 	//
-	// The collection position is taken through positions.Of rather than from
-	// this loop's index, because Items skips an item whose anchor will not
-	// open and the resolver counts the collection unfiltered. Counting
-	// here would number every item after a damaged one one place low, so show
-	// would print an address reaching a different item, which is worse than
-	// the blank cell this card replaced.
+	// The collection position is taken from the card's record rather than
+	// from this loop's index, because the record skips an item whose anchor
+	// will not open on the old layout and the resolver counts the collection
+	// unfiltered. Counting here would number every item after a damaged one
+	// one place low, so show would print an address reaching a different
+	// item, which is worse than the blank cell this card replaced.
 	kindPosition := map[string]int{}
 	for _, item := range items {
 		kindPosition[item.Kind]++
-		position, err := positions.Of(item.Dir, bench.ItemAnchor)
-		if err != nil {
-			return nil, "", err
-		}
+		position := record.Position(bench.MemberCollection{Kind: bench.KindItem}, bench.LiveHalf, item.ID)
 		view := ItemView{
 			ID:       item.ID,
 			Ordinal:  position,
@@ -1962,10 +2039,11 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 			Standing: item.Standing,
 			Evidence: item.Evidence,
 			Text:     item.Text,
+			Redacted: item.Redacted != nil,
 		}
 		view.Ref = itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		view.ResolutionID = item.Resolution
-		view.Resolution = l.designationReference(view.Ref, item, positions)
+		view.Resolution = l.designationReference(view.Ref, item, record)
 		// Whether the answer carries this item is decided here, ahead of the
 		// designated comment, so that an item a filter drops costs no open.
 		carried := !filters.narrowsChecklist() || !bench.ItemLiftsColumnHold(item)
@@ -1976,13 +2054,13 @@ func (l *Library) detailOf(card *bench.Card, chosen detailSelection, filters det
 		// because a build that filled the field and cleared it afterwards
 		// would have paid the opens either way.
 		if carried && chosen.full("checklist") {
-			designated, err := l.designatedComment(item, view.Resolution)
+			designated, err := l.designatedComment(item, record, view.Resolution)
 			if err != nil {
 				return nil, "", err
 			}
 			view.Designated = designated
 		}
-		count, err := positions.CountComments(item.Dir)
+		count, err := record.HeldCount(item.ID, bench.LiveHalf)
 		if err != nil {
 			return nil, "", err
 		}
@@ -2156,7 +2234,7 @@ func (l *Library) handoffOf(journalPath string, comments []CommentView) ([]Comme
 // empty Body, entries after it carry the full text. Without --since, every
 // entry carries an empty Body (the index is the index, not the payload).
 func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal int, sinceSet bool) (*CommentListing, error) {
-	views, err := l.commentViews(collection.Holder.Dir, collection.Holder.Ref, l.Bench.NewPositions())
+	views, err := l.commentViews(collection.Holder, bench.LiveHalf, collection.Holder.Ref, l.Bench.NewPositions())
 	if err != nil {
 		return nil, err
 	}
@@ -2184,11 +2262,14 @@ func (l *Library) commentListing(collection *bench.CollectionRef, sinceOrdinal i
 // applying the --unresolved filter: when set, only items whose state does not
 // lift a column hold are included.
 func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bool) (*ItemListing, error) {
-	positions := l.Bench.NewPositions()
-	items, err := positions.Items(collection.Holder.Dir)
+	if collection.Holder.Card == nil {
+		return &ItemListing{Ref: collection.Ref, Kind: collection.Mount.Kind, Members: []ItemIndexEntry{}, Archived: collection.Archived}, nil
+	}
+	record, err := l.Bench.LoadCardRecord(collection.Holder.Card)
 	if err != nil {
 		return nil, err
 	}
+	items := record.ItemsIn(bench.LiveHalf, "")
 	cardRef := collection.Holder.Ref
 	kindPosition := map[string]int{}
 	positionByID := map[string]int{}
@@ -2213,10 +2294,7 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 		if unresolvedOnly && bench.ItemLiftsColumnHold(item) {
 			continue
 		}
-		position, err := positions.Of(item.Dir, bench.ItemAnchor)
-		if err != nil {
-			return nil, err
-		}
+		position := record.Position(bench.MemberCollection{Kind: bench.KindItem}, bench.LiveHalf, item.ID)
 		text := capRunes(firstLine(item.Text), subjectCap)
 		var col, colTitle string
 		if item.Column != "" {
@@ -2225,7 +2303,7 @@ func (l *Library) itemListing(collection *bench.CollectionRef, unresolvedOnly bo
 				colTitle = column.Title
 			}
 		}
-		count, err := l.Bench.CountComments(item.Dir)
+		count, err := record.HeldCount(item.ID, bench.LiveHalf)
 		if err != nil {
 			return nil, err
 		}
@@ -2362,19 +2440,16 @@ func commentRef(cardRef string, ordinal int) string {
 // The comment is found and placed through the caller's Positions, so the
 // comments below the item are read once for both questions rather than twice
 // to find the comment and once more to place it.
-func (l *Library) designationReference(itemRef string, item *bench.Item, positions *bench.Positions) string {
-	if item.Resolution == "" {
-		return ""
-	}
-	dir, found := positions.DesignatedCommentDir(item)
+func (l *Library) designationReference(itemRef string, item *bench.Item, record *bench.CardRecord) string {
+	comment, found := record.Designated(item)
 	if !found {
 		return ""
 	}
-	ordinal, err := positions.Of(dir, bench.CommentAnchor)
-	if err != nil {
-		return ""
+	half := bench.LiveHalf
+	if comment.Archived {
+		half = bench.ArchivedHalf
 	}
-	return commentRef(itemRef, ordinal)
+	return commentRef(itemRef, record.HeldPosition(item.ID, half, comment.ID))
 }
 
 // designatedComment opens the comment an item's resolution names and reports
@@ -2391,7 +2466,7 @@ func (l *Library) designationReference(itemRef string, item *bench.Item, positio
 // terms an item carrying a level this workbench no longer declares is still
 // shown; a designation pointing at a comment that is gone is dinah check's
 // finding to report and not a reason to refuse somebody the card.
-func (l *Library) designatedComment(item *bench.Item, ref string) (*DesignatedComment, error) {
+func (l *Library) designatedComment(item *bench.Item, record *bench.CardRecord, ref string) (*DesignatedComment, error) {
 	if item.Resolution == "" {
 		return nil, nil
 	}
@@ -2401,19 +2476,15 @@ func (l *Library) designatedComment(item *bench.Item, ref string) (*DesignatedCo
 	// rather than done twice, because two spellings of one address is what
 	// this whole change exists to end.
 	view := &DesignatedComment{Ref: ref}
-	dir, found := l.Bench.DesignatedCommentDir(item)
+	comment, found := record.Designated(item)
 	if !found {
 		return view, nil
 	}
-	l.observe(ObserveDesignatedComment, dir)
-	fm, body, err := l.Bench.ReadCommentAnchor(dir)
-	if err != nil {
-		return view, nil
-	}
-	view.Author = fm.Value("author")
-	view.AuthorUnrecoverable = fm.Value(bench.CommentAuthorUnrecoverableField) == "true"
-	view.TS = fm.Value("ts")
-	view.Body = capRunes(body, subjectCap)
+	l.observe(ObserveDesignatedComment, comment.ID)
+	view.Author = comment.Author
+	view.AuthorUnrecoverable = comment.AuthorUnrecoverable
+	view.TS = comment.TS
+	view.Body = capRunes(comment.Body, subjectCap)
 	return view, nil
 }
 
@@ -2428,7 +2499,7 @@ func itemRef(cardRef, kind string, kindPosition, position int) string {
 	if word, ok := bench.WordForItemKind(kind); ok {
 		return cardRef + "/" + word + "/" + strconv.Itoa(kindPosition)
 	}
-	return cardRef + "/" + bench.ChecklistDir + "/" + strconv.Itoa(position)
+	return cardRef + "/" + bench.ChecklistSegment + "/" + strconv.Itoa(position)
 }
 
 // displayOrdinal is the one-based position a read reports for an attachment,
@@ -2826,7 +2897,7 @@ func (l *Library) primePending(cards []*bench.Card, req *Request, isOperator boo
 	rule2Seen := 0
 
 	for _, card := range arrival {
-		items, err := l.Bench.Items(card.Dir)
+		items, err := l.Bench.Items(card)
 		if err != nil {
 			return nil, 0, nil, err
 		}
@@ -2991,6 +3062,12 @@ type CheckReport struct {
 	// MigratedWitness says the witness repair ran, so a caller can tell an
 	// empty list of witnesses from a repair nobody asked for.
 	MigratedWitness bool `json:"migrated_witness,omitempty"`
+	// RebuiltCards are the identifiers of the cards whose card.md the
+	// rebuild wrote back from the journal.
+	RebuiltCards []string `json:"rebuilt_cards,omitempty"`
+	// Rebuilt says the rebuild ran, so a caller can tell an empty list of
+	// rebuilt cards from a repair nobody asked for.
+	Rebuilt bool `json:"rebuilt,omitempty"`
 	// AssignedWorkstreamSlugs are the workstreams the slug migration
 	// repaired with the slug each one was given, on the terms AssignedSlugs
 	// carries the columns.
@@ -3111,6 +3188,21 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 	if req != nil && req.Repairs() && req.Actor == "" {
 		return report, contract.RefuseWith(contract.NoOwner, "", harnessExtra(req))
 	}
+	// A store below the card-unit format, checked by a build whose layout is
+	// switched on, is reported as awaiting the storage migration together
+	// with whatever would refuse that migration, and nothing else is
+	// checked, since every other check reads the layout the store does not
+	// have yet. The repairs still run, because the older ones are how a
+	// precondition of the storage migration is met.
+	if bench.CardUnitOn() && (l.Bench.Format < bench.CardUnitFormat || l.Bench.Migrating != "") && (req == nil || !req.Repairs()) {
+		findings, err := l.Bench.AwaitingStorageFindings()
+		report.Findings = findings
+		if err != nil {
+			return report, err
+		}
+		report.stampOutcome()
+		return report, nil
+	}
 	if req != nil && req.MigrateSlugs {
 		assigned, reported := l.Bench.BackfillColumnSlugs()
 		report.MigratedSlugs = true
@@ -3141,6 +3233,17 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 		removed, err := l.Bench.RemoveStrandedColumns()
 		report.MigratedColumns = true
 		report.RemovedStrandedColumns = removed
+		if err != nil {
+			return report, err
+		}
+	}
+	// The rebuild runs ahead of the witness, since a card whose card.md is
+	// damaged refuses every other read and write until it has one again.
+	if req != nil && req.Rebuild {
+		rebuilt, reported, err := l.Bench.RebuildCards(bench.Event{TS: bench.Stamp(l.Now()), Actor: req.Acting()})
+		report.Rebuilt = true
+		report.RebuiltCards = rebuilt
+		report.Findings = append(report.Findings, reported...)
 		if err != nil {
 			return report, err
 		}
@@ -3277,6 +3380,20 @@ func (l *Library) Check(req *Request) (*CheckReport, error) {
 			return report, err
 		}
 	}
+	// A journal.ndjson.redact a stopped dinah redact left is stale, since
+	// the journal beside it still holds the old content, and every check
+	// removes it under the journal's lock and reports it.
+	if l.Bench.CardUnit() {
+		actor := ""
+		if req != nil {
+			actor = req.Actor
+		}
+		leftovers, err := l.Bench.RedactLeftovers(actor, bench.Stamp(l.Now()))
+		report.Findings = append(report.Findings, leftovers...)
+		if err != nil {
+			return report, err
+		}
+	}
 	// The notices ride every report the checker answers, and stampOutcome
 	// never reads them, so a report carrying only notices has outcome ok.
 	report.Notices = l.Bench.Notices()
@@ -3353,6 +3470,20 @@ func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration
 		passed = claimed
 	}
 	now := bench.Stamp(l.Now())
+	// A converting run holds the workbench lock from before its first write
+	// to after its own line on the workbench journal, which is the lock that
+	// journal's appends are made under. A run that meets the lock held is
+	// refused before it writes anything, rather than converting every card
+	// and then failing to record that it did.
+	var benchLock *bench.Lock
+	if !req.Rehearse {
+		held, err := l.Bench.Acquire(l.Bench.Root, req.Actor, now)
+		if err != nil {
+			return nil, err
+		}
+		defer held.Release()
+		benchLock = held
+	}
 	migrated, err := l.Bench.MigrateDesignations(req.Acting(), now, !req.Rehearse)
 	if migrated != nil {
 		migrated.PassedClaims = passed
@@ -3377,7 +3508,7 @@ func (l *Library) migrateDesignations(req *Request) (*bench.DesignationMigration
 			Actor: req.Acting(),
 			Cards: names,
 		}
-		if err := bench.AppendEvent(l.Bench.JournalPath(), ev); err != nil {
+		if err := l.Bench.AppendEvent(benchLock, l.Bench.JournalPath(), ev); err != nil {
 			return migrated, err
 		}
 	}
@@ -3448,7 +3579,7 @@ func (l *Library) adoptWorkstreams(req *Request) ([]string, error) {
 			return adopted, err
 		}
 		ev := bench.Event{TS: now, Event: contract.EventCreated, Actor: req.Acting()}
-		if err := bench.AppendEvent(workstream.JournalPath(), ev); err != nil {
+		if err := l.appendUnderWorkstreamLock(req.Actor, now, workstream, ev); err != nil {
 			return adopted, err
 		}
 		adopted = append(adopted, id)
@@ -3678,7 +3809,7 @@ func Version(withCatalogs bool) *VersionReport {
 	release := &VersionReport{
 		Tool:    ToolRelease,
 		Profile: bench.ProfileVersion,
-		Format:  bench.StorageFormat,
+		Format:  bench.EffectiveStorageFormat(),
 	}
 	// A binary that cannot say where it is reports nothing rather than a
 	// guess, and omitempty turns the empty string into an absent key.

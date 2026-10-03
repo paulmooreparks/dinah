@@ -1724,6 +1724,7 @@ var Shapes = []Shape{
 		// that owner rather than hunting for which card stopped the run.
 		Name:      WorkbenchInUse,
 		Values:    []string{"owner"},
+		Carried:   "cards",
 		Fragments: []Fragment{{Key: "refusal.dinah.workbench-in-use.next"}},
 		NextStep:  []string{"refusal.dinah.workbench-in-use.next"},
 	},
@@ -1790,9 +1791,164 @@ var Shapes = []Shape{
 		// The detail is the workbench's own path, because a person meeting
 		// this is running a read against a store and the path is what tells
 		// them which one.
-		Name:      StoreAwaitingMigration,
-		Fragments: []Fragment{{Key: "refusal.dinah.store-awaiting-migration.next"}},
-		NextStep:  []string{"refusal.dinah.store-awaiting-migration.next"},
+		//
+		// The migration rides as a value, and names the storage migration
+		// where the store is below the card-unit format with the layout
+		// switched on, or carries a storage migration part way through. The
+		// sentence holds for both, since either store keeps its checklist in
+		// a form this build does not read, and the next step names the
+		// command each one is owed.
+		Name: StoreAwaitingMigration,
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.store-awaiting-migration.storage.next", When: "migration", Equals: "storage"},
+			{Key: "refusal.dinah.store-awaiting-migration.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.store-awaiting-migration.storage.next",
+			"refusal.dinah.store-awaiting-migration.next",
+		},
+	},
+	{
+		// The detail spells the format the process opened the workbench
+		// at, and now spells what workbench.md declares, each with the
+		// migration in progress beside it where one is.
+		Name:      StoreFormatChanged,
+		Values:    []string{"now"},
+		Fragments: []Fragment{{Key: "refusal.dinah.store-format-changed.next"}},
+		NextStep:  []string{"refusal.dinah.store-format-changed.next"},
+	},
+	{
+		// The detail is the journal's path. Nothing a person does raises
+		// this, so the next step says what the defect is rather than how to
+		// work around it.
+		Name:      JournalUnlocked,
+		Fragments: []Fragment{{Key: "refusal.dinah.journal-unlocked.next"}},
+		NextStep:  []string{"refusal.dinah.journal-unlocked.next"},
+	},
+	{
+		// The detail is the journal's path, joined by a colon to the
+		// one-based number of the line that does not decode where that is
+		// the damage, which is the spelling an editor opens at. Where two
+		// members carry one identifier, member names it and lines names
+		// the two lines that established a member under it.
+		Name:   JournalUnreadable,
+		Values: []string{"member", "lines"},
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.journal-unreadable.member", When: "member"},
+			{Key: "refusal.dinah.journal-unreadable.line", Unless: "member"},
+			{Key: "refusal.dinah.journal-unreadable.member.next", When: "member"},
+			{Key: "refusal.dinah.journal-unreadable.next"},
+		},
+		NextStep: []string{
+			"refusal.dinah.journal-unreadable.member.next",
+			"refusal.dinah.journal-unreadable.next",
+		},
+	},
+	{
+		// The detail is card.md's path, and the next step names the
+		// rebuild that writes it back from the journal.
+		Name:      CardProjectionUnreadable,
+		Fragments: []Fragment{{Key: "refusal.dinah.card-projection-unreadable.next"}},
+		NextStep:  []string{"refusal.dinah.card-projection-unreadable.next"},
+	},
+	{
+		// The detail is the reference as typed.
+		Name:      NotRedactable,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-redactable.next"}},
+		NextStep:  []string{"refusal.dinah.not-redactable.next"},
+	},
+	{
+		// The detail is the member's identifier. No command restores a
+		// redacted text, so there is nothing to do again.
+		Name:   AlreadyRedacted,
+		NoNext: "the text is already gone and no command restores it, so there is nothing left to do to it",
+	},
+	{
+		// The detail is the member's identifier. No line of the journal
+		// carries its text, so there is nothing a command could rewrite.
+		Name:   NothingToRedact,
+		NoNext: "no line of the store carries the member's text, so nothing is left to remove",
+	},
+	{
+		// The detail is the sidecar, or the journal whose tail is torn,
+		// and the next step says to read and delete it first.
+		Name:      TornSidecarPresent,
+		Fragments: []Fragment{{Key: "refusal.dinah.torn-sidecar-present.next"}},
+		NextStep:  []string{"refusal.dinah.torn-sidecar-present.next"},
+	},
+	{
+		// The detail is the reference as typed.
+		Name:   Redacted,
+		NoNext: "the text is gone for good and no command writes it again; the member's other fields stay writable, which the sentence already says by naming the text alone",
+	},
+	{
+		// The detail is the reference as typed. The next step names the
+		// command that shows the member and the file that holds it.
+		Name:      NotAFile,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-a-file.next"}},
+		NextStep:  []string{"refusal.dinah.not-a-file.next"},
+	},
+	{
+		// The detail is the workbench's directory.
+		Name:      BackupRequired,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-required.next"}},
+		NextStep:  []string{"refusal.dinah.backup-required.next"},
+	},
+	{
+		// The detail is the directory given.
+		Name:      BackupInsideStore,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-inside-store.next"}},
+		NextStep:  []string{"refusal.dinah.backup-inside-store.next"},
+	},
+	{
+		// The detail is the directory given.
+		Name:      BackupNotEmpty,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-not-empty.next"}},
+		NextStep:  []string{"refusal.dinah.backup-not-empty.next"},
+	},
+	{
+		// The detail is the directory given, and recorded is the one the
+		// progress file names.
+		Name:      BackupMismatch,
+		Values:    []string{"recorded"},
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-mismatch.next"}},
+		NextStep:  []string{"refusal.dinah.backup-mismatch.next"},
+	},
+	{
+		// The detail is the copy that did not verify.
+		Name:      BackupUnverified,
+		Fragments: []Fragment{{Key: "refusal.dinah.backup-unverified.next"}},
+		NextStep:  []string{"refusal.dinah.backup-unverified.next"},
+	},
+	{
+		// The detail is the workbench's directory.
+		Name:      MigrationAwaitsCapabilities,
+		Fragments: []Fragment{{Key: "refusal.dinah.migration-awaits-capabilities.next"}},
+		NextStep:  []string{"refusal.dinah.migration-awaits-capabilities.next"},
+	},
+	{
+		// The detail is the manifest key the operator named.
+		Name:      NotADifference,
+		Fragments: []Fragment{{Key: "refusal.dinah.not-a-difference.next"}},
+		NextStep:  []string{"refusal.dinah.not-a-difference.next"},
+	},
+	{
+		// The detail is the first offending file and rule the precondition
+		// it breaks, as a token; files carries every offending file, each
+		// on a row with its own rule.
+		Name:    StoragePrecondition,
+		Carried: "files",
+		Fragments: []Fragment{
+			{Key: "refusal.dinah.storage-precondition.unparseable", When: "rule", Equals: "unparseable"},
+			{Key: "refusal.dinah.storage-precondition.unknown-key", When: "rule", Equals: "unknown-key"},
+			{Key: "refusal.dinah.storage-precondition.unknown-citation-member", When: "rule", Equals: "unknown-citation-member"},
+			{Key: "refusal.dinah.storage-precondition.ordinal-missing", When: "rule", Equals: "ordinal-missing"},
+			{Key: "refusal.dinah.storage-precondition.ordinal-duplicate", When: "rule", Equals: "ordinal-duplicate"},
+			{Key: "refusal.dinah.storage-precondition.identifier-shared", When: "rule", Equals: "identifier-shared"},
+			{Key: "refusal.dinah.storage-precondition.destination-differs", When: "rule", Equals: "destination-differs"},
+			{Key: "refusal.dinah.storage-precondition.next"},
+		},
+		NextStep: []string{"refusal.dinah.storage-precondition.next"},
 	},
 	{
 		Name:      ObservationRequired,

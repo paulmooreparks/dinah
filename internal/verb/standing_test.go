@@ -763,7 +763,7 @@ func (h *harness) assertWithdrawnByReshape(ref string, item *bench.Item, named s
 		h.t.Errorf("%s of %s stands %s, wanted withdrawn", item.Standing, ref, item.State)
 		return
 	}
-	comments, err := bench.Comments(item.Dir)
+	comments, err := bench.Comments(item.LegacyDir())
 	if err != nil {
 		h.t.Fatalf("comments of %s: %v", item.ID, err)
 	}
@@ -838,7 +838,7 @@ func TestAReRunAfterAnInterruptedWithdrawalWritesNoSecondComment(t *testing.T) {
 		t.Errorf("the re-run did not apply")
 	}
 	instance = h.items(ref)[0]
-	comments, err := bench.Comments(instance.Dir)
+	comments, err := bench.Comments(instance.LegacyDir())
 	if err != nil {
 		t.Fatalf("comments: %v", err)
 	}

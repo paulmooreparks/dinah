@@ -697,19 +697,19 @@ func TestAddStandingItemWritesWhatTheEntryDeclaresAndNoMore(t *testing.T) {
 	root := newFixture(t)
 	cardDir := filepath.Join(root, CardsDir, "c00000000001")
 	for at, entry := range wellFormedEntries {
-		item, err := AddStandingItem(cardDir, "b00000000001", entry, "2026-09-24T09:14:02Z")
+		item, err := legacyAddStandingItem(Disk{}, cardDir, "b00000000001", entry, "2026-09-24T09:14:02Z")
 		if err != nil {
 			t.Fatalf("mint %s: %v", entry.Key, err)
 		}
-		loaded, err := LoadItem(item.Dir)
+		loaded, err := LoadItem(filepath.Join(cardDir, ChecklistDir, item.ID))
 		if err != nil {
 			t.Fatalf("load %s: %v", entry.Key, err)
 		}
-		want := &Item{ID: item.ID, Dir: item.Dir, Kind: entry.Kind, State: ItemPending, Ordinal: at + 1, Column: "b00000000001", Owner: entry.Owner, Standing: entry.Key, Evidence: entry.Evidence, Text: entry.Text}
+		want := &Item{ID: item.ID, dir: loaded.dir, body: loaded.body, raw: loaded.raw, TS: "2026-09-24T09:14:02Z", Kind: entry.Kind, State: ItemPending, Ordinal: at + 1, Column: "b00000000001", Owner: entry.Owner, Standing: entry.Key, Evidence: entry.Evidence, Text: entry.Text}
 		if !reflect.DeepEqual(loaded, want) {
 			t.Errorf("the minted %s reads back as %+v, wanted %+v", entry.Key, loaded, want)
 		}
-		text := mustRead(t, filepath.Join(item.Dir, ItemAnchor))
+		text := mustRead(t, filepath.Join(cardDir, ChecklistDir, item.ID, ItemAnchor))
 		if (entry.Owner == "") == strings.Contains(text, "owner:") || (entry.Evidence == "") == strings.Contains(text, "evidence:") {
 			t.Errorf("the anchor of %s carries a key its entry does not declare, or lacks one it does:\n%s", entry.Key, text)
 		}

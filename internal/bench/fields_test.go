@@ -153,7 +153,9 @@ func TestAllFieldsIsTheSortedUnionOfEveryKind(t *testing.T) {
 // TestEveryKindsAnchorIsNamed asserts that the anchor of every kind the field
 // declaration reaches is one this package can name, since a write reads and
 // rewrites that file and a kind with no anchor would be a field set nothing
-// can store.
+// can store. A comment and an item are the exception since dinah-637: each is
+// lines of its journal, its fields are stored on the line that sets them, and
+// it names no anchor.
 func TestEveryKindsAnchorIsNamed(t *testing.T) {
 	kinds := EntityKinds()
 	if len(kinds) == 0 {
@@ -161,6 +163,12 @@ func TestEveryKindsAnchorIsNamed(t *testing.T) {
 	}
 	for _, kind := range kinds {
 		anchor := AnchorOf(kind)
+		if kind == KindComment || kind == KindItem {
+			if anchor != "" {
+				t.Errorf("%s is lines of a journal and names the anchor %q", kind, anchor)
+			}
+			continue
+		}
 		if anchor == "" {
 			t.Errorf("%s carries fields and this package names no anchor for it", kind)
 			continue

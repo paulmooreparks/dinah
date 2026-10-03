@@ -173,10 +173,15 @@ func TestTallyItemsCountsBothInOneWalk(t *testing.T) {
 	if len(ids) != 4 {
 		t.Fatalf("the checklist lists %d items, wanted the 4 planted", len(ids))
 	}
-	tally, err := b.TallyItems(card, ids, LoadItem)
-	if err != nil {
-		t.Fatalf("TallyItems: %v", err)
+	var items []*Item
+	for _, id := range ids {
+		item, err := LoadItem(filepath.Join(card, ChecklistDir, id))
+		if err != nil {
+			continue
+		}
+		items = append(items, item)
 	}
+	tally := b.TallyItems(items)
 	if tally.Blocking != 2 {
 		t.Errorf("Blocking is %d, wanted 2 (the first two items)", tally.Blocking)
 	}

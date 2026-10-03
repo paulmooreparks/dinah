@@ -71,6 +71,8 @@ WORK
   restore <ref> [--archived]                             Put an archived entity back into the live set
   delete <ref> --yes [--force]                           Destroy an entity, along with its history
   accept-divergence <comment>                            Make a comment's edited body the record
+  redact <member> [--yes]                                Replace a comment's or an item's text with its
+                                                           digest, for good
   rename <ref> <name>                                    Rename an attachment
 
 READ
@@ -112,12 +114,14 @@ WORKBENCH
     [--migrate-slugs] [--migrate-columns]
     [--migrate-vocabulary] [--migrate-container]
     [--migrate-numbers] [--migrate-designations]
-    [--rehearse] [--force-claims] [--migrate-branches]
+    [--migrate-storage] [--backup <dir>]
+    [--accept-difference <key>] [--rehearse]
+    [--force-claims] [--migrate-branches]
     [--migrate-newlines] [--migrate-applies-when]
     [--migrate-schedule] [--migrate-holds]
     [--migrate-raw-lines] [--file-standing] [--renumber]
     [--remint <dir>] [--migrate-workstreams] [--witness]
-    [--yes] [--root <path>] [--max-depth <n>]
+    [--rebuild] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                 The actor your actions carry, and whether it is
                                                            the operator
   workbench                                              Read this workbench's own fields
@@ -199,6 +203,7 @@ WORK
   restore <ref> [--archived]                                                                            Put an archived entity back into the live set
   delete <ref> --yes [--force]                                                                          Destroy an entity, along with its history
   accept-divergence <comment>                                                                           Make a comment's edited body the record
+  redact <member> [--yes]                                                                               Replace a comment's or an item's text with its digest, for good
   rename <ref> <name>                                                                                   Rename an attachment
 
 READ
@@ -228,10 +233,11 @@ WORKBENCH
   set <ref> <field> [value|-] [--at <column>] [--note <text>] [--expect-digest <digest>] [--yes]        Write one field of any entity of this workbench
   config [get|set] [key] [value]                                                                        List your user settings, or read or write one
   check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary]    Look for structural defects in this workbench
-    [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims]
-    [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule]
-    [--migrate-holds] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>]
-    [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]
+    [--migrate-container] [--migrate-numbers] [--migrate-designations] [--migrate-storage]
+    [--backup <dir>] [--accept-difference <key>] [--rehearse] [--force-claims] [--migrate-branches]
+    [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule] [--migrate-holds]
+    [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams]
+    [--witness] [--rebuild] [--yes] [--root <path>] [--max-depth <n>]
   whoami                                                                                                The actor your actions carry, and whether it is the operator
   workbench                                                                                             Read this workbench's own fields
   workstream <new> <title> [--slug <slug>]                                                              Create a workstream on this workbench
@@ -563,11 +569,11 @@ func notedCommands(s *session) []string {
 // which is the documented behaviour of every wrap in this binary.
 func TestNoNoteLineReachesPastTheWindow(t *testing.T) {
 	// A sweep over no notes at all would pass whatever wrapNote did, so the
-	// count is pinned before the sweep runs. Nine commands carry a note
-	// today: check, resolve, verify, fail, reshape, unblock, serve,
+	// count is pinned before the sweep runs. Ten commands carry a note
+	// today: check, resolve, verify, fail, redact, reshape, unblock, serve,
 	// completion and tui.
-	if named := notedCommands(helpSession(80, "en")); len(named) != 9 {
-		t.Fatalf("wanted nine commands carrying a note, got %d: %v", len(named), named)
+	if named := notedCommands(helpSession(80, "en")); len(named) != 10 {
+		t.Fatalf("wanted ten commands carrying a note, got %d: %v", len(named), named)
 	}
 	for _, tag := range msg.Tags() {
 		for _, window := range helpSweepWindows() {

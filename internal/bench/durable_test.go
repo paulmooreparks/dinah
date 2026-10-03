@@ -179,19 +179,21 @@ func TestEveryDurableWriteFlushesBeforeItRenames(t *testing.T) {
 		t.Fatalf("acquire: %v", err)
 	}
 	lockSteps := recorder.ops()
-	lock.Release()
 	if want := []string{"write " + LockName, "sync " + LockName}; !matchSteps(lockSteps, want) {
 		t.Errorf("the lock record recorded %v, wanted %v", lockSteps, want)
 	}
 
 	recorder.reset()
 	ev := Event{TS: "2026-09-28T00:00:00Z", Event: contract.EventCommented, Actor: NamedActor("alka")}
-	if err := AppendEvent(filepath.Join(card, JournalName), ev); err != nil {
+	err = AppendEvent(lock, filepath.Join(card, JournalName), ev)
+	appendSteps := recorder.ops()
+	lock.Release()
+	if err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	want := []string{"append " + JournalName, "sync " + JournalName, "close " + JournalName}
-	if !matchSteps(recorder.ops(), want) {
-		t.Errorf("AppendEvent recorded %v, wanted %v", recorder.ops(), want)
+	if !matchSteps(appendSteps, want) {
+		t.Errorf("AppendEvent recorded %v, wanted %v", appendSteps, want)
 	}
 }
 
@@ -207,10 +209,23 @@ func TestAFailedFlushLeavesTheDestinationAsItWas(t *testing.T) {
 	}
 	payloadDir := filepath.Join(attached.Dir, PayloadDir)
 	journal := filepath.Join(card, JournalName)
+	held, err := Acquire(card, "alka", "2026-09-28T00:00:00Z")
+	if err != nil {
+		t.Fatalf("take the card's lock for the append: %v", err)
+	}
+	defer held.Release()
 	flushFailed := errors.New("the seam failed this flush")
 	recorder := trace(t)
 	recorder.failSync = flushFailed
-	snapshotOf := func() map[string]string { return everyFileUnder(t, root) }
+	// The card's lock is held open for the append below, and a held lock
+	// file cannot be read on Windows, so the snapshot leaves that one file
+	// out. It is the lock the append is made under rather than a
+	// destination any write here could change.
+	heldLock := filepath.Join(card, LockName)
+	snapshotOf := func() map[string]string {
+		files := everyFileUnderExcept(t, root, heldLock)
+		return files
+	}
 	before := snapshotOf()
 
 	if err := WriteText(filepath.Join(card, CardAnchor), "changed"); !errors.Is(err, flushFailed) {
@@ -224,11 +239,11 @@ func TestAFailedFlushLeavesTheDestinationAsItWas(t *testing.T) {
 	if _, err := ReplaceAttachment(attached.Dir, source); !errors.Is(err, flushFailed) {
 		t.Errorf("ReplaceAttachment answered %v, wanted the failed flush", err)
 	}
-	if _, err := Acquire(card, "alka", "2026-09-28T00:00:00Z"); !errors.Is(err, flushFailed) {
+	if _, err := Acquire(attached.Dir, "alka", "2026-09-28T00:00:00Z"); !errors.Is(err, flushFailed) {
 		t.Errorf("the lock record answered %v, wanted the failed flush", err)
 	}
 	ev := Event{TS: "2026-09-28T00:00:00Z", Event: contract.EventCommented, Actor: NamedActor("alka")}
-	if err := AppendEvent(journal, ev); !errors.Is(err, flushFailed) {
+	if err := AppendEvent(held, journal, ev); !errors.Is(err, flushFailed) {
 		t.Errorf("AppendEvent answered %v, wanted the failed flush", err)
 	}
 	after := snapshotOf()
@@ -247,7 +262,7 @@ func TestAFailedFlushLeavesTheDestinationAsItWas(t *testing.T) {
 			t.Errorf("temporaries stand in %s: %v", dir, left)
 		}
 	}
-	if Exists(filepath.Join(card, LockName)) {
+	if Exists(filepath.Join(attached.Dir, LockName)) {
 		t.Error("a lock whose record never reached the disk was left standing")
 	}
 }
@@ -321,9 +336,9 @@ func TestALockPlantedDuringTheArchiveDoesNotTravel(t *testing.T) {
 		Op:      OpArchive,
 		Actor:   "alka",
 		Now:     "2026-09-28T00:00:00Z",
-		Record: func() error {
+		Record: func(locks ActLocks) error {
 			ev := Event{TS: "2026-09-28T00:00:00Z", Event: contract.EventArchived, Actor: NamedActor("alka"), Note: "c00000000001"}
-			return AppendEvent(journal, ev)
+			return AppendEvent(locks.For(journal), journal, ev)
 		},
 	}
 	if err := opened.Run(act); err != nil {

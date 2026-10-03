@@ -1,0 +1,65 @@
+{
+  "profile": "dinah-core/0.7",
+  "title": "Storage migration fixture",
+  "instructions": "This workbench is the storage migration fixture. make-fixture.sh writes it through verbs with the build before dinah-637.",
+  "levels": {
+    "severity": [
+      "trivial",
+      "minor",
+      "major",
+      "critical"
+    ],
+    "priority": [
+      "later",
+      "soon",
+      "next",
+      "now"
+    ],
+    "tier": [
+      "workhorse",
+      "frontier",
+      "apex"
+    ]
+  },
+  "columns": [
+    {
+      "id": "004acda2c28a",
+      "title": "Intake",
+      "slug": "intake",
+      "kind": "intake",
+      "operator_owned": true
+    },
+    {
+      "id": "7b5cfe51cb3b",
+      "title": "Doing",
+      "slug": "doing",
+      "kind": "work",
+      "standing_items": {
+        "handoff-posted": {
+          "kind": "decision",
+          "text": "The handoff note names what the next station reads first.",
+          "evidence": "record"
+        }
+      }
+    },
+    {
+      "id": "3f9c17ade5b2",
+      "title": "Review",
+      "slug": "review",
+      "kind": "work"
+    },
+    {
+      "id": "5d0c8e1f2a47",
+      "title": "Parked",
+      "slug": "parked",
+      "kind": "work"
+    },
+    {
+      "id": "68091798ab26",
+      "title": "Done",
+      "slug": "done",
+      "kind": "done",
+      "operator_owned": true
+    }
+  ]
+}

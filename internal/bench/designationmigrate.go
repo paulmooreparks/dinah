@@ -246,7 +246,7 @@ func (b *Bench) convertCard(run *DesignationMigration, card *Card, actor Actor, 
 		if !found {
 			continue
 		}
-		fm, body, err := b.ReadItemAnchor(dir)
+		fm, body, err := readItemAnchor(b.source(), dir)
 		if err != nil {
 			return err
 		}
@@ -296,11 +296,14 @@ func (b *Bench) plannedDesignations(card *Card) ([]DesignationEntry, error) {
 // everyItem reads a card's checklist items from both halves, live first and
 // archived after, so an archived item is converted exactly as a live one is.
 func (b *Bench) everyItem(card *Card) ([]*Item, error) {
-	items, err := b.Items(card.Dir)
+	items, err := legacyItems(b.source(), card.Dir)
 	if err != nil {
 		return nil, err
 	}
-	archived, err := b.Items(filepath.Join(card.Dir, ArchiveDir))
+	archived, err := legacyItems(b.source(), filepath.Join(card.Dir, ArchiveDir))
+	for _, item := range archived {
+		item.Archived = true
+	}
 	if err != nil {
 		return items, nil
 	}
@@ -316,7 +319,7 @@ func (b *Bench) itemDirOf(card *Card, ref string) (string, bool) {
 	}
 	for _, item := range items {
 		if b.itemRefOf(card, item) == ref {
-			return item.Dir, true
+			return item.dir, true
 		}
 	}
 	return "", false
@@ -493,8 +496,8 @@ func (b *Bench) commentsOfItem(item *Item) map[string]designatedComment {
 	for _, half := range []struct {
 		dir      string
 		archived bool
-	}{{item.Dir, false}, {filepath.Join(item.Dir, ArchiveDir), true}} {
-		comments, err := b.Comments(half.dir)
+	}{{item.dir, false}, {filepath.Join(item.dir, ArchiveDir), true}} {
+		comments, err := legacyComments(b.source(), half.dir)
 		if err != nil {
 			continue
 		}
@@ -522,11 +525,11 @@ func (b *Bench) commentsElsewhere(card *Card, item *Item) map[string]bool {
 			if other.ID == item.ID {
 				continue
 			}
-			holders = append(holders, other.Dir, filepath.Join(other.Dir, ArchiveDir))
+			holders = append(holders, other.dir, filepath.Join(other.dir, ArchiveDir))
 		}
 	}
 	for _, holder := range holders {
-		comments, err := b.Comments(holder)
+		comments, err := legacyComments(b.source(), holder)
 		if err != nil {
 			continue
 		}
@@ -545,7 +548,7 @@ func (b *Bench) commentAtPosition(item *Item, resolution string) (designatedComm
 	if !ok {
 		return designatedComment{}, false
 	}
-	comments, err := b.Comments(item.Dir)
+	comments, err := legacyComments(b.source(), item.dir)
 	if err != nil || ordinal < 1 || ordinal > len(comments) {
 		return designatedComment{}, false
 	}
@@ -634,5 +637,40 @@ func ItemOwesDesignation(item *Item) bool {
 func DesignationRefusalWorkbenchInUse(claimed ClaimedCard) error {
 	return contract.RefuseWith(contract.WorkbenchInUse, claimed.Ref, map[string]string{
 		"owner": claimed.Holder,
+	})
+}
+
+// ClaimedCardsBothHalves reports every card standing claimed, live or
+// archived, in card order within each half. The storage migration reads both
+// halves, since it rewrites an archived card's journal as well and a claim
+// travels into the archive with its card.
+func (b *Bench) ClaimedCardsBothHalves() ([]ClaimedCard, error) {
+	claimed, err := b.ClaimedCards()
+	if err != nil {
+		return nil, err
+	}
+	archived, err := cardsWith(b.source(), b.ArchivedCardsRoot(), b.LoadCardIn, true)
+	if err != nil {
+		return nil, err
+	}
+	for _, card := range archived {
+		if card.Holder != "" {
+			claimed = append(claimed, ClaimedCard{Ref: card.Ref(b.Slug), Holder: card.Holder})
+		}
+	}
+	return claimed, nil
+}
+
+// StorageRefusalWorkbenchInUse is the refusal a storage migration raises over
+// claimed cards: the first card and its owner in the sentence, and every
+// claimed card with its owner on a row of its own.
+func StorageRefusalWorkbenchInUse(claimed []ClaimedCard) error {
+	rows := make([]string, 0, len(claimed))
+	for _, card := range claimed {
+		rows = append(rows, card.Ref+" "+card.Holder)
+	}
+	return contract.RefuseWith(contract.WorkbenchInUse, claimed[0].Ref, map[string]string{
+		"owner": claimed[0].Holder,
+		"cards": strings.Join(rows, "\n"),
 	})
 }

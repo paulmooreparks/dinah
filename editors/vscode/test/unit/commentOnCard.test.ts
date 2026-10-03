@@ -18,6 +18,7 @@ import { COMMAND_COMMENT_ON_CARD } from "../../src/identity";
 import { SELECTION_POLICIES } from "../../src/selection";
 import { ENGLISH } from "../../src/l10n";
 import type { OpenComments } from "../../src/commentBody";
+import { memberKey, memberLocation } from "../../src/memberDocument";
 import {
 	FOLDER,
 	ROOT,
@@ -31,14 +32,19 @@ import {
 } from "../support/rows";
 
 const COMMENT_ID = "a00000000001";
-const COMMENT_PATH = `${ROOT}/cards/wb1/comments/a1/comment.md`;
+const COMMENT_LOCATION = memberLocation({ ref: COMMENT_ID, root: ROOT });
+const COMMENT_KEY = memberKey({ ref: COMMENT_ID, root: ROOT });
 
-/** A spawner answering the mint with a comment id and the path call with a file. */
+/** A spawner answering the mint with a comment id and the show call with its anchor. */
 function composingSpawner(): ReturnType<typeof spawnerLog> {
 	const spawned = spawnerLog();
 	spawned.queue.push(
 		ok({ outcome: "ok", verb: "comment", detail: COMMENT_ID }),
-		ok({ path: COMMENT_PATH }),
+		{
+			code: 0,
+			stdout: ["---", "ts: 2026-08-01T09:00:00Z", "author: ana", "ordinal: 1", "digest: ff", "---", ""].join("\n"),
+			stderr: "",
+		},
 	);
 	return spawned;
 }
@@ -88,9 +94,9 @@ test("Comment on Card hands composeComment the card's root, folder and reference
 		["--json", "--workbench", ROOT, "comment", "wb-1"],
 		"the comment verb was not aimed at this card, on this workbench, with no text after it",
 	);
-	assert.deepEqual(spawned.calls[1], ["--json", "--workbench", ROOT, "path", COMMENT_ID]);
-	assert.deepEqual(comments.opened, [COMMENT_PATH], "the minted comment's file was not opened");
-	const recorded = openComments.get(COMMENT_PATH);
+	assert.deepEqual(spawned.calls[1], ["--json", "--workbench", ROOT, "show", COMMENT_ID]);
+	assert.deepEqual(comments.opened, [COMMENT_LOCATION], "the minted comment's document was not opened");
+	const recorded = openComments.get(COMMENT_KEY);
 	assert.equal(recorded?.root, ROOT, "the opened comment records some other workbench");
 	assert.equal(recorded?.folder, FOLDER, "the opened comment records some other folder");
 	assert.equal(recorded?.ref, COMMENT_ID);
@@ -133,5 +139,5 @@ test("Comment on Card skips a row naming no card with NO_CARD and comments on th
 	);
 	assert.deepEqual(log.errors, []);
 	assert.deepEqual(spawned.calls[0], ["--json", "--workbench", ROOT, "comment", "wb-1"]);
-	assert.deepEqual(comments.opened, [COMMENT_PATH]);
+	assert.deepEqual(comments.opened, [COMMENT_LOCATION]);
 });

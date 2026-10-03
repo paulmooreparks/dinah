@@ -416,6 +416,7 @@ var guides = map[string][]string{
 	"attach":            {"references"},
 	"comment":           {"references"},
 	"accept-divergence": {"references"},
+	"redact":            {"references"},
 	"cite":              {"references"},
 	"spend":             {"references"},
 	"resolve":           {"references"},
@@ -660,6 +661,14 @@ var params = map[string][]Param{
 	"accept-divergence": {
 		{Name: "comment", Required: true, Guide: "references", Field: "Ref", Complete: CompleteItem},
 	},
+	// redact's confirmation is not required, since without it the command
+	// answers what it would rewrite and writes nothing, which is how the
+	// operator reads the account before committing to an act no command
+	// undoes.
+	"redact": {
+		{Name: "member", Required: true, Guide: "references", Field: "Ref", Complete: CompleteReference},
+		{Name: "yes", Flag: true, Marker: true, Shared: "yes", Field: "Confirm"},
+	},
 	// rename writes its own sentence for ref rather than taking the shared
 	// one, because the shared sentence names a column, a card or anything
 	// below one, and rename renames an attachment alone.
@@ -898,6 +907,9 @@ var params = map[string][]Param{
 		{Name: "migrate-container", Flag: true, Marker: true, Field: "MigrateContainer"},
 		{Name: "migrate-numbers", Flag: true, Marker: true, Field: "MigrateNumbers"},
 		{Name: "migrate-designations", Flag: true, Marker: true, Field: "MigrateDesignations"},
+		{Name: "migrate-storage", Flag: true, Marker: true, Field: "MigrateStorage"},
+		{Name: "backup", Flag: true, Value: "dir", Field: "Backup", Complete: CompleteDirs},
+		{Name: "accept-difference", Flag: true, Value: "key", Field: "AcceptDifference", Complete: CompleteNone},
 		{Name: "rehearse", Flag: true, Marker: true, Field: "Rehearse"},
 		{Name: "force-claims", Flag: true, Marker: true, Field: "ForceClaims"},
 		{Name: "migrate-branches", Flag: true, Marker: true, Field: "MigrateBranches"},
@@ -915,6 +927,7 @@ var params = map[string][]Param{
 		{Name: "remint", Flag: true, Value: "dir", Field: "Remint", Complete: CompleteDirs},
 		{Name: "migrate-workstreams", Flag: true, Marker: true, Field: "MigrateWorkstreams"},
 		{Name: "witness", Flag: true, Marker: true, Field: "MigrateWitness"},
+		{Name: "rebuild", Flag: true, Marker: true, Field: "Rebuild"},
 		// Read by four repairs. Migrate-vocabulary and migrate-container walk
 		// a whole tree of workbenches under --root rather than acting on the
 		// one the caller is standing in, and their rewrites have no undo, so

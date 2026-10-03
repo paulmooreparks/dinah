@@ -54,8 +54,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		names = append(names, command)
 	}
 	sort.Strings(names)
-	if len(names) != 21 {
-		t.Fatalf("this head serves %d of the twenty-three reference-taking commands and it serves twenty-one: %s", len(names), strings.Join(names, " "))
+	if len(names) != 22 {
+		t.Fatalf("this head serves %d of the twenty-four reference-taking commands and it serves twenty-two: %s", len(names), strings.Join(names, " "))
 	}
 	for _, held := range []string{"path", "edit"} {
 		if _, exempt := toolExemptions[held]; !exempt {
@@ -91,6 +91,7 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		"settle":            `{"actor":"alka","item":"fx-1/comments","state":"resolved","text":"an answer"}`,
 		"get":               `{"actor":"alka","ref":"fx-1/comments","field":"body"}`,
 		"set":               `{"actor":"alka","ref":"fx-1/comments","field":"body","value":"rewritten"}`,
+		"redact":            `{"actor":"alka","member":"fx-1/comments","yes":true}`,
 	}
 	if len(arguments) != len(names) {
 		t.Fatalf("the sweep names %d tools and the served subset holds %d", len(arguments), len(names))
@@ -146,8 +147,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		}
 		answered++
 	}
-	t.Logf("twenty-one tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
-	if answered != 1 || refused != 20 {
-		t.Fatalf("the sweep answered %d and refused %d, and the split is one and twenty", answered, refused)
+	t.Logf("twenty-two tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
+	if answered != 1 || refused != 21 {
+		t.Fatalf("the sweep answered %d and refused %d, and the split is one and twenty-one", answered, refused)
 	}
 }

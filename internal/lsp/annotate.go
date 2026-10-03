@@ -306,8 +306,15 @@ func (s *Server) entityAnnotation(at slot, entity *bench.EntityRef) (annotation,
 		}
 		return s.workstreamAnnotation(at, workstream), true
 	case bench.KindItem:
-		item, err := bench.LoadItem(entity.Dir)
+		if entity.Card == nil {
+			return annotation{}, false
+		}
+		record, err := s.bench.LoadCardRecord(entity.Card)
 		if err != nil {
+			return annotation{}, false
+		}
+		item, found := record.Item(entity.ID)
+		if !found {
 			return annotation{}, false
 		}
 		return s.itemAnnotation(at, entity, item), true
@@ -389,7 +396,21 @@ func (s *Server) itemAnnotation(at slot, entity *bench.EntityRef, item *bench.It
 	}
 	return s.compose(at, s.render(key, pairs...), entity.Ref,
 		s.targetOf(bench.KindItem, entity), fields,
-		filepath.Join(entity.Dir, bench.ItemAnchor), true)
+		s.memberFile(entity), true)
+}
+
+// memberFile is the file a comment or an item reference opens. Neither has a
+// file of its own in the card-unit layout, where each is lines of its card's
+// journal, so the file is the holding card's card.md, the file a person
+// reads the card in, and for a column comment the column's own anchor.
+func (s *Server) memberFile(entity *bench.EntityRef) string {
+	if entity.Card != nil {
+		return entity.Card.AnchorPath()
+	}
+	if entity.Holder != "" {
+		return s.bench.ColumnAnchorPath(entity.Holder)
+	}
+	return ""
 }
 
 // attachmentAnnotation is the annotation of an attachment reference. Its file
@@ -419,6 +440,9 @@ func (s *Server) borrowedAnnotation(at slot, entity *bench.EntityRef) annotation
 	if !declared {
 		anchor = ""
 	}
+	if entity.Kind == bench.KindComment {
+		anchor = s.memberFile(entity)
+	}
 	return s.compose(at, label, at.Text, s.targetOf(entity.Kind, entity), map[string]string{}, anchor, false)
 }
 
@@ -436,6 +460,8 @@ func (s *Server) collectionAnnotation(at slot, collection *bench.CollectionRef) 
 		if member, _, err := s.bench.ResolveReference(first); err == nil && member != nil {
 			if anchor, declared := bench.AnchorPathOf(member); declared {
 				file = anchor
+			} else if member.Kind == bench.KindComment || member.Kind == bench.KindItem {
+				file = s.memberFile(member)
 			}
 		}
 	}

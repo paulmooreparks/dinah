@@ -75,8 +75,14 @@ import type { VersionReport } from "./api";
  * of the workbench anchor and links are keys of the card anchor, neither of
  * which this extension reads: the card view gains `waits_on` and the offer
  * gains `waiting` and `waiting_on`, which an older reader ignores.
+ *
+ * 12 joined the set at dinah-637, which moved a card's comments and checklist
+ * items into its journal. This extension opens a comment or an item as a
+ * `dinah-member` document read through `dinah show` and written through the
+ * verbs, as memberDocument.ts describes, rather than by the file `dinah path`
+ * used to name, and its watcher watches the journals as well as the anchors.
  */
-export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+export const SUPPORTED_FORMATS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 /**
  * The conformance claim this extension needs. A different name or major is

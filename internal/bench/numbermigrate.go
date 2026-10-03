@@ -300,16 +300,16 @@ func (b *Bench) MigrateNumbers(actor, now string) (int, []string, []Finding, err
 			held.Release()
 		}
 	}()
-	locked := make(map[string]bool)
+	locked := make(map[string]*Lock)
 	take := func(dir string) error {
-		if locked[dir] {
+		if locked[dir] != nil {
 			return nil
 		}
 		held, err := b.Acquire(dir, actor, now)
 		if err != nil {
 			return err
 		}
-		locked[dir] = true
+		locked[dir] = held
 		locks = append(locks, held)
 		return nil
 	}
@@ -347,7 +347,7 @@ func (b *Bench) MigrateNumbers(actor, now string) (int, []string, []Finding, err
 			From:  strconv.Itoa(moved.from),
 			To:    strconv.Itoa(moved.to),
 		}
-		if err := AppendEvent(filepath.Join(moved.dir, JournalName), ev); err != nil {
+		if err := AppendEvent(locked[moved.dir], filepath.Join(moved.dir, JournalName), ev); err != nil {
 			return written, ids, findings, err
 		}
 		ids = append(ids, moved.id)
@@ -466,15 +466,17 @@ func (b *Bench) RenumberCards(actor, now string) ([]string, []Finding, error) {
 			held.Release()
 		}
 	}()
+	held := make(map[string]*Lock)
 	for _, entry := range moved {
 		if !entry.card {
 			continue
 		}
-		held, err := b.Acquire(entry.dir, actor, now)
+		lock, err := b.Acquire(entry.dir, actor, now)
 		if err != nil {
 			return nil, nil, err
 		}
-		locks = append(locks, held)
+		locks = append(locks, lock)
+		held[entry.dir] = lock
 	}
 	lines := make([]string, len(registry.Lines))
 	for at, line := range registry.Lines {
@@ -499,7 +501,7 @@ func (b *Bench) RenumberCards(actor, now string) ([]string, []Finding, error) {
 			From:  strconv.Itoa(entry.from),
 			To:    strconv.Itoa(entry.to),
 		}
-		if err := AppendEvent(filepath.Join(entry.dir, JournalName), ev); err != nil {
+		if err := AppendEvent(held[entry.dir], filepath.Join(entry.dir, JournalName), ev); err != nil {
 			return ids, findings, err
 		}
 		ids = append(ids, entry.id)

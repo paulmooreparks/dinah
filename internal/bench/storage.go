@@ -369,6 +369,16 @@ func (b *Bench) Exists(path string) bool {
 	return exists(b.source(), path)
 }
 
+// RemoveIfEmpty removes a directory in which nothing stands, listing it
+// through this bench's source, and leaves a directory holding anything, or
+// one that will not list, as it is. An act unwinding what it created calls
+// it, so whatever another process put there survives the unwinding.
+func (b *Bench) RemoveIfEmpty(dir string) {
+	if entries, err := b.source().ReadDir(dir); err == nil && len(entries) == 0 {
+		durable.RemoveAll(dir)
+	}
+}
+
 // exists is Exists's body, reading through src.
 func exists(src Source, path string) bool {
 	_, err := src.Stat(path)

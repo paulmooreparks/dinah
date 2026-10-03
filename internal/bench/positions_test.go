@@ -172,13 +172,25 @@ func TestPositionsAgreeWithTheResolver(t *testing.T) {
 				t.Errorf("%s %s: compared %d members, wanted %d", tc.name, mount.dir, compared, tc.members)
 			}
 		}
+		opened, err := Open(root)
+		if err != nil {
+			t.Fatalf("%s: open: %v", tc.name, err)
+		}
+		card, err := opened.LoadCardIn(opened.CardsRoot(), filepath.Base(cardDir))
+		if err != nil {
+			t.Fatalf("%s: load the card: %v", tc.name, err)
+		}
+		record, err := positions.Record(opened, card)
+		if err != nil {
+			t.Fatalf("%s: read the card's record: %v", tc.name, err)
+		}
 		if tc.journal {
 			// The journal names the comments last to first, so a sort that
 			// fell back to the listing would put a00000000001 first and this
 			// case would not be exercising fallbackRank's journal order.
-			comments, err := positions.Comments(cardDir)
-			if err != nil || len(comments) == 0 || comments[0].ID != "a00000000004" {
-				t.Fatalf("%s: the journal-ordered comments do not open with a00000000004 (err %v), so the journal was not read", tc.name, err)
+			comments := record.HeldComments("", LiveHalf)
+			if len(comments) == 0 || comments[0].ID != "a00000000004" {
+				t.Fatalf("%s: the journal-ordered comments do not open with a00000000004, so the journal was not read", tc.name)
 			}
 		}
 		readable := tc.members
@@ -187,10 +199,10 @@ func TestPositionsAgreeWithTheResolver(t *testing.T) {
 		}
 		comparedLists(t, tc.name+" checklist", readable,
 			func() (any, error) { return Items(cardDir) },
-			func() (any, error) { return positions.Items(cardDir) })
+			func() (any, error) { return record.ItemsIn(LiveHalf, ""), nil })
 		comparedLists(t, tc.name+" comments", readable,
 			func() (any, error) { return Comments(cardDir) },
-			func() (any, error) { return positions.Comments(cardDir) })
+			func() (any, error) { return record.HeldComments("", LiveHalf), nil })
 		comparedLists(t, tc.name+" attachments", readable,
 			func() (any, error) { return Attachments(cardDir) },
 			func() (any, error) { return positions.Attachments(cardDir) })

@@ -117,6 +117,11 @@ type Store struct {
 	Digest string // Digest(Root) at the end of Generate
 	// ProbeCard is the reference every per-card measurement reads: "perf-1".
 	ProbeCard string
+	// JournalWrites counts every write the generator made to a journal,
+	// and JournalLocks every entity lock held while one was made. The two
+	// are equal when no journal was written without its entity's lock.
+	JournalWrites int
+	JournalLocks  int
 }
 
 // The names the generated workbench carries. The operator is the one actor
@@ -234,13 +239,49 @@ func ReservedStateCards() (claimed, blocked int) {
 	return claimedCards, blockedCards
 }
 
-// Generate writes a new workbench under dir and returns it. dir must exist
-// and must not already hold a .dinah directory. The workbench is written at
-// the StorageFormat and ProfileVersion of the binary the caller is linked
-// into.
+// Layout is the storage layout a generated workbench is written in.
+type Layout int
+
+const (
+	// LayoutDirectories is the layout below the card-unit format, in which
+	// every comment and checklist item is a directory with an anchor file.
+	// It is generated with the card-unit layout switched off.
+	LayoutDirectories Layout = iota
+	// LayoutCardUnit is the card-unit layout of storage format 12, in which
+	// a card's comments and items are lines of its journal. It is generated
+	// with the layout switched on, as a store the storage migration carried
+	// across: each card's journal holds the history the older layout wrote,
+	// then a baseline of every member and of card.md, which is what every
+	// store in the layout starts from.
+	LayoutCardUnit
+)
+
+// String names a layout the way a budget failure reports it.
+func (l Layout) String() string {
+	if l == LayoutCardUnit {
+		return "card-unit"
+	}
+	return "directories"
+}
+
+// Generate writes a new workbench in the directories layout under dir and
+// returns it; see GenerateLayout.
 func Generate(dir string, seed uint64, shape Shape) (*Store, error) {
+	return GenerateLayout(dir, seed, shape, LayoutDirectories)
+}
+
+// GenerateLayout writes a new workbench in a layout under dir and returns
+// it. dir must exist and must not already hold a .dinah directory. The
+// workbench is written at the EffectiveStorageFormat and ProfileVersion of
+// the binary the caller is linked into, so the card-unit layout is refused
+// while that layout is switched off and the directories layout while it is
+// on, since either would stamp the store with a format its layout is not.
+func GenerateLayout(dir string, seed uint64, shape Shape, layout Layout) (*Store, error) {
 	if err := shape.validate(); err != nil {
 		return nil, err
+	}
+	if (layout == LayoutCardUnit) != bench.CardUnitOn() {
+		return nil, fmt.Errorf("generate the %s layout: the card-unit layout is switched %s", layout, map[bool]string{true: "on", false: "off"}[bench.CardUnitOn()])
 	}
 	absolute, err := filepath.Abs(dir)
 	if err != nil {
@@ -259,6 +300,7 @@ func Generate(dir string, seed uint64, shape Shape) (*Store, error) {
 	}
 	g := &generator{
 		seed:     seed,
+		layout:   layout,
 		shape:    shape,
 		root:     filepath.Join(container, workbenchID(seed)),
 		issued:   map[string]bool{},
@@ -275,13 +317,15 @@ func Generate(dir string, seed uint64, shape Shape) (*Store, error) {
 		return nil, err
 	}
 	store := &Store{
-		Root:      g.root,
-		Slug:      workbenchSlug,
-		Seed:      seed,
-		Shape:     shape,
-		Files:     g.files,
-		Digest:    digest,
-		ProbeCard: workbenchSlug + "-1",
+		Root:          g.root,
+		Slug:          workbenchSlug,
+		Seed:          seed,
+		Shape:         shape,
+		Files:         g.files,
+		Digest:        digest,
+		ProbeCard:     workbenchSlug + "-1",
+		JournalWrites: g.journalWrites,
+		JournalLocks:  g.journalLocks,
 	}
 	if files != g.files {
 		return store, fmt.Errorf("generated %d files but the tree holds %d", g.files, files)
@@ -379,6 +423,17 @@ type generator struct {
 	// running count rather than an entity's own position.
 	counters map[string]int
 	files    int
+	// journalWrites counts every write the generator makes to a journal,
+	// and journalLocks every entity lock it held while making one, taken
+	// by save itself or by the structural act that hands its lock to the
+	// archived line's Record. A test compares the two.
+	journalWrites int
+	journalLocks  int
+
+	// layout is the layout the store is written in, and baselines the
+	// member baselines the card being written owes in the card-unit layout.
+	layout    Layout
+	baselines []bench.Event
 
 	columnIDs   []string
 	workstreams []workstreamPlan
@@ -895,7 +950,14 @@ func (g *generator) archive() error {
 			Op:      bench.OpArchive,
 			Actor:   operatorName,
 			Now:     plan.archivedAt,
-			Record:  func() error { return bench.AppendEvent(journalPath, archived) },
+			Record: func(locks bench.ActLocks) error {
+				held := locks.For(journalPath)
+				g.journalWrites++
+				if held != nil {
+					g.journalLocks++
+				}
+				return bench.AppendEvent(held, journalPath, archived)
+			},
 		}
 		if err := b.Run(act); err != nil {
 			return err
@@ -1051,7 +1113,7 @@ func (g *generator) writeWorkstream(w int) error {
 	if err := journal.add(created); err != nil {
 		return err
 	}
-	if err := journal.save(workstream.JournalPath()); err != nil {
+	if err := journal.save(g, workstream.JournalPath()); err != nil {
 		return err
 	}
 	g.files += 2
@@ -1077,8 +1139,20 @@ func (j *journal) add(ev bench.Event) error {
 	return nil
 }
 
-// save writes the collected lines to path.
-func (j *journal) save(path string) error {
+// save writes the collected lines to path under the lock of the entity the
+// journal belongs to, taken through bench.Acquire like every other writer's,
+// so the generator gets no exemption from the rule that a journal is written
+// only by the holder of its entity's lock. A generated store is private to
+// its test, so the lock never contends, and the cost is one create and one
+// delete per journal.
+func (j *journal) save(g *generator, path string) error {
+	held, err := bench.Acquire(filepath.Dir(path), operatorName, bench.Stamp(epoch))
+	if err != nil {
+		return err
+	}
+	defer held.Release()
+	g.journalLocks++
+	g.journalWrites++
 	return durable.WriteFile(path, j.buffer.Bytes(), 0o644)
 }
 
@@ -1101,6 +1175,7 @@ func (c *clock) tick() string {
 // claim or block the journal ends in. A card planned as archived is written
 // live with the stamp of its archived event settled, and archive moves it.
 func (g *generator) writeCard(index int, plan *cardPlan, archived bool) error {
+	g.baselines = nil
 	dir := filepath.Join(g.root, bench.CardsDir, plan.id)
 	start := epoch.Add(24*time.Hour + time.Duration(index)*8*time.Hour)
 	start = start.Add(time.Duration(g.number("card-start", index, 3600)) * time.Second)
@@ -1149,7 +1224,7 @@ func (g *generator) writeCard(index int, plan *cardPlan, archived bool) error {
 		}
 	}
 	for ordinal := 1; ordinal <= plan.comments; ordinal++ {
-		commentID, err := g.writeComment(dir, ordinal, clk)
+		commentID, err := g.writeComment(dir, "", ordinal, clk)
 		if err != nil {
 			return err
 		}
@@ -1210,11 +1285,36 @@ func (g *generator) writeCard(index int, plan *cardPlan, archived bool) error {
 	if err := card.Save(); err != nil {
 		return err
 	}
-	if err := events.save(card.JournalPath()); err != nil {
+	if g.layout == LayoutCardUnit {
+		if err := g.baselineCard(card, clk, events); err != nil {
+			return err
+		}
+	}
+	if err := events.save(g, card.JournalPath()); err != nil {
 		return err
 	}
 	g.files += 2
 	return nil
+}
+
+// baselineCard appends the lines the storage migration ends a card's journal
+// with: a baseline of every member the card holds, then one of its card.md,
+// which is what a store in the card-unit layout starts from.
+func (g *generator) baselineCard(card *bench.Card, clk *clock, events *journal) error {
+	at := clk.tick()
+	actor := bench.NamedActor(operatorName)
+	for _, baseline := range g.baselines {
+		baseline.TS, baseline.Actor = at, actor
+		if err := events.add(baseline); err != nil {
+			return err
+		}
+	}
+	g.baselines = nil
+	anchor, err := bench.ReadText(card.AnchorPath())
+	if err != nil {
+		return err
+	}
+	return events.add(bench.Event{TS: at, Event: contract.EventCardBaseline, Actor: actor, Text: anchor})
 }
 
 // finishCard writes the event a live card's journal ends in and records on the
@@ -1263,7 +1363,7 @@ func (g *generator) author(commentID string) string {
 
 // writeComment writes one comment below holderDir with the next moment on the
 // clock and answers its identifier. The caller journals it.
-func (g *generator) writeComment(holderDir string, ordinal int, clk *clock) (string, error) {
+func (g *generator) writeComment(holderDir, item string, ordinal int, clk *clock) (string, error) {
 	id := g.id("comment-id")
 	dir := filepath.Join(holderDir, bench.CommentsDir, id)
 	fm := bench.NewFrontmatter()
@@ -1271,6 +1371,23 @@ func (g *generator) writeComment(holderDir string, ordinal int, clk *clock) (str
 	fm.Set("author", g.author(id))
 	fm.Set(bench.OrdinalField, strconv.Itoa(ordinal))
 	body := g.text("comment-body", g.next("comment-body"), g.shape.CommentBodyBytes, true)
+	if g.layout == LayoutCardUnit {
+		// The comment_baseline the storage migration would write for the
+		// file the older layout holds, read back through the same parse.
+		bench.StampCommentDigest(fm, body)
+		_, stored := bench.ParseAnchor(fm.Render(body))
+		g.baselines = append(g.baselines, bench.Event{
+			Event:   contract.EventCommentBaseline,
+			Comment: id,
+			Ordinal: ordinal,
+			Text:    stored,
+			Written: fm.Value("ts"),
+			Author:  fm.Value("author"),
+			Digest:  fm.Value(bench.CommentDigestField),
+			Item:    item,
+		})
+		return id, nil
+	}
 	if err := bench.WriteCommentAnchor(dir, fm, body); err != nil {
 		return "", err
 	}
@@ -1283,7 +1400,7 @@ func (g *generator) writeComment(holderDir string, ordinal int, clk *clock) (str
 // in the key order internal/verb/checklist.go leaves: the state rewritten in
 // place and the resolution appended.
 func (g *generator) writeItem(cardDir string, ordinal int, item *itemPlan, clk *clock, events *journal) error {
-	dir := filepath.Join(cardDir, bench.ChecklistDir, item.id)
+	dir := bench.LegacyItemDir(cardDir, item.id)
 	filedAt := clk.tick()
 	filed := bench.Event{
 		TS:    filedAt,
@@ -1297,7 +1414,7 @@ func (g *generator) writeItem(cardDir string, ordinal int, item *itemPlan, clk *
 	}
 	var commentIDs []string
 	for k := 1; k <= item.comments; k++ {
-		commentID, err := g.writeComment(dir, k, clk)
+		commentID, err := g.writeComment(dir, item.id, k, clk)
 		if err != nil {
 			return err
 		}
@@ -1337,6 +1454,31 @@ func (g *generator) writeItem(cardDir string, ordinal int, item *itemPlan, clk *
 		fm.Set(bench.ItemResolutionField, commentIDs[0])
 	}
 	body := g.text("item-body", g.next("item-body"), g.shape.ItemBodyBytes, true)
+	if g.layout == LayoutCardUnit {
+		// The item_baseline the storage migration would write for the file
+		// the older layout holds, read back through the same parse.
+		_, stored := bench.ParseAnchor(fm.Render(body))
+		column := fm.Value(bench.ItemColumnField)
+		baseline := bench.Event{
+			Event:      contract.EventItemBaseline,
+			Item:       item.id,
+			Kind:       item.kind,
+			Ordinal:    ordinal,
+			State:      item.state,
+			Text:       stored,
+			Written:    filedAt,
+			Column:     column,
+			Owner:      itemOwner,
+			Resolution: fm.Value(bench.ItemResolutionField),
+		}
+		for position := range flow {
+			if g.columnIDs[position] == column {
+				baseline.ColumnTitle = flow[position].Title
+			}
+		}
+		g.baselines = append(g.baselines, baseline)
+		return nil
+	}
 	if err := bench.WriteItemAnchor(dir, fm, body); err != nil {
 		return err
 	}

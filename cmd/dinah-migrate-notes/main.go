@@ -333,7 +333,7 @@ func classifyCard(opened *bench.Bench, card *bench.Card) ([]conversion, error) {
 	var planned []conversion
 	for _, item := range items {
 		kindPosition[item.Kind]++
-		fm, _, err := bench.ReadItemAnchor(item.Dir)
+		fm, _, err := bench.ReadItemAnchor(item.LegacyDir())
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +341,7 @@ func classifyCard(opened *bench.Bench, card *bench.Card) ([]conversion, error) {
 		if strings.TrimSpace(note) == "" {
 			continue
 		}
-		position, err := bench.MemberPosition(item.Dir, bench.ItemAnchor)
+		position, err := bench.MemberPosition(item.LegacyDir(), bench.ItemAnchor)
 		if err != nil {
 			return nil, err
 		}
@@ -474,7 +474,7 @@ func convertOne(opened *bench.Bench, entry conversion) error {
 // under the item's own comments collection, named by the identifier derived
 // from the item.
 func convertedCommentDir(item *bench.Item) string {
-	return filepath.Join(item.Dir, bench.CommentsDir, convertedCommentID(item.ID))
+	return filepath.Join(item.LegacyDir(), bench.CommentsDir, convertedCommentID(item.ID))
 }
 
 // convertedCommentID derives the converted comment's identifier from the
@@ -500,7 +500,7 @@ func convertedCommentID(itemID string) string {
 // which is what a reserved word can never promise, and author_unrecoverable
 // says that the absence is a finding rather than an omission.
 func writeConvertedComment(entry conversion, dir string) error {
-	ordinal, err := bench.NextOrdinalIn(filepath.Join(entry.item.Dir, bench.CommentsDir), bench.CommentAnchor)
+	ordinal, err := bench.NextOrdinalIn(filepath.Join(entry.item.LegacyDir(), bench.CommentsDir), bench.CommentAnchor)
 	if err != nil {
 		return err
 	}
@@ -524,7 +524,7 @@ func writeConvertedComment(entry conversion, dir string) error {
 // the item write completes pointing at what is there, because the operator's
 // own words outrank the migration's copy of them.
 func finishItem(opened *bench.Bench, entry conversion, dir string) error {
-	fm, body, err := bench.ReadItemAnchor(entry.item.Dir)
+	fm, body, err := bench.ReadItemAnchor(entry.item.LegacyDir())
 	if err != nil {
 		return err
 	}
@@ -539,7 +539,7 @@ func finishItem(opened *bench.Bench, entry conversion, dir string) error {
 		}
 		fm.Set(bench.ItemResolutionField, entry.ref+"/"+bench.CommentsDir+"/"+strconv.Itoa(ordinal))
 	}
-	return bench.WriteItemAnchor(entry.item.Dir, fm, body)
+	return bench.WriteItemAnchor(entry.item.LegacyDir(), fm, body)
 }
 
 // stampFormat records the format the store now carries, which is the last

@@ -193,11 +193,14 @@ var Allowed = map[string]map[string]string{
 		"Hold.Unregister": "gives back an entry of the in-process lock registry",
 		"MoveDir":         "renames a directory",
 		"Register":        "takes an entry of the in-process lock registry",
+		"Remove":          "removes a file",
 		"RemoveAll":       "removes a tree",
 		"RemoveLock":      "removes a lock file",
 		"Replace":         "renames a file over another",
+		"SamePath":        "compares two paths lexically: cleaned, and folded to lower case where the platform's file systems fold names",
 		"StillNamed":      "asks whether a handle already open still refers to the file its path names, which only the file system can answer",
 		"TakeOSLock":      "takes the operating-system lock on a handle already open",
+		"Truncate":        "cuts a journal back to a length, which writes",
 		"TryOSLock":       "asks for the operating-system lock on a handle already open, which only the file system can answer",
 		"Wait":            "a type",
 		"WriteFile":       "writes a file",
@@ -207,7 +210,7 @@ var Allowed = map[string]map[string]string{
 
 // AllowedSize is the number of names Allowed carries across every package,
 // which each guard asserts so that a widened list is a visible edit.
-const AllowedSize = 67
+const AllowedSize = 70
 
 // IsJudged reports whether an import path is one of Judged.
 func IsJudged(path string) bool {

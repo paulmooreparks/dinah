@@ -99,6 +99,15 @@ type harness struct {
 // second Parallel call.
 var markedParallel sync.Map
 
+// keepSerial keeps a test out of the parallel set although a helper it calls
+// builds its harness through newHarness, for a test that changes
+// process-global state part way through, such as turning the card-unit
+// layout on to migrate the store it built. It marks t as seen, so the later
+// markParallel call does nothing.
+func keepSerial(t *testing.T) {
+	markedParallel.Store(t, struct{}{})
+}
+
 // markParallel calls t.Parallel() the first time it sees t and does nothing
 // on every later call for the same t.
 func markParallel(t *testing.T) {
@@ -326,6 +335,17 @@ func (h *harness) card(ref string) *bench.Card {
 		h.t.Fatalf("resolve %s: %v", ref, err)
 	}
 	return found.Card
+}
+
+// designatedComment answers the comment an item of card designates as its
+// answer, read from the card's record, and false where it designates none.
+func (h *harness) designatedComment(card *bench.Card, item *bench.Item) (*bench.Comment, bool) {
+	h.t.Helper()
+	record, err := h.library.Bench.LoadCardRecord(card)
+	if err != nil {
+		h.t.Fatalf("read the record of %s: %v", card.ID, err)
+	}
+	return record.Designated(item)
 }
 
 // renumber rewrites a card's creation ordinal, which is how a test builds a

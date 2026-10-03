@@ -1,0 +1,1058 @@
+[
+ {
+  "args": [
+   "show",
+   "fx-1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"card\": {\n    \"id\": \"7035845dc37b\",\n    \"ref\": \"fx-1\",\n    \"title\": \"the main card\",\n    \"column\": \"7b5cfe51cb3b\",\n    \"column_title\": \"Doing\",\n    \"state\": \"ready\",\n    \"pull_destination\": \"review\",\n    \"revision\": \"sha256:c5b50458e4ccb77d107f2daa893018758e2a407a1b9b0198732c5b766362c567\",\n    \"attachment_count\": 1,\n    \"checklist_count\": 10,\n    \"blocking_items\": 1,\n    \"operator_pending\": 2,\n    \"child_count\": 14\n  },\n  \"body\": \"\",\n  \"attachments\": [\n    {\n      \"id\": \"9053a7fd8131\",\n      \"ordinal\": 1,\n      \"ref\": \"fx-1/attachments/1\",\n      \"filename\": \"card-payload.txt\",\n      \"description\": \"the main card's own payload\",\n      \"provenance\": \"sam\",\n      \"path\": \"<store>/cards/7035845dc37b/attachments/9053a7fd8131/payload/card-payload.txt\"\n    }\n  ],\n  \"withheld\": [\n    \"comments\",\n    \"handoff\",\n    \"checklist\",\n    \"path\"\n  ],\n  \"reread\": \"fx-1\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1",
+   "--json",
+   "--all"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"card\": {\n    \"id\": \"7035845dc37b\",\n    \"ref\": \"fx-1\",\n    \"title\": \"the main card\",\n    \"column\": \"7b5cfe51cb3b\",\n    \"column_title\": \"Doing\",\n    \"state\": \"ready\",\n    \"pull_destination\": \"review\",\n    \"revision\": \"sha256:c5b50458e4ccb77d107f2daa893018758e2a407a1b9b0198732c5b766362c567\",\n    \"attachment_count\": 1,\n    \"checklist_count\": 10,\n    \"blocking_items\": 1,\n    \"operator_pending\": 2,\n    \"child_count\": 14\n  },\n  \"body\": \"\",\n  \"attachments\": [\n    {\n      \"id\": \"9053a7fd8131\",\n      \"ordinal\": 1,\n      \"ref\": \"fx-1/attachments/1\",\n      \"filename\": \"card-payload.txt\",\n      \"description\": \"the main card's own payload\",\n      \"provenance\": \"sam\",\n      \"path\": \"<store>/cards/7035845dc37b/attachments/9053a7fd8131/payload/card-payload.txt\"\n    }\n  ],\n  \"comments\": [\n    {\n      \"id\": \"aced2f79881f\",\n      \"ref\": \"fx-1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:30Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a first card comment, which carries an attachment\",\n      \"size\": 49,\n      \"body\": \"a first card comment, which carries an attachment\",\n      \"attachments\": [\n        {\n          \"id\": \"0a4082289260\",\n          \"ordinal\": 1,\n          \"ref\": \"fx-1/comments/1/attachments/1\",\n          \"filename\": \"comment-payload.txt\",\n          \"description\": \"the card comment's payload\",\n          \"provenance\": \"sam\",\n          \"path\": \"<store>/cards/7035845dc37b/comments/aced2f79881f/attachments/0a4082289260/payload/comment-payload.txt\"\n        }\n      ]\n    },\n    {\n      \"id\": \"70f1ebfb0b50\",\n      \"ref\": \"fx-1/comments/2\",\n      \"ordinal\": 2,\n      \"ts\": \"2026-09-28T06:51:30Z\",\n      \"author\": \"sam\",\n      \"subject\": \"\",\n      \"size\": 0,\n      \"body\": \"\"\n    },\n    {\n      \"id\": \"3bfe49d15727\",\n      \"ref\": \"fx-1/comments/3\",\n      \"ordinal\": 3,\n      \"ts\": \"2026-09-28T06:51:30Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a card comment with \\u003cangle brackets\\u003e \\u0026 an ampersand\",\n      \"size\": 51,\n      \"body\": \"a card comment with \\u003cangle brackets\\u003e \\u0026 an ampersand\"\n    }\n  ],\n  \"handoff\": [\n    {\n      \"id\": \"aced2f79881f\",\n      \"ref\": \"fx-1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:30Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a first card comment, which carries an attachment\",\n      \"size\": 49,\n      \"body\": \"a first card comment, which carries an attachment\",\n      \"attachments\": [\n        {\n          \"id\": \"0a4082289260\",\n          \"ordinal\": 1,\n          \"ref\": \"fx-1/comments/1/attachments/1\",\n          \"filename\": \"comment-payload.txt\",\n          \"description\": \"the card comment's payload\",\n          \"provenance\": \"sam\",\n          \"path\": \"<store>/cards/7035845dc37b/comments/aced2f79881f/attachments/0a4082289260/payload/comment-payload.txt\"\n        }\n      ]\n    },\n    {\n      \"id\": \"70f1ebfb0b50\",\n      \"ref\": \"fx-1/comments/2\",\n      \"ordinal\": 2,\n      \"ts\": \"2026-09-28T06:51:30Z\",\n      \"author\": \"sam\",\n      \"subject\": \"\",\n      \"size\": 0,\n      \"body\": \"\"\n    },\n    {\n      \"id\": \"3bfe49d15727\",\n      \"ref\": \"fx-1/comments/3\",\n      \"ordinal\": 3,\n      \"ts\": \"2026-09-28T06:51:30Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a card comment with \\u003cangle brackets\\u003e \\u0026 an ampersand\",\n      \"size\": 51,\n      \"body\": \"a card comment with \\u003cangle brackets\\u003e \\u0026 an ampersand\"\n    }\n  ],\n  \"checklist\": [\n    {\n      \"id\": \"b44d070ab433\",\n      \"ordinal\": 1,\n      \"ref\": \"fx-1/criteria/1\",\n      \"kind\": \"acceptance_criterion\",\n      \"state\": \"pending\",\n      \"owner\": \"operator\",\n      \"evidence\": \"test\",\n      \"text\": \"the first criterion stays pending\"\n    },\n    {\n      \"id\": \"97b208b685d3\",\n      \"ordinal\": 2,\n      \"ref\": \"fx-1/criteria/2\",\n      \"kind\": \"acceptance_criterion\",\n      \"state\": \"verified\",\n      \"text\": \"the second criterion is verified by text\",\n      \"resolution\": \"fx-1/criteria/2/comments/1\",\n      \"resolution_id\": \"b1cf0b21e040\",\n      \"designated\": {\n        \"ref\": \"fx-1/criteria/2/comments/1\",\n        \"author\": \"sam\",\n        \"ts\": \"2026-09-28T06:51:31Z\",\n        \"body\": \"the second criterion was checked against the fixture\"\n      },\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"82774ba61d0f\",\n      \"ordinal\": 3,\n      \"ref\": \"fx-1/criteria/3\",\n      \"kind\": \"acceptance_criterion\",\n      \"state\": \"failed\",\n      \"text\": \"the third criterion fails by reference\",\n      \"resolution\": \"fx-1/criteria/3/comments/1\",\n      \"resolution_id\": \"460ecc09a593\",\n      \"designated\": {\n        \"ref\": \"fx-1/criteria/3/comments/1\",\n        \"author\": \"sam\",\n        \"ts\": \"2026-09-28T06:51:31Z\",\n        \"body\": \"the handler still answers 200\"\n      },\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"e41441375713\",\n      \"ordinal\": 4,\n      \"ref\": \"fx-1/criteria/4\",\n      \"kind\": \"acceptance_criterion\",\n      \"state\": \"waived\",\n      \"text\": \"the fourth criterion is waived\",\n      \"resolution\": \"fx-1/criteria/4/comments/1\",\n      \"resolution_id\": \"7c8eff591f0f\",\n      \"designated\": {\n        \"ref\": \"fx-1/criteria/4/comments/1\",\n        \"author\": \"sam\",\n        \"ts\": \"2026-09-28T06:51:31Z\",\n        \"body\": \"the operator let the card go on without it\"\n      },\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"1e05e6c628a9\",\n      \"ordinal\": 5,\n      \"ref\": \"fx-1/criteria/5\",\n      \"kind\": \"acceptance_criterion\",\n      \"state\": \"withdrawn\",\n      \"text\": \"the fifth criterion is withdrawn\",\n      \"resolution\": \"fx-1/criteria/5/comments/1\",\n      \"resolution_id\": \"dd53dd7b44b9\",\n      \"designated\": {\n        \"ref\": \"fx-1/criteria/5/comments/1\",\n        \"author\": \"sam\",\n        \"ts\": \"2026-09-28T06:51:32Z\",\n        \"body\": \"the card was narrowed and the check went with it\"\n      },\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"36d2c1cc3b39\",\n      \"ordinal\": 6,\n      \"ref\": \"fx-1/criteria/6\",\n      \"kind\": \"acceptance_criterion\",\n      \"state\": \"pending\",\n      \"text\": \"the sixth criterion was verified and reopened\",\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"f1f26c6d2f2b\",\n      \"ordinal\": 7,\n      \"ref\": \"fx-1/questions/1\",\n      \"kind\": \"open_question\",\n      \"state\": \"resolved\",\n      \"column\": \"3f9c17ade5b2\",\n      \"column_title\": \"Review\",\n      \"owner\": \"operator\",\n      \"text\": \"does the deadline move?\",\n      \"resolution\": \"fx-1/questions/1/comments/1\",\n      \"resolution_id\": \"2d97682d67a7\",\n      \"designated\": {\n        \"ref\": \"fx-1/questions/1/comments/1\",\n        \"author\": \"sam\",\n        \"ts\": \"2026-09-28T06:51:32Z\",\n        \"body\": \"the deadline is the 15th\"\n      },\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"87b95a15aacc\",\n      \"ordinal\": 8,\n      \"ref\": \"fx-1/questions/2\",\n      \"kind\": \"open_question\",\n      \"state\": \"pending\",\n      \"text\": \"which vendor supplies the second payload?\",\n      \"comment_count\": 2\n    },\n    {\n      \"id\": \"60bb41a5f8f1\",\n      \"ordinal\": 9,\n      \"ref\": \"fx-1/decisions/1\",\n      \"kind\": \"decision\",\n      \"state\": \"resolved\",\n      \"text\": \"the write path takes the card's own lock\",\n      \"resolution\": \"fx-1/decisions/1/comments/1\",\n      \"resolution_id\": \"07896a7fa654\",\n      \"designated\": {\n        \"ref\": \"fx-1/decisions/1/comments/1\",\n        \"author\": \"sam\",\n        \"ts\": \"2026-09-28T06:51:33Z\",\n        \"body\": \"it mirrors what comment and attach already take\"\n      },\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"3cfcd10f3c57\",\n      \"ordinal\": 10,\n      \"ref\": \"fx-1/decisions/2\",\n      \"kind\": \"decision\",\n      \"state\": \"pending\",\n      \"column\": \"7b5cfe51cb3b\",\n      \"column_title\": \"Doing\",\n      \"standing\": \"handoff-posted\",\n      \"evidence\": \"record\",\n      \"text\": \"The handoff note names what the next station reads first.\"\n    }\n  ],\n  \"path\": \"<store>/cards/7035845dc37b/card.md\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 1\ndigest: 9d5237656972be577a0c5c0c688b24c55a2f7961ac366b60cdb41a78c36ddd86\n---\na first card comment, which carries an attachment\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 1\ndigest: 9d5237656972be577a0c5c0c688b24c55a2f7961ac366b60cdb41a78c36ddd86\n---\na first card comment, which carries an attachment\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/1/attachments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nfilename: comment-payload.txt\ndescription: the card comment's payload\nprovenance: sam\nordinal: 1\n---\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "path",
+   "fx-1/comments/1/attachments/1/payload"
+  ],
+  "exit": 0,
+  "stdout": "<store>/cards/7035845dc37b/comments/aced2f79881f/attachments/0a4082289260/payload/comment-payload.txt\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/2",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 4\ndigest: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n---\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/2"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 4\ndigest: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n---\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/3",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 5\ndigest: b89533d8913d7278cf552fa1bf54f3e3ec6927c3d0a65b1264081ce716ab49d3\n---\na card comment with <angle brackets> & an ampersand\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/3"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 5\ndigest: b89533d8913d7278cf552fa1bf54f3e3ec6927c3d0a65b1264081ce716ab49d3\n---\na card comment with <angle brackets> & an ampersand\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/1\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: pending\\nowner: operator\\nevidence: test\\nts: 2026-09-28T06:51:30Z\\nordinal: 1\\n---\\nthe first criterion stays pending\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/2",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/2\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: verified\\nts: 2026-09-28T06:51:31Z\\nordinal: 2\\nresolution: b1cf0b21e040\\ncitations:\\n  - scheme: test\\n    target: internal/verb/mutate_test.go#TestSecond\\n    observed:\\n      before: fail\\n      after: pass\\n  - scheme: record\\n    target: the review note\\n---\\nthe second criterion is verified by text\",\n  \"comments\": [\n    {\n      \"id\": \"b1cf0b21e040\",\n      \"ref\": \"fx-1/criteria/2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:31Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the second criterion was checked against the fixture\",\n      \"size\": 52,\n      \"body\": \"the second criterion was checked against the fixture\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/2/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:31Z\nauthor: sam\nordinal: 1\ndigest: 1217af3827382e492181bb3bd4be80b3e4c8414be483ef38ec1e7a9c9a046710\n---\nthe second criterion was checked against the fixture\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/2/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:31Z\nauthor: sam\nordinal: 1\ndigest: 1217af3827382e492181bb3bd4be80b3e4c8414be483ef38ec1e7a9c9a046710\n---\nthe second criterion was checked against the fixture\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/3",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/3\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: failed\\nts: 2026-09-28T06:51:31Z\\nordinal: 3\\nresolution: 460ecc09a593\\n---\\nthe third criterion fails by reference\",\n  \"comments\": [\n    {\n      \"id\": \"460ecc09a593\",\n      \"ref\": \"fx-1/criteria/3/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:31Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the handler still answers 200\",\n      \"size\": 29,\n      \"body\": \"the handler still answers 200\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/3/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:31Z\nauthor: sam\nordinal: 1\ndigest: 23cb488ac00e4c387293008a5e5d787e0433504b560261c20d724740e832f0a9\n---\nthe handler still answers 200\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/3/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:31Z\nauthor: sam\nordinal: 1\ndigest: 23cb488ac00e4c387293008a5e5d787e0433504b560261c20d724740e832f0a9\n---\nthe handler still answers 200\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/4",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/4\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: waived\\nts: 2026-09-28T06:51:31Z\\nordinal: 4\\nresolution: 7c8eff591f0f\\n---\\nthe fourth criterion is waived\",\n  \"comments\": [\n    {\n      \"id\": \"7c8eff591f0f\",\n      \"ref\": \"fx-1/criteria/4/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:31Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the operator let the card go on without it\",\n      \"size\": 42,\n      \"body\": \"the operator let the card go on without it\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/4/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:31Z\nauthor: sam\nordinal: 1\ndigest: e871e2a355c8c3889eab4165405425266773e1710f596d782d0c040d8a416bde\n---\nthe operator let the card go on without it\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/4/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:31Z\nauthor: sam\nordinal: 1\ndigest: e871e2a355c8c3889eab4165405425266773e1710f596d782d0c040d8a416bde\n---\nthe operator let the card go on without it\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/5",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/5\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: withdrawn\\nts: 2026-09-28T06:51:31Z\\nordinal: 5\\nresolution: dd53dd7b44b9\\n---\\nthe fifth criterion is withdrawn\",\n  \"comments\": [\n    {\n      \"id\": \"dd53dd7b44b9\",\n      \"ref\": \"fx-1/criteria/5/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the card was narrowed and the check went with it\",\n      \"size\": 48,\n      \"body\": \"the card was narrowed and the check went with it\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/5/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: 26adf3198709511a239d747e44c3348b8bdc7597b739c992b39854ed669bff0e\n---\nthe card was narrowed and the check went with it\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/5/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: 26adf3198709511a239d747e44c3348b8bdc7597b739c992b39854ed669bff0e\n---\nthe card was narrowed and the check went with it\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/6",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/6\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: pending\\nts: 2026-09-28T06:51:32Z\\nordinal: 6\\n---\\nthe sixth criterion was verified and reopened\",\n  \"comments\": [\n    {\n      \"id\": \"aa385bcdaa40\",\n      \"ref\": \"fx-1/criteria/6/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"it looked right the first time\",\n      \"size\": 30,\n      \"body\": \"it looked right the first time\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/6/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: 2989413c941190e86bccd75397983b4e371e99d7457c1c7e9d59cc9019ca8007\n---\nit looked right the first time\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/6/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: 2989413c941190e86bccd75397983b4e371e99d7457c1c7e9d59cc9019ca8007\n---\nit looked right the first time\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/7",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/questions/1\",\n  \"text\": \"---\\nkind: open_question\\nstate: resolved\\ncolumn: 3f9c17ade5b2\\nowner: operator\\nts: 2026-09-28T06:51:32Z\\nordinal: 7\\nresolution: 2d97682d67a7\\n---\\ndoes the deadline move?\",\n  \"comments\": [\n    {\n      \"id\": \"2d97682d67a7\",\n      \"ref\": \"fx-1/questions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the deadline is the 15th\",\n      \"size\": 24,\n      \"body\": \"the deadline is the 15th\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/7/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: a199deccf3fcf82e8028c5fd7be6a3b13a9ce7512245a4ea207c2de517678d43\n---\nthe deadline is the 15th\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/7/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: a199deccf3fcf82e8028c5fd7be6a3b13a9ce7512245a4ea207c2de517678d43\n---\nthe deadline is the 15th\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/questions/2\",\n  \"text\": \"---\\nkind: open_question\\nstate: pending\\nts: 2026-09-28T06:51:32Z\\nordinal: 8\\n---\\nwhich vendor supplies the second payload?\",\n  \"comments\": [\n    {\n      \"id\": \"8da662a999d9\",\n      \"ref\": \"fx-1/questions/2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"an item comment carrying an attachment\",\n      \"size\": 38,\n      \"body\": \"an item comment carrying an attachment\",\n      \"attachments\": [\n        {\n          \"id\": \"638331c993cb\",\n          \"ordinal\": 1,\n          \"ref\": \"fx-1/questions/2/comments/1/attachments/1\",\n          \"filename\": \"item-comment-payload.txt\",\n          \"description\": \"the item comment's payload\",\n          \"provenance\": \"sam\",\n          \"path\": \"<store>/cards/7035845dc37b/checklist/87b95a15aacc/comments/8da662a999d9/attachments/638331c993cb/payload/item-comment-payload.txt\"\n        }\n      ]\n    },\n    {\n      \"id\": \"6ebdf797b337\",\n      \"ref\": \"fx-1/questions/2/comments/2\",\n      \"ordinal\": 2,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"an item comment that stays\",\n      \"size\": 26,\n      \"body\": \"an item comment that stays\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: 1b34c8397023c81bffe660abe344b46320eedc832c739e69e7e4217281723763\n---\nan item comment carrying an attachment\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 1\ndigest: 1b34c8397023c81bffe660abe344b46320eedc832c739e69e7e4217281723763\n---\nan item comment carrying an attachment\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8/comments/1/attachments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nfilename: item-comment-payload.txt\ndescription: the item comment's payload\nprovenance: sam\nordinal: 1\n---\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "path",
+   "fx-1/checklist/8/comments/1/attachments/1/payload"
+  ],
+  "exit": 0,
+  "stdout": "<store>/cards/7035845dc37b/checklist/87b95a15aacc/comments/8da662a999d9/attachments/638331c993cb/payload/item-comment-payload.txt\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8/comments/2",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:33Z\nauthor: sam\nordinal: 4\ndigest: a780f0231391a3c7bb0f03fcc9f30c410759b482dae037ca5c6c01d37e990563\n---\nan item comment that stays\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8/comments/2"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:33Z\nauthor: sam\nordinal: 4\ndigest: a780f0231391a3c7bb0f03fcc9f30c410759b482dae037ca5c6c01d37e990563\n---\nan item comment that stays\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/9",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/1\",\n  \"text\": \"---\\nkind: decision\\nstate: resolved\\nts: 2026-09-28T06:51:33Z\\nordinal: 9\\nresolution: 07896a7fa654\\n---\\nthe write path takes the card's own lock\",\n  \"comments\": [\n    {\n      \"id\": \"07896a7fa654\",\n      \"ref\": \"fx-1/decisions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"it mirrors what comment and attach already take\",\n      \"size\": 47,\n      \"body\": \"it mirrors what comment and attach already take\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/9/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:33Z\nauthor: sam\nordinal: 1\ndigest: 98865fba96ddd6e84258f8c696c5e99121a9f859f40a0df956e2a22109fc4f7c\n---\nit mirrors what comment and attach already take\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/9/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:33Z\nauthor: sam\nordinal: 1\ndigest: 98865fba96ddd6e84258f8c696c5e99121a9f859f40a0df956e2a22109fc4f7c\n---\nit mirrors what comment and attach already take\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/10",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/2\",\n  \"text\": \"---\\nkind: decision\\nstate: pending\\ncolumn: 7b5cfe51cb3b\\nstanding: handoff-posted\\nevidence: record\\nts: 2026-09-28T06:51:33Z\\nordinal: 12\\n---\\nThe handoff note names what the next station reads first.\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"card\": {\n    \"id\": \"b745ea46d9e3\",\n    \"ref\": \"fx-3\",\n    \"title\": \"the card with hand-edited comments\",\n    \"column\": \"004acda2c28a\",\n    \"column_title\": \"Intake\",\n    \"state\": \"ready\",\n    \"pull_destination\": \"doing\",\n    \"revision\": \"sha256:6693c351f28545fde279f44b7f549470d97bcd4d4c2d4c19412b4d36734ca8eb\",\n    \"child_count\": 3\n  },\n  \"body\": \"\",\n  \"withheld\": [\n    \"comments\",\n    \"path\"\n  ],\n  \"reread\": \"fx-3\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3",
+   "--json",
+   "--all"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"card\": {\n    \"id\": \"b745ea46d9e3\",\n    \"ref\": \"fx-3\",\n    \"title\": \"the card with hand-edited comments\",\n    \"column\": \"004acda2c28a\",\n    \"column_title\": \"Intake\",\n    \"state\": \"ready\",\n    \"pull_destination\": \"doing\",\n    \"revision\": \"sha256:6693c351f28545fde279f44b7f549470d97bcd4d4c2d4c19412b4d36734ca8eb\",\n    \"child_count\": 3\n  },\n  \"body\": \"\",\n  \"comments\": [\n    {\n      \"id\": \"6a2e3cd4023e\",\n      \"ref\": \"fx-3/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:34Z\",\n      \"author\": \"\",\n      \"subject\": \"a comment whose author is removed by hand\",\n      \"size\": 41,\n      \"body\": \"a comment whose author is removed by hand\"\n    },\n    {\n      \"id\": \"6580937ea6f2\",\n      \"ref\": \"fx-3/comments/2\",\n      \"ordinal\": 2,\n      \"ts\": \"2026-09-28T06:51:34Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a comment whose body was edited by hand, after its digest was recorded\",\n      \"size\": 70,\n      \"body\": \"a comment whose body was edited by hand, after its digest was recorded\"\n    },\n    {\n      \"id\": \"fa57b145f78d\",\n      \"ref\": \"fx-3/comments/3\",\n      \"ordinal\": 3,\n      \"ts\": \"2026-09-28T06:51:34Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the vendor answered\",\n      \"size\": 19,\n      \"body\": \"the vendor answered\"\n    }\n  ],\n  \"path\": \"<store>/cards/b745ea46d9e3/card.md\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor_unrecoverable: true\nordinal: 1\ndigest: 37b8772ae6c99852208340c89dd8713f73c1b8f8a791909ed94abeff3fca28e0\n---\na comment whose author is removed by hand\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor_unrecoverable: true\nordinal: 1\ndigest: 37b8772ae6c99852208340c89dd8713f73c1b8f8a791909ed94abeff3fca28e0\n---\na comment whose author is removed by hand\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3/comments/2",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor: sam\nordinal: 2\ndigest: 94c456b6dddbc6394a3ff05e93db9111f3f866df4f0bf80a017281c214144b5a\n---\na comment whose body was edited by hand, after its digest was recorded\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3/comments/2"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor: sam\nordinal: 2\ndigest: 94c456b6dddbc6394a3ff05e93db9111f3f866df4f0bf80a017281c214144b5a\n---\na comment whose body was edited by hand, after its digest was recorded\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3/comments/3",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor: sam\nordinal: 3\ndigest: 0c31a7bed42b40595932e00ca33f2ae1a7a319bd65e189f4bf754ecf500085ae\n---\nthe vendor answered\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-3/comments/3"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor: sam\nordinal: 3\ndigest: 0c31a7bed42b40595932e00ca33f2ae1a7a319bd65e189f4bf754ecf500085ae\n---\nthe vendor answered\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-4",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"card\": {\n    \"id\": \"8fadf319a45a\",\n    \"ref\": \"fx-4\",\n    \"title\": \"the card that stays in intake\",\n    \"column\": \"004acda2c28a\",\n    \"column_title\": \"Intake\",\n    \"state\": \"ready\",\n    \"pull_destination\": \"doing\",\n    \"revision\": \"sha256:56b7f2fcfe40c45d11e23c4f0d9f933b88dfea1b9ccfca83e7e52a6fe4050153\"\n  },\n  \"body\": \"\",\n  \"withheld\": [\n    \"path\"\n  ],\n  \"reread\": \"fx-4\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-4",
+   "--json",
+   "--all"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"card\": {\n    \"id\": \"8fadf319a45a\",\n    \"ref\": \"fx-4\",\n    \"title\": \"the card that stays in intake\",\n    \"column\": \"004acda2c28a\",\n    \"column_title\": \"Intake\",\n    \"state\": \"ready\",\n    \"pull_destination\": \"doing\",\n    \"revision\": \"sha256:56b7f2fcfe40c45d11e23c4f0d9f933b88dfea1b9ccfca83e7e52a6fe4050153\"\n  },\n  \"body\": \"\",\n  \"path\": \"<store>/cards/8fadf319a45a/card.md\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 2\ndigest: 7a7ac0d64bef769d288ad1a4808b0d27393da0d4a8dec5a99922a8ae7aa07808\n---\na second card comment, archived afterwards\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/1",
+   "--archived"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 2\ndigest: 7a7ac0d64bef769d288ad1a4808b0d27393da0d4a8dec5a99922a8ae7aa07808\n---\na second card comment, archived afterwards\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/1\",\n  \"text\": \"---\\nkind: decision\\nstate: pending\\nts: 2026-09-28T06:51:33Z\\nordinal: 10\\n---\\na decision archived afterwards\",\n  \"comments\": [\n    {\n      \"id\": \"f2a461a0787e\",\n      \"ref\": \"fx-1/decisions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a comment on the archived decision\",\n      \"size\": 34,\n      \"body\": \"a comment on the archived decision\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/1",
+   "--archived"
+  ],
+  "exit": 0,
+  "stdout": "---\nkind: decision\nstate: pending\nts: 2026-09-28T06:51:33Z\nordinal: 10\n---\na decision archived afterwards\n\nComments:\n  Ref      fx-1/decisions/1/comments/1\n  When     2026-09-28T06:51:33Z\n  Who      sam\n  Subject  a comment on the archived decision\n  Size     34\na comment on the archived decision\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/1/comments/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.unknown-path\",\n  \"detail\": \"1\"\n}\n",
+  "stderr": "dinah.unknown-path nothing in this workbench answers to 1; run `dinah list` to see what this workbench carries\n"
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/1/comments/1",
+   "--archived"
+  ],
+  "exit": 2,
+  "stdout": "",
+  "stderr": "dinah.unknown-path nothing in this workbench answers to 1; run `dinah list` to see what this workbench carries\n"
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/questions/2/comments/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 2\ndigest: 1325824bdfccb1516363baa28a11a512856c94d0fa74d32242064f63ae75229e\n---\nan item comment archived afterwards\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/questions/2/comments/1",
+   "--archived"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:32Z\nauthor: sam\nordinal: 2\ndigest: 1325824bdfccb1516363baa28a11a512856c94d0fa74d32242064f63ae75229e\n---\nan item comment archived afterwards\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "review/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor: sam\nordinal: 1\ndigest: e593d043141e55a58b98ae6a2a3cf1cdb54235a046d3ea17b6e98a97a3c14294\n---\na comment on the review column\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "review/comments/1"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor: sam\nordinal: 1\ndigest: e593d043141e55a58b98ae6a2a3cf1cdb54235a046d3ea17b6e98a97a3c14294\n---\na comment on the review column\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "parked/comments/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.not-archived\",\n  \"detail\": \"parked/comments/1\",\n  \"context\": {\n    \"holder\": \"parked\"\n  }\n}\n",
+  "stderr": "dinah.not-archived nothing in the archive answers to parked/comments/1; parked is archived and this entity travelled inside it, so run `dinah restore parked` to bring both back\n"
+ },
+ {
+  "args": [
+   "list",
+   "--archived",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"rosters\": [\n    {\n      \"reference\": \"columns\",\n      \"holds\": \"column\",\n      \"count\": 1\n    },\n    {\n      \"reference\": \"cards\",\n      \"holds\": \"card\",\n      \"count\": 1\n    },\n    {\n      \"reference\": \"workstreams\",\n      \"holds\": \"workstream\",\n      \"count\": 0\n    },\n    {\n      \"reference\": \"attachments\",\n      \"holds\": \"attachment\",\n      \"count\": 0\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "--archived",
+   "4361133279f8",
+   "--all"
+  ],
+  "exit": 0,
+  "stdout": "fx-2  the card that will be archived  [Done / ready]\n\nComments:\n  Ref      fx-2/comments/1\n  When     2026-09-28T06:51:34Z\n  Who      sam\n  Subject  a comment on the card that will be archived\n  Size     43\na comment on the card that will be archived\n\nHandoff:\n  Ref      fx-2/comments/1\n  When     2026-09-28T06:51:34Z\n  Who      sam\n  Subject  a comment on the card that will be archived\n  Size     43\na comment on the card that will be archived\n\nChecklist:\n  fx-2/criteria/1  pending  1         a criterion on the card that will be\n                                      archived\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "--archived",
+   "4361133279f8",
+   "--all",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"card\": {\n    \"id\": \"4361133279f8\",\n    \"ref\": \"fx-2\",\n    \"title\": \"the card that will be archived\",\n    \"column\": \"68091798ab26\",\n    \"column_title\": \"Done\",\n    \"state\": \"ready\",\n    \"revision\": \"sha256:512bcf69b0125bf20779d64b10796806b30f474bd42b113c221a50422b722a6f\",\n    \"checklist_count\": 1,\n    \"child_count\": 2\n  },\n  \"body\": \"\",\n  \"comments\": [\n    {\n      \"id\": \"ab3b13b910a6\",\n      \"ref\": \"fx-2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:34Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a comment on the card that will be archived\",\n      \"size\": 43,\n      \"body\": \"a comment on the card that will be archived\"\n    }\n  ],\n  \"handoff\": [\n    {\n      \"id\": \"ab3b13b910a6\",\n      \"ref\": \"fx-2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:34Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a comment on the card that will be archived\",\n      \"size\": 43,\n      \"body\": \"a comment on the card that will be archived\"\n    }\n  ],\n  \"checklist\": [\n    {\n      \"id\": \"abb6764e3bea\",\n      \"ordinal\": 1,\n      \"ref\": \"fx-2/criteria/1\",\n      \"kind\": \"acceptance_criterion\",\n      \"state\": \"pending\",\n      \"text\": \"a criterion on the card that will be archived\",\n      \"comment_count\": 1\n    }\n  ],\n  \"path\": \"<store>/archive/cards/4361133279f8/card.md\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/comments/1",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"4361133279f8\"\n}\n",
+  "stderr": "unknown-card this workbench carries no card 4361133279f8; run `dinah list cards` to see the cards this workbench carries\n"
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/comments/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.not-archived\",\n  \"detail\": \"4361133279f8/comments/1\",\n  \"context\": {\n    \"holder\": \"4361133279f8\"\n  }\n}\n",
+  "stderr": "dinah.not-archived nothing in the archive answers to 4361133279f8/comments/1; 4361133279f8 is archived and this entity travelled inside it, so run `dinah restore 4361133279f8` to bring both back\n"
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/checklist/1",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"4361133279f8\"\n}\n",
+  "stderr": "unknown-card this workbench carries no card 4361133279f8; run `dinah list cards` to see the cards this workbench carries\n"
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/checklist/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.not-archived\",\n  \"detail\": \"4361133279f8/checklist/1\",\n  \"context\": {\n    \"holder\": \"4361133279f8\"\n  }\n}\n",
+  "stderr": "dinah.not-archived nothing in the archive answers to 4361133279f8/checklist/1; 4361133279f8 is archived and this entity travelled inside it, so run `dinah restore 4361133279f8` to bring both back\n"
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/criteria/1",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"4361133279f8\"\n}\n",
+  "stderr": "unknown-card this workbench carries no card 4361133279f8; run `dinah list cards` to see the cards this workbench carries\n"
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/criteria/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.not-archived\",\n  \"detail\": \"4361133279f8/criteria/1\",\n  \"context\": {\n    \"holder\": \"4361133279f8\"\n  }\n}\n",
+  "stderr": "dinah.not-archived nothing in the archive answers to 4361133279f8/criteria/1; 4361133279f8 is archived and this entity travelled inside it, so run `dinah restore 4361133279f8` to bring both back\n"
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/checklist/1/comments/1",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"unknown-card\",\n  \"detail\": \"4361133279f8\"\n}\n",
+  "stderr": "unknown-card this workbench carries no card 4361133279f8; run `dinah list cards` to see the cards this workbench carries\n"
+ },
+ {
+  "args": [
+   "show",
+   "4361133279f8/checklist/1/comments/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.not-archived\",\n  \"detail\": \"4361133279f8/checklist/1/comments/1\",\n  \"context\": {\n    \"holder\": \"4361133279f8\"\n  }\n}\n",
+  "stderr": "dinah.not-archived nothing in the archive answers to 4361133279f8/checklist/1/comments/1; 4361133279f8 is archived and this entity travelled inside it, so run `dinah restore 4361133279f8` to bring both back\n"
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/ac/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/1\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: pending\\nowner: operator\\nevidence: test\\nts: 2026-09-28T06:51:30Z\\nordinal: 1\\n---\\nthe first criterion stays pending\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/oq/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/questions/1\",\n  \"text\": \"---\\nkind: open_question\\nstate: resolved\\ncolumn: 3f9c17ade5b2\\nowner: operator\\nts: 2026-09-28T06:51:32Z\\nordinal: 7\\nresolution: 2d97682d67a7\\n---\\ndoes the deadline move?\",\n  \"comments\": [\n    {\n      \"id\": \"2d97682d67a7\",\n      \"ref\": \"fx-1/questions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the deadline is the 15th\",\n      \"size\": 24,\n      \"body\": \"the deadline is the 15th\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/d/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/1\",\n  \"text\": \"---\\nkind: decision\\nstate: resolved\\nts: 2026-09-28T06:51:33Z\\nordinal: 9\\nresolution: 07896a7fa654\\n---\\nthe write path takes the card's own lock\",\n  \"comments\": [\n    {\n      \"id\": \"07896a7fa654\",\n      \"ref\": \"fx-1/decisions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"it mirrors what comment and attach already take\",\n      \"size\": 47,\n      \"body\": \"it mirrors what comment and attach already take\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/criteria/2",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/2\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: verified\\nts: 2026-09-28T06:51:31Z\\nordinal: 2\\nresolution: b1cf0b21e040\\ncitations:\\n  - scheme: test\\n    target: internal/verb/mutate_test.go#TestSecond\\n    observed:\\n      before: fail\\n      after: pass\\n  - scheme: record\\n    target: the review note\\n---\\nthe second criterion is verified by text\",\n  \"comments\": [\n    {\n      \"id\": \"b1cf0b21e040\",\n      \"ref\": \"fx-1/criteria/2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:31Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the second criterion was checked against the fixture\",\n      \"size\": 52,\n      \"body\": \"the second criterion was checked against the fixture\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/questions/2",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/questions/2\",\n  \"text\": \"---\\nkind: open_question\\nstate: pending\\nts: 2026-09-28T06:51:32Z\\nordinal: 8\\n---\\nwhich vendor supplies the second payload?\",\n  \"comments\": [\n    {\n      \"id\": \"8da662a999d9\",\n      \"ref\": \"fx-1/questions/2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"an item comment carrying an attachment\",\n      \"size\": 38,\n      \"body\": \"an item comment carrying an attachment\",\n      \"attachments\": [\n        {\n          \"id\": \"638331c993cb\",\n          \"ordinal\": 1,\n          \"ref\": \"fx-1/questions/2/comments/1/attachments/1\",\n          \"filename\": \"item-comment-payload.txt\",\n          \"description\": \"the item comment's payload\",\n          \"provenance\": \"sam\",\n          \"path\": \"<store>/cards/7035845dc37b/checklist/87b95a15aacc/comments/8da662a999d9/attachments/638331c993cb/payload/item-comment-payload.txt\"\n        }\n      ]\n    },\n    {\n      \"id\": \"6ebdf797b337\",\n      \"ref\": \"fx-1/questions/2/comments/2\",\n      \"ordinal\": 2,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"an item comment that stays\",\n      \"size\": 26,\n      \"body\": \"an item comment that stays\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/decisions/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/1\",\n  \"text\": \"---\\nkind: decision\\nstate: resolved\\nts: 2026-09-28T06:51:33Z\\nordinal: 9\\nresolution: 07896a7fa654\\n---\\nthe write path takes the card's own lock\",\n  \"comments\": [\n    {\n      \"id\": \"07896a7fa654\",\n      \"ref\": \"fx-1/decisions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"it mirrors what comment and attach already take\",\n      \"size\": 47,\n      \"body\": \"it mirrors what comment and attach already take\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/oq/2/comments/2",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:33Z\nauthor: sam\nordinal: 4\ndigest: a780f0231391a3c7bb0f03fcc9f30c410759b482dae037ca5c6c01d37e990563\n---\nan item comment that stays\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/criteria/3/comments/1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:31Z\nauthor: sam\nordinal: 1\ndigest: 23cb488ac00e4c387293008a5e5d787e0433504b560261c20d724740e832f0a9\n---\nthe handler still answers 200\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/3bfe49d15727",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 5\ndigest: b89533d8913d7278cf552fa1bf54f3e3ec6927c3d0a65b1264081ce716ab49d3\n---\na card comment with <angle brackets> & an ampersand\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/70f1ebfb0b50",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 4\ndigest: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n---\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/comments/aced2f79881f",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:30Z\nauthor: sam\nordinal: 1\ndigest: 9d5237656972be577a0c5c0c688b24c55a2f7961ac366b60cdb41a78c36ddd86\n---\na first card comment, which carries an attachment\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/1e05e6c628a9",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/5\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: withdrawn\\nts: 2026-09-28T06:51:31Z\\nordinal: 5\\nresolution: dd53dd7b44b9\\n---\\nthe fifth criterion is withdrawn\",\n  \"comments\": [\n    {\n      \"id\": \"dd53dd7b44b9\",\n      \"ref\": \"fx-1/criteria/5/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the card was narrowed and the check went with it\",\n      \"size\": 48,\n      \"body\": \"the card was narrowed and the check went with it\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/36d2c1cc3b39",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/6\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: pending\\nts: 2026-09-28T06:51:32Z\\nordinal: 6\\n---\\nthe sixth criterion was verified and reopened\",\n  \"comments\": [\n    {\n      \"id\": \"aa385bcdaa40\",\n      \"ref\": \"fx-1/criteria/6/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"it looked right the first time\",\n      \"size\": 30,\n      \"body\": \"it looked right the first time\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/3cfcd10f3c57",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/2\",\n  \"text\": \"---\\nkind: decision\\nstate: pending\\ncolumn: 7b5cfe51cb3b\\nstanding: handoff-posted\\nevidence: record\\nts: 2026-09-28T06:51:33Z\\nordinal: 12\\n---\\nThe handoff note names what the next station reads first.\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/60bb41a5f8f1",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/1\",\n  \"text\": \"---\\nkind: decision\\nstate: resolved\\nts: 2026-09-28T06:51:33Z\\nordinal: 9\\nresolution: 07896a7fa654\\n---\\nthe write path takes the card's own lock\",\n  \"comments\": [\n    {\n      \"id\": \"07896a7fa654\",\n      \"ref\": \"fx-1/decisions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"it mirrors what comment and attach already take\",\n      \"size\": 47,\n      \"body\": \"it mirrors what comment and attach already take\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/82774ba61d0f",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/3\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: failed\\nts: 2026-09-28T06:51:31Z\\nordinal: 3\\nresolution: 460ecc09a593\\n---\\nthe third criterion fails by reference\",\n  \"comments\": [\n    {\n      \"id\": \"460ecc09a593\",\n      \"ref\": \"fx-1/criteria/3/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:31Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the handler still answers 200\",\n      \"size\": 29,\n      \"body\": \"the handler still answers 200\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/87b95a15aacc",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/questions/2\",\n  \"text\": \"---\\nkind: open_question\\nstate: pending\\nts: 2026-09-28T06:51:32Z\\nordinal: 8\\n---\\nwhich vendor supplies the second payload?\",\n  \"comments\": [\n    {\n      \"id\": \"8da662a999d9\",\n      \"ref\": \"fx-1/questions/2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"an item comment carrying an attachment\",\n      \"size\": 38,\n      \"body\": \"an item comment carrying an attachment\",\n      \"attachments\": [\n        {\n          \"id\": \"638331c993cb\",\n          \"ordinal\": 1,\n          \"ref\": \"fx-1/questions/2/comments/1/attachments/1\",\n          \"filename\": \"item-comment-payload.txt\",\n          \"description\": \"the item comment's payload\",\n          \"provenance\": \"sam\",\n          \"path\": \"<store>/cards/7035845dc37b/checklist/87b95a15aacc/comments/8da662a999d9/attachments/638331c993cb/payload/item-comment-payload.txt\"\n        }\n      ]\n    },\n    {\n      \"id\": \"6ebdf797b337\",\n      \"ref\": \"fx-1/questions/2/comments/2\",\n      \"ordinal\": 2,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"an item comment that stays\",\n      \"size\": 26,\n      \"body\": \"an item comment that stays\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/97b208b685d3",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/2\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: verified\\nts: 2026-09-28T06:51:31Z\\nordinal: 2\\nresolution: b1cf0b21e040\\ncitations:\\n  - scheme: test\\n    target: internal/verb/mutate_test.go#TestSecond\\n    observed:\\n      before: fail\\n      after: pass\\n  - scheme: record\\n    target: the review note\\n---\\nthe second criterion is verified by text\",\n  \"comments\": [\n    {\n      \"id\": \"b1cf0b21e040\",\n      \"ref\": \"fx-1/criteria/2/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:31Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the second criterion was checked against the fixture\",\n      \"size\": 52,\n      \"body\": \"the second criterion was checked against the fixture\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/b44d070ab433",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/1\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: pending\\nowner: operator\\nevidence: test\\nts: 2026-09-28T06:51:30Z\\nordinal: 1\\n---\\nthe first criterion stays pending\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/e41441375713",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/criteria/4\",\n  \"text\": \"---\\nkind: acceptance_criterion\\nstate: waived\\nts: 2026-09-28T06:51:31Z\\nordinal: 4\\nresolution: 7c8eff591f0f\\n---\\nthe fourth criterion is waived\",\n  \"comments\": [\n    {\n      \"id\": \"7c8eff591f0f\",\n      \"ref\": \"fx-1/criteria/4/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:31Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the operator let the card go on without it\",\n      \"size\": 42,\n      \"body\": \"the operator let the card go on without it\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/f1f26c6d2f2b",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/questions/1\",\n  \"text\": \"---\\nkind: open_question\\nstate: resolved\\ncolumn: 3f9c17ade5b2\\nowner: operator\\nts: 2026-09-28T06:51:32Z\\nordinal: 7\\nresolution: 2d97682d67a7\\n---\\ndoes the deadline move?\",\n  \"comments\": [\n    {\n      \"id\": \"2d97682d67a7\",\n      \"ref\": \"fx-1/questions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:32Z\",\n      \"author\": \"sam\",\n      \"subject\": \"the deadline is the 15th\",\n      \"size\": 24,\n      \"body\": \"the deadline is the 15th\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8790642cd28b/comments/1",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.unknown-path\",\n  \"detail\": \"8790642cd28b\"\n}\n",
+  "stderr": "dinah.unknown-path nothing in this workbench answers to 8790642cd28b; run `dinah list` to see what this workbench carries\n"
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8790642cd28b/comments/1",
+   "--archived",
+   "--json"
+  ],
+  "exit": 2,
+  "stdout": "{\n  \"outcome\": \"refused\",\n  \"refusal\": \"dinah.not-archived\",\n  \"detail\": \"fx-1/checklist/8790642cd28b/comments/1\",\n  \"context\": {\n    \"holder\": \"fx-1/checklist/8790642cd28b\"\n  }\n}\n",
+  "stderr": "dinah.not-archived nothing in the archive answers to fx-1/checklist/8790642cd28b/comments/1; fx-1/checklist/8790642cd28b is archived and this entity travelled inside it, so run `dinah restore fx-1/checklist/8790642cd28b` to bring both back\n"
+ },
+ {
+  "args": [
+   "show",
+   "fx-1/checklist/8790642cd28b",
+   "--archived",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"ref\": \"fx-1/decisions/1\",\n  \"text\": \"---\\nkind: decision\\nstate: pending\\nts: 2026-09-28T06:51:33Z\\nordinal: 10\\n---\\na decision archived afterwards\",\n  \"comments\": [\n    {\n      \"id\": \"f2a461a0787e\",\n      \"ref\": \"fx-1/decisions/1/comments/1\",\n      \"ordinal\": 1,\n      \"ts\": \"2026-09-28T06:51:33Z\",\n      \"author\": \"sam\",\n      \"subject\": \"a comment on the archived decision\",\n      \"size\": 34,\n      \"body\": \"a comment on the archived decision\"\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "show",
+   "review/comments/8755428bf27c",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "---\nts: 2026-09-28T06:51:34Z\nauthor: sam\nordinal: 1\ndigest: e593d043141e55a58b98ae6a2a3cf1cdb54235a046d3ea17b6e98a97a3c14294\n---\na comment on the review column\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "list"
+  ],
+  "exit": 0,
+  "stdout": "  Reference    Holds       Count\n  -----------  ----------  -----\n  columns      column      4\n  cards        card        3\n  workstreams  workstream  0\n  attachments  attachment  0\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "list",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"rosters\": [\n    {\n      \"reference\": \"columns\",\n      \"holds\": \"column\",\n      \"count\": 4\n    },\n    {\n      \"reference\": \"cards\",\n      \"holds\": \"card\",\n      \"count\": 3\n    },\n    {\n      \"reference\": \"workstreams\",\n      \"holds\": \"workstream\",\n      \"count\": 0\n    },\n    {\n      \"reference\": \"attachments\",\n      \"holds\": \"attachment\",\n      \"count\": 0\n    }\n  ]\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "status"
+  ],
+  "exit": 0,
+  "stdout": "Storage migration fixture  (<store>)  [flag]\nacting as sam, operator: yes\n\n  Slug    Name    Kind    Cards  Work        Owner\n  ------  ------  ------  -----  ----------  --------\n  intake  Intake  intake  2      none taken  operator\n  doing   Doing   work    1      taken       agent\n  review  Review  work    0      taken       agent\n  done    Done    done    0      none taken  operator\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "status",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"workbench\": \"Storage migration fixture\",\n  \"root\": \"<store>\",\n  \"actor\": \"sam\",\n  \"is_operator\": true,\n  \"operator\": \"sam\",\n  \"profile\": \"dinah-core/0.18\",\n  \"columns\": [\n    {\n      \"id\": \"004acda2c28a\",\n      \"slug\": \"intake\",\n      \"title\": \"Intake\",\n      \"kind\": \"intake\",\n      \"operator_owned\": true,\n      \"awaiting_outside\": false,\n      \"takes_work_up\": false,\n      \"pull_destination\": \"doing\",\n      \"count\": 2\n    },\n    {\n      \"id\": \"7b5cfe51cb3b\",\n      \"slug\": \"doing\",\n      \"title\": \"Doing\",\n      \"kind\": \"work\",\n      \"operator_owned\": false,\n      \"awaiting_outside\": false,\n      \"takes_work_up\": true,\n      \"pull_destination\": \"review\",\n      \"standing_items\": [\n        {\n          \"key\": \"handoff-posted\",\n          \"kind\": \"decision\",\n          \"text\": \"The handoff note names what the next station reads first.\",\n          \"evidence\": \"record\"\n        }\n      ],\n      \"count\": 1\n    },\n    {\n      \"id\": \"3f9c17ade5b2\",\n      \"slug\": \"review\",\n      \"title\": \"Review\",\n      \"kind\": \"work\",\n      \"operator_owned\": false,\n      \"awaiting_outside\": false,\n      \"takes_work_up\": true,\n      \"count\": 0,\n      \"comment_count\": 1\n    },\n    {\n      \"id\": \"68091798ab26\",\n      \"slug\": \"done\",\n      \"title\": \"Done\",\n      \"kind\": \"done\",\n      \"operator_owned\": true,\n      \"awaiting_outside\": false,\n      \"takes_work_up\": false,\n      \"count\": 0\n    }\n  ],\n  \"holding\": [],\n  \"blocked\": [],\n  \"workbench_source\": \"flag\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "view",
+   "board",
+   "--plain"
+  ],
+  "exit": 0,
+  "stdout": "Board                                                   acting as sam, operator\nCollapsed: Intake 2\n\nDoing (1)\n-------------------------------------------------------------------------------\no 1 !\n  the main card\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "tree"
+  ],
+  "exit": 0,
+  "stdout": "Storage migration fixture (fx) holds 3 cards.\n  Reference         Entity  Title  Count\n  ----------------  ------  -----  -----\n  |-- intake        column         2\n  |   |-- fx-3      card    the card with hand-edited comments\n  |   `-- fx-4      card    the card that stays in intake\n  |-- doing         column         1\n  |   |-- ready     state          1\n  |   |   `-- fx-1  card    the main card\n  |   `-- active    state          0\n  |-- review        column         0\n  |   |-- ready     state          0\n  |   `-- active    state          0\n  `-- done          column         0\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "search",
+   "vendor"
+  ],
+  "exit": 0,
+  "stdout": "  Kind  Reference  Title                         Matched in  Snippet\n  ----  ---------  ----------------------------  ----------  -------------------\n  card  fx-3       the card with hand-edited comments\n                                                 comment     the vendor answered\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "search",
+   "vendor",
+   "--json"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"text\": \"vendor\",\n  \"archived\": false,\n  \"hits\": [\n    {\n      \"kind\": \"card\",\n      \"id\": \"b745ea46d9e3\",\n      \"ref\": \"fx-3\",\n      \"title\": \"the card with hand-edited comments\",\n      \"column\": \"004acda2c28a\",\n      \"column_title\": \"Intake\",\n      \"matched_in\": \"comment\",\n      \"snippet\": \"the vendor answered\",\n      \"score\": 1.3157894736842106\n    }\n  ],\n  \"count\": 1\n}\n",
+  "stderr": ""
+ },
+ {
+  "args": [
+   "export"
+  ],
+  "exit": 0,
+  "stdout": "{\n  \"columns\": [\n    {\n      \"id\": \"004acda2c28a\",\n      \"kind\": \"intake\",\n      \"operator_owned\": true,\n      \"slug\": \"intake\",\n      \"title\": \"Intake\"\n    },\n    {\n      \"id\": \"7b5cfe51cb3b\",\n      \"kind\": \"work\",\n      \"slug\": \"doing\",\n      \"standing_items\": {\n        \"handoff-posted\": {\n          \"kind\": \"decision\",\n          \"text\": \"The handoff note names what the next station reads first.\",\n          \"evidence\": \"record\"\n        }\n      },\n      \"title\": \"Doing\"\n    },\n    {\n      \"id\": \"3f9c17ade5b2\",\n      \"kind\": \"work\",\n      \"slug\": \"review\",\n      \"title\": \"Review\"\n    },\n    {\n      \"id\": \"68091798ab26\",\n      \"kind\": \"done\",\n      \"operator_owned\": true,\n      \"slug\": \"done\",\n      \"title\": \"Done\"\n    }\n  ],\n  \"instructions\": \"This workbench is the storage migration fixture. make-fixture.sh writes it through verbs with the build before dinah-637.\",\n  \"levels\": {\n    \"severity\": [\n      \"trivial\",\n      \"minor\",\n      \"major\",\n      \"critical\"\n    ],\n    \"priority\": [\n      \"later\",\n      \"soon\",\n      \"next\",\n      \"now\"\n    ],\n    \"tier\": [\n      \"workhorse\",\n      \"frontier\",\n      \"apex\"\n    ]\n  },\n  \"profile\": \"dinah-core/0.18\",\n  \"title\": \"Storage migration fixture\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "mcp_show": "fx-1",
+  "stdout": "{\n  \"affordances\": [\n    \"claim\",\n    \"move\",\n    \"block\",\n    \"comment\",\n    \"show\",\n    \"list\"\n  ],\n  \"detail\": {\n    \"card\": {\n      \"id\": \"7035845dc37b\",\n      \"ref\": \"fx-1\",\n      \"title\": \"the main card\",\n      \"column\": \"7b5cfe51cb3b\",\n      \"column_title\": \"Doing\",\n      \"state\": \"ready\",\n      \"pull_destination\": \"review\",\n      \"revision\": \"sha256:c5b50458e4ccb77d107f2daa893018758e2a407a1b9b0198732c5b766362c567\",\n      \"attachment_count\": 1,\n      \"checklist_count\": 10,\n      \"blocking_items\": 1,\n      \"operator_pending\": 2,\n      \"child_count\": 14\n    },\n    \"body\": \"\",\n    \"attachments\": [\n      {\n        \"id\": \"9053a7fd8131\",\n        \"ordinal\": 1,\n        \"ref\": \"fx-1/attachments/1\",\n        \"filename\": \"card-payload.txt\",\n        \"description\": \"the main card's own payload\",\n        \"provenance\": \"sam\",\n        \"path\": \"<store>/cards/7035845dc37b/attachments/9053a7fd8131/payload/card-payload.txt\"\n      }\n    ],\n    \"withheld\": [\n      \"comments\",\n      \"handoff\",\n      \"checklist\",\n      \"path\"\n    ],\n    \"reread\": \"fx-1\"\n  }\n}"
+ },
+ {
+  "mcp_show": "fx-1/questions/2",
+  "stdout": "{\n  \"affordances\": [\n    \"status\",\n    \"list\",\n    \"next_card\"\n  ],\n  \"item\": {\n    \"ref\": \"fx-1/questions/2\",\n    \"text\": \"---\\nkind: open_question\\nstate: pending\\nts: 2026-09-28T06:51:32Z\\nordinal: 8\\n---\\nwhich vendor supplies the second payload?\",\n    \"comments\": [\n      {\n        \"id\": \"8da662a999d9\",\n        \"ref\": \"fx-1/questions/2/comments/1\",\n        \"ordinal\": 1,\n        \"ts\": \"2026-09-28T06:51:32Z\",\n        \"author\": \"sam\",\n        \"subject\": \"an item comment carrying an attachment\",\n        \"size\": 38,\n        \"body\": \"an item comment carrying an attachment\",\n        \"attachments\": [\n          {\n            \"id\": \"638331c993cb\",\n            \"ordinal\": 1,\n            \"ref\": \"fx-1/questions/2/comments/1/attachments/1\",\n            \"filename\": \"item-comment-payload.txt\",\n            \"description\": \"the item comment's payload\",\n            \"provenance\": \"sam\",\n            \"path\": \"<store>/cards/7035845dc37b/checklist/87b95a15aacc/comments/8da662a999d9/attachments/638331c993cb/payload/item-comment-payload.txt\"\n          }\n        ]\n      },\n      {\n        \"id\": \"6ebdf797b337\",\n        \"ref\": \"fx-1/questions/2/comments/2\",\n        \"ordinal\": 2,\n        \"ts\": \"2026-09-28T06:51:33Z\",\n        \"author\": \"sam\",\n        \"subject\": \"an item comment that stays\",\n        \"size\": 26,\n        \"body\": \"an item comment that stays\"\n      }\n    ]\n  }\n}"
+ }
+]

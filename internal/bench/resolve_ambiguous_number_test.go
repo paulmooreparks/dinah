@@ -24,7 +24,7 @@ func preRegistryFixture(t *testing.T) string {
 	if err := os.Remove(filepath.Join(root, CardNumbersName)); err != nil {
 		t.Fatalf("remove the registry: %v", err)
 	}
-	editWorkbench(t, root, "format: "+strconv.Itoa(StorageFormat), "format: "+strconv.Itoa(ContainerFormat))
+	editWorkbench(t, root, "format: "+strconv.Itoa(EffectiveStorageFormat()), "format: "+strconv.Itoa(ContainerFormat))
 	edit(t, root, "state: ready", "state: ready\nnumber: 1")
 	return root
 }

@@ -17,7 +17,7 @@ func preVocabularyFixture(t *testing.T, title string, sequence []string, present
 	t.Helper()
 	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", "dinah-core/0.6")
 	if title != "" {
 		fm.Set("title", title)
@@ -39,7 +39,7 @@ func currentFixture(t *testing.T, title string, sequence []string, present []str
 	t.Helper()
 	root := containedPath(t.TempDir())
 	fm := NewFrontmatter()
-	fm.Set("format", strconv.Itoa(StorageFormat))
+	fm.Set("format", strconv.Itoa(EffectiveStorageFormat()))
 	fm.Set("profile", ProfileVersion)
 	if title != "" {
 		fm.Set("title", title)

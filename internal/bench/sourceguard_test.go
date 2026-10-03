@@ -84,11 +84,25 @@ var seamExemptions = map[string]map[string]string{
 	"dinah/internal/bench.statFields": {
 		"dinah/internal/durable.ReadFile": "reads /proc/<pid>/stat, outside every workbench",
 	},
+	// dinah-637's torn-tail repair runs inside every append, under the lock of
+	// the journal's own entity, and reads the end of the file the append is
+	// about to land in. That has to be the file's bytes on disk at that moment,
+	// which a source's view of the file need not be, and no workbench opened
+	// over a resident snapshot appends, since the HTTP head's library over one
+	// is read-only (internal/verb/library.go, ReadOnly).
+	"dinah/internal/bench.finalLine": {
+		"dinah/internal/durable.Open": "opens the journal the append is about to land in, to read its last line",
+		"os.File.Stat":                "sizes the journal through that handle, so the tail read starts from the file's own end",
+		"os.File.ReadAt":              "reads the journal's tail back to its last newline through that handle, a chunk at a time",
+	},
+	"dinah/internal/bench.quarantineTail": {
+		"os.Lstat": "asks whether a sidecar name is taken before the repair writes a torn tail to it, beside the journal it holds the lock of",
+	},
 }
 
 // seamExemptionPairs is the number of pairs seamExemptions carries, which the
 // guard asserts so that a widened table is a visible edit.
-const seamExemptionPairs = 7
+const seamExemptionPairs = 11
 
 // residueExemptions extend seamExemptions for one residue plant alone: a
 // plant cannot add a statement to a function trunk declares, so the plant

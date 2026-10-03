@@ -337,6 +337,19 @@ func init() {
 				return valueRows(m.acts().Divergences)
 			}}},
 		},
+		// redact runs with its confirmation from the menu, since the row
+		// the operator picks is the member and the menu label says the
+		// act cannot be undone.
+		"redact": {
+			offered: func(m *interactiveModel) bool { return len(m.acts().Redactions) > 0 },
+			steps: []interactiveStep{{param: "member", kind: stepMenu, label: "interactive.menu.redact", rows: func(m *interactiveModel, _ map[string]any) []stepRow {
+				rows := valueRows(m.acts().Redactions)
+				for i := range rows {
+					rows[i].also = map[string]any{"yes": true}
+				}
+				return rows
+			}}},
+		},
 		"rename": {
 			offered: func(m *interactiveModel) bool { return len(m.acts().Renames) > 0 },
 			steps: []interactiveStep{

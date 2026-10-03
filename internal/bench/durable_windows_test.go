@@ -268,7 +268,13 @@ func TestAReaderAndAnAppenderCoexist(t *testing.T) {
 		t.Fatalf("open the journal as Dinah reads it: %v", err)
 	}
 	notices := noticesTo(t, nil)
-	if err := AppendEvent(journal, ev); err != nil {
+	first, err := Acquire(card, "alka", "2026-09-28T00:00:00Z")
+	if err != nil {
+		t.Fatalf("acquire: %v", err)
+	}
+	err = AppendEvent(first, journal, ev)
+	first.Release()
+	if err != nil {
 		t.Errorf("an append beside Dinah's own reader answered %v", err)
 	}
 	reader.Close()
@@ -284,7 +290,7 @@ func TestAReaderAndAnAppenderCoexist(t *testing.T) {
 	defer lock.Release()
 	closeReader := foreignHandle(t, journal, windows.FILE_SHARE_READ)
 	began := time.Now()
-	err = AppendEvent(journal, ev)
+	err = AppendEvent(lock, journal, ev)
 	elapsed := time.Since(began)
 	var busy *durable.BusyError
 	if !errors.As(err, &busy) || elapsed > time.Second {
@@ -299,7 +305,7 @@ func TestAReaderAndAnAppenderCoexist(t *testing.T) {
 	if err := WriteText(filepath.Join(card, CardAnchor), cleanCard); err != nil {
 		t.Fatalf("the act's anchor write: %v", err)
 	}
-	if err := AppendEvent(journal, ev); err != nil {
+	if err := AppendEvent(lock, journal, ev); err != nil {
 		t.Fatalf("an append after the act's anchor write answered %v", err)
 	}
 	if len(*notices) < 2 {

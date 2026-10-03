@@ -1,10 +1,10 @@
 package verb
 
 import (
-	"path/filepath"
 	"slices"
 
 	"dinah/internal/bench"
+	"dinah/internal/contract"
 )
 
 // OfferedActs is what may be offered for one card to the owner a request
@@ -52,6 +52,11 @@ type OfferedActs struct {
 	// as the reference the verb takes.
 	Divergences []string
 	Renames     []string
+	// Redactions are the card's own comments and its checklist items whose
+	// text dinah redact may replace, each as the reference it takes, which
+	// the operator alone is offered and only on a store in the card-unit
+	// layout.
+	Redactions []string
 	// Fields are the card's fields set may write, the built-in fields
 	// first in the order the format declares them, then the declared
 	// fields the workbench lets a card carry, in byte order.
@@ -302,20 +307,16 @@ func (l *Library) offerCardEntity(req *Request, card *bench.Card, offered *Offer
 // cite runs, from admitResolvedItem's same answer, for the reference it
 // resolves itself.
 func (l *Library) offerItems(req *Request, card *bench.Card) ([]OfferedItem, error) {
-	positions := l.Bench.NewPositions()
-	items, err := positions.Items(card.Dir)
+	record, err := l.Bench.LoadCardRecord(card)
 	if err != nil {
 		return nil, err
 	}
 	cardRef := card.Ref(l.Bench.Slug)
 	kindPosition := map[string]int{}
 	var offered []OfferedItem
-	for _, item := range items {
+	for _, item := range record.ItemsIn(bench.LiveHalf, "") {
 		kindPosition[item.Kind]++
-		position, err := positions.Of(item.Dir, bench.ItemAnchor)
-		if err != nil {
-			return nil, err
-		}
+		position := record.Position(bench.MemberCollection{Kind: bench.KindItem}, bench.LiveHalf, item.ID)
 		ref := itemRef(cardRef, item.Kind, kindPosition[item.Kind], position)
 		row := OfferedItem{
 			Ref:    ref,
@@ -325,18 +326,17 @@ func (l *Library) offerItems(req *Request, card *bench.Card) ([]OfferedItem, err
 			Scheme: item.Evidence,
 			Text:   capRunes(firstLine(item.Text), subjectCap),
 		}
-		entity := &bench.EntityRef{Kind: bench.KindItem, Dir: item.Dir, ID: item.ID, Ref: ref, Card: card}
+		entity := record.ItemEntity(item, ref)
 		citing := cardAsking(req, "cite", ref)
 		if bare := l.admitResolvedItem(citing, entity); bare != nil {
 			offered = append(offered, row)
 			continue
 		}
-		text, err := positions.Text(filepath.Join(item.Dir, bench.ItemAnchor))
-		if err != nil {
-			return nil, err
+		fm, body, read := record.MemberAnchorOf(bench.KindItem, item.ID)
+		if !read {
+			return nil, contract.Refuse(contract.UnknownPath, ref)
 		}
-		fm, body := bench.ParseAnchor(text)
-		target := &itemTarget{ref: ref, dir: item.Dir, card: card, item: item, fm: fm, body: body}
+		target := &itemTarget{ref: ref, entity: entity, card: card, item: item, fm: fm, body: body}
 		row.Cite = true
 		row.Resolve = l.closeOffered(cardAsking(req, "resolve", ref), target, bench.ItemResolved)
 		row.Verify = l.closeOffered(cardAsking(req, "verify", ref), target, bench.ItemVerified)
@@ -436,22 +436,46 @@ func workstreamHandle(workstream *bench.Workstream) string {
 	return workstream.ID
 }
 
+// offerRedactions answers the card's own comments and its checklist items
+// whose text dinah redact would replace: none unless the request's owner is
+// the workbench operator on a store in the card-unit layout, and then every
+// live one not already redacted, by the reference the verb takes.
+func (l *Library) offerRedactions(req *Request, card *bench.Card, record *bench.CardRecord, offered *OfferedActs) {
+	if !l.Bench.CardUnit() || l.Bench.Migrating != "" || l.Bench.Operator == "" || req.Actor != l.Bench.Operator {
+		return
+	}
+	cardRef := card.Ref(l.Bench.Slug)
+	for _, comment := range record.CommentsOf("", bench.LiveHalf) {
+		position := record.Position(bench.MemberCollection{Kind: bench.KindComment}, bench.LiveHalf, comment.ID)
+		if comment.Redacted == nil && position > 0 {
+			offered.Redactions = append(offered.Redactions, commentRef(cardRef, position))
+		}
+	}
+	kindPosition := map[string]int{}
+	for _, item := range record.ItemsIn(bench.LiveHalf, "") {
+		kindPosition[item.Kind]++
+		position := record.Position(bench.MemberCollection{Kind: bench.KindItem}, bench.LiveHalf, item.ID)
+		if item.Redacted == nil {
+			offered.Redactions = append(offered.Redactions, itemRef(cardRef, item.Kind, kindPosition[item.Kind], position))
+		}
+	}
+}
+
 // offerMembers answers the card's comments whose edited body may be made the
 // record, through canAcceptDivergence, and its attachments that may be
 // renamed, through canRename, each by the reference the verb takes.
 func (l *Library) offerMembers(req *Request, card *bench.Card, offered *OfferedActs) error {
 	cardRef := card.Ref(l.Bench.Slug)
-	comments, err := l.Bench.Comments(card.Dir)
+	record, err := l.Bench.LoadCardRecord(card)
 	if err != nil {
 		return err
 	}
-	for _, comment := range comments {
-		fm, body, err := l.Bench.ReadCommentAnchor(comment.Dir)
-		if err != nil || !bench.CommentDiverged(fm, body) {
+	for _, comment := range record.CommentsOf("", bench.LiveHalf) {
+		if !comment.Diverged() {
 			continue
 		}
-		position, err := l.memberPosition(comment.Dir, bench.CommentAnchor)
-		if err != nil || position == 0 {
+		position := record.Position(bench.MemberCollection{Kind: bench.KindComment}, bench.LiveHalf, comment.ID)
+		if position == 0 {
 			continue
 		}
 		ref := commentRef(cardRef, position)
@@ -459,6 +483,7 @@ func (l *Library) offerMembers(req *Request, card *bench.Card, offered *OfferedA
 			offered.Divergences = append(offered.Divergences, ref)
 		}
 	}
+	l.offerRedactions(req, card, record, offered)
 	attachments, err := l.Bench.Attachments(card.Dir)
 	if err != nil {
 		return err

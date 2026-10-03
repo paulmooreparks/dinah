@@ -3,6 +3,7 @@ package bench
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -127,6 +128,11 @@ type Card struct {
 	Revision string
 	// FM is the anchor's header, kept so a write preserves unknown keys.
 	FM *Frontmatter
+
+	// conflicted says the anchor as read carries git's conflict markers,
+	// which in the card-unit layout makes it a projection a rebuild writes
+	// back rather than a card any read or write may use.
+	conflicted bool
 	// src is where the card was read, which its own history is read through
 	// too; nil reads as Disk.
 	src Source
@@ -252,9 +258,17 @@ func parseCard(anchor, text, revision string, refuseRetired bool) (*Card, error)
 	if refuseRetired && fm.Has(preVocabularyStateKey) {
 		return nil, contract.RefuseWith(contract.VocabularyMixed, filepath.Join(id, CardAnchor), map[string]string{"path": anchor})
 	}
+	card := cardOf(fm, body)
+	card.ID, card.Dir, card.Revision = id, dir, revision
+	card.conflicted = carriesConflictMarkers(text)
+	return card, nil
+}
+
+// cardOf reads a card's fields out of its anchor's header and body. It is the
+// one reading of card.md's keys, which LoadCard and the card-field replay
+// share, so the replay composes a card exactly as a read of card.md sees one.
+func cardOf(fm *Frontmatter, body string) *Card {
 	card := &Card{
-		ID:          id,
-		Dir:         dir,
 		Title:       fm.Value("title"),
 		Column:      fm.Value("column"),
 		State:       fm.Value("state"),
@@ -275,7 +289,6 @@ func parseCard(anchor, text, revision string, refuseRetired bool) (*Card, error)
 		RetirementGrant: fm.Value(RetirementGrantKey),
 		Workstreams:     fm.Seq("workstreams"),
 		Body:            body,
-		Revision:        revision,
 		FM:              fm,
 	}
 	card.Links = readLinks(fm)
@@ -283,7 +296,7 @@ func parseCard(anchor, text, revision string, refuseRetired bool) (*Card, error)
 	if card.State == "" {
 		card.State = contract.StateReady
 	}
-	return card, nil
+	return card
 }
 
 // LoadCardIn loads a card and stamps the number the workbench allocates it.
@@ -292,11 +305,54 @@ func parseCard(anchor, text, revision string, refuseRetired bool) (*Card, error)
 // Number or to call Ref comes through here.
 func (b *Bench) LoadCardIn(root, id string) (*Card, error) {
 	card, err := loadCard(b.source(), root, id, true)
+	if b.CardUnit() && !isBusy(err) && (err != nil || card.conflicted) {
+		if refused := projectionUnreadable(b.source(), filepath.Join(root, id)); refused != nil {
+			return nil, refused
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 	b.stamp(card)
 	return card, nil
+}
+
+// projectionUnreadable answers the refusal a card in the card-unit layout is
+// read with when its card.md is absent, will not parse or carries conflict
+// markers while its journal, which states the whole of it, reads; and nil
+// where the journal will not read either, which leaves the card to the
+// refusal its anchor already raised.
+func projectionUnreadable(src Source, dir string) error {
+	journal := filepath.Join(dir, JournalName)
+	if !exists(src, journal) {
+		return nil
+	}
+	events, _, err := readJournal(src, journal)
+	if err != nil {
+		return nil
+	}
+	if _, _, ok := ReplayCardFields(events); !ok {
+		return nil
+	}
+	return contract.Refuse(contract.CardProjectionUnreadable, filepath.Join(dir, CardAnchor))
+}
+
+// carriesConflictMarkers reports whether a text carries the three markers git
+// leaves in a file it could not merge: a line beginning "<<<<<<< ", a line
+// that is exactly "=======", and a line beginning ">>>>>>> ".
+func carriesConflictMarkers(text string) bool {
+	opened, split, closed := false, false, false
+	for _, line := range SplitLines(text) {
+		switch {
+		case strings.HasPrefix(line, "<<<<<<< "):
+			opened = true
+		case line == "=======":
+			split = true
+		case strings.HasPrefix(line, ">>>>>>> "):
+			closed = true
+		}
+	}
+	return opened && split && closed
 }
 
 // loadRetiredCardIn is LoadCardIn for a bench written in the retired
@@ -495,6 +551,37 @@ func (c *Card) SetColumnTier(b *Bench, ref, tier string) {
 	c.ColumnTiers = append(c.ColumnTiers, ColumnTier{Column: ref, Tier: tier})
 }
 
+// ColumnTierRef reads the reference an override for one column is stored
+// under, which may be another spelling of the same column than the one asked
+// with, and the empty string when the card carries none.
+func (c *Card) ColumnTierRef(b *Bench, ref string) string {
+	target := (*Column)(nil)
+	if b != nil {
+		target = b.ColumnByRef(ref)
+	}
+	for _, override := range c.ColumnTiers {
+		if sameColumnRef(b, target, override.Column, ref) {
+			return override.Column
+		}
+	}
+	return ""
+}
+
+// JournaledTierRef is the column_ref a tier override line carries for an
+// override stored under spelled, or, where the card stored none, under ref: the
+// spelling itself in the card-unit layout, whose journal is the record card.md
+// is rebuilt from, and nothing in the old layout, whose lines are written as
+// they always were.
+func (b *Bench) JournaledTierRef(spelled, ref string) string {
+	if !b.CardUnit() {
+		return ""
+	}
+	if spelled == "" {
+		return ref
+	}
+	return spelled
+}
+
 // ColumnTierFor reads the override written for one column reference, and the
 // empty string when the card carries none.
 func (c *Card) ColumnTierFor(b *Bench, ref string) string {
@@ -554,6 +641,29 @@ func (c *Card) Ref(slug string) string {
 // this write preserves the raw lines, which is what the legacy read path in
 // stamp depends on.
 func (c *Card) Save() error {
+	rendered := c.Rendered()
+	if err := WriteText(c.AnchorPath(), rendered); err != nil {
+		return err
+	}
+	// The revision is computed over the bytes WriteText stored rather than
+	// read back from the file, which is the same value under the card lock
+	// every caller holds and which reads nothing, so a card cannot take its
+	// revision from anywhere but the write it just made.
+	c.Revision = TextRevision(NormalizeNewlines(rendered))
+	return nil
+}
+
+// Rendered writes the card's fields into its header and answers card.md's
+// text as Save writes it. It is Save's one rendering, which the card-field
+// replay and the rebuild use too, so a replayed card is rendered exactly as a
+// saved one.
+func (c *Card) Rendered() string {
+	c.applyFields()
+	return c.FM.Render(c.Body)
+}
+
+// applyFields writes the card's fields into its header.
+func (c *Card) applyFields() {
 	c.FM.Set("title", c.Title)
 	c.FM.Set("column", c.Column)
 	c.FM.Set("state", c.State)
@@ -593,16 +703,6 @@ func (c *Card) Save() error {
 		c.FM.SetRaw("links", renderLinks(c.Links))
 	}
 	c.FM.SetSeq("workstreams", c.Workstreams)
-	rendered := c.FM.Render(c.Body)
-	if err := WriteText(c.AnchorPath(), rendered); err != nil {
-		return err
-	}
-	// The revision is computed over the bytes WriteText stored rather than
-	// read back from the file, which is the same value under the card lock
-	// every caller holds and which reads nothing, so a card cannot take its
-	// revision from anywhere but the write it just made.
-	c.Revision = TextRevision(NormalizeNewlines(rendered))
-	return nil
 }
 
 // setOrDelete writes a value or removes the key when the value is empty, so
@@ -699,29 +799,73 @@ func (c *Card) SetLevel(field, value string) {
 // whose position was reconciled rather than moved carries no move naming the
 // column it stands in, and reading only moves would report the zero time and
 // sort it ahead of every card that arrived by one.
+//
+// It reads the journal through DeriveArrival rather than through the whole
+// parse: a journal in the card-unit layout carries every comment's and item's
+// text, and a sort by arrival asks every ready card, so decoding each line of
+// each journal whole to find three events cost most of what next and the
+// agenda spend (dinah-637/questions/26).
 func (c *Card) Arrival() time.Time {
-	parsed, err := readJournalShared(c.source(), c.JournalPath())
+	observeAnchor(c.JournalPath())
+	value, err := c.source().Derive(c.JournalPath(), DeriveArrival, deriveArrival)
 	if err != nil {
 		return time.Time{}
 	}
-	return arrivalFromParsed(parsed.events, parsed.stamps, c.Column)
-}
-
-// arrivalFromParsed is ArrivalFrom over events whose stamps are already
-// parsed, one per event.
-func arrivalFromParsed(events []Event, stamps []time.Time, column string) time.Time {
 	arrival := time.Time{}
-	for i, ev := range events {
-		switch ev.Event {
-		case contract.EventCreated:
-			arrival = stamps[i]
-		case contract.EventMoved, contract.EventManualCorrection:
-			if ev.To == column {
-				arrival = stamps[i]
-			}
+	for _, line := range value.([]arrivalLine) {
+		if line.event == contract.EventCreated || line.to == c.Column {
+			arrival = line.at
 		}
 	}
 	return arrival
+}
+
+// arrivalLine is one line of a journal a card's arrival is read from: a
+// created line, or a moved or manual_correction line with the column it names.
+type arrivalLine struct {
+	event string
+	to    string
+	at    time.Time
+}
+
+// arrivalEvents are the events whose lines an arrival is read from.
+var arrivalEvents = []string{contract.EventCreated, contract.EventMoved, contract.EventManualCorrection}
+
+// deriveArrival is DeriveArrival's derive function: the created, moved and
+// manual_correction lines of a journal in file order, each with its parsed
+// stamp. A line is decoded only where its bytes carry one of those event names
+// at all, and then into the three members the arrival reads, so a line
+// carrying a comment's text costs a substring search rather than a decode. A
+// line that will not decode is passed over, as a torn final line is by every
+// reader; a damaged line that is not the last one is the card read's refusal
+// to raise, and the arrival reads around it.
+func deriveArrival(_ string, text, _ string) (any, error) {
+	var lines []arrivalLine
+	for _, line := range SplitLines(text) {
+		named := false
+		for _, event := range arrivalEvents {
+			if strings.Contains(line, event) {
+				named = true
+				break
+			}
+		}
+		if !named {
+			continue
+		}
+		var ev struct {
+			TS    string `json:"ts"`
+			Event string `json:"event"`
+			To    string `json:"to"`
+		}
+		if json.Unmarshal([]byte(line), &ev) != nil {
+			continue
+		}
+		switch ev.Event {
+		case contract.EventCreated, contract.EventMoved, contract.EventManualCorrection:
+			lines = append(lines, arrivalLine{event: ev.Event, to: ev.To, at: ParseStamp(ev.TS)})
+		}
+	}
+	return lines, nil
 }
 
 // ArrivalFrom is the moment a card standing in column entered it, read out of
@@ -797,10 +941,12 @@ func LessArrival(aArrival time.Time, aNumber int, bArrival time.Time, bNumber in
 // comparison's two arrivals fresh, as ByArrival does on its own, opens each
 // card's journal on the order of n log n times where n would do.
 func SortByArrival(cards []*Card) {
-	arrivals := make([]time.Time, len(cards))
-	for i, c := range cards {
-		arrivals[i] = c.Arrival()
-	}
+	// Each card's arrival is one journal read, and a queue sorts every ready
+	// card, so the reads run on parallelRead's workers as loading the cards
+	// did. An arrival that will not read is the zero time, so no read fails.
+	arrivals, _ := parallelRead(len(cards), func(i int) (time.Time, error) {
+		return cards[i].Arrival(), nil
+	})
 	order := make([]int, len(cards))
 	for i := range order {
 		order[i] = i

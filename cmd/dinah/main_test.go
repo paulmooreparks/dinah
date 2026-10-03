@@ -321,7 +321,7 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 		t.Errorf("the emitted block differs from the spec's section 2:\n%s", diffLines(string(fixture), got.out))
 	}
 
-	// The block lists sixty-three commands, and every command the binary offers
+	// The block lists sixty-five commands, and every command the binary offers
 	// is either one of them or `help`, which the block's own last line names.
 	listed := 0
 	for _, c := range commands {
@@ -336,8 +336,8 @@ func TestHelpBlockIsTheRatifiedSurface(t *testing.T) {
 			t.Errorf("the block does not list %s", c.name)
 		}
 	}
-	if listed != 64 {
-		t.Errorf("wanted sixty-four listed commands, got %d", listed)
+	if listed != 65 {
+		t.Errorf("wanted sixty-five listed commands, got %d", listed)
 	}
 }
 
@@ -2003,7 +2003,7 @@ func TestCheckDeclaresItsRepairFlagsOnEverySurface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
-	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule] [--migrate-holds] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--yes] [--root <path>] [--max-depth <n>]"
+	const line = "check [--finish] [--migrate-ordinals] [--migrate-slugs] [--migrate-columns] [--migrate-vocabulary] [--migrate-container] [--migrate-numbers] [--migrate-designations] [--migrate-storage] [--backup <dir>] [--accept-difference <key>] [--rehearse] [--force-claims] [--migrate-branches] [--migrate-newlines] [--migrate-applies-when] [--migrate-schedule] [--migrate-holds] [--migrate-raw-lines] [--file-standing] [--renumber] [--remint <dir>] [--migrate-workstreams] [--witness] [--rebuild] [--yes] [--root <path>] [--max-depth <n>]"
 	if !blockLists(string(fixture), line) {
 		t.Error("the ratified block's check line does not name every repair flag")
 	}
@@ -7515,7 +7515,7 @@ func TestEveryHelpSpellingReachesTheSamePage(t *testing.T) {
 // still behave.
 func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T) {
 	wantValued := []string{
-		"actor", "agent", "at", "before", "by", "cached", "capacity", "card", "column", "depth",
+		"accept-difference", "actor", "agent", "at", "backup", "before", "by", "cached", "capacity", "card", "column", "depth",
 		"description", "due", "expect-digest", "expires", "fields", "format", "from", "group-by", "input", "kind",
 		"lang", "listen", "map", "max-depth", "model", "note", "observed", "operator", "output", "owner",
 		"poll-seconds", "priority", "provider", "query", "reason", "recipe", "remint", "root", "round", "route",
@@ -7530,8 +7530,8 @@ func TestTheFlagSetsTheParserAcceptsAreDerivedFromTheParameterTable(t *testing.T
 		"migrate-columns",
 		"migrate-container", "migrate-designations", "migrate-holds", "migrate-newlines", "migrate-numbers",
 		"migrate-ordinals", "migrate-raw-lines", "migrate-schedule",
-		"migrate-slugs", "migrate-vocabulary", "migrate-workstreams",
-		"no-archive", "no-browser", "no-claim", "override", "plain", "quiet", "ready", "rehearse", "remove", "renumber", "replace",
+		"migrate-slugs", "migrate-storage", "migrate-vocabulary", "migrate-workstreams",
+		"no-archive", "no-browser", "no-claim", "override", "plain", "quiet", "ready", "rebuild", "rehearse", "remove", "renumber", "replace",
 		"stdio", "trust-project-recipe",
 		"unreported", "unresolved", "version", "wait", "watch", "witness", "yes",
 	}

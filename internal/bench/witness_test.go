@@ -98,7 +98,7 @@ func TestWitnessDivergenceRecordsTheEditItFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	wrote, err := opened.WitnessDivergence("alka", "2026-08-18T09:00:00Z", card)
+	wrote, err := opened.WitnessDivergence(witnessLock(t, card), "alka", "2026-08-18T09:00:00Z", card)
 	if err != nil {
 		t.Fatalf("witness: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestWitnessDivergenceWritesNothingWhenTheTwoAgree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	wrote, err := opened.WitnessDivergence("alka", "2026-08-18T09:00:00Z", card)
+	wrote, err := opened.WitnessDivergence(witnessLock(t, card), "alka", "2026-08-18T09:00:00Z", card)
 	if err != nil {
 		t.Fatalf("witness: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestAWitnessedCardIsNoLongerReportedAsDiverged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if _, err := opened.WitnessDivergence("alka", "2026-08-18T09:00:00Z", card); err != nil {
+	if _, err := opened.WitnessDivergence(witnessLock(t, card), "alka", "2026-08-18T09:00:00Z", card); err != nil {
 		t.Fatalf("witness: %v", err)
 	}
 	after, err := opened.Check()
@@ -305,4 +305,17 @@ func TestArrivalReadsAWitnessedCorrectionAsAnArrival(t *testing.T) {
 	if cards[1].Arrival().IsZero() {
 		t.Error("the witnessed card reports the zero time, so it would jump the queue whatever its stamp said")
 	}
+}
+
+// witnessLock takes the card's own lock for one witness and gives it back
+// when the test ends, since WitnessDivergence appends under the lock its
+// caller hands it.
+func witnessLock(t *testing.T, card *Card) *Lock {
+	t.Helper()
+	held, err := Acquire(card.Dir, "alka", "2026-08-18T09:00:00Z")
+	if err != nil {
+		t.Fatalf("take the card's lock: %v", err)
+	}
+	t.Cleanup(held.Release)
+	return held
 }

@@ -116,7 +116,7 @@ func TestAWrittenActorCarriesExactlyWhatTheCallerDeclared(t *testing.T) {
 		NamedActor("ana"),
 	}
 	for _, actor := range written {
-		if err := AppendEvent(path, Event{TS: "2026-09-15T09:00:00Z", Event: "claimed", Actor: actor}); err != nil {
+		if err := appendLocked(t, path, Event{TS: "2026-09-15T09:00:00Z", Event: "claimed", Actor: actor}); err != nil {
 			t.Fatalf("append: %v", err)
 		}
 	}

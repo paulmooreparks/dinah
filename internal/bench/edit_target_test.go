@@ -34,13 +34,20 @@ func TestAnchorPathOfReportsNoAnchorForAKindOutsideTheGrammar(t *testing.T) {
 		KindWorkbench:  WorkbenchAnchor,
 		KindColumn:     ColumnAnchor,
 		KindCard:       CardAnchor,
-		KindComment:    CommentAnchor,
-		KindItem:       ItemAnchor,
 		KindAttachment: AttachmentAnchor,
 		KindWorkstream: WorkstreamAnchor,
 	}
-	if len(anchors) != 7 {
-		t.Fatalf("this test declares %d kinds, wanted the seven ResolveReference answers", len(anchors))
+	// A comment and an item are lines of a journal since dinah-637, so
+	// neither declares an anchor, and dinah edit hands the editor a copy
+	// of its text rather than asking this join for a file.
+	journaled := []string{KindComment, KindItem}
+	if len(anchors)+len(journaled) != 7 {
+		t.Fatalf("this test declares %d kinds, wanted the seven ResolveReference answers", len(anchors)+len(journaled))
+	}
+	for _, kind := range journaled {
+		if got, declared := AnchorPathOf(&EntityRef{Kind: kind, Dir: filepath.Join("/somewhere", kind)}); declared || got != "" {
+			t.Errorf("%s is lines of a journal and answers the anchor %q (%v)", kind, got, declared)
+		}
 	}
 	for kind, anchor := range anchors {
 		dir := filepath.Join("/somewhere", kind)

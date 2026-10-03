@@ -28,6 +28,13 @@ export const THROTTLE_MS = 1_000;
 /** The refusal a cursor the binary will not read comes back as. */
 export const MALFORMED = "dinah.malformed";
 
+/**
+ * The files the watcher watches under a workbench: every anchor, and every
+ * journal, since from storage format 12 a comment or item write changes a
+ * card's journal and no `.md` file at all.
+ */
+export const WATCHED_FILES = "**/{*.md,journal.ndjson}";
+
 /** A timer, injected so the unit layer can drive it without waiting. */
 export interface Clock {
 	readonly now: () => number;

@@ -74,23 +74,38 @@ governed by absent-means-empty:
 ```
 workbench   ::= workbench.md journal.ndjson? attachments? columns?
                 cards? workstreams? archive?
-column       ::= column.md comments? attachments?
-card        ::= card.md journal.ndjson comments? checklist? attachments?
-checklist   ::= item*
-item        ::= item.md comments?
+column       ::= column.md comment-holders? attachments?
+card        ::= card.md journal.ndjson attachments? comment-holders?
+checklist   ::= the items of one card
+item        ::= a member of its card's journal
+comment     ::= a member of the nearest enclosing journal
+comment-holders ::= comments/ (comment-id/ attachments)*
 workstream  ::= workstream.md journal.ndjson? attachments?
-comment     ::= comment.md attachments?
 attachment  ::= attachment.md payload/
 payload/    ::= exactly one payload-file
 folder      ::= folder.md (attachment | folder)*
 attachments ::= (attachment | folder)*
 columns      ::= column*        cards ::= card*
-comments    ::= comment*      workstreams ::= workstream*
+workstreams ::= workstream*
 archive     ::= mirrors of the sibling collections, recursively
 
 payload-file:   exactly one content file, any name, any bytes; content,
                 not an entity, per the taxonomy
 ```
+
+This grammar is the one storage format 12 writes. A comment and a checklist
+item are members of a journal there rather than directories. Each keeps its
+12-hex identifier, its lifecycle and its rules, so both stay entities under
+this taxonomy, and what they give up is the directory shape. A card's journal
+carries the card's comments, its checklist items and the comments on those
+items, and the workbench's journal carries the comments left on columns. Where
+a comment carries attachments, the directory `comments/<comment id>/attachments/`
+exists under the card or the column that holds the comment, whether the comment
+hangs on the card or on one of the card's items, and it holds those attachments
+and nothing else. A store below format 12 keeps the older shape, in which an
+item was `checklist/<id>/item.md` and a comment `comments/<id>/comment.md`,
+until `dinah check --migrate-storage` carries it across, as the Versioning
+section describes.
 
 The notation makes two asymmetries visible. The card's journal is the one
 non-anchor file that is not optional, because birth writes the created
@@ -116,7 +131,7 @@ asked.
 ```
 <workbench>/
   workbench.md              # anchor: definition and overview
-  journal.ndjson            # append-only history of workbench-scoped acts
+  journal.ndjson            # workbench-scoped acts and the column comments
   card-numbers.txt          # registry: one line per allocated card number
   attachments/
     <12-hex>/...            # workbench-level attachments, same shape as below
@@ -124,13 +139,14 @@ asked.
     <12-hex>/
       column.md             # anchor: one column of the flow
       comments/
-        <12-hex>/comment.md # anchor: one comment; attachments/ on demand
+        <12-hex>/attachments/  # only where a column comment has attachments
   cards/
     <12-hex>/
       card.md               # anchor: identity, position, content
-      journal.ndjson        # append-only history of this card
+      journal.ndjson        # this card's history, its comments and its items
       comments/
-        <12-hex>/comment.md # anchor: one comment; attachments/ on demand
+        <12-hex>/attachments/  # only where a comment of the card or of one
+                               # of its items has attachments
       attachments/
         <12-hex>/
           attachment.md     # anchor: filename, description, provenance
@@ -161,13 +177,19 @@ names keep grep workable (`grep -r "^title:" cards/*/card.md`).
 
 ### Anchor files and collections
 
-There are no exceptions to the entity shape anywhere in the format. Every
-entity kind named in the Entities section, from the workbench down to a
-single attachment, is a hex directory claimed atomically by `mkdir` and
-made real by its anchor file. Every general rule (id claiming, anchor
-validity, archiving, check coverage) therefore applies to every entity kind
-with no special cases, and a new entity kind added later inherits the whole
-rulebook by construction.
+Every entity kind named in the Entities section except two, from the
+workbench down to a single attachment, is a hex directory claimed atomically
+by `mkdir` and made real by its anchor file. The two exceptions are the
+comment and the checklist item, which from storage format 12 are members of a
+journal. The lines that create and change such a member carry it, a read
+replays those lines to answer it, and the member has no directory and no
+anchor file of its own. The History section states the lines and the replay.
+Every general rule about a directory entity (id claiming, anchor validity,
+archiving, check coverage) applies to each directory kind with no special
+cases, and a new directory kind added later inherits that whole rulebook by
+construction. A journal member takes its identifier from its holder's lock
+rather than from `mkdir`, and `dinah check` covers it through the journal it
+stands in.
 
 The anchor file is what makes the hex directory an entity, the way `.git`
 makes a directory a repository. A card directory without `card.md` is
@@ -175,7 +197,7 @@ garbage by definition, which gives check a free validity rule and gives
 entity creation a free crash story: make the directory, write the anchor,
 and an interruption leaves a detectably incomplete thing.
 
-The anchor's name is typed (`card.md`, `column.md`, `comment.md`) rather
+The anchor's name is typed (`card.md`, `column.md`, `attachment.md`) rather
 than a uniform `entity.md`. The parent collection already carries the type,
 so the typed name adds redundancy, and it is redundancy in the good
 direction: an editor showing three open anchors names what each is instead
@@ -331,6 +353,21 @@ alternative, columns listing members, makes every move a two-file transaction
 whose interruption strands a card nowhere or in two places, which is a
 strictly worse failure than any dangling reference.
 
+From storage format 12 `card.md` is a projection of the card's journal. Every
+write to a card writes `card.md` first and its journal line second, never the
+other way round, and the journal states every key and the body `card.md`
+carries, so replaying the journal alone reproduces the file. `card.md` is still
+the file a reader opens for the card's position and fields, and it stays the
+authority for them, because a hand edit is legal and is witnessed as the last
+subsection here describes. A crash between the two writes leaves `card.md`
+ahead of its journal and never behind it, so the next write's witness records
+the difference and the crashed act's own line is never written. A `card.md`
+that is missing, will not parse, or carries git's conflict markers while its
+journal reads refuses every read and write of the card with
+`dinah.card-projection-unreadable`, and `dinah check --rebuild` writes it back
+from the journal and appends `card_rebuilt`. A card whose `card.md` reads is
+never rewritten by the rebuild.
+
 The dangling-reference risk this creates is handled from both ends. Forward,
 the tool refuses to delete a column that cards currently occupy. Backward,
 `dinah check` verifies that every card's column id resolves and that the
@@ -399,6 +436,11 @@ for it. The first hand-executed run demonstrated the shape unprompted,
 carrying its framing in the card body and producing its research and its
 concept as attachments.
 
+`card.md` carries no member of the card. From storage format 12 a card's
+comments and checklist items live in its journal, and no summary of the
+checklist is written into the card file either, so a reader wanting the items
+asks the tool rather than the file.
+
 ### The card-number registry
 
 A card's number does not live in the card's own anchor. It lives in
@@ -461,6 +503,21 @@ happen. A touch that writes an event about something else never reads the
 card's position, so a hand edit sitting behind one of those touches goes
 undetected until `dinah check --witness` is run by hand, or until a position-
 or claim-reading touch reaches the card.
+
+A store in the card-unit layout of storage format 12 widens the witness to the
+whole file. It compares `card.md` with the replay of the card's journal key by
+key and body to body, and it runs whenever the card's lock is taken, which is
+the start of every write to the card, so no line is ever appended on top of an
+unwitnessed edit. Each key on which the two disagree gains one line that makes
+the journal agree with the file. A differing column gains a
+`manual_correction`. The body gains a `card_updated` naming `body` and carrying
+the file's body in `text`. Any other key gains a `card_updated` naming the key,
+with the replayed value in `from` and the file's in `to`, a structured key's
+raw lines joined by a newline. Each `card_updated` a witness writes is marked
+`witnessed`, and none of these lines ever changes the file. `dinah check`
+reports a card whose file and journal disagree under
+`check.card-projection-diverged` at cleanup severity until a write or `dinah
+check --witness` records the difference.
 
 ## Flow definition
 
@@ -1375,9 +1432,23 @@ asymmetry is accepted deliberately: an archived column's history does not
 travel with its directory, because columns are definition, and definition
 history is git's when the workbench is versioned. Definition file edits remain
 unjournaled per the composition section; it is lifecycle acts that are
-witnessed. A journal is append-only, one JSON object per line, recording
-created, claimed, moved, released, blocked, archive-lifecycle, and
-attachment-lifecycle events with timestamp, actor, and optional note.
+witnessed. A journal holds one JSON object per line, recording created,
+claimed, moved, released, blocked, archive-lifecycle, and attachment-lifecycle
+events with timestamp, actor, and optional note.
+
+A journal is append-only, with one exception. `dinah redact`, the workbench
+operator's alone, rewrites the lines that carry one comment's or one item's
+text, replacing each text with its SHA-256 and marking the line `redacted`,
+and records the act in a `redacted` line written in the same atomic
+replacement. Nothing else rewrites a published line, and no migration does,
+however cheap the repair would look.
+
+From storage format 12 a journal is also the store of the comments and
+checklist items its entity holds. A card's journal carries the card's comments,
+its items and its items' comments, and the workbench's journal carries the
+comments left on columns. Each member's first text is on the line that created
+it and every later text on the line that changed it, so every version a member
+ever held stays in the journal until a redaction replaces it.
 
 NDJSON, newline-delimited JSON, is also known as JSON Lines: every line is
 one complete JSON object and the newline separates records. It is chosen
@@ -1401,6 +1472,32 @@ are a merge-sort over journals by timestamp.
 The journal is authoritative for history; the card frontmatter is
 authoritative for current position. They are reconciled by check and by the
 manual-correction rule above.
+
+A read of a comment or an item replays its journal, and it answers from the
+replay alone. The replay walks the lines in file order. A card journal's last
+`card_baseline`, or the workbench journal's last `storage_migrated`, is the
+point before which only the migration's own member baselines count, since the
+baselines state every member the store held in full and the older lines mostly
+carry no text. A baseline line replaces the whole state of the member it names
+wherever it stands, so a member baselined twice takes the later line. Every
+line after that point applies as its event's row below says: a creation line
+creates the member, `comment_updated` and `item_updated` set the field they
+name (`text` for a prose field, `to` for the others), a settling line sets the
+item's state and its `resolution`, `item_reopened` returns it to pending and
+clears the resolution, `item_cited` appends a citation, `divergence_accepted`
+records the comment's current text as its digest, `archived` and `restored`
+move the member between the halves, `deleted` removes it (an item's comments
+with it), and `redacted` empties its text. A line naming a member the replay
+never established contributes nothing, and `dinah check` reports it under
+`check.member-unknown`. Two members of one card carrying one identifier are
+damage, which refuses every read of the card with `dinah.journal-unreadable`
+naming the identifier.
+
+A comment's or an item's identifier is minted at random and redrawn until it
+differs from every member identifier its journal has ever named, deleted ones
+included, under the lock of the journal's own entity. Its ordinal is one more
+than the highest the journal has ever recorded in its collection, so no ordinal
+is reissued after a deletion.
 
 Journal events are self-contained history: any cross-entity reference in an
 event carries both the identifier and the display name as of the event (from
@@ -1430,35 +1527,37 @@ and stores nothing.
 ### Journal event schema
 
 Every journal line names an event, and the core event names are a closed set
-of thirty-five, which `internal/contract` declares as constants.
-Thirty-five of them are written by some command in this build.
-`cmd/dinah/compat_test.go`'s `unwrittenEvents` table is where an exemption
-would be recorded, and it is empty, so a constant declared and left unwritten
-turns the build red in the commit that adds it.
+of fifty, which `internal/contract` declares as constants and
+`contract.EventNames` lists. Every one of them is written by some command in
+this build. The sample compatibility fixture carries a line of each except
+those `cmd/dinah/compat_test.go`'s `absentEvents` table names, each with the
+reason no capture can carry it: a repair's own line, a crash repair's, and the
+lines only the storage migration, the rebuild and a redaction write. A
+constant declared and neither captured nor excused there turns the build red in
+the commit that adds it.
 
-A second count of thirty-two sits nearby and names a different set.
+A second count of forty-five sits nearby and names a different set.
 `contract.Events` is the vocabulary a query over cards accepts, and it holds
-out `column_updated`, `workbench_updated` and `workstream_updated`, since each
-of those lands on the workbench's journal or on a workstream's and never on a
-card's.
-The two counts no longer agree, and the second is contained in the first.
-`column_updated`, `workbench_updated` and `workstream_updated` are written by
-commands but never land on a card's journal, so they sit in the thirty-five
-and outside the thirty-two.
-Thirty-two names sit in both counts. Thirty-one of those land on a card's
-own journal, and `deleted` is the exception, because deleting a card destroys
-the journal inside it and the record of the deletion goes to the workbench's.
+out the five names that never land on a card's journal: `column_updated`,
+`workbench_updated` and `workstream_updated`, each of which lands on the
+workbench's journal or on a workstream's, and `designations_migrated` and
+`storage_migrated`, the two migrations' own records on the workbench's journal.
+The second count is therefore contained in the first. Of the forty-five,
+`deleted` is the one a card's journal never carries about the card itself,
+because deleting a card destroys the journal inside it and the record of the
+deletion goes to the workbench's; a deleted comment or item is recorded on the
+card's own journal.
 
-The set stays closed mechanically rather than by inspection. A thirty-sixth
+The set stays closed mechanically rather than by inspection. A fifty-first
 constant fails the build unless it reaches the sample fixture's journal or is
-named in `unwrittenEvents`, which is the coverage alarm the Versioning section
+named in `absentEvents`, which is the coverage alarm the Versioning section
 describes.
 
 A reader that meets an event name it does not know reads the line, keeps it,
 and hands it on exactly as written. A name carrying a dot,
 `<namespace>.<name>`, belongs to an extension kind that declared
 `journal: true`, and it is legitimate whatever it says. A name carrying no dot
-is one of the thirty-five, or one a different build wrote, whether an older
+is one of the fifty, or one a different build wrote, whether an older
 build or a core revision this build's profile ceiling has not reached. Dinah
 refuses no read on account of the event name a line carries. Rendering,
 ordinal replay, and position replay each switch on the event name and none of
@@ -1478,42 +1577,82 @@ so a `claimed` line with no `expires` records an unbounded claim.
 
 | event | always present | conditional |
 |---|---|---|
-| `created` | | `title`, on a card's line, on a new workstream's and on a new column's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column; `note`, the new column's own identifier, on a column's line only, written both by the verb that adds one column and by a `reshape` for each column its new definition adds |
+| `created` | | `title`, on a card's line, on a new workstream's and on a new column's, absent on the line that records a workstream `check` adopted; `to` and `to_title`, on a card's line only, since a workstream stands in no column; `note`, the new column's own identifier, on a column's line only, written both by the verb that adds one column and by a `reshape` for each column its new definition adds; on a card's line in a store of storage format 12, `text`, the card's body, absent where the card was filed with none, and `fields`, the card fields the filing set beside its title and its column (its levels, its route and its scheduling dates) keyed by their frontmatter key, absent where it set none |
 | `claimed` | | `expires`, when the claim carried a duration |
 | `moved` | `from`, `from_title`, `to`, `to_title` | `override`, true only where a declared limit or hold stood in the way and the operator carried the move past it, which is a CORE-MOVE-9 capacity override, the departure column's own `loop_limit`, the destination column's own `gate_items` hold under CORE-GATE-4, or the departure column's own `gate_items` hold read on the way out; `reject`, true only when the destination is the departure column's own `reject_to` target; `reshape`, true only on a line a `reshape` wrote, marking a card carried out of a column the workbench no longer declares rather than a move somebody decided on, and a reader that does not know the marker reads an ordinary move, which is what the line already is |
 | `released` | | |
 | `blocked` | `reason` | `kind`, whatever the caller passed, since nothing validates it |
-| `unblocked` | | `reason`, the prose the operator gave for lifting the block; `comment`, the identifier of the comment on the card that carries the same text, minted by the same act |
+| `unblocked` | | `reason`, the prose the operator gave for lifting the block; `comment`, the identifier of the comment on the card that carries the same text, minted by the same act; `redacted`, true on a line `dinah redact` rewrote, whose `reason` then reads `sha256:` and the digest of the text it carried |
 | `expired` | `expires` | |
-| `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item; `column` and `column_title`, the identifier of the column the comment was left on and that column's title as of the write, both written only on a comment written on a column |
+| `commented` | `comment` | `item`, the identifier of the checklist item the comment hangs below, written only on a comment written on an item; `column` and `column_title`, the identifier of the column the comment was left on and that column's title as of the write, both written only on a comment written on a column; in a store of storage format 12, `ordinal`, the comment's creation ordinal, written on every line, and `text`, its body, absent where the body is empty; `redacted`, true on a line `dinah redact` rewrote, whose `text` then reads `sha256:` and the digest of the text it carried |
 | `attached` | `attachment`, `filename` | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
 | `attachment_replaced` | `attachment`, `filename` | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
 | `attachment_removed` | `attachment`, `note` (the removed entity's own id) | `filename`, best effort, present only when the attachment's anchor could still be read at the moment of removal; `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
 | `attachment_renamed` | `attachment`, `filename`, `from` (the previous filename) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
-| `archived` | `note` (the entity's own id) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
-| `deleted` | `note` (the entity's own id) | `title`, present only when the deleted entity's kind carries one Dinah can resolve at that moment, which covers a card, a workstream, and a column, and leaves out a comment |
+| `archived` | `note` (the entity's own id) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column; in a store of storage format 12, `comment` on a comment's line, with `item` on a comment on an item and `column` and `column_title` on a comment on a column, and `item` on an item's line |
+| `deleted` | `note` (the entity's own id) | `title`, present only when the deleted entity's kind carries one Dinah can resolve at that moment, which covers a card, a workstream, and a column, and leaves out a comment; in a store of storage format 12, `comment` on a comment's line, with `item` on a comment on an item and `column` and `column_title` on a comment on a column, and on an item's line `item`, `kind` and `title`, the item's text; `redacted`, true on an item's line `dinah redact` rewrote, whose `title` then reads `sha256:` and the digest of the text it carried |
 | `workbench_updated` | `field` | `from` and `to`, each omitted on the side of the write where the value is empty |
 | `workstream_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
 | `column_updated` | `note` (the column's own id) | `field`, written by a field write and absent on the lines `reshape` writes; `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the column's prose body |
-| `comment_updated` | `note` (the comment's own id), `field` | none today: a comment's only field is its prose body, and a prose write carries neither `from` nor `to` |
+| `comment_updated` | `note` (the comment's own id), `field` | none below storage format 12, where a comment's only field is its prose body and a prose write carries neither `from` nor `to`; from storage format 12, `text`, the new body, absent where it is empty, and `redacted`, true on a line `dinah redact` rewrote, whose `text` then reads `sha256:` and the digest of the text it carried |
 | `divergence_accepted` | `comment`, `note` (the comment's own id) | none: the act ratifies a body that is already on disk, so there is no value to carry |
-| `item_updated` | `note` (the item's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the item's prose body |
+| `item_updated` | `note` (the item's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows, both absent where the field written is the item's prose body; from storage format 12, `text`, the item's new text, on a write of its `text` field; `redacted`, true on a line `dinah redact` rewrote, whose `text`, or on a line written before answers were comments whose `from` and `to`, then read `sha256:` and the digest of the text they carried |
 | `attachment_updated` | `note` (the attachment's own id), `field` | `from` and `to`, by the rule `workbench_updated` follows; `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
 | `workstream_joined` | `workstream` | |
 | `workstream_left` | `workstream` | |
-| `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows |
-| `restored` | `note` (the entity's own id) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column |
+| `card_updated` | `field` | `from` and `to`, by the rule `workbench_updated` follows; from storage format 12, `text`, the card's new body, on a write of the body; `witnessed`, true on a line the witness wrote to make the journal agree with a hand edit of `card.md`, whose `text` carries the file's body where the field is `body` and whose `from` and `to` otherwise carry the replayed and the file's value, a structured key's raw lines joined by a newline |
+| `restored` | `note` (the entity's own id) | `column` and `column_title`, the identifier and the title as of the write of the column the attachment hangs on, both written only on a line about an attachment hanging on a column; in a store of storage format 12, `comment` on a comment's line, with `item` on a comment on an item and `column` and `column_title` on a comment on a column, and `item` on an item's line |
 | `manual_correction` | `from`, `to`, `from_title`, `to_title` | |
-| `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `set <ref> tier <value> --at` write |
-| `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | |
-| `item_filed` | `item` (the item's own id), `kind` | `column`, `column_title` and `standing`, the declaring column's identifier and title as of the write and the entry key, all three written only on a line a column's `standing_items` declaration filed on arrival, where the actor stays the arriving act's own; a hand filing through `dinah file` carries none of the three, and a reader that does not know them reads an ordinary filing, which is what the line already is |
-| `item_waived` | `item` (the item's own id), `from` (the state it left), `to` | |
-| `item_withdrawn` | `item` (the item's own id), `from` (the state it left), `to` | `grant`, true only where a standing criterion-retirement authorization is what admitted the act, which is exactly when the actor was not the workbench operator, and a reader that does not know the marker reads an ordinary withdrawal, which is what the line already is; `reshape`, true only on a line a `reshape` wrote, withdrawing an instance a retired column's `standing_items` declaration had minted, on the terms the marker carries on a `moved` line |
+| `tier_overridden` | `column` (the resolved column's id), `to`, `expr` (what was typed) | `from`, absent where the card carried no override for that column; `against` (the column's own tier default), absent where the expression was absolute and needed no baseline; `column_title` and `reason`, both written by `raise` alone and both absent on an ordinary `set <ref> tier <value> --at` write; `column_ref`, from storage format 12, the reference the card's `tier_at` entry is stored under, which is the spelling a replay of the card puts back |
+| `tier_override_dropped` | `column` (the retired column's id), `from` (the dropped absolute tier) | `column_ref`, from storage format 12, the reference the dropped `tier_at` entry was stored under |
+| `item_filed` | `item` (the item's own id), `kind` | `column`, `column_title` and `standing`, the declaring column's identifier and title as of the write and the entry key, all three written only on a line a column's `standing_items` declaration filed on arrival, where the actor stays the arriving act's own; a hand filing through `dinah file` carries none of the three, and a reader that does not know them reads an ordinary filing, which is what the line already is; in a store of storage format 12, `ordinal` and `text` on every line, `column` and `column_title` naming the item's own station whenever the item names one, so a hand filing carries them too and a reader asking whether a filing was a standing one tests `standing`, `owner` and `evidence` where the filing set them, and `redacted`, true on a line `dinah redact` rewrote, whose `text` then reads `sha256:` and the digest of the text it carried |
+| `item_cited` | `item` (the item's own id), `scheme`, `target` | `observed`, the observation the citation recorded, written `<before>:<after>` |
+| `item_resolved` | `item` (the item's own id), `from` (the state it left), `to` | `resolution`, the identifier of the comment the settling designated as the item's answer, written on every line from storage format 12 |
+| `item_verified` | `item` (the item's own id), `from` (the state it left), `to` | `resolution`, by the rule `item_resolved` follows |
+| `item_failed` | `item` (the item's own id), `from` (the state it left), `to` | `resolution`, by the rule `item_resolved` follows |
+| `item_reopened` | `item` (the item's own id), `from` (the state it left), `to` | `reason`, the reason the reopen gave |
+| `item_waived` | `item` (the item's own id), `from` (the state it left), `to` | `resolution`, by the rule `item_resolved` follows |
+| `item_withdrawn` | `item` (the item's own id), `from` (the state it left), `to` | `grant`, true only where a standing criterion-retirement authorization is what admitted the act, which is exactly when the actor was not the workbench operator, and a reader that does not know the marker reads an ordinary withdrawal, which is what the line already is; `reshape`, true only on a line a `reshape` wrote, withdrawing an instance a retired column's `standing_items` declaration had minted, on the terms the marker carries on a `moved` line; `resolution`, by the rule `item_resolved` follows |
 | `retirement_granted` | `to` (the identifier of the column the card stood in when the grant was given) | |
 | `retirement_revoked` | | |
 | `designations_migrated` | | `cards`, the references of the cards whose claim the run passed, written by a forced run alone and absent from every other; a forced run that passed none writes the line carrying no card, so the flag is never a silent no-op |
 | `lock_reclaimed` | `note` (the dead lock's own record line) | `column`, the identifier of the column whose occupancy lock was reclaimed, written only on a line about a column's occupancy lock |
+| `journal_tail_trimmed` | `trimmed` (the byte count moved out of the journal), `note` (the sidecar's file name) | none |
+| `item_baseline` | `item` (the item's own id), `kind`, `ordinal`, `state`, `text`, `written` (when the item was filed) | `column` and `column_title`, the item's own station, written whenever the item names one; `owner`; `evidence`; `standing`; `resolution`, the identifier of the designated comment; `citations`, each entry carrying `scheme`, `target` and, where the entry recorded one, `observed`; `archived`, true only on an item that stood in the archived half; `redacted`, true on a line `dinah redact` rewrote, whose `text` then reads `sha256:` and the digest of the text it carried |
+| `comment_baseline` | `comment` (the comment's own id), `ordinal`, `written` (when the comment was written) | `text`, absent where the body is empty; `author`, or `author_unrecoverable` where the store could not say who wrote it; `digest`, the recorded digest the comment's anchor carried; `item`, on a comment on an item; `column` and `column_title`, on a comment on a column; `archived`, true only on a comment that stood in the archived half in its own right; `redacted`, true on a line `dinah redact` rewrote, whose `text` then reads `sha256:` and the digest of the text it carried |
+| `card_baseline` | `text` (the card's `card.md` as it stood, after newline normalisation) | none |
+| `storage_migrated` | `from` (the format the store declared), `to` | `cards`, the references of the cards whose claim a forced run passed, as `designations_migrated` carries them; `accepted`, the manifest keys an operator accepted; `written_during_run`, the manifest keys found written while the run was in progress |
+| `card_rebuilt` | | |
+| `redacted` | `kind` (`comment` or `item`), `lines` (how many lines were rewritten), and `comment` or `item`, the redacted member's own id | `item` beside `comment`, on a comment on an item; `column` and `column_title`, on a comment on a column |
 | `spend` | `unit` (one lowercase word the caller chose), `column` and `column_title` (the column the work was performed in, as of the write) | `input`, `output`, `cached` and `total`, each a number that is not negative and each written only where the provider reported that figure, so the line says which shape its provider reports in; `unreported`, true only on a line whose harness reported no figure, which is never written beside a figure; `round`, the pass of the station the line belongs to, counted from one; `consumer_provider` and `consumer_model`, the provider and model that consumed what the line records, written only where they are not the actor's own; `note` |
+
+A `journal_tail_trimmed` line is written by an append that found its journal
+ending in a fragment that does not decode. The append holds the lock of the
+journal's own entity, writes the fragment to a `journal.torn.<stamp>` sidecar
+beside the journal, cuts the journal back to just after its last newline, and
+writes this line ahead of its own. The actor is the appending owner, named
+alone. The sidecar is kept until a person has read it and deleted it, and
+`dinah check` reports it until then.
+
+A `redacted` line is written by `dinah redact` in the same atomic replacement
+of the journal as the lines it rewrote, which is the one rewrite a journal
+admits. It never carries the text or its digest. Each rewritten line keeps
+every member it had, its position in the file included, and has each text of
+the member replaced by `sha256:` and the lowercase hex SHA-256 of the text as
+the line carried it, and it gains `redacted`, true. The lines rewritten are the
+member's own: a comment's `commented`, `comment_updated` and
+`comment_baseline` text and the `reason` of the `unblocked` line naming it, and
+an item's `item_filed`, `item_updated` and `item_baseline` text and the `title`
+of the line that deleted it, which a deletion written before storage format 12
+spells with the item in `note` alone. The `item_updated` lines with `field: note`
+written before answers were comments are rewritten too, since their `from` and
+`to` hold versions of an answer: every value for the item they name, and for a
+comment an item designates, the values equal to a version of that comment's
+own text. A value a redaction already replaced is never hashed again. The
+replay reads a redacted member's text as empty, and `lines` counts every line
+rewritten. A redaction that would rewrite no line, as for a comment deleted
+before storage format 12, whose text lived only in the file its deletion
+removed, is refused `dinah.nothing-to-redact` and writes nothing.
 
 A `lock_reclaimed` line lands on the journal of the entity the reclaimed lock
 covered: a card's lock on that card's journal, a workstream's on the
@@ -1549,7 +1688,11 @@ itself.
 A field write to a field stored as the entity's prose body carries `field` and
 carries neither `from` nor `to`. The journal records that the act happened and
 who did it, and the prose itself lives in the anchor, which is the file that
-changed and whose history the repository already carries.
+changed and whose history the repository already carries. A store of storage
+format 12 makes three exceptions, each for prose the journal is the only home
+of or the record a file is rebuilt from: a comment's body and an item's text,
+which have no anchor there, and a card's body, which `card.md` is rebuilt from.
+Each of the three writes its new prose in `text`.
 
 An `expired` line carries `expires` unconditionally because the event fires
 only when a claim's own expiry lapsed, so the field it reports is never empty.
@@ -1588,11 +1731,12 @@ empty, since the decode carries no presence check of its own. A consumer that
 depends on the field says plainly what it lacks rather than inventing a
 plausible value.
 
-Nothing rewrites a published line to add what the schema later asks for. A
-journal written before a field was required lacks that field forever, and
-every reader tolerates the absence as a fact about the format's history.
-Rewriting a historical line is the act an append-only journal exists to make
-impossible, so no migration reaches one, however cheap the repair would look.
+No migration rewrites a published line to add what the schema later asks for,
+because the one rewrite a journal admits is the redaction stated at the head of
+the History section, and it replaces text rather than adding anything. A
+journal written before a field was required therefore lacks that field
+forever, and every reader tolerates the absence as a fact about the format's
+history.
 
 Adding a field to an event later is safe, for the same reason an unknown event
 name is. A reader ignores a key it declares no field for, so a build meeting a
@@ -1601,10 +1745,24 @@ stays readable by every build after it.
 
 ## Checklist items
 
-A checklist item is a card-scoped entity recording a structured judgment:
-`checklist/<12-hex>/item.md`, with `kind`, `column`, `owner`, `state`,
-`resolution`, `citations`, `standing`, `evidence`, timestamps, and a creation
-ordinal in frontmatter, and the item's text as the body. `standing` names the
+A checklist item is a card-scoped entity recording a structured judgment. It
+carries `kind`, `column`, `owner`, `state`, `resolution`, `citations`,
+`standing`, `evidence`, timestamps, and a creation ordinal, and the item's text.
+From storage format 12 an item is a member of its card's journal: `item_filed`
+creates it with its text, the lines of the History section's table change it,
+and a read replays them. `dinah show <item>` composes an anchor of the older
+layout's shape from the replayed item, its keys in one fixed order (`kind`,
+`state`, `column`, `owner`, `standing`, `evidence`, `ts`, `ordinal`,
+`resolution`, `citations`, each only where it holds a value), whatever order
+the item's `item.md` carried them in before the migration, and
+`dinah path <item>` is refused `dinah.not-a-file`, since no file holds
+the item alone. A store below format 12 keeps each item in
+`checklist/<12-hex>/item.md`, with those keys in frontmatter and the text as
+the body. `dinah redact <item>`, the workbench operator's alone, replaces every
+text the item's lines carry with its digest, as the History section describes,
+and a redacted item reads with empty text while its kind, state, column, owner,
+resolution and citations read as before; a write of its text is then refused
+`dinah.redacted`. `standing` names the
 entry of a column's `standing_items` declaration that minted the item, and
 together with `column` it is the item's identity for re-entry: an arrival at
 the declaring column mints nothing for an entry whose key a live item of the
@@ -1626,8 +1784,9 @@ whether any citation exists before this one asks whether one of them is the
 right one, and `waive` and `withdraw` are untouched, since neither claims the
 evidence exists. An item takes its evidence by citation rather
 than by holding a copy: it carries no `attachments/` collection of its own, and
-`dinah attach` aimed at one is refused. It carries its own `comments/`
-collection instead. The reasoning an item was filed with, the recommendation
+`dinah attach` aimed at one is refused. It carries comments of its own instead,
+which from storage format 12 stand in the card's journal beside the item. The
+reasoning an item was filed with, the recommendation
 and the tradeoffs, belongs there as comments written on the item.
 
 Leaving pending requires an answer, and the answer is a designation rather than
@@ -1641,7 +1800,10 @@ surfaces print the position, composed at the moment of the read, so what a
 person sees is typeable and is correct when they see it, and `ItemView` carries
 the identifier beside it so that a machine reader holds the durable handle.
 `dinah get <item> resolution` answers with the stored value, which is the
-identifier, because `get` is the raw field reader.
+identifier, because `get` is the raw field reader. From storage format 12 every
+settling line carries `resolution` as well, so the journal names the comment
+that settled an item on the line that settled it, and no reader has to infer it
+from the line standing before.
 
 The key holds an identity rather than a position because a position is not one.
 Archiving any earlier comment of an item renumbers the survivors, so a stored
@@ -2148,12 +2310,19 @@ observation it carries, and it stops there.
 
 ## Comments and attachments
 
-A comment is an entity like every other, per the no-exceptions rule in
-"Anchor files and collections": a hex directory under `comments/` whose
-anchor is `comment.md`, with timestamp, author, digest, and creation ordinal in
-frontmatter and the comment as body, and its own `attachments/` on demand.
-Ordering comes from the ordinal field, not from the timestamp and not from
-the directory name.
+A comment is an entity with a timestamp, an author, a recorded digest, a
+creation ordinal and the comment itself as its body, and it carries
+attachments on demand. From storage format 12 it is a member of the nearest
+enclosing journal, as "Anchor files and collections" says: `commented` creates
+it with its body in `text`, `comment_updated` carries each later body, and a
+read replays them. Its attachments stand under `comments/<comment id>/attachments/`
+of the card or the column that holds it, whether it hangs on the card or on one
+of the card's items. `dinah show <comment>` composes the anchor the older
+layout stored from the replayed comment, and `dinah path <comment>` is refused
+`dinah.not-a-file`. A store below format 12 keeps each comment in a hex
+directory under `comments/` whose anchor is `comment.md`, with those fields in
+frontmatter and the comment as body. Ordering comes from the ordinal, not from
+the timestamp and not from any directory name.
 
 A comment is created before it says anything. `dinah comment <ref>` with no
 text mints the entity with an empty body, which is the form an editor calls:
@@ -2172,6 +2341,17 @@ not only those that write the body, because rendering the file re-serialises it
 whole and a write touching one header key rewrites the body's bytes on the way
 past. A digest recomputed on body writes alone would then disagree with a body
 nobody edited.
+
+From storage format 12 no file holds a comment's body, so a hand edit of it has
+nowhere to happen, and the recorded digest is the digest of the comment's
+current text for every comment written there. A comment the storage migration
+carried keeps the digest its anchor recorded, on its `comment_baseline` line,
+until a body write or `dinah accept-divergence` replaces it, so a divergence
+carried across from the old layout is still reported and still ratified the
+way this section describes. `dinah edit <comment>` writes the body to a
+temporary file for the editor and writes it back through the ordinary body
+write, with `--expect-digest` set to the digest it read before the editor
+opened.
 
 A hand edit changes the body and leaves the digest alone, which is what makes
 the edit visible. `dinah check` reports the disagreement as
@@ -2216,6 +2396,16 @@ answer. Two ways through: reopen the item first, which clears the designation,
 or `dinah delete <comment> --force`, which reopens the item as part of the same
 act and composes the reopen's reason from the comment that is going. The forced
 form is a reopen, so on an operator-owned item it is the operator's alone.
+
+From storage format 12 deleting a comment appends a `deleted` line and removes
+the comment from every read, and its earlier lines, text included, stay in the
+journal. Removing the text itself takes `dinah redact <comment>`, the workbench
+operator's alone, which replaces every text the comment's lines carry with its
+digest as the History section describes and leaves the comment's attachments
+where they are, listing them so nobody takes the comment for gone while its
+files are still served. A redacted comment reads with an empty body, `dinah
+show` prints who redacted it and when in the body's place, and a write of its
+body or an acceptance of a divergence of it is refused `dinah.redacted`.
 
 An attachment is likewise an entity: a hex directory whose anchor,
 `attachment.md`, records the current filename, a description, provenance,
@@ -2303,6 +2493,17 @@ the highest ordinal in use and the write that follows it cannot be
 interleaved with another writer. `dinah file` creates a checklist item under
 the card's own lock and assigns its ordinal on exactly those terms.
 
+From storage format 12 a comment's and an item's ordinal is one more than the
+highest the journal has ever recorded in its collection instance, which is the
+card's own comments, one item's comments, the card's checklist, or one
+column's comments, and deleted and archived members count. An ordinal is
+therefore never reissued: deleting the highest-numbered comment used to let
+the next comment take its number, because the search read only the live
+directory, and it no longer can. Positions are unaffected, since a position
+counts live members in ordinal order. Two clones that each add a comment from
+one base mint the same ordinal, git's union merge keeps both lines, the readers
+order the tie by file order, and `dinah check` reports it as a duplicate.
+
 Ordinals exist because the two orderings already on disk both fail. A
 directory listing is ascending hex and an entity identifier is random, so the
 listing is in an order nobody wrote. The workbench's own identifier is minted
@@ -2321,8 +2522,8 @@ still, because the entity it counted to is gone. What an ordinal fixes is
 the order: every reader of the collection sees the members in the sequence
 somebody wrote them, on any machine and in any shell.
 
-A gap is legal and is left alone. Deletion is directory removal, so an
-ordinal disappears with the entity that carried it. The value a survivor
+A gap is legal and is left alone. Deletion removes the entity from every read,
+so an ordinal disappears from the collection with the entity that carried it. The value a survivor
 carries is a record of where that entity fell in the write order, and
 deleting a neighbour does not change where it fell, so closing the gap
 would rewrite a historical fact on entities nobody touched and put every
@@ -3880,6 +4081,25 @@ never conflated:
   cross-implementation meaning at all; implementations meet through the JSON
   interchange, which declares the profile version it speaks.
 
+Storage format 12 is the card-unit layout, in which a card's comments and
+checklist items live in its journal and `card.md` is a projection of it, as
+the Entities and History sections describe. This build knows the layout and
+ships with it switched off. With the switch off it behaves toward a format-12
+store exactly as a build whose highest format is 11 does, refusing it
+`unsupported-version` through every opener, and it creates new stores at
+format 11. `dinah check --migrate-storage --backup <dir>` carries a store from
+format 11 to 12 once the layout is switched on. It is the workbench operator's
+alone, refused while any card is claimed unless `--force-claims` names the
+claims it passes, and refused without a backup directory outside the store,
+which it fills and verifies before it writes anything. It works in resumable
+phases behind a `migrating: storage` key that every ordinary open refuses,
+proves over every member that nothing was lost before it removes the old
+files, and records the run in a `storage_migrated` line on the workbench's
+journal. `--rehearse` runs the same reading and the same proof over the store
+and writes nothing, whatever the switch says. The capabilities a store
+declares beside its format are dinah-638's, and that card is the one that
+turns the switch on.
+
 One reader posture makes upgrades safe. Readers ignore keys they do not
 know, and the format version gates only changes that would make an old
 reader wrong rather than merely incomplete. Additive changes (a future
@@ -4299,6 +4519,17 @@ entity directories keep concurrent card work in disjoint files and
 append-only journals take a union merge; a conflict inside one card's
 frontmatter is real contention, rare, and resolved by a human.
 
+From storage format 12 two clones commenting on one card, or settling two
+items of one card, no longer write disjoint files, because every comment and
+item of a card lives in its one journal. Both sides append lines to that
+journal, and the union merge keeps every line of both, so the merge is still
+clean. What the union driver cannot promise is an order, and a replay after
+the merge reads whatever order it produced: two comments minted from one base
+carry one ordinal and are ordered by file order, which `dinah check` reports
+as a duplicate, and two acts on one item both apply in the order the merge
+left them. A conflict inside `card.md` is resolved by hand as before, or by
+`dinah check --rebuild`, which writes the file back from the merged journal.
+
 The operating-system lock a holder keeps is only as good as the file system's
 own lock service, which is one more reason a workbench lives on local disk.
 The `nfs(5)` page documents that under `nolock` a lock excludes only
@@ -4455,8 +4686,22 @@ history determines the present. An anchor that is absent entirely is the
 quarantine case below, not a replay case, and the two inputs get different
 answers. Journal lost: the frontmatter still carries present truth, the
 history is gone, and check records a witnessed history-lost event rather
-than pretending otherwise. Torn journal tail after a crash: readers
-tolerate a trailing partial line, and check trims it with a witness.
+than pretending otherwise. From storage format 12 a lost card journal takes
+the card's comments and items with it, which the backup and git are for.
+Torn journal tail after a crash: readers tolerate a trailing partial line,
+and the next writer to append, holding the journal's lock, repairs it first.
+A final line that decodes as one whole object and only lacks its newline is
+kept and given one. Any other tail is moved to a `journal.torn.<stamp>`
+sidecar beside the journal, the journal is cut back to its last newline, and a
+`journal_tail_trimmed` line naming the sidecar precedes the writer's own. No
+command deletes the sidecar, and check reports it under
+`check.journal-torn-quarantined` until a person has read it and removed it;
+`dinah check --witness` makes the same repair without appending anything else.
+A line that is not the last and will not decode is damage rather than a crash
+artifact: every read of that entity is refused `dinah.journal-unreadable`,
+naming the file and the line, check reports it under `check.journal-unreadable`,
+and the remedy is to restore the line from the backup or from git or to delete
+it by hand, since it may hold a comment's text and no command deletes it.
 Registry line damaged or duplicated: the file is plain text, a line that
 fails its grammar is reported as stored rather than guessed at, and the
 readers keep the workbench openable because a malformed line enters no
@@ -4474,8 +4719,14 @@ in the Concurrency and atomicity section says which way it finishes and what
 check refuses to decide.
 Anchor
 file missing: the directory is quarantined to `lost+found/`, never silently
-deleted. Every repair is journaled as itself an event, so recovery leaves a
-trail instead of a mystery.
+deleted. From storage format 12 a card is the exception, because its journal
+states the whole of `card.md`: a card whose `card.md` is missing, will not
+parse, or carries git's conflict markers while its journal reads is rebuilt
+rather than quarantined, by `dinah check --rebuild`, which writes the file back
+from the journal and appends `card_rebuilt`. Only a card directory holding
+neither a readable `card.md` nor a readable journal is quarantined. Every
+repair is journaled as itself an event, so recovery leaves a trail instead of
+a mystery.
 
 ## Archive
 
@@ -4487,6 +4738,16 @@ a card's noisy old comments archive to `cards/<id>/archive/comments/<id>/`
 exactly the way a card archives at workbench level, and the live-is-fair-game,
 archive-is-on-demand rule applies at every depth. One pattern serves every
 kind, with no per-kind machinery.
+
+From storage format 12 a comment and a checklist item have no directory to
+move, so they keep no archive mirror. Archiving one appends an `archived` line
+that moves it into the archived half of its holder, a restore appends
+`restored`, and the replay reads which half each member stands in; the halves
+count positions apart, as the mirror directories did. An item's comments stand
+in the archived half with it, and a column comment stands there when it or its
+column is archived. A comment's attachments stay under `comments/<comment
+id>/attachments/` whichever half the comment stands in. A whole card still
+archives by moving its directory, journal and members with it.
 
 The rule is structural, not a filter: whatever is in `cards/` is live and
 always fair game, whatever is in `archive/` is crawled only on demand.
