@@ -23,6 +23,7 @@ git, and git invoked by another program. `--git-dir`, `--work-tree` and
 
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -56,23 +57,32 @@ UNKNOWN = None
 
 
 def normal(raw, base):
-    """An absolute, comparable spelling of a path, or UNKNOWN."""
-    text = raw.strip().strip("\"'")
+    """An absolute, comparable spelling of a path, or UNKNOWN.
+
+    Paths are compared as text with forward slashes, a lowercase drive
+    letter and no trailing slash, so a Windows path reads the same on a
+    Linux runner and `/c/x` (Git Bash) reads the same as `C:/x`.
+    """
+    text = raw.strip().strip("\"'").replace("\\", "/")
     if not text or re.search(r"[$`%]|^~", text):
         return UNKNOWN
     msys = re.match(r"^/([a-zA-Z])(/|$)", text)
     if msys:
         text = msys.group(1) + ":/" + text[len(msys.group(0)):]
-    path = Path(text)
-    if not path.is_absolute():
+    if not (re.match(r"^[a-zA-Z]:/", text) or text.startswith("/")):
         if base is UNKNOWN:
             return UNKNOWN
-        path = Path(base) / path
-    return os.path.normcase(os.path.normpath(str(path)))
+        text = base + "/" + text
+    text = posixpath.normpath(text)
+    if re.match(r"^[a-zA-Z]:", text):
+        text = text[0].lower() + text[1:]
+        if os.name == "nt":
+            text = text.lower()
+    return text.rstrip("/") or "/"
 
 
 def inside(path, main):
-    return path == main or path.startswith(main.rstrip("\\/") + os.sep)
+    return path == main or path.startswith(main + "/")
 
 
 def decide(command, cwd, main):
