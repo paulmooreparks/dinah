@@ -228,7 +228,7 @@ func TestRunFreshThenResumed(t *testing.T) {
 	if !strings.Contains(fresh.Stdin, card) || !strings.Contains(fresh.Stdin, "```json") {
 		t.Errorf("the prompt does not carry the brief and the result instructions: %q", fresh.Stdin)
 	}
-	if fresh.Workbench != benchDir(t, rb.root) {
+	if canonical(t, fresh.Workbench) != canonical(t, benchDir(t, rb.root)) {
 		t.Errorf("the harness was handed DINAH_WORKBENCH %q, wanted %q", fresh.Workbench, benchDir(t, rb.root))
 	}
 	if canonical(t, fresh.Cwd) != canonical(t, rb.root) {
