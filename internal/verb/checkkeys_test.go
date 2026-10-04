@@ -8,100 +8,34 @@ import (
 	"dinah/internal/msg"
 )
 
-// TestEveryPullCheckKeyIsCarriedByEveryCatalog is dinah-484 AC-11's second
-// half. The card renumbers pull's own rows, and renumbering is a rename of
-// every key from the insertion point down, applied by hand in eight files. A
-// file left un-renumbered carries a key nothing reads and is missing one
-// something does, and the help for that language then prints the key name
-// where the sentence should be.
+// TestEveryCheckRowKeyIsInTheEnglishCatalog is dinah-484 AC-11's second half,
+// widened by dinah-540 to release and unblock, as the catalogs hold it now.
+// pull's rows were renumbered by hand, and a renumbering is a rename of every
+// key from the insertion point down; a row declared in code with no English
+// sentence makes help print the key name where the sentence should be.
 //
-// The keys come off pullChecks itself rather than off a list written here, so
-// a row added later joins this guard without anybody remembering to.
-func TestEveryPullCheckKeyIsCarriedByEveryCatalog(t *testing.T) {
+// Only English is read here. A translation left un-renumbered carries the old
+// sentence under a key whose English moved, which
+// TestATranslationTracksItsEnglishSource in internal/msg reports as stale, and
+// a key English no longer carries is reported by
+// TestATranslationCarriesNoKeyEnglishLacks. A language missing a row renders
+// the English for it, and German and Hindi carrying every row is checked at
+// release.
+//
+// The keys come off each verb's own list rather than off a list written here,
+// so a row added later joins this guard without anybody remembering to.
+func TestEveryCheckRowKeyIsInTheEnglishCatalog(t *testing.T) {
 	checked := 0
-	for _, row := range Checks(Pull) {
-		if _, ok := msg.BaseEntry(row.Key); !ok {
-			t.Errorf("%s is a row of pull's list and the base catalog carries no such key", row.Key)
-			continue
-		}
-		for _, tag := range msg.Tags() {
+	for _, name := range []string{Pull, Move, Release, Unblock} {
+		for _, row := range Checks(name) {
 			checked++
-			if _, carried := msg.CatalogEntry(tag, row.Key); !carried {
-				t.Errorf("%s/%s: the row is declared and this catalog carries no sentence for it", tag, row.Key)
+			if _, ok := msg.BaseEntry(row.Key); !ok {
+				t.Errorf("%s is a row of %s's list and the base catalog carries no such key", row.Key, name)
 			}
 		}
 	}
 	if checked == 0 {
-		t.Fatal("no row was checked against any catalog, so this guard is asserting nothing")
-	}
-}
-
-// TestEveryMoveCheckKeyIsCarriedByEveryCatalog is the same guard over the
-// move's own list, which this card appends a row to. An appended row cannot
-// renumber anything, so the failure it catches is narrower: a row declared in
-// code and left out of the catalogs entirely.
-func TestEveryMoveCheckKeyIsCarriedByEveryCatalog(t *testing.T) {
-	checked := 0
-	for _, row := range Checks(Move) {
-		if _, ok := msg.BaseEntry(row.Key); !ok {
-			t.Errorf("%s is a row of the move's list and the base catalog carries no such key", row.Key)
-			continue
-		}
-		for _, tag := range msg.Tags() {
-			checked++
-			if _, carried := msg.CatalogEntry(tag, row.Key); !carried {
-				t.Errorf("%s/%s: the row is declared and this catalog carries no sentence for it", tag, row.Key)
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no row was checked against any catalog, so this guard is asserting nothing")
-	}
-}
-
-// TestEveryReleaseCheckKeyIsCarriedByEveryCatalog is the same guard over
-// release's own list, on TestEveryMoveCheckKeyIsCarriedByEveryCatalog's
-// pattern. Release and unblock carried no such guard before dinah-540, which
-// is how a row inserted ahead of check.release.2 (formerly check.release.1's
-// only sibling) could go undetected in one catalog the way the no-owner row
-// itself did.
-func TestEveryReleaseCheckKeyIsCarriedByEveryCatalog(t *testing.T) {
-	checked := 0
-	for _, row := range Checks(Release) {
-		if _, ok := msg.BaseEntry(row.Key); !ok {
-			t.Errorf("%s is a row of release's list and the base catalog carries no such key", row.Key)
-			continue
-		}
-		for _, tag := range msg.Tags() {
-			checked++
-			if _, carried := msg.CatalogEntry(tag, row.Key); !carried {
-				t.Errorf("%s/%s: the row is declared and this catalog carries no sentence for it", tag, row.Key)
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no row was checked against any catalog, so this guard is asserting nothing")
-	}
-}
-
-// TestEveryUnblockCheckKeyIsCarriedByEveryCatalog is the same guard over
-// unblock's own list, on the same pattern.
-func TestEveryUnblockCheckKeyIsCarriedByEveryCatalog(t *testing.T) {
-	checked := 0
-	for _, row := range Checks(Unblock) {
-		if _, ok := msg.BaseEntry(row.Key); !ok {
-			t.Errorf("%s is a row of unblock's list and the base catalog carries no such key", row.Key)
-			continue
-		}
-		for _, tag := range msg.Tags() {
-			checked++
-			if _, carried := msg.CatalogEntry(tag, row.Key); !carried {
-				t.Errorf("%s/%s: the row is declared and this catalog carries no sentence for it", tag, row.Key)
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no row was checked against any catalog, so this guard is asserting nothing")
+		t.Fatal("no row was checked against the catalog, so this guard is asserting nothing")
 	}
 }
 

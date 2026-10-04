@@ -359,7 +359,7 @@ Shell completion is built at the same time as views, as section 10 allows.
 | 4 | the `columns` layout and `--watch` | three flags on `view`, the `glyphs` setting and the `dinah.watch-unavailable` refusal | phase 1 |
 | 5 | a terminal UI | one verb, `dinah tui`, which starts the separate program `dinah-tui`, and the refusals `dinah.tui-unavailable`, `dinah.tui-missing` and `dinah.tui-skew` | phase 4 |
 
-Phases 1 and 3 are independent and can run at the same time. The phases together add three verbs. Every new verb and message still costs eight catalogs, a help entry and quick start transcripts, which are the shared generated files the critical analysis found taxing every merge. The design keeps the number of verbs down partly for that reason.
+Phases 1 and 3 are independent and can run at the same time. The phases together add three verbs. Every new verb and message still costs catalog entries, a help entry and quick start transcripts, which are the shared generated files the critical analysis found taxing every merge. (Since 2026-10-04 a new message needs only its English entry in the pull request, with German and Hindi due before the next release; see the last amendment in docs/practice/translation-staleness-contract.md.) The design keeps the number of verbs down partly for that reason.
 
 ## 11. What this design deliberately leaves out
 

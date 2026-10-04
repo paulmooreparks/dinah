@@ -4,63 +4,31 @@ import (
 	"testing"
 )
 
-// TestTheAddressHeadingsShipInEveryCatalogue asserts dinah-454 AC-10: the
-// three headings this card lands reach all eight catalogues in the shape the
-// translation staleness contract requires, and the two keys it retires are
-// gone from every one of them.
+// TestTheAddressHeadingsAreInTheEnglishCatalogue asserts dinah-454 AC-10 as
+// the catalogues hold it now: the three headings this card lands carry the
+// English text it specifies, and the two keys it retires are gone from every
+// catalogue. A translation of a heading, where a catalogue carries one, is
+// held by the guards in msg_test.go that read every translation.
 //
 // The retirement arm is the one worth spelling out. A rename that adds the new
-// key and leaves the old one behind passes every other guard in this package,
-// because the catalogues stay in step with each other and the counts still
-// match; only a check that names the retired key can see it.
-func TestTheAddressHeadingsShipInEveryCatalogue(t *testing.T) {
+// key and leaves the old one behind passes every other per-key guard in this
+// package; only a check that names the retired key, or
+// TestATranslationCarriesNoKeyEnglishLacks for a catalogue other than English,
+// can see it.
+func TestTheAddressHeadingsAreInTheEnglishCatalogue(t *testing.T) {
 	added := map[string]string{
 		"column.comments.ref":          "Ref",
 		"column.attachments.ref":       "Ref",
 		"column.workstreams.reference": "Reference",
 	}
-	translated := map[string]bool{"de": true, "hi": true}
-
+	keys := make([]string, 0, len(added))
 	for key, english := range added {
-		for _, tag := range Tags() {
-			catalog, shipped := loaded[tag]
-			if !shipped {
-				t.Errorf("%s ships no catalog at all", tag)
-				continue
-			}
-			entry, carried := catalog.Entries[key]
-			if !carried {
-				t.Errorf("%s carries no %s, so one head draws a heading the catalog cannot answer", tag, key)
-				continue
-			}
-			switch {
-			case tag == Base:
-				if entry.Text != english {
-					t.Errorf("en/%s reads %q, wanted %q", key, entry.Text, english)
-				}
-				if entry.Context == "" {
-					t.Errorf("en/%s carries no context, so a translator is told nothing about what the heading sits over", key)
-				}
-			case translated[tag]:
-				if entry.Skeleton {
-					t.Errorf("%s/%s ships as a skeleton, and that language ships complete", tag, key)
-				}
-				if want := Fingerprint(english); entry.Source != want {
-					t.Errorf("%s/%s records the source %q, wanted %q, which is the fingerprint of the English it was read against", tag, key, entry.Source, want)
-				}
-			default:
-				if entry.Text != english {
-					t.Errorf("%s/%s reads %q, and a skeleton entry carries the English text unchanged", tag, key, entry.Text)
-				}
-				if !entry.Skeleton {
-					t.Errorf("%s/%s is not marked as a skeleton, so the coverage count reads it as translated", tag, key)
-				}
-				if entry.Source != "" {
-					t.Errorf("%s/%s records the source %q, and a skeleton was read against nothing", tag, key, entry.Source)
-				}
-			}
+		keys = append(keys, key)
+		if entry, ok := BaseEntry(key); ok && entry.Text != english {
+			t.Errorf("en/%s reads %q, wanted %q", key, entry.Text, english)
 		}
 	}
+	assertTheEnglishCarries(t, keys)
 
 	for _, retired := range []string{"column.attachments.position", "column.workstreams.slug"} {
 		for _, tag := range Tags() {

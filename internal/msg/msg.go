@@ -34,28 +34,24 @@ type Entry struct {
 	// Context tells a translator what the message is for and what each
 	// placeholder will hold.
 	Context string `json:"context,omitempty"`
-	// Skeleton marks an entry carrying the English text unchanged, which is
-	// what a generated catalog ships until somebody translates it.
-	Skeleton bool `json:"skeleton,omitempty"`
 	// Verbatim marks an entry a translator really did translate and whose
 	// answer is the English text, letter for letter, because the language
 	// uses the same word. A table heading reading "Name" in German is the
 	// ordinary case.
 	//
 	// The flag exists so that the guard over the catalogs can tell such an
-	// entry from English left standing where a translation should be. Every
-	// other entry that is not a skeleton is required to differ from its
-	// English source, which is what makes a catalog quietly refilled with
-	// English fail rather than pass, and a language does not have to be on
-	// the Complete roster for that to hold. Nothing outside the guard reads
-	// this field: to a reader a verbatim entry is an ordinary translation,
-	// and Coverage counts it as one.
+	// entry from English left standing where a translation should be. A
+	// catalog other than the base carries translations and nothing else, so
+	// every entry in one is required to differ from its English source unless
+	// it carries this flag, which is what makes a catalog quietly refilled
+	// with English fail rather than pass. Nothing outside the guard reads this
+	// field: to a reader a verbatim entry is an ordinary translation, and
+	// Coverage counts it as one.
 	Verbatim bool `json:"verbatim,omitempty"`
 	// Source is a fingerprint of the English text this entry was translated
 	// from, written when the entry is translated and checked against the
 	// current base entry by TestATranslationTracksItsEnglishSource. It is
-	// empty on the base catalog itself and on any entry carrying Skeleton,
-	// neither of which is a translation of anything.
+	// empty on the base catalog itself, which is a translation of nothing.
 	Source string `json:"source,omitempty"`
 }
 
@@ -115,14 +111,22 @@ func readAll() map[string]*Catalog {
 	return catalogs
 }
 
-// Complete lists the catalogs the language ruling declares fully translated:
-// the base language plus every locale a human has finished. Skeleton lists
-// the ruling's remaining declared locales, each shipped as a generated
-// skeleton until somebody translates it. The two lists are the single
-// declaration of that roster; a test in this package and a test in
-// internal/verb both read them rather than each carrying its own copy of the
-// same fact, which is what let German ship translated while two separate
-// hardcoded rosters still called it a skeleton.
+// Complete lists the catalogs a release requires fully translated: the base
+// language plus every locale a human has finished. Declared lists every
+// locale the language ruling calls for, Complete's among them, and each of
+// them ships a catalog file even when that file carries no entry yet, because
+// a reader asking for the language is then answered by the per-key fallback
+// rather than by nothing. The two lists are the single declaration of that
+// roster; tests in this package, in internal/verb and in cmd/dinah read them
+// rather than each carrying its own copy of the same fact.
+//
+// Completeness is held at release rather than on every change. A new English
+// key may land with no German or Hindi entry, and the reader in either
+// language meets the English for that one string until a translator catches
+// up. TestEveryReleaseLanguageIsComplete refuses a release while any key is
+// still missing, and it runs only when DINAH_RELEASE_CHECK is set, which the
+// promotion workflow does. The operator ordered that split on 2026-10-04,
+// after a single card cost 38 keys across eight files.
 //
 // Hindi and German nearly left this list at dinah-287. That rename moved the
 // English text of a large block of entries, no fluent editor of either
@@ -131,18 +135,20 @@ func readAll() map[string]*Catalog {
 // carrying renamed English. The operator ruled the other way on 2026-08-27,
 // in his words "I am not going to ship something with incomplete
 // translations, so fix them first", so the entries were retranslated on that
-// same card and both tags stayed here.
+// same card and both tags stayed here. The release gate above is how that
+// ruling is held now: nothing ships with German or Hindi incomplete, and the
+// gap is allowed only between releases.
 //
 // What the near miss left behind is worth knowing, because the reasoning
 // outlived the decision. Taking a language off this list used to take its
 // contents out of every check, so nothing would have noticed either language
-// rotting afterwards. Two guards in msg_test.go now key on the entry rather
-// than on the roster its catalog is on, and they hold whichever roster a
-// language is on.
+// rotting afterwards. The guards in msg_test.go that read a translation key
+// on the entry rather than on the roster its catalog is on, and they hold
+// whichever roster a language is on.
 var Complete = []string{Base, "hi", "de"}
 
-// Skeleton is documented on Complete, which it is the other half of.
-var Skeleton = []string{"cs", "id", "es", "fil", "af"}
+// Declared is documented on Complete, which it contains.
+var Declared = []string{Base, "af", "cs", "de", "es", "fil", "hi", "id"}
 
 // Tags lists every shipped locale tag, sorted, with the base language first
 // so a coverage report reads from the complete catalog outward.
@@ -185,9 +191,10 @@ func BaseEntry(key string) (Entry, bool) {
 
 // CatalogEntry returns one entry exactly as tag's own catalog carries it: no
 // fallback to Base, no placeholder substitution. BaseEntry is this function
-// specialized to tag == Base. A caller outside this package that needs a
-// translation's own Skeleton flag or raw Text, rather than what a reader
-// would see rendered, calls this instead of reaching into Renderer.
+// specialized to tag == Base. A caller outside this package that needs to
+// know whether a language carries a translation at all, or needs its raw
+// Text rather than what a reader would see rendered, calls this instead of
+// reaching into Renderer.
 func CatalogEntry(tag, key string) (Entry, bool) {
 	catalog, ok := loaded[tag]
 	if !ok {
@@ -198,29 +205,25 @@ func CatalogEntry(tag, key string) (Entry, bool) {
 }
 
 // Coverage reports how many of the base catalog's keys a language carries
-// translated, and how many it carries at all. A generated skeleton carries
-// every key and translates none of them.
-func Coverage(tag string) (translated, present, total int) {
+// translated, against how many the base catalog carries. A catalog holds
+// translations and nothing else, so an entry it carries for a key of the base
+// catalog is a translated key. The base language reports every key.
+func Coverage(tag string) (translated, total int) {
 	base, ok := loaded[Base]
 	if !ok {
-		return 0, 0, 0
+		return 0, 0
 	}
 	total = len(base.Entries)
 	catalog, ok := loaded[tag]
 	if !ok {
-		return 0, 0, total
+		return 0, total
 	}
 	for key := range base.Entries {
-		entry, carried := catalog.Entries[key]
-		if !carried {
-			continue
-		}
-		present++
-		if !entry.Skeleton {
+		if entry, carried := catalog.Entries[key]; carried && entry.Text != "" {
 			translated++
 		}
 	}
-	return translated, present, total
+	return translated, total
 }
 
 // For returns a renderer for a language tag, walking the tag from most

@@ -1631,7 +1631,7 @@ func expectCatalogs(t *testing.T, r *sweptRecord, tag string) sweptExpectation {
 	t.Helper()
 	var rows [][]sweptCell
 	for _, shipped := range msg.Tags() {
-		translated, _, total := msg.Coverage(shipped)
+		translated, total := msg.Coverage(shipped)
 		rows = append(rows, sweptTexts(shipped, strconv.Itoa(translated)+"/"+strconv.Itoa(total)))
 	}
 	return sweptExpectation{rows: rows, source: "msg.Tags()"}

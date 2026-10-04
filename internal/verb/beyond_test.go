@@ -666,39 +666,27 @@ func TestVersionCarriesTheConformanceClaim(t *testing.T) {
 	if release.Format != bench.EffectiveStorageFormat() {
 		t.Errorf("storage format: wanted %d, got %d", bench.EffectiveStorageFormat(), release.Format)
 	}
-	// The roster of which catalogs ship complete lives once, as msg.Complete
-	// and msg.Skeleton, so this test reads the same declaration
-	// TestEveryDeclaredLanguageShips in internal/msg reads rather than
-	// carrying its own copy.
-	isComplete := map[string]bool{}
-	for _, tag := range msg.Complete {
-		isComplete[tag] = true
-	}
-	// The two rosters are read separately rather than as one another's
-	// negation. A catalog can be on neither: dinah-287 took Hindi and German
-	// off Complete while both go on carrying hundreds of real translations,
-	// so "not complete" stopped meaning "generated skeleton". Each roster's
-	// claim is asserted against the tags that roster actually names, which is
-	// the shape TestEveryDeclaredLanguageShips already reads them in.
-	isSkeleton := map[string]bool{}
-	for _, tag := range msg.Skeleton {
-		isSkeleton[tag] = true
-	}
+	// The roster of declared languages lives once, as msg.Declared, so this
+	// test reads the same declaration TestEveryDeclaredLanguageShips in
+	// internal/msg reads rather than carrying its own copy. Each row is held
+	// to the coverage msg reports for its tag, which is what the report
+	// promises; whether German and Hindi report every key is the release
+	// gate's question and not this test's.
 	wanted := map[string]bool{}
-	for _, tag := range append(append([]string{}, msg.Complete...), msg.Skeleton...) {
+	for _, tag := range msg.Declared {
 		wanted[tag] = true
 	}
 	for _, coverage := range release.Catalogs {
 		delete(wanted, coverage.Tag)
-		if coverage.Present != coverage.Total {
-			t.Errorf("%s: wanted every key present, got %d of %d", coverage.Tag, coverage.Present, coverage.Total)
+		translated, total := msg.Coverage(coverage.Tag)
+		if coverage.Translated != translated || coverage.Total != total {
+			t.Errorf("%s: the report says %d of %d and the catalog carries %d of %d", coverage.Tag, coverage.Translated, coverage.Total, translated, total)
 		}
-		complete := isComplete[coverage.Tag]
-		if complete && coverage.Translated != coverage.Total {
-			t.Errorf("%s ships complete, got %d of %d translated", coverage.Tag, coverage.Translated, coverage.Total)
+		if coverage.Total != len(msg.Keys()) {
+			t.Errorf("%s is measured against %d keys and the base catalog carries %d", coverage.Tag, coverage.Total, len(msg.Keys()))
 		}
-		if isSkeleton[coverage.Tag] && coverage.Translated != 0 {
-			t.Errorf("%s ships as a skeleton, got %d translated", coverage.Tag, coverage.Translated)
+		if coverage.Tag == msg.Base && coverage.Translated != coverage.Total {
+			t.Errorf("the base catalog reports %d of %d keys", coverage.Translated, coverage.Total)
 		}
 	}
 	if len(wanted) > 0 {

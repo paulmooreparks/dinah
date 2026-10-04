@@ -71,6 +71,15 @@ rather than inheriting the green result of any dev build the commits came from.
 Two branches that each passed their own suite can still fail together, and a
 release is the worst place to meet that for the first time.
 
+One check runs only here. German and Hindi ship complete, and since 2026-10-04
+an ordinary change may add an English message without translating it, so the
+promotion workflow sets `DINAH_RELEASE_CHECK` and runs
+`TestEveryReleaseLanguageIsComplete`, which names every key either language is
+missing. A cut carrying an untranslated key fails there and publishes nothing.
+To see the gap before dispatching, run
+`DINAH_RELEASE_CHECK=1 go test -run '^TestEveryReleaseLanguageIsComplete$' ./internal/msg`
+on the trunk. The dev build cut on every push to main does not run it.
+
 ## Cutting a beta
 
 Dispatch `.github/workflows/promote.yml` with `channel: beta` and two inputs.
@@ -114,7 +123,8 @@ What happens then, in order:
    exists yet. Every pick uses `git cherry-pick -x`, so the provenance trailer
    records which trunk commit it came from, which is how the next cut knows
    what this lineage already carries.
-4. The assembled tree is checked on Linux, Windows and macOS.
+4. The assembled tree is checked on Linux, Windows and macOS, and on Linux the
+   German and Hindi catalogs are checked for completeness.
 5. Only then is anything published: the tag is pushed, the twelve binaries,
    `dinah` and `dinah-tui` for each of six platforms, are built from the
    assembled tree, and `beta.json` is written on the `channels` release.

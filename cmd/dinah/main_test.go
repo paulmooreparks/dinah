@@ -7690,50 +7690,28 @@ func TestExpiresTakesTheDaySuffixAndRefusesTheWeek(t *testing.T) {
 	}
 }
 
-// TestEveryCatalogIsReportedAgainstItsOwnRoster asserts dinah-172 AC-14: every
-// key a card adds reaches every catalog, so `dinah version --catalogs` reports
-// each one against the roster it is on and none of them short of a key.
-//
-// The rosters are read rather than inferred from the coverage numbers. Until
-// dinah-287 every catalog was either fully translated or a generated skeleton,
-// and reading "not N/N" as "must be 0/N" was true by accident. Hindi and German
-// now carry hundreds of real translations and a run of entries the vocabulary
-// rename left in English, so they are on neither roster and the numbers in
-// between are the honest report rather than a defect.
-func TestEveryCatalogIsReportedAgainstItsOwnRoster(t *testing.T) {
+// TestEveryCatalogIsReportedAgainstTheBase asserts what `dinah version
+// --catalogs` reports for each shipped catalog: a translated count measured
+// against the base catalog's key count, never above it, with English at every
+// key. A count short of the total is the honest report of a language that has
+// not caught up with the English, and only a release refuses it for a
+// language on msg.Complete.
+func TestEveryCatalogIsReportedAgainstTheBase(t *testing.T) {
 	total := len(msg.Keys())
 	if total == 0 {
 		t.Fatal("the base catalog carries no keys")
 	}
-	isComplete := map[string]bool{}
-	for _, tag := range msg.Complete {
-		isComplete[tag] = true
-	}
-	isSkeleton := map[string]bool{}
-	for _, tag := range msg.Skeleton {
-		isSkeleton[tag] = true
-	}
-	complete := 0
 	for _, tag := range msg.Tags() {
-		translated, present, count := msg.Coverage(tag)
+		translated, count := msg.Coverage(tag)
 		if count != total {
 			t.Errorf("%s is measured against %d keys and the base catalog carries %d", tag, count, total)
 		}
-		if present != total {
-			t.Errorf("%s carries %d of the base catalog's %d keys", tag, present, total)
+		if translated < 0 || translated > total {
+			t.Errorf("%s reports %d of %d keys translated", tag, translated, total)
 		}
-		if translated == total {
-			complete++
+		if tag == msg.Base && translated != total {
+			t.Errorf("the base catalog reports %d of %d keys", translated, total)
 		}
-		if isComplete[tag] && translated != total {
-			t.Errorf("%s ships complete and reports %d of %d keys translated", tag, translated, total)
-		}
-		if isSkeleton[tag] && translated != 0 {
-			t.Errorf("%s ships as a skeleton and reports %d keys translated", tag, translated)
-		}
-	}
-	if complete != len(msg.Complete) {
-		t.Errorf("%d catalogs report every key translated, want the %d the roster names", complete, len(msg.Complete))
 	}
 }
 

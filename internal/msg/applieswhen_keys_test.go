@@ -48,8 +48,9 @@ const migrationSummaryKey = "param.check.migrate-applies-when.summary"
 // list above is held against a sweep of the English catalog for the key
 // shapes the card mints, so a key minted in one of those shapes and left off
 // the list fails here, which a comparison against a written-down number would
-// not catch. Every listed key then has to resolve in every locale file, and
-// none may speak the domain in its English text or its context.
+// not catch. Every listed key then has to carry a text and a context in
+// English, and none may speak the domain in either. A language without a
+// translation of one renders the English.
 //
 // Arming, twice: planting the word defect into one listed entry's English
 // text fails the word sweep, and adding an unlisted key
@@ -91,17 +92,7 @@ func TestTheApplicabilityCatalogSpeaksNoDomain(t *testing.T) {
 		}
 	}
 
-	tags := Tags()
-	if len(tags) < 2 {
-		t.Fatalf("only %d catalogs ship, so the resolution check reads almost nothing", len(tags))
-	}
-	for _, key := range applicabilityKeys {
-		for _, tag := range tags {
-			if _, ok := CatalogEntry(tag, key); !ok {
-				t.Errorf("the %s catalog does not carry %s", tag, key)
-			}
-		}
-	}
+	assertTheEnglishCarries(t, applicabilityKeys)
 
 	patterns := make([]*regexp.Regexp, 0, len(domainWords))
 	for _, word := range domainWords {

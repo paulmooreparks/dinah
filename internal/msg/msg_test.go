@@ -1,7 +1,11 @@
 package msg
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -9,51 +13,167 @@ import (
 )
 
 // TestEveryDeclaredLanguageShips asserts that the catalogs the language ruling
-// calls for are all present: English, Hindi and German complete, and the
-// format's five remaining declared languages as generated skeletons carrying
-// every key. The roster itself lives once, as Complete and Skeleton, so this
-// test and internal/verb's TestVersionCarriesTheConformanceClaim read the
-// same declaration rather than each carrying its own copy.
+// calls for are exactly the ones that ship, each one as a file the binary
+// embeds, and that Complete names only declared languages. A catalog may
+// carry no entry at all; the language still ships, and its reader is served
+// English one key at a time. Whether German and Hindi carry every key is a
+// release question, which TestEveryReleaseLanguageIsComplete answers.
 func TestEveryDeclaredLanguageShips(t *testing.T) {
-	complete := map[string]bool{}
+	declared := map[string]bool{}
+	for _, tag := range Declared {
+		declared[tag] = true
+	}
 	for _, tag := range Complete {
-		complete[tag] = true
+		if !declared[tag] {
+			t.Errorf("%s is on Complete and is not a declared language", tag)
+		}
 	}
-	skeletons := map[string]bool{}
-	for _, tag := range Skeleton {
-		skeletons[tag] = true
-	}
-	seen := map[string]bool{}
+	shipped := map[string]bool{}
 	for _, tag := range Tags() {
-		seen[tag] = true
-		translated, present, total := Coverage(tag)
-		if present != total {
-			t.Errorf("%s: wanted every key present, got %d of %d", tag, present, total)
+		shipped[tag] = true
+		if !declared[tag] {
+			t.Errorf("%s ships a catalog and is not a declared language", tag)
 		}
-		if complete[tag] && translated != total {
-			t.Errorf("%s ships complete, got %d of %d translated", tag, translated, total)
-		}
-		if skeletons[tag] && translated != 0 {
-			t.Errorf("%s ships as a skeleton, got %d translated", tag, translated)
+		if _, ok := loaded[tag]; !ok {
+			t.Errorf("%s is listed and its catalog did not load", tag)
 		}
 	}
-	for tag := range complete {
-		if !seen[tag] {
-			t.Errorf("the complete catalog %s does not ship", tag)
-		}
-	}
-	for tag := range skeletons {
-		if !seen[tag] {
-			t.Errorf("the skeleton catalog %s does not ship", tag)
+	for tag := range declared {
+		if !shipped[tag] {
+			t.Errorf("the declared catalog %s does not ship", tag)
 		}
 	}
 	if Tags()[0] != Base {
 		t.Errorf("the base language should lead the list, got %s", Tags()[0])
 	}
+	if translated, total := Coverage(Base); total == 0 || translated != total {
+		t.Errorf("the base catalog reports %d of %d keys", translated, total)
+	}
+}
+
+// assertTheEnglishCarries asserts that the base catalog carries every key
+// named, each with a text and a context for a translator. It is what a card's
+// own key test asks of its keys. A translation of one, where a catalog carries
+// it, is held by the guards in this file that read every translation, and
+// German and Hindi carrying all of them is the release gate's question, so a
+// card's test names no language but English.
+func assertTheEnglishCarries(t *testing.T, keys []string) {
+	t.Helper()
+	if len(keys) == 0 {
+		t.Fatal("the subject set is empty, so this test reads nothing")
+	}
+	for _, key := range keys {
+		entry, ok := BaseEntry(key)
+		if !ok {
+			t.Errorf("English carries no entry for %s", key)
+			continue
+		}
+		if entry.Text == "" || entry.Context == "" {
+			t.Errorf("the base entry for %s carries an empty text or an empty context", key)
+		}
+		if entry.Source != "" || entry.Verbatim {
+			t.Errorf("the base entry for %s carries a source or a verbatim mark, and it is a translation of nothing", key)
+		}
+	}
+}
+
+// releaseCheck is the environment variable that turns on the checks a release
+// needs and an ordinary change does not. The promotion workflow sets it.
+const releaseCheck = "DINAH_RELEASE_CHECK"
+
+// TestEveryReleaseLanguageIsComplete asserts that every language on Complete
+// carries a translation for every key the base catalog carries. It is the
+// release gate and nothing else, so it skips unless DINAH_RELEASE_CHECK is
+// set: a change may add an English key without German or Hindi, and the
+// release that would ship it may not.
+//
+// The comparison lives in missingTranslations so that the arming test below
+// can drive it over a catalog written in the test, without the release
+// switch, and so a gate that never fails cannot hide behind the skip.
+func TestEveryReleaseLanguageIsComplete(t *testing.T) {
+	if os.Getenv(releaseCheck) == "" {
+		t.Skipf("set %s to run the release completeness check", releaseCheck)
+	}
+	base, ok := loaded[Base]
+	if !ok {
+		t.Fatalf("the base catalog %s does not ship", Base)
+	}
+	checked := 0
+	for _, tag := range Complete {
+		if tag == Base {
+			continue
+		}
+		checked++
+		catalog, shipped := loaded[tag]
+		if !shipped {
+			t.Errorf("%s is on Complete and ships no catalog", tag)
+			continue
+		}
+		missing := missingTranslations(base.Entries, catalog.Entries)
+		if len(missing) > 0 {
+			t.Errorf("%s lacks a translation for %d of %d keys, and a release ships it complete: %s", tag, len(missing), len(base.Entries), strings.Join(missing, ", "))
+		}
+	}
+	if checked == 0 {
+		t.Fatal("Complete names no language but the base, so this gate checked nothing")
+	}
+}
+
+// missingTranslations returns, sorted, every key the base carries that other
+// does not carry with a text.
+func missingTranslations(base, other map[string]Entry) []string {
+	var missing []string
+	for key := range base {
+		if entry, carried := other[key]; !carried || entry.Text == "" {
+			missing = append(missing, key)
+		}
+	}
+	sort.Strings(missing)
+	return missing
+}
+
+// TestTheReleaseGateReportsAMissingKey arms the release gate without the
+// release switch: a catalog missing one key and carrying another empty
+// reports both of them and nothing else.
+func TestTheReleaseGateReportsAMissingKey(t *testing.T) {
+	base := map[string]Entry{
+		"fixture.present": {Text: "Here"},
+		"fixture.absent":  {Text: "Gone"},
+		"fixture.empty":   {Text: "Blank"},
+	}
+	other := map[string]Entry{
+		"fixture.present": {Text: "Hier"},
+		"fixture.empty":   {Text: ""},
+	}
+	if got := strings.Join(missingTranslations(base, other), ", "); got != "fixture.absent, fixture.empty" {
+		t.Errorf("wanted the absent and the empty key, got %q", got)
+	}
+}
+
+// TestATranslationCarriesNoKeyEnglishLacks asserts that no catalog carries a
+// key the base catalog has retired. Nothing renders such an entry, so it is
+// dead weight a translator would go on maintaining, and a rename that adds
+// the new key and leaves the old one behind is the way it arrives.
+func TestATranslationCarriesNoKeyEnglishLacks(t *testing.T) {
+	checked := 0
+	for _, tag := range Tags() {
+		if tag == Base {
+			continue
+		}
+		checked++
+		for key := range loaded[tag].Entries {
+			if _, ok := BaseEntry(key); !ok {
+				t.Errorf("%s/%s: the base catalog carries no such key, so nothing renders this entry", tag, key)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no catalog but the base ships, so this guard read nothing")
+	}
 }
 
 // TestEveryKeyCarriesAContext asserts that a translator gets told what each
-// message is for, which a generated skeleton carries as well.
+// message is for.
 func TestEveryKeyCarriesAContext(t *testing.T) {
 	keys := Keys()
 	if len(keys) == 0 {
@@ -93,15 +213,24 @@ func TestPlaceholdersAreNamed(t *testing.T) {
 
 // TestMissingKeysFallBackPerKey asserts that an incomplete catalog degrades
 // one string at a time rather than failing the command, which is what the
-// language ruling asks of a skeleton.
+// language ruling asks of a catalog that carries no entry for a key.
 func TestMissingKeysFallBackPerKey(t *testing.T) {
 	hindi := For("hi")
 	if got := hindi.T("word.yes"); got == For(Base).T("word.yes") {
 		t.Error("a translated key should not render as English")
 	}
-	czech := For("cs")
-	if got := czech.T("word.yes"); got != For(Base).T("word.yes") {
-		t.Errorf("a skeleton key should fall back to English, got %q", got)
+	lacking := ""
+	for _, key := range Keys() {
+		if _, carried := CatalogEntry("cs", key); !carried {
+			lacking = key
+			break
+		}
+	}
+	if lacking == "" {
+		t.Fatal("Czech carries every key, so pick a shipped language that lacks one for the fallback arm")
+	}
+	if got := For("cs").T(lacking); got != For(Base).T(lacking) {
+		t.Errorf("%s: a key the catalog lacks should fall back to English, got %q", lacking, got)
 	}
 	unknown := For("qq")
 	if got := unknown.T("word.yes"); got != For(Base).T("word.yes") {
@@ -184,14 +313,11 @@ var placeholderPattern = regexp.MustCompile(`\{[a-zA-Z][a-zA-Z0-9_.-]*\}`)
 // guard to have caught it.
 //
 // The loop reads every shipped catalog rather than the Complete roster it once
-// read. Complete is [Base, "hi", "de"], so the old loop covered two languages
-// and compared English against itself, and the five skeleton catalogs went
-// unread by the guard over the very thing a skeleton will stop carrying the
-// day somebody translates it. A skeleton is byte-identical English today, so
-// widening the roster costs nothing and asserts the same claim over every
-// catalog that ships, which is the shape TestATranslationTracksItsEnglishSource
-// in this file already uses. Widening a walk without a floor is the vacuous
-// check dinah-406 is about, so the pairs it compared are counted and a run that
+// read, so a language joins the guard the day somebody translates its first
+// entry, which is the shape TestATranslationTracksItsEnglishSource in this
+// file already uses. A key a catalog does not carry renders as English and
+// passes trivially. Widening a walk without a floor is the vacuous check
+// dinah-406 is about, so the pairs it compared are counted and a run that
 // compared none is fatal.
 //
 // The two halves are counted apart, one floor each. A single counter here would
@@ -284,11 +410,9 @@ func placeholderNames(text string) map[string]bool {
 // defect in order for the guard to have an armed path.
 //
 // A key the other catalog does not carry is skipped rather than counted or
-// reported, and the guard that makes the skip safe is
-// TestEveryDeclaredLanguageShips, which asserts present == total over every tag
-// Tags() names. A key missing from a shipped catalog therefore cannot reach
-// here without that test failing first, so the skip hides nothing and the
-// absence is reported once rather than twice.
+// reported. A reader of that language meets the English for it, which carries
+// the English placeholders by construction, and whether a release language
+// carries every key is TestEveryReleaseLanguageIsComplete's question.
 func comparePlaceholders(base, other map[string]Entry, tag string) placeholderReport {
 	report := placeholderReport{}
 	for key, english := range base {
@@ -329,9 +453,10 @@ func comparePlaceholders(base, other map[string]Entry, tag string) placeholderRe
 //
 // One subtest per tag over every shipped catalog but the base, which is the
 // shape TestATranslationTracksItsEnglishSource uses, so a failure names the
-// language. Each subtest counts two populations of its own and fails on either
-// at zero: the key pairs it compared, and the placeholder names it read off
-// that tag's translations. Two counters rather than one, because a placeholder
+// language. A catalog carrying no entry yet has nothing to compare and passes
+// its subtest. The floors are taken over the whole run instead, and there are
+// two of them: the key pairs compared, and the placeholder names read off the
+// translation side. Two counters rather than one, because a placeholder
 // pattern that stopped matching, or a translation side that went empty, leaves
 // the pairs count healthy while the check reads nothing.
 func TestATranslationInventsNoPlaceholder(t *testing.T) {
@@ -339,6 +464,7 @@ func TestATranslationInventsNoPlaceholder(t *testing.T) {
 	if !ok {
 		t.Fatalf("the base catalog %s does not ship, so nothing can be compared against it", Base)
 	}
+	pairs, placeholders := 0, 0
 	for _, tag := range Tags() {
 		if tag == Base {
 			continue
@@ -349,16 +475,18 @@ func TestATranslationInventsNoPlaceholder(t *testing.T) {
 				t.Fatalf("the catalog %s does not ship, so no entry of it can be checked", tag)
 			}
 			report := comparePlaceholders(base.Entries, catalog.Entries, tag)
-			if report.pairs == 0 {
-				t.Fatalf("%s shares no key with the base catalog, so this guard compared nothing", tag)
-			}
-			if report.placeholders == 0 {
-				t.Fatalf("%s carries no placeholder at all, so this guard read nothing", tag)
-			}
+			pairs += report.pairs
+			placeholders += report.placeholders
 			for _, finding := range report.invented {
 				t.Errorf("%s: the translation names a value the English does not, and nobody fills it, so a reader meets the name itself", finding)
 			}
 		})
+	}
+	if pairs == 0 {
+		t.Fatal("no catalog shares a key with the base catalog, so this guard compared nothing")
+	}
+	if placeholders == 0 {
+		t.Fatal("no translation carries a placeholder at all, so this guard read nothing")
 	}
 }
 
@@ -414,8 +542,8 @@ func TestThePlaceholderComparisonReportsBothDirections(t *testing.T) {
 // A subtest per language keeps a failure readable. Without one, a single
 // English edit reports the same key once per catalog and a reader cannot tell
 // how many languages are actually behind. Every catalog that ships earns a
-// subtest, so a skeleton catalog joins the guard the moment somebody
-// translates one of its entries and nothing here has to be edited for that to
+// subtest, so a catalog with no entries yet joins the guard the moment
+// somebody translates one and nothing here has to be edited for that to
 // happen.
 //
 // The loop reads every shipped catalog rather than the Complete roster it once
@@ -446,18 +574,17 @@ func TestThePlaceholderComparisonReportsBothDirections(t *testing.T) {
 // nothing else in the tree writes the figures down.
 //
 // The change is still the right one, on the merits rather than on the size of
-// the set. A skeleton entry holds English rather than a translation and has no
-// source it could have fallen behind, so checking one would assert nothing;
-// every entry that does hold a translation is checked here, whichever catalog
-// carries it and whatever roster that catalog is on. What the edit gives up is
-// the empty-population alarm's ability to report a roster emptied by accident,
-// which the workbench document names as its designed behaviour, and the
-// checked == 0 fatal at the foot of this test is what remains of it.
+// the set. Every entry a catalog carries is a translation, so every one of
+// them is checked here, whichever catalog carries it and whatever roster that
+// catalog is on. What the edit gives up is the empty-population alarm's
+// ability to report a roster emptied by accident, which the workbench
+// document names as its designed behaviour, and the checked == 0 fatal at the
+// foot of this test is what remains of it.
 //
-// The base catalog and any skeleton entry are exempt, because neither is a
-// translation of anything and so neither has a source to fall behind. A key
-// missing from a catalog is left to TestEveryDeclaredLanguageShips, which
-// already reports it, rather than reported twice.
+// The base catalog is exempt, because it is a translation of nothing and so
+// has no source to fall behind. A key missing from a catalog is not stale and
+// is not reported here; for German and Hindi it is the release gate's
+// business, TestEveryReleaseLanguageIsComplete.
 func TestATranslationTracksItsEnglishSource(t *testing.T) {
 	checked := 0
 	for _, tag := range Tags() {
@@ -475,7 +602,7 @@ func TestATranslationTracksItsEnglishSource(t *testing.T) {
 					continue
 				}
 				entry, carried := catalog.Entries[key]
-				if !carried || entry.Skeleton {
+				if !carried {
 					continue
 				}
 				checked++
@@ -575,7 +702,7 @@ func TestATranslationUsesTheDeclaredWord(t *testing.T) {
 					continue
 				}
 				entry, carried := CatalogEntry(tag, key)
-				if !carried || entry.Skeleton {
+				if !carried {
 					continue
 				}
 				plain := prose(base.Text)
@@ -678,7 +805,8 @@ func identifiers(pattern *regexp.Regexp, text string) string {
 // Completeness and correctness are different properties, and dinah-287 made
 // the difference matter. Complete says a catalog has no untranslated entry
 // left, and that card's rename sent a block of German and Hindi entries back
-// to skeletons, which would have taken both languages off the list.
+// to English copies marked as skeletons, a shape catalogs no longer carry,
+// which would have taken both languages off the list.
 // TestEveryDeclaredLanguageShips only ever asserted anything about a language
 // on one of the two rosters, so on the branch where those two had left it,
 // nothing checked their contents at all: replacing all of German's remaining
@@ -690,7 +818,7 @@ func identifiers(pattern *regexp.Regexp, text string) string {
 // is genuinely translated, and that an entry holding English says so.
 //
 // So the rule here is keyed on the entry rather than on the roster its catalog
-// is on. An entry that is not a skeleton must differ from its English source,
+// is on. Every entry a catalog carries must differ from its English source,
 // unless it carries Verbatim, which is a translator saying the answer really
 // is the English word. Both arms of that are load-bearing: without the first,
 // English refilling a catalog passes; without the second, every German table
@@ -717,13 +845,13 @@ func TestATranslationIsNotEnglishUnderAnotherTag(t *testing.T) {
 					continue
 				}
 				entry, carried := catalog.Entries[key]
-				if !carried || entry.Skeleton {
+				if !carried {
 					continue
 				}
 				checked++
 				switch {
 				case entry.Text == base.Text && !entry.Verbatim:
-					t.Errorf("%s: carries the English text and is marked neither skeleton nor verbatim, so English is standing where a translation should be", key)
+					t.Errorf("%s: carries the English text and is not marked verbatim, so English is standing where a translation should be; delete the entry and the reader gets the English anyway", key)
 				case entry.Text != base.Text && entry.Verbatim:
 					t.Errorf("%s: is marked verbatim and no longer matches the English text, so the flag says something that is no longer true", key)
 				}
@@ -735,44 +863,34 @@ func TestATranslationIsNotEnglishUnderAnotherTag(t *testing.T) {
 	}
 }
 
-// TestASkeletonEntryReallyCarriesTheEnglishText is the other half of the rule
-// above, and it is what stops a catalog answering the guard by marking
-// everything a skeleton. A skeleton entry is defined as the English text
-// standing in for a translation nobody has written, so an entry marked
-// skeleton whose text is not the English text is misdescribing itself: either
-// somebody translated it and left the flag on, in which case the reader is
-// told the language has an untranslated entry it does not have, or the entry
-// holds text that came from nowhere this project can name.
-func TestASkeletonEntryReallyCarriesTheEnglishText(t *testing.T) {
-	checked := 0
-	for _, tag := range Tags() {
-		if tag == Base {
+// TestEveryCatalogFileDecodesStrictly asserts that every embedded catalog file
+// carries only the members Catalog and Entry declare. The loader ignores an
+// unknown member, so a misspelt "verbatim" or "source" would otherwise vanish
+// on load and leave the guards above reading an entry that does not say what
+// its author wrote. The retired "skeleton" member is the case worth naming:
+// catalogs once carried a copy of the English under that mark for every key,
+// and they carry only real translations now, so a tool that regenerates the
+// old shape fails here by name.
+func TestEveryCatalogFileDecodesStrictly(t *testing.T) {
+	files, err := locales.ReadDir("locales")
+	if err != nil {
+		t.Fatalf("read the embedded catalogs: %v", err)
+	}
+	if len(files) == 0 {
+		t.Fatal("no catalog file is embedded, so this guard read nothing")
+	}
+	for _, file := range files {
+		data, err := locales.ReadFile(path.Join("locales", file.Name()))
+		if err != nil {
+			t.Errorf("%s: %v", file.Name(), err)
 			continue
 		}
-		catalog, shipped := loaded[tag]
-		if !shipped {
-			t.Fatalf("the catalog %s does not ship, so no entry of it can be checked", tag)
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.DisallowUnknownFields()
+		var catalog Catalog
+		if err := decoder.Decode(&catalog); err != nil {
+			t.Errorf("%s does not decode strictly, and a catalog carries real translations under the declared members only: %v", file.Name(), err)
 		}
-		for _, key := range Keys() {
-			base, ok := BaseEntry(key)
-			if !ok {
-				continue
-			}
-			entry, carried := catalog.Entries[key]
-			if !carried || !entry.Skeleton {
-				continue
-			}
-			checked++
-			if entry.Text != base.Text {
-				t.Errorf("%s/%s: is marked as a skeleton and does not carry the English text", tag, key)
-			}
-			if entry.Verbatim {
-				t.Errorf("%s/%s: is marked both skeleton and verbatim, and the two say different things about the same entry", tag, key)
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no skeleton entry was checked, so this guard is asserting nothing")
 	}
 }
 
@@ -799,9 +917,9 @@ var theIndefiniteArticle = regexp.MustCompile(`(?i)\b(an?)\s+(\{[a-zA-Z]+\})`)
 // are, which is the point. An eighth kind, or a ninth, changes nothing here,
 // because no sentence this guard admits depends on which values exist.
 //
-// The subject is the English catalog alone. Every other catalog either
-// carries the English text unchanged, which this guard has already read
-// through the base entry, or carries a translation nobody on this project can
+// The subject is the English catalog alone. A key another catalog lacks
+// renders the English, which this guard has already read through the base
+// entry, and a key it carries is a translation nobody on this project can
 // grade; what a translation is held to instead is the rule written into each
 // affected entry's context, and the recorded source fingerprint, which sends
 // the entry back to a translator whenever the English moves.
