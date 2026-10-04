@@ -300,7 +300,7 @@ func referenceProbeArgs(t *testing.T, command string) []string {
 		return []string{"--text", "an answer"}
 	case "reopen":
 		return []string{"a reason"}
-	case "accept-divergence", "redact":
+	case "accept-divergence", "redact", "run":
 		return nil
 	}
 	t.Fatalf("%s takes a reference and this file does not know what arguments follow it, so it cannot be probed", command)

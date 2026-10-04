@@ -52,7 +52,11 @@ func TestEveryCommandHasATerminalClass(t *testing.T) {
 			continue
 		}
 		counts[c.terminal]++
-		if c.group == groupWork && !c.actsOnCard {
+		_, absentAct := terminalAbsentCardActs[c.name]
+		if absentAct && c.terminal != terminalAbsent {
+			t.Errorf("%s is named in terminalAbsentCardActs and is classed %s rather than absent", c.name, c.terminal)
+		}
+		if c.group == groupWork && !c.actsOnCard && !absentAct {
 			t.Errorf("%s is in the work group and does not set actsOnCard, and every command in that group acts on a card", c.name)
 		}
 		if c.actsOnCard {
@@ -70,7 +74,7 @@ func TestEveryCommandHasATerminalClass(t *testing.T) {
 				t.Errorf("%s sets both frequentRead and actsOnCard, and a read writes nothing", c.name)
 			}
 		}
-		if takesACard(c.name) && !c.actsOnCard {
+		if takesACard(c.name) && !c.actsOnCard && !absentAct {
 			if _, read := terminalCardReads[c.name]; !read {
 				t.Errorf("%s takes a card, an item or a reference as a positional and neither sets actsOnCard nor is named in terminalCardReads, so a card verb could be classed line unseen", c.name)
 			}

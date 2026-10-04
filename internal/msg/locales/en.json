@@ -1725,6 +1725,138 @@
       "text": "the consumer and the round, where named, are well formed",
       "context": "One row of the precondition list of a command outside the five the profile specifies. The consumer is the by flag's provider/model pair and the round is a whole number from 1."
     },
+    "cmd.run.summary": {
+      "text": "Run the agent session a card's station declares, and act on its result",
+      "context": "The one-line summary of the run command, printed in the command list and above its own help. A station is a column of the workbench."
+    },
+    "cmd.run.note": {
+      "text": "The agent ends its final text with a fenced json block carrying an outcome of forward, back, block or stay and a reason, and Dinah moves, blocks or releases the card accordingly. The run exits 1, with the card released and the reason posted on it, when the harness fails, times out or prints no readable receipt, or when the agent's result cannot be carried out.",
+      "context": "The paragraph printed under run's summary on its help page. json, forward, back, block and stay are machine vocabulary and are not translated."
+    },
+    "param.run.card.summary": {
+      "text": "the card to run, such as wb-1; its column names the recipe that launches the agent",
+      "context": "The written meaning of run's card argument. wb-1 stands for a card reference and is not translated."
+    },
+    "param.run.timeout.summary": {
+      "text": "how long the agent may work before the run stops it and releases the card, such as 30m; an hour when you name none",
+      "context": "The written meaning of run's timeout flag. 30m is a duration spelling and is not translated."
+    },
+    "check.run.1": {
+      "text": "the card exists",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.run.2": {
+      "text": "the request names an owner",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.run.3": {
+      "text": "the card is not blocked",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.run.4": {
+      "text": "nobody else holds the card",
+      "context": "One row of the precondition list of a command outside the five the profile specifies."
+    },
+    "check.run.5": {
+      "text": "the card's column names a declared run recipe",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. A run recipe is the configured command an agent station launches."
+    },
+    "check.run.6": {
+      "text": "the recipe, worker and run fields are well formed",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The worker is the column's worker key, continue or fresh."
+    },
+    "check.run.7": {
+      "text": "the workbench declares the run fields on cards",
+      "context": "One row of the precondition list of a command outside the five the profile specifies. The run fields are the declared card fields run.session, run.recipe and, for a cumulative spend, run.cumulative.<unit>."
+    },
+    "run.prompt.outcome": {
+      "text": "When you have finished, end your final message with your result as a fenced json block, and put nothing after it. The block carries an outcome and a reason, like this:\n\n```json\n{\"outcome\": \"forward\", \"reason\": \"one sentence saying why\"}\n```\n\nThe outcome is forward when the work at this station is done and the card should go on, back when it should go back to the station that sent it here, block when something outside your reach stops it, and stay when it should wait here for another pass. Everything you write before the block is posted on the card as your handoff, so write there what the next person or agent to pick the card up needs to know. Dinah claims, moves, comments on and records spend for the card itself, so do not run those commands yourself.",
+      "context": "The closing paragraph of the prompt dinah run hands an agent. The fenced block, the four outcome words and the member names outcome and reason are machine vocabulary and are never translated; the sentences around them are."
+    },
+    "run.block.no-reason": {
+      "text": "the agent blocked the card and gave no reason",
+      "context": "The block reason dinah run records when the agent's result block asks for a block and carries no reason."
+    },
+    "run.comment.failed": {
+      "text": "{failure}, so dinah run released the card.",
+      "context": "The comment dinah run posts on a card when the agent session did not deliver a result. {failure} is one of the run.failed sentences."
+    },
+    "run.comment.no-stderr": {
+      "text": "Its standard error was empty.",
+      "context": "Appended to run.comment.failed when the harness wrote nothing to standard error."
+    },
+    "run.failed.exit": {
+      "text": "The harness exited with status {code}",
+      "context": "Names a failed run: the launched command exited non-zero. {code} is the exit status. Its standard error follows in a fenced block."
+    },
+    "run.failed.timeout": {
+      "text": "The harness did not finish within the run's timeout and was stopped",
+      "context": "Names a failed run: the launched command ran past --timeout."
+    },
+    "run.failed.start": {
+      "text": "The harness could not be started: {error}",
+      "context": "Names a failed run: the launched command could not be started. {error} is the operating system's own message."
+    },
+    "run.failed.receipt": {
+      "text": "The harness's receipt could not be read",
+      "context": "Names a failed run: the command's standard output carried no JSON object with the recipe's text member."
+    },
+    "run.failed.error": {
+      "text": "The harness's receipt says the session ended in error",
+      "context": "Names a failed run: the receipt's error member, which the recipe names, was true."
+    },
+    "run.comment.refused": {
+      "text": "The agent reported {outcome}, and that could not be carried out, so dinah run released the card:\n\n{why}",
+      "context": "The comment dinah run posts when the agent's result could not be carried out. {outcome} is forward, back or block and is not translated. {why} is the refusal or the sentence saying why."
+    },
+    "run.comment.no-forward": {
+      "text": "the card's route carries no column after {column}",
+      "context": "Why a forward result could not be carried out. {column} is the column's reference."
+    },
+    "run.comment.no-reject": {
+      "text": "column {column} declares no reject_to",
+      "context": "Why a back result could not be carried out. {column} is the column's reference; reject_to is a frontmatter key and is not translated."
+    },
+    "run.session.fresh": {
+      "text": "{card}: started a fresh {recipe} session in {column}",
+      "context": "The first line dinah run prints. {recipe} is the recipe's name and {column} the column's reference."
+    },
+    "run.session.resumed": {
+      "text": "{card}: resumed the stored {recipe} session in {column}",
+      "context": "The first line dinah run prints when it continued the session stored on the card."
+    },
+    "run.result.moved": {
+      "text": "{card}: the agent reported {outcome}, and the card moved to {column}",
+      "context": "dinah run's result line. {outcome} is forward or back and is not translated."
+    },
+    "run.result.blocked": {
+      "text": "{card}: the agent reported block, and the card is blocked",
+      "context": "dinah run's result line for a block. block is machine vocabulary and is not translated."
+    },
+    "run.result.stayed": {
+      "text": "{card}: the agent reported stay, and the card was released where it stands",
+      "context": "dinah run's result line for a stay. stay is machine vocabulary and is not translated."
+    },
+    "run.result.unreported": {
+      "text": "{card}: the agent ended without a result block, which counts as stay, and the card was released where it stands",
+      "context": "dinah run's result line when the agent's text carried no readable result block."
+    },
+    "run.result.refused": {
+      "text": "{card}: the agent reported {outcome}, which could not be carried out; the card was released and the reason is on it",
+      "context": "dinah run's result line when the move or block the agent asked for was refused."
+    },
+    "run.result.failed": {
+      "text": "{card}: the run stopped short ({failure}); the card was released and the reason is on it",
+      "context": "dinah run's result line when the harness did not deliver a result. {failure} is exit, timeout, start, receipt or error and is not translated."
+    },
+    "run.result.spent": {
+      "text": "spend recorded: {figure} {unit}",
+      "context": "dinah run's spend line. {unit} is the recipe's unit word and is not translated."
+    },
+    "run.result.unreported-spend": {
+      "text": "spend recorded as unreported in {unit}",
+      "context": "dinah run's spend line when the receipt carried no figure."
+    },
     "column.spend.when": {
       "text": "When",
       "context": "Heading over the time a spend line was written, in the records table of `dinah spend`. A column heading, which a reader has to be able to tell from the rows beneath it by its own text as well as by the rule under it."
@@ -4128,6 +4260,14 @@
     "refusal.dinah.last-column.next": {
       "text": "; add another column before retiring this one",
       "context": "Spliced onto refusal.dinah.last-column as the next step, carrying the clause that base entry used to end with."
+    },
+    "refusal.dinah.no-run-recipe": {
+      "text": "column {detail} names no run recipe the workbench declares",
+      "context": "The sentence printed after the refusal name dinah.no-run-recipe, which dinah run raises. {detail} is the column's reference. A run recipe is the configured command an agent station launches; run is the command word and is not translated."
+    },
+    "refusal.dinah.no-run-recipe.next": {
+      "text": "; a person works this station, or give the column a run: key naming a recipe in the workbench's run: block",
+      "context": "Spliced onto refusal.dinah.no-run-recipe as the next step. run: is a frontmatter key and is not translated."
     },
     "refusal.dinah.locked": {
       "text": "this is already locked; {detail}",
@@ -7728,6 +7868,10 @@
     "refusal.dinah.not-in-tui.serve": {
       "text": " it runs a server until it is stopped, and this screen would wait for it.",
       "context": "Spliced after refusal.dinah.not-in-tui when the command typed was serve, saying why it cannot run inside the terminal UI."
+    },
+    "refusal.dinah.not-in-tui.run": {
+      "text": " it launches an agent session that works for minutes, and this screen would wait for it.",
+      "context": "Spliced after refusal.dinah.not-in-tui when the command typed was run, saying why it cannot run inside the terminal UI."
     },
     "refusal.dinah.not-in-tui.ui": {
       "text": " it runs a server and opens a browser, and this screen would wait for it.",

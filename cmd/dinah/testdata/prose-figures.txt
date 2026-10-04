@@ -60,7 +60,7 @@ noun tools
 noun verbs
 noun ways
 
-docs/quick-start.md figure=sixty-five noun=commands counts=the commands dinah help lists derives=groupedCommands
+docs/quick-start.md figure=sixty-six noun=commands counts=the commands dinah help lists derives=groupedCommands
 docs/quick-start.md figure=four noun=groups counts=the groups dinah help sorts its commands into derives=commandGroups
 docs/quick-start.md figure=five noun=settings counts=the settings dinah config accepts derives=configKeys
 docs/quick-start.md figure=five noun=commands counts=the verbs that change where a card stands derives=contractVerbs
@@ -83,7 +83,7 @@ internal/guide/guides/query.md figure=Nineteen noun=fields counts=the field name
 internal/guide/guides/query.md figure=three noun=fields counts=the built-in query fields whose values are calendar dates holds=unreachable at=internal/verb/query.go declares=dateFields
 internal/guide/guides/query.md figure=five noun=fields counts=the query fields read from a card's journal holds=unreachable at=internal/verb/query.go declares=actPlane
 internal/guide/guides/references.md figure=three noun=ways counts=the spellings of this workbench the guide shows derives=workbenchSpellings
-internal/guide/guides/references.md figure=Twenty-three noun=commands counts=the commands that take a reference derives=referenceCommands
+internal/guide/guides/references.md figure=Twenty-four noun=commands counts=the commands that take a reference derives=referenceCommands
 internal/guide/guides/references.md figure=Ten noun=commands counts=the commands that take a workstream reference holds=elsewhere by=TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream reason=that test runs every command of the roster against a workstream reference, with the per-command setup that lets each cell answer, and holds this sentence's named list against both what each one did and what internal/verb declares
 internal/guide/guides/references.md figure=Twelve noun=rows counts=the table rows the guide qualifies with a detail derives=qualifiedTableRows
 internal/guide/guides/views.md figure=Two noun=fields counts=the query fields that describe a card's checklist items holds=unreachable at=internal/verb/query.go declares=itemPlane

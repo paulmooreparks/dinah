@@ -35,6 +35,7 @@ internal/guide/guides/getting-started.md sha:1e0e4245 shows=commands
 internal/guide/guides/getting-started.md sha:f07b4a4f shows=commands
 internal/guide/guides/getting-started.md sha:02031ec4 shows=commands
 internal/guide/guides/getting-started.md sha:db3cd41f shows=commands
+internal/guide/guides/getting-started.md sha:11be486d shows=commands
 internal/guide/guides/http.md sha:6bef04c7 shows=json
 internal/guide/guides/mcp.md sha:d2450073 shows=json
 internal/guide/guides/mcp.md sha:1f965c3f shows=json

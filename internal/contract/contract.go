@@ -167,6 +167,11 @@ const (
 	InvalidAlias      = LayerPrefix + "invalid-alias"
 	AliasShadow       = LayerPrefix + "alias-shadows-command"
 	AliasMissing      = LayerPrefix + "missing-alias-argument"
+	// NoRunRecipe is dinah run asked to run a card whose column names no run
+	// recipe, or names one the workbench does not declare. A column a person
+	// works carries none, which is how the same verb serves a workbench whose
+	// stations are not all agents. The detail is the column's reference.
+	NoRunRecipe = LayerPrefix + "no-run-recipe"
 
 	// Busy is the operating system refusing an open, a write, a rename or a
 	// removal for as long as Dinah retries one that may give up, which is

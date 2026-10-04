@@ -1415,6 +1415,117 @@ travels through `dinah export` and `init --from` as an unrecognized member of
 the workbench object. The section on holds through links says what the rules
 govern.
 
+### Run recipes, and what `dinah run` stores on a card
+
+`dinah run <card>` runs one agent session at the card's station. Dinah claims
+the card, composes the prompt once, starts the command the column names, waits,
+reads the command's receipt, records a spend line, posts the agent's handoff as
+a comment, and moves, blocks or releases the card as the agent's result says.
+The agent issues no bookkeeping commands. Dinah holds no model-calling code and
+no knowledge of any one harness: a recipe is argv templates and the names of
+receipt members, so a Claude Code recipe, a Codex recipe and a script that runs
+a test suite and prints a receipt are the same shape.
+
+A workbench declares its recipes under a top-level `run:` mapping in
+`workbench.md`, one entry per recipe name:
+
+```yaml
+run:
+  claude:
+    command: [claude, -p, --output-format, json, --permission-mode, acceptEdits, --append-system-prompt-file, "{instructions}"]
+    resume: [claude, -p, --output-format, json, --resume, "{session}"]
+    cwd: "{workbench}/../.."
+    receipt: {session: session_id, text: result, spend: {unit: usd, field: total_cost_usd, cumulative: true}}
+```
+
+`command` is the argv that starts a fresh session and is required. `resume` is
+the argv that continues a stored one; a recipe without it starts every run
+fresh. Either is written as a flow sequence or as dashed entries, and an entry
+is taken whole, so a comma or a colon inside a quoted entry stays in it. `cwd`
+is the working directory, and without it a run starts in the directory holding
+the workbench's `.dinah` container; a relative `cwd` is taken from there.
+`receipt` names, by a dotted path into the JSON object the command prints, the
+members the run reads: `text`, the agent's final text, which is required;
+`session`, the harness's session identifier; `error`, a boolean the harness
+sets when the session failed; and `spend`, whose `unit` is a spend unit,
+`field` the path to the figure, and `cumulative: true` says the harness
+reports the figure summed over a resumed session. A recipe should name only
+members the harness documents. The receipt is the command's standard output
+where that is one JSON object, and otherwise its last line that is one, which
+is where a harness printing a stream of events puts its result.
+
+Five placeholders are filled in every argv entry and in `cwd` before launch.
+`{card}` is the card's reference, `{column}` the column's, `{session}` the
+stored session being resumed, and `{workbench}` the workbench directory, the
+one holding `workbench.md`. `{instructions}` is the path of a temporary file
+holding the instruction chain served at the card's position, which a recipe
+uses to hand the instructions over as a system prompt. The prompt itself goes
+to standard input. It is the card's `show --brief` text, the instruction chain
+where no argv entry names `{instructions}`, and a closing paragraph telling the
+agent how to report its result. The command also inherits `DINAH_WORKBENCH`
+naming this workbench, so a read the agent makes reaches the right one.
+
+A column runs a recipe by naming it in its own `run:` key, and a column naming
+none is a station a person works: `dinah run` refuses it as
+`dinah.no-run-recipe`, which is how one verb serves a workbench whose stations
+are not all agents. A column may also declare `worker: continue` or
+`worker: fresh`, and declares `continue` when it says nothing. Any other value
+is refused as malformed when the column is run.
+
+The agent ends its final text with a fenced `json` block, last in the text,
+carrying `{"outcome": "forward" | "back" | "block" | "stay", "reason": "..."}`.
+Everything before the block is the handoff, which the run posts as a comment.
+`forward` moves the card to the next column on its route and `back` to the
+column's `reject_to`; the card is released first, so it arrives ready for the
+next station. `block` blocks it with the reason, and `stay` releases it where
+it stands. A text ending with no readable block is a `stay`, and its whole text
+is the handoff. A move the workbench refuses, or one with nowhere to go,
+releases the card and posts why.
+
+A run stores three declared card fields, and refuses before it claims anything
+on a workbench that does not declare them on cards: `run.session` and
+`run.recipe` as `string`, and, where the recipe's spend is cumulative,
+`run.cumulative.<unit>` as `number`:
+
+```yaml
+fields:
+  run.session:
+    type: string
+    meaning: the harness session that last worked the card
+    on: [card]
+  run.recipe:
+    type: string
+    meaning: the recipe that session belongs to
+    on: [card]
+  run.cumulative.usd:
+    type: number
+    meaning: the last cumulative cost that session reported
+    on: [card]
+```
+
+A run resumes, with `resume` and the stored session, where the column declares
+`continue` or the card's last move was a rejection into this column, and the
+stored `run.recipe` is the column's recipe. Every other run is fresh. A fresh
+run at a `fresh` column, which is a review station whose value is independence,
+does not store its session, so the session of the agent the card goes back to
+is still there when it does. A run that keeps its session stores `run.session`,
+`run.recipe` and the last cumulative figure.
+
+The spend line is written in the recipe's unit as `--total`, with the round
+counted from the spend lines the card already carries for the column and a note
+naming the recipe. A cumulative figure is recorded as the difference from the
+stored `run.cumulative.<unit>` when the run resumed that session, and whole
+when it did not. A non-zero exit, a run past `--timeout` (an hour by default),
+an unreadable receipt, or a receipt whose `error` member is true releases the
+card and posts the last lines of standard error. Where the receipt still read,
+its figure and session are recorded; where it did not, the spend line is
+recorded `--unreported`. The command exits 0 when the agent's result was
+carried out and 1 when the run stopped short and released the card.
+
+`run` and `worker` are not among the members interchange names, so both travel
+through `dinah export` and `init --from` as unrecognized members of the
+workbench and column objects.
+
 ## History
 
 Which kinds bear journals is a per-kind registry fact, decided by one test:

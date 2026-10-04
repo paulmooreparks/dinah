@@ -128,6 +128,7 @@ var referenceKinds = map[string][]ReferenceKind{
 	"rename":   {ReferenceKindBelowCard},
 	"cite":     {ReferenceKindBelowCard},
 	"spend":    {ReferenceKindCard},
+	Run:        {ReferenceKindCard},
 	"resolve":  {ReferenceKindBelowCard},
 	"verify":   {ReferenceKindBelowCard},
 	"fail":     {ReferenceKindBelowCard},
