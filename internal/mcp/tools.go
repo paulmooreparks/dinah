@@ -333,7 +333,7 @@ func indexTools() map[string]tool {
 	return index
 }
 
-// stationMembers are the thirty tools ProfileStation serves: what one agent
+// stationMembers are the tools ProfileStation serves: what one agent
 // needs to work one card through one column, and nothing that reaches past
 // the card it is standing on.
 var stationMembers = []string{
@@ -345,7 +345,7 @@ var stationMembers = []string{
 	"next_card", "pull", "instructions", "whoami", "prime",
 }
 
-// operatorOnlyMembers are the fourteen tools ProfileOperator adds beside
+// operatorOnlyMembers are the tools ProfileOperator adds beside
 // every station tool: the workbench and column verbs, plus the acts whose
 // blast radius is the whole board rather than one card.
 //

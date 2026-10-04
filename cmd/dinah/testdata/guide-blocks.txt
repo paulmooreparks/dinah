@@ -1,7 +1,10 @@
 # The guide block ledger.
 #
 # Every fenced block of every embedded guide is declared here, keyed by the
-# guide's file and the one-based line its opening marker stands on. The rule
+# guide's file and the block's anchor: sha: and the first eight hex digits of
+# the SHA-256 of its body lines joined by newlines. The anchor does not move
+# when lines are added elsewhere in the guide, and the failure naming an
+# undeclared block prints the anchor to write. The rule
 # this replaces forbade a block whose first line opened with a dollar sign and
 # told authors to write the command without one, which is the spelling that
 # made a block invisible to it. A ledger over blocks has no spelling an author
@@ -27,33 +30,33 @@
 #   tree      The block draws a directory tree. It requires a reason naming
 #             what holds the tree, or why nothing can.
 
-internal/guide/guides/getting-started.md:9 shows=commands
-internal/guide/guides/getting-started.md:42 shows=commands
-internal/guide/guides/getting-started.md:49 shows=commands
-internal/guide/guides/getting-started.md:56 shows=commands
-internal/guide/guides/getting-started.md:69 shows=commands
-internal/guide/guides/http.md:190 shows=json
-internal/guide/guides/mcp.md:23 shows=json
-internal/guide/guides/mcp.md:27 shows=json
-internal/guide/guides/mcp.md:68 shows=json
-internal/guide/guides/mcp.md:72 shows=json
-internal/guide/guides/mcp.md:87 shows=json
-internal/guide/guides/mcp.md:114 shows=json fragment=members reason=the block shows the instructions member of a response rather than a whole document, so it is parsed inside a wrapping pair of braces
-internal/guide/guides/mcp.md:127 shows=json
-internal/guide/guides/mcp.md:167 shows=json
-internal/guide/guides/mcp.md:200 shows=json
-internal/guide/guides/mcp.md:214 shows=json
-internal/guide/guides/mcp.md:226 shows=json fragment=members reason=the block shows the two members an unshaped answer withholds rather than a whole document, so it is parsed inside a wrapping pair of braces
-internal/guide/guides/mcp.md:285 shows=shell reason=the line drives a shell loop around dinah path, which no replay here runs
-internal/guide/guides/mcp.md:352 shows=json
-internal/guide/guides/mcp.md:356 shows=json
-internal/guide/guides/mcp.md:441 shows=json
-internal/guide/guides/mcp.md:454 shows=json
-internal/guide/guides/on-behalf.md:62 shows=shell reason=the command sets the three declaration variables in the environment ahead of dinah and continues onto a second line, which is shell syntax no replay here runs
-internal/guide/guides/principles.md:29 shows=table command=list columns
-internal/guide/guides/setup-recipes.md:20 shows=tree reason=the block draws the entries of a recipe directory, which the package internal/setup reads and its tests hold
-internal/guide/guides/setup-recipes.md:54 shows=json
-internal/guide/guides/setup-recipes.md:100 shows=json
-internal/guide/guides/setup-recipes.md:153 shows=json
-internal/guide/guides/setup-recipes.md:224 shows=commands
-internal/guide/guides/workbench-layout.md:6 shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws
+internal/guide/guides/getting-started.md sha:992cd678 shows=commands
+internal/guide/guides/getting-started.md sha:1e0e4245 shows=commands
+internal/guide/guides/getting-started.md sha:f07b4a4f shows=commands
+internal/guide/guides/getting-started.md sha:02031ec4 shows=commands
+internal/guide/guides/getting-started.md sha:db3cd41f shows=commands
+internal/guide/guides/http.md sha:6bef04c7 shows=json
+internal/guide/guides/mcp.md sha:d2450073 shows=json
+internal/guide/guides/mcp.md sha:1f965c3f shows=json
+internal/guide/guides/mcp.md sha:38e6175b shows=json
+internal/guide/guides/mcp.md sha:9b570e4d shows=json
+internal/guide/guides/mcp.md sha:54791a7f shows=json
+internal/guide/guides/mcp.md sha:efd83a76 shows=json fragment=members reason=the block shows the instructions member of a response rather than a whole document, so it is parsed inside a wrapping pair of braces
+internal/guide/guides/mcp.md sha:ef48e10c shows=json
+internal/guide/guides/mcp.md sha:9f17b222 shows=json
+internal/guide/guides/mcp.md sha:47075f93 shows=json
+internal/guide/guides/mcp.md sha:ca2564c9 shows=json
+internal/guide/guides/mcp.md sha:9d22ce32 shows=json fragment=members reason=the block shows the two members an unshaped answer withholds rather than a whole document, so it is parsed inside a wrapping pair of braces
+internal/guide/guides/mcp.md sha:cf1f5bd4 shows=shell reason=the line drives a shell loop around dinah path, which no replay here runs
+internal/guide/guides/mcp.md sha:4f5ea085 shows=json
+internal/guide/guides/mcp.md sha:2778fee5 shows=json
+internal/guide/guides/mcp.md sha:cbf67524 shows=json
+internal/guide/guides/mcp.md sha:ccbbec59 shows=json
+internal/guide/guides/on-behalf.md sha:d0a03fa3 shows=shell reason=the command sets the three declaration variables in the environment ahead of dinah and continues onto a second line, which is shell syntax no replay here runs
+internal/guide/guides/principles.md sha:a6b6287b shows=table command=list columns
+internal/guide/guides/setup-recipes.md sha:190063c7 shows=tree reason=the block draws the entries of a recipe directory, which the package internal/setup reads and its tests hold
+internal/guide/guides/setup-recipes.md sha:0d5d41a0 shows=json
+internal/guide/guides/setup-recipes.md sha:0ce5e231 shows=json
+internal/guide/guides/setup-recipes.md sha:e794ad90 shows=json
+internal/guide/guides/setup-recipes.md sha:18e4084e shows=commands
+internal/guide/guides/workbench-layout.md sha:7b749f1c shows=tree reason=TestTheLayoutGuideDrawsPathsTheToolWrites holds every path this block draws

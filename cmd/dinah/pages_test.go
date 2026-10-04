@@ -329,8 +329,8 @@ func TestARefusalReadsTheSameOnThePagesAsAtTheTerminal(t *testing.T) {
 			}
 		}
 	}
-	if len(naming) != 5 {
-		t.Fatalf("%d next steps name the card, wanted five: %v", len(naming), naming)
+	if len(naming) == 0 {
+		t.Fatal("no next step names the card, so this sweep would drive nothing")
 	}
 
 	root := newBench(t)

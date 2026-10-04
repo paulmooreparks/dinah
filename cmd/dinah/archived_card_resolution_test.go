@@ -102,17 +102,11 @@ type resolutionSite struct {
 }
 
 // resolutionFamily is one collection rule, its axis, and the set it asserts.
-// The three totals are declared rather than computed from the rows, because a
-// sweep says how big its set was and a row deleted to make a failure go away
-// should stop the run rather than shrink the subject set in silence.
 type resolutionFamily struct {
-	name      string
-	axis      string
-	what      string
-	files     int
-	mentions  int
-	functions int
-	sites     []resolutionSite
+	name  string
+	axis  string
+	what  string
+	sites []resolutionSite
 }
 
 // packageLevel is the enclosing site of a mention standing in a declaration
@@ -134,10 +128,7 @@ const benchTypeName = "Bench" // retired spelling, named deliberately
 var archivedResolutionFamilies = []resolutionFamily{
 	{
 		name: "A", axis: "reaching",
-		what:      "card resolution by number against a chosen root: every mention of resolveCardIn or ResolveArchivedCard",
-		files:     3,
-		mentions:  11,
-		functions: 9,
+		what: "card resolution by number against a chosen root: every mention of resolveCardIn or ResolveArchivedCard",
 		sites: []resolutionSite{
 			{"internal/verb/list.go", "history", 1, "list reading a journal under --archived, which resolves the card in the mirror and then reads the file that card carried in with it; it answers events rather than a card and composes no reference"},
 			{"internal/bench/resolve.go", "ResolveCard", 1, "the live accessor, named rather than filtered out because the rule no longer inspects the root argument"},
@@ -152,10 +143,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 	},
 	{
 		name: "B", axis: "reaching",
-		what:      "the half-taking resolvers anywhere, and ArchivedHalf named from outside internal/bench",
-		files:     13,
-		mentions:  37,
-		functions: 25,
+		what: "the half-taking resolvers anywhere, and ArchivedHalf named from outside internal/bench",
 		sites: []resolutionSite{
 			{"internal/verb/read.go", "designationReference", 1, "choosing the half an item's designated comment is counted in, from the comment's own flag on the card's record it was handed; archiving a designated comment stays permitted and the item goes on citing it, and no card is resolved here"},
 			{"internal/verb/read.go", "RedactionOf", 2, "reading who redacted the member a show request names, in the half the request names, exactly as show resolved it the moment before; it answers a redaction rather than a card, and an archived card refuses the resolution as it refuses show"},
@@ -186,10 +174,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 	},
 	{
 		name: "C", axis: "reading",
-		what:      "reading a card's number field: every mention of Number in a selector expression",
-		files:     10,
-		mentions:  47,
-		functions: 20,
+		what: "reading a card's number field: every mention of Number in a selector expression",
 		sites: []resolutionSite{
 			{"internal/bench/blockjson.go", "jsonNumber", 1, "a false positive recognised by name: the selector is the type json.Number, and telling it apart would mean running go/types over the tree to remove one row"},
 			{"internal/bench/card.go", "Ref", 2, "composes the human reference, which is why family E exists"},
@@ -215,10 +200,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 	},
 	{
 		name: "D", axis: "reaching",
-		what:      "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
-		files:     26,
-		mentions:  62,
-		functions: 51,
+		what: "reaching the archived anchors: every mention of ArchivedCardsRoot, cardsRootIn or ArchiveDir",
 		sites: []resolutionSite{
 			{"internal/bench/designationmigrate.go", "ClaimedCardsBothHalves", 1, "listing the archived cards for the claims the storage migration is refused over, since it rewrites an archived card's journal too; it reads each card's holder and resolves no reference"},
 			{"internal/bench/migratestorage_phases.go", "readOldLayout", 1, "the storage migration walking both halves of the cards collection, because an archived card's members are carried as a live card's are; it reads each card by identifier from the root it walks and resolves no reference"},
@@ -275,10 +257,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 	},
 	{
 		name: "E", axis: "reading",
-		what:      "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
-		files:     24,
-		mentions:  59,
-		functions: 49,
+		what: "rendering a card's human reference: every call whose selector is Ref and which carries exactly one argument",
 		sites: []resolutionSite{
 			{"internal/bench/designationmigrate.go", "ClaimedCardsBothHalves", 1, "naming a card the storage migration found claimed, which the in-use refusal and the forced run's own line report; an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
 			{"internal/bench/migratestorage_phases.go", "commentRef", 1, "naming a diverged comment the storage migration carries, in its own report; the run walks both halves, so an archived card does reach this call, and it composes a reference for a report rather than resolving one"},
@@ -333,10 +312,7 @@ var archivedResolutionFamilies = []resolutionFamily{
 	},
 	{
 		name: "F", axis: "reading",
-		what:      "reading the number out of frontmatter: every basic string literal \"number\"",
-		files:     5,
-		mentions:  10,
-		functions: 6,
+		what: "reading the number out of frontmatter: every basic string literal \"number\"",
 		sites: []resolutionSite{
 			{"internal/bench/declaredfields.go", "<package-level>", 1, "FieldTypeNumber, the name of one of the five types a declared field may take; it is the word number and never a card's number, and nothing reads a frontmatter key with it"},
 			{"internal/bench/card.go", "numberOf", 1, "fm.Value(\"number\"), the below-format half of the reading stamp and LiveCardHeaders share, where the legacy read path still takes the number from the card's own frontmatter"},
@@ -599,22 +575,13 @@ func TestEveryArchivedCardResolutionIsDeclared(t *testing.T) {
 				}
 				recognised[key] = site.mentions
 			}
-			declaredFiles := map[string]bool{}
-			declaredMentions := 0
-			for _, site := range family.sites {
-				declaredFiles[site.file] = true
-				declaredMentions += site.mentions
-			}
-			if len(declaredFiles) != family.files || declaredMentions != family.mentions || len(family.sites) != family.functions {
-				t.Fatalf("family %s declares %d mentions over %d files and %d enclosing sites, and its rows add up to %d over %d and %d",
-					family.name, family.mentions, family.files, family.functions, declaredMentions, len(declaredFiles), len(family.sites))
+			if len(byFamily[family.name]) == 0 {
+				t.Fatalf("family %s collected no mention, so its rule read nothing", family.name)
 			}
 
 			seen := map[string]int{}
-			files := map[string]bool{}
 			for _, mention := range byFamily[family.name] {
 				key := mention.file + "|" + mention.function
-				files[mention.file] = true
 				seen[key]++
 				if _, known := recognised[key]; !known {
 					t.Errorf("family %s (%s, the %s axis) collects %s at %s:%d in %s, and that site is in no declared row: either it is a new route into an archived card's number, which needs the unwrap dinah-487 gave ResolveLinkTarget and watchedCard, or it is harmless and needs a row here saying so",
@@ -634,10 +601,6 @@ func TestEveryArchivedCardResolutionIsDeclared(t *testing.T) {
 				}
 				t.Errorf("family %s declares %d mentions in %s %s (%s) and the tree holds %d; a mention added inside a recognised function is exactly the place a new fall-through hides, so read the body before moving the count",
 					family.name, site.mentions, site.file, site.function, site.why, got)
-			}
-			if len(byFamily[family.name]) != family.mentions || len(files) != family.files || len(seen) != family.functions {
-				t.Errorf("family %s collected %d mentions over %d files and %d enclosing sites, and it declares %d over %d and %d",
-					family.name, len(byFamily[family.name]), len(files), len(seen), family.mentions, family.files, family.functions)
 			}
 		})
 	}

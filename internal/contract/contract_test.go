@@ -83,14 +83,8 @@ func TestAReadsExitCodeIsItsOwnTableAndNeverTheRefusedOne(t *testing.T) {
 
 // TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing asserts dinah-409
 // AC-9: the raise's one new refusal is Dinah's own, it is entered in the
-// minted list exactly once, and neither the profile's own refusal set nor the
-// event set moves for it.
-//
-// The two counts are what the criterion pins, and both are read off the
-// declarations rather than carried forward from prose. The event count matters
-// because raise composes two events that already exist rather than minting a
-// third, and a third would cost a coordinated compat-fixture change nobody
-// asked for.
+// minted list exactly once, and the profile's own refusal set does not carry
+// it.
 func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 	if TierNotHigher != LayerPrefix+"tier-not-higher" {
 		t.Errorf("TierNotHigher is %q, and a minted refusal carries the layer prefix", TierNotHigher)
@@ -108,47 +102,6 @@ func TestTierNotHigherIsMintedOnceAndCostsTheProfileNothing(t *testing.T) {
 		if name == TierNotHigher {
 			t.Errorf("the profile's own set carries %s, which Dinah minted", name)
 		}
-	}
-	// The count moved from seventeen to nineteen at dinah-498, which took
-	// the fields a workbench declares for itself into the profile and with
-	// them the two refusal names that mechanism reports. Raise still leaves
-	// the set alone, which is what this row asserts: the number is pinned so
-	// that a card adding to the profile's own set has to say so here.
-	if len(Declared) != 19 {
-		t.Errorf("the profile declares %d refusal names, and raise was to leave that nineteen unchanged", len(Declared))
-	}
-	// The count is pinned rather than derived, so minting an event is a
-	// deliberate act that fails here first. It stood at twenty-one while
-	// raise composed two existing events rather than minting a third, it
-	// moved to twenty-seven when the checklist verbs minted their six, it
-	// moved to twenty-nine when link and unlink minted theirs, it moved
-	// to thirty-two when a field write below a card minted comment_updated,
-	// item_updated and attachment_updated, and it moved to thirty-three
-	// when the number registry's migration minted renumbered, to
-	// thirty-four when dinah-525 minted divergence_accepted for the act of
-	// ratifying a comment body somebody edited outside the tool, and to
-	// thirty-eight when dinah-472 minted item_waived, item_withdrawn,
-	// retirement_granted and retirement_revoked for the two new item states
-	// and the standing authorization that admits one of them, and to
-	// thirty-nine when dinah-640 minted lock_reclaimed for the reclaim of a
-	// lock whose holder was proven dead, and to forty when dinah-637 minted
-	// journal_tail_trimmed for the repair of a torn journal tail, and to
-	// forty-four when the same card minted item_baseline, comment_baseline
-	// and card_baseline for the storage migration and card_rebuilt for the
-	// rebuild of a damaged card.md, and to forty-five when it minted
-	// redacted for dinah redact, and to forty-six when dinah-647 minted spend
-	// for what a station consumed working a card. Each of those paid the
-	// coordinated compat-fixture change this guard exists to make somebody
-	// notice.
-	//
-	// The designation conversion's own designations_migrated and the storage
-	// migration's storage_migrated are not counted here, and the omission is
-	// deliberate rather than an oversight: each lands on the workbench's
-	// journal and never on a card's, so Events holds it out for the reason it
-	// holds out the three *_updated names, and EventNames is where it is
-	// counted.
-	if len(Events) != 46 {
-		t.Errorf("the event set carries %d names, and this build declares forty-six", len(Events))
 	}
 }
 

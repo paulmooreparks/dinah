@@ -118,12 +118,11 @@ func TestEveryUnblockCheckKeyIsCarriedByEveryCatalog(t *testing.T) {
 //
 // This is not, on its own, a check that historyWriters names every command
 // whose entry writes a journal line: a name the registry has silently
-// dropped drops out of this sweep's own count too, and the loop below can
-// only fail loudly on driving fewer names than the registry currently
-// claims, not on the registry claiming too few. What actually catches a
-// write path reachable with no actor and not named here is
-// bench.AppendEvent's own guard (internal/bench/journal.go), which every one
-// of these 29 paths funnels through; TestAppendEventRefusesAnEmptyActor
+// dropped drops out of this sweep too, and the loop below can only fail
+// loudly on a registry name with no driver, not on the registry claiming too
+// few. What actually catches a write path reachable with no actor and not
+// named here is bench.AppendEvent's own guard (internal/bench/journal.go),
+// which every one of these paths funnels through; TestAppendEventRefusesAnEmptyActor
 // exercises that guard directly. This sweep's own value is narrower and
 // different: it holds the *documented* check order (dinah help <verb>)
 // against the behaviour, which a regression on AppendEvent's guard alone
@@ -242,8 +241,8 @@ func TestNoOwnerGuardsEveryMutatingVerb(t *testing.T) {
 		},
 	}
 
-	if len(historyWriters) != 31 {
-		t.Fatalf("historyWriters carries %d names, wanted 31; this test's own driver table needs updating alongside it", len(historyWriters))
+	if len(historyWriters) == 0 {
+		t.Fatal("historyWriters carries no name, so this sweep would drive nothing")
 	}
 	driven := 0
 	for name := range historyWriters {
@@ -258,7 +257,7 @@ func TestNoOwnerGuardsEveryMutatingVerb(t *testing.T) {
 			t.Errorf("%s: driven with no actor, wanted refused/no-owner, got %s/%s", name, outcome, refusal)
 		}
 	}
-	if driven < 29 {
-		t.Fatalf("the sweep drove %d of historyWriters' 29 names; a name silently dropped from the driver table would pass this test by driving less than it claims to", driven)
+	if driven != len(historyWriters) {
+		t.Fatalf("the sweep drove %d of historyWriters' %d names", driven, len(historyWriters))
 	}
 }

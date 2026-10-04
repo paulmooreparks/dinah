@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -48,8 +47,8 @@ var guideBlockClasses = []string{"commands", "json", "table", "shell", "tree"}
 type guideBlockEntry struct {
 	// guide is the guide's file, named as the ledger spells it.
 	guide string
-	// fence is the one-based line the block's opening marker stands on.
-	fence int
+	// anchor is the blockAnchor of the block's body.
+	anchor string
 	// shows is the block's class.
 	shows string
 	// command names the command a shows=table block draws.
@@ -100,20 +99,16 @@ func readGuideBlockLedger(t *testing.T) []guideBlockEntry {
 	return entries
 }
 
-// parseGuideBlockEntry reads one entry, whose first word is the guide and the
-// line its opening fence stands on.
+// parseGuideBlockEntry reads one entry, whose first two words are the guide
+// and the block's anchor.
 func parseGuideBlockEntry(line string) (guideBlockEntry, error) {
 	entry := guideBlockEntry{}
-	first, rest, _ := strings.Cut(line, " ")
-	guide, number, ok := strings.Cut(first, ":")
-	if !ok {
-		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the guide and the line its opening fence stands on", first)
+	guide, rest, _ := strings.Cut(line, " ")
+	anchor, rest, _ := strings.Cut(rest, " ")
+	if !strings.HasPrefix(anchor, "sha:") || len(anchor) != 12 {
+		return entry, fmt.Errorf("the entry names %q after the guide, and an entry opens with the guide and the block's anchor, sha: and eight hex digits", anchor)
 	}
-	at, err := strconv.Atoi(number)
-	if err != nil {
-		return entry, fmt.Errorf("the entry names the line %q, which is not a number", number)
-	}
-	entry.guide, entry.fence = guide, at
+	entry.guide, entry.anchor = guide, anchor
 	for key, value := range splitDirectives(rest, guideBlockKeys) {
 		switch key {
 		case "shows":
@@ -191,10 +186,9 @@ func guideBlocksOfTheCorpus(t *testing.T) []guideBlock {
 	return blocks
 }
 
-// guideBlockKey identifies one block by the guide and the line its fence
-// stands on.
-func guideBlockKey(guide string, fence int) string {
-	return fmt.Sprintf("%s:%d", guide, fence)
+// guideBlockKey identifies one block by the guide and its anchor.
+func guideBlockKey(guide, anchor string) string {
+	return guide + " " + anchor
 }
 
 // TestEveryGuideBlockIsDeclared fails on a fenced block the ledger does not
@@ -203,31 +197,31 @@ func guideBlockKey(guide string, fence int) string {
 func TestEveryGuideBlockIsDeclared(t *testing.T) {
 	declared := map[string]bool{}
 	for _, entry := range readGuideBlockLedger(t) {
-		declared[guideBlockKey(entry.guide, entry.fence)] = true
+		declared[guideBlockKey(entry.guide, entry.anchor)] = true
 	}
 	for _, block := range guideBlocksOfTheCorpus(t) {
-		if declared[guideBlockKey(block.guide, block.fence)] {
+		if declared[guideBlockKey(block.guide, blockAnchor(block.body))] {
 			continue
 		}
-		t.Errorf("%s:%d opens a fenced block and %s carries no entry for it; declare what the block shows",
-			block.guide, block.fence, guideBlockLedger)
+		t.Errorf("%s:%d opens a fenced block and %s carries no entry for it; declare what the block shows, under %s %s",
+			block.guide, block.fence, guideBlockLedger, block.guide, blockAnchor(block.body))
 	}
 }
 
-// TestNoGuideBlockEntryIsStale fails on an entry naming a line that carries no
-// opening fence, so an edit that moves a block is repaired rather than leaving
-// the block silently unheld.
+// TestNoGuideBlockEntryIsStale fails on an entry naming a block no guide
+// carries any more, so an edit that changes a block is repaired rather than
+// leaving the block silently unheld.
 func TestNoGuideBlockEntryIsStale(t *testing.T) {
 	standing := map[string]bool{}
 	for _, block := range guideBlocksOfTheCorpus(t) {
-		standing[guideBlockKey(block.guide, block.fence)] = true
+		standing[guideBlockKey(block.guide, blockAnchor(block.body))] = true
 	}
 	for _, entry := range readGuideBlockLedger(t) {
-		if standing[guideBlockKey(entry.guide, entry.fence)] {
+		if standing[guideBlockKey(entry.guide, entry.anchor)] {
 			continue
 		}
-		t.Errorf("%s:%d: the entry expects a block to open at %s:%d, and no fence opens there",
-			guideBlockLedger, entry.source, entry.guide, entry.fence)
+		t.Errorf("%s:%d: the entry names the block %s in %s, and no block of that guide carries that anchor",
+			guideBlockLedger, entry.source, entry.anchor, entry.guide)
 	}
 }
 
@@ -237,11 +231,11 @@ func TestEveryGuideBlockShowsWhatItDeclares(t *testing.T) {
 	entries := readGuideBlockLedger(t)
 	blocks := map[string]guideBlock{}
 	for _, block := range guideBlocksOfTheCorpus(t) {
-		blocks[guideBlockKey(block.guide, block.fence)] = block
+		blocks[guideBlockKey(block.guide, blockAnchor(block.body))] = block
 	}
 	checked := 0
 	for _, entry := range entries {
-		block, standing := blocks[guideBlockKey(entry.guide, entry.fence)]
+		block, standing := blocks[guideBlockKey(entry.guide, entry.anchor)]
 		if !standing {
 			// The stale rule owns this, and reporting it twice would
 			// name one defect in two voices.
@@ -293,7 +287,7 @@ func checkBlockShowsCommands(t *testing.T, entry guideBlockEntry, block guideBlo
 		}
 	}
 	if read == 0 {
-		t.Errorf("%s:%d: the block declares commands and carries no line, so this check read nothing", entry.guide, entry.fence)
+		t.Errorf("%s:%d: the block declares commands and carries no line, so this check read nothing", entry.guide, block.fence)
 	}
 }
 
@@ -306,7 +300,7 @@ func checkBlockShowsJSON(t *testing.T, entry guideBlockEntry, block guideBlock) 
 	t.Helper()
 	body := strings.TrimSpace(strings.Join(block.body, "\n"))
 	if body == "" {
-		t.Errorf("%s:%d: the block declares json and carries no body, so this check read nothing", entry.guide, entry.fence)
+		t.Errorf("%s:%d: the block declares json and carries no body, so this check read nothing", entry.guide, block.fence)
 		return
 	}
 	var whole json.RawMessage
@@ -314,18 +308,18 @@ func checkBlockShowsJSON(t *testing.T, entry guideBlockEntry, block guideBlock) 
 	if entry.fragment == "" {
 		if !parsedAlone {
 			t.Errorf("%s:%d: the block declares json and does not parse: %v",
-				entry.guide, entry.fence, json.Unmarshal([]byte(body), &whole))
+				entry.guide, block.fence, json.Unmarshal([]byte(body), &whole))
 		}
 		return
 	}
 	if parsedAlone {
 		t.Errorf("%s:%d: the block declares fragment=members and parses as a whole document on its own, so the declaration says nothing; remove it",
-			entry.guide, entry.fence)
+			entry.guide, block.fence)
 		return
 	}
 	if err := json.Unmarshal([]byte("{"+body+"}"), &whole); err != nil {
 		t.Errorf("%s:%d: the block declares the members of an object and does not parse inside a wrapping pair of braces: %v",
-			entry.guide, entry.fence, err)
+			entry.guide, block.fence, err)
 	}
 }
 
@@ -347,13 +341,13 @@ func checkBlockShowsTheDrawnTable(t *testing.T, entry guideBlockEntry, block gui
 		}
 	}
 	if shown == "" {
-		t.Errorf("%s:%d: the block declares a table and carries no row, so this check read nothing", entry.guide, entry.fence)
+		t.Errorf("%s:%d: the block declares a table and carries no row, so this check read nothing", entry.guide, block.fence)
 		return
 	}
 	root := newBench(t)
 	got := runCLI(t, root, strings.Fields(entry.command)...)
 	if got.code != 0 {
-		t.Fatalf("%s:%d: `dinah %s` exited %d: %s", entry.guide, entry.fence, entry.command, got.code, got.errw)
+		t.Fatalf("%s:%d: `dinah %s` exited %d: %s", entry.guide, block.fence, entry.command, got.code, got.errw)
 	}
 	drawn := ""
 	for _, line := range strings.Split(got.out, "\n") {
@@ -363,12 +357,12 @@ func checkBlockShowsTheDrawnTable(t *testing.T, entry guideBlockEntry, block gui
 		}
 	}
 	if drawn == "" {
-		t.Errorf("%s:%d: `dinah %s` drew nothing, so this check read nothing", entry.guide, entry.fence, entry.command)
+		t.Errorf("%s:%d: `dinah %s` drew nothing, so this check read nothing", entry.guide, block.fence, entry.command)
 		return
 	}
 	if linesAgree(shown, drawn) {
 		return
 	}
 	t.Errorf("%s:%d: the table's header row is not the one `dinah %s` draws:\n  the guide draws: %s\n  the tool draws:  %s",
-		entry.guide, entry.fence, entry.command, strings.TrimRight(shown, " "), strings.TrimRight(drawn, " "))
+		entry.guide, block.fence, entry.command, strings.TrimRight(shown, " "), strings.TrimRight(drawn, " "))
 }

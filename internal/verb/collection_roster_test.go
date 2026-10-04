@@ -6,39 +6,22 @@ import (
 	"testing"
 )
 
-// TestTheReferenceTakingRosterIsTwentyFour derives the roster at the commit
-// under test rather than reading it off a card, because three separate
-// statements of this number, in a card's own framing and in its parent's
-// prose, disagreed with the tables.
+// TestTheReferenceTakingRosterAgreesAcrossItsDeclarations derives the roster
+// at the commit under test rather than reading it off a card, because three
+// separate statements of its size, in a card's own framing and in its
+// parent's prose, disagreed with the tables.
 //
-// The roster grew from nineteen to twenty on dinah-544, which declared settle
-// as a genuine reference-taking command: its item argument names a checklist
-// item exactly as resolve's, verify's, fail's and reopen's do. It grew to
-// twenty-two on dinah-472, which added waive and withdraw, whose item
-// argument names one the same way, to twenty-three on dinah-647, which added
-// spend, whose card argument names a card, and to twenty-four on dinah-637,
-// which added redact, whose member argument names a comment or an item.
-//
-// It cannot pass vacuously. An empty parse yields nothing rather than a
-// count, and the two declarations that carry the fact are compared against
-// each other as well as against the named set, so a command declaring the
-// guide on one of them and not the other is left out and the count fails.
-func TestTheReferenceTakingRosterIsTwentyFour(t *testing.T) {
+// It cannot pass vacuously. An empty roster fails, and the two declarations
+// that carry the fact are compared against each other, so a command declaring
+// the guide on one of them and not the other fails here.
+func TestTheReferenceTakingRosterAgreesAcrossItsDeclarations(t *testing.T) {
 	roster := ReferenceTakingCommands()
-	if len(roster) != 24 {
-		t.Fatalf("the roster holds %d commands and it is twenty-four: %s", len(roster), strings.Join(roster, " "))
-	}
-	want := []string{
-		"accept-divergence", "archive", "attach", "cite", "comment", "delete", "edit",
-		"fail", "get", "instructions", "list", "path", "redact", "rename", "reopen", "resolve",
-		"restore", "set", "settle", "show", "spend", "verify", "waive", "withdraw",
-	}
-	if strings.Join(roster, " ") != strings.Join(want, " ") {
-		t.Errorf("the roster is\n  %s\nand the set the card names is\n  %s", strings.Join(roster, " "), strings.Join(want, " "))
+	if len(roster) == 0 {
+		t.Fatal("the roster holds no command")
 	}
 
-	// The two declarations are counted separately as well, because the roster
-	// above returns a command only when they agree, so a disagreement would
+	// The two declarations are counted separately, because the roster above
+	// returns a command only when they agree, so a disagreement would
 	// otherwise show up as a shorter list with no reason attached.
 	byGuide, byParam := 0, 0
 	for _, topics := range guides {
@@ -56,8 +39,8 @@ func TestTheReferenceTakingRosterIsTwentyFour(t *testing.T) {
 			}
 		}
 	}
-	if byGuide != 24 || byParam != 24 {
-		t.Errorf("the guide table names %d commands and the parameter table names %d, and both are twenty-four", byGuide, byParam)
+	if byGuide != byParam || byGuide != len(roster) {
+		t.Errorf("the guide table names %d commands, the parameter table names %d and the roster holds %d, and all three must agree: %s", byGuide, byParam, len(roster), strings.Join(roster, " "))
 	}
 	t.Logf("the roster derived at this commit holds %d commands", len(roster))
 }

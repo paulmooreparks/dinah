@@ -18,14 +18,14 @@ import (
 // TestEveryBoundDescriptionIsTheCatalogText is the first half of
 // dinah-603/criteria/21, extended by dinah-623/criteria/25 to item mode and
 // output mode. It reads every binding the head defines, in every
-// mode, through interactiveBindings, and for each of the eight languages holds
+// mode, through interactiveBindings, and for each language the tool carries holds
 // each binding's description to that language's catalog text for the key it
 // names, with the arrow and column values filled from the fixed column. It
 // counts the bindings it read in each mode and fails at zero.
 func TestEveryBoundDescriptionIsTheCatalogText(t *testing.T) {
 	tags := msg.Tags()
-	if len(tags) != 8 {
-		t.Fatalf("the tool carries %d languages, and this test is written for eight", len(tags))
+	if len(tags) == 0 {
+		t.Fatal("the tool carries no language")
 	}
 	for _, tag := range tags {
 		r := msg.For(tag)

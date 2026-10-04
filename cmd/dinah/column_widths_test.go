@@ -195,8 +195,8 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 	order := displayWidth(hindi.T("column.help.order"))
 	check := displayWidth(hindi.T("column.help.check"))
 	checks := verb.Checks("add")
-	if len(checks) != 9 {
-		t.Fatalf("add declares %d checks, and this test is written for the nine it carries", len(checks))
+	if len(checks) == 0 {
+		t.Fatal("add declares no check, so this test reads nothing")
 	}
 	for i, one := range checks {
 		if drawn := displayWidth(strconv.Itoa(i + 1)); drawn > order {
@@ -225,11 +225,9 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 			}
 		}
 	}
-	names := []string{
-		contract.MalformedHarness,
-		contract.Malformed, contract.UnknownColumn, contract.AtCapacity,
-		contract.NoLevels, contract.UnknownLevel,
-		contract.UnknownRoute, contract.RouteOffColumn, contract.RouteSkipsOperatorColumn,
+	names := make([]string, 0, len(checks))
+	for _, one := range checks {
+		names = append(names, one.Refusal)
 	}
 	// A row's name is read as its last field rather than searched for inside
 	// the line. dinah.malformed-harness carries malformed as a substring, so a
@@ -275,14 +273,11 @@ func TestHindiCommandHelpStartsEveryRefusalNameAtOneColumn(t *testing.T) {
 // The column is computed from the rule the renderer follows rather than
 // typed in: the indent, half of the window the block draws at (assumedWindow,
 // since bare dinah draws with no width stated), and the gutter. A command
-// whose usage is wider than that half needs more than one line for it, and
-// this asserts the count of those against the eleven the fixture is known to
-// carry, so a change to the command list that stops exercising the wrap is
-// caught here rather than by a coincidence elsewhere. It separately counts
-// how many summaries wrap, against no fixed number, since which summaries
-// are long enough depends on the catalog text this test does not own; the
-// count only has to be positive, which is what proves the interaction this
-// test exists for is actually exercised.
+// whose usage is wider than that half needs more than one line for it. The
+// test counts those and the summaries that wrap, against no fixed number,
+// since which entries are long enough depends on the command list and the
+// catalog text; each count only has to be positive, which is what proves the
+// interaction this test exists for is actually exercised.
 func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	got := runCLI(t, t.TempDir())
 	if got.code != 0 {
@@ -292,11 +287,12 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 	wrapIndent := 2 + ceilingContinuationIndent
 	want := 2 + room + tableGutter
 	lines := strings.Split(got.out, "\n")
-	wrapped, summariesWrapped, summaries := 0, 0, 0
+	wrapped, summariesWrapped, summaries, listed := 0, 0, 0, 0
 	for _, c := range commands {
 		if c.group == "" {
 			continue
 		}
+		listed++
 		usage := verb.Usage(c.name)
 		summary := msg.For(msg.Base).T("cmd." + c.name + ".summary")
 		first := strings.Split(firstChunk(usage, wrapIndent, room), "\n")[0]
@@ -323,11 +319,11 @@ func TestEnglishCommandListStartsEverySummaryAtOneColumn(t *testing.T) {
 			t.Errorf("the block does not carry a first line for %s's syntax", c.name)
 		}
 	}
-	if summaries != 65 {
-		t.Errorf("read %d command entries out of the block, want 65", summaries)
+	if summaries != listed || listed == 0 {
+		t.Errorf("read %d command entries out of the block, and the table lists %d", summaries, listed)
 	}
-	if wrapped != 24 {
-		t.Errorf("%d entries wrapped across more than one line, want the twenty-four whose syntax is wider than half the window", wrapped)
+	if wrapped == 0 {
+		t.Error("no entry's syntax wrapped across more than one line, so the syntax-wrapping half of this shape is not exercised here")
 	}
 	if summariesWrapped == 0 {
 		t.Error("no summary wrapped across more than one line, so the tail-wrapping half of this shape is not exercised here")

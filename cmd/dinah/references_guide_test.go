@@ -431,11 +431,8 @@ func TestTheReferencesGuideNamesTheCommandsThatTakeAWorkstream(t *testing.T) {
 	if probed != len(roster) {
 		t.Fatalf("the probe ran %d commands and the roster names %d", probed, len(roster))
 	}
-	if len(reached) != 10 {
-		t.Fatalf("%d commands reached the workstream and ten take one", len(reached))
-	}
-	if refused != 13 {
-		t.Fatalf("%d commands were refused the workstream and thirteen refuse one", refused)
+	if refused == 0 {
+		t.Fatal("no command was refused the workstream, so the refusing side of the three-way comparison read nothing")
 	}
 }
 

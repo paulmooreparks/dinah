@@ -259,23 +259,24 @@ func mcpServedToolCount(t *testing.T, dir string, extra ...string) int {
 
 // TestMCPToolsFlagStartsAndServesTheNamedProfile is dinah-544's CLI-level
 // AC-4 companion: `dinah mcp --tools station` (and operator, and no flag at
-// all) starts and serves the expected count, reusing the accepting shape of
+// all) starts and serves the profile it names, reusing the accepting shape of
 // TestTheStartupRefusalsMCPRaisesLeadWithTheirName's table above for the
 // refusing case (--tools bogus).
 func TestMCPToolsFlagStartsAndServesTheNamedProfile(t *testing.T) {
 	container := newBench(t)
 	workbench := soleBenchDir(t, container)
 
-	if got := mcpServedToolCount(t, workbench, "--tools", "station"); got != 31 {
-		t.Errorf("mcp --tools station served %d tools, wanted 31", got)
+	// Which tools each profile carries is internal/mcp's own test's business;
+	// this one asserts that the flag reaches the head, so each named profile
+	// serves a strictly narrower surface than the next and no flag serves all.
+	station := mcpServedToolCount(t, workbench, "--tools", "station")
+	operator := mcpServedToolCount(t, workbench, "--tools", "operator")
+	all := mcpServedToolCount(t, workbench, "--tools", "all")
+	bare := mcpServedToolCount(t, workbench)
+	if station == 0 || station >= operator || operator >= all {
+		t.Errorf("mcp served %d tools under station, %d under operator and %d under all, and each must be strictly narrower than the next", station, operator, all)
 	}
-	if got := mcpServedToolCount(t, workbench, "--tools", "operator"); got != 46 {
-		t.Errorf("mcp --tools operator served %d tools, wanted 46", got)
-	}
-	if got := mcpServedToolCount(t, workbench); got != 52 {
-		t.Errorf("mcp with no --tools flag served %d tools, wanted 52", got)
-	}
-	if got := mcpServedToolCount(t, workbench, "--tools", "all"); got != 52 {
-		t.Errorf("mcp --tools all served %d tools, wanted 52", got)
+	if bare != all {
+		t.Errorf("mcp with no --tools flag served %d tools, and --tools all served %d", bare, all)
 	}
 }

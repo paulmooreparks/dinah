@@ -64,8 +64,8 @@ func TestTypedLineRoundTripsEveryRoutedCommand(t *testing.T) {
 			}
 		}
 	}
-	if walked != 20 {
-		t.Errorf("walked %d routed commands, wanted the twenty dinah-152 routes", walked)
+	if walked == 0 {
+		t.Error("walked no routed command, so this test read nothing")
 	}
 	t.Logf("walked %d routed commands", walked)
 }

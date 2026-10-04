@@ -498,7 +498,7 @@ func contractDeclares(name string) bool {
 func TestEveryExemptBlockDeclaresTheCatalogEntriesItQuotes(t *testing.T) {
 	_, blocks, entries := quickStartCorpus(t)
 	catalog := renderingsOfTheCatalog(t)
-	declared := map[int]quickExemption{}
+	declared := map[string]quickExemption{}
 	for _, entry := range entries {
 		if !entry.inner {
 			declared[entry.at] = entry
@@ -509,7 +509,7 @@ func TestEveryExemptBlockDeclaresTheCatalogEntriesItQuotes(t *testing.T) {
 		if block.kind != "console" || !block.exempt() {
 			continue
 		}
-		entry, named := declared[block.fence]
+		entry, named := declared[block.anchor()]
 		if !named {
 			continue
 		}
