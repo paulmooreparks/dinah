@@ -82,3 +82,19 @@ want a different one. When the walk finds nothing, Dinah falls back to your
 user base at `~/.dinah`, and you can move that base elsewhere by setting
 `DINAH_HOME`, so a test run or a scratch tree can work without touching your
 own settings and workbenches.
+
+A station an agent works can be run by Dinah itself:
+
+```
+dinah run proj-1
+```
+
+Dinah claims the card, hands the agent the card's brief and the station's
+instructions, starts the command the column's run recipe names, and waits.
+When the agent finishes, Dinah reads the harness's own receipt, records what
+the session cost with `dinah spend`, posts the agent's handoff as a comment,
+and moves, blocks or releases the card as the agent's result says. The agent
+does the work and issues no bookkeeping commands. A column carries a recipe
+only where an agent works it, so `dinah run` refuses a station a person
+works. `docs/design/format.md` describes the recipe and the card fields a run
+stores, and `--timeout` bounds the agent, an hour when you name none.

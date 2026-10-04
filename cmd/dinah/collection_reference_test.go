@@ -118,6 +118,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		"instructions":      {"instructions", "fx-1/comments"},
 		"cite":              {"cite", "fx-1/comments", "attachment", "1"},
 		"spend":             {"spend", "fx-1/comments", "tokens", "--total", "1"},
+		"run":               {"run", "fx-1/comments"},
 		"accept-divergence": {"accept-divergence", "fx-1/comments"},
 		"redact":            {"redact", "fx-1/comments", "--yes"},
 		"resolve":           {"resolve", "fx-1/comments", "--text", "a note"},

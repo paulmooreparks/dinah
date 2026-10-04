@@ -173,6 +173,12 @@ func TestNoOwnerGuardsEveryMutatingVerb(t *testing.T) {
 		"spend": func() (string, string) {
 			return fromResponse(h.library.Spend(&Request{Verb: "spend", Card: card, Unit: "tokens", Total: "1"}))
 		},
+		Run: func() (string, string) {
+			if _, refused := h.library.PlanRun(&Request{Verb: Run, Card: card}); refused != nil {
+				return fromResponse(refused)
+			}
+			return contract.OutcomeOK, ""
+		},
 	}
 
 	if len(historyWriters) == 0 {

@@ -7647,6 +7647,8 @@ func assertTheGuideCountsItsOwnTable(t *testing.T, guide string) {
 		"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
 		"eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
 		"nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three",
+		"twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight",
+		"twenty-nine", "thirty",
 	}
 	if commands >= len(words) || len(sets) >= len(words) {
 		t.Fatalf("the table draws %d commands over %d sets, past what this assertion spells", commands, len(sets))

@@ -64,6 +64,9 @@ func init() {
 		// because a provider reports any subset of them and a positional slot
 		// for an absent figure would be the one a caller fills by accident.
 		{name: "spend", group: groupWork, run: runSpend, bounded: 2, terminal: terminalDirect, actsOnCard: true},
+		// run binds the card alone and launches the station's agent, which
+		// works for minutes and is no act the terminal UI can wait on.
+		{name: "run", group: groupWork, run: runRun, bounded: 1, terminal: terminalAbsent},
 		{name: "resolve", group: groupWork, run: runResolve, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		{name: "verify", group: groupWork, run: runVerify, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},
 		{name: "fail", group: groupWork, run: runFail, bounded: 1, openTail: true, terminal: terminalDirect, actsOnCard: true},

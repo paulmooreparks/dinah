@@ -405,6 +405,7 @@ var routeExemptions = map[string]exemption{
 	"extract":           {GroundShellOrFilesystem, "copies a workbench definition out to a directory, which is the same filesystem act"},
 	"reshape":           {GroundShellOrFilesystem, "reads its new column layout from a definition file or another workbench's directory, which is the same filesystem act"},
 	"completion":        {GroundShellOrFilesystem, "prints a script for the caller's own interactive shell to load, which means nothing over HTTP"},
+	"run":               {GroundShellOrFilesystem, "launches the station's agent as a process on the server's machine and waits for it, which a request over HTTP should not be able to start"},
 	"config":            {GroundMachineNotWorkbench, "writes the user's own machine settings, which travel with the person rather than the workbench"},
 	"setup":             {GroundMachineNotWorkbench, "writes a harness's configuration files on the caller's machine, which belong to the machine rather than to any workbench"},
 	"mcp":               {GroundTheHeadItself, "starts the MCP head, so a route for it would be one server offering to start another"},

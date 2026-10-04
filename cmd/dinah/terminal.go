@@ -57,6 +57,15 @@ var terminalCardReads = map[string]string{
 	"view":         "draws a view",
 }
 
+// terminalAbsentCardActs names every command that acts on a card and still
+// cannot run inside the terminal UI, each mapped to why. The operator's ruling
+// is that a card verb is a direct act there; a command named here is the
+// exception that ruling has to be asked about, and run is the first: it
+// launches an agent that works for minutes, which no key press can wait on.
+var terminalAbsentCardActs = map[string]string{
+	"run": "launches the station's agent and waits for it to finish",
+}
+
 // terminalCardReadsUnrouted names the entries of terminalCardReads the HTTP
 // head serves no route for, so the route table cannot say whether they
 // write. Each is mapped to the reason, and a diff reviewer is the only guard

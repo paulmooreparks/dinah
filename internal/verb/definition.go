@@ -419,6 +419,7 @@ var guides = map[string][]string{
 	"redact":            {"references"},
 	"cite":              {"references"},
 	"spend":             {"references"},
+	Run:                 {"references"},
 	"resolve":           {"references"},
 	"verify":            {"references"},
 	"fail":              {"references"},
@@ -572,6 +573,14 @@ var params = map[string][]Param{
 		{Name: "round", Flag: true, Value: "n", Field: "Round", Complete: CompleteNone},
 		{Name: "column", Flag: true, Value: "column", Vocabulary: "column", Field: "Column"},
 		{Name: "note", Flag: true, Value: "text", Field: "Note", Complete: CompleteNone},
+	},
+	// run takes the card and nothing else positional: the recipe, the
+	// session and the working directory all come from the workbench and the
+	// column, so a caller cannot run a card under a recipe its station does
+	// not declare. The timeout bounds the launched process.
+	Run: {
+		{Name: "card", Required: true, Guide: "references", Field: "Card", Complete: CompleteCard},
+		{Name: "timeout", Flag: true, Value: "duration", Field: "Timeout", Complete: CompleteNone},
 	},
 	"resolve": {
 		{Name: "item", Required: true, Shared: "item", Guide: "references", Field: "Ref", Complete: CompleteItem},

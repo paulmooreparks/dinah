@@ -176,6 +176,7 @@ var toolExemptions = map[string]exemption{
 	"reshape":    {GroundShellOrFilesystem, "reads its new column layout from a definition file or another workbench's directory, which is the same filesystem act init and extract are held out for"},
 	"config":     {GroundMachineNotWorkbench, "writes the user's own machine settings, which travel with the person rather than the workbench"},
 	"completion": {GroundShellOrFilesystem, "prints a script for the caller's own interactive shell to load, which means nothing over a protocol"},
+	"run":        {GroundShellOrFilesystem, "launches the station's agent as a process on the caller's machine and waits for it, which an agent calling this head would be doing to itself"},
 	"setup":      {GroundMachineNotWorkbench, "writes a harness's configuration files on the caller's machine, which belong to the machine and the person rather than to any workbench"},
 	"mcp":        {GroundTheHeadItself, "starts this head, so a tool for it would be the server offering to start itself"},
 	"lsp":        {GroundTheHeadItself, "starts a second head, which serves one workbench to an editor over its own protocol on its own stream; a tool for it would be one server offering to start another"},

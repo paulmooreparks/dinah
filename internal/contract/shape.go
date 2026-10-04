@@ -558,6 +558,11 @@ var Shapes = []Shape{
 		NextStep:  []string{"refusal.dinah.last-column.next"},
 	},
 	{
+		Name:      NoRunRecipe,
+		Fragments: []Fragment{{Key: "refusal.dinah.no-run-recipe.next"}},
+		NextStep:  []string{"refusal.dinah.no-run-recipe.next"},
+	},
+	{
 		// One unconditional next step covers both branches, since the
 		// advice for a lock naming nobody is the advice for a lock naming
 		// somebody.
@@ -1053,6 +1058,7 @@ var Shapes = []Shape{
 			{Key: "refusal.dinah.not-in-tui.lsp", When: "reason", Equals: "lsp"},
 			{Key: "refusal.dinah.not-in-tui.serve", When: "reason", Equals: "serve"},
 			{Key: "refusal.dinah.not-in-tui.ui", When: "reason", Equals: "ui"},
+			{Key: "refusal.dinah.not-in-tui.run", When: "reason", Equals: "run"},
 			{Key: "refusal.dinah.not-in-tui.completion", When: "reason", Equals: "completion"},
 			{Key: "refusal.dinah.not-in-tui.tui", When: "reason", Equals: "tui"},
 			{Key: "refusal.dinah.not-in-tui.stdin", When: "reason", Equals: "stdin"},

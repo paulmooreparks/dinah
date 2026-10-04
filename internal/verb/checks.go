@@ -248,7 +248,7 @@ var historyWriters = map[string]bool{
 	"restore": true, "delete": true, "rename": true, "workstream": true,
 	"set": true, "column": true, "file": true, "resolve": true, "verify": true,
 	"fail": true, "reopen": true, "cite": true, "link": true, "unlink": true,
-	"reshape": true, "check": true, "settle": true, "spend": true,
+	"reshape": true, "check": true, "settle": true, "spend": true, Run: true,
 }
 
 // beyondChecks are the refusals the commands outside the five contract verbs
@@ -297,6 +297,18 @@ var beyondChecks = map[string][]Check{
 		{Refusal: contract.Malformed, Key: "check.spend.6"},
 		{Refusal: contract.Malformed, Key: "check.spend.7"},
 		{Refusal: contract.UnknownColumn, Key: "check.spend.4"},
+	},
+	// run's rows are PlanRun's, in its order. Everything after them is the
+	// claim's, the comment's, the spend line's and the move's own refusal,
+	// each of which the run reports as that command reports it.
+	Run: {
+		{Refusal: contract.UnknownCard, Key: "check.run.1"},
+		{Refusal: contract.NoOwner, Key: "check.run.2"},
+		{Refusal: contract.Blocked, Key: "check.run.3"},
+		{Refusal: contract.Held, Key: "check.run.4"},
+		{Refusal: contract.NoRunRecipe, Key: "check.run.5"},
+		{Refusal: contract.Malformed, Key: "check.run.6"},
+		{Refusal: contract.UndeclaredField, Key: "check.run.7"},
 	},
 	"attach": {
 		{Refusal: contract.UnknownPath, Key: "check.attach.1"},
