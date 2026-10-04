@@ -201,14 +201,16 @@ func TestNoReferenceKindLabelCarriesTheClauseSeparator(t *testing.T) {
 	read := 0
 	for _, tag := range tags {
 		for _, kind := range kinds {
-			entry, held := msg.CatalogEntry(tag, kind.MessageKey())
-			if !held {
-				t.Errorf("%s carries no entry for %s", tag, kind.MessageKey())
+			// The rendered label is read, so a language without a translation
+			// of it is checked against the English its reader gets.
+			renderer := msg.For(tag)
+			if !renderer.Has(kind.MessageKey()) {
+				t.Errorf("no catalog %s reads carries %s", tag, kind.MessageKey())
 				continue
 			}
 			read++
-			if strings.Contains(entry.Text, verb.ReferenceKindSeparator) {
-				t.Errorf("%s's %s reads %q, which carries the clause separator %q, so the guard over the rendered clause would read it as two labels", tag, kind.MessageKey(), entry.Text, verb.ReferenceKindSeparator)
+			if text := renderer.T(kind.MessageKey()); strings.Contains(text, verb.ReferenceKindSeparator) {
+				t.Errorf("%s's %s reads %q, which carries the clause separator %q, so the guard over the rendered clause would read it as two labels", tag, kind.MessageKey(), text, verb.ReferenceKindSeparator)
 			}
 		}
 	}

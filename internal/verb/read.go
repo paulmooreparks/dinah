@@ -3782,10 +3782,10 @@ type VersionReport struct {
 type CatalogCoverage struct {
 	// Tag is the locale tag.
 	Tag string `json:"tag"`
-	// Translated is the number of keys carrying a translation.
+	// Translated is the number of the base catalog's keys this catalog
+	// carries a translation for. A catalog carries translations and nothing
+	// else, so this is also every key it carries.
 	Translated int `json:"translated"`
-	// Present is the number of keys the catalog carries at all.
-	Present int `json:"present"`
 	// Total is the number of keys the base catalog carries.
 	Total int `json:"total"`
 }
@@ -3820,11 +3820,10 @@ func Version(withCatalogs bool) *VersionReport {
 		return release
 	}
 	for _, tag := range msg.Tags() {
-		translated, present, total := msg.Coverage(tag)
+		translated, total := msg.Coverage(tag)
 		coverage := CatalogCoverage{
 			Tag:        tag,
 			Translated: translated,
-			Present:    present,
 			Total:      total,
 		}
 		release.Catalogs = append(release.Catalogs, coverage)

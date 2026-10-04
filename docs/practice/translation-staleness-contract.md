@@ -24,13 +24,11 @@ The entry stores a hash rather than the English text itself, for two reasons. A 
 
 `en.json` carries none, because an English entry is not a translation of anything.
 
-An entry marked `"skeleton": true` carries none either. A skeleton entry holds the English text unchanged, which is what a generated catalog ships until somebody translates it, so there is no translation to have fallen behind. The five skeleton catalogs are `cs`, `id`, `es`, `fil` and `af`.
+Every entry in any other catalog carries one, because since 2026-10-04 a catalog other than English holds real translations and nothing else. Until then the five catalogs `af`, `cs`, `es`, `fil` and `id` held a copy of every English entry marked `"skeleton": true`, and those entries were exempt. They are gone, and those five files now carry an empty `entries` object until somebody translates something into them. A key a catalog does not carry renders in English for that one string. The amendment at the end of this document records the change.
 
-That exemption rests on a decision the operator made rather than on any property of the existing test suite. The skeleton catalogs are temporary and are scheduled to be translated, nobody uses them for reading yet, and a guard built over them would protect a category on its way out. There is a harder reason behind that. An earlier check that treated the skeletons as a class regenerated `de.json` from the English templates and destroyed the German translation, which dinah-211 then spent a whole card restoring by hand. Any future proposal to run a standing generator across the catalogs has to answer that history first.
+An earlier check that treated the skeletons as a class regenerated `de.json` from the English templates and destroyed the German translation, which dinah-211 then spent a whole card restoring by hand. Any future proposal to run a standing generator across the catalogs has to answer that history first.
 
-Do not justify the exemption by claiming that `TestEveryDeclaredLanguageShips` already holds a skeleton entry to the English. That test counts keys and counts how many entries carry `Skeleton: false`, and it compares no bytes at all. The claim has been checked and it is false.
-
-A skeleton catalog joins the mechanism on its own the day somebody translates it. The exemption reads the `Skeleton` flag on each entry rather than a list of language tags, and the guard's subtests come from `Complete`, so a catalog that moves from `Skeleton` to `Complete` gains a subtest and its entries gain the obligation with no code change. Nobody has to plan a migration for that.
+A catalog joins the mechanism on its own the day somebody translates its first entry. The guard's subtests come from `msg.Tags()`, which lists every catalog file the binary embeds, so the new entry gains the obligation with no code change.
 
 ## Fingerprint
 
@@ -42,7 +40,7 @@ Two calls on the same text return the same value on any machine and under any Go
 
 ## The guard
 
-`TestATranslationTracksItsEnglishSource`, in `internal/msg/msg_test.go`, runs one subtest per tag in `Complete` other than `Base`. Each subtest walks the base catalog's keys, skips any entry its catalog does not carry or marks as a skeleton, and compares the entry's `source` against `Fingerprint` of the current English text.
+`TestATranslationTracksItsEnglishSource`, in `internal/msg/msg_test.go`, runs one subtest per shipped catalog other than `Base`. Each subtest walks the base catalog's keys, skips any key its catalog does not carry, and compares the entry's `source` against `Fingerprint` of the current English text. (This paragraph first described a loop over `Complete` that also skipped skeleton entries; the amendments below record both changes.)
 
 Two failures are possible and they read differently. An entry with an empty `source` is reported as carrying no recorded source. An entry whose `source` disagrees with the English of the day is reported as stale, with a pointer to `git log -p internal/msg/locales/en.json` so that a reader who arrives days after the English edit can find out what changed.
 
@@ -239,10 +237,20 @@ Neither sentence is load-bearing. Both were written as illustrations of how ordi
 
 The operator ruled that a mechanically edited translation ships without a fluent reader having seen it, and that this is the project's standing practice rather than a lapse to be flagged each time. Record it here so nobody files the question again.
 
-**What that means when you touch a catalog.** German and Hindi carry real translations; the other five non-English catalogs carry the English text verbatim as skeletons. When the English behind a real translation changes, edit the German and the Hindi in their own language, following the vocabulary the neighbouring entries in that same catalog already establish, and recompute the staleness fingerprint. Then ship it. Do not file an open question asking whether the wording reads naturally, and do not ask a reviewer to confirm fluency. Nobody on this project can answer either, so a question of that shape cannot be closed and only parks the card.
+**What that means when you touch a catalog.** German and Hindi carry real translations, and the other five non-English catalogs carry none yet. When the English behind a real translation changes, edit the German and the Hindi in their own language, following the vocabulary the neighbouring entries in that same catalog already establish, and recompute the staleness fingerprint. Then ship it. Do not file an open question asking whether the wording reads naturally, and do not ask a reviewer to confirm fluency. Nobody on this project can answer either, so a question of that shape cannot be closed and only parks the card.
 
 **What you must still do.** Say in the decision record what you changed and what you based it on, exactly as this document already requires. A mechanical edit that moves one noun is a different act from rewriting a clause, and the record should make clear which one you performed. Where a change is large enough that a mechanical edit will not carry it, say so plainly rather than attempting a fluent rewrite and presenting it as one.
 
 **What this ruling does not license.** It does not license pasting English into a catalog that carries a real translation, which remains wrong and which a guard already catches. It does not license leaving a translation stale when its English has moved. And it does not make the result verified. The honest description of a translated string on this project is that an agent edited it and no fluent reader has read it, which is a known and accepted cost rather than a claim of correctness. Do not write a note that says a translation was verified, because nothing verified it.
 
 **Why the operator ruled this way.** The alternatives were to find a fluent reviewer before beta, or to demote both catalogs to English skeletons until one exists. He chose to ship, which keeps the two real translations in front of the first customers most likely to want them and accepts that some wording may be wrong. Whoever revisits this should know that the trade was made deliberately with the risk named, rather than by nobody noticing.
+
+## Amendment: catalogs hold only real translations, and completeness is a release check, ruled 2026-10-04
+
+The operator ordered this on 2026-10-04 as part of a cleanup of the development environment, saying the old arrangement was "too cumbersome and it takes too long to develop Dinah". A new message key had to be added to all eight catalog files, with German and Hindi translated and fingerprinted in the same pull request, or the suite failed. One card that week cost 38 keys across eight files.
+
+Two things changed. The five catalogs that held English copies under `"skeleton": true` now hold no entries, and the `Skeleton` field is gone from `Entry`. A catalog file still ships for each of those languages so the tag stays available, and `msg.Declared` lists the languages the ruling calls for. The second change is that whether German and Hindi carry every key is now checked when a release is promoted, not on every change. `TestEveryReleaseLanguageIsComplete` in `internal/msg/msg_test.go` skips unless `DINAH_RELEASE_CHECK` is set, and `.github/workflows/promote.yml` sets it on the beta and stable cuts. The dev build `release.yml` makes on every push to main is not gated, because gating it would put the check back on every merge.
+
+What still runs on every change is unchanged in substance. A translation that exists must carry a `source` matching today's English, must keep the English placeholders and invent none, must not be English standing under another tag unless marked `verbatim`, and must use the glossary's word for a declared term. A catalog may not carry a key English has retired, and every catalog file must decode with no member the loader does not know, which is how a tool that writes the old skeleton shape back gets caught.
+
+When you add a key, add it to `en.json` with a text and a context, and that is all the pull request needs. Add the German and Hindi before the next release, fingerprinting each with `msg.Fingerprint` of the English. Running `DINAH_RELEASE_CHECK=1 go test -run '^TestEveryReleaseLanguageIsComplete$' ./internal/msg` lists every key either language is missing. `dinah version --catalogs` reports the same gap as a translated count short of the total.

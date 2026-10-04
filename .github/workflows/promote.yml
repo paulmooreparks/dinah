@@ -185,6 +185,22 @@ jobs:
         with:
           path: tree
 
+      # German and Hindi ship complete, and a change between releases may add
+      # an English key without translating it, so completeness is checked
+      # here rather than on every pull request. The test skips unless
+      # DINAH_RELEASE_CHECK is set. It runs on one platform because the
+      # catalogs are embedded data and read the same everywhere. This is the
+      # gate rather than release.yml because release.yml cuts a dev build on
+      # every push to main, and gating that would put the check back on every
+      # merge.
+      - name: German and Hindi are complete
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: tree
+        env:
+          DINAH_RELEASE_CHECK: "1"
+        run: go test -count=1 -run '^TestEveryReleaseLanguageIsComplete$' -v ./internal/msg
+
   # Only now does anything leave the runner.
   publish:
     needs: [assemble, verify]

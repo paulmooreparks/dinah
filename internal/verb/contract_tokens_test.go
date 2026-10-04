@@ -105,7 +105,7 @@ func TestContractTokensSurviveInBackticks(t *testing.T) {
 				continue
 			}
 			entry, carried := msg.CatalogEntry(tag, key)
-			if !carried || entry.Skeleton {
+			if !carried {
 				continue
 			}
 			checked++

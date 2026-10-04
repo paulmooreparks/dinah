@@ -661,11 +661,24 @@ type normalisationClass struct {
 }
 
 // normalisationTable is every value the replay normalises, in the order the
-// classes are applied. Nothing else is normalised: a count Dinah prints is
-// compared as written, so the catalog listing fails the moment a card adds a
-// message key, and every sentence of prose the head emits is compared as
-// written, which is the whole point of the guard.
+// classes are applied. Nothing else is normalised: every other count Dinah
+// prints is compared as written, and every sentence of prose the head emits is
+// compared as written, which is the whole point of the guard.
 var normalisationTable = []normalisationClass{
+	{
+		// A row of `dinah version --catalogs` counts message keys, and the
+		// count moves with every key a change adds and with every key a
+		// translator catches up on. The transcript used to pin it, so every
+		// new English key failed the quick start, and since 2026-10-04 a new
+		// key may land without German or Hindi, which would have failed it a
+		// second way. The class is narrow: a language tag, then the
+		// translated count over the total, alone on an indented line, so the
+		// language list and the table's shape are still compared as written.
+		name:    "coverage",
+		token:   "<coverage>",
+		pattern: regexp.MustCompile(`(?m)^  [a-z]{2,3}(?:-[A-Za-z0-9]+)? +([0-9]+/[0-9]+)$`),
+		group:   1,
+	},
 	{
 		// The release value varies per build rather than per host:
 		// verb.ToolRelease defaults to a development value and a

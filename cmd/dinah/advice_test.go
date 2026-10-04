@@ -1044,14 +1044,12 @@ func TestEveryCheckAdviceIsDispositioned(t *testing.T) {
 		}
 	}
 	for _, key := range dispositionedCheckAdvice() {
+		// The rendered sentence is read rather than the catalog's own entry,
+		// because a language without a translation of the key gives its reader
+		// the English, and that is the sentence the disposition has to cover.
 		for _, tag := range msg.Tags() {
-			entry, ok := msg.CatalogEntry(tag, key)
-			if !ok {
-				t.Errorf("the %s catalog carries no %s, which TestEveryDeclaredLanguageShips reports and this guard cannot check around", tag, key)
-				continue
-			}
-			if !strings.Contains(entry.Text, checkInvocation) {
-				t.Errorf("the %s catalog's %s no longer names %s, so its disposition covers the English and not the sentence this reader gets: %q", tag, key, checkInvocation, entry.Text)
+			if text := msg.For(tag).T(key); !strings.Contains(text, checkInvocation) {
+				t.Errorf("the %s catalog's %s no longer names %s, so its disposition covers the English and not the sentence this reader gets: %q", tag, key, checkInvocation, text)
 			}
 		}
 	}

@@ -24,11 +24,6 @@ const retiredClaimRowSentence = "the card carries no structured item that is not
 // localesDir is the directory of shipped catalogues, named from this package.
 const localesDir = "../../internal/msg/locales"
 
-// shippedCatalogues is how many catalogue files ship. A sweep that read none
-// would report success, so each half below states the number it read and this
-// is what it is held to.
-const shippedCatalogues = 8
-
 // TestTheClaimsSeventhRowReadsOneSentenceEverywhere holds the four places the
 // claim's seventh row is published to one another: the profile's own fence in
 // section 6.3, the two catalogue keys that quote it, and the help the tool
@@ -76,26 +71,29 @@ func TestTheClaimsSeventhRowReadsOneSentenceEverywhere(t *testing.T) {
 	}
 }
 
-// TestEveryCatalogueCarriesTheNarrowedClaimRow sweeps the shipped catalogues
-// for the two keys that quote the claim's seventh row and for the sentence
-// CORE-CLAIM-9 published.
+// TestNoCatalogueCarriesTheRetiredClaimRow sweeps the shipped catalogues for
+// the sentence CORE-CLAIM-9 published, and holds English to carrying the two
+// keys that quote the claim's seventh row. Another language without them
+// renders the English, and German and Hindi carrying them is checked at
+// release.
 //
-// Each half states the number of files it read and each half is fatal on a
-// count that misses, because a sweep whose directory had moved would read
-// nothing and report exactly what a clean sweep reports. The halves are
-// counted separately rather than together: one number satisfied by the keys
-// alone would stay whole while the retired sweep read nothing at all.
-//
-// The retired half reads the file's bytes rather than the two keys, because
-// what it is looking for is the sentence surviving anywhere in a catalogue,
-// including under a key this test does not name.
-func TestEveryCatalogueCarriesTheNarrowedClaimRow(t *testing.T) {
+// The sweep states the number of files it read and is fatal on a count that
+// misses, because a sweep whose directory had moved would read nothing and
+// report exactly what a clean sweep reports. It reads each file's bytes
+// rather than the two keys, because what it is looking for is the sentence
+// surviving anywhere in a catalogue, including under a key this test does not
+// name.
+func TestNoCatalogueCarriesTheRetiredClaimRow(t *testing.T) {
+	for _, key := range []string{"check.claim.7", "check.pull.15"} {
+		if _, ok := msg.BaseEntry(key); !ok {
+			t.Errorf("the base catalogue carries no entry under %s", key)
+		}
+	}
+
 	entries, err := os.ReadDir(localesDir)
 	if err != nil {
 		t.Fatalf("read %s: %v", localesDir, err)
 	}
-
-	carrying := 0
 	clean := 0
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
@@ -105,30 +103,13 @@ func TestEveryCatalogueCarriesTheNarrowedClaimRow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", entry.Name(), err)
 		}
-		text := string(body)
-
-		missing := false
-		for _, key := range []string{`"check.claim.7"`, `"check.pull.15"`} {
-			if !strings.Contains(text, key) {
-				t.Errorf("%s carries no entry under %s", entry.Name(), key)
-				missing = true
-			}
-		}
-		if !missing {
-			carrying++
-		}
-
-		if strings.Contains(text, retiredClaimRowSentence) {
+		if strings.Contains(string(body), retiredClaimRowSentence) {
 			t.Errorf("%s still carries the sentence CORE-CLAIM-9 published", entry.Name())
 			continue
 		}
 		clean++
 	}
-
-	if carrying != shippedCatalogues {
-		t.Fatalf("%d catalogues carry both keys, wanted %d", carrying, shippedCatalogues)
-	}
-	if clean != shippedCatalogues {
-		t.Fatalf("%d catalogues are free of the retired sentence, wanted %d", clean, shippedCatalogues)
+	if clean != len(msg.Declared) {
+		t.Fatalf("%d catalogues are free of the retired sentence, wanted the %d declared", clean, len(msg.Declared))
 	}
 }

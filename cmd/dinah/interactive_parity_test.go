@@ -296,14 +296,12 @@ func TestEveryAbsentCommandIsRefusedWithItsReason(t *testing.T) {
 			}
 		})
 	}
-	for _, tag := range msg.Tags() {
-		for _, c := range commands {
-			if c.terminal != terminalAbsent {
-				continue
-			}
-			if _, held := msg.CatalogEntry(tag, "refusal.dinah.not-in-tui."+c.name); !held {
-				t.Errorf("%s carries no reason sentence for %s", tag, c.name)
-			}
+	for _, c := range commands {
+		if c.terminal != terminalAbsent {
+			continue
+		}
+		if _, held := msg.BaseEntry("refusal.dinah.not-in-tui." + c.name); !held {
+			t.Errorf("the base catalog carries no reason sentence for %s", c.name)
 		}
 	}
 	t.Logf("swept %d commands, %d flags and %d session flags", commandsSwept, flagsSwept, sessionSwept)
