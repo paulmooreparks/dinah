@@ -337,14 +337,24 @@ type RunSpent struct {
 func (l *Library) RecordRun(req *Request, plan *RunPlan, read *RunReceiptRead) (*RunSpent, *Response) {
 	spend := plan.Recipe.Receipt.Spend
 	if read != nil && plan.Keep {
-		writes := []struct{ key, value string }{}
+		// A receipt naming no session leaves nothing the next run can resume,
+		// so the stored session and its baseline are cleared rather than left
+		// to be subtracted from a session they do not belong to. A session
+		// whose receipt carried no figure clears the baseline for the same
+		// reason. An empty value is a clear.
+		session, recipe, baseline := "", "", ""
 		if read.Session != "" {
-			writes = append(writes,
-				struct{ key, value string }{bench.RunSessionField, read.Session},
-				struct{ key, value string }{bench.RunRecipeField, plan.Recipe.Name})
-			if spend != nil && spend.Cumulative && read.Figure != nil {
-				writes = append(writes, struct{ key, value string }{bench.RunCumulativeField(spend.Unit), formatFigure(*read.Figure)})
+			session, recipe = read.Session, plan.Recipe.Name
+			if read.Figure != nil {
+				baseline = formatFigure(*read.Figure)
 			}
+		}
+		writes := []struct{ key, value string }{
+			{bench.RunSessionField, session},
+			{bench.RunRecipeField, recipe},
+		}
+		if spend != nil && spend.Cumulative {
+			writes = append(writes, struct{ key, value string }{bench.RunCumulativeField(spend.Unit), baseline})
 		}
 		for _, write := range writes {
 			set := *req

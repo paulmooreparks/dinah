@@ -44,7 +44,11 @@ func newRunBench(t *testing.T) *runBench {
 		"      - resumed\n" +
 		"      - --resume\n" +
 		"      - \"{session}\"\n" +
-		"    receipt: {session: session_id, text: result, error: is_error, spend: {unit: usd, field: total_cost_usd, cumulative: true}}\n"
+		"    receipt: {session: session_id, text: result, error: is_error, spend: {unit: usd, field: total_cost_usd, cumulative: true}}\n" +
+		"  other:\n" +
+		"    command: ['" + exe + "', fresh-other]\n" +
+		"    resume: ['" + exe + "', resumed-other, \"{session}\"]\n" +
+		"    receipt: {session: session_id, text: result, spend: {unit: usd, field: total_cost_usd, cumulative: true}}\n"
 	editAnchor(t, root, "columns:", block+"columns:")
 	column := strings.TrimSpace(runCLI(t, root, "path", "doing").out)
 	editAnchorAt(t, column, "kind: work", "kind: work\nrun: fake\nreject_to: intake")

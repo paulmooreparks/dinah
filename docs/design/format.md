@@ -1509,7 +1509,14 @@ stored `run.recipe` is the column's recipe. Every other run is fresh. A fresh
 run at a `fresh` column, which is a review station whose value is independence,
 does not store its session, so the session of the agent the card goes back to
 is still there when it does. A run that keeps its session stores `run.session`,
-`run.recipe` and the last cumulative figure.
+`run.recipe` and the last cumulative figure. A receipt that reports a cost and
+no session leaves nothing the next run could resume, so that run clears all
+three, and a session whose receipt carried no figure clears the cumulative
+figure; the next run then starts fresh and records its whole figure.
+
+The claim a run takes expires ten minutes after the run's `--timeout`. A
+`dinah run` killed between its claim and its release therefore leaves a claim
+that lapses on its own after that time, and nobody has to clear it by hand.
 
 The spend line is written in the recipe's unit as `--total`, with the round
 counted from the spend lines the card already carries for the column and a note
@@ -1521,6 +1528,12 @@ card and posts the last lines of standard error. Where the receipt still read,
 its figure and session are recorded; where it did not, the spend line is
 recorded `--unreported`. The command exits 0 when the agent's result was
 carried out and 1 when the run stopped short and released the card.
+
+One limitation stands on Windows. A timeout stops the process the recipe
+started, and a process that harness started in turn, such as the program a
+`.cmd` shim launches, is not stopped with it. The run waits five seconds for
+the output pipes to close, reports the timeout and releases the card, and the
+orphaned process runs on until it finishes or somebody stops it.
 
 `run` and `worker` are not among the members interchange names, so both travel
 through `dinah export` and `init --from` as unrecognized members of the

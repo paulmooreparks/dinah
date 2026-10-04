@@ -22,6 +22,10 @@ import (
 // short enough that an unattended loop notices a hung harness the same day.
 const runTimeoutDefault = time.Hour
 
+// runClaimMargin is how long a run's claim outlasts its timeout, which covers
+// the bookkeeping after the agent returns and a stopped harness's pipes.
+const runClaimMargin = 10 * time.Minute
+
 // runWaitDelay is how long a run waits for a stopped harness's output pipes
 // to close. A harness that started children of its own can leave them holding
 // the pipes after the harness itself is stopped, and the run reports the
@@ -116,6 +120,10 @@ func runRun(s *session, parsed *arguments) int {
 		}
 		claim := s.request(verb.Claim, parsed)
 		claim.Card = plan.Ref
+		// The claim expires a margin after the run's own timeout, so a run
+		// killed between its claim and its release leaves a claim that lapses
+		// on its own rather than one only a person can clear.
+		claim.Expires = req.Timeout + runClaimMargin
 		if response := l.Do(claim); response.Outcome != contract.OutcomeOK {
 			return s.emit(response)
 		}
