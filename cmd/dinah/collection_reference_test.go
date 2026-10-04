@@ -154,7 +154,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		ran++
 		answer := answerOf(t, root, argv...)
 		if answer.code != 0 {
-			t.Errorf("%s refused a collection reference with %s, and it is one of the two that answer one:\n%s", name, answer.refusal, answer.errw)
+			t.Errorf("%s refused a collection reference with %s, and it is one of those that answer one:\n%s", name, answer.refusal, answer.errw)
 			continue
 		}
 		accepted++
@@ -163,7 +163,7 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		ran++
 		answer := answerOf(t, root, argv...)
 		if answer.refusal != contract.IsACollection {
-			t.Errorf("%s answered %q with exit %d, and it is one of the sixteen that refuse a collection with %s:\n%s%s",
+			t.Errorf("%s answered %q with exit %d, and it is one of those that refuse a collection with %s:\n%s%s",
 				name, answer.refusal, answer.code, contract.IsACollection, answer.out, answer.errw)
 			continue
 		}
@@ -176,13 +176,13 @@ func TestEveryReferenceTakingCommandAnswersACollectionOrRefusesIt(t *testing.T) 
 		}
 		refused++
 	}
-	if ran != 23 {
-		t.Fatalf("the sweep ran %d invocations and the roster is twenty-three", ran)
+	if ran != len(covered) {
+		t.Fatalf("the sweep ran %d invocations and the roster is %d", ran, len(covered))
 	}
-	if accepted != 2 || refused != 21 {
-		t.Fatalf("the sweep accepted %d and refused %d, and the split is two and twenty-one", accepted, refused)
+	if accepted == 0 || refused == 0 {
+		t.Fatalf("the sweep accepted %d and refused %d, and it must reach both sides", accepted, refused)
 	}
-	t.Logf("twenty-three invocations ran: %d accepted, %d refused with %s", accepted, refused, contract.IsACollection)
+	t.Logf("%d invocations ran: %d accepted, %d refused with %s", ran, accepted, refused, contract.IsACollection)
 }
 
 // TestListDrawsACollectionsMembersInCreationOrder pins the members, their

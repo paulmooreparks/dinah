@@ -117,7 +117,7 @@ The `token.*` namespace is not selected either, and dinah-252's spec was wrong t
 
 ### Reachability
 
-`TestEveryLanguagePinnedCallSiteIsDeclared`, in `internal/verb/reachability_test.go`, parses `cmd/dinah`, `internal/mcp` and `internal/verb` with `go/parser` and finds every `msg.For` call whose one argument is a string literal or `msg.Base`. That set has to equal `declaredPinnedCallSites`, a reviewed inventory of `PinnedCallSite` entries each carrying a file, a line and a reason. Three are declared today, all in `internal/mcp`, each recording that the MCP surface is deliberately pinned to English.
+`TestEveryLanguagePinnedCallSiteIsDeclared`, in `internal/verb/reachability_test.go`, parses `cmd/dinah`, `internal/mcp` and `internal/verb` with `go/parser` and finds every `msg.For` call whose one argument is a string literal or `msg.Base`. That set has to equal `declaredPinnedCallSites`, a reviewed inventory of `PinnedCallSite` entries each carrying a file, the function enclosing the call and a reason. Three are declared today, all in `internal/mcp`, each recording that the MCP surface is deliberately pinned to English.
 
 It fails in both directions. A new pinned call site fails until somebody enters it with a reason, and a declared entry the parser no longer finds fails as a stale exemption, so the inventory cannot go on asserting after the surface it describes has moved.
 

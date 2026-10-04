@@ -44,7 +44,7 @@ import (
 //     says what it proves.
 //   - Whether a `holds=unreachable` figure is still true. That class points at
 //     the declaration of a set this package cannot reach, and the check proves
-//     the named line carries the named identifier. It never compares the
+//     the named file declares the named identifier. It never compares the
 //     figure against the set, so a ninth basis-consuming tool or a sixth
 //     journal field leaves the sentence stale with every check here green. Two
 //     of the twenty-three entries sit in that state today.
@@ -61,30 +61,37 @@ var proseFigureLedger = filepath.Join("testdata", "prose-figures.txt")
 // proseFigureKeys are the directives a figure entry may carry. Every other
 // word continues the value it stands in, which is what lets `counts=` and
 // `reason=` be prose.
-var proseFigureKeys = []string{"figure", "noun", "counts", "derives", "holds", "at", "declares", "by", "reason"}
+var proseFigureKeys = []string{"figure", "noun", "near", "counts", "derives", "holds", "at", "declares", "by", "reason"}
 
 // proseHoldings are the classes a figure no derivation reaches may declare.
 var proseHoldings = []string{"partitive", "elsewhere", "unreachable", "prose"}
 
 // proseEntry is one line of the ledger: one figure, beside one registered
-// noun, at one line of one document.
+// noun, in one document. It is keyed by the text rather than by a line number,
+// so an entry does not move when lines are added elsewhere in the document:
+// the entries sharing a document, a figure, a noun and a near= phrase must be
+// as many as the occurrences that key finds, so each occurrence still carries
+// an entry of its own.
 type proseEntry struct {
 	// document is the file the figure stands in, named as the ledger spells
 	// it, which is a slash-separated path from the repository root.
 	document string
-	// line is the one-based line the figure stands on.
-	line int
 	// figure is the number word or the digits as the document writes them.
 	figure string
 	// noun is the registered noun the figure stands beside.
 	noun string
+	// near, when set, is a phrase the figure's line carries, which tells
+	// apart two occurrences of one figure and noun in one document that are
+	// held differently.
+	near string
 	// counts is the prose naming the set the figure counts.
 	counts string
 	// derives names a derivation in derivationsByName, and holds names one
 	// of proseHoldings. An entry carries exactly one of the two.
 	derives string
 	holds   string
-	// at and declares are the pointer of a holds=unreachable entry.
+	// at and declares are the pointer of a holds=unreachable entry: the file,
+	// and the identifier it declares.
 	at       string
 	declares string
 	// by names the test a holds=elsewhere entry rests on.
@@ -106,7 +113,17 @@ func (e proseEntry) holding() string {
 
 // where names the occurrence a finding is about.
 func (e proseEntry) where() string {
-	return fmt.Sprintf("%s:%d", e.document, e.line)
+	if e.near != "" {
+		return fmt.Sprintf("%s (%s %s, near %q)", e.document, e.figure, e.noun, e.near)
+	}
+	return fmt.Sprintf("%s (%s %s)", e.document, e.figure, e.noun)
+}
+
+// key is the group an entry belongs to: its document, figure, noun and near=
+// phrase, with the figure and the noun folded to lower case, because a
+// sentence-opening "Five" and a mid-sentence "five" are one claim.
+func (e proseEntry) key() string {
+	return strings.Join([]string{e.document, strings.ToLower(e.figure), strings.ToLower(e.noun), e.near}, "|")
 }
 
 // proseOccurrence is one figure the scan found standing beside a registered
@@ -114,6 +131,7 @@ func (e proseEntry) where() string {
 type proseOccurrence struct {
 	document string
 	line     int
+	text     string
 	figure   string
 	noun     string
 }
@@ -178,25 +196,22 @@ func readProseFigures(t *testing.T) ([]string, []proseEntry) {
 	return nouns, entries
 }
 
-// parseProseEntry reads one figure entry, whose first word is the document and
-// the line the figure stands on.
+// parseProseEntry reads one figure entry, whose first word is the document the
+// figure stands in.
 func parseProseEntry(first, rest string) (proseEntry, error) {
 	entry := proseEntry{}
-	document, number, ok := strings.Cut(first, ":")
-	if !ok {
-		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the document and the line its figure stands on", first)
+	if strings.Contains(first, "=") || !strings.HasSuffix(first, ".md") {
+		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the document its figure stands in", first)
 	}
-	at, err := strconv.Atoi(number)
-	if err != nil {
-		return entry, fmt.Errorf("the entry names the line %q, which is not a number", number)
-	}
-	entry.document, entry.line = document, at
+	entry.document = first
 	for key, value := range splitDirectives(rest, proseFigureKeys) {
 		switch key {
 		case "figure":
 			entry.figure = value
 		case "noun":
 			entry.noun = value
+		case "near":
+			entry.near = value
 		case "counts":
 			entry.counts = value
 		case "derives":
@@ -250,7 +265,7 @@ func (e proseEntry) validate() error {
 		}
 	case "unreachable":
 		if e.at == "" || e.declares == "" {
-			return fmt.Errorf("a holds=unreachable entry names the declaration under at=<file>:<line> and the identifier under declares=")
+			return fmt.Errorf("a holds=unreachable entry names the declaring file under at=<file> and the identifier under declares=")
 		}
 	}
 	return nil
@@ -306,6 +321,7 @@ func proseOccurrences(t *testing.T, nouns []string) []proseOccurrence {
 				found = append(found, proseOccurrence{
 					document: document.name,
 					line:     at + 1,
+					text:     line,
 					figure:   line[start:match[2*figure+1]],
 					noun:     strings.ToLower(line[match[2*noun]:match[2*noun+1]]),
 				})
@@ -503,44 +519,76 @@ func TestEveryProseFigureIsDeclared(t *testing.T) {
 	if len(occurrences) == 0 {
 		t.Fatalf("the corpus carries no figure beside any of the %d registered nouns, so this check read nothing", len(nouns))
 	}
-	declared := map[string]bool{}
-	for _, entry := range entries {
-		declared[proseKey(entry.document, entry.line, entry.figure, entry.noun)] = true
-	}
-	for _, found := range occurrences {
-		if declared[proseKey(found.document, found.line, found.figure, found.noun)] {
+	assigned, declared := assignProseOccurrences(t, entries, occurrences)
+	for key, found := range assigned {
+		if len(found) <= len(declared[key]) {
 			continue
 		}
-		t.Errorf("%s:%d says %s %s and %s carries no entry for it; write one saying what the figure counts and what holds it",
-			found.document, found.line, found.figure, found.noun, proseFigureLedger)
+		for _, occurrence := range found[len(declared[key]):] {
+			t.Errorf("%s:%d says %s %s and %s carries no entry for it; write one opening %s figure=%s noun=%s and saying what the figure counts and what holds it",
+				occurrence.document, occurrence.line, occurrence.figure, occurrence.noun, proseFigureLedger, occurrence.document, occurrence.figure, occurrence.noun)
+		}
 	}
 }
 
-// TestNoProseFigureEntryIsStale fails on an entry whose document and line no
-// longer carry the figure and the noun it names, so a moved sentence is
-// repaired rather than left pointing at a line that has become something else.
+// TestNoProseFigureEntryIsStale fails on an entry no occurrence answers, so a
+// sentence that was rewritten or removed takes its entry with it rather than
+// leaving the entry to vouch for nothing.
 func TestNoProseFigureEntryIsStale(t *testing.T) {
 	nouns, entries := readProseFigures(t)
-	standing := map[string]bool{}
-	for _, found := range proseOccurrences(t, nouns) {
-		standing[proseKey(found.document, found.line, found.figure, found.noun)] = true
-	}
-	if len(standing) == 0 {
+	occurrences := proseOccurrences(t, nouns)
+	if len(occurrences) == 0 {
 		t.Fatal("the corpus carries no figure beside any registered noun, so this check read nothing")
 	}
-	for _, entry := range entries {
-		if standing[proseKey(entry.document, entry.line, entry.figure, entry.noun)] {
+	assigned, declared := assignProseOccurrences(t, entries, occurrences)
+	for key, group := range declared {
+		if len(group) <= len(assigned[key]) {
 			continue
 		}
-		t.Errorf("%s:%d: the entry expects the figure %s beside %s at %s:%d, and that line carries no such figure",
-			proseFigureLedger, entry.source, entry.figure, entry.noun, entry.document, entry.line)
+		for _, entry := range group[len(assigned[key]):] {
+			t.Errorf("%s:%d: the entry expects the figure %s beside %s in %s, and the document carries %d such occurrences for %d entries",
+				proseFigureLedger, entry.source, entry.figure, entry.noun, entry.where(), len(assigned[key]), len(group))
+		}
 	}
 }
 
-// proseKey identifies one occurrence. The figure is folded to lower case,
-// because a sentence-opening "Five" and a mid-sentence "five" are one claim.
-func proseKey(document string, line int, figure, noun string) string {
-	return fmt.Sprintf("%s:%d:%s:%s", document, line, strings.ToLower(figure), strings.ToLower(noun))
+// assignProseOccurrences groups the ledger's entries by key and gives each
+// occurrence to the group it belongs to. An occurrence whose line carries an
+// entry's near= phrase belongs to that entry's group; one whose line carries
+// none of them belongs to the group with no near= phrase. A line carrying the
+// phrases of two groups is ambiguous and reported here.
+func assignProseOccurrences(t *testing.T, entries []proseEntry, occurrences []proseOccurrence) (map[string][]proseOccurrence, map[string][]proseEntry) {
+	t.Helper()
+	declared := map[string][]proseEntry{}
+	nears := map[string][]string{}
+	for _, entry := range entries {
+		key := entry.key()
+		if len(declared[key]) == 0 && entry.near != "" {
+			base := proseEntry{document: entry.document, figure: entry.figure, noun: entry.noun}.key()
+			nears[base] = append(nears[base], entry.near)
+		}
+		declared[key] = append(declared[key], entry)
+	}
+	assigned := map[string][]proseOccurrence{}
+	for _, found := range occurrences {
+		base := proseEntry{document: found.document, figure: found.figure, noun: found.noun}.key()
+		var matching []string
+		for _, near := range nears[base] {
+			if strings.Contains(found.text, near) {
+				matching = append(matching, near)
+			}
+		}
+		if len(matching) > 1 {
+			t.Errorf("%s:%d carries the near= phrases %q of several entries, so the ledger cannot tell which one it is", found.document, found.line, matching)
+			continue
+		}
+		key := base
+		if len(matching) == 1 {
+			key = proseEntry{document: found.document, figure: found.figure, noun: found.noun, near: matching[0]}.key()
+		}
+		assigned[key] = append(assigned[key], found)
+	}
+	return assigned, declared
 }
 
 // TestEveryDerivedProseFigureMatchesTheBinary runs the derivation of every
@@ -569,13 +617,13 @@ func TestEveryDerivedProseFigureMatchesTheBinary(t *testing.T) {
 		}
 		want, readable := numberFromWord(entry.figure)
 		if !readable {
-			t.Errorf("%s:%d: the figure %s cannot be read as a number, so nothing can hold it", entry.document, entry.line, entry.figure)
+			t.Errorf("%s: the figure %s cannot be read as a number, so nothing can hold it", entry.where(), entry.figure)
 			continue
 		}
 		compared++
 		if want != got {
-			t.Errorf("%s:%d says %s %s, and the derivation %s yields %d, which the documents spell %s",
-				entry.document, entry.line, entry.figure, entry.noun, entry.derives, got, numberWord(got))
+			t.Errorf("%s says %s %s, and the derivation %s yields %d, which the documents spell %s",
+				entry.where(), entry.figure, entry.noun, entry.derives, got, numberWord(got))
 		}
 	}
 	if compared == 0 {
@@ -618,7 +666,7 @@ func TestEveryCountedSetIsCountedConsistently(t *testing.T) {
 		for _, entry := range group {
 			value, readable := numberFromWord(entry.figure)
 			if !readable {
-				t.Errorf("%s:%d: the figure %s cannot be read as a number, so nothing can hold it", entry.document, entry.line, entry.figure)
+				t.Errorf("%s: the figure %s cannot be read as a number, so nothing can hold it", entry.where(), entry.figure)
 				continue
 			}
 			figures[value] = true
@@ -706,37 +754,27 @@ func nounStandsInTheCorpus(documents []guardedDocument, noun string) bool {
 }
 
 // checkPointerIsLive holds one holds=unreachable pointer to the tree: the file
-// exists, and the line it names carries the identifier the entry declares.
+// exists, and it declares the identifier the entry names as a top-level var,
+// const, type or func, or as a member of a var or const block.
 //
-// The identifier is required rather than the line merely being non-blank,
-// because a non-blank test passes on a doc comment, on a closing brace, and on
-// whatever the file grows next, which is not a check on a pointer at all.
+// A declaration is required rather than the name merely appearing, because a
+// mention passes on a doc comment and on a caller, which is not a check on a
+// pointer at all.
 func checkPointerIsLive(t *testing.T, entry proseEntry) {
 	t.Helper()
-	where, number, ok := strings.Cut(entry.at, ":")
-	if !ok {
-		t.Errorf("%s:%d writes at=%s, and a pointer names a file and a line", proseFigureLedger, entry.source, entry.at)
+	if strings.Contains(entry.at, ":") {
+		t.Errorf("%s:%d writes at=%s, and a pointer names a file alone, never a line", proseFigureLedger, entry.source, entry.at)
 		return
 	}
-	at, err := strconv.Atoi(number)
-	if err != nil || at < 1 {
-		t.Errorf("%s:%d writes at=%s, whose line is not a number", proseFigureLedger, entry.source, entry.at)
-		return
-	}
-	source, err := os.ReadFile(filepath.Join(repositoryRoot, filepath.FromSlash(where)))
+	source, err := os.ReadFile(filepath.Join(repositoryRoot, filepath.FromSlash(entry.at)))
 	if err != nil {
 		t.Errorf("%s:%d points at %s, which cannot be read: %v", proseFigureLedger, entry.source, entry.at, err)
 		return
 	}
-	lines := strings.Split(strings.ReplaceAll(string(source), "\r\n", "\n"), "\n")
-	if at > len(lines) {
-		t.Errorf("%s:%d points at %s, and %s carries %d lines", proseFigureLedger, entry.source, entry.at, where, len(lines))
-		return
-	}
-	word := regexp.MustCompile(`\b` + regexp.QuoteMeta(entry.declares) + `\b`)
-	if !word.MatchString(lines[at-1]) {
-		t.Errorf("%s:%d says %s declares %s, and line %d of %s does not carry that name:\n  %s",
-			proseFigureLedger, entry.source, entry.at, entry.declares, at, where, strings.TrimSpace(lines[at-1]))
+	name := regexp.QuoteMeta(entry.declares)
+	declaration := regexp.MustCompile(`(?m)^(?:(?:var|const|type) ` + name + `\b|func ` + name + `[(\[]|\t` + name + `\s+(?:=|[^\s=]+\s*=))`)
+	if !declaration.Match(source) {
+		t.Errorf("%s:%d says %s declares %s, and that file declares no such name", proseFigureLedger, entry.source, entry.at, entry.declares)
 	}
 }
 

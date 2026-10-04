@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -20,7 +19,12 @@ type PinnedCallSite struct {
 	// File is the call site's path from the repository root, spelled with
 	// forward slashes so the entry reads the same on either platform.
 	File string
-	// Line is the line the call starts on.
+	// Func is the declaration enclosing the call, spelled Name for a function
+	// and Recv.Name for a method, so an entry does not move when unrelated
+	// lines above it are added or removed.
+	Func string
+	// Line is the line the call starts on, filled by the parser for the
+	// failure message and never declared.
 	Line int
 	// Reason says why this surface is allowed to answer in one language.
 	Reason string
@@ -29,11 +33,11 @@ type PinnedCallSite struct {
 // declaredPinnedCallSites is the reviewed inventory, seeded with the three
 // call sites Agent Code Review found on dinah-245.
 var declaredPinnedCallSites = []PinnedCallSite{
-	{File: "internal/mcp/mcp.go", Line: 251, Reason: "a wait notice rides the MCP surface, which is deliberately pinned to English; dinah-640"},
-	{File: "internal/mcp/mcp.go", Line: 385, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/mcp/tools.go", Line: 420, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/mcp/tools.go", Line: 605, Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
-	{File: "internal/verb/reshape.go", Line: 1352, Reason: "the comment a reshape stores on a withdrawn standing item is a record every later reader opens, whatever language they read in, so it is written in the base language rather than the operator's; dinah-593"},
+	{File: "internal/mcp/mcp.go", Func: "waitNotices.send", Reason: "a wait notice rides the MCP surface, which is deliberately pinned to English; dinah-640"},
+	{File: "internal/mcp/mcp.go", Func: "workingAgreement", Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/mcp/tools.go", Func: "toolList", Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/mcp/tools.go", Func: "schemaFor", Reason: "the MCP surface is deliberately pinned to English; dinah-245"},
+	{File: "internal/verb/reshape.go", Func: "Library.withdrawInstancesOf", Reason: "the comment a reshape stores on a withdrawn standing item is a record every later reader opens, whatever language they read in, so it is written in the base language rather than the operator's; dinah-593"},
 }
 
 // scanDirs are the directories this guard parses, named relative to this
@@ -56,16 +60,16 @@ func TestEveryLanguagePinnedCallSiteIsDeclared(t *testing.T) {
 	found := findPinnedCallSites(t)
 	declared := map[string]bool{}
 	for _, site := range declaredPinnedCallSites {
-		declared[site.File+":"+strconv.Itoa(site.Line)] = true
+		declared[site.File+" "+site.Func] = true
 	}
 	seen := map[string]bool{}
 	for _, site := range found {
-		key := site.File + ":" + strconv.Itoa(site.Line)
+		key := site.File + " " + site.Func
 		seen[key] = true
 		if declared[key] {
 			continue
 		}
-		t.Errorf("%s:%d: msg.For is called with a fixed language and is not in declaredPinnedCallSites; parameterize it on the caller's language, or add it there with a reason", site.File, site.Line)
+		t.Errorf("%s:%d: msg.For is called with a fixed language in %s and is not in declaredPinnedCallSites; parameterize it on the caller's language, or add it there with a reason", site.File, site.Line, site.Func)
 	}
 	for key := range declared {
 		if seen[key] {
@@ -113,31 +117,64 @@ func findPinnedCallSites(t *testing.T) []PinnedCallSite {
 func pinnedCallsIn(t *testing.T, fset *token.FileSet, file *ast.File, path string) []PinnedCallSite {
 	var out []PinnedCallSite
 	rel := repoPath(t, path)
-	ast.Inspect(file, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok || len(call.Args) != 1 {
+	for _, decl := range file.Decls {
+		enclosing := pinnedDeclName(decl)
+		ast.Inspect(decl, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok || len(call.Args) != 1 {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "For" {
+				return true
+			}
+			pkg, ok := sel.X.(*ast.Ident)
+			if !ok || pkg.Name != "msg" {
+				return true
+			}
+			line := fset.Position(call.Pos()).Line
+			switch arg := call.Args[0].(type) {
+			case *ast.BasicLit:
+				out = append(out, PinnedCallSite{File: rel, Func: enclosing, Line: line, Reason: "msg.For called with a string literal"})
+			case *ast.SelectorExpr:
+				if arg.Sel.Name == "Base" {
+					out = append(out, PinnedCallSite{File: rel, Func: enclosing, Line: line, Reason: "msg.For called with msg.Base"})
+				}
+			}
 			return true
+		})
+	}
+	return out
+}
+
+// pinnedDeclName names a top-level declaration the way declaredPinnedCallSites
+// spells it: Name for a function, Recv.Name for a method, and the first name
+// a var or const declaration binds for anything else.
+func pinnedDeclName(decl ast.Decl) string {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		if d.Recv == nil || len(d.Recv.List) == 0 {
+			return d.Name.Name
 		}
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "For" {
-			return true
+		recv := d.Recv.List[0].Type
+		if star, ok := recv.(*ast.StarExpr); ok {
+			recv = star.X
 		}
-		pkg, ok := sel.X.(*ast.Ident)
-		if !ok || pkg.Name != "msg" {
-			return true
+		if index, ok := recv.(*ast.IndexExpr); ok {
+			recv = index.X
 		}
-		line := fset.Position(call.Pos()).Line
-		switch arg := call.Args[0].(type) {
-		case *ast.BasicLit:
-			out = append(out, PinnedCallSite{File: rel, Line: line, Reason: "msg.For called with a string literal"})
-		case *ast.SelectorExpr:
-			if arg.Sel.Name == "Base" {
-				out = append(out, PinnedCallSite{File: rel, Line: line, Reason: "msg.For called with msg.Base"})
+		if ident, ok := recv.(*ast.Ident); ok {
+			return ident.Name + "." + d.Name.Name
+		}
+		return d.Name.Name
+	case *ast.GenDecl:
+		for _, spec := range d.Specs {
+			if value, ok := spec.(*ast.ValueSpec); ok && len(value.Names) > 0 {
+				return value.Names[0].Name
 			}
 		}
-		return true
-	})
-	return out
+	}
+	return ""
 }
 
 // repoPath turns a path the walk produced, which is relative to this

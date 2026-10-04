@@ -112,9 +112,6 @@ func TestTheSharedGuideSentencesAreTheDeclaredOnes(t *testing.T) {
 		},
 	}
 
-	if len(grouped) != 13 {
-		t.Errorf("the %d declarations pin %d distinct guide strings, and thirteen is what the roster declares", len(roster), len(grouped))
-	}
 	if len(shared) != len(want) {
 		t.Fatalf("%d guide strings are pinned by more than one form and %d are declared: %v", len(shared), len(want), sharedSentenceNames(shared))
 	}

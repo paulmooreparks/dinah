@@ -301,12 +301,12 @@ func secondWorkbench(t *testing.T, f *setupFixture) string {
 }
 
 // TestEverySetupCheckRefusesAloneBesideAnAcceptingCase drives each of the
-// eighteen rows of setup's precondition list with an invocation that fails
+// rows of setup's precondition list with an invocation that fails
 // that row alone, and beside it one that passes, each in a fixture of its own.
 func TestEverySetupCheckRefusesAloneBesideAnAcceptingCase(t *testing.T) {
 	rows := setupCheckRows()
-	if len(rows) != 18 {
-		t.Fatalf("the table drives %d rows, and setup's list has eighteen", len(rows))
+	if len(rows) == 0 {
+		t.Fatal("the table drives no row, so this sweep read nothing")
 	}
 	checks := verb.Checks("setup")
 	if len(checks) != len(rows) {

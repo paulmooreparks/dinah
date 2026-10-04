@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
@@ -161,6 +163,28 @@ func (b quickBlock) directive(key string) (string, bool) {
 	return "", false
 }
 
+// blockAnchor names a fenced block by its content rather than by where it
+// stands: sha: and the first eight hex digits of the SHA-256 of its body
+// lines joined by newlines. A ledger keyed on it does not move when unrelated
+// lines are added above the block, and an edit to the block's own content asks
+// for its declaration to be read again, which is what the declaration is about.
+func blockAnchor(body []string) string {
+	sum := sha256.Sum256([]byte(strings.Join(body, "\n")))
+	return "sha:" + hex.EncodeToString(sum[:])[:8]
+}
+
+// anchor is the block's blockAnchor.
+func (b quickBlock) anchor() string {
+	return blockAnchor(b.body)
+}
+
+// path is the value of a `file` block's path= directive, which is what the
+// file-block ledger keys its entries on.
+func (b quickBlock) path() string {
+	value, _ := b.directive("path")
+	return value
+}
+
 // commandBlock reports whether any line of a block's body opens `$ `, which is
 // what makes it a transcript rather than a listing. The replay that drives a
 // console-fenced block selects on the fence rather than on a block's first
@@ -305,10 +329,10 @@ func (b quickBlock) steps() []quickStep {
 // not drive, or a marker-shaped line that is a block's content rather than a
 // fence.
 type quickExemption struct {
-	// at is the line the entry names: a block's opening fence, or the
-	// declared inner marker itself.
-	at int
-	// inner says the entry declares a marker-shaped line inside a block.
+	// at is the blockAnchor of the block the entry names.
+	at string
+	// inner says the entry declares the marker-shaped lines inside the named
+	// block as its content rather than as fences.
 	inner bool
 	// reason is why, and it is required.
 	reason string
@@ -355,8 +379,9 @@ func readQuickStartExemptions(t *testing.T) []quickExemption {
 	return entries
 }
 
-// parseExemption reads one entry. The first word is the line the entry names,
-// optionally preceded by `inner` for a declared marker-shaped line.
+// parseExemption reads one entry. The first word is the blockAnchor of the
+// block the entry names, optionally preceded by `inner` for a block whose
+// marker-shaped lines are content.
 func parseExemption(line string) (quickExemption, error) {
 	entry := quickExemption{}
 	first, rest, _ := strings.Cut(line, " ")
@@ -364,11 +389,10 @@ func parseExemption(line string) (quickExemption, error) {
 		entry.inner = true
 		first, rest, _ = strings.Cut(rest, " ")
 	}
-	at, err := strconv.Atoi(first)
-	if err != nil {
-		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the line it names", first)
+	if !strings.HasPrefix(first, "sha:") || len(first) != 12 {
+		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the anchor of the block it names, sha: and eight hex digits", first)
 	}
-	entry.at = at
+	entry.at = first
 	for key, value := range splitDirectives(rest, exemptionKeys) {
 		switch key {
 		case "reason":
@@ -447,8 +471,8 @@ var fileBlockKeys = []string{"teaches", "reason", "because"}
 // quickFileEntry is one entry of the file-block ledger: one `file` block, and
 // the frontmatter keys it is allowed to differ from the sandbox about.
 type quickFileEntry struct {
-	// at is the one-based line the block's opening fence stands on.
-	at int
+	// at is the value of the block's path= directive.
+	at string
 	// teaches are the keys the block declares, whose values the document
 	// keeps. teachesNone says the block declares none, and because carries
 	// why.
@@ -495,17 +519,17 @@ func readQuickStartFileBlocks(t *testing.T) []quickFileEntry {
 	return entries
 }
 
-// parseFileBlockEntry reads one entry, whose first word is the line its
-// block's opening fence stands on. The word `unwritten` may follow it, and it
-// is a bare word rather than a directive because it takes no value.
+// parseFileBlockEntry reads one entry, whose first word is path= and the path
+// its block's fence declares. The word `unwritten` may follow it, and it is a
+// bare word rather than a directive because it takes no value.
 func parseFileBlockEntry(line string) (quickFileEntry, error) {
 	entry := quickFileEntry{}
 	first, rest, _ := strings.Cut(line, " ")
-	at, err := strconv.Atoi(first)
-	if err != nil {
-		return entry, fmt.Errorf("the entry opens %q, and an entry opens with the line its block's fence stands on", first)
+	path, ok := strings.CutPrefix(first, "path=")
+	if !ok || path == "" {
+		return entry, fmt.Errorf("the entry opens %q, and an entry opens with path= and the path its block's fence declares", first)
 	}
-	entry.at = at
+	entry.at = path
 	if word, remainder, _ := strings.Cut(rest, " "); word == "unwritten" {
 		entry.unwritten = true
 		rest = remainder
@@ -544,12 +568,12 @@ func parseFileBlockEntry(line string) (quickFileEntry, error) {
 	return entry, nil
 }
 
-// holdingFor returns the entry naming a block's fence, and a zero entry when
+// holdingFor returns the entry naming a block's path, and a zero entry when
 // no entry names it. checkFileBlockEntries is what reports the absence, so the
 // replay does not have to.
-func holdingFor(entries []quickFileEntry, fence int) quickFileEntry {
+func holdingFor(entries []quickFileEntry, block quickBlock) quickFileEntry {
 	for _, entry := range entries {
-		if entry.at == fence {
+		if entry.at == block.path() {
 			return entry
 		}
 	}
@@ -566,22 +590,25 @@ func holdingFor(entries []quickFileEntry, fence int) quickFileEntry {
 // block cannot fall out of the ledger by being one the comparison never reads.
 func checkFileBlockEntries(t *testing.T, blocks []quickBlock, entries []quickFileEntry) {
 	t.Helper()
-	standing := map[int]bool{}
+	standing := map[string]bool{}
 	for _, block := range blocks {
 		if block.kind != "file" {
 			continue
 		}
-		standing[block.fence] = true
+		if standing[block.path()] {
+			t.Errorf("%s:%d opens a second `file` block declaring path=%s, and the ledger keys each block on its path", quickStartPath, block.fence, block.path())
+		}
+		standing[block.path()] = true
 		named := false
 		for _, entry := range entries {
-			if entry.at == block.fence {
+			if entry.at == block.path() {
 				named = true
 				break
 			}
 		}
 		if !named {
-			t.Errorf("%s:%d opens a `file` block and %s carries no entry for it; declare which frontmatter keys the block teaches",
-				quickStartPath, block.fence, quickStartFileBlocks)
+			t.Errorf("%s:%d opens a `file` block and %s carries no entry for it; declare which frontmatter keys the block teaches, under path=%s",
+				quickStartPath, block.fence, quickStartFileBlocks, block.path())
 		}
 	}
 	if len(standing) == 0 {
@@ -591,8 +618,8 @@ func checkFileBlockEntries(t *testing.T, blocks []quickBlock, entries []quickFil
 		if standing[entry.at] {
 			continue
 		}
-		t.Errorf("%s:%d: the entry names %s:%d, and no `file` block opens there",
-			quickStartFileBlocks, entry.source, quickStartPath, entry.at)
+		t.Errorf("%s:%d: the entry names path=%s, and no `file` block of %s declares it",
+			quickStartFileBlocks, entry.source, entry.at, quickStartPath)
 	}
 }
 
@@ -1012,10 +1039,21 @@ func quickStartCorpus(t *testing.T) ([]string, []quickBlock, []quickExemption) {
 	if len(entries) == 0 {
 		t.Fatalf("%s names no block, so the exemption rules read nothing", quickStartExemptions)
 	}
-	inner := map[int]bool{}
+	innerBlocks := map[string]bool{}
 	for _, entry := range entries {
 		if entry.inner {
-			inner[entry.at] = true
+			innerBlocks[entry.at] = true
+		}
+	}
+	inner := map[int]bool{}
+	for _, block := range blocks {
+		if !innerBlocks[block.anchor()] {
+			continue
+		}
+		for i, line := range block.body {
+			if quickStartMarkerRun(line) != 0 {
+				inner[block.bodyAt+i] = true
+			}
 		}
 	}
 	if !fencesAreWhole(t, lines, blocks, inner) {
@@ -1236,44 +1274,50 @@ func checkSeparatorRowsMatchTheirTables(t *testing.T, blocks []quickBlock) {
 // fails, and a quotes=none entry carrying no because= fails.
 func checkExemptionEntries(t *testing.T, blocks []quickBlock, entries []quickExemption) {
 	t.Helper()
-	exempt := map[int]bool{}
+	exempt := map[string]int{}
+	anchors := map[string]bool{}
 	for _, block := range blocks {
+		anchors[block.anchor()] = true
 		if block.kind == "console" && block.exempt() {
-			exempt[block.fence] = true
+			exempt[block.anchor()] = block.fence
 		}
 	}
-	named := map[int]bool{}
+	named := map[string]bool{}
 	for _, entry := range entries {
 		if strings.TrimSpace(entry.reason) == "" {
-			t.Errorf("%s:%d: the entry for line %d carries no reason, and an entry is a finding rather than a line of configuration",
+			t.Errorf("%s:%d: the entry for the block %s carries no reason, and an entry is a finding rather than a line of configuration",
 				quickStartExemptions, entry.source, entry.at)
 		}
 		if entry.inner {
+			if !anchors[entry.at] {
+				t.Errorf("%s:%d: the inner entry names the block %s, and no block of %s carries that anchor",
+					quickStartExemptions, entry.source, entry.at, quickStartPath)
+			}
 			continue
 		}
 		named[entry.at] = true
-		if !exempt[entry.at] {
-			t.Errorf("%s:%d: the entry names the block at %s:%d, which the replay drives",
-				quickStartExemptions, entry.source, quickStartPath, entry.at)
+		if _, standing := exempt[entry.at]; !standing {
+			t.Errorf("%s:%d: the entry names the block %s, which either the replay drives or %s no longer carries",
+				quickStartExemptions, entry.source, entry.at, quickStartPath)
 		}
 		if !entry.declared {
-			t.Errorf("%s:%d: the entry for the block at %s:%d declares neither quotes= nor quotes=none",
-				quickStartExemptions, entry.source, quickStartPath, entry.at)
+			t.Errorf("%s:%d: the entry for the block %s declares neither quotes= nor quotes=none",
+				quickStartExemptions, entry.source, entry.at)
 		}
 		if entry.quotesNone && strings.TrimSpace(entry.because) == "" {
-			t.Errorf("%s:%d: the entry for the block at %s:%d declares quotes=none and does not say because what",
-				quickStartExemptions, entry.source, quickStartPath, entry.at)
+			t.Errorf("%s:%d: the entry for the block %s declares quotes=none and does not say because what",
+				quickStartExemptions, entry.source, entry.at)
 		}
 	}
-	var missing []int
-	for fence := range exempt {
-		if !named[fence] {
-			missing = append(missing, fence)
+	var missing []string
+	for anchor := range exempt {
+		if !named[anchor] {
+			missing = append(missing, anchor)
 		}
 	}
-	sort.Ints(missing)
-	for _, fence := range missing {
-		t.Errorf("%s:%d: the replay does not drive this block and %s does not name it", quickStartPath, fence, quickStartExemptions)
+	sort.Strings(missing)
+	for _, anchor := range missing {
+		t.Errorf("%s:%d: the replay does not drive this block and %s does not name it; its entry opens %s", quickStartPath, exempt[anchor], quickStartExemptions, anchor)
 	}
 	if len(exempt) == 0 {
 		t.Error("no block of the document is exempt, so the exemption rules read nothing")
@@ -1392,7 +1436,7 @@ func replayQuickStart(t *testing.T, blocks []quickBlock, columns string, holding
 	for _, block := range blocks {
 		switch {
 		case block.kind == "file":
-			writeNarrativeFile(t, cwd, block, holdingFor(holding, block.fence), report)
+			writeNarrativeFile(t, cwd, block, holdingFor(holding, block), report)
 		case block.kind == "console" && !block.exempt():
 			capture, next := replayBlock(t, cwd, block)
 			captured[block.fence] = capture

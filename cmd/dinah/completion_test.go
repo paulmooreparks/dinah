@@ -334,8 +334,8 @@ func TestEveryCompleterHasAResolver(t *testing.T) {
 			t.Errorf("a resolver answers %q, which verb.Completers does not declare", name)
 		}
 	}
-	if len(completers) != len(verb.Completers) || len(completers) != 23 {
-		t.Errorf("checked %d resolvers against %d completers, wanted 23 of each", len(completers), len(verb.Completers))
+	if len(completers) != len(verb.Completers) || len(completers) == 0 {
+		t.Errorf("checked %d resolvers against %d completers, wanted the same non-zero number of each", len(completers), len(verb.Completers))
 	}
 	for _, flag := range globalFlags {
 		if flag.marker {

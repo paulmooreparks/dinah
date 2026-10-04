@@ -31,8 +31,8 @@ func TestTheShowIndexKeysReachEveryCatalogue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("glob the catalogues: %v", err)
 	}
-	if len(files) != 8 {
-		t.Fatalf("the catalogue directory holds %d files and the tool carries eight: %v", len(files), files)
+	if len(files) == 0 {
+		t.Fatal("the catalogue directory holds no file")
 	}
 	translated := map[string]bool{"de": true, "hi": true}
 
@@ -86,7 +86,7 @@ func TestTheShowIndexKeysReachEveryCatalogue(t *testing.T) {
 		}
 	}
 	t.Logf("%d catalogue files enumerated, %d entries read", len(files), entries)
-	if entries != 48 {
-		t.Fatalf("the sweep read %d entries and six keys across eight catalogues is forty-eight", entries)
+	if entries != len(keys)*len(files) {
+		t.Fatalf("the sweep read %d entries, and %d keys across %d catalogues is %d", entries, len(keys), len(files), len(keys)*len(files))
 	}
 }

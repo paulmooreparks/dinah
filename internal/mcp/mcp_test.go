@@ -164,12 +164,6 @@ func payload(t *testing.T, answer *response) map[string]any {
 // surface declares and no other, that each input schema is generated from the
 // same parameter list the cli head composes its syntax from, and that the
 // commands bound to a shell and a filesystem get no tool.
-//
-// The count below is the suite's own record of how wide the surface is, and it
-// moves whenever a card adds a command or takes one away. Anything outside
-// this package that wants to know how many tools the head serves reads this
-// number rather than carrying its own copy, because a copy freezes a set that
-// grows and is stale the next time a command lands.
 func TestToolSurfaceIsTheProjection(t *testing.T) {
 	library := newLibrary(t)
 	answer := ask(t, library, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
@@ -187,8 +181,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 	if err := json.Unmarshal(encoded, &listed); err != nil {
 		t.Fatalf("tools/list: %v", err)
 	}
-	if len(listed.Tools) != 52 {
-		t.Errorf("wanted fifty-two tools, got %d", len(listed.Tools))
+	if len(listed.Tools) != len(tools) {
+		t.Errorf("tools/list carried %d tools and the table declares %d", len(listed.Tools), len(tools))
 	}
 	names := map[string]bool{}
 	for _, tool := range listed.Tools {
@@ -217,8 +211,8 @@ func TestToolSurfaceIsTheProjection(t *testing.T) {
 			t.Errorf("%s: every tool takes an actor", tool.Name)
 		}
 	}
-	for _, wanted := range []string{"claim", "move", "pull", "release", "block", "unblock", "add_card", "list", "next_card", "query", "workbench", "workstream", "join_workstream", "leave_workstream"} {
-		if !names[wanted] {
+	for _, entry := range tools {
+		if wanted := entry.name; !names[wanted] {
 			t.Errorf("the surface is missing the tool %s", wanted)
 		}
 	}

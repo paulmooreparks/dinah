@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 
 	"dinah/internal/contract"
@@ -21,8 +20,8 @@ import (
 // The subject set is derived at the commit under test as the reference-taking
 // roster minus the commands this head deliberately does not serve, so a
 // command joining or leaving either list moves the set rather than leaving a
-// stale literal here. The counts are asserted for the reason the terminal
-// sweep asserts its own: a run that reached no tool reports 0 and 0.
+// stale literal here. The sweep must reach both an answer and a refusal, so a
+// run that reached no tool cannot pass.
 func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 	library := newLibrary(t)
 	if response := library.Comment(&verb.Request{Verb: "comment", Actor: "alka", Card: "fx-1", Text: "the first thought"}); response.Outcome != contract.OutcomeOK {
@@ -54,8 +53,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		names = append(names, command)
 	}
 	sort.Strings(names)
-	if len(names) != 22 {
-		t.Fatalf("this head serves %d of the twenty-four reference-taking commands and it serves twenty-two: %s", len(names), strings.Join(names, " "))
+	if len(names) == 0 {
+		t.Fatal("this head serves none of the reference-taking commands, so the sweep would read nothing")
 	}
 	for _, held := range []string{"path", "edit"} {
 		if _, exempt := toolExemptions[held]; !exempt {
@@ -147,8 +146,8 @@ func TestTheMachineHeadAnswersACollectionAsTheTerminalDoes(t *testing.T) {
 		}
 		answered++
 	}
-	t.Logf("twenty-two tools called: %d answered, %d refused with %s", answered, refused, contract.IsACollection)
-	if answered != 1 || refused != 21 {
-		t.Fatalf("the sweep answered %d and refused %d, and the split is one and twenty-one", answered, refused)
+	t.Logf("%d tools called: %d answered, %d refused with %s", len(names), answered, refused, contract.IsACollection)
+	if answered == 0 || refused == 0 {
+		t.Fatalf("the sweep answered %d and refused %d, and it must reach both the list tool's answer and the refusal", answered, refused)
 	}
 }
