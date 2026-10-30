@@ -58,6 +58,9 @@ $results = $suites | ForEach-Object -ThrottleLimit $Jobs -Parallel {
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError = $true
+  # Node writes UTF-8; the console code page must not decode its output.
+  $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
+  $psi.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
   $proc = [System.Diagnostics.Process]::Start($psi)
   $stdOut = $proc.StandardOutput.ReadToEndAsync()
   $stdErr = $proc.StandardError.ReadToEndAsync()

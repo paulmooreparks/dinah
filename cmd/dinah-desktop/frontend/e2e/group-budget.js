@@ -34,7 +34,7 @@ const { launch } = require('./lib/page');
   const open = async key => {
     await page.evaluate(k => dinahWorkbench.open({ kind: 'bus-room', path: k }), key);
     const win = page.locator('.win[data-win-kind="bus-room"]').filter({ has: page.locator('.win-title', { hasText: { 'open-group': 'Open Group', 'counted-group': 'Counted Group', 'spent-group': 'Spent Group' }[key] }) });
-    await win.locator('.group-members .group-turn-budget').waitFor();
+    await win.locator('.group-toolbar .group-turn-budget').waitFor();
     return win;
   };
   const raise = win => win.evaluate(el => pudlWindows.raise(el.dataset.win));

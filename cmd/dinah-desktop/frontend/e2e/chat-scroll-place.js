@@ -49,7 +49,10 @@ const { launch } = require('./lib/page');
        worth, far under the message heights that were being lost. */
     ok('the place holds across ' + what, after !== false && read !== null && Math.abs(read - before) < 12, 'before ' + before + ' after ' + read);
   }
-  function scrollTo(log, text) {
+  async function scrollTo(log, text) {
+    await p.locator(log).focus();
+    await p.keyboard.press('Control+Home');
+    await p.waitForFunction(sel => document.querySelector(sel).dataset.following === 'false', log);
     return p.evaluate(([sel, text]) => {
       const log = document.querySelector(sel);
       const top = log.getBoundingClientRect().top;

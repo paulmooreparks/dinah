@@ -235,7 +235,7 @@
         var line = a.querySelector('.browser-row-line');
         line.classList.add('chat-state-line');
         line.appendChild(window.dinahChatState.badge(s.info, { className: 'session-badge' }));
-        if (needsCount(id)) line.appendChild(window.dinahBrowserList.badge({ text: needsCount(id), kind: 'warn', cls: 'session-attention', label: needsCount(id) + ' questions wait for you' }));
+        if (needsCount(id)) line.appendChild(window.dinahBrowserList.badge({ text: needsCount(id), kind: 'warn', cls: 'session-attention', label: needsCount(id) === 1 ? '1 question waits for you' : needsCount(id) + ' questions wait for you' }));
         if (window.dinahTeams && window.dinahTeams.aggregate) {
           var aggregate = s.info.team || window.dinahTeams.aggregate(id);
           if (aggregate) line.appendChild(window.dinahChatState.badge(aggregate, { className: 'team-stuck-badge' }));

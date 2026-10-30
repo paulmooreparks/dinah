@@ -1068,6 +1068,8 @@
         : s.loading ? 'Reopening the session and its history…'
         : s.failed ? agentName() + ' could not open this session.'
         : s.stopping ? 'Stop was asked for. ' + agentName() + ' is finishing what it is doing.'
+        : waitingApproval(s.id) ? 'Waiting for your approval.'
+        : s.info.switch && s.info.switch.stage ? 'Switching to ' + switchTargetName(s.info.switch) + '. ' + (s.info.switch.label || '')
         : state.exec && state.exec.why ? state.exec.why
         : state.life === 'closed' || state.life === 'retired' ? 'This session has ended. Send a message to carry it on.'
         : '';
