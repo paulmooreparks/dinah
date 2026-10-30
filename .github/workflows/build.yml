@@ -1,0 +1,131 @@
+# Builds Dinah for Windows, Linux and macOS on every push to master and
+# publishes the result as the "latest" prerelease, replacing the one before it,
+# so that the newest build can always be downloaded from the same place.
+#
+# go.mod replaces dinah-extension-go with a sibling folder, so that repository
+# is checked out beside this one. Its main branch has to contain whatever this
+# commit needs from it.
+#
+# These builds are not tested here. The gates run on the workstation before
+# anything reaches master; this workflow only builds and publishes.
+name: Build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-master
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows-amd64, os: windows-latest, goos: windows, goarch: amd64 }
+          - { name: windows-arm64, os: windows-latest, goos: windows, goarch: arm64 }
+          - { name: linux-amd64, os: ubuntu-24.04, goos: linux, goarch: amd64 }
+          - { name: linux-arm64, os: ubuntu-24.04-arm, goos: linux, goarch: arm64 }
+          - { name: macos-universal, os: macos-latest, goos: darwin, goarch: universal }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: dinah
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: dinah
+      - uses: actions/checkout@v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: dinah/go.mod
+          cache-dependency-path: dinah/go.sum
+
+      - name: Install the Linux webview libraries
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Build for Windows
+        if: matrix.goos == 'windows'
+        env:
+          GOOS: windows
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          mkdir -p ../out
+          go build -trimpath -o ../out/dinah.exe ./cmd/dinah
+          go build -trimpath -tags desktop,production -ldflags "-H windowsgui" -o ../out/dinah-desktop.exe ./cmd/dinah-desktop
+          cd ../out && 7z a "../dinah-${{ matrix.name }}.zip" dinah.exe dinah-desktop.exe
+
+      - name: Build for Linux
+        if: matrix.goos == 'linux'
+        run: |
+          mkdir -p ../out
+          CGO_ENABLED=0 go build -trimpath -o ../out/dinah ./cmd/dinah
+          CGO_ENABLED=1 go build -trimpath -tags desktop,production,webkit2_41 -o ../out/dinah-desktop ./cmd/dinah-desktop
+          tar -C ../out -czf "../dinah-${{ matrix.name }}.tar.gz" dinah dinah-desktop
+
+      - name: Build for macOS
+        if: matrix.goos == 'darwin'
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          PLATFORM=darwin/universal sh tools/macos-build/build-macos.sh
+          mkdir -p ../out
+          CGO_ENABLED=0 GOARCH=arm64 go build -trimpath -o ../out/dinah-arm64 ./cmd/dinah
+          CGO_ENABLED=0 GOARCH=amd64 go build -trimpath -o ../out/dinah-amd64 ./cmd/dinah
+          lipo -create -output ../out/dinah ../out/dinah-arm64 ../out/dinah-amd64
+          rm ../out/dinah-arm64 ../out/dinah-amd64
+          ditto cmd/dinah-desktop/build/bin/Dinah.app ../out/Dinah.app
+          cd ../out && ditto -c -k --keepParent Dinah.app "../dinah-${{ matrix.name }}.zip" && zip -j "../dinah-${{ matrix.name }}.zip" dinah
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dinah-${{ matrix.name }}
+          path: dinah-${{ matrix.name }}.*
+          if-no-files-found: error
+
+  publish:
+    name: Publish the latest build
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Replace the latest prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat > notes.md <<EOF
+          The newest build of master, from commit ${GITHUB_SHA}. It is replaced on every push, and it is not a release.
+
+          Each archive holds the command line, \`dinah\`, and the window, \`dinah-desktop\` (Dinah.app on macOS). Put them in \`~/.dinah/bin\` (\`%USERPROFILE%\\.dinah\\bin\` on Windows); on macOS, Dinah.app can go in Applications.
+
+          Linux needs GTK 3 and WebKitGTK 4.1: on Debian 12 or Ubuntu 22.04 and later, \`sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0\`.
+
+          The macOS app is signed ad hoc, not by Apple, so macOS refuses to open it after a download until its quarantine mark is removed: \`xattr -dr com.apple.quarantine Dinah.app\`.
+
+          SHA256SUMS lists the checksum of each file.
+          EOF
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest --target "$GITHUB_SHA" --prerelease --title "Latest build of master" --notes-file notes.md dinah-* SHA256SUMS
