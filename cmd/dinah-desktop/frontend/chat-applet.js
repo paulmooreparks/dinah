@@ -1410,6 +1410,7 @@
       if (!marker) {
         marker = document.createElement('li');
         marker.className = 'activity-row trimmed-row';
+        marker.setAttribute('data-scroll-anchor-skip', '');
         marker.innerHTML = '<time class="activity-time"></time><span class="activity-muted trimmed-words"></span>';
         var open = document.createElement('button');
         open.type = 'button'; open.className = 'btn btn-sm'; open.textContent = 'Show the Chat Log';
