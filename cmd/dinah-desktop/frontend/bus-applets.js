@@ -593,6 +593,7 @@
     listeners.add(redraw);
     draw();
     return { draw: draw, focus: function () { box.text.focus(); },
+      navigate: navigation.navigate,
       destroy: function () { disposed = true; navigation.destroy(); if (box.dispose) box.dispose(); window.dinahRender.cancel(draw); listeners.delete(redraw); } };
   }
 
@@ -762,7 +763,7 @@
       var row = root.querySelector('[data-bus-message="' + targetMessage + '"]');
       if (!row) return;
       root.querySelectorAll('.bus-target-message').forEach(function (n) { n.classList.remove('bus-target-message'); });
-      targetPending = false; row.classList.add('bus-target-message'); row.scrollIntoView({ block: 'center' });
+      targetPending = false; row.classList.add('bus-target-message'); c.navigate(row);
     }
     function targetSoon() {
       if (targetFrame || !targetMessage || !targetPending) return;

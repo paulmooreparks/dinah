@@ -5,7 +5,7 @@
   var node = window.dinahHelpers.node;
   function mount(o) {
     var log = o.log, content = o.content, disposed = false, following = true;
-    var frame = 0;
+    var frame = 0, navigationTarget = null;
     var known = new Map(), unseen = new Map(), started = false, sequence = 0, localKeys = new WeakMap(), seenSignature = '';
     log.setAttribute('data-follow-end', '');
     log.tabIndex = log.tabIndex < 0 ? 0 : log.tabIndex;
@@ -30,11 +30,12 @@
     function setFollowing(value) {
       following = !!value;
       log.dataset.following = String(following);
-      if (following) window.dinahChatText.releasePlace(log);
+      if (following) { navigationTarget = null; window.dinahChatText.releasePlace(log); }
       if (o.followingChanged) o.followingChanged(following);
       jump.hidden = following || !log.clientHeight || atEnd();
     }
     function release() {
+      navigationTarget = null;
       window.dinahChatText.releasePlace(log);
       if (window.dinahUIState) window.dinahUIState.releaseScroll(log);
     }
@@ -108,9 +109,20 @@
       if (disposed || !following || o.canTail && !o.canTail()) return;
       schedule();
     }
+    function centreTarget() {
+      if (!navigationTarget) return;
+      if (!navigationTarget.isConnected) { navigationTarget = null; return; }
+      var viewport = log.getBoundingClientRect(), row = navigationTarget.getBoundingClientRect();
+      var shift = (row.top + row.bottom - viewport.top - viewport.bottom) / 2;
+      if (Math.abs(shift) > 0.5) log.scrollTop += shift;
+    }
+    function navigate(row) {
+      release(); setFollowing(false); navigationTarget = row;
+      centreTarget(); schedule();
+    }
     function schedule() {
       if (disposed || frame) return;
-      frame = requestAnimationFrame(function () { frame = 0; if (disposed) return; if (following && (!o.canTail || o.canTail())) scroll(); else updateSeen(); });
+      frame = requestAnimationFrame(function () { frame = 0; if (disposed) return; if (following && (!o.canTail || o.canTail())) scroll(); else { updateSeen(); centreTarget(); } });
     }
     function input(event) {
       if (event.type === 'keydown' && (!['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key) || event.target.closest('input, textarea, [contenteditable="true"]'))) return;
@@ -136,14 +148,14 @@
     return {
       pause: function () { release(); setFollowing(false); },
       resetMessages: function () { known.clear(); unseen.clear(); started = false; seenSignature = ''; divider.remove(); controls.hidden = true; },
-      atEnd: atEnd, following: function () { return following; }, scroll: scroll, queueTail: queueTail, update: schedule,
+      navigate: navigate, atEnd: atEnd, following: function () { return following; }, scroll: scroll, queueTail: queueTail, update: schedule,
       keep: function (run, deferTail) {
         if (!following) return window.dinahChatText.keepPlace(log, run);
         window.dinahChatText.releasePlace(log); var result = run(); if (!deferTail) scroll(true); return result;
       },
       position: function (value) {
         if (!value) return { following: following, top: log.scrollTop };
-        setFollowing(value.following); log.scrollTop = following ? log.scrollHeight : value.top; schedule();
+        release(); setFollowing(value.following); log.scrollTop = following ? log.scrollHeight : value.top; schedule();
       },
       destroy: function () {
         disposed = true; if (frame) cancelAnimationFrame(frame); mutation.disconnect(); resize.disconnect(); controls.remove(); divider.remove();

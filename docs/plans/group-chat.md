@@ -183,3 +183,5 @@ The shared transcript carries a `data-follow-end` attribute. The workbench saves
 The expanded member strip occupies at most 40% of the group window body and scrolls within that area. Short chips share rows when space permits. Folding the list keeps its aggregate fully visible; a large composer scrolls within the space left for it. The transcript keeps at least ten rem or 30% of the body, whichever is smaller, so member count cannot displace the conversation.
 
 Completion choices sit outside the shared composer’s scrolling body, with their height bounded by the space above it. The compact routing hint says "No replies requested." for an ordinary group and names the lead for a team group. "Who receives this?" opens the full explanation, beside the retained Mention Everyone action.
+
+Opening a linked group message uses the shared transcript’s explicit navigation API. It pauses following, releases any saved position and keeps the target centred as layout settles. Deliberate navigation releases that target, and Jump to the latest clears it and resumes following.
