@@ -45,6 +45,7 @@
        what an entry is about and the severity styles are Dinah's, given to
        the model here. */
     var notices = window.Notices.create({
+      context: liveChatState,
       style: function (el, tone) { window.dinahNotificationStyle(el, tone); },
       open: openNotice,
       openTarget: function (entry) { return entry.target && entry.target.chat ? openSession(entry.target.chat) : null; },
@@ -54,6 +55,25 @@
       error: function (err) { fail(err); },
       formatTime: function (d) { return dinahRegional.format(d, 'dayTime'); }
     });
+    function liveChatState(entry) {
+      var id = entry.target && entry.target.chat, session = id && getSession(id);
+      if (!session || !window.dinahChatState.read(session.info).life) return null;
+      var badge = window.dinahChatState.badge(session.info, { className: 'notice-chat-state' });
+      badge.title = 'Current chat state: ' + badge.textContent;
+      return badge;
+    }
+    // Historical notification tone stays separate from the chat's current state.
+    function refreshLiveStates(event) {
+      document.querySelectorAll('[data-notice-id]').forEach(function (element) {
+        var entry = notices.get(element.dataset.noticeId);
+        if (!entry || !entry.target || event.detail.id && entry.target.chat !== event.detail.id) return;
+        var earlier = element.querySelector('.notice-chat-state'), badge = liveChatState(entry);
+        if (earlier) { if (badge) earlier.replaceWith(badge); else earlier.remove(); }
+        else if (badge) (element.querySelector('.notice-content') || element).appendChild(badge);
+      });
+    }
+    document.addEventListener('dinah:session-info', refreshLiveStates);
+    document.addEventListener('dinah:execution-state', refreshLiveStates);
     /* After a resync the page has read again what it can, but a notice is a
        moment that cannot be read again, so the person is told once that some
        activity may not have been shown. A second resync updates this entry. */

@@ -2,9 +2,9 @@
 // connected by the path Reconnect Now takes: a chat whose window was
 // restored and could not reconnect by itself is reconnected in its window,
 // and a closed chat is opened without a window. A chat open in the
-// background shows the state Open in Background, with PUDL's eye-off glyph,
-// in the Group Chats pane, the picker, a group's member chips and the Chats
-// list, and one that closed itself for being idle shows Closed. The picker's
+// background shows its execution state separately from window presence
+// in the Group Chats pane, picker, member chips and Chats list. A chat
+// whose session ended shows Closed. The picker's
 // note on a closed chat says that a mention opens it in the background. The
 // page tells Dinah which chats have windows. The Group Chats pane's tab
 // reads Group Chats even in a layout saved when the pane was called Bus.
@@ -24,6 +24,7 @@ const { launch } = require('./lib/page');
       const chats = { 'C:/Work/parser': [{ sessionId: 'chat-parser', provider: 'claude', title: 'Parser Release', cwd: 'C:/Work/parser', open: false, updatedAt: '2026-10-22T08:00:00Z' }],
         'C:/Work/docs': [{ sessionId: 'chat-restored', provider: 'codex', title: 'Restored Chat', cwd: 'C:/Work/docs', open: false, updatedAt: '2026-10-22T07:00:00Z' },
           { sessionId: 'chat-outside', provider: 'ollama', title: 'Outside Chat', cwd: 'C:/Work/docs', open: false, updatedAt: '2026-10-20T07:00:00Z' }] };
+      Object.values(chats).flat().forEach(c => { c.chatState = { life: 'closed', window: false }; });
       let restoredTries = 0;
       return {
         Sessions: async () => chats['C:/Work/parser'], SessionsAt: async ws => chats[ws] || [],
@@ -37,7 +38,8 @@ const { launch } = require('./lib/page');
           if (id === 'chat-restored' && ++restoredTries === 1) throw new Error('the agent is busy');
           if (id === 'chat-outside') throw new Error('Ollama is not running');
           const c = Object.values(chats).flat().find(x => x.sessionId === id);
-          return Object.assign({}, c, { open: true, working: false, queued: [], inBackground: id === 'chat-parser' });
+          Object.assign(c, { open: true, working: false, queued: [], inBackground: id === 'chat-parser', chatState: { life: 'open', window: id !== 'chat-parser', exec: { state: 'idle', why: 'No work in progress' } } });
+          return Object.assign({}, c);
         },
         ChatWindows: async ids => { __calls.push(['windows', ids]); },
         ReadUIState: async () => ({ version: 1, values: { 'dinah-workbench-layout': '?open=workspace,bus', 'dinah-window-titles': { bus: { title: 'Bus', detail: '' } } } }), SaveUIState: async () => {},
@@ -84,24 +86,24 @@ const { launch } = require('./lib/page');
     await p.waitForTimeout(300);
     ok('a closed chat opens without a window', await p.locator('.win[data-win-kind="chat-session"]').count() === windowsBefore);
     const row = pane.locator('[data-bus-chat="chat-parser"]');
-    await row.locator('.badge.positive.background').waitFor();
-    ok('the pane shows it as Open in Background', (await row.innerText()).includes('Open in Background'));
-    const glyph = await row.locator('.badge.background').evaluate(el => getComputedStyle(el, '::before').getPropertyValue('--glyph').trim());
-    ok('Open in Background has PUDL\'s eye-off glyph', /glyph-eye-off/.test(glyph) || /svg/.test(glyph), glyph);
+    await row.locator('.chat-state-idle').waitFor();
+    ok('the pane shows Idle separately from No window', (await row.innerText()).includes('Idle'));
+    const glyph = await row.locator('.chat-state-idle').evaluate(el => getComputedStyle(el, '::before').getPropertyValue('--glyph').trim());
+    ok('Idle uses the shared hollow-circle glyph', /glyph-ring/.test(glyph) || /svg/.test(glyph), glyph);
     // The Workspace pane's list of chats is drawn as the Chats pane's is.
     const listed = p.locator('#workspace-chats [data-session-row="chat-parser"]');
-    await listed.locator('.badge.background').waitFor();
-    ok('the chat lists show it as Open in Background', (await listed.innerText()).includes('Open in Background'));
+    await listed.locator('.chat-state-idle').waitFor();
+    ok('the chat lists keep Idle separate from window presence', (await listed.innerText()).includes('Idle'));
 
     // A group's chip and the picker show the same state.
     await pane.locator('[data-bus-room="release-review"]').click();
     const room = p.locator('.win[data-win-kind="bus-room"]');
-    await room.locator('[data-group-member="window-p1"] .state-glyph.background').waitFor();
-    ok('a group\'s member chip shows Open in Background', await room.locator('[data-group-member="window-p1"] .state-glyph.background[aria-label="Open in Background"]').count() === 1);
+    await room.locator('[data-group-member="window-p1"] .chat-state-idle').waitFor();
+    ok('a group member chip shows Idle', await room.locator('[data-group-member="window-p1"] .chat-state-idle').count() === 1);
     await p.evaluate(() => window.dinahBus.startGroup(''));
     const picker = p.locator('.win[data-win-kind="group-picker"]');
     await picker.locator('[data-chat="chat-parser"]').waitFor();
-    ok('the picker shows Open in Background', (await picker.locator('[data-chat="chat-parser"]').innerText()).includes('Open in Background'));
+    ok('the picker shows Idle', (await picker.locator('[data-chat="chat-parser"]').innerText()).includes('Idle'));
     await picker.locator('[data-chat="chat-outside"]').click();
     const note = await picker.locator('[data-chat="chat-outside"] .row-note').innerText();
     ok('the picker\'s note on a closed chat says a mention opens it in the background', /closed/.test(note) && /opens it in the background/.test(note) && !/until it opens\.$/.test(note.split(';')[0]), note);
@@ -113,8 +115,8 @@ const { launch } = require('./lib/page');
     ok('a chat opened in the background that fails says why, and that its messages keep waiting', /keep waiting/.test(await p.locator('.toast', { hasText: 'Ollama is not running' }).first().innerText()));
 
     // One that closed itself for being idle is closed again.
-    await p.evaluate(() => __emit('agent:session', { sessionId: 'chat-parser', cwd: 'C:/Work/parser', title: 'Parser Release', open: true, working: false, inBackground: false, parked: true }));
-    await row.locator('.badge.background').waitFor({ state: 'detached' });
+    await p.evaluate(() => __emit('agent:session', { sessionId: 'chat-parser', cwd: 'C:/Work/parser', title: 'Parser Release', open: true, working: false, inBackground: false, parked: true, chatState: { life: 'closed', window: false } }));
+    await row.locator('.chat-state-idle').waitFor({ state: 'detached' });
     ok('a chat that closed itself in the background shows Closed', (await pane.locator('[data-bus-chat="chat-parser"]').innerText()).includes('Closed'));
     await t.shot('group-chats-background');
   } finally { await t.close(); }

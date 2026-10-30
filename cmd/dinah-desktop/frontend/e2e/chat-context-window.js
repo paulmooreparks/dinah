@@ -11,7 +11,7 @@ const { launch } = require('./lib/page');
       window.__calls = [];
       return {
         AgentProviders: async () => [window.__provider('ollama')],
-        OpenSessionAt: async (ws, id) => ({ sessionId: id, provider: 'ollama', cwd: ws, open: true }),
+        OpenSessionAt: async (ws, id) => ({ sessionId: id, provider: 'ollama', cwd: ws, open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } } }),
         ResolveHold: async (id, action) => { window.__calls.push(['resolve', id, action]); if (window.__failResolve) throw new Error('Fixture: nothing is held'); return action === 'compact' ? { sessionId: 'ollama:ctx2', provider: 'ollama', cwd: 'C:/Fixture', open: true } : { sessionId: id }; },
         ForgetContextChoice: async id => { window.__calls.push(['forget', id]); }
       };
@@ -21,7 +21,7 @@ const { launch } = require('./lib/page');
   try {
     const key = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'ollama:ctx' }));
     const win = page.locator('[data-win="' + key + '"]');
-    await page.waitForFunction(k => /waiting for you/.test(document.querySelector('[data-win="' + k + '"] [data-view-id=page-state]').textContent), key);
+    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + k + '"] [data-view-id=page-state]').textContent), key);
     const session = (extra, ver) => page.evaluate(([extra, ver]) => __emit('agent:session', Object.assign({ sessionId: 'ollama:ctx', provider: 'ollama', cwd: 'C:/Fixture', open: true, stateGen: 'g', stateVer: ver }, extra)), [extra, ver]);
     const usage = (used, size, sizeKind, windowKnown) => page.evaluate(([used, size, sizeKind, windowKnown]) => __emit('agent:update', { sessionId: 'ollama:ctx', update: { sessionUpdate: 'usage_update', used, size, sizeKind, windowKnown } }), [used, size, sizeKind, windowKnown]);
     const meter = k => win.locator('[data-view-id="usage-button"]');

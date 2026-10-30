@@ -109,7 +109,7 @@
         if (q && searchable.indexOf(q.replace(/_/g, ' ')) < 0 && searchable.replace(/\s+/g, '_').indexOf(q) < 0) return;
         var token = '@' + name.replace(/\s+/g, '_');
         if (chats.some(function (o) { return o !== s && title(o).toLowerCase() === name.toLowerCase(); })) token += ':' + encodeURIComponent(s.id);
-        out.push({ group: 'Open Chats', label: name, meta: place + ' · ' + (s.working ? 'Busy; it answers after its current turn' : 'Open chat'), ins: token, att: { kind: 'chat', sessionId: s.id, name: name } });
+        out.push({ group: 'Open Chats', label: name, meta: place + (window.dinahChatState.read(s.info).window === false ? ' · No window' : ''), state: s.info, ins: token, att: { kind: 'chat', sessionId: s.id, name: name } });
       });
       return out.slice(0, 60);
     }
@@ -190,6 +190,7 @@
           if (n === pop.sel) r.setAttribute('aria-selected', 'true');
           r.innerHTML = '<a class="md-item" href="#"><span class="mention-name"></span><span class="md-meta"></span></a>';
           r.querySelector('.mention-name').textContent = it.label;
+          if (it.state) r.firstChild.appendChild(window.dinahChatState.badge(it.state));
           r.querySelector('.md-meta').textContent = it.meta;
           r.firstChild.addEventListener('mousedown', function (e) { e.preventDefault(); });
           r.firstChild.addEventListener('click', function (e) { e.preventDefault(); pickMention(it, pop.tok); });

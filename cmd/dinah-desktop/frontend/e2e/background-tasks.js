@@ -13,7 +13,7 @@ const { launch } = require('./lib/page');
       return {
         State: async () => ({ workspace: ws, recent: [ws], approvals: 'dinah', devin: 'devin.exe', catalog: opts, defaults: {}, pinned: [], showThinking: true }),
         AgentProviders: async () => [],
-        NewSessionAt: async () => { setTimeout(() => window.__emit('agent:options', { sessionId: 'bg', options: opts }), 0); return { sessionId: 'bg', cwd: ws, title: 'Builds', open: true, working: false, queued: [] }; },
+        NewSessionAt: async () => { setTimeout(() => window.__emit('agent:options', { sessionId: 'bg', options: opts }), 0); return { sessionId: 'bg', cwd: ws, title: 'Builds', open: true, working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, queued: [] }; },
         SetSessionOption: async () => opts,
         Send: async (id, text) => { window.__calls.push(['Send', id, text]); },
         StopBackgroundTask: async (id, task) => { window.__calls.push(['Stop', id, task]); },
@@ -30,15 +30,15 @@ const { launch } = require('./lib/page');
   await p.click('.win[data-chat-current] [data-view-id=send]');
   await p.waitForTimeout(300);
   const win = '.win[data-chat-current]';
-  const state = info => p.evaluate(i => window.__emit('agent:session', Object.assign({ sessionId: 'bg', cwd: 'C:\\Work\\Parser Workspace', title: 'Builds', open: true, queued: [] }, i)), info);
+  const state = (info, execution = 'idle') => p.evaluate(([i, execution]) => window.__emit('agent:session', Object.assign({ sessionId: 'bg', cwd: 'C:\\Work\\Parser Workspace', title: 'Builds', open: true, queued: [], chatState: { life: 'open', window: true, exec: { state: execution, why: execution === 'working' ? 'Turn in progress' : 'No work in progress' } } }, i)), [info, execution]);
   const chips = () => p.evaluate(w => {
-    const el = document.querySelector(w), working = el.querySelector('.chat-working-chip'), background = el.querySelector('.chat-background-chip');
+    const el = document.querySelector(w), working = el.querySelector('.chat-working-chip .chat-state-working'), background = el.querySelector('.chat-background-chip');
     return { working: !!working && !working.hidden, background: background && !background.hidden ? background.textContent : '', line: el.querySelector('[data-view-id=page-state]').textContent, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent) };
   }, win);
   const build = { id: 'build', name: 'Build Windows', type: 'shell', description: 'go build ./...', state: 'running', canStop: true };
   const linux = { id: 'linux', name: 'Build Linux', type: 'shell', summary: 'linking', state: 'running', canStop: false };
 
-  await state({ working: true, background: [build] });
+  await state({ working: true, background: [build] }, 'working');
   await p.waitForTimeout(200);
   let c = await chips();
   ok('a turn with background work shows Working and Background 1 side by side', c.working && c.background === 'Background 1', JSON.stringify(c));
@@ -59,7 +59,7 @@ const { launch } = require('./lib/page');
   await p.waitForTimeout(200);
   c = await chips();
   ok('after the turn the chat still shows its background work, not Working', !c.working && c.background === 'Background 2', JSON.stringify(c));
-  ok('the state line says the agent waits on its background work, not on the person, and how many tasks run', c.line.includes('is waiting on its background work. 2 background tasks are running.') && !c.line.includes('waiting for you'), c.line);
+  ok('the state line keeps the engine state and background task count separate', c.line.includes('Idle') && c.line.includes('2 background tasks are running.'), c.line);
   ok('each task is listed with what it is doing', c.tasks.length === 2 && c.tasks[0].includes('Build Windows') && c.tasks[0].includes('go build ./...') && c.tasks[1].includes('linking'), JSON.stringify(c.tasks));
   ok('Stop is offered only where the agent allows it', await p.locator(win + ' .background-task button').count() === 1);
   await p.locator(win + ' .background-task button', { hasText: 'Stop' }).click();
@@ -68,14 +68,14 @@ const { launch } = require('./lib/page');
   ok('the window is marked running for the taskbar', await p.evaluate(w => document.querySelector(w).hasAttribute('data-win-running'), win));
   await t.shot('background-tasks');
 
-  await state({ working: false, background: [linux, { id: 'autonomous-turn-1', name: 'Claude is working', type: 'turn', state: 'running', canStop: true }] });
+  await state({ working: false, background: [linux, { id: 'autonomous-turn-1', name: 'Claude is working', type: 'turn', state: 'running', canStop: true }] }, 'working');
   await p.waitForTimeout(200);
   c = await chips();
-  ok('a turn the agent starts of its own shows as Working, and is not counted as background', c.working && c.background === 'Background 1' && c.line.includes('is working.'), JSON.stringify(c));
+  ok('a turn the agent starts of its own shows as Working, and is not counted as background', c.working && c.background === 'Background 1' && c.line.includes('Working'), JSON.stringify(c));
 
   await state({ working: false, background: [] });
   await p.waitForTimeout(200);
   c = await chips();
-  ok('when the work ends, the chips and the list go', !c.working && !c.background && !c.tasks.length && c.line.includes('is waiting for you.') && !c.line.includes('background'), JSON.stringify(c));
+  ok('when the work ends, the chips and the list go', !c.working && !c.background && !c.tasks.length && c.line.includes('Idle') && !c.line.includes('background'), JSON.stringify(c));
   await t.close();
 })();

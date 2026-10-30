@@ -139,6 +139,8 @@ const { launch, PAGE } = require('./lib/page');
     const chat = page.locator('.win[data-win-kind="chat-session"]');
     await chat.locator('[data-view-id="activity"]').getByText(/Paragraph 44/).waitFor();
     const chatKey = await chat.getAttribute('data-win');
+    await chat.locator('[data-view-id="activity"]').focus(); await page.keyboard.press('Control+Home');
+    await page.waitForFunction(key => document.querySelector('[data-win="' + key + '"] [data-view-id="activity"]').dataset.following === 'false', chatKey);
     await chat.locator('[data-view-id="activity"]').evaluate(el => { el.scrollTop = 200; });
     await page.waitForFunction(key => { const value = dinahUIState.get('dinah-scroll:' + key + ':activity'); return value && value.top === 200; }, chatKey);
     await page.evaluate(() => dinahUIState.flush());

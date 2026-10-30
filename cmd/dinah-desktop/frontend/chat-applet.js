@@ -734,6 +734,7 @@
          it first enters the page, which a copy of the chat-editor template does
          when it is mounted. */
       view.query('.composer-toolbar').setAttribute('data-toolbar-fold', '');
+      var composerLayout = window.dinahComposer.layout($('composer'));
       var active = item.kind === 'chat-session' ? item.path : null;
       var workspace = item.workspace || '', key = initialKey, appletOptions = null, creating = null, switchingProvider = false;
       var chosenProvider = defaultProvider;
@@ -1062,23 +1063,24 @@
     }
     function stateLine() {
       var s = active && sessions[active];
+      var state = s && window.dinahChatState.read(s.info);
       var t = !s ? 'Start a new chat, or open one from the list.'
         : s.loading ? 'Reopening the session and its history…'
         : s.failed ? agentName() + ' could not open this session.'
-        : waitingApproval(s.id) ? 'Waiting for your approval.'
-        : s.stopping && chatWorking(s) ? 'Stop was asked for. ' + agentName() + ' is finishing what it is doing.'
-        : chatWorking(s) ? agentName() + ' is working.'
-        : s.info.open && backgroundWork(s).length ? agentName() + ' is waiting on its background work.'
-        : s.info.switch && s.info.switch.stage ? 'Switching to ' + switchTargetName(s.info.switch) + '.'
-        : s.info.open ? agentName() + ' is waiting for you.'
-        : 'This session is from an earlier run. Send a message to carry it on.';
+        : s.stopping ? 'Stop was asked for. ' + agentName() + ' is finishing what it is doing.'
+        : state.exec && state.exec.why ? state.exec.why
+        : state.life === 'closed' || state.life === 'retired' ? 'This session has ended. Send a message to carry it on.'
+        : '';
       // The agent waits on its background work rather than on the person
       // (Paul, 26 October 2026); the count says how much is running.
       var work = backgroundWork(s);
       if (work.length) t += ' ' + (work.length === 1 ? '1 background task is' : work.length + ' background tasks are') + ' running.';
       var helpers = runningSubagents(s);
       if (helpers) t += ' ' + (helpers === 1 ? '1 subagent is' : helpers + ' subagents are') + ' running.';
-      $('page-state').firstElementChild.textContent = (workspace ? workspaceLabel(workspace) + ' · ' : '') + t;
+      var stateHost = $('page-state').firstElementChild;
+      stateHost.replaceChildren();
+      if (s) stateHost.appendChild(window.dinahChatState.badge(s.info, { reason: false }));
+      stateHost.appendChild(document.createTextNode((s ? ' ' : '') + (workspace ? workspaceLabel(workspace) + ' · ' : '') + t));
       $('page-state').firstElementChild.title = workspace;
       drawBackground(s, work);
       drawSwitchState(s);
@@ -1445,8 +1447,7 @@
     $('pin-go').addEventListener('click', function () {
       var s = active && sessions[active];
       if (s && s.lastYou) {
-        following = false; syncAnchor();
-        $('jump-end').hidden = false;
+        navigation.pause();
         s.lastYou.li.scrollIntoView({ block: 'start', behavior: 'smooth' });
       }
     });
@@ -1462,7 +1463,25 @@
        text may have arrived, so the event of the run's own move to the end is
        recognised by the position it left, and only a position the run did not
        set is the reader's. */
-    var following = true, placed = -1, lastExtent = -1, lastViewport = -1, lastTop = -1;
+    var following = true;
+    var navigation = window.dinahTranscript.mount({ root: root, log: $('activity'), content: $('logs'), jump: $('jump-end'),
+      ready: function () { var s = active && sessions[active]; return !s || !s.loading && !s.settling; },
+      canTail: function () { var s = active && sessions[active]; return !deleted && (!s || !s.loading && !s.settling); },
+      followingChanged: function (value) { following = value; syncAnchor(); },
+      jumped: function () { if (active && sessions[active]) sessions[active].log.removeAttribute('data-preserve-scroll-layout'); },
+      entries: function () {
+        var s = active && sessions[active]; if (!s) return [];
+        return Array.from(s.log.children).filter(function (row) { return !!row._msg; }).map(function (row) {
+          var element = row;
+          if (row.classList.contains('team-traffic-original')) {
+            var previous = row.previousElementSibling;
+            while (previous && previous.classList.contains('team-traffic-original')) previous = previous.previousElementSibling;
+            if (previous && previous.classList.contains('team-traffic-fold')) element = previous;
+          }
+          return { identity: row, element: element, eligible: row._msg.kind !== 'you' && row._msg.label !== 'You' };
+        });
+      }
+    });
     /* While the run follows its end the log does not let the browser anchor its view (CSS overflow-anchor,
        from the Scroll Anchoring specification), so the browser never moves the view as content above it
        changes size; the run keeps the end in view itself. A move away from the end is then the reader's,
@@ -1477,14 +1496,7 @@
        is back (Dinah UI's suggestion 2, message 1070). */
     // The chat's following state stays authoritative while new rows arrive.
     // The strip and traffic folds share the same navigation choice.
-    function keepChatPlace(run, deferTail) {
-      var body = $('activity');
-      if (!following) return window.dinahChatText.keepPlace(body, run);
-      window.dinahChatText.releasePlace(body);
-      var result = run();
-      if (!deferTail) scroll(true);
-      return result;
-    }
+    function keepChatPlace(run, deferTail) { return navigation.keep(run, deferTail); }
     function syncAnchor() {
       $('activity').style.overflowAnchor = 'none';
       $('activity').toggleAttribute('data-preserve-scroll-layout', !following);
@@ -1503,8 +1515,7 @@
       var body = $('activity'), anchor = appearanceAnchor;
       if (!body.clientHeight) return;
       if (anchor && !anchor.following && anchor.row && anchor.row.isConnected) {
-        body.scrollTop += anchor.row.getBoundingClientRect().top - body.getBoundingClientRect().top - anchor.offset;
-        following = false; syncAnchor(); placed = body.scrollTop; lastTop = body.scrollTop; lastExtent = body.scrollHeight; lastViewport = body.clientHeight;
+        navigation.position({ following: false, top: body.scrollTop + anchor.row.getBoundingClientRect().top - body.getBoundingClientRect().top - anchor.offset });
       } else if (following) queueTail();
       scheduleDraw();
     }
@@ -1513,90 +1524,9 @@
     document.addEventListener('dinah:appearance-change', restoreAppearance);
     ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').addEventListener(name, cancelAppearanceAnchor, { passive: true }); });
 
-    // A kept position put back by the page's saved state says whether the reader was at the end.
-    $('activity').addEventListener('dinah:scroll-restored', function () {
-      window.dinahChatText.releasePlace($('activity'));
-      var body = $('activity');
-      if (!body.clientHeight) return;
-      following = atEnd(body); syncAnchor(); placed = body.scrollTop; lastTop = body.scrollTop; lastExtent = body.scrollHeight; lastViewport = body.clientHeight;
-      $('jump-end').hidden = following;
-    });
-    function followCheck() {
-      var body = $('activity');
-      if (!body.clientHeight) return;
-      /* While the run follows, a scroll is its own when the view is where the run left it,
-         or the viewport changed (the browser moves the view by itself as it resizes), or the
-         content grew and the view is at the end or has not moved. A scroll to anywhere else
-         while only the content grew is the reader's, even in the frame of that growth:
-         telling them apart by the growth would take the reader back to the end. */
-      var viewportChanged = body.clientHeight !== lastViewport, extentChanged = body.scrollHeight !== lastExtent;
-      if (following && (body.scrollTop === placed || viewportChanged || (extentChanged && (atEnd(body) || body.scrollTop === lastTop)))) {
-        // Where the view is now was judged to be the run's: content that shrank clamps the view to the new end.
-        lastTop = body.scrollTop;
-        queueTail();
-        return;
-      }
-      lastTop = body.scrollTop;
-      following = atEnd(body);
-      if (following) window.dinahChatText.releasePlace(body);
-      syncAnchor();
-      $('jump-end').hidden = following;
-    }
-    function atEnd(body) { return body.scrollHeight - body.scrollTop - body.clientHeight < 24; }
-    // Someone other than the run has moved the view since the run last knew where it was, and not to the end,
-    // with the viewport as it was (when it changes the browser moves the view by itself).
-    function readerMoved(body) { return lastTop >= 0 && body.clientHeight === lastViewport && body.scrollTop !== lastTop && !atEnd(body); }
-    function scroll(force) {
-      var body = $('activity');
-      if (!body.clientHeight) return;
-      if (window.dinahUIState && window.dinahUIState.restorePending(body)) {
-        /* The kept position is put back now, and where it lands says whether
-           the reader was at the end; the scroll event that would say so
-           comes after the frame, too late for a resize in the same frame. */
-        window.dinahUIState.restoreNow(body);
-        if (body.clientHeight) {
-          following = atEnd(body); syncAnchor();
-          placed = body.scrollTop; lastTop = body.scrollTop;
-          lastExtent = body.scrollHeight; lastViewport = body.clientHeight;
-          $('jump-end').hidden = following;
-        }
-        return;
-      }
-      /* A tail scroll queued before the reader moved leaves them where they are. */
-      if (!force && following && readerMoved(body)) { following = false; syncAnchor(); lastTop = body.scrollTop; $('jump-end').hidden = false; lastExtent = body.scrollHeight; lastViewport = body.clientHeight; return; }
-      if (force) following = true;
-      if (following) window.dinahChatText.releasePlace(body);
-      syncAnchor();
-      if (following) { body.scrollTop = body.scrollHeight; placed = body.scrollTop; }
-      lastTop = body.scrollTop; lastExtent = body.scrollHeight; lastViewport = body.clientHeight;
-      $('jump-end').hidden = following;
-    }
-    $('activity').addEventListener('scroll', followCheck, { passive: true });
-    // Upward navigation takes precedence over output arriving in the same
-    // frame. Layout changes alone must not cancel the person's tail choice.
-    function pauseTail(event) {
-      if (event.type === 'wheel' && event.deltaY >= 0) return;
-      if (event.type === 'keydown' && (!['ArrowUp', 'PageUp', 'Home'].includes(event.key) || event.target.closest('input, textarea, [contenteditable="true"]'))) return;
-      if (event.type === 'pointerdown' && event.target !== $('activity')) return;
-      following = false; syncAnchor();
-      $('jump-end').hidden = false;
-    }
-    ['wheel', 'touchmove', 'pointerdown', 'keydown'].forEach(function (name) { $('activity').addEventListener(name, pauseTail, { passive: true }); });
-    // Content that grows without a new message, such as a rendered diagram or
-    // an opened detail, keeps the end in view too.
-    var scrollKey = {};
-    function queueTail() {
-      if (following && !deleted && !(active && sessions[active] && (sessions[active].loading || sessions[active].settling))) window.dinahRender.enqueue(scrollKey, root, function () {}, scroll);
-    }
-    var logObserver = new ResizeObserver(queueTail);
-    logObserver.observe($('logs'));
-    logObserver.observe($('activity'));
-    $('jump-end').addEventListener('click', function () {
-      window.dinahChatText.releasePlace($('activity'));
-      if (window.dinahUIState) window.dinahUIState.releaseScroll($('activity'));
-      if (active && sessions[active]) sessions[active].log.removeAttribute('data-preserve-scroll-layout');
-      scroll(true);
-    });
+    function scroll(force) { navigation.scroll(force); }
+    function queueTail() { navigation.queueTail(); }
+
 
     /* A message is the shared card (chat-text.js): the person's offers Edit
        and the agent's Quote, and both offer Copy. */
@@ -3395,8 +3325,8 @@
           });
         }}; },
         id: view.id, recoverSteering: recoverSteering, row: row, drawAll: drawAll, stampReplay: stampReplay, trimMarker: trimMarker, replayProgress: replayProgress, replayDone: replayDone, scroll: scroll,
-        prepareHistoryLayout: function (log, position) { var saved = window.dinahUIState && dinahUIState.get('dinah-scroll:' + key + ':activity'); log.toggleAttribute('data-preserve-scroll-layout', !!(position ? !position.following : saved && !saved.end)); },
-        historyPosition: function (position) { var body = $('activity'); if (!position) return { following: following, top: body.scrollTop }; following = position.following; syncAnchor(); body.scrollTop = position.top; placed = body.scrollTop; lastTop = body.scrollTop; lastExtent = body.scrollHeight; lastViewport = body.clientHeight; $('jump-end').hidden = following; },
+        prepareHistoryLayout: function (log, position) { navigation.resetMessages(); var saved = window.dinahUIState && dinahUIState.get('dinah-scroll:' + key + ':activity'); log.toggleAttribute('data-preserve-scroll-layout', !!(position ? !position.following : saved && !saved.end)); },
+        historyPosition: function (position) { return navigation.position(position); },
         scrollReady: function () { if (window.dinahUIState) window.dinahUIState.scrollReady($('activity')); },
         sessionNote: sessionNote, stateLine: stateLine, setWorking: setWorking, drawQueue: drawQueue, drawApprovals: drawApprovals,
         renderComposerOptions: renderComposerOptions, menuStates: menuStates, loadSkills: loadSkills,
@@ -3444,9 +3374,12 @@
                 if (!el) { el = document.createElement('span'); el.className = 'win-status ' + cls + (strong ? ' strong' : ''); group.appendChild(el); }
                 return el;
               };
-              var workingChip = chip('chat-working-chip', true);
-              workingChip.textContent = s && s.stopping ? 'Stopping' : 'Working';
-              workingChip.hidden = !chatWorking(s);
+              var workingChip = chip('chat-working-chip');
+              workingChip.replaceChildren();
+              workingChip.hidden = !s;
+              var execution = s && window.dinahChatState.read(s.info).exec;
+              workingChip.classList.toggle('strong', !!execution && execution.state === 'working');
+              if (s) workingChip.appendChild(window.dinahChatState.badge(s.info));
               drawLoadingChip();
               var backgroundChip = chip('chat-background-chip');
               backgroundChip.hidden = !work.length;
@@ -3487,7 +3420,7 @@
           if (deleted) root.remove(); else document.getElementById('applet-storage').appendChild(root);
           appletOptions = null;
         },
-        dispose: function () { teamPanel.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(scrollKey); window.dinahRender.cancel(drawUsage); logObserver.disconnect(); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
+        dispose: function () { composerLayout.destroy(); teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
       };
       chatControllers.set(key, controller);
       if (active) { var s = S(active); s.view = controller; $('logs').appendChild(s.log); }
@@ -3694,6 +3627,7 @@
       setContext, disposeChat, setDraftWorkspace, restorePreferences, restoreView, setupChatWindows,
       setTemplates: value => { templates = value; },
       refreshChatTitles: () => chatControllers.forEach(chat => chat.stateLine()),
+      refreshStates: () => chatControllers.forEach(chat => chat.refresh()),
       settings: {
         app, on, toast, fail, ask, productName, providerName, providerOptions,
         optValues, byCat, valueWords, modelRows, loadModelPrices, drawAgentState,

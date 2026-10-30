@@ -11,7 +11,7 @@ const { launch } = require('./lib/page');
       // is drawn, and the agent's empty replay then takes the saved copy's
       // place. On a busy machine that can come in the middle of the checks
       // on the saved copy, so the reconnect waits here until they are done.
-      OpenSessionAt: async (cwd, sessionId) => { if (sessionId === 'codex:history') await window.__reconnect; return { sessionId, cwd, provider: 'codex', open: true }; }
+      OpenSessionAt: async (cwd, sessionId) => { if (sessionId === 'codex:history') await window.__reconnect; return { sessionId, cwd, provider: 'codex', open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } } }; }
     }),
     init: () => { window.__reconnect = new Promise(resolve => { window.__letReconnect = resolve; }); },
     ready: () => document.querySelector('.chat-instance'),
@@ -23,7 +23,7 @@ const { launch } = require('./lib/page');
       pudlWindows.snap(dinahWorkbench.key({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'codex:tail' }), 'maximized');
       window.__more = () => __emit('agent:update', { sessionId: 'codex:tail', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'A paragraph of streamed output.\n\n'.repeat(60) } } });
     });
-    await p.waitForFunction(() => /waiting for you/.test(document.querySelector('.win[data-chat-current] [data-view-id=page-state]').textContent));
+    await p.waitForFunction(() => /Idle/.test(document.querySelector('.win[data-chat-current] [data-view-id=page-state]').textContent));
     const prompt = p.locator('.win[data-chat-current] [data-view-id=prompt]');
     await p.evaluate(() => {
       window.__huge = 'BEGIN\n' + ('A large message line.\n'.repeat(30000)) + 'END';

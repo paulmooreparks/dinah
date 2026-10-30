@@ -7,7 +7,6 @@
 .team-meta, .team-usage { flex-basis: 100%; padding-inline-start: var(--space-5); }
 .team-assignment { padding-inline: var(--space-5) var(--space-2); }
 .team-task { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.badge.team-state::before { content: ""; --glyph: inherit; }
 .team-budget-row .meter { width: 100%; }
 .team-member-note { padding-block: var(--space-2); }
 [data-team-member] .composer-row, [data-team-member] .attachments, [data-team-member] .skill-form,

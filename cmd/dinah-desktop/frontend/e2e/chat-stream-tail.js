@@ -7,7 +7,7 @@ const { launch } = require('./lib/page');
     viewport: { width: 1200, height: 850 },
     app: () => ({
       AgentProviders: async () => [{ id: 'ollama', installed: true, available: true }],
-      OpenSessionAt: async (cwd, sessionId) => ({ sessionId, cwd, provider: 'ollama', open: true })
+      OpenSessionAt: async (cwd, sessionId) => ({ sessionId, cwd, provider: 'ollama', open: true, life: 'open', window: true, exec: { state: 'idle', why: '' } })
     }),
     ready: 'chat',
   });
@@ -17,7 +17,7 @@ const { launch } = require('./lib/page');
       await dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'ollama:stream' });
       window.__u = update => __emit('agent:update', { sessionId: 'ollama:stream', update });
     });
-    await p.waitForFunction(() => /waiting for you/.test(document.querySelector('.win[data-chat-current] [data-view-id=page-state]').textContent));
+    await p.waitForFunction(() => !!document.querySelector('.win[data-chat-current] [data-view-id=page-state] .chat-state-idle'));
     const body = p.locator('.win[data-chat-current] [data-view-id=activity]');
     const gap = () => body.evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop);
     const frames = n => p.evaluate(n => new Promise(resolve => { function frame() { if (--n) requestAnimationFrame(frame); else resolve(); } requestAnimationFrame(frame); }), n);

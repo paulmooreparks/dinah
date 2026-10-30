@@ -30,7 +30,9 @@
       // A versioned snapshot is the whole of the chat's information, so what it leaves out is gone: a hold that
       // has ended, a choice that was forgotten.
       if (info.stateVer !== undefined) { if (!info.hold) session.info.hold = null; if (!info.choice) session.info.choice = ''; if (!info.switch) delete session.info.switch; if (!info.lead) session.info.lead = null; }
+      if (info.stateVer !== undefined) { if (!info.chatState) delete session.info.chatState; if (!info.team) delete session.info.team; }
       infoListeners.forEach(fn => fn(session.id, info));
+      document.dispatchEvent(new CustomEvent('dinah:session-info', { detail: { id: session.id } }));
       if (typeof info.working === 'boolean') session.working = info.working;
       if (session.working === false) session.stopping = false;
       if (Array.isArray(info.queued)) session.queued = info.queued;

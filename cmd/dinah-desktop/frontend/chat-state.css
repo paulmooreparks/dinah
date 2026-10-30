@@ -1,0 +1,16 @@
+/* Execution glyphs use the same PUDL palette in every consumer. */
+:root { --glyph-chat-working: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M11.5 4.5a5 5 0 1 0 0 7'/%3E%3C/svg%3E"); }
+.badge.chat-state { white-space: normal; border-radius: var(--radius-sm); color: var(--chat-state-colour); background: color-mix(in srgb, var(--chat-state-colour) 18%, var(--surface)); }
+.chat-state-line { flex-wrap: wrap; }
+.chat-state-line > .browser-row-title { flex: 0 1 auto; max-width: 100%; }
+.chat-state-line > .chat-state { max-width: 100%; }
+.member-chip { max-width: 100%; flex-wrap: wrap; }
+.member-chip .member-title { white-space: nowrap; }
+.member-chip .chat-state { max-width: 100%; }
+.win-status:is(.chat-working-chip, .team-stuck-chip, .group-state-chip) { padding: 0; border: 0; }
+.win-status > .chat-state { background: color-mix(in srgb, var(--chat-state-colour) 18%, var(--surface)); }
+.badge.chat-state::before { content: ""; --glyph: var(--badge-glyph); }
+.badge.chat-state-idle, .badge.chat-lifecycle, .badge.chat-state-unknown { color: var(--text-muted); }
+.badge.chat-lifecycle::before, .badge.chat-state-unknown::before { content: none; }
+.badge.chat-state-working::before { animation: pudl-spin .9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .badge.chat-state-working::before { animation: none; } }

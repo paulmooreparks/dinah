@@ -231,6 +231,7 @@
       if (entry.target && entry.source && adapter.openTarget) {
         actions.appendChild(button('Open ' + entry.source, 'notices-open', function () { return adapter.openTarget(entry); }));
       }
+      if (adapter.context) { var context = adapter.context(entry); if (context) (c.querySelector('.notice-content') || c).appendChild(context); }
       if (entry.dismissible) actions.appendChild(button('Dismiss', (entry.actions.some(function (a) { return a.primary; }) ? '' : 'btn-primary ') + 'notices-dismiss', function () { return dismiss(entry.id); }));
       return c;
     }
@@ -248,6 +249,7 @@
       b.appendChild(g);
       b.appendChild(el('span', 'notices-text', entry.description));
       b.setAttribute('aria-label', word(entry) + ': ' + entry.description + (entry.source ? ', ' + entry.source : ''));
+      if (adapter.context) { var context = adapter.context(entry); if (context) b.appendChild(context); }
       b.title = entry.description;
       b.addEventListener('click', function () { open(entry.id).catch(failed); });
       li.appendChild(b);

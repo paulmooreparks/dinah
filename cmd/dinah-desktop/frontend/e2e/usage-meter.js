@@ -9,7 +9,7 @@ const { launch } = require('./lib/page');
     viewport: { width: 1400, height: 900 },
     app: () => ({
       AgentProviders: async () => [{ id: 'ollama', installed: true, available: true }],
-      OpenSessionAt: async (cwd, sessionId) => ({ sessionId, cwd, provider: 'ollama', open: true })
+      OpenSessionAt: async (cwd, sessionId) => ({ sessionId, cwd, provider: 'ollama', open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } } })
     }),
     ready: 'chat',
   });
@@ -17,7 +17,7 @@ const { launch } = require('./lib/page');
   try {
     const key = await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'ollama:meter' }));
     const win = p.locator('[data-win="' + key + '"]');
-    await p.waitForFunction(k => /waiting for you/.test(document.querySelector('[data-win="' + k + '"] [data-view-id=page-state]').textContent), key);
+    await p.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + k + '"] [data-view-id=page-state]').textContent), key);
     const usage = (used, size, sizeKind, windowKnown) => p.evaluate(([used, size, sizeKind, windowKnown]) => __emit('agent:update', { sessionId: 'ollama:meter', update: { sessionUpdate: 'usage_update', used, size, sizeKind, windowKnown } }), [used, size, sizeKind, windowKnown]);
     const button = win.locator('[data-view-id="usage-button"]');
     const title = async () => button.getAttribute('title');

@@ -41,13 +41,15 @@ const { launch } = require('./lib/page');
           { sessionId: 'chat-blank', provider: 'codex', title: '', cwd: 'C:/Work/parser', open: false, updatedAt: '2026-10-21T08:00:00Z' }],
         'C:/Work/docs': [{ sessionId: 'chat-docs', provider: 'claude', title: 'Docs Pass', cwd: 'C:/Work/docs', open: true, updatedAt: '2026-10-22T07:00:00Z' },
           { sessionId: 'chat-outside', provider: 'ollama', title: 'Outside Chat', cwd: 'C:/Work/docs', open: false, updatedAt: '2026-10-20T07:00:00Z' }] };
+      Object.values(chats).flat().forEach(c => { c.chatState = c.open ? { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } } : { life: 'closed', window: false }; });
+      bus.rooms.forEach(room => { room.counts = { top: 'idle', stuck: 0, waiting: 0, working: 0, idle: 1, closed: room.name === 'release-review' ? 1 : 0, unknown: 0 }; });
       const titles = {};
       let next = 10;
       return {
         State: async () => ({ defaultProvider: 'devin', workspace: 'C:/Work/parser', workspaces: ['C:/Work/parser', 'C:/Work/docs'], recent: ['C:/Work/parser', 'C:/Work/docs'] }),
         AgentProviders: async () => [{ id: 'devin', name: 'Devin', installed: true, available: true, status: 'detected' }, { id: 'codex', name: 'Codex', installed: true, available: true, status: 'detected' }, { id: 'claude', name: 'Claude', installed: true, available: true, status: 'detected' }, { id: 'ollama', name: 'Ollama', installed: true, available: true, status: 'detected' }],
         Sessions: async () => chats['C:/Work/parser'], SessionsAt: async ws => chats[ws] || [],
-        OpenSessionAt: async (ws, id) => { __calls.push(['open', ws, id]); const c = Object.values(chats).flat().find(x => x.sessionId === id); return Object.assign({}, c, { open: true, working: false, queued: [] }); },
+        OpenSessionAt: async (ws, id) => { __calls.push(['open', ws, id]); const c = Object.values(chats).flat().find(x => x.sessionId === id); return Object.assign({}, c, { open: true, working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, queued: [] }); },
         RenameSession: async (id, name) => { __calls.push(['rename', id, name]); titles[id] = name; return Object.assign({}, titles); },
         ReadUIState: async () => ({ version: 1, values: { 'dinah-workbench-layout': '?open=workspace' } }), SaveUIState: async () => {},
         BusOverview: async () => ({ inbox: bus.inbox, unread: bus.inbox.filter(m => m.unread).length, rooms: bus.rooms, workspaces: bus.workspaces, links: bus.links, defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
@@ -102,13 +104,13 @@ const { launch } = require('./lib/page');
     ok('the inbox lists Paul\'s messages, newest first, the unread one marked', inbox.indexOf('Parser Release') < inbox.indexOf('Guide Fixes') && /New/.test(inbox) && inbox.includes('Release 2.4 is tagged.') && !inbox.includes('Notes are in'), inbox);
     ok('an inbox row shows the sending chat\'s title and its workspace, and a group\'s name', inbox.includes('Parser Release (Parser Library)') && inbox.includes('Guide Fixes (Docs Site)') && inbox.includes('Docs Pass (docs) in Release Review'), inbox);
     const groupsText = await pane.locator('[data-section="bus-groups"]').innerText();
-    ok('a group chat is listed by its name, with its members and its unread messages', groupsText.includes('Release Review') && groupsText.includes('Parser Release, Docs Pass and you') && /2 New/.test(groupsText), groupsText);
+    ok('a group chat is listed by its name, with its members and its unread messages', groupsText.includes('Release Review') && groupsText.includes('Parser Release, Docs Pass and you') && /2 new messages/.test(groupsText), groupsText);
     ok('a group with unread messages shows who sent the newest and its line, and a group with none shows no line', groupsText.includes('Docs Pass: The guide is ready for a second look') && (groupsText.match(/second look/g) || []).length === 1, groupsText);
     const chatsText = await pane.locator('[data-section="bus-chats"]').innerText();
-    ok('every chat is listed under its workspace, closed ones too, with its state', /DOCS[\s\S]*Docs Pass[\s\S]*Open[\s\S]*Outside Chat[\s\S]*Closed[\s\S]*PARSER[\s\S]*Parser Release[\s\S]*Closed[\s\S]*Untitled Chat in parser/i.test(chatsText), chatsText);
-    ok('a chat\'s state has its glyph: open is the positive badge, closed the plain one', await pane.locator('[data-bus-chat="chat-docs"] .badge.positive').count() === 1 && await pane.locator('[data-bus-chat="chat-outside"] .badge:not(.positive):not(.accent)').count() === 1);
-    await p.evaluate(() => __emit('agent:session', { sessionId: 'chat-docs', cwd: 'C:/Work/docs', title: 'Docs Pass', open: true, working: true }));
-    await pane.locator('[data-bus-chat="chat-docs"] .badge.accent.running').waitFor();
+    ok('every chat is listed under its workspace, closed ones too, with its state', /DOCS[\s\S]*Docs Pass[\s\S]*Idle[\s\S]*Outside Chat[\s\S]*Closed[\s\S]*PARSER[\s\S]*Parser Release[\s\S]*Closed[\s\S]*Untitled Chat in parser/i.test(chatsText), chatsText);
+    ok('an open chat shows Idle and a closed chat shows lifecycle words', await pane.locator('[data-bus-chat="chat-docs"] .chat-state-idle').count() === 1 && await pane.locator('[data-bus-chat="chat-outside"] .badge:not(.positive):not(.accent)').count() === 1);
+    await p.evaluate(() => __emit('agent:session', { sessionId: 'chat-docs', cwd: 'C:/Work/docs', title: 'Docs Pass', open: true, working: true, chatState: { life: 'open', window: true, exec: { state: 'working', why: 'Turn in progress' } } }));
+    await pane.locator('[data-bus-chat="chat-docs"] .chat-state-working').waitFor();
     ok('a working chat shows Working with the ring', (await pane.locator('[data-bus-chat="chat-docs"]').innerText()).includes('Working'));
     const whole = await pane.innerText();
     ok('no section shows a handle or the old list of who is on the bus', !/parser-1|docs-1|On the Bus/.test(whole), whole);
@@ -146,13 +148,13 @@ const { launch } = require('./lib/page');
     const room = p.locator('.win[data-win-kind="bus-room"]').filter({ has: p.locator('.win-title', { hasText: 'Release Review' }) });
     await room.locator('.bus-message').first().waitFor();
     ok('a group opens in its own window, titled with its name', await room.count() === 1);
-    const chips = await room.locator('.group-members .member-chip').allInnerTexts();
+    const chips = await room.locator('.group-members .member-chip').evaluateAll(chips => chips.map(chip => chip.querySelector('.member-title')?.textContent || chip.textContent));
     ok('the members are chips: each chat by its title, then the person', JSON.stringify(chips.map(t => t.trim())) === JSON.stringify(['Parser Release', 'Docs Pass', 'Paul (You)']), JSON.stringify(chips));
     // A chip shows a chat in the window as the window has it, so Docs Pass,
     // which the bus has as open, is working, as the window was told above.
-    ok('each chat\'s chip shows its state as a glyph with its word', await room.locator('[data-group-member="window-p1"] .state-glyph.closed[aria-label="Closed"]').count() === 1 &&
-      await room.locator('[data-group-member="window-d1"] .state-glyph.working[aria-label="Working"]').count() === 1);
-    ok('the members are followed by Add Chats…', await room.locator('.group-members').getByRole('button', { name: 'Add Chats…' }).count() === 1);
+    ok('each chat chip shares the execution or lifecycle word', await room.locator('[data-group-member="window-p1"] .chat-lifecycle').count() === 1 &&
+      await room.locator('[data-group-member="window-d1"] .chat-state-working').count() === 1);
+    ok('the group toolbar offers Add Chats…', await room.locator('.group-toolbar').getByRole('button', { name: 'Add Chats…' }).count() === 1);
     const said = await room.locator('.bus-log').innerText();
     ok('the conversation shows each message under its sender\'s title, with its mentions marked', said.includes('Parser Release') && await room.locator('[data-bus-message="4"] .mention').innerText() === '@Docs Pass', said);
     ok('a line says who was added to the group', await room.locator('.system-line[data-bus-message="5"]').innerText() === 'Paul added Docs Pass to the group.');
@@ -276,7 +278,7 @@ const { launch } = require('./lib/page');
     // Add Chats… in a group's window opens the picker for that group.
     await pane.locator('[data-bus-room="docs-review"]').click();
     const docsRoom = p.locator('.win[data-win-kind="bus-room"]').filter({ has: p.locator('.win-title', { hasText: 'Docs Review' }) });
-    await docsRoom.locator('.group-members').getByRole('button', { name: 'Add Chats…' }).click();
+    await docsRoom.locator('.group-toolbar').getByRole('button', { name: 'Add Chats…' }).click();
     const adding = p.locator('.win[data-win-kind="group-picker"]');
     await adding.locator('[data-chat="chat-docs"]').waitFor();
     ok('Add Chats… opens the picker for the group, its members shown as in it', await adding.locator('.win-title').innerText() === 'Add Chats to Docs Review' &&
