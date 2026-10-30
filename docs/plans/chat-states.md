@@ -64,3 +64,8 @@ Each reason sits beside the word of its state and does not repeat it. They are s
 | External open session whose activity this window cannot observe | none | Not a reason: the chat has no execution state and `elsewhere` says "Running in another Dinah window" |
 
 When the detail is empty, the reason is the prefix alone, without the colon.
+
+
+## A Chat Whose State Is Not Known
+
+A chat that runs in another Dinah window has no state this window can see, and showing it as Idle would claim that nothing is happening when it may be working (message 1508). Such a chat has no `exec`, and the page shows it in muted words, "Running in another Dinah window", with no state glyph. A rollup counts it apart as unknown. Its shown state is the most urgent among the members whose state is known. When no member's state is known, the rollup shows Idle if every member is closed or retired, and it shows no state at all if any member is unknown, so that a group of one chat running elsewhere and two closed chats shows its counts in words and no glyph (message 1511).
