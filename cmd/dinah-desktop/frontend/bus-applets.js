@@ -792,7 +792,7 @@
     /* The members, over the conversation: a chip for each chat with its
        state and a menu, then the person, then Add Chats…. */
     var memberShell = node('section', 'group-member-shell'), memberHeading = node('div', 'group-member-heading hstack gap-2');
-    var bar = node('div', 'group-members'); bar.setAttribute('role', 'list'); bar.setAttribute('aria-label', 'Members');
+    var bar = node('div', 'group-members'); bar.setAttribute('role', 'list'); bar.setAttribute('aria-label', 'Members'); bar.tabIndex = 0;
     bar.id = 'group-members-' + (++groupSerial);
     var memberToggle = node('button', 'btn btn-sm disclosure', 'Members'); memberToggle.type = 'button';
     memberToggle.setAttribute('aria-expanded', 'true'); memberToggle.setAttribute('aria-controls', bar.id);

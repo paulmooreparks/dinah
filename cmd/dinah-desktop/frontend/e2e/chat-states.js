@@ -50,6 +50,17 @@ const { launch } = require('./lib/page');
     ok('the group aggregate uses engine counts and priority', /1 stuck, 1 waiting, 1 working, 1 idle, 1 running elsewhere, 2 closed/.test(await group.locator('.group-aggregate').innerText()));
     const elsewhere = group.locator('[data-group-member="bus-elsewhere"] .chat-lifecycle');
     ok('activity in another window is words without a claimed execution state', /Running in another Dinah window/.test(await elsewhere.innerText()) && await elsewhere.evaluate(el => getComputedStyle(el, '::before').content === 'none'));
+    async function usableTranscript(name) {
+      await page.waitForFunction(key => document.querySelector('[data-win="' + key + '"] .bus-log').clientHeight >= 128, groupKey);
+      const geometry = await group.evaluate(win => {
+        const body = win.querySelector('.bus-conversation'), shell = win.querySelector('.group-member-shell'), list = win.querySelector('.group-members'), log = win.querySelector('.bus-log');
+        return { body: body.clientHeight, members: shell.getBoundingClientRect().height, transcript: log.clientHeight, overflow: list.scrollHeight > list.clientHeight };
+      });
+      ok(name + ' reserves the conversation with seven expanded members', geometry.transcript >= 128 && geometry.members <= geometry.body * .4 + 2, JSON.stringify(geometry));
+      return geometry;
+    }
+    const standard = await usableTranscript('the standard window');
+    ok('a long member list scrolls inside its bounded area', standard.overflow);
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => pudlSetTheme(theme), theme);
       await t.shot('group-states-' + theme);
@@ -58,6 +69,12 @@ const { launch } = require('./lib/page');
     ok('folding members preserves aggregate words', await group.locator('.group-members').isHidden() && await group.locator('.group-aggregate').isVisible());
     await page.setViewportSize({ width: 700, height: 900 });
     await group.locator('[data-win-action="maximize"]').click();
+    await group.getByRole('button', { name: /^Members/ }).click();
+    await usableTranscript('the narrow window');
+    const tops = await group.locator('[data-group-member]').evaluateAll(chips => chips.map(chip => Math.round(chip.getBoundingClientRect().top)));
+    ok('short member chips share a row when there is room', new Set(tops).size < tops.length, JSON.stringify(tops));
+    await t.shot('group-members-narrow-expanded');
+    await group.getByRole('button', { name: /^Members/ }).click();
     await group.locator('.group-composer textarea').fill('A multiline draft for the group.\nThe attachment stays beside the message.\nThis draft has not been sent.');
     await group.locator('.group-composer input[type="file"]').setInputFiles({ name: 'review-notes.txt', mimeType: 'text/plain', buffer: Buffer.from('Review notes for the group.') });
     await group.locator('.attachment-name', { hasText: 'review-notes.txt' }).waitFor();
@@ -69,6 +86,7 @@ const { launch } = require('./lib/page');
     });
     await page.setViewportSize({ width: 420, height: 900 });
     await group.locator('.group-toolbar [data-toolbar-stage]:not([data-toolbar-stage="1"])').waitFor();
+    ok('the folded aggregate remains fully visible with large text', await group.evaluate(win => win.querySelector('.group-aggregate').getBoundingClientRect().bottom <= win.querySelector('.group-member-shell').getBoundingClientRect().bottom));
     await t.shot('group-states-large-text');
     ok('the command row uses PUDL overflow without a wrapping command row', await group.locator('.group-toolbar[data-toolbar-fold]').count() === 1);
     await page.evaluate(() => __reviewTextTokens.forEach(([name]) => document.documentElement.style.removeProperty(name)));
