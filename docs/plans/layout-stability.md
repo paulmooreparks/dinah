@@ -65,3 +65,11 @@ The composer suite checks every sampled frame in light and dark at 1440 and 700 
 ## The Message Box at Narrow Widths
 
 The first build of a fixed message box (31 October) reserved Stop's slot at the width of its own label, so in a narrow window with large text the column of buttons beside the text box was wider than the text box itself. The column of buttons is as wide as its widest button and no wider, and the text box takes the rest of the row. When the window is too narrow for the two side by side, the buttons sit below the text box. That choice follows the window's width, which the person controls, and never the chat's state, so the rule above still holds.
+
+## Native Window State and Open Status Menus
+
+Dinah supplies PUDL's execution attributes from the engine's state and gives the mark its full state, workspace and reason as its label. Background work and subagent counts remain separate statuses. Draft, closed and unknown lifecycle words occupy a reserved host slot without a second execution glyph. The slot stays in the layout when the native execution mark is present.
+
+The open Window status panel has a fixed height with a scrolling read-only list and a fixed Dismiss control. Changes to lifecycle words or the number of status rows therefore leave Dismiss in place. The taskbar stability suite keeps both the stack popup and folded status panel open through all four execution states, unknown and closed states. It checks every sampled frame, including the state actually painted, control appearance and disappearance, focus retention and the absence of the legacy running attribute.
+
+Actions comes from flags on the chat's command definitions. The menu suite checks every visible flagged command, invokes Drop the Queued Messages, and checks that queue changes add and remove it while Actions remains open. PUDL's menu freshness replaces the old forced refresh after command redraws and retitling.

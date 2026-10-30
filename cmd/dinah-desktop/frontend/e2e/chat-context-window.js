@@ -21,7 +21,7 @@ const { launch } = require('./lib/page');
   try {
     const key = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'ollama:ctx' }));
     const win = page.locator('[data-win="' + key + '"]');
-    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + k + '"] .chat-working-chip').title), key);
+    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + k + '"] .win-execution .win-state').title), key);
     const session = (extra, ver) => page.evaluate(([extra, ver]) => __emit('agent:session', Object.assign({ sessionId: 'ollama:ctx', provider: 'ollama', cwd: 'C:/Fixture', open: true, stateGen: 'g', stateVer: ver }, extra)), [extra, ver]);
     const usage = (used, size, sizeKind, windowKnown) => page.evaluate(([used, size, sizeKind, windowKnown]) => __emit('agent:update', { sessionId: 'ollama:ctx', update: { sessionUpdate: 'usage_update', used, size, sizeKind, windowKnown } }), [used, size, sizeKind, windowKnown]);
     const meter = k => win.locator('[data-view-id="usage-button"]');

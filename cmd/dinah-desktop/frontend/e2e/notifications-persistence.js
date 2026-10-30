@@ -44,7 +44,7 @@ const { launch, PAGE } = require('./lib/page');
     ok('restored failure has an owner link and no stale approval buttons', (await page.locator('[data-notification-id="saved_failure"]').textContent()).includes('Open Old Review') && await page.locator('#questions button:has-text("Allow")').count() === 0);
     await page.evaluate(() => document.querySelector('[data-notification-id="saved_failure"] .notices-open').click());
     await page.waitForFunction(() => document.querySelector('.win[data-win-kind="chat-session"]'));
-    await page.waitForFunction(() => [...document.querySelectorAll('.chat-working-chip')].some(el => /Idle/.test(el.title)));
+    await page.waitForFunction(() => [...document.querySelectorAll('.win-execution .win-state')].some(el => /Idle/.test(el.title)));
     ok('restored owner link retains the original workspace', calls.some(call => call[0] === 'open' && call[1].workspace === 'C:/Old' && call[1].id === 'old-chat'));
     failSave = true;
     await page.evaluate(() => { __emit('agent:session', { sessionId: 'new-chat', cwd: 'C:/Current', title: 'New Review', provider: 'devin', open: true }); __emit('agent:turn', { sessionId: 'new-chat', stopReason: 'error', error: 'Temporary model failure' }); });

@@ -130,7 +130,7 @@ const { launch } = require('./lib/page');
   let rows = await inline();
   ok('the chat shows a row where the agent handed work to a subagent, with its name, task, state and Open', rows.length === 1 && rows[0].id === 'sub-a' && rows[0].text.includes('Explore') && rows[0].text.includes('Find where the parser lives') && rows[0].state === 'Running' && rows[0].open, JSON.stringify(rows));
   ok('the state is a glyph and a word', await p.evaluate(w => { const b = document.querySelector(w + ' .subagent-row .subagent-state'); return b.classList.contains('accent') && getComputedStyle(b, '::before').content !== 'none'; }, win));
-  const chips = () => p.evaluate(w => { const el = document.querySelector(w), c = el.querySelector('.chat-subagents-chip'), wk = el.querySelector('.chat-working-chip .chat-state-working'); return { subagents: c && !c.hidden ? c.textContent : '', working: !!wk && !wk.hidden, line: el.querySelector('.chat-working-chip').title }; }, win);
+  const chips = () => p.evaluate(w => { const el = document.querySelector(w), c = el.querySelector('.chat-subagents-chip'), wk = el.querySelector('.win-execution .win-state[data-state="working"]'); return { subagents: c && !c.hidden ? c.textContent : '', working: !!wk && !wk.hidden, line: el.querySelector('.win-execution .win-state').title }; }, win);
   let c = await chips();
   ok('the chat head shows Subagents 2 beside Working while they run', c.subagents === 'Subagents 2' && c.working, JSON.stringify(c));
   ok('the state line counts the running subagents', c.line.includes('2 subagents are running.'), c.line);

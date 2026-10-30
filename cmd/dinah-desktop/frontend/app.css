@@ -425,6 +425,10 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .composer-stop { inline-size: 100%; block-size: 100%; justify-content: center; }
 .chat-working-chip { box-sizing: border-box; inline-size: 8em; flex: none; overflow: hidden; white-space: nowrap; }
 .chat-working-chip .chat-state { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Status changes replace read-only rows while Dismiss stays in its place. */
+.win-status-popover:popover-open { display: flex; flex-direction: column; block-size: min(12rem, calc(100dvh - 24px)); }
+.win-status-popover > ul { flex: 1; min-block-size: 0; overflow-y: auto; }
+.win-status-popover > button { flex: none; align-self: start; }
 
 /* The prompt history: a sunken, scrolling list of pressable prompts. */
 .history-dialog { max-width: 720px; }
