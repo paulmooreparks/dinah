@@ -45,3 +45,7 @@ While reading back, DOM mutations restore the held row during mutation delivery.
 ## A Control That Exists in One State
 
 An action that cannot be taken is absent rather than shown disabled, and its place is still kept. When a chat is idle, Stop keeps its width and height in the toolbar but is invisible, cannot be focused or clicked, and is not in the accessibility tree; when a turn starts it appears in that same place (Architecture and Dinah UI, 31 October, messages 1732 and 1733). Toolbar folding counts the reserved width in both states, so hiding the control never changes what folds and never leaves an empty item in the overflow menu. If Stop has focus when the turn ends, focus returns to the message box. Every other control that exists in only one state is treated the same way.
+
+## Paul's Priority
+
+Paul decided on 31 October to accept a brief Idle flicker when a stop is blocked to deliver a message, since removing it would rest on an order of events that neither the adapter nor Claude Code documents, and asked that the work now be about getting Dinah stable. Until the movements found by the first audit are fixed and the stability suite passes for every surface, no new feature is started. Skins wait behind that work, and so do new requests that are not defects.
