@@ -47,3 +47,7 @@ These surfaces carry it:
 
 The old words (`state`, `stateWhy`, `open`, `working`) stay beside the new fields until the page reads the new ones, and are removed then.
 
+
+## A Chat Whose State Is Not Known
+
+A chat that runs in another Dinah window has no state this window can see, and showing it as Idle would claim that nothing is happening when it may be working (message 1508). Such a chat has no `exec`, and the page shows it in muted words, "Running in another Dinah window", with no state glyph. A rollup counts it apart as unknown. Its shown state is the most urgent among the members whose state is known. When no member's state is known, the rollup shows Idle if every member is closed or retired, and it shows no state at all if any member is unknown, so that a group of one chat running elsewhere and two closed chats shows its counts in words and no glyph (message 1511).
