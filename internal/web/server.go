@@ -19,6 +19,7 @@ import (
 	"studio/internal/bus"
 	"studio/internal/profile"
 	"studio/internal/regional"
+	"studio/internal/skins"
 )
 
 //go:embed templates/*.html
@@ -30,6 +31,48 @@ var staticFS embed.FS
 // cookieName is the cookie that signs a browser in to the bus's pages, which
 // the profile gives (profile.BusCookie).
 var cookieName = profile.Current().BusCookie
+
+//go:embed static/pudl/pudl-skins.json
+var skinCatalogueSource []byte
+
+// skinCatalogue is the release's catalogue of admitted skins; the build fails at once if it cannot be read.
+var skinCatalogue = func() skins.Catalogue {
+	c, err := skins.Parse(skinCatalogueSource)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}()
+
+// skinHome is where the engine keeps the person's choices.
+func skinHome() string {
+	h, err := bus.Home()
+	if err != nil {
+		return ""
+	}
+	return h
+}
+
+// currentSkin is the skin to draw: the person's choice when this build admits it, else Standard.
+func currentSkin() string { return skinCatalogue.Effective(skins.ReadPreference(skinHome())) }
+
+// currentThemePref is the person's light, dark or system choice, or "" when they have made none.
+func currentThemePref() string { return skins.ReadThemePreference(skinHome()) }
+
+// skinLink is a skin's stylesheet and its catalogue ID.
+type skinLink struct{ ID, File string }
+
+// skinLinks are the stylesheets of every admitted skin, which the page links statically so PUDL registers them
+// before it first chooses one.
+func skinLinks() []skinLink {
+	var out []skinLink
+	for _, s := range skinCatalogue.Admitted() {
+		if s.Stylesheet != nil {
+			out = append(out, skinLink{ID: s.ID, File: *s.Stylesheet})
+		}
+	}
+	return out
+}
 
 // Server is the page's HTTP server.
 type Server struct {
@@ -48,6 +91,11 @@ func New(b *bus.Bus, addr string) (*Server, error) {
 		"short":     func(s string) string { return s[:min(12, len(s))] },
 		"pathEsc":   url.PathEscape,
 		"fileState": fileState,
+		// The person's skin and theme mode, read where the engine keeps them, so a page is drawn in them with no
+		// script and no flash (docs/plans/pudl-skins.md).
+		"skin":      currentSkin,
+		"themePref": currentThemePref,
+		"skinLinks": skinLinks,
 		"dict": func(kv ...any) map[string]any {
 			m := map[string]any{}
 			for i := 0; i+1 < len(kv); i += 2 {

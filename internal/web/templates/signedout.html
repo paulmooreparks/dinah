@@ -1,11 +1,13 @@
 {{define "signedout.html"}}<!doctype html>
-<html lang="en">
+<html lang="en" data-pudl-persistence="host" data-skin="{{skin}}"{{with themePref}} data-theme-pref="{{.}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Signed Out · {{.Product}}</title>
-<script src="/static/pudl/pudl-theme.js"></script>
 <link rel="stylesheet" href="/static/pudl/pudl.css">
+{{range skinLinks}}<link rel="stylesheet" href="/static/pudl/{{.File}}" data-pudl-skin="{{.ID}}">
+{{end}}<script src="/static/pudl/pudl-theme.js"></script>
+<script src="/static/pudl/pudl-skins.js"></script>
 <link rel="stylesheet" href="/static/brand.css">
 <link rel="stylesheet" href="/static/dinah.css">
 </head>

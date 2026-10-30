@@ -17,11 +17,27 @@ import (
 	"unicode"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"studio/internal/skins"
 	"studio/internal/statefile"
 )
 
 //go:embed frontend/theme-data.js
 var themeBuiltinsSource string
+
+// skinCatalogueSource is PUDL's catalogue of the skins the release admits (docs/plans/pudl-skins.md).
+//
+//go:embed frontend/pudl/pudl-skins.json
+var skinCatalogueSource []byte
+
+// skinCatalogue is the release's catalogue; a build whose catalogue cannot be read is a build that was never
+// tested, so it fails at once.
+var skinCatalogue = func() skins.Catalogue {
+	c, err := skins.Parse(skinCatalogueSource)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}()
 
 const maxThemeBytes = 256 << 10
 const maxAppearanceBytes = 8 << 20
@@ -47,8 +63,11 @@ type ContentAppearance struct {
 	Size int        `json:"size,omitempty"`
 }
 type AppearanceState struct {
-	Version   int                          `json:"version"`
-	Active    string                       `json:"active"`
+	Version int    `json:"version"`
+	Active  string `json:"active"`
+	// Skin is the person's choice of PUDL skin, one for the whole application. It is the choice, not what is drawn:
+	// a skin the build lacks is kept, and Effective says what is drawn.
+	Skin      string                       `json:"skin"`
 	Themes    []ThemeRecord                `json:"themes"`
 	Overrides map[string]ContentAppearance `json:"overrides"`
 }
@@ -59,7 +78,11 @@ type AppearanceState struct {
 type AppearanceSnapshot struct {
 	State    AppearanceState `json:"state"`
 	Revision string          `json:"revision"`
-	Notice   string          `json:"notice,omitempty"`
+	// Skins are the skins the build admits, from the release's catalogue, and Effective the skin to draw for the
+	// state's choice: the choice when the build admits it, else Standard.
+	Skins     []skins.Choice `json:"skins"`
+	Effective string         `json:"effective"`
+	Notice    string         `json:"notice,omitempty"`
 }
 
 var themeHex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -248,6 +271,11 @@ func validateAppearance(state AppearanceState) error {
 	if state.Version != 1 || state.Themes == nil || state.Overrides == nil || len(state.Themes) > 32 {
 		return errors.New("invalid appearance library")
 	}
+	// An empty skin is the page not saying (an older page, or one drawn from its startup cache); saving keeps the
+	// stored choice then.
+	if state.Skin != "" && !skins.ValidID(state.Skin) {
+		return errors.New("invalid skin")
+	}
 	// The built-in themes come from theme-data.js, so a theme added there is
 	// both choosable and reserved against a person's own theme of that ID.
 	ids := map[string]bool{}
@@ -300,13 +328,17 @@ func appearanceRevision(data []byte) string {
 // place and the notice says why, so the person can set the colours in the
 // Theme Editor rather than find the library refused.
 func decodeAppearance(data []byte) (AppearanceState, string, error) {
-	state := AppearanceState{Version: 1, Active: product.DefaultTheme, Themes: []ThemeRecord{}, Overrides: map[string]ContentAppearance{}}
+	state := AppearanceState{Version: 1, Active: product.DefaultTheme, Skin: skins.Standard, Themes: []ThemeRecord{}, Overrides: map[string]ContentAppearance{}}
 	if len(data) == 0 {
 		return state, "", nil
 	}
 	state = AppearanceState{}
 	if err := strictAppearanceJSON(data, &state, maxAppearanceBytes); err != nil {
 		return state, "", err
+	}
+	if state.Skin == "" {
+		// A library saved before skins has the default.
+		state.Skin = skins.Standard
 	}
 	notice := ""
 	for i := range state.Themes {
@@ -325,29 +357,41 @@ func (a *App) ReadAppearance() (AppearanceSnapshot, error) {
 		return AppearanceSnapshot{}, err
 	}
 	state, notice, err := decodeAppearance(data)
-	return AppearanceSnapshot{State: state, Revision: appearanceRevision(data), Notice: notice}, err
+	return AppearanceSnapshot{State: state, Revision: appearanceRevision(data), Notice: notice, Skins: skinCatalogue.Choices(), Effective: skinCatalogue.Effective(state.Skin)}, err
 }
 func (a *App) SaveAppearance(state AppearanceState, revision string) (AppearanceSnapshot, error) {
 	if err := validateAppearance(state); err != nil {
 		return AppearanceSnapshot{}, err
 	}
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return AppearanceSnapshot{}, err
-	}
-	if len(data) > maxAppearanceBytes {
-		return AppearanceSnapshot{}, errors.New("appearance library exceeds 8 MiB")
-	}
-	err = statefile.Update(filepath.Join(configDir(), "appearance.json"), func(previous []byte) ([]byte, error) {
-		if _, _, err := decodeAppearance(previous); err != nil {
+	var written AppearanceState
+	var data []byte
+	err := statefile.Update(filepath.Join(configDir(), "appearance.json"), func(previous []byte) ([]byte, error) {
+		before, _, err := decodeAppearance(previous)
+		if err != nil {
 			return nil, err
 		}
 		if appearanceRevision(previous) != revision {
 			return nil, errors.New("appearance changed in another window; reload before saving")
 		}
+		written = state
+		if written.Skin == "" {
+			written.Skin = before.Skin
+		}
+		data, err = json.MarshalIndent(written, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+		if len(data) > maxAppearanceBytes {
+			return nil, errors.New("appearance library exceeds 8 MiB")
+		}
 		return data, nil
 	})
-	return AppearanceSnapshot{State: state, Revision: appearanceRevision(data)}, err
+	snapshot := AppearanceSnapshot{State: written, Revision: appearanceRevision(data), Skins: skinCatalogue.Choices(), Effective: skinCatalogue.Effective(written.Skin)}
+	if err == nil {
+		// Another window of this application takes the change when it hears this, and the bus's page when it is next drawn.
+		a.emit("appearance:changed", map[string]any{"revision": snapshot.Revision, "skin": snapshot.Effective})
+	}
+	return snapshot, err
 }
 func (a *App) ImportThemeFile() (*ThemeDocument, error) {
 	name, err := wruntime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Import Theme", Filters: []wruntime.FileFilter{{DisplayName: product.Name + " theme (*.dinah-theme.json)", Pattern: "*.json"}}})
