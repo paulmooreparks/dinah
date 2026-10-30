@@ -43,9 +43,9 @@ type StateCounts struct {
 	Idle    int `json:"idle"`
 	Closed  int `json:"closed"`
 	// Unknown counts the chats that run elsewhere, whose activity is not known; they are counted as nothing else
-	// and Top ignores them.
+	// and Top ignores them: when no chat has a known state and any is unknown, Top is empty.
 	Unknown int    `json:"unknown"`
-	Top     string `json:"top"`
+	Top     string `json:"top,omitempty"`
 }
 
 // CountStates counts chats' states and chooses the state they show as a whole.
@@ -99,6 +99,11 @@ func (c *StateCounts) Finish() {
 		c.Top = ExecWaiting
 	case c.Working > 0:
 		c.Top = ExecWorking
+	case c.Idle > 0:
+		c.Top = ExecIdle
+	case c.Unknown > 0:
+		// Nothing is known of any chat that runs, and some run elsewhere: no state is shown as a whole.
+		c.Top = ""
 	default:
 		c.Top = ExecIdle
 	}

@@ -44,7 +44,7 @@ func (a *App) chatState(ctx context.Context, b *bus.Bus, busID, chat string, ret
 	s := a.session(chat)
 	if chat == "" || s == nil {
 		if chat == "" && outsideOpen {
-			return ChatState{Life: lifeOpen, Elsewhere: "Running in another Dinah window"}
+			return ChatState{Life: lifeOpen, Elsewhere: "Running in another " + product.Name + " window"}
 		}
 		return ChatState{Life: lifeClosed}
 	}
