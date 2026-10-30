@@ -21,6 +21,8 @@ The batch passes its children a ticket naming the current lock owner. The helper
 
 `node browser-lock.js` checks exclusion between independent PowerShell and Node processes, holder reporting, valid and stale tickets, and recovery after killing either holder. It uses an isolated temporary lock and opens no browser.
 
+A package-wide or full Go gate takes the same lock through `pwsh scripts/go-gate.ps1 <go test arguments>` from the repository root, for example `pwsh scripts/go-gate.ps1 ./cmd/dinah-desktop ./internal/... -count=1`. It waits behind any browser or Go run, printing the holder every five seconds, runs `go test` with the arguments it is given and returns go test's exit code. Everyone runs package-wide and full Go gates through it; a single-test run may skip it.
+
 The underlying contracts are documented by Microsoft in [FileShare](https://learn.microsoft.com/en-us/dotnet/api/system.io.fileshare) and [file handle lifetime](https://learn.microsoft.com/en-us/windows/win32/fileio/file-handles). Node's exclusive-create flag tests whether a file exists, so it is unsuitable for this handle-lifetime lock.
 
 ## The Shared Stub
