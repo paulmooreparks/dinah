@@ -210,16 +210,50 @@
       });
     }
     var listViews = new WeakMap();
-    function listBusy(host) { return host.matches(':hover') || host.contains(document.activeElement) || !!host.querySelector('[data-menu-for]'); }
+    function listBusy(host) {
+      var view = listViews.get(host);
+      return !!(view && (view.pressed.size || (host.matches(':hover') && performance.now() < view.pointerUntil))) || host.contains(document.activeElement) || !!host.querySelector('[data-menu-for]');
+    }
     function listView(host) {
       var view = listViews.get(host);
       if (view) return view;
-      view = { pending: false, signature: '' }; listViews.set(host, view);
+      view = { pending: false, signature: '', pressed: new Set(), pointerUntil: 0, pointerTimer: 0 }; listViews.set(host, view);
       function flush() { if (view.pending && !listBusy(host)) drawSessions(); }
-      host.addEventListener('pointerleave', flush);
+      function clearPointer() {
+        clearTimeout(view.pointerTimer); view.pointerTimer = 0; view.pointerUntil = 0;
+      }
+      function expirePointer() {
+        view.pointerTimer = 0;
+        var remaining = view.pointerUntil - performance.now();
+        if (remaining > 0) { view.pointerTimer = setTimeout(expirePointer, Math.ceil(remaining)); return; }
+        view.pointerUntil = 0; flush();
+      }
+      function renewPointer() {
+        clearPointer();
+        if (!view.pressed.size) {
+          view.pointerUntil = performance.now() + 2000;
+          view.pointerTimer = setTimeout(expirePointer, 2000);
+        }
+      }
+      function trackPointer(event) {
+        if (event.buttons) view.pressed.add(event.pointerId); else view.pressed.delete(event.pointerId);
+        renewPointer();
+      }
+      host.addEventListener('pointerenter', trackPointer);
+      host.addEventListener('pointermove', trackPointer);
+      host.addEventListener('pointerdown', function (event) { view.pressed.add(event.pointerId); clearPointer(); });
+      host.addEventListener('pointerleave', function () { clearPointer(); flush(); });
+      function releasedPointer(event) {
+        if (!view.pressed.delete(event.pointerId)) return;
+        if (host.matches(':hover')) renewPointer(); else clearPointer();
+        flush();
+      }
+      document.addEventListener('pointerup', releasedPointer, true);
+      document.addEventListener('pointercancel', releasedPointer, true);
       host.addEventListener('focusout', function () { queueMicrotask(flush); });
       // PUDL marks an open context-menu anchor with data-menu-for.
       new MutationObserver(flush).observe(host, { subtree: true, attributes: true, attributeFilter: ['data-menu-for'] });
+      if (host.matches(':hover')) renewPointer();
       return view;
     }
     function arrange(parent, wanted) {
