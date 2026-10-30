@@ -28,11 +28,11 @@ func chatStateOf(a *App, id string) ChatState {
 func TestAChatsExecutionStateAndItsReason(t *testing.T) {
 	a, _ := providerTestApp(t)
 	s := putChat(a, "chat-1", sessionInitial{Open: true})
-	if st := chatStateOf(a, "chat-1"); st.Life != lifeOpen || !st.Window || st.Exec == nil || st.Exec.State != execIdle || st.Exec.Why == "" {
+	if st := chatStateOf(a, "chat-1"); st.Life != lifeOpen || !st.Window || st.Exec == nil || st.Exec.State != execIdle || st.Exec.Why != "No work in progress" {
 		t.Fatalf("an open chat with nothing to do: %+v", st)
 	}
 	putChat(a, "chat-w", sessionInitial{Open: true, Working: true})
-	if st := chatStateOf(a, "chat-w"); st.Exec == nil || st.Exec.State != execWorking {
+	if st := chatStateOf(a, "chat-w"); st.Exec == nil || st.Exec.State != execWorking || st.Exec.Why != "Turn in progress" {
 		t.Fatalf("a chat running a turn: %+v", st)
 	}
 	// A full context is Waiting with the reason "Context full": the person has to choose, and nothing failed.
@@ -52,7 +52,7 @@ func TestAChatsExecutionStateAndItsReason(t *testing.T) {
 	for !a.permissions().HasPending("chat-w") && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
 	}
-	if st := chatStateOf(a, "chat-w"); st.Exec.State != execWaiting {
+	if st := chatStateOf(a, "chat-w"); st.Exec.State != execWaiting || st.Exec.Why != "Needs your answer or approval" {
 		t.Fatalf("a chat waiting for a permission: %+v", st.Exec)
 	}
 	cancel()
@@ -60,7 +60,7 @@ func TestAChatsExecutionStateAndItsReason(t *testing.T) {
 	// A turn that ended in an error is Stuck, and outranks the rest.
 	noteTurnResult("chat-1", errors.New("the agent gave up"))
 	defer noteTurnResult("chat-1", nil)
-	if st := chatStateOf(a, "chat-1"); st.Exec.State != execStuck || st.Exec.Why != "its last turn ended in an error: the agent gave up" {
+	if st := chatStateOf(a, "chat-1"); st.Exec.State != execStuck || st.Exec.Why != "Last turn failed: the agent gave up" {
 		t.Fatalf("a failed turn: %+v", st.Exec)
 	}
 	// A chat that does not run has no execution state; a retired chat says so.
@@ -97,6 +97,10 @@ func TestCountsChooseTheStateAsAWholeInTheUrgencyOrder(t *testing.T) {
 		{[]ChatState{exec(execIdle), closed}, execIdle, StateCounts{Idle: 1, Closed: 1}},
 		{[]ChatState{closed, retired}, execIdle, StateCounts{Closed: 2}},
 		{nil, execIdle, StateCounts{}},
+		{[]ChatState{{Life: lifeOpen, Elsewhere: "x"}, exec(execWorking)}, execWorking, StateCounts{Working: 1, Unknown: 1}},
+		{[]ChatState{{Life: lifeOpen, Elsewhere: "x"}}, "", StateCounts{Unknown: 1}},
+		{[]ChatState{{Life: lifeOpen, Elsewhere: "x"}, closed, retired}, "", StateCounts{Unknown: 1, Closed: 2}},
+		{[]ChatState{{Life: lifeOpen, Elsewhere: "x"}, exec(execIdle)}, execIdle, StateCounts{Unknown: 1, Idle: 1}},
 	} {
 		got := countStates(c.states)
 		c.want.Top = c.top
@@ -184,3 +188,13 @@ func TestChatStatesAreSentOnceWhenTheyChange(t *testing.T) {
 // it is far longer than a correct run needs and a loaded machine cannot reach it; a run that is right finishes as
 // fast as ever.
 const testWait = 30 * time.Second
+
+// A reason that carries a detail is the prefix, a colon and the detail; without a detail it is the prefix alone.
+func TestAReasonWithoutADetailIsItsPrefixAlone(t *testing.T) {
+	if got := reasonWith("Switch failed", ""); got != "Switch failed" {
+		t.Fatalf("%q", got)
+	}
+	if got := reasonWith("Switch failed", "no such model"); got != "Switch failed: no such model" {
+		t.Fatalf("%q", got)
+	}
+}

@@ -35,7 +35,7 @@ The engine is the one source of a chat's state, and no surface works it out for 
 
 ## The Served Shape
 
-The state is the same value everywhere it appears. A chat's state is `life` (`open`, `closed` or `retired`), `window` (true when the chat has a window, false for one open in the background or one that does not run) and, only while `life` is `open`, `exec` holding `state` (`stuck`, `waiting`, `working` or `idle`) and `why`, a full phrase. A set of chats has `counts` holding `stuck`, `waiting`, `working`, `idle` and `closed` (chats that do not run) and `top`, the state it shows as a whole, which is `idle` for a set that is empty or all closed.
+The state is the same value everywhere it appears. A chat's state is `life` (`open`, `closed` or `retired`), `window` (true when the chat has a window, false for one open in the background or one that does not run) and, only while `life` is `open` and its activity is known here, `exec` holding `state` (`stuck`, `waiting`, `working` or `idle`) and `why`, a full phrase. A set of chats has `counts` holding `stuck`, `waiting`, `working`, `idle` and `closed` (chats that do not run), `unknown` (chats that run in another window, whose activity is not known here, counted as nothing else) and `top`, the state it shows as a whole, which is `idle` for a set that is empty or all closed. A chat that runs outside this window has no `exec` but an `elsewhere` note, so a surface shows it as a lifecycle word.
 
 These surfaces carry it:
 
@@ -46,6 +46,24 @@ These surfaces carry it:
 - `agent:chatstate`, numbered with `stateGen` and `stateVer`, carries the whole of it: `chats` (each with `sessionId`, `bus`, `life`, `window` and `exec`, for every open chat and every member of a group or team) and `groups` (each with `name` and `counts`). `ChatStates()` returns the same value for a page that loads or has missed an event. The event is sent a moment after something changed and only when it differs from the last one sent.
 
 The old words (`state`, `stateWhy`, `open`, `working`) stay beside the new fields until the page reads the new ones, and are removed then.
+
+## The Reasons
+
+Each reason sits beside the word of its state and does not repeat it. They are short phrases in one form, without a trailing full stop, and a detail is kept as it was supplied; a surface wraps or cuts it for its room and keeps the whole reason within reach. Dinah UI set the wording (message 1504).
+
+| Condition | State | Reason |
+|---|---|---|
+| Full-context hold | Waiting | Context full |
+| Pending permission or question | Waiting | Needs your answer or approval |
+| Pending relay through the lead | Waiting | Needs lead to relay message |
+| Last turn error | Stuck | Last turn failed: the detail |
+| Failed switch | Stuck | Switch failed: the detail |
+| Provider start failure | Stuck | Agent could not start: the detail |
+| Running turn | Working | Turn in progress |
+| Open with no work | Idle | No work in progress |
+| External open session whose activity this window cannot observe | none | Not a reason: the chat has no execution state and `elsewhere` says "Running in another Dinah window" |
+
+When the detail is empty, the reason is the prefix alone, without the colon.
 
 
 ## A Chat Whose State Is Not Known
