@@ -126,6 +126,7 @@ const path = require('path');
    t.ok('focus moves to a remaining warning',await popup.locator('[data-warning-id="3"] button').evaluate(el=>el===document.activeElement));
    await popup.getByRole('button',{name:'Dismiss All',exact:true}).click();
    await p.waitForFunction(()=>document.querySelector('#status-judgements .badge').hidden);
+   t.ok('the full-tray paused glyph stays a warning after dismissal',await opener.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph')==='var(--glyph-warning)'&&el.style.color==='var(--warn)'));
    if(folded) {
     await p.waitForFunction(()=>document.querySelector('#status-folded').dataset.statusCount==='0');
     t.ok('a paused judge keeps the folded warning glyph after its count clears',await foldedControl.getAttribute('data-status-state')==='waiting'&&await foldedControl.locator('[data-status-badge]').isHidden()&&await foldedControl.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph').includes('warning')));
