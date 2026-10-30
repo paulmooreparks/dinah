@@ -1,0 +1,24 @@
+# Nothing Moves When a Chat's State Changes
+
+Paul reported on the evening of 30 October 2026 that Dinah's interface is inconsistent and jarring in use. Two examples came in quick succession. A group's member chips moved their menu buttons whenever a member's state word changed length, so the buttons could not be clicked while chats were working. A chat window's message box changed its height and width between Working and Idle, because the buttons beside it and the hint inside it differ between the two. Both passed review, because every review and every suite so far has looked at the interface still, one state at a time, and neither kind of check can see movement.
+
+## The Rule
+
+Nothing on screen changes its size or position because of a live change in state: a turn starting or ending, a chat waiting or becoming stuck, a message streaming in, a member joining or leaving the working set, a count going up or down. A control that the person might be reaching for stays where it is.
+
+- A control that exists in one state and not in another keeps its place reserved in both, or sits where its appearing moves nothing else, such as at the end of a row whose other items are fixed.
+- A label whose text changes with state either has a fixed width that fits its longest form, or is replaced by a glyph in a fixed slot with the words as its accessible name and tooltip (see [chat-states.md](chat-states.md)).
+- A text box keeps one height and width in every state, and its hint text does not change with state.
+- Content the person is reading, such as a transcript, may grow, but it never moves the controls around it.
+
+Changes the person causes, such as resizing a window, opening a menu or typing more lines into the message box, may change layout as they do now.
+
+## How It Is Checked
+
+A suite drives each surface through the transitions it can make, including working to idle, idle to waiting, waiting to stuck and back, streaming, members changing state, and counts changing. It records the bounding box of every interactive control before and after each change, and fails if any control moved or changed size. The surfaces are the chat window (title bar, status line, toolbar and message box), the group window (member chips, toolbar and message box), the team strip, the chat lists, the pickers and the taskbar.
+
+Dinah UI also reviews live behaviour as well as still screenshots. For each surface it watches the transitions happen, in light and dark and at a narrow width, and lists everything that moves, flickers or jumps, however small.
+
+## Order
+
+Front End fixes the message box first, since it is what Paul types into: one geometry for Working and Idle, with the send, queue and steer actions arranged so that none of them appears or disappears in a way that resizes the box, and one hint text. Then comes the stability suite. Its first run will list the other movements, and each is fixed under the rule above. Dinah UI's live review runs beside it and adds what a suite cannot judge, such as flicker and distracting motion.
