@@ -289,16 +289,9 @@ body:not(.show-thoughts) .thought-row { display: none; }
   --glyph-subagents: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M5.5 1.5h5v4h-5zM8 5.5V8M4 8h8M4 8v2.5M12 8v2.5M1.5 10.5h5v4h-5zM9.5 10.5h5v4h-5z'/%3E%3C/svg%3E");
 }
 
-/* The session's title row: the name, and on its right the buttons that
-   rename and remove it. */
-.session-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
-.session-head > h1 { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.session-actions { display: inline-flex; gap: var(--space-1); flex: none; }
-.session-actions .icon-btn { --glyph-size: 15px; }
-.session-head .session-rename { height: 36px; font-size: var(--text-xl); font-weight: 700; }
-
 /* Renaming a session: its row's title becomes a field in place. */
 .session-rename { width: 100%; height: 28px; padding: 2px 8px; font-size: var(--text-sm); }
+.chat-rename-dialog .session-rename { display: block; margin-block-start: var(--space-1); }
 
 /* The Devin item in the status area is a button that opens the Devin menu;
    it looks like the other status items. */
@@ -428,6 +421,10 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .composer-input { width: 100%; resize: none; field-sizing: content; min-height: calc(2lh + 18px); max-height: min(calc(15lh + 18px), 40vh); overflow-y: auto; }
 .composer-actions { display: flex; flex-direction: column; gap: var(--space-2); justify-content: flex-end; }
 .composer-actions > .btn { min-width: 6.5em; }
+.composer-stop-slot { flex: none; display: grid; inline-size: 8.5em; block-size: calc(1lh + 2 * var(--space-1) + 2px); font-size: var(--text-sm); line-height: 1.5; }
+.composer-stop { inline-size: 100%; block-size: 100%; justify-content: center; }
+.chat-working-chip { box-sizing: border-box; inline-size: 8em; flex: none; overflow: hidden; white-space: nowrap; }
+.chat-working-chip .chat-state { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* The prompt history: a sunken, scrolling list of pressable prompts. */
 .history-dialog { max-width: 720px; }

@@ -23,7 +23,7 @@ const { launch } = require('./lib/page');
       pudlWindows.snap(dinahWorkbench.key({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'codex:tail' }), 'maximized');
       window.__more = () => __emit('agent:update', { sessionId: 'codex:tail', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'A paragraph of streamed output.\n\n'.repeat(60) } } });
     });
-    await p.waitForFunction(() => /Idle/.test(document.querySelector('.win[data-chat-current] [data-view-id=page-state]').textContent));
+    await p.waitForFunction(() => /Idle/.test(document.querySelector('.win[data-chat-current] .chat-working-chip').title));
     const prompt = p.locator('.win[data-chat-current] [data-view-id=prompt]');
     await p.evaluate(() => {
       window.__huge = 'BEGIN\n' + ('A large message line.\n'.repeat(30000)) + 'END';

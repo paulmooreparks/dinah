@@ -33,7 +33,7 @@ const { launch } = require('./lib/page');
   const state = (info, execution = 'idle') => p.evaluate(([i, execution]) => window.__emit('agent:session', Object.assign({ sessionId: 'bg', cwd: 'C:\\Work\\Parser Workspace', title: 'Builds', open: true, queued: [], chatState: { life: 'open', window: true, exec: { state: execution, why: execution === 'working' ? 'Turn in progress' : 'No work in progress' } } }, i)), [info, execution]);
   const chips = () => p.evaluate(w => {
     const el = document.querySelector(w), working = el.querySelector('.chat-working-chip .chat-state-working'), background = el.querySelector('.chat-background-chip');
-    return { working: !!working && !working.hidden, background: background && !background.hidden ? background.textContent : '', line: el.querySelector('[data-view-id=page-state]').textContent, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent) };
+    return { working: !!working && !working.hidden, background: background && !background.hidden ? background.textContent : '', line: el.querySelector('.chat-working-chip').title, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent) };
   }, win);
   const build = { id: 'build', name: 'Build Windows', type: 'shell', description: 'go build ./...', state: 'running', canStop: true };
   const linux = { id: 'linux', name: 'Build Linux', type: 'shell', summary: 'linking', state: 'running', canStop: false };

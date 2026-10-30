@@ -87,7 +87,7 @@ const { launch, PAGE } = require('./lib/page');
     await page.locator('#rename-workspace').waitFor({ state: 'hidden' });
     await page.locator('#status-workspace-name').getByText('Parser Release', { exact: true }).waitFor();
     ok('renaming preserves open window identity and unsaved content', await chat.getAttribute('data-win') === chatKey && await chat.locator('[data-view-id="prompt"]').inputValue() === 'Keep this chat draft');
-    ok('chat labels update without replay or source writes', (await chat.locator('[data-view-id="page-state"]').textContent()).includes('Parser Release') && await page.evaluate(count => __calls.slice(count).every(call => call[0] === 'rename'), before.length));
+    ok('chat labels update without replay or source writes', (await chat.locator('.chat-working-chip').getAttribute('title')).includes('Parser Release') && await page.evaluate(count => __calls.slice(count).every(call => call[0] === 'rename'), before.length));
     await page.evaluate(() => dinahWorkbench.open('chat-browser'));
     await page.locator('#chat-scope').selectOption('all');
     await page.waitForFunction(() => document.getElementById('sessions').textContent.includes('Parser Release'));

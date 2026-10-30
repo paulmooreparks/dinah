@@ -108,7 +108,7 @@
     section.hidden = true;
     var toggle = disclosure('Team', content, prefix + '-content');
     section.append(toggle, content);
-    o.root.querySelector('[data-view-id="page-state"]').after(section);
+    o.root.querySelector('.chat-output').before(section);
     var tree = node('ul', 'tree team-tree'); tree.setAttribute('aria-label', 'Team members');
     var retiredTree = node('ul', 'tree team-tree'); retiredTree.setAttribute('aria-label', 'Retired members');
     var retiredBox = node('div', 'team-retired');

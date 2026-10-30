@@ -19,7 +19,7 @@ const { launch } = require('./lib/page');
       await page.evaluate(()=>dinahWorkbench.open('chat-browser'));
       await page.locator('#sessions a[data-session="'+provider+'"]').click();
       const win=page.locator('.win.active');
-      await win.locator('[data-view-id=session-title]').getByText(provider,{exact:true}).waitFor();
+      await win.locator('.win-title').getByText(provider,{exact:true}).waitFor();
       windows[provider]=await win.getAttribute('data-win');
       // Opening an already-running session may return a snapshot without
       // emitting a new agent:session event.

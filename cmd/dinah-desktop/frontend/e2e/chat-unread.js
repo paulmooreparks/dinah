@@ -13,7 +13,8 @@ const { launch } = require('./lib/page');
     const key = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'reading' }));
     const win = page.locator('[data-win="' + key + '"]');
     const log = win.locator('[data-view-id="activity"]');
-    await win.locator('.chat-state-working').first().waitFor();
+    await win.locator('.chat-working-chip .chat-state-working').waitFor({ state: 'attached' });
+    ok('the current state is visible directly or through Window status', await win.locator('.chat-working-chip .chat-state-working').isVisible() || await win.locator('.win-status-toggle').isVisible());
     await page.evaluate(() => {
       window.__readingUpdate = update => __emit('agent:update', { sessionId: 'reading', update });
       for (let i = 0; i < 16; i++) {

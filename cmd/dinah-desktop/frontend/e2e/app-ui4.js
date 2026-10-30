@@ -83,7 +83,7 @@ const { choose, shows } = require('./lib/commands');
   const atBottom = await p.evaluate(() => { const b = document.querySelector('.win[data-chat-current] [data-view-id=activity]'); return b.scrollHeight - b.scrollTop - b.clientHeight < 4; });
   ok('the view is left at the end', atBottom);
   ok('the last word is drawn', (await p.textContent('.win[data-chat-current] [data-view-id=logs]')).includes('THE LAST WORD'));
-  ok('the session is usable', await offered('model', true) && (await p.textContent('.win[data-chat-current] [data-view-id=page-state]')).includes('Idle'));
+  ok('the session is usable', await offered('model', true) && (await p.getAttribute('.win[data-chat-current] .chat-working-chip', 'title')).includes('Idle'));
   await t.shot('r-done');
   // A session Devin will not open.
   await p.click('#sessions a:has-text("Open in Devin Desktop")');

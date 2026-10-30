@@ -27,11 +27,11 @@ const { choose } = require('./lib/commands');
     const open = async id => {
       await p.evaluate(() => window.dinahWorkbench.open('chat-browser'));
       await p.locator('#sessions a[data-session="' + id + '"]').click();
-      await front().locator('[data-view-id="session-title"]').getByText(id, { exact: true }).waitFor();
+      await front().locator('.win-title').getByText(id, { exact: true }).waitFor();
     };
     await p.evaluate(() => dinahWorkbench.open('workspace'));
     await p.locator('#workspace-chats a[data-session="First"]').click();
-    await front().locator('[data-view-id="session-title"]').getByText('First', { exact: true }).waitFor();
+    await front().locator('.win-title').getByText('First', { exact: true }).waitFor();
     ok('Workspace opens the owning chat directly', await front().getAttribute('data-win-kind') === 'chat-session');
     const firstKey = await front().getAttribute('data-win');
     await prompt().fill('First draft');
@@ -118,10 +118,9 @@ const { choose } = require('./lib/commands');
       return atts.some(a => a.kind === 'draft' && a.draftId === 'ab'.repeat(16)) && atts.some(a => a.kind === 'resource' && a.ref.path === 'review/findings.md');
     }));
     // Renaming a chat renames its menu in the host bar.
-    await front().locator('[data-view-id="session-title"]').dblclick().catch(() => {});
-    if (!await front().locator('input.session-rename').count()) await p.keyboard.press('F2');
-    await front().locator('input.session-rename').fill('Note 08 Research');
-    await front().locator('input.session-rename').press('Enter');
+    await p.keyboard.press('F2');
+    await p.locator('.chat-rename-dialog input.session-rename').fill('Note 08 Research');
+    await p.locator('.chat-rename-dialog input.session-rename').press('Enter');
     await p.waitForFunction(() => [...document.querySelectorAll('[data-menubar] button, [data-menubar] [role="menuitem"]')].some(b => b.textContent.trim() === 'Note 08 Research'));
     ok('renaming a chat renames its menu in the host bar', true);
     // New Chat asks which workspace it belongs to when more than one is
@@ -154,10 +153,9 @@ const { choose } = require('./lib/commands');
     await askDlg.waitFor({ state: 'detached' });
     await p.waitForTimeout(150);
     ok('the pane is not switched for the new chat', (await p.locator('#status-workspace-name').textContent()).includes('Alpha') && await p.evaluate(() => !window.__calls.some(c => c[0] === 'select-workspace' && c[1] === 'beta')));
-    // The draft's own line is the one place Paul checks where a first message
-    // goes before it goes.
-    await front().locator('[data-view-id="page-state"]').waitFor();
-    ok('the new chat says its workspace in its own line before the first message', /Beta Workspace/.test(await front().locator('[data-view-id="page-state"]').textContent()), await front().locator('[data-view-id="page-state"]').textContent());
+    // A new chat's title status retains its destination before the first message.
+    await front().locator('.chat-working-chip').waitFor();
+    ok('the new chat keeps its workspace in title status before the first message', /Beta Workspace/.test(await front().locator('.chat-working-chip').getAttribute('title')), await front().locator('.chat-working-chip').getAttribute('title'));
     await front().locator('[data-view-id="prompt"]').waitFor();
     await prompt().fill('hello from Beta');
     await prompt().press('Enter');

@@ -154,7 +154,6 @@
     workspaceLabel: path => workspaceLabel(path), chatWorking, needsCount, waitingApproval,
     backgroundWork, earlierSubagents, browserSection: (...args) => browserSection(...args),
     active: () => chats.active(), workspace: () => workspace, openPaths: () => workspaces.openPaths(),
-    titleElement: () => chats.current().id('session-title'),
     disposeChat: chats.disposeChat,
     showSavedChat: session => {
       show(session.id); showChat();
@@ -279,8 +278,6 @@
     }).then(function (st) {
       // The page shows the product's name from here on (product.js).
       if (window.dinahProduct) window.dinahProduct.apply(st.product);
-      var heading = document.getElementById('session-title');
-      if (heading && !chats.active()) heading.textContent = productName();
       var mode = st.newWindowMode === 'maximized' ? 'maximized' : 'floating';
       setWindowModeControl(mode);
       drawWindowKindModes(st.windowModes, st.windowModesShipped);

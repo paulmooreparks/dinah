@@ -43,7 +43,7 @@ const { openMenu } = require('./lib/commands');
     const open = async id => {
       await page.evaluate(()=>dinahWorkbench.open('workspace'));
       await page.locator('#workspace-chats a[data-session="'+id+'"]').click();
-      await front().locator('[data-view-id="session-title"]').getByText(id,{exact:true}).waitFor();
+      await front().locator('.win-title').getByText(id,{exact:true}).waitFor();
     };
     // The Add menu, opened from its control or from the menu its group
     // folded into, and one of its rows.

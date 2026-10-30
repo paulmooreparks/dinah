@@ -66,21 +66,23 @@ async function rowsOf(page, scope, id) {
   // The labels of the commands in the command's group, whose headings
   // divide a folded group's menu; a heading among a command's own rows is
   // not one of them.
-  const [label, labels, folded] = await scope.locator('[data-command="' + id + '"]').first().evaluate(el => {
+  const [label, labels, folded, only, groupName] = await scope.locator('[data-command="' + id + '"]').first().evaluate(el => {
     const C = window.pudlCommands, labelOf = b => { const c = C.find(b.dataset.command, b); return (c && C.value(c, 'label')) || b.dataset.command; };
     const group = el.closest('.toolbar-group');
-    return [labelOf(el), group ? Array.from(group.querySelectorAll('[data-command]:not([hidden])'), labelOf) : [], !el.getClientRects().length];
+    const bar = el.closest('.toolbar');
+    const boundaries = bar ? [...bar.querySelectorAll('[data-command]:not([hidden])')].map(labelOf).concat([...bar.querySelectorAll('[data-toolbar-group]')].map(g => g.dataset.toolbarGroup)) : [];
+    return [labelOf(el), boundaries, !el.getClientRects().length, !!group && group.querySelectorAll('[data-command]:not([hidden])').length === 1, group && group.dataset.toolbarGroup];
   });
-  return menu.evaluate((panel, [label, labels, folded]) => {
+  return menu.evaluate((panel, [label, labels, folded, only, groupName]) => {
     const out = [];
-    // A folded group of one menu lists that menu's rows with no heading.
-    let mine = !folded || labels.length === 1;
+    // The panel may contain multiple toolbar groups when More owns it.
+    let mine = !folded || only;
     for (const el of panel.children) {
-      if (folded && labels.length > 1 && el.classList.contains('md-section-label') && labels.includes(el.textContent)) { mine = el.textContent === label; continue; }
+      if (folded && labels.length > 1 && el.classList.contains('md-section-label') && labels.includes(el.textContent)) { mine = el.textContent === label || only && el.textContent === groupName; continue; }
       if (mine && el.classList.contains('menu-action')) out.push(el.querySelector('.menu-words').textContent);
     }
     return out;
-  }, [label, labels, folded]);
+  }, [label, labels, folded, only, groupName]);
 }
 // Whether a command's control comes to show these words within a few
 // seconds; its control is drawn again in the frame after a change.
