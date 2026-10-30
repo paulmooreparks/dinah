@@ -232,6 +232,7 @@ func (b *Bus) BeginHookTurn(ctx context.Context, session, token string) error {
 		return err
 	})
 }
+
 // ReopenHookTurn marks a chat's hook turn running again, for a stop the agent was told not to make: the agent carries
 // on in the turn, even when the window's prompt for it has already come back.
 func (b *Bus) ReopenHookTurn(ctx context.Context, session string) error {
