@@ -13,7 +13,7 @@
   </header>
   <div class="win-body"><div class="win-content dinah-window vstack gap-5">
 {{else}}<!doctype html>
-<html lang="en">
+<html lang="en" data-pudl-persistence="host" data-skin="{{skin}}"{{with themePref}} data-theme-pref="{{.}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,9 +47,11 @@
 {{/* The stylesheets and scripts every page and the desktop load. Windows
      load none of their own, because scripts in fetched markup do not run;
      applets and dinah.js bring windows to life. */}}
-{{define "assets"}}<script src="/static/pudl/pudl-theme.js"></script>
-<link rel="stylesheet" href="/static/pudl/pudl.css">
+{{define "assets"}}<link rel="stylesheet" href="/static/pudl/pudl.css">
 <link rel="stylesheet" href="/static/pudl/pudl-windows.css">
+{{range skinLinks}}<link rel="stylesheet" href="/static/pudl/{{.File}}" data-pudl-skin="{{.ID}}">
+{{end}}<script src="/static/pudl/pudl-theme.js"></script>
+<script src="/static/pudl/pudl-skins.js"></script>
 <link rel="stylesheet" href="/static/brand.css">
 <link rel="stylesheet" href="/static/dinah.css">
 <script src="/static/pudl/pudl-menu.js" defer></script>
@@ -60,7 +62,7 @@
 {{/* The desktop: the launcher and the dock in the top bar, and the layer
      of windows the address names. */}}
 {{define "desktop.html"}}<!doctype html>
-<html lang="en">
+<html lang="en" data-pudl-persistence="host" data-skin="{{skin}}"{{with themePref}} data-theme-pref="{{.}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
