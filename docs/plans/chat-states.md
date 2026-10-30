@@ -32,3 +32,18 @@ PUDL replaces its boolean `data-win-running` on a window with `data-win-state`, 
 ## Where the State Comes From
 
 The engine is the one source of a chat's state, and no surface works it out for itself. Engine proposed the shape on 30 October (message 1446), and Architecture approved it with two changes (message 1447). Every chat has `life`, which is `open` while its session runs, `closed` when it has ended, or `retired` when its team retired it, and `window`, which says whether it has a window. An open chat also has `exec`, holding the state and its reason as a full phrase. A full-context hold is Waiting with the reason "Context full", because the person has to choose and nothing failed. Stuck covers an error in the last turn, a failed provider switch, and a provider or budget that cannot run the chat. The same fields are served in a chat's information, in each group's member list, in the chat directory that Add Chats, All Chats and the find and list actions read, in mention candidates and in the team snapshot. The engine also gives each group, team and lead the counts of its members in each state, together with the state it shows as a whole, chosen by the urgency order and Idle when every member is closed, so that no surface applies the order itself, and announces a change in any chat's state or life in one numbered event.
+
+## The Served Shape
+
+The state is the same value everywhere it appears. A chat's state is `life` (`open`, `closed` or `retired`), `window` (true when the chat has a window, false for one open in the background or one that does not run) and, only while `life` is `open`, `exec` holding `state` (`stuck`, `waiting`, `working` or `idle`) and `why`, a full phrase. A set of chats has `counts` holding `stuck`, `waiting`, `working`, `idle` and `closed` (chats that do not run) and `top`, the state it shows as a whole, which is `idle` for a set that is empty or all closed.
+
+These surfaces carry it:
+
+- A chat's information (`agent:session` and the calls that return it) has `chatState` (life, window and exec together, absent until the window has worked it out) and, for a lead, `team` (the counts of the members it leads, nested ones included).
+- A group's `members` each have `life`, `window` and `exec` beside their old `state` word, and the group has `counts`.
+- Each entry of the chat directory (Add Chats, All Chats, mention candidates, and the list and find actions) has `life`, `window` and `exec` beside the old `state` and `working`.
+- A team's strip (`team:state`) has `counts` for the team and, for each member that leads, its own `counts`, and each member has `life`, `window` and `exec` beside the old `state`, `stateWhy` and `open`.
+- `agent:chatstate`, numbered with `stateGen` and `stateVer`, carries the whole of it: `chats` (each with `sessionId`, `bus`, `life`, `window` and `exec`, for every open chat and every member of a group or team) and `groups` (each with `name` and `counts`). `ChatStates()` returns the same value for a page that loads or has missed an event. The event is sent a moment after something changed and only when it differs from the last one sent.
+
+The old words (`state`, `stateWhy`, `open`, `working`) stay beside the new fields until the page reads the new ones, and are removed then.
+
