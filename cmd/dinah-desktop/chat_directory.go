@@ -36,9 +36,12 @@ type chatDirectoryEntry struct {
 	Workspace   string `json:"workspace"`
 	WorkspaceID string `json:"workspaceId,omitempty"`
 	Provider    string `json:"provider"`
-	State       string `json:"state"`
-	Working     bool   `json:"working"`
-	UpdatedAt   string `json:"updatedAt,omitempty"`
+	// State and Working are the old vocabulary, kept until the page reads ChatState.
+	State     string `json:"state"`
+	Working   bool   `json:"working"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+	// ChatState is the chat's life, window and execution state (chat_state.go).
+	ChatState
 	// cwd is the chat's folder, and named the title the chat has of its
 	// own, empty for an untitled chat, whose Title is "Untitled Chat in"
 	// its workspace as the bus shows it. Neither is part of the output.
@@ -143,6 +146,22 @@ func (a *App) chatDirectory() []chatDirectoryEntry {
 		e.Title = bus.DisplayTitle(e.named, e.Workspace)
 	}
 	a.mu.Unlock()
+	fill := func(b *bus.Bus) {
+		ctx := context.Background()
+		for i := range out {
+			id := out[i].SessionID
+			busID := a.knownBusID(id)
+			retired := false
+			if busID != "" && b != nil {
+				_, retired, _ = b.LeadOf(ctx, busID)
+			}
+			out[i].ChatState = a.chatState(ctx, b, busID, id, retired, false)
+		}
+	}
+	if err := a.busHost().With(func(b *bus.Bus) error { fill(b); return nil }); err != nil {
+		logf("bus", "error", "reading the chats' states from the bus: %v", err)
+		fill(nil)
+	}
 	sort.Slice(out, func(i, j int) bool {
 		if ci, cj := out[i].State == chatStateClosed, out[j].State == chatStateClosed; ci != cj {
 			return cj

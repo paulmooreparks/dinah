@@ -88,6 +88,8 @@ type App struct {
 	teamSent       map[string]string
 	teamClosed     bool
 	teamRun        sync.Mutex
+	// chatStates sends the chats' states as they change (chat_state_events.go).
+	chatStates chatStateSender
 	// teamSendAfter is the number of the newest bus message already looked at for the sends of team chats, and
 	// teamSendSet says the first pass, which only finds where the bus is, has been made.
 	teamSendMu    sync.Mutex
@@ -309,6 +311,7 @@ func (a *App) shutdown(ctx context.Context) {
 	for _, s := range open {
 		a.busCoordinator().LeaveBus(s)
 	}
+	a.closeChatStates()
 	a.busHost().CloseHandle()
 	a.queueStore.Close()
 	a.closeJudges()
@@ -486,6 +489,7 @@ func (a *App) emit(name string, data any) {
 	// says it may have; the strips are rebuilt a moment later and sent only when they differ.
 	if strings.HasPrefix(name, "agent:") || name == "notifications:added" {
 		a.teamsChanged()
+		a.chatStatesChanged()
 	}
 	if a.sink != nil {
 		a.sink(name, data)

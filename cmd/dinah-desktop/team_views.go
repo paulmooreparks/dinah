@@ -33,10 +33,15 @@ type TeamMemberView struct {
 	Workspace string `json:"workspace"`
 	Provider  string `json:"provider"`
 	Model     string `json:"model"`
-	State     string `json:"state"`
-	StateWhy  string `json:"stateWhy"`
-	Task      string `json:"task"`
-	TaskMsg   int64  `json:"taskMessage"`
+	// State, StateWhy and Open are the old vocabulary, kept until the page reads ChatState.
+	State    string `json:"state"`
+	StateWhy string `json:"stateWhy"`
+	Task     string `json:"task"`
+	// ChatState is the member's life, window and execution state (chat_state.go), and Counts those of the members
+	// under it, nested ones included, when it leads a team of its own.
+	ChatState
+	Counts  *StateCounts `json:"counts,omitempty"`
+	TaskMsg int64        `json:"taskMessage"`
 	// TaskGroup is the key of the group the assignment was posted in, which can differ from the team's group
 	// for a nested assignment.
 	TaskGroup string `json:"taskGroup"`
@@ -55,6 +60,9 @@ type TeamView struct {
 	Group   string           `json:"group"`
 	Members []TeamMemberView `json:"members"`
 	Stuck   int              `json:"stuck"`
+	// Counts are how many of the team's members, nested ones included, are in each state, and the state the team
+	// shows as a whole.
+	Counts StateCounts `json:"counts"`
 	// Budget is the team's allowances and use, per provider, over the Judgements budget's period.
 	Budget   TeamBudget `json:"budget"`
 	StateGen string     `json:"stateGen"`
@@ -113,50 +121,34 @@ func turnFailure(chat string) string {
 	return lastTurnFailures.byChat[chat]
 }
 
-// memberState works out a member's state and the reason for it from what Dinah knows of its chat.
-func (a *App) memberState(b *bus.Bus, ctx context.Context, m bus.TeamMember, leadTitle string) (state, why string, open bool) {
-	if m.Retired {
+// memberState is a member's state in the old vocabulary, which the team page reads until it reads the chat state.
+func (a *App) memberState(b *bus.Bus, ctx context.Context, m bus.TeamMember, st ChatState) (state, why string, open bool) {
+	switch {
+	case st.Life == lifeRetired:
 		return "retired", "it has been retired and its session ended", false
-	}
-	chat := a.chatOfBus(m.Session)
-	s := a.session(chat)
-	if s == nil {
+	case st.Life == lifeClosed:
 		return "closed", "its chat is not open", false
 	}
-	info := s.Info()
-	switch {
-	case info.Hold != nil:
-		return "stuck", "its context window is full and a send is held for a decision", true
-	case info.Switch != nil && info.Switch.Failed != "":
-		return "stuck", "its switch failed: " + info.Switch.Failed, true
-	case turnFailure(chat) != "":
-		return "stuck", "its last turn ended in an error: " + turnFailure(chat), true
-	case info.Working:
-		return "working", "it is running a turn", true
-	}
-	if _, waiting, err := b.PendingRelayFrom(ctx, m.Session); err == nil && waiting {
-		return "waiting", "it is waiting for " + leadTitle + " to relay a message to the person", true
-	}
-	return "idle", "it is open and has nothing to do", true
+	return st.Exec.State, st.Exec.Why, true
 }
 
 // teamMembers builds the members under a lead, nested ones under theirs, and counts the stuck ones.
-func (a *App) teamMembers(b *bus.Bus, ctx context.Context, lead bus.Session, group string, seen map[string]bool) ([]TeamMemberView, int) {
+func (a *App) teamMembers(b *bus.Bus, ctx context.Context, lead bus.Session, group string, seen map[string]bool) ([]TeamMemberView, StateCounts) {
 	members, err := b.TeamMembers(ctx, lead.ID)
 	if err != nil {
-		return nil, 0
+		return nil, StateCounts{}
 	}
-	leadTitle := bus.DisplayTitle(lead.Title, lead.WorkspaceLabel)
 	var out []TeamMemberView
-	stuck := 0
+	var counts StateCounts
 	for _, m := range members {
 		if seen[m.Session] {
 			continue
 		}
 		seen[m.Session] = true
 		v := TeamMemberView{TeamChat: a.teamChat(b, ctx, m.Session), Retired: m.Retired, Members: []TeamMemberView{}, Usage: []TeamUsageRow{}}
-		state, why, open := a.memberState(b, ctx, m, leadTitle)
-		v.State, v.StateWhy, v.Open = state, why, open
+		v.ChatState = a.chatState(ctx, b, m.Session, v.Chat, m.Retired, false)
+		v.State, v.StateWhy, v.Open = a.memberState(b, ctx, m, v.ChatState)
+		counts.Add(v.ChatState)
 		if s, err := b.Session(ctx, m.Session); err == nil {
 			v.Workspace = s.WorkspaceLabel
 			if v.Workspace == "" {
@@ -177,17 +169,16 @@ func (a *App) teamMembers(b *bus.Bus, ctx context.Context, lead bus.Session, gro
 		v.Usage = a.memberUsage(b, ctx, m.Session)
 		if led, _ := b.IsLead(ctx, m.Session); led {
 			if child, err := b.Session(ctx, m.Session); err == nil {
-				sub, subStuck := a.teamMembers(b, ctx, child, "", seen)
-				v.Members, v.StuckBelow = sub, subStuck
-				stuck += subStuck
+				sub, subCounts := a.teamMembers(b, ctx, child, "", seen)
+				v.Members, v.StuckBelow = sub, subCounts.Stuck
+				subCounts.Finish()
+				v.Counts = &subCounts
+				counts.Merge(subCounts)
 			}
-		}
-		if v.State == "stuck" {
-			stuck++
 		}
 		out = append(out, v)
 	}
-	return out, stuck
+	return out, counts
 }
 
 // teamSnapshot builds a lead's team without a number.
@@ -201,7 +192,10 @@ func (a *App) teamSnapshot(b *bus.Bus, ctx context.Context, leadBus string) (Tea
 		return TeamView{}, err
 	}
 	v := TeamView{Lead: a.teamChat(b, ctx, leadBus), Group: group}
-	v.Members, v.Stuck = a.teamMembers(b, ctx, lead, group, map[string]bool{leadBus: true})
+	var counts StateCounts
+	v.Members, counts = a.teamMembers(b, ctx, lead, group, map[string]bool{leadBus: true})
+	counts.Finish()
+	v.Counts, v.Stuck = counts, counts.Stuck
 	if v.Budget, err = a.teamBudget(b, ctx, leadBus); err != nil {
 		return TeamView{}, err
 	}

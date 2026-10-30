@@ -36,6 +36,10 @@ type Conversation struct {
 	switchState *SwitchState
 	// lead is the chat's lead, when it is a team member (teams.go).
 	lead *LeadRef
+	// state is the chat's life, window and execution state, and team the counts of the members it leads, as the
+	// window last worked them out (chat_state.go in the window); both are nil until it has.
+	state *ChatState
+	team  *StateCounts
 	// log is the chat's numbered events (chat_events.go). Its mutex is a
 	// leaf, which may be taken under mu.
 	log *chatLog
@@ -186,6 +190,10 @@ type Info struct {
 	// Lead is the chat that leads this one and the key of the team's group chat, for a team member, or nil
 	// (docs/plans/teams.md). The window sets it and sends the information again when it changes.
 	Lead *LeadRef `json:"lead,omitempty"`
+	// State is the chat's life, window and execution state, absent until the window has worked it out, and Team the
+	// counts of the members the chat leads, present for a lead.
+	State *ChatState   `json:"chatState,omitempty"`
+	Team  *StateCounts `json:"team,omitempty"`
 }
 
 // LeadRef is a chat's lead: its session on the bus, its chat's ID in the window, its title and the team's group key.
@@ -195,6 +203,18 @@ type LeadRef struct {
 	Title   string `json:"title"`
 	Group   string `json:"group"`
 	Retired bool   `json:"retired"`
+}
+
+// SetState records the chat's state and its team's counts, either of which may be nil, and says whether anything
+// changed.
+func (c *Conversation) SetState(st *ChatState, team *StateCounts) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if sameState(c.state, st) && sameCounts(c.team, team) {
+		return false
+	}
+	c.state, c.team = copyState(st), copyCounts(team)
+	return true
 }
 
 // SetLead records the chat's lead, or with nil that it has none, and says whether it changed.
@@ -222,5 +242,5 @@ func (c *Conversation) infoLocked() Info {
 	provider := profile.ProviderOrLegacy(c.Provider())
 	// The log's mutex is a leaf, so it may be taken under mu.
 	gen, head := c.log.position()
-	return Info{Provider: provider, ID: c.ID(), Cwd: c.Cwd(), Title: c.identity.Title, UpdatedAt: c.identity.UpdatedAt, Open: c.activity.OpenLocked(), Working: c.activity.WorkingLocked(), Queued: c.activity.QueueTextsLocked(), Background: c.details.BackgroundLocked(), Subagents: c.details.SubagentListLocked(), InBackground: c.activity.BackgroundLocked(), Parked: c.activity.ParkedLocked(), StreamGen: gen, StreamHead: head, Resumed: c.resumed, Hold: c.hold, Choice: c.choice, Switch: c.copySwitchLocked(), Lead: c.copyLeadLocked()}
+	return Info{Provider: provider, ID: c.ID(), Cwd: c.Cwd(), Title: c.identity.Title, UpdatedAt: c.identity.UpdatedAt, Open: c.activity.OpenLocked(), Working: c.activity.WorkingLocked(), Queued: c.activity.QueueTextsLocked(), Background: c.details.BackgroundLocked(), Subagents: c.details.SubagentListLocked(), InBackground: c.activity.BackgroundLocked(), Parked: c.activity.ParkedLocked(), StreamGen: gen, StreamHead: head, Resumed: c.resumed, Hold: c.hold, Choice: c.choice, Switch: c.copySwitchLocked(), Lead: c.copyLeadLocked(), State: copyState(c.state), Team: copyCounts(c.team)}
 }
