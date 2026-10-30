@@ -103,7 +103,11 @@
       }
       if (force) setFollowing(true);
       if (following) { window.dinahChatText.releasePlace(log); log.scrollTop = log.scrollHeight; }
+      if (o.scrolled) o.scrolled();
       jump.hidden = following || atEnd(); updateSeen();
+      // Seen controls and the unread divider can change the viewport or extent.
+      // Finish the same operation at the resulting end, before another frame.
+      if (following) log.scrollTop = log.scrollHeight;
     }
     function queueTail() {
       if (disposed || !following || o.canTail && !o.canTail()) return;

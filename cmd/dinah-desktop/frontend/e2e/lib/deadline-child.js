@@ -4,8 +4,8 @@
 // work is done, which is what the suite measures.
 const { launch } = require('./page');
 (async () => {
-  const t = await launch({ timeout: 1000 });
-  await t.deadline('the child’s settling wait', Promise.resolve(7));
+  const t = await launch();
+  await t.deadline('the child’s settling wait', Promise.resolve(7), 1000);
   await t.close();
   console.log('settled-and-closed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

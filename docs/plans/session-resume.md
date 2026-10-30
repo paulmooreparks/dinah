@@ -98,3 +98,9 @@ Built on 29 October 2026 (Dinah Engine Cleanup), the engine half, as approved. R
 Three things the plan did not say. The wholeness check and the opening of the copy are one step under the transcript mutex, so a copy that changes in between cannot be resumed by mistake, and a copy that fails the check at that moment takes the load. The DESIGN.md change is the decisions-table row only, since the restore behaviour has no paragraph of its own to amend. And a reopen of a crash-cut copy keeps its cut-off note until the replay brings something the copy lacks, which is the case the test covers; a replay that brings nothing new leaves the note, as `FinishReplayLocked` already did.
 
 Not done: the live Claude timing measurement the plan lists as test 9, because it needs a long chat and a person to read the numbers. Codex and any resume for it wait for 4 November 2026.
+
+## Opening a Window on a Running Chat
+
+Architecture ruled on 30 October 2026 (message 1601) that every ordinary window opening draws the saved copy and follows its journal from `streamThrough`, whether the session was resumed, loaded or already running. The `resumed` flag records how the engine opened a session and does not say which journal entries a page has drawn. No `alreadyOpen` field is needed.
+
+The page retains the generation and checkpoint with the saved copy it displays. A copy retained across a newly opened generation starts at that generation's zero; a copy from the current generation starts at its own checkpoint. Opening a background team member must show its saved messages while catch-up waits, with no history-parts counter, and each later numbered part appears once. Load Full History remains the explicit command that draws a provider replay.
