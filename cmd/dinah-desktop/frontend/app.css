@@ -625,7 +625,7 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 
 /* Keep transcript DOM mounted while the browser skips distant message layout. */
 @supports (content-visibility: auto) and (contain-intrinsic-block-size: auto 120px) {
-  .chat-instance .run-log:not([data-preserve-scroll-layout]) .activity-row { content-visibility:auto; contain-intrinsic-block-size:auto 120px; }
+  .chat-instance .run:not([data-preserve-scroll-layout]) .run-log:not([data-preserve-scroll-layout]) .activity-row { content-visibility:auto; contain-intrinsic-block-size:auto 120px; }
 }
 @media print { .chat-instance .activity-row { content-visibility:visible; } }
 
