@@ -141,12 +141,12 @@
      closes it has chosen to. */
   /* It waits for both the restored layout and the windows, which start when
      the page has loaded; either can come first. */
-  var OFFERED = 'dinah-in-progress-offered', restored = false, offered = false;
-  document.addEventListener('dinah:ui-state-restored', function () { restored = true; offer(); });
+  var OFFERED = 'dinah-in-progress-offered', offered = false;
+  document.addEventListener('dinah:ui-state-restored', offer);
   window.addEventListener('load', offer);
   function offer() {
     var ui = window.dinahUIState, windows = window.pudlWindows;
-    if (offered || !restored || !ui || !windows || document.readyState !== 'complete') return;
+    if (offered || !ui || ui.isRestoring() || !windows || document.readyState !== 'complete') return;
     offered = true;
     if (ui.get(OFFERED)) return;
     ui.set(OFFERED, true);

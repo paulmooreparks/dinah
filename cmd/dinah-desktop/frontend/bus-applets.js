@@ -1206,12 +1206,12 @@
   /* The pane opens once by itself, as a tab behind the one in front of the
      right-hand dock, so a layout saved before it existed finds it; a person
      who closes it has chosen to, and it is not opened again. */
-  var OFFERED = 'dinah-bus-offered', restored = false, offered = false;
-  document.addEventListener('dinah:ui-state-restored', function () { restored = true; offer(); });
+  var OFFERED = 'dinah-bus-offered', offered = false;
+  document.addEventListener('dinah:ui-state-restored', offer);
   window.addEventListener('load', offer);
   function offer() {
     var ui = window.dinahUIState, windows = window.pudlWindows;
-    if (offered || !restored || !ui || !windows || document.readyState !== 'complete') return;
+    if (offered || !ui || ui.isRestoring() || !windows || document.readyState !== 'complete') return;
     offered = true;
     if (ui.get(OFFERED)) return;
     ui.set(OFFERED, true);

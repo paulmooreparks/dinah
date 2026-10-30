@@ -6,10 +6,11 @@
 // This suite ends the first session the moment the offer's window appears,
 // restarts on what the fastest close can keep, and checks that no offer
 // repeats.
-const { launch, PAGE } = require('./lib/page');
+const path = require('path');
+const { launch, PAGE, FRONTEND } = require('./lib/page');
 (async () => {
   let nativeState = { version: 1, values: {} };
-  async function start() {
+  async function start(lateBus = false) {
     const t = await launch({
       viewport: { width: 1440, height: 900 },
       app: () => ({ ReadUIState: () => nativeReadOffer(), SaveUIState: state => nativeSaveOffer(state) }),
@@ -17,6 +18,12 @@ const { launch, PAGE } = require('./lib/page');
     });
     await t.context.exposeFunction('nativeReadOffer', () => nativeState);
     await t.context.exposeFunction('nativeSaveOffer', state => { nativeState = state; });
+    if (lateBus) await t.context.route('http://dinah.test/bus-applets.js', async route => {
+      // Deferred scripts before this one can finish restoration while this
+      // response is still arriving. The offer must read the current state.
+      await t.page.waitForFunction(() => document.documentElement.dataset.uiStateReady === 'true');
+      await route.fulfill({ path: path.join(FRONTEND, 'bus-applets.js') });
+    });
     await t.page.goto(PAGE);
     await t.waitReady();
     return t;
@@ -44,6 +51,11 @@ const { launch, PAGE } = require('./lib/page');
     await t.deadline('two frames after the restart', t.page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))), 30000);
     t.ok('the bus offer is not repeated when only the offer-time writes survive', await t.page.locator('[data-win="bus"]').count() === 0);
     t.ok('the in-progress pane is not opened twice', await t.page.locator('[data-win="in-progress"]').count() <= 1);
+    await t.close(); t = null;
+    nativeState = { version: 1, values: {} };
+    t = await start(true);
+    await t.page.locator('[data-win="bus"]').waitFor({ state: 'attached' });
+    t.ok('the bus offer reads restoration that completed before its script arrived', await t.page.evaluate(() => !dinahUIState.isRestoring() && dinahUIState.get('dinah-bus-offered') === true));
   } finally {
     if (t) await t.deadline('the last browser to close', t.close(), 45000).catch(error => { console.log('FAIL the last browser to close :: ' + error); process.exitCode = 1; });
   }
