@@ -4,9 +4,14 @@
 .chat-state-line { flex-wrap: wrap; }
 .chat-state-line > .browser-row-title { flex: 0 1 auto; max-width: 100%; }
 .chat-state-line > .chat-state { max-width: 100%; }
-.member-chip { max-width: 100%; flex-wrap: wrap; }
-.member-chip .member-title { white-space: nowrap; }
+.member-chip { max-width: 100%; flex-wrap: nowrap; min-width: 0; }
+.member-chip .member-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .member-chip .chat-state { max-width: 100%; }
+.member-state { display: inline-grid; place-items: center; flex: none; inline-size: clamp(16px, 18cqw, 9ch); block-size: max(16px, 1.4em); line-height: 1.4; color: var(--text-muted); }
+.member-state > .glyph { --glyph-size: max(16px, 1em); }
+.member-state > .member-lifecycle { max-inline-size: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.member-state.chat-state-working > .glyph { animation: pudl-spin .9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .member-state.chat-state-working > .glyph { animation: none; } }
 .win-status:is(.chat-working-chip, .team-stuck-chip, .group-state-chip) { padding: 0; border: 0; }
 .win-status > .chat-state { background: color-mix(in srgb, var(--chat-state-colour) 18%, var(--surface)); }
 .badge.chat-state::before { content: ""; --glyph: var(--badge-glyph); }

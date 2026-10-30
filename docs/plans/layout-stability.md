@@ -34,6 +34,8 @@ Two decisions follow from it, beyond the rule above.
 
 Dinah UI also found the glyphs too small to carry the state alone: Idle's ring read as a speck, and Working's arc was hard to tell from it. Each mark keeps a slot of at least 16 CSS pixels, with Idle a visibly closed hollow ring and Working a clearly open arc, reviewed with animation stopped as well as running.
 
+Group member chips keep their menu buttons and their identity through execution updates. Execution appears as the shared glyph in a fixed slot. Lifecycle words use that same reserved slot, with one line, ellipsis and complete details in the tooltip and accessible name. Window presence appears in those details and the member's menu. The member area keeps its aggregate counts and turn budget to one line each; their complete text remains available. State changes neither rebuild an open member menu nor move its anchor, and the menu's state explanation updates in place.
+
 ## Transcript Navigation and Measured Rows
 
 A jump to the latest releases the saved reading place before following the end. Once a bounded chat log has been read back, its rows keep their measured layout when following resumes. Re-enabling estimated heights during a jump changes the scroll extent underneath its destination. The chat log already trims its retained rows, so this preservation remains bounded.

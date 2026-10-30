@@ -40,16 +40,16 @@ const { launch } = require('./lib/page');
     await group.locator('[data-group-member="bus-working"] .chat-state-working').waitFor();
     for (const state of ['working', 'waiting', 'stuck', 'idle']) {
       const badge = group.locator('[data-group-member="bus-' + state + '"] .chat-state-' + state);
-      ok('group member displays the ' + state + ' word and shared glyph', await badge.isVisible() && (await badge.innerText()).toLowerCase().includes(state) && await badge.evaluate(el => getComputedStyle(el, '::before').content !== 'none'));
+      ok('group member names ' + state + ' and displays its shared glyph', await badge.isVisible() && (await badge.getAttribute('aria-label')).toLowerCase().includes(state) && await badge.locator('.glyph').isVisible());
     }
     for (const life of ['closed', 'retired']) {
       const badge = group.locator('[data-group-member="bus-' + life + '"] .chat-lifecycle');
-      ok(life + ' is lifecycle text without an execution glyph', await badge.isVisible() && await badge.evaluate(el => getComputedStyle(el, '::before').content === 'none'));
+      ok(life + ' is lifecycle text without an execution glyph', await badge.isVisible() && await badge.locator('.glyph').count() === 0);
     }
-    ok('waiting and stuck carry their reasons', /Context full/.test(await group.innerText()) && /provider cannot run/.test(await group.innerText()));
+    ok('waiting and stuck retain their complete reasons', /Context full/.test(await group.locator('[data-group-member="bus-waiting"] .member-state').getAttribute('aria-label')) && /provider cannot run/.test(await group.locator('[data-group-member="bus-stuck"] .member-state').getAttribute('aria-label')));
     ok('the group aggregate uses engine counts and priority', /1 stuck, 1 waiting, 1 working, 1 idle, 1 running elsewhere, 2 closed/.test(await group.locator('.group-aggregate').innerText()));
     const elsewhere = group.locator('[data-group-member="bus-elsewhere"] .chat-lifecycle');
-    ok('activity in another window is words without a claimed execution state', /Running in another Dinah window/.test(await elsewhere.innerText()) && await elsewhere.evaluate(el => getComputedStyle(el, '::before').content === 'none'));
+    ok('activity in another window is words without a claimed execution state', /Running in another Dinah window/.test(await elsewhere.innerText()) && await elsewhere.locator('.glyph').count() === 0);
     async function usableTranscript(name) {
       await page.waitForFunction(key => document.querySelector('[data-win="' + key + '"] .bus-log').clientHeight >= 128, groupKey);
       const geometry = await group.evaluate(win => {

@@ -819,6 +819,26 @@
     var menu = node('nav', 'menu-panel group-member-menu'); menu.setAttribute('popover', ''); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', 'Member');
     menu.id = 'group-member-menu-' + Math.random().toString(36).slice(2);
     root.appendChild(menu);
+    var memberViews = new Map(), memberSerial = 0, menuMember = null, menuState = null;
+    menu.addEventListener('beforetoggle', function (event) {
+      if (event.newState === 'closed' && menu.contains(document.activeElement)) {
+        var view = memberViews.get(menuMember); (view ? view.more : memberToggle).focus({ preventScroll: true });
+      }
+    });
+    function memberDescription(m) {
+      var value = memberState(m), spec = window.dinahChatState.describe(value), presence = window.dinahChatState.read(value);
+      return spec.label + (presence.life === 'open' && presence.window === false && !presence.elsewhere ? '. No window' : '');
+    }
+    function memberMark(m) {
+      var spec = window.dinahChatState.describe(memberState(m)), mark = node('span', 'member-state ' + spec.cls);
+      mark.setAttribute('role', 'img'); mark.setAttribute('aria-label', (spec.glyph ? '' : spec.text + '. ') + memberDescription(m)); mark.title = mark.getAttribute('aria-label');
+      if (spec.glyph) {
+        var glyph = node('span', 'glyph'); glyph.setAttribute('aria-hidden', 'true');
+        glyph.style.setProperty('--glyph', 'var(--glyph-' + spec.glyph + ')');
+        glyph.style.color = 'var(--' + (spec.kind || 'text-muted') + ')'; mark.appendChild(glyph);
+      } else mark.appendChild(node('span', 'member-lifecycle', spec.text));
+      return mark;
+    }
     function markRead() { if (room && room.unread && app().BusMarkGroupRead) Promise.resolve(app().BusMarkGroupRead(key)).catch(function () {}); }
     /* Renaming a group changes its title alone: its members, messages,
        budget and unread marks stay, and the conversation keeps a line saying
@@ -839,6 +859,8 @@
     }
     function showMenu(button, m) {
       menu.replaceChildren();
+      menuMember = m.id; menuState = node('p', 'menu-note member-menu-state', memberDescription(m)); menu.appendChild(menuState);
+      menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent);
       var open = node('button', 'menu-action', 'Open Chat'); open.type = 'button'; open.setAttribute('role', 'menuitem');
       if (!m.chat) { open.setAttribute('aria-disabled', 'true'); open.title = 'This chat runs outside the window.'; }
       open.addEventListener('click', function () { menu.hidePopover(); if (m.chat) Promise.resolve(window.dinahChats.open(m.chat)).catch(host().fail); });
@@ -854,9 +876,6 @@
       menu.dataset.menuAnchor = button.id;
       if (menu.matches(':popover-open')) menu.hidePopover();
       menu.showPopover();
-      var r = button.getBoundingClientRect();
-      menu.style.position = 'fixed'; menu.style.margin = '0';
-      menu.style.left = r.left + 'px'; menu.style.top = (r.bottom + 4) + 'px';
     }
     function drawMembers() {
       if (disposed) return;
@@ -889,27 +908,32 @@
         }
       }
       window.dinahRender.enqueue(drawMembers, root, function () {
-        bar.replaceChildren();
         memberToggle.textContent = 'Members (' + members().length + ')';
         aggregate.replaceChildren(window.dinahChatState.badge(room || {}));
-        members().forEach(function (m, i) {
+        var wanted = [];
+        members().forEach(function (m) {
+          var key = m.state === 'person' ? 'person' : m.id, view = memberViews.get(key);
           if (m.state === 'person') {
-            var you = node('span', 'chip member-chip person', m.title + ' (You)'); you.setAttribute('role', 'listitem');
-            you.dataset.groupMember = 'person';
-            bar.appendChild(you);
+            if (!view) { var you = node('span', 'chip member-chip person'); you.setAttribute('role', 'listitem'); you.dataset.groupMember = 'person'; view = { chip: you }; memberViews.set(key, view); }
+            view.chip.textContent = m.title + ' (You)'; wanted.push(view.chip);
             return;
           }
-          var chip = node('span', 'chip member-chip'); chip.setAttribute('role', 'listitem'); chip.dataset.groupMember = m.id;
-          chip.append(node('span', 'member-title', m.title), stateGlyph(memberState(m)));
-          var presence = window.dinahChatState.read(memberState(m));
-          if (presence.life === 'open' && presence.window === false && !presence.elsewhere) chip.appendChild(node('span', 'md-meta', 'No window'));
-          var more = glyphButton('member-menu-btn', 'caret', m.title + ' Menu');
-          more.id = menu.id + '-' + i;
-          more.setAttribute('aria-haspopup', 'menu');
-          more.addEventListener('click', function () { showMenu(more, m); });
-          chip.appendChild(more);
-          bar.appendChild(chip);
+          if (!view) {
+            var chip = node('span', 'chip member-chip'); chip.setAttribute('role', 'listitem'); chip.dataset.groupMember = m.id;
+            var name = node('span', 'member-title'), more = glyphButton('member-menu-btn', 'caret', m.title + ' Menu');
+            more.id = menu.id + '-' + (++memberSerial); more.setAttribute('aria-haspopup', 'menu');
+            view = { chip: chip, name: name, more: more, member: m, mark: memberMark(m) };
+            (function (entry) { entry.more.addEventListener('click', function () { showMenu(entry.more, entry.member); }); })(view);
+            chip.append(name, view.mark, more); memberViews.set(key, view);
+          }
+          view.member = m; view.name.textContent = m.title; view.more.setAttribute('aria-label', m.title + ' Menu');
+          var mark = memberMark(m); view.mark.replaceWith(mark); view.mark = mark;
+          if (menuMember === m.id && menuState) { menuState.textContent = memberDescription(m); menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent); }
+          wanted.push(view.chip);
         });
+        memberViews.forEach(function (view, key) { if (!wanted.includes(view.chip)) { if (menuMember === key && menu.matches(':popover-open')) menu.hidePopover(); if (view.chip.contains(document.activeElement)) memberToggle.focus(); view.chip.remove(); memberViews.delete(key); } });
+        wanted.forEach(function (chip, i) { if (bar.children[i] !== chip) bar.insertBefore(chip, bar.children[i] || null); });
+        var oldBudget = bar.querySelector('.group-budget');
         // The turn budget is shown only when the group has one.
         if (room && typeof room.budget === 'number' && room.budget >= 0) {
           var remaining = room.budget - (room.used || 0), spent = remaining <= 0;
@@ -917,8 +941,9 @@
             spent ? 'Turn budget spent (' + room.budget + '). Your next message starts it again.'
               : remaining + (remaining === 1 ? ' turn' : ' turns') + ' left before the group waits for you');
           left.setAttribute('role', 'listitem'); left.dataset.groupBudget = spent ? 'spent' : 'open';
-          bar.appendChild(left);
-        }
+          left.title = left.textContent; left.setAttribute('aria-label', left.textContent);
+          if (oldBudget) oldBudget.replaceWith(left); else bar.appendChild(left);
+        } else if (oldBudget) oldBudget.remove();
       });
     }
     var loaded = false;
