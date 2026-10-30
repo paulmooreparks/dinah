@@ -27,7 +27,7 @@ Every surface that shows a chat's or group's state takes this mapping: the chat 
 
 ## PUDL's Part
 
-PUDL replaces its boolean `data-win-running` on a window with `data-win-state`, taking `working`, `waiting`, `stuck` or `idle`, and a label for the words (`data-win-state-label`), and its taskbar, stack rows and window status draw them with the glyphs and colours above. A stack's mark follows the aggregation rule. Dinah passes each chat window's state through those attributes and stops drawing its own running dot on the taskbar. The glyphs come from PUDL's icon set, so both sides use the same drawings.
+PUDL replaces its boolean `data-win-running` on a window with `data-win-state`, taking `working`, `waiting`, `stuck` or `idle`, and a label for the words (`data-win-state-label`), and its taskbar, stack rows and window status draw them with the glyphs and colours above. A stack's mark follows the aggregation rule. Dinah passes each chat window's state through those attributes and stops drawing its own running dot on the taskbar. The glyphs come from PUDL's icon set, so both sides use the same drawings. PUDL's work also covers the Window status popover, which in 0.95.0 still copies only each status chip's words when a title bar folds them away. Folded rows must keep the glyph, the colour and the words, including changes while the popover is open, drawn by the same state renderer as the title bar and taskbar (message 1530).
 
 ## Where the State Comes From
 
