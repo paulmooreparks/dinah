@@ -16,7 +16,7 @@ const { launch } = require('./lib/page');
   });
   try {
     const p = t.page;
-    await p.waitForFunction(() => document.querySelector('#status-judgements .badge').textContent === '12');
+    await p.waitForFunction(() => document.querySelector('#status-judgements').dataset.judgement === 'on');
     await p.evaluate(() => { __emit('judgements:changed', { id: 9, stateGen: 1, stateVer: 2, state: 'off', why: 'no model chosen', calls: 0, fallbacks: 0, streak: 0, warnStreak: 3, latest: '' }); });
     await new Promise(r => setTimeout(r, 400));
     console.log(JSON.stringify(await p.evaluate(() => ({

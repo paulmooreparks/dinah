@@ -375,6 +375,10 @@
       var b = $('status-agent-badge'), v = BADGE[st.state] || ['', st.state];
       b.className = 'badge ' + v[0]; b.textContent = v[1];
       $('status-agent').querySelector('.status-words').textContent = name;
+      $('status-agent').dataset.statusState = st.state === 'failed' ? 'stuck' : st.state === 'starting' ? 'working' : 'idle';
+      $('status-agent').dataset.statusText = v[1];
+      $('status-agent').dataset.statusGlyph = st.state === 'failed' ? 'warning' : st.state === 'starting' ? 'chat-working' : st.state === 'ready' ? 'tick' : 'ring';
+      $('status-agent').dataset.statusColour = st.state === 'failed' ? 'danger' : st.state === 'starting' ? 'accent' : st.state === 'ready' ? 'positive' : 'text-muted';
       $('status-agent').title = name + ': ' + st.detail;
       $('status-agent').setAttribute('aria-label', name + ': ' + st.detail);
       $('agent-state').textContent = st.detail + '.';
