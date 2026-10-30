@@ -1062,8 +1062,13 @@
     var stateDetail = '', stateContext = '';
     function syncWindowExecution(win, s) {
       var execution = s && window.dinahChatState.describe(s.info, { reason: false }).state;
-      if (execution) { win.dataset.winState = execution; win.dataset.winStateLabel = stateDetail; }
-      else { win.removeAttribute('data-win-state'); win.removeAttribute('data-win-state-label'); }
+      win.dataset.winStatusRows = '2';
+      if (execution) {
+        win.dataset.winState = execution;
+        win.dataset.winStateLabel = window.dinahChatState.describe(s.info, { reason: false }).text;
+        win.dataset.winStateDetail = stateContext;
+      }
+      else { win.removeAttribute('data-win-state'); win.removeAttribute('data-win-state-label'); win.removeAttribute('data-win-state-detail'); }
       return execution;
     }
     function drawWindowLifecycle(chip, s, execution) {

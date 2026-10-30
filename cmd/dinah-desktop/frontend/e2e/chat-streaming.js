@@ -48,6 +48,7 @@ const { launch, PAGE } = require('./lib/page');
     });
     await p.waitForFunction(() => document.querySelector('.tool-group-words')?.textContent === 'Ran 2 commands' && [...document.querySelectorAll('.tool-row pre')].some(el => el.textContent.includes('The rest of this output')));
     const used = await layouts() - before;
+    console.log('MEASURE burst layouts ' + used);
     // This budget leaves room for normal frame/observer work, but catches
     // one synchronous layout per output delta without timing assumptions.
     ok('a burst of 5000 tool updates requires fewer than 40 layouts', used < 40, String(used));

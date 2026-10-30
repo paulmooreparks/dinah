@@ -29,19 +29,19 @@ const fs = require('node:fs'), path = require('node:path');
       await page.locator('[data-win="' + key + '"] .win-status-toggle').click();
       const panel = page.locator('.win-status-popover:popover-open');
       await panel.waitFor();
-      const list = panel.locator('ul');
+      const list = panel.locator('.win-status-rows');
       await list.evaluate(el => { el.scrollTop = 0; });
       const behind = await page.evaluate(() => [...document.querySelectorAll('#work-split, .transcript')].map(el => [el.scrollTop, el.scrollLeft]));
       await list.hover(); await page.mouse.wheel(0, 100);
-      await page.waitForFunction(() => document.querySelector('.win-status-popover:popover-open > ul').scrollTop > 0);
+      await page.waitForFunction(() => document.querySelector('.win-status-popover:popover-open .win-status-rows').scrollTop > 0);
       ok('the status list accepts pointer scrolling with native scrollbars, ' + theme + '/' + scale, true);
       ok('wheel input leaves the split and transcripts behind the popup still, ' + theme + '/' + scale,
         JSON.stringify(behind) === JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('#work-split, .transcript')].map(el => [el.scrollTop, el.scrollLeft]))));
       const result = await panel.evaluate(async panel => {
-        const list = panel.querySelector('ul'), dismiss = panel.querySelector('button'), before = dismiss.getBoundingClientRect().toJSON(), rows = [], frames = [], failures = [];
+        const list = panel.querySelector('.win-status-rows'), dismiss = panel.querySelector('button'), before = dismiss.getBoundingClientRect().toJSON(), rows = [], frames = [], failures = [];
         const rect = el => el.getBoundingClientRect().toJSON();
         const lineHeight = parseFloat(getComputedStyle(list).lineHeight), expectedRow = Math.max(22, lineHeight);
-        const actual = [...list.children];
+        const actual = [...list.querySelectorAll('li')];
         for (const [index, row] of actual.entries()) {
           const position = row.offsetTop - actual[0].offsetTop;
           list.scrollTop = position;
@@ -53,8 +53,7 @@ const fs = require('node:fs'), path = require('node:path');
           rows.push({ index, text: row.textContent, rect: r, list: bounds });
         }
         return { before, rows, frames, failures, viewport: rect(list), expectedRow, nativeScrollbars: true, scrollbarWidth: list.offsetWidth - list.clientWidth,
-          pending: [{ requirement: 'Keyboard entry and scrolling', waitsFor: 'PUDL 0.95.2', tabIndex: list.tabIndex },
-            { requirement: 'Useful accessible list name', waitsFor: 'PUDL 0.95.2', name: list.getAttribute('aria-label') || list.getAttribute('aria-labelledby') || '' }] };
+          tabIndex: list.tabIndex, name: list.getAttribute('aria-label'), role: list.getAttribute('role') };
       });
       ok('six status rows are reachable without vertical clipping, ' + theme + '/' + scale, result.rows.length === 6 && result.failures.length === 0, JSON.stringify(result.failures));
       ok('the status viewport reserves two complete rendered rows, ' + theme + '/' + scale,
@@ -77,7 +76,13 @@ const fs = require('node:fs'), path = require('node:path');
       }, key);
       ok('Dismiss keeps its geometry and focus as status rows arrive and disappear, ' + theme + '/' + scale, !changing.failures.length, JSON.stringify(changing.failures.slice(0, 6)));
       traces.push({ theme, scale, ...result, changing });
-      console.log('WAIT PUDL 0.95.2: named status list and keyboard scrolling remain expected failures');
+      ok('the status region has a keyboard stop and accessible name, ' + theme + '/' + scale, result.tabIndex === 0 && result.role === 'region' && result.name === 'Window status', JSON.stringify(result));
+      await list.evaluate(el => { el.scrollTop = 0; });
+      await list.focus(); await page.keyboard.press('End');
+      await page.waitForFunction(() => { const el = document.querySelector('.win-status-popover:popover-open .win-status-rows'); return el.scrollTop + el.clientHeight >= el.scrollHeight - 1; });
+      ok('the keyboard can reach the sixth row, ' + theme + '/' + scale, await list.evaluate(el => el === document.activeElement));
+      await page.keyboard.press('Tab');
+      ok('Tab reaches Dismiss from the status region, ' + theme + '/' + scale, await panel.getByRole('button', { name: 'Dismiss', exact: true }).evaluate(el => el === document.activeElement));
       await t.shot('status-popup-' + theme + '-' + scale);
       await panel.evaluate(panel => {
         const r = panel.querySelector('button').getBoundingClientRect(), behind = document.createElement('button');
@@ -87,6 +92,7 @@ const fs = require('node:fs'), path = require('node:path');
       });
       await panel.getByRole('button', { name: 'Dismiss', exact: true }).click();
       await panel.waitFor({ state: 'hidden' });
+      ok('Dismiss returns focus to the opener, ' + theme + '/' + scale, await page.locator('[data-win=\"' + key + '\"] .win-status-toggle').evaluate(el => el === document.activeElement));
       ok('Dismiss closes without activating a control directly underneath, ' + theme + '/' + scale, await page.evaluate(() => __underlayClicks === 0));
       await page.locator('#status-underlay-action').evaluate(el => el.remove());
     }
