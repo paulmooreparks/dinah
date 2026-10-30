@@ -87,13 +87,41 @@ const { launch } = require('./lib/page');
     await page.setViewportSize({ width: 420, height: 900 });
     await group.locator('.group-toolbar [data-toolbar-stage]:not([data-toolbar-stage="1"])').waitFor();
     ok('the folded aggregate remains fully visible with large text', await group.evaluate(win => win.querySelector('.group-aggregate').getBoundingClientRect().bottom <= win.querySelector('.group-member-shell').getBoundingClientRect().bottom));
+    await page.waitForFunction(key => {
+      const win = document.querySelector('[data-win="' + key + '"]'), log = win.querySelector('.bus-log'), text = win.querySelector('.msg-text p');
+      const viewport = log.getBoundingClientRect(), message = text.getBoundingClientRect();
+      return log.clientHeight >= 128 && message.height > 0 && message.top >= viewport.top && message.bottom <= viewport.bottom;
+    }, groupKey);
+    ok('large text leaves a complete message paragraph visible in the transcript', true);
     await t.shot('group-states-large-text');
+    for (const width of [320, 280, 240]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      if (Number(await group.locator('.group-toolbar [data-toolbar-stage]').getAttribute('data-toolbar-stage')) >= 3) break;
+    }
+    const overflow = group.locator('.group-toolbar :is(.toolbar-fold, .toolbar-more) > .menu-btn:visible').first();
+    await overflow.click();
+    const menu = page.locator('.menu-panel:popover-open');
+    await menu.getByText('Add Chats…', { exact: true }).waitFor();
+    await menu.getByText('Turn Budget…', { exact: true }).waitFor();
+    await t.shot('group-toolbar-overflow-open');
+    await page.keyboard.press('Escape');
     ok('the command row uses PUDL overflow without a wrapping command row', await group.locator('.group-toolbar[data-toolbar-fold]').count() === 1);
     await page.evaluate(() => __reviewTextTokens.forEach(([name]) => document.documentElement.style.removeProperty(name)));
     await page.setViewportSize({ width: 1440, height: 1000 });
     const chatKey = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'working' }));
     const chat = page.locator('[data-win="' + chatKey + '"]');
     await chat.locator('[data-view-id="page-state"] .chat-state-working').waitFor();
+    await page.evaluate(() => __emit('agent:update', { sessionId: 'working', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'The shared transcript uses the same spacing and controls as a chat.' } } }));
+    await chat.locator('.msg-text', { hasText: 'The shared transcript uses' }).waitFor();
+    await group.locator('.group-composer textarea').fill('');
+    await page.evaluate(key => pudlWindows.raise(key), groupKey);
+    await page.evaluate(() => pudlSetTheme('light'));
+    await t.shot('comparison-group');
+    await page.evaluate(key => pudlWindows.raise(key), chatKey);
+    await chat.locator('[data-win-action="maximize"]').click();
+    await t.shot('comparison-chat');
+    ok('chat and group comparison windows use the same size', JSON.stringify(await chat.boundingBox()) === JSON.stringify(await group.boundingBox()));
     ok('chat body and title status share the execution presenter', await chat.locator('.win-statuses .chat-state-working').count() > 0);
     await chat.locator('.chat-team > button.disclosure').click();
     await chat.locator('[data-team-member="bus-waiting"] .chat-state-waiting').waitFor();
@@ -130,5 +158,5 @@ const { launch } = require('./lib/page');
     await page.waitForFunction(() => __bridgeCalls.filter(call => call[0] === 'ChatStates').length >= 2);
     await group.locator('[data-group-member="bus-waiting"] .chat-state-working').waitFor({ state: 'attached' });
     ok('resync rereads the same authoritative state', (await t.calls('ChatStates')).length >= 2);
-  } finally { await t.close(); }
+  } catch (error) { await t.shot('chat-states-failure'); console.error(await page.locator('.group-window').evaluate(win => { const log = win.querySelector('.bus-log'), text = win.querySelector('.msg-text p'); return { height: log.clientHeight, log: log.getBoundingClientRect().toJSON(), text: text && text.getBoundingClientRect().toJSON(), html: win.querySelector('.msg-text').innerHTML }; })); throw error; } finally { await t.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

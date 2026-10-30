@@ -12,11 +12,32 @@
 (function () {
   'use strict';
 
+  /* Completion lists live beside the scrolling body, so its height limit
+     cannot clip the choices. Their height is bounded by the window above. */
+  function layout(form) {
+    var pop = form.querySelector('.slash-pop'), content = document.createElement('div');
+    content.className = 'composer-scroll';
+    if (pop) pop.remove();
+    while (form.firstChild) content.appendChild(form.firstChild);
+    form.appendChild(content);
+    if (pop) form.appendChild(pop);
+    function sizeCompletion() {
+      if (!pop || pop.hidden || !form.isConnected) return;
+      var bounds = form.parentElement.getBoundingClientRect(), top = form.getBoundingClientRect().top;
+      pop.style.maxHeight = Math.max(32, Math.min(top - Math.max(0, bounds.top) - 8, 18 * parseFloat(getComputedStyle(form).fontSize))) + 'px';
+    }
+    var resize = new ResizeObserver(sizeCompletion); resize.observe(form);
+    var visibility = new MutationObserver(sizeCompletion);
+    if (pop) visibility.observe(pop, { attributes: true, attributeFilter: ['hidden'] });
+    return { content: content, destroy: function () { resize.disconnect(); visibility.disconnect(); } };
+  }
+
   /* The key that sends (Settings › Chat, prompt_keys.go). app.js sets it
      from the settings, and the windows read it when a key is pressed. */
   var sendKey = 'enter';
-  function setSendKey(value) { sendKey = value === 'ctrl-enter' ? 'ctrl-enter' : 'enter'; }
+  function setSendKey(value) { sendKey = value === 'ctrl-enter' ? 'ctrl-enter' : 'enter'; document.querySelectorAll('[data-composer-send]').forEach(sendTitle); }
   function sendKeyName() { return sendKey === 'ctrl-enter' ? 'Ctrl+Enter' : 'Enter'; }
+  function sendTitle(button) { button.setAttribute('data-tooltip', 'Send (' + sendKeyName() + ')'); }
 
   /* Every text area grows with its text (app.css, textarea.form-textarea);
      where the browser has no field-sizing, the box is sized here on each
@@ -110,7 +131,8 @@
     var pop = document.createElement('div'); pop.className = 'slash-pop'; pop.id = id + '-pop'; pop.setAttribute('role', 'listbox'); pop.hidden = true;
     var actions = document.createElement('div'); actions.className = 'composer-actions';
     var send = document.createElement('button'); send.type = 'submit'; send.className = 'btn btn-primary'; send.textContent = 'Send';
-    function title() { send.title = 'Send (' + sendKeyName() + ')'; }
+    send.setAttribute('data-composer-send', '');
+    function title() { sendTitle(send); }
     title();
     send.addEventListener('pointerenter', title); send.addEventListener('focus', title);
     actions.appendChild(send);
@@ -329,5 +351,5 @@
   }
 
   window.dinahComposer = { setSendKey: setSendKey, sendKey: function () { return sendKey; }, sendKeyName: sendKeyName, fit: fit, caretRows: caretRows,
-    history: history, bind: bind, box: box, keeper: keeper, forget: forget, attachments: attachments, sizeWords: sizeWords, maxFile: MAX_FILE };
+    history: history, bind: bind, box: box, layout: layout, keeper: keeper, forget: forget, attachments: attachments, sizeWords: sizeWords, maxFile: MAX_FILE };
 })();

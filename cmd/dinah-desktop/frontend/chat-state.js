@@ -37,7 +37,7 @@
     window.dinahHost.onResync(refresh);
     return refresh();
   }
-  function describe(value, options) {
+  function describeState(value, options) {
     value = value || {}; options = options || {};
     var aggregate = Object.prototype.hasOwnProperty.call(value, 'top') || typeof value.unknown === 'number' || typeof value.closed === 'number' || !!(value.counts && !value.life && !value.chatState && !value.exec);
     value = aggregate ? counts(value) : read(value);
@@ -56,9 +56,13 @@
     if (!spec) return { text: 'State unavailable', kind: '', cls: 'chat-state chat-state-unknown', label: 'The engine has not supplied an execution state', glyph: '' };
     return { state: state, text: words, kind: spec.colour, glyph: spec.glyph, cls: 'chat-state chat-state-' + state, label: aggregate ? spec.word + ': ' + words : spec.word + (why ? ': ' + why : '') };
   }
+  function describe(value, options) {
+    var spec = describeState(value, options);
+    spec.variables = { '--chat-state-colour': 'var(--' + (spec.kind || 'text-muted') + ')' };
+    return spec;
+  }
   function badge(value, options) {
     var spec = describe(value, options), el = window.dinahBrowserList.badge(spec);
-    el.style.setProperty('--chat-state-colour', 'var(--' + (spec.kind || 'text-muted') + ')');
     if (options && options.className) el.classList.add(options.className);
     return el;
   }

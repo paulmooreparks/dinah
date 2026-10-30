@@ -5,7 +5,7 @@
   var node = window.dinahHelpers.node;
   function mount(o) {
     var log = o.log, content = o.content, disposed = false, following = true;
-    var placed = -1, lastTop = -1, lastHeight = -1, lastExtent = -1, frame = 0;
+    var frame = 0;
     var known = new Map(), unseen = new Map(), started = false, sequence = 0, localKeys = new WeakMap(), seenSignature = '';
     log.setAttribute('data-follow-end', '');
     log.tabIndex = log.tabIndex < 0 ? 0 : log.tabIndex;
@@ -27,7 +27,6 @@
       return !!win && !win.hidden && !!log.clientHeight && document.visibilityState === 'visible' && window.pudlWindows.state().top === win.dataset.win;
     }
     function ready() { return (!o.ready || o.ready()) && document.documentElement.dataset.uiStateReady === 'true'; }
-    function remember() { placed = log.scrollTop; lastTop = log.scrollTop; lastHeight = log.clientHeight; lastExtent = log.scrollHeight; }
     function setFollowing(value) {
       following = !!value;
       log.dataset.following = String(following);
@@ -79,7 +78,7 @@
       controls.hidden = !first;
       if (anchor && anchor.element.isConnected) {
         var shift = anchor.element.getBoundingClientRect().top - log.getBoundingClientRect().top - anchorTop;
-        if (Math.abs(shift) > 0.5) { log.scrollTop += shift; remember(); }
+        if (Math.abs(shift) > 0.5) { log.scrollTop += shift; }
       }
       var reachedEnd = active() && atEnd();
       var signature = JSON.stringify([rows.map(function (entry) { return entry.key; }), pending.map(function (entry) { return entry.key; }), reachedEnd]);
@@ -90,20 +89,20 @@
     }
     function check() {
       if (disposed || !log.clientHeight) return;
-      var viewportChanged = log.clientHeight !== lastHeight, extentChanged = log.scrollHeight !== lastExtent;
-      if (following && (log.scrollTop === placed || viewportChanged || extentChanged && (atEnd() || log.scrollTop === lastTop))) {
-        lastTop = log.scrollTop; queueTail();
-      } else { lastTop = log.scrollTop; setFollowing(atEnd()); }
+      // Only deliberate navigation releases following. A delayed layout scroll
+      // can carry an old position after both the extent and viewport settled.
+      if (following) queueTail();
+      else setFollowing(atEnd());
       updateSeen();
     }
     function scroll(force) {
       if (disposed || !log.clientHeight) return;
       if (window.dinahUIState && window.dinahUIState.restorePending(log)) {
-        window.dinahUIState.restoreNow(log); setFollowing(atEnd()); remember(); updateSeen(); return;
+        window.dinahUIState.restoreNow(log); setFollowing(atEnd()); updateSeen(); return;
       }
       if (force) setFollowing(true);
       if (following) { window.dinahChatText.releasePlace(log); log.scrollTop = log.scrollHeight; }
-      remember(); jump.hidden = following || atEnd(); updateSeen();
+      jump.hidden = following || atEnd(); updateSeen();
     }
     function queueTail() {
       if (disposed || !following || o.canTail && !o.canTail()) return;
@@ -119,7 +118,7 @@
       release();
       if (event.type !== 'wheel' || event.deltaY < 0) setFollowing(false);
     }
-    function restored() { window.dinahChatText.releasePlace(log); setFollowing(atEnd()); remember(); schedule(); }
+    function restored() { window.dinahChatText.releasePlace(log); setFollowing(atEnd()); schedule(); }
     function latest() {
       release(); if (o.jumped) o.jumped(); scroll(true);
     }
@@ -137,14 +136,14 @@
     return {
       pause: function () { release(); setFollowing(false); },
       resetMessages: function () { known.clear(); unseen.clear(); started = false; seenSignature = ''; divider.remove(); controls.hidden = true; },
-      atEnd: atEnd, following: function () { return following; }, scroll: scroll, queueTail: queueTail, remember: remember, update: schedule,
+      atEnd: atEnd, following: function () { return following; }, scroll: scroll, queueTail: queueTail, update: schedule,
       keep: function (run, deferTail) {
         if (!following) return window.dinahChatText.keepPlace(log, run);
         window.dinahChatText.releasePlace(log); var result = run(); if (!deferTail) scroll(true); return result;
       },
       position: function (value) {
         if (!value) return { following: following, top: log.scrollTop };
-        setFollowing(value.following); log.scrollTop = following ? log.scrollHeight : value.top; remember(); schedule();
+        setFollowing(value.following); log.scrollTop = following ? log.scrollHeight : value.top; schedule();
       },
       destroy: function () {
         disposed = true; if (frame) cancelAnimationFrame(frame); mutation.disconnect(); resize.disconnect(); controls.remove(); divider.remove();

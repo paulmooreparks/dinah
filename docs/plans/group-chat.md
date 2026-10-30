@@ -180,4 +180,6 @@ Paul added the same evening, through PUDL Architect (message 1434), that the gro
 
 The shared transcript carries a `data-follow-end` attribute. The workbench saves and restores following for any transcript with that attribute. Restoring a following transcript goes to the end of its current content, including messages received since it was saved. A deliberate navigation replaces any saved reader position.
 
-The expanded member strip occupies at most 40% of the group window body and scrolls within that area. Short chips share rows when space permits. Folding the list keeps its aggregate fully visible; a large composer scrolls within the space left for it. The transcript keeps at least eight rem or a quarter of the body, whichever is smaller, so member count cannot displace the conversation.
+The expanded member strip occupies at most 40% of the group window body and scrolls within that area. Short chips share rows when space permits. Folding the list keeps its aggregate fully visible; a large composer scrolls within the space left for it. The transcript keeps at least ten rem or 30% of the body, whichever is smaller, so member count cannot displace the conversation.
+
+Completion choices sit outside the shared composer’s scrolling body, with their height bounded by the space above it. The compact routing hint says "No replies requested." for an ordinary group and names the lead for a team group. "Who receives this?" opens the full explanation, beside the retained Mention Everyone action.

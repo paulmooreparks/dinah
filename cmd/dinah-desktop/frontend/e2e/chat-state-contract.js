@@ -15,6 +15,7 @@ for (const [state, word, colour, glyph] of [
   const result = describe({ life: 'open', exec: { state, why: state === 'waiting' ? 'Context full' : '' } });
   assert.equal(result.state, state); assert.equal(result.kind, colour); assert.equal(result.glyph, glyph);
   assert.ok(result.text.startsWith(word));
+  assert.equal(result.variables['--chat-state-colour'], 'var(--' + (colour || 'text-muted') + ')');
 }
 assert.equal(describe({ life: 'open', exec: { state: 'waiting', why: 'Context full' } }).text, 'Waiting (Context full)');
 for (const life of ['closed', 'retired']) {

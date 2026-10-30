@@ -246,7 +246,7 @@
       var dismiss = node('button', 'btn btn-sm', 'Dismiss'); dismiss.type = 'button';
       dismiss.addEventListener('click', function () { notice.remove(); });
       actions.appendChild(dismiss); content.appendChild(actions); notice.appendChild(content);
-      form.appendChild(notice);
+      layout.content.appendChild(notice);
       host().toast(reason, 'danger', { title: 'Not attached:' });
     }
     if (o.files) {
@@ -277,6 +277,7 @@
       box.limitChanged = function () { chips.draw(); changed(); };
     }
     form.appendChild(parts.el);
+    var layout = window.dinahComposer.layout(form); box.content = layout.content; box.dispose = layout.destroy;
     box.read = function () { return Object.assign({ text: text.value }, box.extra.read()); };
     box.write = function (state) { state = state || {}; text.value = state.text || ''; box.extra.write(state); changed(); };
     // What a message of the person's puts back in the box: its text, and
@@ -592,7 +593,7 @@
     listeners.add(redraw);
     draw();
     return { draw: draw, focus: function () { box.text.focus(); },
-      destroy: function () { disposed = true; navigation.destroy(); window.dinahRender.cancel(draw); listeners.delete(redraw); } };
+      destroy: function () { disposed = true; navigation.destroy(); if (box.dispose) box.dispose(); window.dinahRender.cancel(draw); listeners.delete(redraw); } };
   }
 
   /* The composer of a group chat: the chat's box with the group's @ list.
@@ -692,7 +693,7 @@
       return found;
     }
     text.addEventListener('input', function () { chosen = 0; drawPop(); });
-    text.addEventListener('blur', function () { setTimeout(close, 150); });
+    text.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== text && !pop.contains(document.activeElement)) close(); }, 150); });
     // Registered for the capturing phase, so that while the list is open
     // its keys choose in it and never send or bring back a message.
     text.addEventListener('keydown', function (e) {
@@ -716,14 +717,18 @@
     }, true);
     /* A message that mentions nobody reaches the members as a notice they may read, and asks none of them to answer.
        The box says so while that is what the message would do, and offers @everyone as one press. */
-    var note = node('p', 'form-help group-notice-note'); note.hidden = true;
+    var note = node('div', 'form-help group-notice-note'); note.hidden = true;
     var everyone = node('button', 'btn btn-sm', 'Mention Everyone'); everyone.type = 'button';
-    note.appendChild(node('span', null, 'Nobody is asked to answer this. Each member only gets a notice that you wrote. '));
-    note.appendChild(everyone);
-    box.el.appendChild(note);
+    var routing = node('span', 'group-routing-summary'), details = node('details', 'group-routing-details');
+    var summary = node('summary', null, 'Who receives this?'), explanation = node('p');
+    details.append(summary, explanation); note.append(routing, everyone, details);
+    box.content.appendChild(note);
     function refreshNote() {
       var value = text.value, mentions = /(^|\s)@everyone\b/.test(value) || mentioned.some(function (x) { return value.indexOf('@' + x.title) >= 0; });
       note.hidden = !value.trim() || mentions;
+      var room = group(key), lead = room && room.lead, member = lead && (room.members || []).find(function (m) { return m.id === lead; });
+      routing.textContent = lead ? 'Reply requested from ' + (member ? member.title : 'the team lead') + '.' : 'No replies requested.';
+      explanation.textContent = lead ? 'An unmentioned message asks the team lead to answer. Other members receive a notice.' : 'Each member receives a notice. Mention a chat to ask it to answer, or mention everyone to ask them all.';
     }
     everyone.addEventListener('click', function () {
       text.value = '@everyone ' + text.value;
@@ -741,6 +746,7 @@
       if (!mentioned.some(function (x) { return x.id === m.id; })) mentioned.push({ id: m.id, title: m.title });
       box.changed();
     };
+    box.routingChanged = refreshNote;
     box.restore();
     refreshNote();
     return box;
@@ -854,6 +860,7 @@
     function drawMembers() {
       if (disposed) return;
       room = group(key);
+      box.routingChanged();
       // A group deleted elsewhere, such as on the bus's page, takes no more
       // messages; its conversation stays readable.
       var gone = !room && loaded;

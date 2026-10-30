@@ -326,7 +326,7 @@ body:not(.show-thoughts) .thought-row { display: none; }
    anything queued, and Stop while Devin works) sits over one row: the
    sunken input and, beside it, the action buttons stacked in a column, so
    the buttons never take a line of their own. */
-.composer { max-height: 55%; min-height: 0; overflow: auto; container-type: inline-size; flex: 0 1 auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-5) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); }
+.composer { max-height: 55%; min-height: 0; overflow: visible; position: relative; container-type: inline-size; flex: 0 1 auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-5) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); }
 /* The composer's bar: PUDL's folding toolbar, which keeps to one row and
    folds its groups into menus as the room runs out, with Usage after it.
    The document that goes with the message and the messages waiting for
@@ -387,7 +387,7 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .skill-row .md-meta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .slash-pop { position: absolute; left: 0; right: 7em; bottom: calc(100% + 4px); z-index: 20; max-height: 18rem; overflow-y: auto; padding: 4px 0; background: var(--dialog-bg, var(--surface)); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-card), 0 12px 32px color-mix(in srgb, var(--shade) calc(var(--depth) * 1.6), transparent); }
 .slash-pop .md-row:is([aria-selected="true"], :hover, :focus-visible) { background: var(--accent); color: var(--on-accent); border-inline-end-color: var(--on-accent); }
-.slash-pop .md-row:is([aria-selected="true"], :hover, :focus-visible) :is(.md-item, .md-meta, .mention-name, .mention-detail, .text-muted, small, .form-help) { color: inherit; }
+.slash-pop .md-row:is([aria-selected="true"], :hover, :focus-visible) :is(.md-item, .md-meta, .mention-name, .mention-detail, .skill-name, .text-muted, small, .form-help) { color: inherit; }
 .slash-pop .md-section-label { margin-top: 2px; }
 .slash-hint { padding: 4px 14px 2px; font-size: var(--text-2xs); color: var(--text-muted); border-top: 1px solid var(--surface-alt); }
 .composer-row { position: relative; }
@@ -654,3 +654,6 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
   .composer-actions { flex-direction: row; }
   .composer-actions > .btn { flex: 1; min-width: 0; }
 }
+
+.composer-scroll { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; overflow: auto; }
+.composer > .slash-pop { left: var(--space-5); right: var(--space-5); }

@@ -56,6 +56,14 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => dinahBus.openGroup('release-review'));
     const room = p.locator('.win[data-win-kind="bus-room"]');
     await room.locator('[data-bus-message="8"]').waitFor();
+    await room.locator('.bus-log').evaluate(el => {
+      const trace = el.__tailTrace = [];
+      const record = kind => trace.push({ kind, top: el.scrollTop, height: el.clientHeight, extent: el.scrollHeight, following: el.dataset.following, restore: dinahUIState.restorePending(el) });
+      record('before arrival');
+      el.addEventListener('scroll', () => record('scroll'));
+      new MutationObserver(() => record('following')).observe(el, { attributes: true, attributeFilter: ['data-following'] });
+      new ResizeObserver(() => record('resize')).observe(el);
+    });
     const box = room.locator('textarea');
     const sends = () => p.evaluate(() => __calls.filter(c => c[0] === 'group-send'));
 
@@ -143,7 +151,7 @@ const { launch } = require('./lib/page');
     const sendButton = room.getByRole('button', { name: 'Send', exact: true });
     await box.fill('For the tooltip');
     await sendButton.hover();
-    ok('Send\'s tooltip says the send key in force', await sendButton.getAttribute('title') === 'Send (Ctrl+Enter)');
+    ok('Send\'s tooltip says the send key in force', await sendButton.getAttribute('data-tooltip') === 'Send (Ctrl+Enter)');
     await box.fill('');
 
     // The list stays at its end while the reader is there, and keeps its
@@ -152,12 +160,13 @@ const { launch } = require('./lib/page');
     const atEnd = () => log.evaluate(el => el.scrollHeight - el.scrollTop - el.clientHeight < 24);
     await p.waitForFunction(() => { const el = document.querySelector('.win[data-win-kind="bus-room"] .bus-log'); return el.scrollHeight - el.scrollTop - el.clientHeight < 24; });
     ok('after sending, the list is at its end', await atEnd());
+
     await p.evaluate(() => { __messages.push(Object.assign({}, __messages[0], { id: 300, text: 'New while at the end.' })); __emit('bus:changed', { counter: 1 }); });
     await room.locator('[data-bus-message="300"]').waitFor();
     await p.waitForTimeout(150);
-    ok('a message arriving while the reader is at the end keeps the end in view', await atEnd(), JSON.stringify(await log.evaluate(el => ({ top: el.scrollTop, height: el.clientHeight, extent: el.scrollHeight, following: el.dataset.following, divider: el.querySelector('.transcript-unread-divider')?.textContent }))));
+    ok('a message arriving while the reader is at the end keeps the end in view', await atEnd(), JSON.stringify(await log.evaluate(el => ({ top: el.scrollTop, height: el.clientHeight, extent: el.scrollHeight, following: el.dataset.following, divider: el.querySelector('.transcript-unread-divider')?.textContent, trace: el.__tailTrace.slice(-40) }))));
     await room.locator('[data-bus-message="104"] .msg-text p').evaluate(el => { el.__kept = true; });
-    await log.evaluate(el => { el.scrollTop = 0; });
+    await log.focus(); await log.press('Control+Home');
     await p.waitForTimeout(150);
     await p.evaluate(() => { __messages.push(Object.assign({}, __messages[0], { id: 301, text: 'New while reading back.' })); __emit('bus:changed', { counter: 2 }); });
     await room.locator('[data-bus-message="301"]').waitFor();

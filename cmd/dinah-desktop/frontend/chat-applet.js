@@ -734,6 +734,7 @@
          it first enters the page, which a copy of the chat-editor template does
          when it is mounted. */
       view.query('.composer-toolbar').setAttribute('data-toolbar-fold', '');
+      var composerLayout = window.dinahComposer.layout($('composer'));
       var active = item.kind === 'chat-session' ? item.path : null;
       var workspace = item.workspace || '', key = initialKey, appletOptions = null, creating = null, switchingProvider = false;
       var chosenProvider = defaultProvider;
@@ -3419,7 +3420,7 @@
           if (deleted) root.remove(); else document.getElementById('applet-storage').appendChild(root);
           appletOptions = null;
         },
-        dispose: function () { teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
+        dispose: function () { composerLayout.destroy(); teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
       };
       chatControllers.set(key, controller);
       if (active) { var s = S(active); s.view = controller; $('logs').appendChild(s.log); }

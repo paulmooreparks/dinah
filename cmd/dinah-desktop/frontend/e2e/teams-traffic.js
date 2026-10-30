@@ -49,7 +49,7 @@ const path = require('path');
     ok('exports retain incoming, outgoing and direct message text', await p.evaluate(() => ['First outgoing assignment.', 'The incoming answer.', 'Paul asks a direct question.', 'Second outgoing assignment.', 'Live outgoing assignment.'].every(s => __exported.includes(s))));
     await win.locator('[data-win-action="maximize"]').click();
     await win.locator('.chat-team > button').click();
-    await win.locator('[data-view-id="activity"]').evaluate(n => { n.scrollTop = 0; });
+    await win.locator('[data-view-id="activity"]').focus(); await p.keyboard.press('Control+Home');
     await t.shot('teams-traffic-folds');
     ok('the successful send tool call remains visible alongside its structured sent entry', await win.locator('.tool-row').filter({ hasText: 'Send the assignment' }).isVisible());
     await p.evaluate(() => { for (let i = 0; i < 80; i++) __emit('agent:sent', { sessionId: 'lead', kind: 'asked', text: 'Reader position ' + i + '. ' + 'A line of ordinary conversation. '.repeat(8) }); });
@@ -72,7 +72,7 @@ const path = require('path');
     await win.locator('[data-view-id="activity"]').hover();
     // mouse.wheel returns before scrolling finishes. Start at the end and
     // wait for its destination before positioning the row under test.
-    await win.locator('[data-view-id="activity"]').evaluate(log => { log.scrollTop = log.scrollHeight; });
+    await win.locator('[data-view-id="activity"]').focus(); await p.keyboard.press('Control+End');
     await p.waitForFunction(key => document.querySelector('[data-win="' + key + '"] [data-view-id="activity"]').scrollTop > 0, key);
     const extent = await win.locator('[data-view-id="activity"]').evaluate(log => log.scrollHeight);
     await p.mouse.wheel(0, -extent * 2);
