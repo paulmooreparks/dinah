@@ -61,6 +61,7 @@ Send and Queue share one fixed-width control. Steer keeps its measured space bes
 Removing the body heading moves renaming from that heading to a Rename Chat form opened by Actions or F2. The title bar keeps the name throughout editing. State reasons and workspace remain in the state chip's tooltip and accessible name, which the folded status control also uses.
 
 The composer suite checks every sampled frame in light and dark at 1440 and 700 pixels, with normal and doubled text. It includes window buttons, checks hidden-action interaction separately from geometry, and exercises provider-aware defaults, capability changes, late replies and once-per-change Queue logging. The accepted adapter Idle flicker remains outside this frontend correction; no timed hold conceals a real end.
+
 ## The Message Box at Narrow Widths
 
 The first build of a fixed message box (31 October) reserved Stop's slot at the width of its own label, so in a narrow window with large text the column of buttons beside the text box was wider than the text box itself. The column of buttons is as wide as its widest button and no wider, and the text box takes the rest of the row. When the window is too narrow for the two side by side, the buttons sit below the text box. That choice follows the window's width, which the person controls, and never the chat's state, so the rule above still holds.
