@@ -79,11 +79,12 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.evaluate(() => {
     window.__emit('agent:update', { sessionId: 'new-1', update: { sessionUpdate: 'tool_call', toolCallId: 't1', title: 'Ran command', rawInput: { command: 'git push origin main' } } });
     window.__emit('agent:permission', { sessionId: 'new-1', key: 'q1', toolCall: { toolCallId: 't1' }, options: [{ optionId: 'allow_once', name: 'Allow', kind: 'allow_once' }, { optionId: 'reject_once', name: 'Reject', kind: 'reject_once' }] });
+    window.__emit('agent:chatstate', { stateGen: 'ui3', stateVer: 1, chats: [{ sessionId: 'new-1', life: 'open', window: true, exec: { state: 'waiting', why: 'Needs your answer or approval' } }], groups: [] });
   });
   await p.waitForTimeout(200);
   ok('a background question is counted', (await p.textContent('#status-needs .badge')) === '1');
   ok('it is not shown over this session', await p.isHidden('#needs-you'));
-  ok('the session list marks it', (await p.getAttribute('#sessions .session-badge.warn', 'aria-label')) === '1 question waits for you' && (await p.textContent('#sessions .browser-group-title')) === 'Needs You');
+  ok('the session list marks it', (await p.getAttribute('#sessions .session-attention', 'aria-label')) === '1 question waits for you' && /Waiting/.test(await p.textContent('#sessions .session-badge.chat-state-waiting')) && (await p.textContent('#sessions .browser-group-title')) === 'Needs You');
   await p.click('#status-needs');
   await p.click('#notifications-status-menu [data-cmd="needs-you"]');
   await p.waitForTimeout(200);

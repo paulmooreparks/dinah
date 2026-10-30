@@ -22,13 +22,13 @@ const { launch } = require('./lib/page');
         OpenSessionAt: async (ws, id) => {
           window.__calls.push(['open', id]);
           // The engine announces the chat as soon as it has registered it, before its history is loaded.
-          window.__emit('agent:session', { sessionId: id, provider: 'claude', title: 'Waking Chat', cwd: ws, open: true });
+          window.__emit('agent:session', { sessionId: id, provider: 'claude', title: 'Waking Chat', cwd: ws, open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } } });
           await window.__gate;
           const u = update => window.__emit('agent:update', { sessionId: id, update });
           u({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Summarise the plan.' } });
           u({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'REPLAYED-THOUGHT' } });
           u({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'REPLAYED-ANSWER' } });
-          return { sessionId: id, provider: 'claude', title: 'Waking Chat', cwd: ws, open: true };
+          return { sessionId: id, provider: 'claude', title: 'Waking Chat', cwd: ws, open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } } };
         },
         Send: async (id, text) => { window.__calls.push(['send', id, text]); }
       };
@@ -46,8 +46,15 @@ const { launch } = require('./lib/page');
     // The window says in its title bar that the history is still arriving.
     const chip = win.locator('.win-head .chat-loading-chip');
     // The page draws the chip once the copy is drawn, a moment after its text is in sight.
-    await chip.waitFor();
-    ok('while the history loads, the title bar has a Loading chip with a spinner', await chip.isVisible() && /Loading/.test(await chip.textContent()) && await chip.locator('.spinner').count() === 1);
+    await chip.waitFor({ state: 'attached' });
+    await page.waitForFunction(sel => !document.querySelector(sel).hidden, '[data-win="' + key + '"] .chat-loading-chip');
+    if (!await chip.isVisible()) {
+      await win.getByRole('button', { name: 'Window status', exact: true }).click();
+      await page.locator('.win-status-popover:popover-open').getByText('Loading', { exact: true }).waitFor();
+      ok('Loading remains available through the folded Window status control', true);
+      await page.keyboard.press('Escape');
+    } else ok('the title bar shows the Loading chip while history arrives', /Loading/.test(await chip.textContent()));
+    ok('the loading status retains its spinner', await chip.locator('.spinner').count() === 1);
 
     // A message sent now goes to the engine at once, which holds it in the chat's queue and shows it as waiting.
     const box = win.locator('[data-view-id="prompt"]');
