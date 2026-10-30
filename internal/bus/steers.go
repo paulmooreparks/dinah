@@ -227,14 +227,23 @@ func FormatSteers(steers []Steer, person string) string {
 // BeginHookTurn closes delivery from previous bindings before sending a prompt.
 func (b *Bus) BeginHookTurn(ctx context.Context, session, token string) error {
 	return b.tx(ctx, func(t *sql.Tx) error {
-		_, err := t.Exec(`INSERT INTO hook_turns (session, token, active) VALUES (?, ?, 1)
-   ON CONFLICT(session) DO UPDATE SET token=excluded.token, active=1`, session, token)
+		_, err := t.Exec(`INSERT INTO hook_turns (session, token, active, began_at, ended_at) VALUES (?, ?, 1, ?, '')
+   ON CONFLICT(session) DO UPDATE SET token=excluded.token, active=1, began_at=excluded.began_at, ended_at=''`, session, token, b.stamp())
 		return err
 	})
 }
+// ReopenHookTurn marks a chat's hook turn running again, for a stop the agent was told not to make: the agent carries
+// on in the turn, even when the window's prompt for it has already come back.
+func (b *Bus) ReopenHookTurn(ctx context.Context, session string) error {
+	return b.tx(ctx, func(t *sql.Tx) error {
+		_, err := t.Exec(`UPDATE hook_turns SET active = 1, ended_at = '' WHERE session = ? AND active = 0`, session)
+		return err
+	})
+}
+
 func (b *Bus) EndHookTurn(ctx context.Context, session, token string) error {
 	return b.tx(ctx, func(t *sql.Tx) error {
-		_, err := t.Exec(`UPDATE hook_turns SET active=0 WHERE session=? AND token=?`, session, token)
+		_, err := t.Exec(`UPDATE hook_turns SET active=0, ended_at=? WHERE session=? AND token=?`, b.stamp(), session, token)
 		return err
 	})
 }
@@ -258,4 +267,51 @@ func (b *Bus) BindAgentTurn(ctx context.Context, agent, session, token, promptID
    ON CONFLICT(agent_session) DO UPDATE SET session=excluded.session, bound_at=excluded.bound_at, turn_token=excluded.turn_token, prompt_id=excluded.prompt_id`, agent, session, b.stamp(), token, promptID)
 		return err
 	})
+}
+
+// SteerFacts is what the bus knows about whether a chat can be steered, for the log line that explains a decision.
+type SteerFacts struct {
+	// Bound says an agent session is tied to the chat, and BindingToken is the hook turn token of its last binding.
+	Bound        bool   `json:"bound"`
+	BindingToken string `json:"bindingToken"`
+	// HookTurn says the chat has had a hook turn; TurnToken is the latest one's token, Active whether it is running,
+	// and BeganAt and EndedAt (empty while it runs) when it did.
+	HookTurn  bool   `json:"hookTurn"`
+	TurnToken string `json:"turnToken"`
+	Active    bool   `json:"active"`
+	BeganAt   string `json:"beganAt"`
+	EndedAt   string `json:"endedAt"`
+	// Reaches is HooksReach's answer.
+	Reaches bool `json:"reaches"`
+}
+
+// SteerFactsOf reads the facts behind HooksReach for a chat. Tokens are cut to eight characters.
+func (b *Bus) SteerFactsOf(ctx context.Context, session string) (SteerFacts, error) {
+	var f SteerFacts
+	var binding string
+	err := b.db.QueryRowContext(ctx, `SELECT turn_token FROM agent_sessions WHERE session = ? ORDER BY bound_at DESC LIMIT 1`, session).Scan(&binding)
+	switch {
+	case err == nil:
+		f.Bound, f.BindingToken = true, cutToken(binding)
+	case !errors.Is(err, sql.ErrNoRows):
+		return f, err
+	}
+	var token, began, ended string
+	var active int
+	err = b.db.QueryRowContext(ctx, `SELECT token, active, began_at, ended_at FROM hook_turns WHERE session = ?`, session).Scan(&token, &active, &began, &ended)
+	switch {
+	case err == nil:
+		f.HookTurn, f.TurnToken, f.Active, f.BeganAt, f.EndedAt = true, cutToken(token), active == 1, began, ended
+	case !errors.Is(err, sql.ErrNoRows):
+		return f, err
+	}
+	f.Reaches, err = b.HooksReach(ctx, session)
+	return f, err
+}
+
+func cutToken(t string) string {
+	if len(t) > 8 {
+		return t[:8]
+	}
+	return t
 }
