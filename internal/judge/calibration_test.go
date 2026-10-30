@@ -48,6 +48,9 @@ type model struct {
 	suggests []string
 	// invents makes it suggest a model that is not on the list.
 	invents bool
+	// clk, when set, is a fake clock that the model's delay advances instead of sleeping, so which model is faster does
+	// not depend on how loaded the machine is.
+	clk *clock
 
 	mu    sync.Mutex
 	calls int
@@ -61,7 +64,11 @@ func (m *model) Ask(_ context.Context, r Request) (Response, error) {
 	if first {
 		time.Sleep(m.firstCall)
 	}
-	time.Sleep(m.delay)
+	if m.clk != nil {
+		m.clk.advance(m.delay)
+	} else {
+		time.Sleep(m.delay)
+	}
 	resp := Response{Model: m.name, Seed: 7, Cost: Cost{In: 10, Out: 2}}
 	var in struct {
 		Line   string   `json:"line"`
@@ -111,8 +118,9 @@ func calibrationSet(t *testing.T, c *clock) *Judges {
 // The model that answers every case correctly and fastest is chosen; one that
 // answers wrongly is not, and the report says why for each.
 func TestCalibrationChoosesTheFastestModelThatAnswersEveryCase(t *testing.T) {
-	set := calibrationSet(t, &clock{t: monday.Add(48 * time.Hour)})
-	build, models := registryOf(&model{name: "fast"}, &model{name: "slow", delay: 40 * time.Millisecond}, &model{name: "wrong", bad: true})
+	c := &clock{t: monday.Add(48 * time.Hour)}
+	set := calibrationSet(t, c)
+	build, models := registryOf(&model{name: "fast", clk: c}, &model{name: "slow", delay: 40 * time.Millisecond, clk: c}, &model{name: "wrong", bad: true, clk: c})
 	rep := Calibrate(context.Background(), set, "test", "tokens", models, build)
 	if rep.State != "chosen" || rep.Chosen != "fast" || len(rep.Models) != 3 {
 		t.Fatalf("report %+v", rep)
@@ -123,7 +131,7 @@ func TestCalibrationChoosesTheFastestModelThatAnswersEveryCase(t *testing.T) {
 	}
 	total := len(Cases()) - 0
 	if by["fast"].Passed != by["fast"].Total || by["fast"].Total != total || by["slow"].Passed != by["slow"].Total || by["fast"].Why != "chosen: every case correct, and the fastest" ||
-		by["slow"].Why != "every case correct, not the fastest" || by["slow"].MedianMs <= by["fast"].MedianMs {
+		by["slow"].Why != "every case correct, not the fastest" || by["slow"].MedianMs != 40 || by["fast"].MedianMs != 0 {
 		t.Fatalf("fast %+v slow %+v", by["fast"], by["slow"])
 	}
 	if w := by["wrong"]; w.Passed >= w.Total || !strings.HasPrefix(w.Why, "failed ") || w.Loaded {

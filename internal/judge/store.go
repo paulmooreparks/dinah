@@ -94,6 +94,14 @@ CREATE INDEX IF NOT EXISTS calls_at ON calls (at);
 CREATE INDEX IF NOT EXISTS calls_kind ON calls (kind, at);
 CREATE INDEX IF NOT EXISTS calls_effect ON calls (effect_kind, effect_id);
 CREATE INDEX IF NOT EXISTS calls_provider ON calls (provider, at);
+CREATE TABLE IF NOT EXISTS warning_dismissals (
+	call_id INTEGER PRIMARY KEY,
+	at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS warning_marker (
+	id INTEGER PRIMARY KEY CHECK (id = 1),
+	through INTEGER NOT NULL
+);
 `
 
 // OpenStore opens the file of records at path, making it if it is not there.
