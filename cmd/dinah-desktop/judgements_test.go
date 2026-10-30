@@ -167,14 +167,20 @@ func TestARunOfFallbacksIsAWarningAtThePersonsThreshold(t *testing.T) {
 		t.Fatalf("after two failures %+v", st)
 	}
 	call()
-	if st, _ := a.JudgementState(); st.State != "warning" || st.Streak != 3 || st.Why != "3 fallbacks in a row" {
+	// Three errors in a row also pause the judge, which is a condition shown as the state line and not as a count; the
+	// warnings are the three calls.
+	if st, _ := a.JudgementState(); st.State != "warning" || st.Streak != 3 || st.Unseen != 3 || len(st.Warnings) != 3 || st.Paused == nil || st.Why != "Paused: "+st.Paused.Reason || st.Paused.Reason != "ollama: the model crashed" {
 		t.Fatalf("after three failures %+v", st)
 	}
 	before := len(*events)
-	choose(t, a, func(s *JudgementSettings) { s.WarnStreak = 5 })
-	if st, _ := a.JudgementState(); st.State != "on" || st.WarnStreak != 5 || len(*events) != before+1 || (*events)[before]["state"] != "on" {
-		t.Fatalf("with a threshold of five %+v (%d events)", st, len(*events))
+	// Dismissing every warning clears the count and keeps it cleared, and the state line stays while the judge is paused.
+	if err := a.DismissJudgementWarnings(); err != nil {
+		t.Fatal(err)
 	}
+	if st, _ := a.JudgementState(); st.Unseen != 0 || len(st.Warnings) != 0 || st.Paused == nil || st.State != "warning" || len(*events) != before+1 || (*events)[before]["unseen"] != float64(0) {
+		t.Fatalf("after dismissing all %+v (%d events)", st, len(*events))
+	}
+	choose(t, a, func(s *JudgementSettings) { s.WarnStreak = 5 })
 	choose(t, a, func(s *JudgementSettings) { s.Enabled = false })
 	if st, _ := a.JudgementState(); st.State != "off" || st.Why != "turned off" {
 		t.Fatalf("turned off %+v", st)

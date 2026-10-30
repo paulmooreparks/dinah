@@ -317,6 +317,8 @@ type Judges struct {
 	now      func() time.Time
 	logf     func(format string, args ...any)
 	onRec    func(id int64)
+	// health holds what repeated errors have paused (health.go).
+	health health
 }
 
 // Options are the parts of New that tests and callers may set.
@@ -356,6 +358,8 @@ func (j *Judges) SetJudge(x Judge, provider, unit string) {
 	j.mu.Lock()
 	j.judge, j.provider, j.unit = x, provider, unit
 	j.mu.Unlock()
+	// A judge that is set again, as it is whenever the person changes the judges' settings, is tried afresh.
+	j.health.reset()
 }
 
 // SetPool sets the smallest and largest size of the pool.
@@ -517,6 +521,20 @@ func Call[In, Out any](ctx context.Context, j *Judges, k *Kind[In, Out], in In, 
 	if j.overBudget(provider) {
 		return finish(WhyBudget, rule)
 	}
+	ok, probe, paused := j.health.admit(provider, j.now())
+	if !ok {
+		rec.Answer = "paused until " + paused.Until.Local().Format("15:04") + ": " + paused.Reason
+		return finish(WhyPaused, rule)
+	}
+	// A probe that ends without the judge having answered or failed lets the next call probe.
+	resolved := false
+	if probe {
+		defer func() {
+			if !resolved {
+				j.health.released(provider)
+			}
+		}()
+	}
 	dctx, cancel := context.WithTimeout(ctx, k.Deadline)
 	defer cancel()
 	release, got := j.pool.acquire(dctx, k.Deadline)
@@ -562,8 +580,12 @@ func Call[In, Out any](ctx context.Context, j *Judges, k *Kind[In, Out], in In, 
 			return finish(WhyLate, rule)
 		}
 		rec.Answer = appletcontext.Redact(err.Error())
+		resolved = true
+		j.health.failed(provider, ShortReason(rec.Answer), j.now())
 		return finish(WhyError, rule)
 	}
+	resolved = true
+	j.health.answered(provider)
 	if dctx.Err() != nil {
 		return finish(WhyLate, rule)
 	}
