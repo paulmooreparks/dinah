@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"studio/internal/bus"
 	"studio/internal/sessionhost"
@@ -43,7 +44,7 @@ func (a *App) chatState(ctx context.Context, b *bus.Bus, busID, chat string, ret
 	s := a.session(chat)
 	if chat == "" || s == nil {
 		if chat == "" && outsideOpen {
-			return ChatState{Life: lifeOpen, Exec: &ChatExec{State: execIdle, Why: "it runs outside this window, which does not see what it is doing"}}
+			return ChatState{Life: lifeOpen, Exec: &ChatExec{State: execIdle, Why: "Activity unavailable outside this window"}}
 		}
 		return ChatState{Life: lifeClosed}
 	}
@@ -61,28 +62,37 @@ func (a *App) execOf(ctx context.Context, b *bus.Bus, busID, chat string, st ses
 	info := st.Info
 	switch {
 	case turnFailure(chat) != "":
-		return &ChatExec{State: execStuck, Why: "its last turn ended in an error: " + turnFailure(chat)}
+		return &ChatExec{State: execStuck, Why: reasonWith("Last turn failed", turnFailure(chat))}
 	case info.Switch != nil && info.Switch.Failed != "":
-		return &ChatExec{State: execStuck, Why: "its switch failed: " + info.Switch.Failed}
+		return &ChatExec{State: execStuck, Why: reasonWith("Switch failed", info.Switch.Failed)}
 	}
 	if failed, detail := a.providerFailed(info.Provider); failed {
-		return &ChatExec{State: execStuck, Why: "its agent could not start: " + detail}
+		return &ChatExec{State: execStuck, Why: reasonWith("Agent could not start", detail)}
 	}
 	switch {
 	case info.Hold != nil:
 		return &ChatExec{State: execWaiting, Why: "Context full"}
 	case a.permissions().HasPending(chat):
-		return &ChatExec{State: execWaiting, Why: "it is waiting for you to answer a permission request or a question"}
+		return &ChatExec{State: execWaiting, Why: "Needs your answer or approval"}
 	}
 	if b != nil && busID != "" {
 		if _, waiting, err := b.PendingRelayFrom(ctx, busID); err == nil && waiting {
-			return &ChatExec{State: execWaiting, Why: "it is waiting for its lead to relay a message to the person"}
+			return &ChatExec{State: execWaiting, Why: "Needs lead to relay message"}
 		}
 	}
 	if info.Working {
-		return &ChatExec{State: execWorking, Why: "it is running a turn"}
+		return &ChatExec{State: execWorking, Why: "Turn in progress"}
 	}
-	return &ChatExec{State: execIdle, Why: "it is open and has nothing to do"}
+	return &ChatExec{State: execIdle, Why: "No work in progress"}
+}
+
+// reasonWith is a reason that carries a detail: the prefix, a colon and the detail as it was given, or the prefix alone
+// when there is none. The surfaces wrap or cut it for their room; they are not told a shorter one.
+func reasonWith(prefix, detail string) string {
+	if strings.TrimSpace(detail) == "" {
+		return prefix
+	}
+	return prefix + ": " + detail
 }
 
 // providerFailed says that a provider's agent failed to start, and the reason it gave.

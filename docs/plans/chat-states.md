@@ -47,3 +47,20 @@ These surfaces carry it:
 
 The old words (`state`, `stateWhy`, `open`, `working`) stay beside the new fields until the page reads the new ones, and are removed then.
 
+## The Reasons
+
+Each reason sits beside the word of its state and does not repeat it. They are short phrases in one form, without a trailing full stop, and a detail is kept as it was supplied; a surface wraps or cuts it for its room and keeps the whole reason within reach. Dinah UI set the wording (message 1504).
+
+| Condition | State | Reason |
+|---|---|---|
+| Full-context hold | Waiting | Context full |
+| Pending permission or question | Waiting | Needs your answer or approval |
+| Pending relay through the lead | Waiting | Needs lead to relay message |
+| Last turn error | Stuck | Last turn failed: the detail |
+| Failed switch | Stuck | Switch failed: the detail |
+| Provider start failure | Stuck | Agent could not start: the detail |
+| Running turn | Working | Turn in progress |
+| Open with no work | Idle | No work in progress |
+| External open session whose activity this window cannot observe | Idle | Activity unavailable outside this window |
+
+When the detail is empty, the reason is the prefix alone, without the colon.
