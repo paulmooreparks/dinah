@@ -97,6 +97,8 @@ func TestCountsChooseTheStateAsAWholeInTheUrgencyOrder(t *testing.T) {
 		{[]ChatState{exec(execIdle), closed}, execIdle, StateCounts{Idle: 1, Closed: 1}},
 		{[]ChatState{closed, retired}, execIdle, StateCounts{Closed: 2}},
 		{nil, execIdle, StateCounts{}},
+		{[]ChatState{{Life: lifeOpen, Elsewhere: "x"}, exec(execWorking)}, execWorking, StateCounts{Working: 1, Unknown: 1}},
+		{[]ChatState{{Life: lifeOpen, Elsewhere: "x"}}, execIdle, StateCounts{Unknown: 1}},
 	} {
 		got := countStates(c.states)
 		c.want.Top = c.top

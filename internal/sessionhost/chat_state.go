@@ -28,17 +28,23 @@ type ChatState struct {
 	Life   string    `json:"life"`
 	Window bool      `json:"window"`
 	Exec   *ChatExec `json:"exec,omitempty"`
+	// Elsewhere says, in words, that the chat's session runs but not in this window, so its activity is not known
+	// here: it has no Exec, and is shown as a lifecycle word, never as Idle.
+	Elsewhere string `json:"elsewhere,omitempty"`
 }
 
 // StateCounts is how many of a set of chats are in each execution state, and the state the set shows as a whole:
 // Stuck, then Waiting, then Working, else Idle, which includes a set whose chats are all closed. Closed counts the
-// chats that do not run, closed or retired, which have no execution state.
+// chats that do not run, closed or retired, which have no execution state. Unknown counts the chats that run elsewhere.
 type StateCounts struct {
-	Stuck   int    `json:"stuck"`
-	Waiting int    `json:"waiting"`
-	Working int    `json:"working"`
-	Idle    int    `json:"idle"`
-	Closed  int    `json:"closed"`
+	Stuck   int `json:"stuck"`
+	Waiting int `json:"waiting"`
+	Working int `json:"working"`
+	Idle    int `json:"idle"`
+	Closed  int `json:"closed"`
+	// Unknown counts the chats that run elsewhere, whose activity is not known; they are counted as nothing else
+	// and Top ignores them.
+	Unknown int    `json:"unknown"`
 	Top     string `json:"top"`
 }
 
@@ -55,7 +61,11 @@ func CountStates(states []ChatState) StateCounts {
 // Add counts one chat. A rollup that adds counts of its own parts calls Merge instead.
 func (c *StateCounts) Add(s ChatState) {
 	if s.Exec == nil {
-		c.Closed++
+		if s.Elsewhere != "" {
+			c.Unknown++
+		} else {
+			c.Closed++
+		}
 		return
 	}
 	switch s.Exec.State {
@@ -77,6 +87,7 @@ func (c *StateCounts) Merge(o StateCounts) {
 	c.Working += o.Working
 	c.Idle += o.Idle
 	c.Closed += o.Closed
+	c.Unknown += o.Unknown
 }
 
 // Finish chooses the state the counts show as a whole.
@@ -120,7 +131,7 @@ func sameState(a, b *ChatState) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	if a.Life != b.Life || a.Window != b.Window || (a.Exec == nil) != (b.Exec == nil) {
+	if a.Life != b.Life || a.Window != b.Window || a.Elsewhere != b.Elsewhere || (a.Exec == nil) != (b.Exec == nil) {
 		return false
 	}
 	return a.Exec == nil || *a.Exec == *b.Exec
