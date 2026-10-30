@@ -161,6 +161,12 @@ func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 	// The logs are closed too, so that a chat still running writes none after the
 	// test's folder is being removed.
 	t.Cleanup(a.closeAgentLogs)
+	// Turns the test started are waited for before anything above is closed, so none writes into the
+	// folder after the test returns (they run first, as the last cleanup registered).
+	t.Cleanup(func() {
+		c.Close() // turns waiting on the agent end because the agent is gone
+		a.turnIO().Close(3 * time.Second)
+	})
 	return a, c
 }
 

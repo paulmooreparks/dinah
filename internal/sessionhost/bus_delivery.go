@@ -106,7 +106,7 @@ func (a *BusChats) Ring(ctx context.Context, b *bus.Bus, s *Conversation) {
 	}
 	EmitSession(a.host.Emit, s)
 	EmitChat(a.host.Emit, s, EventSent, SentEvent(s.ID(), p.Text(), "bus", BusChatLabel, p.Delivered()))
-	go a.host.TurnIO().Run(s, &p)
+	a.host.TurnIO().start(s, &p)
 }
 
 // Arriving limits: how many waiting messages one event describes, and how

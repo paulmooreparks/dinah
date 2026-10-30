@@ -66,6 +66,7 @@ func (a *App) closeAgentLogs() {
 	l.chats.CloseAll()
 	_ = l.trace.Close()
 	closeAppLog()
+	closeFolder()
 	a.closeTeams()
 }
 

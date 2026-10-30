@@ -67,6 +67,9 @@ func (a *App) newAppletChannel(conn agentConnection, workspace string) (*appletC
 	defer a.bridgeMu.Unlock()
 	b := a.appletBridge
 	if b == nil {
+		if folderClosed() {
+			return nil, nil, errFolderClosed
+		}
 		listener, err := net.Listen("tcp4", "127.0.0.1:0")
 		if err != nil {
 			return nil, nil, fmt.Errorf("start applet bridge: %w", err)

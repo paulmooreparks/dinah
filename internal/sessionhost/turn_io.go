@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"studio/internal/acp"
@@ -18,7 +19,45 @@ var TurnIOSource []byte
 // TurnIO orchestrates protocol and host effects over opaque conversations.
 // It holds no registry of its own. Host callbacks must not re-enter a held
 // submission gate; receipt confirmation remains independent of that gate.
-type TurnIO struct{ host TurnHost }
+type TurnIO struct {
+	host TurnHost
+	// mu guards closing and the counting of running turns, so that a turn is never added while Close waits.
+	mu      sync.Mutex
+	closing bool
+	running sync.WaitGroup
+}
+
+// start runs a turn on its own goroutine, which Close waits for. Once Close has begun it starts none: the app is
+// ending, and a turn begun now would write into stores that are closing.
+func (t *TurnIO) start(s *Conversation, next *Prompt) {
+	t.mu.Lock()
+	if t.closing {
+		t.mu.Unlock()
+		return
+	}
+	t.running.Add(1)
+	t.mu.Unlock()
+	go func() {
+		defer t.running.Done()
+		t.Run(s, next)
+	}()
+}
+
+// Close refuses further turns and returns when the running ones have ended, or when the limit passes, and says
+// whether they all ended. The caller ends or cancels the sessions first, so that turns end because they were told to.
+func (t *TurnIO) Close(limit time.Duration) bool {
+	t.mu.Lock()
+	t.closing = true
+	t.mu.Unlock()
+	done := make(chan struct{})
+	go func() { t.running.Wait(); close(done) }()
+	select {
+	case <-done:
+		return true
+	case <-time.After(limit):
+		return false
+	}
+}
 
 func NewTurnIO(host TurnHost) *TurnIO { return &TurnIO{host: host} }
 
@@ -116,7 +155,7 @@ func (t *TurnIO) Send(id, text string, doc *DocRef, atts []Attachment) error {
 
 	t.host.Remember(s.Cwd(), s.ID(), "send", text, doc)
 	EmitSession(t.host.Emit, s)
-	go t.Run(s, &p)
+	t.start(s, &p)
 	return nil
 }
 
@@ -149,7 +188,7 @@ func (t *TurnIO) StartWaiting(s *Conversation) {
 		return
 	}
 	EmitSession(t.host.Emit, s)
-	go t.Run(s, p)
+	t.start(s, p)
 }
 
 // SendPrompt sends a prompt that has already been made, such as one that was
@@ -179,7 +218,7 @@ func (t *TurnIO) SendPrompt(id string, p Prompt) error {
 		return nil
 	}
 	EmitSession(t.host.Emit, s)
-	go t.Run(s, &p)
+	t.start(s, &p)
 	return nil
 }
 
@@ -202,7 +241,7 @@ func (t *TurnIO) SendAs(s *Conversation, label, text string) error {
 
 	EmitSession(t.host.Emit, s)
 	EmitChat(t.host.Emit, s, EventSent, map[string]any{"sessionId": s.ID(), "text": text, "kind": "skill", "label": label})
-	go t.Run(s, &p)
+	t.start(s, &p)
 	return nil
 }
 
@@ -248,7 +287,7 @@ func (t *TurnIO) AskWait(ctx context.Context, s *Conversation, p Prompt) (string
 			submission.Release()
 			EmitSession(t.host.Emit, s)
 			EmitChat(t.host.Emit, s, EventSent, SentEvent(s.ID(), text, SentKind(&p, "asked"), p.Label(), p.Delivered()))
-			go t.Run(s, &p)
+			t.start(s, &p)
 		}
 	}
 	words, end, completed := p.Wait(ctx)
