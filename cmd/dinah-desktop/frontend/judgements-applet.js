@@ -57,7 +57,8 @@
   function stateWords(s) {
     if (!s) return 'Judgements: reading';
     if (s.state === 'off') return 'Judgements: off (' + (s.why || 'turned off') + ')';
-    if (s.state === 'warning') return 'Judgements: warning, the last ' + s.streak + ' calls were answered by the rule';
+    if (s.paused) return 'Judgements: paused until ' + whenFull(s.paused.until) + ', ' + providerDisplayName(s.paused.provider) + ': ' + s.paused.reason;
+    if (s.state === 'warning') return 'Judgements: warning, ' + (s.why || 'the judge is failing');
     return 'Judgements: on, ' + s.calls + (s.calls === 1 ? ' call' : ' calls') + ' today, ' + s.fallbacks + ' answered by the rule';
   }
   function drawWidget() {
@@ -68,12 +69,14 @@
     item.dataset.judgement = state ? state.state : '';
     badge.className = 'badge';
     if (!state) { badge.hidden = true; }
+    else if (state.unseen > 0) { badge.hidden = false; badge.classList.add('warn'); badge.textContent = String(state.unseen); }
     else if (state.state === 'off') { badge.hidden = false; badge.textContent = 'off'; }
-    else if (state.state === 'warning') { badge.hidden = false; badge.classList.add('warn'); badge.textContent = String(state.streak); }
-    else { badge.hidden = !state.calls; badge.textContent = String(state.calls || ''); }
+    else { badge.hidden = true; badge.textContent = ''; }
     var words = stateWords(state);
+    if (state && state.unseen > 0) words += ', ' + state.unseen + (state.unseen === 1 ? ' undismissed warning' : ' undismissed warnings');
     item.setAttribute('aria-label', words);
     item.title = words;
+    if ($('judgements-status-menu').matches(':popover-open')) syncPopup();
   }
   function readState() {
     if (!available()) { drawWidget(); return Promise.resolve(); }
@@ -92,7 +95,7 @@
     link.href = '#';
     link.appendChild(node('span', null, text));
     if (meta) link.appendChild(node('span', 'md-meta', meta));
-    if (run) link.addEventListener('click', function (e) { e.preventDefault(); run(); });
+    if (run) link.addEventListener('click', function (e) { e.preventDefault(); $('judgements-status-menu').hidePopover(); run(); });
     row.appendChild(link);
     return row;
   }
@@ -103,17 +106,60 @@
       if (tab) tab.click();
     }).catch(host().fail);
   }
+  var popupSummary = '';
+  function dismissWarning(id, button) {
+    button.disabled = true;
+    Promise.resolve().then(function () {
+      return id == null ? app().DismissJudgementWarnings() : app().DismissJudgementWarning(id);
+    }).then(readState).catch(host().fail).finally(function () { button.disabled = false; });
+  }
+  function syncPopup() {
+    var list = $('judgements-status-list'), first = list.querySelector('.judgements-popup-line');
+    if (!first) return;
+    first.textContent = stateWords(state) + '. ' + popupSummary;
+    var warnings = state && state.warnings || [], rows = list.querySelector('.judgements-warnings');
+    var focused = document.activeElement, hadFocus = rows.contains(focused), oldButtons = Array.from(rows.querySelectorAll('button'));
+    var focusIndex = oldButtons.indexOf(focused);
+    var kept = new Set();
+    warnings.forEach(function (warning, index) {
+      var id = String(warning.id), row = Array.from(rows.children).find(function (el) { return el.dataset.warningId === id; });
+      if (!row) {
+        row = node('li', 'judgements-warning vstack gap-2'); row.dataset.warningId = id;
+        var text = node('p', 'form-help');
+        var dismiss = node('button', 'btn btn-sm', 'Dismiss'); dismiss.type = 'button';
+        dismiss.addEventListener('click', function () { dismissWarning(warning.id, dismiss); });
+        row.append(text, dismiss);
+      }
+      var reason = warning.reason || warning.why;
+      row.querySelector('p').textContent = whenFull(warning.at) + ': ' + reason;
+      row.querySelector('button').setAttribute('aria-label', 'Dismiss warning: ' + reason);
+      kept.add(row);
+      if (rows.children[index] !== row) rows.insertBefore(row, rows.children[index] || null);
+    });
+    Array.from(rows.children).forEach(function (row) { if (!kept.has(row)) row.remove(); });
+    rows.hidden = !warnings.length;
+    var all = list.querySelector('.judgements-dismiss-all'); all.hidden = !warnings.length;
+    if (hadFocus && !focused.isConnected) {
+      var buttons = rows.querySelectorAll('button');
+      (buttons[Math.min(focusIndex, buttons.length - 1)] || list.querySelector('a')).focus();
+    } else if (focused === all && all.hidden) list.querySelector('a').focus();
+  }
   function drawPopup() {
     var list = $('judgements-status-list');
     list.replaceChildren();
     if (!available()) return;
+    popupSummary = '';
     var first = node('p', 'form-help judgements-popup-line', stateWords(state) + '.');
     list.appendChild(first);
+    var warnings = node('ul', 'judgements-warnings vstack gap-3'); warnings.setAttribute('aria-label', 'Judgement warnings');
+    var all = node('button', 'btn btn-sm judgements-dismiss-all', 'Dismiss All'); all.type = 'button';
+    all.addEventListener('click', function () { dismissWarning(null, all); });
+    list.append(warnings, all);
     Promise.resolve().then(function () { return app().JudgementSummary('', ''); }).then(function (sum) {
       if (!list.isConnected || !first.isConnected) return;
       var line = sum.calls ? 'Today: ' + sum.calls + (sum.calls === 1 ? ' call' : ' calls') + ', ' + sum.fallbacks + ' by the rule. The latest was ' + ago(sum.latest) + '.'
         : 'Nothing has been judged yet. The records will appear on the Judgements page.';
-      first.textContent = stateWords(state) + '. ' + line;
+      popupSummary = line; syncPopup();
     }).catch(function () {});
     if (state && state.calibration && state.calibration.state === 'running') list.appendChild(node('p', 'form-help judgements-popup-calibration', 'Calibration is choosing the judge’s model now.'));
     (state && state.budget || []).forEach(function (b) { list.appendChild(node('p', 'form-help judgements-popup-budget', budgetLine(b))); });
@@ -121,6 +167,7 @@
     if (pool) list.appendChild(node('p', 'form-help judgements-popup-pool', pool));
     list.appendChild(menuRow('Open Judgements', '', openPage));
     list.appendChild(menuRow('Judgement Settings…', '', openSection));
+    syncPopup();
   }
 
   /* ---- The Judgements page ---- */
