@@ -693,6 +693,8 @@ func HostedTurnHook(ctx context.Context, b *bus.Bus, sessionID, event, prompt, p
 	var v any
 	if event == "Stop" {
 		v = map[string]any{"decision": "block", "reason": body}
+		// The agent carries on past this stop, in the turn it was in (steers.go).
+		_ = b.ReopenHookTurn(ctx, chat)
 	} else {
 		v = map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": event, "additionalContext": body}}
 	}

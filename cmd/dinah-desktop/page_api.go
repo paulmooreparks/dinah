@@ -63,7 +63,7 @@ var pageMethods = func() map[string]pageMethodClass {
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
  InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate`)
 	list(pageWork, `
- SetJudgementSettings RunJudgementCalibration CorrectJudgement ResolveHold ForgetContextChoice AcceptSuggestion AddDraftFile AddTerminalProfile AgentCheck AgentConnect AgentRestart
+ LogQueueDefault SetJudgementSettings RunJudgementCalibration CorrectJudgement ResolveHold ForgetContextChoice AcceptSuggestion AddDraftFile AddTerminalProfile AgentCheck AgentConnect AgentRestart
  AgentSignIn AgentStop Answer AnswerAppletRequest AnswerExtensionCommand AnswerPage
  AttachLocalWorkspaceSource BusAddToGroup BusDeleteGroup BusMarkGroupRead BusRemoveFromGroup
  BusGroupBudget BusRenameGroup BusReplyInThread BusSend BusSendToGroup BusStartGroup BusTrust BusUntrust Cancel

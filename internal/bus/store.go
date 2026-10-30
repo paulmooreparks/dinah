@@ -278,6 +278,9 @@ var added = []struct{ table, column, decl string }{
 	// addressed to the person carries the lead it was rerouted to (teams.go).
 	{"rooms", "lead", "TEXT NOT NULL DEFAULT ''"},
 	{"messages", "relay_lead", "TEXT NOT NULL DEFAULT ''"},
+	// When a chat's hook turn began and ended, kept so that a steer that could not be offered can be explained (steers.go).
+	{"hook_turns", "began_at", "TEXT NOT NULL DEFAULT ''"},
+	{"hook_turns", "ended_at", "TEXT NOT NULL DEFAULT ''"},
 	{"attachments", "mime", "TEXT NOT NULL DEFAULT ''"},
 	{"attachments", "stored", "INTEGER NOT NULL DEFAULT 0"},
 	{"attachments", "removed_at", "TEXT NOT NULL DEFAULT ''"},
