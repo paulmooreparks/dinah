@@ -1470,7 +1470,7 @@
       ready: function () { var s = active && sessions[active]; return !s || !s.loading && !s.settling; },
       canTail: function () { var s = active && sessions[active]; return !deleted && (!s || !s.loading && !s.settling); },
       followingChanged: function (value) { following = value; syncAnchor(); },
-      jumped: function () { if (active && sessions[active]) sessions[active].log.removeAttribute('data-preserve-scroll-layout'); },
+      scrolled: pinCheck,
       entries: function () {
         var s = active && sessions[active]; if (!s) return [];
         return Array.from(s.log.children).filter(function (row) { return !!row._msg; }).map(function (row) {
@@ -1502,6 +1502,10 @@
     function syncAnchor() {
       $('activity').style.overflowAnchor = 'none';
       $('activity').toggleAttribute('data-preserve-scroll-layout', !following);
+      // Once read back, this bounded log keeps its measured rows. Returning
+      // to estimates during a jump changes the extent underneath its target.
+      var s = active && sessions[active];
+      if (!following && s) s.log.setAttribute('data-preserve-scroll-layout', '');
     }
     var appearanceAnchor = null;
     function captureAppearance() {

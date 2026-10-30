@@ -33,3 +33,11 @@ Two decisions follow from it, beyond the rule above.
 - **Folding decides once.** A title bar or toolbar that folds its status into a menu decides from widths that do not depend on the state's current text, such as the reserved width of each mark, so it cannot fold and unfold from one frame to the next.
 
 Dinah UI also found the glyphs too small to carry the state alone: Idle's ring read as a speck, and Working's arc was hard to tell from it. Each mark keeps a slot of at least 16 CSS pixels, with Idle a visibly closed hollow ring and Working a clearly open arc, reviewed with animation stopped as well as running.
+
+## Transcript Navigation and Measured Rows
+
+A jump to the latest releases the saved reading place before following the end. Once a bounded chat log has been read back, its rows keep their measured layout when following resumes. Re-enabling estimated heights during a jump changes the scroll extent underneath its destination. The chat log already trims its retained rows, so this preservation remains bounded.
+
+The jump also updates the pinned prompt before its final scroll position is set. The pin and unread controls can change the transcript viewport or extent. The final position is calculated after those changes in the same operation. Deferring that correction to the next animation frame leaves a visible gap for one frame.
+
+While reading back, DOM mutations restore the held row during mutation delivery. Resize observation also restores it when an image or font changes its size later. The regression suites sample the readable row and the jump destination on every animation frame. They reject a transient displacement even when the final position recovers.

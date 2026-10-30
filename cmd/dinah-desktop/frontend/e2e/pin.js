@@ -73,9 +73,24 @@ const windows = require('./lib/windows');
     await p.waitForFunction(() => document.querySelector('.win[data-chat-current] [data-view-id=activity]').textContent.includes('Point 1.40 of a long reply.'));
     ok('new output leaves a reader in the history where they are', await p.$eval(activity, el => el.scrollTop) === before);
     await t.shot('jump-end');
+    await p.evaluate(() => {
+      window.__pinGeometry = []; window.__pinRecording = true; window.__pinPhase = 'before-jump';
+      document.querySelector('.win[data-chat-current] [data-view-id=jump-end]').addEventListener('click', () => { __pinPhase = 'after-jump'; });
+      function sample() {
+        const win = document.querySelector('.win[data-chat-current]'), log = win.querySelector('[data-view-id=activity]');
+        __pinGeometry.push({ phase: __pinPhase, top: log.scrollTop, extent: log.scrollHeight, height: log.clientHeight, following: log.dataset.following, preserved: log.hasAttribute('data-preserve-scroll-layout'), hidden: win.querySelector('[data-view-id=jump-end]').hidden });
+        if (__pinRecording && __pinGeometry.length < 600) requestAnimationFrame(sample);
+      }
+      sample();
+    });
     await p.click('.win[data-chat-current] [data-view-id=jump-end]');
     await p.waitForFunction(() => { const win = document.querySelector('.win[data-chat-current]'), el = win.querySelector('[data-view-id=activity]'); return el.scrollHeight - el.scrollTop - el.clientHeight < 2 && win.querySelector('[data-view-id=jump-end]').hidden; });
-    ok('Jump to the Latest goes to the end and hides', await atEnd() && await p.isHidden('.win[data-chat-current] [data-view-id=jump-end]'));
+    const jumpPosition = await p.$eval(activity, log => ({ top: log.scrollTop, extent: log.scrollHeight, height: log.clientHeight, following: log.dataset.following }));
+    ok('Jump to the Latest goes to the end and hides', jumpPosition.extent - jumpPosition.top - jumpPosition.height < 2 && await p.isHidden('.win[data-chat-current] [data-view-id=jump-end]'), JSON.stringify(jumpPosition));
+    await p.evaluate(async () => { for (let i = 0; i < 30; i++) await new Promise(requestAnimationFrame); __pinRecording = false; });
+    const frames = await p.evaluate(() => __pinGeometry.filter(frame => frame.phase === 'after-jump'));
+    ok('every sampled frame after the jump remains at the end', frames.length > 2 && frames.every(frame => frame.extent - frame.top - frame.height < 2 && frame.following === 'true' && frame.hidden), JSON.stringify(frames));
+    require('fs').writeFileSync(require('path').join(require('./lib/page').OUT, 'pin-jump-geometry.json'), JSON.stringify(await p.evaluate(() => __pinGeometry), null, 2));
     await longReply(2);
     await p.waitForFunction(() => document.querySelector('.win[data-chat-current] [data-view-id=activity]').textContent.includes('Point 2.40 of a long reply.'));
     await p.evaluate(() => window.__emit('agent:update', { sessionId: 's1', update: { sessionUpdate: 'tool_call', toolCallId: 'after', title: 'Checked the draft', status: 'completed' } }));
