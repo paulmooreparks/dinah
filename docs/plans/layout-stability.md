@@ -22,3 +22,14 @@ Dinah UI also reviews live behaviour as well as still screenshots. For each surf
 ## Order
 
 Front End fixes the message box first, since it is what Paul types into: one geometry for Working and Idle, with the send, queue and steer actions arranged so that none of them appears or disappears in a way that resizes the box, and one hint text. Then comes the stability suite. Its first run will list the other movements, and each is fixed under the rule above. Dinah UI's live review runs beside it and adds what a suite cannot judge, such as flicker and distracting motion.
+
+## The First Audit
+
+Dinah UI drove 64 state changes on master 497afbe on 30 October, in light and dark at 1440 and 700 pixels wide, sampling every interactive control on every frame (message 1619). Every surface it covered moved. The message box grew from 63 to 85.5 pixels and halved its Send button. Group member menus jumped sideways by up to 298 pixels, and an expanded member area grew from 66 to 176 pixels, moving everything below it. A chat's own status reason wrapped and pushed the team strip down. The title bar's buttons jumped 131 pixels for one frame while its status chips folded. Chat list rows grew by 27 pixels as reasons wrapped. The taskbar's running dot widened its button and moved every button after it. A long reason enlarged a mention candidate.
+
+Two decisions follow from it, beyond the rule above.
+
+- **A reason takes one line.** Wherever a state's reason appears (a chat's status line, a team member row, a chat list row, a picker or mention candidate), it is a single line of fixed height, cut with an ellipsis when it is too long, with the whole reason as the tooltip and accessible name. Aggregate counts in a list row are one line in the same way. Rows therefore keep one height whatever their state.
+- **Folding decides once.** A title bar or toolbar that folds its status into a menu decides from widths that do not depend on the state's current text, such as the reserved width of each mark, so it cannot fold and unfold from one frame to the next.
+
+Dinah UI also found the glyphs too small to carry the state alone: Idle's ring read as a speck, and Working's arc was hard to tell from it. Each mark keeps a slot of at least 16 CSS pixels, with Idle a visibly closed hollow ring and Working a clearly open arc, reviewed with animation stopped as well as running.
