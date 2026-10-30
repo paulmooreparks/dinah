@@ -129,8 +129,14 @@
       var win = document.querySelector('[data-win="needs-you"]');
       if (win) win.dataset.winAttention = String(n);
       var st = $('status-needs'), b = st.querySelector('.badge');
+      var errors = notices.list(function (entry) { return entry.needsPerson && entry.type === 'error'; }).length;
+      st.dataset.statusState = errors ? 'stuck' : n ? 'waiting' : 'idle';
+      st.dataset.statusText = n ? 'Needs you' : 'Nothing waiting';
+      st.dataset.statusGlyph = errors ? 'stop' : n ? 'comments' : 'ring';
+      st.dataset.statusColour = errors ? 'danger' : n ? 'warn' : 'text-muted';
+      st.dataset.statusCount = n;
       b.hidden = n === 0;
-      b.textContent = n ? String(n) : '';
+      b.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
       if (n) st.removeAttribute('data-empty'); else st.setAttribute('data-empty', '');
       var words = n ? n + ' unread' : 'none';
       st.setAttribute('aria-label', 'Notifications: ' + words);

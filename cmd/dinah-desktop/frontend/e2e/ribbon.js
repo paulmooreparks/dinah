@@ -38,7 +38,7 @@ const { launch } = require('./lib/page');
     ok('a danger row is a danger button', true);
     // A tool whose words are folded away keeps them as its name and its
     // tooltip (PUDL 0.80.0).
-    const named = await p.evaluate(sel => [...document.querySelectorAll(sel)].filter(b => b.offsetWidth && !b.innerText.trim())
+    const named = await p.evaluate(sel => [...document.querySelectorAll(sel)].filter(b => b.offsetWidth && getComputedStyle(b).visibility !== 'hidden' && !b.innerText.trim())
       .map(b => [b.getAttribute('aria-label') || '', b.getAttribute('data-tooltip') || '']), TOOLS);
     ok('a tool folded to its glyph keeps its name and a tooltip', named.every(n => n[0].trim() && n[1].trim()), JSON.stringify(named));
 

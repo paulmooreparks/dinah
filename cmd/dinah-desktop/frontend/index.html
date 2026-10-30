@@ -139,6 +139,7 @@
   <script src="exit-guard.js" defer></script>
   <script src="host-menus.js" defer></script>
   <script src="pudl/pudl-windows.js" defer></script>
+  <script src="status-tray.js" defer></script>
   <link rel="stylesheet" href="extensions.css">
   <link rel="stylesheet" href="teams.css">
 </head>
@@ -234,6 +235,8 @@
     <button type="button" class="menu-action" data-cmd="needs-you">Show All</button>
     <button type="button" class="menu-action" data-cmd="clear-notifications" disabled>Clear All…</button>
   </nav>
+
+  <nav class="popover status-tray-popover" id="status-tray-menu" popover aria-label="Status" data-menu-anchor="status-folded"><ul role="list"></ul></nav>
 
     <nav class="popover" id="judgements-status-menu" popover aria-label="Judgements" data-menu-anchor="status-judgements">
     <div id="judgements-status-list"></div>
@@ -369,9 +372,10 @@
            <button type="button" class="status-item" id="status-update" popovertarget="update-menu" hidden aria-label="A newer build of Dinah is installed" title="A newer build of Dinah is installed" data-product-attrs="aria-label title"><span class="glyph" style="--glyph: var(--glyph-reload)" aria-hidden="true"></span><span class="status-words">Update</span><span class="badge accent" aria-hidden="true">new</span></button>
            <span class="loading status-starting" id="status-starting" role="status"><span class="spinner" aria-hidden="true"></span> Starting…</span>
            <button type="button" class="status-item workspace-status" id="status-workspace" popovertarget="workspace-status-menu" title="Workspace Menu"><span class="glyph" style="--glyph: var(--glyph-folder)" aria-hidden="true"></span><span id="status-workspace-name">Workspace</span></button>
-           <button type="button" class="status-item" id="status-needs" popovertarget="notifications-status-menu" aria-label="Notifications: nothing waiting" title="Notifications: nothing waiting" data-empty><span class="glyph" style="--glyph: var(--glyph-warning)" aria-hidden="true"></span><span class="status-words">Notifications</span><span class="badge warn" aria-hidden="true" hidden></span></button>
-           <button type="button" class="status-item" id="status-agent" popovertarget="agent-menu" aria-label="Agent: not started" title="Agent: not started"><span class="glyph" style="--glyph: var(--glyph-ring)" aria-hidden="true"></span><span class="status-words">Agent</span><span class="badge" id="status-agent-badge" aria-hidden="true">off</span></button>
-           <button type="button" class="status-item" id="status-judgements" popovertarget="judgements-status-menu" hidden aria-label="Judgements" title="Judgements"><span class="glyph" style="--glyph: var(--glyph-tick)" aria-hidden="true"></span><span class="status-words">Judgements</span><span class="badge" aria-hidden="true" hidden></span></button>
+           <button type="button" class="status-item status-count" id="status-needs" popovertarget="notifications-status-menu" aria-label="Notifications: nothing waiting" title="Notifications: nothing waiting" data-empty><span class="glyph" style="--glyph: var(--glyph-warning)" aria-hidden="true"></span><span class="status-words">Notifications</span><span data-status-badge class="badge warn" aria-hidden="true" hidden></span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
+           <button type="button" class="status-item status-count" id="status-agent" popovertarget="agent-menu" aria-label="Agent: not started" title="Agent: not started"><span class="glyph" style="--glyph: var(--glyph-ring)" aria-hidden="true"></span><span class="status-words">Agent</span><span data-status-badge class="badge" id="status-agent-badge" aria-hidden="true">off</span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>starting</span></button>
+           <button type="button" class="status-item status-count" id="status-judgements" popovertarget="judgements-status-menu" hidden aria-label="Judgements" title="Judgements"><span class="glyph" style="--glyph: var(--glyph-tick)" aria-hidden="true"></span><span class="status-words">Judgements</span><span data-status-badge class="badge" aria-hidden="true" hidden></span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
+           <button type="button" class="status-item status-count" id="status-folded" popovertarget="status-tray-menu" aria-label="Status" title="Status" hidden><span class="glyph" aria-hidden="true"></span><span class="status-words">Status</span><span data-status-badge class="badge warn" aria-hidden="true" hidden></span><span class="badge warn status-badge-reserve" aria-hidden="true" inert>99+</span></button>
          </nav>
          <a class="icon-btn" data-win-close-all href="?" aria-label="Close All Windows" data-tooltip="Close All Windows"></a>
          <a class="icon-btn" data-win-restore href="?" aria-label="Restore All Windows" data-tooltip="Restore All Windows"></a>

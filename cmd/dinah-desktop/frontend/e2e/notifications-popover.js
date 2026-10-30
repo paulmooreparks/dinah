@@ -6,6 +6,7 @@
 // rows that change while the popover is open.
 const { launch, OUT } = require('./lib/page');
 const path = require('path');
+const {openStatus}=require('./lib/status');
 (async () => {
   const t = await launch({
     viewport: { width: 1300, height: 900 },
@@ -23,13 +24,13 @@ const path = require('path');
   try {
     const menu = page.locator('#notifications-status-menu');
     const rows = menu.locator('.notices-row');
-    const open = async () => { if (!await menu.evaluate(m => m.matches(':popover-open'))) await page.click('#status-needs'); await page.waitForFunction(() => { const m = document.querySelector('#notifications-status-menu'); return m.matches(':popover-open') && !m.classList.contains('placing'); }); };
+    const open = async () => { if (!await menu.evaluate(m => m.matches(':popover-open'))) await openStatus(page,'status-needs'); await page.waitForFunction(() => { const m = document.querySelector('#notifications-status-menu'); return m.matches(':popover-open') && !m.classList.contains('placing'); }); };
     const close = async () => { if (await menu.evaluate(m => m.matches(':popover-open'))) await menu.evaluate(m => m.hidePopover()); };
 
     // Empty.
     await open();
     ok('an empty list says so in one line', await menu.locator('.notices-empty').isVisible() && await menu.locator('.notices-empty').textContent() === 'No notifications.' && await rows.count() === 0);
-    ok('the badge is hidden with nothing waiting', await page.locator('#status-needs .badge').isHidden());
+    ok('the badge is hidden with nothing waiting', await page.locator('#status-needs [data-status-badge]').isHidden());
     await close();
 
     // A report of each kind, then two questions.

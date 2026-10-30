@@ -67,9 +67,14 @@
     item.hidden = false;
     var badge = item.querySelector('.badge');
     item.dataset.judgement = state ? state.state : '';
+    item.dataset.statusState = state && (state.paused || state.state === 'warning') ? 'waiting' : 'idle';
+    item.dataset.statusText = !state ? 'Reading' : state.paused ? 'Paused' : state.state === 'off' ? 'Off' : state.state === 'warning' ? 'Warning' : 'On';
+    item.dataset.statusGlyph = state && (state.paused || state.state === 'warning') ? 'warning' : state && state.state === 'on' ? 'tick' : 'ring';
+    item.dataset.statusColour = state && (state.paused || state.state === 'warning') ? 'warn' : state && state.state === 'on' ? 'positive' : 'text-muted';
+    item.dataset.statusCount = state && state.unseen || 0;
     badge.className = 'badge';
     if (!state) { badge.hidden = true; }
-    else if (state.unseen > 0) { badge.hidden = false; badge.classList.add('warn'); badge.textContent = String(state.unseen); }
+    else if (state.unseen > 0) { badge.hidden = false; badge.classList.add('warn'); badge.textContent = state.unseen > 99 ? '99+' : String(state.unseen); }
     else if (state.state === 'off') { badge.hidden = false; badge.textContent = 'off'; }
     else { badge.hidden = true; badge.textContent = ''; }
     var words = stateWords(state);
@@ -150,11 +155,12 @@
     if (!available()) return;
     popupSummary = '';
     var first = node('p', 'form-help judgements-popup-line', stateWords(state) + '.');
-    list.appendChild(first);
+    var summary = node('div', 'judgements-popup-summary'); summary.appendChild(first);
+    list.appendChild(summary);
     var warnings = node('ul', 'judgements-warnings vstack gap-3'); warnings.setAttribute('aria-label', 'Judgement warnings');
     var all = node('button', 'btn btn-sm judgements-dismiss-all', 'Dismiss All'); all.type = 'button';
     all.addEventListener('click', function () { dismissWarning(null, all); });
-    list.append(warnings, all);
+    summary.appendChild(all); list.appendChild(warnings);
     Promise.resolve().then(function () { return app().JudgementSummary('', ''); }).then(function (sum) {
       if (!list.isConnected || !first.isConnected) return;
       var line = sum.calls ? 'Today: ' + sum.calls + (sum.calls === 1 ? ' call' : ' calls') + ', ' + sum.fallbacks + ' by the rule. The latest was ' + ago(sum.latest) + '.'

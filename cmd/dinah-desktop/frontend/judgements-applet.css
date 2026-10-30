@@ -10,6 +10,9 @@
 .judgements-warning { border-block-start: 1px solid var(--border); padding-block-start: var(--space-2); }
 .judgements-warning p { margin: 0; overflow-wrap: anywhere; }
 .judgements-warning .btn, .judgements-dismiss-all { align-self: start; }
+.judgements-popup-summary { display: flex; align-items: start; gap: var(--space-3); }
+.judgements-popup-summary .judgements-popup-line { flex: 1; min-width: 0; }
+.judgements-popup-summary .judgements-dismiss-all { flex: none; }
 
 .judgements { padding: var(--space-4); overflow: auto; }
 .judgements-toolbar .form-select { max-width: 220px; }

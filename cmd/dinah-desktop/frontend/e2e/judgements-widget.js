@@ -32,7 +32,7 @@ const { launch } = require('./lib/page');
     const p = t.page, ok = t.ok;
     const item = p.locator('#status-judgements');
     await item.waitFor();
-    ok('without undismissed warnings, the badge is hidden', await item.locator('.badge').isHidden());
+    ok('without undismissed warnings, the badge is hidden', await item.locator('[data-status-badge]').isHidden());
     ok('and its name says the counts', /on, 12 calls today, 3 answered by the rule/.test(await item.getAttribute('aria-label')), await item.getAttribute('aria-label'));
     // The popup: the day in words, then the two ways in.
     await item.click();
@@ -56,10 +56,10 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => { __emit('judgements:changed', { id: 10, stateGen: 1, stateVer: 3, state: 'warning', why: 'the judge failed', unseen: 5, warnings: [], calls: 9, fallbacks: 5, streak: 5, warnStreak: 3, latest: new Date().toISOString() }); });
     await p.waitForFunction(() => document.querySelector('#status-judgements').dataset.judgement === 'warning');
     await t.shot('judgements-widget-warning');
-    ok('a warning carries the undismissed count in an amber badge', (await item.locator('.badge').textContent()) === '5' && await item.locator('.badge.warn').count() === 1 && /5 undismissed warnings/.test(await item.getAttribute('aria-label')));
+    ok('a warning carries the undismissed count in an amber badge', (await item.locator('[data-status-badge]').textContent()) === '5' && await item.locator('[data-status-badge].warn').count() === 1 && /5 undismissed warnings/.test(await item.getAttribute('aria-label')));
     // An event older than the one applied is dropped, as every numbered event is.
     await p.evaluate(() => { __emit('judgements:changed', { id: 11, stateGen: 1, stateVer: 2, state: 'off', why: 'no model chosen', calls: 0, fallbacks: 0, streak: 0, warnStreak: 3, latest: '' }); });
     await new Promise(r => setTimeout(r, 300));
-    ok('a stale state is not applied over a newer one', (await item.getAttribute('data-judgement')) === 'warning' && (await item.locator('.badge').textContent()) === '5');
+    ok('a stale state is not applied over a newer one', (await item.getAttribute('data-judgement')) === 'warning' && (await item.locator('[data-status-badge]').textContent()) === '5');
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
