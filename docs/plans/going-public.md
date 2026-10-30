@@ -38,3 +38,7 @@ Paul checks these himself before the repository is made public, since they are h
 - No other client's or employer's material, and no personal paths, addresses or notes that should stay private. `docs/dinah-ideas.md` is the person's working notes and is reviewed with that in mind.
 - The licence is Apache 2.0, as ruled on 27 October, and the README says what Dinah is.
 - Nothing from the history archive, and never the old bundle of the history from before 22 October.
+
+## Done
+
+The new history began on 30 October 2026 with the root commit ee241e1, and Paul made github.com/paulmooreparks/dinah public the same evening. One mistake on the way was caught before then. A push sent three branches of the old history to the new repository, so it was renamed aside and replaced by a clean one, and Paul deleted the affected copy before publishing. The full history stays in the private repository dinah-history. Everything pushed to the public repository now goes through the forbidden-terms check, and only branches whose root is ee241e1 are pushed.
