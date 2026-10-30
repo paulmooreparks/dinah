@@ -59,6 +59,8 @@ Dinah's own gates for the release that brings skins are listed below.
 
 Engine adds the skin to the appearance store and its validation, the event that announces a change, and the web page's server-side rendering. Front End adds the persistence attribute, the stylesheets and `appearance-init.js`, the Skin choice beside the colour theme in Appearance, the theme editor's preview, and the suites. Dinah UI reviews the rendered skins. Dinah Release takes the PUDL release and runs the gates, and Architecture reviews and decides what merges. The work starts when PUDL publishes a release in which at least one skin is admitted.
 
+PUDL published 0.95.0 on 30 October 2026 (message 1520), admitting Bevel, Gel and Glaze with reviewed stylesheet hashes, and with host persistence and declarative skin links as agreed. Dinah takes it in this order. Dinah Release first moves Dinah onto 0.95.0 with Standard only, checking the archive and each skin's hash. Engine then adds the skin to the appearance store and the bus page. Front End builds the page's half after the group window and chat state sweep, which comes first because Paul called it a defect. Dinah UI reviews every skin at the end. The chat state glyphs are not in 0.95.0 and come in a later PUDL release.
+
 ## What PUDL Provides
 
 Dinah asked PUDL on 30 October for five things, and PUDL answered in its release candidate the same day (message 1389).
