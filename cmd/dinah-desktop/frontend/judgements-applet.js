@@ -72,6 +72,9 @@
     item.dataset.statusGlyph = state && (state.paused || state.state === 'warning') ? 'warning' : state && state.state === 'on' ? 'tick' : 'ring';
     item.dataset.statusColour = state && (state.paused || state.state === 'warning') ? 'warn' : state && state.state === 'on' ? 'positive' : 'text-muted';
     item.dataset.statusCount = state && state.unseen || 0;
+    var glyph = item.querySelector('.glyph');
+    glyph.style.setProperty('--glyph', 'var(--glyph-' + item.dataset.statusGlyph + ')');
+    glyph.style.color = 'var(--' + item.dataset.statusColour + ')';
     badge.className = 'badge';
     if (!state) { badge.hidden = true; }
     else if (state.unseen > 0) { badge.hidden = false; badge.classList.add('warn'); badge.textContent = state.unseen > 99 ? '99+' : String(state.unseen); }
