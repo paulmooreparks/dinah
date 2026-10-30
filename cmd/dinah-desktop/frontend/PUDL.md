@@ -1,6 +1,6 @@
 # PUDL Distribution
 
-The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.95.1](https://github.com/paulmooreparks/pudl/releases/tag/v0.95.1), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
+The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.95.2](https://github.com/paulmooreparks/pudl/releases/tag/v0.95.2), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
 
 To update PUDL, replace both folders whole with the new release's `dist/`, write its version into `VERSION`, and run the Go tests and the browser suites in `e2e/`. Changes to PUDL itself go to Paul as a proposal first; publishing a release of PUDL needs his say-so.
 
