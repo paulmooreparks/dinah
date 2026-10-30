@@ -1,0 +1,38 @@
+/* Notices: the compact list and the full cards drawn by notices.js. Every
+   row and card leads with its type's glyph as well as its colour, which
+   notices.js sets as --glyph and --notices-colour. */
+
+/* The compact list, in a PUDL menu panel. */
+.notices-list { list-style: none; margin: 0; padding: 0; }
+.notices-item { margin: 0; }
+.menu-panel .notices-row { align-items: flex-start; }
+.menu-panel .notices-row > .notices-glyph { --glyph-size: 14px; margin-top: 0.2em; color: var(--notices-colour); }
+.notices-text {
+  flex: 1; min-width: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.notices-empty[hidden] { display: none; }
+
+/* The full cards. */
+.notice.notices-card { --notice-color: var(--notices-colour); border-inline-start-color: var(--notices-colour); }
+.notices-card .notice-actions { flex-wrap: wrap; min-width: 0; }
+.notices-card code { overflow-wrap: anywhere; }
+.notices-card:focus { outline: none; }
+.notices-card:focus-visible { box-shadow: 0 0 0 2px var(--focus-ring); }
+.notices-details { margin: var(--space-1) 0 var(--space-2); padding-left: 1.2em; font-size: var(--text-sm); }
+.notices-details li { overflow-wrap: anywhere; }
+.notices-meta { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.notices-card.notices-flash { animation: notices-flash .9s ease-out 1; }
+@keyframes notices-flash { from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--notices-colour) 70%, transparent); } to { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .notices-card.notices-flash { animation: none; } }
+
+/* The live region that announces a new question, heard and not seen. */
+.notices-announcer {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (forced-colors: active) {
+  .menu-panel .notices-row > .notices-glyph { forced-color-adjust: none; background: CanvasText; }
+}

@@ -1,0 +1,13 @@
+#!/bin/lua
+-- tac: print lines in reverse order
+--
+-- Usage: tac [file...]
+--
+-- Prints the last line first. Reads the files, or what is piped in.
+-- Try: seq 5 | tac
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local lines = cli.lines(cli.input(arg, 'tac'))
+for i = #lines, 1, -1 do print(lines[i]) end

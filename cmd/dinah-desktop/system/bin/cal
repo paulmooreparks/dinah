@@ -1,0 +1,55 @@
+#!/bin/lua
+-- cal: show a calendar
+--
+-- Usage: cal                 this month, with today marked
+--        cal <month> <year>  that month, such as cal 2 2027
+--        cal <year>          every month of that year
+--
+-- Weeks start on Monday.
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local names = { 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December' }
+local today = os.date('*t')
+local function days_in(m, y)
+  return os.date('*t', os.time({ year = m == 12 and y + 1 or y, month = m == 12 and 1 or m + 1, day = 1, hour = 12 }) - 86400).day
+end
+local function month(m, y)
+  local lines = {}
+  local title = names[m] .. ' ' .. y
+  lines[1] = string.rep(' ', (20 - #title) // 2) .. title
+  lines[2] = 'Mo Tu We Th Fr Sa Su'
+  local first = os.date('*t', os.time({ year = y, month = m, day = 1, hour = 12 })).wday
+  local col = (first + 5) % 7
+  local row = string.rep('   ', col)
+  for d = 1, days_in(m, y) do
+    local cell = string.format('%2d', d)
+    if y == today.year and m == today.month and d == today.day then cell = '\27[7m' .. cell .. '\27[0m' end
+    row = row .. cell
+    col = col + 1
+    if col == 7 then lines[#lines + 1] = row row, col = '', 0 else row = row .. ' ' end
+  end
+  if row ~= '' then lines[#lines + 1] = row end
+  return lines
+end
+local m, y = tonumber(arg[1]), tonumber(arg[2])
+if #arg == 0 then
+  for _, l in ipairs(month(today.month, today.year)) do print(l) end
+elseif #arg == 1 and m and m > 12 then
+  for row = 0, 3 do
+    local blocks = { month(row * 3 + 1, m), month(row * 3 + 2, m), month(row * 3 + 3, m) }
+    for i = 1, 8 do
+      local parts = {}
+      for b = 1, 3 do
+        local l = blocks[b][i] or ''
+        parts[b] = l .. string.rep(' ', 20 - #l:gsub('\27%[%d*m', ''))
+      end
+      print(table.concat(parts, '   '))
+    end
+  end
+elseif #arg == 2 and m and y and m >= 1 and m <= 12 then
+  for _, l in ipairs(month(m, y)) do print(l) end
+else
+  cli.fail('cal', 'usage: cal, cal <month> <year> or cal <year>', 2)
+end

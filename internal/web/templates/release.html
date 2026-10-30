@@ -1,0 +1,12 @@
+{{define "release.html"}}{{template "head" .}}
+{{$r := .Data.Release}}
+<h1>{{$r.FromWorkspaceLabel}} {{$r.Version}}</h1>
+{{template "message" $r.Message}}
+<h2>Verdicts</h2>
+{{with $r.Verdicts}}
+<section class="vstack gap-3" aria-label="Verdicts">{{range .}}{{template "message" .}}{{end}}</section>
+{{else}}
+<p class="dinah-muted">No workspace has answered yet.</p>
+{{end}}
+{{with $r.Waiting}}<p>Still waiting for {{range $i, $w := .}}{{if $i}}, {{end}}<strong>{{$w}}</strong>{{end}}.</p>{{end}}
+{{template "foot" .}}{{end}}

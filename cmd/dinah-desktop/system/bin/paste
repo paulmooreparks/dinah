@@ -1,0 +1,32 @@
+#!/bin/lua
+-- paste: join files side by side, or the lines of one
+--
+-- Usage: paste [-d <delimiter>] <file...>
+--        paste -s [-d <delimiter>] [file...]   join all lines into one
+--
+-- Line n of each file goes on line n of the output, separated by a tab
+-- unless -d gives another character. With -s, each file's lines become one
+-- line; with no file, the lines piped in do.
+-- Try: seq 3 | paste -s -d +
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, files = cli.options(arg, { d = true, s = false })
+local delim = (o.d or '\t'):gsub('\\t', '\t')
+if o.s then
+  if #files == 0 then print(table.concat(cli.lines(cli.input({}, 'paste')), delim)) end
+  for _, f in ipairs(files) do print(table.concat(cli.lines(cli.input({ f }, 'paste')), delim)) end
+  return
+end
+if #files == 0 then cli.fail('paste', 'which files? (or -s to join the lines piped in)', 2) end
+local columns, rows = {}, 0
+for i, f in ipairs(files) do
+  columns[i] = cli.lines(cli.input({ f }, 'paste'))
+  rows = math.max(rows, #columns[i])
+end
+for r = 1, rows do
+  local out = {}
+  for i = 1, #columns do out[i] = columns[i][r] or '' end
+  print(table.concat(out, delim))
+end

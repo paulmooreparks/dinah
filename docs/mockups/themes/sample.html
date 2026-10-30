@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- One theme in one mode, drawn with PUDL's own stylesheets and Dinah's
+     markup: sample.html?theme=solarized&mode=dark. The theme comes from
+     themes.js (the candidates) or Dinah's theme-data.js (the built-ins),
+     and is applied as Dinah's appearance.js applies a theme: each palette
+     token becomes a custom property on the root, and data-theme carries the
+     mode. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Theme Sample</title>
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+<script src="../../../cmd/dinah-desktop/frontend/theme-data.js"></script>
+<script src="themes.js"></script>
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search), id = q.get('theme') || 'mineral', mode = q.get('mode') === 'dark' ? 'dark' : 'light';
+    var doc = (window.themeCandidates || {})[id] || (window.dinahThemeBuiltins || {})[id] || window.dinahThemeBuiltins.mineral;
+    var root = document.documentElement;
+    root.dataset.theme = mode;
+    Object.entries(doc.palettes[mode]).forEach(function (pair) { root.style.setProperty('--' + pair[0], pair[1]); });
+    window.sampleTheme = doc.name + ', ' + mode;
+  })();
+</script>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--font, system-ui); display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+  .menubar-strip { display: flex; gap: 4px; align-items: center; padding: 6px 10px; background: var(--tb-bg); color: var(--tb-fg); border-bottom: 1px solid var(--border); }
+  .menubar-strip strong { margin-right: 8px; }
+  .desk { position: relative; display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; padding: 14px; min-height: 0; }
+  /* PUDL sizes and places a window itself; here each fills its cell. */
+  .desk .win { position: static; inset: auto; width: auto !important; height: auto !important; max-width: none; max-height: none; min-width: 0; min-height: 0; display: flex; flex-direction: column; transform: none; }
+  .desk .win-body { padding: 12px 14px; overflow: hidden; display: grid; gap: 10px; align-content: start; }
+  .msg { border: 1px solid var(--border); border-radius: var(--radius, 6px); padding: 8px 12px; background: var(--surface); }
+  .msg.you { background: var(--surface-alt); }
+  .msg h4 { margin: 0 0 4px; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .msg p { margin: 0; }
+  .skill { color: var(--dinah-skill); font-weight: 600; }
+  pre.code { margin: 0; font: 12.5px/1.5 var(--mono, Consolas, monospace); max-height: none; min-height: max-content; overflow: visible; }
+  .k { color: var(--syntax-keyword); } .s { color: var(--syntax-string); } .n { color: var(--syntax-number); } .c { color: var(--syntax-comment); font-style: italic; }
+  .f { color: var(--syntax-name); } .t { color: var(--syntax-tag); } .e { color: var(--syntax-error); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .muted { color: var(--text-muted); }
+  .sample-label { position: absolute; right: 18px; bottom: 6px; font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="menubar-strip"><strong>Dinah</strong><span>Documents</span><span>Tools</span><span>View</span><span>Window</span><span>Help</span></div>
+  <div class="desk">
+    <section class="win active" data-win="sample-chat">
+      <header class="win-head">
+        <h2 class="win-title">Parser Work</h2>
+        <div class="win-statuses" role="group" aria-label="Window status"><span class="win-status strong">Working</span><span class="win-status">Background 2</span></div>
+        <nav class="win-chrome" aria-label="Window"><button type="button" class="win-btn" data-win-action="minimize" aria-label="Minimize"></button><button type="button" class="win-btn" data-win-action="maximize" aria-label="Maximize"></button><button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav>
+      </header>
+      <div class="win-body">
+        <div class="msg you"><h4>You</h4><p>Run the parser tests with <span class="skill">/test</span> and fix what fails.</p></div>
+        <div class="msg"><h4>Claude</h4><p>One test fails because <code>parse</code> drops the final token. Here is the fix:</p></div>
+        <pre class="code"><span class="c">// parse reads every token, including the last.</span>
+<span class="k">func</span> <span class="f">parse</span>(src <span class="t">string</span>) ([]<span class="t">Token</span>, <span class="t">error</span>) {
+	<span class="k">for</span> i := <span class="n">0</span>; i &lt;= <span class="f">len</span>(src); i++ { <span class="c">// was &lt;</span>
+		<span class="k">if</span> src[i] == <span class="s">'"'</span> { <span class="k">return</span> <span class="k">nil</span>, <span class="e">errUnterminated</span> }
+	}
+}</pre>
+        <div class="notice warn" role="status"><div class="notice-content"><p class="notice-title">Claude wants to run go test ./parser</p><div class="notice-actions hstack gap-2"><button type="button" class="btn btn-sm btn-primary">Allow</button><button type="button" class="btn btn-sm">Deny</button></div></div></div>
+        <div class="row"><span class="badge positive">passed</span><span class="badge warn">2 warnings</span><span class="badge danger">1 failed</span><span class="badge accent">new</span><a href="#">Open the test log</a></div>
+        <div class="row"><input class="form-input" placeholder="Say what you want the agent to do" style="flex:1"><button type="button" class="btn btn-primary">Send</button><button type="button" class="btn">Queue</button><button type="button" class="btn btn-danger">Stop</button></div>
+      </div>
+    </section>
+    <section class="win" data-win="sample-notes">
+      <header class="win-head"><h2 class="win-title">Release Notes</h2><nav class="win-chrome" aria-label="Window"><button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav></header>
+      <div class="win-body">
+        <h3 style="margin:0">Parser 2.1</h3>
+        <p class="muted" style="margin:0">Released 27 October 2026</p>
+        <p style="margin:0">The parser now reads the final token of every file, and an unterminated string is reported where it begins.</p>
+        <ul style="margin:0;padding-left:18px"><li>Faster tokenizing of long files.</li><li>Clearer error positions.</li></ul>
+        <div class="card" style="padding:10px"><strong>Checklist</strong><div class="row muted" style="margin-top:6px"><label><input type="checkbox" checked> Tests pass</label><label><input type="checkbox"> Changelog</label></div></div>
+      </div>
+    </section>
+    <span class="sample-label" id="label"></span>
+  </div>
+  <footer class="win-bar"><nav class="win-dock" aria-label="Open Windows"></nav><nav class="status-area" aria-label="Status"><button type="button" class="status-item">Fixture</button><button type="button" class="status-item">Notifications <span class="badge warn">3</span></button><button type="button" class="status-item">Claude</button></nav></footer>
+  <script>document.getElementById('label').textContent = window.sampleTheme;</script>
+</body>
+</html>

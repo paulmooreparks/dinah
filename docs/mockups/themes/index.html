@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- The candidate themes beside Dinah's current default, each in light and
+     dark. Every panel is sample.html drawn in that theme, so what shows is
+     PUDL's own styling with the theme's tokens. Open this file in a
+     browser. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dinah Theme Candidates</title>
+<script src="themes.js"></script>
+<style>
+  body { margin: 0; padding: 24px; font: 15px/1.5 system-ui, sans-serif; background: #f4f4f5; color: #1b1c1f; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .lede { margin: 0 0 20px; max-width: 70ch; color: #4a4d55; }
+  section { margin-bottom: 28px; }
+  h2 { margin: 0; font-size: 17px; }
+  .source { margin: 2px 0 10px; color: #4a4d55; font-size: 13px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  iframe { width: 100%; height: 640px; border: 1px solid #c9cbd0; border-radius: 6px; background: #fff; }
+  .mode { font-size: 12px; color: #4a4d55; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <h1>Dinah Theme Candidates</h1>
+  <p class="lede">Nine candidate themes beside Mineral, Dinah's current default. Each passes Dinah's own contrast rules: 4.5:1 for every kind of text on every background, and 3:1 for input boundaries. Where a published palette fell short, the colour keeps its hue and is darkened (light mode) or lightened (dark mode) until it passes.</p>
+  <div id="themes"></div>
+  <script>
+    var notes = {
+      mineral: 'Dinah\'s current default, for comparison.',
+      solarized: 'Ethan Schoonover\'s Solarized. Its accents are darkened in light mode, since the originals fall below 4.5:1 on its cream background.',
+      nord: 'Arctic Ice Studio\'s Nord: cool slate and frost blues, with its aurora colours for status.',
+      gruvbox: 'Pavel Pertsev\'s gruvbox: warm, retro and low glare, from its faded (light) and bright (dark) colours.',
+      graphite: 'Neutral greys with a clear blue accent, the strongest contrast of the set, for long sessions and bright rooms.',
+      'one-dark-pro': 'Binaryify\'s One Dark Pro for dark mode. It has no light variant, so light mode uses Atom\'s One Light, the palette One Dark was paired with.',
+      dracula: 'Dracula, with its official Alucard palette for light mode. Its comment colour is lightened in dark mode to pass as muted text.',
+      catppuccin: 'Catppuccin: Latte for light mode and Mocha for dark. Latte\'s yellow and peach are darkened the most.',
+      'tokyo-night': 'Enkia\'s Tokyo Night: Day for light mode and Night for dark. Day\'s blue text is darkened considerably to keep input borders visible.',
+      github: 'GitHub\'s own VS Code theme, Light Default and Dark Default, which needed almost no adjustment.'
+    };
+    ['mineral', 'solarized', 'nord', 'gruvbox', 'graphite', 'one-dark-pro', 'dracula', 'catppuccin', 'tokyo-night', 'github'].forEach(function (id) {
+      var name = id === 'mineral' ? 'Mineral' : window.themeCandidates[id].name;
+      var s = document.createElement('section');
+      s.innerHTML = '<h2></h2><p class="source"></p><div class="pair"><div><div class="mode">Light</div><iframe loading="lazy"></iframe></div><div><div class="mode">Dark</div><iframe loading="lazy"></iframe></div></div>';
+      s.querySelector('h2').textContent = name;
+      s.querySelector('.source').textContent = notes[id];
+      var frames = s.querySelectorAll('iframe');
+      frames[0].src = 'sample.html?theme=' + id + '&mode=light'; frames[0].title = name + ', light';
+      frames[1].src = 'sample.html?theme=' + id + '&mode=dark'; frames[1].title = name + ', dark';
+      document.getElementById('themes').appendChild(s);
+    });
+  </script>
+</body>
+</html>

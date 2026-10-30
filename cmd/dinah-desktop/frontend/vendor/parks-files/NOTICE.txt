@@ -1,0 +1,20 @@
+Parks Computing Files Source
+
+Dinah adopts Paul Parks's Files applet and shared file browser from the Parks Computing content tree. The reviewed source snapshot was read on 9 October 2026 from `C:/Users/paul/OneDrive/Documents/parkscomputing.com/wwwroot/`.
+
+The source files and their SHA-256 hashes before adaptation are listed below.
+
+| File | SHA-256 |
+| --- | --- |
+| `js/files.js` | `4576E0A16C1EA6AEB6146EFB4FFF791ED45A773E21469C4AC2038576D3660539` |
+| `js/filebrowser.js` | `02BA7815569499127CD0B5FC7C1B71C30D30DF0CEF2503842EB673EAE92747B3` |
+| `css/files.css` | `2123F2A53DAC535397368B7284F44B5E92F7780576B770F8B9472C685D78B2EC` |
+| `css/filebrowser.css` | `9E6C5928BA9B59AFAEAF020F779B9C1921D12356ED8A6DA8038E928B3F558021` |
+
+`filebrowser.js`, `files.css` and `filebrowser.css` are vendored here. The JavaScript browser has local adaptations for asynchronous lookup, lazy expansion, paging, optional home roots and display labels independent of resource paths. An optional `listEntries` adapter projects a container's own content into the file list while the tree retains its child structure. An optional `formatDate` lets the host write the list's dates, which Dinah uses for the computer's regional format. The existing tree, path bar, grid, selection, splitter and keyboard interactions remain based on the upstream module. `files-applet.js` adapts the Files toolbar, contextual actions, details and window lifecycle to Dinah.
+
+Paul Parks authorized adoption of his Files applet into Dinah and publication of the application release containing it. These source files have no per-file license declaration. The engine repository's unrelated application license has not been assigned to them. This inclusion does not assign a general upstream redistribution license to the original files.
+
+The source browser uses PUDL, whose license is included in `../../pudl/LICENSE`. Dinah already bundles that dependency. The Dinah adaptation loads no website filesystem, configuration, snapshot, authentication or administration scripts. Its host adapter invokes the reviewed workspace resource methods. Uploads, filesystem mutations and the website editor integration are not enabled in this read-only increment.
+
+Embedding options can disable user navigation or bound it to a navigation root. The root applies to folder activation, keyboard navigation, breadcrumbs, tree roots, programmatic navigation and restored expansion paths. An optional parent entry supports rooted lists whose hosts omit the toolbar.

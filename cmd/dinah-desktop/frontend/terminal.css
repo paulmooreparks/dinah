@@ -1,0 +1,14 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0
+   Adapted from parkscomputing.com/css/terminal.css. */
+.pc-terminal { display: flex; flex-direction: column; min-width: 0; height: min(70svh, 640px); min-height: 260px; position: relative; }
+.pc-terminal .pc-terminal-screen { flex: 1 1 auto; min-height: 0; min-width: 0; background: var(--input-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--recess-shadow); overflow: hidden; }
+/* Fit subtracts padding on the xterm element when calculating its rows. */
+.pc-terminal .pc-terminal-screen .xterm { height: 100%; padding: 8px 4px 8px 10px; }
+.pc-terminal .pc-terminal-screen .xterm-viewport { background: transparent !important; }
+.pc-terminal .pc-terminal-failed { font-family: var(--font); color: var(--text-muted); padding: var(--space-4); }
+.pc-terminal-fill { flex: 1 1 auto; height: auto; min-height: 0; }
+.pc-terminal-fill .pc-terminal-screen { border: 0; border-radius: 0; box-shadow: none; }
+.win-body:has(.pc-terminal-fill) { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+
+/* Workbench terminals use the full content rectangle. Fit retains only partial-cell remainder. */
+.pc-terminal-fill .pc-terminal-screen .xterm { padding: 0; }

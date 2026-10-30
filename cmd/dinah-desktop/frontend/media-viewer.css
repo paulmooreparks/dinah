@@ -1,0 +1,38 @@
+/* Adapted from Paul Parks's parkscomputing.com/wwwroot/css/pudl-site.css.
+   The desktop lightbox covers the client area; the media and edge controls
+   retain the site's fit, actual-size and gallery presentation. */
+.lightbox {
+  padding: 0; margin: 0; inset: 0;
+  width: 100vw; height: 100svh; max-width: none; max-height: none;
+  background: transparent; border: 0; overflow: hidden; color: #fff;
+}
+.lightbox::backdrop { background: rgb(0 0 0 / 0.86); }
+.lightbox[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); }
+.lightbox-stage { display: flex; justify-content: center; align-items: center; max-width: 96vw; max-height: calc(92svh - 3.5rem); min-height: 0; touch-action: pan-y pinch-zoom; }
+.lightbox-img {
+  display: block; flex: none; max-width: min(92vw, 1600px); max-height: calc(88svh - 3.5rem);
+  width: auto; height: auto; border-radius: var(--radius-sm);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.5); background: #fff;
+  user-select: none; -webkit-user-drag: none;
+}
+.lightbox-zoomable .lightbox-img { cursor: zoom-in; }
+.lightbox-zoomed .lightbox-stage { width: 96vw; height: calc(92svh - 3.5rem); overflow: auto; display: block; border-radius: var(--radius-sm); touch-action: auto; }
+.lightbox-zoomed .lightbox-img { max-width: none; max-height: none; cursor: zoom-out; box-shadow: none; }
+.lightbox-bar { display: flex; align-items: baseline; justify-content: center; gap: var(--space-3); max-width: min(92vw, 80ch); text-align: center; font-size: var(--text-sm); padding: 4px 12px; border-radius: var(--radius-sm); background: rgb(0 0 0 / 0.55); }
+.lightbox-bar:has(.lightbox-caption[hidden]):has(.lightbox-counter:empty) { display: none; }
+.lightbox-counter { opacity: .8; white-space: nowrap; }
+.lightbox-btn { position: fixed; z-index: 1; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid var(--raise-border); background: var(--raise-grad); box-shadow: var(--raise-shadow); color: var(--text); cursor: pointer; }
+.lightbox-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.lightbox-btn:hover { background: var(--raise-grad-hover); border-color: var(--raise-border-hover); }
+.lightbox-btn:focus-visible { outline: none; box-shadow: var(--raise-shadow), 0 0 0 3px var(--focus-ring); }
+.lightbox-close { top: max(12px, env(safe-area-inset-top)); right: 12px; }
+.lightbox-prev, .lightbox-next { top: 50%; transform: translateY(-50%); }
+.lightbox-prev { left: 12px; }
+.lightbox-next { right: 12px; }
+.lightbox-btn[hidden] { display: none; }
+img[data-media-expand] { cursor: zoom-in; }
+img[data-media-expand]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.media-frame { position: relative; min-width: 0; }
+.media-expand { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; }
+.media-image-frame { display: inline-block; max-width: 100%; vertical-align: middle; }
+.media-image-frame > img { display: block; }

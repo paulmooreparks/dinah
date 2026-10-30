@@ -1,0 +1,24 @@
+/* Layout for Dinah's pages and desktop. Every component's look comes from
+   PUDL; this file only places them and sets the text of messages. */
+
+/* The desktop: the top bar with the launcher and the dock, and the windows
+   filling the rest. */
+html:has(body.dinah-desktop), body.dinah-desktop { height: 100%; margin: 0; }
+body.dinah-desktop { display: flex; flex-direction: column; }
+.dinah-desktop-bar { flex: none; gap: var(--space-3); }
+.dinah-desktop-bar .win-dock { flex: 1 1 auto; min-width: 0; }
+.dinah-desktop-area { flex: 1 1 auto; min-height: 0; position: relative; }
+.dinah-window { padding: var(--space-4); }
+.dinah-window h1 { font-size: var(--text-lg); }
+.dinah-main {
+  max-width: 60rem;
+  margin-inline: auto;
+  padding: var(--space-5) var(--space-4);
+}
+.dinah-message-head { flex-wrap: wrap; }
+.dinah-message-id { font-family: var(--mono); }
+.dinah-when { margin-inline-start: auto; }
+.dinah-muted { color: var(--text-muted); }
+.dinah-mono { font-family: var(--mono); overflow-wrap: anywhere; }
+.dinah-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-block: var(--space-3) 0; }
+.dinah-attachments { margin-block: var(--space-3) 0; padding-inline-start: var(--space-5); }

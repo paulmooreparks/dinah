@@ -1,0 +1,47 @@
+.dinah-window > .dinah-applet.theme-editor { overflow:auto; padding:var(--space-3); display:flex; flex-direction:column; gap:var(--space-3); }
+.theme-editor-toolbar { display:flex; gap:var(--space-2); flex-wrap:wrap; align-items:end; }
+.theme-editor-toolbar > label { flex:1 1 150px; min-width:0; }
+.theme-field { display:flex; flex-direction:column; gap:4px; font-size:var(--text-sm); min-width:0; }
+.theme-font-field { display:flex; flex-wrap:wrap; gap:var(--space-2); min-width:0; }
+.theme-font-field > input { flex:1 1 160px; min-width:0; }
+.theme-font-field > select { flex:0 1 170px; max-width:100%; }
+.theme-editor-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:var(--space-3); }
+.theme-color-field { display:grid; grid-template-columns:1fr 36px 90px; gap:6px; align-items:center; min-width:0; }
+.theme-color-field label { font-size:var(--text-sm); overflow-wrap:anywhere; }
+.theme-color-field input[type="color"] { width:36px; height:30px; padding:2px; }
+.theme-color-field input { min-width:0; max-width:100%; }
+.theme-previews { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:var(--space-3); }
+.theme-previews iframe { width:100%; height:470px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); }
+.theme-previews h3 { font-size:var(--text-base); margin:0 0 var(--space-2); }
+.theme-contrast { margin:0; padding-left:1.2em; font-size:var(--text-sm); }
+.theme-override-row { border-bottom:1px solid var(--border); padding:var(--space-3) 0; display:flex; flex-direction:column; gap:var(--space-2); }
+.theme-override-row h4 { margin:0; font-size:var(--text-base); }
+#appearance-fonts { display:flex; flex-direction:column; gap:var(--space-3); }
+/* The chat text size and font reach a chat and a group chat alike: the messages,
+   the box that takes one, and the headings in a message, which keep their ratio
+   to the text (20 and 17 against 15 at the default size). */
+.chat-instance, .group-window { --msg-size:var(--chat-size,var(--text-base)); }
+:is(.chat-instance, .group-window) :is(.msg-text, .composer-input) { font-family:var(--chat-font,var(--font)); font-size:var(--msg-size); }
+:is(.chat-instance, .group-window) .msg-text h1 { font-size:calc(var(--msg-size) * 4 / 3); }
+:is(.chat-instance, .group-window) .msg-text h2 { font-size:calc(var(--msg-size) * 17 / 15); }
+:is(.chat-instance, .group-window) .msg-text :is(h3, h4, h5, h6) { font-size:var(--msg-size); }
+/* What sits beside the messages keeps its ratio to them too: the sender's label and
+   the turn's times (13 against 15), a tool row's summary (12) and its output (13),
+   and a delivered or arriving message's card (13 for its title, the text itself at
+   the chat size). */
+:is(.chat-instance, .group-window) :is(.msg-label, .turn-meta, .run-log .tool-detail pre, .delivered-card > .card-head > .card-title, .arriving-card > .card-head > .card-title) { font-size:calc(var(--msg-size) * 13 / 15); }
+:is(.chat-instance, .group-window) .page-body .run-log details.tool-detail > summary { font-size:calc(var(--msg-size) * 12 / 15); }
+:is(.chat-instance, .group-window) :is(.delivered-card, .arriving-card) > .card-body { font-size:var(--msg-size); }
+:is(.chat-instance, .group-window) .msg-text :is(code,pre),:is(.chat-instance, .group-window) .thought-row .msg-text, .chat-instance .tool-detail pre { font-family:var(--mono); }
+.dinah-window .doc-page { font-family:var(--preview-font,var(--reading-font,var(--font))); font-size:var(--preview-size,14px); }
+
+.theme-font-field > .combo { flex:1 1 160px; min-width:0; }
+.theme-font-field > .form-select-wrap { flex:0 1 170px; max-width:100%; }
+
+/* Your Themes in Settings › Appearance: one row a theme, its name, In use
+   on the one in use, and Delete at the end. */
+.theme-list { list-style:none; margin:0; padding:0; display:grid; gap:var(--space-1); }
+.theme-list[hidden] { display:none; }
+.theme-list-row { display:flex; align-items:center; gap:var(--space-2); min-width:0; padding:var(--space-1) 0; border-bottom:1px solid var(--border); }
+.theme-list-row:last-child { border-bottom:0; }
+.theme-list-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

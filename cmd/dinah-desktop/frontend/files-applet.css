@@ -1,0 +1,35 @@
+/* Dinah adds bounded previews and paging to the Parks Files layout. */
+/* The toolbar is PUDL's folding toolbar (files-applet.js): it keeps to one
+   row, which the vendored layout's wrapping would undo. The location takes
+   the room left, down to a width at which the groups fold first. */
+.pc-files .fm-toolbar.toolbar[data-toolbar-fold] { flex-wrap: nowrap; gap: 0; }
+.pc-files .fm-toolbar > .fm-path { flex: 1 1 8em; min-width: 8em; overflow: hidden; margin-inline: var(--space-2); }
+.dinah-window > .dinah-applet.dinah-files { padding: var(--space-3); overflow: hidden; }
+.dinah-files .fm-preview { flex: 0 1 40%; min-height: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.dinah-files .fm-preview > .document-applet { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: var(--space-2); }
+/* A read-only folder carries a struck-through pencil after its name, in
+   the rows, the tree and the location shown, as the Finder marks a folder
+   that cannot be written to, with PUDL's pencil-off glyph. */
+.dinah-files .fm-readonly-mark { --glyph: var(--glyph-pencil-off); --glyph-size: 1em; margin-left: var(--space-1); vertical-align: -0.15em; color: var(--text-muted); flex: none; }
+.dinah-files .fm-readonly-line { display: flex; align-items: center; gap: var(--space-2); }
+.dinah-files .fm-readonly-line .fm-readonly-mark { margin-left: 0; }
+.dinah-files .fm-detail code { overflow-wrap: anywhere; }
+.dinah-files .fm-page:has(button[hidden]) { display: none; }
+.dinah-files .fm-path { flex: 1 1 12rem; overflow-x: auto; }
+.dinah-files .fm-name { overflow-wrap: anywhere; }
+.dinah-files .fm-status { overflow-wrap: anywhere; }
+.dinah-files.fm-no-date .fm-c-date, .dinah-files.fm-no-size .fm-c-size { display: none; }
+/* The Open and Save As dialog (file-picker.js), which has the dinah-files
+   class too, for the column rules above. */
+.dinah-picker .fb-pick-bar .fm-path { min-width: 0; }
+/* Open and Save As resize from their corner (CSS resize), and the browser
+   fills whatever height the dialog is given. */
+dialog.dinah-picker[open] {
+  display: flex; flex-direction: column; resize: both; overflow: hidden;
+  height: min(80vh, 720px); min-width: min(480px, 94vw); min-height: min(380px, 90vh); max-width: 98vw; max-height: 96vh;
+}
+.dinah-picker .fb-pick-form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.dinah-picker .fb-pick-body { flex: 1 1 auto; min-height: 0; margin-bottom: var(--space-3); }
+.dinah-picker .fb-pick-browse { flex: 1 1 auto; height: auto; min-height: 160px; }
+.dinah-picker .fb-pick-bar .icon-btn .glyph { --glyph-size: 15px; }
+.dinah-picker .fb-pick-actions .btn { white-space: nowrap; }

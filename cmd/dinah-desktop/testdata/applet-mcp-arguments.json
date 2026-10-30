@@ -1,0 +1,157 @@
+{
+  "array": {
+    "id": "array",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "empty": {
+    "id": "empty",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "exact": {
+    "id": "exact",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "{\"operation\":\"invoke\",\"ref\":\"fixture/read@1\",\"inputJSON\":\"{\\\"large\\\":9007199254740993}\",\"digest\":\"digest\",\"timeoutSeconds\":30,\"requestId\":\"same\"}\n",
+          "type": "text"
+        }
+      ]
+    }
+  },
+  "missing": {
+    "id": "missing",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "string": {
+    "id": "string",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "timeout-float-string": {
+    "id": "timeout-float-string",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required; timeoutSeconds must be a number (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "timeout-fraction": {
+    "id": "timeout-fraction",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "timeout-high": {
+    "id": "timeout-high",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "timeout-last": {
+    "id": "timeout-last",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "timeout-low": {
+    "id": "timeout-low",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "timeout-string": {
+    "id": "timeout-string",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required; timeoutSeconds must be a number (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  },
+  "timeout-wrong-type": {
+    "id": "timeout-wrong-type",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "text": "requestId is required; action is required; inputJSON is required; digest is required; timeoutSeconds must be a number (the parameters of applet_invoke are action, context, digest, inputJSON, requestId, timeoutSeconds)",
+          "type": "text"
+        }
+      ],
+      "isError": true
+    }
+  }
+}

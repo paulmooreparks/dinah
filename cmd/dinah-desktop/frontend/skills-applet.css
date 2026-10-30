@@ -1,0 +1,55 @@
+.dinah-window > .dinah-applet.skills-browser { display: flex; flex-direction: column; min-height: 0; padding: 0; }
+.dinah-window > .dinah-applet.skill-window { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; padding: var(--space-3); }
+/* The tab bar runs the full width of the window. */
+.skill-window > .tablist { margin-inline: calc(-1 * var(--space-3)); padding-inline: var(--space-3); }
+.skills-toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.skills-toolbar input { flex: 1; min-width: 8rem; }
+.skills-results, .skill-window-body { flex: 1; min-height: 0; overflow: auto; }
+.skills-status:empty { display: none; }
+.skills-status { margin: 0; padding: var(--space-2) var(--space-3); white-space: pre-wrap; }
+.skill-description { margin: 0; }
+.skill-panel { height: 100%; min-height: 0; overflow: auto; }
+.skill-panel[data-embedded-kind] { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+.skill-panel[hidden] { display: none; }
+.skill-panel .skill-field { margin-block: var(--space-3); }
+.skill-panel .skill-field > label { display: block; }
+.skill-panel .form-input { width: 100%; }
+.skill-launch { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; }
+.skill-launch .skill-field { display: block; margin-block: var(--space-3); }
+.skill-launch .skill-field > label { display: block; }
+.skill-launch .form-input, .skill-launch .form-select { width: 100%; }
+.skill-launch pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* The Edit tab: the form over the front matter, then the embedded Editor,
+   which takes the rest of the height. */
+.skill-window .skill-panel:first-of-type { display: flex; flex-direction: column; min-height: 0; }
+/* The Parameters tab's form, the chat's skill form laid out as a column. */
+.skill-panel > .skill-form { display: flex; flex-direction: column; gap: var(--space-2); }
+.skill-form .skill-field { margin-block: 0; min-width: 0; }
+.skill-form .skill-designer { width: 100%; }
+.skill-form .skill-field > label { display: block; font-weight: 600; }
+.skill-form .form-help { margin: 0; }
+.skill-editor-host { flex: 1; min-height: 16rem; display: flex; flex-direction: column; }
+.skill-editor-host > .dinah-applet { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.skill-designer { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; max-width: 100%; }
+/* One parameter is a row of fields that wraps, so the designer fits a
+   narrow window without sideways scrolling. */
+.skill-parameters-table { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+.skill-param-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding-block-end: var(--space-2); border-block-end: 1px solid var(--border); }
+.skill-param-row .form-input, .skill-param-row .form-select { flex: 1 1 9rem; min-width: 7rem; width: auto; }
+.skill-param-row .skill-param-required { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
+/* The row the toolbar's commands act on. */
+.skill-param-row.selected { background: var(--surface-alt); box-shadow: inset 3px 0 0 var(--accent); padding-inline-start: var(--space-2); }
+/* The designer's toolbar at the top of the Parameters tab, in the strip
+   the Visual editor's toolbar has. */
+.skill-panel.skill-parameters-panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.skill-panel > .skill-designer-host { flex: none; margin-block-end: var(--space-2); }
+.skill-parameters-panel > .skill-form { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.skill-designer-host:empty { display: none; }
+/* The command line in the window's head, under the description. */
+.skill-window > .skill-command-preview { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.skill-window > .skill-command-preview:empty { display: none; }
+.skill-form-preview { width: 100%; margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); }
+.skill-form-preview .skill-field { margin-block: var(--space-2); }
+.skill-form-preview .skill-field > label { display: block; font-weight: normal; }
+.skill-command-preview { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.skill-other-fields > .card-body { display: flex; flex-direction: column; gap: var(--space-2); }

@@ -1,0 +1,48 @@
+#!/bin/lua
+-- cut: print parts of each line
+--
+-- Usage: cut -f <fields> [-d <delimiter>] [file...]
+--        cut -c <characters> [file...]
+--
+-- Fields and characters are numbers and ranges, such as 1,3 or 2-4 or 3-.
+-- Fields are separated by a tab unless -d gives another character.
+-- Try: echo "a,b,c" | cut -d , -f 2-
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, files = cli.options(arg, { f = true, c = true, d = true })
+local list = o.f or o.c
+if not list then cli.fail('cut', 'say which fields (-f) or characters (-c)', 2) end
+local ranges = {}
+for part in list:gmatch('[^,]+') do
+  local a, b = part:match('^(%d*)%-(%d*)$')
+  if a then ranges[#ranges + 1] = { tonumber(a) or 1, tonumber(b) or math.huge }
+  elseif tonumber(part) then ranges[#ranges + 1] = { tonumber(part), tonumber(part) }
+  else cli.fail('cut', 'not a list of numbers: ' .. list, 2) end
+end
+local function wanted(i)
+  for _, r in ipairs(ranges) do if i >= r[1] and i <= r[2] then return true end end
+  return false
+end
+local delim = o.d or '\t'
+for _, line in ipairs(cli.lines(cli.input(files, 'cut'))) do
+  local out = {}
+  if o.c then
+    local i = 0
+    for _, c in utf8.codes(line) do
+      i = i + 1
+      if wanted(i) then out[#out + 1] = utf8.char(c) end
+    end
+    print(table.concat(out))
+  elseif not line:find(delim, 1, true) then
+    print(line)
+  else
+    local i = 0
+    for field in (line .. delim):gmatch('(.-)' .. delim:gsub('%p', '%%%0')) do
+      i = i + 1
+      if wanted(i) then out[#out + 1] = field end
+    end
+    print(table.concat(out, delim))
+  end
+end

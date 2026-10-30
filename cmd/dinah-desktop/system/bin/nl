@@ -1,0 +1,21 @@
+#!/bin/lua
+-- nl: number the lines
+--
+-- Usage: nl [-a] [file...]
+--
+-- Numbers each line that is not empty, or with -a every line.
+-- Try: nl ~/notes.md
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, files = cli.options(arg, { a = false })
+local n = 0
+for _, line in ipairs(cli.lines(cli.input(files, 'nl'))) do
+  if o.a or line:match('%S') then
+    n = n + 1
+    print(string.format('%6d\t%s', n, line))
+  else
+    print(line)
+  end
+end

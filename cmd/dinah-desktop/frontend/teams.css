@@ -1,0 +1,20 @@
+/* Teams use PUDL components; these rules only compose the chat content. */
+.chat-team { padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--border); }
+.team-content { padding-block-start: var(--space-2); max-height: min(28vh, 240px); overflow: auto; }
+.team-tree .team-person { flex-wrap: wrap; gap: var(--space-2); white-space: normal; overflow-wrap: anywhere; }
+.team-name { font-weight: 600; }
+.team-reason, .team-meta, .team-usage { color: var(--text-muted); font-size: var(--text-sm); }
+.team-meta, .team-usage { flex-basis: 100%; padding-inline-start: var(--space-5); }
+.team-assignment { padding-inline: var(--space-5) var(--space-2); }
+.team-task { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge.team-state::before { content: ""; --glyph: inherit; }
+.team-budget-row .meter { width: 100%; }
+.team-member-note { padding-block: var(--space-2); }
+[data-team-member] .composer-row, [data-team-member] .attachments, [data-team-member] .skill-form,
+[data-team-member] [data-toolbar-group="Message"], [data-team-member] .composer-context { display: none; }
+@container (max-width: 640px) { .team-task { white-space: normal; } }
+
+.team-traffic-original { display: none !important; }
+.team-traffic-fold { padding: var(--space-2) var(--space-3); color: var(--text-muted); list-style: none; }
+
+.team-reason:not(:empty) { flex-basis: 100%; padding-inline-start: var(--space-5); }

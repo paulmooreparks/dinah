@@ -1,0 +1,57 @@
+#!/bin/lua
+-- tr: translate or delete characters
+--
+-- Usage: tr <from> <to>     replace each character of from with the one at
+--                           the same place in to
+--        tr -d <chars>      delete the characters
+--        tr -s <chars>      squeeze runs of each character into one
+--
+-- Ranges such as a-z and the classes [:upper:], [:lower:], [:digit:] and
+-- [:space:] are understood. Reads what is piped in.
+-- Try: echo Hello | tr a-z A-Z, echo "a  b" | tr -s " "
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, n = cli.options(arg, { d = false, s = false })
+local classes = {
+  ['[:upper:]'] = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', ['[:lower:]'] = 'abcdefghijklmnopqrstuvwxyz',
+  ['[:digit:]'] = '0123456789', ['[:space:]'] = ' \t\n\r\f\v',
+}
+local function expand(set)
+  for k, v in pairs(classes) do set = set:gsub(k:gsub('%p', '%%%0'), v) end
+  set = set:gsub('\\n', '\n'):gsub('\\t', '\t')
+  local out, i = {}, 1
+  while i <= #set do
+    local a, dash, b = set:sub(i, i), set:sub(i + 1, i + 1), set:sub(i + 2, i + 2)
+    if dash == '-' and b ~= '' then
+      for c = a:byte(), b:byte() do out[#out + 1] = string.char(c) end
+      i = i + 3
+    else
+      out[#out + 1] = a
+      i = i + 1
+    end
+  end
+  return out
+end
+local text = io.read('a') or ''
+if o.d then
+  if #n ~= 1 then cli.fail('tr', 'usage: tr -d <chars>', 2) end
+  local del = {}
+  for _, c in ipairs(expand(n[1])) do del[c] = true end
+  io.write((text:gsub('.', function(c) if del[c] then return '' end end)))
+elseif o.s then
+  if #n ~= 1 then cli.fail('tr', 'usage: tr -s <chars>', 2) end
+  local sq = {}
+  for _, c in ipairs(expand(n[1])) do sq[c] = true end
+  local last
+  io.write((text:gsub('.', function(c)
+    if sq[c] and c == last then return '' end
+    last = c
+  end)))
+else
+  if #n ~= 2 then cli.fail('tr', 'usage: tr <from> <to>', 2) end
+  local from, to, map = expand(n[1]), expand(n[2]), {}
+  for i, c in ipairs(from) do map[c] = to[math.min(i, #to)] or '' end
+  io.write((text:gsub('.', map)))
+end

@@ -1,0 +1,34 @@
+{{define "bus.html"}}{{template "head" .}}
+<h1>Bus</h1>
+<section class="vstack gap-3" aria-labelledby="ws-title">
+<h2 id="ws-title">Workspaces</h2>
+{{with .Data.Workspaces}}
+<div class="data-table-wrap"><table class="data-table stack">
+<thead><tr><th scope="col">Name</th><th scope="col">Folder</th></tr></thead>
+<tbody>{{range .}}<tr><td data-label="Name"><a href="/?to={{.Name}}">{{.Display}}</a></td><td data-label="Folder" class="dinah-mono">{{.Path}}</td></tr>{{end}}</tbody>
+</table></div>
+{{else}}
+<div class="empty-state"><p class="empty-state-title">Nobody on the Bus Yet</p><p class="empty-state-body">A workspace joins when a Claude Code session starts in it with {{$.Product}}'s hooks installed.</p></div>
+{{end}}
+</section>
+<section class="vstack gap-3" aria-labelledby="ss-title">
+<h2 id="ss-title">Open Chats</h2>
+{{with .Data.Sessions}}
+<div class="data-table-wrap"><table class="data-table stack">
+<thead><tr><th scope="col">Chat</th><th scope="col">Workspace</th><th scope="col">Last Seen</th></tr></thead>
+<tbody>{{range .}}<tr><td data-label="Chat"><a href="/?to={{.Address}}">{{.Display}}</a></td><td data-label="Workspace">{{.WorkspaceLabel}}</td><td data-label="Last Seen">{{when .LastSeen}}</td></tr>{{end}}</tbody>
+</table></div>
+{{else}}<p class="dinah-muted">No chat is open.</p>{{end}}
+</section>
+{{with .Data.Waiting}}
+<section class="vstack gap-3" aria-labelledby="wait-title">
+<h2 id="wait-title">Waiting for a Turn</h2>
+<p>These messages reach their window when you next speak to it or its agent next uses a tool.</p>
+<table class="kv-table">{{range .}}<tr><th>{{.Label}}</th><td>{{.Count}}</td></tr>{{end}}</table>
+</section>
+{{end}}
+<section class="vstack gap-3" aria-labelledby="recent-title">
+<h2 id="recent-title">Recent Traffic</h2>
+{{with .Data.Recent}}{{range .}}{{template "message" .}}{{end}}{{else}}<p class="dinah-muted">No messages yet.</p>{{end}}
+</section>
+{{template "foot" .}}{{end}}

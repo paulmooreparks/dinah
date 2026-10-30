@@ -1,0 +1,138 @@
+{{/* Every page is drawn either as a page of its own or, when the desktop
+     asks for it, as a window: "head" and "foot" wrap the same body in one
+     or the other. */}}
+{{define "head"}}{{if .Win}}<section class="win" data-win="{{.Key}}" role="dialog" aria-labelledby="win-{{.Key}}-title">
+  <header class="win-head">
+    <h2 class="win-title" id="win-{{.Key}}-title">{{.Title}}</h2>
+    <nav class="win-chrome" aria-label="Window">
+      <a class="win-btn" data-win-action="page" href="{{.Self}}" aria-label="Open as a page" title="Open as a page"></a>
+      <a class="win-btn" data-win-action="minimize" href="?" aria-label="Minimize" title="Minimize"></a>
+      <a class="win-btn" data-win-action="maximize" href="?" aria-label="Maximize" title="Maximize"></a>
+      <a class="win-btn" data-win-action="close" href="?" aria-label="Close" title="Close"></a>
+    </nav>
+  </header>
+  <div class="win-body"><div class="win-content dinah-window vstack gap-5">
+{{else}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · {{.Product}}</title>
+{{template "assets"}}
+</head>
+<body data-counter="{{.Counter}}">
+<header class="topbar">
+  <a class="brand" href="/">{{.Product}}</a>
+  <nav class="topbar-tabs" aria-label="Sections">
+    <a href="/inbox"{{if eq .Section "inbox"}} aria-current="page"{{end}}>Inbox{{if .Unread}} <span class="badge accent">{{.Unread}} New</span>{{end}}</a>
+    <a href="/rooms"{{if eq .Section "rooms"}} aria-current="page"{{end}}>Group Chats</a>
+    <a href="/releases"{{if eq .Section "releases"}} aria-current="page"{{end}}>Releases</a>
+    <a href="/bus"{{if eq .Section "bus"}} aria-current="page"{{end}}>Bus</a>
+  </nav>
+</header>
+<main class="dinah-main vstack gap-5">
+<div class="notice" role="status" id="reload-notice" hidden><div class="notice-content"><p class="notice-title">New Activity</p><p class="notice-body">The bus has changed since this page was drawn. <a href="">Reload the page</a> when you have finished typing.</p></div></div>
+{{end}}
+{{if .Error}}<div class="notice danger" role="alert"><div class="notice-content"><p class="notice-title">That Did Not Work</p><p class="notice-body">{{.Error}}</p></div></div>{{end}}
+{{end}}
+
+{{define "foot"}}{{if .Win}}
+  </div></div>
+</section>{{else}}
+</main>
+</body>
+</html>{{end}}
+{{end}}
+
+{{/* The stylesheets and scripts every page and the desktop load. Windows
+     load none of their own, because scripts in fetched markup do not run;
+     applets and dinah.js bring windows to life. */}}
+{{define "assets"}}<script src="/static/pudl/pudl-theme.js"></script>
+<link rel="stylesheet" href="/static/pudl/pudl.css">
+<link rel="stylesheet" href="/static/pudl/pudl-windows.css">
+<link rel="stylesheet" href="/static/brand.css">
+<link rel="stylesheet" href="/static/dinah.css">
+<script src="/static/pudl/pudl-menu.js" defer></script>
+<script src="/static/pudl/pudl-windows.js" defer></script>
+<script src="/static/pudl/pudl-applets.js" defer></script>
+<script src="/static/dinah.js" defer></script>{{end}}
+
+{{/* The desktop: the launcher and the dock in the top bar, and the layer
+     of windows the address names. */}}
+{{define "desktop.html"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Product}}</title>
+{{template "assets"}}
+</head>
+<body class="dinah-desktop" data-counter="{{.Counter}}" data-desktop>
+<header class="topbar dinah-desktop-bar">
+  <span class="brand">{{.Product}}</span>
+  <div class="md-site-tools hstack gap-2">
+    <button class="btn menu-btn" type="button" popovertarget="launcher" aria-label="Open an app">Apps</button>
+    <nav class="menu-panel" id="launcher" popover aria-label="Apps">
+      {{range .Data.Apps}}<div class="md-row"><a class="md-item" href="{{.Path}}" data-win-open="{{.Key}}">{{.Title}}</a></div>
+      {{end}}
+    </nav>
+  </div>
+  <nav class="win-dock" data-win-dock aria-label="Open windows"></nav>
+  {{if .Unread}}<a class="badge accent" href="/inbox" data-win-open="inbox">{{.Unread}} New</a>{{end}}
+</header>
+<main class="win-host dinah-desktop-area">
+  <div class="win-layer" data-win-layer data-win-menu data-win-switcher data-win-src="/win/{key}" data-win-default="{{.Data.Defaults}}">{{.Data.Windows}}</div>
+</main>
+</body>
+</html>
+{{end}}
+
+{{define "message"}}
+<article class="card dinah-message" id="m{{.ID}}">
+  <div class="hstack gap-2 align-baseline dinah-message-head">
+    <a href="/messages/{{.ID}}" class="dinah-message-id" data-win-open="msg-{{.ID}}">#{{.ID}}</a>
+    <strong>{{.From}}</strong>{{if .FromWorkspaceLabel}}<span class="chip">{{.FromWorkspaceLabel}}</span>{{end}}
+    <span class="dinah-muted">to</span> <strong>{{.ToPerson}}</strong>
+    {{if eq .Kind "release"}}<span class="badge accent">Release {{.Version}}</span>{{end}}
+    {{if eq .Kind "verdict"}}<span class="badge {{if eq .Verdict "upgrade"}}positive{{else if eq .Verdict "blocked"}}danger{{else}}warn{{end}}">{{verdict .Verdict}}</span>{{end}}
+    {{if .Unread}}<span class="badge accent">New</span>{{end}}
+    {{if .ReplyTo}}<a class="dinah-muted" href="/messages/{{.ReplyTo}}" data-win-open="msg-{{.ReplyTo}}">replying to #{{.ReplyTo}}</a>{{end}}
+    <span class="dinah-muted dinah-when">{{when .CreatedAt}}</span>
+  </div>
+  {{if .Text}}<p class="dinah-text">{{.Text}}</p>{{end}}
+  {{if .Attachments}}
+  <ul class="dinah-attachments">
+    {{range .Attachments}}{{$s := fileState .}}
+    <li><span class="dinah-mono">{{.Rel}}</span> <span class="dinah-muted">{{.Size}} bytes, sha256 {{short .SHA256}}</span>
+      {{if eq $s "changed"}}<span class="badge warn">Changed Since Sent</span>{{else if eq $s "missing"}}<span class="badge danger">Missing</span>{{end}}</li>
+    {{end}}
+  </ul>
+  {{end}}
+</article>
+{{end}}
+
+{{define "compose"}}
+<form class="card vstack gap-3" method="post" action="/messages">
+  <h2 class="card-title">{{if .ReplyTo}}Reply{{else}}Send a Message{{end}}</h2>
+  <input type="hidden" name="back" value="{{.Back}}">
+  {{if .ReplyTo}}<input type="hidden" name="reply_to" value="{{.ReplyTo}}">
+  {{else}}
+  <div class="form-group">
+    <label class="form-label" for="compose-{{.Back}}-to">To</label>
+    <span class="form-select-wrap"><select class="form-select" id="compose-{{.Back}}-to" name="to" required>
+      <option value="">Choose a chat, workspace or group chat</option>
+      {{$sel := .Selected}}{{$group := ""}}
+      {{range .Targets}}{{if ne .Group $group}}{{if $group}}</optgroup>{{end}}<optgroup label="{{.Group}}">{{$group = .Group}}{{end}}
+      <option value="{{.Value}}"{{if eq .Value $sel}} selected{{end}}>{{.Label}}</option>
+      {{end}}{{if $group}}</optgroup>{{end}}
+    </select></span>
+    <p class="form-help">A message to a workspace goes to every chat open in it, or waits for its next one.</p>
+  </div>
+  {{end}}
+  <div class="form-group">
+    <label class="form-label" for="compose-{{.Back}}-text">Message</label>
+    <textarea class="form-textarea" id="compose-{{.Back}}-text" name="text" rows="4" required></textarea>
+  </div>
+  <div class="hstack gap-2"><button type="submit" class="btn btn-primary">Send</button></div>
+</form>
+{{end}}

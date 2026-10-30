@@ -1,0 +1,19 @@
+{{define "releases.html"}}{{template "head" .}}
+<h1>Releases</h1>
+{{with .Data.Releases}}
+<div class="data-table-wrap"><table class="data-table stack">
+<thead><tr><th scope="col">Release</th><th scope="col">When</th><th scope="col">Verdicts</th><th scope="col">Waiting For</th></tr></thead>
+<tbody>
+{{range .}}
+<tr>
+  <td data-label="Release"><a href="/releases/{{.ID}}" data-win-open="release-{{.ID}}">{{.FromWorkspaceLabel}} {{.Version}}</a></td>
+  <td data-label="When">{{when .CreatedAt}}</td>
+  <td data-label="Verdicts">{{range .Verdicts}}<span class="badge {{if eq .Verdict "upgrade"}}positive{{else if eq .Verdict "blocked"}}danger{{else}}warn{{end}}">{{.FromWorkspaceLabel}}: {{verdict .Verdict}}</span> {{else}}<span class="dinah-muted">None yet</span>{{end}}</td>
+  <td data-label="Waiting For">{{range $i, $w := .Waiting}}{{if $i}}, {{end}}{{$w}}{{else}}<span class="dinah-muted">Nobody</span>{{end}}</td>
+</tr>
+{{end}}
+</tbody></table></div>
+{{else}}
+<div class="empty-state"><p class="empty-state-title">No Releases Yet</p><p class="empty-state-body">A library's agent announces a release with its announce_release tool, and every subscribed workspace answers with a verdict.</p></div>
+{{end}}
+{{template "foot" .}}{{end}}

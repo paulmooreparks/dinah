@@ -1,0 +1,5 @@
+# xterm.js Snapshot
+
+The xterm.js 6.0.0 runtime, stylesheet and Fit addon were copied unchanged on 9 October 2026 from the vetted Parks Computing `wwwroot/js/vendor/xterm-6.0.0` bundle. Their MIT license is retained in `LICENSE.txt`. Dinah loads these files locally and does not fetch terminal code from a CDN.
+
+The public Terminal API is documented at https://xtermjs.org/docs/api/terminal/classes/terminal/.

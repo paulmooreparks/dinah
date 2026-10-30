@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.3.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.3.0",
+			"CompanyName": "Paul Parks",
+			"FileDescription": "Dinah",
+			"LegalCopyright": "Paul Parks",
+			"ProductName": "Dinah",
+			"Comments": "A desktop app for working with AI agents, flows and tools."
+		}
+	}
+}

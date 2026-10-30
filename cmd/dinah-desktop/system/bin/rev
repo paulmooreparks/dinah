@@ -1,0 +1,16 @@
+#!/bin/lua
+-- rev: reverse the characters of each line
+--
+-- Usage: rev [file...]
+--
+-- Prints each line backwards. Reads the files, or what is piped in.
+-- Try: echo hello | rev
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+for _, line in ipairs(cli.lines(cli.input(arg, 'rev'))) do
+  local chars = {}
+  for _, c in utf8.codes(line) do table.insert(chars, 1, utf8.char(c)) end
+  print(table.concat(chars))
+end

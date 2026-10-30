@@ -1,0 +1,153 @@
+/* Dinah's own styles, loaded after pudl/pudl.css and brand.css.
+
+   PUDL draws everything it has a component for. This file holds only what
+   PUDL has no component for, and every colour, size and glyph in it comes
+   from the tokens PUDL lets a project read, so a theme change reaches it
+   with no further work. It has two sections:
+
+     1. Page chrome: where PUDL's parts sit in Dinah's window.
+     2. The activity list (.activity): a chat's log, one row a step.
+
+   Glyphs are PUDL's SVG masks throughout, never typed characters. */
+
+/* === 1. Page chrome ======================================================= */
+
+/* The Workspace pane's sidebar is a column that scrolls as a whole, and
+   none of its parts shrinks to make room for the others. */
+.shell-sidebar { display: flex; flex-direction: column; overflow-y: auto; }
+.shell-sidebar > * { flex-shrink: 0; }
+
+/* The main region has no padding of its own, so the chat's head and its
+   log run from edge to edge. */
+.shell-main { padding: 0; display: flex; flex-direction: column; }
+.page-head {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-5) var(--space-3);
+  background: var(--surface);
+}
+.page-head h1 { margin: 0; font-size: var(--text-2xl); }
+.page-state {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2);
+  margin: 0; font-size: var(--text-sm); color: var(--text-muted);
+}
+/* The body fills the rest of the scrolling main region but never shrinks
+   below its content, so its bottom padding stays below the last line
+   instead of the content running flush to the foot of the window. */
+.page-body { flex: 1 0 auto; padding: var(--space-5); }
+
+/* A heading or paragraph that is a child of a layout stack takes its
+   spacing from the stack's gap alone. The browser's own margins would add
+   to the gap, which put about 40 pixels between a heading and the
+   paragraph under it. PUDL does the same for a form group in a stack. */
+.page-body .vstack > :is(h2, h3, p) { margin: 0; }
+
+/* A details element in a chat's log, such as a tool call's Details or a
+   diagram's source, has a summary drawn as PUDL's disclosure button:
+   raised, because it is pressed, with the chevron after its words at the
+   size of the words, pointing down while the content is folded and up
+   while it shows. The content stands a small step below it. A hidden
+   details draws nothing, so :not([hidden]) matches no fewer summaries
+   that show; it keeps these rules as heavy as two classes, which the
+   diagram's own summary rule in app.css does not outweigh. */
+.page-body details:not([hidden]) > summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--radius-sm);
+  font-size: var(--text-md); font-weight: 600; font-family: var(--font);
+  color: var(--text); cursor: pointer; list-style: none;
+  border: 1px solid var(--raise-border);
+  background: var(--raise-grad);
+  box-shadow: var(--raise-shadow);
+}
+.page-body details:not([hidden]) > summary::-webkit-details-marker { display: none; }
+.page-body details:not([hidden]) > summary:hover {
+  background: var(--raise-grad-hover); border-color: var(--raise-border-hover);
+}
+.page-body details:not([hidden]) > summary:active {
+  background: var(--raise-active-bg); box-shadow: var(--raise-active-shadow);
+}
+.page-body details:not([hidden]) > summary:focus-visible {
+  outline: none; box-shadow: var(--raise-shadow), 0 0 0 3px var(--focus-ring);
+}
+.page-body details:not([hidden]) > summary::after {
+  content: ""; flex: none; width: 1em; height: 1em; background: currentColor;
+  -webkit-mask: var(--glyph-chevron) center / contain no-repeat;
+  mask: var(--glyph-chevron) center / contain no-repeat;
+  transition: transform .15s ease;
+}
+.page-body details[open]:not([hidden]) > summary::after { transform: rotate(180deg); }
+.page-body details:not([hidden]) > summary + * { margin-top: var(--space-3); }
+@media (prefers-reduced-motion: reduce) {
+  .page-body details:not([hidden]) > summary::after { transition: none; }
+}
+
+/* A quotation inside a card drops the browser's 40-pixel indent, which on
+   a narrow window left it about five words a line, and is marked by a
+   muted rule at its start instead. */
+.card blockquote {
+  margin: 0; padding-inline-start: var(--space-3);
+  border-inline-start: 3px solid var(--border);
+}
+
+/* A badge inside a section tab, such as the count of things waiting on a
+   window in the dock, takes no more height than the tab's words, so the
+   row of tabs stays level and the current tab's extra height, which is how
+   PUDL marks it, still shows. */
+.section-tab .badge { line-height: 1; padding-block: 2px; vertical-align: 1px; }
+
+/* PUDL's .btn sets no line-height, so a link drawn as a button inherits the
+   page's (1.6) while a <button> keeps the browser's "normal". The link then
+   stands about 4 pixels taller and its words sit lower than a <button>'s
+   beside it or in the next row. One line-height for both makes them the
+   same box. This belongs in PUDL's .btn rule and is asked of PUDL. */
+.btn { line-height: normal; }
+
+
+/* Every badge leads with a glyph. PUDL gives the four status kinds theirs
+   and leaves the plain badge bare; here the plain badge, which marks a
+   neutral state such as an agent that is off, takes PUDL's circle drawn
+   small. It is not the ring, which marks work in progress. */
+.badge:not(.warn, .danger, .positive, .pr, .accent)::before {
+  content: ""; --glyph: var(--glyph-circle);
+  -webkit-mask-size: 60%; mask-size: 60%;
+}
+/* A running state is the accent badge with the ring glyph in place of
+   PUDL's diamond, as the agent's status item draws it while the agent
+   starts: class="badge accent running". */
+.badge.accent.running::before { --glyph: var(--glyph-ring); }
+/* A chat open in the background, without a window, is the positive badge
+   with PUDL's eye-off glyph in place of the circle, since it is open but
+   cannot be seen: class="badge positive background". */
+.badge.positive.background::before { --glyph: var(--glyph-eye-off); }
+
+/* The status area's words show beside their glyphs in the taskbar's tray.
+   On a narrow screen the item is its glyph and badge, and its aria-label
+   still says what the words said. */
+@media (max-width: 640px) {
+  .status-words {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+}
+
+/* Dinah's window is a column as tall as the window that never scrolls as a
+   whole: the topbar keeps its place, and the workbench under it takes the
+   rest of the height and scrolls inside its own panes. */
+body {
+  height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+}
+body > .topbar { flex: none; }
+
+/* === 2. The activity list =================================================
+   A chat's log is a flat ordered list in a polite live region, each row a
+   time and what happened. A row the reader need not act on, such as a
+   permission answered by policy, is muted. */
+.activity {
+  margin: 0; padding: 0; list-style: none; font-size: var(--text-sm);
+}
+.activity-row {
+  display: grid; grid-template-columns: 3.25em minmax(0, 1fr) auto;
+  column-gap: var(--space-2); align-items: baseline;
+  padding: 6px 0; border-bottom: 1px solid var(--surface-alt);
+}
+.activity-time { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.activity-muted { color: var(--text-muted); }

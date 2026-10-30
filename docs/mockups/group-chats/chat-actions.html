@@ -1,0 +1,77 @@
+<!doctype html>
+<!-- Screen 1: a chat window in front, with its Actions menu open in the
+     menu bar, where Dinah puts the front window's commands. The two new
+     rows are outlined. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Chat Actions Menu: Group Chats Mockup</title>
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/brand.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/dinah.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body data-front="Dinah Development" data-open="Actions">
+  <div class="desk one">
+    <section class="win active" data-win="chat-dinah-development">
+      <header class="win-head">
+        <button type="button" class="win-btn" data-win-action="menu" aria-label="Window menu"></button>
+        <h2 class="win-title">Dinah Development</h2>
+        <div class="win-statuses" role="group" aria-label="Window status"><span class="win-status strong">Working</span></div>
+        <nav class="win-chrome" aria-label="Window"><button type="button" class="win-btn" data-win-action="minimize" aria-label="Minimize"></button><button type="button" class="win-btn" data-win-action="maximize" aria-label="Maximize"></button><button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav>
+      </header>
+      <div class="win-body">
+        <div class="mock-log">
+          <div class="msg msg-you"><div class="msg-head"><span class="msg-label">You</span></div><p class="msg-text">Make the Bus pane show chats by their titles instead of the folder names.</p></div>
+          <div class="msg"><div class="msg-head"><span class="msg-label">Claude</span></div><p class="msg-text">I am changing the bus overview so it returns each chat's title and workspace. The Bus pane and the group window read the new fields, and the folder handle stays as an alias for one release.</p><p class="msg-text">Next I will update the tests in <code>bus_views_test.go</code>.</p></div>
+        </div>
+        <form class="composer">
+          <div class="composer-row">
+            <textarea class="form-textarea composer-input" rows="2" placeholder="Say what you want the agent to do, or type / for a skill." aria-label="What should the agent do?"></textarea>
+            <div class="composer-actions"><button type="button" class="btn btn-primary">Queue</button></div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <nav class="menu-panel menubar-panel shown" id="actions-menu" aria-label="Actions" role="menu">
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">New Chat</span></span></button>
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">Rename Chat…</span></span><span class="menubar-shortcut">F2</span></button>
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">Pin to Workspace</span></span></button>
+    <button type="button" class="menu-action mock-new" role="menuitem"><span class="menubar-label"><span class="menubar-words">Start a Group Chat…</span><span class="menubar-detail">With this chat and others you choose</span></span></button>
+    <button type="button" class="menu-action mock-new" role="menuitem"><span class="menubar-label"><span class="menubar-words">Add to a Group Chat…</span><span class="menubar-detail">Put this chat in a group you already have</span></span></button>
+    <button type="button" class="menu-action danger" role="menuitem"><span class="menubar-label"><span class="menubar-words">Remove Chat…</span></span></button>
+    <button type="button" class="menu-action menubar-has-sub" role="menuitem" aria-haspopup="menu"><span class="menubar-label"><span class="menubar-words">Provider</span><span class="menubar-detail">Claude</span></span></button>
+    <button type="button" class="menu-action menubar-has-sub" role="menuitem" aria-haspopup="menu"><span class="menubar-label"><span class="menubar-words">Mode</span><span class="menubar-detail">Default</span></span></button>
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">Choose the Model…</span></span></button>
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">Prompt History…</span></span></button>
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">My Templates…</span></span></button>
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">Export Chat…</span></span></button>
+    <button type="button" class="menu-action" role="menuitemcheckbox" aria-checked="false"><span class="menubar-label"><span class="menubar-words">Show Failed Command Summaries</span></span></button>
+    <button type="button" class="menu-action" role="menuitem"><span class="menubar-label"><span class="menubar-words">Show the Chat Log</span></span></button>
+    <button type="button" class="menu-action" role="menuitem" aria-disabled="true"><span class="menubar-label"><span class="menubar-words">Show Subagents</span><span class="menubar-detail">The agent has not started any subagents in this chat.</span></span></button>
+    <button type="button" class="menu-action danger" role="menuitem"><span class="glyph" style="--glyph: var(--glyph-square)" aria-hidden="true"></span><span class="menubar-label"><span class="menubar-words">Stop</span></span></button>
+  </nav>
+
+  <aside class="mock-note" id="note-new">
+    <strong>Two new rows</strong>
+    <p>Both open the picker. Start a Group Chat… opens it with this chat already ticked. Add to a Group Chat… is the open question listed on the index page, since the plan sends it to the same picker of chats.</p>
+  </aside>
+
+  <script src="mockup.js"></script>
+  <script>
+    // Places the open menu under its title in the menu bar, as PUDL would.
+    (function () {
+      var t = document.getElementById('actions-title').getBoundingClientRect();
+      var m = document.getElementById('actions-menu');
+      m.style.left = t.left + 'px'; m.style.top = (t.bottom + 4) + 'px';
+      var r = m.getBoundingClientRect(), n = document.getElementById('note-new');
+      var row = m.querySelector('.mock-new').getBoundingClientRect();
+      n.style.left = (r.right + 16) + 'px'; n.style.top = row.top + 'px';
+    })();
+  </script>
+</body>
+</html>

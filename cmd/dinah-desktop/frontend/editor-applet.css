@@ -1,0 +1,116 @@
+/* The Editor window: a head with the view switch and Save, the draft's
+   description, an optional notice and problems list, then the text and the
+   preview side by side (Split), or either alone. */
+.editor-applet { display: flex; flex-direction: column; overflow: hidden; position: relative; background: var(--surface-alt); }
+.editor-applet .doc-meta { overflow-wrap: anywhere; }
+/* The window's two toolbars, the document's and the formatting's, are
+   PUDL's folding toolbars of the Editor's commands; each keeps to one row
+   and folds its groups as the window narrows. These rules give them their
+   strips. */
+.editor-head, .editor-toolbar { flex: none; padding: var(--space-1) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); }
+/* The find bar, above the text and the page, with PUDL's own fields and
+   buttons; the matches are marked where the person looks, the current one
+   set apart. */
+.editor-find { flex: none; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); background: var(--surface); }
+.editor-find-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.editor-find-row .form-input { flex: 1 1 14rem; min-width: 8rem; max-width: 28rem; }
+.editor-find-count { min-width: 6em; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cm-find-match, .pm-find-match { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 2px; }
+.cm-find-current, .pm-find-current { background: color-mix(in srgb, var(--accent) 45%, transparent); outline: 1px solid var(--accent); }
+/* The paragraph style's words do not make the row jump as the cursor moves
+   from a heading to a paragraph. */
+.toolbar-group[data-toolbar-stage="1"] .editor-toolbar-style { min-width: 9.5em; justify-content: flex-start; }
+.editor-toolbar-style > .toolbar-words { flex: 1 1 auto; text-align: start; }
+/* A suggestion's new text being edited, in its card on the page or in its
+   place in the text: a sunken field as wide as the place, then its buttons. */
+.sugg-edit { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; margin: var(--space-2) 0; font-family: var(--font); white-space: normal; }
+.sugg-edit-text { width: 100%; box-sizing: border-box; font-family: var(--mono, monospace); font-size: var(--text-sm); }
+.sugg-edit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.editor-notice { flex: none; margin: var(--space-2) var(--space-3); }
+.editor-proposals { flex: none; display: flex; flex-direction: column; gap: var(--space-1); max-height: 40vh; overflow: auto; padding: var(--space-1) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--text-sm); }
+.editor-proposal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.editor-proposal-text { flex: 1 1 20rem; min-width: 0; }
+.editor-proposal-flags { flex: 1 0 100%; margin: 0; padding-inline-start: 1.2em; color: var(--text-muted); }
+.editor-text .cm-sugg-del { text-decoration: line-through; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.editor-text .cm-sugg-ins { text-decoration: underline; color: var(--positive); background: color-mix(in srgb, var(--positive) 10%, transparent); white-space: pre-wrap; }
+.editor-text .cm-sugg-btn { margin-left: 2px; padding: 0 4px; font: 600 12px/1.4 var(--font); border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none; vertical-align: baseline; }
+.editor-text .cm-sugg-btn:hover { background: var(--surface-alt); }
+/* On the page a suggestion is shown block by block: the blocks it changes
+   struck through in the Text view's red, and what it would put there below
+   them in its green, with Accept and Reject. The page follows the application
+   theme (preview.css), with semantic error and success colors for the
+   removed and proposed content. */
+.pm-sugg-old { text-decoration: line-through; text-decoration-color: var(--dinah-warning-accent); background: var(--dinah-warning-surface); box-shadow: -3px 0 0 var(--dinah-warning-accent); }
+/* The suggested block's card. A card can stand inside a struck-through
+   block, such as a list item in a struck-through list, and the line-through
+   of a block is drawn through every block inside it; an inline block is not
+   drawn through, so the card is one, as wide as its line, and its ground is
+   solid so that the struck block's tint does not show through. */
+.pm-sugg { display: inline-block; width: 100%; box-sizing: border-box; text-decoration: none; margin: var(--space-2) 0 var(--space-3); padding: var(--space-2) var(--space-3); border-left: 3px solid var(--dinah-tip-accent); background: var(--dinah-tip-surface); color: var(--dinah-ink); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; cursor: default; user-select: none; }
+.pm-sugg-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); font-size: var(--text-xs); color: var(--dinah-muted-ink); }
+.pm-sugg-who { flex: 1 1 12rem; min-width: 0; }
+.pm-sugg-new { user-select: text; }
+.pm-sugg-new > :first-child { margin-top: 0; }
+.pm-sugg-new > :last-child { margin-bottom: 0; }
+/* The proposals, the notices and the problems stand above the text and the
+   preview, which take the rest of the height. */
+.editor-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+/* The text and the preview are a PUDL split, whose handle sets the text's
+   share; Text and Preview show one pane of it. */
+.editor-panes { flex: 1 1 auto; min-height: 0; display: flex; }
+.editor-split { flex: 1 1 auto; }
+.editor-split > .editor-text { overflow: hidden; }
+.editor-text .cm-editor { height: 100%; }
+.editor-preview .doc-block { cursor: default; }
+.editor-status { flex: none; margin: 0; padding: 2px var(--space-3); font-size: var(--text-xs); color: var(--text-muted); background: var(--surface); border-top: 1px solid var(--border); min-height: 1.6em; }
+.editor-status.warn { color: var(--danger); }
+.editor-dialog { width: min(36rem, 92vw); }
+.editor-dialog .dialog-body { display: flex; flex-direction: column; gap: var(--space-3); }
+.editor-compare { width: min(60rem, 94vw); }
+.editor-compare .dialog-body { max-height: 70vh; overflow: auto; }
+.editor-compare h3 { margin: 0; font-size: var(--text-sm); }
+.editor-diff { margin: 0; padding: var(--space-2); font: var(--text-xs)/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--input-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.editor-diff .add { color: var(--syntax-string); }
+.editor-diff .del { color: var(--danger); }
+.editor-diff .hunk { color: var(--text-muted); }
+.editor-conflict { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.editor-conflict figure { margin: 0; min-width: 0; }
+.editor-conflict figcaption { font-size: var(--text-xs); color: var(--text-muted); margin-bottom: 2px; }
+/* Page view (page-view.js). The page is one editor, set in the preview's
+   type, so the text looks as it will be drawn. A block kept as its Markdown
+   shows a dashed outline under the pointer, since a click edits it; its
+   Markdown is edited in a sunken box. */
+.doc-page.page-view { cursor: text; }
+/* pre-wrap, which ProseMirror documents as what it needs, breaks lines where
+   the preview does; its own stylesheet's break-spaces can wrap a line early. */
+.doc-page.page-view > .ProseMirror { outline: none; min-height: 100%; white-space: pre-wrap; }
+/* Cells selected across a table, as prosemirror-tables marks them. */
+.doc-page.page-view td, .doc-page.page-view th { position: relative; }
+.doc-page.page-view .selectedCell::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
+/* A tight list draws its items without paragraph spacing, as the preview
+   draws them. */
+.doc-page.page-view .pm-tight > li > p, .doc-page.page-view .pm-tight > li > .pm-task-body > p { margin: 0; }
+/* A task item: its box, then its blocks beside it. */
+.doc-page.page-view li.pm-task { list-style: none; display: flex; align-items: baseline; }
+.doc-page.page-view .pm-check { flex: none; }
+.doc-page.page-view .pm-check > input { margin: 0 0.4em 0 0; vertical-align: middle; cursor: pointer; }
+.doc-page.page-view .pm-task-body { flex: 1 1 auto; min-width: 0; }
+.doc-page.page-view .pm-source.selected { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.doc-page.page-view .pm-source { white-space: normal; border-radius: var(--radius-sm); cursor: pointer; }
+/* Code keeps its lines and scrolls, as in the preview; ProseMirror's own
+   stylesheet would wrap it. */
+.doc-page.page-view .pm-source pre { white-space: pre; }
+.doc-page.page-view .pm-source:hover { outline: 1px dashed var(--input-border); outline-offset: 3px; }
+.doc-page.page-view .pm-source > div > .doc-block { margin: 0; }
+/* An empty line says how to insert a block; the / menu opens under the
+   cursor. */
+.doc-page.page-view .pm-hint::before { content: attr(data-hint); float: left; height: 0; pointer-events: none; color: var(--dinah-muted-ink); }
+.doc-page.page-view .pm-slash-anchor { display: inline-block; width: 0; height: 1em; vertical-align: text-bottom; }
+.page-slash .menu-action[aria-selected="true"] { background: var(--menu-row-hover); }
+.page-source { display: block; width: 100%; min-height: 3em; font: var(--text-sm)/1.5 var(--mono); resize: none; overflow: hidden; }
+@media (max-width: 700px) {
+  .editor-panes, .editor-split { flex-direction: column; }
+  .editor-split > .split-pane:first-child { width: auto; flex: 1 1 0; }
+  .editor-split > .split-handle { display: none; }
+  .editor-split:not([data-split-pane]) > .editor-text { border-bottom: 1px solid var(--border); }
+}

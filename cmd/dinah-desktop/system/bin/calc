@@ -1,0 +1,39 @@
+#!/bin/lua
+-- calc: work out a sum
+--
+-- Usage: calc <expression>
+--        calc              read one expression a line from what is piped in
+--
+-- The expression is arithmetic: + - * / // (whole division) % ^ (power) and
+-- brackets, with the functions of Lua's math library, such as sqrt, abs,
+-- floor, max, min and log, and the constants pi and huge.
+-- Try: calc "2^10", calc "sqrt(2) * 3", calc "(17 // 5) % 3"
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local env = {}
+for k, v in pairs(math) do env[k] = v end
+local function evaluate(expr)
+  if expr:find('[^%w%s%.%+%-%*/%%^%(%),]') then return nil, 'only numbers, operators, brackets and math functions' end
+  local chunk, err = load('return ' .. expr, '=calc', 't', env)
+  if not chunk then return nil, (err:gsub('^calc:%d+: ', '')) end
+  local ok, v = pcall(chunk)
+  if not ok then return nil, (tostring(v):gsub('^calc:%d+: ', '')) end
+  if type(v) ~= 'number' then return nil, 'the expression is not a number' end
+  return v
+end
+local function show(v)
+  if math.type(v) == 'integer' then return tostring(v) end
+  if v == math.floor(v) and math.abs(v) < 2^53 then return string.format('%.0f', v) end
+  return string.format('%.12g', v)
+end
+local status = 0
+local exprs = #arg > 0 and { table.concat(arg, ' ') } or cli.lines(io.read('a') or '')
+for _, expr in ipairs(exprs) do
+  if expr:match('%S') then
+    local v, err = evaluate(expr)
+    if v then print(show(v)) else io.stderr:write('calc: ' .. err .. '\n') status = 1 end
+  end
+end
+os.exit(status)

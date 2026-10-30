@@ -1,0 +1,9 @@
+# markdown-it 15.0.3
+
+`markdown-it.umd.min.js` is `dist/browser/markdown-it.umd.min.js` from the npm package markdown-it 15.0.3, copied unchanged on 28 October 2026. The bundle includes markdown-it's own dependencies (linkify-it, mdurl, uc.micro, entities and punycode.js), and it defines `window.markdownit`. Release 15 moved the browser build from `dist/markdown-it.min.js` to `dist/browser/`. The bundle's last line points to a source map, which is not copied; a browser asks for it only while its developer tools are open.
+
+The tarball was taken from https://registry.npmjs.org/markdown-it/-/markdown-it-15.0.3.tgz and its SHA-512 was checked against the registry's integrity value before it was unpacked:
+
+    sha512-+Az7Ojz3iRGu8KYMvJ6xVhvrxP3eE+vEtJX75Ow88XBpcQNV/0lGX5ZynIIBftREo4DC2jsveAMDaeltmm8QvQ==
+
+markdown-it is MIT licensed; `LICENSE.txt` is the package's `LICENSE`. Dinah serves this file itself and fetches nothing from a CDN. The API is documented at https://markdown-it.github.io/markdown-it/ and in the package's type definitions. Dinah's use of it is described in docs/design/chat-markdown.md.

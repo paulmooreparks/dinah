@@ -1,0 +1,24 @@
+#!/bin/lua
+-- ask: ask a question in Notifications and print the answer
+--
+-- Usage: ask <question> [details...]
+--
+-- Shows the question in Notifications, waits until it is answered there,
+-- and prints the answer, so a script can stop and ask the person running
+-- it for a value it cannot work out:
+--
+--   ask "How many lines?" | xargs seq
+--
+-- Ctrl+C stops waiting. It calls the Notifications applet's
+-- dinah.notifications/request@1, which only a person can answer.
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local applets = require 'applets'
+if #arg == 0 then cli.fail('ask', 'which question? "man ask" says how', 2) end
+local question = arg[1]
+local details = #arg > 1 and table.concat(arg, ' ', 2) or question
+local ok, result = pcall(applets.invoke, 'dinah.notifications/request@1', { title = question:sub(1, 200), body = details })
+if not ok then cli.fail('ask', tostring(result)) end
+print(result.response.answer)

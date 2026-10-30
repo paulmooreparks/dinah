@@ -1,0 +1,40 @@
+#!/bin/lua
+-- printf: print text with a format
+--
+-- Usage: printf <format> [value...]
+--
+-- The format is C's and Lua's: %s for text, %d for a whole number, %f for a
+-- number with decimals (%.2f for two), %x for hexadecimal and %% for a
+-- percent sign, with \n for a new line and \t for a tab. The format is used
+-- again until every value is printed.
+-- Try: printf "%-10s|%5.1f\n" apples 3.25 pears 12
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+if #arg < 1 then cli.fail('printf', 'usage: printf <format> [value...]', 2) end
+local fmt = arg[1]:gsub('\\(.)', { n = '\n', t = '\t', ['\\'] = '\\', r = '\r', a = '\a' })
+local wants = 0
+for spec in fmt:gmatch('%%[-+ #0]*%d*%.?%d*([%a%%])') do
+  if spec ~= '%' then wants = wants + 1 end
+end
+local values = { table.unpack(arg, 2) }
+local function convert(spec, v)
+  if spec:match('[dioxXc]') then return math.tointeger(tonumber(v) or 0) or math.floor(tonumber(v) or 0) end
+  if spec:match('[eEfgGaA]') then return tonumber(v) or 0 end
+  return v or ''
+end
+local i = 1
+repeat
+  local n = 0
+  local out = fmt:gsub('%%([-+ #0]*%d*%.?%d*)([%a%%])', function(flags, spec)
+    if spec == '%' then return '%' end
+    n = n + 1
+    local v = convert(spec, values[i + n - 1])
+    local ok, s = pcall(string.format, '%' .. flags .. spec, v)
+    if not ok then cli.fail('printf', 'bad format %' .. flags .. spec, 2) end
+    return s
+  end)
+  io.write(out)
+  i = i + math.max(wants, 1)
+until wants == 0 or i > #values

@@ -1,0 +1,7 @@
+# Terminal Source Snapshot
+
+The unmodified `terminal.js` and `terminal.css` files were copied on 9 October 2026, and `terminal-text.js` on 11 October 2026, from Paul Parks's Parks Computing content source at `wwwroot/js/terminal.js`, `wwwroot/js/terminal-text.js` and `wwwroot/css/terminal.css`. They are copyright 2026 Paul Parks and licensed under Apache 2.0. The full license is in `LICENSE`.
+
+Dinah's `terminal-applet.js` is a port of the shell in `terminal.js` and the text tools in `terminal-text.js`: the parser, wildcards, pipelines, redirection, scripts, the command model and its commands, the pager, the nano-style editor, line editing, history, completion, xterm setup and PUDL theme integration. Its `terminal.css` adapts the terminal screen and window layout. The snapshot files are kept for attribution and comparison and are not loaded by the application.
+
+The port runs over Dinah's virtual file system through its Go bindings instead of the site's file system, and adds `;`, `&&`, `||`, variables and `<` input. Website routes, credentials, the site's applets, ssh and operating-system shell execution are not part of it.

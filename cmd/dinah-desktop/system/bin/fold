@@ -1,0 +1,27 @@
+#!/bin/lua
+-- fold: wrap long lines
+--
+-- Usage: fold [-w <width>] [-s] [file...]
+--
+-- Breaks each line longer than width (80 unless -w gives another); with -s,
+-- at the last space that fits.
+-- Try: fold -w 40 -s ~/notes.md
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, files = cli.options(arg, { w = true, s = false })
+local width = tonumber(o.w or 80)
+if not width or width < 1 then cli.fail('fold', 'the width must be a number above 0', 2) end
+for _, line in ipairs(cli.lines(cli.input(files, 'fold'))) do
+  while utf8.len(line) > width do
+    local cut = utf8.offset(line, width + 1) - 1
+    if o.s then
+      local space = line:sub(1, cut):match('.*() ')
+      if space and space > 1 then cut = space end
+    end
+    print((line:sub(1, cut):gsub(' +$', o.s and '' or '%0')))
+    line = line:sub(cut + 1)
+  end
+  print(line)
+end

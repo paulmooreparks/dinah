@@ -1,0 +1,125 @@
+/* Layout glue for the group chat mockups. Every control is PUDL's or
+   Dinah's own, from the stylesheets each page links; this file only places
+   them on a static page, where PUDL's window manager and menu scripts are
+   not running, and adds the few marks the mockup needs (a chat's state
+   glyph in a member chip, a mention in a message, and the yellow notes
+   that explain the mockup, which are not part of the design). */
+
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); }
+
+/* The application bar is drawn by mockup.js with PUDL's menu bar classes;
+   only its brand needs placing. */
+.topbar .brand { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 700; }
+
+/* The desk: windows placed in a grid instead of by PUDL's window manager. */
+.desk { position: relative; flex: 1; min-height: 0; display: grid; gap: var(--space-3); padding: var(--space-3); }
+.desk.one { grid-template-columns: minmax(0, 1fr); }
+.desk.with-pane { grid-template-columns: minmax(0, 1fr) 400px; }
+.desk .win { position: relative; inset: auto; width: auto !important; height: auto !important; max-width: none; max-height: none; min-width: 0; min-height: 0; display: flex; flex-direction: column; transform: none; }
+.desk .win-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.win-btn[data-win-action="menu"].pressed { background: var(--raise-active-bg); box-shadow: var(--raise-active-shadow); }
+
+/* A menu panel shown open on a static page: PUDL places a popover panel
+   itself, so here it is placed by hand under its button. */
+.menu-panel.shown { position: absolute; z-index: 30; margin: 0; max-height: none; overflow: visible; }
+
+/* A chat's log on the mockup: Dinah's message cards in a column. */
+.mock-log { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); }
+.mock-log .msg { flex: none; }
+.msg-label strong { color: var(--text); }
+.msg-text { margin: 0; }
+.msg-text + .msg-text { margin-top: var(--space-2); }
+.msg-when { font-size: var(--text-xs); color: var(--text-muted); }
+/* An @ mention in a message is text to read, so it is flat: bold, in the
+   accent colour, with its @ sign as part of the words. */
+.mention { font-weight: 600; color: var(--accent); }
+/* A line the group itself writes, such as a member added or a closed chat
+   opened, sits between the messages, muted and centred, with the info
+   glyph so it is not told from a message by colour alone. */
+.system-line { display: flex; align-items: center; justify-content: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+.system-line::before { content: ""; flex: none; width: 13px; height: 13px; background: currentColor; -webkit-mask: var(--glyph-info) center / contain no-repeat; mask: var(--glyph-info) center / contain no-repeat; }
+
+/* A chat's state as a glyph and a colour, the same glyphs as Dinah's state
+   badges: the ring for working, the circle for open, a small circle for
+   closed. Each has its word as its accessible name and tooltip. */
+.state-glyph { display: inline-block; flex: none; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--glyph) center / contain no-repeat; mask: var(--glyph) center / contain no-repeat; }
+.state-glyph.working { color: var(--accent); --glyph: var(--glyph-ring); }
+.state-glyph.open { color: var(--positive); --glyph: var(--glyph-circle); }
+.state-glyph.closed { color: var(--text-muted); --glyph: var(--glyph-circle); -webkit-mask-size: 60%; mask-size: 60%; }
+
+/* The group window's members: PUDL chips in a row, each with its state
+   glyph and a small raised button that opens its menu, then Add Chats…. */
+.group-members { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--surface-alt); background: var(--surface); }
+.group-members .md-meta { margin-inline-end: var(--space-1); }
+.member-chip { gap: 6px; padding: 2px 3px 2px 8px; font-size: var(--text-sm); }
+.member-chip.person { padding-inline-end: 8px; }
+.member-chip .icon-btn { width: 20px; height: 20px; --glyph-size: 10px; }
+.member-chip .icon-btn .glyph { --glyph: var(--glyph-caret); }
+.group-members .btn { margin-inline-start: auto; }
+
+/* The group's composer: Dinah's chat composer, with its @ list open. */
+.group-composer { flex: none; }
+.group-composer .slash-pop { right: 7em; }
+.mention-row .md-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: center; }
+.mention-row .md-meta { grid-column: 1; }
+.mention-row .badge { grid-column: 2; grid-row: 1 / span 2; }
+/* On the chosen row, which is drawn in the accent colour, the state badge
+   takes the row's own text colour so its glyph and word stay legible. */
+.slash-pop .md-row[aria-selected="true"] .badge { color: var(--on-accent); background: color-mix(in srgb, var(--on-accent) 22%, transparent); }
+.mock-note[hidden] { display: none; }
+/* The group's conversation shows its latest messages, as a chat scrolled
+   to its end does. */
+.group-log { justify-content: flex-end; }
+
+/* The picker: a PUDL dialog wide enough for a chat's title, provider,
+   state and last activity on one line. */
+dialog.picker { max-width: 640px; }
+.picker .listbox { --listbox-rows: 12; height: auto; max-height: 26rem; }
+.picker .listbox-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) 5.5em 6.5em 6.5em; column-gap: var(--space-3); padding-block: 4px; }
+.picker .listbox-row[hidden], .picker [role="group"][hidden] { display: none; }
+.picker .listbox-text { display: flex; align-items: center; gap: var(--space-2); }
+.picker .listbox-text .chip { font-size: var(--text-2xs); }
+.picker .col { font-size: var(--text-sm); color: var(--text-muted); white-space: nowrap; }
+.picker .col.state .badge { font-size: var(--text-2xs); }
+.picker .listbox-row.is-chosen { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.picker .row-note { grid-column: 2 / -1; margin: 2px 0 2px; font-size: var(--text-xs); color: var(--text-muted); display: flex; gap: var(--space-1); align-items: flex-start; }
+.picker .row-note::before { content: ""; flex: none; width: 12px; height: 12px; margin-top: 2px; background: currentColor; -webkit-mask: var(--glyph-info) center / contain no-repeat; mask: var(--glyph-info) center / contain no-repeat; }
+.picker .row-note[hidden] { display: none; }
+.picker .form-group { margin-top: var(--space-4); }
+.picker .picker-count { margin: var(--space-3) 0 0; }
+.picker .dialog-head .form-input { width: 100%; }
+
+/* The Bus pane, docked at the right as Dinah docks it. */
+.bus-pane .win-body { padding: 0; overflow-y: auto; }
+.bus-pane .browser-commands { flex-wrap: wrap; }
+.bus-pane .browser-row-line .badge { flex: none; }
+.chat-row-state { flex: none; }
+
+/* The yellow notes are the mockup talking, not the design. */
+.mock-note { position: absolute; z-index: 40; max-width: 19rem; padding: var(--space-2) var(--space-3); background: #fff6c8; color: #3b3200; border: 1px solid #c9b458; border-radius: var(--radius-sm); font-size: var(--text-sm); line-height: 1.45; box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+.mock-note strong { display: block; margin-bottom: 2px; }
+.mock-note p { margin: 0; }
+.mock-new { outline: 2px dashed #c9a400; outline-offset: -2px; }
+
+/* The index is a page that scrolls, unlike Dinah's window, which
+   dinah.css holds to the window's height. */
+body.index-page { height: auto; display: block; overflow: auto; }
+.index-page main { max-width: 64rem; margin: 0 auto; padding: var(--space-5); }
+.index-page main > p, .index-page main > ol { max-width: 46rem; }
+.screens { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: var(--space-4); margin: var(--space-4) 0 var(--space-5); }
+.screens .card img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: var(--space-3); }
+.screens .card p { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.state-table td, .state-table th { padding: 6px 12px 6px 0; text-align: start; vertical-align: middle; }
+.index-page ol li { margin-bottom: var(--space-2); }
+
+/* The taskbar: PUDL's, with its tray. */
+.win-bar { flex: none; }
+
+/* Narrow: the Bus pane alone, as at a phone's width or a narrow dock. */
+@media (max-width: 700px) {
+  .desk.with-pane { grid-template-columns: minmax(0, 1fr); padding: 0; }
+  .desk.with-pane > .win:not(.bus-pane) { display: none; }
+  .mock-note { display: none; }
+  .menubar-menu:not(.menubar-front) > .menubar-title:not(.menubar-brand) { display: none; }
+}

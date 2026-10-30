@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" role="img" aria-label="Dinah">
+  <!-- A cast-iron skillet seen from above, turned so its handle runs into
+       the lower right corner: a heavy rim with two pour spouts, the deep
+       sidewall inside it, the cooking surface, a short tapering handle
+       with its hanging hole, and the helper handle opposite. It is drawn
+       level and turned 45 degrees clockwise about the pan's centre. The
+       silhouette is drawn twice, first with a wide light stroke and then
+       filled over it, so a light outline traces only its outside and the
+       mark stands out on a dark background. -->
+  <defs>
+    <g id="silhouette">
+      <path d="M19 -5 L39.5 -3.2 Q44 -2.7 44 0 Q44 2.7 39.5 3.2 L19 5 Z"/>
+      <path d="M-22 -5.5 Q-27.5 -4.5 -27.5 0 Q-27.5 4.5 -22 5.5 Z"/>
+      <circle r="23.5"/>
+      <path d="M-6 -22.5 Q0 -28.5 6 -22.5 Z"/>
+      <path d="M-6 22.5 Q0 28.5 6 22.5 Z"/>
+    </g>
+  </defs>
+  <g transform="translate(27 27) rotate(45)">
+    <use xlink:href="#silhouette" href="#silhouette" fill="#d4d5da" stroke="#d4d5da" stroke-width="2.6" stroke-linejoin="round"/>
+    <use xlink:href="#silhouette" href="#silhouette" fill="#2b2b2e"/>
+    <circle r="20" fill="#3c3d42"/>
+    <circle r="16.5" fill="#4a4b51"/>
+    <circle cx="40" r="1.5" fill="#ffffff"/>
+  </g>
+  <circle cx="21.5" cy="21.5" r="4.6" fill="#64656c" opacity="0.55"/>
+</svg>

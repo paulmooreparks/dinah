@@ -1,0 +1,16 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "Dinah",
+  "outputfilename": "dinah-desktop",
+  "frontend:dir": "frontend",
+  "frontend:install": "",
+  "frontend:build": "",
+  "author": {
+    "name": "Paul Parks"
+  },
+  "info": {
+    "companyName": "Paul Parks",
+    "productName": "Dinah",
+    "comments": "A desktop app for working with AI agents, flows and tools."
+  }
+}

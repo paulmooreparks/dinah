@@ -1,0 +1,57 @@
+/* The file browser (js/filebrowser.js), shared by Files and the Editor:
+   PUDL's tree, path bar and grid carry it, and this is only its layout.
+   The tree and the list are flat things to read and choose from. */
+
+.fm-path { min-width: 0; }
+
+.fm-body {
+  flex: 1 1 auto; min-height: 0;
+  display: grid; grid-template-columns: 1fr;
+}
+/* With the tree and the list both, PUDL's splitter lays them out and
+   draws the divider; the tree starts at about a quarter, never narrower
+   than it can be read. The handle stands in the gap between the two
+   bordered panes rather than over their edges. */
+.fm-body.split { display: flex; }
+.fm-body.split > .fm-tree-pane { width: var(--split-a, clamp(170px, 28%, 360px)); }
+.fm-body.split > .fm-split { width: 8px; margin: 0; }
+.fm-tree-pane, .fm-main {
+  min-height: 0; overflow: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.fm-tree-pane { padding: 4px 0; }
+.fm-ti-label { overflow: hidden; text-overflow: ellipsis; }
+
+.fm-list { width: 100%; margin: 0; border: 0; }
+.fm-list th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+.fm-c-name { width: 55%; }
+.fm-c-kind, .fm-c-date, .fm-c-size { color: var(--text-muted); white-space: nowrap; }
+.fm-list th, .fm-list td { font-size: var(--text-sm); line-height: 1.4; padding: 5px 10px; vertical-align: middle; }
+.fm-cell { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fm-name { font-family: var(--mono); }
+.fm-title { color: var(--text-muted); font-size: var(--text-xs); }
+.fm-empty { margin: var(--space-4); color: var(--text-muted); }
+
+/* Open and Save as (pcFileBrowser.pick): the browser in a dialog, with
+   the field under it and the computer's way in beside the buttons. */
+.fb-picker { width: min(900px, 94vw); max-width: none; }
+.fb-pick-body { display: flex; flex-direction: column; gap: var(--space-2); }
+.fb-pick-bar { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.fb-pick-bar .icon-btn svg { width: 15px; height: 15px; }
+.fb-pick-browse { height: min(55vh, 520px); display: flex; flex-direction: column; container-type: inline-size; }
+.fb-pick-field { margin: 0; }
+.fb-picker .form-input { width: 100%; }
+.fb-pick-actions { gap: 8px; flex-wrap: wrap; }
+.fb-pick-actions .btn .glyph { margin-right: 6px; }
+.fb-pick-spacer { flex: 1; }
+
+/* Narrow: the tree gives way to the list. */
+@container (max-width: 560px) {
+  .fm-body:not(.fm-body-tree) .fm-tree-pane, .fm-split { display: none; }
+  .fm-c-kind, .fm-c-date { display: none; }
+}
+@media (max-width: 640px) {
+  .fm-body:not(.fm-body-tree) .fm-tree-pane, .fm-split { display: none; }
+  .fm-c-kind, .fm-c-date { display: none; }
+}

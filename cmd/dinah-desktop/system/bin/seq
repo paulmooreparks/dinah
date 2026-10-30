@@ -1,0 +1,49 @@
+#!/bin/lua
+-- seq: print a sequence of numbers
+--
+-- Usage: seq [first [step]] last
+--        seq -s <separator> ...   separate with this instead of a line end
+--        seq -w ...               pad with zeros to one width
+--
+-- Counts from first (1 unless given) by step (1 unless given) to last.
+-- Try: seq 5, seq 10 -2 0, seq -s, 3
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, n = cli.options(arg, { s = true, w = false })
+if #n < 1 or #n > 3 then cli.fail('seq', 'usage: seq [first [step]] last', 2) end
+local nums = {}
+for i, v in ipairs(n) do
+  nums[i] = tonumber(v)
+  if not nums[i] then cli.fail('seq', 'not a number: ' .. v, 2) end
+end
+local first, step, last = 1, 1, nums[#nums]
+if #nums >= 2 then first = nums[1] end
+if #nums == 3 then step = nums[2] end
+if step == 0 then cli.fail('seq', 'the step cannot be 0', 2) end
+local decimals = 0
+for _, v in ipairs(n) do
+  local d = v:match('%.(%d+)')
+  if d and #d > decimals then decimals = #d end
+end
+local function show(x)
+  if decimals > 0 then return string.format('%.' .. decimals .. 'f', x) end
+  return string.format('%d', math.floor(x + 0.5))
+end
+local width = 0
+if o.w then width = math.max(#show(first), #show(last)) end
+local out, count = {}, 0
+local x = first
+while (step > 0 and x <= last + 1e-9) or (step < 0 and x >= last - 1e-9) do
+  local s = show(x)
+  if width > 0 then
+    local neg = s:sub(1, 1) == '-'
+    s = (neg and '-' or '') .. string.rep('0', width - #s) .. (neg and s:sub(2) or s)
+  end
+  out[#out + 1] = s
+  count = count + 1
+  if count > 1000000 then cli.fail('seq', 'more than a million numbers; give a smaller range') end
+  x = first + count * step
+end
+if #out > 0 then io.write(table.concat(out, o.s or '\n'), '\n') end

@@ -1,0 +1,7 @@
+{{define "thread.html"}}{{template "head" .}}
+<h1>{{.Title}}</h1>
+<section class="vstack gap-3" aria-label="Thread">
+{{range .Data.Messages}}{{template "message" .}}{{end}}
+</section>
+{{template "compose" (dict "ReplyTo" .Data.Root.ID "Back" (printf "/messages/%d" .Data.Root.ID))}}
+{{template "foot" .}}{{end}}

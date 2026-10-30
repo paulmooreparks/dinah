@@ -1,0 +1,10 @@
+.extension-manager { padding: var(--space-4); overflow: auto; }
+.extension-manager > .toolbar { flex-wrap: wrap; }
+.extension-manager > .toolbar > input { flex: 1 1 20rem; }
+.extension-library { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
+.extension-library .hstack { flex-wrap: wrap; }
+.extension-error { color: var(--danger); }
+.extension-conflict { color: var(--warn); }
+.extension-window { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0; height: 100%; }
+.extension-window > .form-help { padding: var(--space-3); }
+.extension-frame { width: 100%; flex: 1 1 auto; min-height: 0; border: 0; }

@@ -1,0 +1,123 @@
+<!doctype html>
+<!-- Screen 2: the picker, opened from Dinah Development's Actions menu with
+     Start a Group Chat…. The list is PUDL's list box (sunken, because the
+     person chooses in it), one heading for each workspace, and a check box
+     on each row. The filter, the ticks, the name the group would take and
+     the count all work. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Start a Group Chat: Group Chats Mockup</title>
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/brand.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/dinah.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="data.js"></script>
+</head>
+<body data-front="Dinah Development">
+  <div class="desk one">
+    <section class="win active" data-win="chat-dinah-development">
+      <header class="win-head">
+        <button type="button" class="win-btn" data-win-action="menu" aria-label="Window menu"></button>
+        <h2 class="win-title">Dinah Development</h2>
+        <div class="win-statuses" role="group" aria-label="Window status"><span class="win-status strong">Working</span></div>
+        <nav class="win-chrome" aria-label="Window"><button type="button" class="win-btn" data-win-action="minimize" aria-label="Minimize"></button><button type="button" class="win-btn" data-win-action="maximize" aria-label="Maximize"></button><button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav>
+      </header>
+      <div class="win-body">
+        <div class="mock-log">
+          <div class="msg msg-you"><div class="msg-head"><span class="msg-label">You</span></div><p class="msg-text">Make the Bus pane show chats by their titles instead of the folder names.</p></div>
+          <div class="msg"><div class="msg-head"><span class="msg-label">Claude</span></div><p class="msg-text">I am changing the bus overview so it returns each chat's title and workspace. The Bus pane and the group window read the new fields, and the folder handle stays as an alias for one release.</p></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="dialog picker" id="picker" aria-labelledby="picker-title">
+    <form method="dialog">
+      <div class="dialog-head">
+        <h2 class="dialog-title" id="picker-title">Start a Group Chat</h2>
+        <input class="form-input" id="picker-filter" type="search" placeholder="Filter by Title, Workspace or Provider" aria-label="Filter the Chats" autocomplete="off">
+      </div>
+      <div class="listbox" id="picker-list" role="listbox" aria-multiselectable="true" aria-labelledby="picker-title" tabindex="0"></div>
+      <p class="form-help picker-count" id="picker-count" role="status"></p>
+      <div class="form-group">
+        <label class="form-label" for="picker-name">Group Name</label>
+        <input class="form-input" id="picker-name" autocomplete="off">
+        <p class="form-help">Leave it empty and the group takes its name from its chats' titles.</p>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="btn" value="cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="picker-start">Start</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="mockup.js"></script>
+  <script>
+    (function () {
+      var m = window.mock, list = document.getElementById('picker-list');
+      // Opened from Dinah Development, which is ticked; the mockup also
+      // ticks two chats of Ledger, one of them closed.
+      var from = 'dinah', chosen = { dinah: true, ledger: true, timesheet: true };
+      // The workspace of the chat the picker was opened from comes first,
+      // then the others in alphabetical order.
+      var home = m.chat(from).workspace;
+      var groups = m.byWorkspace().sort(function (a, b) { return (b.workspace === home) - (a.workspace === home); });
+      list.innerHTML = groups.map(function (w, i) {
+        return '<div role="group" aria-labelledby="ws-' + i + '" data-ws="' + m.esc(w.workspace) + '"><div class="listbox-group" id="ws-' + i + '" role="presentation">' + m.esc(w.workspace) + '</div>' +
+          w.chats.map(function (c) {
+            return '<div class="listbox-row" role="option" data-chat="' + c.id + '" data-find="' + m.esc((c.title + ' ' + c.workspace + ' ' + c.provider).toLowerCase()) + '">' +
+              '<input type="checkbox" tabindex="-1" aria-hidden="true">' +
+              '<span class="listbox-text">' + m.esc(c.title) + (c.id === from ? ' <span class="chip">This Chat</span>' : '') + '</span>' +
+              '<span class="col">' + c.provider + '</span>' +
+              '<span class="col state">' + m.badge(c.state) + '</span>' +
+              '<span class="col">' + c.active + '</span>' +
+              (c.state === 'closed' ? '<p class="row-note" hidden>This chat is closed. It opens in the background, without a window, when a message wakes it.</p>' : '') +
+              '</div>';
+          }).join('') + '</div>';
+      }).join('');
+
+      function draw() {
+        var titles = [];
+        list.querySelectorAll('.listbox-row').forEach(function (row) {
+          var id = row.dataset.chat, on = !!chosen[id];
+          row.setAttribute('aria-selected', String(on));
+          row.classList.toggle('is-chosen', on);
+          row.querySelector('input').checked = on;
+          var note = row.querySelector('.row-note');
+          if (note) note.hidden = !on;
+          if (on) titles.push(m.chat(id).title);
+        });
+        // The name the group would take: its chats' titles, in the order
+        // the list shows them, the opening chat first.
+        titles.sort(function (a, b) { return (b === m.chat(from).title) - (a === m.chat(from).title); });
+        var name = titles.length < 2 ? titles.join('') : titles.slice(0, -1).join(', ') + ' and ' + titles[titles.length - 1];
+        document.getElementById('picker-name').placeholder = name || 'Choose at least one chat';
+        var n = titles.length;
+        document.getElementById('picker-count').textContent = n === 0 ? 'Choose at least one chat. You are always in the group.'
+          : 'The group will have ' + (n === 1 ? 'one chat' : n + ' chats') + ' and you.';
+        document.getElementById('picker-start').disabled = n === 0;
+      }
+      list.addEventListener('click', function (e) {
+        var row = e.target.closest('.listbox-row');
+        if (!row) return;
+        chosen[row.dataset.chat] = !chosen[row.dataset.chat];
+        draw();
+      });
+      document.getElementById('picker-filter').addEventListener('input', function (e) {
+        var q = e.target.value.trim().toLowerCase();
+        list.querySelectorAll('[role="group"]').forEach(function (g) {
+          var any = false;
+          g.querySelectorAll('.listbox-row').forEach(function (row) { var show = !q || row.dataset.find.indexOf(q) >= 0; row.hidden = !show; any = any || show; });
+          g.hidden = !any;
+        });
+      });
+      draw();
+      document.getElementById('picker').showModal();
+      document.getElementById('picker-filter').blur();
+    })();
+  </script>
+</body>
+</html>

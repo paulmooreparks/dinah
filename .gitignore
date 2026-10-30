@@ -1,0 +1,17 @@
+/studio.exe
+/studio.exe~
+/studio
+/studio-desktop.exe
+
+# What tools/linux-build writes at the top of the repository by default.
+/dinah-linux-amd64
+/dinah-desktop-linux-amd64
+
+# What wails build writes when the window is built on a Mac
+# (tools/macos-build): the bundle, and the runtime it generates.
+/cmd/dinah-desktop/build/bin/
+/cmd/dinah-desktop/frontend/wailsjs/
+/cmd/dinah-desktop/frontend/e2e/node_modules/
+
+# The cleanup chats' worktrees (docs/plans/cleanup.md).
+/.worktrees/

@@ -1,0 +1,11 @@
+{{define "inbox.html"}}{{template "head" .}}
+<h1>Inbox</h1>
+{{template "compose" (dict "Targets" .Targets "Selected" .Selected "Back" "/inbox")}}
+{{with .Data.Messages}}
+<section class="vstack gap-3" aria-label="Messages to you">
+{{range .}}{{template "message" .}}{{end}}
+</section>
+{{else}}
+<div class="empty-state"><p class="empty-state-title">Nothing for You Yet</p><p class="empty-state-body">Messages agents send to you, group messages that mention you, release notices and verdicts appear here.</p></div>
+{{end}}
+{{template "foot" .}}{{end}}

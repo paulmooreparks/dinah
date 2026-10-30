@@ -1,0 +1,70 @@
+/* Document and visual-editor content follows the application palette.
+   Embedded artwork retains its own colors. */
+.doc-page {
+  --dinah-warning-surface: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  --dinah-warning-accent: var(--danger);
+  --dinah-tip-surface: color-mix(in srgb, var(--positive) 8%, var(--surface));
+  --dinah-tip-accent: var(--positive);
+  --dinah-ink: var(--text);
+  --dinah-link-on-surface: var(--accent);
+  --dinah-page-surface: var(--surface);
+  --dinah-content-border: var(--border);
+  --dinah-content-code-surface: var(--surface-alt);
+  --dinah-muted-ink: var(--text-muted);
+
+  /* The page fills the width of its window; only the padding keeps the
+     text off the edges. */
+  display: block;
+  box-sizing: border-box;
+  min-height: 100%;
+  /* Content wider than the window, such as a long line of code, widens the
+     page with it, so scrolling sideways never shows past the page's edge. */
+  min-width: fit-content;
+  margin: 0;
+  padding: 24px 32px 40vh;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dinah-ink);
+  background-color: var(--dinah-page-surface);
+  color-scheme: inherit;
+}
+
+.doc-page a { color: var(--dinah-link-on-surface); }
+.doc-page a:focus-visible, .doc-page summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.doc-page h1, .doc-page h2, .doc-page h3, .doc-page h4, .doc-page h5, .doc-page h6 { line-height: 1.25; margin: 1.1em 0 0.5em 0; color: var(--dinah-ink); }
+/* An h1's em is twice the text's, so its space above is kept nearer the
+   other headings'. */
+.doc-page h1 { margin-top: 0.75em; }
+/* The page's padding is the only space over its first block, in the preview
+   and in the Visual view, where the blocks sit inside ProseMirror's root. */
+.doc-page > :first-child, .doc-page > .ProseMirror > :first-child { margin-top: 0; }
+.doc-page pre { padding: 8px 10px; overflow-x: auto; border: 1px solid var(--dinah-content-border); border-radius: 3px; background-color: var(--dinah-content-code-surface); }
+.doc-page code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.92em; }
+.doc-page blockquote { margin: 0.6em 0; padding: 0 0 0 12px; border-left: 3px solid var(--dinah-content-border); color: var(--dinah-muted-ink); }
+.doc-page hr { border: 0; border-top: 1px solid var(--dinah-content-border); margin: 1.2em 0; }
+.doc-page li > input[type="checkbox"] { margin: 0 0.4em 0 0; vertical-align: middle; }
+/* A task item's box takes the place of its bullet. */
+.doc-page li:has(> input[type="checkbox"]) { list-style: none; }
+.doc-page table { border-collapse: collapse; margin: 0.6em 0; max-width: 100%; }
+/* A cell has a width of its own even when empty, so a new table is wide
+   enough to type into. A word breaks only when it cannot fit its cell, so a
+   column is never narrowed below its longest word to break one. A link or
+   code, which can be one long run of letters, breaks anywhere instead, so a
+   table of long addresses stays within the page. */
+.doc-page th, .doc-page td { min-width: 6em; padding: 4px 10px; border: 1px solid var(--dinah-content-border); text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.doc-page :is(th, td) :is(a, code) { overflow-wrap: anywhere; }
+/* An empty cell is a line high, as the Editor's Page view draws a cell it can
+   be typed into, rather than a sliver. */
+.doc-page th:empty::after, .doc-page td:empty::after { content: "\200b"; }
+.doc-page th { background-color: var(--dinah-content-code-surface); }
+
+/* A block's wrapper adds no space of its own, so the space between blocks
+   is their margins, collapsed as the Editor's Page view draws them. It is
+   positioned, so that what a block draws over itself stands against the
+   block, and a block scrolled into view stops a little below the top. */
+.doc-page .dinah-block { position: relative; margin: 0; padding: 0; scroll-margin-top: var(--space-6); }
+
+.doc-page .dinah-diagram-placeholder { margin: 8px 0; padding: 12px; border: 1px dashed var(--dinah-content-border); border-radius: 3px; color: var(--dinah-muted-ink); text-align: center; }
+.doc-page .dinah-attachment-image { max-width: 100%; height: auto; border: 1px solid var(--dinah-content-border); border-radius: 2px; }
+.doc-page .dinah-broken-image { display: inline-block; padding: 2px 8px; border: 1px dashed var(--dinah-warning-accent); border-radius: 3px; color: var(--dinah-warning-accent); font-size: 0.9em; }

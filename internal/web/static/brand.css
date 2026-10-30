@@ -1,0 +1,95 @@
+/* Mineral is Dinah's default palette. PUDL derives control surfaces from
+   these semantic colors and lighting values. Keep the bus page copy equal. */
+:root {
+  --bg: #e6ecee;
+  --surface: #eef2f3;
+  --surface-alt: #dbe4e7;
+  --text: #23333b;
+  --text-muted: #50636c;
+  --border: #748790;
+  --accent: #3c607b;
+  --accent-hover: #304f66;
+  --on-accent: #f3f7fa;
+  --warn: #805c17;
+  --on-warn: #f3f7fa;
+  --danger: #ab332e;
+  --danger-hover: #902923;
+  --positive: #326649;
+  --pr: var(--positive);
+  --light: #f8faf4;
+  --shade: #060b08;
+  --lit: 42%;
+  --depth: 17%;
+  --tb-bg: var(--surface-alt);
+  --tb-fg: var(--text);
+  --dinah-skill: #724466;
+  --dinah-title: var(--text);
+  --syntax-keyword: #724466;
+  --syntax-string: #326649;
+  --syntax-number: #805c17;
+  --syntax-comment: #50636c;
+  --syntax-name: #3c607b;
+  --syntax-tag: #724466;
+  --syntax-attr: #805c17;
+  --syntax-heading: #23333b;
+  --syntax-link: #3c607b;
+  --syntax-error: #ab332e;
+  --category-1: #5c6fc9;
+  --category-2: #369588;
+  --category-3: #733d62;
+  --category-4: #798e32;
+  --category-5: #0259ac;
+  --category-6: #59187d;
+  --category-7: #8b7fa0;
+  --category-8: #a6318a;
+}
+[data-theme="dark"] {
+  --bg: #0c141b;
+  --surface: #17242d;
+  --surface-alt: #253642;
+  --text: #f2f6f9;
+  --text-muted: #c3d2df;
+  --border: #8199a9;
+  --accent: #94ccea;
+  --accent-hover: #b1dcf2;
+  --on-accent: #162b37;
+  --warn: #ebc579;
+  --on-warn: #162b37;
+  --danger: #ffaaa0;
+  --danger-hover: #ffc1ba;
+  --positive: #a5d7b3;
+  --light: #eef5eb;
+  --shade: #060b08;
+  --lit: 8%;
+  --depth: 55%;
+  --dinah-skill: #e9b6df;
+  --syntax-keyword: #e9b6df;
+  --syntax-string: #a5d7b3;
+  --syntax-number: #ebc579;
+  --syntax-comment: #c3d2df;
+  --syntax-name: #94ccea;
+  --syntax-tag: #dcc1f1;
+  --syntax-attr: #ebc579;
+  --syntax-heading: #f2f6f9;
+  --syntax-link: #94ccea;
+  --syntax-error: #ffaaa0;
+  --category-1: #5e79c5;
+  --category-2: #4cbac5;
+  --category-3: #b170cd;
+  --category-4: #73845e;
+  --category-5: #8c9bd7;
+  --category-6: #c35b84;
+  --category-7: #c9aff4;
+  --category-8: #f00580;
+}
+/* PUDL's destructive hover gradient uses --danger for both stops. */
+.btn-danger:hover { --danger: var(--danger-hover); }
+/* In forced colours every category colour is the reader's text colour, as
+   PUDL 0.91.0 sets it. This stylesheet loads after PUDL's and sets the
+   category colours at the same specificity, so it repeats PUDL's rule. */
+@media (forced-colors: active) {
+  :root, [data-theme] {
+    --category-1: CanvasText; --category-2: CanvasText; --category-3: CanvasText; --category-4: CanvasText;
+    --category-5: CanvasText; --category-6: CanvasText; --category-7: CanvasText; --category-8: CanvasText;
+  }
+}

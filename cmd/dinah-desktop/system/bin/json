@@ -1,0 +1,30 @@
+#!/bin/lua
+-- json: format JSON, or pick a value out of it
+--
+-- Usage: json [file]              print it indented, with keys in order
+--        json -c [file]           print it on one line
+--        json -p <path> [file]    print the value at a path, such as
+--                                 .items[1].title or .name
+--
+-- Reads the file, or what is piped in. A path is keys after dots and array
+-- positions in brackets, counting from 1; a text value prints as text.
+-- Try: echo '{"b":[1,2],"a":"x"}' | json, ... | json -p .b[2]
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local json = require 'json'
+local o, files = cli.options(arg, { c = false, p = true })
+local ok, value = pcall(json.decode, cli.input(files, 'json'))
+if not ok then cli.fail('json', tostring(value)) end
+if o.p then
+  local path = o.p
+  if path:sub(1, 1) ~= '.' and path:sub(1, 1) ~= '[' then path = '.' .. path end
+  for kind, key in path:gmatch('([%.%[])([^%.%[%]]*)%]?') do
+    if type(value) ~= 'table' then cli.fail('json', o.p .. ': there is nothing at ' .. key) end
+    if kind == '[' then value = value[tonumber(key)] else value = value[key] end
+    if value == nil then cli.fail('json', o.p .. ': there is no ' .. key) end
+  end
+  if type(value) == 'string' then print(value) return end
+end
+print(json.encode(value, not o.c and '  ' or nil))

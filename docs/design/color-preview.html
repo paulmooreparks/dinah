@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dinah color workshop</title>
+<link rel="stylesheet" href="../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+<style>
+  body { margin:0; background:#e8edeb; color:#22332b; }
+  main { max-width:1800px; margin:auto; padding:24px; }
+  header { display:flex; gap:20px; align-items:start; justify-content:space-between; margin-bottom:20px; }
+  h1 { margin:0 0 8px; font-size:25px; } h2 { font-size:17px; margin:0 0 12px; }
+  p { max-width:75ch; } header p { margin:0; color:#52645b; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .workspace { display:grid; grid-template-columns:minmax(0,1fr) 290px; gap:20px; }
+  .previews { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-content:start; min-width:0; }
+  .preview { min-width:0; } .preview h2 { display:flex; justify-content:space-between; align-items:center; }
+  iframe { display:block; border:1px solid #899a90; border-radius:12px; width:100%; height:735px; background:#e8edeb; }
+  aside { background:#f1f4ef; padding:18px; border:1px solid #9ba99f; border-radius:12px; align-self:start; position:sticky; top:16px; max-height:calc(100vh - 32px); overflow:auto; }
+  label { display:block; font-size:13px; font-weight:600; } select { max-width:100%; }
+  .field { margin-top:13px; } .swatch { display:grid; grid-template-columns:36px 1fr; gap:8px; margin-top:4px; }
+  input[type=color] { width:36px; height:32px; padding:2px; border:1px solid #8a9a90; border-radius:6px; }
+  input[type=text] { min-width:0; width:100%; font:13px var(--mono); padding:4px 8px; }
+  #checks { padding-left:18px; font-size:12px; } #checks li { margin:7px 0; }
+  .note { font-size:12px; color:#52645b; line-height:1.5; } #status { min-height:1.5em; }
+  .palettes { display:flex; gap:6px; margin-top:12px; } .palette-dot { width:22px; height:22px; border:1px solid #7b8d80; border-radius:50%; }
+  details { margin-top:18px; } summary { cursor:pointer; }
+  @media(max-width:1200px) { .workspace { grid-template-columns:1fr; } aside { grid-row:1; } #colors { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0 15px; } }
+  @media(max-width:700px) { main { padding:12px; } header { display:block; } header .actions { margin-top:14px; } .previews { grid-template-columns:1fr; } #colors { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+</style>
+<main>
+  <header><div><h1>Dinah color workshop</h1><p>Two directions for long working sessions. Both avoid white light-mode surfaces and give dark-mode text and boundaries more separation. Change a color to see both the swatch and PUDL preview update.</p></div><div class="actions"><button class="btn" id="export">Export colors</button><button class="btn" id="import">Import colors</button><input id="file" type="file" accept="application/json,.json" hidden></div></header>
+  <div class="workspace">
+    <section class="previews" aria-label="Theme previews"><article class="preview"><h2>Light <span class="note" id="light-name"></span></h2><iframe id="light" title="Light theme preview"></iframe><div class="palettes" id="light-swatches"></div></article><article class="preview"><h2>Dark <span class="note" id="dark-name"></span></h2><iframe id="dark" title="Dark theme preview"></iframe><div class="palettes" id="dark-swatches"></div></article></section>
+    <aside><h2>Tune the palette</h2><label for="preset">Starting point</label><select id="preset"><option value="mineral">Mineral, cool stone and ink</option><option value="linen">Linen, warm paper and olive</option></select><p class="note" id="description"></p><label for="mode">Edit variant</label><select id="mode"><option value="light">Light</option><option value="dark">Dark</option></select><div id="colors"></div><div class="actions" style="margin-top:16px"><button class="btn btn-sm" id="reset">Reset this pair</button><button class="btn btn-sm" id="undo">Undo color change</button></div><details><summary>Contrast checks</summary><ul id="checks"></ul><p class="note">Checks use the preview's resolved PUDL colors, including input fills. This is a sample, not a complete accessibility audit.</p></details><p class="note" id="status" role="status"></p><p class="note">This is a design prototype. Exported JSON reopens here; it is not yet the proposed PUDL theme format. Your running Dinah theme is unaffected. Font and layout choices are held constant.</p></aside>
+  </div>
+</main>
+<script src="color-preview.js"></script>
+</html>

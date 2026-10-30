@@ -1,0 +1,70 @@
+// Stop asks the engine to end the turn and says so while the agent finishes what it
+// is doing, since a tool call can take a while to end; a failure to ask is reported.
+const { launch } = require('./lib/page');
+
+(async () => {
+  const t = await launch({
+    viewport: { width: 1400, height: 900 },
+    app: () => {
+      window.__cancels = [];
+      return {
+        ReadUIState: async () => ({ version: 1, values: { 'dinah-workbench-layout': '?open=workspace' } }), SaveUIState: async () => {},
+        OpenSessionAt: async (ws, id) => ({ sessionId: id, title: id, provider: 'ollama', cwd: ws, open: true, working: true, queued: [] }),
+        Cancel: async id => { window.__cancels.push(id); if (window.__failCancel) throw new Error('Fixture: the stop was not delivered'); },
+        SkillsForProviderAt: async () => [], SkillsAt: async () => []
+      };
+    },
+    ready: () => window.dinahWorkbench && window.dinahEditor,
+    goto: false,
+  });
+  const { page, ok } = t;
+  const ID = 'ollama:stop';
+  try {
+    await page.goto(require('./lib/page').PAGE);
+    await t.waitReady();
+    const key = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'ollama:stop' }));
+    const win = page.locator('[data-win="' + key + '"]');
+    await win.locator('[data-view-id="prompt"]').waitFor();
+    const stop = win.locator('[data-command="stop-turn"]').first();
+    const line = () => win.locator('[data-view-id="page-state"]').textContent();
+    await stop.waitFor({ state: 'attached' });
+    await page.waitForFunction(k => /is working/.test(document.querySelector('[data-win="' + k + '"] [data-view-id="page-state"]').textContent), key);
+    ok('a running turn says it is working', /is working/.test(await line()));
+
+    await page.evaluate(() => { window.__failCancel = true; });
+    await stop.click();
+    await page.waitForFunction(() => window.__cancels.length === 1);
+    await page.waitForFunction(k => /is working/.test(document.querySelector('[data-win="' + k + '"] [data-view-id="page-state"]').textContent), key);
+    ok('a stop that could not be asked for is reported and the chat is back to working', /is working/.test(await line()) && (await page.evaluate(() => document.body.textContent)).includes('the stop was not delivered'));
+
+    await page.evaluate(() => { window.__failCancel = false; });
+    await stop.click();
+    await page.waitForFunction(k => /Stop was asked for/.test(document.querySelector('[data-win="' + k + '"] [data-view-id="page-state"]').textContent), key);
+    ok('after Stop the chat says it was asked for', /Stop was asked for/.test(await line()));
+    ok('the Stop control shows it', (await stop.textContent()).includes('Stopping'));
+    ok('and the working chip says Stopping', (await win.locator('.chat-working-chip').first().textContent()) === 'Stopping');
+    ok('the control stays pressable while it says Stopping', await stop.isEnabled());
+    await stop.click();
+    await page.waitForFunction(() => window.__cancels.length === 3);
+    ok('a second press asks the engine again', (await page.evaluate(() => window.__cancels.length)) === 3, String(await page.evaluate(() => window.__cancels.length)));
+    await win.locator('[data-view-id="prompt"]').press('Escape');
+    await page.waitForFunction(() => window.__cancels.length === 4);
+    ok('so does Escape', (await page.evaluate(() => window.__cancels.length)) === 4);
+
+    await page.evaluate(i => __emit('agent:turn', { sessionId: i, stopReason: 'cancelled' }), ID);
+    await page.evaluate(i => __emit('agent:session', { sessionId: i, working: false, open: true, queued: [], provider: 'ollama' }), ID);
+    await page.waitForFunction(k => !/Stop was asked for/.test(document.querySelector('[data-win="' + k + '"] [data-view-id="page-state"]').textContent), key);
+    ok('the end of the turn clears it', /waiting for you/.test(await line()));
+
+    // The Stop command, from the menu or command search, is the same Stop.
+    await page.evaluate(i => __emit('agent:session', { sessionId: i, working: true, open: true, queued: [], provider: 'ollama' }), ID);
+    await page.waitForFunction(k => /is working/.test(document.querySelector('[data-win="' + k + '"] [data-view-id="page-state"]').textContent), key);
+    await page.evaluate(() => { window.__cancels.length = 0; });
+    ok('the Stop command is available while a turn runs', await page.evaluate(() => dinahCommands.enabled ? dinahCommands.enabled('cancel') !== false : true));
+    await page.evaluate(() => dinahCommands.run('cancel'));
+    await page.waitForFunction(k => /Stop was asked for/.test(document.querySelector('[data-win="' + k + '"] [data-view-id="page-state"]').textContent), key);
+    ok('stopping from the command shows the same feedback and asks the engine', (await page.evaluate(() => window.__cancels.join(','))) === ID, await page.evaluate(() => window.__cancels.join(',')));
+  } finally {
+    await t.close();
+  }
+})().catch(e => { console.error(e); process.exitCode = 1; });

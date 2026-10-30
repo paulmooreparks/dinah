@@ -1,0 +1,81 @@
+# Background Work
+
+An agent can leave work running after its turn ends. Claude Code backgrounds long commands, runs subagents in the background, and starts a turn of its own when such work finishes, to report on it. Before 26 October 2026 Dinah knew only about turns, so a chat whose turn had ended looked idle while its builds were still running; Paul found one of his development chats in that state and asked for it to show that it was still busy.
+
+## What the Agent Reports
+
+The Claude adapter documents this work in its AIR extensions (`docs/air-extensions.md` in `agentclientprotocol/claude-agent-acp`). A client that lists `asyncTasks` under `clientCapabilities._meta.jetbrains.air.capabilities` in `initialize` receives three session updates:
+
+- `async_task_spawned`, with `asyncTaskId`, `name`, `taskType`, `description`, `showInTranscript`, `canStop` and, optionally, `outputFilePath` and `toolCallId`;
+- `async_task_progress`, with only the fields that changed (`description`, `summary`, `lastToolName`, `usage`, `outputFilePath`, `toolCallId`);
+- `async_task_state_update`, with `state` (`running`, `paused`, `completed`, `failed` or `stopped`) and an optional `summary`.
+
+A turn the agent starts of its own is reported as a task with the ID `autonomous-turn-<uuid>`, the name "Claude is working" and the type `turn`. The adapter says that the SDK's own list of background tasks decides what is alive, and that it reports `stopped` for a task that leaves that list. A client stops a task with the request `_session/async_task/stop`, giving `sessionId` and `asyncTaskId`, and the answer is `{"stopped": true}`.
+
+Dinah relies only on this documented contract. Agents that do not know the `_meta` key ignore it, as the protocol's extension point requires.
+
+## What Dinah Does
+
+Dinah declares `asyncTasks` for every agent (`acp.ClientCaps`). Each chat keeps the tasks that are not over (`background_tasks.go`), from their announcement until a state of `completed`, `failed` or `stopped`; progress for a task Dinah never saw announced is ignored. The tasks are part of the chat's information that the page receives, not part of its conversation, so they are not saved in the transcript or the chat's log.
+
+The page keeps two states apart, because both can hold at once. A turn running, whether the person's or one the agent started of its own, shows the Working chip. Other background work shows a Background chip with the number of tasks, and the chat's state line says how many are running and lists them, each with what it is doing and a Stop button where the agent allows one. The chat list shows the same badge, and the window is marked running for the taskbar.
+
+Background work ends with the agent's process, so the exit question counts a chat that has any, and Restart When Chats Finish waits for it. A long-running monitor can therefore hold a restart until it is stopped; Restart Now still restarts at once.
+
+## Subagents
+
+Paul asked for something like Claude Code's view of its running subagents: a tree of them, and a way to open one and watch what it is doing. It was built on 26 October 2026.
+
+### The Contract
+
+The Claude adapter reports a subagent as a child session of its own when the client declares `nativeSubagentSessions` among its AIR capabilities. Its documentation says that an AIR client gets the draft of the ACP subagent RFD dated 31 August 2026 (agentclientprotocol/agent-client-protocol PR 1992) whichever signal it declares, so that draft is the wire contract Dinah follows:
+
+- `subagent_spawned` arrives on the immediate parent session, which may itself be a subagent, with `subagentSessionId`, `name`, `task`, `capabilities` (`cancel` and `close`, each false when left out) and, from the Claude adapter, an optional `prompt` holding the child's exact prompt. Spawning means the subagent is running.
+- The child's ordinary session updates, such as messages, thoughts, plans and tool calls, arrive under the child's session ID.
+- One `subagent_state_update` with `completed`, `failed`, `cancelled` or `disconnected` arrives on the immediate parent, after every update and request of the child.
+- The agent's requests for a child, such as permission questions and file reads and writes, carry the child's session ID.
+- The client never loads, resumes, prompts or steers a child. It may send `session/cancel` for a child only when the child's `capabilities.cancel` is true.
+
+Dinah does not declare `backgroundSubagents`, so the adapter keeps the chat's turn open while a subagent it started runs, and the chat shows Working meanwhile. Dinah also does not declare the RFD's own client field, `clientCapabilities.subagents`, because a later draft of the RFD gives that field a different wire form, and an agent other than the Claude adapter that implements the later draft would then send updates Dinah does not read.
+
+### What Dinah Does
+
+Each chat keeps its subagents and theirs (`subagents.go`), with an index on the App from each subagent's session ID to its chat, which is the root of the subagent's ancestry. An announcement or an end is recorded wherever it arrives, and one that arrives on the chat itself also goes on as the chat's own update, so the chat draws the subagent's row where it happened in the conversation. A subagent's own updates are kept as the subagent's: they go into neither the chat's saved copy nor its log, and the page gets them as `agent:subagent-update` events, never as the chat's updates. Every change to a subagent's state reaches the page as an `agent:subagent` event, and the chat's information carries the whole list, each subagent with its parent's ID. Dinah's connection to the Claude adapter puts `claude:` before every session ID on Dinah's side, and it does the same to `subagentSessionId`, so that a subagent's announcement and its own updates use the same ID; the first live check found the updates going unmatched without it.
+
+Dinah keeps each subagent's latest 4,000 updates or 4 MiB of them, whichever is less, in memory, joining the consecutive pieces of one message or thought into one update, and it keeps the updates of a chat's 64 most recent subagents. A finished subagent older than that keeps its place in the tree, and its window says that its earlier work is no longer kept. Nothing of a subagent's work is written to disk; the agent's replay brings it back when the chat is opened again, and a subagent from an earlier run shows "Earlier" in place of how long it ran.
+
+The RFD says a subagent must end before its parent's prompt returns. When the chat's turn ends, or its agent's process ends, with a subagent the agent has not reported ended, Dinah gives that subagent the local `disconnected` state: its outcome is unknown, so it is shown as neither running, failed nor cancelled, nothing waits for it, and nothing about it is sent to the agent. A report that arrives later replaces the local state, but nothing makes a subagent run again. Dinah applies the same rule when a chat finishes reopening, because the RFD has the agent end every subagent its history leaves unfinished, and one it leaves running all the same has no turn to run in.
+
+A subagent's permission question goes to its chat, and the card says which subagent asks. When the subagent's end arrives while one of its questions, or one of its descendants', is still open, Dinah answers it cancelled and the card goes, as the RFD requires. A question that arrives for a subagent the agent has already reported ended is answered cancelled at once. A subagent reads files as the chat does and writes them in its chat's workspace, and the chat shows the write with the subagent's name. Running subagents count as work for the exit question and for Restart When Chats Finish.
+
+### What the Person Sees
+
+A row in the chat marks where the agent handed work to a subagent. It shows the subagent's name, its task and its state as a glyph and a word (Running, Completed, Failed, Cancelled or Disconnected), which stays current, and Open. Disconnected has a glyph of its own and says that the outcome is unknown, so that it looks like neither a failure nor a cancellation. While subagents run, the chat's head shows a Subagents chip with their number beside Working, and the state line counts them.
+
+Paul asked on 28 October 2026 for a way to reach the subagents without scrolling back to the row whose Open he wants, so the composer's Turn group has a Subagents menu button while the chat has any subagents. It is there for every subagent the tree shows, running or ended, and is absent, rather than disabled, before the agent starts one. Its words are "Subagents" with the number as a badge, and its accessible name says the number too ("Subagents, 2"). Its menu lists the running subagents first, then those that ended in this run, each set in the tree's order, a subagent started by another one saying so ("Running, under Explore"), with the state as the badge's glyph and its word and then the task. Paul asked for the running ones at the top later the same day, since they are the ones he is most likely to open. Choosing one opens that subagent's window, as the row's Open does, and Show All Subagents, after the list, opens the tree. The button sits in the Turn group because its subagents belong to the chat's turns, and the Turn group is the last to fold: as the window narrows, PUDL takes the button to its glyph and number, then folds the group into its Turn menu button and at last into the toolbar's More menu, and each of those menus lists the subagents and Show All Subagents as the button's menu does. The count is not shown on a folded group's button, because PUDL gives that button the group's name. The same menu is the Subagents submenu of the window's Actions menu, so the menu bar and its keys reach it.
+
+Paul also asked that day for the subagent text to take a couple of lines, so that more subagents fit without scrolling. A subagent's task is drawn on two lines at most wherever subagents are listed: its row in the chat and in a subagent's window, the tree, the head of a subagent's window, and the second line of a menu row, which in the Subagents menu holds the state and the task. Dinah applies that limit to the second line of every menu row, since none needs more. The text is cut with an ellipsis by CSS line clamping, so the whole of it stays in the page for a screen reader, and the element's tooltip shows all of it. The folded Prompt in a subagent's window keeps the whole prompt.
+
+Each subagent's row in the chat used to have an empty row reading "waiting" under it. The Claude adapter keeps the Agent tool call that starts a subagent out of the transcript, since the subagent's own row stands for it, but an update for that call with no title, kind, output or status still reached the chat, which drew it as a tool call that had not started and never changed. The chat and the subagent window now draw no row for a tool call until an update gives it something to show (a title, a kind, output, a command or a failure). The rule does not depend on the adapter: any update that says nothing about a call Dinah has not seen is passed over.
+
+The title bar's Subagents chip still only counts the running subagents. PUDL's title-bar status chips report state and hold no controls (`WINDOW-STATUS.md`), so the chip cannot open the menu or the tree; the button beside the prompt is the action.
+
+Show All Subagents opens the Subagents window, a tree of the chat's subagents of this run and theirs. Each node shows the state, the name, the task, how long the subagent ran, which ticks while it runs, and Open, with Stop where the agent allows a subagent to be cancelled on its own. The Claude adapter sends no cancel capability today, so Stop does not appear for its subagents; stopping the chat's turn stops them all.
+
+Open shows one subagent's work in a window of its own: a head with its name, task, state and prompt, folded, then its messages, thoughts, plan, tool calls and its own subagents, live while it runs. The window draws messages with the chat's Markdown and tool calls with the chat's row styles, but it is a renderer of its own rather than the chat's controller, because the controller is bound to a composer, the bus and the chat's applet context. The window never offers a prompt box.
+
+### This Run's Subagents and Earlier Ones
+
+On 28 October 2026 Paul asked for the subagents from earlier runs to leave the Subagents menu and the tree: "Running subagents should be at the top of the list. I'm more likely to be interested in those. Completed subagents from the current run of DD could maybe hang around until I restart. Historical subagents should be archived and accessible through some kind of archival retrieval, maybe where I can find old chat logs already." A run is the time since Dinah started. The Subagents menu button, its count, the Subagents submenu under Actions, the tree, the title bar's chip and the state line now show only the subagents of this run, running or ended; those from earlier runs are the chat's earlier subagents.
+
+Dinah writes nothing of a subagent to disk, and this change keeps it that way. A chat opened again learns its earlier subagents from its agent, which replays them with the chat's history, so Dinah knows a chat's earlier subagents only once the chat has been opened in this run, which a chat restored with the layout is without the person touching it. Each subagent's information says whether it is this run's (`thisRun`). Dinah keeps, on the App and for the length of the run, the times of every subagent it saw start, so that a chat closed and opened again in the same run keeps those subagents as this run's, with their times, when the agent replays them. Any other subagent a replay brings is an earlier one.
+
+The earlier subagents are in the Earlier Subagents window, the archive, which has its own address like every window. It lists them newest first, each with its state as a glyph and a word, its name (with the subagent it was under, for one started by another), its task on two lines at most, when it ran and Open. The agent replays a subagent without saying when it ran, so the archive takes the time from the subagent's row in the chat, which a replayed chat stamps with the time of the message before it from Dinah's own journal of message times; a subagent whose row the chat no longer shows reads Earlier Run. Open shows the subagent's window, read-only as always, and an ended subagent offers no Stop.
+
+Old chats are found in the Chats pane, where every chat of the open workspaces is listed, closed or open, and choosing a closed one shows Dinah's saved copy of it; the chat's log on disk is opened from the chat's Actions menu, with Show the Chat Log. The archive is reached from there: a chat with earlier subagents has a Subagents part under its entry in the Chats pane, and in the Workspace pane's list of chats, one step in, saying how many there are ("2 from earlier runs"). It is not counted as a chat. Pressing it opens the archive. The archive is also reached from Earlier Subagents…, at the foot of the Subagents menu and its submenu under Actions, and at the foot of the tree, in the tree window's commands too. Each of these is present only while the chat has earlier subagents, and a chat that has only earlier ones keeps its Subagents menu button, without a count, for the sake of that item. The rows in the chat where the agent handed work to an earlier subagent stay as they are, because they are part of the conversation.
+
+The subagents' glyph used to be PUDL's branch glyph, which is also Git's, and Paul found it a poor fit for either. The Subagents button, the tree, the archive and a subagent's window now use a glyph of Dinah's own, an agent above the two workers it handed work to, drawn in `app.css` beside Dinah's other glyphs that PUDL does not have yet.
+
+### Other Agents
+
+Nothing above depends on the Claude adapter. Any agent that sends these updates after negotiating them gets the same rows, tree and windows. Codex and Ollama are driven by Dinah's own translators, which report no subagents today; a translator that learns of its agent's workers from documented events can report them in this form, and the page needs no change for it.

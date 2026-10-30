@@ -1,0 +1,51 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0
+   Licensed under the Apache License, Version 2.0; see
+   https://www.apache.org/licenses/LICENSE-2.0 */
+
+/* The terminal applet. The screen is an input surface, so it sits sunken
+   in a PUDL well; xterm.js draws inside it with colours taken from the
+   PUDL tokens. Flowing (on its own page or in an article) it takes the
+   column's width and a fixed share of the viewport's height; filling a
+   window it takes the whole box. */
+
+.pc-terminal {
+  display: flex; flex-direction: column;
+  height: min(70svh, 640px);
+  min-height: 260px;
+  position: relative;
+}
+.pc-terminal-settings .form-select { width: 100%; }
+.pc-terminal .pc-terminal-screen {
+  flex: 1 1 auto; min-height: 0;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--recess-shadow);
+  overflow: hidden;
+}
+/* The inset for the text sits on xterm's own element, because the fit
+   addon subtracts that element's padding but not its container's; padding
+   on the container cut off the last row. */
+.pc-terminal .pc-terminal-screen .xterm { height: 100%; padding: 8px 4px 8px 10px; }
+.pc-terminal .pc-terminal-screen .xterm-viewport { background: transparent !important; }
+.pc-terminal .pc-terminal-failed {
+  font-family: var(--font); color: var(--text-muted); padding: var(--space-4);
+}
+
+/* === Filling a window ====================================================
+   In a window the terminal is the window's whole body, edge to edge: the
+   window frame is its border, so the well's own border, radius and shadow
+   go, and so does the body's padding. */
+.pc-terminal-fill { flex: 1 1 auto; height: auto; min-height: 0; }
+.pc-terminal-fill .pc-terminal-screen { border: 0; border-radius: 0; box-shadow: none; }
+
+.win-body:has(.pc-terminal-fill) { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.win-body:has(.pc-terminal-fill) .post-content {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+  max-width: none; margin: 0; padding: 0;
+}
+.win-body:has(.pc-terminal-fill) .post-body {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+}

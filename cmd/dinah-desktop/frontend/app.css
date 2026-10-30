@@ -1,0 +1,643 @@
+/* The app's own rules, loaded after dinah.css. */
+
+/* The detail pane is a column: the run scrolls, and the composer stays at
+   the foot of the pane where the person types. */
+.shell-main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; flex: 1; }
+.dinah-workbench, .dinah-workbench-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.dinah-window:is([data-win-kind="chat"], [data-win-kind="chat-session"]) > .dinah-applet { display: flex; overflow: hidden; }
+.chat-instance { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; }
+.dinah-window .chat-pane { flex: 1; min-width: 0; }
+.dinah-window .shell-sidebar, .browser-applet { min-width: 0; }
+.dinah-window[data-win-kind="workspace"] > .dinah-applet { display: flex; overflow: hidden; }
+.dinah-window[data-win-kind="workspace"] .shell-sidebar { flex: 1; min-height: 0; }
+.workspace-list { flex: none; }
+.shell-sidebar .applet-workspace { font-size: var(--text-sm); }
+#go-to { width: min(48rem, calc(100vw - 2rem)); max-width: 48rem; }
+.go-to-list { height: min(45vh, 22rem); overflow-y: auto; margin-block: var(--space-3); padding: 0; }
+.go-to-list table { table-layout: fixed; }
+.go-to-list th:first-child { width: 40%; }
+.go-to-list td { white-space: normal; overflow-wrap: anywhere; }
+.dinah-applet > .needs-you { max-height: none; border: 0; padding: var(--space-3); }
+.dinah-applet .needs-you > h2, .settings-applet > h2 { display: none; }
+.dinah-window[data-win-kind="settings"] > .dinah-applet { display: flex; overflow: hidden; }
+.settings-applet { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+/* Files per Message is a few digits wide, with Save and Use Default beside it. */
+.file-limit .file-limit-input { width: 8rem; flex: 0 0 auto; }
+.file-limit .settings-actions { align-items: center; margin-top: 0; }
+.work-split { flex: 1 1 auto; min-height: 0; --split-a: 55%; }
+.chat-pane { display: flex; flex-direction: column; overflow: hidden; }
+.chat-output { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }
+.chat-output > .page-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* With no document open the chat has the whole width. */
+.work-split.no-doc > .chat-pane { flex: 1; width: auto; }
+.work-split.no-doc > .split-handle { display: none; }
+
+/* A document's head, its details and its problems keep their height over
+   the preview, which follows the application palette. */
+.doc-head, .doc-meta, .doc-problems { flex: none; }
+.doc-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); }
+.doc-head > h2 { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--text-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-meta { margin: 0; padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--text-muted); background: var(--surface); border-bottom: 1px solid var(--border); }
+.doc-problems { list-style: none; margin: 0; padding: var(--space-1) 0; max-height: 30%; overflow-y: auto; background: var(--surface); border-bottom: 1px solid var(--border); font-size: var(--text-sm); }
+.doc-problems li > button { display: flex; gap: var(--space-2); width: 100%; text-align: left; padding: 4px var(--space-3); border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; }
+.doc-problems li > button:hover { background: var(--surface-alt); }
+.doc-problems .doc-line { flex: none; color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 4.5em; }
+.doc-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--space-3); }
+.doc-scroll:has(> .doc-page) { padding: 0; }
+.doc-block.flash, .pm-sugg.flash { animation: question-flash 1.2s ease-out 1; }
+@media (prefers-reduced-motion: reduce) { .pm-sugg.flash { animation: none; } }
+
+.dinah-window > .dinah-applet { padding: 0; min-width: 0; }
+.dinah-window-space { flex: 1; min-height: 0; display: flex; }
+.document-applet { display: flex; flex-direction: column; overflow: hidden; position: relative; background: var(--surface-alt); }
+.document-applet .doc-meta { overflow-wrap: anywhere; }
+.document-applet .doc-page.media-preview { max-width: none; padding: var(--space-2); border: 0; background: transparent; color: var(--text); color-scheme: normal; }
+.document-applet .media-preview[data-preview-format="image"] .doc-block { display: flex; justify-content: center; }
+.document-applet .media-preview img { max-width: 100%; height: auto; }
+.workspace-status { max-width: 14em; }
+.workspace-status > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar:has(> [data-menubar]) { flex-wrap: nowrap; }
+
+/* Browser panes (browser-list.js). A toolbar
+   of search, scope and commands; groups whose toggle is PUDL's tree toggle,
+   as in the Sources tree; two-line master-detail rows; PUDL's empty state,
+   made compact for a narrow pane. */
+.browser-toolbar { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-bottom: 1px solid var(--border); }
+.browser-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.browser-toolbar .browser-scope { flex: 1 1 12rem; min-width: 0; }
+.browser-toolbar .browser-scope .form-select { width: 100%; }
+.browser-commands { display: flex; align-items: center; gap: var(--space-1); flex: none; margin-inline-start: auto; }
+.browser-group { padding-block-end: var(--space-1); }
+.browser-group + .browser-group, .browser-toolbar + .browser-group { border-top: 1px solid var(--surface-alt); }
+.browser-group-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-1) 10px; }
+.browser-group-toggle { padding: 0; }
+.browser-group-toggle[aria-expanded="true"]::before { transform: none; }
+.browser-group-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); cursor: pointer; }
+/* A count is a number, not a state, so it has no glyph. */
+.browser-group-count { flex: none; }
+.badge.browser-group-count::before { content: none; }
+.browser-group-action { flex: none; margin-inline-start: auto; }
+.browser-group-where { margin: calc(-1 * var(--space-1)) var(--space-3) var(--space-1) calc(10px + 16px + var(--space-2)); font-size: var(--text-2xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-group-body > .browser-subheading { padding-top: var(--space-2); }
+/* In Progress puts a group for each kind of work inside a workspace's
+   group, one step in, so the two levels read apart. */
+.in-progress-kind { margin-inline-start: var(--space-4); }
+.browser-row .md-item { display: block; }
+/* A row with PUDL's row actions button gives the rest of the row to its
+   link, and the pinned rows lead with the item's glyph. */
+.browser-row:has(> [data-row-actions]) > .md-item { flex: 1 1 auto; min-width: 0; }
+.pin-glyph { flex: none; }
+.browser-row.dragging { opacity: 0.5; }
+.workspace-pins-empty { margin: var(--space-1) var(--space-3) var(--space-2); }
+.browser-row-line { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.browser-row-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-row-badge { flex: none; }
+/* A part of an entry, such as a chat's earlier subagents in the Chats pane,
+   sits one step in under the entry it belongs to. */
+.browser-row.browser-row-part { margin-inline-start: var(--space-4); border-inline-start: 1px solid var(--border); }
+.browser-row-clamp { display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.browser-empty { padding: var(--space-4) var(--space-3); --glyph-size: 24px; }
+.browser-empty .empty-state-title { font-size: var(--text-md); }
+.browser-empty .empty-state-body { font-size: var(--text-sm); }
+
+/* The run's log: the activity list in dinah.css, with a row per tool call
+   and a block per message from the agent or the person. */
+.run-log { margin: 0; }
+.run-log .activity-row { align-items: baseline; }
+.run-log .tool-title { overflow-wrap: anywhere; }
+.run-log .tool-detail { grid-column: 2 / -1; margin: var(--space-1) 0 0; }
+.run-log .tool-detail pre { max-height: 16em; overflow: auto; margin: 0; font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* A command's terminal colours (ansiHTML in app.js), in the theme's own
+   colours so they read in light and dark: the sixteen colours fold onto
+   the text, the status colours and the accent. */
+.ansi-b { font-weight: 700; } .ansi-d { opacity: .7; } .ansi-i { font-style: italic; } .ansi-u { text-decoration: underline; }
+.ansi-fg0, .ansi-fg8 { color: var(--text-muted); }
+.ansi-fg1, .ansi-fg9 { color: var(--danger); }
+.ansi-fg2, .ansi-fg10 { color: var(--positive); }
+.ansi-fg3, .ansi-fg11 { color: var(--warn); }
+.ansi-fg4, .ansi-fg12, .ansi-fg6, .ansi-fg14 { color: var(--accent); }
+.ansi-fg5, .ansi-fg13 { color: color-mix(in srgb, var(--danger) 50%, var(--accent)); }
+.ansi-fg7, .ansi-fg15 { color: var(--text); }
+[class*="ansi-bg"] { background: color-mix(in srgb, var(--text) 10%, transparent); }
+.run-log .badge { margin-left: var(--space-2); }
+
+/* A folded run of tool calls is a PUDL disclosure card: its head counts
+   the calls and, while closed, says the step in hand; its body is the calls.
+   In the log it sits flush, with the card's padding drawn tighter, as a line
+   of the log rather than a card of the page. */
+.tool-group-body { grid-column: 2 / -1; min-width: 0; }
+.tool-group-body.card { background: none; border: 0; box-shadow: none; }
+.tool-group-body.card > .card-head { padding: 0; }
+.tool-group-body.card > .card-head > .card-title { font-size: inherit; font-weight: 400; }
+.tool-group-body.card > .card-body { padding: var(--space-1) 0 0; }
+.tool-group-failed { color: var(--danger); font-weight: 600; }
+.tool-group-list { list-style: none; margin: 0; padding: 0 0 0 var(--space-3); border-left: 2px solid var(--border); }
+.tool-group-list > .activity-row { border-bottom: 0; padding: 3px 0; }
+
+/* A message the bus delivered is a PUDL disclosure card of its own, flat as
+   display is, with the message's own surface; its head says who sent it
+   and, for a result, its status as a badge's glyph and word. */
+.delivered-card { grid-column: 2 / -1; min-width: 0; box-shadow: none; border-radius: var(--radius-md); }
+.delivered-card > .card-head { padding: var(--space-2) var(--space-4); }
+.delivered-card > .card-head > .card-title { font-size: var(--text-sm); font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
+.delivered-card > .card-body { padding: 0 var(--space-4) var(--space-3); font-size: var(--text-base); overflow-wrap: anywhere; }
+.delivered-card > .card-body > :first-child { margin-top: 0; }
+.delivered-card > .card-body > :last-child { margin-bottom: 0; }
+/* A message waiting for a chat that is still replaying: display, not part of the
+   conversation yet, so it has a dashed edge and says Waiting in a badge. */
+.arriving-card { grid-column: 2 / -1; min-width: 0; box-shadow: none; border-radius: var(--radius-md); border-style: dashed; }
+.arriving-card > .card-head { padding: var(--space-2) var(--space-4); display: flex; gap: var(--space-2); align-items: center; }
+.arriving-card > .card-head > .card-title { font-size: var(--text-sm); font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
+.arriving-card > .card-body { padding: 0 var(--space-4) var(--space-3); font-size: var(--text-base); overflow-wrap: anywhere; white-space: pre-wrap; }
+.arriving-more > p { grid-column: 2 / -1; margin: 0; }
+
+.msg { grid-column: 2 / -1; min-width: 0; font-size: var(--text-base); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border); }
+.msg > :first-child { margin-top: 0; }
+.msg > :last-child { margin-bottom: 0; }
+.msg-you { background: var(--surface-alt); }
+.msg-label { display: block; font-size: var(--text-sm); color: var(--text-muted); }
+.msg-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-1); }
+.msg-tools { display: inline-flex; gap: 4px; }
+/* A long message repeats its actions at its end, on the same side as at
+   its head. */
+.msg-foot { display: flex; justify-content: flex-end; margin-top: var(--space-1); }
+.msg-foot[hidden] { display: none; }
+.msg-act { width: 24px; height: 24px; --glyph-size: 13px; }
+
+/* The last message sent, pinned at the top of the run once it scrolls out
+   of sight: two lines, or all of it when opened. */
+/* A sticky element stops at the scroller's padding, so the pin is offset by
+   the run's own padding to sit against its top edge. */
+.pin { position: sticky; top: calc(-1 * var(--space-5)); z-index: 4; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: var(--space-2) var(--space-3); margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-3); padding: var(--space-2) var(--space-5); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); box-shadow: 0 4px 12px color-mix(in srgb, var(--shade) 10%, transparent); }
+/* Jump to the Latest stays at the bottom centre of the run while the reader
+   is back in the history, clear of each message's buttons at the right; its
+   holder takes no height, so the run's end is where it was. */
+.jump-end-wrap { position: sticky; bottom: 0; z-index: 4; height: 0; display: flex; justify-content: center; overflow: visible; }
+.jump-end { transform: translateY(-100%); box-shadow: var(--raise-shadow), 0 4px 12px color-mix(in srgb, var(--shade) 18%, transparent); }
+.pin-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); padding-top: 3px; white-space: nowrap; }
+.pin-text { margin: 0; font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pin.open .pin-text { display: block; max-height: 40vh; overflow-y: auto; }
+.pin-actions { display: inline-flex; gap: 4px; }
+.pin-actions .icon-btn { width: 24px; height: 24px; --glyph-size: 13px; }
+/* The pin opens with PUDL's tree toggle, whose caret turns from the end of
+   the line to down; it is sized to the buttons beside it. */
+.pin-actions .pin-expand { width: 24px; height: 24px; }
+.pin-expand[aria-expanded="true"]::before { transform: none; }
+/* A diagram in a message: drawn on a light card in either theme, with its
+   source folded under it. */
+.msg-diagram { margin: var(--space-2) 0; }
+.msg-diagram-svg { overflow-x: auto; padding: var(--space-2); background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); text-align: center; }
+.msg-diagram-svg svg { max-width: 100%; height: auto; }
+.msg-diagram details { margin-top: var(--space-1); font-size: var(--text-sm); }
+.msg-diagram-error { margin: 0 0 var(--space-1); color: var(--danger); font-size: var(--text-sm); }
+/* A table in a message: scrolls sideways rather than squeezing its columns. */
+.msg-table { overflow-x: auto; margin: var(--space-2) 0; }
+.msg-table table { border-collapse: collapse; font-size: var(--text-sm); }
+.msg-table th, .msg-table td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; vertical-align: top; }
+.msg-table th { background: var(--surface-alt); font-weight: 600; }
+.msg pre { overflow: auto; padding: var(--space-2); background: var(--surface-alt); border-radius: var(--radius-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Headings in a message use PUDL's type scale a step or more below a
+   page's, since a message is a card in a run of them; levels five and six,
+   which PUDL leaves to the browser, take the weight of the others at the
+   message's own size. */
+.msg-text :is(h1, h2, h3, h4, h5, h6) { margin: var(--space-3) 0 var(--space-2); }
+.msg-text > :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+.msg-text h1 { font-size: var(--text-xl); }
+.msg-text h2 { font-size: var(--text-lg); }
+.msg-text :is(h3, h4, h5, h6) { font-size: var(--text-base); }
+.msg-text :is(h5, h6) { font-family: var(--font-display); font-weight: 700; line-height: 1.25; }
+.msg-text h6 { color: var(--text-muted); }
+/* A quotation and a rule in a message are drawn as a quotation in a card
+   is (dinah.css), with the theme's border colour. A nested list keeps a
+   narrower indent than the browser's. */
+.msg-text blockquote { margin: var(--space-2) 0; padding-inline-start: var(--space-3); border-inline-start: 3px solid var(--border); color: var(--text-muted); }
+.msg-text hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-3) 0; }
+.msg-text :is(ul, ol) { padding-inline-start: var(--space-5); }
+.msg-text :is(ul, ol) :is(ul, ol) { margin: 0; }
+/* Display math scrolls sideways rather than widening the message. */
+.msg-math-display { display: block; overflow-x: auto; overflow-y: hidden; }
+.msg-math-display:not([data-typeset]) { white-space: pre-wrap; font-family: var(--mono); }
+
+/* Reopening a session: one line counts the history as it arrives, in place
+   of the log, which is drawn once at the end. */
+.replay { margin: 0 0 var(--space-3); color: var(--text-muted); display: flex; align-items: center; gap: var(--space-2); }
+.replay::before { content: ''; width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: replay-spin 0.9s linear infinite; }
+@keyframes replay-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .replay::before { animation: none; } }
+
+/* A session Devin could not open: the reason and what to do, over the
+   prompt, where the eye is. */
+.session-note { flex: none; padding: var(--space-3) var(--space-5) 0; background: var(--surface); border-top: 1px solid var(--border); }
+/* Open With… lists the values the agent offers under the note's buttons. */
+.session-open-with { margin-top: var(--space-3); }
+.thought { color: var(--text-muted); font-style: italic; white-space: pre-wrap; }
+body:not(.show-thoughts) .thought-row { display: none; }
+.run-empty { margin: 0; }
+
+/* The brand colours beyond PUDL's own tokens (brand.css lists them): purple
+   marks skills, yellow marks what needs the person, and navy is the session
+   title's colour. */
+[data-view-id="session-title"] { color: var(--dinah-title); }
+.skill-name, .skill-form-name { color: var(--dinah-skill); }
+.notice.notification-info { --notice-color: var(--accent); }
+.notice.notification-success { --notice-color: var(--positive); border-inline-start-color: var(--positive); }
+.notice.notification-warning { --notice-color: var(--warn); border-inline-start-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, var(--surface)); }
+.notice.notification-error { --notice-color: var(--danger); border-inline-start-color: var(--danger); }
+.run-log .activity-row.flash { animation: question-flash 1.2s ease-out 1; }
+@media (prefers-reduced-motion: reduce) { .run-log .activity-row.flash { animation: none; } }
+.needs-you > h2::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--warn); vertical-align: 1px; }
+.session-badge.badge.warn { background: var(--warn); color: var(--on-warn); border-color: transparent; }
+.question.flash { animation-name: question-flash-dinah; }
+@keyframes question-flash-dinah { from { box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 70%, transparent); } to { box-shadow: 0 0 0 0 transparent; } }
+
+/* A window title's detail follows the title, and the free space is after
+   it. PUDL lets the title grow, which puts the detail far to the right, so
+   neither grows here; this is the change asked of PUDL, to be removed when
+   PUDL takes it over. The title keeps PUDL's priority: the detail gives way
+   first, down to PUDL's least width for it, and then the title does. */
+.win-head:has(> .win-title-detail:not([hidden])) > .win-title { flex: 0 1 auto; }
+.win-title-detail { flex: 0 1000 auto; margin-inline-end: auto; }
+
+/* PUDL's loading line, made for an empty region, on one line of the status
+   area while Dinah starts. */
+.status-starting { display: inline-flex; justify-content: flex-start; padding: 0 var(--space-2); }
+
+
+/* A folder that takes files dropped from the system's file manager: Wails
+   delivers a drop only over an element with this property, and marks the
+   one under the pointer while files are dragged over it. */
+.upload-drop-active { outline: 2px dashed var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* A placeholder is faded so that it is not taken for typed text. PUDL 0.62.0
+   declined this, because its specification keeps a placeholder at full
+   strength to reach a 4.5:1 contrast. */
+::placeholder { color: var(--text-muted); opacity: .5; }
+
+/* The brand shows Dinah's mark beside the name. */
+.app-brand { display: inline-flex; align-items: center; gap: 8px; }
+.app-brand img { flex: none; }
+/* A dialog with a title has no top padding (its title sticks to the top),
+   so the mark over the title gets the dialog's side padding above it. */
+.about-logo { display: block; margin: var(--space-5) 0 var(--space-4); }
+
+/* Glyphs PUDL does not have yet, drawn like its own: a 16-unit outline at
+   PUDL's stroke weight, used as a mask. */
+:root {
+  --glyph-bin: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4 4.5l.7 8.6a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8.6M6.7 7v4.5M9.3 7v4.5'/%3E%3C/svg%3E");
+  /* Subagents: an agent above the two workers it handed work to. PUDL's
+     branch glyph, which the subagents used before, is Git's (Paul, 28
+     October 2026). */
+  --glyph-subagents: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M5.5 1.5h5v4h-5zM8 5.5V8M4 8h8M4 8v2.5M12 8v2.5M1.5 10.5h5v4h-5zM9.5 10.5h5v4h-5z'/%3E%3C/svg%3E");
+}
+
+/* The session's title row: the name, and on its right the buttons that
+   rename and remove it. */
+.session-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.session-head > h1 { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-actions { display: inline-flex; gap: var(--space-1); flex: none; }
+.session-actions .icon-btn { --glyph-size: 15px; }
+.session-head .session-rename { height: 36px; font-size: var(--text-xl); font-weight: 700; }
+
+/* Renaming a session: its row's title becomes a field in place. */
+.session-rename { width: 100%; height: 28px; padding: 2px 8px; font-size: var(--text-sm); }
+
+/* The Devin item in the status area is a button that opens the Devin menu;
+   it looks like the other status items. */
+.agent-menu { min-width: 22rem; }
+.agent-menu .md-item { display: flex; flex-direction: column; align-items: flex-start; white-space: normal; }
+.agent-state { color: var(--text-muted); font-size: var(--text-sm); }
+
+/* The Workspace pane's toolbar stays in view as the pane scrolls: the
+   workspace chosen in a select, then New Workspace… and Actions. */
+/* The toolbar and Pinned are frozen at the top of the Workspace pane; a
+   long list of pins scrolls inside its own section. */
+.ws-frozen { position: sticky; top: 0; z-index: 2; flex: none; background: var(--surface); border-bottom: 1px solid var(--border); }
+.ws-frozen #workspace-pins-group .browser-group-body { max-height: 30vh; overflow-y: auto; }
+/* A list's last row needs no rule of its own above the next section's. */
+.workspace-list .session-list > .md-row:last-child { border-bottom: 0; }
+.ws-choose, .ws-choose .form-select { width: 100%; min-width: 0; }
+.session-list { flex: none; }
+.session-list .md-item { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); }
+.session-list .session-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-list .md-meta { flex-basis: 100%; }
+.session-badge { flex: none; }
+.menu-note { margin: var(--space-2) 14px; }
+
+/* The composer. A bar of small controls (the document, the mode, the model,
+   anything queued, and Stop while Devin works) sits over one row: the
+   sunken input and, beside it, the action buttons stacked in a column, so
+   the buttons never take a line of their own. */
+.composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-5) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); }
+/* The composer's bar: PUDL's folding toolbar, which keeps to one row and
+   folds its groups into menus as the room runs out, with Usage after it.
+   The document that goes with the message and the messages waiting for
+   the turn to end are each said on a line of their own below. */
+.composer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: 28px; }
+.composer-toolbar { flex: 1 1 0; min-width: 0; }
+.composer-toolbar :is([data-command="model"], [data-command="mode"], [data-command="provider"]) .toolbar-words { max-width: 18em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.composer-bar > .composer-usage { flex: none; }
+.composer-context, .composer-queue { flex-basis: 100%; min-width: 0; }
+.composer-context { display: flex; align-items: center; gap: var(--space-1); }
+.composer-context[hidden], .composer-queue[hidden] { display: none; }
+.composer-clear { width: 22px; height: 22px; --glyph-size: 12px; }
+.composer-queue { margin: 0; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The session's context, as a small meter at the right of the bar, and
+   what it holds when pressed: the context in tokens, the last turn's
+   length, the cost when Devin reports one, and the usage page. */
+.composer-usage { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.usage-meter { display: inline-block; width: 44px; height: 6px; border-radius: 3px; background: var(--surface-alt); box-shadow: inset 0 0 0 1px var(--border); overflow: hidden; }
+.usage-fill { display: block; height: 100%; width: 0; background: var(--accent); }
+.composer-usage.usage-high .usage-fill { background: var(--warn); }
+.usage-menu { min-width: 20rem; max-width: 26rem; }
+.usage-detail { margin: 0 14px var(--space-2); }
+.usage-line { display: flex; justify-content: space-between; gap: var(--space-4); margin: 2px 0; font-size: var(--text-sm); }
+.usage-label { color: var(--text-muted); }
+.usage-value { font-variant-numeric: tabular-nums; text-align: right; }
+.usage-note { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--text-muted); max-width: 22rem; }
+.usage-menu { max-height: min(75vh, 42rem); overflow-y: auto; }
+.usage-bucket { border-top: 1px solid var(--border); margin-top: var(--space-3); padding-top: var(--space-2); }
+.usage-bucket h4 { margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.usage-menu .usage-line > span { min-width: 0; overflow-wrap: anywhere; }
+/* The agent menu's usage line, from 90% of a quota window on. */
+.menu-usage-warn, .md-meta.menu-usage-warn { color: var(--danger); }
+.menu-usage-warn .glyph { width: 1em; height: 1em; vertical-align: -0.125em; }
+.turn-meta { color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Smart chips: what the workspace can open, in Devin's messages. */
+.smart-chip { color: var(--accent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 3px; padding: 0 2px; cursor: pointer; overflow-wrap: anywhere; }
+.smart-chip:hover { text-decoration-style: solid; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+/* A link to a document shows the glyph of where it opens before its text
+   (chat-text.js, linkLook); its tooltip gives the words. */
+.smart-chip > .link-glyph { margin-inline-end: 0.2em; }
+
+/* Personal templates: in the skills menu, and a dialog to keep them. */
+.template-name { font-weight: 600; }
+.templates-dialog { max-width: 720px; width: min(720px, calc(100vw - 32px)); }
+.templates-dialog .history-list { max-height: 34vh; margin-bottom: var(--space-4); }
+.template-item { padding: var(--space-2); border-bottom: 1px solid var(--surface-alt); }
+.template-item:last-child { border-bottom: 0; }
+.template-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.template-item .history-text { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+.template-form { margin-bottom: var(--space-4); }
+.template-form h3 { margin: 0; font-size: var(--text-base); }
+/* The skills: the toolbar's Skills menu, and the same list as a pop-up
+   over the prompt when a "/" starts a word there. */
+.skill-row .md-item { white-space: normal; }
+.skill-name { font-family: var(--font-mono, ui-monospace, monospace); font-weight: 600; }
+.skill-row .md-meta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.slash-pop { position: absolute; left: 0; right: 7em; bottom: calc(100% + 4px); z-index: 20; max-height: 18rem; overflow-y: auto; padding: 4px 0; background: var(--dialog-bg, var(--surface)); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-card), 0 12px 32px color-mix(in srgb, var(--shade) calc(var(--depth) * 1.6), transparent); }
+.slash-pop .md-row:is([aria-selected="true"], :hover, :focus-visible) { background: var(--accent); color: var(--on-accent); border-inline-end-color: var(--on-accent); }
+.slash-pop .md-row:is([aria-selected="true"], :hover, :focus-visible) :is(.md-item, .md-meta, .mention-name, .mention-detail, .text-muted, small, .form-help) { color: inherit; }
+.slash-pop .md-section-label { margin-top: 2px; }
+.slash-hint { padding: 4px 14px 2px; font-size: var(--text-2xs); color: var(--text-muted); border-top: 1px solid var(--surface-alt); }
+.composer-row { position: relative; }
+
+/* Files attached to the next message: a chip each, an image with its
+   thumbnail. */
+.attachments { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.attachment { display: inline-flex; align-items: center; gap: 6px; max-width: 18rem; padding: 3px 4px 3px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-alt); font-size: var(--text-sm); }
+.attachment img { width: 32px; height: 32px; object-fit: cover; border-radius: 3px; flex: none; }
+.attachment > .glyph { --glyph-size: 16px; color: var(--text-muted); }
+.attachment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-size { flex: none; color: var(--text-muted); font-size: var(--text-xs); }
+.attachment-remove { width: 22px; height: 22px; --glyph-size: 11px; flex: none; }
+.attachment-note { align-self: center; font-size: var(--text-xs); color: var(--text-muted); }
+.chat-pane.dropping { outline: 3px dashed var(--accent); outline-offset: -6px; }
+.mention-name { font-weight: 600; }
+
+/* A skill's parameters as a small form over the prompt: the skill and what
+   it does, a field for each parameter, and the command it will send. */
+.skill-form { margin: 0; padding: var(--space-2) var(--space-3) var(--space-2); border: 1px solid var(--border); border-left: 3px solid var(--dinah-skill); border-radius: var(--radius-sm); background: var(--surface-alt); min-width: 0; }
+.skill-form-head { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.skill-form-name { font-family: var(--font-mono, ui-monospace, monospace); font-weight: 700; flex: none; }
+.skill-form-desc { flex: 1 1 auto; min-width: 0; color: var(--text-muted); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skill-form-close { width: 22px; height: 22px; --glyph-size: 12px; flex: none; align-self: center; }
+.skill-form-fields { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin-top: var(--space-2); align-items: flex-end; }
+.skill-field { display: flex; flex-direction: column; gap: 2px; min-width: 9rem; flex: 0 1 auto; }
+.skill-field.wide { flex: 1 1 16rem; }
+.skill-field > label { font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); }
+.skill-field .form-input, .skill-field .form-select { height: 30px; padding-block: 3px; font-size: var(--text-sm); }
+.skill-field.check-field { flex-direction: row; align-items: center; min-width: 0; padding-bottom: 6px; }
+.skill-field.missing .form-input, .skill-field.missing .form-select { border-color: var(--danger); box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 25%, transparent); }
+.skill-form-preview { margin: var(--space-2) 0 0; font-size: var(--text-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.composer-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: stretch; }
+/* The prompt grows with what is typed, from two lines up to fifteen or 40%
+   of the window, whichever is less, and scrolls after that. field-sizing is
+   the standard way (CSS Basic User Interface 4); app.js sizes the box itself
+   where a browser lacks it. */
+.composer-input { width: 100%; resize: none; field-sizing: content; min-height: calc(2lh + 18px); max-height: min(calc(15lh + 18px), 40vh); overflow-y: auto; }
+.composer-actions { display: flex; flex-direction: column; gap: var(--space-2); justify-content: flex-end; }
+.composer-actions > .btn { min-width: 6.5em; }
+
+/* The prompt history: a sunken, scrolling list of pressable prompts. */
+.history-dialog { max-width: 720px; }
+.history-list { list-style: none; margin: var(--space-3) 0 var(--space-5); padding: var(--space-1); max-height: 50vh; overflow-y: auto; border: 1px solid var(--input-border); border-radius: var(--radius-sm); background: var(--input-bg); box-shadow: var(--entry-shadow); }
+.history-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: var(--space-2); border: 0; border-radius: var(--radius-sm); background: none; color: var(--text); font: inherit; cursor: pointer; }
+.history-item:hover, .history-item:focus-visible { background: var(--surface-alt); outline: none; }
+.history-meta { font-size: var(--text-sm); color: var(--text-muted); }
+.history-text { white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.history-actions > :first-child { margin-right: auto; }
+
+/* Settings. */
+.settings-tabs { flex: none; overflow-x: auto; }
+.settings-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.settings-body > .settings-panel { width: 100%; max-width: none; margin-inline: 0; min-height: 0; overflow: auto; }
+.settings-body > .settings-panel > * { width: 100%; max-width: 696px; margin-inline: auto; flex-shrink: 0; }
+.settings-body .seg { align-self: flex-start; }
+[data-provider-module] .seg { max-width: 100%; }
+[data-provider-module] .seg button { white-space: normal; }
+/* A kind of window's own choice stands under Open New Windows, indented, as
+   the exception to it. */
+.settings-window-kinds { display: flex; flex-direction: column; gap: var(--space-3); margin-left: var(--space-2); padding-left: var(--space-4); border-left: 2px solid var(--border); }
+.settings-window-kinds:empty { display: none; }
+.settings-window-kind-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* A command that cannot run now is listed in command search, faded. */
+#go-to-list tr.go-to-disabled { opacity: 0.55; }
+/* Documents › Recent › Show All… and Help › Keyboard Shortcuts. */
+.recent-documents, .keyboard-help { width: min(48rem, 94vw); max-width: none; }
+.recent-documents-list, .keyboard-help-table { max-height: 55vh; overflow: auto; }
+.recent-documents-list .data-table, .keyboard-help-table .data-table { width: 100%; }
+.recent-documents-detail { color: var(--text-muted); white-space: nowrap; }
+/* Every text area grows with its text and scrolls beyond a limit, so a
+   field is never a one-line slit over several lines of words (Paul's rule
+   of 14 October 2026). The floor is the rows the markup asks for, two
+   when it asks for none; the ceiling is about twenty lines; dragging the
+   corner still sets a height. A field with its own bounds, such as the
+   chat's prompt, keeps them. app.js sizes the box itself where a browser
+   lacks field-sizing. */
+textarea.form-textarea { field-sizing: content; min-height: calc(2lh + 1em); max-height: calc(20lh + 1em); overflow-y: auto; resize: vertical; }
+textarea.form-textarea[rows="1"] { min-height: calc(1lh + 1em); }
+textarea.form-textarea[rows="3"] { min-height: calc(3lh + 1em); }
+textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height: calc(5lh + 1em); }
+
+/* A setting shown as one line, what it is now and a button that changes it. */
+.settings-line { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; }
+.settings-line > span { min-width: 0; overflow-wrap: anywhere; }
+.settings-line > .btn { flex: none; }
+#model-prefs .settings-line { margin-bottom: var(--space-3); }
+.settings-body .check { align-items: flex-start; }
+.settings-body .check input { margin-top: 3px; flex: none; }
+
+/* The model list: a filter over a sunken, scrolling list of the models
+   Devin offers, the pinned ones first. A row is pressed to choose its model;
+   its pin button pins or unpins it. */
+.model-list { max-height: 15em; overflow-y: auto; border: 1px solid var(--input-border); border-radius: var(--radius-sm); background: var(--input-bg); box-shadow: var(--entry-shadow); padding: var(--space-1); }
+.model-list .md-section-label { margin: var(--space-2) var(--space-2) var(--space-1); }
+.model-row { gap: var(--space-1); padding-right: var(--space-1); }
+.model-pin { width: 24px; height: 24px; --glyph-size: 12px; flex: none; }
+.fav-check { padding: 5px 14px; width: 100%; font-size: var(--text-sm); }
+.models-dialog { max-width: 560px; }
+.models-dialog .model-list { max-height: 50vh; margin: var(--space-3) 0 var(--space-5); }
+.model-pin[aria-pressed="false"] { opacity: .45; }
+.model-pin[aria-pressed="false"]:hover, .model-row:hover .model-pin { opacity: 1; }
+
+/* A tool call's details fold under a small disclosure, at PUDL's small
+   button size (.btn-sm), since a run has many of them. The selector
+   outweighs the disclosure rule for a chat's log in dinah.css, which would
+   otherwise win. */
+.page-body .run-log details.tool-detail > summary { padding: 4px 10px; font-size: var(--text-xs); gap: 4px; }
+
+/* Notifications sits between the run and the composer, so a question is in
+   sight whatever the run has scrolled to. */
+.needs-you { flex: none; max-height: min(60%, 32rem); overflow-y: auto; padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border); background: var(--surface); }
+.needs-you h2 { margin: 0; font-size: var(--text-base); }
+/* The filter above the entries: the kind, the text, and Clear All. */
+.needs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.needs-filters .needs-filter-text { flex: 1 1 12rem; min-width: 8rem; width: auto; }
+.needs-filters #needs-clear { margin-left: auto; }
+.chat-approvals { flex: 0 0 auto; min-height: 0; max-height: 50%; box-sizing: border-box; overflow-y: auto; padding: var(--space-2) var(--space-5); border-top: 1px solid var(--border); }
+.chat-approvals[hidden] { display: none; }
+.chat-approvals > .question { flex: none; }
+.chat-approvals .notice-body { overflow-wrap: anywhere; }
+.failure-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-block: var(--space-2); }
+.failure-review { overflow: auto; padding: var(--space-3); }
+.failure-review pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* The status item with nothing waiting reads as quiet, and pressing it says
+   so; with a question waiting it leads to the question. */
+.status-item[data-empty] { opacity: .7; }
+.question.flash { animation: question-flash .9s ease-out 1; }
+@keyframes question-flash { from { box-shadow: 0 0 0 4px var(--focus-ring); } to { box-shadow: 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .question.flash { animation: none; } }
+
+/* A question from the agent: PUDL's warn notice, with one button per
+   option the agent offers. */
+.question .notice-actions { flex-wrap: wrap; min-width: 0; }
+.question code { overflow-wrap: anywhere; }
+.applet-artifact { padding: 1rem; overflow: auto; height: 100%; }
+.applet-artifact img { max-width: 100%; background: white; }
+.applet-workspace { padding: .5rem .75rem; }
+.applet-result { flex-wrap: wrap; overflow-wrap: anywhere; }
+.applet-result > .browser-row-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: var(--space-1); padding: 0 14px var(--space-2); }
+.applet-result > .applet-output { flex-basis: 100%; margin: 0 14px var(--space-2); }
+.applet-output { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }
+.applet-question input[type="checkbox"] { margin-left: .5rem; }
+.applet-question .notice-body, .applet-question form { min-width: 0; width: 100%; overflow-wrap: anywhere; }
+.applet-question .notice-actions { flex-wrap: wrap; }
+
+.workspace-sources, .dinah-files { min-width: 0; }
+.workspace-resource-tree { padding-block: var(--space-1); }
+.workspace-resource-node { min-width: 0; }
+.workspace-resource-tree .workspace-resource-name { min-width: 0; }
+.workspace-resource-name > .glyph { flex: none; }
+.workspace-resource-name > .fm-ti-label { min-width: 0; }
+/* A folder not on this computer yet, and a source of a kind this build does
+   not use, are dimmed (docs/design/workspace-export.md). */
+.workspace-resource-missing > .workspace-resource-name { color: var(--text-muted); font-style: italic; }
+.workspace-resource-missing > .workspace-resource-name > .glyph { opacity: 0.6; }
+
+/* Import Workspace…: one bordered row a source, its status as a badge. */
+.import-dialog .import-sources { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.import-dialog .import-source { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.import-dialog .import-source-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.import-dialog .import-source-where { margin: var(--space-1) 0; overflow-wrap: anywhere; }
+.import-dialog .import-source p.form-help:last-child { margin-bottom: 0; }
+
+/* A package's install plan, its update window and the installed list in
+   Settings › Packages (docs/design/packages.md). */
+.install-plan { max-width: min(56rem, 94vw); }
+.install-plan .dialog-body > p { margin: 0 0 var(--space-2); }
+.install-plan-facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; }
+.install-plan-facts dt { font-weight: 600; color: var(--text); }
+.install-plan-facts dd { margin: 0; overflow-wrap: anywhere; }
+.install-plan-heading { margin: var(--space-3) 0 var(--space-1); font-size: var(--text-sm); font-weight: 700; color: var(--text); }
+.install-plan-list { margin: 0; padding-inline-start: 1.25rem; overflow-wrap: anywhere; }
+.install-plan-names { columns: 3 11rem; column-gap: var(--space-4); }
+.update-dialog { width: min(40rem, calc(100vw - 2rem)); }
+.update-dialog .update-list { margin: 0; padding-inline-start: 1.25rem; }
+.update-dialog .update-list li + li { margin-top: var(--space-2); }
+.package-list { margin: 0; padding-inline-start: 1.25rem; overflow-wrap: anywhere; }
+
+.sent-images { display:flex; flex-wrap:wrap; gap:var(--space-2); margin-top:var(--space-2); }
+.sent-images img { width:auto; height:auto; max-width:min(240px,100%); max-height:160px; object-fit:contain; cursor:zoom-in; }
+
+/* The chips in a chat window's title bar (Working, Background and
+   Subagents) are PUDL's title-bar status chips since 0.88.0, which take the
+   bar's own text colour, outlined, on no fill, so they have the title's
+   contrast in every theme (Paul, 26 October 2026). */
+.background-tasks { list-style:none; margin:var(--space-2) 0 0; padding:0; display:grid; gap:var(--space-1); font-size:var(--text-sm); }
+.background-tasks[hidden] { display:none; }
+.background-task { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
+.background-task-mark { flex:none; color:var(--accent); }
+.background-task-words { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.background-task-detail { color:var(--text-muted); }
+
+/* Subagents (subagents.js). Running subagents have a chip like background
+   work's, with the title-bar chips above. Each state is a glyph and a word: PUDL's badges give running,
+   completed and failed theirs, and cancelled and disconnected get glyphs of
+   their own, so that an unknown outcome looks like neither a failure nor a
+   cancellation. */
+.badge.subagent-cancelled::before { content:""; --glyph: var(--glyph-stop); }
+.badge.subagent-unknown::before { content:""; --glyph: var(--glyph-ring); }
+.badge.subagent-state { margin-left:0; white-space:nowrap; }
+/* A subagent's task is drawn on two lines at most wherever subagents are
+   listed: its row in the chat and in a subagent's window, the tree, the
+   head of a subagent's window, and the second line of a menu row, which
+   the Subagents menu uses for it. The text is cut with an ellipsis by line
+   clamping (CSS Overflow Level 4), so the whole of it stays in the page
+   for a screen reader, and the element's title shows it on hover. The
+   folded Prompt in a subagent's window keeps the whole prompt. */
+.subagent-row-task, .subagent-task, .subagent-head-task, .menu-row-detail, .menubar-detail { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+.run-log .subagent-row { align-items:center; }
+.subagent-row-body { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.subagent-row-head { display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap; }
+.subagent-row-task { color:var(--text-muted); font-size:var(--text-sm); }
+.subagent-row > .subagent-open { flex:none; margin-left:var(--space-2); }
+.subagents-applet, .subagent-applet { display:flex; flex-direction:column; overflow:hidden; background:var(--surface-alt); }
+.subagents-meta { flex:none; margin:0; padding:var(--space-2) var(--space-3); background:var(--surface); border-bottom:1px solid var(--border); }
+.subagents-body, .subagent-body { flex:1; min-height:0; overflow:auto; padding:var(--space-2) var(--space-3); }
+.subagent-tree, .subagent-tree ul { list-style:none; margin:0; padding:0; }
+.subagent-tree ul { margin-left:var(--space-4); padding-left:var(--space-3); border-left:1px solid var(--border); }
+.subagent-node { margin:var(--space-1) 0; }
+.subagent-line { display:flex; align-items:center; gap:var(--space-2); min-width:0; padding:var(--space-1) 0; }
+.subagent-words { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+.subagent-task { max-width:100%; color:var(--text-muted); font-size:var(--text-sm); }
+.subagent-under { font-weight:normal; color:var(--text-muted); }
+.subagents-foot { margin:var(--space-3) 0 var(--space-1); }
+.subagent-ran { flex:none; font-size:var(--text-sm); color:var(--text-muted); font-variant-numeric:tabular-nums; }
+.subagent-head { flex:none; padding:var(--space-2) var(--space-3); background:var(--surface); border-bottom:1px solid var(--border); }
+.subagent-head > p { margin:0; }
+.subagent-head-line { display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap; }
+.subagent-head-ran { font-size:var(--text-sm); color:var(--text-muted); font-variant-numeric:tabular-nums; }
+.subagent-head-task { color:var(--text-muted); margin-top:var(--space-1) !important; }
+.subagent-prompt { margin-top:var(--space-1); font-size:var(--text-sm); }
+.subagent-prompt pre { max-height:16em; overflow:auto; margin:var(--space-1) 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.subagent-note { margin-top:var(--space-1) !important; }
+
+/* Keep transcript DOM mounted while the browser skips distant message layout. */
+@supports (content-visibility: auto) and (contain-intrinsic-block-size: auto 120px) {
+  .chat-instance .run-log:not([data-preserve-scroll-layout]) .activity-row { content-visibility:auto; contain-intrinsic-block-size:auto 120px; }
+}
+@media print { .chat-instance .activity-row { content-visibility:visible; } }
+
+/* The window's Loading chip, while a chat's history arrives behind its saved copy. */
+.chat-loading-chip .spinner { width: 1em; height: 1em; border-width: 1.5px; }
+
+.attachment-warn { color: var(--warn); font-weight: 600; }
+.attachment-warn::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-inline-end: var(--space-1); vertical-align: -0.15em; background: currentColor; -webkit-mask: var(--glyph-warning) center / contain no-repeat; mask: var(--glyph-warning) center / contain no-repeat; }
+
+/* A switch running or failed, where the box was. PUDL's bar brings the
+   motion and its reduced-motion rest. */
+.switch-progress { margin-block-end: var(--space-2); }
+.switch-progress .progress-row { padding-inline: var(--space-2); }
+.switch-progress .notice { margin: var(--space-2); }

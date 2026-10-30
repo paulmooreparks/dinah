@@ -1,0 +1,58 @@
+/* Judgements: the tray widget's state colour, the page's graph and detail,
+   and the Settings section (judgements-applet.js). */
+
+#status-judgements[data-judgement="warning"] .status-words { color: var(--warn); }
+#status-judgements[data-judgement="off"] .status-words { color: var(--text-muted); }
+
+#judgements-status-list { display: flex; flex-direction: column; gap: var(--space-2); min-width: 260px; }
+#judgements-status-list .judgements-popup-line { margin: 0; max-width: 320px; }
+
+.judgements { padding: var(--space-4); overflow: auto; }
+.judgements-toolbar .form-select { max-width: 220px; }
+.judgements-total { margin: 0; }
+
+/* The graph: one bar a day, pressed to filter the list to that day. The
+   judge's share is the accent and the rule's the warning colour, as the
+   badges say elsewhere. */
+.judgements-graph { display: flex; align-items: flex-end; gap: var(--space-2); height: 120px; }
+.judgements-graph .jbar { display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; flex: 1; height: 100%; padding: var(--space-1); cursor: pointer; }
+.judgements-graph .jbar .jbar-fill { display: flex; flex-direction: column-reverse; overflow: hidden; border-radius: var(--space-1) var(--space-1) 0 0; }
+.judgements-graph .jbar .jbar-judge { background: var(--accent); flex-basis: 0; }
+.judgements-graph .jbar .jbar-fallback { background: repeating-linear-gradient(135deg, var(--warn) 0 3px, var(--text) 3px 5px); flex-basis: 0; }
+.judgements-graph .jbar .jbar-day { font-size: var(--text-2xs); color: var(--text-muted); text-align: center; padding-top: var(--space-1); }
+.judgements-graph .jbar[aria-pressed="true"] .jbar-fill { outline: 2px solid var(--text); outline-offset: 1px; }
+
+.judgements-breakdown { align-items: flex-start; flex-wrap: wrap; }
+.judgements-breakdown .judgements-by { flex: 1; min-width: 320px; }
+
+.judgements-list { max-height: 420px; overflow: auto; }
+.judgements-more { align-self: flex-start; }
+
+.judgement-detail { padding: var(--space-4); }
+.judgement-detail .judgement-detail-title { margin: 0; }
+.judgement-field .judgement-value { margin: 0; padding: var(--space-2); background: var(--surface-alt); border-radius: 7px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; }
+.judgement-correct .form-input { max-width: 320px; }
+
+#judgements-card .judgement-kind { padding-block: var(--space-2); }
+#judgements-card .judgement-kind-name { font-weight: 600; }
+
+/* The page's budget rows: a track of the week's budget, the spent part
+   filled, a mark where the allowance stands by now. */
+.judgement-budget-row { margin-block: var(--space-2); }
+.judgement-budget-name { font-weight: 600; min-width: 120px; }
+.judgement-budget-track { position: relative; display: block; height: 8px; width: 260px; background: var(--surface-alt); border-radius: 4px; }
+.judgement-budget-fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 4px 0 0 4px; }
+.judgement-budget-allowance { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); }
+
+#judgements-card .judgement-budget-edit input { max-width: 140px; }
+#judgements-card .judgement-calibration table { margin-block: var(--space-2); }
+
+/* PUDL owns the split, resizing and the narrow one-pane layout. */
+.judgements-md { flex: 1; min-height: 360px; --md-sidebar-w: 340px; }
+.judgements-md .md-sidebar-head { position: static; }
+.judgements-md .judgements-toolbar { flex-wrap: wrap; }
+.judgements-md .judgements-list { max-height: 420px; overflow: auto; }
+.judgements-list .md-meta { white-space: normal; overflow-wrap: anywhere; }
+.judgements-md .md-detail { min-width: 0; }
+.judgements-md .judgement-detail { margin: var(--space-2); }
+.judgements-more-row { padding: var(--space-2) var(--space-3); }

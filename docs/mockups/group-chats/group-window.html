@@ -1,0 +1,111 @@
+<!doctype html>
+<!-- Screen 3: the window of the group PUDL Release Review. The members are
+     chips with each chat's state and a button for its menu, then Add
+     Chats…. The conversation shows each message under its sender's title,
+     a closed chat woken by a mention, and the composer with its @ list
+     open. A chip's menu button opens its menu. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Group Window: Group Chats Mockup</title>
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/brand.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/dinah.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body data-front="PUDL Release Review">
+  <div class="desk one">
+    <section class="win active" data-win="group-pudl-release-review">
+      <header class="win-head">
+        <button type="button" class="win-btn" data-win-action="menu" aria-label="Window menu"></button>
+        <h2 class="win-title">PUDL Release Review</h2>
+        <nav class="win-chrome" aria-label="Window"><button type="button" class="win-btn" data-win-action="minimize" aria-label="Minimize"></button><button type="button" class="win-btn" data-win-action="maximize" aria-label="Maximize"></button><button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav>
+      </header>
+      <div class="win-body">
+        <div class="group-members" role="list" aria-label="Members">
+          <span class="md-meta">Members</span>
+          <span class="chip member-chip" role="listitem"><span class="state-glyph open" role="img" aria-label="Open" title="Open in a window"></span>PUDL Development<button type="button" class="icon-btn" data-chip-menu aria-label="PUDL Development Menu"><span class="glyph" aria-hidden="true"></span></button></span>
+          <span class="chip member-chip" role="listitem"><span class="state-glyph working" role="img" aria-label="Working" title="The agent is working"></span>Dinah Development<button type="button" class="icon-btn" data-chip-menu aria-label="Dinah Development Menu"><span class="glyph" aria-hidden="true"></span></button></span>
+          <span class="chip member-chip" role="listitem"><span class="state-glyph open" role="img" aria-label="Open" title="Open in a window"></span>Ledger Development<button type="button" class="icon-btn" data-chip-menu aria-label="Ledger Development Menu"><span class="glyph" aria-hidden="true"></span></button></span>
+          <span class="chip member-chip" role="listitem"><span class="state-glyph open" role="img" aria-label="Open in the background" title="Open in the background, without a window"></span>Ledger Timesheet Applet<button type="button" class="icon-btn" data-chip-menu aria-label="Ledger Timesheet Applet Menu"><span class="glyph" aria-hidden="true"></span></button></span>
+          <span class="chip member-chip person" role="listitem">Paul (You)</span>
+          <button type="button" class="btn btn-sm">Add Chats…</button>
+        </div>
+
+        <div class="mock-log group-log">
+          <div class="msg msg-you"><div class="msg-head"><span class="msg-label"><strong>Paul</strong></span><span class="msg-when">10:02</span></div>
+            <p class="msg-text"><span class="mention">@PUDL Development</span> the 0.90.0 release candidate is tagged. What changed in menus and list boxes since 0.89.5?</p></div>
+          <div class="msg"><div class="msg-head"><span class="msg-label"><strong>PUDL Development</strong> in pudl</span><span class="msg-when">10:04</span></div>
+            <p class="msg-text">A list box row can now hold a second line, and a context menu's submenu row has its caret. Both are opt in, so nothing that uses 0.89.5 has to change.</p></div>
+          <div class="msg msg-you"><div class="msg-head"><span class="msg-label"><strong>Paul</strong></span><span class="msg-when">10:05</span></div>
+            <p class="msg-text"><span class="mention">@Dinah Development</span> <span class="mention">@Ledger Development</span> please try 0.90.0 on your branches and say whether anything breaks.</p></div>
+          <div class="msg"><div class="msg-head"><span class="msg-label"><strong>Ledger Development</strong> in ledger</span><span class="msg-when">10:09</span></div>
+            <p class="msg-text">The expense list and the receipt viewer pass. The timesheet applet belongs to another chat, so I have not tried it.</p></div>
+          <p class="system-line">Paul added Ledger Timesheet Applet to the group.</p>
+          <div class="msg msg-you"><div class="msg-head"><span class="msg-label"><strong>Paul</strong></span><span class="msg-when">10:11</span></div>
+            <p class="msg-text"><span class="mention">@Ledger Timesheet Applet</span> does the timesheet grid still render with 0.90.0?</p></div>
+          <p class="system-line">Ledger Timesheet Applet was closed, so Dinah opened it in the background to answer.</p>
+          <div class="msg"><div class="msg-head"><span class="msg-label"><strong>Ledger Timesheet Applet</strong> in ledger</span><span class="msg-when">10:14</span></div>
+            <p class="msg-text">Yes. The grid renders and its tests pass. One column header loses its sort glyph in the dark theme, and I have asked PUDL Development about it.</p></div>
+        </div>
+
+        <form class="composer group-composer">
+          <div class="composer-row">
+            <label class="visually-hidden" for="group-prompt">Message to the group</label>
+            <textarea class="form-textarea composer-input" id="group-prompt" rows="2" placeholder="Write to the group. Type @ and a chat's title to wake that chat." aria-autocomplete="list" aria-controls="mention-pop">Thanks. @</textarea>
+            <div class="slash-pop" id="mention-pop" role="listbox" aria-label="Members">
+              <div class="md-section-label">Members</div>
+              <div class="md-row skill-row mention-row" role="option" aria-selected="true"><a class="md-item" href="#"><span class="mention-name">PUDL Development</span><span class="md-meta">pudl, Claude</span><span class="badge positive" title="Open in a window">Open</span></a></div>
+              <div class="md-row skill-row mention-row" role="option"><a class="md-item" href="#"><span class="mention-name">Dinah Development</span><span class="md-meta">studio, Claude</span><span class="badge accent running" title="The agent is working">Working</span></a></div>
+              <div class="md-row skill-row mention-row" role="option"><a class="md-item" href="#"><span class="mention-name">Ledger Development</span><span class="md-meta">ledger, Claude</span><span class="badge positive" title="Open in a window">Open</span></a></div>
+              <div class="md-row skill-row mention-row" role="option"><a class="md-item" href="#"><span class="mention-name">Ledger Timesheet Applet</span><span class="md-meta">ledger, Claude, open in the background</span><span class="badge positive" title="Open in the background, without a window">Open</span></a></div>
+              <div class="slash-hint">Enter or Tab adds · Up and Down choose · Esc closes</div>
+            </div>
+            <div class="composer-actions"><button type="button" class="btn btn-primary">Send</button></div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <nav class="menu-panel shown" id="chip-menu" aria-label="Member" role="menu" hidden>
+    <button type="button" class="menu-action" role="menuitem">Open the Chat's Window</button>
+    <button type="button" class="menu-action danger" role="menuitem">Remove From the Group…</button>
+  </nav>
+
+  <aside class="mock-note" id="note-closed">
+    <strong>A closed chat woken by a mention</strong>
+    <p>Ledger Timesheet Applet was closed. The mention opened it without a window, so its chip now shows it open, and it stays open until Paul closes it or it has been idle for the set time.</p>
+  </aside>
+
+  <script src="mockup.js"></script>
+  <script>
+    (function () {
+      // A chip's menu button opens the member menu under it.
+      var menu = document.getElementById('chip-menu');
+      document.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-chip-menu]');
+        if (!b) { if (!e.target.closest('#chip-menu')) menu.hidden = true; return; }
+        var r = b.getBoundingClientRect();
+        menu.hidden = !menu.hidden && menu.dataset.for === b.getAttribute('aria-label') ? true : false;
+        menu.dataset.for = b.getAttribute('aria-label');
+        menu.style.left = r.left + 'px'; menu.style.top = (r.bottom + 4) + 'px';
+      });
+      // ?list=closed shows the conversation with the @ list closed and the
+      // box empty; otherwise the list is open, as after typing @.
+      var box = document.getElementById('group-prompt'), pop = document.getElementById('mention-pop'), n = document.getElementById('note-closed');
+      if (new URLSearchParams(location.search).get('list') === 'closed') {
+        pop.hidden = true; box.value = '';
+        // The note sits beside the line where the closed chat was opened.
+        var line = document.querySelectorAll('.system-line')[1].getBoundingClientRect();
+        n.style.right = '40px'; n.style.top = (line.top - 110) + 'px';
+      } else {
+        n.hidden = true;
+        box.focus(); box.setSelectionRange(box.value.length, box.value.length);
+      }
+    })();
+  </script>
+</body>
+</html>

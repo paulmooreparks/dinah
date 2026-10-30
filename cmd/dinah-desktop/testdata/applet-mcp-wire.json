@@ -1,0 +1,190 @@
+{
+  "initialize": {
+    "id": "init",
+    "jsonrpc": "2.0",
+    "result": {
+      "capabilities": {
+        "tools": {}
+      },
+      "instructions": "Dinah manages this service. Every tool requires the current context supplied with the chat turn. Never print or save that private context. Discover bundled applet actions and their input schemas first. Invoke with inputJSON containing an exact JSON object and the discovered digest. All operations belong to the authorized chat's workspace. Poll status for completion, except for dinah.chat/ask@2: it sends its question to the other chat over the bus, so invoke it once and the answer, an error or a cancellation arrives automatically as a later prompt; do not poll or sleep. Waiting requests require the person in Notifications; no tool can answer them. Retrieve artifacts only by the returned artifact ID. Skills use these same tools and receive no additional authority.",
+      "protocolVersion": "2024-11-05",
+      "serverInfo": {
+        "name": "dinah-applets",
+        "version": "BUILD_VERSION"
+      }
+    }
+  },
+  "list": {
+    "id": "list",
+    "jsonrpc": "2.0",
+    "result": {
+      "tools": [
+        {
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "description": "Read an artifact owned by this chat, including MIME type, digest and base64 bytes.",
+          "inputSchema": {
+            "properties": {
+              "context": {
+                "description": "The private applet context supplied by Dinah with the current chat turn. Never invent, print or save this value.",
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "context"
+            ],
+            "type": "object"
+          },
+          "name": "applet_artifact"
+        },
+        {
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "description": "Cancel an invocation owned by this chat.",
+          "inputSchema": {
+            "properties": {
+              "context": {
+                "description": "The private applet context supplied by Dinah with the current chat turn. Never invent, print or save this value.",
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "context"
+            ],
+            "type": "object"
+          },
+          "name": "applet_cancel"
+        },
+        {
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "description": "List applet actions, schemas, capabilities and implementation digests available to this chat. Pass action for one action or provider for one applet's actions; with neither, the whole catalogue is returned, which is large.",
+          "inputSchema": {
+            "properties": {
+              "action": {
+                "description": "An action reference such as dinah.chat/find@1. Only that action is returned, or none when it does not exist.",
+                "type": "string"
+              },
+              "context": {
+                "description": "The private applet context supplied by Dinah with the current chat turn. Never invent, print or save this value.",
+                "type": "string"
+              },
+              "provider": {
+                "description": "An applet's provider ID such as dinah.chat. Only that applet's actions are returned.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "context"
+            ],
+            "type": "object"
+          },
+          "name": "applet_discover"
+        },
+        {
+          "annotations": {
+            "readOnlyHint": false,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "description": "Start a bundled applet action in this chat's workspace. Returns a durable invocation; use status to obtain its result or see a human request.",
+          "inputSchema": {
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "context": {
+                "description": "The private applet context supplied by Dinah with the current chat turn. Never invent, print or save this value.",
+                "type": "string"
+              },
+              "digest": {
+                "type": "string"
+              },
+              "inputJSON": {
+                "description": "An exact JSON object serialized as a string, preserving large numbers.",
+                "type": "string"
+              },
+              "requestId": {
+                "description": "Choose a unique identifier for this operation (1 to 128 characters). Reuse it with the same action, digest and input if a call fails or its response is lost. A repeated request returns the existing invocation and retains its original deadline.",
+                "type": "string"
+              },
+              "timeoutSeconds": {
+                "description": "Integer from 1 to 86400, default 300.",
+                "type": "number"
+              }
+            },
+            "required": [
+              "requestId",
+              "action",
+              "inputJSON",
+              "digest",
+              "context"
+            ],
+            "type": "object"
+          },
+          "name": "applet_invoke"
+        },
+        {
+          "annotations": {
+            "readOnlyHint": true,
+            "destructiveHint": true,
+            "idempotentHint": false,
+            "openWorldHint": true
+          },
+          "description": "Read an invocation owned by this chat. A waiting request must be answered by the person in Notifications.",
+          "inputSchema": {
+            "properties": {
+              "context": {
+                "description": "The private applet context supplied by Dinah with the current chat turn. Never invent, print or save this value.",
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "context"
+            ],
+            "type": "object"
+          },
+          "name": "applet_status"
+        }
+      ]
+    }
+  },
+  "unauthorized": {
+    "id": "call",
+    "jsonrpc": "2.0",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "fixture authorization refused"
+        }
+      ],
+      "isError": true
+    }
+  }
+}

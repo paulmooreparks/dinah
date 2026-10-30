@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- The index of the group chat mockups: what each screen shows, how a
+     chat's state is drawn, and the questions the mockup raised that the
+     plan does not answer. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Group Chats Mockup</title>
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/brand.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/dinah.css">
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body class="index-page">
+  <main>
+    <h1>Group Chats Mockup</h1>
+    <p>These pages draw the design in <code>docs/plans/group-chats.md</code> with Dinah's own stylesheets, in its default Mineral theme, so that Paul can mark it up before any of it is built. A chat here is treated like a consultant assigned to a workspace, and a group chat is where Paul talks with several of them at once, as he would in a team's group chat.</p>
+    <p>Each page is static HTML with a little script. The yellow notes explain the mockup and are not part of the design, and a dashed outline marks a row that is new. The picker's filter and check boxes work, and a member chip's button in the group window opens its menu.</p>
+
+    <h2>The Screens</h2>
+    <div class="screens">
+      <section class="card">
+        <h3 class="card-title"><a href="chat-actions.html">1. A Chat's Actions Menu</a></h3>
+        <a href="chat-actions.html"><img src="shots/chat-actions.png" alt="The Actions menu of Dinah Development, open in the menu bar"></a>
+        <p>Dinah Development is in front, and its Actions menu is open in the menu bar, where Dinah puts the front window's commands. Start a Group Chat… and Add to a Group Chat… sit after Pin to Workspace, among the chat's existing commands.</p>
+      </section>
+      <section class="card">
+        <h3 class="card-title"><a href="start-group.html">2. The Picker</a></h3>
+        <a href="start-group.html"><img src="shots/start-group.png" alt="The Start a Group Chat dialog with three chats ticked"></a>
+        <p>The picker lists every chat Dinah knows under its workspace, with its provider, its state and when it was last active. The chat it was opened from is ticked and its workspace comes first. A ticked closed chat explains that it opens in the background when a message wakes it, and the empty name field shows the name the group would take.</p>
+      </section>
+      <section class="card">
+        <h3 class="card-title"><a href="group-window.html">3. The Group Window</a></h3>
+        <a href="group-window.html"><img src="shots/group-window.png" alt="The PUDL Release Review group window with the @ list open"></a>
+        <p>The members are chips, each with its state and a button for its menu, and Add Chats… opens the picker. Each message is under its sender's title. The composer's @ list is open here, and <a href="group-window.html?list=closed">the same window with the list closed</a> shows a closed chat being woken by a mention.</p>
+      </section>
+      <section class="card">
+        <h3 class="card-title"><a href="bus-pane.html">4. The Bus Pane</a></h3>
+        <a href="bus-pane.html"><img src="shots/bus-pane.png" alt="The Bus pane docked at the right of the window"></a>
+        <p>The pane has four sections, which are the inbox, the group chats, every chat by workspace with its state, and the trusted links. The list of who is on the bus is gone, and no folder-based handle appears anywhere. Narrow the browser to see the pane alone.</p>
+      </section>
+    </div>
+
+    <h2>How a Chat's State Is Shown</h2>
+    <p>Every state is a PUDL status badge, which leads with a glyph, so the state never rests on colour alone. The glyphs are the ones Dinah already uses for an agent's state.</p>
+    <table class="state-table">
+      <thead><tr><th scope="col">State</th><th scope="col">Badge</th><th scope="col">Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>Working</td><td><span class="badge accent running">Working</span></td><td>A turn is running. The glyph is the ring, in the accent colour.</td></tr>
+        <tr><td>Open</td><td><span class="badge positive">Open</span></td><td>The chat is running and idle, in a window or in the background. The glyph is the circle, in green.</td></tr>
+        <tr><td>Closed</td><td><span class="badge">Closed</span></td><td>The chat is saved but not running. The glyph is a small circle, in the muted text colour.</td></tr>
+      </tbody>
+    </table>
+    <p>In the group window there is no room for a badge in a chip, so a chip shows the same glyph in the same colour, with the word as its accessible name and tooltip.</p>
+
+    <h2>Questions the Plan Does Not Answer</h2>
+    <ol>
+      <li>The plan says Add to a Group Chat… opens the same picker as Start a Group Chat…, but that picker chooses chats, and adding this chat to an existing group needs a choice of group. I would make it a submenu of the groups this chat is not in, with New Group Chat… at its end. Should it be that, or a small dialog of its own?</li>
+      <li>A title with spaces in it makes a mention in plain text ambiguous, because nothing marks where "@PUDL Development the release…" stops being a title. I would have the composer insert the mention as a token, as the chat composer already does for an @ attachment, and have the bus carry the mentioned chats beside the text, so nothing has to parse it. How should an agent write a mention in what it sends?</li>
+      <li>The mockup has Paul add Ledger Timesheet Applet to the group before mentioning it. Should a mention of a chat that is not a member wake it and add it, or be refused?</li>
+      <li>The plan shows a chat opened in the background simply as open. Should it have a state of its own, with its own glyph, so that Paul can see at a glance which chats are running without a window and spending turns?</li>
+      <li>The inbox here holds only messages sent to Paul himself, and a group's messages show as a count on the group's row. Should a group message that mentions Paul also appear in the inbox?</li>
+      <li>Rooms today accept @everyone. The plan does not say whether a group keeps it, so the mockup leaves it out of the @ list. Should it stay?</li>
+      <li>Two untitled chats in one workspace would both be "Untitled Chat in studio", so neither the picker nor a mention could tell them apart. Should an untitled chat be given a title before it can join a group, or be shown with something more, such as when it started?</li>
+      <li>The plan puts Leave in the group window's menu, but it also says the person is always a member. What should leaving a group do for Paul, other than deleting it?</li>
+    </ol>
+
+    <h2>Making the Screenshots</h2>
+    <p>Running <code>node make-shots.mjs</code> in this folder opens each page from the file system in Edge, headless, through the copy of playwright-core in the desktop frontend's <code>e2e</code> folder, and writes the pictures to <code>shots/</code>. Each page is taken at 1280 by 800, and the Bus pane is also taken at 420 pixels wide. Giving page names after the command takes only those pages.</p>
+  </main>
+</body>
+</html>

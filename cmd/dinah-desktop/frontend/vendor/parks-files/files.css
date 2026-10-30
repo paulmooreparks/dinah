@@ -1,0 +1,40 @@
+/* Files: the site's sandbox as folders and files. The browsing itself,
+   tree, path bar and list, is the shared file browser (css/filebrowser.css);
+   PUDL's own parts carry the rest. What is here is only Files' layout. */
+
+.pc-files {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  height: min(78svh, 760px); min-height: 360px;
+  font-size: var(--text-sm);
+}
+
+/* === Toolbar ============================================================= */
+.pc-files .fm-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pc-files .fm-toolbar .icon-btn svg { width: 15px; height: 15px; }
+.pc-files .fm-toolbar .icon-btn .glyph { --glyph-size: 15px; }
+.pc-files .fm-spacer { flex: 1; }
+.pc-files .fm-home-tools { display: inline-flex; gap: 6px; }
+.pc-files .fm-home-tools[hidden] { display: none; }
+
+/* === Detail and status ================================================== */
+.pc-files .fm-detail {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px var(--space-3);
+  min-height: 1.6em; color: var(--text);
+}
+.pc-files .fm-d-title { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.pc-files .fm-d-meta { color: var(--text-muted); }
+.pc-files .fm-d-desc { flex-basis: 100%; }
+.pc-files .fm-d-tags { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px; }
+.pc-files .fm-status { margin: 0; min-height: 1.4em; color: var(--text-muted); }
+.pc-files .fm-status-error { color: var(--danger); }
+.pc-files .fm-failed, .pc-files .fm-loading { color: var(--text-muted); padding: var(--space-4); }
+.pc-files .fm-dialog .dialog-body .form-input { width: 100%; }
+
+/* === Filling a window ==================================================== */
+.pc-files-fill { flex: 1 1 auto; height: auto; min-height: 0; container-type: inline-size; }
+.win-body:has(.pc-files-fill) { display: flex; flex-direction: column; overflow: hidden; }
+.win-body:has(.pc-files-fill) .post-content {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  max-width: none; margin: 0; padding: 0;
+}
+.win-body:has(.pc-files-fill) .post-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }

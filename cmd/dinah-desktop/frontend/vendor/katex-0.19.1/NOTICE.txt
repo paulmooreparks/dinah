@@ -1,0 +1,9 @@
+# KaTeX 0.19.1
+
+`katex.min.js`, `katex.min.css` and the `fonts` folder are `dist/katex.min.js`, `dist/katex.min.css` and `dist/fonts` from the npm package katex 0.19.1, copied unchanged on 28 October 2026. The stylesheet finds its fonts in `fonts/` beside it, so the two are kept together.
+
+The tarball was taken from https://registry.npmjs.org/katex/-/katex-0.19.1.tgz and its SHA-512 was checked against the registry's integrity value before it was unpacked:
+
+    sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==
+
+The package declares the MIT licence; `LICENSE.txt` is its `LICENSE`, and the package has no other licence file. Dinah serves these files itself and fetches nothing from a CDN. It loads them only when a message first has math. The options are documented at https://katex.org/docs/options. Dinah's use of KaTeX is described in docs/design/chat-markdown.md.

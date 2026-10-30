@@ -1,0 +1,322 @@
+/* The Chats browser draws the session store and owns chat names, removal
+   and list grouping. Chat windows are supplied through explicit actions. */
+(function () {
+  'use strict';
+
+  function create(adapter) {
+    const { app, fail, toast, productName, sessionProvider, providerName, notices, sessions, S, show, showChat, openSession, workspaceLabel, chatWorking, needsCount, waitingApproval, backgroundWork, earlierSubagents, browserSection } = adapter;
+    const $ = id => document.getElementById(id);
+
+    /* A session's name: the one the person gave it, else Devin's title. */
+    var titles = {};
+    function title(s) { return (s && (titles[s.id] || s.info.title)) || (s && s.info.open ? 'New Chat' : 'Untitled Chat'); }
+
+    /* Renaming: the session's row in the list becomes a field. Enter keeps
+       the name, Esc leaves it as it was, and an empty name goes back to
+       Devin's title. */
+    /* where is 'head' for the title over the chat, where the pencil button
+       is, or 'list' for the session's row in the sidebar. */
+    function startRename(id, where) {
+      id = id || adapter.active();
+      if (!id) return;
+      var target = where === 'list' || where === 'workspace'
+        ? document.querySelector((where === 'workspace' ? '#workspace-chats' : '#sessions') + ' a[data-session="' + CSS.escape(id) + '"]')
+        : (id === adapter.active() ? adapter.titleElement() : null);
+      if (!target) return;
+      var parent = target.parentNode;
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'form-input session-rename';
+      input.value = title(sessions[id]);
+      input.setAttribute('aria-label', 'Name of the session');
+      parent.replaceChild(input, target);
+      input.focus();
+      input.select();
+      var done = false;
+      function restore() { if (input.parentNode) input.parentNode.replaceChild(target, input); }
+      function finish(save) {
+        if (done) return;
+        done = true;
+        restore();
+        if (!save) { drawSessions(); return; }
+        app().RenameSession(id, input.value).then(function (t) {
+          titles = t || {};
+          drawSessions();
+          if (id === adapter.active()) adapter.titleElement().textContent = title(sessions[id]);
+          if (sessions[id] && sessions[id].view) sessions[id].view.refresh();
+        }).catch(fail);
+      }
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+      });
+      input.addEventListener('blur', function () { finish(true); });
+    }
+
+    /* Removing a session asks Devin to delete it from its session history,
+       which every program that lists Devin's sessions reads, Devin Desktop
+       too. If Devin will not, or cannot, the session can be hidden from this
+       app's list instead, and Devin keeps it. */
+    var removing = null;
+    function openRemove(id) {
+      id = id || adapter.active();
+      if (!id) return;
+      removing = id;
+      var s = sessions[id], who = providerName(sessionProvider(s));
+      if (window.dinahProviderFact(sessionProvider(s), 'removal') === 'hides') {
+        $('remove-title').textContent = 'Hide Chat?';
+        $('remove-body').textContent = '"' + title(s) + '" will be hidden from ' + productName() + '. ' + who + ' keeps its saved conversation. Chats > Actions > Show Hidden Chats Again restores it to this list.';
+        $('remove-go').hidden = true;
+        $('remove-hide').hidden = false;
+        $('remove').showModal();
+        return;
+      }
+      $('remove-title').textContent = 'Remove Chat?';
+      $('remove-body').textContent = '"' + title(s) + '" will disappear from ' + productName() + ' and from ' + who + '\'s session history. This cannot be undone.' + (s && s.working ? ' ' + who + ' is working in it now; removing it stops that work.' : '');
+      $('remove-go').hidden = false;
+      $('remove-hide').hidden = true;
+      $('remove').showModal();
+    }
+    function removed(id) {
+      var s = sessions[id];
+      adapter.disposeChat(s);
+      if (s) s.log.remove();
+      delete sessions[id]; window.dinahStateOrder.forget(id);
+      notices.list(function (e) { return e.target && e.target.chat === id; }).forEach(function (e) { notices.remove(e.id); });
+      listed = listed.filter(function (x) { return x.sessionId !== id; });
+      if (adapter.active() === id) { show(null); showChat(); } else drawSessions();
+      refreshSessions();
+    }
+    $('remove-go').addEventListener('click', function () {
+      var id = removing;
+      $('remove-go').disabled = true;
+      var provider = providerName(sessionProvider(sessions[id]));
+      app().DeleteSession(id).then(function () {
+        $('remove').close();
+        // A removed chat's unsent draft goes with it; a hidden chat, which
+        // can come back, keeps its draft.
+        var s = sessions[id];
+        if (s && s.view) s.view.forgetDraft(); else window.dinahComposer.forget('chat:' + id);
+        removed(id);
+        toast('The session is removed.', 'positive');
+      }).catch(function (err) {
+        var msg = String(err).replace(/^Error:\s*/, '');
+        $('remove-title').textContent = provider + ' Did Not Remove It';
+        $('remove-body').textContent = /does not support/.test(msg)
+          ? provider + ' does not remove sessions. You can hide this one from ' + productName() + '\'s list instead; ' + provider + ' keeps it.'
+          : provider + ' answered: ' + msg + ' You can hide the chat from ' + productName() + '\'s list instead; ' + provider + ' keeps it, and Chats > Actions > Show Hidden Chats Again brings it back.';
+        $('remove-go').hidden = true;
+        $('remove-hide').hidden = false;
+      }).then(function () { $('remove-go').disabled = false; });
+    });
+    $('remove-hide').addEventListener('click', function () {
+      var id = removing;
+      app().HideSession(id).then(function () {
+        hiddenCount++;
+        $('remove').close();
+        removed(id);
+        toast('The chat is hidden. Chats > Actions > Show Hidden Chats Again brings it back.', 'positive');
+      }).catch(fail);
+    });
+    var hiddenCount = 0;
+
+    var listed = [];        // the workspace's sessions, from Sessions()
+    var sessionListGeneration = 0;
+    function refreshSessions() {
+      if (!adapter.workspace()) { listed = []; drawSessions(); return Promise.resolve(); }
+      var generation = ++sessionListGeneration, selected = adapter.workspace();
+      return Promise.all(adapter.openPaths().map(function (ws) {
+        return (ws === selected ? app().Sessions() : app().SessionsAt(ws)).then(function (l) { return l || []; });
+      })).then(function (lists) {
+        if (generation !== sessionListGeneration) return;
+        listed = lists.flat();
+        listed.forEach(function (x) { if (window.dinahStateOrder.stale('agent:session', x.sessionId, x)) return; var s = S(x.sessionId); s.info = Object.assign({}, s.info, x); });
+        drawSessions();
+      }).catch(fail);
+    }
+    $('chat-filter').addEventListener('input', drawSessions);
+    $('chat-scope').addEventListener('change', drawSessions);
+    // The lists say when each chat was last used in the regional format,
+    // which may arrive after they were first drawn (regional.js).
+    document.addEventListener('dinah:locale', drawSessions);
+    document.addEventListener('dinah:team-state', drawSessions);
+
+    function when(iso) {
+      if (!iso) return '';
+      var d = new Date(iso), now = new Date();
+      if (isNaN(d)) return '';
+      if (d.toDateString() === now.toDateString()) return 'Today ' + dinahRegional.format(d, 'clock');
+      return dinahRegional.format(d, 'dayTime');
+    }
+
+    /* Every chat the window knows, open or closed, as the Group Chats pane
+       and the picker of a group chat list them (bus-applets.js). They are
+       the chat list's own: the chats of the open workspaces and those open
+       in this run. A chat with no title of its own is untitled, and the
+       picker asks for one before it can join a group. */
+    function knownChats() {
+      var ids = listed.map(function (x) { return x.sessionId; });
+      Object.keys(sessions).forEach(function (k) { if (ids.indexOf(k) < 0 && sessions[k].info.open) ids.push(k); });
+      return Array.from(new Set(ids)).filter(function (id) { return sessions[id] && !sessions[id].info.continuedBy; }).map(chatRef);
+    }
+    function chatRef(id) {
+      var s = sessions[id], named = (titles[id] || s.info.title || '').trim(), cwd = s.info.cwd || '';
+      var where = cwd ? workspaceLabel(cwd) : '';
+      return { id: id, title: named || 'Untitled Chat in ' + where, untitled: !named, cwd: cwd, workspace: where,
+        provider: providerName(sessionProvider(s)), state: chatState(s), updatedAt: s.info.updatedAt || '' };
+    }
+    /* A chat's state as the lists show it: working, open, closed, or open in
+       the background, which is a chat Dinah opened without a window for a
+       message that woke it (bus_wake.go, decision 4 of docs/plans/
+       group-chats.md). A chat open in the background shows that state while
+       it works too, so the person can see which chats spend turns without a
+       window; one that closed itself there for being idle is closed. */
+    function chatInBackground(s) { return !!(s && s.info.inBackground && !s.info.parked); }
+    function chatState(s) {
+      if (s.info.parked) return 'closed';
+      if (chatInBackground(s)) return 'background';
+      return chatWorking(s) ? 'working' : s.info.open ? 'open' : 'closed';
+    }
+    function backgroundBadge(s) {
+      return { text: 'Open in Background', kind: 'positive', cls: 'background', label: chatWorking(s) ? 'Open without a window, and working' : 'Open without a window, for a message that woke it' };
+    }
+    var chatsChanged = 0;
+    function announceChats() {
+      if (chatsChanged) return;
+      chatsChanged = requestAnimationFrame(function () { chatsChanged = 0; document.dispatchEvent(new CustomEvent('dinah:chats')); });
+    }
+    window.dinahChats = {
+      known: knownChats,
+      ref: function (id) { return sessions[id] ? chatRef(id) : null; },
+      open: function (id) { return openSession(id); },
+      // Giving a chat its title, as renaming it in the list does.
+      rename: function (id, name) {
+        return Promise.resolve(app().RenameSession(id, name)).then(function (t) {
+          titles = t || titles;
+          drawSessions();
+          if (sessions[id] && sessions[id].view) sessions[id].view.refresh();
+          return chatRef(id);
+        });
+      }
+    };
+
+    function drawSessions() {
+      announceChats();
+      var chats = $('sessions'), workspaceChats = $('workspace-chats');
+      window.dinahRender.enqueue(chats, chats, function () {
+        drawSessionList(chats, $('chat-scope').value, $('chat-filter').value.trim().toLowerCase(), $('sessions-empty'), '');
+      });
+      window.dinahRender.enqueue(workspaceChats, workspaceChats, function () {
+        drawSessionList(workspaceChats, 'current', '', $('workspace-chats-empty'), 'workspace-');
+      });
+    }
+    function drawSessionList(host, scope, query, empty, prefix) {
+      if (host.querySelector('input.session-rename')) return;
+      var rows = new Map();
+      host.querySelectorAll('.md-row[data-session-row]').forEach(function (row) { rows.set(row.dataset.sessionRow, row); });
+      host.innerHTML = '';
+      var ids = listed.map(function (x) { return x.sessionId; });
+      // Sessions opened in this run that Devin's list does not have yet.
+      Object.keys(sessions).forEach(function (k) {
+        var s = sessions[k];
+        if (ids.indexOf(k) < 0 && s.info.open && adapter.openPaths().some(function (ws) { return normalizedWorkspace(ws) === normalizedWorkspace(s.info.cwd); })) ids.unshift(k);
+      });
+      ids = Array.from(new Set(ids));
+      ids = ids.filter(function (id) { var s = sessions[id]; return !s.info.continuedBy && (scope === 'all' || sameWs(s.info.cwd)) && title(s).toLowerCase().includes(query); });
+      var groups = {};
+      ids.forEach(function (id) {
+        var s = sessions[id];
+        var row = rows.get(id);
+        if (!row) {
+          row = document.createElement('div');
+          row.className = 'md-row browser-row';
+          row.dataset.sessionRow = id;
+          row.setAttribute('role', 'listitem');
+          row.innerHTML = '<a class="md-item" href="#"><span class="browser-row-line"><span class="browser-row-title session-title"></span></span><span class="md-meta"></span></a>';
+          // The Workspace pane's rows have a context menu to pin the chat.
+          if (prefix === 'workspace-' && window.dinahPins) window.dinahPins.rowActions(row, function () { return chatPin(id); });
+        }
+        var a = row.firstChild;
+        a.dataset.session = id;
+        a.querySelector('.session-title').textContent = title(s);
+        // The second line says which agent, when and, across workspaces, where;
+        // the badge says what the chat is doing.
+        var meta = [providerName(sessionProvider(s))];
+        if (s.info.updatedAt) meta.push(when(s.info.updatedAt));
+        if (scope === 'all') meta.push(workspaceLabel(s.info.cwd));
+        a.querySelector('.md-meta').textContent = meta.join(' · ');
+        var old = a.querySelector('.session-badge');
+        if (old) old.remove();
+        var status = needsCount(id) ? { text: needsCount(id), kind: 'warn', label: needsCount(id) + (needsCount(id) === 1 ? ' question waits for you' : ' questions wait for you') }
+          : waitingApproval(id) ? { text: 'Approval', kind: 'warn', label: 'Waiting for your approval' }
+          : chatInBackground(s) ? backgroundBadge(s)
+          : chatWorking(s) ? { text: 'Working', kind: 'accent', label: 'The agent is working' }
+          : backgroundWork(s).length ? { text: 'Background ' + backgroundWork(s).length, kind: 'accent', label: 'The agent has work running in the background' } : null;
+        if (status) { status.cls = 'session-badge' + (status.cls ? ' ' + status.cls : ''); a.querySelector('.browser-row-line').appendChild(window.dinahBrowserList.badge(status)); }
+        var teamMark = a.querySelector('.team-stuck-badge'); if (teamMark) teamMark.remove();
+        var stuck = window.dinahTeams && window.dinahTeams.stuck(id);
+        if (stuck) a.querySelector('.browser-row-line').appendChild(window.dinahBrowserList.badge({ text: stuck + (stuck === 1 ? ' Member Stuck' : ' Members Stuck'), kind: 'warn', cls: 'team-stuck-badge' }));
+        if (id === adapter.active()) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+        var groupName = needsCount(id) || waitingApproval(id) ? 'Needs You' : chatWorking(s) || backgroundWork(s).length ? 'Working' : 'Chats';
+        if (!groups[groupName]) groups[groupName] = [];
+        groups[groupName].push(row);
+        // A chat with subagents from earlier runs has a Subagents part under
+        // its entry, which opens them in the Earlier Subagents window. It is
+        // absent until the chat's agent has sent them, which it does when the
+        // chat is opened (subagents.go).
+        var earlier = earlierSubagents(s).length;
+        if (earlier && window.dinahSubagents) {
+          var part = window.dinahBrowserList.row({ title: 'Subagents', meta: [earlier === 1 ? '1 from an earlier run' : earlier + ' from earlier runs'],
+            tooltip: 'Open the subagents of "' + title(s) + '" from earlier runs', onOpen: function () { window.dinahSubagents.openArchive(id, s.info.cwd || adapter.workspace()).catch(fail); },
+            data: { earlierSubagents: id } });
+          part.classList.add('browser-row-part', 'chat-subagents-part');
+          groups[groupName].push(part);
+        }
+      });
+      ['Needs You', 'Working', 'Chats'].forEach(function (name) {
+        if (!groups[name]) return;
+        if (prefix === 'workspace-') groups[name].forEach(function (row) { host.appendChild(row); });
+        else browserSection(host, prefix + 'chats-' + name, name, groups[name]);
+      });
+      if (prefix === 'workspace-') window.dinahBrowserList.setCount(host.closest('.browser-group'), ids.length);
+      empty.hidden = ids.length > 0;
+      empty.querySelector('.empty-state-title').textContent = !adapter.workspace() ? 'No Workspace Chosen' : query ? 'No Matching Chats' : 'No Chats Yet';
+      empty.querySelector('.empty-state-body').textContent = !adapter.workspace() ? 'Choose a workspace first.' : query ? 'No chat title contains those words.' : 'A chat with an agent in this workspace appears here.';
+    }
+
+    // A chat's pin (pins.js); the Pinned group opens it here.
+    function chatPin(id) { return { kind: 'chat', title: title(sessions[id]), session: id }; }
+    if (window.dinahPins) window.dinahPins.registerOpener('chat', function (pin) { return openSession(pin.session); });
+
+    function sameWs(cwd) { return !cwd || !adapter.workspace() || cwd.toLowerCase().replace(/[\\/]+$/, '') === adapter.workspace().toLowerCase().replace(/[\\/]+$/, ''); }
+    function normalizedWorkspace(path) { return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase(); }
+
+    [$('sessions'), $('workspace-chats')].forEach(function (host) {
+    host.addEventListener('click', function (e) {
+      var a = e.target.closest('a[data-session]');
+      if (!a) return;
+      e.preventDefault();
+      // A chat showing its saved copy comes forward as it is; choosing it is
+      // not a need for its agent, and its first click is also the start of a
+      // double-click to rename it.
+      var s = sessions[a.dataset.session];
+      if (s && s.saved && !s.info.open && !s.loading) { adapter.showSavedChat(s); return; }
+      openSession(a.dataset.session);
+    });
+    host.addEventListener('dblclick', function (e) {
+      var a = e.target.closest('a[data-session]');
+      if (!a) return;
+      e.preventDefault();
+      startRename(a.dataset.session, host.id === 'sessions' ? 'list' : 'workspace');
+    });
+    });
+
+    return { title, startRename, openRemove, refreshSessions, when, drawSessions, chatPin, sameWs, normalizedWorkspace,
+      setTitles: value => { titles = value || {}; },
+      setHiddenCount: value => { hiddenCount = value || 0; },
+      hiddenCount: () => hiddenCount, listed: () => listed
+    };
+  }
+
+  window.dinahChatBrowser = { create };
+})();

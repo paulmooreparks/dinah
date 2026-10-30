@@ -1,0 +1,31 @@
+#!/bin/lua
+-- notify: post a notification, with a toast
+--
+-- Usage: notify <title> [message...]
+--        command | notify <title>
+--
+-- Posts a notification to Notifications, which also shows it as a toast.
+-- The message is the words after the title, or what is piped in, so the
+-- end of a pipeline can report what it found:
+--
+--   cal | notify "This Month"
+--   seq 5 | tac | notify "Countdown"
+--
+-- It calls the Notifications applet's dinah.notifications/post@1.
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local applets = require 'applets'
+if #arg == 0 then cli.fail('notify', 'which title? "man notify" says how', 2) end
+local title = arg[1]
+local body
+if #arg > 1 then
+  body = table.concat(arg, ' ', 2)
+else
+  body = (io.read('a') or ''):gsub('%s+$', '')
+end
+if body == '' then body = title end
+if #body > 20000 then body = body:sub(1, 19990) .. '\n…' end
+local ok, err = pcall(applets.invoke, 'dinah.notifications/post@1', { title = title:sub(1, 200), body = body })
+if not ok then cli.fail('notify', tostring(err)) end

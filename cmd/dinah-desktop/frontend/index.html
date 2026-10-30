@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-product-name="Dinah" data-product-theme="mineral">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dinah</title>
+  <link rel="icon" href="dinah-mark.svg" type="image/svg+xml">
+  <!-- The product's name and default theme above are the markup's until
+       State reports the build's own (product.js). -->
+  <script src="product.js"></script>
+  <script src="bridge/app.js"></script>
+  <script src="helpers.js"></script>
+  <script src="regional.js"></script>
+  <script src="pudl/pudl-theme.js"></script>
+  <script src="theme-init.js"></script>
+  <script src="theme-data.js"></script>
+  <script src="appearance.js"></script>
+  <script src="safe-html.js"></script>
+  <link rel="stylesheet" href="pudl/pudl.css">
+  <link rel="stylesheet" href="pudl/pudl-windows.css">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="theme-editor.css">
+  <link rel="stylesheet" href="dinah.css">
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="judgements-applet.css">
+  <link rel="stylesheet" href="notices.css">
+  <link rel="stylesheet" href="skills-applet.css">
+  <link rel="stylesheet" href="media-viewer.css">
+  <link rel="stylesheet" href="preview.css">
+  <link rel="stylesheet" href="editor-applet.css">
+  <link rel="stylesheet" href="diff-applet.css">
+  <link rel="stylesheet" href="vendor/parks-files/filebrowser.css" data-fb-css>
+  <link rel="stylesheet" href="vendor/parks-files/files.css">
+  <link rel="stylesheet" href="files-applet.css">
+  <link rel="stylesheet" href="terminal.css">
+  <link rel="stylesheet" href="bus-applets.css">
+  <script src="applet-markup.js" defer></script>
+  <script src="pudl/pudl-split.js" defer></script>
+  <script src="pudl/pudl-commands.js" defer></script>
+  <script src="pudl/pudl-applets.js" defer></script>
+  <script src="ui-state.js" defer></script>
+  <script src="render-scheduler.js" defer></script>
+  <script src="responsiveness.js" defer></script>
+  <script src="workbench.js" defer></script>
+  <script src="commands.js" defer></script>
+  <script src="browser-list.js" defer></script>
+  <script src="notification-style.js" defer></script>
+  <script src="notices.js" defer></script>
+  <script src="applet-sdk.js" defer></script>
+  <script src="skill-inputs.js" defer></script>
+  <script src="diagrams.js" defer></script>
+  <script src="media-viewer.js" defer></script>
+  <script src="document-applet.js" defer></script>
+  <script src="page-view.js" defer></script>
+  <script src="editor-common.js" defer></script>
+  <script src="editor-keys.js" defer></script>
+  <script src="editor-codemirror.js" defer></script>
+  <script src="editor-find.js" defer></script>
+  <script src="editor-suggestions.js" defer></script>
+  <script src="editor-preview.js" defer></script>
+  <script src="editor-saving.js" defer></script>
+  <script src="editor-draft.js" defer></script>
+  <script src="editor-views.js" defer></script>
+  <script src="editor-text.js" defer></script>
+  <script src="editor-format.js" defer></script>
+  <script src="editor-clipboard.js" defer></script>
+  <script src="editor-commands.js" defer></script>
+  <script src="editor-applet.js" defer></script>
+  <script src="diff-applet.js" defer></script>
+  <script src="subagents.js" defer></script>
+  <script src="workspace-browser.js" defer></script>
+  <script src="pins.js" defer></script>
+  <script src="resources.js" defer></script>
+  <script src="vendor/parks-files/filebrowser.js" defer></script>
+  <script src="files-applet.js" defer></script>
+  <script src="file-picker.js" defer></script>
+  <script src="documents.js" defer></script>
+  <script src="terminal-applet.js" defer></script>
+  <script src="terminal-shell.js" defer></script>
+  <script src="terminal-lua.js" defer></script>
+  <script src="terminal-sh.js" defer></script>
+  <script src="resource-applets.js" defer></script>
+  <script src="skills-applet.js" defer></script>
+  <script src="in-progress.js" defer></script>
+  <script src="pudl/pudl-tabs.js" defer></script>
+  <script src="pudl/pudl-menu.js" defer></script>
+  <script src="pudl/pudl-md.js" defer></script>
+  <script src="pudl/pudl-tree.js" defer></script>
+  <script src="pudl/pudl-disclose.js" defer></script>
+  <script src="pudl/pudl-zoom.js" defer></script>
+  <script src="pudl/pudl-rows.js" defer></script>
+  <script src="pudl/pudl-toolbar.js" defer></script>
+  <script src="pudl/pudl-grid.js" defer></script>
+  <script src="pudl/pudl-dialog.js" defer></script>
+  <script src="pudl/pudl-combo.js" defer></script>
+  <script src="pudl/pudl-fields.js" defer></script>
+  <script src="pudl/pudl-toast.js" defer></script>
+  <script src="pudl/pudl-tooltip.js" defer></script>
+  <script src="chat-failures.js" defer></script>
+  <script src="bounded-text.js" defer></script>
+  <script src="vendor/markdown-it-15.0.3/markdown-it.umd.min.js" defer></script>
+  <script src="chat-text.js" defer></script>
+  <script src="composer.js" defer></script>
+  <script src="notifications-applet.js" defer></script>
+  <script src="settings-providers.js" defer></script>
+  <script src="provider-claude.js" defer></script>
+  <script src="provider-codex.js" defer></script>
+  <script src="provider-devin.js" defer></script>
+  <script src="provider-ollama.js" defer></script>
+  <script src="settings-applet.js" defer></script>
+  <script src="workspaces-applet.js" defer></script>
+  <script src="packages-applet.js" defer></script>
+  <script src="find-applet.js" defer></script>
+  <script src="chat-browser.js" defer></script>
+  <script src="chat-templates.js" defer></script>
+  <script src="chat-skill-form.js" defer></script>
+  <script src="chat-mentions.js" defer></script>
+  <script src="state-order.js" defer></script>
+  <script src="teams.js" defer></script>
+  <script src="chat-applet.js" defer></script>
+  <script src="session-store.js" defer></script>
+  <script src="session-lifecycle.js" defer></script>
+  <script src="chat-sequence.js" defer></script>
+  <script src="app.js" defer></script>
+  <!-- Host declarations fill menu labels before PUDL reads the source rows. -->
+  <script src="pudl/pudl-menubar.js" defer></script>
+  <script src="shell-applets.js" defer></script>
+  <script src="theme-editor.js" defer></script>
+  <script src="extensions.js" defer></script>
+  <script src="group-new-chat.js" defer></script>
+  <script src="bus-applets.js" defer></script>
+  <script src="judgements-applet.js" defer></script>
+  <script src="update.js" defer></script>
+  <script src="pudl/pudl-native.js" defer></script>
+  <script src="native-window.js" defer></script>
+  <script src="exit-guard.js" defer></script>
+  <script src="host-menus.js" defer></script>
+  <script src="pudl/pudl-windows.js" defer></script>
+  <link rel="stylesheet" href="extensions.css">
+  <link rel="stylesheet" href="teams.css">
+</head>
+<body aria-busy="true">
+
+  <header class="topbar">
+    <!-- A desktop host: Alt alone and F10 reach the bar, and Alt (Ctrl+Option
+         on a Mac) with a title's letter opens it; the old Alt+M access key is
+         retired. -->
+    <nav class="menubar" data-menubar data-menubar-host="desktop" data-menubar-key="" data-menubar-ribbon aria-label="Dinah" data-product-attrs="aria-label">
+      <ul data-menubar-source hidden>
+        <!-- Each title and row has its access letter (data-mnemonic); PUDL
+             underlines it and runs the row. -->
+        <li data-mnemonic="N"><span data-product-name>Dinah</span>
+          <ul data-command-menu="dinah">
+            <li><button type="button" data-cmd="settings" data-mnemonic="S" data-menu-glyph="gear" data-command-label></button></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="new-chat" data-mnemonic="N" data-menu-glyph="comments" data-command-label></button></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="new-workspace" data-mnemonic="W" data-menu-glyph="folder" data-command-label></button></li>
+            <li><button type="button" data-cmd="new-empty-workspace" data-mnemonic="E" data-command-label></button></li>
+            <li><button type="button" data-cmd="rename-workspace" data-mnemonic="R" disabled data-command-label></button></li>
+            <li><button type="button" data-cmd="export-workspace" data-mnemonic="X" disabled data-command-label></button></li>
+            <li><button type="button" data-cmd="import-workspace" data-mnemonic="I" data-command-label></button></li>
+            <li data-commands></li>
+            <li data-mnemonic="C">Recent Workspaces
+              <ul data-recent-menu data-menu-radio><li><button type="button" disabled>None yet</button></li></ul></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="quit" data-mnemonic="Q" data-command-label></button></li>
+          </ul></li>
+        <!-- Documents, and the rows after a list's data-commands marker, are
+             drawn from the command registry (commands.js, documents.js). -->
+        <li data-menubar-id="documents" data-mnemonic="D" data-menu-glyph="document">Documents<ul data-command-menu="documents"></ul></li>
+        <li data-menubar-id="view" data-mnemonic="V" data-menu-glyph="eye">View
+          <ul data-command-menu="view">
+            <li><button type="button" data-cmd="show-workspace" data-mnemonic="W" data-command-label></button></li>
+            <li><button type="button" data-cmd="chat-browser" data-mnemonic="C" data-command-label></button></li>
+            <li><button type="button" data-cmd="skills-browser" data-mnemonic="S" data-command-label></button></li>
+            <li><button type="button" data-cmd="in-progress" data-mnemonic="I" data-command-label></button></li>
+            <li data-commands></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="thoughts" data-mnemonic="T" aria-checked="false" data-command-label></button></li>
+            <li>-</li>
+            <li data-mnemonic="L">Color Mode
+              <ul data-menu-radio>
+                <li><button type="button" data-theme-choice="light" data-mnemonic="L" aria-checked="true">Light</button></li>
+                <li><button type="button" data-theme-choice="dark" data-mnemonic="D" aria-checked="false">Dark</button></li>
+                <li><button type="button" data-theme-choice="system" data-mnemonic="S" aria-checked="false">Follow the System</button></li>
+              </ul></li>
+            <li data-mnemonic="H">Themes<ul id="host-themes"></ul></li>
+          </ul></li>
+        <li data-menubar-id="tools" data-mnemonic="T" data-menu-glyph="gear">Tools<ul id="host-tools"></ul></li>
+        <li data-menubar-id="window" data-mnemonic="W" data-menu-glyph="window">Window<ul id="host-windows"></ul></li>
+        <li data-menubar-id="help" data-mnemonic="H" data-menu-glyph="info">Help
+          <ul data-command-menu="help">
+            <li data-commands></li>
+            <li>-</li>
+            <li><button type="button" data-cmd="about" data-mnemonic="A" data-command-label></button></li>
+          </ul></li>
+      </ul>
+      <span class="hstack align-center gap-4">
+        <span class="brand app-brand"><img src="dinah-mark.svg" alt="" width="20" height="20"><span data-product-name>Dinah</span></span>
+      </span>
+    </nav>
+
+  </header>
+
+  <nav class="menu-panel" id="workspace-status-menu" popover aria-label="Workspace" data-menu-anchor="status-workspace">
+    <button type="button" class="menu-action" data-cmd="show-workspace">Show Workspace</button>
+    <button type="button" class="menu-action" data-cmd="new-workspace">New Workspace…</button>
+    <button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button>
+    <button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button>
+    <button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button>
+    <button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button>
+    <button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button>
+    <button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button>
+    <div class="md-section-label">Recent Workspaces</div>
+    <div id="status-ws-recent"></div>
+  </nav>
+
+  <nav class="menu-panel" id="update-menu" popover aria-label="Update" data-menu-anchor="status-update">
+    <p class="menu-note" id="update-note">A newer build of <span data-product-name>Dinah</span> is installed.</p>
+    <button type="button" class="menu-action" id="update-restart">Restart When Chats Finish</button>
+    <button type="button" class="menu-action" id="update-now" data-menu-danger>Restart Now…</button>
+    <button type="button" class="menu-action" id="update-cancel" hidden>Cancel the Restart</button>
+  </nav>
+
+  <!-- The notifications themselves, drawn by notices.js from the one
+       model the Notifications pane draws too, then two commands. -->
+  <nav class="menu-panel notifications-status-menu" id="notifications-status-menu" popover aria-label="Notifications" data-menu-anchor="status-needs">
+    <div id="notifications-status-list"></div>
+    <hr class="menu-sep">
+    <button type="button" class="menu-action" data-cmd="needs-you">Show All</button>
+    <button type="button" class="menu-action" data-cmd="clear-notifications" disabled>Clear All…</button>
+  </nav>
+
+    <nav class="menu-panel" id="judgements-status-menu" popover aria-label="Judgements" data-menu-anchor="status-judgements">
+    <div id="judgements-status-list"></div>
+  </nav>
+
+<nav class="menu-panel agent-menu" id="agent-menu" popover aria-label="Agent" data-menu-anchor="status-agent">
+    <p class="menu-note agent-state" id="agent-state">The agent is not started.</p>
+    <div class="md-row" id="agent-usage-row"><a class="md-item" href="#" data-cmd="usage-page"><span>Usage…</span><span class="md-meta" id="agent-menu-usage">Reading…</span></a></div>
+    <div class="md-row"><a class="md-item" href="#" data-cmd="restart"><span>Restart Agent</span><span class="md-meta" id="restart-meta">Reads the skills, settings and MCP servers again, and reopens this session</span></a></div>
+    <div class="md-row"><a class="md-item" href="#" data-cmd="sign-in"><span>Sign In…</span><span class="md-meta">Opens the agent's sign-in page in your browser</span></a></div>
+    <div class="md-section-label">New Chats Use</div>
+    <div id="default-agent-rows"></div>
+  </nav>
+
+
+
+  <dialog class="dialog" id="rename-workspace" aria-labelledby="rename-workspace-title">
+    <h2 class="dialog-title" id="rename-workspace-title">Rename Workspace</h2>
+    <form class="vstack gap-3" id="rename-workspace-form">
+      <div class="form-group">
+        <label class="form-label" for="rename-workspace-name">Name</label>
+        <input class="form-input" id="rename-workspace-name" required autocomplete="off">
+        <p class="form-help">This changes the display name. The folder and its contents stay in place.</p>
+        <p class="form-help" id="rename-workspace-folder"></p>
+      </div>
+      <p class="form-help" id="rename-workspace-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="rename-workspace-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="rename-workspace-save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Import Workspace…: each source of the export with what was found for
+       it, drawn by app.js from the plan Go makes (workspace_export.go). -->
+  <dialog class="dialog import-dialog" id="workspace-import" aria-labelledby="workspace-import-title">
+    <h2 class="dialog-title" id="workspace-import-title">Import Workspace</h2>
+    <div class="dialog-body vstack gap-3" aria-live="polite">
+      <p id="workspace-import-summary"></p>
+      <ul class="import-sources" id="workspace-import-sources" aria-label="Sources"></ul>
+      <p class="form-help" id="workspace-import-pins" hidden></p>
+      <p class="form-help" id="workspace-import-waiting" hidden>The workspace can be opened once its main folder is on this computer.</p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="workspace-import-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="workspace-import-go">Import</button>
+    </div>
+  </dialog>
+
+
+  <div class="dinah-workbench">
+    <div class="dinah-workbench-body">
+      <div id="applet-storage" hidden>
+      <nav class="shell-sidebar" id="sidebar" aria-label="Workspace">
+        <!-- The same toolbar as the Chats pane: the workspace is a
+             value chosen in a select, and the commands are a raised button
+             and an Actions menu. -->
+        <!-- The toolbar and Pinned stay at the top while the rest scrolls. -->
+        <div class="ws-frozen">
+        <div class="browser-toolbar ws-toolbar">
+          <span class="form-select-wrap ws-choose"><select class="form-select" id="ws-select" aria-label="Workspace"></select></span>
+          <div class="browser-toolbar-row">
+            <span class="browser-commands">
+              <button type="button" class="btn btn-sm" data-cmd="new-workspace" title="Make a workspace on a main folder you choose">New Workspace…</button>
+              <span class="browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions">Actions</button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button></nav></span>
+            </span>
+          </div>
+        </div>
+
+        <section class="browser-group workspace-list" data-section="workspace-pins" id="workspace-pins-group">
+          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-pins-title"></button><h3 class="browser-group-title" id="workspace-pins-title">Pinned</h3></div>
+          <div class="browser-group-body">
+            <div id="workspace-pins" class="session-list" role="list" aria-label="Pinned Items"></div>
+            <p id="workspace-pins-empty" class="form-help workspace-pins-empty">Pin a chat or an item of a source from its … menu.</p>
+          </div>
+        </section>
+        </div>
+        <section class="browser-group workspace-list" data-section="workspace-chats">
+          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-chats-title"></button><h3 class="browser-group-title" id="workspace-chats-title">Chats</h3><button type="button" class="btn btn-sm browser-group-action" data-cmd="new-session">New Chat</button></div>
+          <div class="browser-group-body">
+            <div id="workspace-chats" class="session-list" role="list" aria-label="Workspace Chats"></div>
+            <div id="workspace-chats-empty" class="empty-state browser-empty"><p class="empty-state-title">No Chats Yet</p><p class="empty-state-body">A chat with an agent in this workspace appears here.</p></div>
+          </div>
+        </section>
+        <section class="browser-group workspace-list" data-section="workspace-in-progress">
+          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-in-progress-title"></button><h3 class="browser-group-title" id="workspace-in-progress-title">In Progress</h3></div>
+          <div class="browser-group-body">
+            <div id="workspace-in-progress" class="session-list" role="list" aria-label="Work in Progress in This Workspace"></div>
+            <div id="workspace-in-progress-empty" class="empty-state browser-empty"><p class="empty-state-title">Nothing In Progress</p><p class="empty-state-body">A new document not yet saved and a document with changes not yet saved appear here.</p></div>
+          </div>
+        </section>
+        <section id="workspace-sources" class="browser-group workspace-sources" data-section="workspace-sources" hidden aria-label="Workspace Sources">
+          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-sources-title"></button><h3 class="browser-group-title" id="workspace-sources-title">Sources</h3><button type="button" class="btn btn-sm browser-group-action" id="workspace-source-choose">Add Source…</button></div>
+          <div class="browser-group-body">
+            <div id="workspace-source-tree" role="group" aria-label="Sources"></div>
+          </div>
+        </section>
+        <div id="workspace-applets"></div>
+      </nav>
+      <section class="browser-applet" id="chat-browser-view">
+        <div class="browser-toolbar">
+          <input class="form-input browser-search" id="chat-filter" type="search" placeholder="Find a Chat" aria-label="Find a Chat">
+          <div class="browser-toolbar-row">
+            <span class="form-select-wrap browser-scope"><select class="form-select" id="chat-scope" aria-label="Chat Scope"><option value="current">This Workspace</option><option value="all">All Open Workspaces</option></select></span>
+            <span class="browser-commands"><button type="button" class="btn btn-sm" data-cmd="new-session" title="Start a New Chat in This Workspace">New Chat</button></span>
+          </div>
+        </div>
+        <div class="session-list" id="sessions" role="list" aria-label="Chats"></div>
+        <div class="empty-state browser-empty" id="sessions-empty"><p class="empty-state-title">No Chats Yet</p><p class="empty-state-body">A chat with an agent appears here, grouped by whether it needs you or is working.</p></div>
+      </section>
+      </div>
+      <main class="shell-main" id="main" tabindex="-1">
+       <div class="dinah-window-space win-host">
+       <div class="win-layer" data-win-layer data-win-src="#win-source-{key}" data-win-default="workspace,in-progress,chat-browser,needs-you,chat" data-win-required="workspace" data-win-dock-tabs="all" data-win-dock-splits data-win-taskbar-reorder data-win-resize-mode="outline" data-win-dock-rail-width="960" data-win-menu data-win-taskbar-stacks="always"
+         data-win-switcher data-win-text-switcher="Switch Windows" data-win-text-switch-last="Switch to the Last Window" data-win-text-switch-back="Switch Back Through the Windows"
+         data-win-text-minimize-mnemonic="M" data-win-text-unminimize-mnemonic="T" data-win-text-maximize-mnemonic="Z" data-win-text-restore-mnemonic="T"
+         data-win-text-snap-mnemonic="S" data-win-text-dock-mnemonic="K" data-win-text-reset-mnemonic="E" data-win-text-collapse-mnemonic="O"
+         data-win-text-expand-mnemonic="D" data-win-text-undock-mnemonic="U"></div>
+       <div class="split work-split no-doc" id="work-split">
+
+
+       </div>
+       </div>
+       <!-- PUDL's taskbar: the dock of open windows, the tray with the
+            workspace, notifications and agent, then PUDL's close all,
+            restore all and minimize all, which take PUDL's glyphs. A press
+            at the screen's edge goes to the nearest control, so minimize
+            all is last, in the corner, where Windows keeps Show Desktop,
+            and close all is kept away from it. -->
+       <footer class="win-bar">
+         <nav class="win-dock" data-win-dock data-win-dock-omit-docked aria-label="Open Windows"></nav>
+         <nav class="status-area" aria-label="Status">
+           <button type="button" class="status-item" id="status-update" popovertarget="update-menu" hidden aria-label="A newer build of Dinah is installed" title="A newer build of Dinah is installed" data-product-attrs="aria-label title"><span class="glyph" style="--glyph: var(--glyph-reload)" aria-hidden="true"></span><span class="status-words">Update</span><span class="badge accent" aria-hidden="true">new</span></button>
+           <span class="loading status-starting" id="status-starting" role="status"><span class="spinner" aria-hidden="true"></span> Starting…</span>
+           <button type="button" class="status-item workspace-status" id="status-workspace" popovertarget="workspace-status-menu" title="Workspace Menu"><span class="glyph" style="--glyph: var(--glyph-folder)" aria-hidden="true"></span><span id="status-workspace-name">Workspace</span></button>
+           <button type="button" class="status-item" id="status-needs" popovertarget="notifications-status-menu" aria-label="Notifications: nothing waiting" title="Notifications: nothing waiting" data-empty><span class="glyph" style="--glyph: var(--glyph-warning)" aria-hidden="true"></span><span class="status-words">Notifications</span><span class="badge warn" aria-hidden="true" hidden></span></button>
+           <button type="button" class="status-item" id="status-agent" popovertarget="agent-menu" aria-label="Agent: not started" title="Agent: not started"><span class="glyph" style="--glyph: var(--glyph-ring)" aria-hidden="true"></span><span class="status-words">Agent</span><span class="badge" id="status-agent-badge" aria-hidden="true">off</span></button>
+           <button type="button" class="status-item" id="status-judgements" popovertarget="judgements-status-menu" hidden aria-label="Judgements" title="Judgements"><span class="glyph" style="--glyph: var(--glyph-tick)" aria-hidden="true"></span><span class="status-words">Judgements</span><span class="badge" aria-hidden="true" hidden></span></button>
+         </nav>
+         <a class="icon-btn" data-win-close-all href="?" aria-label="Close All Windows" data-tooltip="Close All Windows"></a>
+         <a class="icon-btn" data-win-restore href="?" aria-label="Restore All Windows" data-tooltip="Restore All Windows"></a>
+         <a class="icon-btn" data-win-back href="?" aria-label="Minimize All Windows" data-tooltip="Minimize All Windows"></a>
+       </footer>
+      </main>
+    </div>
+  </div>
+
+  <dialog class="lightbox" id="media-viewer" aria-label="Image Viewer" aria-describedby="media-viewer-title">
+    <button type="button" class="lightbox-btn lightbox-close" data-media-close aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    <button type="button" class="lightbox-btn lightbox-prev" aria-label="Previous Image" title="Previous Image" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button>
+    <button type="button" class="lightbox-btn lightbox-next" aria-label="Next Image" title="Next Image" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
+    <div class="lightbox-stage" data-media-stage tabindex="0" role="region" aria-label="Image View"></div>
+    <div class="lightbox-bar"><span class="lightbox-caption" id="media-viewer-title"></span><span class="lightbox-counter" aria-live="polite"></span></div>
+  </dialog>
+  <dialog class="dialog" id="go-to" aria-labelledby="go-to-title">
+    <h2 class="dialog-title" id="go-to-title">Go To</h2>
+    <input class="form-input" id="go-to-filter" type="search" placeholder="Find a Chat or Document" aria-label="Find an Item" autocomplete="off">
+    <div class="data-table-wrap go-to-list" id="go-to-frame"><table class="data-table" role="grid" aria-labelledby="go-to-title"><thead><tr><th scope="col">Name</th><th scope="col">Description</th></tr></thead><tbody id="go-to-list"></tbody></table></div>
+    <p class="form-help" id="go-to-empty">No matching items in the open workspaces.</p>
+    <form class="dialog-actions" method="dialog"><button class="btn">Close</button></form>
+  </dialog>
+
+
+  <dialog class="dialog" id="about" aria-labelledby="about-title">
+    <img src="dinah-mark.svg" alt="Dinah" class="about-logo" width="96" height="96" data-product-attrs="alt">
+    <h2 class="dialog-title" id="about-title">About <span data-product-name>Dinah</span></h2>
+    <p class="dialog-body"><span data-product-name>Dinah</span> <span id="about-version"></span> connects your workspace and applets to supported agents. Choose an agent in Settings or when starting a chat.</p>
+    <form class="dialog-actions" method="dialog"><button class="btn btn-primary" autofocus>Close</button></form>
+  </dialog>
+
+  <dialog class="dialog" id="ask" aria-labelledby="ask-title" aria-describedby="ask-body">
+    <h2 class="dialog-title" id="ask-title"></h2>
+    <p class="dialog-body" id="ask-body"></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="ask-no">Cancel</button>
+      <button type="button" class="btn btn-primary" id="ask-yes"></button>
+    </div>
+  </dialog>
+
+  <dialog class="dialog" id="remove" aria-labelledby="remove-title" aria-describedby="remove-body">
+    <h2 class="dialog-title" id="remove-title">Remove Chat?</h2>
+    <p class="dialog-body" id="remove-body"></p>
+    <div class="dialog-actions">
+      <form method="dialog"><button class="btn">Cancel</button></form>
+      <button type="button" class="btn" id="remove-hide" hidden>Hide It Here</button>
+      <button type="button" class="btn btn-danger" id="remove-go">Remove</button>
+    </div>
+  </dialog>
+
+
+  <dialog class="dialog models-dialog" id="model-prefs" aria-labelledby="prefs-title">
+    <h2 class="dialog-title" id="prefs-title">Default and Favorite Models</h2>
+    <p class="dialog-body">Choose an agent, then select its default model or pin favorites. This does not change the default agent or existing sessions.</p>
+    <div class="form-group">
+      <label class="form-label" for="prefs-provider">Agent</label>
+      <span class="form-select-wrap"><select class="form-select" id="prefs-provider"></select></span>
+    </div>
+    <p class="settings-status" id="prefs-status" role="status"></p>
+    <div class="settings-line">
+      <span id="prefs-default"></span>
+      <button type="button" class="btn btn-sm" id="prefs-own-default">Use the Agent's Own Default</button>
+    </div>
+    <label class="visually-hidden" for="prefs-filter">Filter the models</label>
+    <input class="form-input" id="prefs-filter" type="search" placeholder="Filter the models" autocomplete="off">
+    <div class="model-list" id="prefs-list" role="listbox" aria-label="Models"></div>
+    <form class="dialog-actions" method="dialog"><button class="btn btn-primary">Close</button></form>
+  </dialog>
+
+
+
+
+  <div class="toast-region" role="status" aria-live="polite"></div>
+
+  <!-- Chat: what a chat window is drawn from (chat-applet.js mounts it). -->
+  <template id="chat-editor">
+    <div class="split-pane chat-pane">
+    <div class="page-head">
+      <div class="session-head">
+        <h1 id="session-title">Dinah</h1>
+        <span class="session-actions" id="session-actions" hidden>
+          <button type="button" class="icon-btn" data-cmd="rename-session" aria-label="Rename the session" title="Rename the session (F2)"><span class="glyph" style="--glyph: var(--glyph-pencil)" aria-hidden="true"></span></button>
+          <button type="button" class="icon-btn danger" data-cmd="remove-session" aria-label="Remove the session" title="Remove the session…"><span class="glyph" style="--glyph: var(--glyph-bin)" aria-hidden="true"></span></button>
+        </span>
+      </div>
+      <p class="page-state" id="page-state"><span>Start a new chat, or open one from the list.</span></p>
+      <ul class="background-tasks" id="background-tasks" aria-label="Background work" hidden></ul>
+    </div>
+    <div class="chat-output">
+    <div class="page-body run" id="activity">
+      <div class="pin" id="pin" hidden>
+        <span class="pin-label">You asked</span>
+        <p class="pin-text" id="pin-text"></p>
+        <span class="pin-actions">
+          <button type="button" class="tree-toggle pin-expand" id="pin-expand" aria-expanded="false" aria-controls="pin-text" aria-label="Show the whole message" title="Show the whole message"></button>
+          <button type="button" class="icon-btn" id="pin-copy" aria-label="Copy your message" title="Copy your message"><span class="glyph" style="--glyph: var(--glyph-copy)" aria-hidden="true"></span></button>
+          <button type="button" class="icon-btn" id="pin-go" aria-label="Go to your message" title="Go to your message"><span class="glyph" style="--glyph: var(--glyph-sort-up)" aria-hidden="true"></span></button>
+        </span>
+      </div>
+      <p class="replay" id="replay" role="status" hidden></p>
+      <div id="logs"></div>
+      <p class="activity-muted run-empty" id="log-empty">Nothing has happened yet in this session.</p>
+      <div class="jump-end-wrap">
+        <button type="button" class="icon-btn jump-end" id="jump-end" aria-label="Jump to the latest" title="Jump to the latest" hidden><span class="glyph" style="--glyph: var(--glyph-arrow-down)" aria-hidden="true"></span></button>
+      </div>
+    </div>
+
+    <section class="chat-approvals vstack gap-2" id="chat-approvals" aria-label="Questions and Approval Requests" hidden></section>
+    </div>
+
+    <section class="session-note" id="session-note" hidden>
+      <div class="notice warn" role="status">
+        <div class="notice-content">
+          <p class="notice-title" id="session-note-title">The agent could not open this session.</p>
+          <p class="notice-body" id="session-note-body"></p>
+          <div class="notice-actions hstack gap-2">
+            <button type="button" class="btn btn-sm btn-primary" id="session-retry">Try Again</button>
+            <button type="button" class="btn btn-sm" id="session-open-with" aria-expanded="false" aria-controls="session-open-with-panel" hidden>Open With…</button>
+            <button type="button" class="btn btn-sm" id="session-recover">Continue from Saved History</button>
+            <button type="button" class="btn btn-sm" id="session-save-history">Save History…</button>
+            <button type="button" class="btn btn-sm" id="session-new">New Chat</button>
+          </div>
+          <div class="session-open-with vstack gap-2" id="session-open-with-panel" hidden>
+            <p class="form-help" id="session-open-with-help"></p>
+            <ul class="row-list" id="session-open-with-list" aria-labelledby="session-open-with-help"></ul>
+            <label class="check"><input type="checkbox" id="session-open-with-always"> <span id="session-open-with-always-label"></span></label>
+            <div class="hstack gap-2">
+              <button type="button" class="btn btn-sm" id="session-open-with-cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="session-note" id="saved-note" hidden>
+      <div class="notice" role="status">
+        <div class="notice-content">
+          <p class="notice-title" id="saved-note-title"><span data-product-name>Dinah</span>'s saved copy of this chat.</p>
+          <p class="notice-body" id="saved-note-body"></p>
+          <div class="notice-actions hstack gap-2">
+            <button type="button" class="btn btn-sm" id="saved-reconnect">Reconnect Now</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="session-note" id="context-hold" hidden>
+      <div class="notice warn" role="status">
+        <div class="notice-content">
+          <p class="notice-title">This chat's context is nearly full.</p>
+          <p class="notice-body" id="context-hold-body"></p>
+          <div class="notice-actions hstack gap-2">
+            <button type="button" class="btn btn-sm btn-primary" id="hold-set-aside">Set the Oldest Turns Aside and Continue</button>
+            <button type="button" class="btn btn-sm" id="hold-compact">Compact Into a Continuation</button>
+            <button type="button" class="btn btn-sm" id="hold-new">Start a New Chat</button>
+          </div>
+          <p class="settings-status" id="context-hold-status" role="status"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="session-note" id="signin-note" hidden>
+      <div class="notice warn" role="status">
+        <div class="notice-content">
+          <p class="notice-title" id="signin-title">The agent needs you to sign in.</p>
+          <p class="notice-body" id="signin-body"></p>
+          <div class="notice-actions hstack gap-2">
+            <button type="button" class="btn btn-sm btn-primary" id="signin-go">Sign In</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <div id="switch-progress" class="switch-progress" role="status" hidden>
+      <!-- A switch running or its failure, in PUDL's own forms: the
+           indeterminate bar's row labels it with the engine's stage, and the
+           failure is the danger notice. -->
+      <div class="progress-row switch-running" hidden>
+        <progress class="progress"></progress>
+        <span class="progress-label switch-stage"></span>
+      </div>
+      <div class="notice danger switch-failure" hidden>
+        <div class="notice-content">
+          <p class="notice-title switch-failure-title"></p>
+          <p class="notice-body switch-failed"></p>
+          <div class="notice-actions hstack gap-2">
+            <button type="button" class="btn btn-sm switch-dismiss">Dismiss</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <form class="composer" id="composer">
+      <!-- The composer's toolbar is drawn from the chat's commands and
+           folds into menus as the window narrows.
+           The provider, the mode and the model are menus of choices that
+           show the one in effect. Usage, the document that goes with the
+           message and the queued messages are readings, so they stay
+           beside the toolbar rather than in it. Subagents, in the Turn
+           group, is a menu of the chat's subagents and is there only
+           while the chat has any.
+           Every control has a glyph, so as the window narrows each
+           group first shows its controls as glyphs alone, the words
+           kept in the tooltip and the accessible name, and only then
+           folds into its menu button. The groups show no names before
+           them, which leaves room for the glyphs; a folded group's
+           button still says its name. Message folds first, then Agent,
+           and Turn, at the end, last. -->
+      <div class="composer-bar">
+        <div class="toolbar composer-toolbar" role="toolbar" aria-label="Message" data-toolbar-captions="none">
+          <div class="toolbar-group" data-toolbar-group="Agent" data-toolbar-glyph="gear" data-toolbar-priority="3">
+            <button type="button" data-command="provider"></button><button type="button" data-command="mode"></button><button type="button" data-command="model"></button>
+          </div>
+          <div class="toolbar-group" data-toolbar-group="Message" data-toolbar-glyph="clip" data-toolbar-priority="1">
+            <button type="button" data-command="add"></button><button type="button" data-command="skills"></button>
+          </div>
+          <div class="toolbar-group" data-toolbar-group="Turn" data-toolbar-glyph="square" data-toolbar-priority="0">
+            <button type="button" data-command="subagents"></button><button type="button" data-command="drop-queue"></button><button type="button" data-command="stop-turn"></button>
+          </div>
+        </div>
+        <input type="file" id="file-pick" multiple hidden>
+        <button type="button" class="btn btn-sm composer-usage" id="usage-button" popovertarget="usage-menu" hidden title="Context and usage"><span class="usage-meter" aria-hidden="true"><span class="usage-fill" id="usage-fill"></span></span><span id="usage-words"></span></button>
+        <span class="composer-context" id="context" hidden>
+          <span class="chip" id="context-chip"></span>
+          <button type="button" class="icon-btn composer-clear" id="context-clear" aria-label="Clear the document" title="Clear the document"><span class="glyph" style="--glyph: var(--glyph-close)" aria-hidden="true"></span></button>
+        </span>
+        <span class="composer-queue activity-muted" id="queue" hidden><span id="queue-words"></span></span>
+      </div>
+      <fieldset class="skill-form" id="skill-form" hidden>
+        <legend class="visually-hidden">The skill's parameters</legend>
+        <div class="skill-form-head">
+          <span class="skill-form-name" id="skill-form-name"></span>
+          <span class="skill-form-desc" id="skill-form-desc"></span>
+          <button type="button" class="icon-btn skill-form-close" id="skill-form-close" aria-label="Type the command by hand instead" title="Type the command by hand instead (Esc)"><span class="glyph" style="--glyph: var(--glyph-close)" aria-hidden="true"></span></button>
+        </div>
+        <div class="skill-form-fields" id="skill-form-fields"></div>
+        <p class="skill-form-preview"><span class="visually-hidden">The command: </span><code id="skill-form-preview"></code></p>
+      </fieldset>
+      <ul class="attachments" id="attachments" aria-label="Attached to the next message" hidden></ul>
+      <div class="composer-row">
+        <label class="visually-hidden" for="prompt">What should the agent do?</label>
+        <textarea class="form-textarea composer-input" id="prompt" rows="2" placeholder="Say what you want the agent to do, or type / for a skill." aria-autocomplete="list" aria-controls="slash-pop"></textarea>
+        <div class="slash-pop" id="slash-pop" role="listbox" aria-label="Skills" hidden></div>
+        <div class="composer-actions">
+          <button type="submit" class="btn btn-primary" id="send" disabled title="Send (Ctrl+Enter)">Send</button>
+          <button type="button" class="btn" id="steer-send" hidden disabled title="Give the agent this message now, while it keeps working (Ctrl+Shift+Enter)">Steer</button>
+        </div>
+      </div>
+    </form>
+    </div>
+    <nav class="menu-panel usage-menu" id="usage-menu" popover aria-label="Context and usage" data-menu-anchor="usage-button">
+      <div class="md-section-label">Context</div>
+      <div class="usage-detail" id="usage-detail"></div>
+      <p class="usage-detail form-help">Context measures how much this conversation fills the model's context window. It is separate from your account allowance.</p>
+      <div class="md-section-label" id="model-price-title" hidden>Model Price</div>
+      <div class="usage-detail" id="model-price" hidden></div>
+      <div class="md-section-label" id="account-usage-title">Account Usage</div>
+      <div class="usage-detail" id="account-usage" role="status"></div>
+      <div class="md-row" id="account-usage-link" hidden><a class="md-item" href="#" data-cmd="usage-page">Open My Usage Page</a></div>
+    </nav>
+    <dialog class="dialog models-dialog" id="models" aria-labelledby="models-title">
+      <h2 class="dialog-title" id="models-title">Choose the Model</h2>
+      <p class="dialog-body" id="models-help">Every model the agent offers. The choice applies to this session; the pin makes a model a favorite.</p>
+      <label class="visually-hidden" for="models-filter">Filter the models</label>
+      <input class="form-input" id="models-filter" type="search" placeholder="Filter the models" autocomplete="off">
+      <div class="model-list" id="models-list" role="listbox" aria-label="Models"></div>
+      <form class="dialog-actions" method="dialog"><button class="btn">Close</button></form>
+    </dialog>
+    <dialog class="dialog history-dialog" id="history" aria-labelledby="history-title">
+      <h2 class="dialog-title" id="history-title">Prompt History</h2>
+      <p class="dialog-body">Every prompt you have sent, newest first. Press one to put it back in the box. In the box, Up and Down go through the same history.</p>
+      <label class="visually-hidden" for="history-filter">Filter the history</label>
+      <input class="form-input" id="history-filter" type="search" placeholder="Filter the history" autocomplete="off">
+      <ol class="history-list" id="history-list"></ol>
+      <p class="form-help" id="history-empty" hidden>No prompt matches.</p>
+      <div class="dialog-actions history-actions">
+        <button type="button" class="btn btn-danger" id="history-clear">Forget All…</button>
+        <button type="button" class="btn" id="history-save">Save…</button>
+        <form method="dialog"><button class="btn btn-primary">Close</button></form>
+      </div>
+    </dialog>
+    <dialog class="dialog templates-dialog" id="templates" aria-labelledby="templates-title">
+      <h2 class="dialog-title" id="templates-title">My Templates</h2>
+      <p class="dialog-body">Prompts you use often, kept under a name. Type / in the box, or open Skills, to put one in the prompt.</p>
+      <ol class="history-list" id="templates-list"></ol>
+      <p class="form-help" id="templates-empty" hidden>No templates yet.</p>
+      <form class="vstack gap-2 template-form" id="template-form">
+        <h3 id="template-form-title">New Template</h3>
+        <label class="form-label" for="template-name">Name</label>
+        <input class="form-input" id="template-name" autocomplete="off" required>
+        <label class="form-label" for="template-text">The prompt</label>
+        <textarea class="form-textarea" id="template-text" rows="6" required></textarea>
+        <div class="hstack gap-2">
+          <button type="submit" class="btn btn-primary" id="template-save">Save the Template</button>
+          <button type="button" class="btn" id="template-new">Clear</button>
+        </div>
+      </form>
+      <form class="dialog-actions" method="dialog"><button class="btn">Close</button></form>
+    </dialog>
+  </template>
+
+  <!-- Settings: the Settings view, put in the applet storage by settings-applet.js. -->
+  <template id="settings-markup">
+    <section class="settings-applet" id="settings" aria-labelledby="settings-title" hidden>
+      <h2 class="dialog-title" id="settings-title">Settings</h2>
+      <div class="settings-tabs tablist doc-tabs" id="settings-tabs" role="tablist" aria-label="Settings Sections">
+        <button type="button" role="tab" id="settings-tab-appearance" aria-controls="settings-appearance" aria-selected="true" data-settings-section="appearance">Appearance</button>
+        <button type="button" role="tab" id="settings-tab-agents" aria-controls="settings-agents" aria-selected="false" tabindex="-1" data-settings-section="agents">Agents</button>
+        <button type="button" role="tab" id="settings-tab-judgements" aria-controls="settings-judgements" aria-selected="false" tabindex="-1" data-settings-section="judgements">Judgements</button>
+        <button type="button" role="tab" id="settings-tab-chat" aria-controls="settings-chat" aria-selected="false" tabindex="-1" data-settings-section="chat">Chat</button>
+        <button type="button" role="tab" id="settings-tab-terminal" aria-controls="settings-terminal" aria-selected="false" tabindex="-1" data-settings-section="terminal">Terminal</button>
+        <button type="button" role="tab" id="settings-tab-packages" aria-controls="settings-packages" aria-selected="false" tabindex="-1" data-settings-section="packages">Packages</button>
+        <button type="button" role="tab" id="settings-tab-diagnostics" aria-controls="settings-diagnostics" aria-selected="false" tabindex="-1" data-settings-section="diagnostics">Diagnostics</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-panel" id="settings-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" tabindex="0">
+          <section class="card vstack gap-3" aria-labelledby="set-theme">
+            <h3 class="card-title" id="set-theme">Theme</h3>
+            <label class="form-label" for="appearance-theme">Color and font theme</label>
+            <select id="appearance-theme" class="form-select"><option value="mineral">Mineral</option><option value="linen">Linen</option></select>
+            <div class="theme-editor-toolbar">
+              <button type="button" class="btn btn-sm" id="appearance-edit">Edit Theme</button>
+              <button type="button" class="btn btn-sm" id="appearance-import">Import Theme</button>
+              <button type="button" class="btn btn-sm" id="appearance-export">Export Theme</button>
+              <button type="button" class="btn btn-sm" id="appearance-default">Use Default Theme</button>
+              <button type="button" class="btn btn-sm" id="appearance-reload">Reload Themes</button>
+            </div>
+            <p class="settings-status" id="appearance-status" role="status"></p>
+            <p class="form-help">System follows the appearance selected in your operating system.</p>
+            <div class="seg" id="settings-theme" role="radiogroup" aria-labelledby="set-theme">
+              <button type="button" role="radio" data-theme-choice="light" aria-checked="true" tabindex="0">Light</button>
+              <button type="button" role="radio" data-theme-choice="dark" aria-checked="false" tabindex="-1">Dark</button>
+              <button type="button" role="radio" data-theme-choice="system" aria-checked="false" tabindex="-1">System</button>
+            </div>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="appearance-yours-title">
+            <h3 class="card-title" id="appearance-yours-title">Your Themes</h3>
+            <ul class="theme-list" id="appearance-yours" aria-labelledby="appearance-yours-title"></ul>
+            <p class="form-help" id="appearance-yours-empty">You have made no themes. Edit Theme, Import Theme and Apply Font Defaults make one.</p>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="appearance-fonts-title">
+            <h3 class="card-title" id="appearance-fonts-title">Font Defaults</h3>
+            <div id="appearance-fonts"></div>
+            <p class="form-help">Family names refer to fonts on this computer. Missing fonts use the fallback. Heading and reading fonts can inherit the interface font. Applying fonts creates a personal theme copy when needed.</p>
+            <button type="button" class="btn" id="appearance-save-fonts">Apply Font Defaults</button>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="appearance-overrides-title">
+            <h3 class="card-title" id="appearance-overrides-title">Applet Content Fonts</h3>
+            <div id="appearance-overrides"></div>
+            <p class="form-help">These personal overrides survive theme changes and are excluded from theme exports. Blank sizes use the default. Terminal window size adjustments take precedence until Reset Text Size.</p>
+            <div class="theme-editor-toolbar"><button type="button" class="btn" id="appearance-save-overrides">Apply Applet Fonts</button><button type="button" class="btn" id="appearance-reset-overrides">Reset Applet Fonts</button></div>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="set-windows">
+            <h3 class="card-title" id="set-windows">Windows</h3>
+            <span class="form-label" id="new-window-mode-label">Open New Windows</span>
+            <div class="seg" id="new-window-mode" role="radiogroup" aria-labelledby="new-window-mode-label">
+              <button type="button" role="radio" data-value="floating" aria-checked="true" tabindex="0">Floating</button>
+              <button type="button" role="radio" data-value="maximized" aria-checked="false" tabindex="-1">Maximized</button>
+            </div>
+            <div class="settings-window-kinds" id="window-kind-modes"></div>
+            <p class="form-help">Saved window positions take precedence. Workspace and sidebar browsers keep their docks.</p>
+            <p class="settings-status" id="ui-settings-status" role="status"></p>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="set-documents">
+            <h3 class="card-title" id="set-documents">Documents</h3>
+            <div class="form-group">
+              <label class="form-label" for="set-markdown-view">Markdown Opens In</label>
+              <span class="form-select-wrap"><select class="form-select" id="set-markdown-view">
+                <option value="page">Visual</option>
+                <option value="text">Text</option>
+                <option value="split">Split</option>
+                <option value="preview">Preview</option>
+              </select></span>
+              <p class="form-help">A window restored with your layout keeps the view it had.</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="settings-panel" id="settings-agents" role="tabpanel" aria-labelledby="settings-tab-agents" tabindex="0" hidden>
+        <section class="card vstack gap-3" aria-labelledby="set-agents">
+          <h3 class="card-title" id="set-agents">Default Agent and Discovery</h3>
+          <p class="form-help">Installed agents are discovered automatically. Test Connection checks sign-in and available models without sending a prompt.</p>
+          <label class="form-label" for="default-provider">Default Agent</label>
+          <span class="form-select-wrap"><select class="form-select" id="default-provider"></select></span>
+          <div class="settings-actions"><button type="button" class="btn btn-sm" id="scan-agents">Scan Again</button></div>
+          <p class="settings-status" id="agents-status" role="status"></p>
+        </section>
+        <div class="vstack gap-3" id="agent-providers"></div>
+        <div class="vstack gap-3" id="provider-modules"></div>
+        <section class="card vstack gap-3" aria-labelledby="set-applet-grants">
+          <h3 class="card-title" id="set-applet-grants">Applet Actions Allowed Always</h3>
+          <p class="form-help">Before a chat's applet action writes files, changes settings, runs a window's command or asks another chat, <span data-product-name>Dinah</span> asks you in the chat. These are the actions you allowed always in a workspace; forget one to be asked again.</p>
+          <ul class="row-list" id="applet-grants" aria-labelledby="set-applet-grants"></ul>
+          <p class="settings-status" id="applet-grants-status" role="status"></p>
+        </section>
+        </div>
+
+        <div class="settings-panel" id="settings-terminal" role="tabpanel" aria-labelledby="settings-tab-terminal" tabindex="0" hidden>
+        <section class="card vstack gap-3" aria-labelledby="set-terminal">
+          <h3 class="card-title" id="set-terminal">New Terminals</h3>
+          <div class="form-group">
+            <label class="form-label" for="set-terminal-shell">Shell</label>
+            <span class="form-select-wrap"><select class="form-select" id="set-terminal-shell"></select></span>
+            <div class="hstack gap-2"><button type="button" class="btn" id="terminal-refresh">Refresh Shells</button><button type="button" class="btn" id="terminal-open-selected">Open Selected Shell</button></div>
+            <h4>Custom shells</h4>
+            <div id="terminal-profiles"></div>
+            <label class="form-label" for="terminal-profile-name">Name</label><input class="form-input" id="terminal-profile-name" maxlength="100">
+            <label class="form-label" for="terminal-profile-path">Executable path or command on PATH</label><input class="form-input" id="terminal-profile-path">
+            <label class="form-label" for="terminal-profile-args">Arguments (JSON array)</label><input class="form-input" id="terminal-profile-args" value="[]">
+            <p class="form-help">For example, ["--login", "-i"]. Arguments are passed directly to the executable.</p>
+            <button type="button" class="btn" id="terminal-profile-add">Add Shell</button>
+            <p class="form-help" role="status" id="terminal-profile-status"></p>
+            <p class="form-help">The shell Tools › New Terminal runs, in the folder of the workspace in front. Tools › New Terminal With runs any of the others. <span data-product-name>Dinah</span> Shell browses <span data-product-name>Dinah</span>'s own workspaces and sources.</p>
+          </div>
+        </section>
+        </div>
+        <!-- Settings › Packages: the installed packages, each with Remove…,
+             drawn by app.js (packages.go). Update Packages… is shown only when
+             the build registered a package source. -->
+        <div class="settings-panel" id="settings-packages" role="tabpanel" aria-labelledby="settings-tab-packages" tabindex="0" hidden>
+          <section class="card vstack gap-3" aria-labelledby="set-packages-title">
+            <h3 class="card-title" id="set-packages-title">Packages</h3>
+            <p class="form-help">A package brings skills from one ZIP. Installed for you, it reaches every workspace; installed in a workspace, it reaches only that one. Installing a newer version updates it, and every file it replaces or removes is copied first, outside the workspace.</p>
+            <ul class="package-list vstack gap-2" id="packages-installed" aria-labelledby="set-packages-title" hidden></ul>
+            <p class="form-help" id="packages-none">No package is installed for you or in this workspace.</p>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" data-cmd="update-packages" hidden>Update Packages…</button><button type="button" class="btn btn-sm" data-cmd="install-packages-file">Install From a File…</button></div>
+          </section>
+        </div>
+        <div class="settings-panel" id="settings-diagnostics" role="tabpanel" aria-labelledby="settings-tab-diagnostics" tabindex="0" hidden>
+          <section class="card vstack gap-3" aria-labelledby="set-responsiveness-title">
+            <h3 class="card-title" id="set-responsiveness-title">UI Responsiveness</h3>
+            <button type="button" class="switch" role="switch" aria-checked="false" id="set-responsiveness"><span class="switch-track"><span class="switch-thumb"></span></span>Record Responsiveness</button>
+            <p class="form-help">Keeps up to 200 timing records from the last minute, without typed content. Input timing includes only browser-reported interactions lasting at least 16 ms. Stalls are main-thread tasks lasting at least 50 ms. Hidden windows are excluded. Zero means no retained report, not a guarantee that every interaction was measured.</p>
+            <div id="responsiveness-results" hidden>
+              <p data-input-delay></p><p data-stalls></p><p data-render></p>
+              <button type="button" class="btn btn-sm" id="clear-responsiveness">Clear Measurements</button>
+              <div style="overflow:auto;max-height:16rem"><table><thead><tr><th>When</th><th>Work</th><th>Duration</th><th>Queue wait</th></tr></thead><tbody></tbody></table></div>
+            </div>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="set-log">
+            <h3 class="card-title" id="set-log">Log</h3>
+            <p class="form-help"><span data-product-name>Dinah</span> keeps a log in the logs folder of its own folder in your user folder. Each entry says whether it came from <span data-product-name>Dinah</span> itself, an applet, the Terminal, a script or a window, which helps when something goes wrong.</p>
+            <span class="form-label" id="log-level-label">Keep in the Log</span>
+            <div class="seg" id="log-level" role="radiogroup" aria-labelledby="log-level-label">
+              <button type="button" role="radio" data-value="off" aria-checked="false" tabindex="-1">Nothing</button>
+              <button type="button" role="radio" data-value="problems" aria-checked="true" tabindex="0">Errors and Warnings</button>
+              <button type="button" role="radio" data-value="all" aria-checked="false" tabindex="-1">Everything</button>
+            </div>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" id="show-log-folder">Show the Log Folder</button></div>
+            <p class="settings-status" id="log-status" role="status"></p>
+          </section>
+        </div>
+
+                <div class="settings-panel" id="settings-judgements" role="tabpanel" aria-labelledby="settings-tab-judgements" tabindex="0" hidden>
+          <section class="card vstack gap-3" id="judgements-card">
+            <h3 class="card-title">Judgement Agents</h3>
+            <p class="form-help">Judgement agents answer small, declared questions in place of rules. Every call has a deadline and a check, and anything that fails puts the rule Dinah would have used in its place. What they decided is on the Judgements page.</p>
+            <div class="hstack gap-3 align-center"><button type="button" class="switch" id="judgements-enabled" role="switch" aria-checked="true"><span class="switch-track"><span class="switch-thumb"></span></span>Use Judgement Agents</button><span class="form-help" id="judgements-enabled-help"></span></div>
+            <div class="form-group" id="judgement-provider-group"><label class="form-label" for="judgement-provider">The Judge's Provider</label><span class="form-select-wrap"><select class="form-select" id="judgement-provider"></select></span><p class="form-help" id="judgement-provider-note"></p></div>
+            <div class="form-group"><label class="form-label" for="judgement-model">The Judge's Model</label><span class="form-select-wrap"><select class="form-select" id="judgement-model"></select></span><p class="form-help">Until a model is chosen, every call uses its rule. The choices are the models the judging provider reports installed.</p></div>
+            <div class="hstack gap-3 align-end">
+              <div class="form-group"><label class="form-label" for="judgement-retention">Keep Records (days)</label><input class="form-input" id="judgement-retention" type="number" min="1" step="1" inputmode="numeric"></div>
+              <div class="form-group"><label class="form-label" for="judgement-warn-streak">Warn After (fallbacks in a row)</label><input class="form-input" id="judgement-warn-streak" type="number" min="1" step="1" inputmode="numeric"></div>
+              <button type="button" class="btn btn-sm" id="judgements-save-numbers">Save</button>
+            </div>
+            <h4 class="card-subtitle">Judging Budget</h4>
+            <p class="form-help">For each provider that judges, a budget for the week in its own unit, empty for none. The budget spends its count of the week as the week passes: at half the week the allowance is half the budget, so nothing is spent by Tuesday.</p>
+            <div class="vstack gap-2" id="judgement-budgets"></div>
+            <div class="hstack gap-3 align-end">
+              <div class="form-group"><label class="form-label" for="judgement-period-weekday">The Budget Week Begins</label><span class="form-select-wrap"><select class="form-select" id="judgement-period-weekday"></select></span></div>
+              <div class="form-group"><label class="form-label" for="judgement-period-hour">At This Hour</label><span class="form-select-wrap"><select class="form-select" id="judgement-period-hour"></select></span></div>
+              <button type="button" class="btn btn-sm" id="judgements-save-budgets">Save</button>
+            </div>
+            <h4 class="card-subtitle">The Judge's Pool</h4>
+            <div class="hstack gap-3 align-end">
+              <div class="form-group"><label class="form-label" for="judgement-pool-min">At Least at Once</label><input class="form-input" id="judgement-pool-min" type="number" min="1" step="1" inputmode="numeric"></div>
+              <div class="form-group"><label class="form-label" for="judgement-pool-max">At Most at Once</label><input class="form-input" id="judgement-pool-max" type="number" min="1" step="1" inputmode="numeric"></div>
+              <button type="button" class="btn btn-sm" id="judgements-save-pool">Save</button>
+            </div>
+            <p class="form-help">How many calls may be with the judge at once. The pool stays at the smallest size, grows a step when a call has waited half its deadline, and gives a step back after ten idle spans of the longest one. Above what the provider serves at once the extra calls wait their turn.</p>
+            <h4 class="card-subtitle">Choosing the Judge's Model</h4>
+            <p class="form-help" id="judgement-calibration-line"></p>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" id="judgements-run-calibration">Run Calibration…</button><button type="button" class="btn btn-sm" id="judgements-use-chosen" hidden>Use the Chosen Model</button></div>
+            <div class="judgement-calibration" id="judgement-calibration-details" hidden><button type="button" class="btn btn-sm disclosure" id="judgement-calibration-toggle" aria-expanded="false" aria-controls="judgement-calibration-report">The last calibration's report</button><div class="vstack gap-2" id="judgement-calibration-report" hidden></div></div>
+            <h4 class="card-subtitle">What a Judge May Judge</h4>
+            <ul class="row-list" id="judgement-kinds"></ul>
+            <p class="settings-status" id="judgements-status" role="status"></p>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" id="judgements-open-page">Open the Judgements Page</button></div>
+          </section>
+        </div>
+<div class="settings-panel" id="settings-chat" role="tabpanel" aria-labelledby="settings-tab-chat" tabindex="0" hidden>
+        <section class="card vstack gap-3" aria-labelledby="set-new">
+          <h3 class="card-title" id="set-new">New Chats</h3>
+          <p class="form-help" id="defaults-help">What every new session starts with. A session keeps its own choices after that.</p>
+          <div class="vstack gap-3" id="defaults"></div>
+        </section>
+
+        <section class="card vstack gap-3" aria-labelledby="set-favs">
+          <h3 class="card-title" id="set-favs">Favorite Models</h3>
+          <p class="form-help">The models offered first in the model menu over the prompt.</p>
+          <div class="settings-line">
+            <span id="favs-summary"></span>
+            <button type="button" class="btn btn-sm" data-open="model-prefs">Choose…</button>
+          </div>
+        </section>
+
+        <section class="card vstack gap-3" aria-labelledby="set-person">
+          <h3 class="card-title" id="set-person">You</h3>
+          <div class="form-group">
+            <label class="form-label" for="set-person-name">Your Name</label>
+            <input class="form-input" id="set-person-name" type="text" maxlength="80" autocomplete="name" aria-describedby="set-person-help">
+            <p class="form-help" id="set-person-help">Shown on the messages you send through the bus, where other chats and agents reach you. Leave it empty to use your account's name.</p>
+          </div>
+        </section>
+
+        <section class="card vstack gap-3" aria-labelledby="set-prompt">
+          <h3 class="card-title" id="set-prompt">The Prompt</h3>
+          <div class="form-group">
+            <label class="form-label" for="set-send-key">Send With</label>
+            <span class="form-select-wrap"><select class="form-select" id="set-send-key">
+              <option value="enter">Enter (Shift+Enter Starts a New Line)</option>
+              <option value="ctrl-enter">Ctrl+Enter (Enter Starts a New Line)</option>
+            </select></span>
+            <p class="form-help">Ctrl+Enter sends either way, and Ctrl+Shift+Enter steers a turn under way.</p>
+          </div>
+        </section>
+
+        <section class="card vstack gap-3" aria-labelledby="set-attachments">
+          <h3 class="card-title" id="set-attachments">Attachments in Group Chats</h3>
+          <p class="form-help"><span data-product-name>Dinah</span> keeps a copy of each file you attach to a group chat's message, in its home folder, for as long as the message. Removing old attachments frees the space; their messages stay, and show each file as removed.</p>
+          <div class="form-group">
+            <label class="form-label" for="set-attachment-age">Remove Attachments Older Than</label>
+            <span class="form-select-wrap"><select class="form-select" id="set-attachment-age">
+              <option value="7">1 Week</option>
+              <option value="30">1 Month</option>
+              <option value="90" selected>3 Months</option>
+              <option value="180">6 Months</option>
+              <option value="365">1 Year</option>
+              <option value="0">Any Age</option>
+            </select></span>
+          </div>
+          <div class="settings-line">
+            <button type="button" class="btn btn-danger btn-sm" id="set-attachments-remove">Remove Attachments…</button>
+          </div>
+        </section>
+
+        <section class="card vstack gap-3" aria-labelledby="set-run">
+          <h3 class="card-title" id="set-run">Agent Responses</h3>
+          <button type="button" class="switch" role="switch" aria-checked="false" id="set-thinking"><span class="switch-track"><span class="switch-thumb"></span></span>Show the Agent's Thinking</button>
+        </section>
+
+        <section class="card vstack gap-3" aria-labelledby="set-notices">
+          <h3 class="card-title" id="set-notices">Notifications</h3>
+          <button type="button" class="switch" role="switch" aria-checked="true" id="set-notify-needed"><span class="switch-track"><span class="switch-thumb"></span></span>Notify Me When I Am Needed</button>
+          <p class="form-help">While <span data-product-name>Dinah</span> is in the background, your system shows a notification when an agent asks for permission.</p>
+        </section>
+
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <!-- Notifications: the Needs You view, put in the applet storage by notifications-applet.js. -->
+  <template id="needs-you-markup">
+    <section class="needs-you vstack gap-2" id="needs-you" aria-labelledby="needs-title" hidden>
+      <h2 id="needs-title">Notifications</h2>
+      <div class="needs-filters" role="toolbar" aria-label="Filter Notifications">
+        <div class="menu needs-type-wrap">
+          <button type="button" class="btn btn-sm menu-btn" id="needs-type" popovertarget="needs-type-menu" aria-label="Show: All"><span id="needs-type-words">All</span></button>
+          <div class="menu-panel" id="needs-type-menu" popover aria-label="Show">
+            <label class="menu-check"><input type="checkbox" name="needs-type" value="question"> Questions</label>
+            <label class="menu-check"><input type="checkbox" name="needs-type" value="error"> Errors</label>
+            <label class="menu-check"><input type="checkbox" name="needs-type" value="warning"> Warnings</label>
+            <label class="menu-check"><input type="checkbox" name="needs-type" value="other"> Other</label>
+          </div>
+        </div>
+        <input class="form-input needs-filter-text" id="needs-filter" type="search" placeholder="Filter by Text" aria-label="Filter by text" autocomplete="off">
+        <button type="button" class="btn btn-sm" id="needs-clear">Clear All…</button>
+      </div>
+      <p class="form-help" id="needs-empty">No notifications right now.</p>
+      <div class="vstack gap-2" id="questions"></div>
+    </section>
+  </template>
+</body>
+</html>

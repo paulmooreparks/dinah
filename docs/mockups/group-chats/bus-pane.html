@@ -1,0 +1,112 @@
+<!doctype html>
+<!-- Screen 4: the Bus pane, redesigned, docked at the right of the window
+     space. Its sections are the inbox, the group chats, every chat by
+     workspace with its state, and the trusted links. Chats are shown by
+     title; no folder-based handle appears. The pane is drawn with Dinah's
+     own browser-list.js, which every browser pane uses. At a narrow width
+     the pane is shown alone. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Bus Pane: Group Chats Mockup</title>
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/pudl/pudl-windows.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/brand.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/dinah.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/app.css">
+<link rel="stylesheet" href="../../../cmd/dinah-desktop/frontend/bus-applets.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="data.js"></script>
+<script src="../../../cmd/dinah-desktop/frontend/helpers.js"></script>
+<script src="../../../cmd/dinah-desktop/frontend/browser-list.js"></script>
+</head>
+<body data-front="Bus" data-front-glyph="inbox">
+  <div class="desk with-pane">
+    <section class="win" data-win="chat-dinah-development">
+      <header class="win-head">
+        <button type="button" class="win-btn" data-win-action="menu" aria-label="Window menu"></button>
+        <h2 class="win-title">Dinah Development</h2>
+        <div class="win-statuses" role="group" aria-label="Window status"><span class="win-status strong">Working</span></div>
+        <nav class="win-chrome" aria-label="Window"><button type="button" class="win-btn" data-win-action="minimize" aria-label="Minimize"></button><button type="button" class="win-btn" data-win-action="maximize" aria-label="Maximize"></button><button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav>
+      </header>
+      <div class="win-body">
+        <div class="mock-log">
+          <div class="msg msg-you"><div class="msg-head"><span class="msg-label">You</span></div><p class="msg-text">Make the Bus pane show chats by their titles instead of the folder names.</p></div>
+          <div class="msg"><div class="msg-head"><span class="msg-label">Claude</span></div><p class="msg-text">I am changing the bus overview so it returns each chat's title and workspace. The Bus pane and the group window read the new fields, and the folder handle stays as an alias for one release.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="win active bus-pane" data-win="bus">
+      <header class="win-head">
+        <button type="button" class="win-btn" data-win-action="menu" aria-label="Window menu"></button>
+        <h2 class="win-title">Bus</h2>
+        <nav class="win-chrome" aria-label="Window"><button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav>
+      </header>
+      <div class="win-body bus-browser" id="bus"></div>
+    </section>
+  </div>
+
+  <aside class="mock-note" id="note-chats">
+    <strong>Chats replace On the Bus</strong>
+    <p>Every chat Dinah knows is listed by title under its workspace, closed ones too. Opening a closed chat opens its window, as opening it from the Chats pane does.</p>
+  </aside>
+
+  <script src="mockup.js"></script>
+  <script>
+    (function () {
+      var m = window.mock, list = window.dinahBrowserList, root = document.getElementById('bus');
+      function nothing() {}
+      var bar = list.toolbar({
+        primary: { label: 'New Group Chat…', title: 'Start a group chat with chats you choose', run: nothing },
+        actions: [{ label: 'Trust a Link…', run: nothing }, { label: 'Mark All Read', run: nothing }, { label: 'Refresh', run: nothing }]
+      });
+      // A second command beside the first, before the Actions menu.
+      var message = document.createElement('button');
+      message.type = 'button'; message.className = 'btn btn-sm'; message.textContent = 'New Message…';
+      message.title = 'Write to one chat';
+      var commands = bar.el.querySelector('.browser-commands');
+      commands.insertBefore(message, commands.querySelector('.browser-actions'));
+      root.appendChild(bar.el);
+      var groups = document.createElement('div'); groups.className = 'bus-results'; root.appendChild(groups);
+      function group(id, title, count) { var g = list.group({ id: id, title: title, count: count }); groups.appendChild(g.el); return g; }
+      function stateBadge(state) {
+        var s = m.states[state];
+        return { text: s.word, kind: state === 'working' ? 'accent' : state === 'closed' ? '' : 'positive', cls: state === 'working' ? 'running chat-row-state' : 'chat-row-state', label: s.label };
+      }
+      function names(ids) {
+        var t = ids.map(function (id) { return m.chat(id).title; }).concat(['you']);
+        return t.slice(0, -1).join(', ') + ' and ' + t[t.length - 1];
+      }
+
+      // The inbox: messages sent to Paul himself. A group's messages are in
+      // the group.
+      var inbox = group('bus-inbox', 'Inbox', 1);
+      inbox.body.appendChild(list.row({ title: 'Ledger Development', meta: ['The expense export is ready for you to review.', 'Today 10:20'], badge: { text: 'New', kind: 'accent', label: 'Not read yet' } }));
+      inbox.body.appendChild(list.row({ title: 'Tela Relay Fixes', meta: ['The relay fix is merged, and the release needs your verdict.', '24 October 16:05'] }));
+
+      var gc = group('bus-groups', 'Group Chats', m.groups.length);
+      m.groups.forEach(function (g) {
+        gc.body.appendChild(list.row({ title: g.title, meta: [names(g.members), 'Last message ' + g.when],
+          badge: g.unread ? { text: g.unread + ' New', kind: 'accent', label: g.unread + ' messages not read yet' } : null }));
+      });
+
+      var chats = group('bus-chats', 'Chats', m.chats.length);
+      m.byWorkspace().forEach(function (w) {
+        chats.body.appendChild(list.subheading(w.workspace));
+        w.chats.forEach(function (c) {
+          chats.body.appendChild(list.row({ title: c.title, meta: [c.provider + ', active ' + c.active.toLowerCase()], badge: stateBadge(c.state) }));
+        });
+      });
+
+      var links = group('bus-links', 'Trusted Links', 2);
+      links.body.appendChild(list.row({ title: 'studio and pudl', meta: ['Up to 10 automatic handoffs'] }));
+      links.body.appendChild(list.row({ title: 'studio and ledger', meta: ['No limit on automatic handoffs'], badge: { text: 'No Limit', kind: 'warn', label: 'These agents can keep each other working without a limit' } }));
+
+      // The note sits to the left of the Chats section.
+      var head = chats.el.getBoundingClientRect(), pane = root.closest('.win').getBoundingClientRect(), n = document.getElementById('note-chats');
+      n.style.left = (pane.left - 320) + 'px'; n.style.top = (head.top + 4) + 'px';
+    })();
+  </script>
+</body>
+</html>

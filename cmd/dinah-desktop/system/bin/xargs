@@ -1,0 +1,52 @@
+#!/bin/lua
+-- xargs: run a command with the words piped in as its arguments
+--
+-- Usage: xargs [-n <count>] <command> [argument...]
+--
+-- Splits what is piped in into words, by spaces and line ends, and runs the
+-- command with them after its own arguments; with -n, count words at a
+-- time. Quotes keep a word with spaces in it together.
+-- Try: ls ~/notes | xargs -n 1 wc -l
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, cmd = cli.options(arg, { n = true })
+if #cmd == 0 then cli.fail('xargs', 'which command?', 2) end
+local each = o.n and tonumber(o.n)
+if o.n and (not each or each < 1) then cli.fail('xargs', '-n needs a number above 0', 2) end
+local function quote(s)
+  if s:match('^[%w%._/~:=+-]+$') then return s end
+  return "'" .. s:gsub("'", "'\\''") .. "'"
+end
+local words = {}
+local text = io.read('a') or ''
+local i = 1
+while i <= #text do
+  local c = text:sub(i, i)
+  if c:match('%s') then i = i + 1
+  elseif c == '"' or c == "'" then
+    local j = text:find(c, i + 1, true) or #text + 1
+    words[#words + 1] = text:sub(i + 1, j - 1)
+    i = j + 1
+  else
+    local j = text:find('%s', i) or #text + 1
+    words[#words + 1] = text:sub(i, j - 1)
+    i = j
+  end
+end
+local base = {}
+for k, a in ipairs(cmd) do base[k] = quote(a) end
+local status = 0
+local function run(batch)
+  local line = table.concat(base, ' ')
+  for _, w in ipairs(batch) do line = line .. ' ' .. quote(w) end
+  local ok, _, code = os.execute(line)
+  if not ok then status = code or 1 end
+end
+if each then
+  for start = 1, #words, each do run({ table.unpack(words, start, math.min(start + each - 1, #words)) }) end
+else
+  run(words)
+end
+os.exit(status)

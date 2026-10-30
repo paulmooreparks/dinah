@@ -1,0 +1,21 @@
+{{define "room.html"}}{{template "head" .}}
+{{$room := .Data.Room}}{{$lines := .Data.Lines}}
+<h1>{{$room.Title}}</h1>
+<p class="dinah-muted">Members: {{range $i, $m := $room.Members}}{{if $i}}, {{end}}{{if eq $m.Kind "human"}}you{{else}}{{$m.Title}}{{if not $m.Open}} (closed){{end}}{{end}}{{end}}</p>
+{{with .Data.Messages}}
+<section class="vstack gap-3" aria-label="Conversation">
+{{range .}}{{if eq .Kind "member"}}<p class="dinah-muted">{{index $lines .ID}}</p>{{else}}{{template "message" .}}{{end}}{{end}}
+</section>
+{{else}}
+<div class="empty-state"><p class="empty-state-title">Nobody Has Spoken Yet</p><p class="empty-state-body">A message here reaches every member chat at its next turn.</p></div>
+{{end}}
+{{template "compose" (dict "Targets" .Targets "Selected" .Selected "Back" (printf "/rooms/%s" (pathEsc $room.Name)))}}
+<form class="card vstack gap-3" method="post" action="/rooms/{{pathEsc $room.Name}}/members">
+  <h2 class="card-title">Add a Chat</h2>
+  <div class="form-group">
+    <label class="form-label" for="member-{{$room.Name}}">Chat</label>
+    <input class="form-input" id="member-{{$room.Name}}" name="member" required>
+  </div>
+  <div class="hstack gap-2"><button type="submit" class="btn">Add Chat</button></div>
+</form>
+{{template "foot" .}}{{end}}

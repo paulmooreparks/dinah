@@ -1,0 +1,25 @@
+#!/bin/lua
+-- hello-dinah: say hello in Notifications, a sample of calling an applet
+--
+-- Usage: hello-dinah [message]
+--
+-- Posts "Hello, Dinah!", or the message given, to Notifications through the
+-- Notifications applet's dinah.notifications/post@1 action, which also
+-- shows it as a toast. It shows how a script calls an applet: require
+-- "applets", then applets.invoke with the action and a table of its input;
+-- the action's output comes back as a table. "applets.actions()" lists
+-- every action there is.
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local applets = require 'applets'
+local message = #arg > 0 and table.concat(arg, ' ') or 'Hello, Dinah!'
+local ok, result = pcall(applets.invoke, 'dinah.notifications/post@1', {
+  title = 'Hello, Dinah!',
+  body = message,
+})
+if not ok then
+  io.stderr:write('hello-dinah: ' .. tostring(result) .. '\n')
+  os.exit(1)
+end
+print('Posted to Notifications: ' .. message)

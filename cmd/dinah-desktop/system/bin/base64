@@ -1,0 +1,44 @@
+#!/bin/lua
+-- base64: encode or decode Base64
+--
+-- Usage: base64 [file...]       encode
+--        base64 -d [file...]    decode
+--
+-- Reads the files, or what is piped in. Encoded text is wrapped at 76
+-- characters; decoding ignores line ends and spaces.
+-- Try: echo hello | base64, echo aGVsbG8K | base64 -d
+--
+-- Part of Dinah's /bin. A release replaces it only when you have not
+-- changed it; a copy in ~/bin is used instead of it.
+local cli = require 'cli'
+local o, files = cli.options(arg, { d = false })
+local alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+local text = cli.input(files, 'base64')
+if o.d then
+  local index = {}
+  for i = 1, 64 do index[alphabet:sub(i, i)] = i - 1 end
+  text = text:gsub('[%s=]', '')
+  if text:find('[^%w+/]') then cli.fail('base64', 'the input is not Base64') end
+  local out = {}
+  for i = 1, #text, 4 do
+    local chunk = text:sub(i, i + 3)
+    local n, bits = 0, 0
+    for c in chunk:gmatch('.') do n = n * 64 + index[c] bits = bits + 6 end
+    n = n >> (bits % 8)
+    local bytes = bits // 8
+    for k = bytes - 1, 0, -1 do out[#out + 1] = string.char((n >> (8 * k)) & 255) end
+  end
+  io.write(table.concat(out))
+else
+  local out = {}
+  for i = 1, #text, 3 do
+    local a, b, c = text:byte(i, i + 2)
+    local n = (a << 16) | ((b or 0) << 8) | (c or 0)
+    local quad = {}
+    for k = 3, 0, -1 do quad[#quad + 1] = alphabet:sub(((n >> (6 * k)) & 63) + 1, ((n >> (6 * k)) & 63) + 1) end
+    if not b then quad[3], quad[4] = '=', '=' elseif not c then quad[4] = '=' end
+    out[#out + 1] = table.concat(quad)
+  end
+  local encoded = table.concat(out)
+  for i = 1, #encoded, 76 do print(encoded:sub(i, i + 75)) end
+end

@@ -1,0 +1,24 @@
+{{define "rooms.html"}}{{template "head" .}}
+<h1>Group Chats</h1>
+{{with .Data.Rooms}}
+<ul class="row-list" aria-label="Group Chats">
+{{range .}}<li class="md-row"><a class="md-item" href="/rooms/{{pathEsc .Name}}" data-win-open="room-{{.Name}}">{{.Title}}<span class="md-meta">{{range $i, $m := .Members}}{{if $i}}, {{end}}{{if eq $m.Kind "human"}}you{{else}}{{$m.Title}}{{end}}{{end}}</span></a></li>{{end}}
+</ul>
+{{else}}
+<div class="empty-state"><p class="empty-state-title">No Group Chats Yet</p><p class="empty-state-body">A group chat holds you and the chats you choose in one conversation.</p></div>
+{{end}}
+<form class="card vstack gap-3" method="post" action="/rooms">
+  <h2 class="card-title">Start a Group Chat</h2>
+  <div class="form-group">
+    <label class="form-label" for="members">Chats</label>
+    <input class="form-input" id="members" name="members" required>
+    <p class="form-help">The chats' titles, separated by commas, each with its workspace in parentheses when two chats share a title. You are always a member.</p>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="name">Group Name</label>
+    <input class="form-input" id="name" name="name">
+    <p class="form-help">Leave it empty and the group takes its name from its chats' titles.</p>
+  </div>
+  <div class="hstack gap-2"><button type="submit" class="btn btn-primary">Start</button></div>
+</form>
+{{template "foot" .}}{{end}}
