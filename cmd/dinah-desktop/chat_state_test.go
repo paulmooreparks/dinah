@@ -48,7 +48,7 @@ func TestAChatsExecutionStateAndItsReason(t *testing.T) {
 		a.permissions().Ask(ctx, "chat-w", nil, nil, []acp.PermissionOption{{OptionID: "allow", Name: "Allow", Kind: "allow_once"}})
 		close(done)
 	}()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for !a.permissions().HasPending("chat-w") && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
 	}
@@ -179,3 +179,8 @@ func TestChatStatesAreSentOnceWhenTheyChange(t *testing.T) {
 		t.Fatalf("the call for a page that missed an event: %+v", got)
 	}
 }
+
+// testWait is how long a test waits for something that must happen. It is a failure bound, not a measurement, so
+// it is far longer than a correct run needs and a loaded machine cannot reach it; a run that is right finishes as
+// fast as ever.
+const testWait = 30 * time.Second

@@ -59,7 +59,7 @@ func TestAppletMCPInvokesSettingsAndEAN13(t *testing.T) {
 			if invocation.ID == "" {
 				t.Fatal("missing invocation ID")
 			}
-			deadline := time.Now().Add(5 * time.Second)
+			deadline := time.Now().Add(testWait)
 			for invocation.Status == "running" && time.Now().Before(deadline) {
 				call("applet_status", map[string]any{"id": invocation.ID}, &invocation)
 				time.Sleep(10 * time.Millisecond)

@@ -47,7 +47,7 @@ func nextPrices(t *testing.T, events chan map[string]agents.DevinModelPrice) map
 	select {
 	case p := <-events:
 		return p
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("no prices arrived")
 		return nil
 	}
@@ -100,7 +100,7 @@ func TestDevinPricesAreReadOncePerDevin(t *testing.T) {
 	a.devinPrices.at = time.Now().Add(-2 * time.Hour)
 	a.devinPrices.mu.Unlock()
 	a.ModelPrices("devin")
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for reads() != 3 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}

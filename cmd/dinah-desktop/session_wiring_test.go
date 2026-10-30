@@ -31,7 +31,7 @@ func TestSessionOwnerFactoriesStayLazyAndStable(t *testing.T) {
 			var first any
 			select {
 			case first = <-done:
-			case <-time.After(5 * time.Second):
+			case <-time.After(testWait):
 				t.Fatal("owner construction did not finish")
 			}
 			if first == nil || first != factory.get(a) {

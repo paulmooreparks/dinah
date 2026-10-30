@@ -79,7 +79,7 @@ func TestBusWatcherStopsWithoutClosingSharedHandle(t *testing.T) {
 	go func() { a.busHost().StopWatcher(); close(done) }()
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("bus watcher did not stop")
 	}
 	if _, err := b.ChangeCounter(context.Background()); err != nil {

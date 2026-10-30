@@ -255,7 +255,7 @@ func TestAnAgentWithoutSessionCloseIsStoppedOnlyWhenEveryChatIsDue(t *testing.T)
 	endRound(t, a)
 	select {
 	case <-c.Done():
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the agent was not stopped when all its chats had been closed for four hours")
 	}
 	<-p.Finished()

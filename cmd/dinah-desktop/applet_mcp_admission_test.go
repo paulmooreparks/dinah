@@ -18,7 +18,7 @@ import (
 
 func waitAppletAdmission(t *testing.T, a *appletMCPAdmission, active, waiting int) {
 	t.Helper()
-	deadline := time.NewTimer(5 * time.Second)
+	deadline := time.NewTimer(testWait)
 	defer deadline.Stop()
 	tick := time.NewTicker(time.Millisecond)
 	defer tick.Stop()
@@ -217,7 +217,7 @@ func TestAppletMCPNormalSDKNegotiationAndCancellation(t *testing.T) {
 	}()
 	select {
 	case <-started:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("bridge did not start")
 	}
 	cancel()
@@ -226,12 +226,12 @@ func TestAppletMCPNormalSDKNegotiationAndCancellation(t *testing.T) {
 		if err == nil {
 			t.Fatal("cancelled call succeeded")
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("call did not cancel")
 	}
 	select {
 	case <-cancelled:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("bridge request did not cancel")
 	}
 	if _, err := session.ListTools(context.Background(), nil); err != nil {

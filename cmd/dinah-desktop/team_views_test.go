@@ -143,7 +143,7 @@ func TestTheStripIsSentAsANumberedEventWhenItChanges(t *testing.T) {
 	// A change is sent on its own a moment after the app says something changed.
 	member.SetHold(nil)
 	a.teamsChanged()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		mu.Lock()
 		n := len(versions)

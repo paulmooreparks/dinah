@@ -15,7 +15,7 @@ import (
 
 func awaitApplet(t *testing.T, a *App, ws, kind, owner, id, status string) AppletInvocation {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		v, err := a.appletInvocation(ws, kind, owner, id)
 		if err != nil {

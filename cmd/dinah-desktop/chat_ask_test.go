@@ -39,7 +39,7 @@ func askInBackground(t *testing.T, ctx context.Context, a *App, ws, caller, targ
 // is asked to connect one, and returns the requests.
 func connectRequested(t *testing.T, a *App, r *connectRequests) []map[string]any {
 	t.Helper()
-	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+	for deadline := time.Now().Add(testWait); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
 		wakeRound(t, a)
 		if got := r.take(); len(got) > 0 {
 			return got
@@ -54,7 +54,7 @@ func answer(t *testing.T, done chan askResult) askResult {
 	select {
 	case r := <-done:
 		return r
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the question was never answered")
 	}
 	return askResult{}
@@ -190,7 +190,7 @@ func TestACancelledQuestionIsWithdrawn(t *testing.T) {
 	a, ws, _, _, r := closedAskApp(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := askInBackground(t, ctx, a, ws, "chat-A", "codex:closed", "Never mind?")
-	for deadline := time.Now().Add(5 * time.Second); len(waitingQuestions(t, a)) == 0; time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(testWait); len(waitingQuestions(t, a)) == 0; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(deadline) {
 			t.Fatal("the question was never sent")
 		}

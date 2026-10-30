@@ -49,7 +49,7 @@ func TestShutdownJoinsTrackedSessionCloseBeforeDependencyTeardown(t *testing.T) 
 	a.closedSessions().EndClosed()
 	select {
 	case <-c.entered:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("tracked close did not start")
 	}
 	var releaseOnce sync.Once
@@ -59,7 +59,7 @@ func TestShutdownJoinsTrackedSessionCloseBeforeDependencyTeardown(t *testing.T) 
 		release()
 		select {
 		case <-done:
-		case <-time.After(5 * time.Second):
+		case <-time.After(testWait):
 			t.Error("shutdown did not finish")
 		}
 	})
@@ -79,7 +79,7 @@ func TestShutdownJoinsTrackedSessionCloseBeforeDependencyTeardown(t *testing.T) 
 	release()
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("shutdown did not join released close")
 	}
 	select {

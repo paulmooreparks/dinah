@@ -46,7 +46,7 @@ func titled(t *testing.T, a *App, turns chan map[string]any, text string) string
 
 func waitFor(t *testing.T, what string, ok func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		if ok() {
 			return

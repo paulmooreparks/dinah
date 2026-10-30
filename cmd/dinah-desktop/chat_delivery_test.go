@@ -165,7 +165,7 @@ func TestAsyncReplyArrivesAfterActiveTurnBeforeQueuedWork(t *testing.T) {
 	}
 	select {
 	case <-conn.started:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the active turn did not start")
 	}
 	if err := a.Queue(caller.ID(), "Queued work", nil, nil); err != nil {
