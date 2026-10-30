@@ -180,7 +180,9 @@ var configOverride string
 
 func configDir() string {
 	if configOverride != "" {
-		_ = os.MkdirAll(configOverride, 0o700)
+		if !folderClosed() {
+			_ = os.MkdirAll(configOverride, 0o700)
+		}
 		return configOverride
 	}
 	if applicationStateDir != "" {
@@ -330,6 +332,9 @@ func backUpSettingsBeforeSplit() {
 // restart it is loaded as a registered workspace, which shows in the list
 // again and can be removed again.
 func saveSettings(s Settings) error {
+	if folderClosed() {
+		return errFolderClosed
+	}
 	s.LegacyWorkspaceRecords = nil
 	b, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {

@@ -298,7 +298,7 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	a.lifecycle().StopAll()
 	// A turn that is still ending writes its history and settings, so it is waited for before they are closed.
-	a.turnIO().Wait(5 * time.Second)
+	a.turnIO().Close(5 * time.Second)
 	a.terminalService().CloseAll()
 	a.mu.Lock()
 	open := make([]*Session, 0, a.runtime.ConversationCountLocked())

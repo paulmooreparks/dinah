@@ -20,22 +20,35 @@ var TurnIOSource []byte
 // It holds no registry of its own. Host callbacks must not re-enter a held
 // submission gate; receipt confirmation remains independent of that gate.
 type TurnIO struct {
-	host    TurnHost
+	host TurnHost
+	// mu guards closing and the counting of running turns, so that a turn is never added while Close waits.
+	mu      sync.Mutex
+	closing bool
 	running sync.WaitGroup
 }
 
-// start runs a turn on its own goroutine, which Wait counts.
+// start runs a turn on its own goroutine, which Close waits for. Once Close has begun it starts none: the app is
+// ending, and a turn begun now would write into stores that are closing.
 func (t *TurnIO) start(s *Conversation, next *Prompt) {
+	t.mu.Lock()
+	if t.closing {
+		t.mu.Unlock()
+		return
+	}
 	t.running.Add(1)
+	t.mu.Unlock()
 	go func() {
 		defer t.running.Done()
 		t.Run(s, next)
 	}()
 }
 
-// Wait returns when every turn started so far has ended, or when the limit passes, and says whether they all ended.
-// An app that is ending, or a test that is, waits here so that no turn writes into a folder after it is gone.
-func (t *TurnIO) Wait(limit time.Duration) bool {
+// Close refuses further turns and returns when the running ones have ended, or when the limit passes, and says
+// whether they all ended. The caller ends or cancels the sessions first, so that turns end because they were told to.
+func (t *TurnIO) Close(limit time.Duration) bool {
+	t.mu.Lock()
+	t.closing = true
+	t.mu.Unlock()
 	done := make(chan struct{})
 	go func() { t.running.Wait(); close(done) }()
 	select {

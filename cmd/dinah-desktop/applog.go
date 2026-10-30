@@ -58,6 +58,7 @@ var appLog struct {
 
 // openAppLog lets the log of the current folder be written, as an app starts in it.
 func openAppLog() {
+	openFolder()
 	appLog.Lock()
 	appLog.closedDir = ""
 	appLog.Unlock()

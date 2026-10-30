@@ -25,6 +25,9 @@ func readTranscript(id string) (*conversationTranscript, error) {
 	return sessionhost.ReadTranscript(configDir(), id)
 }
 func writeTranscript(tr *conversationTranscript) error {
+	if folderClosed() {
+		return errFolderClosed
+	}
 	return sessionhost.WriteTranscript(configDir(), tr)
 }
 

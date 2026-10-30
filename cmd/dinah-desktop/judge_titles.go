@@ -129,7 +129,13 @@ func (a *App) noteFirstPrompt(s *Session, p *prompt) {
 	if line == "" {
 		return
 	}
-	a.judging.work.Add(1)
+	j.mu.Lock()
+	if j.closing {
+		j.mu.Unlock()
+		return
+	}
+	j.work.Add(1)
+	j.mu.Unlock()
 	go func() {
 		defer a.judging.work.Done()
 		a.judgeChatTitle(id, line)

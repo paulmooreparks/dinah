@@ -119,6 +119,9 @@ func (a *App) remember(ws, chat, kind, text string, doc *DocRef) {
 	}
 	a.hmu.Lock()
 	defer a.hmu.Unlock()
+	if folderClosed() {
+		return
+	}
 	f, err := os.OpenFile(historyPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
