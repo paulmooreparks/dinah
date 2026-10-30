@@ -317,9 +317,9 @@ body:not(.show-thoughts) .thought-row { display: none; }
 
 /* The composer. A bar of small controls (the document, the mode, the model,
    anything queued, and Stop while Devin works) sits over one row: the
-   sunken input and, beside it, the action buttons stacked in a column, so
-   the buttons never take a line of their own. */
-.composer { max-height: 55%; min-height: 0; overflow: visible; position: relative; container-type: inline-size; flex: 0 1 auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-5) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); }
+   sunken input and its action buttons. Narrow windows put the buttons
+   below the input, using the same arrangement in every live state. */
+.composer { max-height: 55%; min-height: 0; overflow: visible; position: relative; container-type: inline-size; font-size: var(--chat-size, var(--text-base)); flex: 0 1 auto; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-5) var(--space-3); border-top: 1px solid var(--border); background: var(--surface); }
 /* The composer's bar: PUDL's folding toolbar, which keeps to one row and
    folds its groups into menus as the room runs out, with Usage after it.
    The document that goes with the message and the messages waiting for
@@ -420,14 +420,19 @@ body:not(.show-thoughts) .thought-row { display: none; }
    where a browser lacks it. */
 .composer-input { width: 100%; resize: none; field-sizing: content; min-height: calc(2lh + 18px); max-height: min(calc(15lh + 18px), 40vh); overflow-y: auto; }
 .composer-actions { display: flex; flex-direction: column; gap: var(--space-2); justify-content: flex-end; }
-.composer-actions > .btn { min-width: 6.5em; }
+.composer-actions > .btn { min-width: 0; }
+.composer-actions > [data-reserve-label] { display: inline-grid; }
+.composer-actions > [data-reserve-label]::before { content: attr(data-reserve-label); visibility: hidden; }
+.composer-actions > [data-reserve-label]::before, .composer-send-label { grid-area: 1 / 1; }
 .composer-stop-slot { flex: none; display: grid; inline-size: 8.5em; block-size: calc(1lh + 2 * var(--space-1) + 2px); font-size: var(--text-sm); line-height: 1.5; }
 .composer-stop { inline-size: 100%; block-size: 100%; justify-content: center; }
 .chat-working-chip { box-sizing: border-box; inline-size: 8em; flex: none; overflow: hidden; white-space: nowrap; }
 .chat-working-chip .chat-state { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Status changes replace read-only rows while Dismiss stays in its place. */
-.win-status-popover:popover-open { display: flex; flex-direction: column; block-size: min(12rem, calc(100dvh - 24px)); }
-.win-status-popover > ul { flex: 1; min-block-size: 0; overflow-y: auto; }
+/* PUDL 0.95.2 replaces the interim pointer-events correction below. */
+.win-status-popover:popover-open { display: flex; flex-direction: column; max-block-size: calc(100dvh - 24px); pointer-events: auto; }
+.win-status-popover > ul { flex: none; block-size: calc(2 * max(22px, 1lh) + var(--space-2)); overflow: auto; scrollbar-gutter: stable; }
+.win-status-popover :is(li, .win-execution-row) { block-size: max(22px, 1lh); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .win-status-popover > button { flex: none; align-self: start; }
 
 /* The prompt history: a sunken, scrolling list of pressable prompts. */
@@ -650,10 +655,10 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .transcript-unread-divider { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0; color: var(--accent); font-size: var(--text-sm); font-weight: 600; }
 .transcript-unread-divider::before, .transcript-unread-divider::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
 
-@container (max-width: 22rem) {
+@container (max-width: 26em) {
   .composer-row { grid-template-columns: minmax(0, 1fr); }
-  .composer-actions { flex-direction: row; }
-  .composer-actions > .btn { flex: 1; min-width: 0; }
+  .composer-actions { flex-direction: row; justify-content: flex-end; }
+  .composer-actions > .btn { flex: none; }
 }
 
 .composer-scroll { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; overflow: auto; }

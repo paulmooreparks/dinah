@@ -1074,7 +1074,7 @@
       chip.title = stateDetail; chip.setAttribute('aria-label', stateDetail);
       if (concealed) return;
       var mark = s ? window.dinahChatState.badge(s.info, { reason: false }) : document.createElement('span');
-      if (!s) { mark.className = 'chat-state chat-lifecycle'; mark.textContent = 'New Chat'; }
+      if (!s) { mark.className = 'chat-state chat-lifecycle'; mark.textContent = workspaceLabel(workspace); }
       mark.title = stateDetail; mark.setAttribute('aria-label', stateDetail); chip.appendChild(mark);
       // PUDL's folded status lists the full host-owned lifecycle text.
       var context = document.createElement('span'); context.className = 'visually-hidden chat-state-context'; context.setAttribute('aria-hidden', 'true');
@@ -1100,8 +1100,9 @@
       if (helpers) t += ' ' + (helpers === 1 ? '1 subagent is' : helpers + ' subagents are') + ' running.';
       var stateWindow = root.closest('.win'), stateChip = stateWindow && stateWindow.querySelector('.chat-working-chip');
       var mark = s ? window.dinahChatState.describe(s.info, { reason: false }).text : 'New Chat';
-      stateContext = [workspace ? workspaceLabel(workspace) : '', t].filter(Boolean).join(' · ');
-      stateDetail = [mark, stateContext].filter(Boolean).join(' · ');
+      var destination = workspace ? workspaceLabel(workspace) : '';
+      stateDetail = [mark, destination, t].filter(Boolean).join(' · ');
+      stateContext = [s ? destination : 'New Chat', t].filter(Boolean).join(' · ');
       var execution = stateWindow && syncWindowExecution(stateWindow, s);
       if (stateChip) drawWindowLifecycle(stateChip, s, execution);
       drawBackground(s, work);
@@ -2393,7 +2394,7 @@
       var stopControl = root.querySelector('.composer-stop');
       stopControl.setAttribute('aria-hidden', String(!w));
       stopControl.toggleAttribute('inert', !w);
-      $('send').textContent = w ? 'Queue' : 'Send';
+      $('send').querySelector('.composer-send-label').textContent = w ? 'Queue' : 'Send';
       $('send').title = w ? 'Queue explicitly. ' + sendKeyName() + ' steers when supported, otherwise queues.' : 'Send (' + sendKeyName() + ')';
       $('prompt').placeholder = 'Say what you want the agent to do, or type / for a skill.';
       typed();

@@ -608,7 +608,7 @@
         <textarea class="form-textarea composer-input" id="prompt" rows="2" placeholder="Say what you want the agent to do, or type / for a skill." aria-autocomplete="list" aria-controls="slash-pop"></textarea>
         <div class="slash-pop" id="slash-pop" role="listbox" aria-label="Skills" hidden></div>
         <div class="composer-actions">
-          <button type="submit" class="btn btn-primary" id="send" disabled title="Send (Ctrl+Enter)">Send</button>
+          <button type="submit" class="btn btn-primary" id="send" data-reserve-label="Queue" disabled title="Send (Ctrl+Enter)"><span class="composer-send-label">Send</span></button>
           <button type="button" class="btn" id="steer-send" disabled title="Give the agent this message now, while it keeps working (Ctrl+Shift+Enter)">Steer</button>
         </div>
       </div>

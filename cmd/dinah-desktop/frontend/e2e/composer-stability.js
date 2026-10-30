@@ -89,7 +89,7 @@ const fs = require('fs'), path = require('path');
         tokens.forEach(([name, value]) => document.documentElement.style.setProperty(name, parseFloat(value) * scale + 'px'));
         pudlWindows.snap(key, 'floating');
         __composerRoot.style.width = (width === 1440 ? 1000 : 420) + 'px';
-        __composerRoot.style.height = '900px'; __composerRoot.style.top = '50px';
+        __composerRoot.style.height = '800px'; __composerRoot.style.top = '50px';
         __composerRoot.style.left = Math.round((innerWidth - (width === 1440 ? 1000 : 420)) / 2) + 'px';
         __work(false);
       }, { theme, scale, tokens: textBaseline.tokens, width, key });
@@ -121,6 +121,27 @@ const fs = require('fs'), path = require('path');
       });
       const actualTextSize = await box.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
       ok('the text-size fixture applies scale ' + scale + ' at ' + width, Math.abs(actualTextSize - textBaseline.prompt * scale) < .02, String(actualTextSize));
+      const arrangement = await win.evaluate(win => {
+        const row = win.querySelector('.composer-row'), input = row.querySelector('textarea'), actions = row.querySelector('.composer-actions');
+        const widest = [...actions.querySelectorAll('button')].map(button => {
+          const css = getComputedStyle(button), label = document.createElement('span');
+          Object.assign(label.style, { position: 'fixed', visibility: 'hidden', whiteSpace: 'nowrap', font: css.font, letterSpacing: css.letterSpacing });
+          label.textContent = button.dataset.reserveLabel || button.textContent;
+          document.body.appendChild(label);
+          const result = label.getBoundingClientRect().width + ['paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth'].reduce((n, key) => n + parseFloat(css[key]), 0);
+          label.remove(); return result;
+        });
+        const bar = document.querySelector('.win-bar');
+        return { row: row.getBoundingClientRect().toJSON(), input: input.getBoundingClientRect().toJSON(), actions: actions.getBoundingClientRect().toJSON(), widest: Math.max(...widest), window: win.getBoundingClientRect().toJSON(), viewportBottom: bar ? bar.getBoundingClientRect().top : innerHeight };
+      });
+      if (width === 700) ok('narrow input keeps the whole row above its buttons at text ' + scale,
+        Math.abs(arrangement.input.width - arrangement.row.width) < 1 && arrangement.actions.top >= arrangement.input.bottom,
+        JSON.stringify(arrangement));
+      else ok('wide button column fits its widest label and gives the rest to the input at text ' + scale,
+        Math.abs(arrangement.actions.width - arrangement.widest) < 1 && arrangement.input.right <= arrangement.actions.left,
+        JSON.stringify(arrangement));
+      ok('typing actions remain inside the window and viewport at ' + width + '/' + scale,
+        arrangement.actions.bottom <= Math.min(arrangement.window.bottom, arrangement.viewportBottom), JSON.stringify(arrangement.actions));
       const failures = [];
       for (const frame of sample.frames) {
         for (const id of new Set([...Object.keys(sample.before), ...Object.keys(frame.boxes)])) {
@@ -133,7 +154,7 @@ const fs = require('fs'), path = require('path');
         if (frame.hint !== sample.hint) failures.push({ issue: 'placeholder changed' });
         if (frame.label !== (frame.working ? 'Queue' : 'Send')) failures.push({ issue: 'incorrect action label' });
       }
-      traces.push({ theme, width, scale, textSize: actualTextSize, window: await win.boundingBox(), ...sample, failures });
+      traces.push({ theme, width, scale, textSize: actualTextSize, window: await win.boundingBox(), arrangement, ...sample, failures });
       ok('composer controls stay fixed on every frame, ' + theme + ', ' + width + ' px, text ' + scale, failures.length === 0, JSON.stringify(failures.slice(0, 8)));
       await t.shot('composer-' + theme + '-' + width + '-' + scale + '-idle');
       await page.evaluate(() => __work(true)); await primary('steer-send');
