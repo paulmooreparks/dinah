@@ -450,17 +450,6 @@
   <!-- Chat: what a chat window is drawn from (chat-applet.js mounts it). -->
   <template id="chat-editor">
     <div class="split-pane chat-pane">
-    <div class="page-head">
-      <div class="session-head">
-        <h1 id="session-title">Dinah</h1>
-        <span class="session-actions" id="session-actions" hidden>
-          <button type="button" class="icon-btn" data-cmd="rename-session" aria-label="Rename the session" title="Rename the session (F2)"><span class="glyph" style="--glyph: var(--glyph-pencil)" aria-hidden="true"></span></button>
-          <button type="button" class="icon-btn danger" data-cmd="remove-session" aria-label="Remove the session" title="Remove the session…"><span class="glyph" style="--glyph: var(--glyph-bin)" aria-hidden="true"></span></button>
-        </span>
-      </div>
-      <p class="page-state" id="page-state"><span>Start a new chat, or open one from the list.</span></p>
-      <ul class="background-tasks" id="background-tasks" aria-label="Background work" hidden></ul>
-    </div>
     <div class="chat-output">
     <div class="page-body run transcript" id="activity" data-follow-end data-scroll-defer>
       <div class="pin" id="pin" hidden>
@@ -472,6 +461,7 @@
           <button type="button" class="icon-btn" id="pin-go" aria-label="Go to your message" title="Go to your message"><span class="glyph" style="--glyph: var(--glyph-sort-up)" aria-hidden="true"></span></button>
         </span>
       </div>
+      <ul class="background-tasks" id="background-tasks" aria-label="Background work" hidden></ul>
       <p class="replay" id="replay" role="status" hidden></p>
       <div id="logs"></div>
       <p class="activity-muted run-empty" id="log-empty">Nothing has happened yet in this session.</p>
@@ -590,9 +580,10 @@
             <button type="button" data-command="add"></button><button type="button" data-command="skills"></button>
           </div>
           <div class="toolbar-group" data-toolbar-group="Turn" data-toolbar-glyph="square" data-toolbar-priority="0">
-            <button type="button" data-command="subagents"></button><button type="button" data-command="drop-queue"></button><button type="button" data-command="stop-turn"></button>
+            <button type="button" data-command="subagents"></button><button type="button" data-command="drop-queue"></button>
           </div>
         </div>
+        <span class="composer-stop-slot"><button type="button" class="composer-stop" data-command="stop-turn"></button></span>
         <input type="file" id="file-pick" multiple hidden>
         <button type="button" class="btn btn-sm composer-usage" id="usage-button" popovertarget="usage-menu" hidden title="Context and usage"><span class="usage-meter" aria-hidden="true"><span class="usage-fill" id="usage-fill"></span></span><span id="usage-words"></span></button>
         <span class="composer-context" id="context" hidden>
@@ -618,7 +609,7 @@
         <div class="slash-pop" id="slash-pop" role="listbox" aria-label="Skills" hidden></div>
         <div class="composer-actions">
           <button type="submit" class="btn btn-primary" id="send" disabled title="Send (Ctrl+Enter)">Send</button>
-          <button type="button" class="btn" id="steer-send" hidden disabled title="Give the agent this message now, while it keeps working (Ctrl+Shift+Enter)">Steer</button>
+          <button type="button" class="btn" id="steer-send" disabled title="Give the agent this message now, while it keeps working (Ctrl+Shift+Enter)">Steer</button>
         </div>
       </div>
     </form>

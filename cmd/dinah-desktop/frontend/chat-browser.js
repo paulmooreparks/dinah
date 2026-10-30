@@ -14,14 +14,29 @@
     /* Renaming: the session's row in the list becomes a field. Enter keeps
        the name, Esc leaves it as it was, and an empty name goes back to
        Devin's title. */
-    /* where is 'head' for the title over the chat, where the pencil button
-       is, or 'list' for the session's row in the sidebar. */
+    // Renaming from Actions opens a form; sidebar rows retain inline editing.
     function startRename(id, where) {
       id = id || adapter.active();
       if (!id) return;
-      var target = where === 'list' || where === 'workspace'
-        ? document.querySelector((where === 'workspace' ? '#workspace-chats' : '#sessions') + ' a[data-session="' + CSS.escape(id) + '"]')
-        : (id === adapter.active() ? adapter.titleElement() : null);
+      if (where !== 'list' && where !== 'workspace') {
+        var dialog = document.createElement('dialog'); dialog.className = 'dialog chat-rename-dialog';
+        dialog.setAttribute('aria-label', 'Rename Chat');
+        dialog.innerHTML = '<h2 class="dialog-title">Rename Chat</h2><form class="vstack gap-3"><label class="form-label">Name of the chat<input class="form-input session-rename" name="title" autocomplete="off"></label><div class="dialog-actions"><button type="button" class="btn" data-rename-cancel>Cancel</button><button type="submit" class="btn btn-primary">Save</button></div></form>';
+        var field = dialog.querySelector('input'); field.value = title(sessions[id]);
+        var opener = document.activeElement;
+        dialog.addEventListener('close', function () { dialog.remove(); if (opener && opener.isConnected) opener.focus({ preventScroll: true }); });
+        dialog.querySelector('[data-rename-cancel]').addEventListener('click', function () { dialog.close(); });
+        dialog.querySelector('form').addEventListener('submit', function (event) {
+          event.preventDefault();
+          app().RenameSession(id, field.value).then(function (t) {
+            titles = t || {}; drawSessions();
+            if (sessions[id] && sessions[id].view) sessions[id].view.refresh();
+            dialog.close();
+          }).catch(fail);
+        });
+        document.body.appendChild(dialog); dialog.showModal(); field.focus(); field.select(); return;
+      }
+      var target = document.querySelector((where === 'workspace' ? '#workspace-chats' : '#sessions') + ' a[data-session="' + CSS.escape(id) + '"]');
       if (!target) return;
       var parent = target.parentNode;
       var input = document.createElement('input');
@@ -42,7 +57,6 @@
         app().RenameSession(id, input.value).then(function (t) {
           titles = t || {};
           drawSessions();
-          if (id === adapter.active()) adapter.titleElement().textContent = title(sessions[id]);
           if (sessions[id] && sessions[id].view) sessions[id].view.refresh();
         }).catch(fail);
       }

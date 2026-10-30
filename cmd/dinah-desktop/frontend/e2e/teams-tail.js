@@ -37,7 +37,7 @@ const path = require('path');
       const key = await p.evaluate(id => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: id }), id);
       const win = p.locator('[data-win="' + key + '"]');
       if (id === 'ordinary') await win.locator('[data-win-action="maximize"]').click();
-      await win.locator('[data-view-id="page-state"]').filter({ hasText: /working/i }).waitFor();
+      await win.locator('.chat-working-chip').filter({ hasText: /working/i }).waitFor();
       if (id === 'lead') { await strip(2); }
       for (let round = 0; round < 6; round++) { await output(id, round, id === 'lead'); await tail(win, id + ' follows output ' + round); }
       if (id === 'lead') {

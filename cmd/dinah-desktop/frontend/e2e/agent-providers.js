@@ -141,7 +141,7 @@ const { choose, shows } = require('./lib/commands');
     });
     await front().getByText('Codex finished its turn.', { exact: true }).waitFor();
     ok('chat output identifies the actual provider', (await front().locator('[data-view-id="logs"]').textContent()).includes('Codex'));
-    await front().locator('[data-cmd="remove-session"]').click();
+    await page.evaluate(() => dinahCommands.run('remove-session'));
     ok('Codex sessions offer hiding without promising deletion', await page.locator('#remove-hide').isVisible() && await page.locator('#remove-go').isHidden() && (await page.locator('#remove-body').textContent()).includes('Codex keeps'));
     await page.locator('#remove').press('Escape');
     await t.shot('agent-providers-chat');

@@ -4,7 +4,7 @@ const { launch } = require('./lib/page');
   const t = await launch({ viewport: { width: 1440, height: 1000 }, app: () => {
     const workspace = 'C:/Fixture';
     const states = ['working', 'waiting', 'stuck', 'idle', 'closed', 'retired', 'elsewhere'];
-    const why = { waiting: 'Context full', stuck: 'The provider cannot run this chat' };
+    const why = { working: 'Turn in progress', idle: 'No work in progress', waiting: 'Context full', stuck: 'The provider cannot run this chat' };
     const chats = states.map(state => ({ sessionId: state, title: state[0].toUpperCase() + state.slice(1) + ' Chat', provider: 'codex', cwd: workspace,
       open: state !== 'closed' && state !== 'retired', working: state === 'working',
       chatState: { life: state === 'closed' || state === 'retired' ? state : 'open', window: state !== 'idle' && state !== 'elsewhere', ...(state === 'elsewhere' ? { elsewhere: 'Running in another Dinah window' } : !['closed', 'retired'].includes(state) ? { exec: { state, why: why[state] || '' } } : {}) }
@@ -111,7 +111,15 @@ const { launch } = require('./lib/page');
     await page.setViewportSize({ width: 1440, height: 1000 });
     const chatKey = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'working' }));
     const chat = page.locator('[data-win="' + chatKey + '"]');
-    await chat.locator('[data-view-id="page-state"] .chat-state-working').waitFor();
+    await chat.locator('.chat-working-chip .chat-state-working').waitFor({ state: 'attached' });
+    const statusControl = chat.locator('.win-status-toggle');
+    if (await statusControl.isVisible()) {
+      const panelId = await statusControl.getAttribute('popovertarget');
+      await statusControl.click();
+      await page.locator('#' + panelId).getByText('Working · Fixture · Turn in progress', { exact: true }).waitFor();
+      ok('folded status keeps the full workspace and execution reason', true);
+      await page.keyboard.press('Escape');
+    }
     await page.evaluate(() => __emit('agent:update', { sessionId: 'working', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'The shared transcript uses the same spacing and controls as a chat.' } } }));
     await chat.locator('.msg-text', { hasText: 'The shared transcript uses' }).waitFor();
     await group.locator('.group-composer textarea').fill('');
@@ -122,14 +130,32 @@ const { launch } = require('./lib/page');
     await chat.locator('[data-win-action="maximize"]').click();
     await t.shot('comparison-chat');
     ok('chat and group comparison windows use the same size', JSON.stringify(await chat.boundingBox()) === JSON.stringify(await group.boundingBox()));
-    ok('chat body and title status share the execution presenter', await chat.locator('.win-statuses .chat-state-working').count() > 0);
+    ok('the title bar presents the execution state', await chat.locator('.win-statuses .chat-state-working').count() > 0);
     await chat.locator('.chat-team > button.disclosure').click();
     await chat.locator('[data-team-member="bus-waiting"] .chat-state-waiting').waitFor();
     await t.shot('chat-team-states');
+    await page.setViewportSize({ width: 1920, height: 1100 });
+    await page.evaluate(({ chatKey, groupKey }) => { pudlWindows.snap(chatKey, 'left'); pudlWindows.snap(groupKey, 'right'); }, { chatKey, groupKey });
+    for (const expanded of [false, true]) {
+      const teamToggle = chat.locator('.chat-team > button.disclosure'), memberToggle = group.getByRole('button', { name: /^Members/ });
+      if ((await teamToggle.getAttribute('aria-expanded') === 'true') !== expanded) await teamToggle.click();
+      if ((await memberToggle.getAttribute('aria-expanded') === 'true') !== expanded) await memberToggle.click();
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate(theme => pudlSetTheme(theme), theme);
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await t.shot('chat-group-side-by-side-' + theme + '-' + (expanded ? 'expanded' : 'folded'));
+      }
+    }
+    ok('the chat body has no duplicate name, status line or title actions', await chat.locator('.win-body h1, .win-body .page-state, .session-actions').count() === 0);
+    const paired = { chat: await chat.boundingBox(), group: await group.boundingBox() };
+    ok('side-by-side chat and group have equal width and height', Math.abs(paired.chat.width - paired.group.width) < 2 && Math.abs(paired.chat.height - paired.group.height) < 2, JSON.stringify(paired));
+    ok('the state chip keeps workspace and reason in its tooltip', /Fixture/.test(await chat.locator('.chat-working-chip').getAttribute('title')));
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await chat.locator('[data-win-action="maximize"]').click();
     for (const state of ['working', 'waiting', 'stuck', 'idle']) {
       const key = state === 'working' ? chatKey : await page.evaluate(state => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: state }), state);
       const current = page.locator('[data-win="' + key + '"]');
-      await current.locator('[data-view-id="page-state"] .chat-state-' + state).waitFor();
+      await current.locator('.chat-working-chip .chat-state-' + state).waitFor({ state: 'attached' });
       for (const theme of ['light', 'dark']) {
         await page.evaluate(theme => pudlSetTheme(theme), theme);
         await t.shot('chat-state-' + state + '-' + theme);

@@ -25,7 +25,7 @@ const { choose } = require('./lib/commands');
     async function open(id) {
       await page.evaluate(() => dinahWorkbench.open('workspace'));
       await page.locator('#workspace-chats [data-session="' + id + '"]').click();
-      await front().locator('[data-view-id="session-title"]').getByText(id, { exact: true }).waitFor();
+      await front().locator('.win-title').getByText(id, { exact: true }).waitFor();
     }
     async function requestUsage() {
       const count = await page.evaluate(() => __requests.length);

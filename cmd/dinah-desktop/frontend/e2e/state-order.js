@@ -19,7 +19,7 @@ const { launch } = require('./lib/page');
     ready: () => window.dinahWorkbench && window.dinahEditor,
   });
   const { page, ok } = t;
-  const title = win => page.locator('[data-win="' + win + '"] [data-view-id="session-title"]').first().textContent();
+  const title = win => page.locator('[data-win="' + win + '"] .win-title').first().textContent();
   try {
     // The rule itself.
     const rule = await page.evaluate(() => {

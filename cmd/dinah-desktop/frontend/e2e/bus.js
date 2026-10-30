@@ -252,7 +252,7 @@ const { launch } = require('./lib/page');
 
     // A chat window's Actions menu starts a group and adds the chat to one.
     await p.evaluate(() => window.dinahChats.open('chat-parser'));
-    await p.locator('.win.active[data-win-kind="chat-session"] [data-view-id="session-title"]', { hasText: 'Parser Release' }).waitFor();
+    await p.locator('.win.active[data-win-kind="chat-session"] .win-title', { hasText: 'Parser Release' }).waitFor();
     await p.locator('[data-menubar] .menubar-title').filter({ hasText: /^Actions$/ }).click();
     const chatActions = await p.locator('#menubar-panel .menu-action').allInnerTexts();
     const at = label => chatActions.findIndex(a => a.includes(label));

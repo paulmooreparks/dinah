@@ -28,7 +28,7 @@ const { launch } = require('./lib/page');
     });
     await first.locator('[data-view-id=chat-approvals]').waitFor();
     ok('approval is visible in its chat while Notifications is closed', await first.getByText('Waiting for Your Approval', { exact: true }).isVisible() && !await page.locator('[data-win="needs-you"]').isVisible());
-    ok('the chat status explains the wait and typing focus is preserved', (await first.locator('[data-view-id=page-state]').textContent()).includes('Waiting for your approval.') && await first.locator('[data-view-id=page-state] .chat-state-waiting').count() === 1 && await first.locator('[data-view-id=prompt]').evaluate(el => el === document.activeElement));
+    ok('the chat status explains the wait and typing focus is preserved', (await first.locator('.chat-working-chip').getAttribute('title')).includes('Waiting for your approval.') && await first.locator('.chat-working-chip .chat-state-waiting').count() === 1 && await first.locator('[data-view-id=prompt]').evaluate(el => el === document.activeElement));
     ok('a short question fits without clipping its choices', await first.locator('[data-view-id=chat-approvals]').evaluate(el => el.clientHeight >= 60 && el.scrollHeight <= el.clientHeight + 1));
     await page.evaluate(() => __emit('agent:permission', { key: 'long-question', sessionId: 'first', toolCall: { title: 'Please review this question. '.repeat(300) }, options: [{ optionId: 'ok', name: 'Answer the Long Question', kind: 'allow_once' }] }));
     await first.getByRole('button', { name: 'Answer the Long Question' }).waitFor({ state: 'attached' });

@@ -1019,8 +1019,6 @@
       if (s && s.loading) s.log.hidden = true;
       $('replay').hidden = !(s && s.loading && !s.quiet && !s.drawingSaved);
       if (s && s.loading && !s.quiet && !s.drawingSaved) replayProgress(s);
-      $('session-title').textContent = s ? title(s) : productName();
-      $('session-actions').hidden = !s;
       $('log-empty').hidden = !!(s && (s.log.children.length || s.loading));
       $('log-empty').textContent = s ? 'Nothing has happened yet in this chat.' : 'Start a new chat, or open one from the list. Your first message starts a new chat with the provider and model shown below.';
       sessionNote();
@@ -1061,6 +1059,7 @@
         stateLine(); renderComposerOptions(); controller.refresh(); fail(err);
       });
     }
+    var stateDetail = '', stateContext = '';
     function stateLine() {
       var s = active && sessions[active];
       var state = s && window.dinahChatState.read(s.info);
@@ -1079,11 +1078,17 @@
       if (work.length) t += ' ' + (work.length === 1 ? '1 background task is' : work.length + ' background tasks are') + ' running.';
       var helpers = runningSubagents(s);
       if (helpers) t += ' ' + (helpers === 1 ? '1 subagent is' : helpers + ' subagents are') + ' running.';
-      var stateHost = $('page-state').firstElementChild;
-      stateHost.replaceChildren();
-      if (s) stateHost.appendChild(window.dinahChatState.badge(s.info, { reason: false }));
-      stateHost.appendChild(document.createTextNode((s ? ' ' : '') + (workspace ? workspaceLabel(workspace) + ' · ' : '') + t));
-      $('page-state').firstElementChild.title = workspace;
+      var stateWindow = root.closest('.win'), stateChip = stateWindow && stateWindow.querySelector('.chat-working-chip');
+      var mark = s ? window.dinahChatState.describe(s.info, { reason: false }).text : 'New Chat';
+      stateContext = [workspace ? workspaceLabel(workspace) : '', t].filter(Boolean).join(' · ');
+      stateDetail = [mark, stateContext].filter(Boolean).join(' · ');
+      if (stateChip) {
+        stateChip.title = stateDetail; stateChip.setAttribute('aria-label', stateDetail);
+        var stateMark = stateChip.querySelector('.chat-state');
+        if (stateMark) { stateMark.title = stateDetail; stateMark.setAttribute('aria-label', stateDetail); }
+        var contextWords = stateChip.querySelector('.chat-state-context');
+        if (contextWords) contextWords.textContent = stateContext ? ' · ' + stateContext : '';
+      }
       drawBackground(s, work);
       drawSwitchState(s);
       teamPanel.update(s);
@@ -2314,7 +2319,7 @@
       m.li.dataset.steer = e.state;
       if (e.state !== 'pending' && e.state !== 'queued') delete s.steerRows[e.steer];
     });
-    function titlesChanged(t) { setTitles(t); drawSessions(); if (active && sessions[active]) $('session-title').textContent = title(sessions[active]); controller.refresh(); }
+    function titlesChanged(t) { setTitles(t); drawSessions(); controller.refresh(); }
     on('agent:titles', titlesChanged);
     listeners.push(window.dinahHost.onResync(function () {
       if (deleted || !app().State) return null;
@@ -2342,21 +2347,40 @@
        Provider adapters or hooks deliver it at their next supported boundary.
        Stop and Steer remains the explicit interruption command. Stop sits
        at the end of the bar. The typing buttons stay off while the box is empty. */
-    var working = false, primaryRequest = 0;
+    var working = false, primaryRequest = 0, lastQueueDecision = '';
     function indicatePrimaryAction() {
       var request = ++primaryRequest, id = active;
-      function paint(steer) { if (request !== primaryRequest || active !== id) return; $('send').classList.toggle('btn-primary', !steer); $('steer-send').classList.toggle('btn-primary', steer); }
+      function record(can, failure, superseded) {
+        if (!working || active !== id || !$('send').classList.contains('btn-primary')) return;
+        var signature = JSON.stringify([id, can, failure, superseded]);
+        if (signature === lastQueueDecision) return;
+        lastQueueDecision = signature;
+        if (!app().LogQueueDefault) return;
+        try { Promise.resolve(app().LogQueueDefault(id, can, failure, superseded)).catch(function () {}); } catch (error) {}
+      }
+      function paint(steer, failure) {
+        var superseded = request !== primaryRequest || active !== id;
+        if (superseded) { record(steer, failure || '', true); return; }
+        $('send').classList.toggle('btn-primary', !steer);
+        $('steer-send').classList.toggle('btn-primary', steer);
+        if (steer || !working) lastQueueDecision = '';
+        else record(steer, failure || '', false);
+      }
       if (!working || !id || !app().CanSteer) { paint(false); return; }
-      Promise.resolve(app().CanSteer(id, collectAttachments($('prompt').value))).then(function (can) { paint(!!can); }, function () { paint(false); });
+      Promise.resolve().then(function () { return app().CanSteer(id, collectAttachments($('prompt').value)); }).then(function (can) { paint(!!can); }, function (error) { paint(false, String(error)); });
     }
     function setWorking(w) {
+      if (!w && root.contains(document.activeElement) && document.activeElement.closest('[data-command="stop-turn"], [data-view-id="steer-send"]')) $('prompt').focus({ preventScroll: true });
       working = w;
+      $('steer-send').style.visibility = w ? '' : 'hidden';
+      $('steer-send').setAttribute('aria-hidden', String(!w));
+      $('steer-send').toggleAttribute('inert', !w);
+      var stopControl = root.querySelector('.composer-stop');
+      stopControl.setAttribute('aria-hidden', String(!w));
+      stopControl.toggleAttribute('inert', !w);
       $('send').textContent = w ? 'Queue' : 'Send';
       $('send').title = w ? 'Queue explicitly. ' + sendKeyName() + ' steers when supported, otherwise queues.' : 'Send (' + sendKeyName() + ')';
-      $('steer-send').hidden = !w;
-      $('prompt').placeholder = w
-        ? 'Type a follow-up. Sending steers when supported, otherwise queues. Queue and Steer choose explicitly. Esc stops the turn.'
-        : 'Say what you want the agent to do, or type / for a skill.';
+      $('prompt').placeholder = 'Say what you want the agent to do, or type / for a skill.';
       typed();
       renderComposerOptions();
     }
@@ -2365,7 +2389,7 @@
       window.dinahComposer.fit($('prompt'));
       var empty = !$('prompt').value.trim() && !skillForm.isOpen() && !(typeof attachments !== 'undefined' && attachments.length);
       $('send').disabled = empty || switchingProvider;
-      $('steer-send').disabled = empty || switchingProvider;
+      $('steer-send').disabled = !working || empty || switchingProvider;
       indicatePrimaryAction();
       saveDraft();
     }
@@ -3199,7 +3223,6 @@
         // A cleared document stays cleared until its window comes forward again.
         if (was && was.draftId) document.dispatchEvent(new CustomEvent('dinah:context-cleared', { detail: { draftId: was.draftId } }));
       });
-      $('session-title').addEventListener('dblclick', function () { if (active) startRename(active, 'head'); });
       /* The chat's commands, declared once for PUDL's commands
          (pudl-commands.js): the window's menu names them by id, and an agent
          lists and runs them as pressing them would. The composer's own
@@ -3296,15 +3319,15 @@
             hidden: !(active && sessions[active].info.choice) },
           { id: 'load-full-history', label: 'Load Full History', glyph: 'reload', run: function () { if (active) return loadFullHistory(active).catch(fail); },
             hidden: !(active && sessions[active].info.resumed && sessions[active].info.open), disabled: working, reason: working ? 'The chat is working. Load Full History is available when it has finished.' : null },
-          // Stop is shown only while a turn is going, at the toolbar's end.
+          // Stop keeps a separate slot beside the folding toolbar while idle.
           // While the chat says Stopping, the control stays pressable: pressing it asks again.
           { id: 'stop-turn', label: stopping() ? 'Stopping…' : 'Stop', glyph: 'square', danger: true, run: stopTurn, hidden: !working,
             detail: stopping() ? 'Stop was asked for. Press again to ask again.' : undefined },
           { id: 'send', label: working ? 'Queue' : 'Send', disabled: $('send').disabled, reason: $('send').disabled ? 'The message is empty.' : null, run: function () { send('queue'); } },
-          { id: 'steer', label: 'Steer', hidden: $('steer-send').hidden, disabled: $('steer-send').disabled, run: function () { send('steer'); } },
+          { id: 'steer', label: 'Steer', hidden: !working, disabled: $('steer-send').disabled, run: function () { send('steer'); } },
           // Steer gives a Claude chat the message at its next step; this stops
           // the step first, for when the agent should drop what it is doing.
-          { id: 'stop-and-steer', label: 'Stop and Steer', hidden: $('steer-send').hidden, disabled: $('steer-send').disabled, run: function () { send('stop-steer'); } },
+          { id: 'stop-and-steer', label: 'Stop and Steer', hidden: !working, disabled: $('steer-send').disabled, run: function () { send('stop-steer'); } },
           { id: 'drop-queue', label: 'Drop the Queued Messages', glyph: 'close', hidden: $('queue').hidden, run: function () { if (active) app().Unqueue(active); } },
           { id: 'clear-document', label: 'Clear the Document', hidden: $('context').hidden, run: function () { $('context-clear').click(); } }
         ].map(function (command) {
@@ -3381,11 +3404,22 @@
                 return el;
               };
               var workingChip = chip('chat-working-chip');
+              workingChip.setAttribute('role', 'img');
               workingChip.replaceChildren();
-              workingChip.hidden = !s;
+              workingChip.hidden = !s && !workspace;
+              workingChip.title = stateDetail;
+              workingChip.setAttribute('aria-label', stateDetail);
               var execution = s && window.dinahChatState.read(s.info).exec;
               workingChip.classList.toggle('strong', !!execution && execution.state === 'working');
-              if (s) workingChip.appendChild(window.dinahChatState.badge(s.info));
+              if (s || workspace) {
+                var stateMark = s ? window.dinahChatState.badge(s.info, { reason: false }) : document.createElement('span');
+                if (!s) { stateMark.className = 'chat-state chat-lifecycle'; stateMark.textContent = 'New Chat'; }
+                stateMark.title = stateDetail; stateMark.setAttribute('aria-label', stateDetail); workingChip.appendChild(stateMark);
+                // PUDL's folded status lists the full host-owned status text.
+                var contextWords = document.createElement('span');
+                contextWords.className = 'visually-hidden chat-state-context'; contextWords.setAttribute('aria-hidden', 'true');
+                contextWords.textContent = stateContext ? ' · ' + stateContext : ''; workingChip.appendChild(contextWords);
+              }
               drawLoadingChip();
               var backgroundChip = chip('chat-background-chip');
               backgroundChip.hidden = !work.length;

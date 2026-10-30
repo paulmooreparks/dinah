@@ -43,7 +43,7 @@ const path = require('node:path');
       }), fields);
       await p.waitForFunction(f => {
         const win = document.querySelector('.win[data-chat-current]');
-        return !!win.querySelector('[data-view-id="page-state"] .chat-state-' + (f.working ? 'working' : 'idle')) && win.querySelector('[data-view-id="queue"]').hidden === !f.queued.length;
+        return !!win.querySelector('.chat-working-chip .chat-state-' + (f.working ? 'working' : 'idle')) && win.querySelector('[data-view-id="queue"]').hidden === !f.queued.length;
       }, fields);
       // Settle the host's scheduled command redraw before reopening its menu.
       await p.evaluate(() => window.dinahCommands.flush());

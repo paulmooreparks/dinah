@@ -35,8 +35,8 @@ const { launch, PAGE } = require('./lib/page');
     const prog = win.locator('.switch-progress');
     await prog.waitFor();
     ok('while it runs, the box rests and the bar names the stage in the engine’s words', (await prog.locator('.switch-stage').textContent()) === 'Building the summary of the conversation' && await prog.locator('.switch-running').isVisible() && await prog.locator('progress.progress').isVisible() && await prog.isVisible());
-    // The line under the title says what the chat is doing (Dinah UI's review).
-    ok('and the line under its title says so too', await win.locator('[data-view-id=page-state] .chat-state-working').count() === 1 && /Switching to Claude./.test((await win.locator('[data-view-id="page-state"]').textContent()) || ''), await win.locator('[data-view-id="page-state"]').textContent());
+    // Title status retains the explanation when the body status line is absent.
+    ok('title status retains the switch explanation', await win.locator('.chat-working-chip .chat-state-working').count() === 1 && /Switching to Claude./.test((await win.locator('.chat-working-chip').getAttribute('title')) || ''), await win.locator('.chat-working-chip').getAttribute('title'));
     await t.shot('switch-in-progress');
     ok('and the composer and its pickers are out of it', await win.locator('.composer').isHidden() && await win.locator('[data-command="provider"]').isHidden());
     ok('the transcript still reads and scrolls', await win.locator('[data-view-id="activity"]').getByText('A message to read while the switch runs.').isVisible());

@@ -133,7 +133,7 @@ const { launch } = require('./lib/page');
       return (!line || line.hidden) && !/Reopening the session/.test(w.innerText);
     }, backKey));
     // Once it has reconnected behind the other window, its own header says so.
-    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + CSS.escape(k) + '"] [data-view-id="page-state"]').textContent), backKey);
+    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + CSS.escape(k) + '"] .chat-working-chip').title), backKey);
     ok('a chat that reconnects behind another says in its header that it is open', true);
     // A restored chat can be mentioned for asking: it is listed under Open
     // Chats, and sending connects it behind the asking chat's window.
