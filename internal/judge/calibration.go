@@ -63,9 +63,9 @@ func DeclareCase[In, Out any](k *Kind[In, Out], name string, in In, accepts stri
 	entry := caseEntry{
 		info: CaseInfo{Kind: k.Name, Name: name, Input: string(input), Accepts: accepts},
 		run: func(ctx context.Context, j *Judges, effect Effect) caseOutcome {
-			start := time.Now()
+			start := j.timeNow()
 			r := Call(ctx, j, k, in, effect)
-			return caseOutcome{passed: r.Used == UsedJudge && accept(r.Out), used: r.Used, why: r.Why, answer: encode(r.Out), elapsedMs: time.Since(start).Milliseconds()}
+			return caseOutcome{passed: r.Used == UsedJudge && accept(r.Out), used: r.Used, why: r.Why, answer: encode(r.Out), elapsedMs: j.timeNow().Sub(start).Milliseconds()}
 		},
 	}
 	caseMu.Lock()
@@ -178,7 +178,7 @@ func (j *Judges) trial(x Judge, provider, unit string) *Judges {
 // warmUp makes one small call that loads a model, with WarmUpDeadline to do it in,
 // and records it as a call of its own. Its answer is not used.
 func (j *Judges) warmUp(ctx context.Context, x Judge, provider, unit, model string) {
-	start := time.Now()
+	start := j.timeNow()
 	rec := Record{Time: j.now(), Kind: "calibration-warmup", Input: "{}", RuleAnswer: `""`, Out: `""`, Used: UsedRule, Provider: provider, EffectKind: EffectCalibration, EffectID: model,
 		DeadlineMs: WarmUpDeadline.Milliseconds()}
 	dctx, cancel := context.WithTimeout(ctx, WarmUpDeadline)
@@ -191,7 +191,7 @@ func (j *Judges) warmUp(ctx context.Context, x Judge, provider, unit, model stri
 	}
 	defer release()
 	resp, err := x.Ask(dctx, Request{System: "Answer with the single word ready.", Input: "{}", MaxTokens: 5})
-	rec.ElapsedMs = time.Since(start).Milliseconds()
+	rec.ElapsedMs = j.timeNow().Sub(start).Milliseconds()
 	rec.Model, rec.Temperature, rec.Seed = resp.Model, resp.Temperature, resp.Seed
 	rec.CostUnit, rec.CostIn, rec.CostOut = costUnit(unit, resp.Cost), resp.Cost.In, resp.Cost.Out
 	rec.Answer = appletcontext.Redact(resp.Text)

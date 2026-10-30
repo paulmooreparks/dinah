@@ -20,6 +20,13 @@ func (c *clock) now() time.Time {
 	return c.t
 }
 
+// advance moves the clock on, as a model that takes d to answer does.
+func (c *clock) advance(d time.Duration) {
+	c.mu.Lock()
+	c.t = c.t.Add(d)
+	c.mu.Unlock()
+}
+
 func (c *clock) set(t time.Time) {
 	c.mu.Lock()
 	c.t = t

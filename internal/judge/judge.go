@@ -349,6 +349,14 @@ func New(o Options) *Judges {
 		pool: newPool(now, longestDeadline, o.PoolMin, o.PoolMax)}
 }
 
+// timeNow is the clock calls are timed by, which tests set so that how long a call took does not depend on the machine.
+func (j *Judges) timeNow() time.Time {
+	if j == nil || j.now == nil {
+		return time.Now()
+	}
+	return j.now()
+}
+
 // Store is the record the judges write.
 func (j *Judges) Store() *Store { return j.store }
 
@@ -480,13 +488,14 @@ func (j *Judges) completeLate(id int64, a judgeAnswer, unit string) {
 // and recorded on every call, so how often the two disagree can be measured.
 func Call[In, Out any](ctx context.Context, j *Judges, k *Kind[In, Out], in In, effect Effect) Result[Out] {
 	start := time.Now()
+	began := j.timeNow()
 	rec := Record{Time: start, Kind: k.Name, Version: k.version, EffectKind: effect.Kind, EffectID: effect.ID, DeadlineMs: k.Deadline.Milliseconds()}
 	rule := k.Rule(in)
 	rec.RuleAnswer = encode(rule)
 	rec.Used = UsedRule
 	finish := func(why string, out Out) Result[Out] {
 		rec.Why = why
-		rec.ElapsedMs = time.Since(start).Milliseconds()
+		rec.ElapsedMs = j.timeNow().Sub(began).Milliseconds()
 		if rec.Used == UsedRule {
 			out = rule
 		}
