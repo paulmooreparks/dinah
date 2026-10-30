@@ -38,6 +38,10 @@ Group member chips keep their menu buttons and their identity through execution 
 
 ## Transcript Navigation and Measured Rows
 
+A retained reading place belongs to the actual `scrollTop` captured with it, or read after its last correction. If that position changes outside the hold, the hold expires and the next controlled mutation captures the current entry. Delayed observer callbacks cannot restore a reading place from before navigation. This uses the documented [scrollTop coordinate](https://drafts.csswg.org/cssom-view/#dom-element-scrolltop) without depending on [mutation observer delivery](https://dom.spec.whatwg.org/#mutation-observers) relative to navigation.
+
+Rows marked `data-scroll-anchor-skip`, including the earlier-entry marker, cannot anchor the reading place. Trimming replaces that marker, so capture prefers the first real entry in view. The regression exercises stale callbacks, stale hold reuse and marker resizing deterministically. Its trim trace waits for the earlier-entry count to advance and the last delivered entry to render, then checks every frame. Subpixel corrections remain recorded separately from the existing 12 px large-jump bound.
+
 A jump to the latest releases the saved reading place before following the end. Once a bounded chat log has been read back, its rows keep their measured layout when following resumes. Re-enabling estimated heights during a jump changes the scroll extent underneath its destination. The chat log already trims its retained rows, so this preservation remains bounded.
 
 The jump also updates the pinned prompt before its final scroll position is set. The pin and unread controls can change the transcript viewport or extent. The final position is calculated after those changes in the same operation. Deferring that correction to the next animation frame leaves a visible gap for one frame.

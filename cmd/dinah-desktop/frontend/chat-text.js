@@ -685,6 +685,7 @@
      busy); the watch then holds the same row at its spot until the reader's
      own wheel, touch or key move ends it (Dinah UI, message 1070). */
   var watches = new WeakMap();
+  function anchorRow(row) { return row && !row.closest('[data-scroll-anchor-skip]'); }
   function releasePlace(log) {
     var w = watches.get(log);
     if (w) { w.want = -1; w.id = ''; w.text = ''; w.row = null; }
@@ -697,21 +698,25 @@
       function restore() {
         var c = watches.get(log);
         if (!c || c.want < 0) return;
+        // A later navigation owns the viewport. A callback for an older
+        // reading place must not undo it, regardless of callback ordering.
+        if (Math.abs(log.scrollTop - c.scrollTop) > 1.5) { releasePlace(log); return; }
         // The row by its message number, or by its first words for a chat's
         // numberless one; trimmed away is gone, and nothing moves.
-        var el = c.row && c.row.isConnected && log.contains(c.row) ? c.row : null;
+        var el = anchorRow(c.row) && c.row.isConnected && log.contains(c.row) ? c.row : null;
         if (c.id) {
           var byId = log.querySelector('[data-bus-message="' + CSS.escape(c.id) + '"]');
-          if (byId && byId.isConnected) el = byId;
+          if (anchorRow(byId) && byId.isConnected) el = byId;
         }
         if (!el && c.text) {
           var rows = log.querySelectorAll('.activity-row, [data-bus-message]');
-          for (var i = 0; i < rows.length; i++) { if (rows[i].textContent.slice(0, 32) === c.text) { el = rows[i]; break; } }
+          for (var i = 0; i < rows.length; i++) { if (anchorRow(rows[i]) && rows[i].textContent.slice(0, 32) === c.text) { el = rows[i]; break; } }
         }
         if (!el) return;
         var top = log.getBoundingClientRect().top;
         var now = el.getBoundingClientRect().top - top;
         if (Math.abs(now - c.want) > 1.5) log.scrollTop += now - c.want;
+        c.scrollTop = log.scrollTop;
       }
       w.obs = new ResizeObserver(restore);
       // Controlled DOM changes settle before the next animation frame. Late
@@ -725,7 +730,7 @@
         log.addEventListener(name, function () { releasePlace(log); }, { passive: true });
       });
     }
-    w.row = row; w.id = id || ''; w.text = row ? row.textContent.slice(0, 32) : ''; w.want = want;
+    w.row = row; w.id = id || ''; w.text = row ? row.textContent.slice(0, 32) : ''; w.want = want; w.scrollTop = log.scrollTop;
   }
 
   /* A scrolled-back reader keeps their place across a change to the log:
@@ -739,10 +744,12 @@
     if (log.scrollHeight - log.scrollTop - log.clientHeight < 24) { releasePlace(log); return run(); }
     var top = log.getBoundingClientRect().top;
     var held = watches.get(log);
-    var row = held && held.want >= 0 && held.row && held.row.isConnected && log.contains(held.row) ? held.row : null;
+    if (held && held.want >= 0 && Math.abs(log.scrollTop - held.scrollTop) > 1.5) { releasePlace(log); held = null; }
+    var row = held && held.want >= 0 && anchorRow(held.row) && held.row.isConnected && log.contains(held.row) ? held.row : null;
     var retained = !!row, partial = null;
     var rows = log.querySelectorAll('[data-bus-message], .activity-row');
     for (var i = 0; !row && i < rows.length; i++) {
+      if (!anchorRow(rows[i])) continue;
       var r = rows[i].getBoundingClientRect();
       if (!r.height || r.bottom <= top) continue;
       if (!partial) partial = rows[i];

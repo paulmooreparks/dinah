@@ -83,6 +83,55 @@ const { launch } = require('./lib/page');
   try {
     await p.goto(require('./lib/page').PAGE);
     await t.waitReady();
+    const navigation = await p.evaluate(async () => {
+      const log = document.createElement('div');
+      log.style.cssText = 'position:fixed;left:0;top:100px;width:320px;height:160px;overflow:auto;overflow-anchor:none;z-index:10000';
+      const list = log.appendChild(document.createElement('div'));
+      function add(text, skip) {
+        const row = list.appendChild(document.createElement('div'));
+        row.className = 'activity-row';
+        row.style.cssText = 'display:block;height:40px;min-height:0;padding:0;margin:0;border:0;content-visibility:visible';
+        row.textContent = text;
+        if (skip) row.setAttribute('data-scroll-anchor-skip', '');
+        return row;
+      }
+      const marker = add('Earlier entries', true);
+      const entries = Array.from({ length: 20 }, (_, i) => add('Entry ' + i));
+      document.body.appendChild(log);
+      const samples = [];
+      const offset = row => row.getBoundingClientRect().top - log.getBoundingClientRect().top;
+      async function frames(label, read, want) {
+        for (let frame = 0; frame < 8; frame++) {
+          await new Promise(requestAnimationFrame);
+          samples.push({ label, frame, actual: read(), want });
+        }
+      }
+      let before = offset(entries[0]);
+      dinahChatText.keepPlace(log, () => { marker.style.height = '80px'; });
+      await frames('skip the changing trim marker', () => offset(entries[0]), before);
+      dinahChatText.releasePlace(log);
+      log.scrollTop = 0;
+      dinahChatText.keepPlace(log, () => {});
+      log.scrollTop = 400;
+      add('Late row');
+      await frames('discard a stale observer hold', () => log.scrollTop, 400);
+      dinahChatText.releasePlace(log);
+      log.scrollTop = 0;
+      dinahChatText.keepPlace(log, () => {});
+      log.scrollTop = 400;
+      const current = entries.find(row => offset(row) >= 0);
+      before = offset(current);
+      dinahChatText.keepPlace(log, () => { marker.style.height = '120px'; });
+      await frames('capture the current entry after navigation', () => offset(current), before);
+      dinahChatText.releasePlace(log);
+      log.remove();
+      return samples;
+    });
+    for (const label of new Set(navigation.map(frame => frame.label))) {
+      const frames = navigation.filter(frame => frame.label === label);
+      ok(label, frames.every(frame => Math.abs(frame.actual - frame.want) < .02), JSON.stringify(frames));
+    }
+    require('fs').writeFileSync(require('path').join(require('./lib/page').OUT, 'scroll-place-navigation-geometry.json'), JSON.stringify(navigation, null, 2));
     const longKey = await p.evaluate(() => window.dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'long' }));
     const logSel = '[data-win="' + longKey + '"] [data-view-id="activity"]';
     await p.locator(logSel).waitFor();
@@ -149,6 +198,18 @@ const { launch } = require('./lib/page');
     require('fs').writeFileSync(require('path').join(require('./lib/page').OUT, 'scroll-place-stream-geometry.json'), JSON.stringify(await p.evaluate(() => __scrollGeometry), null, 2));
     // Leg 3: rows added until the oldest leave the page.
     before = await visibleTop(logSel, 'Message number 160.', 'trimming');
+    const previousTrim = await p.evaluate(([sel, want]) => {
+      const log = document.querySelector(sel);
+      window.__trimGeometry = [];
+      window.__recordTrim = true;
+      function sample() {
+        const target = [...log.querySelectorAll('.activity-row')].find(row => row.textContent.includes('Message number 160.'));
+        __trimGeometry.push({ frame: __trimGeometry.length, targetTop: target ? target.getBoundingClientRect().top - log.getBoundingClientRect().top : null, want, scrollTop: log.scrollTop, scrollHeight: log.scrollHeight, clientHeight: log.clientHeight, rows: log.querySelectorAll('.activity-row').length, trimmed: parseInt(log.querySelector('.trimmed-words')?.textContent || '0', 10) });
+        if (__recordTrim) requestAnimationFrame(sample);
+      }
+      sample();
+      return parseInt(log.querySelector('.trimmed-words')?.textContent || '0', 10);
+    }, [logSel, before]);
     await p.evaluate(() => {
       for (let i = 241; i < 285; i++) {
         const up = u => window.__emit('agent:update', { sessionId: 'long', update: u });
@@ -156,8 +217,19 @@ const { launch } = require('./lib/page');
         up({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Message number ' + i + '.\n\n' } });
       }
     });
-    await p.waitForFunction(() => document.querySelector('.trimmed-row') || [...document.querySelectorAll('.activity-row')].length > 500, null, { timeout: 15000 });
+    await p.waitForFunction(([sel, previous]) => {
+      const log = document.querySelector(sel);
+      return parseInt(log.querySelector('.trimmed-words')?.textContent || '0', 10) > previous && [...log.querySelectorAll('.activity-row')].some(row => row.textContent.includes('Message number 284.'));
+    }, [logSel, previousTrim], { timeout: 15000 });
     await holds(logSel, 'Message number 160.', before, 'the oldest rows leaving the page');
+    const trimGeometry = await p.evaluate(async () => {
+      for (let i = 0; i < 8; i++) await new Promise(requestAnimationFrame);
+      __recordTrim = false;
+      return __trimGeometry;
+    });
+    ok('the trim trace includes completed trimming', trimGeometry.some(frame => frame.trimmed > previousTrim));
+    ok('the reading place holds in every frame across trimming', trimGeometry.length > 2 && trimGeometry.every(frame => frame.targetTop !== null && Math.abs(frame.targetTop - before) < 12), JSON.stringify(trimGeometry.map(frame => frame.targetTop)));
+    require('fs').writeFileSync(require('path').join(require('./lib/page').OUT, 'scroll-place-trim-geometry.json'), JSON.stringify(trimGeometry, null, 2));
     await t.shot('scroll-place-trim');
 
     /* ---- A group chat: deliver, then a full redraw ---- */
