@@ -11,7 +11,7 @@ A chat's execution state is one of four, and each is always shown by a glyph and
 | Working | A turn is running. | Play | Accent | Working |
 | Waiting | The chat cannot go on until someone acts: a permission request, a question to the person, a full-context hold, or waiting for its lead. | Pause | Warning | Waiting, with the reason beside it ("Waiting for you", "Waiting for Lead", "Context full") |
 | Stuck | The last turn ended in an error, or the chat's provider cannot run it. | Warning triangle | Danger | Stuck, with the reason beside it |
-| Idle | The chat is open and nothing is running or waiting. | Stop | Muted text | Idle |
+| Idle | The chat is open and nothing is running or waiting. | Stop (a solid square) | Muted text | Idle |
 
 Paul chose the media glyphs on 31 October 2026, replacing the first set (a turning open arc for Working, a flag for Waiting and a hollow circle for Idle). Stuck keeps the warning triangle, because no media glyph means a failure. Nothing turns any more, since a play glyph already says that something is running. PUDL draws these in its taskbar, dock and stacks and holds them in its icon set, and Dinah takes them from there, so Dinah changes its own surfaces in the same commit that takes the PUDL release with the new glyphs (requested for 0.95.3, message 2043), and the two never disagree.
 
