@@ -99,6 +99,7 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => [...document.querySelectorAll('.activity-row')].some(el => el.textContent.includes('Message number 239.')), null, { timeout: 30000 });
     ok('a long chat is there to read back', (await p.evaluate(() => document.querySelectorAll('.activity-row').length)) > 400);
     ok('the reader is scrolled back to a middle message', await scrollTo(logSel, 'Message number 160.'));
+    ok('readback uses measured row sizes in its owning transcript', await p.locator(logSel + ' .activity-row').first().evaluate(row => getComputedStyle(row).contentVisibility === 'visible'));
     await t.shot('scroll-place-readback');
     // Leg 1: a new row delivered at the end.
     let before = await visibleTop(logSel, 'Message number 160.', 'delivery');
@@ -113,15 +114,36 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => window.dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'side' }));
     await p.evaluate(key => pudlWindows.raise(key), longKey);
     before = await visibleTop(logSel, 'Message number 160.', 'streaming with the side chat open');
-    await p.evaluate(async () => {
+    await p.evaluate(sel => {
+      const log = document.querySelector(sel);
+      window.__scrollGeometry = [];
+      window.__recordScroll = true;
+      function sample() {
+        const top = log.getBoundingClientRect().top;
+        const rows = [...log.querySelectorAll('.activity-row')].map(row => ({ text: row.textContent.slice(0, 60), top: row.getBoundingClientRect().top - top, height: row.getBoundingClientRect().height })).filter(row => row.top + row.height > 0 && row.top < log.clientHeight);
+        __scrollGeometry.push({ scrollTop: log.scrollTop, height: log.scrollHeight, rows });
+        if (__recordScroll) requestAnimationFrame(sample);
+      }
+      sample();
+    }, logSel);
+    await p.evaluate(async sel => {
       const up = (id, u) => window.__emit('agent:update', { sessionId: id, update: u });
       for (let i = 0; i < 8; i++) {
+        if (i === 2) {
+          // Late layout in the partially visible tool row must not move the
+          // complete message the person is reading beneath it.
+          const log = document.querySelector(sel), top = log.getBoundingClientRect().top;
+          const partial = [...log.querySelectorAll('.activity-row')].find(row => { const r = row.getBoundingClientRect(); return r.top < top && r.bottom > top; });
+          if (partial) partial.style.paddingBottom = (parseFloat(getComputedStyle(partial).paddingBottom) + 27) + 'px';
+        }
         up('long', { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Streamed piece ' + i + '. ' } });
         up('side', { sessionUpdate: 'tool_call', toolCallId: 's' + i, title: 'busy work ' + i, kind: 'execute', status: 'completed', content: [{ type: 'content', content: { type: 'text', text: 'x'.repeat(2000) } }] });
         await new Promise(r => setTimeout(r, 30));
       }
-    });
+    }, logSel);
+    await p.evaluate(() => { __recordScroll = false; });
     await holds(logSel, 'Message number 160.', before, "a reply streaming in chunks, with another window's streaming beside it");
+    require('fs').writeFileSync(require('path').join(require('./lib/page').OUT, 'scroll-place-stream-geometry.json'), JSON.stringify(await p.evaluate(() => __scrollGeometry), null, 2));
     // Leg 3: rows added until the oldest leave the page.
     before = await visibleTop(logSel, 'Message number 160.', 'trimming');
     await p.evaluate(() => {

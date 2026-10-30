@@ -724,7 +724,7 @@
   }
 
   /* A scrolled-back reader keeps their place across a change to the log:
-     the first visible row's spot is held while the change runs, then the row
+     a visible row's spot is held while the change runs, then the row
      stands there again. At the end, the change follows as ever. A row the
      change itself replaces is found again by its message number, so a full
      redraw of a conversation holds the same message, and a reader whose row
@@ -733,14 +733,22 @@
     if (!log || !log.clientHeight) return run();
     if (log.scrollHeight - log.scrollTop - log.clientHeight < 24) { releasePlace(log); return run(); }
     var top = log.getBoundingClientRect().top;
-    var row = null, rows = log.querySelectorAll('[data-bus-message], .activity-row');
-    for (var i = 0; i < rows.length; i++) {
+    var held = watches.get(log);
+    var row = held && held.want >= 0 && held.row && held.row.isConnected && log.contains(held.row) ? held.row : null;
+    var retained = !!row, partial = null;
+    var rows = log.querySelectorAll('[data-bus-message], .activity-row');
+    for (var i = 0; !row && i < rows.length; i++) {
       var r = rows[i].getBoundingClientRect();
-      if (r.height && r.bottom > top) { row = rows[i]; break; }
+      if (!r.height || r.bottom <= top) continue;
+      if (!partial) partial = rows[i];
+      // A partially visible row can finish laying out above the message the
+      // person reads. Prefer the first row whose start is inside the view.
+      if (r.top >= top && r.top < top + log.clientHeight) row = rows[i];
     }
+    row = row || partial;
     if (!row) return run();
     var id = row.dataset && row.dataset.busMessage ? row.dataset.busMessage : '';
-    var before = row.getBoundingClientRect().top - top;
+    var before = retained ? held.want : row.getBoundingClientRect().top - top;
     var topAt = log.scrollTop;
     var out = run();
     var again = id ? log.querySelector('[data-bus-message="' + CSS.escape(id) + '"]') : (row.isConnected ? row : null);
