@@ -14,7 +14,7 @@ func TestCancelledRegisteredQuestionIsWithdrawn(t *testing.T) {
 	defer cancel()
 	done := askInBackground(t, ctx, a, ws, "chat-A", "codex:closed", "Cancel the registered question")
 	var id int64
-	for deadline := time.Now().Add(5 * time.Second); id == 0; {
+	for deadline := time.Now().Add(testWait); id == 0; {
 		for _, pending := range waitingQuestions(t, a) {
 			if a.busHost().HasQuestion(pending) {
 				id = pending

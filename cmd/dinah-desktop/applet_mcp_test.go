@@ -66,7 +66,7 @@ func TestAppletBridgeOwnershipAndLifecycle(t *testing.T) {
 	if invocation.Workspace != workspace || invocation.OwnerID != "chat-one" {
 		t.Fatalf("wrong owner: %+v", invocation)
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		body, err = client.call(context.Background(), appletBridgeRequest{Operation: "status", ID: invocation.ID})
 		if err != nil {
@@ -160,7 +160,7 @@ func TestAppletBridgeHumanRequestCanOnlyBeCancelled(t *testing.T) {
 	if err := json.Unmarshal(body, &v); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		body, err = client.call(context.Background(), appletBridgeRequest{Operation: "status", ID: v.ID})
 		if err != nil {
@@ -494,7 +494,7 @@ func TestAChatCanInvokeFindAndReadItsResult(t *testing.T) {
 	if err := json.Unmarshal(body, &inv); err != nil {
 		t.Fatal(err)
 	}
-	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(testWait); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
 		body, err = client.call(context.Background(), appletBridgeRequest{Operation: "status", ID: inv.ID})
 		if err != nil {
 			t.Fatalf("polling the invocation of find: %v", err)

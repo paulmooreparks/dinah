@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -51,12 +52,21 @@ func TestTheTeamStripShowsStateReasonTaskAndNesting(t *testing.T) {
 	if m.Members[0].Title != "Nested Worker" || m.Members[0].State != "closed" {
 		t.Fatalf("the nested member: %+v", m.Members[0])
 	}
-	// A member that is stuck is counted under every lead above it.
+	// A full context is Waiting, not Stuck: the person has to choose, and nothing failed.
 	member.SetHold(&sessionhost.ContextHold{Kind: "context", Used: 1, Size: 2, Actions: []string{sessionhost.HoldCompact}})
+	held, _ := a.Team(lead.ID())
+	if held.Members[0].State != "waiting" || held.Members[0].StateWhy != "Context full" || held.Stuck != 0 || held.Counts.Waiting != 1 || held.Counts.Top != "waiting" || held.StateVer <= view.StateVer {
+		t.Fatalf("a member with a full context: %+v", held)
+	}
+	member.SetHold(nil)
+	// A member whose last turn failed is stuck, and is counted under every lead above it.
+	noteTurnResult(member.ID(), errors.New("the agent gave up"))
+	defer noteTurnResult(member.ID(), nil)
 	again, _ := a.Team(lead.ID())
-	if again.Members[0].State != "stuck" || !strings.Contains(again.Members[0].StateWhy, "context window is full") || again.Stuck != 1 || again.StateVer <= view.StateVer {
+	if again.Members[0].State != "stuck" || !strings.Contains(again.Members[0].StateWhy, "the agent gave up") || again.Stuck != 1 || again.Counts.Stuck != 1 || again.Counts.Top != "stuck" || again.StateVer <= held.StateVer {
 		t.Fatalf("a stuck member: %+v", again)
 	}
+	noteTurnResult(member.ID(), nil)
 	// The member's information says which team it is in.
 	l, err := a.ChatLead(member.ID())
 	if err != nil || l == nil || l.Bus != leadBus || l.Group != view.Group || l.Title == "" {
@@ -66,7 +76,6 @@ func TestTheTeamStripShowsStateReasonTaskAndNesting(t *testing.T) {
 		t.Fatalf("a chat without a lead has %+v", none)
 	}
 	// A member waiting for its lead to relay shows as waiting.
-	member.SetHold(nil)
 	a.busHost().With(func(b *bus.Bus) error {
 		s, _ := b.Session(ctx, memberBus)
 		group, _ := b.TeamGroup(ctx, leadBus)
@@ -134,7 +143,7 @@ func TestTheStripIsSentAsANumberedEventWhenItChanges(t *testing.T) {
 	// A change is sent on its own a moment after the app says something changed.
 	member.SetHold(nil)
 	a.teamsChanged()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		mu.Lock()
 		n := len(versions)

@@ -31,7 +31,7 @@ func TestAppletConsent(t *testing.T) {
 	}
 	question := func(n int) map[string]any {
 		t.Helper()
-		deadline := time.Now().Add(5 * time.Second)
+		deadline := time.Now().Add(testWait)
 		for time.Now().Before(deadline) {
 			mu.Lock()
 			if len(asked) >= n {

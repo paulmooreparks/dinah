@@ -78,7 +78,7 @@ func waitTurn(t *testing.T, turns chan map[string]any) {
 	t.Helper()
 	select {
 	case <-turns:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the turn did not end")
 	}
 }

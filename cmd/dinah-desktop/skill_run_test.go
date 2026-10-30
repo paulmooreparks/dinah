@@ -54,7 +54,7 @@ func TestSkillRunStartsAChatWithItsInstructions(t *testing.T) {
 	}
 	select {
 	case <-turned:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the skill's turn did not end")
 	}
 	var prompt *acp.PromptParams

@@ -29,7 +29,7 @@ var fullWindow = ollamaagent.ContextState{Used: 1900, Size: 2048, Known: true, F
 
 func holdFor(t *testing.T, s *Session) *sessionhost.ContextHold {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for time.Now().Before(deadline) {
 		if h := s.Hold(); h != nil {
 			return h
@@ -318,7 +318,7 @@ func TestCompactingCarriesEveryQueuedMessageToTheNewChat(t *testing.T) {
 
 func waitForPrompts(t *testing.T, c *testProviderConnection, n int) {
 	t.Helper()
-	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+	for deadline := time.Now().Add(testWait); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
 		if len(prompts(c)) >= n {
 			return
 		}
@@ -377,7 +377,7 @@ func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 // the queue from the chat's own goroutine.
 func waitHeldQueue(t *testing.T, s *Session, n int) {
 	t.Helper()
-	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(testWait); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
 		if len(s.Info().Queued) == n && s.Hold() != nil {
 			return
 		}

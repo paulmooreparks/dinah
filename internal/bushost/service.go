@@ -70,6 +70,18 @@ func (s *Service) With(f func(*bus.Bus) error) error {
 	}
 	return f(b)
 }
+
+// IfOpen runs f on the bus only when the handle is already open, and says whether it ran. A background pass that
+// only reads uses it, so that it never opens the bus (and its files) for an app that has not.
+func (s *Service) IfOpen(f func(*bus.Bus) error) (bool, error) {
+	s.mu.Lock()
+	b := s.handle
+	s.mu.Unlock()
+	if b == nil {
+		return false, nil
+	}
+	return true, f(b)
+}
 func (s *Service) StartWatcher(ctx context.Context) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

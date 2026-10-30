@@ -27,7 +27,7 @@ func TestWatchFoldersSendsDiskChanges(t *testing.T) {
 	count := func() int { mu.Lock(); defer mu.Unlock(); return len(got) }
 	wait := func(n int) {
 		t.Helper()
-		deadline := time.Now().Add(5 * time.Second)
+		deadline := time.Now().Add(testWait)
 		for count() < n && time.Now().Before(deadline) {
 			time.Sleep(20 * time.Millisecond)
 		}

@@ -1,0 +1,134 @@
+package sessionhost
+
+// A chat's state is worked out in one place (docs/plans/chat-states.md). It has a life, which says whether its
+// session runs, and, only while it runs, an execution state with the reason for it as a full phrase. Whether the
+// chat has a window is a separate fact. Every surface that shows a chat takes these fields as they are and works
+// out neither the state nor the urgency of several chats.
+
+// The execution states, most urgent first, and the lives.
+const (
+	ExecStuck   = "stuck"
+	ExecWaiting = "waiting"
+	ExecWorking = "working"
+	ExecIdle    = "idle"
+
+	LifeOpen    = "open"
+	LifeClosed  = "closed"
+	LifeRetired = "retired"
+)
+
+// ChatExec is what an open chat is doing, and why in words, so that the mark is never the only fact.
+type ChatExec struct {
+	State string `json:"state"`
+	Why   string `json:"why"`
+}
+
+// ChatState is a chat's life, whether it has a window, and, when its session runs, its execution state.
+type ChatState struct {
+	Life   string    `json:"life"`
+	Window bool      `json:"window"`
+	Exec   *ChatExec `json:"exec,omitempty"`
+}
+
+// StateCounts is how many of a set of chats are in each execution state, and the state the set shows as a whole:
+// Stuck, then Waiting, then Working, else Idle, which includes a set whose chats are all closed. Closed counts the
+// chats that do not run, closed or retired, which have no execution state.
+type StateCounts struct {
+	Stuck   int    `json:"stuck"`
+	Waiting int    `json:"waiting"`
+	Working int    `json:"working"`
+	Idle    int    `json:"idle"`
+	Closed  int    `json:"closed"`
+	Top     string `json:"top"`
+}
+
+// CountStates counts chats' states and chooses the state they show as a whole.
+func CountStates(states []ChatState) StateCounts {
+	var c StateCounts
+	for _, s := range states {
+		c.Add(s)
+	}
+	c.Finish()
+	return c
+}
+
+// Add counts one chat. A rollup that adds counts of its own parts calls Merge instead.
+func (c *StateCounts) Add(s ChatState) {
+	if s.Exec == nil {
+		c.Closed++
+		return
+	}
+	switch s.Exec.State {
+	case ExecStuck:
+		c.Stuck++
+	case ExecWaiting:
+		c.Waiting++
+	case ExecWorking:
+		c.Working++
+	default:
+		c.Idle++
+	}
+}
+
+// Merge adds another set's counts (not its Top).
+func (c *StateCounts) Merge(o StateCounts) {
+	c.Stuck += o.Stuck
+	c.Waiting += o.Waiting
+	c.Working += o.Working
+	c.Idle += o.Idle
+	c.Closed += o.Closed
+}
+
+// Finish chooses the state the counts show as a whole.
+func (c *StateCounts) Finish() {
+	switch {
+	case c.Stuck > 0:
+		c.Top = ExecStuck
+	case c.Waiting > 0:
+		c.Top = ExecWaiting
+	case c.Working > 0:
+		c.Top = ExecWorking
+	default:
+		c.Top = ExecIdle
+	}
+}
+
+func copyState(s *ChatState) *ChatState {
+	if s == nil {
+		return nil
+	}
+	out := *s
+	if s.Exec != nil {
+		e := *s.Exec
+		out.Exec = &e
+	}
+	return &out
+}
+
+func copyCounts(c *StateCounts) *StateCounts {
+	if c == nil {
+		return nil
+	}
+	out := *c
+	return &out
+}
+
+// SameState says two states are the same chat state (either may be nil).
+func SameState(a, b *ChatState) bool { return sameState(a, b) }
+
+func sameState(a, b *ChatState) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.Life != b.Life || a.Window != b.Window || (a.Exec == nil) != (b.Exec == nil) {
+		return false
+	}
+	return a.Exec == nil || *a.Exec == *b.Exec
+}
+
+func sameCounts(a, b *StateCounts) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}

@@ -65,7 +65,7 @@ func newAppletWireRunner(t *testing.T, run func(context.Context, io.ReadCloser, 
 		out.Close()
 		select {
 		case <-done:
-		case <-time.After(5 * time.Second):
+		case <-time.After(testWait):
 			t.Error("helper did not stop")
 		}
 	})
@@ -95,7 +95,7 @@ func (p *appletWire) read() map[string]json.RawMessage {
 			p.t.Fatal("helper closed without response")
 		}
 		return msg
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		p.t.Fatal("helper response timed out")
 		return nil
 	}

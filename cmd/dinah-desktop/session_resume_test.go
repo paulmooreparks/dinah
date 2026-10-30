@@ -344,7 +344,7 @@ func TestAMessageSentWhileAChatLoadsWaitsAndIsSentWhenItEnds(t *testing.T) {
 	}()
 	select {
 	case <-entered:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the load did not start")
 	}
 	if err := a.Send(id, "Sent during the load", nil, nil); err != nil {
@@ -455,7 +455,7 @@ func TestAChatTheWindowDoesNotOpenIsOpenedByTheEngine(t *testing.T) {
 	if asked := askedIDs(r.take()); len(asked) != 1 || asked[0] != "codex:ignored" {
 		t.Fatalf("the page was not asked: %v", asked)
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(testWait)
 	for s := a.session("codex:ignored"); s == nil || !s.State().Ready; s = a.session("codex:ignored") {
 		if time.Now().After(deadline) {
 			t.Fatal("the engine did not open a chat the window left alone")
@@ -530,7 +530,7 @@ func TestTwoOpensOfOneChatAtOnceAskTheAgentOnce(t *testing.T) {
 	}()
 	select {
 	case <-entered:
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the first open did not reach the agent")
 	}
 	go func() {

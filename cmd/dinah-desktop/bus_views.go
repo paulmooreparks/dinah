@@ -122,6 +122,8 @@ type BusRoom struct {
 	// Lead is the session on the bus of the chat whose team's channel the group is, or
 	// empty for an ordinary group.
 	Lead string `json:"lead,omitempty"`
+	// Counts are how many of the group's chats are in each state, and the state the group shows as a whole.
+	Counts *StateCounts `json:"counts,omitempty"`
 }
 
 // BusLatest is the newest unread message of a group as its unread marker shows
@@ -144,7 +146,10 @@ type BusGroupMember struct {
 	Title     string `json:"title"`
 	Workspace string `json:"workspace"`
 	Address   string `json:"address"`
-	State     string `json:"state"`
+	// State is the old vocabulary, working, open, background or closed, kept until the page reads ChatState.
+	State string `json:"state"`
+	// ChatState is the member's life, window and execution state (chat_state.go).
+	ChatState
 }
 
 // BusChat is a chat open on the bus. ID is its session on the bus, which
@@ -263,7 +268,7 @@ func (a *App) BusOverview() (BusOverview, error) {
 		}
 		out.Rooms = make([]BusRoom, 0, len(rooms))
 		for _, r := range rooms {
-			out.Rooms = append(out.Rooms, a.busRoom(r))
+			out.Rooms = append(out.Rooms, a.busRoom(b, r))
 		}
 		ws, err := b.Workspaces(ctx)
 		if err != nil {
@@ -339,17 +344,24 @@ const busRoomLimit = 300
 
 // busRoom is a group chat as the window shows it, each member chat with its
 // ID in the window and its state.
-func (a *App) busRoom(r bus.Room) BusRoom {
+func (a *App) busRoom(b *bus.Bus, r bus.Room) BusRoom {
 	out := BusRoom{Name: r.Name, Title: r.Title, Members: []BusGroupMember{}, LastAt: r.LastAt, Unread: r.Unread, Budget: r.Budget, Used: r.Used, Lead: r.Lead}
+	ctx := context.Background()
+	var states []ChatState
 	for _, m := range r.Members {
 		if m.Kind == "human" {
 			out.Members = append(out.Members, BusGroupMember{ID: bus.Human, Title: speakerName(bus.Human), State: "person"})
 			continue
 		}
 		chat := a.chatOfBus(m.Key)
+		_, retired, _ := b.LeadOf(ctx, m.Key)
+		st := a.chatState(ctx, b, m.Key, chat, retired, m.Open)
+		states = append(states, st)
 		out.Members = append(out.Members, BusGroupMember{ID: m.Key, Chat: chat, Title: m.Title, Workspace: m.Workspace,
-			Address: m.Address, State: a.busChatState(chat, m.Open)})
+			Address: m.Address, State: a.busChatState(chat, m.Open), ChatState: st})
 	}
+	counts := countStates(states)
+	out.Counts = &counts
 	if r.NewestID != 0 {
 		out.Latest = &BusLatest{ID: r.NewestID, From: speakerName(r.NewestFrom), Line: r.NewestLine}
 	}
@@ -374,7 +386,7 @@ func (a *App) BusGroup(group string) (BusRoom, error) {
 	var out BusRoom
 	err = a.busHost().With(func(b *bus.Bus) error {
 		r, err := b.Room(context.Background(), group)
-		out = a.busRoom(r)
+		out = a.busRoom(b, r)
 		return err
 	})
 	return out, err
@@ -417,7 +429,7 @@ func (a *App) BusStartGroup(name string, chats []BusChatRef) (BusRoom, error) {
 	var out BusRoom
 	err = a.busHost().With(func(b *bus.Bus) error {
 		r, err := b.CreateGroup(context.Background(), bus.Sender{}, name, ids)
-		out = a.busRoom(r)
+		out = a.busRoom(b, r)
 		return err
 	})
 	return out, err
@@ -450,7 +462,7 @@ func (a *App) BusRenameGroup(group, title string) (BusRoom, error) {
 	var out BusRoom
 	err = a.busHost().With(func(b *bus.Bus) error {
 		r, err := b.RenameGroup(context.Background(), bus.Sender{}, group, title)
-		out = a.busRoom(r)
+		out = a.busRoom(b, r)
 		return err
 	})
 	return out, err
@@ -479,7 +491,7 @@ func (a *App) BusSendToGroup(group, text string, mentions []string, files []Atta
 		if err != nil {
 			return err
 		}
-		if limit := a.busRoom(r).FileLimit; limit != nil && len(kept) > limit.Limit {
+		if limit := a.busRoom(b, r).FileLimit; limit != nil && len(kept) > limit.Limit {
 			return fmt.Errorf("the message has %d files, and %s", len(kept), limit.Reason)
 		}
 		m, err := b.SendFiles(context.Background(), "#"+r.Name, text, kept, 0, mentions)

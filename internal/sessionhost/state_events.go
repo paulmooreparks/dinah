@@ -25,6 +25,9 @@ const (
 	EventQueue   = "agent:queue"
 	EventOptions = "agent:options"
 	EventState   = "agent:state"
+	// EventChatState carries every chat's state: its life, whether it has a window and what it is doing, and the
+	// counts of each group (chat_state.go in the window).
+	EventChatState = "agent:chatstate"
 )
 
 // StateClock is an owner's counter. Next must be called while the owner's lock
@@ -78,6 +81,9 @@ func EmitProviderState(emit func(string, any), s ProviderState) {
 // EmitInfo emits information that InfoVersioned has just read, when the caller
 // also keeps it, as agent:session.
 func EmitInfo(emit func(string, any), info Info) { emit(EventSession, info) }
+
+// EmitChatStates emits every chat's state, numbered under the window's clock, as agent:chatstate.
+func EmitChatStates(emit func(string, any), view any) { emit(EventChatState, view) }
 
 // EmitQueue emits a conversation's queued prompts, as they are now, as
 // agent:queue.

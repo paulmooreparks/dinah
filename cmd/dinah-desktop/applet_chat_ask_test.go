@@ -188,7 +188,7 @@ func TestAskWaitsForABusyChat(t *testing.T) {
 		if r.err != nil || r.out["reply"] != "Answer to: After your turn?" {
 			t.Fatalf("the queued question was answered with %v %v", r.out, r.err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(testWait):
 		t.Fatal("the queued question was never answered")
 	}
 
@@ -218,7 +218,7 @@ func TestAskWaitsForABusyChat(t *testing.T) {
 
 func waitQueued(t *testing.T, s *Session, n int) {
 	t.Helper()
-	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(testWait); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
 		got := s.QueueCount()
 		if got == n {
 			return

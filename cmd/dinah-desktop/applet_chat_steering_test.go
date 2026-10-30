@@ -89,7 +89,7 @@ func TestChatQuestionSteersActiveTurnOrFallsBackOnce(t *testing.T) {
 			case <-c.started:
 			case <-finished:
 				t.Fatal("turn exited before provider call")
-			case <-time.After(5 * time.Second):
+			case <-time.After(testWait):
 				t.Fatal("provider call never started")
 			}
 			if strings.HasPrefix(mode, "hook-") {
@@ -112,7 +112,7 @@ func TestChatQuestionSteersActiveTurnOrFallsBackOnce(t *testing.T) {
 				done <- result{out, err}
 			}()
 			if strings.HasPrefix(mode, "hook-") {
-				for deadline := time.Now().Add(5 * time.Second); ; {
+				for deadline := time.Now().Add(testWait); ; {
 					n := s.PendingCount()
 					if n > 0 {
 						break
@@ -140,7 +140,7 @@ func TestChatQuestionSteersActiveTurnOrFallsBackOnce(t *testing.T) {
 			} else {
 				select {
 				case <-c.submitted:
-				case <-time.After(5 * time.Second):
+				case <-time.After(testWait):
 					t.Fatal("no steering submission")
 				}
 			}
@@ -180,7 +180,7 @@ func TestChatQuestionSteersActiveTurnOrFallsBackOnce(t *testing.T) {
 			close(c.release)
 			select {
 			case <-finished:
-			case <-time.After(5 * time.Second):
+			case <-time.After(testWait):
 				t.Fatal("turn did not settle")
 			}
 			if mode != "uncertain" && mode != "cancel-pending" {
