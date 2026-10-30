@@ -1,9 +1,21 @@
 /* Execution glyphs use the same PUDL palette in every consumer. */
 :root { --glyph-chat-working: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M11.5 4.5a5 5 0 1 0 0 7'/%3E%3C/svg%3E"); }
 .badge.chat-state { white-space: normal; border-radius: var(--radius-sm); color: var(--chat-state-colour); background: color-mix(in srgb, var(--chat-state-colour) 18%, var(--surface)); }
-.chat-state-line { flex-wrap: wrap; }
-.chat-state-line > .browser-row-title { flex: 0 1 auto; max-width: 100%; }
+.chat-state-line { flex-wrap: nowrap; container-type: inline-size; }
+.session-list .browser-row > .md-item { display: block; flex: 1 1 auto; min-width: 0; }
+.session-list .chat-state-line { inline-size: 100%; }
+.chat-state-line > .browser-row-title { flex: 1 1 auto; max-width: 100%; }
 .chat-state-line > .chat-state { max-width: 100%; }
+.badge.chat-state.chat-state-compact { display: grid; place-items: center; flex: none; inline-size: clamp(16px, 18cqw, 9ch); block-size: max(18px, 1.55em); padding: 0; overflow: hidden; white-space: nowrap; --glyph-size: max(16px, 1em); }
+.chat-state-compact::before, .chat-state-compact > .chat-state-words { grid-area: 1 / 1; }
+.chat-state-words { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-reason, .session-row-meta { display: block; block-size: 1.5em; line-height: 1.5; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--text-sm); }
+.session-attention-slot { display: inline-grid; place-items: center; flex: none; block-size: max(18px, 1.55em); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
+.session-attention-slot > .badge { grid-area: 1 / 1; white-space: nowrap; }
+.session-attention-reserve { visibility: hidden; }
+.team-state-slot { display: inline-flex; flex: none; inline-size: clamp(16px, 18cqw, 9ch); block-size: max(18px, 1.55em); }
+.team-state-slot > .chat-state { inline-size: 100%; }
+.session-browser-group .browser-group-count { inline-size: calc(3ch + 16px); justify-content: center; font-variant-numeric: tabular-nums; }
 .member-chip { max-width: 100%; flex-wrap: nowrap; min-width: 0; }
 .member-chip .member-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .member-chip .chat-state { max-width: 100%; }

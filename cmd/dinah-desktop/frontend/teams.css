@@ -1,10 +1,22 @@
 /* Teams use PUDL components; these rules only compose the chat content. */
-.chat-team { padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--border); }
+.chat-team { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--border); }
+.chat-team[hidden] { display: none; }
+.team-aggregate { min-width: 0; overflow: hidden; }
+.team-aggregate > .badge.chat-state { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.team-aggregate > .badge.chat-state::before { display: inline-block; vertical-align: middle; margin-inline-end: var(--space-1); --glyph-size: max(16px, 1em); }
 .team-content { padding-block-start: var(--space-2); max-height: min(28vh, 240px); overflow: auto; }
-.team-tree .team-person { flex-wrap: wrap; gap: var(--space-2); white-space: normal; overflow-wrap: anywhere; }
+.team-content { grid-column: 1 / -1; min-width: 0; }
+.team-tree { container-type: inline-size; }
+.team-tree .team-person { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 var(--space-2); min-width: 0; white-space: nowrap; }
+.team-person > .tree-toggle { grid-column: 1; grid-row: 1; }
+.team-person > .team-name { grid-column: 2; grid-row: 1; overflow: hidden; text-overflow: ellipsis; }
+.team-person > .team-badge { grid-column: 3; grid-row: 1; display: flex; gap: var(--space-1); }
 .team-name { font-weight: 600; }
 .team-reason, .team-meta, .team-usage { color: var(--text-muted); font-size: var(--text-sm); }
-.team-meta, .team-usage { flex-basis: 100%; padding-inline-start: var(--space-5); }
+.team-reason, .team-meta, .team-usage { grid-column: 2 / -1; display: block; block-size: 1.5em; line-height: 1.5; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.team-reason { grid-row: 2; }
+.team-meta { grid-row: 3; }
+.team-usage { grid-row: 4; }
 .team-assignment { padding-inline: var(--space-5) var(--space-2); }
 .team-task { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .team-budget-row .meter { width: 100%; }
@@ -15,5 +27,3 @@
 
 .team-traffic-original { display: none !important; }
 .team-traffic-fold { padding: var(--space-2) var(--space-3); color: var(--text-muted); list-style: none; }
-
-.team-reason:not(:empty) { flex-basis: 100%; padding-inline-start: var(--space-5); }
