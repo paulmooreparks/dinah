@@ -317,6 +317,8 @@ type Judges struct {
 	now      func() time.Time
 	logf     func(format string, args ...any)
 	onRec    func(id int64)
+	// health holds what repeated errors have paused (health.go).
+	health health
 }
 
 // Options are the parts of New that tests and callers may set.
@@ -347,6 +349,14 @@ func New(o Options) *Judges {
 		pool: newPool(now, longestDeadline, o.PoolMin, o.PoolMax)}
 }
 
+// timeNow is the clock calls are timed by, which tests set so that how long a call took does not depend on the machine.
+func (j *Judges) timeNow() time.Time {
+	if j == nil || j.now == nil {
+		return time.Now()
+	}
+	return j.now()
+}
+
 // Store is the record the judges write.
 func (j *Judges) Store() *Store { return j.store }
 
@@ -356,6 +366,8 @@ func (j *Judges) SetJudge(x Judge, provider, unit string) {
 	j.mu.Lock()
 	j.judge, j.provider, j.unit = x, provider, unit
 	j.mu.Unlock()
+	// A judge that is set again, as it is whenever the person changes the judges' settings, is tried afresh.
+	j.health.reset()
 }
 
 // SetPool sets the smallest and largest size of the pool.
@@ -476,13 +488,14 @@ func (j *Judges) completeLate(id int64, a judgeAnswer, unit string) {
 // and recorded on every call, so how often the two disagree can be measured.
 func Call[In, Out any](ctx context.Context, j *Judges, k *Kind[In, Out], in In, effect Effect) Result[Out] {
 	start := time.Now()
+	began := j.timeNow()
 	rec := Record{Time: start, Kind: k.Name, Version: k.version, EffectKind: effect.Kind, EffectID: effect.ID, DeadlineMs: k.Deadline.Milliseconds()}
 	rule := k.Rule(in)
 	rec.RuleAnswer = encode(rule)
 	rec.Used = UsedRule
 	finish := func(why string, out Out) Result[Out] {
 		rec.Why = why
-		rec.ElapsedMs = time.Since(start).Milliseconds()
+		rec.ElapsedMs = j.timeNow().Sub(began).Milliseconds()
 		if rec.Used == UsedRule {
 			out = rule
 		}
@@ -516,6 +529,20 @@ func Call[In, Out any](ctx context.Context, j *Judges, k *Kind[In, Out], in In, 
 	rec.Provider = provider
 	if j.overBudget(provider) {
 		return finish(WhyBudget, rule)
+	}
+	ok, probe, paused := j.health.admit(provider, j.now())
+	if !ok {
+		rec.Answer = "paused until " + paused.Until.Local().Format("15:04") + ": " + paused.Reason
+		return finish(WhyPaused, rule)
+	}
+	// A probe that ends without the judge having answered or failed lets the next call probe.
+	resolved := false
+	if probe {
+		defer func() {
+			if !resolved {
+				j.health.released(provider)
+			}
+		}()
 	}
 	dctx, cancel := context.WithTimeout(ctx, k.Deadline)
 	defer cancel()
@@ -562,8 +589,12 @@ func Call[In, Out any](ctx context.Context, j *Judges, k *Kind[In, Out], in In, 
 			return finish(WhyLate, rule)
 		}
 		rec.Answer = appletcontext.Redact(err.Error())
+		resolved = true
+		j.health.failed(provider, ShortReason(rec.Answer), j.now())
 		return finish(WhyError, rule)
 	}
+	resolved = true
+	j.health.answered(provider)
 	if dctx.Err() != nil {
 		return finish(WhyLate, rule)
 	}

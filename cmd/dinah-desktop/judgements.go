@@ -110,6 +110,12 @@ type JudgementState struct {
 	Streak     int    `json:"streak"`
 	WarnStreak int    `json:"warnStreak"`
 	Latest     string `json:"latest"`
+	// Warnings are the calls the rule answered because the judge could not that have not been dismissed, newest first,
+	// and Unseen how many there are: the number the badge shows. Paused is the provider the judge uses when repeated errors
+	// have paused it, which is a condition and not a count (internal/judge/health.go).
+	Warnings []judge.Warning `json:"warnings"`
+	Unseen   int             `json:"unseen"`
+	Paused   *judge.Pause    `json:"paused,omitempty"`
 	// Budget has a row for each provider that has a limit, and Pool is the pool
 	// as it is now, with the two fractions it grows and shrinks by.
 	Budget []judge.BudgetUse `json:"budget"`
@@ -479,8 +485,6 @@ func stateOf(s JudgementSettings, sum judge.Summary) JudgementState {
 		st.State, st.Why = "off", "turned off"
 	case s.Model == "":
 		st.State, st.Why = "off", "no model chosen"
-	case sum.Streak >= s.WarnStreak:
-		st.State, st.Why = "warning", fmt.Sprintf("%d fallbacks in a row", sum.Streak)
 	}
 	return st
 }
@@ -513,6 +517,22 @@ func (a *App) JudgementState() (JudgementState, error) {
 	}
 	st.Pool = set.PoolState()
 	st.Calibration = a.calibrationState()
+	if st.Warnings, err = set.Store().Warnings(); err != nil {
+		return JudgementState{}, err
+	}
+	st.Unseen = len(st.Warnings)
+	if st.State == "on" {
+		for _, p := range set.Pauses() {
+			if p.Provider == settings.Provider {
+				p := p
+				st.Paused = &p
+				st.State, st.Why = "warning", "Paused: "+p.Reason
+			}
+		}
+	}
+	if st.State == "on" && st.Unseen >= settings.WarnStreak {
+		st.State, st.Why = "warning", fmt.Sprintf("%d fallbacks in a row: %s", st.Unseen, st.Warnings[0].Reason)
+	}
 	// A call answered by its rule because the budget did not allow it is a warning
 	// of its own, whatever the run of fallbacks is, unless the person turned the
 	// judges off.
@@ -545,8 +565,39 @@ func (a *App) emitJudgementsChanged() {
 	}
 	a.emit("judgements:changed", sessionhost.Stamp(map[string]any{
 		"state": st.State, "why": st.Why, "calls": st.Calls, "fallbacks": st.Fallbacks, "streak": st.Streak,
-		"warnStreak": st.WarnStreak, "latest": st.Latest, "budget": st.Budget, "pool": st.Pool, "calibration": st.Calibration,
+		"warnStreak": st.WarnStreak, "latest": st.Latest, "warnings": st.Warnings, "unseen": st.Unseen, "paused": st.Paused, "budget": st.Budget, "pool": st.Pool, "calibration": st.Calibration,
 	}, st.StateGen, st.StateVer))
+}
+
+// DismissJudgementWarning dismisses one warning, for good: it stops counting in the badge and does not come back after a
+// restart. A call that falls back later is a new warning.
+func (a *App) DismissJudgementWarning(id int64) error {
+	set, err := a.judges()
+	if err != nil {
+		return err
+	}
+	ok, err := set.Store().DismissWarning(id)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("that call is no longer in the record")
+	}
+	a.emitJudgementsChanged()
+	return nil
+}
+
+// DismissJudgementWarnings dismisses every warning there is now.
+func (a *App) DismissJudgementWarnings() error {
+	set, err := a.judges()
+	if err != nil {
+		return err
+	}
+	if _, err := set.Store().DismissWarnings(); err != nil {
+		return err
+	}
+	a.emitJudgementsChanged()
+	return nil
 }
 
 // JudgementSummary totals the calls from from to to (both RFC 3339; empty means

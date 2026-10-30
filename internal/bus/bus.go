@@ -924,6 +924,12 @@ func (b *Bus) Deliver(ctx context.Context, sessionID, event string) (msgs []Mess
 			if len(ids) > 0 {
 				block = true
 				continues++
+				// The agent carries on past this stop, in the turn it was in. If the window's prompt for that turn has
+				// already come back, and ended its hook turn, the agent is still working in it, so the turn is open
+				// again for steers (steers.go).
+				if _, err := t.Exec(`UPDATE hook_turns SET active = 1, ended_at = '' WHERE session = ? AND active = 0`, sessionID); err != nil {
+					return err
+				}
 			} else {
 				continues = 0
 			}

@@ -34,10 +34,22 @@ Two decisions follow from it, beyond the rule above.
 
 Dinah UI also found the glyphs too small to carry the state alone: Idle's ring read as a speck, and Working's arc was hard to tell from it. Each mark keeps a slot of at least 16 CSS pixels, with Idle a visibly closed hollow ring and Working a clearly open arc, reviewed with animation stopped as well as running.
 
-## Transcript navigation and measured rows
+## Transcript Navigation and Measured Rows
 
 A jump to the latest releases the saved reading place before following the end. Once a bounded chat log has been read back, its rows keep their measured layout when following resumes. Re-enabling estimated heights during a jump changes the scroll extent underneath its destination. The chat log already trims its retained rows, so this preservation remains bounded.
 
 The jump also updates the pinned prompt before its final scroll position is set. The pin and unread controls can change the transcript viewport or extent. The final position is calculated after those changes in the same operation. Deferring that correction to the next animation frame leaves a visible gap for one frame.
 
 While reading back, DOM mutations restore the held row during mutation delivery. Resize observation also restores it when an image or font changes its size later. The regression suites sample the readable row and the jump destination on every animation frame. They reject a transient displacement even when the final position recovers.
+
+## A Control That Exists in One State
+
+An action that cannot be taken is absent rather than shown disabled, and its place is still kept. When a chat is idle, Stop keeps its width and height in the toolbar but is invisible, cannot be focused or clicked, and is not in the accessibility tree; when a turn starts it appears in that same place (Architecture and Dinah UI, 31 October, messages 1732 and 1733). Toolbar folding counts the reserved width in both states, so hiding the control never changes what folds and never leaves an empty item in the overflow menu. If Stop has focus when the turn ends, focus returns to the message box. Every other control that exists in only one state is treated the same way.
+
+## Paul's Priority
+
+Paul decided on 31 October to accept a brief Idle flicker when a stop is blocked to deliver a message, since removing it would rest on an order of events that neither the adapter nor Claude Code documents, and asked that the work now be about getting Dinah stable. Until the movements found by the first audit are fixed and the stability suite passes for every surface, no new feature is started. Skins wait behind that work, and so do new requests that are not defects.
+
+## No Heading in a Chat Window
+
+Paul asked on 31 October for a chat window to lose the large title at the top of its body and the status line beneath it, because both repeat what the window's title bar already shows and they take vertical space that the group window, which has neither, gives to the conversation. The chat window's body therefore starts with the team strip, when the chat leads a team, or else with the transcript. The title bar keeps the chat's name and its state, and the state's reason and the chat's workspace are in the title bar's tooltip and in its folded status menu. Rename and Delete, which sat beside the title, remain in the chat's Actions menu, where they already are. The explanation a waiting chat needs, such as an approval, is in the request card in the transcript, so nothing is lost with the status line. This replaces the earlier rule in [chat-states.md](chat-states.md) that kept the visible state word in a chat's own status line; the title bar's state chip now carries it, with its width reserved so that a change of state never moves the window's buttons.
