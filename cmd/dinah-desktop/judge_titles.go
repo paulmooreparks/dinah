@@ -129,7 +129,11 @@ func (a *App) noteFirstPrompt(s *Session, p *prompt) {
 	if line == "" {
 		return
 	}
-	go a.judgeChatTitle(id, line)
+	a.judging.work.Add(1)
+	go func() {
+		defer a.judging.work.Done()
+		a.judgeChatTitle(id, line)
+	}()
 }
 
 // hasEarlierPerson says the chat's saved conversation already holds a message

@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"studio/internal/acp"
@@ -18,7 +19,32 @@ var TurnIOSource []byte
 // TurnIO orchestrates protocol and host effects over opaque conversations.
 // It holds no registry of its own. Host callbacks must not re-enter a held
 // submission gate; receipt confirmation remains independent of that gate.
-type TurnIO struct{ host TurnHost }
+type TurnIO struct {
+	host    TurnHost
+	running sync.WaitGroup
+}
+
+// start runs a turn on its own goroutine, which Wait counts.
+func (t *TurnIO) start(s *Conversation, next *Prompt) {
+	t.running.Add(1)
+	go func() {
+		defer t.running.Done()
+		t.Run(s, next)
+	}()
+}
+
+// Wait returns when every turn started so far has ended, or when the limit passes, and says whether they all ended.
+// An app that is ending, or a test that is, waits here so that no turn writes into a folder after it is gone.
+func (t *TurnIO) Wait(limit time.Duration) bool {
+	done := make(chan struct{})
+	go func() { t.running.Wait(); close(done) }()
+	select {
+	case <-done:
+		return true
+	case <-time.After(limit):
+		return false
+	}
+}
 
 func NewTurnIO(host TurnHost) *TurnIO { return &TurnIO{host: host} }
 
@@ -116,7 +142,7 @@ func (t *TurnIO) Send(id, text string, doc *DocRef, atts []Attachment) error {
 
 	t.host.Remember(s.Cwd(), s.ID(), "send", text, doc)
 	EmitSession(t.host.Emit, s)
-	go t.Run(s, &p)
+	t.start(s, &p)
 	return nil
 }
 
@@ -149,7 +175,7 @@ func (t *TurnIO) StartWaiting(s *Conversation) {
 		return
 	}
 	EmitSession(t.host.Emit, s)
-	go t.Run(s, p)
+	t.start(s, p)
 }
 
 // SendPrompt sends a prompt that has already been made, such as one that was
@@ -179,7 +205,7 @@ func (t *TurnIO) SendPrompt(id string, p Prompt) error {
 		return nil
 	}
 	EmitSession(t.host.Emit, s)
-	go t.Run(s, &p)
+	t.start(s, &p)
 	return nil
 }
 
@@ -202,7 +228,7 @@ func (t *TurnIO) SendAs(s *Conversation, label, text string) error {
 
 	EmitSession(t.host.Emit, s)
 	EmitChat(t.host.Emit, s, EventSent, map[string]any{"sessionId": s.ID(), "text": text, "kind": "skill", "label": label})
-	go t.Run(s, &p)
+	t.start(s, &p)
 	return nil
 }
 
@@ -248,7 +274,7 @@ func (t *TurnIO) AskWait(ctx context.Context, s *Conversation, p Prompt) (string
 			submission.Release()
 			EmitSession(t.host.Emit, s)
 			EmitChat(t.host.Emit, s, EventSent, SentEvent(s.ID(), text, SentKind(&p, "asked"), p.Label(), p.Delivered()))
-			go t.Run(s, &p)
+			t.start(s, &p)
 		}
 	}
 	words, end, completed := p.Wait(ctx)

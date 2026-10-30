@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -147,25 +146,6 @@ func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 	previous := configOverride
 	configOverride = t.TempDir()
 	t.Cleanup(func() { configOverride = previous })
-	diagDir := configOverride
-	t.Cleanup(func() {
-		list := func() string {
-			var names []string
-			filepath.WalkDir(diagDir, func(p string, d fs.DirEntry, err error) error {
-				if err == nil && !d.IsDir() {
-					info, _ := d.Info()
-					names = append(names, fmt.Sprintf("%s(%d)", p, info.Size()))
-				}
-				return nil
-			})
-			return strings.Join(names, " ")
-		}
-		before := list()
-		time.Sleep(150 * time.Millisecond)
-		if after := list(); after != before {
-			t.Errorf("DIAG files changed after cleanup: before: %s after: %s", before, after)
-		}
-	})
 	a := NewApp()
 	a.connectGraceOverride = -1
 	a.settings.DefaultProvider = "codex"
@@ -181,6 +161,9 @@ func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 	// The logs are closed too, so that a chat still running writes none after the
 	// test's folder is being removed.
 	t.Cleanup(a.closeAgentLogs)
+	// Turns the test started are waited for before anything above is closed, so none writes into the
+	// folder after the test returns (they run first, as the last cleanup registered).
+	t.Cleanup(func() { a.turnIO().Wait(3 * time.Second) })
 	return a, c
 }
 

@@ -172,6 +172,8 @@ type judging struct {
 	// seen are the chats whose first message has been looked at in this run
 	// (judge_titles.go).
 	seen map[string]bool
+	// work counts the title judgements still running, which closing the judges waits for.
+	work sync.WaitGroup
 	// The last calibration, the key of the models it ran for, whether one is going
 	// on, how to stop it, and whether the automatic run is left out (tests).
 	report      *judge.Report
@@ -401,6 +403,14 @@ func (a *App) judges() (*judge.Judges, error) {
 // still running when the window ends finds it closed, and uses its rule.
 func (a *App) closeJudges() {
 	a.stopCalibration()
+	// A title judgement in flight writes the settings and the judgement store when it ends, so it is waited for
+	// (for a limit, since a judge that never answers must not hold up the app's ending).
+	done := make(chan struct{})
+	go func() { a.judging.work.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+	}
 	j := &a.judging
 	j.mu.Lock()
 	defer j.mu.Unlock()
