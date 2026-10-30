@@ -4,7 +4,7 @@ Paul found on 30 October 2026 that a green filled circle means a chat is not bus
 
 ## The States
 
-A chat's execution state is one of four, and each is always shown as a glyph, a colour and a word together, so colour is never the only signal.
+A chat's execution state is one of four, and each is always shown by a glyph and a colour together, so colour is never the only signal, with its word visible or as its accessible name as described below.
 
 | State | Meaning | Glyph | Colour | Word |
 |---|---|---|---|---|
@@ -13,7 +13,7 @@ A chat's execution state is one of four, and each is always shown as a glyph, a 
 | Stuck | The last turn ended in an error, or the chat's provider cannot run it. | Warning triangle | Danger | Stuck, with the reason beside it |
 | Idle | The chat is open and nothing is running or waiting. | Hollow circle | Muted text | Idle |
 
-The colours are PUDL's tokens: accent for Working, with a foreground that keeps its contrast, warn for Waiting, danger for Stuck and text-muted for Idle. PUDL has no separate information colour, and PUDL Architect proposed this assignment (message 1438). Green is not used for any of these. The words are visible wherever the space allows, on ordinary taskbar buttons and rows and in window status. A compact rail shows the glyph alone, with the words as its accessible name and its tooltip. A chat whose session is not running (closed, or retired from a team) has no execution state; it shows its lifecycle in words ("Closed", "Retired") in muted text and no glyph from this table.
+The colours are PUDL's tokens: accent for Working, with a foreground that keeps its contrast, warn for Waiting, danger for Stuck and text-muted for Idle. PUDL has no separate information colour, and PUDL Architect proposed this assignment (message 1438). Green is not used for any of these. Paul found after the first build that the words made rows unusable (30 October 2026). "Working", "Idle" and "Waiting" differ in length, so every change of state moved the chips and the menu buttons after them, and a control could not be clicked while chats were changing. A state mark therefore never changes the size of anything around it. Wherever a state sits in a row or chip beside other controls (group member chips, chat list rows, pickers, mention candidates, the team strip's member rows and taskbar buttons), it is the glyph and its colour alone, in a slot of fixed width, with the word and any reason as its accessible name and its tooltip. The visible word is kept only where the state is the subject of the line and nothing interactive follows it on the same row: a chat window's own status line under its title, and the folded counts of a group or team ("1 stuck, 2 working"). Other details of a member that change, such as whether it has a window, move into the tooltip and the member's menu for the same reason. A chat whose session is not running (closed, or retired from a team) has no execution state; it shows its lifecycle in words ("Closed", "Retired") in muted text and no glyph from this table.
 
 Three other things look similar but are not a chat's state, and they keep their own forms so that none of them is read as one of the four above. Unread messages are a count in a badge. A provider's connection, such as "ready" in the status bar, is shown on the provider, never on a chat. A team member's presence in a group is shown by its row being there.
 
