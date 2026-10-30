@@ -41,3 +41,7 @@ A jump to the latest releases the saved reading place before following the end. 
 The jump also updates the pinned prompt before its final scroll position is set. The pin and unread controls can change the transcript viewport or extent. The final position is calculated after those changes in the same operation. Deferring that correction to the next animation frame leaves a visible gap for one frame.
 
 While reading back, DOM mutations restore the held row during mutation delivery. Resize observation also restores it when an image or font changes its size later. The regression suites sample the readable row and the jump destination on every animation frame. They reject a transient displacement even when the final position recovers.
+
+## A Control That Exists in One State
+
+An action that cannot be taken is absent rather than shown disabled, and its place is still kept. When a chat is idle, Stop keeps its width and height in the toolbar but is invisible, cannot be focused or clicked, and is not in the accessibility tree; when a turn starts it appears in that same place (Architecture and Dinah UI, 31 October, messages 1732 and 1733). Toolbar folding counts the reserved width in both states, so hiding the control never changes what folds and never leaves an empty item in the overflow menu. If Stop has focus when the turn ends, focus returns to the message box. Every other control that exists in only one state is treated the same way.
