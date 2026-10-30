@@ -71,7 +71,10 @@ func stagesOf(events []switchEvent, id string) (stages []string, labels []string
 			continue
 		}
 		last = &events[i]
-		if e.Switch != nil && e.Switch.Stage != "" {
+		// A stage begins once. The chat's information is sent again whenever something else in it changes, such as its
+		// state when the engine first works it out (chat_state_events.go), and that snapshot still says the stage
+		// the switch is in, so a snapshot that repeats the stage just reported is not the stage beginning again.
+		if e.Switch != nil && e.Switch.Stage != "" && (len(stages) == 0 || stages[len(stages)-1] != e.Switch.Stage) {
 			stages = append(stages, e.Switch.Stage)
 			labels = append(labels, e.Switch.Label)
 		}
