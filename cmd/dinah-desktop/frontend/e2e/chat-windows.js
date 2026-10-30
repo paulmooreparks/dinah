@@ -156,6 +156,7 @@ const { choose } = require('./lib/commands');
     // A new chat's title status retains its destination before the first message.
     await front().locator('.chat-working-chip').waitFor();
     ok('the new chat keeps its workspace in title status before the first message', /Beta Workspace/.test(await front().locator('.chat-working-chip').getAttribute('title')), await front().locator('.chat-working-chip').getAttribute('title'));
+    ok('the new chat chip shows its destination without repeating the title', (await front().locator('.chat-working-chip .chat-lifecycle').innerText()) === 'Beta Workspace');
     await front().locator('[data-view-id="prompt"]').waitFor();
     await prompt().fill('hello from Beta');
     await prompt().press('Enter');
