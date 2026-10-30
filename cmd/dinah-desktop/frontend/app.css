@@ -430,12 +430,8 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .composer-stop { inline-size: 100%; block-size: 100%; justify-content: center; }
 .chat-working-chip { box-sizing: border-box; inline-size: 8em; flex: none; overflow: hidden; white-space: nowrap; }
 .chat-working-chip .chat-state { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Status changes replace read-only rows while Dismiss stays in its place. */
-/* PUDL 0.95.2 replaces the interim pointer-events correction below. */
-.win-status-popover:popover-open { display: flex; flex-direction: column; max-block-size: calc(100dvh - 24px); pointer-events: auto; }
-.win-status-popover > ul { flex: none; block-size: calc(2 * max(22px, 1lh) + var(--space-2)); overflow: auto; scrollbar-gutter: stable; }
-.win-status-popover :is(li, .win-execution-row) { block-size: max(22px, 1lh); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.win-status-popover > button { flex: none; align-self: start; }
+/* Complete status details stay in the accessible text while each row stays on one line. */
+.win-status-popover li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* The prompt history: a sunken, scrolling list of pressable prompts. */
 .history-dialog { max-width: 720px; }

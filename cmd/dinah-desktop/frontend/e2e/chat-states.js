@@ -116,7 +116,7 @@ const { launch } = require('./lib/page');
     if (await statusControl.isVisible()) {
       const panelId = await statusControl.getAttribute('popovertarget');
       await statusControl.click();
-      await page.locator('#' + panelId).getByText('Working · Fixture · Turn in progress', { exact: true }).waitFor();
+      await page.locator('#' + panelId).getByRole('img', { name: 'Working: Fixture · Turn in progress', exact: true }).waitFor();
       ok('folded status keeps the full workspace and execution reason', true);
       await page.keyboard.press('Escape');
     }
