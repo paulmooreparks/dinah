@@ -12,6 +12,7 @@ const fs = require('fs'), path = require('path');
       window.__work = working => { __working = working; __emit('agent:session', __session(working)); };
       return {
         OpenSessionAt: async () => __session(false),
+        Cancel: async () => {},
         CanSteer: async () => {
           __primaryCalls.push(__capable);
           if (window.__late) return new Promise(resolve => { window.__resolveLate = resolve; });
@@ -82,15 +83,16 @@ const fs = require('fs'), path = require('path');
       const style = getComputedStyle(document.documentElement);
       return { tokens: ['2xs', 'xs', 'sm', 'md', 'base', 'lg', 'xl', '2xl', '3xl'].map(size => ['--text-' + size, style.getPropertyValue('--text-' + size)]).concat([['--chat-size', style.getPropertyValue('--chat-size')]]), prompt: parseFloat(getComputedStyle(__composerRoot.querySelector('textarea')).fontSize) };
     });
-    for (const theme of ['light', 'dark']) for (const width of [1440, 700]) for (const scale of [1, 2]) {
+    for (const theme of ['light', 'dark']) for (const width of [2100, 1440, 700, 500]) for (const scale of [1, 2]) {
       await page.setViewportSize({ width, height: 1000 });
       await page.evaluate(({ theme, scale, tokens, width, key }) => {
         pudlSetTheme(theme);
         tokens.forEach(([name, value]) => document.documentElement.style.setProperty(name, parseFloat(value) * scale + 'px'));
         pudlWindows.snap(key, 'floating');
-        __composerRoot.style.width = (width === 1440 ? 1000 : 420) + 'px';
+        const windowWidth = width === 2100 ? 1000 : width === 1440 ? 680 : width === 700 ? 420 : 320;
+        __composerRoot.style.width = windowWidth + 'px';
         __composerRoot.style.height = '800px'; __composerRoot.style.top = '50px';
-        __composerRoot.style.left = Math.round((innerWidth - (width === 1440 ? 1000 : 420)) / 2) + 'px';
+        __composerRoot.style.left = Math.round((innerWidth - windowWidth) / 2) + 'px';
         __work(false);
       }, { theme, scale, tokens: textBaseline.tokens, width, key });
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -108,12 +110,13 @@ const fs = require('fs'), path = require('path');
           return out;
         }
         const before = boxes(), frames = [], hint = root.querySelector('textarea').placeholder;
-        for (const working of [true, false, true, true, true, false]) {
+        for (const [phase, working] of [true, false, true, true, true, false].entries()) {
           __work(working);
+          if (phase === 3) root.querySelector('.composer-stop').click();
           for (let frame = 0; frame < 4; frame++) {
             await new Promise(requestAnimationFrame);
             const stop = root.querySelector('.composer-stop'), slot = stop.parentElement.getBoundingClientRect(), control = stop.getBoundingClientRect();
-            frames.push({ working, boxes: boxes(), stop: { hidden: stop.hidden, inert: stop.inert, slot: slot.toJSON(), control: control.toJSON() }, hint: root.querySelector('textarea').placeholder,
+            frames.push({ working, boxes: boxes(), stop: { hidden: stop.hidden, inert: stop.inert, text: stop.textContent, slot: slot.toJSON(), control: control.toJSON() }, hint: root.querySelector('textarea').placeholder,
               label: root.querySelector('[data-view-id=send]').textContent });
           }
         }
@@ -134,7 +137,7 @@ const fs = require('fs'), path = require('path');
         const bar = document.querySelector('.win-bar');
         return { row: row.getBoundingClientRect().toJSON(), input: input.getBoundingClientRect().toJSON(), actions: actions.getBoundingClientRect().toJSON(), widest: Math.max(...widest), window: win.getBoundingClientRect().toJSON(), viewportBottom: bar ? bar.getBoundingClientRect().top : innerHeight };
       });
-      if (width === 700) ok('narrow input keeps the whole row above its buttons at text ' + scale,
+      if (width !== 2100 && (width !== 1440 || scale === 2)) ok('narrow input keeps the whole row above its buttons at text ' + scale,
         Math.abs(arrangement.input.width - arrangement.row.width) < 1 && arrangement.actions.top >= arrangement.input.bottom,
         JSON.stringify(arrangement));
       else ok('wide button column fits its widest label and gives the rest to the input at text ' + scale,
@@ -142,6 +145,33 @@ const fs = require('fs'), path = require('path');
         JSON.stringify(arrangement));
       ok('typing actions remain inside the window and viewport at ' + width + '/' + scale,
         arrangement.actions.bottom <= Math.min(arrangement.window.bottom, arrangement.viewportBottom), JSON.stringify(arrangement.actions));
+      const toolbar = await win.evaluate(win => {
+        const bar = win.querySelector('.composer-toolbar');
+        const controls = [...bar.querySelectorAll('button')].filter(el => !el.closest('.menu-panel') && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden').map(el => {
+          const r = el.getBoundingClientRect(), clips = [];
+          for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+            const css = getComputedStyle(parent), bounds = parent.getBoundingClientRect();
+            const x = /hidden|clip|auto|scroll/.test(css.overflowX), y = /hidden|clip|auto|scroll/.test(css.overflowY);
+            if ((x && (r.left < bounds.left + parent.clientLeft - .1 || r.right > bounds.left + parent.clientLeft + parent.clientWidth + .1)) ||
+                (y && (r.top < bounds.top + parent.clientTop - .1 || r.bottom > bounds.top + parent.clientTop + parent.clientHeight + .1))) clips.push({ className: parent.className, rect: bounds.toJSON() });
+          }
+          const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+          return { label: el.textContent.trim() || el.getAttribute('aria-label'), rect: r.toJSON(), clips, hit: hit === el || el.contains(hit), hitTarget: hit && hit.outerHTML.slice(0, 240), pointerEvents: getComputedStyle(el).pointerEvents, command: el.dataset.command, disabled: el.disabled || el.getAttribute('aria-disabled') === 'true', menu: el.classList.contains('menu-btn') };
+        });
+        const stop = win.querySelector('.composer-stop-slot'), reserve = stop.querySelector('.composer-stop-reserve');
+        return { rect: bar.getBoundingClientRect().toJSON(), controls, stopWidth: stop.getBoundingClientRect().width, reserveWidth: reserve.getBoundingClientRect().width };
+      });
+      ok('all presented toolbar controls fit and are hit-testable before scrolling at ' + width + '/' + scale,
+        toolbar.controls.length > 0 && toolbar.controls.every(c => !c.clips.length && (c.disabled || c.hit)), JSON.stringify(toolbar));
+      ok('Stop reserves only its longest label width at ' + width + '/' + scale, Math.abs(toolbar.stopWidth - toolbar.reserveWidth) < .02, JSON.stringify(toolbar));
+      const menu = toolbar.controls.find(c => c.label === 'More' && !c.disabled && c.hit) || toolbar.controls.find(c => c.menu && !c.disabled && c.hit);
+      ok('the toolbar exposes a menu at ' + width + '/' + scale, !!menu, JSON.stringify(toolbar.controls));
+      if (menu) {
+        await page.mouse.click(menu.rect.x + menu.rect.width / 2, menu.rect.y + menu.rect.height / 2);
+        await page.locator('.menu-panel:popover-open').waitFor();
+        ok('the presented menu opens its commands without preparatory scrolling at ' + width + '/' + scale, await page.locator('.menu-panel:popover-open .menu-action').count() > 0);
+        await page.keyboard.press('Escape');
+      }
       const failures = [];
       for (const frame of sample.frames) {
         for (const id of new Set([...Object.keys(sample.before), ...Object.keys(frame.boxes)])) {
@@ -156,6 +186,7 @@ const fs = require('fs'), path = require('path');
       }
       traces.push({ theme, width, scale, textSize: actualTextSize, window: await win.boundingBox(), arrangement, ...sample, failures });
       ok('composer controls stay fixed on every frame, ' + theme + ', ' + width + ' px, text ' + scale, failures.length === 0, JSON.stringify(failures.slice(0, 8)));
+      ok('the measured transitions include Stopping at ' + width + '/' + scale, sample.frames.some(frame => frame.stop.text.includes('Stopping')));
       await t.shot('composer-' + theme + '-' + width + '-' + scale + '-idle');
       await page.evaluate(() => __work(true)); await primary('steer-send');
       await t.shot('composer-' + theme + '-' + width + '-' + scale + '-working');

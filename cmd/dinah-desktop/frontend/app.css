@@ -325,7 +325,7 @@ body:not(.show-thoughts) .thought-row { display: none; }
    The document that goes with the message and the messages waiting for
    the turn to end are each said on a line of their own below. */
 .composer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: 28px; }
-.composer-toolbar { flex: 1 1 0; min-width: 0; }
+.composer-toolbar { flex: 1 1 0; min-inline-size: var(--toolbar-least, 0px); }
 .composer-toolbar :is([data-command="model"], [data-command="mode"], [data-command="provider"]) .toolbar-words { max-width: 18em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .composer-bar > .composer-usage { flex: none; }
 .composer-context, .composer-queue { flex-basis: 100%; min-width: 0; }
@@ -424,7 +424,9 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .composer-actions > [data-reserve-label] { display: inline-grid; }
 .composer-actions > [data-reserve-label]::before { content: attr(data-reserve-label); visibility: hidden; }
 .composer-actions > [data-reserve-label]::before, .composer-send-label { grid-area: 1 / 1; }
-.composer-stop-slot { flex: none; display: grid; inline-size: 8.5em; block-size: calc(1lh + 2 * var(--space-1) + 2px); font-size: var(--text-sm); line-height: 1.5; }
+.composer-stop-slot { flex: none; display: grid; }
+.composer-stop-reserve, .composer-stop { grid-area: 1 / 1; }
+.composer-stop-reserve { visibility: hidden; pointer-events: none; line-height: normal; }
 .composer-stop { inline-size: 100%; block-size: 100%; justify-content: center; }
 .chat-working-chip { box-sizing: border-box; inline-size: 8em; flex: none; overflow: hidden; white-space: nowrap; }
 .chat-working-chip .chat-state { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
