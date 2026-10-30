@@ -53,6 +53,8 @@ type BusChats struct {
 	mu      *sync.Mutex
 	runtime *Runtime
 	host    BusChatsHost
+	// retries holds the results that could not be queued yet, and when each is tried again (bus_results.go).
+	retries resultRetries
 }
 
 type BusChatsHost struct {
@@ -338,6 +340,8 @@ func (a *BusChats) Unpark(s *Conversation) {
 func (a *BusChats) JoinBus(s *Conversation, id string) {
 	s.JoinBus(id)
 	a.host.SaveBusIdentity(s.ID(), id)
+	// A chat that now has a bus identity may be the caller of a result that was waiting for one.
+	a.retries.reset()
 	a.PublishBusTitle(s)
 }
 

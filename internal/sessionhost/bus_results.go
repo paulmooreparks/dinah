@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"studio/internal/applet/broker"
 	"studio/internal/bus"
@@ -18,6 +20,67 @@ const ChatAskAction = "dinah.chat/ask@2"
 
 func ChatResultKey(workspace, id string) string {
 	return "chat-result:" + bus.WorkspaceKey(workspace) + ":" + id
+}
+
+// A result whose caller has no saved bus identity cannot be queued, and stays saved until the caller has one. It is
+// tried again after a delay that doubles from resultRetryFirst to resultRetryLongest, and again at once when any chat
+// joins the bus, so the failure is neither retried every second nor reported every second.
+const (
+	resultRetryFirst   = 5 * time.Second
+	resultRetryLongest = 10 * time.Minute
+)
+
+type resultRetry struct {
+	delay time.Duration
+	next  time.Time
+}
+
+type resultRetries struct {
+	mu sync.Mutex
+	by map[string]resultRetry
+}
+
+// due says whether a result may be tried now.
+func (r *resultRetries) due(key string, now time.Time) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	t, waiting := r.by[key]
+	return !waiting || !now.Before(t.next)
+}
+
+// failed records another failure and returns the delay before the next try.
+func (r *resultRetries) failed(key string, now time.Time) time.Duration {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.by == nil {
+		r.by = map[string]resultRetry{}
+	}
+	t := r.by[key]
+	switch {
+	case t.delay == 0:
+		t.delay = resultRetryFirst
+	case t.delay < resultRetryLongest:
+		t.delay = min(t.delay*2, resultRetryLongest)
+	}
+	t.next = now.Add(t.delay)
+	r.by[key] = t
+	return t.delay
+}
+
+func (r *resultRetries) succeeded(key string) {
+	r.mu.Lock()
+	delete(r.by, key)
+	r.mu.Unlock()
+}
+
+// reset makes every waiting result due at once, for when something that could let one through has happened.
+func (r *resultRetries) reset() {
+	r.mu.Lock()
+	for k, t := range r.by {
+		t.next = time.Time{}
+		r.by[k] = t
+	}
+	r.mu.Unlock()
 }
 
 // reconcileChatResults moves saved completions to the bus. The index avoids
@@ -36,12 +99,22 @@ func (a *BusChats) ReconcileResults(ctx context.Context, b *bus.Bus, reported ma
 		a.host.Log("error", "recovering chat request results: %v", err)
 		return
 	}
+	now := time.Now()
+	if a.host.Clock != nil {
+		now = a.host.Clock()
+	}
 	for _, v := range results {
-		if err := a.EnqueueResult(ctx, b, v); err != nil {
-			a.host.Log("error", "queueing chat request %s's result: %v", v.ID, err)
+		key := ChatResultKey(v.Workspace, v.ID)
+		if !a.retries.due(key, now) {
 			continue
 		}
-		reported[ChatResultKey(v.Workspace, v.ID)] = true
+		if err := a.EnqueueResult(ctx, b, v); err != nil {
+			delay := a.retries.failed(key, now)
+			a.host.Log("error", "queueing chat request %s's result: %v; trying again in %s", v.ID, err, delay)
+			continue
+		}
+		a.retries.succeeded(key)
+		reported[key] = true
 	}
 }
 
