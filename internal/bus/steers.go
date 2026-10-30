@@ -89,12 +89,15 @@ func (b *Bus) SessionOfAgent(ctx context.Context, agentSession string) (string, 
 	return s, err
 }
 
-// HooksReach says whether a bus session has been tied to its agent's own
-// session, which only the hooks do, so a steer for it can wait for them.
+// HooksReach says whether a steer for a bus session can be handed over by the agent's hooks: the session has been tied
+// to its agent's own session, which only the hooks do, and no hook turn has ended without another starting (a chat with no host-managed turns counts as reached). The turn's own hook need not have
+// run yet: the first hook of a turn, UserPromptSubmit, runs a moment after the prompt is sent, and a steer queued before
+// it carries the turn's token and is handed over by it, or by a later hook of the turn, so a person who types while the
+// turn is starting is not told that steering is unavailable. A hook of an older turn never takes it (TakeAgentSteers).
 func (b *Bus) HooksReach(ctx context.Context, session string) (bool, error) {
 	var n int
 	err := b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM agent_sessions a WHERE session = ? AND
- NOT EXISTS (SELECT 1 FROM hook_turns h WHERE h.session = a.session AND (h.active = 0 OR h.token != a.turn_token))`, session).Scan(&n)
+ NOT EXISTS (SELECT 1 FROM hook_turns h WHERE h.session = a.session AND h.active = 0)`, session).Scan(&n)
 	return n > 0, err
 }
 
