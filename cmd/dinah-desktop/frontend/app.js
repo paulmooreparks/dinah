@@ -163,6 +163,9 @@
     }
   });
   const { title, startRename, openRemove, refreshSessions, drawSessions } = chatBrowser;
+  window.dinahChatState.connect({ fail: fail, changed: function () {
+    drawSessions(); chats.refreshStates();
+  } });
 
   const sequence = window.dinahChatSequence.create({
     app,

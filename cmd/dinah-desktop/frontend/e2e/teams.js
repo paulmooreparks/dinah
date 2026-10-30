@@ -6,11 +6,16 @@ const { launch } = require('./lib/page');
     const ws = 'C:/Fixture';
     window.__teamCalls = [];
     const parent = { bus: 'bus-lead', chat: 'lead', title: 'Team Lead', group: 'team-room' };
-    const member = (chat, title, state, extra) => Object.assign({ bus: 'bus-' + chat, chat, title, workspace: 'Fixture', provider: 'codex', model: 'model-a', state, stateWhy: '', task: 'Build the shared controls', taskMessage: 11, group: 'team-room', open: true, retired: false, stuckBelow: 0, members: [], usage: [{ today: 200, todayUnknown: 0, used: 200, unit: 'tokens', complete: true }] }, extra);
-    window.__team = { lead: parent, group: 'team-room', stateGen: 'team-g1', stateVer: 1, stuck: 2, members: [
+    const member = (chat, title, state, extra) => {
+      const row = Object.assign({ bus: 'bus-' + chat, chat, title, workspace: 'Fixture', provider: 'codex', model: 'model-a', state, task: 'Build the shared controls', taskMessage: 11, group: 'team-room', open: true, retired: false, members: [], usage: [{ today: 200, todayUnknown: 0, used: 200, unit: 'tokens', complete: true }] }, extra);
+      row.life = state === 'retired' || state === 'closed' ? state : 'open'; row.window = row.life === 'open';
+      if (row.life === 'open') row.exec = { state, why: row.stateWhy || '' };
+      return row;
+    };
+    window.__team = { lead: parent, group: 'team-room', stateGen: 'team-g1', stateVer: 1, stuck: 1, counts: { top: 'stuck', stuck: 1, waiting: 2, working: 1, idle: 0, closed: 1, unknown: 0 }, members: [
       member('builder', 'Builder', 'working'),
       member('nested', 'Nested Lead', 'waiting', { stateWhy: 'Waiting for its lead to relay', members: [member('child', 'Nested Worker', 'stuck', { stateWhy: 'The provider is unavailable', usage: [{ today: 0, todayUnknown: 3, used: 0, unit: 'tokens', unknown: 3, complete: false }] })], stuckBelow: 1 }),
-      member('held', 'Held Member', 'stuck', { stateWhy: 'Its context is full' }),
+      member('held', 'Held Member', 'waiting', { stateWhy: 'Context full' }),
       member('retired', 'Earlier Worker', 'retired', { retired: true })
     ], budget: { providers: [{ provider: 'codex', name: 'Codex', unit: 'tokens' }, { provider: 'claude', name: 'Claude Code', unit: 'tokens' }], unmeasured: ['claude'], periodStart: '2026-10-26T00:00:00+08:00', periodEnd: '2026-11-02T00:00:00+08:00', rows: [
       { provider: 'codex', name: 'Codex', unit: 'tokens', hasAllowance: true, allowance: 1000, used: 600, today: 200, unknown: 1, todayUnknown: 1, complete: false, over: false }
@@ -44,14 +49,14 @@ const { launch } = require('./lib/page');
     await lead.locator('.chat-team').waitFor();
     await lead.locator('.chat-team > button.disclosure').click();
     await lead.locator('[data-team-member="bus-builder"]').waitFor();
-    ok('the lead sees states as words, reasons, task and provider usage', /Working/.test(await lead.locator('[data-team-member="bus-builder"]').innerText()) && /Its context is full/.test(await lead.locator('[data-team-member="bus-held"]').innerText()) && /200 tokens/.test(await lead.locator('[data-team-member="bus-builder"]').innerText()));
+    ok('the lead sees states as words, reasons, task and provider usage', /Working/.test(await lead.locator('[data-team-member="bus-builder"]').innerText()) && /Context full/.test(await lead.locator('[data-team-member="bus-held"]').innerText()) && /200 tokens/.test(await lead.locator('[data-team-member="bus-builder"]').innerText()));
     const nested = lead.locator('[data-team-member="bus-nested"] > a');
     await nested.focus(); await nested.press('ArrowLeft');
     ok('a nested team folds separately from its chat link', await nested.getAttribute('aria-expanded') === 'false');
     await nested.press('ArrowRight');
     await lead.locator('[data-team-member="bus-child"]').waitFor();
     ok('nested members show incomplete usage in words', /3 turns unmeasured/.test(await lead.locator('[data-team-member="bus-child"]').innerText()));
-    ok('retired members start folded and stuck descendants are counted', await lead.locator('.team-retired .tree').isHidden() && /2 Members Stuck/.test(await lead.locator('.team-stuck-chip').textContent()));
+    ok('retired members start folded and stuck descendants are counted', await lead.locator('.team-retired .tree').isHidden() && /1 stuck/.test(await lead.locator('.team-stuck-chip').textContent()));
     ok('allowances keep the provider unit and explain incomplete remaining usage', /Remaining usage is incomplete/.test(await lead.locator('.team-budget').textContent()) && await lead.locator('meter').count() === 1);
     const taskFocus = lead.locator('[data-team-member="bus-builder"] .team-task');
     await taskFocus.focus();
@@ -101,9 +106,9 @@ const { launch } = require('./lib/page');
     ok('the task link opens the assignment at its stable message address', JSON.parse(new URL(await p.url()).searchParams.get('view.' + await group.getAttribute('data-win'))).message === 11);
     await p.evaluate(() => { document.documentElement.dataset.theme = 'dark'; pudlWindows.raise(document.querySelector('.win[data-win-kind="chat-session"] .chat-team')?.closest('.win').dataset.win); });
     await t.shot('teams-lead-dark-focused');
-    await p.evaluate(() => { document.documentElement.dataset.theme = 'light'; __team.stateVer = 3; __team.members[0].state = 'idle'; __emit('team:state', structuredClone(__team)); });
+    await p.evaluate(() => { document.documentElement.dataset.theme = 'light'; __team.stateVer = 3; __team.members[0].exec.state = 'idle'; __team.counts.working = 0; __team.counts.idle = 1; __emit('team:state', structuredClone(__team)); });
     await lead.locator('[data-team-member="bus-builder"] .team-state', { hasText: 'Idle' }).waitFor();
-    await p.evaluate(() => { __team.stateVer = 2; __team.members[0].state = 'working'; __emit('team:state', structuredClone(__team)); });
+    await p.evaluate(() => { __team.stateVer = 2; __team.members[0].exec.state = 'working'; __emit('team:state', structuredClone(__team)); });
     ok('an older team event cannot replace the live snapshot', /Idle/.test(await lead.locator('[data-team-member="bus-builder"] .team-state').textContent()));
 
     await p.evaluate(() => __emit('notifications:added', { id: 'relay-12', kind: 'relay', severity: 'warning', title: 'The lead could not relay the decision', body: 'A decision for Paul.', group: 'team-room', message: 12, lead: 'lead', details: ['The provider could not run.'] }));

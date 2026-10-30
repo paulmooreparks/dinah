@@ -57,7 +57,7 @@
       if (!id) return;
       var style = getComputedStyle(el);
       if (!/(auto|scroll)/.test(style.overflowX + ' ' + style.overflowY)) return;
-      dinahUIState.watchScroll(el, 'dinah-scroll:' + (root.dataset.win || key) + ':' + id, { followEnd: id === 'activity', defer: id === 'activity' });
+      dinahUIState.watchScroll(el, 'dinah-scroll:' + (root.dataset.win || key) + ':' + id, { followEnd: el.hasAttribute('data-follow-end'), defer: el.hasAttribute('data-scroll-defer') });
     }
     function scan(scope) {
       if (scope.nodeType !== 1 || scope.closest('[data-ui-scroll-ignore]')) return;

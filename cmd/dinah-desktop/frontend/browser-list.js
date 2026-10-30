@@ -146,6 +146,7 @@
      state. */
   function badge(o) {
     var b = node('span', (o.chip ? 'chip' : 'badge') + ' browser-row-badge' + (o.kind ? ' ' + o.kind : '') + (o.cls ? ' ' + o.cls : ''), String(o.text));
+    if (o.glyph) b.style.setProperty('--badge-glyph', 'var(--glyph-' + o.glyph + ')');
     if (o.label) { b.setAttribute('aria-label', o.label); b.title = o.label; }
     return b;
   }

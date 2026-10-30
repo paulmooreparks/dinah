@@ -160,25 +160,10 @@
       return Array.from(new Set(ids)).filter(function (id) { return sessions[id] && !sessions[id].info.continuedBy; }).map(chatRef);
     }
     function chatRef(id) {
-      var s = sessions[id], named = (titles[id] || s.info.title || '').trim(), cwd = s.info.cwd || '';
+      var s = sessions[id], state = window.dinahChatState.read(s.info), named = (titles[id] || s.info.title || '').trim(), cwd = s.info.cwd || '';
       var where = cwd ? workspaceLabel(cwd) : '';
       return { id: id, title: named || 'Untitled Chat in ' + where, untitled: !named, cwd: cwd, workspace: where,
-        provider: providerName(sessionProvider(s)), state: chatState(s), updatedAt: s.info.updatedAt || '' };
-    }
-    /* A chat's state as the lists show it: working, open, closed, or open in
-       the background, which is a chat Dinah opened without a window for a
-       message that woke it (bus_wake.go, decision 4 of docs/plans/
-       group-chats.md). A chat open in the background shows that state while
-       it works too, so the person can see which chats spend turns without a
-       window; one that closed itself there for being idle is closed. */
-    function chatInBackground(s) { return !!(s && s.info.inBackground && !s.info.parked); }
-    function chatState(s) {
-      if (s.info.parked) return 'closed';
-      if (chatInBackground(s)) return 'background';
-      return chatWorking(s) ? 'working' : s.info.open ? 'open' : 'closed';
-    }
-    function backgroundBadge(s) {
-      return { text: 'Open in Background', kind: 'positive', cls: 'background', label: chatWorking(s) ? 'Open without a window, and working' : 'Open without a window, for a message that woke it' };
+        provider: providerName(sessionProvider(s)), exec: state.exec, life: state.life, window: state.window, elsewhere: state.elsewhere, updatedAt: s.info.updatedAt || '' };
     }
     var chatsChanged = 0;
     function announceChats() {
@@ -244,20 +229,20 @@
         var meta = [providerName(sessionProvider(s))];
         if (s.info.updatedAt) meta.push(when(s.info.updatedAt));
         if (scope === 'all') meta.push(workspaceLabel(s.info.cwd));
+        if (window.dinahChatState.read(s.info).life === 'open' && window.dinahChatState.read(s.info).window === false) meta.push('No window');
         a.querySelector('.md-meta').textContent = meta.join(' · ');
-        var old = a.querySelector('.session-badge');
-        if (old) old.remove();
-        var status = needsCount(id) ? { text: needsCount(id), kind: 'warn', label: needsCount(id) + (needsCount(id) === 1 ? ' question waits for you' : ' questions wait for you') }
-          : waitingApproval(id) ? { text: 'Approval', kind: 'warn', label: 'Waiting for your approval' }
-          : chatInBackground(s) ? backgroundBadge(s)
-          : chatWorking(s) ? { text: 'Working', kind: 'accent', label: 'The agent is working' }
-          : backgroundWork(s).length ? { text: 'Background ' + backgroundWork(s).length, kind: 'accent', label: 'The agent has work running in the background' } : null;
-        if (status) { status.cls = 'session-badge' + (status.cls ? ' ' + status.cls : ''); a.querySelector('.browser-row-line').appendChild(window.dinahBrowserList.badge(status)); }
-        var teamMark = a.querySelector('.team-stuck-badge'); if (teamMark) teamMark.remove();
-        var stuck = window.dinahTeams && window.dinahTeams.stuck(id);
-        if (stuck) a.querySelector('.browser-row-line').appendChild(window.dinahBrowserList.badge({ text: stuck + (stuck === 1 ? ' Member Stuck' : ' Members Stuck'), kind: 'warn', cls: 'team-stuck-badge' }));
+        a.querySelectorAll('.session-badge, .team-stuck-badge, .session-attention').forEach(function (badge) { badge.remove(); });
+        var line = a.querySelector('.browser-row-line');
+        line.classList.add('chat-state-line');
+        line.appendChild(window.dinahChatState.badge(s.info, { className: 'session-badge' }));
+        if (needsCount(id)) line.appendChild(window.dinahBrowserList.badge({ text: needsCount(id), kind: 'warn', cls: 'session-attention', label: needsCount(id) + ' questions wait for you' }));
+        if (window.dinahTeams && window.dinahTeams.aggregate) {
+          var aggregate = s.info.team || window.dinahTeams.aggregate(id);
+          if (aggregate) line.appendChild(window.dinahChatState.badge(aggregate, { className: 'team-stuck-badge' }));
+        }
         if (id === adapter.active()) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
-        var groupName = needsCount(id) || waitingApproval(id) ? 'Needs You' : chatWorking(s) || backgroundWork(s).length ? 'Working' : 'Chats';
+        var state = window.dinahChatState.read(s.info), execution = state.exec && state.exec.state;
+        var groupName = execution === 'waiting' || execution === 'stuck' ? 'Needs You' : execution === 'working' ? 'Working' : 'Chats';
         if (!groups[groupName]) groups[groupName] = [];
         groups[groupName].push(row);
         // A chat with subagents from earlier runs has a Subagents part under

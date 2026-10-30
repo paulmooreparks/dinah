@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="theme-editor.css">
   <link rel="stylesheet" href="dinah.css">
   <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="chat-state.css">
   <link rel="stylesheet" href="judgements-applet.css">
   <link rel="stylesheet" href="notices.css">
   <link rel="stylesheet" href="skills-applet.css">
@@ -100,6 +101,8 @@
   <script src="bounded-text.js" defer></script>
   <script src="vendor/markdown-it-15.0.3/markdown-it.umd.min.js" defer></script>
   <script src="chat-text.js" defer></script>
+  <script src="chat-state.js" defer></script>
+  <script src="transcript.js" defer></script>
   <script src="composer.js" defer></script>
   <script src="notifications-applet.js" defer></script>
   <script src="settings-providers.js" defer></script>
@@ -459,7 +462,7 @@
       <ul class="background-tasks" id="background-tasks" aria-label="Background work" hidden></ul>
     </div>
     <div class="chat-output">
-    <div class="page-body run" id="activity">
+    <div class="page-body run transcript" id="activity" data-follow-end data-scroll-defer>
       <div class="pin" id="pin" hidden>
         <span class="pin-label">You asked</span>
         <p class="pin-text" id="pin-text"></p>

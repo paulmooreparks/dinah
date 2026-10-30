@@ -15,13 +15,9 @@
    in stays at the bottom. A message is a chat's message card (app.css,
    .msg), and the box is a chat's box (app.css, .composer-row), which grows
    with its text to the same limit. */
-.dinah-window > .dinah-applet.bus-conversation { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; padding: var(--space-3); }
+.dinah-window > .dinah-applet.bus-conversation { display: flex; flex-direction: column; gap: 0; min-height: 0; padding: 0; }
 .bus-log { flex: 1; min-height: 0; overflow: auto; }
 .bus-message .msg-label { flex: 1; min-width: 0; }
-/* The messages after where the person stopped reading: marked at the side, and by the line before them. */
-.bus-jump { flex: none; align-self: flex-start; }
-.bus-unseen { border-inline-start: 3px solid var(--accent); }
-.bus-new-line { color: var(--accent); font-weight: 600; }
 .bus-message-head { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); align-items: baseline; }
 .bus-message-head strong { color: var(--text); }
 .bus-message-when { margin-inline-start: auto; }
@@ -48,47 +44,41 @@
 .system-line { display: flex; align-items: center; justify-content: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 .system-line::before { content: ""; flex: none; width: 13px; height: 13px; background: currentColor; -webkit-mask: var(--glyph-info) center / contain no-repeat; mask: var(--glyph-info) center / contain no-repeat; }
 
-/* A chat's state as a glyph and a colour, the glyphs of Dinah's state
-   badges: the ring for working, the circle for open, a small circle for
-   closed. Each has its word as its accessible name and tooltip. */
-.state-glyph { display: inline-block; flex: none; width: 10px; height: 10px; background: currentColor; -webkit-mask: var(--glyph) center / contain no-repeat; mask: var(--glyph) center / contain no-repeat; }
-.state-glyph.working { color: var(--accent); --glyph: var(--glyph-ring); }
-.state-glyph.open { color: var(--positive); --glyph: var(--glyph-circle); }
-.state-glyph.background { color: var(--positive); --glyph: var(--glyph-eye-off); }
-.state-glyph.closed { color: var(--text-muted); --glyph: var(--glyph-circle); -webkit-mask-size: 60%; mask-size: 60%; }
-
 /* A group's members: PUDL chips in a row, each with its state glyph and a
-   small raised button that opens its menu, then Add Chats…. */
+   small raised button that opens its menu. */
 .group-members { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px solid var(--surface-alt); }
 .group-members .md-meta { margin-inline-end: var(--space-1); }
 .member-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 3px 2px 8px; font-size: var(--text-sm); }
 .member-chip.person { padding-inline-end: 8px; }
 .member-chip .icon-btn { width: 20px; height: 20px; --glyph-size: 10px; }
-.group-add-chats { margin-inline-start: auto; }
+
 .group-member-menu { margin: 0; }
 /* The group's @ list, above its box: the members, each with its state. */
 .group-composer .slash-pop { right: 6em; }
 .mention-row .md-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: center; }
 .mention-row .md-meta { grid-column: 1; }
 .mention-row .badge { grid-column: 2; grid-row: 1 / span 2; }
-.slash-pop .md-row[aria-selected="true"] .badge { color: var(--on-accent); background: color-mix(in srgb, var(--on-accent) 22%, transparent); }
 
 /* The picker: a list box wide enough for a chat's title, provider, state
    and last activity on one line, the count, the name and the buttons. */
 .dinah-window > .dinah-applet.group-picker { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; padding: var(--space-4); overflow: auto; }
 .group-picker .picker-filter { width: 100%; }
 .group-picker .listbox { flex: 1 1 auto; height: auto; min-height: 8rem; container-type: inline-size; }
-.group-picker .listbox-row { display: grid; grid-template-columns: 16px minmax(8em, 1fr) 5.5em 6.5em 7.5em; column-gap: var(--space-3); padding-block: 4px; }
-/* In a narrow window a row takes two lines: the title and the state, then
-   the provider and when the chat was last active. */
+.group-picker .listbox-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; row-gap: var(--space-1); column-gap: var(--space-3); padding-block: 4px; }
+.group-picker .listbox-row > input { grid-column: 1; grid-row: 1; }
+.group-picker .listbox-row > .listbox-text { grid-column: 2; grid-row: 1; min-width: 0; flex-wrap: wrap; }
+.group-picker .listbox-row > .col-provider { grid-column: 3; grid-row: 1; }
+.group-picker .listbox-row > .col-active { grid-column: 4; grid-row: 1; }
+.group-picker .listbox-row > .col.state { grid-column: 2 / -1; grid-row: 2; white-space: normal; }
+/* Narrow rows keep the reason on its own line below the metadata. */
 @container (max-width: 30rem) {
   .group-picker .listbox-row { grid-template-columns: 16px minmax(0, 1fr) auto; row-gap: 2px; }
   .group-picker .listbox-row > input { grid-row: 1; }
   .group-picker .listbox-row > .listbox-text { grid-column: 2; grid-row: 1; }
-  .group-picker .listbox-row > .col.state { grid-column: 3; grid-row: 1; }
+  .group-picker .listbox-row > .col.state { grid-column: 2 / -1; grid-row: 3; }
   .group-picker .listbox-row > .col-provider { grid-column: 2; grid-row: 2; }
   .group-picker .listbox-row > .col-active { grid-column: 3; grid-row: 2; text-align: end; }
-  .group-picker .listbox-row > .row-note { grid-row: 3; }
+  .group-picker .listbox-row > .row-note { grid-row: 4; }
 }
 .group-picker .listbox-row[hidden], .group-picker [role="group"][hidden] { display: none; }
 .group-picker .listbox-text { display: flex; align-items: center; gap: var(--space-2); }
@@ -113,3 +103,10 @@
 .picker-tools .picker-filter { flex: 1; min-width: 0; }
 .picker-tools > button { flex-shrink: 0; }
 .picker-new-chat { margin: 0; }
+
+.group-member-shell { flex: none; padding: var(--space-2) var(--space-5); border-bottom: 1px solid var(--border); }
+.group-member-heading { flex-wrap: wrap; }
+.group-member-shell .group-members { border-bottom: 0; padding: var(--space-2) 0 0; }
+.group-members[hidden] { display: none; }
+.group-toolbar { flex: none; margin: 0; padding: var(--space-2) var(--space-5); }
+.bus-composer.composer { padding: var(--space-2) var(--space-5) var(--space-3); }

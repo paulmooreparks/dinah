@@ -14,7 +14,7 @@ const { launch } = require('./lib/page');
     app: () => {
       const msg = (id, from, text, extra) => Object.assign({ id, createdAt: '2026-10-22T08:00:00Z', kind: 'text', from, fromPerson: from === 'Paul', fromSession: from === 'Paul' ? '' : 'window-' + id, fromWorkspace: from === 'Paul' ? '' : 'docs', to: 'Release Review', room: 'release-review', roomTitle: 'Release Review', mentions: [], replyTo: 0, text, attachments: [], unread: false }, extra);
       const person = { id: 'paul', chat: '', title: 'Paul', workspace: '', address: '', state: 'person' };
-      const docs = { id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass', workspace: 'docs', address: 'Docs Pass (docs)', state: 'open' };
+      const docs = { id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass', workspace: 'docs', address: 'Docs Pass (docs)', life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } };
       const fillers = Array.from({ length: 24 }, (_, i) => msg(100 + i, 'Docs Pass', 'Filler message ' + i + '.'));
       const long = Array.from({ length: 30 }, (_, i) => 'Line ' + i + ' of a long report.').join('\n');
       const messages = fillers.concat([
@@ -29,7 +29,7 @@ const { launch } = require('./lib/page');
         State: async () => ({ workspace: 'C:/Work/docs', workspaces: ['C:/Work/docs'], recent: ['C:/Work/docs'], promptSendKey: sendKey }),
         SetPromptSendKey: async v => { sendKey = v; },
         ReadUIState: async () => ({ version: 1, values: { 'dinah-workbench-layout': '?open=workspace' } }), SaveUIState: async () => {},
-        BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, person] }], workspaces: [{ name: 'docs', label: 'docs', path: 'C:/Work/docs', chats: [{ id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass' }] }], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
+        BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, person], counts: { top: 'idle', idle: 1, working: 0, waiting: 0, stuck: 0, closed: 0, unknown: 0 } }], workspaces: [{ name: 'docs', label: 'docs', path: 'C:/Work/docs', chats: [{ id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass' }] }], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
         BusGroupMessages: async () => messages.slice(),
         BusMarkGroupRead: async () => {},
         BusSendToGroup: async (key, text, mentions) => {
@@ -155,7 +155,7 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => { __messages.push(Object.assign({}, __messages[0], { id: 300, text: 'New while at the end.' })); __emit('bus:changed', { counter: 1 }); });
     await room.locator('[data-bus-message="300"]').waitFor();
     await p.waitForTimeout(150);
-    ok('a message arriving while the reader is at the end keeps the end in view', await atEnd());
+    ok('a message arriving while the reader is at the end keeps the end in view', await atEnd(), JSON.stringify(await log.evaluate(el => ({ top: el.scrollTop, height: el.clientHeight, extent: el.scrollHeight, following: el.dataset.following, divider: el.querySelector('.transcript-unread-divider')?.textContent }))));
     await room.locator('[data-bus-message="104"] .msg-text p').evaluate(el => { el.__kept = true; });
     await log.evaluate(el => { el.scrollTop = 0; });
     await p.waitForTimeout(150);

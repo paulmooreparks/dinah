@@ -19,10 +19,12 @@
   function host() { return window.dinahHost; }
   const message = window.dinahHelpers.message;
   const node = window.dinahHelpers.node;
+  var groupSerial = 0;
   function when(stamp) {
     var d = new Date(stamp);
     return isNaN(d) ? stamp : dinahRegional.format(d, 'dayTime');
   }
+  document.addEventListener('dinah:execution-state', function () { listeners.forEach(function (refresh) { refresh(); }); });
   function firstLine(text) { var line = String(text || '').split('\n').find(function (l) { return l.trim(); }) || ''; return line.length > 140 ? line.slice(0, 139) + '…' : line; }
   function glyphButton(cls, glyph, label) {
     var b = node('button', 'icon-btn ' + cls); b.type = 'button';
@@ -96,32 +98,16 @@
     return function () { document.removeEventListener('dinah:chats', check); };
   }
 
-  /* A chat's state is a glyph and a word: working is the accent badge with
-     the ring, open the positive badge with the circle, open in the
-     background the positive badge with PUDL's eye-off glyph, since the chat
-     is open but has no window, and closed the plain badge with Dinah's
-     small circle (dinah.css, bus-applets.css). */
-  var STATES = {
-    working: { text: 'Working', kind: 'accent', cls: 'running', label: 'The agent is working' },
-    open: { text: 'Open', kind: 'positive', label: 'Open in a window' },
-    background: { text: 'Open in Background', kind: 'positive', cls: 'background', label: 'Open without a window, for a message that woke it; it closes itself after 30 minutes idle' },
-    closed: { text: 'Closed', kind: '', label: 'Closed; a message that wakes it opens it in the background, and other messages wait for it until it opens' }
-  };
-  /* A group member's state: a chat in the window as the window has it,
-     which changes before the bus does, and any other as the bus has it. */
-  function memberState(m) {
-    var ref = m.chat && window.dinahChats && window.dinahChats.ref(m.chat);
-    return ref ? ref.state : m.state;
+  function memberState(member) {
+    var ref = member.chat && window.dinahChats && window.dinahChats.ref(member.chat);
+    return ref ? Object.assign({}, member, { exec: ref.exec, life: ref.life, window: ref.window, elsewhere: ref.elsewhere }) : member;
   }
-  function stateBadge(state, cls) {
-    var s = STATES[state] || STATES.closed;
-    return { text: s.text, kind: s.kind, cls: [s.cls, cls].filter(Boolean).join(' '), label: s.label };
+  function stateBadge(value, cls) {
+    var badge = window.dinahChatState.describe(value);
+    if (cls) badge.cls += ' ' + cls;
+    return badge;
   }
-  function stateGlyph(state) {
-    var s = STATES[state] || STATES.closed, g = node('span', 'state-glyph ' + (STATES[state] ? state : 'closed'));
-    g.setAttribute('role', 'img'); g.setAttribute('aria-label', s.text); g.title = s.label;
-    return g;
-  }
+  function stateGlyph(value) { return window.dinahChatState.badge(value); }
   /* The members of a group as a sentence: its chats' titles, and you. */
   function memberNames(r) {
     var t = (r.members || []).filter(function (m) { return m.state !== 'person'; }).map(function (m) { return m.title; }).concat(['you']);
@@ -245,7 +231,7 @@
      reason as its tip, and box.attachReason() is that reason for the
      window's menu. */
   function composer(o) {
-    var form = node('form', 'bus-composer');
+    var form = node('form', 'bus-composer composer');
     var parts = window.dinahComposer.box({ label: o.label, placeholder: o.placeholder });
     var text = parts.text, go = parts.button, sending = false, closed = false, files = [], chips = null;
     var box = { el: form, text: text, button: go, pop: parts.pop, submit: submit,
@@ -482,8 +468,8 @@
       var rooms = section('bus-groups', 'Group Chats', overview.rooms.length);
       if (!overview.rooms.length) rooms.body.appendChild(list.empty({ title: 'No Group Chats', body: 'A group chat holds you and the chats you choose in one conversation.', action: { label: 'New Group Chat…', run: function () { openPicker({}).catch(host().fail); } } }));
       overview.rooms.forEach(function (r) {
-        rooms.body.appendChild(list.row({ title: r.title, meta: [memberNames(r), r.lastAt ? 'Last message ' + when(r.lastAt) : 'Nothing said yet'].concat(r.unread && r.latest ? [r.latest.from + ': ' + r.latest.line] : []), data: { busRoom: r.name },
-          badge: r.unread ? { text: r.unread + ' New', kind: 'accent', label: r.unread === 1 ? '1 message not read yet' : r.unread + ' messages not read yet' } : null,
+        rooms.body.appendChild(list.row({ title: r.title, meta: [memberNames(r), r.unread ? r.unread + ' new messages' : '', r.lastAt ? 'Last message ' + when(r.lastAt) : 'Nothing said yet'].concat(r.unread && r.latest ? [r.latest.from + ': ' + r.latest.line] : []), data: { busRoom: r.name },
+          badge: stateBadge(r),
           onOpen: function () { openRoom(r).catch(host().fail); } }));
       });
       /* Every chat the window knows, open or closed, by workspace, each with
@@ -496,7 +482,7 @@
       Object.keys(byWorkspace).sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); }).forEach(function (w) {
         all.body.appendChild(list.subheading(w));
         byWorkspace[w].sort(function (a, b) { return (b.updatedAt || '').localeCompare(a.updatedAt || ''); }).forEach(function (c) {
-          all.body.appendChild(list.row({ title: c.title, meta: [c.provider + (c.updatedAt ? ', active ' + when(c.updatedAt) : '')], badge: stateBadge(c.state, 'chat-row-state'), data: { busChat: c.id },
+          all.body.appendChild(list.row({ title: c.title, meta: [c.provider + (c.updatedAt ? ', active ' + when(c.updatedAt) : ''), c.life === 'open' && c.window === false ? 'No window' : ''], badge: stateBadge(c, 'chat-row-state'), data: { busChat: c.id },
             onOpen: function () { Promise.resolve(window.dinahChats.open(c.id)).catch(host().fail); } }));
         });
       });
@@ -531,74 +517,34 @@
      the box's history for Up and Down. */
   function conversation(root, emptyBody, fetch, box, seenKey) {
     root.classList.add('bus-conversation');
-    var log = node('div', 'bus-log'), list = node('div', 'bus-log-list vstack gap-2');
+    var log = node('div', 'bus-log transcript'), list = node('div', 'bus-log-list transcript-messages');
+    log.setAttribute('data-scroll-defer', '');
     log.dataset.uiScroll = 'bus-log';
     log.appendChild(list);
-    /* Where the person stopped reading: the highest message they had seen is kept (bus-seen, by
-       seenKey), and the messages from others after it are marked, with a line before the first and
-       a button that goes to it. They are marked when the window opens and each time it comes to the
-       front again, so a group left open behind another window shows what arrived meanwhile. A message
-       is seen when the list is at its end in the window in front; one that arrives while the person
-       is looking is not marked. The list still opens at its end. */
-    var jump = node('button', 'btn btn-sm bus-jump'); jump.type = 'button'; jump.hidden = true;
-    root.append(jump, log, box.el);
-    var disposed = false, revision = 0, drawn = [], following = true, placed = -1, key = {};
-    var seenMark = seenKey ? storedSeen() : 0, away = true, newLine = null, firstNew = null, marked = false;
-    function storedSeen() { var all = window.dinahUIState.get('bus-seen'); return all && Number(all[seenKey]) || 0; }
-    function inFront() {
-      var win = root.closest('.win');
-      return !!win && !win.hidden && document.visibilityState === 'visible' && !!log.clientHeight && window.pudlWindows.state().top === win.dataset.win;
+    root.append(log, box.el);
+    var disposed = false, revision = 0, drawn = [], painting = true;
+    var ledger = null, ledgerKey = seenKey && 'transcript-seen:' + seenKey;
+    function readLedger() {
+      if (ledger) return ledger;
+      ledger = ledgerKey && window.dinahUIState.get(ledgerKey) || { through: seenKey && Number((window.dinahUIState.get('bus-seen') || {})[seenKey]) || 0, unseen: [] };
+      return ledger;
     }
-    function keepSeen() {
-      if (!seenKey || !drawn.length || !inFront() || !atEnd()) return;
-      var last = 0; drawn.forEach(function (d) { if (d.message && d.message.id > last) last = d.message.id; });
-      if (last <= seenMark) return;
-      seenMark = last;
-      var all = Object.assign({}, window.dinahUIState.get('bus-seen') || {});
-      all[seenKey] = last; window.dinahUIState.set('bus-seen', all);
-    }
-    function clearMarks() {
-      list.querySelectorAll('.bus-unseen').forEach(function (el) { el.classList.remove('bus-unseen'); });
-      if (newLine) { newLine.remove(); newLine = null; }
-      firstNew = null;
-      jump.hidden = true;
-    }
-    function remark() {
-      clearMarks();
-      // The marks are for what is drawn; a window in front before its messages are drawn is marked after.
-      if (drawn.length) marked = true;
-      if (!seenKey || !seenMark) return;
-      var fresh = drawn.filter(function (d) { return d.message && d.message.id > seenMark && !d.message.fromPerson && d.message.kind !== 'member'; });
-      if (!fresh.length) return;
-      fresh.forEach(function (d) { d.div.classList.add('bus-unseen'); });
-      newLine = node('p', 'system-line bus-new-line', fresh.length === 1 ? 'New since you last looked' : fresh.length + ' new since you last looked');
-      fresh[0].div.before(newLine);
-      firstNew = fresh[0].div;
-      jump.textContent = 'Jump to Where You Stopped';
-      jump.hidden = false;
-      toEnd(); // the line adds height above the end, which the list was following
-      lineSeen(); lineSeenSoon();
-    }
-    // The window coming to the front marks what arrived while it was away, before what is at its end counts as seen.
-    function check() {
-      if (disposed || !seenKey) return;
-      if (!inFront()) { away = true; return; }
-      if (away) { away = false; marked = false; }
-      if (!marked) remark();
-      keepSeen();
-    }
-    // The button is for marked messages that begin above the visible part of the list. It goes when the
-    // first of them is in view (a window that has just come to the front only shows that once it is laid
-    // out, so it is asked again after the layout) and when the reader reaches the end.
-    function lineSeen() {
-      if (!firstNew || jump.hidden || !log.clientHeight) return;
-      var a = firstNew.getBoundingClientRect(), b = log.getBoundingClientRect();
-      if (a.top >= b.top - 2) jump.hidden = true;
-    }
-    function lineSeenSoon() { requestAnimationFrame(function () { requestAnimationFrame(function () { if (!disposed) lineSeen(); }); }); }
-    jump.addEventListener('click', function () { if (!newLine) return; following = false; newLine.scrollIntoView({ block: 'start' }); jump.hidden = true; });
-    document.addEventListener('pudl:windows-change', check);
-    document.addEventListener('visibilitychange', check);
+    var navigation = window.dinahTranscript.mount({ root: root, log: log, content: list,
+      ready: function () { return !painting; }, canTail: function () { return !painting; },
+      entries: function () { return drawn.map(function (d) { return { key: d.message && d.message.id, element: d.div, eligible: !!d.message && !d.message.fromPerson && d.message.kind !== 'member' }; }); },
+      initialSeen: function (entry) { var saved = readLedger(); return Number(entry.key) <= saved.through && saved.unseen.indexOf(Number(entry.key)) < 0; },
+      seenChanged: function (snapshot) {
+        if (!ledgerKey) return;
+        var through = readLedger().through;
+        drawn.forEach(function (d) { if (d.message) through = Math.max(through, d.message.id); });
+        ledger = { through: through, unseen: snapshot.unseen.map(function (e) { return Number(e.key); }) };
+        window.dinahUIState.set(ledgerKey, ledger);
+        if (snapshot.atEnd) {
+          var old = Object.assign({}, window.dinahUIState.get('bus-seen') || {});
+          if ((old[seenKey] || 0) < through) { old[seenKey] = through; window.dinahUIState.set('bus-seen', old); }
+        }
+      }
+    });
     function act(what, view) {
       if (what === 'quote') { window.dinahChatText.quoteInto(box.text, view.text); box.changed(); return; }
       if (what === 'edit' && view.message) { box.write(box.entry(view.message)); box.text.focus(); box.text.setSelectionRange(box.text.value.length, box.text.value.length); }
@@ -607,26 +553,11 @@
       var el = a.closest('[data-bus-message]'), view = el && drawn.find(function (d) { return d.div === el; });
       return view && view.message ? senderFolder(view.message) : '';
     });
-    function atEnd() { return log.scrollHeight - log.scrollTop - log.clientHeight < 24; }
-    function toEnd() { if (following && log.clientHeight) { log.scrollTop = log.scrollHeight; placed = log.scrollTop; } }
-    log.addEventListener('scroll', function () {
-      if (following && log.scrollTop === placed) return;
-      following = atEnd();
-      // The reader reaching the end themselves has found what is there.
-      if (following && !jump.hidden && newLine) jump.hidden = true;
-      lineSeen(); check();
-    }, { passive: true });
-    // Content that grows without a new message, such as a diagram drawn,
-    // keeps the end in view too.
-    var grown = new ResizeObserver(function () { if (!disposed) window.dinahRender.enqueue(key, root, function () {}, function () { toEnd(); lineSeen(); check(); }); });
-    grown.observe(list);
-    // A window laid out after its messages were drawn is looked at again when the list gets its size.
-    grown.observe(log);
     // A message whose file was removed is drawn again, to show it removed.
     function signature(m) { return [m.id, m.from, m.text, JSON.stringify(m.relay || null), (m.mentions || []).map(function (x) { return x.title; }).join('|'), (m.attachments || []).map(function (a) { return a.index + (a.removed ? '-' : ''); }).join('|')].join('\u0000'); }
     function draw(end) {
       if (disposed) return Promise.resolve();
-      if (end === true) following = true;
+      if (end === true) navigation.scroll(true);
       var requested = ++revision;
       return Promise.resolve(fetch()).then(function (ms) {
         if (disposed || requested !== revision) return;
@@ -638,9 +569,10 @@
         // built aside and put in place whole, so the list never stands
         // empty and the reader keeps their place.
         var adding = same && drawn.length > 0, index = adding ? drawn.length : 0;
+        painting = true;
         var into = adding ? list : document.createDocumentFragment(), views = adding ? drawn : [];
         window.dinahRender.enqueue(draw, root, function (deadline) {
-          return window.dinahChatText.keepPlace(log, function () {
+          return navigation.keep(function () {
           if (!ms.length) into.appendChild(window.dinahBrowserList.empty({ title: 'Nothing Said Yet', body: emptyBody }));
           while (index < ms.length) {
             var view = messageView(ms[index], act);
@@ -651,18 +583,16 @@
           }
             if (into !== list) list.replaceChildren(into);
             drawn = views;
-            // A conversation drawn again lost the marks with its elements.
-            if (newLine && !newLine.isConnected) remark();
             return false;
-          });
-        }, function () { toEnd(); check(); });
+          }, true);
+        }, function () { painting = false; if (window.dinahUIState) window.dinahUIState.scrollReady(log); navigation.scroll(); navigation.update(); });
       }).catch(function (err) { if (!disposed) host().toast(message(err), 'danger'); });
     }
     function redraw() { return draw(); }
     listeners.add(redraw);
     draw();
     return { draw: draw, focus: function () { box.text.focus(); },
-      destroy: function () { disposed = true; grown.disconnect(); window.dinahRender.cancel(draw); window.dinahRender.cancel(key); listeners.delete(redraw); document.removeEventListener('pudl:windows-change', check); document.removeEventListener('visibilitychange', check); } };
+      destroy: function () { disposed = true; navigation.destroy(); window.dinahRender.cancel(draw); listeners.delete(redraw); } };
   }
 
   /* The composer of a group chat: the chat's box with the group's @ list.
@@ -711,7 +641,7 @@
       if (!q) { close(); return; }
       start = q.at;
       choices = members().filter(function (m) { return m.state !== 'person' && m.title.toLowerCase().indexOf(q.q) >= 0; })
-        .map(function (m) { var state = memberState(m); return { id: m.id, title: m.title, meta: [m.workspace, state === 'closed' ? 'closed, opens in the background for the mention' : ''].filter(Boolean).join(', '), state: state }; });
+        .map(function (m) { var state = memberState(m); return { id: m.id, title: m.title, meta: [m.workspace, state.life === 'closed' ? 'closed, opens in the background for the mention' : ''].filter(Boolean).join(', '), state: state }; });
       if ('everyone'.indexOf(q.q) === 0) choices.push({ id: 'everyone', title: 'everyone', meta: 'Every member chat, opening closed ones in the background' });
       // Typing that matches no member is not a mention, so the list closes
       // rather than offering Add a Chat… alone under every word.
@@ -817,7 +747,7 @@
   }
 
   /* ---- A group chat's window ---- */
-  window.dinahWorkbench.register('bus-room', { title: 'Group Chat', glyph: 'comments', init: function (root, opts, item) {
+  window.dinahWorkbench.register('bus-room', { title: 'Group Chat', glyph: 'comments', statuses: true, init: function (root, opts, item) {
     var key = item.path, room = group(key), disposed = false;
     var targetMessage = 0, pendingMention = null, targetFrame = 0, targetPending = false;
     function stateString() { return JSON.stringify({ message: targetMessage }); }
@@ -861,8 +791,24 @@
     box.dropOn(root);
     /* The members, over the conversation: a chip for each chat with its
        state and a menu, then the person, then Add Chats…. */
+    var memberShell = node('section', 'group-member-shell'), memberHeading = node('div', 'group-member-heading hstack gap-2');
     var bar = node('div', 'group-members'); bar.setAttribute('role', 'list'); bar.setAttribute('aria-label', 'Members');
-    root.prepend(bar);
+    bar.id = 'group-members-' + (++groupSerial);
+    var memberToggle = node('button', 'btn btn-sm disclosure', 'Members'); memberToggle.type = 'button';
+    memberToggle.setAttribute('aria-expanded', 'true'); memberToggle.setAttribute('aria-controls', bar.id);
+    memberToggle.addEventListener('click', function () { bar.hidden = !bar.hidden; memberToggle.setAttribute('aria-expanded', String(!bar.hidden)); });
+    var aggregate = node('span', 'group-aggregate'); memberHeading.append(memberToggle, aggregate); memberShell.append(memberHeading, bar);
+    var commandBar = node('div', 'toolbar group-toolbar'); commandBar.setAttribute('role', 'toolbar'); commandBar.setAttribute('aria-label', 'Group commands'); commandBar.setAttribute('data-toolbar-fold', '');
+    var commandGroup = node('div', 'toolbar-group'); commandGroup.setAttribute('role', 'group'); commandGroup.setAttribute('aria-label', 'Group'); commandGroup.dataset.toolbarGroup = 'Group'; commandGroup.dataset.toolbarGlyph = 'comments';
+    function command(label, glyph, cls, run) {
+      var button = node('button', 'btn btn-sm ' + cls); button.type = 'button'; button.setAttribute('aria-label', label);
+      var icon = node('span', 'glyph'); icon.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')'); icon.setAttribute('aria-hidden', 'true');
+      button.append(icon, node('span', 'toolbar-words', label)); button.addEventListener('click', run); commandGroup.appendChild(button);
+    }
+    command('Add Chats…', 'plus', 'group-add-chats', addChats);
+    command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
+    commandBar.appendChild(commandGroup); root.prepend(memberShell, commandBar);
+    if (window.pudlToolbar) window.pudlToolbar.enhance(commandBar);
     var menu = node('nav', 'menu-panel group-member-menu'); menu.setAttribute('popover', ''); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', 'Member');
     menu.id = 'group-member-menu-' + Math.random().toString(36).slice(2);
     root.appendChild(menu);
@@ -913,7 +859,8 @@
       var gone = !room && loaded;
       box.close(gone);
       box.limitChanged();
-      if (gone) { bar.replaceChildren(node('span', 'md-meta', 'This group chat has been deleted.')); return; }
+      if (gone) { bar.replaceChildren(node('span', 'md-meta', 'This group chat has been deleted.')); commandBar.hidden = true; return; }
+      commandBar.hidden = false;
       var win = root.closest('[data-win]');
       if (room && win && window.pudlWindows) {
         var t = win.querySelector('.win-title');
@@ -925,8 +872,18 @@
           if (window.pudlMenubar && window.pudlMenubar.refresh) window.pudlMenubar.refresh();
         }
       }
+      if (win) {
+        var statuses = win.querySelector('.win-statuses');
+        if (statuses) {
+          var stateChip = statuses.querySelector('.group-state-chip');
+          if (!stateChip) { stateChip = node('span', 'win-status group-state-chip'); statuses.appendChild(stateChip); }
+          stateChip.replaceChildren(window.dinahChatState.badge(room || {}));
+        }
+      }
       window.dinahRender.enqueue(drawMembers, root, function () {
-        bar.replaceChildren(node('span', 'md-meta', 'Members'));
+        bar.replaceChildren();
+        memberToggle.textContent = 'Members (' + members().length + ')';
+        aggregate.replaceChildren(window.dinahChatState.badge(room || {}));
         members().forEach(function (m, i) {
           if (m.state === 'person') {
             var you = node('span', 'chip member-chip person', m.title + ' (You)'); you.setAttribute('role', 'listitem');
@@ -935,7 +892,9 @@
             return;
           }
           var chip = node('span', 'chip member-chip'); chip.setAttribute('role', 'listitem'); chip.dataset.groupMember = m.id;
-          chip.append(stateGlyph(memberState(m)), node('span', 'member-title', m.title));
+          chip.append(node('span', 'member-title', m.title), stateGlyph(memberState(m)));
+          var presence = window.dinahChatState.read(memberState(m));
+          if (presence.life === 'open' && presence.window === false && !presence.elsewhere) chip.appendChild(node('span', 'md-meta', 'No window'));
           var more = glyphButton('member-menu-btn', 'caret', m.title + ' Menu');
           more.id = menu.id + '-' + i;
           more.setAttribute('aria-haspopup', 'menu');
@@ -943,12 +902,6 @@
           chip.appendChild(more);
           bar.appendChild(chip);
         });
-        var add = node('button', 'btn btn-sm group-add-chats', 'Add Chats…'); add.type = 'button';
-        add.addEventListener('click', addChats);
-        bar.appendChild(add);
-        var budgetButton = node('button', 'btn btn-sm group-turn-budget', 'Turn Budget…'); budgetButton.type = 'button';
-        budgetButton.addEventListener('click', openBudget);
-        bar.appendChild(budgetButton);
         // The turn budget is shown only when the group has one.
         if (room && typeof room.budget === 'number' && room.budget >= 0) {
           var remaining = room.budget - (room.used || 0), spent = remaining <= 0;
@@ -1158,9 +1111,10 @@
             if (already) text.appendChild(node('span', 'chip', 'In the Group'));
           }
           row.append(box, text, node('span', 'col col-provider', c.provider), node('span', 'col state'), node('span', 'col col-active', c.updatedAt ? when(c.updatedAt) : ''));
-          row.querySelector('.state').appendChild(window.dinahBrowserList.badge(stateBadge(c.state)));
+          row.querySelector('.state').appendChild(window.dinahBrowserList.badge(stateBadge(c)));
+          if (c.life === 'open' && c.window === false && !c.elsewhere) row.querySelector('.col-provider').appendChild(node('span', 'md-meta', ' · No window'));
           if (c.untitled && titling !== c.id) row.appendChild(node('p', 'row-note', 'Give this chat a title before it joins a group. Choose it to title it here.'));
-          else if (c.state === 'closed' && on && !already) row.appendChild(node('p', 'row-note', 'This chat is closed. A message that mentions it opens it in the background; the group\'s other messages wait for it until it opens.'));
+          else if (c.life === 'closed' && on && !already) row.appendChild(node('p', 'row-note', 'This chat is closed. A message that mentions it opens it in the background; the group\'s other messages wait for it until it opens.'));
           row.addEventListener('click', function () { toggle(c); });
           g.appendChild(row);
         });

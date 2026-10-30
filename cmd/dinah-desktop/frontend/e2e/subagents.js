@@ -19,7 +19,7 @@ const { launch } = require('./lib/page');
       const ws = 'C:\\Work\\Parser Workspace';
       const opts = [{ id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: 'opus', options: [{ value: 'opus', name: 'Opus' }] }];
       return {
-        NewSessionAt: async () => { setTimeout(() => window.__emit('agent:options', { sessionId: 'sa', options: opts }), 0); return { sessionId: 'sa', cwd: ws, title: 'Parser Hunt', open: true, working: false, queued: [] }; },
+        NewSessionAt: async () => { setTimeout(() => window.__emit('agent:options', { sessionId: 'sa', options: opts }), 0); return { sessionId: 'sa', cwd: ws, title: 'Parser Hunt', open: true, working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, queued: [] }; },
         SetSessionOption: async () => opts,
         Send: async (id, text) => { window.__calls.push(['Send', id, text]); },
         SubagentUpdates: async id => {
@@ -56,7 +56,7 @@ const { launch } = require('./lib/page');
   const win = '.win[data-chat-current]';
   const emit = (n, d) => p.evaluate(([n, d]) => window.__emit(n, d), [n, d]);
   const sub = async (key, change) => { const s = await p.evaluate(([k, c]) => Object.assign(window.__subs[k], c || {}), [key, change]); await emit('agent:subagent', { sessionId: 'sa', subagent: s }); };
-  await emit('agent:session', { sessionId: 'sa', cwd: 'C:\\Work\\Parser Workspace', title: 'Parser Hunt', open: true, queued: [], working: true, background: [], subagents: [] });
+  await emit('agent:session', { sessionId: 'sa', cwd: 'C:\\Work\\Parser Workspace', title: 'Parser Hunt', open: true, queued: [], working: true, chatState: { life: 'open', window: true, exec: { state: 'working', why: 'Turn in progress' } }, background: [], subagents: [] });
   // A window wide enough for the composer's toolbar to show its groups open.
   const chatKey = await p.evaluate(w => document.querySelector(w).dataset.win, win);
   // The window stands clear of the docks at the page's sides.
@@ -130,7 +130,7 @@ const { launch } = require('./lib/page');
   let rows = await inline();
   ok('the chat shows a row where the agent handed work to a subagent, with its name, task, state and Open', rows.length === 1 && rows[0].id === 'sub-a' && rows[0].text.includes('Explore') && rows[0].text.includes('Find where the parser lives') && rows[0].state === 'Running' && rows[0].open, JSON.stringify(rows));
   ok('the state is a glyph and a word', await p.evaluate(w => { const b = document.querySelector(w + ' .subagent-row .subagent-state'); return b.classList.contains('accent') && getComputedStyle(b, '::before').content !== 'none'; }, win));
-  const chips = () => p.evaluate(w => { const el = document.querySelector(w), c = el.querySelector('.chat-subagents-chip'), wk = el.querySelector('.chat-working-chip'); return { subagents: c && !c.hidden ? c.textContent : '', working: !!wk && !wk.hidden, line: el.querySelector('[data-view-id=page-state]').textContent }; }, win);
+  const chips = () => p.evaluate(w => { const el = document.querySelector(w), c = el.querySelector('.chat-subagents-chip'), wk = el.querySelector('.chat-working-chip .chat-state-working'); return { subagents: c && !c.hidden ? c.textContent : '', working: !!wk && !wk.hidden, line: el.querySelector('[data-view-id=page-state]').textContent }; }, win);
   let c = await chips();
   ok('the chat head shows Subagents 2 beside Working while they run', c.subagents === 'Subagents 2' && c.working, JSON.stringify(c));
   ok('the state line counts the running subagents', c.line.includes('2 subagents are running.'), c.line);
@@ -210,7 +210,7 @@ const { launch } = require('./lib/page');
   // The ends: one completes, and the turn ends before the agent reports the other.
   await sub('b', { state: 'completed', ended: new Date().toISOString() });
   await sub('a', { state: 'disconnected', local: true, ended: new Date().toISOString() });
-  await emit('agent:session', { sessionId: 'sa', cwd: 'C:\\Work\\Parser Workspace', title: 'Parser Hunt', open: true, queued: [], working: false, background: [], subagents: await p.evaluate(() => [window.__subs.a, window.__subs.b]) });
+  await emit('agent:session', { sessionId: 'sa', cwd: 'C:\\Work\\Parser Workspace', title: 'Parser Hunt', open: true, queued: [], working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, background: [], subagents: await p.evaluate(() => [window.__subs.a, window.__subs.b]) });
   await p.waitForTimeout(400);
   tr = await tree();
   ok('the tree shows each end as a glyph and a word', tr && tr[0].kids[0].state === 'Completed' && tr[0].state === 'Disconnected', JSON.stringify(tr));

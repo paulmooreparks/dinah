@@ -145,7 +145,10 @@ async function launch(options = {}) {
   const { viewport = { width: 1280, height: 900 }, state = {}, app, init, args = null, ready = 'ui-state', dialogs = 'fail', goto = true, timeout = 10000, expectErrors = null } = options;
   const releaseLock = await acquireBrowserLock();
   let browser;
-  try { browser = await chromium.launch({ executablePath: EDGE }); }
+  // Native scrollbar input requires the control that Playwright normally hides
+  // in headless runs. The public launch option filters that default argument:
+  // https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-ignore-default-args
+  try { browser = await chromium.launch({ executablePath: EDGE, ignoreDefaultArgs: options.nativeScrollbars ? ['--hide-scrollbars'] : undefined }); }
   catch (error) { await releaseLock(); throw error; }
   let t;
   try {

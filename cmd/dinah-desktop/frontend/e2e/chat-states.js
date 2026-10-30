@@ -1,0 +1,116 @@
+// Every state surface consumes the engine's served fields and live snapshot.
+const { launch } = require('./lib/page');
+(async () => {
+  const t = await launch({ viewport: { width: 1440, height: 1000 }, app: () => {
+    const workspace = 'C:/Fixture';
+    const states = ['working', 'waiting', 'stuck', 'idle', 'closed', 'retired', 'elsewhere'];
+    const why = { waiting: 'Context full', stuck: 'The provider cannot run this chat' };
+    const chats = states.map(state => ({ sessionId: state, title: state[0].toUpperCase() + state.slice(1) + ' Chat', provider: 'codex', cwd: workspace,
+      open: state !== 'closed' && state !== 'retired', working: state === 'working',
+      chatState: { life: state === 'closed' || state === 'retired' ? state : 'open', window: state !== 'idle' && state !== 'elsewhere', ...(state === 'elsewhere' ? { elsewhere: 'Running in another Dinah window' } : !['closed', 'retired'].includes(state) ? { exec: { state, why: why[state] || '' } } : {}) }
+    }));
+    const totals = { top: 'stuck', stuck: 1, waiting: 1, working: 1, idle: 1, closed: 2, unknown: 1 };
+    const members = chats.map(chat => ({ id: 'bus-' + chat.sessionId, bus: 'bus-' + chat.sessionId, chat: chat.sessionId, title: chat.title, workspace: 'Fixture', provider: 'codex', members: [], ...chat.chatState }));
+    const group = { name: 'states', title: 'State Review', members, counts: totals };
+    const team = { lead: { chat: 'working', bus: 'bus-working', title: 'Working Chat' }, group: 'states', members: members.slice(1), counts: totals, stateGen: 'team-states', stateVer: 1 };
+    window.__stateSnapshot = { chats: chats.map(chat => ({ sessionId: chat.sessionId, bus: 'bus-' + chat.sessionId, ...chat.chatState })), groups: [{ name: 'states', counts: totals }], stateGen: 'states', stateVer: 1 };
+    window.__changeExecution = () => {
+      const entry = __stateSnapshot.chats.find(chat => chat.sessionId === 'waiting');
+      entry.exec = { state: 'working', why: '' };
+      __stateSnapshot.groups[0].counts = { ...totals, waiting: 0, working: 2 };
+      __stateSnapshot.stateVer++;
+      __emit('agent:chatstate', structuredClone(__stateSnapshot));
+    };
+    return {
+      State: async () => ({ workspace, workspaces: [workspace], recent: [workspace], defaultProvider: 'codex' }),
+      Sessions: async () => structuredClone(chats), SessionsAt: async () => structuredClone(chats),
+      OpenSessionAt: async (cwd, id) => structuredClone(chats.find(chat => chat.sessionId === id)),
+      ChatStates: async () => structuredClone(__stateSnapshot),
+      ChatLead: async () => null, Team: async id => id === 'working' ? structuredClone(team) : null,
+      BusOverview: async () => ({ inbox: [], unread: 0, rooms: [group], workspaces: [], links: [] }),
+      BusGroupMessages: async () => [{ id: 1, from: 'Working Chat', room: 'states', text: 'The shared transcript uses the same spacing and controls as a chat.', createdAt: '2026-10-30T08:00:00Z' }],
+      BusMarkGroupRead: async () => {},
+      Notifications: async () => [{ id: 'historical-failure', kind: 'turn-failure', severity: 'error', title: 'An earlier turn failed', body: 'The chat has since started another turn', sessionId: 'working', sessionTitle: 'Working Chat', workspace, provider: 'codex', created: '2026-10-30T07:00:00Z' }]
+    };
+  } });
+  const { page, ok } = t;
+  try {
+    const groupKey = await page.evaluate(() => dinahWorkbench.open({ kind: 'bus-room', path: 'states' }));
+    const group = page.locator('[data-win="' + groupKey + '"]');
+    await group.locator('[data-group-member="bus-working"] .chat-state-working').waitFor();
+    for (const state of ['working', 'waiting', 'stuck', 'idle']) {
+      const badge = group.locator('[data-group-member="bus-' + state + '"] .chat-state-' + state);
+      ok('group member displays the ' + state + ' word and shared glyph', await badge.isVisible() && (await badge.innerText()).toLowerCase().includes(state) && await badge.evaluate(el => getComputedStyle(el, '::before').content !== 'none'));
+    }
+    for (const life of ['closed', 'retired']) {
+      const badge = group.locator('[data-group-member="bus-' + life + '"] .chat-lifecycle');
+      ok(life + ' is lifecycle text without an execution glyph', await badge.isVisible() && await badge.evaluate(el => getComputedStyle(el, '::before').content === 'none'));
+    }
+    ok('waiting and stuck carry their reasons', /Context full/.test(await group.innerText()) && /provider cannot run/.test(await group.innerText()));
+    ok('the group aggregate uses engine counts and priority', /1 stuck, 1 waiting, 1 working, 1 idle, 1 running elsewhere, 2 closed/.test(await group.locator('.group-aggregate').innerText()));
+    const elsewhere = group.locator('[data-group-member="bus-elsewhere"] .chat-lifecycle');
+    ok('activity in another window is words without a claimed execution state', /Running in another Dinah window/.test(await elsewhere.innerText()) && await elsewhere.evaluate(el => getComputedStyle(el, '::before').content === 'none'));
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(theme => pudlSetTheme(theme), theme);
+      await t.shot('group-states-' + theme);
+    }
+    await group.getByRole('button', { name: /^Members/ }).click();
+    ok('folding members preserves aggregate words', await group.locator('.group-members').isHidden() && await group.locator('.group-aggregate').isVisible());
+    await page.setViewportSize({ width: 700, height: 900 });
+    await group.locator('[data-win-action="maximize"]').click();
+    await group.locator('.group-composer textarea').fill('A multiline draft for the group.\nThe attachment stays beside the message.\nThis draft has not been sent.');
+    await group.locator('.group-composer input[type="file"]').setInputFiles({ name: 'review-notes.txt', mimeType: 'text/plain', buffer: Buffer.from('Review notes for the group.') });
+    await group.locator('.attachment-name', { hasText: 'review-notes.txt' }).waitFor();
+    await t.shot('group-states-narrow');
+    await page.evaluate(() => {
+      const root = document.documentElement, style = getComputedStyle(root);
+      window.__reviewTextTokens = ['2xs', 'xs', 'sm', 'md', 'base', 'lg', 'xl', '2xl', '3xl'].map(size => ['--text-' + size, style.getPropertyValue('--text-' + size)]);
+      __reviewTextTokens.forEach(([name, value]) => root.style.setProperty(name, parseFloat(value) * 2 + 'px'));
+    });
+    await page.setViewportSize({ width: 420, height: 900 });
+    await group.locator('.group-toolbar [data-toolbar-stage]:not([data-toolbar-stage="1"])').waitFor();
+    await t.shot('group-states-large-text');
+    ok('the command row uses PUDL overflow without a wrapping command row', await group.locator('.group-toolbar[data-toolbar-fold]').count() === 1);
+    await page.evaluate(() => __reviewTextTokens.forEach(([name]) => document.documentElement.style.removeProperty(name)));
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const chatKey = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'working' }));
+    const chat = page.locator('[data-win="' + chatKey + '"]');
+    await chat.locator('[data-view-id="page-state"] .chat-state-working').waitFor();
+    ok('chat body and title status share the execution presenter', await chat.locator('.win-statuses .chat-state-working').count() > 0);
+    await chat.locator('.chat-team > button.disclosure').click();
+    await chat.locator('[data-team-member="bus-waiting"] .chat-state-waiting').waitFor();
+    await t.shot('chat-team-states');
+    for (const state of ['working', 'waiting', 'stuck', 'idle']) {
+      const key = state === 'working' ? chatKey : await page.evaluate(state => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: state }), state);
+      const current = page.locator('[data-win="' + key + '"]');
+      await current.locator('[data-view-id="page-state"] .chat-state-' + state).waitFor();
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate(theme => pudlSetTheme(theme), theme);
+        await t.shot('chat-state-' + state + '-' + theme);
+      }
+      if (state !== 'working') await page.evaluate(key => pudlWindows.close(key), key);
+    }
+    await page.evaluate(key => pudlWindows.raise(key), chatKey);
+    const prompt = chat.locator('[data-view-id="prompt"]');
+    await prompt.fill('@Waiting'); await prompt.press('End');
+    await chat.locator('.mention-row .chat-state-waiting').waitFor();
+    await t.shot('chat-mention-states');
+    await prompt.fill(''); await prompt.press('Escape');
+    await page.evaluate(() => dinahWorkbench.open('needs-you'));
+    await page.locator('#questions [data-notice-id="historical-failure"] .notice-chat-state.chat-state-working').waitFor();
+    ok('a historical failure keeps its event tone beside the current Working state', await page.locator('#questions [data-notice-id="historical-failure"]').getAttribute('data-type') === 'error');
+    await t.shot('notification-current-chat-state');
+    await page.evaluate(() => dinahWorkbench.open({ kind: 'group-picker', path: JSON.stringify({ group: 'states' }) }));
+    await page.locator('.group-picker .chat-state-waiting').waitFor();
+    await t.shot('add-chats-states');
+    await page.evaluate(() => __changeExecution());
+    await group.locator('[data-group-member="bus-waiting"] .chat-state-working').waitFor({ state: 'attached' });
+    ok('one numbered event updates a group member and its aggregate', /2 working/.test(await group.locator('.group-aggregate').innerText()));
+    await page.evaluate(() => __emit('agent:chatstate', { stateGen: 'states', stateVer: 1, chats: [], groups: [] }));
+    ok('an older event cannot replace the current execution state', await group.locator('[data-group-member="bus-waiting"] .chat-state-working').count() === 1);
+    await page.evaluate(() => __resync());
+    await page.waitForFunction(() => __bridgeCalls.filter(call => call[0] === 'ChatStates').length >= 2);
+    await group.locator('[data-group-member="bus-waiting"] .chat-state-working').waitFor({ state: 'attached' });
+    ok('resync rereads the same authoritative state', (await t.calls('ChatStates')).length >= 2);
+  } finally { await t.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

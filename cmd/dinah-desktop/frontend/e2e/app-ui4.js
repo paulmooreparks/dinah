@@ -34,9 +34,9 @@ const { choose, shows } = require('./lib/commands');
           if (id === 'locked') throw "Session 'locked' is already open in another process. Close the other instance before opening it here. (code -32015)";
           opts[id] = mkOpts('swe-1-6');
           emit('agent:options', { sessionId: id, options: opts[id] });
-          return { sessionId: id, cwd: ws, title: 'A long session', open: true, working: false, queued: [] };
+          return { sessionId: id, cwd: ws, title: 'A long session', open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, working: false, queued: [] };
         },
-        NewSessionAt: async () => { opts.n1 = mkOpts('claude-opus-5-5-medium'); setTimeout(() => emit('agent:options', { sessionId: 'n1', options: opts.n1 }), 0); return { sessionId: 'n1', cwd: ws, title: '', open: true, working: false, queued: [] }; },
+        NewSessionAt: async () => { opts.n1 = mkOpts('claude-opus-5-5-medium'); setTimeout(() => emit('agent:options', { sessionId: 'n1', options: opts.n1 }), 0); return { sessionId: 'n1', cwd: ws, title: '', open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, working: false, queued: [] }; },
         SetSessionOption: async (id, o, v) => { window.__calls.push(['SetSessionOption', id, o, v]); opts[id] = opts[id].map(x => x.id === o ? Object.assign({}, x, { currentValue: v }) : x); return opts[id]; },
         Send: async (id, text) => { window.__calls.push(['Send', id, text]); },
         Queue: async () => {}, Steer: async () => {}, Unqueue: async () => {}, Answer: async () => {}, Cancel: async () => {}, Stop: async () => {},
@@ -83,7 +83,7 @@ const { choose, shows } = require('./lib/commands');
   const atBottom = await p.evaluate(() => { const b = document.querySelector('.win[data-chat-current] [data-view-id=activity]'); return b.scrollHeight - b.scrollTop - b.clientHeight < 4; });
   ok('the view is left at the end', atBottom);
   ok('the last word is drawn', (await p.textContent('.win[data-chat-current] [data-view-id=logs]')).includes('THE LAST WORD'));
-  ok('the session is usable', await offered('model', true) && (await p.textContent('.win[data-chat-current] [data-view-id=page-state]')).includes('waiting for you'));
+  ok('the session is usable', await offered('model', true) && (await p.textContent('.win[data-chat-current] [data-view-id=page-state]')).includes('Idle'));
   await t.shot('r-done');
   // A session Devin will not open.
   await p.click('#sessions a:has-text("Open in Devin Desktop")');

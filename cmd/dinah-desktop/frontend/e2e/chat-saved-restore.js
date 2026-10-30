@@ -30,7 +30,7 @@ const { launch } = require('./lib/page');
             { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Summarise the plan.' } },
             { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'Thinking it over.' } },
             { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'The plan asks for a config reload.' } }] });
-          return { sessionId: id, provider: 'devin', title: 'Restored Chat', cwd: ws, open: true };
+          return { sessionId: id, provider: 'devin', title: 'Restored Chat', cwd: ws, open: true, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } } };
         },
         Send: async (id, text, doc, atts) => { window.__calls.push(['send', id, text, atts]); }
       };
@@ -133,7 +133,7 @@ const { launch } = require('./lib/page');
       return (!line || line.hidden) && !/Reopening the session/.test(w.innerText);
     }, backKey));
     // Once it has reconnected behind the other window, its own header says so.
-    await page.waitForFunction(k => /is waiting for you/.test(document.querySelector('[data-win="' + CSS.escape(k) + '"] [data-view-id="page-state"]').textContent), backKey);
+    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + CSS.escape(k) + '"] [data-view-id="page-state"]').textContent), backKey);
     ok('a chat that reconnects behind another says in its header that it is open', true);
     // A restored chat can be mentioned for asking: it is listed under Open
     // Chats, and sending connects it behind the asking chat's window.

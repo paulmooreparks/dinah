@@ -26,14 +26,7 @@
   function groupLink(group, message, mention) {
     return window.dinahBus.openGroup(group, { message: message || 0, mention: mention || null });
   }
-  function stateBadge(m) {
-    var states = { working: ['accent', 'ring', 'Working'], waiting: ['warn', 'flag', 'Waiting for Lead'],
-      stuck: ['danger', 'warning', 'Stuck'], idle: ['', 'circle', 'Idle'], closed: ['', 'ring', 'Closed'], retired: ['', 'circle', 'Retired'] };
-    var st = states[m.state] || ['', 'info', 'Unknown'];
-    var badge = node('span', 'badge team-state ' + st[0], st[2]);
-    badge.style.setProperty('--glyph', 'var(--glyph-' + st[1] + ')');
-    return badge;
-  }
+  function stateBadge(m) { return window.dinahChatState.badge(m, { reason: false, className: 'team-state' }); }
   function disclosure(label, body, id) {
     var b = node('button', 'btn btn-sm disclosure', label);
     b.type = 'button'; body.id = id; body.hidden = true;
@@ -186,7 +179,9 @@
         var ref = m.chat && window.dinahChats && window.dinahChats.ref(m.chat);
         if (ref) held.a.href = address({ kind: 'chat-session', workspace: ref.cwd, path: m.chat });
         held.status.replaceChildren(stateBadge(m));
-        held.why.textContent = (m.stateWhy || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
+        if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts));
+        var liveState = window.dinahChatState.read(m);
+        held.why.textContent = (liveState.exec && liveState.exec.why || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
         held.meta.textContent = [m.workspace, window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider, m.model].filter(Boolean).join(' · ');
         held.usage.textContent = usageWords(m.usage);
         held.a.setAttribute('aria-disabled', String(!m.chat));
@@ -202,7 +197,7 @@
         if ((m.members || []).length) {
           if (held.children.parentElement !== held.li) held.a.after(held.children);
           held.a.setAttribute('aria-expanded', String(expanded.get(key) !== false));
-          drawMembers(held.children, includeRetired ? m.members : m.members.filter(function (child) { return !child.retired; }), m.group || group, includeRetired);
+          drawMembers(held.children, includeRetired ? m.members : m.members.filter(function (child) { return child.life !== 'retired'; }), m.group || group, includeRetired);
         } else {
           held.children.remove(); held.a.removeAttribute('aria-expanded');
         }
@@ -215,11 +210,14 @@
       if (disposed || !v || chatId(v.lead) !== id) return;
       if (!window.dinahStateOrder.accept('team:state', id, v, again)) return;
       current = v; publish(v);
-      var members = v.members || [], activeMembers = members.filter(function (m) { return !m.retired; }), retired = [];
-      (function collect(list) { list.forEach(function (m) { if (m.retired) retired.push(m); else collect(m.members || []); }); })(members);
+      var members = v.members || [], activeMembers = members.filter(function (m) { return m.life !== 'retired'; }), retired = [];
+      (function collect(list) { list.forEach(function (m) { if (m.life === 'retired') retired.push(m); else collect(m.members || []); }); })(members);
       o.keepPlace(function () {
         section.hidden = !v.group && !members.length;
-        toggle.textContent = 'Team (' + members.length + ')' + (v.stuck ? '; ' + v.stuck + ' stuck' : '');
+        toggle.textContent = 'Team (' + members.length + ')';
+        var aggregate = section.querySelector('.team-aggregate');
+        if (!aggregate) { aggregate = node('span', 'team-aggregate'); toggle.after(aggregate); }
+        aggregate.replaceChildren(window.dinahChatState.badge(v));
         drawMembers(tree, activeMembers, v.group); drawMembers(retiredTree, retired, v.group, true);
         retiredBox.hidden = !retired.length;
         budgetLines(budget, v.budget, prefix);
@@ -232,10 +230,9 @@
       if (!statuses) return;
       var chip = statuses.querySelector('.team-stuck-chip');
       if (!chip) { chip = node('span', 'win-status team-stuck-chip'); statuses.appendChild(chip); }
-      chip.hidden = !(current && current.stuck);
+      chip.hidden = !current || !current.counts || (!current.group && !(current.members || []).length);
       chip.replaceChildren();
-      var glyph = node('span', 'glyph'); glyph.style.setProperty('--glyph', 'var(--glyph-warning)'); glyph.setAttribute('aria-hidden', 'true');
-      chip.append(glyph, document.createTextNode((current && current.stuck || 0) + (current && current.stuck === 1 ? ' Member Stuck' : ' Members Stuck')));
+      if (current && current.counts) chip.appendChild(window.dinahChatState.badge(current));
     }
     function read() {
       if (!id || !api().Team || !api().ChatLead) return Promise.resolve();
@@ -350,5 +347,5 @@
       });
     });
   }
-  window.dinahTeams = { mount: mount, convertGroup: convertGroup, groupLink: groupLink, stuck: function (id) { var state = snapshots.get(id); return state ? state.stuck : 0; } };
+  window.dinahTeams = { mount: mount, convertGroup: convertGroup, groupLink: groupLink, aggregate: function (id) { var state = snapshots.get(id); return state && state.counts && (state.group || (state.members || []).length) ? state.counts : null; } };
 })();

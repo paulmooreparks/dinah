@@ -5,7 +5,7 @@ const path = require('path');
 (async () => {
   const t = await launch({ viewport: { width: 1280, height: 850 }, app: () => ({
     State: async () => ({ workspace: 'C:/Fixture', workspaces: ['C:/Fixture'], recent: ['C:/Fixture'] }),
-    OpenSessionAt: async (cwd, sessionId) => ({ sessionId, title: sessionId, cwd, provider: 'codex', open: true, working: true }),
+    OpenSessionAt: async (cwd, sessionId) => ({ sessionId, title: sessionId, cwd, provider: 'codex', open: true, working: true, life: 'open', window: true, exec: { state: 'working', why: '' } }),
     Team: async id => id === 'lead' ? { lead: { chat: id, bus: 'bus-lead', title: 'Lead' }, group: 'team-room', members: [], stateGen: 'tail', stateVer: 1 } : null,
     ChatLead: async () => null
   }) });
@@ -30,7 +30,7 @@ const path = require('path');
     }, [id, round, team]);
   }
   async function strip(version) {
-    await p.evaluate(version => __emit('team:state', { lead: { chat: 'lead', bus: 'bus-lead', title: 'Lead' }, group: 'team-room', members: [{ chat: 'member', bus: 'bus-member', title: 'Member', state: 'working', task: 'Work on the task', stateWhy: 'Working on assignment ' + version, usage: [], members: [] }], stateGen: 'tail', stateVer: version }), version);
+    await p.evaluate(version => __emit('team:state', { lead: { chat: 'lead', bus: 'bus-lead', title: 'Lead' }, group: 'team-room', members: [{ chat: 'member', bus: 'bus-member', title: 'Member', life: 'open', window: true, exec: { state: 'working', why: 'Working on assignment ' + version }, task: 'Work on the task', usage: [], members: [] }], stateGen: 'tail', stateVer: version }), version);
   }
   try {
     for (const id of ['ordinary', 'lead']) {
