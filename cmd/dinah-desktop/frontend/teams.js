@@ -26,7 +26,7 @@
   function groupLink(group, message, mention) {
     return window.dinahBus.openGroup(group, { message: message || 0, mention: mention || null });
   }
-  function stateBadge(m) { return window.dinahChatState.badge(m, { reason: false, className: 'team-state' }); }
+  function stateBadge(m) { return window.dinahChatState.badge(m, { reason: false, compact: true, className: 'team-state' }); }
   function disclosure(label, body, id) {
     var b = node('button', 'btn btn-sm disclosure', label);
     b.type = 'button'; body.id = id; body.hidden = true;
@@ -179,11 +179,14 @@
         var ref = m.chat && window.dinahChats && window.dinahChats.ref(m.chat);
         if (ref) held.a.href = address({ kind: 'chat-session', workspace: ref.cwd, path: m.chat });
         held.status.replaceChildren(stateBadge(m));
-        if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts));
+        if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts, { compact: true }));
         var liveState = window.dinahChatState.read(m);
         held.why.textContent = (liveState.exec && liveState.exec.why || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
         held.meta.textContent = [m.workspace, window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider, m.model].filter(Boolean).join(' · ');
         held.usage.textContent = usageWords(m.usage);
+        [held.why, held.meta, held.usage].forEach(function (line) { line.title = line.textContent; line.setAttribute('aria-label', line.textContent); });
+        held.a.title = [m.title, window.dinahChatState.describe(m).label, held.why.textContent, held.meta.textContent, held.usage.textContent].filter(Boolean).join('. ');
+        held.a.setAttribute('aria-label', held.a.title);
         held.a.setAttribute('aria-disabled', String(!m.chat));
         if (m.task) {
           if (!held.task) {
@@ -243,6 +246,8 @@
         draw(all[0], true);
       }).catch(function (error) { if (!disposed) host().fail(error); });
     }
+    function executionChanged() { if (current) draw(current, true); }
+    document.addEventListener('dinah:execution-state', executionChanged);
     var stopTeam = host().on('team:state', function (v) {
       if (chatId(v.lead) === id) draw(v, false);
       // Membership changes can affect a nested lead's own parent.
@@ -268,7 +273,7 @@
           { id: 'leave-team', label: 'Make an Ordinary Chat', hidden: !member(), run: function () { return Promise.resolve(api().ClearTeamLead(id)).then(function () { return read(); }); } },
           { id: 'open-team', label: 'Open Team Chat', hidden: !member(), run: function () { return groupLink(lead.group); } }];
       },
-      destroy: function () { trafficObserver.disconnect(); if (foldFrame) cancelAnimationFrame(foldFrame); disposed = true; generation++; if (stopTeam) stopTeam(); if (stopResync) stopResync(); section.remove(); memberNote.remove(); }
+      destroy: function () { trafficObserver.disconnect(); if (foldFrame) cancelAnimationFrame(foldFrame); disposed = true; generation++; document.removeEventListener('dinah:execution-state', executionChanged); if (stopTeam) stopTeam(); if (stopResync) stopResync(); section.remove(); memberNote.remove(); }
     };
   }
   function notice(target, title, text, tone) {

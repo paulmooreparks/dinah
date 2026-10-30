@@ -64,6 +64,11 @@
   function badge(value, options) {
     var spec = describe(value, options), el = window.dinahBrowserList.badge(spec);
     if (options && options.className) el.classList.add(options.className);
+    if (options && options.compact) {
+      el.classList.add('chat-state-compact');
+      var words = document.createElement('span'); words.className = 'chat-state-words'; words.textContent = spec.glyph ? '' : spec.text;
+      el.replaceChildren(words);
+    }
     return el;
   }
   window.dinahChatState = { describe: describe, badge: badge, read: read, counts: counts, apply: apply, connect: connect };

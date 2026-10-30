@@ -209,11 +209,74 @@
         drawSessionList(workspaceChats, 'current', '', $('workspace-chats-empty'), 'workspace-');
       });
     }
+    var listViews = new WeakMap();
+    function listBusy(host) {
+      var view = listViews.get(host);
+      return !!(view && (view.pressed.size || (host.matches(':hover') && performance.now() < view.pointerUntil))) || host.contains(document.activeElement) || !!host.querySelector('[data-menu-for]');
+    }
+    function listView(host) {
+      var view = listViews.get(host);
+      if (view) return view;
+      view = { pending: false, signature: '', pressed: new Set(), pointerUntil: 0, pointerTimer: 0 }; listViews.set(host, view);
+      function flush() { if (view.pending && !listBusy(host)) drawSessions(); }
+      function clearPointer() {
+        clearTimeout(view.pointerTimer); view.pointerTimer = 0; view.pointerUntil = 0;
+      }
+      function expirePointer() {
+        view.pointerTimer = 0;
+        var remaining = view.pointerUntil - performance.now();
+        if (remaining > 0) { view.pointerTimer = setTimeout(expirePointer, Math.ceil(remaining)); return; }
+        view.pointerUntil = 0; flush();
+      }
+      function renewPointer() {
+        clearPointer();
+        if (!view.pressed.size) {
+          view.pointerUntil = performance.now() + 2000;
+          view.pointerTimer = setTimeout(expirePointer, 2000);
+        }
+      }
+      function trackPointer(event) {
+        if (event.buttons) view.pressed.add(event.pointerId); else view.pressed.delete(event.pointerId);
+        renewPointer();
+      }
+      host.addEventListener('pointerenter', trackPointer);
+      host.addEventListener('pointermove', trackPointer);
+      host.addEventListener('pointerdown', function (event) { view.pressed.add(event.pointerId); clearPointer(); });
+      host.addEventListener('pointerleave', function () { clearPointer(); flush(); });
+      function releasedPointer(event) {
+        if (!view.pressed.delete(event.pointerId)) return;
+        if (host.matches(':hover')) renewPointer(); else clearPointer();
+        flush();
+      }
+      document.addEventListener('pointerup', releasedPointer, true);
+      document.addEventListener('pointercancel', releasedPointer, true);
+      host.addEventListener('focusout', function () { queueMicrotask(flush); });
+      // PUDL marks an open context-menu anchor with data-menu-for.
+      new MutationObserver(flush).observe(host, { subtree: true, attributes: true, attributeFilter: ['data-menu-for'] });
+      if (host.matches(':hover')) renewPointer();
+      return view;
+    }
+    function arrange(parent, wanted) {
+      wanted.forEach(function (el, i) { if (parent.children[i] !== el) parent.insertBefore(el, parent.children[i] || null); });
+      Array.from(parent.children).forEach(function (el) { if (wanted.indexOf(el) < 0) el.remove(); });
+    }
+    function groupCount(section, n) {
+      var count = section.querySelector(':scope > .browser-group-head > .browser-group-count');
+      if (!count) {
+        window.dinahBrowserList.setCount(section, n);
+        count = section.querySelector(':scope > .browser-group-head > .browser-group-count');
+      }
+      count.textContent = n > 99 ? '99+' : String(n);
+      count.setAttribute('aria-label', n + (n === 1 ? ' item' : ' items'));
+      count.title = count.getAttribute('aria-label');
+    }
     function drawSessionList(host, scope, query, empty, prefix) {
       if (host.querySelector('input.session-rename')) return;
+      var view = listView(host), signature = [scope, query, adapter.workspace()].join('|');
+      var hold = view.signature === signature && host.childElementCount > 0 && listBusy(host);
+      view.signature = signature;
       var rows = new Map();
       host.querySelectorAll('.md-row[data-session-row]').forEach(function (row) { rows.set(row.dataset.sessionRow, row); });
-      host.innerHTML = '';
       var ids = listed.map(function (x) { return x.sessionId; });
       // Sessions opened in this run that Devin's list does not have yet.
       Object.keys(sessions).forEach(function (k) {
@@ -231,7 +294,7 @@
           row.className = 'md-row browser-row';
           row.dataset.sessionRow = id;
           row.setAttribute('role', 'listitem');
-          row.innerHTML = '<a class="md-item" href="#"><span class="browser-row-line"><span class="browser-row-title session-title"></span></span><span class="md-meta"></span></a>';
+          row.innerHTML = '<a class="md-item" href="#"><span class="browser-row-line"><span class="browser-row-title session-title"></span><span class="session-attention-slot"></span></span><span class="session-reason"></span><span class="md-meta session-row-meta"></span></a>';
           // The Workspace pane's rows have a context menu to pin the chat.
           if (prefix === 'workspace-' && window.dinahPins) window.dinahPins.rowActions(row, function () { return chatPin(id); });
         }
@@ -245,15 +308,31 @@
         if (scope === 'all') meta.push(workspaceLabel(s.info.cwd));
         if (window.dinahChatState.read(s.info).life === 'open' && window.dinahChatState.read(s.info).window === false) meta.push('No window');
         a.querySelector('.md-meta').textContent = meta.join(' · ');
-        a.querySelectorAll('.session-badge, .team-stuck-badge, .session-attention').forEach(function (badge) { badge.remove(); });
+        a.querySelector('.md-meta').title = meta.join(' · ');
+        var reason = window.dinahChatState.read(s.info).exec;
+        var why = reason && reason.why || '';
+        a.querySelector('.session-reason').textContent = why;
+        a.querySelector('.session-reason').title = why;
+        a.querySelectorAll('.session-badge, .team-stuck-badge').forEach(function (badge) { badge.remove(); });
         var line = a.querySelector('.browser-row-line');
         line.classList.add('chat-state-line');
-        line.appendChild(window.dinahChatState.badge(s.info, { className: 'session-badge' }));
-        if (needsCount(id)) line.appendChild(window.dinahBrowserList.badge({ text: needsCount(id), kind: 'warn', cls: 'session-attention', label: needsCount(id) === 1 ? '1 question waits for you' : needsCount(id) + ' questions wait for you' }));
+        line.appendChild(window.dinahChatState.badge(s.info, { compact: true, className: 'session-badge' }));
+        var attention = line.querySelector('.session-attention-slot'), n = needsCount(id);
+        attention.replaceChildren();
+        var reservedCount = window.dinahBrowserList.badge({ text: '99+', kind: 'warn', cls: 'session-attention-reserve' });
+        reservedCount.setAttribute('aria-hidden', 'true'); attention.appendChild(reservedCount);
+        if (n) attention.appendChild(window.dinahBrowserList.badge({ text: n > 99 ? '99+' : n, kind: 'warn', cls: 'session-attention', label: n === 1 ? '1 question waits for you' : n + ' questions wait for you' }));
+        attention.setAttribute('aria-hidden', String(!n));
+        var aggregateBadge = document.createElement('span'); aggregateBadge.className = 'team-state-slot';
         if (window.dinahTeams && window.dinahTeams.aggregate) {
           var aggregate = s.info.team || window.dinahTeams.aggregate(id);
-          if (aggregate) line.appendChild(window.dinahChatState.badge(aggregate, { className: 'team-stuck-badge' }));
+          if (aggregate) aggregateBadge.appendChild(window.dinahChatState.badge(aggregate, { compact: true, className: 'team-stuck-badge' }));
         }
+        var oldAggregate = line.querySelector('.team-state-slot');
+        if (oldAggregate) oldAggregate.replaceWith(aggregateBadge); else line.appendChild(aggregateBadge);
+        line.insertBefore(line.querySelector('.session-badge'), aggregateBadge);
+        a.title = [title(s), window.dinahChatState.describe(s.info).label, meta.join(' · ')].filter(Boolean).join('. ');
+        a.setAttribute('aria-label', a.title);
         if (id === adapter.active()) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
         var state = window.dinahChatState.read(s.info), execution = state.exec && state.exec.state;
         var groupName = execution === 'waiting' || execution === 'stuck' ? 'Needs You' : execution === 'working' ? 'Working' : 'Chats';
@@ -265,19 +344,44 @@
         // chat is opened (subagents.go).
         var earlier = earlierSubagents(s).length;
         if (earlier && window.dinahSubagents) {
-          var part = window.dinahBrowserList.row({ title: 'Subagents', meta: [earlier === 1 ? '1 from an earlier run' : earlier + ' from earlier runs'],
+          var part = row._subagents || window.dinahBrowserList.row({ title: 'Subagents', meta: [earlier === 1 ? '1 from an earlier run' : earlier + ' from earlier runs'],
             tooltip: 'Open the subagents of "' + title(s) + '" from earlier runs', onOpen: function () { window.dinahSubagents.openArchive(id, s.info.cwd || adapter.workspace()).catch(fail); },
             data: { earlierSubagents: id } });
           part.classList.add('browser-row-part', 'chat-subagents-part');
+          row._subagents = part;
+          part.querySelector('.md-meta').textContent = earlier === 1 ? '1 from an earlier run' : earlier + ' from earlier runs';
           groups[groupName].push(part);
         }
       });
+      var sections = [], flat = [], active = document.activeElement;
+      var scrolls = [], ancestor = host;
+      while (ancestor) { scrolls.push([ancestor, ancestor.scrollTop, ancestor.scrollLeft]); ancestor = ancestor.parentElement; }
       ['Needs You', 'Working', 'Chats'].forEach(function (name) {
-        if (!groups[name]) return;
-        if (prefix === 'workspace-') groups[name].forEach(function (row) { host.appendChild(row); });
-        else browserSection(host, prefix + 'chats-' + name, name, groups[name]);
+        var wanted = groups[name] || [];
+        var section = Array.from(host.children).find(function (el) { return el.dataset.section === prefix + 'chats-' + name; });
+        if (section) groupCount(section, wanted.filter(function (row) { return !row.classList.contains('browser-row-part'); }).length);
+        if (hold) return;
+        if (prefix === 'workspace-') { flat.push.apply(flat, wanted); return; }
+        if (!wanted.length) return;
+        if (!section) {
+          browserSection(host, prefix + 'chats-' + name, name, []);
+          section = host.lastElementChild;
+        }
+        section.classList.add('session-browser-group');
+        groupCount(section, wanted.filter(function (row) { return !row.classList.contains('browser-row-part'); }).length);
+        arrange(section.querySelector('.browser-group-body'), wanted); sections.push(section);
       });
-      if (prefix === 'workspace-') window.dinahBrowserList.setCount(host.closest('.browser-group'), ids.length);
+      view.pending = hold;
+      if (!hold) {
+        arrange(host, prefix === 'workspace-' ? flat : sections);
+        if (host.contains(active) && document.activeElement !== active) active.focus({ preventScroll: true });
+        scrolls.forEach(function (saved) { saved[0].scrollTop = saved[1]; saved[0].scrollLeft = saved[2]; });
+      }
+      if (prefix === 'workspace-') {
+        var workspaceGroup = host.closest('.browser-group');
+        workspaceGroup.classList.add('session-browser-group');
+        groupCount(workspaceGroup, ids.length);
+      }
       empty.hidden = ids.length > 0;
       empty.querySelector('.empty-state-title').textContent = !adapter.workspace() ? 'No Workspace Chosen' : query ? 'No Matching Chats' : 'No Chats Yet';
       empty.querySelector('.empty-state-body').textContent = !adapter.workspace() ? 'Choose a workspace first.' : query ? 'No chat title contains those words.' : 'A chat with an agent in this workspace appears here.';

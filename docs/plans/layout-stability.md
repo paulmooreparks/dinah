@@ -19,6 +19,8 @@ A suite drives each surface through the transitions it can make, including worki
 
 Dinah UI also reviews live behaviour as well as still screenshots. For each surface it watches the transitions happen, in light and dark and at a narrow width, and lists everything that moves, flickers or jumps, however small.
 
+The composer suite waits for the requested `data-win-state` before sampling each transition. A queued update need not draw before the next animation callback. The trace records its wait duration and pending frames, then applies the same strict geometry and action checks from state application onward. Late-capability checks observe a fresh Queue result followed by a fresh Steer result before resolving an older answer.
+
 ## Order
 
 Front End fixes the message box first, since it is what Paul types into: one geometry for Working and Idle, with the send, queue and steer actions arranged so that none of them appears or disappears in a way that resizes the box, and one hint text. Then comes the stability suite. Its first run will list the other movements, and each is fixed under the rule above. Dinah UI's live review runs beside it and adds what a suite cannot judge, such as flicker and distracting motion.
@@ -35,6 +37,12 @@ Two decisions follow from it, beyond the rule above.
 Dinah UI also found the glyphs too small to carry the state alone: Idle's ring read as a speck, and Working's arc was hard to tell from it. Each mark keeps a slot of at least 16 CSS pixels, with Idle a visibly closed hollow ring and Working a clearly open arc, reviewed with animation stopped as well as running.
 
 Group member chips keep their menu buttons and their identity through execution updates. Execution appears as the shared glyph in a fixed slot. Lifecycle words use that same reserved slot, with one line, ellipsis and complete details in the tooltip and accessible name. Window presence appears in those details and the member's menu. The member area keeps its aggregate counts and turn budget to one line each; their complete text remains available. State changes neither rebuild an open member menu nor move its anchor, and the menu's state explanation updates in place.
+
+## Chat List and Team Rows
+
+Chat-list and team-strip rows reserve one line for reasons and metadata, including an empty reason. Execution glyphs and lifecycle words share a reserved state slot; full state and reason text remains in the accessible name and tooltip. List attention badges and group counts reserve their capped `99+` width.
+
+The chat lists retain their row links and group headers while execution changes. They repaint state and group counts in place while the person is using the list. Pointer movement holds regrouping for two seconds after the last movement; a motionless pointer then releases it. A pressed pointer button holds regrouping without running the timer, and release inside the list starts a fresh two-second interval. Leaving the list releases the pointer lease, while a pressed button continues to hold until release or cancellation. Focus inside the list and an open row menu hold it without a time limit. Pending regrouping applies once no hold remains. Explicit scope and filter changes take effect immediately. Reordering preserves scroll positions and restores any retained focus without scrolling. A mounted team also repaints when the execution snapshot changes, so the order of team and execution events cannot leave its badges one state behind.
 
 ## Transcript Navigation and Measured Rows
 

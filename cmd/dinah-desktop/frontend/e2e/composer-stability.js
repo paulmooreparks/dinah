@@ -52,13 +52,19 @@ const fs = require('fs'), path = require('path');
     ok('a session change rechecks capability without typing', true);
     await page.evaluate(() => { __late = true; __work(true); });
     await page.waitForFunction(() => !!window.__resolveLate);
-    await page.evaluate(() => { __late = false; __capable = true; __work(true); }); await primary('steer-send');
+    // Observe a new Queue result before asking for Steer again. Waiting on
+    // Steer's old class would not establish that the new request was painted.
+    await page.evaluate(() => { __late = false; __capable = false; __work(true); }); await primary('send');
+    await page.evaluate(() => { __capable = true; __work(true); }); await primary('steer-send');
     await page.evaluate(() => __resolveLate(false));
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
     ok('a superseded false answer cannot replace Steer', await win.locator('[data-view-id=steer-send]').evaluate(el => el.classList.contains('btn-primary')));
     await page.evaluate(() => { __failPrimary = true; __work(true); }); await primary('send');
     const logged = await page.evaluate(() => __queueDecisions.length);
-    await box.press('Space'); await primary('send');
+    const checkedCalls = await page.evaluate(() => __primaryCalls.length);
+    await box.press('Space');
+    await page.waitForFunction(before => __primaryCalls.length > before, checkedCalls);
+    await primary('send');
     ok('an unchanged failed Queue decision is logged once', await page.evaluate(() => __queueDecisions.length) === logged && await page.evaluate(() => __queueDecisions.some(c => c[2].includes('Fixture capability failure'))));
     await page.evaluate(() => { __failPrimary = false; __capable = true; __work(true); }); await primary('steer-send');
     await box.fill('A follow-up');
@@ -96,6 +102,7 @@ const fs = require('fs'), path = require('path');
         __work(false);
       }, { theme, scale, tokens: textBaseline.tokens, width, key });
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await page.waitForFunction(() => __composerRoot.dataset.winState === 'idle');
       const sample = await page.evaluate(async () => {
         const root = __composerRoot.querySelector('.composer');
         function boxes() {
@@ -111,12 +118,22 @@ const fs = require('fs'), path = require('path');
         }
         const before = boxes(), frames = [], hint = root.querySelector('textarea').placeholder;
         for (const [phase, working] of [true, false, true, true, true, false].entries()) {
+          const requestedAt = performance.now();
           __work(working);
+          const state = working ? 'working' : 'idle';
+          let pendingFrames = 0;
+          // The cooperative renderer reports application through the window's
+          // painted state. An animation frame alone does not promise a draw.
+          while (__composerRoot.dataset.winState !== state) {
+            if (performance.now() - requestedAt > 10000) throw new Error('The composer did not apply ' + state);
+            await new Promise(requestAnimationFrame); pendingFrames++;
+          }
+          const appliedAfterMs = performance.now() - requestedAt;
           if (phase === 3) root.querySelector('.composer-stop').click();
           for (let frame = 0; frame < 4; frame++) {
             await new Promise(requestAnimationFrame);
             const stop = root.querySelector('.composer-stop'), slot = stop.parentElement.getBoundingClientRect(), control = stop.getBoundingClientRect();
-            frames.push({ working, boxes: boxes(), stop: { hidden: stop.hidden, inert: stop.inert, text: stop.textContent, slot: slot.toJSON(), control: control.toJSON() }, hint: root.querySelector('textarea').placeholder,
+            frames.push({ working, pendingFrames, appliedAfterMs, appliedState: __composerRoot.dataset.winState, boxes: boxes(), stop: { hidden: stop.hidden, inert: stop.inert, text: stop.textContent, slot: slot.toJSON(), control: control.toJSON() }, hint: root.querySelector('textarea').placeholder,
               label: root.querySelector('[data-view-id=send]').textContent });
           }
         }

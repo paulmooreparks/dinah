@@ -84,7 +84,7 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.waitForTimeout(200);
   ok('a background question is counted', (await p.textContent('#status-needs .badge')) === '1');
   ok('it is not shown over this session', await p.isHidden('#needs-you'));
-  ok('the session list marks it', (await p.getAttribute('#sessions .session-attention', 'aria-label')) === '1 question waits for you' && /Waiting/.test(await p.textContent('#sessions .session-badge.chat-state-waiting')) && (await p.textContent('#sessions .browser-group-title')) === 'Needs You');
+  ok('the session list marks it', (await p.getAttribute('#sessions .session-attention', 'aria-label')) === '1 question waits for you' && /Waiting/.test(await p.getAttribute('#sessions .session-badge.chat-state-waiting', 'aria-label')) && (await p.textContent('#sessions .browser-group-title')) === 'Needs You');
   await p.click('#status-needs');
   await p.click('#notifications-status-menu [data-cmd="needs-you"]');
   await p.waitForTimeout(200);

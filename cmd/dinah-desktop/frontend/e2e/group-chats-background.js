@@ -93,7 +93,7 @@ const { launch } = require('./lib/page');
     // The Workspace pane's list of chats is drawn as the Chats pane's is.
     const listed = p.locator('#workspace-chats [data-session-row="chat-parser"]');
     await listed.locator('.chat-state-idle').waitFor();
-    ok('the chat lists keep Idle separate from window presence', (await listed.innerText()).includes('Idle'));
+    ok('the chat lists keep Idle separate from window presence', (await listed.locator('.chat-state-idle').getAttribute('aria-label')).includes('Idle') && (await listed.innerText()).includes('No window'));
 
     // A group's chip and the picker show the same state.
     await pane.locator('[data-bus-room="release-review"]').click();
