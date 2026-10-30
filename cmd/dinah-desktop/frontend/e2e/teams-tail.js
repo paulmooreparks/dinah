@@ -37,7 +37,15 @@ const path = require('path');
       const key = await p.evaluate(id => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: id }), id);
       const win = p.locator('[data-win="' + key + '"]');
       if (id === 'ordinary') await win.locator('[data-win-action="maximize"]').click();
-      await win.locator('.chat-working-chip').filter({ hasText: /working/i }).waitFor();
+      const state = win.locator('.win-execution .win-state[data-state="working"]');
+      await state.waitFor({ state: 'attached' });
+      await frames(3);
+      if (!await state.isVisible()) {
+        await win.getByRole('button', { name: 'Window status', exact: true }).click();
+        await p.locator('.win-status-popover:popover-open .win-state[data-state="working"]').waitFor();
+        ok(id + ' exposes its folded execution state', true);
+        await p.keyboard.press('Escape');
+      } else ok(id + ' exposes its execution state directly', true);
       if (id === 'lead') { await strip(2); }
       for (let round = 0; round < 6; round++) { await output(id, round, id === 'lead'); await tail(win, id + ' follows output ' + round); }
       if (id === 'lead') {

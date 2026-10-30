@@ -1060,6 +1060,26 @@
       });
     }
     var stateDetail = '', stateContext = '';
+    function syncWindowExecution(win, s) {
+      var execution = s && window.dinahChatState.describe(s.info, { reason: false }).state;
+      if (execution) { win.dataset.winState = execution; win.dataset.winStateLabel = stateDetail; }
+      else { win.removeAttribute('data-win-state'); win.removeAttribute('data-win-state-label'); }
+      return execution;
+    }
+    function drawWindowLifecycle(chip, s, execution) {
+      chip.setAttribute('role', 'img'); chip.replaceChildren(); chip.hidden = false;
+      var concealed = !!execution || (!s && !workspace);
+      chip.style.visibility = concealed ? 'hidden' : '';
+      chip.setAttribute('aria-hidden', String(concealed));
+      chip.title = stateDetail; chip.setAttribute('aria-label', stateDetail);
+      if (concealed) return;
+      var mark = s ? window.dinahChatState.badge(s.info, { reason: false }) : document.createElement('span');
+      if (!s) { mark.className = 'chat-state chat-lifecycle'; mark.textContent = 'New Chat'; }
+      mark.title = stateDetail; mark.setAttribute('aria-label', stateDetail); chip.appendChild(mark);
+      // PUDL's folded status lists the full host-owned lifecycle text.
+      var context = document.createElement('span'); context.className = 'visually-hidden chat-state-context'; context.setAttribute('aria-hidden', 'true');
+      context.textContent = stateContext ? ' · ' + stateContext : ''; chip.appendChild(context);
+    }
     function stateLine() {
       var s = active && sessions[active];
       var state = s && window.dinahChatState.read(s.info);
@@ -1082,13 +1102,8 @@
       var mark = s ? window.dinahChatState.describe(s.info, { reason: false }).text : 'New Chat';
       stateContext = [workspace ? workspaceLabel(workspace) : '', t].filter(Boolean).join(' · ');
       stateDetail = [mark, stateContext].filter(Boolean).join(' · ');
-      if (stateChip) {
-        stateChip.title = stateDetail; stateChip.setAttribute('aria-label', stateDetail);
-        var stateMark = stateChip.querySelector('.chat-state');
-        if (stateMark) { stateMark.title = stateDetail; stateMark.setAttribute('aria-label', stateDetail); }
-        var contextWords = stateChip.querySelector('.chat-state-context');
-        if (contextWords) contextWords.textContent = stateContext ? ' · ' + stateContext : '';
-      }
+      var execution = stateWindow && syncWindowExecution(stateWindow, s);
+      if (stateChip) drawWindowLifecycle(stateChip, s, execution);
       drawBackground(s, work);
       drawSwitchState(s);
       teamPanel.update(s);
@@ -3279,35 +3294,35 @@
       function chatCommandTable() {
         var pin = active && sameWs(workspace) && window.dinahPins && window.dinahPins.command(chatPin(active));
         return [
-          { id: 'new-chat', label: 'New Chat', run: startNewChat, disabled: !workspace, reason: workspace ? null : 'Open a workspace first.' },
-          { id: 'rename-chat', label: 'Rename Chat…', run: function () { if (active) startRename(active, 'head'); }, disabled: !active, shortcut: 'F2' },
+          { id: 'new-chat', actions: true, label: 'New Chat', run: startNewChat, disabled: !workspace, reason: workspace ? null : 'Open a workspace first.' },
+          { id: 'rename-chat', actions: true, label: 'Rename Chat…', run: function () { if (active) startRename(active, 'head'); }, disabled: !active, shortcut: 'F2' },
           // A continuation into another workspace (switch.go): confirmed first,
           // visibly in progress while it runs, unchanged where it fails.
-          { id: 'continue-workspace', label: 'Continue in Another Workspace…', detail: 'A new chat with the same provider in the workspace you choose; this one stays as it is', disabled: !active || !app().ContinueSessionInWorkspace, reason: 'The chat starts with its first message.', run: continueInWorkspace },
+          { id: 'continue-workspace', actions: true, label: 'Continue in Another Workspace…', detail: 'A new chat with the same provider in the workspace you choose; this one stays as it is', disabled: !active || !app().ContinueSessionInWorkspace, reason: 'The chat starts with its first message.', run: continueInWorkspace },
           // A chat of the open workspace can be pinned to it.
-          pin ? Object.assign({}, pin, { id: 'pin-chat' }) : { id: 'pin-chat', label: 'Pin to Workspace', run: function () {}, disabled: true, reason: 'Only a chat of the open workspace can be pinned to it.' },
+          pin ? Object.assign({}, pin, { id: 'pin-chat', actions: true }) : { id: 'pin-chat', actions: true, label: 'Pin to Workspace', run: function () {}, disabled: true, reason: 'Only a chat of the open workspace can be pinned to it.' },
           // Group chats (bus-applets.js): this chat and others the person
           // chooses, or this chat put in a group the person already has.
-          { id: 'start-group', label: 'Start a Group Chat…', detail: 'With this chat and others you choose', disabled: !active || !window.dinahBus,
+          { id: 'start-group', actions: true, label: 'Start a Group Chat…', detail: 'With this chat and others you choose', disabled: !active || !window.dinahBus,
             reason: 'The chat starts with its first message.', run: function () { if (active) return window.dinahBus.startGroup(active); } },
-          { id: 'add-to-group', label: 'Add to a Group Chat…', detail: 'Put this chat in a group you already have', disabled: !active || !window.dinahBus,
+          { id: 'add-to-group', actions: true, label: 'Add to a Group Chat…', detail: 'Put this chat in a group you already have', disabled: !active || !window.dinahBus,
             reason: 'The chat starts with its first message.', items: function () { return active && window.dinahBus ? window.dinahBus.addItems(active) : []; } },
-          { id: 'remove-chat', label: providerFact(chatProvider(), 'removal') === 'hides' ? 'Hide Chat…' : 'Remove Chat…', run: function () { if (active) openRemove(active); }, disabled: !active, danger: providerFact(chatProvider(), 'removal') !== 'hides' },
-          providerCommand(), modeCommand(), modelCommand(),
-          { id: 'choose-model', label: 'Choose the Model…', run: openModels, disabled: !byCat(barOptions(), 'model') },
+          { id: 'remove-chat', actions: true, label: providerFact(chatProvider(), 'removal') === 'hides' ? 'Hide Chat…' : 'Remove Chat…', run: function () { if (active) openRemove(active); }, disabled: !active, danger: providerFact(chatProvider(), 'removal') !== 'hides' },
+          Object.assign(providerCommand(), { actions: true }), Object.assign(modeCommand(), { actions: true }), modelCommand(),
+          { id: 'choose-model', actions: true, label: 'Choose the Model…', run: openModels, disabled: !byCat(barOptions(), 'model') },
           { id: 'add', label: 'Add', glyph: 'clip', items: addItems },
           { id: 'skills', label: 'Skills', glyph: 'slash', items: skillItems },
-          { id: 'prompt-history', label: 'Prompt History…', run: openHistory },
-          { id: 'my-templates', label: 'My Templates…', run: function () { openTemplates(null); } },
-          { id: 'export-chat', label: 'Export Chat…', run: saveRun, disabled: !active },
-          { id: 'failure-summaries', label: 'Show Failed Command Summaries', checked: !!active && window.dinahFailures.enabled(active), disabled: !active,
+          { id: 'prompt-history', actions: true, label: 'Prompt History…', run: openHistory },
+          { id: 'my-templates', actions: true, label: 'My Templates…', run: function () { openTemplates(null); } },
+          { id: 'export-chat', actions: true, label: 'Export Chat…', run: saveRun, disabled: !active },
+          { id: 'failure-summaries', actions: true, label: 'Show Failed Command Summaries', checked: !!active && window.dinahFailures.enabled(active), disabled: !active,
             run: function () { if (active) window.dinahFailures.setEnabled(sessions[active], !window.dinahFailures.enabled(active)); } },
           // The chat's log on disk: every prompt, thought, tool call and reply,
           // including what has left the window.
-          { id: 'show-chat-log', label: 'Show the Chat Log', run: function () { var id = active; Promise.resolve().then(function () { return app().ShowChatLog(id); }).catch(fail); }, disabled: !active },
+          { id: 'show-chat-log', actions: true, label: 'Show the Chat Log', run: function () { var id = active; Promise.resolve().then(function () { return app().ShowChatLog(id); }).catch(fail); }, disabled: !active },
           // The chat's subagents, and the tree of them (subagents.js), are
           // absent until the agent starts one.
-          subagentsCommand(),
+          Object.assign(subagentsCommand(), { actions: true }),
           { id: 'show-subagents', label: 'Show All Subagents', run: function () { if (active && window.dinahSubagents) return window.dinahSubagents.openTree(active, sessions[active].info.cwd || workspace).catch(fail); },
             hidden: !chatSubagents().length },
           { id: 'earlier-subagents', label: 'Earlier Subagents…',
@@ -3315,25 +3330,25 @@
             hidden: !chatEarlierSubagents().length || !window.dinahSubagents },
           // A chat reopened without the agent replaying its history can ask for the whole of it.
           // A chat that remembered what to do when its context fills can be asked again.
-          { id: 'forget-context-choice', label: 'Ask Me Again About a Full Context', glyph: 'reload', run: function () { if (active) return Promise.resolve(app().ForgetContextChoice(active)).catch(fail); },
+          { id: 'forget-context-choice', actions: true, label: 'Ask Me Again About a Full Context', glyph: 'reload', run: function () { if (active) return Promise.resolve(app().ForgetContextChoice(active)).catch(fail); },
             hidden: !(active && sessions[active].info.choice) },
-          { id: 'load-full-history', label: 'Load Full History', glyph: 'reload', run: function () { if (active) return loadFullHistory(active).catch(fail); },
+          { id: 'load-full-history', actions: true, label: 'Load Full History', glyph: 'reload', run: function () { if (active) return loadFullHistory(active).catch(fail); },
             hidden: !(active && sessions[active].info.resumed && sessions[active].info.open), disabled: working, reason: working ? 'The chat is working. Load Full History is available when it has finished.' : null },
           // Stop keeps a separate slot beside the folding toolbar while idle.
           // While the chat says Stopping, the control stays pressable: pressing it asks again.
-          { id: 'stop-turn', label: stopping() ? 'Stopping…' : 'Stop', glyph: 'square', danger: true, run: stopTurn, hidden: !working,
+          { id: 'stop-turn', actions: true, label: stopping() ? 'Stopping…' : 'Stop', glyph: 'square', danger: true, run: stopTurn, hidden: !working,
             detail: stopping() ? 'Stop was asked for. Press again to ask again.' : undefined },
           { id: 'send', label: working ? 'Queue' : 'Send', disabled: $('send').disabled, reason: $('send').disabled ? 'The message is empty.' : null, run: function () { send('queue'); } },
           { id: 'steer', label: 'Steer', hidden: !working, disabled: $('steer-send').disabled, run: function () { send('steer'); } },
           // Steer gives a Claude chat the message at its next step; this stops
           // the step first, for when the agent should drop what it is doing.
           { id: 'stop-and-steer', label: 'Stop and Steer', hidden: !working, disabled: $('steer-send').disabled, run: function () { send('stop-steer'); } },
-          { id: 'drop-queue', label: 'Drop the Queued Messages', glyph: 'close', hidden: $('queue').hidden, run: function () { if (active) app().Unqueue(active); } },
+          { id: 'drop-queue', actions: true, label: 'Drop the Queued Messages', glyph: 'close', hidden: $('queue').hidden, run: function () { if (active) app().Unqueue(active); } },
           { id: 'clear-document', label: 'Clear the Document', hidden: $('context').hidden, run: function () { $('context-clear').click(); } }
         ].map(function (command) {
           if (teamPanel.isMember() && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates', 'clear-document'].indexOf(command.id) >= 0) return Object.assign({}, command, { hidden: true });
           return command;
-        }).concat(teamPanel.commands());
+        }).concat(teamPanel.commands().map(function (command) { return Object.assign({}, command, { actions: true }); }));
       }
       var controller = {
         commandEnabled,
@@ -3385,13 +3400,10 @@
             // A retitle redraws the docks and the window rows, so the title
             // is set only when it changed.
             if (was !== named) window.pudlWindows.retitle(key, named);
-            // The window's menu in the host bar is titled after the chat.
-            if (was !== named && window.pudlMenubar) window.pudlMenubar.refresh();
             var work = backgroundWork(s), helpers = runningSubagents(s);
-            win.toggleAttribute('data-win-running', chatWorking(s) || work.length > 0 || helpers > 0);
-            // The chat's state in its title bar, as PUDL's status chips
-            // (WINDOW-STATUS.md): Working, strong, while a turn runs; the
-            // number of background tasks; the number of running subagents.
+            var execution = syncWindowExecution(win, s);
+            // PUDL owns execution marks. Host statuses retain lifecycle,
+            // background work and subagent details (WINDOW-STATUS.md).
             // The group is in the window's markup from the start
             // (workbench.js, statuses); PUDL draws the chips, folds them into
             // its Window status control when the bar is narrow, and keeps its
@@ -3403,23 +3415,7 @@
                 if (!el) { el = document.createElement('span'); el.className = 'win-status ' + cls + (strong ? ' strong' : ''); group.appendChild(el); }
                 return el;
               };
-              var workingChip = chip('chat-working-chip');
-              workingChip.setAttribute('role', 'img');
-              workingChip.replaceChildren();
-              workingChip.hidden = !s && !workspace;
-              workingChip.title = stateDetail;
-              workingChip.setAttribute('aria-label', stateDetail);
-              var execution = s && window.dinahChatState.read(s.info).exec;
-              workingChip.classList.toggle('strong', !!execution && execution.state === 'working');
-              if (s || workspace) {
-                var stateMark = s ? window.dinahChatState.badge(s.info, { reason: false }) : document.createElement('span');
-                if (!s) { stateMark.className = 'chat-state chat-lifecycle'; stateMark.textContent = 'New Chat'; }
-                stateMark.title = stateDetail; stateMark.setAttribute('aria-label', stateDetail); workingChip.appendChild(stateMark);
-                // PUDL's folded status lists the full host-owned status text.
-                var contextWords = document.createElement('span');
-                contextWords.className = 'visually-hidden chat-state-context'; contextWords.setAttribute('aria-hidden', 'true');
-                contextWords.textContent = stateContext ? ' · ' + stateContext : ''; workingChip.appendChild(contextWords);
-              }
+              drawWindowLifecycle(chip('chat-working-chip'), s, execution);
               drawLoadingChip();
               var backgroundChip = chip('chat-background-chip');
               backgroundChip.hidden = !work.length;
@@ -3453,8 +3449,7 @@
         },
         focus: function () { if (teamPanel.isMember()) teamPanel.focus(); else $('prompt').focus(); },
         // The window's Actions menu, by the ids of the chat's commands.
-        commands: function () { return ['new-chat', 'rename-chat', 'continue-workspace', 'pin-chat', 'start-group', 'add-to-group', 'remove-chat', 'provider', 'mode', 'choose-model', 'prompt-history', 'my-templates',
-          'export-chat', 'failure-summaries', 'show-chat-log', 'subagents', 'load-full-history', 'forget-context-choice', 'stop-turn'].concat(teamPanel.commands().map(function (c) { return c.id; })); },
+        commands: function () { return chatCommandTable().filter(function (command) { return command.actions; }).map(function (command) { return command.id; }); },
         destroy: function () {
           if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; }
           if (deleted) root.remove(); else document.getElementById('applet-storage').appendChild(root);

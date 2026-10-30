@@ -36,7 +36,7 @@ const { launch } = require('./lib/page');
   await recovered.getByRole('button',{name:'Dismiss',exact:true}).click();await recovered.waitFor({state:'detached'});
   await page.evaluate(()=>__emit('agent:session',{sessionId:'codex:test',working:true,chatState:{life:'open',window:true,exec:{state:'working',why:'Turn in progress'}},open:true,queued:[]}));
   await page.waitForFunction(()=>document.querySelector('.win[data-chat-current] [data-view-id=steer-send]').classList.contains('btn-primary'));
-  await win.locator('.chat-working-chip .chat-state-working').waitFor();
+  await win.locator('.win-execution .win-state[data-state="working"]').waitFor();
   ok('active chat has a Working chip in its title bar', true);
   ok('Steer is highlighted as the effective default',!(await win.locator('[data-view-id=send]').evaluate(el=>el.classList.contains('btn-primary'))));
   await box.press('Control+Enter');

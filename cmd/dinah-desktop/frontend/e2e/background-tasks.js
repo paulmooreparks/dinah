@@ -32,8 +32,8 @@ const { launch } = require('./lib/page');
   const win = '.win[data-chat-current]';
   const state = (info, execution = 'idle') => p.evaluate(([i, execution]) => window.__emit('agent:session', Object.assign({ sessionId: 'bg', cwd: 'C:\\Work\\Parser Workspace', title: 'Builds', open: true, queued: [], chatState: { life: 'open', window: true, exec: { state: execution, why: execution === 'working' ? 'Turn in progress' : 'No work in progress' } } }, i)), [info, execution]);
   const chips = () => p.evaluate(w => {
-    const el = document.querySelector(w), working = el.querySelector('.chat-working-chip .chat-state-working'), background = el.querySelector('.chat-background-chip');
-    return { working: !!working && !working.hidden, background: background && !background.hidden ? background.textContent : '', line: el.querySelector('.chat-working-chip').title, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent) };
+    const el = document.querySelector(w), working = el.querySelector('.win-execution .win-state[data-state="working"]'), background = el.querySelector('.chat-background-chip');
+    return { working: !!working && !working.hidden, background: background && !background.hidden ? background.textContent : '', line: el.querySelector('.win-execution .win-state').title, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent) };
   }, win);
   const build = { id: 'build', name: 'Build Windows', type: 'shell', description: 'go build ./...', state: 'running', canStop: true };
   const linux = { id: 'linux', name: 'Build Linux', type: 'shell', summary: 'linking', state: 'running', canStop: false };
@@ -46,12 +46,12 @@ const { launch } = require('./lib/page');
   // have the title's contrast in every theme, active or not.
   const inks = await p.evaluate(w => {
     const el = document.querySelector(w), title = getComputedStyle(el.querySelector('.win-title')).color;
-    return ['.chat-working-chip', '.chat-background-chip'].map(sel => { const cs = getComputedStyle(el.querySelector(sel)); return { title, color: cs.color, bg: cs.backgroundColor, active: el.classList.contains('active') }; });
+    return ['.chat-background-chip'].map(sel => { const cs = getComputedStyle(el.querySelector(sel)); return { title, color: cs.color, bg: cs.backgroundColor, active: el.classList.contains('active') }; });
   }, win);
-  ok('the title-bar chips are drawn in the title\'s colour with no fill of their own', inks.every(i => i.color === i.title && i.bg === 'rgba(0, 0, 0, 0)'), JSON.stringify(inks));
-  ok('the chips are PUDL\'s title-bar statuses, Working the strong one', await p.evaluate(w => {
+  ok('the background chip inherits the title colour without its own fill', inks.every(i => i.color === i.title && i.bg === 'rgba(0, 0, 0, 0)'), JSON.stringify(inks));
+  ok('PUDL owns the execution mark beside the host background status', await p.evaluate(w => {
     const head = document.querySelector(w + ' .win-head'), group = head.querySelector(':scope > .win-statuses');
-    return !!group && group.querySelector('.chat-working-chip').matches('.win-status.strong') && group.querySelector('.chat-background-chip').matches('.win-status:not(.strong)');
+    return !!group && group.querySelector('.win-execution .win-state').dataset.state === 'working' && group.querySelector('.chat-background-chip').matches('.win-status:not(.strong)');
   }, win));
   ok('PUDL gives the window its Window status command', await p.evaluate(w => pudlWindows.menuCommands(document.querySelector(w).dataset.win).some(c => c.id === 'status'), win));
 
@@ -65,7 +65,7 @@ const { launch } = require('./lib/page');
   await p.locator(win + ' .background-task button', { hasText: 'Stop' }).click();
   await p.waitForTimeout(200);
   ok('Stop asks the agent to stop that task', await p.evaluate(() => JSON.stringify(window.__calls.find(x => x[0] === 'Stop')) === JSON.stringify(['Stop', 'bg', 'build'])));
-  ok('the window is marked running for the taskbar', await p.evaluate(w => document.querySelector(w).hasAttribute('data-win-running'), win));
+  ok('background work does not replace the engine execution state in the taskbar', await p.evaluate(w => document.querySelector(w).dataset.winState === 'idle' && !document.querySelector(w).hasAttribute('data-win-running'), win));
   await t.shot('background-tasks');
 
   await state({ working: false, background: [linux, { id: 'autonomous-turn-1', name: 'Claude is working', type: 'turn', state: 'running', canStop: true }] }, 'working');

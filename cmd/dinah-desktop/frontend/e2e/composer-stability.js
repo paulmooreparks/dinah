@@ -117,7 +117,7 @@ const fs = require('fs'), path = require('path');
               label: root.querySelector('[data-view-id=send]').textContent });
           }
         }
-        return { before, frames, hint, titleReason: __composerRoot.querySelector('.chat-working-chip').title };
+        return { before, frames, hint, titleReason: __composerRoot.querySelector('.win-execution .win-state').title };
       });
       const actualTextSize = await box.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
       ok('the text-size fixture applies scale ' + scale + ' at ' + width, Math.abs(actualTextSize - textBaseline.prompt * scale) < .02, String(actualTextSize));
@@ -148,7 +148,7 @@ const fs = require('fs'), path = require('path');
         for (let i = 0; i < 4; i++) { await new Promise(requestAnimationFrame); values.push({
           label: __composerRoot.querySelector('[data-view-id=send]').textContent,
           steer: __composerRoot.querySelector('[data-view-id=steer-send]').classList.contains('btn-primary'),
-          state: __composerRoot.querySelector('.chat-working-chip').title
+          state: __composerRoot.querySelector('.win-execution .win-state').title
         }); }
       }
       return values;

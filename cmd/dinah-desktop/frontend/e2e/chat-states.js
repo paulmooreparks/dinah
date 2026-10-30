@@ -111,7 +111,7 @@ const { launch } = require('./lib/page');
     await page.setViewportSize({ width: 1440, height: 1000 });
     const chatKey = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'working' }));
     const chat = page.locator('[data-win="' + chatKey + '"]');
-    await chat.locator('.chat-working-chip .chat-state-working').waitFor({ state: 'attached' });
+    await chat.locator('.win-execution .win-state[data-state="working"]').waitFor({ state: 'attached' });
     const statusControl = chat.locator('.win-status-toggle');
     if (await statusControl.isVisible()) {
       const panelId = await statusControl.getAttribute('popovertarget');
@@ -130,7 +130,7 @@ const { launch } = require('./lib/page');
     await chat.locator('[data-win-action="maximize"]').click();
     await t.shot('comparison-chat');
     ok('chat and group comparison windows use the same size', JSON.stringify(await chat.boundingBox()) === JSON.stringify(await group.boundingBox()));
-    ok('the title bar presents the execution state', await chat.locator('.win-statuses .chat-state-working').count() > 0);
+    ok('the title bar presents the execution state once through PUDL', await chat.locator('.win-execution .win-state[data-state="working"]').count() === 1 && await chat.locator('.chat-working-chip .chat-state-working').count() === 0);
     await chat.locator('.chat-team > button.disclosure').click();
     await chat.locator('[data-team-member="bus-waiting"] .chat-state-waiting').waitFor();
     await t.shot('chat-team-states');
@@ -149,13 +149,13 @@ const { launch } = require('./lib/page');
     ok('the chat body has no duplicate name, status line or title actions', await chat.locator('.win-body h1, .win-body .page-state, .session-actions').count() === 0);
     const paired = { chat: await chat.boundingBox(), group: await group.boundingBox() };
     ok('side-by-side chat and group have equal width and height', Math.abs(paired.chat.width - paired.group.width) < 2 && Math.abs(paired.chat.height - paired.group.height) < 2, JSON.stringify(paired));
-    ok('the state chip keeps workspace and reason in its tooltip', /Fixture/.test(await chat.locator('.chat-working-chip').getAttribute('title')));
+    ok('the state chip keeps workspace and reason in its tooltip', /Fixture/.test(await chat.locator('.win-execution .win-state').getAttribute('title')));
     await page.setViewportSize({ width: 1440, height: 1000 });
     await chat.locator('[data-win-action="maximize"]').click();
     for (const state of ['working', 'waiting', 'stuck', 'idle']) {
       const key = state === 'working' ? chatKey : await page.evaluate(state => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: state }), state);
       const current = page.locator('[data-win="' + key + '"]');
-      await current.locator('.chat-working-chip .chat-state-' + state).waitFor({ state: 'attached' });
+      await current.locator('.win-execution .win-state[data-state="' + state + '"]').waitFor({ state: 'attached' });
       for (const theme of ['light', 'dark']) {
         await page.evaluate(theme => pudlSetTheme(theme), theme);
         await t.shot('chat-state-' + state + '-' + theme);

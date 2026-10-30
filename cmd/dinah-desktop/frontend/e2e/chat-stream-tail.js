@@ -17,7 +17,7 @@ const { launch } = require('./lib/page');
       await dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'ollama:stream' });
       window.__u = update => __emit('agent:update', { sessionId: 'ollama:stream', update });
     });
-    await p.waitForFunction(() => !!document.querySelector('.win[data-chat-current] .chat-working-chip .chat-state-idle'));
+    await p.waitForFunction(() => !!document.querySelector('.win[data-chat-current] .win-execution .win-state[data-state="idle"]'));
     const body = p.locator('.win[data-chat-current] [data-view-id=activity]');
     const gap = () => body.evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop);
     const frames = n => p.evaluate(n => new Promise(resolve => { function frame() { if (--n) requestAnimationFrame(frame); else resolve(); } requestAnimationFrame(frame); }), n);

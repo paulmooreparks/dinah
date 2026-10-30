@@ -133,8 +133,9 @@ const { launch } = require('./lib/page');
       return (!line || line.hidden) && !/Reopening the session/.test(w.innerText);
     }, backKey));
     // Once it has reconnected behind the other window, its own header says so.
-    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + CSS.escape(k) + '"] .chat-working-chip').title), backKey);
+    await page.waitForFunction(k => /Idle/.test(document.querySelector('[data-win="' + CSS.escape(k) + '"] .win-execution .win-state').title), backKey);
     ok('a chat that reconnects behind another says in its header that it is open', true);
+    ok('the reconnected chat has no stale lifecycle chip beside its execution mark', await page.locator('[data-win="' + backKey + '"] .chat-working-chip').getAttribute('aria-hidden') === 'true');
     // A restored chat can be mentioned for asking: it is listed under Open
     // Chats, and sending connects it behind the asking chat's window.
     await page.evaluate(() => __emit('agent:titles', { 'saved-one': 'Config Reload Summary', 'saved-two': 'Second Chat' }));

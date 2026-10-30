@@ -21,7 +21,7 @@ const { launch, PAGE } = require('./lib/page');
       pudlWindows.snap(dinahWorkbench.key({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'codex:tail' }), 'maximized');
       window.__more = () => __emit('agent:update', { sessionId: 'codex:tail', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'A paragraph of streamed output.\n\n'.repeat(60) } } });
     });
-    await p.waitForFunction(() => /Idle/.test(document.querySelector('.win[data-chat-current] .chat-working-chip').title));
+    await p.waitForFunction(() => /Idle/.test(document.querySelector('.win[data-chat-current] .win-execution .win-state').title));
     await p.evaluate(() => __more());
     const body = p.locator('.win[data-chat-current] [data-view-id=activity]');
     await p.waitForFunction(() => { const el = document.querySelector('.win[data-chat-current] [data-view-id=activity]'); return el && el.scrollHeight > el.clientHeight + 500; });

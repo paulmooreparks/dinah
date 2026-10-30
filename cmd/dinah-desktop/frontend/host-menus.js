@@ -103,10 +103,9 @@
       return;
     }
     ['dinah', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes();
-    /* The menu bar watches the page outside itself, not its own source
-       lists, so it is told when they change; a menu that was empty when it
-       last drew would otherwise stay missing. */
-    if (window.pudlMenubar) window.pudlMenubar.refresh();
+    // The host registry supplies markup rows rather than PUDL commands.
+    // Its explicit open-menu updates still use the documented notification.
+    if (event?.detail?.refreshOpenMenus && window.pudlMenubar) window.pudlMenubar.refresh();
   }
 
   window.dinahOpenWindows = function () {
