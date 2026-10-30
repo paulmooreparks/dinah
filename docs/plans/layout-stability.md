@@ -22,3 +22,11 @@ Dinah UI also reviews live behaviour as well as still screenshots. For each surf
 ## Order
 
 Front End fixes the message box first, since it is what Paul types into: one geometry for Working and Idle, with the send, queue and steer actions arranged so that none of them appears or disappears in a way that resizes the box, and one hint text. Then comes the stability suite. Its first run will list the other movements, and each is fixed under the rule above. Dinah UI's live review runs beside it and adds what a suite cannot judge, such as flicker and distracting motion.
+
+## Transcript navigation and measured rows
+
+A jump to the latest releases the saved reading place before following the end. Once a bounded chat log has been read back, its rows keep their measured layout when following resumes. Re-enabling estimated heights during a jump changes the scroll extent underneath its destination. The chat log already trims its retained rows, so this preservation remains bounded.
+
+The jump also updates the pinned prompt before its final scroll position is set. The pin and unread controls can change the transcript viewport or extent. The final position is calculated after those changes in the same operation. Deferring that correction to the next animation frame leaves a visible gap for one frame.
+
+While reading back, DOM mutations restore the held row during mutation delivery. Resize observation also restores it when an image or font changes its size later. The regression suites sample the readable row and the jump destination on every animation frame. They reject a transient displacement even when the final position recovers.

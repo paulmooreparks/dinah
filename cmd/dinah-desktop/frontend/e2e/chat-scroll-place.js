@@ -121,7 +121,8 @@ const { launch } = require('./lib/page');
       function sample() {
         const top = log.getBoundingClientRect().top;
         const rows = [...log.querySelectorAll('.activity-row')].map(row => ({ text: row.textContent.slice(0, 60), top: row.getBoundingClientRect().top - top, height: row.getBoundingClientRect().height })).filter(row => row.top + row.height > 0 && row.top < log.clientHeight);
-        __scrollGeometry.push({ scrollTop: log.scrollTop, height: log.scrollHeight, rows });
+        const target = [...log.querySelectorAll('.activity-row')].find(row => row.textContent.includes('Message number 160.'));
+        __scrollGeometry.push({ scrollTop: log.scrollTop, height: log.scrollHeight, targetTop: target ? target.getBoundingClientRect().top - top : null, rows });
         if (__recordScroll) requestAnimationFrame(sample);
       }
       sample();
@@ -143,6 +144,8 @@ const { launch } = require('./lib/page');
     }, logSel);
     await p.evaluate(() => { __recordScroll = false; });
     await holds(logSel, 'Message number 160.', before, "a reply streaming in chunks, with another window's streaming beside it");
+    const geometry = await p.evaluate(() => __scrollGeometry);
+    ok('the readable row stays put in every sampled frame', geometry.length > 2 && geometry.every(frame => frame.targetTop !== null && Math.abs(frame.targetTop - before) < .02), JSON.stringify(geometry.map(frame => frame.targetTop)));
     require('fs').writeFileSync(require('path').join(require('./lib/page').OUT, 'scroll-place-stream-geometry.json'), JSON.stringify(await p.evaluate(() => __scrollGeometry), null, 2));
     // Leg 3: rows added until the oldest leave the page.
     before = await visibleTop(logSel, 'Message number 160.', 'trimming');

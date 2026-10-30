@@ -694,7 +694,7 @@
     if (!w) {
       w = { id: '', text: '', want: -1 };
       watches.set(log, w);
-      w.obs = new ResizeObserver(function () {
+      function restore() {
         var c = watches.get(log);
         if (!c || c.want < 0) return;
         // The row by its message number, or by its first words for a chat's
@@ -712,7 +712,12 @@
         var top = log.getBoundingClientRect().top;
         var now = el.getBoundingClientRect().top - top;
         if (Math.abs(now - c.want) > 1.5) log.scrollTop += now - c.want;
-      });
+      }
+      w.obs = new ResizeObserver(restore);
+      // Controlled DOM changes settle before the next animation frame. Late
+      // image and font sizes still settle in ResizeObserver before paint.
+      w.mutations = new MutationObserver(restore);
+      w.mutations.observe(log, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'open', 'src', 'width', 'height'] });
       var rowList = log.querySelector('.bus-log-list') || (function () { var r = log.querySelector('.activity-row, [data-bus-message]'); return r ? r.parentElement : null; })();
       if (rowList) w.obs.observe(rowList);
       w.obs.observe(log);
