@@ -61,6 +61,7 @@
           if (sessions[id] !== s || s.loading || (s.info.open && !live)) return s;
           if (!saved || !saved.available) return s.info.open ? s : openSession(id, false);
           s.historyWarning = saved.warning || ''; s.historyComplete = saved.complete !== false; s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
+          s.savedCursor = saved.streamGen ? { gen: saved.streamGen, through: saved.streamThrough || 0 } : null;
           if (live) startLog(id, saved.streamGen, saved.streamThrough);
           return drawSaved(s, saved.messages || []).then(function () {
             if (live) return catchUpLog(id).then(function () { return s; });
@@ -141,9 +142,11 @@
           if (sessions[id] !== s) return s;
           if (s.info.open || s.loading || s.savedBuild || !saved || !saved.available) return openResolvedSession(id, reveal, behind, quiet, true);
           s.historyWarning = saved.warning || ''; s.historyComplete = saved.complete !== false; s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
+          s.savedCursor = saved.streamGen ? { gen: saved.streamGen, through: saved.streamThrough || 0 } : null;
           return drawSaved(s, saved.messages || []).then(function () { return openResolvedSession(id, reveal, behind, true, true); });
         });
       }
+      var fullHistory = !!s.loadFull;
       var kept = quiet && (s.saved || s.log.firstChild) ? { log: s.log, rows: s.rows, trimmed: s.trimmed } : null;
       if (kept) s.log = kept.log.cloneNode(false);
       s.keptLog = kept && kept.log;
@@ -201,10 +204,10 @@
         rememberCatalog(s);
         if (s.view) s.view.loadSkills();
         drawAgentState();
-        // The agent did not replay (session/resume): the page draws its saved copy, and the chat's log, new
-        // and empty, is read from its start once the copy is drawn (docs/plans/session-resume.md).
-        s.resumedDraw = !!(info && info.resumed);
-        if (s.resumedDraw) await drawResumed(s, info, kept);
+        // Ordinary window openings use the saved copy's checkpoint for a new
+        // or existing session. Only Load Full History deliberately draws a replay.
+        s.checkpointDraw = !!(info && !fullHistory && (info.streamGen || info.resumed));
+        if (s.checkpointDraw) await drawSnapshot(s, info, kept);
         return s;
       }).catch(async function (err) {
         s.holding = false;
@@ -241,8 +244,8 @@
         // follows the chat's history.
         if (r) (s.openingNotes || []).forEach(function (text) { openingNote(s, text); });
         s.openingNotes = null;
-        var resumed = r && s.resumedDraw; s.resumedDraw = false;
-        if (!resumed) {
+        var checkpointDraw = r && s.checkpointDraw; s.checkpointDraw = false;
+        if (!checkpointDraw) {
           stampReplay(s);
           drawAll(s, function () {
             if (sessions[id] !== s) return;
@@ -268,13 +271,13 @@
       }
       return s;
     }
-    /* The saved copy of a chat reopened without a replay. A copy already in sight (a window restored with
-       the layout) is the same file and stays; otherwise it is read and drawn. Either way the chat's log
-       starts from the generation the reopen made, at the number the copy holds, which is 0. */
-    function drawResumed(s, info, kept) {
-      startLog(s.id, info.streamGen, 0);
+    /* The journal follows the checkpoint belonging to the saved copy in sight.
+       A running session can still carry resumed from an earlier opening, so
+       that flag never decides which journal entries the page has already drawn. */
+    function drawSnapshot(s, info, kept) {
       s.keptLog = null; s.saved = false;
       if (kept) {
+        startLog(s.id, info.streamGen, s.savedCursor && s.savedCursor.gen === info.streamGen ? s.savedCursor.through : 0);
         s.log = kept.log; s.rows = kept.rows; s.trimmed = kept.trimmed; s.current = null; s.historyAvailable = true;
         // The copy in sight is presented as a replay that has taken its place is: the reader's place, or the end
         // when they were following it, is put back and the view goes on from there.
@@ -283,6 +286,8 @@
       }
       return Promise.resolve(app().SavedConversation ? app().SavedConversation(s.id) : null).then(function (saved) {
         if (sessions[s.id] !== s) return;
+        s.savedCursor = saved && saved.streamGen ? { gen: saved.streamGen, through: saved.streamThrough || 0 } : null;
+        startLog(s.id, info.streamGen, s.savedCursor && s.savedCursor.gen === info.streamGen ? s.savedCursor.through : 0);
         s.historyWarning = saved && saved.warning || ''; s.historyComplete = !saved || saved.complete !== false; s.historyRecoverable = saved && saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
         return drawSaved(s, saved && saved.messages || []).then(function () { s.saved = false; });
       });
