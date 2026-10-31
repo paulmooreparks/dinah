@@ -59,8 +59,10 @@ func TestATerminalRunsARealShellInTheWorkspace(t *testing.T) {
 			t.Fatalf("the shell ended with %d", code)
 		}
 	case <-time.After(20 * time.Second):
-		a.terminalService().CloseAll()
-		t.Fatal("the shell did not end")
+		ctx, cancel := context.WithTimeout(context.Background(), terminalShutdownBudget)
+		defer cancel()
+		err := a.terminalService().Shutdown(ctx)
+		t.Fatalf("the shell did not end; terminal shutdown: %v", err)
 	}
 	if a.ExitStatus().Terminals != 0 {
 		t.Fatal("ended terminal remained in exit status")

@@ -1,0 +1,122 @@
+[
+  {
+    "file": "original-go-test.jsonl",
+    "bytes": 1225038,
+    "sha256": "71D5D9681709322EFE9843926541346599EA54499E41412B2F9F0E4D90AB63AD"
+  },
+  {
+    "file": "original-go-test.exit",
+    "bytes": 3,
+    "sha256": "F1B2F662800122BED0FF255693DF89C4487FBDCF453D3524A42D4EC20C3D9C04"
+  },
+  {
+    "file": "original-command-provenance.txt",
+    "bytes": 958,
+    "sha256": "DB90CC0F16AF31EAA7ED31351A33EB8C1EF1CBAF242734D4616EB1E031EF551A"
+  },
+  {
+    "file": "original-window-processes.json",
+    "bytes": 4,
+    "sha256": "A5338D955B09046EC0B16F3A9625B7955C763AAE07DC722E474E6078745F932F"
+  },
+  {
+    "file": "original-directory.json",
+    "bytes": 245,
+    "sha256": "8579A49E8A70CF4E2CA784D8DEF2601572915578BC9DC05A3580E24B625DABC7"
+  },
+  {
+    "file": "reproduction-processes.json",
+    "bytes": 851,
+    "sha256": "59A6E42FEC120DB80202B56D29B0EDC9799DB6094E9089F0CEE6EFD719F51C0C"
+  },
+  {
+    "file": "terminal-original.jsonl",
+    "bytes": 108278,
+    "sha256": "415577D948BF6452F4941321A96497D94175D6FCB02C7E85FD19CF0239EE20CB"
+  },
+  {
+    "file": "terminal-original.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": "terminal-instrumented.jsonl",
+    "bytes": 356502,
+    "sha256": "CF6459CFC327FD42C46A2F77E08FA1BE97726E85640B4C51756B5D03E681C573"
+  },
+  {
+    "file": "terminal-instrumented.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": "terminal-instrumented.trace",
+    "bytes": 3250983,
+    "sha256": "DB324902390F12EC629E471EA677D000411BC0846687412B7A053810F1280377"
+  },
+  {
+    "file": "service_windows_test.original",
+    "bytes": 11190,
+    "sha256": "79218F1757CC7840CA5A2EBFA0246285E19E04FC7676A10BB6168E6AEE71E400"
+  },
+  {
+    "file": "service_windows_test.instrumented",
+    "bytes": 12476,
+    "sha256": "2F5DB9BA5149B66EF73622876966BA00EAAE8B9DA37B15A5C98B16A416C79C64"
+  },
+  {
+    "file": "run-instrumented.ps1",
+    "bytes": 808,
+    "sha256": "727533456858C472BB2CF16D16A82B90A628F1516D9229F08C94105F18CC1B24"
+  },
+  {
+    "file": "candidate-instrumented-full.jsonl",
+    "bytes": 1219449,
+    "sha256": "A7DE66B6C23E07D8BCBE2697A64E4617B46DBAEF095633056A8EE0BEB1CC13D1"
+  },
+  {
+    "file": "candidate-instrumented-full.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": "candidate-cli.jsonl",
+    "bytes": 6128,
+    "sha256": "212294A7B800EE71A1115D04BF11518C0E34EAE32BE1964596FFC22CD244F6C0"
+  },
+  {
+    "file": "candidate-cli.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": "baseline-full.jsonl",
+    "bytes": 1210506,
+    "sha256": "CA954EEEDC37A2EFA965D3E35AD62B995F93BC9BC1707164D423F5AC3F47AE9C"
+  },
+  {
+    "file": "baseline-full.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": "candidate-exact.jsonl",
+    "bytes": 1225277,
+    "sha256": "A3D3138549E39B8AE8DDBD59F4F2634F18B3A4CF4174A56DCCC49B085D89AACD"
+  },
+  {
+    "file": "candidate-exact.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": "run-exact-candidate.ps1",
+    "bytes": 774,
+    "sha256": "29EE5834518CF8C04B3D981A670B1DC4E47D136F145A0366B6E8E1C342897D1C"
+  },
+  {
+    "file": "investigation-environment.json",
+    "bytes": 144,
+    "sha256": "041E31E2BB0FF2CF63389F824953F8BDCE2C4276B95A25D9EEBCD355BD4AB654"
+  }
+]
