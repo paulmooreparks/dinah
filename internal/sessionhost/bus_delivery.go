@@ -36,7 +36,7 @@ func (a *BusChats) DeliverRound(ctx context.Context, b *bus.Bus) {
 }
 
 // ringChat steers a capable busy chat with the messages waiting that ask it to
-// answer, or starts an idle chat with any messages waiting, notices included,
+// answer, or starts an idle chat with an action request, including pending notices,
 // within the hop limit (bus.Doorbell). The chat is marked working before
 // the messages are taken from the bus, so nothing the person sends in the
 // meantime can start a second turn, and messages taken are never dropped.
@@ -75,7 +75,7 @@ func (a *BusChats) Ring(ctx context.Context, b *bus.Bus, s *Conversation) {
 		return
 	}
 	// A notice never interrupts a turn. It waits, with any others that come,
-	// and the turn that follows this one takes them together (AfterTurn).
+	// until an independent turn or an action request takes them together.
 	if working {
 		if asking, err := b.Asking(ctx, id); err != nil || asking == 0 {
 			return

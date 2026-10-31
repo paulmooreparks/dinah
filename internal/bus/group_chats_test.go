@@ -87,7 +87,7 @@ func TestArrivingAgreesWithTheDoorbell(t *testing.T) {
 	}
 	g.budget(NoTurnBudget)
 	msgs, more, _ = g.b.Arriving(ctx, g.c.ID, 1)
-	if len(msgs) != 1 || more != 2 {
+	if len(msgs) != 1 || more != 1 {
 		t.Fatalf("with a limit of one: %d messages, %d more", len(msgs), more)
 	}
 }

@@ -746,7 +746,7 @@
       note.hidden = !value.trim() || mentions;
       var room = currentRoom ? currentRoom() : group(key), lead = room && room.lead, member = lead && (room.members || []).find(function (m) { return m.id === lead; });
       routing.textContent = lead ? 'Reply requested from ' + (member ? member.title : 'the team lead') + '.' : 'No replies requested.';
-      explanation.textContent = lead ? 'An unmentioned message asks the team lead to answer. Other members receive a notice.' : 'Each member receives a notice. Mention a chat to ask it to answer, or mention everyone to ask them all.';
+      explanation.textContent = lead ? 'An unmentioned message asks the team lead to answer. Other members receive a passive notice on their next turn.' : 'Each member receives a passive notice on their next turn. Mention a chat to ask it to answer, or mention everyone to ask them all.';
     }
     everyone.addEventListener('click', function () {
       text.value = '@everyone ' + text.value;

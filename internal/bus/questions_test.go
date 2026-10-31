@@ -78,7 +78,8 @@ func TestAQuestionIsTakenOnceOrWithdrawn(t *testing.T) {
 	if _, err := b.Message(ctx, second.ID); err != nil {
 		t.Fatalf("the withdrawn question is gone from the record: %v", err)
 	}
-	// Withdrawing touches only questions.
+	// Withdrawing touches only questions. The ordinary message remains beyond
+	// the hop limit and is read during an independently initiated turn.
 	m, err := b.Send(ctx, Sender{Session: &asker}, "Asked", "An ordinary message", nil, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +87,7 @@ func TestAQuestionIsTakenOnceOrWithdrawn(t *testing.T) {
 	if err := b.WithdrawQuestion(ctx, m.ID); err != nil {
 		t.Fatal(err)
 	}
-	if got, _, _ := b.Deliver(ctx, "window-asked", DoorbellTurn); len(got) != 1 || got[0].ID != m.ID {
+	if got, _, _ := b.Deliver(ctx, "window-asked", "UserPromptSubmit"); len(got) != 1 || got[0].ID != m.ID {
 		t.Fatalf("withdrawing removed an ordinary message: %+v", got)
 	}
 	if _, err := b.Ask(ctx, asker, "window-unknown", "Anyone?"); err == nil {

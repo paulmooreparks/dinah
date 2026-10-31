@@ -10,11 +10,11 @@ import (
 func TestChatsAreToldToMentionThePersonWhenTheyNeedThem(t *testing.T) {
 	text := Window("Paul")
 	for _, want := range []string{
-		"put paul in the send or reply tool's mentions",
-		"which notifies Paul",
-		"writing Paul's name or an @ and their name in the text mentions nobody",
-		"when you need a decision or an answer from them",
-		"Do not mention Paul to say thanks, to report progress that needs nothing from them",
+		"Put paul in actionRecipients when Paul needs to decide or answer",
+		"Writing a name or @ in the body routes nothing",
+		"Informational posts never wake, reopen or steer a chat",
+		"mentions is a legacy alias and cannot be combined",
+		"routine internal traffic needs no narration",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the window text lacks %q", want)

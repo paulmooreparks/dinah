@@ -30,7 +30,7 @@ const { launch } = require('./lib/page');
     await note.waitFor();
     ok('the compact hint says no replies are requested', /No replies requested/.test(await note.innerText()));
     await note.getByText('Who receives this?', { exact: true }).click();
-    ok('the disclosure explains how to request replies', /Each member receives a notice/.test(await note.innerText()) && /Mention a chat/.test(await note.innerText()));
+    ok('the disclosure explains how to request replies', /Each member receives a passive notice on their next turn/.test(await note.innerText()) && /Mention a chat/.test(await note.innerText()));
     await t.shot('group-notice-explanation');
     await box.fill('Docs Pass please look');
     await note.waitFor();
