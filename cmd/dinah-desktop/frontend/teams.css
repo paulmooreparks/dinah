@@ -27,3 +27,6 @@
 
 .team-traffic-original { display: none !important; }
 .team-traffic-fold { padding: var(--space-2) var(--space-3); color: var(--text-muted); list-style: none; }
+
+[data-team-pending] .composer-row, [data-team-pending] .attachments, [data-team-pending] .skill-form,
+[data-team-pending] [data-toolbar-group="Message"], [data-team-pending] .composer-context { display: none; }

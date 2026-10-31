@@ -104,6 +104,7 @@
   }
   function mount(o) {
     var prefix = 'team-' + (++serial), id = '', current = null, lead = null, generation = 0, disposed = false, infoLeadSignature, relationEpoch = 0;
+    var session = null, relationKnown = true, relationError = '', waitsForOpen = false;
     var section = node('section', 'chat-team'), content = node('div', 'team-content vstack gap-2');
     section.hidden = true;
     var toggle = disclosure('Team', content, prefix + '-content');
@@ -133,14 +134,22 @@
     var trafficObserver = new MutationObserver(function () { if (!foldFrame) foldFrame = requestAnimationFrame(refreshTraffic); });
     observeTraffic();
     function member() { return !!lead; }
-    function setLead(value) {
+    function setLead(value, force) {
       value = value || null;
-      if (JSON.stringify(value) === JSON.stringify(lead)) return;
+      if (!value && session && (session.loading || session.restoring) && !force) {
+        waitsForOpen = true;
+        if (!lead) relationKnown = false;
+        renderMember(); return;
+      }
+      relationKnown = true; relationError = ''; waitsForOpen = false;
+      if (JSON.stringify(value) === JSON.stringify(lead)) { renderMember(); return; }
       lead = value; renderMember();
     }
     function renderMember() {
       o.root.toggleAttribute('data-team-member', member());
-      memberNote.hidden = !member(); memberNote.replaceChildren();
+      o.root.toggleAttribute('data-team-pending', !!id && !relationKnown);
+      memberNote.hidden = !member() && relationKnown && !relationError; memberNote.replaceChildren();
+      memberNote.tabIndex = -1;
       if (lead) {
         var room = window.dinahBus && (window.dinahBus.overview().rooms || []).find(function (r) { return r.name === lead.group; });
         memberNote.appendChild(node('span', null, 'Speak to this member in ' + (room ? room.title : lead.title + "'s team") + '. '));
@@ -148,6 +157,10 @@
         a.addEventListener('click', function (e) {
           e.preventDefault(); groupLink(lead.group, 0, { chat: id, title: o.title() }).catch(host().fail);
         }); memberNote.appendChild(a);
+      }
+      if (relationError || !relationKnown) {
+        memberNote.appendChild(node('span', null, (lead ? ' ' : '') + (relationError || 'Checking team membership…')));
+        if (relationError) { var retry = node('button', 'btn btn-sm', 'Retry'); retry.type = 'button'; retry.addEventListener('click', function () { read(); }); memberNote.appendChild(retry); }
       }
       if (lead && memberNote.isConnected && o.root.querySelector('.composer-row').contains(document.activeElement)) memberNote.querySelector('a').focus();
       if (o.changed) o.changed(lead);
@@ -237,14 +250,18 @@
       chip.replaceChildren();
       if (current && current.counts) chip.appendChild(window.dinahChatState.badge(current));
     }
-    function read() {
-      if (!id || !api().Team || !api().ChatLead) return Promise.resolve();
+    function read(force) {
+      if (!id || !api().ChatLead) { relationKnown = true; renderMember(); return Promise.resolve(); }
       var epoch = ++generation, relation = relationEpoch;
-      return Promise.all([api().Team(id), api().ChatLead(id), window.dinahBus ? window.dinahBus.load() : Promise.resolve()]).then(function (all) {
-        if (disposed || epoch !== generation) return;
-        if (relation === relationEpoch) setLead(all[1]);
-        draw(all[0], true);
-      }).catch(function (error) { if (!disposed) host().fail(error); });
+      var membership = Promise.resolve().then(function () { return api().ChatLead(id); }).then(function (fresh) {
+        if (!disposed && epoch === generation && relation === relationEpoch) setLead(fresh, force);
+      }).catch(function (error) {
+        if (!disposed && epoch === generation) { relationError = 'Team membership could not be checked. '; renderMember(); host().fail(error); }
+      });
+      var team = api().Team ? Promise.all([api().Team(id), window.dinahBus ? window.dinahBus.load() : Promise.resolve()]).then(function (all) {
+        if (!disposed && epoch === generation) draw(all[0], true);
+      }).catch(function (error) { if (!disposed) host().fail(error); }) : Promise.resolve();
+      return Promise.all([membership, team]);
     }
     function executionChanged() { if (current) draw(current, true); }
     document.addEventListener('dinah:execution-state', executionChanged);
@@ -259,18 +276,21 @@
     var stopResync = host().onResync(read);
     return {
       update: function (s) {
+        session = s;
         var next = s && s.id || '';
-        if (next !== id) { id = next; infoLeadSignature = JSON.stringify(s && s.info.lead); relationEpoch++; lead = s && s.info.lead || null; current = null; renderMember(); read(); }
-        else if (s && Object.prototype.hasOwnProperty.call(s.info, 'lead') && JSON.stringify(s.info.lead) !== infoLeadSignature) { infoLeadSignature = JSON.stringify(s.info.lead); relationEpoch++; setLead(s.info.lead); }
+        if (next !== id) { id = next; infoLeadSignature = JSON.stringify(s && s.info.lead); relationEpoch++; lead = s && s.info.lead || null; relationKnown = !next || !!lead || !api().ChatLead; relationError = ''; waitsForOpen = false; current = null; renderMember(); read(); }
+        else if (s && Object.prototype.hasOwnProperty.call(s.info, 'lead') && JSON.stringify(s.info.lead) !== infoLeadSignature) { infoLeadSignature = JSON.stringify(s.info.lead); relationEpoch++; if (s.info.lead || !api().ChatLead) setLead(s.info.lead); else read(); }
+        if (waitsForOpen && s && !s.loading && !s.restoring) { waitsForOpen = false; read(); }
         header();
       },
       isMember: member,
-      focus: function () { var link = memberNote.querySelector('a'); if (link) link.focus(); },
+      isPending: function () { return !!id && !relationKnown; },
+      focus: function () { (memberNote.querySelector('a, button') || memberNote).focus(); },
       openTeam: function () { return lead ? groupLink(lead.group, 0, { chat: id, title: o.title() }) : Promise.resolve(); },
       commands: function () {
         if (!id || !api().SetTeamLead) return [];
         return [{ id: 'change-team-lead', label: member() ? 'Change Team Lead…' : 'Make a Team Member…', run: function () { return chooseLead(id, lead).then(read); } },
-          { id: 'leave-team', label: 'Make an Ordinary Chat', hidden: !member(), run: function () { return Promise.resolve(api().ClearTeamLead(id)).then(function () { return read(); }); } },
+          { id: 'leave-team', label: 'Make an Ordinary Chat', hidden: !member(), run: function () { return Promise.resolve(api().ClearTeamLead(id)).then(function () { return read(true); }); } },
           { id: 'open-team', label: 'Open Team Chat', hidden: !member(), run: function () { return groupLink(lead.group); } }];
       },
       destroy: function () { trafficObserver.disconnect(); if (foldFrame) cancelAnimationFrame(foldFrame); disposed = true; generation++; document.removeEventListener('dinah:execution-state', executionChanged); if (stopTeam) stopTeam(); if (stopResync) stopResync(); section.remove(); memberNote.remove(); }

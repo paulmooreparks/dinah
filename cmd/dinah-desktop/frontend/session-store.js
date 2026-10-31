@@ -27,6 +27,7 @@
       // A snapshot older than the one already applied is ignored (state-order.js).
       if (!window.dinahStateOrder.accept('agent:session', session.id, info)) return;
       session.info = Object.assign({}, session.info, info);
+      if (Object.prototype.hasOwnProperty.call(info, 'title')) session.titleKnown = true;
       // A versioned snapshot is the whole of the chat's information, so what it leaves out is gone: a hold that
       // has ended, a choice that was forgotten.
       if (info.stateVer !== undefined) { if (!info.hold) session.info.hold = null; if (!info.choice) session.info.choice = ''; if (!info.switch) delete session.info.switch; if (!info.lead) session.info.lead = null; }

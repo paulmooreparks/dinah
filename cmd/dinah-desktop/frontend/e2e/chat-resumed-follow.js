@@ -16,7 +16,7 @@ const { launch } = require('./lib/page');
         AgentProviders: async () => [{ id: 'claude', installed: true, available: true }],
         ResolveSessionContinuation: async id => id,
         SessionContinuation: async () => ({ history: [] }),
-        SavedConversation: async () => ({ available: true, complete: true, messages }),
+        SavedConversation: async () => ({ available: true, complete: true, streamGen: 'g1', streamThrough: 0, messages }),
         OpenSessionAt: async (ws, id) => {
           await window.__gate;
           return { sessionId: id, provider: 'claude', title: 'Follow Chat', cwd: ws, open: true, resumed: true, streamGen: 'g1', streamHead: 0 };

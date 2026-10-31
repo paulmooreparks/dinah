@@ -169,7 +169,7 @@
         return ids;
       },
       chatWindowsFor: chatWindowsFor, fail: fail, toast: toast, providerName: providerName, title: title,
-      show: show, showChat: showChat, drawSaved: drawSaved, replayProgress: replayProgress,
+      show: show, showChat: showChat, drawSaved: drawSaved, drawSavedCopy: drawSavedCopy, replayProgress: replayProgress,
       sessionNote: (...args) => currentChat()?.sessionNote(...args), stateLine: (...args) => currentChat()?.stateLine(...args),
       enqueue: function () { return window.dinahRender.enqueue.apply(window.dinahRender, arguments); },
       drainAgentEvents: drainAgentEvents, rememberCatalog: rememberCatalog, drawAgentState: drawAgentState,
@@ -192,8 +192,13 @@
     /* A saved copy draws only its latest messages: the page keeps no more
        rows than that anyway (trimLog), and building thousands of rows only to
        drop them made restoring a long chat slow. The row at the top counts
-       the messages not drawn and opens the chat's log, which has them all. */
+       the messages not drawn and exports the full available saved history. */
     var SAVED_DRAW_MESSAGES = 400;
+    function drawSavedCopy(owner, saved) {
+      var view = ensureChat(owner);
+      var copy = Object.assign({}, owner, { displayOwner: owner, log: owner.log.cloneNode(false), view: view });
+      return drawSaved(copy, saved.messages || []).then(function () { return copy; });
+    }
     function drawSaved(s, messages) {
       s.log.innerHTML = ''; s.log.hidden = true; s.settling = true; s.rows = {}; s.current = null; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
       // Drawn as a replay is, so that the rows take their times from the
@@ -205,7 +210,7 @@
       var build = new Promise(function (resolve, reject) {
         window.dinahRender.enqueue(job, null, function (deadline) {
           try {
-            if (sessions[s.id] !== s) { resolve(); return false; }
+            if (sessions[s.id] !== (s.displayOwner || s)) { resolve(); return false; }
             var count = 0;
             while (index < limit && count++ < 16 && (count === 1 || performance.now() < deadline)) {
               var i = index++, m = messages[i];
@@ -222,8 +227,8 @@
                 var lines = (m.text || '').slice(0, 4096).split('\n', 2), st = (lines[1] || '').match(/^Status: (\w+)/);
                 u = { sessionUpdate: 'tool_call', toolCallId: 'saved-' + i, title: lines[0], status: st ? st[1] : undefined };
               }
-              if (u) { events.dispatch('agent:update', { sessionId: s.id, update: u }); if (m.images && s.current) ensureChat(s).restoreMessageImages(s.current, m.images); }
-              else if (m.text) ensureChat(s).prependContinuation([m]);
+              if (u) { ensureChat(s).restoreSavedUpdate(s, u); if (m.images && s.current) ensureChat(s).restoreMessageImages(s.current, m.images); }
+              else if (m.text) ensureChat(s).prependContinuation([m], s);
             }
             if (index < limit) return true;
             resolve();
@@ -232,13 +237,18 @@
         }, null, 'saved history');
       });
       s.savedBuild = build.then(function () {
-        if (sessions[s.id] !== s) return;
+        if (sessions[s.id] !== (s.displayOwner || s)) return;
         s.loading = false;
         s.saved = true; s.historyAvailable = true;
+        if (s.displayOwner) {
+          s.settling = false;
+          stampReplay(s);
+          return new Promise(function (resolve) { ensureChat(s).drawAll(s, resolve, true); });
+        }
         stampReplay(s);
         return new Promise(function (resolve) {
           drawAll(s, function () {
-            if (sessions[s.id] === s) { presentHistory(s); currentChat()?.sessionNote(); }
+            if (sessions[s.id] === (s.displayOwner || s)) { presentHistory(s); currentChat()?.sessionNote(); }
             resolve();
           });
         });
@@ -765,8 +775,8 @@
         window.dinahBoundedText.draw(words, text || '', function (value) { words.textContent = value; });
         li.appendChild(words);
       }
-      function prependContinuation(history) {
-        var s = active && sessions[active];
+      function prependContinuation(history, record) {
+        var s = record || active && sessions[active];
         if (!s) return;
         history.forEach(function (entry) {
           var restored = null;
@@ -1045,9 +1055,10 @@
       if (s) window.dinahFailures.sync(s);
       // A chat reconnecting quietly keeps its saved copy in sight (openResolvedSession).
       if (s && s.loading) s.log.hidden = true;
-      $('replay').hidden = !(s && s.loading && !s.quiet && !s.drawingSaved);
+      $('replay').hidden = !(s && (s.restoring && !s.loading || s.loading && !s.quiet && !s.drawingSaved));
+      if (s && s.restoring && !s.loading) $('replay').textContent = 'Reading the saved conversation…';
       if (s && s.loading && !s.quiet && !s.drawingSaved) replayProgress(s);
-      $('log-empty').hidden = !!(s && (s.log.children.length || s.loading));
+      $('log-empty').hidden = !!(s && (s.log.children.length || s.loading || s.restoring));
       $('log-empty').textContent = s ? 'Nothing has happened yet in this chat.' : 'Start a new chat, or open one from the list. Your first message starts a new chat with the provider and model shown below.';
       sessionNote();
       menuStates();
@@ -1285,14 +1296,17 @@
     function sessionNote() {
       var s = active && sessions[active];
       drawHold(s);
+      var historyWarning = $('history-warning');
+      historyWarning.hidden = !(s && s.historyWarning);
+      historyWarning.textContent = s && s.historyWarning || '';
       var saved = $('saved-note');
       saved.hidden = !(s && s.saved && !s.info.open && !s.loading && !s.failed);
       if (!saved.hidden) $('saved-note-body').textContent = agentName() + ' reconnects by itself in a moment, or at once when you send a message, and then shows its thoughts and the details of its tools too.';
       var note = $('session-note');
       note.hidden = !(s && s.failed && !s.loading);
       if (note.hidden) { openWithShown = false; return; }
-      $('session-note-title').textContent = agentName() + ' could not open this session.';
-      $('session-note-body').textContent = agentName() + ' reported: ' + s.failed.replace(/^Error:\s*/, '') + (s.unoffered ? ' Open With lets you choose one of the values ' + agentName() + ' offers now.' : '') + (s.historyAvailable ? ' Your saved history is shown above. You can save it or continue it in a fresh chat.' : ' Try again to reconnect. No saved history is available here.') + (s.historyWarning ? ' ' + s.historyWarning : '');
+      $('session-note-title').textContent = s.failedHistory ? 'This chat opened, but its current history could not be loaded.' : agentName() + ' could not open this session.';
+      $('session-note-body').textContent = (s.failedHistory ? 'The history read failed: ' : agentName() + ' reported: ') + s.failed.replace(/^Error:\s*/, '') + (s.unoffered ? ' Open With lets you choose one of the values ' + agentName() + ' offers now.' : '') + (s.historyAvailable ? ' Your saved history is shown above. You can save it or continue it in a fresh chat.' : ' Try again to reconnect. No saved history is available here.') + (s.historyWarning ? ' ' + s.historyWarning : '');
       $('session-recover').disabled = !s.historyAvailable || s.historyRecoverable === false;
       $('session-save-history').disabled = !s.historyAvailable;
       drawOpenWith(s);
@@ -1355,7 +1369,7 @@
     $('hold-new').addEventListener('click', function () { startNewChat(); });
     $('saved-reconnect').addEventListener('click', function () { if (active) reconnectChat(active, true).catch(function () {}); });
     $('session-retry').addEventListener('click', function () {
-      if (active) { sessions[active].failed = ''; openSession(active); }
+      if (active) { sessions[active].failed = ''; reconnectChat(active, false); }
     });
     $('session-new').addEventListener('click', function () { startNewChat().catch(function () {}); });
     $('session-recover').addEventListener('click', function () { switchProvider(chatProvider(), true); });
@@ -1397,11 +1411,9 @@
     }
 
     /* A chat keeps its latest rows on the page and lets the oldest go, so that
-       a long chat, or many of them, do not fill the window's memory. Nothing
-       is lost: the chat's log on disk keeps every prompt, thought, tool call
-       and reply, and a row at the top of the chat
-       says how much left the page and opens the log. A fold of tool calls is
-       one row. */
+       a long chat, or many of them, do not fill the window's memory. A row
+       at the top counts omitted entries and exports the full available saved
+       history. A fold of tool calls is one row. */
     var CHAT_MAX_ROWS = 600, CHAT_KEEP_ROWS = 450;
     function trimLog(s) {
       var rows = s.log.children;
@@ -1439,15 +1451,16 @@
         marker.setAttribute('data-scroll-anchor-skip', '');
         marker.innerHTML = '<time class="activity-time"></time><span class="activity-muted trimmed-words"></span>';
         var open = document.createElement('button');
-        open.type = 'button'; open.className = 'btn btn-sm'; open.textContent = 'Show the Chat Log';
+        open.type = 'button'; open.className = 'btn btn-sm'; open.textContent = 'Show Saved Chat History';
+        open.title = 'Create a full saved-history snapshot and reveal its Markdown file in the file manager.';
         open.addEventListener('click', function () {
-          Promise.resolve().then(function () { return app().ShowChatLog(s.id); }).catch(function (err) { toast(String(err && err.message || err), 'warn'); });
+          Promise.resolve().then(function () { if (!app().ShowSavedChatHistory) throw new Error('Saved-history snapshots are unavailable in this build.'); return app().ShowSavedChatHistory(s.id); }).catch(function (err) { toast(String(err && err.message || err), 'warn'); });
         });
         marker.appendChild(open);
         s.log.insertBefore(marker, s.log.firstElementChild);
       }
       marker.querySelector('.trimmed-words').textContent = s.trimmed + (s.trimmed === 1 ? ' earlier entry of this chat is' : ' earlier entries of this chat are') +
-        ' no longer shown here. The chat\'s log keeps all of them.';
+        ' no longer shown here. Open the saved-history snapshot for available earlier content.';
     }
     function forgetRow(s, li) {
       var all = [li].concat(Array.prototype.slice.call(li.querySelectorAll('li')));
@@ -1713,11 +1726,11 @@
        all while a session's history is being replayed. When replay ends,
        its dirty entries enter the shared frame queue. */
     var dirty = new Set(), dirtyTools = new Set(), dirtyGroups = new Set(), dirtyPlans = new Set(), renderKey = {}, renderReady = [];
-    function scheduleDraw() {
+    function scheduleDraw(detached) {
       /* The frame's work changes row heights under a scrolled-back reader as
          surely as a trim does; the page holds the place (Paul, 30 October
          2026), except following at the end, where nothing is held. */
-      if (!deleted) window.dinahRender.enqueue(renderKey, root, function (deadline) {
+      if (!deleted) window.dinahRender.enqueue(renderKey, detached === true ? null : root, function (deadline) {
         return keepChatPlace(function () { return flush(deadline); }, true);
       }, function () {
         if (active && sessions[active] && !sessions[active].loading) scroll();
@@ -1797,7 +1810,7 @@
       if (s.loading) { if (!s.drawingSaved) { s.replayed = (s.replayed || 0) + 1; replayProgress(s); } return; }
       scheduleDraw();
     }
-    function drawAll(s, ready) { if (ready) renderReady.push(ready); scheduleDraw(); }
+    function drawAll(s, ready, detached) { if (ready) renderReady.push(ready); scheduleDraw(detached); }
 
     var STATUS = {
       pending: ['', 'waiting'],
@@ -2031,8 +2044,7 @@
         events.dispatch('agent:update', one);
       });
     });
-    on('agent:update', function (m) {
-      var s = S(m.sessionId), u = m.update || {};
+    function applyUpdate(s, u) {
       switch (u.sessionUpdate) {
         case 'agent_message_chunk': if (u.content && u.content.type === 'text') appendChunk(s, 'agent', u.content.text); break;
         case 'agent_thought_chunk': if (u.content && u.content.type === 'text') appendChunk(s, 'thought', u.content.text); break;
@@ -2057,7 +2069,8 @@
           if (s.id === active) window.dinahRender.enqueue(drawUsage, root, drawUsage);
           break;
       }
-    });
+    }
+    on('agent:update', function (m) { var s = S(m.sessionId); if (!s.failedHistory) applyUpdate(s, m.update || {}); });
 
     /* ---- Context and cost -------------------------------------------------
        Devin reports how much of the model's context a session uses, and may
@@ -2256,6 +2269,7 @@
       go.type = 'button'; go.className = 'btn btn-sm turn-continue'; go.textContent = 'Continue';
       go.title = 'Ask ' + name + ' to keep going from where it stopped';
       go.addEventListener('click', function () {
+        if (teamPanel.isPending()) return;
         if (teamPanel.isMember()) { teamPanel.openTeam().catch(fail); return; }
         var box = $('prompt');
         if (!box) return;
@@ -2268,6 +2282,7 @@
 
     on('agent:turn', function (t) {
       var s = S(t.sessionId);
+      if (s.failedHistory) return;
       s.current = null;
       s.stopping = false;
       var r = row(s, 'turn-row');
@@ -2345,6 +2360,7 @@
     on('agent:teamsent', function (m) { if (m.message) teamSentCard(S(m.sessionId), { delivered: m.message, text: m.text || '' }); });
     on('agent:sent', function (m) {
       var s = S(m.sessionId);
+      if (s.failedHistory) return;
       s.current = null;
       if (m.kind === 'queued') message(s, 'you', m.text, 'You, sent when ' + agentName() + ' finished');
       if (m.kind === 'asked') message(s, 'you', m.text, m.label || 'Asked by another chat');
@@ -2360,6 +2376,7 @@
     var STEER_LABELS = { rejected: 'You, steering (not sent)', pending: 'You, steering (waiting for the agent\'s next step)', delivered: 'You, steering (delivered)', accepted: 'You, steering (accepted by the agent)', failed: 'You, steering (delivery unconfirmed)', queued: 'You, steering (queued for the next turn)', sent: 'You, steering (sent after the turn ended)' };
     on('agent:steer', function (e) {
       var s = S(e.sessionId);
+      if (s.failedHistory) return;
       s.steerRows = s.steerRows || {};
       var m = s.steerRows[e.steer];
       if (!m && e.state === 'pending' && s.unreportedSteers && s.unreportedSteers.length) m = s.steerRows[e.steer] = s.unreportedSteers.shift();
@@ -2513,9 +2530,10 @@
       if (!el) { el = document.createElement('span'); el.className = 'win-status chat-loading-chip'; group.appendChild(el); }
       if (!el.firstChild) { el.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Loading</span>'; el.setAttribute('role', 'status'); }
       el.title = 'The rest of this chat is still loading in the background. Its controls may change when it finishes.';
-      el.hidden = !(s && s.loading);
+      el.hidden = !(s && (s.loading || s.restoring));
     }
     function send(how) {
+      if (teamPanel.isPending()) return;
       if (teamPanel.isMember()) return teamPanel.openTeam().catch(fail);
       if (switchingProvider) return;
       var pickedSkill = skillForm.skill() || selectedSkill;
@@ -3070,7 +3088,7 @@
     /* Menu entries that can do nothing at the moment are greyed out. */
     function commandEnabled(id) {
       const session = active && sessions[active];
-      if (teamPanel.isMember() && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates'].includes(id)) return false;
+      if ((teamPanel.isMember() || teamPanel.isPending()) && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates'].includes(id)) return false;
       if (id === 'all-models') return !!byCat(barOptions(), 'model');
       if (id === 'cancel') return !!session?.working;
       if (id === 'save-run') return !!session?.log.children.length;
@@ -3354,8 +3372,7 @@
           { id: 'export-chat', actions: true, label: 'Export Chat…', run: saveRun, disabled: !active },
           { id: 'failure-summaries', actions: true, label: 'Show Failed Command Summaries', checked: !!active && window.dinahFailures.enabled(active), disabled: !active,
             run: function () { if (active) window.dinahFailures.setEnabled(sessions[active], !window.dinahFailures.enabled(active)); } },
-          // The chat's log on disk: every prompt, thought, tool call and reply,
-          // including what has left the window.
+          // The current session's operational log is separate from saved history.
           { id: 'show-chat-log', actions: true, label: 'Show the Chat Log', run: function () { var id = active; Promise.resolve().then(function () { return app().ShowChatLog(id); }).catch(fail); }, disabled: !active },
           // The chat's subagents, and the tree of them (subagents.js), are
           // absent until the agent starts one.
@@ -3383,7 +3400,7 @@
           { id: 'drop-queue', actions: true, label: 'Drop the Queued Messages', glyph: 'close', hidden: $('queue').hidden, run: function () { if (active) app().Unqueue(active); } },
           { id: 'clear-document', label: 'Clear the Document', hidden: $('context').hidden, run: function () { $('context-clear').click(); } }
         ].map(function (command) {
-          if (teamPanel.isMember() && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates', 'clear-document'].indexOf(command.id) >= 0) return Object.assign({}, command, { hidden: true });
+          if ((teamPanel.isMember() || teamPanel.isPending()) && ['send', 'steer', 'stop-and-steer', 'add', 'skills', 'prompt-history', 'my-templates', 'clear-document'].indexOf(command.id) >= 0) return Object.assign({}, command, { hidden: true });
           return command;
         }).concat(teamPanel.commands().map(function (command) { return Object.assign({}, command, { actions: true }); }));
       }
@@ -3399,13 +3416,13 @@
           if (!app().SkillCatalog) return;
           skills=catalog.skills.filter(function (skill) {return (skill.scope!=='workspace'||skill.workspace===workspace)&&(skill.scope!=='provider'||providerFact(chatProvider(),'ownCommands'));}); skillsChanged();
         },
-        skillTarget: function () { if (teamPanel.isMember()) return null; var targetWorkspace=workspace, targetProvider=chatProvider(); return {title: active ? title(sessions[active]) : 'New Chat', workspace: targetWorkspace, provider: targetProvider, put: function (text) {
+        skillTarget: function () { if (teamPanel.isMember() || teamPanel.isPending()) return null; var targetWorkspace=workspace, targetProvider=chatProvider(); return {title: active ? title(sessions[active]) : 'New Chat', workspace: targetWorkspace, provider: targetProvider, put: function (text) {
           if(workspace!==targetWorkspace||chatProvider()!==targetProvider)return Promise.reject(new Error('The chat changed workspace or provider. Choose it again.'));
           return dinahWorkbench.open(active ? {kind:'chat-session',workspace:workspace,path:active} : 'chat').then(function () {
             closeForm(true); var box=$('prompt'); box.value += (box.value.trim() ? '\n\n' : '') + text; typed(); box.focus();
           });
         }}; },
-        id: view.id, recoverSteering: recoverSteering, row: row, drawAll: drawAll, stampReplay: stampReplay, trimMarker: trimMarker, replayProgress: replayProgress, replayDone: replayDone, scroll: scroll,
+        id: view.id, recoverSteering: recoverSteering, row: row, drawAll: drawAll, stampReplay: stampReplay, trimLog: trimLog, trimMarker: trimMarker, replayProgress: replayProgress, replayDone: replayDone, scroll: scroll,
         prepareHistoryLayout: function (log, position) { navigation.resetMessages(); var saved = window.dinahUIState && dinahUIState.get('dinah-scroll:' + key + ':activity'); log.toggleAttribute('data-preserve-scroll-layout', !!(position ? !position.following : saved && !saved.end)); },
         historyPosition: function (position) { return navigation.position(position); },
         scrollReady: function () { if (window.dinahUIState) window.dinahUIState.scrollReady($('activity')); },
@@ -3421,7 +3438,7 @@
           scheduleDraw();
         },
         transferRendering: function (next) { next.acceptRendering(dirty, dirtyTools, dirtyGroups, dirtyPlans, renderReady); },
-        prependContinuation: prependContinuation, refreshMentions: refreshMentions,
+        restoreSavedUpdate: applyUpdate, prependContinuation: prependContinuation, refreshMentions: refreshMentions,
         updateDefaultProvider: function () { if (!active) { chosenProvider = defaultProvider; pending = {}; renderComposerOptions(); loadSkills(); } drawAgentState(); },
         loadRecall: loadRecall, forgetDraft: function () { if (draftKeeper) { draftKeeper.rekey(draftKey()); draftKeeper.forget(); } }, signIn: signIn, openModels: openModels, pricesChanged: pricesChanged, openHistory: openHistory,
         openTemplates: openTemplates, saveRun: saveRun, typed: typed, setContext: setContext,
@@ -3432,8 +3449,10 @@
           askImageInput(); // the note beside a picture depends on what the engine says of the chat's model
           var win = root.closest('[data-win]');
           if (win && window.pudlWindows) {
-            var s = active && sessions[active], named = s ? title(s) : 'New Chat';
+            var s = active && sessions[active];
             var titleEl = win.querySelector('.win-title'), was = titleEl && titleEl.textContent.trim();
+            var known = s && ((adapter.hasKnownTitle && adapter.hasKnownTitle(s.id)) || s.titleKnown && (!s.loading && !s.restoring || !!s.info.title));
+            var named = !s ? 'New Chat' : known ? title(s) : was ? was : 'Loading chat…';
             // A retitle redraws the docks and the window rows, so the title
             // is set only when it changed.
             if (was !== named) window.pudlWindows.retitle(key, named);
@@ -3484,7 +3503,7 @@
           markCurrentChat();
           controller.refresh();
         },
-        focus: function () { if (teamPanel.isMember()) teamPanel.focus(); else $('prompt').focus(); },
+        focus: function () { if (teamPanel.isMember() || teamPanel.isPending()) teamPanel.focus(); else $('prompt').focus(); },
         // The window's Actions menu, by the ids of the chat's commands.
         commands: function () { return chatCommandTable().filter(function (command) { return command.actions; }).map(function (command) { return command.id; }); },
         destroy: function () {
@@ -3596,6 +3615,7 @@
           return { ready: Promise.resolve(), destroy: function () {} };
         }
         if (s && !s.info.cwd) s.info.cwd = item.workspace;
+        if (s && !s.info.open && !s.loading) s.restoring = true;
         var controller = ensureChat(s);
         controller.attach(root, opts);
         /* The window is ready once the chat is attached and drawn. Restoring
@@ -3611,7 +3631,7 @@
       window.dinahWorkbench.register('chat', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, singleton: true, title: 'New Chat', glyph: 'comments', statuses: true, init: init, workspaceOf: function () { return window.dinahHost.workspaceId(); } });
       // A chat restored behind other windows starts when it is seen, or in idle
       // time after the windows in sight.
-      window.dinahWorkbench.register('chat-session', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Chat', glyph: 'comments', start: 'idle', statuses: true, init: init });
+      window.dinahWorkbench.register('chat-session', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Loading chat…', loadingText: 'Loading the saved conversation…', titleOf: function (item) { var s = S(item.path); return (adapter.hasKnownTitle && adapter.hasKnownTitle(s.id)) || s.titleKnown && !s.loading && !s.restoring ? title(s) : ''; }, glyph: 'comments', start: 'idle', statuses: true, init: init });
       document.addEventListener('pudl:windows-change', function () {
         var key = window.pudlWindows.state().top, item = window.dinahWorkbench.item(key);
         if (key === 'chat') selectChat(null);

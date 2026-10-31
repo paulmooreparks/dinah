@@ -144,7 +144,7 @@
       })).then(function (lists) {
         if (generation !== sessionListGeneration) return;
         listed = lists.flat();
-        listed.forEach(function (x) { if (window.dinahStateOrder.stale('agent:session', x.sessionId, x)) return; var s = S(x.sessionId); s.info = Object.assign({}, s.info, x); });
+        listed.forEach(function (x) { if (window.dinahStateOrder.stale('agent:session', x.sessionId, x)) return; var s = S(x.sessionId); s.info = Object.assign({}, s.info, x); if (Object.prototype.hasOwnProperty.call(x, 'title')) s.titleKnown = true; if (s.view) s.view.refresh(); });
         drawSessions();
       }).catch(fail);
     }
@@ -414,8 +414,8 @@
     });
     });
 
-    return { title, startRename, openRemove, refreshSessions, when, drawSessions, chatPin, sameWs, normalizedWorkspace,
-      setTitles: value => { titles = value || {}; },
+    return { title, hasKnownTitle: id => !!titles[id] || !!(sessions[id] && sessions[id].info.title), startRename, openRemove, refreshSessions, when, drawSessions, chatPin, sameWs, normalizedWorkspace,
+      setTitles: value => { titles = value || {}; Object.keys(sessions).forEach(id => { if (sessions[id].view) sessions[id].view.refresh(); }); if (window.dinahWorkbench && window.dinahWorkbench.refreshTitles) window.dinahWorkbench.refreshTitles(); },
       setHiddenCount: value => { hiddenCount = value || 0; },
       hiddenCount: () => hiddenCount, listed: () => listed
     };
