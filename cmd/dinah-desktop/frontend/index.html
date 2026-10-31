@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light" data-product-name="Dinah" data-product-theme="mineral">
+<html lang="en" data-pudl-persistence="host" data-theme="light" data-product-name="Dinah" data-product-theme="mineral">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,13 +11,17 @@
   <script src="bridge/app.js"></script>
   <script src="helpers.js"></script>
   <script src="regional.js"></script>
-  <script src="pudl/pudl-theme.js"></script>
-  <script src="theme-init.js"></script>
-  <script src="theme-data.js"></script>
-  <script src="appearance.js"></script>
   <script src="safe-html.js"></script>
+  <script src="skin-assets.js"></script>
   <link rel="stylesheet" href="pudl/pudl.css">
   <link rel="stylesheet" href="pudl/pudl-windows.css">
+  <link rel="stylesheet" href="pudl/pudl-skin-bevel.css" data-pudl-skin="bevel">
+  <link rel="stylesheet" href="pudl/pudl-skin-gel.css" data-pudl-skin="gel">
+  <link rel="stylesheet" href="pudl/pudl-skin-glaze.css" data-pudl-skin="glaze">
+  <script src="appearance-init.js"></script>
+  <script src="pudl/pudl-theme.js"></script>
+  <script src="pudl/pudl-skins.js"></script>
+  <script src="theme-data.js"></script>
   <link rel="stylesheet" href="brand.css">
   <link rel="stylesheet" href="theme-editor.css">
   <link rel="stylesheet" href="dinah.css">
@@ -35,6 +39,8 @@
   <link rel="stylesheet" href="files-applet.css">
   <link rel="stylesheet" href="terminal.css">
   <link rel="stylesheet" href="bus-applets.css">
+  <script src="appearance.js"></script>
+  <script src="skin-contrast.js"></script>
   <script src="applet-markup.js" defer></script>
   <script src="pudl/pudl-split.js" defer></script>
   <script src="pudl/pudl-commands.js" defer></script>
@@ -687,6 +693,9 @@
         <div class="settings-panel" id="settings-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" tabindex="0">
           <section class="card vstack gap-3" aria-labelledby="set-theme">
             <h3 class="card-title" id="set-theme">Theme</h3>
+            <label class="form-label" for="appearance-skin">Skin</label>
+            <select id="appearance-skin" class="form-select"><option value="standard">Standard</option></select>
+            <p class="form-help" id="appearance-skin-status" role="status"></p>
             <label class="form-label" for="appearance-theme">Color and font theme</label>
             <select id="appearance-theme" class="form-select"><option value="mineral">Mineral</option><option value="linen">Linen</option></select>
             <div class="theme-editor-toolbar">

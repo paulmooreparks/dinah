@@ -47,11 +47,13 @@
 {{/* The stylesheets and scripts every page and the desktop load. Windows
      load none of their own, because scripts in fetched markup do not run;
      applets and dinah.js bring windows to life. */}}
-{{define "assets"}}<link rel="stylesheet" href="/static/pudl/pudl.css">
+{{define "assets"}}<script src="/static/skin-assets.js"></script>
+<link rel="stylesheet" href="/static/pudl/pudl.css">
 <link rel="stylesheet" href="/static/pudl/pudl-windows.css">
 {{range skinLinks}}<link rel="stylesheet" href="/static/pudl/{{.File}}" data-pudl-skin="{{.ID}}">
 {{end}}<script src="/static/pudl/pudl-theme.js"></script>
 <script src="/static/pudl/pudl-skins.js"></script>
+<script src="/static/skin-assets-ready.js"></script>
 <link rel="stylesheet" href="/static/brand.css">
 <link rel="stylesheet" href="/static/dinah.css">
 <script src="/static/pudl/pudl-menu.js" defer></script>

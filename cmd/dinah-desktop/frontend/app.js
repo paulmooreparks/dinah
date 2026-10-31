@@ -291,8 +291,8 @@
       setOptionSubstitutions(st.optionSubstitutions || {});
       if (window.dinahUIState) {
         window.dinahUIState.setNewWindowMode(mode);
-        var theme = window.dinahUIState.get('pudl-theme');
-        if (theme && window.pudlSetTheme) window.pudlSetTheme(theme);
+        var theme = window.dinahUIState.get('pudl-theme', 'light');
+        if (window.pudlSetTheme) window.pudlSetTheme(['light', 'dark', 'system'].includes(theme) ? theme : 'light');
         window.dinahUIState.restoreLayout();
       }
       drawWorkspaces(st);
