@@ -55,7 +55,12 @@ const { chromium } = require('playwright-core');
 const path = require('path');
 const { acquire: acquireBrowserLock } = require('./browser-lock');
 
-const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+// Microsoft Edge where each system installs it; DINAH_BROWSER names another
+// Chromium-based browser, as CI does where Edge is not installed.
+const EDGE = process.env.DINAH_BROWSER || {
+  win32: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  darwin: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+}[process.platform] || '/usr/bin/microsoft-edge';
 const FRONTEND = path.join(__dirname, '..', '..');
 const PAGE = 'http://dinah.test/index.html';
 // run.ps1 gives the output folder as the third argument; a suite run by

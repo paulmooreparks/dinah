@@ -74,6 +74,8 @@ npm install
 pwsh ./run.ps1
 ```
 
+The workflow in `.github/workflows/build.yml` checks formatting, vets and runs the Go tests natively on Windows, Linux and macOS (amd64 and arm64 each), runs the browser suites on all three, and builds the archives. It runs on every pull request and every push to master, and only a push to master whose checks all pass publishes the latest build. Its header says which archives are cross-compiled rather than tested on their own system, and the browser suites' README says what they do not cover there.
+
 The window links each system's own webview. On Windows it needs no C compiler, so `dinah install` builds it there. For Linux, `pwsh tools/linux-build/build-linux.ps1` builds both programs in a Docker container and with `-Test` runs the Go tests on Linux too ([tools/linux-build](tools/linux-build/README.md)). The Mac app has to be built on a Mac, with `sh tools/macos-build/install-macos.sh` ([tools/macos-build](tools/macos-build/README.md)).
 
 The pages use PUDL 0.83.1, copied unchanged from its release with only the fonts its stylesheet loads.

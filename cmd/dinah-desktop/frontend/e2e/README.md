@@ -11,7 +11,20 @@ pwsh ./run.ps1                  # every suite; prints only failures
 pwsh ./run.ps1 -Only editor,files
 ```
 
-The suites expect Edge at `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`. Screenshots are written to a temporary folder (`-Out` changes it); look at them after a layout change.
+The suites expect Edge where each system installs it: `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe` on Windows, `/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge` on macOS and `/usr/bin/microsoft-edge` on Linux. `DINAH_BROWSER` names another Chromium-based browser. Screenshots are written to a temporary folder (`-Out` changes it); look at them after a layout change.
+
+## Continuous Integration
+
+`.github/workflows/build.yml` runs every suite with `run.ps1` on Windows, Linux (amd64) and macOS (arm64) runners, on each pull request and each push to master, and a push publishes the latest build only if they all pass. Each run keeps `-Out` (`failures.txt`, the screenshots and the run's output) as the artifact `diagnostics-browser-<system>`.
+
+What this verifies, and what it does not:
+
+- The page, with Go stubbed, in Microsoft Edge on that system. It is the same browser engine on all three, so a difference between them is in fonts, keys, file paths or the system around the browser, not in the engine.
+- Not the native webview. The window runs the page in WebView2 on Windows, WebKitGTK on Linux and WKWebView on macOS. WebKit is not Chromium, so on Linux and macOS a page that passes here can still behave differently in the window.
+- Not the native window: its frame, menus, file pickers, clipboard, drag and drop, single-instance lock and shutdown. The probes in `perf/` drive the real window and are not run in CI.
+- Not Linux on arm64. Edge has no Linux arm64 build, so the suites are not run there; the Go tests are.
+
+The lock is `%ProgramData%/Dinah/browser-tests.lock` on Windows and `/tmp/Dinah/browser-tests.lock` on Linux and macOS, where the common application data folder is `/usr/share` and an ordinary user cannot write it. `DINAH_BROWSER_LOCK` names another file. On Linux and macOS .NET holds `FileShare.None` as an exclusive `flock`, so the lock still excludes other processes, and a refused open carries `EWOULDBLOCK` rather than Windows' sharing violation. On Linux a process's start time is read from `/proc/<pid>/stat`, because .NET's `StartTime` differs by a few milliseconds from one reading process to another there, which made every ticket look stale.
 
 ## Machine-wide browser lock
 
