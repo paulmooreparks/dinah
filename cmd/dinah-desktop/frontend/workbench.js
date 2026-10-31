@@ -120,11 +120,16 @@
       '<button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav></header>' +
       '<div class="win-body dinah-applet" data-applet-fit="fill"></div>';
     var kept = cfg.singleton ? null : savedTitles()[key];
-    win.querySelector('.win-title').textContent = (kept && kept.title) || item.title || cfg.title;
+    win.querySelector('.win-title').textContent = (cfg.titleOf && cfg.titleOf(item)) || (kept && kept.title) || item.title || cfg.title;
     if (kept && kept.detail) win.setAttribute('data-win-detail', kept.detail);
     var root = win.querySelector('.dinah-applet');
     root.dataset.applet = 'dinah-' + item.kind;
     root.dataset.item = JSON.stringify(item);
+    if (cfg.loadingText) {
+      var pending = document.createElement('p'); pending.className = 'form-help';
+      pending.dataset.appletLoading = ''; pending.setAttribute('role', 'status'); pending.textContent = cfg.loadingText;
+      root.appendChild(pending);
+    }
     groupWindow(win, item);
     template.content.appendChild(win);
     document.body.appendChild(template);
@@ -226,6 +231,21 @@
       }
     });
   }
+  // Item metadata can arrive before an idle applet starts. Its registration
+  // may supply a known title without mounting the applet or opening a provider.
+  function refreshTitles() {
+    function refresh(win) {
+      var item = windowItem(win), cfg = item && kinds.get(item.kind);
+      var name = cfg && cfg.titleOf && cfg.titleOf(item);
+      if (!name) return;
+      var title = win.querySelector('.win-title');
+      if (!title || title.textContent === name) return;
+      if (win.isConnected && window.pudlWindows) window.pudlWindows.retitle(win.dataset.win, name);
+      else title.textContent = name;
+    }
+    document.querySelectorAll('template[id^="win-source-"]').forEach(function (tpl) { var win = tpl.content.querySelector('.win'); if (win) refresh(win); });
+    document.querySelectorAll('.win[data-win]').forEach(refresh);
+  }
   function hydrate() {
     (new URLSearchParams(location.search).get('open') || '').split(',').forEach(function (key) {
       var item = decode(key);
@@ -248,7 +268,7 @@
   }
   window.dinahWorkbench = {
     windowMenuRows: windowMenuRows,
-    applySavedTitles: applySavedTitles,
+    applySavedTitles: applySavedTitles, refreshTitles: refreshTitles,
     registerLauncher: function (id, definition) {
       if (!id || !definition.title || typeof definition.run !== 'function') throw new Error('A tool needs an identity, title and launcher.');
       if (launchers.has(id)) throw new Error('Duplicate tool launcher: ' + id);
@@ -279,6 +299,7 @@
       // windows in sight (PUDL 0.66.0's start).
       window.pudlApplets.register('dinah-' + kind, { start: cfg.start || 'open', init: function (root, opts) {
         var key = root.closest('[data-win]').dataset.win;
+        var pending = root.querySelector(':scope > [data-applet-loading]'); if (pending) pending.remove();
         var instance = cfg.init(root, opts, JSON.parse(root.dataset.item));
         var stopScroll = watchScroll(root.closest('[data-win]'), key);
         instances.set(key, instance);

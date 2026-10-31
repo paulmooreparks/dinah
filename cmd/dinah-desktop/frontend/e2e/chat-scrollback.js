@@ -15,7 +15,7 @@ const { launch } = require('./lib/page');
         NewSessionAt: async () => { setTimeout(() => window.__emit('agent:options', { sessionId: 'long', options: opts }), 0); return { sessionId: 'long', cwd: ws, title: '', open: true, working: false, queued: [] }; },
         SetSessionOption: async () => opts,
         Send: async (id, text) => { window.__calls.push(['Send', id, text]); },
-        ShowChatLog: async (id) => { window.__calls.push(['ShowChatLog', id]); },
+        ShowSavedChatHistory: async (id) => { window.__calls.push(['ShowSavedChatHistory', id]); },
         Queue: async () => {}, Steer: async () => {}, Unqueue: async () => {}, Answer: async () => {}, Cancel: async () => {}, Stop: async () => {},
         SetWorkspace: async () => ({}), ForgetWorkspace: async () => ({}), ChooseWorkspace: async () => ({}), SetApprovals: async () => {},
         SetDefault: async () => ({}), SetPinned: async () => [], SetShowThinking: async () => {}, SaveHistory: async () => '', ClearHistory: async () => {}, SaveRun: async () => ''
@@ -79,10 +79,10 @@ const { launch } = require('./lib/page');
   }, logs);
   ok('a command\'s terminal colours are drawn, and its other control codes left out', ansi && !/[\x00-\x08\x0b-\x1f]/.test(ansi.text) && ansi.green[0] === 'Name        Id Path' &&
     ansi.text === 'Name        Id Path\n----        -- ----\ndinah 5154424 C:\\bin\\dinah.exe & <tags>', JSON.stringify(ansi));
-  await marker.locator('button', { hasText: 'Show the Chat Log' }).click();
-  await p.waitForFunction(() => window.__calls.some(c => c[0] === 'ShowChatLog'), null, { timeout: 10000 }).catch(() => {});
+  await marker.locator('button', { hasText: 'Show Saved Chat History' }).click();
+  await p.waitForFunction(() => window.__calls.some(c => c[0] === 'ShowSavedChatHistory'), null, { timeout: 10000 }).catch(() => {});
   const calls = await p.evaluate(() => window.__calls);
-  ok('Show the Chat Log asks for this chat\'s log', calls.some(c => c[0] === 'ShowChatLog' && c[1] === 'long'), JSON.stringify(calls));
+  ok('Show Saved Chat History requests this chat\'s saved-history snapshot', calls.some(c => c[0] === 'ShowSavedChatHistory' && c[1] === 'long'), JSON.stringify(calls));
   // More arrives: the count grows, and there is still one marker.
   await p.evaluate(() => { for (let t = 300; t < 500; t++) window.__emit('agent:update', { sessionId: 'long', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'More ' + t + '.' } } }) || window.__emit('agent:update', { sessionId: 'long', update: { sessionUpdate: 'tool_call', toolCallId: 'm' + t, title: 'Ran', status: 'completed' } }); });
   await drawn(logs, 'More 499.');

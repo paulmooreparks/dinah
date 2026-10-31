@@ -15,7 +15,7 @@ const { launch } = require('./lib/page');
         AgentProviders: async () => [{ id: 'claude', installed: true, available: true }],
         ResolveSessionContinuation: async id => id,
         SessionContinuation: async () => ({ history: [] }),
-        SavedConversation: async id => (window.__calls.push(['saved', id]), { available: true, complete: true, messages: [{ role: 'you', text: 'Summarise the plan.' }, { role: 'agent', text: 'SAVED-ANSWER' }] }),
+        SavedConversation: async id => (window.__calls.push(['saved', id]), { available: true, complete: true, streamGen: 'r1', streamThrough: 0, messages: [{ role: 'you', text: 'Summarise the plan.' }, { role: 'agent', text: 'SAVED-ANSWER' }] }),
         OpenSessionAt: async (ws, id) => {
           window.__calls.push(['open', id]);
           return { sessionId: id, provider: 'claude', title: 'Resumed Chat', cwd: ws, open: true, resumed: true, streamGen: 'r1', streamHead: 0 };

@@ -6,7 +6,7 @@
   function create(adapter) {
     const { store, app, workspace, active, chatKey, isWindowOpen, closeWindow,
       onWindowsChange, offWindowsChange, openChatIds, chatWindowsFor,
-      fail, toast, providerName, title, show, showChat, drawSaved,
+      fail, toast, providerName, title, show, showChat, drawSaved, drawSavedCopy,
       replayProgress, sessionNote, stateLine, enqueue, drainAgentEvents,
       rememberCatalog, drawAgentState, openingNote, stampReplay, drawAll,
       presentHistory, noWorkspaceYet, startLog, catchUpLog } = adapter;
@@ -48,18 +48,22 @@
        a chat at once. A chat with no complete saved copy, or one continued in
        another chat, reopens as before. */
     function restoreChat(s) {
+      if (s.loading) return s.displayBuild ? s.displayBuild.then(function () { return s; }) : Promise.resolve(s);
+      if (s.restorePromise) return s.restorePromise;
       var id = s.id;
-      return Promise.resolve(app().ResolveSessionContinuation ? app().ResolveSessionContinuation(id) : id).then(function (head) {
+      s.restoring = true; if (s.view) s.view.refresh();
+      return s.restorePromise = Promise.resolve(app().ResolveSessionContinuation ? app().ResolveSessionContinuation(id) : id).then(function (head) {
         if (sessions[id] !== s) return s;
         if ((head && head !== id) || !app().SavedConversation) return openSession(id, false);
-        return Promise.resolve(app().SavedConversation(id)).then(function (saved) {
+        s.savedRead = Promise.resolve(app().SavedConversation(id));
+        return s.savedRead.then(function (saved) {
           /* A chat that is live in the engine has no replay to wait for: the
              saved copy says which log entry it holds, and the log supplies the
              turn in progress after it. A live chat without that number stays
              as it is. */
           var live = s.info.open && !!saved && !!saved.streamGen;
           if (sessions[id] !== s || s.loading || (s.info.open && !live)) return s;
-          if (!saved || !saved.available) return s.info.open ? s : openSession(id, false);
+          if (!saved || !saved.available) { s.savedRead = null; return s.info.open ? s : openSession(id, false); }
           s.historyWarning = saved.warning || ''; s.historyComplete = saved.complete !== false; s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
           s.savedCursor = saved.streamGen ? { gen: saved.streamGen, through: saved.streamThrough || 0 } : null;
           if (live) startLog(id, saved.streamGen, saved.streamThrough);
@@ -69,7 +73,10 @@
             return s;
           });
         });
-      }).catch(function () { return sessions[id] === s ? openSession(id, false) : s; });
+      }).catch(function () { return sessions[id] === s ? openSession(id, false) : s; }).finally(function () {
+        s.restoring = false; s.restorePromise = null; s.savedRead = null;
+        if (sessions[id] === s && s.view) s.view.refresh();
+      });
     }
     /* The chats restored with the layout reconnect one after another. One
        whose agent takes long to replay, or never replies, delays the next
@@ -134,18 +141,8 @@
       if (reveal !== false && !behind) showChat();
       if (s.savedBuild) return s.savedBuild.then(function () { return sessions[id] === s ? openResolvedSession(id, reveal, behind, quiet) : s; });
       if (s.loading) return s.loadingPromise || Promise.resolve(s);
-      if (s.info.open) return Promise.resolve(s);
-      /* A chat the page has not drawn yet shows its saved copy at once, and the agent's replay (or its
-         resume) goes on behind it: the replay is drawn aside and takes the copy's place when it ends. */
-      if (!drawnFirst && (s.view || !behind) && !s.saved && !s.log.firstChild && app().SavedConversation) {
-        return Promise.resolve(app().SavedConversation(id)).catch(function () { return null; }).then(function (saved) {
-          if (sessions[id] !== s) return s;
-          if (s.info.open || s.loading || s.savedBuild || !saved || !saved.available) return openResolvedSession(id, reveal, behind, quiet, true);
-          s.historyWarning = saved.warning || ''; s.historyComplete = saved.complete !== false; s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
-          s.savedCursor = saved.streamGen ? { gen: saved.streamGen, through: saved.streamThrough || 0 } : null;
-          return drawSaved(s, saved.messages || []).then(function () { return openResolvedSession(id, reveal, behind, true, true); });
-        });
-      }
+      if (s.info.open && !s.failedHistory) return Promise.resolve(s);
+      var providerOpened = false; s.failedHistory = false;
       var fullHistory = !!s.loadFull;
       var kept = quiet && (s.saved || s.log.firstChild) ? { log: s.log, rows: s.rows, trimmed: s.trimmed } : null;
       if (kept) s.log = kept.log.cloneNode(false);
@@ -163,25 +160,44 @@
         sessionNote();
         stateLine();
       }
-      return s.loadingPromise = Promise.resolve(app().SessionContinuation ? app().SessionContinuation(id) : null).then(function (continuation) {
-        var history = continuation && continuation.history || [], index = 0;
-        if (!history.length) return;
-        return new Promise(function (resolve, reject) {
-          enqueue({}, null, function (deadline) {
-            try {
-              if (sessions[id] !== s || !s.view) { resolve(); return false; }
-              var count = 0;
-              while (index < history.length && count++ < 16 && (count === 1 || performance.now() < deadline)) {
-                s.view.prependContinuation([history[index++]]);
-              }
-              if (index < history.length) return true;
-              resolve();
-            } catch (error) { reject(error); }
-            return false;
-          }, null, 'continued history');
+      var continuation = null;
+      function parentHistory() {
+        if (!continuation) continuation = Promise.resolve().then(function () { return app().SessionContinuation ? app().SessionContinuation(id) : null; });
+        return continuation;
+      }
+      function savedFacts(saved) {
+        s.historyWarning = saved.warning || '';
+        s.historyComplete = saved.complete !== false;
+        s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
+      }
+      // This copy is display evidence only. Opening the provider never waits
+      // for its JSON response or its bounded local rendering.
+      var display = kept ? Promise.resolve() : Promise.resolve().then(function () {
+        return s.savedRead || (app().SavedConversation ? app().SavedConversation(id) : null);
+      }).then(function (saved) {
+        if (sessions[id] !== s || !s.loading) return;
+        if (saved && saved.available) return saved;
+        return parentHistory().then(function (v) {
+          return v && v.history && v.history.length ? { available: true, complete: false,
+            warning: 'Only earlier conversation history is available while this chat opens.', messages: v.history } : null;
         });
-      }).then(function () {
-        if (sessions[id] !== s) return s.info;
+      }).then(function (saved) {
+        if (!saved || sessions[id] !== s || !s.loading) return;
+        savedFacts(saved);
+        return drawSavedCopy(s, saved).then(function (copy) {
+          if (sessions[id] !== s || !s.loading) return;
+          kept = { log: copy.log, rows: copy.rows, trimmed: copy.trimmed };
+          s.keptLog = copy.log; s.quiet = true; s.historyAvailable = true;
+          s.log.remove(); // Only the saved display is attached while replay builds separately.
+          presentHistory(copy);
+          if (s.view) { s.view.refresh(); s.view.sessionNote(); }
+        });
+      }).catch(function (error) {
+        if (sessions[id] === s) { s.historyWarning = 'The saved copy could not be read. ' + String(error); if (s.view) s.view.sessionNote(); }
+      });
+      s.displayBuild = display;
+      return s.loadingPromise = Promise.resolve().then(function () {
+        if (sessions[id] !== s) return null;
         // Open With… reopens the chat with the value the person chose in
         // place of its saved one (option_substitutions.go).
         var openWith = s.openWith; s.openWith = null;
@@ -199,21 +215,25 @@
         // information, with another id than the one asked for. Its window takes that id, which the layout
         // then saves, so that the next start asks for it directly.
         if (info && info.sessionId && info.sessionId !== id) return handOver(s, info);
+        providerOpened = true;
         s.openingNotes = (info && info.notes) || [];
         applySessionInfo(s, info);
         rememberCatalog(s);
         if (s.view) s.view.loadSkills();
         drawAgentState();
+        await display;
         // Ordinary window openings use the saved copy's checkpoint for a new
         // or existing session. Only Load Full History deliberately draws a replay.
         s.checkpointDraw = !!(info && !fullHistory && (info.streamGen || info.resumed));
-        if (s.checkpointDraw) await drawSnapshot(s, info, kept);
+        if (s.checkpointDraw) await drawSnapshot(s, info, kept, parentHistory);
+        else await prependParent(s, parentHistory);
         return s;
       }).catch(async function (err) {
         s.holding = false;
         await drainAgentEvents();
         if (sessions[id] !== s) return null;
-        s.failed = String(err);
+        await display;
+        s.failed = String(err); s.failedHistory = providerOpened;
         // A refusal for a saved value the agent no longer offers lists the
         // values it offers instead, for Open With… (sessionNote).
         var detail = err && err.detail;
@@ -232,7 +252,7 @@
         return null;
       }).then(function (r) {
         if (sessions[id] !== s) return null;
-        s.loading = false; s.quiet = false;
+        s.loading = false; s.quiet = false; s.displayBuild = null;
         if (kept && !r) {
           // The reconnect failed: the saved copy stays, as it was.
           s.log = kept.log; s.keptLog = null; s.rows = kept.rows; s.trimmed = kept.trimmed; s.current = null; s.saved = true; s.settling = false;
@@ -271,26 +291,61 @@
       }
       return s;
     }
-    /* The journal follows the checkpoint belonging to the saved copy in sight.
-       A running session can still carry resumed from an earlier opening, so
-       that flag never decides which journal entries the page has already drawn. */
-    function drawSnapshot(s, info, kept) {
-      s.keptLog = null; s.saved = false;
-      if (kept) {
-        startLog(s.id, info.streamGen, s.savedCursor && s.savedCursor.gen === info.streamGen ? s.savedCursor.through : 0);
-        s.log = kept.log; s.rows = kept.rows; s.trimmed = kept.trimmed; s.current = null; s.historyAvailable = true;
-        // The copy in sight is presented as a replay that has taken its place is: the reader's place, or the end
-        // when they were following it, is put back and the view goes on from there.
-        presentHistory(s, kept);
-        return Promise.resolve();
-      }
-      return Promise.resolve(app().SavedConversation ? app().SavedConversation(s.id) : null).then(function (saved) {
+    function adoptCopy(s, copy) {
+      s.log = copy.log; s.rows = copy.rows; s.trimmed = copy.trimmed;
+      s.current = null; s.historyAvailable = true; s.saved = false;
+    }
+    async function prependParent(s, read) {
+      var view = await read(), history = view && view.history || [];
+      if (!history.length || sessions[s.id] !== s) return;
+      // The saved display window and its omitted-entry marker are shared with
+      // the fallback. Show Saved Chat History exports the full saved sequence.
+      var copy = await drawSavedCopy(s, { messages: history });
+      if (sessions[s.id] !== s) return;
+      var nodes = Array.from(copy.log.children).filter(function (li) { return !li.classList.contains('trimmed-row'); });
+      var fragment = document.createDocumentFragment();
+      nodes.forEach(function (li) { fragment.appendChild(li); });
+      s.log.insertBefore(fragment, s.log.firstChild);
+      copy.log = s.log;
+      s.trimmed = (s.trimmed || 0) + (copy.trimmed || 0);
+      if (s.view) { s.view.trimLog(s); s.view.trimMarker(s); }
+    }
+    async function drawSnapshot(s, info, kept, readParent) {
+      // An opening can create a new generation. Only a fresh copy may establish
+      // the journal position, even when an older saved display is already visible.
+      var saved = await Promise.resolve(app().SavedConversation ? app().SavedConversation(s.id) : null);
+      if (sessions[s.id] !== s) return;
+      var through = saved && saved.streamThrough === undefined ? 0 : saved && saved.streamThrough;
+      var current = s.info.streamGen || info.streamGen;
+      var valid = saved && saved.available && current && saved.streamGen === current && Number.isSafeInteger(through) && through >= 0;
+      if (valid) {
+        startLog(s.id, current, through);
+        var copy = await drawSavedCopy(s, saved);
         if (sessions[s.id] !== s) return;
-        s.savedCursor = saved && saved.streamGen ? { gen: saved.streamGen, through: saved.streamThrough || 0 } : null;
-        startLog(s.id, info.streamGen, s.savedCursor && s.savedCursor.gen === info.streamGen ? s.savedCursor.through : 0);
-        s.historyWarning = saved && saved.warning || ''; s.historyComplete = !saved || saved.complete !== false; s.historyRecoverable = saved && saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
-        return drawSaved(s, saved && saved.messages || []).then(function () { s.saved = false; });
-      });
+        // The generation may have changed while the copy was being rendered.
+        if ((s.info.streamGen || info.streamGen) !== current) return drawSnapshot(s, s.info, kept, readParent);
+        s.savedCursor = { gen: current, through: through };
+        s.historyWarning = saved.warning || ''; s.historyComplete = saved.complete !== false;
+        s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
+        adoptCopy(s, copy);
+        s.loading = false;
+        presentHistory(s, kept);
+        return;
+      }
+      // A pre-open copy without a matching checkpoint cannot skip journal
+      // entries. Rebuild the current generation from zero behind that display.
+      if (current) {
+        s.log = s.log.cloneNode(false); s.rows = {}; s.current = null; s.trimmed = 0;
+        startLog(s.id, current, 0);
+        await catchUpLog(s.id);
+        if (sessions[s.id] !== s) return;
+        if ((s.info.streamGen || info.streamGen) !== current) return drawSnapshot(s, s.info, kept, readParent);
+        if (!s.log.children.length && saved && saved.available) throw new Error('The current journal checkpoint could not be verified. The saved copy remains available.');
+      }
+      await prependParent(s, readParent);
+      if (sessions[s.id] !== s) return;
+      if ((s.info.streamGen || info.streamGen) !== current) return drawSnapshot(s, s.info, kept, readParent);
+      s.checkpointDraw = false;
     }
     /* Load Full History asks the agent for the whole conversation, which makes the chat a closed and
        reopened one: the page clears what it drew and draws the replay as it arrives. */

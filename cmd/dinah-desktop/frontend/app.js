@@ -128,7 +128,7 @@
   const chats = window.dinahChat.create({
     store: sessionStore, toast, fail, ask, productName, drainAgentEvents, noWorkspaceYet,
     workspace: () => workspace,
-    title: session => chatBrowser.title(session),
+    title: session => chatBrowser.title(session), hasKnownTitle: id => chatBrowser.hasKnownTitle(id),
     drawSessions: () => chatBrowser.drawSessions(), refreshSessions: () => chatBrowser.refreshSessions(), listedSessions: () => chatBrowser.listed(),
     startRename: (...args) => chatBrowser.startRename(...args), openRemove: id => chatBrowser.openRemove(id),
     chatPin: id => chatBrowser.chatPin(id), sameWs: path => chatBrowser.sameWs(path),
