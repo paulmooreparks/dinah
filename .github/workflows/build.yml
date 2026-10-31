@@ -112,10 +112,11 @@ jobs:
         run: go vet -tags "${{ matrix.tags }}" ./cmd/dinah-desktop 2>&1 | tee "$DIAG/go-vet-desktop.txt"
 
       # Through the gate script, as the repository asks of a full run. -v keeps
-      # each test's name, result and time in the log for diagnosis; the
-      # deadlines are go test's own.
+      # each test's name, result and time in the log for diagnosis; it is
+      # written -v=true because PowerShell would take a bare -v as its own
+      # -Verbose and never pass it on. The deadlines are go test's own.
       - name: Test
-        run: pwsh -NoProfile -File scripts/go-gate.ps1 -count=1 -v ./... 2>&1 | tee "$DIAG/go-test.txt"
+        run: pwsh -NoProfile -File scripts/go-gate.ps1 -count=1 -v=true ./... 2>&1 | tee "$DIAG/go-test.txt"
 
       - name: Summarise test failures
         if: failure()
@@ -150,6 +151,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: dinah
+      # The extension suites load the extension SDK's page script,
+      # web/dinah-extension.js, from the sibling checkout.
+      - uses: actions/checkout@v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
       - uses: actions/setup-node@v4
         with:
           node-version: 22
