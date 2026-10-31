@@ -181,10 +181,7 @@ func (c *TranscriptCapture) recordUpdateLocked(s *Conversation, replay bool, upd
 			}
 		}
 		if u.ToolCallID != "" && providers.For(s.Provider()).SnapshotToolCalls {
-			for i := range content {
-				content[i] = c.host.VisibleText(content[i])
-			}
-			s.HistoryRecordSnapshotToolLocked(replay, s.ID(), u.ToolCallID, u.Type == "tool_call" || terminalToolStatus(u.Status), c.host.VisibleText(u.Title), u.Status, content, unsupported)
+			s.HistoryRecordSnapshotToolLocked(replay, s.ID(), u.ToolCallID, u.Type == "tool_call" || terminalToolStatus(u.Status), c.host.VisibleText(u.Title), u.Status, content, unsupported, c.host.VisibleText)
 			return
 		}
 		// The Claude adapter streams a call as updates that its history

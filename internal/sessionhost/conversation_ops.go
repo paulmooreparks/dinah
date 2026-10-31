@@ -352,8 +352,8 @@ func (c *Conversation) HistoryRecordToolLocked(replay bool, id, callID string, i
 	c.history.RecordToolLocked(replay, id, callID, isCall, title, status, content, unsupported)
 }
 
-func (c *Conversation) HistoryRecordSnapshotToolLocked(replay bool, id, callID string, snapshot bool, title, status string, content []string, unsupported bool) {
-	c.history.RecordSnapshotToolLocked(replay, id, callID, snapshot, title, status, content, unsupported)
+func (c *Conversation) HistoryRecordSnapshotToolLocked(replay bool, id, callID string, snapshot bool, title, status string, content []string, unsupported bool, visible func(string) string) {
+	c.history.RecordSnapshotToolLocked(replay, id, callID, snapshot, title, status, content, unsupported, visible)
 }
 
 func (c *Conversation) HistoryRecordMessageLocked(replay bool, id, role, text string, unsupported, merge bool) {
