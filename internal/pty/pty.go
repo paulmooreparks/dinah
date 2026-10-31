@@ -12,8 +12,8 @@ import (
 // history and exiting cleanly, before it ends the program itself.
 const CloseGrace = 5 * time.Second
 
-// ConsoleCloseLimit is the longest Close waits, once the program has ended, for
-// the console to finish closing, which needs its output to be read.
+// ConsoleCloseLimit bounds Close's wait for the console API call. Its return
+// does not establish client disconnection; clean output EOF does.
 const ConsoleCloseLimit = 30 * time.Second
 
 // Command is a program to run, with its arguments, folder and environment.

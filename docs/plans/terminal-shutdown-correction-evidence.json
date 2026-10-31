@@ -1,0 +1,157 @@
+[
+  {
+    "file": "cmd/dinah-desktop/app.go",
+    "bytes": 21969,
+    "sha256": "DEB0E87DA7884A9CA88DCEF6D3B490E620E496EFAFC4D77D938BEF50745D3844"
+  },
+  {
+    "file": "cmd/dinah-desktop/update.go",
+    "bytes": 9186,
+    "sha256": "44F45FD1BFAA89EECA0C22481483188BEAC5EBF16E4F4ED49EF65258667CE884"
+  },
+  {
+    "file": "cmd/dinah-desktop/terminal_shutdown.go",
+    "bytes": 4130,
+    "sha256": "5DCD15E132E8BD5DFB2C6D9EFC043A13E4DD064FAF6777454A212011E7065F09"
+  },
+  {
+    "file": "cmd/dinah-desktop/terminal_shutdown_test.go",
+    "bytes": 5247,
+    "sha256": "D39A93B831B5EE287D810962C49DE219A36E16675ADEE0A76C2477631FEC0278"
+  },
+  {
+    "file": "cmd/dinah-desktop/terminal_shells_windows_test.go",
+    "bytes": 2881,
+    "sha256": "CCDC1D6012D3583CF305C1681BFB78620D68F0D788F247650723B0815E1052B9"
+  },
+  {
+    "file": "internal/terminals/service.go",
+    "bytes": 7718,
+    "sha256": "1A4A368B54AE5896711983CE794C7794A44638F623510D3D6E206B5D83A6AC20"
+  },
+  {
+    "file": "internal/terminals/shutdown.go",
+    "bytes": 3093,
+    "sha256": "07AC82CC25538548850F318024097F0F3CF7060C2E7DCC1B292F3E5389C92326"
+  },
+  {
+    "file": "internal/terminals/shutdown_test.go",
+    "bytes": 8653,
+    "sha256": "762BC89613C87E660F7022A9B84E0038545290AC025815E7EA5E6C61BFC013C2"
+  },
+  {
+    "file": "internal/terminals/service_windows_test.go",
+    "bytes": 11623,
+    "sha256": "701E79A8415646F96E1ACBFE9F5E012F1B9A5FA6DBF9F3F5E80746431C483B1C"
+  },
+  {
+    "file": "internal/pty/pty.go",
+    "bytes": 1021,
+    "sha256": "39BAC1A8A6476F8193463F34EF78D242E942AFB068429D6901E52C6BEDF2A6A6"
+  },
+  {
+    "file": "internal/pty/pty_windows.go",
+    "bytes": 17711,
+    "sha256": "4AC26F5089AD6F93B7DFCB2232E7130FF7C5F85C7CC60C1583EFECDCE0FB0FE9"
+  },
+  {
+    "file": ".diagnostics/correction-affected.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-affected.jsonl",
+    "bytes": 530015,
+    "sha256": "136BF535CBEF8886CD51426D38A6DDFAD440E416A6347277FF3F546696AC868D"
+  },
+  {
+    "file": ".diagnostics/correction-commands.md",
+    "bytes": 1747,
+    "sha256": "CBF0818694A12F1C4EF63FAB6606099E8FDC47215249F4133D3464D7E77FC4F3"
+  },
+  {
+    "file": ".diagnostics/correction-host-final.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-host-final.jsonl",
+    "bytes": 4768,
+    "sha256": "967139E792D6478AB257C2957F72424835FE68B901FCCADE74DA199D5AF09068"
+  },
+  {
+    "file": ".diagnostics/correction-host-focused.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-host-focused.jsonl",
+    "bytes": 3107,
+    "sha256": "D696B55453129BC634E295444FC59477B147716A278A13F9C1F8153994D51D38"
+  },
+  {
+    "file": ".diagnostics/correction-host-notice-final.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-host-notice-final.jsonl",
+    "bytes": 4013,
+    "sha256": "E14BB37AAB13FF717669CA4C84D6D9E6B5E3565DFD233E3383D376A29A416730"
+  },
+  {
+    "file": ".diagnostics/correction-lifecycle.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-lifecycle.jsonl",
+    "bytes": 17968,
+    "sha256": "473F033755823C0B8A986E28505479D9847E08C2A87310310CB3D6995EB0C23B"
+  },
+  {
+    "file": ".diagnostics/correction-original-case-final.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-original-case-final.jsonl",
+    "bytes": 1342,
+    "sha256": "EAB2644C2498ED753212482DEEA9E6EC84A62DA42B69822E2E9AA4DF35AF195D"
+  },
+  {
+    "file": ".diagnostics/correction-race.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-race.jsonl",
+    "bytes": 6860,
+    "sha256": "749E379BB3B827F183C8E4ADBF7C3A38A1EF944BF195637CECC8171C4D0005D3"
+  },
+  {
+    "file": ".diagnostics/correction-results.json",
+    "bytes": 740,
+    "sha256": "11D2D691DE62D25FB4B8F12FD8E662353FAC00CFA7D9BEBB03443E42BB82162A"
+  },
+  {
+    "file": ".diagnostics/correction-vet-final.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-vet-final.txt",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  },
+  {
+    "file": ".diagnostics/correction-vet.exit",
+    "bytes": 3,
+    "sha256": "13BF7B3039C63BF5A50491FA3CFD8EB4E699D1BA1436315AEF9CBE5711530354"
+  },
+  {
+    "file": ".diagnostics/correction-vet.txt",
+    "bytes": 0,
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  }
+]

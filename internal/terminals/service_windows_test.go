@@ -3,6 +3,7 @@
 package terminals
 
 import (
+	"context"
 	"encoding/base64"
 	"golang.org/x/sys/windows"
 	"os"
@@ -41,7 +42,13 @@ func testService(t *testing.T) *Service {
 	shellDirs.Store(t, t.TempDir())
 	t.Cleanup(func() { shellDirs.Delete(t) })
 	a := New("Dinah", func(string, any) {}, nil)
-	t.Cleanup(a.CloseAll)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), pty.CloseGrace+10*time.Second)
+		defer cancel()
+		if err := a.Shutdown(ctx); err != nil {
+			t.Errorf("terminal cleanup: %v", err)
+		}
+	})
 	return a
 }
 
@@ -185,7 +192,9 @@ func TestClosingATerminalEndsTheConsoleProgramsItsShellStarted(t *testing.T) {
 	select {
 	case <-exited:
 	case <-time.After(limit):
-		t.Fatal("closing the Terminal did not end its shell")
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		t.Fatalf("closing the Terminal did not report terminal:exit; completion stages: %v", a.Shutdown(ctx))
 	}
 	if ev, err := windows.WaitForSingleObject(ping, uint32(limit/time.Millisecond)); err != nil || ev != windows.WAIT_OBJECT_0 {
 		windows.TerminateProcess(ping, 1)
@@ -332,9 +341,8 @@ func TestCommandUsesSharedPumpAndCallbacksCanReadCount(t *testing.T) {
 	}
 }
 
-// Once a Terminal has been closed, nothing of it holds its folder: Close
-// returns when the program has ended and the console has finished closing, so
-// the folder can be removed straight away.
+// Confirmed shutdown releases the terminal's own folder resources. This case
+// starts no detached child that might legitimately retain its working folder.
 func TestAClosedTerminalLeavesItsFolderFree(t *testing.T) {
 	a := New("Dinah", func(string, any) {}, nil)
 	dir, err := os.MkdirTemp("", "terminal-folder-")
@@ -344,7 +352,11 @@ func TestAClosedTerminalLeavesItsFolderFree(t *testing.T) {
 	if _, err := a.StartShell("cmd", nil, dir, 80, 24); err != nil {
 		t.Fatal(err)
 	}
-	a.CloseAll()
+	ctx, cancel := context.WithTimeout(context.Background(), pty.CloseGrace+10*time.Second)
+	defer cancel()
+	if err := a.Shutdown(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Remove(dir); err != nil {
 		t.Fatalf("the closed Terminal's folder could not be removed: %v", err)
 	}

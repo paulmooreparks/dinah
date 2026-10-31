@@ -287,6 +287,13 @@ func (a *App) restartAbandoned() {
 // window is closing to restart. The new build waits for this process to
 // end (--after) before it starts.
 func (a *App) startUpdate() {
+	a.startUpdateUsing(startDetached)
+}
+
+func (a *App) startUpdateUsing(launch func(string, ...string) error) {
+	if a.terminalShutdownIncomplete.Load() {
+		return
+	}
 	a.updMu.Lock()
 	w := a.update
 	restarting := w != nil && w.restarting
@@ -294,7 +301,7 @@ func (a *App) startUpdate() {
 	if !restarting {
 		return
 	}
-	if err := startDetached(w.path, "--after", strconv.Itoa(os.Getpid())); err != nil {
+	if err := launch(w.path, "--after", strconv.Itoa(os.Getpid())); err != nil {
 		logf("core", "error", "starting the new build of %s: %v", product.Name, err)
 	}
 }

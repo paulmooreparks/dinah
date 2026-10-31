@@ -409,11 +409,10 @@ func (s *Session) Wait() (int, error) {
 // process does not cause child processes to be terminated"
 // (https://learn.microsoft.com/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminateprocess).
 //
-// Close returns once the program has ended or been ended and the console has
-// been closed, so it may take CloseGrace and then until the output is read; callers that must not wait call it on a goroutine of their
-// own. Further calls wait for the first to finish and then do nothing. The
-// caller keeps reading until Read fails, because ClosePseudoConsole may wait
-// for output still to be read.
+// Close waits for the program's grace and the bounded console API call wait.
+// It does not confirm output EOF or client disconnection. The caller keeps
+// reading until clean EOF to establish that completion. Callers that must not
+// wait use a goroutine. Further calls join the first call.
 func (s *Session) Close() error {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
@@ -446,11 +445,9 @@ func (s *Session) Close() error {
 				<-s.exited
 			}
 		}
-		// ClosePseudoConsole returns once the console has been drained of its
-		// output, which the caller goes on reading, so the console, its host
-		// and the folders they hold are gone only when it has returned. The
-		// wait is bounded, so that a console that is never drained cannot keep
-		// a Close, and with it the program's exit, from returning.
+		// Before 24H2 the API may wait indefinitely. Since 24H2 it returns
+		// immediately. This local bound limits only our wait for the API;
+		// neither its return nor this timeout establishes output completion.
 		select {
 		case <-consoleGone:
 		case <-time.After(ConsoleCloseLimit):

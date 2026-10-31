@@ -43,7 +43,8 @@ import (
 //	agent:sent        {sessionId, text, kind}          a queued or steering message went to the agent
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
-	startupErr error
+	startupErr                 error
+	terminalShutdownIncomplete atomic.Bool
 	// judging is the set of judges and the person's choices for them
 	// (judgements.go).
 	judging    judging
@@ -237,6 +238,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	logf("core", "info", "%s %s started", product.Name, shownVersion())
 	logRestartWait()
+	a.restoreTerminalShutdownNotice()
 	a.startHostNotices()
 	go a.sweepDrafts()
 	go a.installStandardFiles()
@@ -301,7 +303,7 @@ func (a *App) shutdown(ctx context.Context) {
 	a.lifecycle().StopAll()
 	// A turn that is still ending writes its history and settings, so it is waited for before they are closed.
 	a.turnIO().Close(5 * time.Second)
-	a.terminalService().CloseAll()
+	a.shutdownTerminals(a.terminalService().Shutdown)
 	a.mu.Lock()
 	open := make([]*Session, 0, a.runtime.ConversationCountLocked())
 	for _, s := range a.runtime.ConversationsLocked() {

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,10 @@ type Service struct {
 	productName string
 	emit        func(string, any)
 	warning     func()
+	stopping    bool
+	active      map[string]*terminal
+	changed     chan struct{}
+	spawn       func(pty.Command, int, int) (terminalSession, error)
 }
 
 // New creates a terminal service. The required emit callback receives
@@ -38,10 +43,32 @@ func (a *Service) Count() int {
 	return len(a.terminals)
 }
 
-// terminal is a shell running for a Terminal window.
+// terminal tracks an admitted start through spawn and completion. Its mutable
+// fields are guarded by Service.mu; session is immutable after registration.
 type terminal struct {
-	session *pty.Session
+	id         string
+	pid        int
+	session    terminalSession
+	closing    bool
+	shellDone  bool
+	outputDone bool
+	readErr    error
+	waitErr    error
+	closeErr   error
 }
+
+type terminalSession interface {
+	Read([]byte) (int, error)
+	Write([]byte) (int, error)
+	Resize(int, int) error
+	Wait() (int, error)
+	Close() error
+	Pid() int
+	ChildrenOutsideAppJob() bool
+}
+
+// ErrShuttingDown rejects starts after the host's shutdown admission barrier.
+var ErrShuttingDown = errors.New("terminal service is shutting down")
 
 // Started is a shell the page started.
 type Started struct {
@@ -76,21 +103,49 @@ func (a *Service) StartCommand(program string, args []string, folder string, col
 }
 
 func (a *Service) start(path string, args []string, folder, shell, name string, cols, rows int) (Started, error) {
-	session, err := pty.Start(pty.Command{Path: path, Args: append([]string{filepath.Base(path)}, args...), Dir: folder,
+	a.mu.Lock()
+	if a.stopping {
+		a.mu.Unlock()
+		return Started{}, ErrShuttingDown
+	}
+	t := &terminal{id: "term-" + rand.Text()}
+	if a.active == nil {
+		a.active = map[string]*terminal{}
+	}
+	a.active[t.id] = t
+	a.signalLocked()
+	a.mu.Unlock()
+	spawn := a.spawn
+	if spawn == nil {
+		spawn = func(c pty.Command, cols, rows int) (terminalSession, error) { return pty.Start(c, cols, rows) }
+	}
+	session, err := spawn(pty.Command{Path: path, Args: append([]string{filepath.Base(path)}, args...), Dir: folder,
 		Env: terminalEnv(os.Environ())}, cols, rows)
 	if err != nil {
+		a.mu.Lock()
+		delete(a.active, t.id)
+		a.signalLocked()
+		a.mu.Unlock()
 		return Started{}, err
 	}
-	a.warnIfTerminalProgramsEndWithDinah(session)
-	id := "term-" + rand.Text()
 	a.mu.Lock()
 	if a.terminals == nil {
 		a.terminals = map[string]*terminal{}
 	}
-	a.terminals[id] = &terminal{session: session}
+	t.session, t.pid = session, session.Pid()
+	a.terminals[t.id] = t
+	stopping := a.stopping
+	if stopping {
+		a.requestCloseLocked(t)
+	}
+	a.signalLocked()
 	a.mu.Unlock()
-	go a.pumpTerminal(id, session)
-	return Started{ID: id, Shell: shell, Name: name, Folder: folder}, nil
+	go a.pumpTerminal(t)
+	a.warnIfTerminalProgramsEndWithDinah(session)
+	if stopping {
+		return Started{}, ErrShuttingDown
+	}
+	return Started{ID: t.id, Shell: shell, Name: name, Folder: folder}, nil
 }
 
 // terminalJobWarning makes the warning below appear once in a run.
@@ -100,7 +155,7 @@ var terminalJobWarning sync.Once
 // had to be started inside Dinah's lifetime job, which happens when Dinah
 // is in a job that does not allow breakaway. Programs started from such a
 // Terminal, windowed ones included, end when Dinah exits.
-func (a *Service) warnIfTerminalProgramsEndWithDinah(s *pty.Session) {
+func (a *Service) warnIfTerminalProgramsEndWithDinah(s terminalSession) {
 	if s.ChildrenOutsideAppJob() {
 		return
 	}
@@ -125,15 +180,19 @@ func terminalEnv(base []string) []string {
 
 // pumpTerminal sends what the shell draws to the page until the shell ends
 // and its console is closed, then says it ended.
-func (a *Service) pumpTerminal(id string, s *pty.Session) {
+func (a *Service) pumpTerminal(t *terminal) {
+	id, s := t.id, t.session
 	codes := make(chan int, 1)
 	go func() {
-		code, _ := s.Wait()
+		code, err := s.Wait()
+		a.mu.Lock()
+		t.shellDone, t.waitErr = true, err
+		// The console can outlive its shell. Request closure so connected
+		// clients receive the close event while the output pump keeps reading.
+		a.requestCloseLocked(t)
+		a.signalLocked()
+		a.mu.Unlock()
 		codes <- code
-		// The console outlives its shell until it is closed, and its output
-		// ends only then. Closing also sends the close event to whatever the
-		// shell left running in the console.
-		s.Close()
 	}()
 	buf := make([]byte, 32<<10)
 	for {
@@ -142,12 +201,25 @@ func (a *Service) pumpTerminal(id string, s *pty.Session) {
 			a.emit("terminal:output", map[string]string{"id": id, "data": base64.StdEncoding.EncodeToString(buf[:n])})
 		}
 		if err != nil {
+			a.mu.Lock()
+			t.outputDone = err == io.EOF
+			if err != io.EOF {
+				t.readErr = err
+			}
+			a.signalLocked()
+			a.mu.Unlock()
 			break
 		}
 	}
 	code := <-codes
 	a.mu.Lock()
+	if !t.outputDone || t.waitErr != nil {
+		a.mu.Unlock()
+		return
+	}
 	delete(a.terminals, id)
+	delete(a.active, id)
+	a.signalLocked()
 	a.mu.Unlock()
 	a.emit("terminal:exit", map[string]any{"id": id, "code": code})
 }
@@ -187,33 +259,20 @@ func (a *Service) Resize(id string, cols, rows int) error {
 // as terminal:exit, as it does when the shell exits by itself. Closing a
 // shell that is closing or has ended does nothing more.
 func (a *Service) Close(id string) error {
-	t, err := a.terminal(id)
-	if err != nil {
-		return nil
+	a.mu.Lock()
+	if t := a.terminals[id]; t != nil {
+		a.requestCloseLocked(t)
 	}
-	go t.session.Close()
+	a.mu.Unlock()
 	return nil
 }
 
-// CloseAll closes a snapshot of the running shells. It waits for their Close
-// calls, not for their output pumps or exit callbacks to finish. The shells
-// close concurrently. The host calls this before its process ends so programs
-// attached to a Terminal receive the close event and end; the host exiting
-// alone would end the shells but not those programs, which are outside its job.
+// CloseAll requests closure of the currently spawned terminals and returns
+// without waiting. It is safe from emit callbacks. Host teardown uses Shutdown.
 func (a *Service) CloseAll() {
 	a.mu.Lock()
-	open := make([]*terminal, 0, len(a.terminals))
 	for _, t := range a.terminals {
-		open = append(open, t)
+		a.requestCloseLocked(t)
 	}
 	a.mu.Unlock()
-	var wg sync.WaitGroup
-	for _, t := range open {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			t.session.Close()
-		}()
-	}
-	wg.Wait()
 }
