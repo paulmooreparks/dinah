@@ -152,6 +152,13 @@ const fs = require('fs'), path = require('path');
    if (mode === 'render-generation' || mode === 'fallback-generation') {
     ok(mode + ': a generation change rereads the current snapshot', await p.evaluate(() => __freshReads >= 2));
     ok(mode + ': the obsolete copy and checkpoint are replaced', !/OLD-GENERATION/.test(transcript) && transcript.split('[NEW-GENERATION]').length === 2 && await p.evaluate(() => __trace.some(item => item.phase === 'journal-next-after-2')), transcript.slice(-400));
+    await p.evaluate(key => pudlWindows.close(key), key);
+    await p.evaluate(workspace => dinahWorkbench.open({kind:'chat-session',workspace,path:'codex:loading'}), workspace);
+    win = p.locator('[data-win="' + key + '"]');
+    await win.getByText(/CURRENT-ANSWER.*NEW-GENERATION/).first().waitFor();
+    await win.getByText(/AFTER-SNAPSHOT/).first().waitFor();
+    const reopened = await win.locator('[data-view-id=logs]').innerText();
+    ok(mode + ': reopening preserves only the new generation once', !/OLD-GENERATION/.test(reopened) && ['CURRENT-ANSWER','[NEW-GENERATION]','[BETWEEN-READS]','[AFTER-SNAPSHOT]'].every(text => reopened.split(text).length === 2), reopened.slice(-400));
    }
    if(mode === 'history-failure') ok('retry recovers journal events received during the failed history read', transcript.split('[DURING-FAILURE]').length === 2 && transcript.split('SENT-DURING-FAILURE').length === 2 && transcript.split('finished its turn').length === 2);
    ok(mode + ': snapshot and in-flight journal entries appear once', transcript.split('CURRENT-ANSWER').length === 2 && transcript.split('[BETWEEN-READS]').length === 2 && (mode === 'unavailable' || transcript.split('[AFTER-SNAPSHOT]').length === 2), transcript.slice(-400));

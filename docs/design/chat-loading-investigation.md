@@ -114,3 +114,14 @@ The first corrected nine-suite run passed eight suites and both new generation c
 
 
 The confirmation run passed all nine focused suites in 110 seconds in `.diagnostics/chat-loading-generation-confirmation/`. It covers twelve loading modes, including both generation races, plus background membership, running catch-up, sequence ordering, resumed display/following, open copy, saved restoration and recovery. Neither new race showed an obsolete-generation row on any sampled frame. Syntax and whitespace checks are clean. Only `session-lifecycle.js`, `e2e/chat-loading-interval.js` and this report changed after `cc34562`; no bridge or export code changed. This focused result covers the successor's correction. The historical 159-suite pass remains separately scoped and is not a full-suite claim for the successor.
+
+
+UI additionally requested explicit close/reopen after the generation race has settled. Both race modes now close and reopen that settled window, then verify that old markers remain absent and every new-generation marker appears once. This supplements the existing close/reopen during opening and retains whole-interval stale-frame checks. The follow-up changes only the matrix and this report; product code remains `5eb2b3f`.
+
+
+The first post-race reopen run was interrupted for shared-slot ownership. UI had announced its review in message 2242 before Front End saw that notice. Front End's wrapper acquired the file lease between UI replay cases. Architecture directed Front End to stop only its owned run. Its command line and output directory identified wrapper PID 29772 and child node PID 54328; Process.Kill(true) stopped that verified tree, and both PIDs were absent afterward. No lock file or UI process was removed. The follow-up output is incomplete, with run identity retained in `.diagnostics/chat-loading-generation-reopen/terminated-owned-run.json`. It remains queued until UI explicitly releases the slot. The earlier nine-suite pass for `5eb2b3f` is unchanged.
+
+
+After UI explicitly released the slot in message 2250, the post-race close/reopen matrix passed all twelve modes in 73 seconds. The output and frame capture are in `.diagnostics/chat-loading-generation-reopen-complete/`. Both generation cases retained only the new generation after reopening, with each current question/answer and identified in-flight event present once. No sampled frame showed an obsolete marker. This follow-up changes only test coverage and this report; product code remains the UI-reviewed `5eb2b3f`.
+
+UI independently passed the twelve-mode product review with 1,350 frames and no page errors before this extra test. External viewing remains unverified because native input returned Access is denied. The real-action export and Explorer reveal passed, but those results do not substitute for usable oldest, middle and newest entry viewing. Release still requires that check and its full gate on the combined successor.
