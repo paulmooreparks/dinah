@@ -41,6 +41,13 @@ var skinCatalogue = func() skins.Catalogue {
 	if err != nil {
 		panic(err)
 	}
+	files, err := fs.Sub(staticFS, "static/pudl")
+	if err != nil {
+		panic(err)
+	}
+	if err := c.ValidateAssets(files); err != nil {
+		panic(err)
+	}
 	return c
 }()
 

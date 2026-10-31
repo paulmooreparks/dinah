@@ -78,3 +78,32 @@ func TestAnUnknownSkinIsDrawnAsStandard(t *testing.T) {
 		t.Fatalf("the root: %s", r)
 	}
 }
+
+func TestEveryAdmittedSkinIsRenderedAndServedWithoutChangingThePreference(t *testing.T) {
+	withHome(t, nil)
+	s, _ := newServer(t)
+	cookie := signIn(t, s)
+	path := filepath.Join(skinHome(), "appearance.json")
+	for _, skin := range skinCatalogue.Admitted() {
+		preference := `{"skin":"` + skin.ID + `"}`
+		if err := os.WriteFile(path, []byte(preference), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		for _, page := range []string{"/", "/inbox", "/rooms"} {
+			response := do(s, "GET", page, nil, map[string]string{"Cookie": cookie})
+			if response.Code != 200 || !strings.Contains(root(response.Body.String()), `data-skin="`+skin.ID+`"`) {
+				t.Fatalf("%s %s: HTTP %d, root %s", skin.ID, page, response.Code, root(response.Body.String()))
+			}
+		}
+		if skin.Stylesheet != nil {
+			response := do(s, "GET", "/static/pudl/"+*skin.Stylesheet, nil, nil)
+			if response.Code != 200 || response.Body.Len() == 0 {
+				t.Fatalf("%s stylesheet unavailable: %d", skin.ID, response.Code)
+			}
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || string(data) != preference {
+			t.Fatalf("rendering changed preference: %s %v", data, err)
+		}
+	}
+}

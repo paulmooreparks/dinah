@@ -5,8 +5,12 @@
 package skins
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -35,7 +39,8 @@ type Choice struct {
 
 // Catalogue is a release's skins.
 type Catalogue struct {
-	Skins []Skin `json:"skins"`
+	Version int    `json:"version"`
+	Skins   []Skin `json:"skins"`
 }
 
 // idPattern is the shape of a skin's ID; a preference that has it but names a skin the build lacks is kept.
@@ -50,17 +55,55 @@ func Parse(data []byte) (Catalogue, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return Catalogue{}, err
 	}
+	if c.Version != 1 {
+		return Catalogue{}, errors.New("unsupported skin catalogue version")
+	}
 	seen := map[string]bool{}
 	for _, s := range c.Skins {
 		if !ValidID(s.ID) || seen[s.ID] {
 			return Catalogue{}, errors.New("the skin catalogue has an invalid or repeated skin ID")
 		}
 		seen[s.ID] = true
+		if strings.TrimSpace(s.Label) == "" {
+			return Catalogue{}, errors.New("the skin catalogue has an empty label")
+		}
+		if s.ID == Standard {
+			if !s.Admitted || s.Stylesheet != nil {
+				return Catalogue{}, errors.New("the standard skin must be admitted without a stylesheet")
+			}
+		} else if s.Admitted {
+			if s.Stylesheet == nil || !fs.ValidPath(*s.Stylesheet) || strings.Contains(*s.Stylesheet, "/") || strings.Contains(*s.Stylesheet, "\\") || !strings.HasSuffix(*s.Stylesheet, ".css") {
+				return Catalogue{}, errors.New("an admitted skin needs a local CSS filename")
+			}
+			digest, err := hex.DecodeString(s.SHA256)
+			if err != nil || len(digest) != sha256.Size {
+				return Catalogue{}, errors.New("an admitted skin needs a SHA-256 stylesheet digest")
+			}
+		}
 	}
 	if !seen[Standard] {
 		return Catalogue{}, errors.New("the skin catalogue lacks " + Standard)
 	}
 	return c, nil
+}
+
+// ValidateAssets checks admission against the actual bundled CSS, independently
+// in each host. Runtime registration alone cannot establish release admission.
+func (c Catalogue) ValidateAssets(files fs.FS) error {
+	for _, s := range c.Admitted() {
+		if s.Stylesheet == nil {
+			continue
+		}
+		data, err := fs.ReadFile(files, *s.Stylesheet)
+		if err != nil {
+			return fmt.Errorf("skin %s stylesheet: %w", s.ID, err)
+		}
+		sum := sha256.Sum256(data)
+		if !strings.EqualFold(hex.EncodeToString(sum[:]), s.SHA256) {
+			return fmt.Errorf("skin %s stylesheet does not match its admitted digest", s.ID)
+		}
+	}
+	return nil
 }
 
 // Admitted are the skins the release admits, in its order. Standard is always among them.
@@ -97,6 +140,9 @@ func (c Catalogue) Effective(preference string) string {
 // ReadPreference is the skin the person chose, from the appearance store in dir, or Standard when there is none
 // or it cannot be read. It reads only the one field and never fails a page.
 func ReadPreference(dir string) string {
+	if dir == "" {
+		return Standard
+	}
 	data, err := statefile.ReadShared(filepath.Join(dir, "appearance.json"))
 	if err != nil || len(data) == 0 {
 		return Standard
@@ -113,6 +159,9 @@ func ReadPreference(dir string) string {
 // ReadThemePreference is the person's choice of light, dark or system, from the UI state in dir, or "" when there is
 // none or it is not one of those.
 func ReadThemePreference(dir string) string {
+	if dir == "" {
+		return ""
+	}
 	data, err := statefile.ReadShared(filepath.Join(dir, "ui-state.json"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return ""
@@ -127,7 +176,8 @@ func ReadThemePreference(dir string) string {
 	if json.Unmarshal(v.Values["pudl-theme"], &pref) != nil {
 		return ""
 	}
-	switch strings.TrimSpace(pref) {
+	pref = strings.TrimSpace(pref)
+	switch pref {
 	case "light", "dark", "system":
 		return pref
 	}

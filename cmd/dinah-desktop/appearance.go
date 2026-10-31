@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -34,6 +35,13 @@ var skinCatalogueSource []byte
 var skinCatalogue = func() skins.Catalogue {
 	c, err := skins.Parse(skinCatalogueSource)
 	if err != nil {
+		panic(err)
+	}
+	files, err := fs.Sub(assets, "frontend/pudl")
+	if err != nil {
+		panic(err)
+	}
+	if err := c.ValidateAssets(files); err != nil {
 		panic(err)
 	}
 	return c
