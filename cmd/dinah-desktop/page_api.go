@@ -44,7 +44,7 @@ var pageMethods = func() map[string]pageMethodClass {
  NativeWindowState NativeWindowAction State Sessions SessionsAt History SavedConversation
  AgentProviders ProviderAccounts ProviderModelPreferences ProviderUsage CanSteer
  AppletArtifactAt AppletAttention AppletCatalog AppletGrants AppletInvocationAt AppletInvocationsAt
- AppletRequests AppletResults BusOverview BusGroup BusGroupMessages BusThread
+ AppletRequests AppletResults BusOverview BusGroup BusResolveGroup BusGroupMessages BusThread
  ChatLogPath CheckSkillDraft ClipboardRead CompareDraft DocumentRefAt DraftStamp
  ExtensionWorkspace Extensions GetDraft HomeMountPath ListDrafts ListWorkspaceMounts
  ListWorkspaceMountsExpected ListWorkspaceResources PageBlocksOf PageDocumentMarkdown
