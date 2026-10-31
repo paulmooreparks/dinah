@@ -345,6 +345,9 @@ func (c *Conn) open(ctx context.Context, method string, params, out any) error {
 	sandbox, approval := sandboxFor(policy)
 	q := map[string]any{"cwd": p.Cwd, "config": config, "sandbox": sandbox, "approvalPolicy": approval, "approvalsReviewer": "user"}
 	rpcMethod := "thread/start"
+	if method == "session/new" {
+		q["ephemeral"] = false
+	}
 	if method == "session/load" {
 		id, err := native(p.SessionID)
 		if err != nil {
@@ -367,9 +370,29 @@ func (c *Conn) open(ctx context.Context, method string, params, out any) error {
 	if method == "session/load" && id != p.SessionID {
 		return errors.New("Codex resumed a different conversation")
 	}
+	published := false
+	if method == "session/new" {
+		defer func() {
+			if !published {
+				c.releaseUnpublishedThread(r.Thread.ID)
+			}
+		}()
+		// The documented inject_items operation persists history without a turn.
+		// An empty thread/start alone can leave only an in-memory identity.
+		text := fmt.Sprintf("This conversation is hosted by %s in workspace %q. This application context record is not a user request.", profile.Current().Name, p.Cwd)
+		items := []any{map[string]any{"type": "message", "role": "developer", "content": []any{map[string]string{"type": "input_text", "text": text}}}}
+		if err = c.Conn.Call(ctx, "thread/inject_items", map[string]any{"threadId": r.Thread.ID, "items": items}, nil); err != nil {
+			return err
+		}
+	}
 	s := &session{model: r.Model, effort: r.Effort, approvals: policy, baseApprovals: approvalsPolicy(p.Approvals), appletApprovals: p.AppletApprovals, streamed: map[string]bool{}}
 	c.mu.Lock()
+	if err := ctx.Err(); err != nil {
+		c.mu.Unlock()
+		return err
+	}
 	c.sessions[id] = s
+	published = true
 	opts := c.options(s)
 	c.mu.Unlock()
 	if method == "session/load" {
@@ -381,6 +404,22 @@ func (c *Conn) open(ctx context.Context, method string, params, out any) error {
 		return acp.Result(acp.LoadSessionResult{ConfigOptions: opts}, out)
 	}
 	return acp.Result(acp.NewSessionResult{SessionID: id, ConfigOptions: opts}, out)
+}
+
+func (c *Conn) releaseUnpublishedThread(id string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = c.Conn.Call(ctx, "thread/unsubscribe", map[string]string{"threadId": id}, nil)
+	}()
+	// Call's transport write can block independently of its response context.
+	// Never let best-effort cleanup delay the original creation error forever.
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }
 
 func sameWorkspace(a, b string) bool {
