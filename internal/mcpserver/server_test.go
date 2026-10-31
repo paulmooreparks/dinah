@@ -157,6 +157,10 @@ func TestTheToolSchemasDescribeGroupsOfChats(t *testing.T) {
 		descriptions[tool.Name] = tool.Description
 	}
 	for _, name := range []string{"send", "reply"} {
+		a, _ := props[name]["actionRecipients"].(map[string]any)
+		if a == nil || !strings.Contains(fmt.Sprint(a["type"]), "array") {
+			t.Fatalf("missing actionRecipients: %+v", props[name])
+		}
 		m, _ := props[name]["mentions"].(map[string]any)
 		items, _ := m["items"].(map[string]any)
 		if m == nil || !strings.Contains(fmt.Sprint(m["type"]), "array") || items["type"] != "string" || !strings.Contains(m["description"].(string), "title") {

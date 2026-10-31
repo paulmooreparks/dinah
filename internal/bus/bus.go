@@ -456,9 +456,26 @@ func (b *Bus) SendMentioning(ctx context.Context, from Sender, to, text string, 
 	return b.send(ctx, from, to, text, atts, replyTo, mentions)
 }
 
+// SendActionRecipients sends with explicit group action routing. An empty list
+// is informational. Supplying this contract for a direct message is an error.
+func (b *Bus) SendActionRecipients(ctx context.Context, from Sender, to, text string, attach []string, replyTo int64, recipients []string) (Message, error) {
+	if len(attach) > 0 && from.Session == nil {
+		return Message{}, errors.New("the person has no workspace to link files from; attach the person's files with SendFiles")
+	}
+	atts, err := hashAttachments(from.Session, attach)
+	if err != nil {
+		return Message{}, err
+	}
+	return b.sendRouted(ctx, from, to, text, atts, replyTo, recipients, true)
+}
+
 // send records a message with its attachments already checked and hashed.
 // A message needs words or at least one attachment.
 func (b *Bus) send(ctx context.Context, from Sender, to, text string, atts []Attachment, replyTo int64, mentions []string) (Message, error) {
+	return b.sendRouted(ctx, from, to, text, atts, replyTo, mentions, false)
+}
+
+func (b *Bus) sendRouted(ctx context.Context, from Sender, to, text string, atts []Attachment, replyTo int64, mentions []string, groupRouting bool) (Message, error) {
 	if strings.TrimSpace(text) == "" && len(atts) == 0 {
 		return Message{}, errors.New("the message is empty")
 	}
@@ -477,6 +494,9 @@ func (b *Bus) send(ctx context.Context, from Sender, to, text string, atts []Att
 		}
 		if err != nil {
 			return err
+		}
+		if groupRouting && r.room == "" {
+			return errors.New("actionRecipients is only valid for group messages")
 		}
 		if err := mentionList(t, from, &r, mentions, person); err != nil {
 			return err
@@ -837,6 +857,18 @@ func (b *Bus) Deliver(ctx context.Context, sessionID, event string) (msgs []Mess
 		now := b.stamp()
 		if _, err := t.Exec(`UPDATE sessions SET last_seen = ?, ended_at = NULL WHERE id = ?`, now, sessionID); err != nil {
 			return err
+		}
+		// Recheck inside the delivery transaction: another consumer may have
+		// claimed the request after the scheduler rang. A stale ring must not
+		// turn remaining passive notices into a new provider turn.
+		if event == DoorbellTurn {
+			var eligible int
+			if err := t.QueryRow(`SELECT COUNT(*) `+doorbellFrom, sessionID).Scan(&eligible); err != nil {
+				return err
+			}
+			if eligible == 0 {
+				return nil
+			}
 		}
 		switch event {
 		case "UserPromptSubmit", DoorbellTurn:
@@ -1267,8 +1299,7 @@ type Pending struct {
 // one's number. It changes nothing. The limit is MaxHops, or the trusted
 // link's own between the sender's workspace and the session's (links.go).
 // A group's message has no hop limit and counts while its group's turn budget
-// is not used up (rooms.go). A group's message that does not mention the
-// session counts too, for its notice (notice.go).
+// is not used up (rooms.go). Informational group messages do not count.
 // A question is not counted, since Deliver does not hand it over
 // (questions.go).
 func (b *Bus) Doorbell(ctx context.Context, sessionID string) (count int, newest int64, err error) {
@@ -1293,7 +1324,7 @@ func doorbellFor(wake string) string {
 }
 
 // Asking returns how many of the messages the doorbell counts for a session
-// ask it to answer, which is Doorbell without a group's notices. The window
+// ask it to answer. Like Doorbell, it excludes passive notices. The window
 // steers a busy chat only with these: a notice waits for the chat's next turn.
 func (b *Bus) Asking(ctx context.Context, sessionID string) (int, error) {
 	var n int

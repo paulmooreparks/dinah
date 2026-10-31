@@ -38,15 +38,15 @@ func TestAGroupIsMadeOfChats(t *testing.T) {
 	take := func(s Session) []Message { got, _, _ := b.Deliver(ctx, s.ID, "UserPromptSubmit"); return got }
 
 	b.Send(ctx, Sender{Session: &lead}, "#"+g.Title, "The parser is tagged. @Docs Pass please look.", nil, 0)
-	// Its text has @ and a title, which mentions nobody, so each member is woken
-	// once for the notice of it, and the sender not at all.
-	if rings(docs) != 1 || rings(parser) != 1 || rings(lead) != 0 || rings(other) != 0 {
+	// Text alone routes no action. Every recipient keeps a passive notice.
+	if rings(docs) != 0 || rings(parser) != 0 || rings(lead) != 0 || rings(other) != 0 {
 		t.Fatalf("a message without mentions rang docs %d, parser %d, lead %d and a chat outside %d times", rings(docs), rings(parser), rings(lead), rings(other))
 	}
 	got, block, _ := b.Deliver(ctx, docs.ID, "Stop")
-	if !block {
-		t.Fatal("the notice did not keep a turn going at Stop")
+	if block || len(got) != 0 {
+		t.Fatal("the notice kept a turn going at Stop")
 	}
+	got = take(docs)
 	if len(got) != 1 || got[0].Asked || !got[0].Notice || !strings.Contains(FormatForAgent(got, PersonFallback), `In the group chat "Lead, Docs Pass and Fix the Parser", these messages do not mention you`) {
 		t.Fatalf("docs got %+v", got)
 	}
@@ -61,7 +61,7 @@ func TestAGroupIsMadeOfChats(t *testing.T) {
 	if len(m.Mentioned) != 1 || m.Mentioned[0].Key != docs.ID || m.Mentioned[0].Address != "Docs Pass (pudl)" {
 		t.Fatalf("the message mentions %+v", m.Mentioned)
 	}
-	if rings(docs) != 1 || rings(parser) != 1 {
+	if rings(docs) != 1 || rings(parser) != 0 {
 		t.Fatalf("a mention of docs rang docs %d times and parser %d, for its notice", rings(docs), rings(parser))
 	}
 	got, _, _ = b.Deliver(ctx, docs.ID, DoorbellTurn)
@@ -75,8 +75,8 @@ func TestAGroupIsMadeOfChats(t *testing.T) {
 	if _, err := b.SendMentioning(ctx, Sender{}, "#"+g.Name, "Parser, anything blocking?", nil, 0, []string{parser.ID}); err != nil {
 		t.Fatal(err)
 	}
-	if rings(parser) != 1 || rings(docs) != 1 || rings(lead) != 1 {
-		t.Fatal("the person's message did not ring every member")
+	if rings(parser) != 1 || rings(docs) != 0 || rings(lead) != 0 {
+		t.Fatal("the person's request did not ring only its action recipient")
 	}
 	if got := take(parser); len(got) != 1 || !got[0].Asked || got[0].Notice {
 		t.Fatalf("the chat it mentions got %+v", got)
@@ -174,8 +174,8 @@ func TestEveryoneAndThePerson(t *testing.T) {
 	if len(inbox) != 1 || inbox[0].RoomTitle != "Review" || !inbox[0].Unread {
 		t.Fatalf("the person's mention: %+v", inbox)
 	}
-	// The everyone message and this one, which gave docs a notice.
-	if rings(docs.ID) != 2 {
+	// Only the everyone message rings docs.
+	if rings(docs.ID) != 1 {
 		t.Fatalf("docs was rung %d times", rings(docs.ID))
 	}
 }
@@ -342,8 +342,7 @@ func TestHandlesAreGone(t *testing.T) {
 
 // A message the person writes to a group is treated like a chat's: it asks
 // only the chats it mentions, and everyone asks every member, open or closed.
-// The open members it does not ask are woken for a notice, and the closed ones
-// are not opened for one.
+// Members it does not ask keep a passive notice without waking.
 func TestThePersonsMessagesFollowTheMentions(t *testing.T) {
 	ctx := context.Background()
 	b, root := open(t)
@@ -360,13 +359,13 @@ func TestThePersonsMessagesFollowTheMentions(t *testing.T) {
 	if _, err := b.Send(ctx, Sender{Session: &lead}, "#"+g.Name, "No one in particular.", nil, 0); err != nil {
 		t.Fatal(err)
 	}
-	if rings(docs.ID) != 1 || rings(lead.ID) != 0 {
-		t.Fatal("a chat's message that mentions nobody did not ring the other open member once")
+	if rings(docs.ID) != 0 || rings(lead.ID) != 0 {
+		t.Fatal("an informational post rang a member")
 	}
 	if wakes, _ := b.Waking(ctx); len(wakes) != 0 {
 		t.Fatalf("a chat's message that mentions nobody has chats opened for it: %+v", wakes)
 	}
-	b.Deliver(ctx, docs.ID, DoorbellTurn)
+	b.Deliver(ctx, docs.ID, "UserPromptSubmit")
 
 	sent, err := b.Send(ctx, Sender{}, "#"+g.Name, "Where are we?", nil, 0)
 	if err != nil {
@@ -375,7 +374,7 @@ func TestThePersonsMessagesFollowTheMentions(t *testing.T) {
 	if len(sent.Mentioned) != 0 {
 		t.Fatalf("the message shows mentions it did not make: %+v", sent.Mentioned)
 	}
-	if rings(lead.ID) != 1 || rings(docs.ID) != 1 {
+	if rings(lead.ID) != 0 || rings(docs.ID) != 0 {
 		t.Fatalf("the person's message that mentions nobody rang lead %d times and docs %d", rings(lead.ID), rings(docs.ID))
 	}
 	if wakes, _ := b.Waking(ctx); len(wakes) != 0 {
@@ -390,9 +389,8 @@ func TestThePersonsMessagesFollowTheMentions(t *testing.T) {
 	if _, err := b.SendMentioning(ctx, Sender{}, "#"+g.Name, "Lead, status?", nil, 0, []string{lead.ID}); err != nil {
 		t.Fatal(err)
 	}
-	// Lead is rung for the earlier notice and for the mention, docs for the
-	// notice of the mention.
-	if rings(lead.ID) != 2 || rings(docs.ID) != 1 {
+	// Only the explicit request rings Lead.
+	if rings(lead.ID) != 1 || rings(docs.ID) != 0 {
 		t.Fatalf("a mention rang lead %d times and docs %d", rings(lead.ID), rings(docs.ID))
 	}
 	named, _, _ := b.Deliver(ctx, lead.ID, "UserPromptSubmit")

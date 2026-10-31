@@ -12,9 +12,9 @@ import (
 func TestTheBusServerTellsChatsHowToReachThePerson(t *testing.T) {
 	text := rules("Paul")
 	for _, want := range []string{
-		"to notify Paul: put paul in the mentions when you need a decision or an answer from Paul",
-		"notifies nobody",
-		"Do not mention paul to say thanks",
+		"Put paul in actionRecipients when Paul needs to decide or answer",
+		"routes nothing",
+		"Do not notify Paul for thanks",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the rules lack %q", want)

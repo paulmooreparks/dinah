@@ -52,7 +52,7 @@ func TestARenamedGroupKeepsEverythingButItsTitle(t *testing.T) {
 	if _, err := b.Send(ctx, Sender{Session: &lead}, "#"+g.Name, "By the stable name.", nil, 0); err != nil {
 		t.Fatal(err)
 	}
-	got, _, _ := b.Deliver(ctx, docs.ID, DoorbellTurn)
+	got, _, _ := b.Deliver(ctx, docs.ID, "UserPromptSubmit")
 	text := FormatForAgent(got, PersonFallback)
 	if !strings.Contains(text, `In the group chat "Dinah Development"`) || strings.Contains(text, `"`+g.Title+`"`) {
 		t.Fatalf("a delivery after the rename:\n%s", text)

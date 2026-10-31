@@ -127,12 +127,9 @@ func (b *Bus) SetGroupBudget(ctx context.Context, group string, budget int) erro
 // or the session's workspace.
 const askedSQL = `(m.room = '' OR m.mentions LIKE '%,' || s.id || ',%' OR m.mentions LIKE '%,everyone,%' OR m.mentions LIKE '%,*,%' OR m.mentions LIKE '%,' || s.workspace || ',%')`
 
-// wakesSQL is true for a delivery that should wake its session s: one that
-// asks it to answer, and a group's message that does not, which wakes it for
-// the notice of it (notice.go). The window rings a chat for a notice only when
-// the chat is idle, so notices that come while it works are gathered into its
-// next turn.
-const wakesSQL = `(` + askedSQL + ` OR (m.room <> '' AND m.kind = 'text' AND d.recipient_kind = 'session'))`
+// wakesSQL admits action requests only. Informational group deliveries remain
+// unread until the recipient takes a turn for another reason.
+const wakesSQL = askedSQL
 
 // fanOut turns the workspaces a message is for into deliveries: one to each
 // open session of the workspace other than the sender, or to the workspace

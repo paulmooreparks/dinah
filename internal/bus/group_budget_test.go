@@ -187,12 +187,15 @@ func TestThePersonsPostRefillsTheBudget(t *testing.T) {
 			t.Fatalf("the person's post left %d used", r.Used)
 		}
 		// The chat that had a message waiting is rung for it and for the post.
-		// The other member is rung for the notices of all three messages, and
-		// the second of them counts again once the budget is whole.
+		// The other member is rung only if everyone was asked.
 		if g.rings(g.c) != 2 || !g.wakes(g.c) {
 			t.Fatalf("the waiting mention did not wake after the refill (everyone %v)", everyone)
 		}
-		if want := 3; g.rings(g.d) != want {
+		want := 0
+		if everyone {
+			want = 1
+		}
+		if g.rings(g.d) != want {
 			t.Fatalf("the person's post rang the other member %d times (everyone %v)", g.rings(g.d), everyone)
 		}
 	}
@@ -240,7 +243,10 @@ func TestTwoChatsCannotTakeTheLastTurn(t *testing.T) {
 	g.budget(1)
 	g.say(&g.a, "both of you", g.c.ID, g.d.ID)
 	first := g.take(g.c, DoorbellTurn)
-	second := g.take(g.d, DoorbellTurn)
+	if got := g.take(g.d, DoorbellTurn); len(got) != 0 {
+		t.Fatalf("spent budget started a turn: %+v", got)
+	}
+	second := g.take(g.d, "UserPromptSubmit")
 	if len(first) != 1 || !first[0].Asked || len(second) != 1 || second[0].Asked || !second[0].Held {
 		t.Fatalf("first %+v, second %+v", first, second)
 	}

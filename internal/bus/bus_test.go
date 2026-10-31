@@ -246,9 +246,9 @@ func TestDoorbellStopsAfterThreeHops(t *testing.T) {
 			t.Fatalf("hop %d: doorbell rang for %d, want ringing %v", hop, n, want)
 		}
 	}
-	// A turn the doorbell started is not Paul speaking, so it keeps the count.
+	// An independently running turn can read held traffic without resetting hops.
 	last := turn[(MaxHops+1)%2]
-	b.Deliver(ctx, last.ID, DoorbellTurn)
+	b.Deliver(ctx, last.ID, "PostToolUse")
 	if _, err := b.Send(ctx, Sender{Session: &last}, "gamma", "still talking", nil, 0); err != nil {
 		t.Fatal(err)
 	}

@@ -83,7 +83,7 @@ func TestAMembersMentionOfThePersonGoesToItsLead(t *testing.T) {
 		t.Fatalf("the lead is not told what to do:\n%s", text)
 	}
 	// The other members read it as an ordinary message of the group, not as a request.
-	if others, _, _ := b.Deliver(ctx, lead.ID, DoorbellTurn); len(others) == 0 || others[0].Relay {
+	if others, _, _ := b.Deliver(ctx, lead.ID, "UserPromptSubmit"); len(others) == 0 || others[0].Relay {
 		t.Fatalf("another member's delivery: %+v", others)
 	}
 	// The lead relays what the person should act on as its own message, which notifies him.
@@ -457,7 +457,7 @@ func TestThePersonsUnmentionedMessageInATeamGoesToItsLead(t *testing.T) {
 	if err != nil || len(got) != 1 || got[0].ID != m.ID || !got[0].Asked {
 		t.Fatalf("the lead's delivery: %+v %v", got, err)
 	}
-	others, _, err := b.Deliver(ctx, docs.ID, DoorbellTurn)
+	others, _, err := b.Deliver(ctx, docs.ID, "UserPromptSubmit")
 	if err != nil || len(others) != 1 || others[0].ID != m.ID || others[0].Asked {
 		t.Fatalf("another member should get the notice only: %+v %v", others, err)
 	}
@@ -470,7 +470,7 @@ func TestThePersonsUnmentionedMessageInATeamGoesToItsLead(t *testing.T) {
 	if len(asked) != 1 || asked[0].ID != n.ID || !asked[0].Asked {
 		t.Fatalf("the mentioned member: %+v", asked)
 	}
-	if leadGot, _, _ := b.Deliver(ctx, lead.ID, DoorbellTurn); len(leadGot) != 1 || leadGot[0].Asked {
+	if leadGot, _, _ := b.Deliver(ctx, lead.ID, "UserPromptSubmit"); len(leadGot) != 1 || leadGot[0].Asked {
 		t.Fatalf("the lead should only be told: %+v", leadGot)
 	}
 }

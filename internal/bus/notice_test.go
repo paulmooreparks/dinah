@@ -185,22 +185,26 @@ func TestTheGroupShowsTheNewestUnreadLine(t *testing.T) {
 	}
 }
 
-// A message that mentions nobody rings each other open member once, and
-// ringing changes nothing until a delivery takes it.
-func TestAnUnmentionedMessageRingsEachOtherMemberOnce(t *testing.T) {
+// Passive messages wait for a turn started for another reason.
+func TestAnUnmentionedMessageWaitsForAnIndependentTurn(t *testing.T) {
 	ctx := context.Background()
 	b, g, lead, docs, parser := noticeGroup(t)
 	if _, err := b.Send(ctx, Sender{Session: &lead}, "#"+g.Name, "Anyone seen this?", nil, 0); err != nil {
 		t.Fatal(err)
 	}
 	for _, s := range []Session{docs, parser} {
-		if n, _, _ := b.Doorbell(ctx, s.ID); n != 1 {
+		if n, _, _ := b.Doorbell(ctx, s.ID); n != 0 {
 			t.Fatalf("%s is rung %d times", s.Title, n)
 		}
 		if asking, _ := b.Asking(ctx, s.ID); asking != 0 {
 			t.Fatalf("%s is asked to answer a message that mentions nobody", s.Title)
 		}
-		if got, _, _ := b.Deliver(ctx, s.ID, DoorbellTurn); len(got) != 1 || !got[0].Notice {
+		for _, event := range []string{DoorbellTurn, "Stop"} {
+			if got, block, err := b.Deliver(ctx, s.ID, event); err != nil || block || len(got) != 0 {
+				t.Fatalf("passive delivery at %s: %+v %v %v", event, got, block, err)
+			}
+		}
+		if got, _, _ := b.Deliver(ctx, s.ID, "UserPromptSubmit"); len(got) != 1 || !got[0].Notice {
 			t.Fatalf("%s was delivered %+v", s.Title, got)
 		}
 		if n, _, _ := b.Doorbell(ctx, s.ID); n != 0 {
@@ -226,7 +230,7 @@ func TestNoticesThatArriveTogetherAreOneDelivery(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	got, _, err := b.Deliver(ctx, docs.ID, DoorbellTurn)
+	got, _, err := b.Deliver(ctx, docs.ID, "UserPromptSubmit")
 	if err != nil || len(got) != 3 {
 		t.Fatalf("the burst was %d deliveries: %v", len(got), err)
 	}
@@ -239,56 +243,35 @@ func TestNoticesThatArriveTogetherAreOneDelivery(t *testing.T) {
 	}
 }
 
-// Waking a chat for another chat's notice spends one turn of the group's
-// budget, and once the budget is spent a chat's message that mentions nobody
-// wakes nobody, though it is still delivered when a member next takes a turn.
-// The person's messages are never held back.
-func TestNoticesAreBudgetedForChatsAndNotForThePerson(t *testing.T) {
+// Passive deliveries do not spend the allowance for action requests.
+func TestPassiveNoticesDoNotSpendGroupBudget(t *testing.T) {
 	ctx := context.Background()
-	b, g, lead, docs, parser := noticeGroup(t)
+	b, g, lead, docs, _ := noticeGroup(t)
 	if err := b.SetGroupBudget(ctx, g.Name, 1); err != nil {
 		t.Fatal(err)
 	}
-	say := func(from *Session, text string) {
-		t.Helper()
-		sender := Sender{}
-		if from != nil {
-			sender = Sender{Session: from}
-		}
-		if _, err := b.Send(ctx, sender, "#"+g.Name, text, nil, 0); err != nil {
-			t.Fatal(err)
-		}
-	}
-	say(&lead, "First, with no mentions.")
-	if n, _, _ := b.Doorbell(ctx, docs.ID); n != 1 {
-		t.Fatalf("the first notice rang %d times", n)
-	}
-	b.Deliver(ctx, docs.ID, DoorbellTurn)
-	if r, _ := b.Room(ctx, g.Name); r.Used != 1 {
-		t.Fatalf("the wake spent %d turns", r.Used)
-	}
-	say(&lead, "Second, with no mentions.")
-	if n, _, _ := b.Doorbell(ctx, parser.ID); n != 0 {
-		t.Fatalf("a spent group still woke a member %d times", n)
-	}
-	if wakes, _ := b.Waking(ctx); len(wakes) != 0 {
-		t.Fatalf("a spent group has chats opened: %+v", wakes)
-	}
-	// It is not lost: the next delivery for another reason brings both lines.
-	if got, _, _ := b.Deliver(ctx, parser.ID, "UserPromptSubmit"); len(got) != 2 || !got[0].Notice || !got[1].Notice || got[0].Held || got[1].Held {
-		t.Fatalf("parser was delivered %+v", got)
-	}
-	say(nil, "The person speaks, with no mentions.")
-	if r, _ := b.Room(ctx, g.Name); r.Used != 0 {
-		t.Fatalf("the person's post left %d used", r.Used)
-	}
-	if err := b.SetGroupBudget(ctx, g.Name, 0); err != nil {
+	if _, err := b.Send(ctx, Sender{Session: &lead}, "#"+g.Name, "Information", nil, 0); err != nil {
 		t.Fatal(err)
 	}
-	say(nil, "Again, with a budget of nothing.")
-	for _, s := range []Session{lead, docs, parser} {
-		if n, _, _ := b.Doorbell(ctx, s.ID); n == 0 {
-			t.Fatalf("%s was not woken for the person's message", s.Title)
-		}
+	if got, _, err := b.Deliver(ctx, docs.ID, "UserPromptSubmit"); err != nil || len(got) != 1 || !got[0].Notice {
+		t.Fatalf("notice: %+v %v", got, err)
+	}
+	if r, _ := b.Room(ctx, g.Name); r.Used != 0 {
+		t.Fatalf("notice spent %d turns", r.Used)
+	}
+	if _, err := b.SendActionRecipients(ctx, Sender{Session: &lead}, "#"+g.Name, "Please act", nil, 0, []string{docs.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, err := b.Deliver(ctx, docs.ID, DoorbellTurn); err != nil || len(got) != 1 || !got[0].Asked {
+		t.Fatalf("action: %+v %v", got, err)
+	}
+	if r, _ := b.Room(ctx, g.Name); r.Used != 1 {
+		t.Fatalf("action spent %d turns", r.Used)
+	}
+	if _, err := b.SendActionRecipients(ctx, Sender{}, "#"+g.Name, "Human request", nil, 0, []string{docs.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if n, _, err := b.Doorbell(ctx, docs.ID); err != nil || n != 1 {
+		t.Fatalf("human request: %d %v", n, err)
 	}
 }
