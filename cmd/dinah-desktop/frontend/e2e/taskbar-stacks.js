@@ -84,15 +84,15 @@ const { launch, PAGE } = require('./lib/page');
     ok('the ownership fixture holds projection constant', await page.locator('[data-win-layer]').getAttribute('data-win-taskbar-stacks') === 'always');
     ok('no group is marked open', !await page.locator('[data-win-layer]').evaluate(layer => layer.hasAttribute('data-win-group-open')));
     const beta = await attrs(b1);
-    ok('a workspace\'s window carries the applet/workspace identity and applet glyph', beta.group === chatGroup('ws_BETA') && beta.label === 'Chats (Beta)' && beta.glyph === 'comments', JSON.stringify(beta));
-    ok('two windows of one workspace form one stack labelled with its name', await stack('ws_BETA').count() === 1 && (await stack('ws_BETA').locator('.win-item-title').textContent()) === 'Chats (Beta)' &&
-      (await stackName('ws_BETA')).startsWith('Chats (Beta), 2 windows') && await button(b1).count() === 0 && await button(b2).count() === 0);
+    ok('a workspace\'s window carries the applet/workspace identity and applet glyph', beta.group === chatGroup('ws_BETA') && beta.label === 'Beta (Chats)' && beta.glyph === 'comments', JSON.stringify(beta));
+    ok('two windows of one workspace form one stack labelled with its name', await stack('ws_BETA').count() === 1 && (await stack('ws_BETA').locator('.win-item-title').textContent()) === 'Beta (Chats)' &&
+      (await stackName('ws_BETA')).startsWith('Beta (Chats), 2 windows') && await button(b1).count() === 0 && await button(b2).count() === 0);
     ok('the chosen workspace\'s windows stack like any other, New Chat with them', (await attrs('chat')).group === chatGroup('ws_ALPHA') &&
-      (await stackName('ws_ALPHA')).startsWith('Chats (Alpha), 3 windows') && await button(a1).count() === 0 && await button(a2).count() === 0 && await button('chat').count() === 0);
+      (await stackName('ws_ALPHA')).startsWith('Alpha (Chats), 3 windows') && await button(a1).count() === 0 && await button(a2).count() === 0 && await button('chat').count() === 0);
     const settings = await attrs('settings');
     ok('an explicitly workspace-free singleton has its applet group and an ordinary button', settings && settings.group === groupKey('dinah.settings') && settings.label === 'Settings' && await button('settings').count() === 1);
     const gamma = await attrs(g1);
-    ok('an ID with other characters becomes a stable safe key', gamma.group === chatGroup('team/gamma') && gamma.label === 'Chats (Gamma)' && await button(g1).count() === 1, JSON.stringify(gamma));
+    ok('an ID with other characters becomes a stable safe key', gamma.group === chatGroup('team/gamma') && gamma.label === 'Gamma (Chats)' && await button(g1).count() === 1, JSON.stringify(gamma));
     await t.shot('taskbar-stacks-taskbar', { clip: { x: 0, y: 820, width: 1700, height: 80 } });
 
     // Pressing the chosen workspace's stack pins its list: it stays open
@@ -122,8 +122,8 @@ const { launch, PAGE } = require('./lib/page');
     await page.locator('#rename-workspace').waitFor({ state: 'hidden' });
     await counts('ws_BETA', 3);
     const renamed = [await attrs(b1), await attrs(b2), await attrs('chat')];
-    ok('a rename keeps the key and changes the label on every window of the workspace', renamed.every(a => a.group === chatGroup('ws_BETA') && a.label === 'Chats (Beta Release)'), JSON.stringify(renamed));
-    ok('the renamed workspace is still one stack, labelled with its new name', await stack('ws_BETA').count() === 1 && (await stackName('ws_BETA')).startsWith('Chats (Beta Release), 3 windows'));
+    ok('a rename keeps the key and changes the label on every window of the workspace', renamed.every(a => a.group === chatGroup('ws_BETA') && a.label === 'Beta Release (Chats)'), JSON.stringify(renamed));
+    ok('the renamed workspace is still one stack, labelled with its new name', await stack('ws_BETA').count() === 1 && (await stackName('ws_BETA')).startsWith('Beta Release (Chats), 3 windows'));
     await choose('ws_ALPHA');
 
     // A chat whose window moves to another workspace, as Continue in
@@ -143,7 +143,7 @@ const { launch, PAGE } = require('./lib/page');
     const restored = await page.evaluate(() => window.pudlWindows.state().open.length);
     const betaBack = await appears(stack('ws_BETA')), alphaBack = await appears(stack('ws_ALPHA'));
     ok('windows restored at start are stacked with no workspace change', restored >= 9 && betaBack && alphaBack && (await t.calls('SelectWorkspace')).length === 0 &&
-      (await stackName('ws_BETA')).startsWith('Chats (Beta Release), 3 windows') && (await stackName('ws_ALPHA')).startsWith('Chats (Alpha), 2 windows') &&
+      (await stackName('ws_BETA')).startsWith('Beta Release (Chats), 3 windows') && (await stackName('ws_ALPHA')).startsWith('Alpha (Chats), 2 windows') &&
       await button(g1).count() === 1 && await button('settings').count() === 1, JSON.stringify({ restored, betaBack, alphaBack, beta: await attrs(b1) }));
     const extra = await page.evaluate(async () => {
       const editor = await dinahWorkbench.open({ kind: 'editor', workspace: 'ws_BETA', path: 'pending-document' });
