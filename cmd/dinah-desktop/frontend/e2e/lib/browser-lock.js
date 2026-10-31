@@ -3,7 +3,11 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const readline = require('readline');
-const DEFAULT_PATH = path.join(process.env.ProgramData || 'C:/ProgramData', 'Dinah', 'browser-tests.lock');
+// The same file browser-lock.ps1's Get-DinahBrowserLockPath chooses.
+const DEFAULT_PATH = process.env.DINAH_BROWSER_LOCK
+  || (process.platform === 'win32'
+    ? path.join(process.env.ProgramData || 'C:/ProgramData', 'Dinah', 'browser-tests.lock')
+    : '/tmp/Dinah/browser-tests.lock');
 
 function acquire({ lockPath = DEFAULT_PATH, owner = process.argv[1], ticket = process.env.DINAH_BROWSER_TEST_TICKET } = {}) {
   return new Promise((resolve, reject) => {
