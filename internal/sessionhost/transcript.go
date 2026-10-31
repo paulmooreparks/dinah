@@ -1,6 +1,7 @@
 package sessionhost
 
 import (
+	"crypto/sha256"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -44,5 +45,9 @@ func WriteTranscript(stateDir string, tr *Transcript) error {
 	if err := os.WriteFile(p+".tmp", b, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(p+".tmp", p)
+	if err := os.Rename(p+".tmp", p); err != nil {
+		return err
+	}
+	cacheConfirmation(p, sha256.Sum256(b), confirmationMetadata(tr))
+	return nil
 }

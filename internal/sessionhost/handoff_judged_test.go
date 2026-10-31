@@ -102,10 +102,9 @@ func TestWithoutAUsableSummaryTheHandoffIsTheRules(t *testing.T) {
 	}
 }
 
-// The preview of a continuation asks the judge only after the transcript mutex and
-// the state mutex are released, since it may take seconds, and what it shows is the
-// judged text.
-func TestThePreviewAsksTheJudgeWithNoLockHeld(t *testing.T) {
+// Confirmation never asks the judge. Preparation asks it only after the shared
+// transcript and runtime locks have been released.
+func TestPreparationAsksTheJudgeWithNoLockHeld(t *testing.T) {
 	var mu, stateMu sync.Mutex
 	var runtime Runtime
 	dir := t.TempDir()
@@ -144,6 +143,13 @@ func TestThePreviewAsksTheJudgeWithNoLockHeld(t *testing.T) {
 		BusIdentity: func(*Conversation) string { return "" },
 	})
 	preview, err := c.PreviewSession(source.ID(), "new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asked != 0 || preview.Context != "" || preview.Facts.Handoff != nil {
+		t.Fatal("confirmation prepared the handoff")
+	}
+	preview, err = c.prepareFor(source, "new", "", preview.Revision)
 	if err != nil {
 		t.Fatal(err)
 	}

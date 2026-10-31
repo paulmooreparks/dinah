@@ -15,7 +15,7 @@ const { launch } = require('./lib/page');
         SavedConversation: async id => id === 'codex:cut'
           ? { available: true, complete: false, recoverable: true, warning: 'The last turn was cut off before it finished, so its end may be missing from this saved copy.', messages: Array.from({ length: 1000 }, (_, i) => ({ role: i % 2 ? 'agent' : 'you', provider: 'codex', text: 'Long message ' + i })) }
           : { available: true, complete: true, messages: history },
-        PreviewSessionRecovery: async (id, provider) => { __calls.push(['preview', id, provider]); return { context: 'Reviewed saved history', revision: 'saved-v1', warnings: [] }; },
+        PreviewSessionRecovery: async (id, provider) => { __calls.push(['preview', id, provider]); if (window.__holdRecovery) return new Promise(resolve => { window.__releaseRecovery = resolve; }); return { revision: 'saved-v1', warnings: [] }; },
         RecoverSession: async (id, provider, revision) => { __calls.push(['recover', id, provider, revision]); return { session: { sessionId: 'codex:recovered', provider, cwd: 'C:/Test', title: 'Recovered Chat', open: true }, history }; },
         SaveRun: async text => { __calls.push(['save', text]); return 'C:/Test/saved-chat.md'; },
         Send: async (id, text) => { __calls.push(['send', id, text]); }
@@ -37,9 +37,18 @@ const { launch } = require('./lib/page');
     await page.waitForFunction(() => __calls.some(c => c[0] === 'save'));
     ok('saved history can be exported without the provider', await page.evaluate(() => __calls.find(c => c[0] === 'save')[1].includes('The original work is saved.')));
     await front().locator('[data-view-id="prompt"]').fill('Continue carefully.');
+    await page.evaluate(() => { window.__holdRecovery = true; });
     await front().locator('[data-view-id="session-recover"]').click();
-    await page.locator('#ask').waitFor();
-    await page.locator('#ask-yes').click();
+    const pendingRecovery = page.locator('dialog.switch-confirm[open]');
+    await pendingRecovery.waitFor();
+    ok('recovery opens its confirmation before saved-history facts return', await pendingRecovery.getByRole('button', { name: 'Continue', exact: true }).isDisabled());
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => { __releaseRecovery({ revision: 'late-saved', warnings: ['Late warning'] }); window.__holdRecovery = false; });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    ok('cancelled recovery ignores late facts and creates no session', await pendingRecovery.count() === 0 && await page.evaluate(() => !__calls.some(c => c[0] === 'recover')));
+    await front().locator('[data-view-id="session-recover"]').click();
+    await page.locator('dialog.switch-confirm[open]').waitFor();
+    await page.locator('dialog.switch-confirm[open]').getByRole('button', { name: 'Continue', exact: true }).click();
     await front().getByText('Continued from saved history with Codex.', { exact: true }).waitFor();
     ok('recovery preserves history and draft without sending a model turn', (await front().locator('[data-view-id="prompt"]').inputValue()) === 'Continue carefully.' && await page.evaluate(() => !__calls.some(c => c[0] === 'send') && __calls.some(c => c[0] === 'recover' && c[3] === 'saved-v1')));
     await front().locator('[data-view-id="prompt"]').press('Control+Enter');

@@ -48,7 +48,7 @@ const { launch, PAGE } = require('./lib/page');
     ok('done, the box is back', await win.locator('.composer').isVisible());
     await p.evaluate(() => window.emitChat({ switch: { kind: 'provider', to: 'claude', stage: '', label: '', failed: 'The chat changed while connecting; review the provider switch again' } }));
     await p.waitForFunction(() => { const el = document.querySelector('.win[data-win-kind="chat-session"] .switch-progress'); const f = document.querySelector('.win[data-win-kind="chat-session"] .switch-failed'); return el && !el.hidden && f && !f.hidden; });
-    ok('a failure says why there in the engine’s words, until dismissed', (await win.locator('.switch-failed').textContent()) === 'The chat changed while connecting; review the provider switch again' && await win.locator('.composer').isHidden());
+    ok('a failure says why there in the engine’s words, until dismissed', (await win.locator('.switch-failed').textContent()) === 'The chat changed while connecting; review the provider switch again' && await win.locator('.composer').isVisible());
     ok('as the danger notice it is, with its name and the way out', await win.locator('.switch-failure.notice.danger').isVisible() && /The switch to Claude failed/.test(await win.locator('.switch-failure-title').textContent()) && await win.locator('.switch-dismiss').isVisible());
     await t.shot('switch-failure');
     await win.locator('.switch-dismiss').click();

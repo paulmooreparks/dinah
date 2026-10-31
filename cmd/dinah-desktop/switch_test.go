@@ -97,8 +97,8 @@ func TestTheConfirmationOfAProviderSwitchIsBuiltFromFacts(t *testing.T) {
 		f.From.Workspace != s.Cwd() || f.From.WorkspaceName != filepath.Base(s.Cwd()) || f.To.Workspace != s.Cwd() {
 		t.Fatalf("the ends %+v", f)
 	}
-	if f.Handoff.Messages != len(p.History) || f.Handoff.Summarised != 0 || f.Handoff.Whole != f.Handoff.Messages || f.Handoff.Chars != len(p.Context) || f.Handoff.Budget <= 0 || f.Handoff.Judged {
-		t.Fatalf("the handoff %+v", f.Handoff)
+	if f.Handoff != nil || p.Context != "" || len(p.History) != 0 {
+		t.Fatalf("confirmation prepared a handoff: %+v", p)
 	}
 	var notCarried []string
 	for _, o := range f.NotCarried {

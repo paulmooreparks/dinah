@@ -12,7 +12,7 @@ const { launch, PAGE } = require('./lib/page');
       const facts = blocked => ({
         kind: 'provider', from: { provider: 'codex', providerName: 'Codex', model: 'gpt-sol', workspace: 'C:/Alpha', workspaceName: 'Alpha' },
         to: { provider: 'claude', providerName: 'Claude', model: 'opus-max', workspace: 'C:/Alpha', workspaceName: 'Alpha' },
-        handoff: { messages: 20, whole: 8, summarised: 12, chars: 9000, budget: 80000, judged: true },
+
         carried: [], notCarried: [{ id: 'mode', name: 'Mode', value: 'Default' }],
         running: { turn: true, queued: 0, approvals: false, applets: 0, canStop: true },
       });
@@ -26,7 +26,7 @@ const { launch, PAGE } = require('./lib/page');
         Sessions: async () => [info('chat-s')],
         OpenSessionAt: async (w, id) => info(id),
         Send: async () => {}, Queue: async () => {}, Steer: async () => {}, Answer: async () => {},
-        Cancel: async id => { window.__calls.push(['cancel', id]); setTimeout(() => window.__emit('agent:turn', { sessionId: id, stopReason: 'cancelled' }), 0); },
+        Cancel: async id => { window.__calls.push(['cancel', id]); window.__blocked = false; setTimeout(() => window.__emit('agent:turn', { sessionId: id, stopReason: 'cancelled' }), 0); },
         PreviewSessionContinuation: async (id, provider) => {
           window.__calls.push(['preview', id, provider]);
           if (window.__blocked) return { sourceSessionId: id, provider, revision: 'r1', context: '', history: [], warnings: [], facts: facts(true), blocked: 'A turn is still running.' };
@@ -66,13 +66,13 @@ const { launch, PAGE } = require('./lib/page');
     await conf.waitFor();
     ok('a blocked switch says so and offers to stop the turn, not to continue', /A turn is still running/.test(await conf.textContent()) && (await conf.getByRole('button', { name: 'Stop the Turn and Continue' }).count()) === 1 && (await conf.getByRole('button', { name: 'Continue', exact: true }).count()) === 0);
     await t.shot('switch-blocked-confirm');
-    ok('and it shows the judged summary and what does not carry', /a summary the judge wrote of 12 earlier messages, plus the 8 recent ones in full/.test(await conf.textContent()) ? true : /a summary the judge wrote of 12 earlier messages, plus the 8 recent in full/.test(await conf.textContent()), (await conf.textContent()).slice(0, 300));
+    ok('the confirmation describes preparation without inventing summary counts', /prepared after you continue/.test(await conf.textContent()) && /Mode: Default/.test(await conf.textContent()));
     await conf.getByRole('button', { name: 'Stop the Turn and Continue' }).click();
     await p.waitForFunction(() => window.__calls.some(c => c[0] === 'cancel'));
     ok('the stop stops the turn first', true);
     // After the turn ends the preview is asked again, and the switch continues.
     await p.waitForFunction(() => window.__calls.filter(c => c[0] === 'preview').length === 2);
-    await p.evaluate(() => { window.__blocked = false; });
+    await conf.getByRole('button', { name: 'Continue', exact: true }).click();
     await p.waitForFunction(() => window.__calls.some(c => c[0] === 'continue' && c[1] === 'chat-s' && c[2] === 'claude'));
     ok('and when it ends the move goes ahead', true);
     await win.getByText('Switched from Codex to Claude.').waitFor();

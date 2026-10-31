@@ -79,7 +79,7 @@ const { choose, shows } = require('./lib/commands');
     ok('cancel keeps the provider, draft and attachments', await provider('Codex') && await prompt().inputValue() === 'Review the completed test fixture.' && await front().getByText('draft.txt', { exact: true }).isVisible());
     await page.evaluate(() => { window.__failSwitch = true; });
     await switchTo('Devin'); await page.locator('dialog.switch-confirm').getByRole('button', { name: 'Continue' }).click();
-    await page.getByText('Error: History changed. Review the handoff again.', { exact: true }).waitFor();
+    await front().locator('.switch-failed').getByText('Error: History changed. Review the handoff again.', { exact: true }).waitFor();
     ok('a rejected handoff leaves the original conversation intact', await front().getAttribute('data-win') === originalRoot && await provider('Codex'));
     await page.evaluate(() => { window.__failSwitch = false; });
     await switchTo('Devin');
