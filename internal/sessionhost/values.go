@@ -32,11 +32,14 @@ type DeliveredMessage struct {
 }
 
 type ConversationMessage struct {
-	Images    []acp.ContentBlock `json:"images,omitempty"`
-	Role      string             `json:"role"`
-	Text      string             `json:"text"`
-	Provider  string             `json:"provider"`
-	SessionID string             `json:"sessionId"`
+	TurnID          string             `json:"turnId,omitempty"`
+	ItemID          string             `json:"itemId,omitempty"`
+	MessageComplete bool               `json:"messageComplete,omitempty"`
+	Images          []acp.ContentBlock `json:"images,omitempty"`
+	Role            string             `json:"role"`
+	Text            string             `json:"text"`
+	Provider        string             `json:"provider"`
+	SessionID       string             `json:"sessionId"`
 	// Delivered is set on an entry with the role "delivered": a message the
 	// bus delivered into the chat (delivered.go).
 	Delivered *DeliveredMessage `json:"delivered,omitempty"`

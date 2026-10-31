@@ -22,10 +22,22 @@ func (c *Conn) chunk(id, kind, text string) {
 	}
 }
 
+func (c *Conn) messageChunk(id, kind, text, turnID, itemID, mode string) {
+	if turnID == "" || itemID == "" {
+		c.chunk(id, kind, text)
+		return
+	}
+	if mode == "append" && text == "" {
+		return
+	}
+	c.update(id, map[string]any{"sessionUpdate": kind, "turnId": turnID, "itemId": itemID, "contentMode": mode, "content": map[string]string{"type": "text", "text": text}})
+}
+
 func (c *Conn) notification(method string, params json.RawMessage) {
 	var p struct {
 		ThreadID string          `json:"threadId"`
 		ItemID   string          `json:"itemId"`
+		TurnID   string          `json:"turnId"`
 		Delta    string          `json:"delta"`
 		Turn     turn            `json:"turn"`
 		Item     json.RawMessage `json:"item"`
@@ -44,11 +56,15 @@ func (c *Conn) notification(method string, params json.RawMessage) {
 		s := c.sessions[id]
 		if s != nil {
 			s.turn = p.Turn.ID
+			s.textTurn = p.Turn.ID
 		}
 		c.mu.Unlock()
 	case "turn/completed":
 		c.mu.Lock()
 		s := c.sessions[id]
+		if s != nil && s.textTurn == p.Turn.ID {
+			s.textTurn = ""
+		}
 		if s != nil && s.completion != nil && (s.turn == "" || s.turn == p.Turn.ID) {
 			select {
 			case s.completion <- p.Turn:
@@ -58,19 +74,24 @@ func (c *Conn) notification(method string, params json.RawMessage) {
 		c.mu.Unlock()
 	case "item/agentMessage/delta", "item/reasoning/summaryTextDelta", "item/plan/delta":
 		c.mu.Lock()
-		if s := c.sessions[id]; s != nil {
+		s := c.sessions[id]
+		admitted := s != nil && (p.TurnID == "" || s.textTurn == p.TurnID)
+		if s != nil && (p.TurnID == "" || p.ItemID == "") {
 			s.streamed[p.ItemID] = true
 		}
 		c.mu.Unlock()
+		if !admitted {
+			return
+		}
 		kind := "agent_message_chunk"
 		if method == "item/reasoning/summaryTextDelta" {
 			kind = "agent_thought_chunk"
 		}
-		c.chunk(id, kind, p.Delta)
+		c.messageChunk(id, kind, p.Delta, p.TurnID, p.ItemID, "append")
 	case "item/started":
-		c.item(id, p.Item, false, false)
+		c.itemInTurn(id, p.TurnID, p.Item, false, false)
 	case "item/completed":
-		c.item(id, p.Item, true, false)
+		c.itemInTurn(id, p.TurnID, p.Item, true, false)
 	case "item/commandExecution/outputDelta":
 		c.update(id, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": p.ItemID, "content": []any{map[string]any{"type": "content", "content": map[string]string{"type": "text", "text": p.Delta}}}})
 	case "turn/plan/updated":
@@ -107,6 +128,10 @@ func (c *Conn) notification(method string, params json.RawMessage) {
 }
 
 func (c *Conn) item(id string, b json.RawMessage, completed, replay bool) {
+	c.itemInTurn(id, "", b, completed, replay)
+}
+
+func (c *Conn) itemInTurn(id, turnID string, b json.RawMessage, completed, replay bool) {
 	var p struct {
 		ID      string            `json:"id"`
 		Type    string            `json:"type"`
@@ -130,11 +155,15 @@ func (c *Conn) item(id string, b json.RawMessage, completed, replay bool) {
 		}
 		c.mu.Lock()
 		streamed := false
-		if s := c.sessions[id]; s != nil {
+		s := c.sessions[id]
+		if s != nil {
 			streamed = s.streamed[p.ID]
 		}
 		c.mu.Unlock()
-		if streamed && !replay {
+		if !replay && s == nil {
+			return
+		}
+		if streamed && !replay && (turnID == "" || p.ID == "") {
 			return
 		}
 		text := p.Text
@@ -143,7 +172,7 @@ func (c *Conn) item(id string, b json.RawMessage, completed, replay bool) {
 			kind = "agent_thought_chunk"
 			text = strings.Join(p.Summary, "\n")
 		}
-		c.chunk(id, kind, text)
+		c.messageChunk(id, kind, text, turnID, p.ID, "snapshot")
 	case "userMessage":
 		if replay {
 			for _, content := range p.Content {

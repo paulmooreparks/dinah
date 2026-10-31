@@ -360,6 +360,10 @@ func (c *Conversation) HistoryRecordMessageLocked(replay bool, id, role, text st
 	c.history.RecordMessageLocked(replay, id, role, text, unsupported, merge)
 }
 
+func (c *Conversation) HistoryRecordIdentifiedMessageLocked(replay bool, identity acp.MessageIdentity, text string, visible func(string) string) {
+	c.history.RecordIdentifiedMessageLocked(replay, c.ID(), identity, text, visible)
+}
+
 func (c *Conversation) HistoryRecordStatusLocked(replay bool, id, text, kind string) {
 	c.history.RecordStatusLocked(replay, id, text, kind)
 }

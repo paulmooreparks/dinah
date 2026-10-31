@@ -1,0 +1,140 @@
+{
+  "base": "40d133aeb8e2d4181d75aa89c0f225ef275f43fc",
+  "lookup": {
+    "action": "dinah.chat/find@1",
+    "requestName": "Dinah Team Lead",
+    "invocation": "a026662e1b2450600db047e78d1ca8e8",
+    "match": "unique",
+    "sessionId": "codex:01a18fea-f631-7ff1-bc55-c99ef167949b",
+    "workspace": "Dinah"
+  },
+  "probe": {
+    "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\message-boundaries",
+    "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent -run '^TestDiagnosticInterlacedAssistantIdentity$' -count=1 -json",
+    "exit": 1,
+    "expected": "negative reproduction",
+    "explicitEnvironment": {
+      "DINAH_BOUNDARY_PROBE": "1",
+      "DINAH_BOUNDARY_PROBE_OUTPUT": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\message-boundaries\\.diagnostics\\boundary-probe-result.json"
+    },
+    "sourceAtRun": "internal/codexagent/boundary_probe_test.go",
+    "retainedSource": ".diagnostics/boundary_probe_test.go"
+  },
+  "files": [
+    {
+      "path": ".diagnostics/boundary-probe-gate.jsonl",
+      "bytes": 1537,
+      "sha256": "1d3d9c4c6d61c819a054d2067301ce20ed627a3b9882cc894e53a45c4a4adce8"
+    },
+    {
+      "path": ".diagnostics/boundary-probe-result.json",
+      "bytes": 1291,
+      "sha256": "682a5d20415981384e68d30635d443693be804c92ba9fa526cd66dbf56d1baa8"
+    },
+    {
+      "path": ".diagnostics/boundary_probe_test.go",
+      "bytes": 3200,
+      "sha256": "3bac91fb47d69a4727832f8945daf49a352bee46a0366598bea55b2d43d979c2"
+    },
+    {
+      "path": ".diagnostics/inspect_native_boundaries.py",
+      "bytes": 1256,
+      "sha256": "90c824d4be2acd194db54e4d88d935d629b6934dd556feb291b6714201eba130"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/acp-trace.1.log",
+      "bytes": 33534475,
+      "sha256": "b4d1413501dd1d99d8c8bead909851c9bef9d5c13ffc6eddb09281930442ee9c"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/acp-trace.2.log",
+      "bytes": 33496748,
+      "sha256": "f1285f7d3fa8848d57343cbbe25f3b333a6e94c7643d0d841dc47aa60eeec295"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/acp-trace.3.log",
+      "bytes": 33501562,
+      "sha256": "07a20487b80ae1b53add08db715415be89733801a32e6e377e65481a0a04a252"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/acp-trace.log",
+      "bytes": 14936403,
+      "sha256": "d8e76a5ff91ef4855c59579a9d30aaa8249d34fd3d07849b96f0c0a5884a89e5"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/codex-state.sqlite",
+      "bytes": 33423360,
+      "sha256": "88e580e6a655816cc5adbb2c675fec1a5c05ab1a0efad9e5539cf382f36113be"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/crash.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/dinah.1.log",
+      "bytes": 4194173,
+      "sha256": "15db61bb916528cb318b61d174cc4b872aafcfd8e9df0735589641df8708891c"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/dinah.2.log",
+      "bytes": 4194202,
+      "sha256": "eb21ed0290589628e19b72aa92962a63921886d7f9f5c6ce3dcc1fb7d60f4e4f"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/dinah.3.log",
+      "bytes": 4193120,
+      "sha256": "def651f5fa9775a032fd917a5876066ce347bd0cb5b2daad9607054cf73fd995"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/dinah.log",
+      "bytes": 1496963,
+      "sha256": "45fbb31aa4f321aeee5a259489492fc760e903fbcc7b318bbb310ec17e13d965"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/lead-chat-log.md",
+      "bytes": 4030739,
+      "sha256": "24395d8b269a6028445d18313ba8c23289a35cfdbd27e2b27e037d072c7a9f30"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/lead-native-rollout.jsonl",
+      "bytes": 48990365,
+      "sha256": "a2fbe401e8798a31111bb22f50e93341b4991543916a75cee74fe409f044643b"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/lead-snapshot.json",
+      "bytes": 33843868,
+      "sha256": "79959f820cb2760b3b6a5210bdb54f59b19b7163fa7dc60fff7a44939ac43652"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/manifest.json",
+      "bytes": 2367,
+      "sha256": "ad2f71c3d0bd9a54791718580d3b2592e2ec1f495a84ef7c181e5f3d4376a659"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/matching-evidence.json",
+      "bytes": 18157,
+      "sha256": "abd2f017a89a46ec65ee04a92287edc687c0ec248fd82ca4e355730dfe4282cc"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/native-boundaries.json",
+      "bytes": 14035,
+      "sha256": "3cc67c1be954c194b1b2f6df5e2f4686289a57920d5488ceb8e1d46b4e00b0b3"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/native-provenance.json",
+      "bytes": 260,
+      "sha256": "7ed33ef94ad28ab1db0730a6da024e490bce3cc2788a367f903812e115901d26"
+    },
+    {
+      "path": ".diagnostics/interlaced-originals/settings.json",
+      "bytes": 71026,
+      "sha256": "cf427530f665ae740755361c49692a0b033375d3e0dbec7d743f18e10d8cc786"
+    },
+    {
+      "path": ".diagnostics/preserve_interlaced.py",
+      "bytes": 2277,
+      "sha256": "537ea881a732238b2a08f338095d726882a588dbfeafa31bc07762593ae4b398"
+    }
+  ]
+}

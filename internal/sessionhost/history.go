@@ -36,7 +36,8 @@ type History struct {
 
 	// tools are the first rows of the tool calls recorded in each transcript
 	// the history writes to, by call (RecordToolLocked).
-	tools map[*Transcript]map[string]*toolRow
+	tools    map[*Transcript]map[string]*toolRow
+	messages map[*Transcript]map[messageKey]*messageRow
 }
 
 // write writes the transcript file and notes where the chat's log was.
@@ -192,6 +193,7 @@ func promptPart(m ConversationMessage) (string, bool) {
 
 func (h *History) InitializeLocked(dir, id, provider, workspace string, replay bool) {
 	h.tools = nil
+	h.messages = nil
 	tr := &Transcript{SessionID: id, Provider: provider, Workspace: workspace, Complete: !replay, Messages: []ConversationMessage{}}
 	if old, err := ReadTranscript(dir, id); err == nil {
 		tr.ParentSessionID, tr.PendingHandoff = old.ParentSessionID, old.PendingHandoff
@@ -245,6 +247,7 @@ func (h *History) ResumeLocked(dir, id, provider, workspace string) string {
 		return "the saved copy is another workspace's"
 	}
 	h.tools = nil
+	h.messages = nil
 	h.saved, h.replay = old, nil
 	h.err = h.write(dir, old)
 	return ""
@@ -263,6 +266,9 @@ func (h *History) PrepareReplayLocked() (ConversationMessage, bool) {
 	return copyMessages([]ConversationMessage{m})[0], !represented
 }
 func (h *History) FinishReplayLocked(dir string, succeeded bool) {
+	// Rebuild only from retained rows after replay. Partial raw accumulators and
+	// references to discarded replay transcripts must not survive this lifecycle.
+	defer func() { h.messages = nil }()
 	if h.saved == nil {
 		return
 	}
@@ -342,7 +348,7 @@ func (h *History) RecordMessageLocked(replay bool, id, role, text string, unsupp
 	}
 	if text != "" {
 		last := len(tr.Messages) - 1
-		if merge && last >= 0 && tr.Messages[last].Role == role {
+		if merge && last >= 0 && tr.Messages[last].Role == role && tr.Messages[last].ItemID == "" && tr.Messages[last].TurnID == "" {
 			tr.Messages[last].Text += text
 		} else {
 			tr.Messages = append(tr.Messages, ConversationMessage{Role: role, Text: text, Provider: tr.Provider, SessionID: id})
@@ -518,6 +524,11 @@ func (h *History) insertToolEnding(tr *Transcript, rows map[string]*toolRow, fir
 		at = len(tr.Messages)
 	}
 	tr.Messages = slices.Insert(tr.Messages, at, ConversationMessage{Role: "tool", Text: text, Provider: tr.Provider, SessionID: id})
+	for _, r := range h.messages[tr] {
+		if r.index >= at {
+			r.index++
+		}
+	}
 	for _, r := range rows {
 		if r == first {
 			continue
@@ -586,6 +597,7 @@ func (h *History) RestoreDeliveryLocked(id string, held []json.RawMessage, start
 					out = append(out, data)
 				}
 				replay.Messages = append(replay.Messages[:start:start], kept...)
+				delete(h.messages, replay)
 			}
 		}
 	}
@@ -608,8 +620,12 @@ func (h *History) ReplayLengthLocked() int {
 	}
 	return len(h.replay.Messages)
 }
-func (h *History) RestoreSavedLocked(tr *Transcript) { h.saved = copyTranscript(tr) }
+func (h *History) RestoreSavedLocked(tr *Transcript) {
+	h.saved = copyTranscript(tr)
+	h.messages = nil
+}
 func (h *History) ReplaceDeletedLocked(tr *Transcript) {
+	h.messages = nil
 	if h.saved != nil {
 		*h.saved = *copyTranscript(tr)
 	}
@@ -642,6 +658,7 @@ func (h *History) FinishPromptLocked(dir string, blocks []acp.ContentBlock, queu
 	h.err = h.write(dir, h.saved)
 }
 func (h *History) FinishTurnLocked(dir string) {
+	h.retireMessageAppends()
 	if h.saved != nil {
 		h.saved.Complete = true
 		h.err = h.write(dir, h.saved)

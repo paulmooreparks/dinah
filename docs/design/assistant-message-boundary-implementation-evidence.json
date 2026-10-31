@@ -1,0 +1,197 @@
+{
+  "base": "40d133aeb8e2d4181d75aa89c0f225ef275f43fc",
+  "diagnosisCommit": "f6a92810bea0abc5fada3e29094e6bd6c9b1490d",
+  "provenance": "Command and exit fields reconstructed from retained tool invocations. Raw Go JSON outputs are original. Ambient environment was not snapshotted.",
+  "checks": [
+    {
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\message-boundaries",
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent ./internal/sessionhost -run 'Test(InterlacedAssistant|Identified|AdapterRejectsRetired)' -count=1 -json",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/boundary-focused-first.jsonl",
+      "note": "Initial focused positive check.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T06:33:04.551889+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 0.139
+        },
+        {
+          "Time": "2026-11-01T06:33:04.6158883+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/sessionhost",
+          "Elapsed": 0.203
+        }
+      ]
+    },
+    {
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\message-boundaries",
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/acp ./internal/codexagent ./internal/sessionhost ./cmd/dinah-desktop -count=1 -json",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/boundary-packages.jsonl",
+      "note": "Complete final-runtime-source package check, before additional persisted redaction assertions.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T06:33:13.3225109+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 0.275
+        },
+        {
+          "Time": "2026-11-01T06:33:13.3977526+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/acp",
+          "Elapsed": 0.51
+        },
+        {
+          "Time": "2026-11-01T06:33:18.4031112+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/sessionhost",
+          "Elapsed": 5.356
+        },
+        {
+          "Time": "2026-11-01T06:34:43.6029374+08:00",
+          "Action": "pass",
+          "Package": "studio/cmd/dinah-desktop",
+          "Elapsed": 81.082
+        }
+      ]
+    },
+    {
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\message-boundaries",
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent ./internal/sessionhost -run 'Test(InterlacedAssistant|Identified|AdapterRejectsRetired)' -race -count=5 -json",
+      "explicitEnvironment": {
+        "DINAH_BOUNDARY_PROBE_OUTPUT": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\message-boundaries\\.diagnostics\\boundary-positive-result.json"
+      },
+      "exitCode": 0,
+      "output": ".diagnostics/boundary-race.jsonl",
+      "note": "Final regression source with persisted redaction assertions.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T06:35:05.4645462+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 1.163
+        },
+        {
+          "Time": "2026-11-01T06:35:09.9003229+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/sessionhost",
+          "Elapsed": 4.286
+        }
+      ]
+    },
+    {
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\message-boundaries",
+      "command": "go vet ./internal/acp ./internal/codexagent ./internal/sessionhost ./cmd/dinah-desktop",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/boundary-vet.txt",
+      "note": "Affected final runtime-source vet; only formatting and a field comment changed afterward."
+    }
+  ],
+  "files": [
+    {
+      "path": "internal/acp/message_identity.go",
+      "bytes": 482,
+      "sha256": "72f8356d34d36339456593cafe4a6bf86ae40f35ee7e3c6b24b0c3bb487e4b0e"
+    },
+    {
+      "path": "internal/codexagent/events.go",
+      "bytes": 11044,
+      "sha256": "390160daa125e73c49967627e28d16e040e0ef8d71c5e79a9abeb7ce75f1595f"
+    },
+    {
+      "path": "internal/codexagent/session.go",
+      "bytes": 22236,
+      "sha256": "0eab2a47c2e9a19f825e88268ee3f4fb61bf4bcb7301a93863c25eb45eb8e45e"
+    },
+    {
+      "path": "internal/codexagent/message_boundaries_test.go",
+      "bytes": 4688,
+      "sha256": "8c311580445e45c7050fc6a5ace87c67ce79defda192d0ef37d1fc9b0bd97882"
+    },
+    {
+      "path": "internal/codexagent/message_identity_test.go",
+      "bytes": 3198,
+      "sha256": "4c9fa4765713af0c52f55ab4577b3f96c1ac710ab9991a0e5afe446a4d46f3c1"
+    },
+    {
+      "path": "internal/sessionhost/conversation_ops.go",
+      "bytes": 15909,
+      "sha256": "6e77a21b2928227dde6feae2565820d77ab653866b095fcce03783234b3c5a9c"
+    },
+    {
+      "path": "internal/sessionhost/history.go",
+      "bytes": 24512,
+      "sha256": "feff9eddf2bbd108269e53780c7da50e1bb54f5b09350b661fe05852ea1cfc0e"
+    },
+    {
+      "path": "internal/sessionhost/transcript_capture.go",
+      "bytes": 12601,
+      "sha256": "4d1cc5038fbc6ed4375acee2491023c71a771e85bac3d1b94b04f7431b37e128"
+    },
+    {
+      "path": "internal/sessionhost/values.go",
+      "bytes": 6821,
+      "sha256": "c110074f06ef060737d3e9ffcf7429245b9ff9a84f77ab286cee03714499abec"
+    },
+    {
+      "path": "internal/sessionhost/message_rows.go",
+      "bytes": 1867,
+      "sha256": "11031ccef2d863f42ad25331401c0a81a9d6f3e1dd25f401009af2d42cf32828"
+    },
+    {
+      "path": "internal/sessionhost/message_rows_test.go",
+      "bytes": 5910,
+      "sha256": "87c2bd26482df509f355a183b9323450306d0562173607f6dde90085878166f1"
+    },
+    {
+      "path": "docs/design/assistant-message-boundaries.md",
+      "bytes": 8638,
+      "sha256": "dc894d3bb8c6e08c4a3c371844ed1968725d191a69e978ff5b4417d88664d495"
+    },
+    {
+      "path": ".diagnostics/boundary-focused-first.jsonl",
+      "bytes": 6934,
+      "sha256": "1c201ca92691fc8da228a7b556839dcca8befdb836c018a971db3c94ccb02b23"
+    },
+    {
+      "path": ".diagnostics/boundary-packages.jsonl",
+      "bytes": 768896,
+      "sha256": "065ec02a1b9af42a4c0a634b02b0aefc1566a9669b8dc105d9cddb02d3a79250"
+    },
+    {
+      "path": ".diagnostics/boundary-race.jsonl",
+      "bytes": 30740,
+      "sha256": "123b1d9ec2ba67f8c923bd138a319ac3b32d79e05623bd12433e4ae727975bf9"
+    },
+    {
+      "path": ".diagnostics/boundary-vet.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".diagnostics/boundary-positive-result.json",
+      "bytes": 2402,
+      "sha256": "3b785b7662d5e31df1b9ff875e969b3ca96ab7bd601e60a8a501e0fffaf15c21"
+    },
+    {
+      "path": ".diagnostics/boundary-probe-gate.jsonl",
+      "bytes": 1537,
+      "sha256": "1d3d9c4c6d61c819a054d2067301ce20ed627a3b9882cc894e53a45c4a4adce8"
+    },
+    {
+      "path": ".diagnostics/boundary-probe-result.json",
+      "bytes": 1291,
+      "sha256": "682a5d20415981384e68d30635d443693be804c92ba9fa526cd66dbf56d1baa8"
+    },
+    {
+      "path": ".diagnostics/boundary_probe_test.go",
+      "bytes": 3200,
+      "sha256": "3bac91fb47d69a4727832f8945daf49a352bee46a0366598bea55b2d43d979c2"
+    }
+  ]
+}
