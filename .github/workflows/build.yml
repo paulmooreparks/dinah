@@ -64,6 +64,11 @@ jobs:
     env:
       DIAG: ${{ github.workspace }}/diagnostics
     steps:
+      # Windows runners check out with core.autocrlf=true, and gofmt reports
+      # every file with CRLF line endings. The files are tested as committed.
+      - name: Keep line endings as committed
+        working-directory: .
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
         with:
           path: dinah
