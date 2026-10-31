@@ -3,11 +3,18 @@
 (function () {
   'use strict';
   var storage = document.getElementById('applet-storage');
+  var applets = {
+    workspace: { id: 'dinah.workspace', title: 'Workspace', glyph: 'folder', workspace: false },
+    'chat-browser': { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: false },
+    'needs-you': { id: 'dinah.notifications', title: 'Notifications', glyph: 'warning', workspace: false },
+    settings: { id: 'dinah.settings', title: 'Settings', glyph: 'gear', workspace: false }
+  };
   function retain(kind, title, glyph, node, mode, fields) {
     var content = document.querySelector(node);
     content.hidden = false;
     storage.appendChild(content);
     window.dinahWorkbench.register(kind, {
+      applet: applets[kind],
       singleton: true, title: title, glyph: glyph, mode: kind === 'settings' ? undefined : mode || 'dock-left',
       dockOnly: kind === 'workspace',
       init: function (root, opts) {

@@ -130,20 +130,25 @@
     document.body.appendChild(template);
     return key;
   }
-  /* The taskbar stacks a workspace's windows (PUDL's TASKBAR-STACKS.md,
-     docs/plans/taskbar-stacks.md). A window belongs to the workspace its
-     item gives, a record's ID or its folder, or to the one its kind's
-     workspaceOf answers for an item that gives it otherwise; Workspaces
-     turns that into the group's key, label and glyph (setGrouping) and
-     calls regroup when a workspace is chosen or renamed. A window of no
-     workspace has no group and stays an ordinary button. The markup kept
-     for opening a window again is grouped as well as the open window, so
-     a window opened from it is current from the start. */
+  /* Registrations declare the applet identity independently of window kind.
+     workspace:false means workspace-free; workspace:true requires a resolved
+     owner. Missing metadata or ownership stays ungrouped until regroup runs.
+     PUDL owns projection, overflow and represented-window command scope. */
   var grouping = null;
   var GROUP_ATTRS = { key: 'data-win-group', label: 'data-win-group-label', glyph: 'data-win-group-glyph' };
   function groupWindow(win, item) {
-    var cfg = item && kinds.get(item.kind);
-    var group = grouping && cfg ? grouping(cfg.workspaceOf ? cfg.workspaceOf(item) : item.workspace || '') : null;
+    var cfg = item && kinds.get(item.kind), group = null;
+    var applet = cfg && (typeof cfg.applet === 'function' ? cfg.applet(item, win.dataset.win) : cfg.applet);
+    if (applet && applet.id && applet.title) {
+      var owner = applet.workspace === true && grouping ? grouping(cfg.workspaceOf ? cfg.workspaceOf(item, win.dataset.win) : item.workspace || '') : null;
+      if (applet.workspace === false || owner) {
+        // Encoding the tuple keeps distinct IDs distinct, including punctuation.
+        var identity = owner ? [applet.id, owner.key] : [applet.id];
+        var bytes = new TextEncoder().encode(JSON.stringify(identity));
+        var key = 'applet-' + btoa(Array.from(bytes, function (byte) { return String.fromCharCode(byte); }).join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        group = { key: key, label: applet.title + (owner ? ' (' + owner.label + ')' : ''), glyph: applet.glyph || cfg.glyph || 'app' };
+      }
+    }
     Object.keys(GROUP_ATTRS).forEach(function (part) {
       var name = GROUP_ATTRS[part], value = group ? group[part] : '';
       if (value) { if (win.getAttribute(name) !== value) win.setAttribute(name, value); }
@@ -161,6 +166,7 @@
     });
     document.querySelectorAll('.win[data-win]').forEach(function (win) { groupWindow(win, windowItem(win)); });
   }
+  document.addEventListener('dinah:ui-state-restored', regroup);
   /* PUDL copies a window from its markup when it is asked to open it and
      adds the copy to the page later, so a copy taken before the workspaces
      were read, as the windows of the saved layout are at startup, missed
@@ -369,7 +375,7 @@
       groupWindow(win, item);
       return key;
     },
-    /* fn(workspace) answers {key, label, glyph} for a workspace given by its
+    /* fn(workspace) answers {key, label} with a stable workspace ID for its
        record's ID, its folder or { mount } (a path under /workspaces), or
        null for none. */
     setGrouping: function (fn) { grouping = fn; regroup(); },

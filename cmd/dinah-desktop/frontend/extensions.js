@@ -19,6 +19,28 @@
     return el;
   };
   const uuid = () => crypto.randomUUID().replace(/-/g, '');
+  // Contract 1 declares one applet identity per manifest, with several views.
+  // A missing declaration stays unresolved rather than becoming workspace-free.
+  function taskbarView(item) {
+    let address;
+    try { address = JSON.parse(item.path); } catch (_) { return null; }
+    if (!Array.isArray(address)) return null;
+    const record = catalog.find(r => r.enabled && !r.error && r.manifest.id === address[0]);
+    const manifest = record?.manifest, view = manifest?.views.find(v => v.id === address[1]);
+    return view ? { manifest, view } : null;
+  }
+  function taskbarApplet(item) {
+    const declared = taskbarView(item);
+    return declared ? { id: declared.manifest.id, title: declared.manifest.title, glyph: 'app', workspace: true } : null;
+  }
+  function taskbarWorkspace(item, key) {
+    const declared = taskbarView(item);
+    if (!declared) return '';
+    const live = [...frames].find(frame => frame.key === key);
+    if (live) return live.workspace();
+    const pins = window.dinahUIState?.get('dinah-extension-pins', {}) || {};
+    return declared.view.pane ? window.dinahHost.workspaceId() : declared.view.follows ? pins[key] || window.dinahHost.workspaceId() : item.workspace || '';
+  }
   function appearance() {
     const style = getComputedStyle(document.documentElement),
       tokens = {};
@@ -191,10 +213,12 @@
       }
     }
     for (const frame of frames) frame.catalogChanged();
+    bench.regroup();
     document.dispatchEvent(new Event('dinah:extensions-change'));
     return catalog;
   }
   bench.register('extensions', {
+    applet: { id: 'dinah.extensions', title: 'Extensions', glyph: 'app', workspace: false },
     singleton: true,
     title: 'Extensions',
     glyph: 'app',
@@ -346,6 +370,8 @@
     }
   });
   bench.register('extension-view', {
+    applet: taskbarApplet,
+    workspaceOf: taskbarWorkspace,
     title: 'Extension',
     glyph: 'app',
     start: 'open',
@@ -420,6 +446,7 @@
         if (disposed || serial !== workspaceSerial) return;
         const previous = workspace;
         workspace = ws.id;
+        bench.regroup();
         if (view?.follows) {
           ws.pinned = !!pinned;
           pudlWindows.retitle(key, view.title, ws.name || '');
@@ -719,6 +746,7 @@
     }
   });
   bench.register('extension-terminal', {
+    applet: { id: 'dinah.terminal', title: 'Terminal', glyph: 'script', workspace: false },
     title: 'Prepared Command',
     glyph: 'script',
     init(root, opts, item) {

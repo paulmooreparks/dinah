@@ -51,7 +51,7 @@
     enabled: enabled, sync: sync, record: recordFailures,
     setEnabled: function (session, value) { dinahUIState.set(preference(session.id), !!value); sync(session); }
   };
-  dinahWorkbench.register('chat-failures', { title: 'Failed Commands', glyph: 'warning', init: function (root, opts, item) {
+  dinahWorkbench.register('chat-failures', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Failed Commands', glyph: 'warning', init: function (root, opts, item) {
     root.classList.add('failure-review');
     var owner = records.get(item.path), win = root.closest('[data-win]');
     if (owner && win) pudlWindows.retitle(win.dataset.win, 'Failed Commands · ' + owner.name);

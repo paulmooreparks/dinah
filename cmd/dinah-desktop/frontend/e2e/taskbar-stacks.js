@@ -1,10 +1,4 @@
-// Taskbar stacks (docs/plans/taskbar-stacks.md): every workspace's windows
-// stack on the taskbar under its name, the chosen workspace's included;
-// windows of no workspace stay ordinary buttons; a rename keeps one stack
-// and changes its label; and the windows the saved layout brings back when
-// the program starts are stacked at once, with no workspace chosen first.
-// The workspaces and the saved layout live in a backend fixture that
-// outlasts the page.
+// Applet/workspace ownership and PUDL overflow projection.
 const { launch, PAGE } = require('./lib/page');
 (async () => {
   const records = [
@@ -26,6 +20,8 @@ const { launch, PAGE } = require('./lib/page');
       return {
         State: state,
         Sessions: async () => [], SessionsAt: async () => [],
+        GetDraft: async () => new Promise(() => {}),
+        StatWorkspaceMount: async path => ({ path: path === '~' ? '/home/fixture' : path, directory: true, actions: ['list'] }),
         OpenSessionAt: async (ws, id) => info(id, ws),
         SelectWorkspace: async id => { await window.__store('select', id); return state(); },
         SetWorkspace: async () => { throw new Error('Workspace selection must use its ID'); },
@@ -49,10 +45,15 @@ const { launch, PAGE } = require('./lib/page');
     await t.waitReady();
     await page.locator('#status-workspace-name').getByText('Alpha', { exact: true }).waitFor();
 
+    const groupKey = (applet, workspace) => 'applet-' + Buffer.from(JSON.stringify(workspace ? [applet, workspace] : [applet])).toString('base64url');
+    const chatGroup = id => groupKey('dinah.chat', id);
+    ok('production enables overflow-triggered stacking', await page.locator('[data-win-layer]').getAttribute('data-win-taskbar-stacks') === 'full');
+    // Hold projection constant while checking ownership and command membership.
+    await page.locator('[data-win-layer]').evaluate(layer => layer.setAttribute('data-win-taskbar-stacks', 'always'));
     const bar = 'nav.win-dock[data-win-dock-omit-docked]';
     const chatKey = (ws, id) => page.evaluate(([ws, id]) => dinahWorkbench.key({ kind: 'chat-session', workspace: ws, path: id }), [ws, id]);
     const openChat = (ws, id) => page.evaluate(([ws, id]) => dinahWorkbench.open({ kind: 'chat-session', workspace: ws, path: id }), [ws, id]);
-    const stack = group => page.locator(bar + ' > [data-win-stack="' + group + '"]');
+    const stack = id => { const group = chatGroup(id); return page.locator(bar + ' > [data-win-stack="' + group + '"]'); };
     const button = key => page.locator(bar + ' > [data-win-tab="' + key + '"]');
     const stackName = async group => (await stack(group).getAttribute('aria-label')) || '';
     const attrs = key => page.evaluate(key => {
@@ -62,15 +63,15 @@ const { launch, PAGE } = require('./lib/page');
     // Whether a stack is drawn within a few seconds, without failing the run.
     const appears = locator => locator.waitFor({ timeout: 5000 }).then(() => true, () => false);
     // Waits until a stack says it has n windows.
-    const counts = (group, n) => page.waitForFunction(([bar, group, n]) => {
+    const counts = (id, n) => { const group = chatGroup(id); return page.waitForFunction(([bar, group, n]) => {
       const s = document.querySelector(bar + ' > [data-win-stack="' + group + '"]');
       return s && (s.getAttribute('aria-label') || '').includes(', ' + n + ' windows');
-    }, [bar, group, n]);
+    }, [bar, group, n]); };
     const choose = async id => {
       await page.evaluate(() => dinahWorkbench.open('workspace'));
       await page.locator('#ws-select').selectOption({ value: records.find(r => r.id === id).executionPath });
       // New Chat goes with the chosen workspace, so its group shows the choice is drawn.
-      await page.waitForFunction(id => document.querySelector('.win[data-win="chat"]').getAttribute('data-win-group') === id, id);
+      await page.waitForFunction(id => document.querySelector('.win[data-win="chat"]').getAttribute('data-win-group') === id, chatGroup(id));
     };
 
     const a1 = await chatKey('C:/Alpha', 'alpha-1'), a2 = await chatKey('C:/Alpha', 'alpha-2');
@@ -80,18 +81,18 @@ const { launch, PAGE } = require('./lib/page');
     await counts('ws_BETA', 2);
     await counts('ws_ALPHA', 3);
 
-    ok('the layer stacks its taskbar always', await page.locator('[data-win-layer]').getAttribute('data-win-taskbar-stacks') === 'always');
+    ok('the ownership fixture holds projection constant', await page.locator('[data-win-layer]').getAttribute('data-win-taskbar-stacks') === 'always');
     ok('no group is marked open', !await page.locator('[data-win-layer]').evaluate(layer => layer.hasAttribute('data-win-group-open')));
     const beta = await attrs(b1);
-    ok('a workspace\'s window carries its ID, its name and the folder glyph', beta.group === 'ws_BETA' && beta.label === 'Beta' && beta.glyph === 'folder', JSON.stringify(beta));
-    ok('two windows of one workspace form one stack labelled with its name', await stack('ws_BETA').count() === 1 && (await stack('ws_BETA').locator('.win-item-title').textContent()) === 'Beta' &&
-      (await stackName('ws_BETA')).startsWith('Beta, 2 windows') && await button(b1).count() === 0 && await button(b2).count() === 0);
-    ok('the chosen workspace\'s windows stack like any other, New Chat with them', (await attrs('chat')).group === 'ws_ALPHA' &&
-      (await stackName('ws_ALPHA')).startsWith('Alpha, 3 windows') && await button(a1).count() === 0 && await button(a2).count() === 0 && await button('chat').count() === 0);
+    ok('a workspace\'s window carries the applet/workspace identity and applet glyph', beta.group === chatGroup('ws_BETA') && beta.label === 'Chats (Beta)' && beta.glyph === 'comments', JSON.stringify(beta));
+    ok('two windows of one workspace form one stack labelled with its name', await stack('ws_BETA').count() === 1 && (await stack('ws_BETA').locator('.win-item-title').textContent()) === 'Chats (Beta)' &&
+      (await stackName('ws_BETA')).startsWith('Chats (Beta), 2 windows') && await button(b1).count() === 0 && await button(b2).count() === 0);
+    ok('the chosen workspace\'s windows stack like any other, New Chat with them', (await attrs('chat')).group === chatGroup('ws_ALPHA') &&
+      (await stackName('ws_ALPHA')).startsWith('Chats (Alpha), 3 windows') && await button(a1).count() === 0 && await button(a2).count() === 0 && await button('chat').count() === 0);
     const settings = await attrs('settings');
-    ok('a window of no workspace has no group and stays an ordinary button', settings && !settings.group && !settings.label && !settings.glyph && await button('settings').count() === 1);
+    ok('an explicitly workspace-free singleton has its applet group and an ordinary button', settings && settings.group === groupKey('dinah.settings') && settings.label === 'Settings' && await button('settings').count() === 1);
     const gamma = await attrs(g1);
-    ok('an ID with other characters becomes a stable safe key', /^ws-[0-9a-f]{16}$/.test(gamma.group) && gamma.label === 'Gamma' && await button(g1).count() === 1, JSON.stringify(gamma));
+    ok('an ID with other characters becomes a stable safe key', gamma.group === chatGroup('team/gamma') && gamma.label === 'Chats (Gamma)' && await button(g1).count() === 1, JSON.stringify(gamma));
     await t.shot('taskbar-stacks-taskbar', { clip: { x: 0, y: 820, width: 1700, height: 80 } });
 
     // Pressing the chosen workspace's stack pins its list: it stays open
@@ -119,17 +120,17 @@ const { launch, PAGE } = require('./lib/page');
     await page.locator('#rename-workspace-name').fill('Beta Release');
     await page.locator('#rename-workspace-save').click();
     await page.locator('#rename-workspace').waitFor({ state: 'hidden' });
-    await page.waitForFunction(bar => document.querySelector(bar + ' > [data-win-stack="ws_BETA"] .win-item-title').textContent === 'Beta Release', bar);
+    await counts('ws_BETA', 3);
     const renamed = [await attrs(b1), await attrs(b2), await attrs('chat')];
-    ok('a rename keeps the key and changes the label on every window of the workspace', renamed.every(a => a.group === 'ws_BETA' && a.label === 'Beta Release'), JSON.stringify(renamed));
-    ok('the renamed workspace is still one stack, labelled with its new name', await stack('ws_BETA').count() === 1 && (await stackName('ws_BETA')).startsWith('Beta Release, 3 windows'));
+    ok('a rename keeps the key and changes the label on every window of the workspace', renamed.every(a => a.group === chatGroup('ws_BETA') && a.label === 'Chats (Beta Release)'), JSON.stringify(renamed));
+    ok('the renamed workspace is still one stack, labelled with its new name', await stack('ws_BETA').count() === 1 && (await stackName('ws_BETA')).startsWith('Chats (Beta Release), 3 windows'));
     await choose('ws_ALPHA');
 
     // A chat whose window moves to another workspace, as Continue in
     // Another Workspace moves it, moves to that workspace's stack.
     const moved = await page.evaluate(key => dinahWorkbench.rekey(key, { kind: 'chat-session', workspace: 'C:/Beta', path: 'alpha-2' }), a2);
     await counts('ws_BETA', 3);
-    ok('a window moved to another workspace joins its stack', (await attrs(moved)).group === 'ws_BETA' && await button(moved).count() === 0);
+    ok('a window moved to another workspace joins its stack', (await attrs(moved)).group === chatGroup('ws_BETA') && await button(moved).count() === 0);
 
     // Starting again: the address has no layout, so the windows come back
     // from the saved layout, as they do when the program starts, and they
@@ -138,10 +139,66 @@ const { launch, PAGE } = require('./lib/page');
     await page.goto(PAGE);
     await t.waitReady();
     await page.locator('#status-workspace-name').getByText('Alpha', { exact: true }).waitFor();
+    await page.locator('[data-win-layer]').evaluate(layer => layer.setAttribute('data-win-taskbar-stacks', 'always'));
     const restored = await page.evaluate(() => window.pudlWindows.state().open.length);
     const betaBack = await appears(stack('ws_BETA')), alphaBack = await appears(stack('ws_ALPHA'));
     ok('windows restored at start are stacked with no workspace change', restored >= 9 && betaBack && alphaBack && (await t.calls('SelectWorkspace')).length === 0 &&
-      (await stackName('ws_BETA')).startsWith('Beta Release, 3 windows') && (await stackName('ws_ALPHA')).startsWith('Alpha, 2 windows') &&
+      (await stackName('ws_BETA')).startsWith('Chats (Beta Release), 3 windows') && (await stackName('ws_ALPHA')).startsWith('Chats (Alpha), 2 windows') &&
       await button(g1).count() === 1 && await button('settings').count() === 1, JSON.stringify({ restored, betaBack, alphaBack, beta: await attrs(b1) }));
+    const extra = await page.evaluate(async () => {
+      const editor = await dinahWorkbench.open({ kind: 'editor', workspace: 'ws_BETA', path: 'pending-document' });
+      const terminals = [];
+      for (const [folder, id] of [['/workspaces/alpha/root', 'terminal-alpha'], ['/workspaces/beta/root', 'terminal-beta']]) {
+        terminals.push(await dinahWorkbench.open({ kind: 'terminal', path: JSON.stringify([folder, id]) }));
+      }
+      return { editor, terminals };
+    });
+    ok('Documents and Chats in the same workspace have separate identities', (await attrs(extra.editor)).group === groupKey('dinah.documents', 'ws_BETA') && (await attrs(extra.editor)).group !== (await attrs(b1)).group);
+    const terminalAttrs = await Promise.all(extra.terminals.map(attrs));
+    ok('Terminal groups independently of its launch folders', terminalAttrs.every(a => a.group === groupKey('dinah.terminal') && a.label === 'Terminal'));
+    const unknown = await openChat('C:/NotRegistered', 'unresolved-owner');
+    ok('an unresolved workspace-owned chat never joins the workspace-free Chat group', !(await attrs(unknown)).group);
+
+    // A delayed declaration must regroup immediately, independently of selection.
+    const delayed = await page.evaluate(async () => {
+      window.__taskbarDeclaration = null;
+      dinahWorkbench.register('late-taskbar-fixture', { title: 'Delayed Owner', applet: () => __taskbarDeclaration, init: () => ({}) });
+      return dinahWorkbench.open({ kind: 'late-taskbar-fixture', workspace: 'ws_BETA', path: 'delayed' });
+    });
+    ok('a declaration that has not resolved has no group', !(await attrs(delayed)).group);
+    await page.evaluate(() => { __taskbarDeclaration = { id: 'test.declared', title: 'Declared Applet', glyph: 'app', workspace: true }; dinahWorkbench.regroup(); });
+    ok('resolving metadata assigns the existing window without workspace selection', (await attrs(delayed)).group === groupKey('test.declared', 'ws_BETA'));
+    await page.evaluate(key => pudlWindows.close(key), delayed);
+    await page.evaluate(key => pudlWindows.close(key), unknown);
+
+    const terminalGroup = groupKey('dinah.terminal');
+    await page.waitForFunction(([bar, group]) => !!document.querySelector(bar + ' > [data-win-stack="' + group + '"]'), [bar, terminalGroup]);
+    await page.evaluate(key => pudlWindows.close(key), extra.terminals[1]);
+    await button(extra.terminals[0]).waitFor();
+    ok('a stack returns to an ordinary button with one represented window', await page.locator(bar + ' > [data-win-stack="' + terminalGroup + '"]').count() === 0);
+    await page.locator('[data-win-layer]').evaluate(layer => layer.setAttribute('data-win-taskbar-stacks', 'full'));
+    await page.setViewportSize({ width: 3000, height: 900 });
+    await page.locator(bar + ' > [data-win-stack]').waitFor({ state: 'detached' });
+    ok('full mode keeps separate buttons when they fit', await button(b1).count() === 1 && await button(b2).count() === 1);
+    await page.setViewportSize({ width: 600, height: 900 });
+    await counts('ws_BETA', 3);
+    ok('overflow combines the same applet/workspace group', await stack('ws_BETA').count() === 1);
+    await t.shot('taskbar-stacks-overflow');
+    await page.setViewportSize({ width: 1700, height: 900 });
+    await page.locator('[data-win-layer]').evaluate(layer => layer.setAttribute('data-win-taskbar-stacks', 'always'));
+    // Distinct stable workspace IDs survive equal display names.
+    const originalAlpha = (await attrs(a1)).group, originalBeta = (await attrs(b1)).group;
+    await page.locator('#status-workspace').click();
+    await page.locator('#workspace-status-menu [data-cmd="rename-workspace"]').click();
+    await page.locator('#rename-workspace-name').fill('Beta Release');
+    await page.locator('#rename-workspace-save').click();
+    await page.locator('#rename-workspace').waitFor({ state: 'hidden' });
+    const sameNamed = [await attrs(a1), await attrs(b1)];
+    ok('same-named workspaces remain separate and show distinguishing labels', sameNamed[0].group === originalAlpha && sameNamed[1].group === originalBeta && originalAlpha !== originalBeta && sameNamed[0].label !== sameNamed[1].label && sameNamed.every(a => a.label.includes('Beta Release')), JSON.stringify(sameNamed));
+    // PUDL's represented subset excludes a docked member from this taskbar.
+    await page.evaluate(key => pudlWindows.dock(key, 'left'), b2);
+    await counts('ws_BETA', 2);
+    const membership = await page.evaluate(([group, bar]) => ({ logical: pudlWindows.group(group), represented: pudlWindows.group(group, document.querySelector(bar)) }), [chatGroup('ws_BETA'), bar]);
+    ok('the stack represents only its nondocked windows', membership.logical.includes(b2) && !membership.represented.includes(b2) && membership.represented.length === 2, JSON.stringify(membership));
   } finally { await t.close(); }
 })();

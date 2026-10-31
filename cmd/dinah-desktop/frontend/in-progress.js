@@ -91,7 +91,7 @@
   }
   listeners.add(drawWorkspaceGroup);
 
-  window.dinahWorkbench.register('in-progress', { singleton: true, title: 'In Progress', glyph: 'pencil', mode: 'dock-left', init: function (root, opts) {
+  window.dinahWorkbench.register('in-progress', { applet: { id: 'dinah.in-progress', title: 'In Progress', glyph: 'pencil', workspace: false }, singleton: true, title: 'In Progress', glyph: 'pencil', mode: 'dock-left', init: function (root, opts) {
     root.classList.add('in-progress-browser');
     var disposed = false, scope = 'all', query = '';
     var bar = window.dinahBrowserList.toolbar({

@@ -42,6 +42,8 @@ const fs = require('node:fs'), path = require('node:path');
     for (const theme of ['light', 'dark']) for (const width of [1440, 700]) for (const scale of [1, 2]) {
       await p.setViewportSize({ width, height: 1000 });
       await p.evaluate(({ theme, scale, width }) => {
+        // This suite measures state geometry inside an already projected stack.
+        document.querySelector('[data-win-layer]').setAttribute('data-win-taskbar-stacks', 'always');
         pudlSetTheme(theme);
         __stateTokens.forEach(([name, value]) => { if (Number.isFinite(value)) document.documentElement.style.setProperty(name, value * scale + 'px'); });
         __stateKeys.forEach((key, i) => { pudlWindows.snap(key, 'floating'); const win = __stateWindows[i]; Object.assign(win.style, { width: '320px', height: '700px', left: (i * 20 + 20) + 'px', top: (i * 20 + 90) + 'px' }); });
@@ -50,7 +52,8 @@ const fs = require('node:fs'), path = require('node:path');
       await p.waitForFunction(() => __stateWindows.every(win => win.dataset.winState === 'idle'));
       await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await p.locator('[data-win="' + keys[1] + '"] .win-statuses[data-win-status-compact]').waitFor();
-      const stack = p.locator('nav.win-dock[data-win-dock-omit-docked] > [data-win-stack="fixture"]');
+      const group = 'applet-' + Buffer.from(JSON.stringify(['dinah.chat', 'fixture'])).toString('base64url');
+      const stack = p.locator('nav.win-dock[data-win-dock-omit-docked] > [data-win-stack="' + group + '"]');
       if (await stack.getAttribute('aria-expanded') !== 'true') await stack.click();
       await p.locator('.win-stack-panel').waitFor();
       await p.evaluate(() => pudlWindows.menuCommands(__stateKeys[1]).find(c => c.id === 'status').run());

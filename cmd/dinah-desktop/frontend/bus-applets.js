@@ -332,7 +332,7 @@
   }
 
   /* ---- The Group Chats pane ---- */
-  window.dinahWorkbench.register('bus', { singleton: true, title: 'Group Chats', glyph: 'inbox', mode: 'dock-right', init: function (root) {
+  window.dinahWorkbench.register('bus', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, singleton: true, title: 'Group Chats', glyph: 'inbox', mode: 'dock-right', init: function (root) {
     root.classList.add('bus-browser');
     var disposed = false;
     var bar = window.dinahBrowserList.toolbar({
@@ -754,7 +754,7 @@
   }
 
   /* ---- A group chat's window ---- */
-  window.dinahWorkbench.register('bus-room', { title: 'Group Chat', glyph: 'comments', statuses: true, init: function (root, opts, item) {
+  window.dinahWorkbench.register('bus-room', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Group Chat', glyph: 'comments', statuses: true, init: function (root, opts, item) {
     var key = item.path, room = group(key), disposed = false;
     var targetMessage = 0, pendingMention = null, targetFrame = 0, targetPending = false;
     function stateString() { return JSON.stringify({ message: targetMessage }); }
@@ -1027,7 +1027,7 @@
      reading "Untitled Chat in studio" cannot be told apart (decision 7). A
      new group is named, or takes its chats' titles as its name. The ticked
      chats and the name are the window's state, so its address keeps them. */
-  window.dinahWorkbench.register('group-picker', { title: 'Start a Group Chat', glyph: 'comments', init: function (root, opts, item) {
+  window.dinahWorkbench.register('group-picker', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Start a Group Chat', glyph: 'comments', init: function (root, opts, item) {
     var spec = {};
     try { spec = JSON.parse(item.path || '{}') || {}; } catch (err) { spec = {}; }
     var adding = spec.group || '', from = spec.from || '', chosen = {}, name = '', filter = '', titling = '', disposed = false, active = 0;
@@ -1218,7 +1218,7 @@
     e.detail.placement = { mode: 'floating', x: 0.1, y: 0.04, w: 0.8, h: 0.9 };
   }, true);
 
-  window.dinahWorkbench.register('bus-thread', { title: 'Thread', glyph: 'inbox', init: function (root, opts, item) {
+  window.dinahWorkbench.register('bus-thread', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Thread', glyph: 'inbox', init: function (root, opts, item) {
     var id = Number(item.path);
     var box = composer({ label: 'Reply', draftKey: 'thread:' + id, send: function (text) { return Promise.resolve(app().BusReplyInThread(id, text)).then(function () { c.draw(true); }); } });
     box.restore();

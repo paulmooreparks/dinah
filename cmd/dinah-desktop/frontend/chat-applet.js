@@ -3608,10 +3608,10 @@
       }
       // New Chat starts its chat in the workspace chosen in the Workspace
       // pane (setDraftWorkspace), so its window is that workspace's.
-      window.dinahWorkbench.register('chat', { singleton: true, title: 'New Chat', glyph: 'comments', statuses: true, init: init, workspaceOf: function () { return window.dinahHost.workspaceId(); } });
+      window.dinahWorkbench.register('chat', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, singleton: true, title: 'New Chat', glyph: 'comments', statuses: true, init: init, workspaceOf: function () { return window.dinahHost.workspaceId(); } });
       // A chat restored behind other windows starts when it is seen, or in idle
       // time after the windows in sight.
-      window.dinahWorkbench.register('chat-session', { title: 'Chat', glyph: 'comments', start: 'idle', statuses: true, init: init });
+      window.dinahWorkbench.register('chat-session', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Chat', glyph: 'comments', start: 'idle', statuses: true, init: init });
       document.addEventListener('pudl:windows-change', function () {
         var key = window.pudlWindows.state().top, item = window.dinahWorkbench.item(key);
         if (key === 'chat') selectChat(null);

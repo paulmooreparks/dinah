@@ -533,7 +533,7 @@
   }
 
   window.dinahSubagents = { badge: badge, state: stateOf, tree: tree, ran: ran, openTree: openTree, openArchive: openArchive, open: openOne, openButton: openButton };
-  window.dinahWorkbench.register('subagents', { title: 'Subagents', glyph: 'subagents', init: initTree });
-  window.dinahWorkbench.register('subagent-archive', { title: 'Earlier Subagents', glyph: 'subagents', init: initArchive });
-  window.dinahWorkbench.register('subagent', { title: 'Subagent', glyph: 'subagents', init: initOne });
+  window.dinahWorkbench.register('subagents', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Subagents', glyph: 'subagents', init: initTree });
+  window.dinahWorkbench.register('subagent-archive', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Earlier Subagents', glyph: 'subagents', init: initArchive });
+  window.dinahWorkbench.register('subagent', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Subagent', glyph: 'subagents', init: initOne });
 })();

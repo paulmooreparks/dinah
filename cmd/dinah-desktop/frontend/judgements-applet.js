@@ -603,7 +603,7 @@
       } };
   }
   var pageApi = null;
-  if (window.dinahWorkbench) window.dinahWorkbench.register('judgements', {
+  if (window.dinahWorkbench) window.dinahWorkbench.register('judgements', { applet: { id: 'dinah.judgements', title: 'Judgements', glyph: 'tick', workspace: false },
     singleton: true, title: 'Judgements', glyph: 'tick',
     init: function (root, opts) {
       var page = initPage(root, opts); pageApi = page;

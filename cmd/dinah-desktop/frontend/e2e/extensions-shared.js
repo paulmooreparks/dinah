@@ -12,7 +12,7 @@ const path = require('path'), fs = require('fs');
    window.__selected='fixture';
    const manifest={id:'test.fixture',version:'0.1.0',title:'Extension Fixture',description:'Fixture',publisher:{name:'Test'},permissions:['workspace.read'],actions:[{name:'inspect'}],views:[{id:'pane',title:'Fixture Pane',page:'index.html',pane:true},{id:'window',title:'Fixture Window',page:'index.html'},{id:'follower',title:'Fixture Follower',page:'index.html',follows:true}]};
    // The selected workspace is read from State by the page, and ExtensionWorkspace resolves '' to it, as the host does.
-   return{NativeWindowState:async()=>({available:false}),State:async()=>({workspaceId:__selected,workspace:workspaces[__selected].path,recent:['C:/Fixture','C:/Other'],workspaces:['C:/Fixture','C:/Other'],workspaceRecords:Object.values(workspaces).map(ws=>({id:ws.id,name:ws.name,primarySourceId:'local',sources:[{id:'local',kind:'local-folder',name:ws.name,path:ws.path}]}))}),Extensions:async()=>[{manifest,enabled:true}],ExtensionWorkspace:async id=>{const ws=workspaces[id||__selected];if(!ws)throw Error('open a registered workspace before using extensions');return{...ws};},ExtensionCall:async(id,action,ws)=>({workspace:ws}),CancelExtensionCall:async()=>{}};
+   return{NativeWindowState:async()=>({available:false}),State:async()=>({workspaceId:__selected,workspace:workspaces[__selected].path,recent:['C:/Fixture','C:/Other'],workspaces:['C:/Fixture','C:/Other'],workspaceRecords:Object.values(workspaces).map(ws=>({id:ws.id,name:ws.name,primarySourceId:'local',sources:[{id:'local',kind:'local-folder',name:ws.name,path:ws.path}]}))}),Extensions:async()=>[{manifest,enabled:true},{manifest:{...manifest,id:'test.other',title:'Other Extension Fixture',views:[{id:'window',title:'Other Extension Window',page:'index.html'}]},enabled:true}],ExtensionWorkspace:async id=>{const ws=workspaces[id||__selected];if(!ws)throw Error('open a registered workspace before using extensions');return{...ws};},ExtensionCall:async(id,action,ws)=>({workspace:ws}),CancelExtensionCall:async()=>{}};
   },
   // The fixture's stub runs in the extension's sandboxed frames too; an
   // extension sees no bridge, so the frames are cleared of it.
@@ -38,7 +38,7 @@ const path = require('path'), fs = require('fs');
    return fs.existsSync(file)?route.fulfill({path:file}):route.fulfill({status:404,body:''});
   });
   await page.goto('https://dinah.test/index.html');
-  await page.waitForFunction(()=>window.dinahExtensions?.catalog().length===1);
+  await page.waitForFunction(()=>window.dinahExtensions?.catalog().length===2);
   const frameOf=title=>page.frameLocator('.extension-frame[title="'+title+'"]');
   const framesTitled=title=>page.locator('.extension-frame[title="'+title+'"]');
   const evalIn=(title,fn,arg)=>frameOf(title).locator('main').evaluate(fn,arg);
@@ -77,11 +77,18 @@ const path = require('path'), fs = require('fs');
 
   // 3. A following view takes the selected workspace, shows its name, and can be pinned.
   const followerWin=()=>page.locator('.extension-frame[title="Fixture Follower"]').locator('xpath=ancestor::section[contains(@class,"win")]');
+  const taskbarGroup=ws=>'applet-'+Buffer.from(JSON.stringify(['test.fixture',ws])).toString('base64url');
+  const groupOf=title=>page.locator('.extension-frame[title="'+title+'"]').locator('xpath=ancestor::section[contains(@class,"win")]').getAttribute('data-win-group');
+  ok('declared views of one extension share its applet and workspace identity',await groupOf('Fixture Pane')===taskbarGroup('fixture')&&await groupOf('Fixture Window')===taskbarGroup('fixture')&&await groupOf('Fixture Follower')===taskbarGroup('fixture'));
+  await page.evaluate(()=>dinahWorkbench.open({kind:'extension-view',workspace:'fixture',path:JSON.stringify(['test.other','window'])}));
+  await frameOf('Other Extension Window').locator('#status').filter({hasText:'ready'}).waitFor();
+  ok('distinct declared manifests stay in separate applet groups in one workspace',await groupOf('Other Extension Window')==='applet-'+Buffer.from(JSON.stringify(['test.other','fixture'])).toString('base64url')&&await groupOf('Other Extension Window')!==await groupOf('Fixture Window'));
   ok('a following window shows the workspace name as its title detail',await followerWin().getAttribute('data-win-detail')==='Fixture');
   await selectWorkspace('other');
   await frameOf('Fixture Follower').locator('#workspace').filter({hasText:'other'}).waitFor();
   await frameOf('Fixture Pane').locator('#workspace').filter({hasText:'other'}).waitFor();
   ok('the following window and the pane move with the selected workspace; the pinned window stays',await evalIn('Fixture Window',()=>dinah.workspace.id==='fixture'&&__events.workspace.length===0)&&await followerWin().getAttribute('data-win-detail')==='Other');
+  ok('following ownership resolves into the new taskbar group while pinned ownership stays',await groupOf('Fixture Pane')===taskbarGroup('other')&&await groupOf('Fixture Follower')===taskbarGroup('other')&&await groupOf('Fixture Window')===taskbarGroup('fixture'));
   ok('a frame moving to another workspace sees that workspace\'s shared map',await evalIn('Fixture Follower',()=>Object.keys(dinah.shared.get()).length===0));
   const pinRow=async()=>page.evaluate(()=>{const root=document.querySelector('.extension-frame[title="Fixture Follower"]').closest('.dinah-applet');return pudlApplets.commandsIn(root).filter(c=>c.label==='Pin to This Workspace').map(c=>({checked:c.checked}));});
   ok('the window\'s commands include an unchecked Pin to This Workspace, and the frame cannot take its ID',JSON.stringify(await pinRow())==='[{"checked":false}]'&&await evalIn('Fixture Follower',async()=>{try{await dinah.commands([{id:'pin-workspace',label:'Mine'}]);return false;}catch(error){return true;}}));
@@ -90,10 +97,13 @@ const path = require('path'), fs = require('fs');
   await selectWorkspace('fixture');
   await frameOf('Fixture Pane').locator('#workspace').filter({hasText:/^fixture$/}).waitFor();
   ok('a pinned following window keeps its workspace while the pane follows the selection',JSON.stringify(await pinRow())==='[{"checked":true}]'&&await evalIn('Fixture Follower',()=>dinah.workspace.id==='other'&&dinah.workspace.pinned===true)&&await followerWin().getAttribute('data-win-detail')==='Other');
+  ok('a pin keeps taskbar membership while another workspace is selected',await groupOf('Fixture Follower')===taskbarGroup('other')&&await groupOf('Fixture Pane')===taskbarGroup('fixture'));
   ok('a pin is kept with the UI state under the window\'s key',await page.evaluate(()=>{const key=document.querySelector('.extension-frame[title="Fixture Follower"]').closest('.win').dataset.win;return dinahUIState.get('dinah-extension-pins',{})[key]==='other';}));
   await page.evaluate(()=>{const root=document.querySelector('.extension-frame[title="Fixture Follower"]').closest('.dinah-applet');return pudlApplets.commandsIn(root).find(c=>c.label==='Pin to This Workspace').run();});
   await frameOf('Fixture Follower').locator('#workspace').filter({hasText:/^fixture$/}).waitFor();
   ok('unpinning lets the window follow the selected workspace again',await evalIn('Fixture Follower',()=>dinah.workspace.id==='fixture'&&dinah.workspace.pinned===false)&&await followerWin().getAttribute('data-win-detail')==='Fixture');
+  ok('unpinning returns the following window to the selected workspace group',await groupOf('Fixture Follower')===taskbarGroup('fixture'));
+
   // The follower is open at the view's default key but a second one in another workspace must not take it over.
   await page.evaluate(()=>{const root=document.querySelector('.extension-frame[title="Fixture Follower"]').closest('.dinah-applet');return pudlApplets.commandsIn(root).find(c=>c.label==='Pin to This Workspace').run();});
   await frameOf('Fixture Follower').locator('#workspace').filter({hasText:'fixture pinned'}).waitFor();
