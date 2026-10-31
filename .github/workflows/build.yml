@@ -148,6 +148,11 @@ jobs:
     env:
       E2E_OUT: ${{ github.workspace }}/diagnostics
     steps:
+      # chat-stream-markdown and html-safety read shell_server.go with
+      # patterns written for its committed LF line endings.
+      - name: Keep line endings as committed
+        working-directory: .
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
         with:
           path: dinah
