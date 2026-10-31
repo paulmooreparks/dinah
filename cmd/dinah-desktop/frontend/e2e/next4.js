@@ -109,6 +109,19 @@ const { openMenu } = require('./lib/commands');
     // markdown-it shows an address it links with its escapes undone.
     ok('links and file addresses become chips', chips.join('|') === 'the guide|https://example.com/a|file:///C:/Work/parser/notes today.md', chips.join('|'));
     ok('ticket-like words and code blocks are left alone', !chips.some(c => /TASKZ-39|UTF-8|in-code/.test(c)));
+    // Read back before activating a link above the followed end. An automatic
+    // scrollIntoView does not express this user navigation and following can
+    // restore the tail before the pointer reaches the chip.
+    await p.locator('.win[data-chat-current] [data-view-id=activity]').hover();
+    await p.mouse.wheel(0, -180);
+    await p.waitForFunction(() => document.querySelector('.win[data-chat-current] [data-view-id=activity]').dataset.following === 'false');
+    await p.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    ok('reading back leaves the guide chip visible and pointer-accessible', await p.evaluate(() => {
+      const chip = [...document.querySelectorAll('.win[data-chat-current] [data-view-id=logs] .smart-chip')].find(el => el.textContent === 'the guide');
+      const bounds = chip.getBoundingClientRect(), log = chip.closest('[data-view-id=activity]').getBoundingClientRect();
+      return bounds.top >= log.top && bounds.bottom <= log.bottom && document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2).closest('.smart-chip') === chip;
+    }));
+    await t.shot('chips-reading');
     await p.click('.win[data-chat-current] [data-view-id=logs] .smart-chip >> text=the guide');
     await p.click('.win[data-chat-current] [data-view-id=logs] .smart-chip >> text=https://example.com/a');
     const opened = await p.evaluate(() => window.__opened.slice());
