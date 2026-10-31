@@ -108,7 +108,7 @@ func TestAClaudeCallThatRunsAloneMatchesItsReplayRowForRow(t *testing.T) {
 
 // Another provider's calls are recorded one row for each event, as before.
 func TestOtherProvidersCallsKeepOneRowForEachEvent(t *testing.T) {
-	rows := recordedRows(t, "codex", false, claudeLiveUpdates)
+	rows := recordedRows(t, "ollama", false, claudeLiveUpdates)
 	if len(rows) != len(claudeLiveUpdates) {
 		t.Fatalf("%d rows for %d events: %q", len(rows), len(claudeLiveUpdates), rowTexts(rows))
 	}
@@ -131,7 +131,7 @@ func TestAnUpdateForAnUnknownCallStillGetsARow(t *testing.T) {
 // as it did: every call's title, command and result is in the summary and the
 // handoff, as it is for the same calls in the new form.
 func TestAHandoffFromAnOldManyRowCopyStillReadsCorrectly(t *testing.T) {
-	old := recordedRows(t, "codex", false, claudeLiveUpdates)
+	old := recordedRows(t, "ollama", false, claudeLiveUpdates)
 	fresh := recordedRows(t, "claude", false, claudeLiveUpdates)
 	formatter := HandoffFormatter{ProductName: "Dinah", Speaker: func(m ConversationMessage) string { return m.Role }}
 	for name, rows := range map[string][]ConversationMessage{"old": old, "new": fresh} {

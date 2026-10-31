@@ -180,6 +180,10 @@ func (c *TranscriptCapture) recordUpdateLocked(s *Conversation, replay bool, upd
 				unsupported = true
 			}
 		}
+		if u.ToolCallID != "" && providers.For(s.Provider()).SnapshotToolCalls {
+			s.HistoryRecordSnapshotToolLocked(replay, s.ID(), u.ToolCallID, u.Type == "tool_call" || terminalToolStatus(u.Status), c.host.VisibleText(u.Title), u.Status, content, unsupported, c.host.VisibleText)
+			return
+		}
 		// The Claude adapter streams a call as updates that its history
 		// replay has merged, so its calls are recorded as the replay has
 		// them (history.go, RecordToolLocked). Measured on 29 October 2026

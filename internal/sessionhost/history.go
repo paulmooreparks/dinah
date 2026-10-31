@@ -360,6 +360,75 @@ type toolRow struct {
 	index, last   int
 	title, status string
 	content       []string
+	outputBytes   int
+}
+
+// RecordSnapshotToolLocked keeps one row per call. The local Codex adapter
+// emits raw output deltas and replaces them with an authoritative item result
+// at completion or replay (codexagent/events.go). Partial output is bounded
+// while its byte count preserves the usual truncation disclosure.
+func (h *History) RecordSnapshotToolLocked(replay bool, id, callID string, snapshot bool, title, status string, content []string, unsupported bool, visible func(string) string) {
+	tr := h.saved
+	if replay && h.replay != nil {
+		tr = h.replay
+	}
+	if tr == nil || tr.Deleted {
+		return
+	}
+	if unsupported {
+		h.RecordMessageLocked(replay, id, "tool", "", true, false)
+	}
+	if h.tools == nil {
+		h.tools = map[*Transcript]map[string]*toolRow{}
+	}
+	if h.tools[tr] == nil {
+		h.tools[tr] = map[string]*toolRow{}
+	}
+	r := h.tools[tr][callID]
+	if r == nil {
+		r = &toolRow{index: len(tr.Messages), content: []string{""}}
+		h.tools[tr][callID] = r
+		tr.Messages = append(tr.Messages, ConversationMessage{Role: "tool", Provider: tr.Provider, SessionID: id})
+	}
+	if title != "" {
+		r.title = title
+	}
+	if status != "" {
+		r.status = status
+	}
+	if snapshot {
+		r.content[0], r.outputBytes = "", 0
+	}
+	output := strings.Join(content, "\n")
+	if snapshot {
+		output = visible(output)
+	}
+	r.outputBytes += len(output)
+	room := maxConversationToolText - len(r.content[0])
+	if room > len(output) {
+		room = len(output)
+	}
+	r.content[0] += output[:room]
+	text := r.text()
+	if r.outputBytes == 0 {
+		view := *r
+		view.content = nil
+		text = view.text()
+	}
+	// Deltas can split a private token anywhere. Keep only a bounded raw
+	// prefix in memory, and redact the reconstructed row before saving it.
+	// Redacting fragments separately cannot protect an interrupted call.
+	text = visible(text)
+	// text includes the title and status; account for those bytes when
+	// computing the same cut that RecordMessageLocked applies to replay.
+	total := len(text) + r.outputBytes - len(r.content[0])
+	if total > maxConversationToolText {
+		if len(text) > maxConversationToolText {
+			text = text[:maxConversationToolText]
+		}
+		text += fmt.Sprintf("\n[%d more characters of this result are in the chat's log]", total-maxConversationToolText)
+	}
+	tr.Messages[r.index].Text = text
 }
 
 func (r *toolRow) text() string {
