@@ -46,8 +46,8 @@ const { launch } = require('./lib/page');
     // The popup: the day in words, then the two ways in.
     await item.click();
     await p.locator('#judgements-status-list .judgements-popup-line').waitFor();
-    await p.waitForFunction(() => /Today: 12 calls, 3 by the rule/.test(document.querySelector('#judgements-status-list .judgements-popup-line').textContent));
-    ok('the popup gives the day in words, ending with the latest call', /Today: 12 calls, 3 by the rule\. The latest was/.test(await p.locator('#judgements-status-list .judgements-popup-line').textContent()));
+    await p.waitForFunction(() => /Today: 12 calls, 3 by the rule/.test(document.querySelector('#judgements-status-list .judgements-popup-today').textContent));
+    ok('the popup gives the day in words, ending with the latest call', /Today: 12 calls, 3 by the rule\. The latest was/.test(await p.locator('#judgements-status-list .judgements-popup-today').textContent()));
     await p.locator('#judgements-status-list').getByText('Open Judgements').click();
     await p.locator('.win[data-win-kind="judgements"]').waitFor({ state: 'attached' });
     ok('Open Judgements opens the page', true);

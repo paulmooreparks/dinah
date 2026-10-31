@@ -119,12 +119,15 @@
     button.disabled = true;
     Promise.resolve().then(function () {
       return id == null ? app().DismissJudgementWarnings() : app().DismissJudgementWarning(id);
-    }).then(readState).catch(host().fail).finally(function () { button.disabled = false; });
+    }).then(readState).catch(host().fail).finally(function () {
+      button.disabled = button.classList.contains('judgements-dismiss-all') && !(state && state.warnings && state.warnings.length);
+    });
   }
   function syncPopup() {
     var list = $('judgements-status-list'), first = list.querySelector('.judgements-popup-line');
     if (!first) return;
-    first.textContent = stateWords(state) + '. ' + popupSummary;
+    first.textContent = stateWords(state) + '.';
+    list.querySelector('.judgements-popup-today').textContent = popupSummary;
     var warnings = state && state.warnings || [], rows = list.querySelector('.judgements-warnings');
     var focused = document.activeElement, hadFocus = rows.contains(focused), oldButtons = Array.from(rows.querySelectorAll('button'));
     var focusIndex = oldButtons.indexOf(focused);
@@ -146,11 +149,12 @@
     });
     Array.from(rows.children).forEach(function (row) { if (!kept.has(row)) row.remove(); });
     rows.hidden = !warnings.length;
-    var all = list.querySelector('.judgements-dismiss-all'); all.hidden = !warnings.length;
+    list.querySelector('.judgements-warnings-empty').hidden = !!warnings.length;
+    var all = list.querySelector('.judgements-dismiss-all'); all.disabled = !warnings.length;
     if (hadFocus && !focused.isConnected) {
       var buttons = rows.querySelectorAll('button');
       (buttons[Math.min(focusIndex, buttons.length - 1)] || list.querySelector('a')).focus();
-    } else if (focused === all && all.hidden) list.querySelector('a').focus();
+    } else if (focused === all && all.disabled) list.querySelector('a').focus();
   }
   function drawPopup() {
     var list = $('judgements-status-list');
@@ -163,19 +167,23 @@
     var warnings = node('ul', 'judgements-warnings vstack gap-3'); warnings.setAttribute('aria-label', 'Judgement warnings');
     var all = node('button', 'btn btn-sm judgements-dismiss-all', 'Dismiss All'); all.type = 'button';
     all.addEventListener('click', function () { dismissWarning(null, all); });
-    summary.appendChild(all); list.appendChild(warnings);
+    summary.appendChild(all);
+    var body = node('div', 'judgements-popup-body'); list.appendChild(body);
+    body.appendChild(warnings);
+    body.appendChild(node('p', 'form-help judgements-warnings-empty', 'No warnings.'));
+    body.appendChild(node('p', 'form-help judgements-popup-today'));
     Promise.resolve().then(function () { return app().JudgementSummary('', ''); }).then(function (sum) {
       if (!list.isConnected || !first.isConnected) return;
       var line = sum.calls ? 'Today: ' + sum.calls + (sum.calls === 1 ? ' call' : ' calls') + ', ' + sum.fallbacks + ' by the rule. The latest was ' + ago(sum.latest) + '.'
         : 'Nothing has been judged yet. The records will appear on the Judgements page.';
       popupSummary = line; syncPopup();
     }).catch(function () {});
-    if (state && state.calibration && state.calibration.state === 'running') list.appendChild(node('p', 'form-help judgements-popup-calibration', 'Calibration is choosing the judge’s model now.'));
-    (state && state.budget || []).forEach(function (b) { list.appendChild(node('p', 'form-help judgements-popup-budget', budgetLine(b))); });
+    if (state && state.calibration && state.calibration.state === 'running') body.appendChild(node('p', 'form-help judgements-popup-calibration', 'Calibration is choosing the judge’s model now.'));
+    (state && state.budget || []).forEach(function (b) { body.appendChild(node('p', 'form-help judgements-popup-budget', budgetLine(b))); });
     var pool = state && state.pool && poolLine(state.pool);
-    if (pool) list.appendChild(node('p', 'form-help judgements-popup-pool', pool));
-    list.appendChild(menuRow('Open Judgements', '', openPage));
-    list.appendChild(menuRow('Judgement Settings…', '', openSection));
+    if (pool) body.appendChild(node('p', 'form-help judgements-popup-pool', pool));
+    body.appendChild(menuRow('Open Judgements', '', openPage));
+    body.appendChild(menuRow('Judgement Settings…', '', openSection));
     syncPopup();
   }
 
@@ -955,7 +963,22 @@
       readState().catch(function () {});
       if (pageApi && pageApi.refresh) pageApi.refresh();
     });
-    $('judgements-status-menu').addEventListener('beforetoggle', function (e) { if (e.newState === 'open') drawPopup(); });
+    $('judgements-status-menu').addEventListener('beforetoggle', function (e) {
+      if (e.newState !== 'open') return;
+      this.style.removeProperty('--judgements-popup-width');
+      this.style.removeProperty('--judgements-popup-height');
+      this.style.removeProperty('--judgements-summary-height');
+      drawPopup();
+    });
+    $('judgements-status-menu').addEventListener('toggle', function (e) {
+      if (e.newState !== 'open' || !this.matches(':popover-open')) return;
+      // The public placement call completes opening before we retain its size.
+      window.pudlMenu.place(this);
+      var box = this.getBoundingClientRect(), summary = this.querySelector('.judgements-popup-summary');
+      this.style.setProperty('--judgements-popup-width', box.width + 'px');
+      this.style.setProperty('--judgements-popup-height', box.height + 'px');
+      this.style.setProperty('--judgements-summary-height', summary.getBoundingClientRect().height + 'px');
+    });
     $('status-judgements').addEventListener('keydown', function (event) {
       if (event.key !== 'ArrowDown' || event.altKey || event.ctrlKey || event.metaKey) return;
       event.preventDefault();
