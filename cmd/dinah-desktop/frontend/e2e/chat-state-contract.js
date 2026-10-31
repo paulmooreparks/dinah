@@ -22,7 +22,7 @@ for (const life of ['closed', 'retired']) {
   const result = describe({ life, exec: { state: 'working' } });
   assert.equal(result.glyph, ''); assert.ok(!result.text.includes('Working'));
 }
-assert.equal(describe({ working: true, state: 'open' }).text, 'State unavailable');
+assert.equal(describe({ working: true, state: 'open' }).text, 'Unknown');
 const rollup = describe({ counts: { top: 'waiting', stuck: 2, waiting: 1, working: 4, idle: 0 } });
 assert.equal(rollup.state, 'waiting'); // The engine chooses priority, even if counts disagree.
 assert.equal(rollup.text, '2 stuck, 1 waiting, 4 working');

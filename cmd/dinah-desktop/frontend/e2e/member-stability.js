@@ -35,7 +35,7 @@ const path = require('path');
    const trace=await p.evaluate(async(key)=>{
     const root=document.querySelector('[data-win="'+key+'"]'), first=root.querySelector('[data-group-member="bus-alpha"] button');
     const buttons=[...root.querySelectorAll('.member-menu-btn')];
-    function sample(){return [...root.querySelectorAll('.group-member-shell,.member-chip,.member-menu-btn,.group-composer,.bus-log,.group-aggregate')].map((el,i)=>{const r=el.getBoundingClientRect();return {key:el.dataset.groupMember||el.id||el.className+'|'+i,x:r.x,y:r.y,w:r.width,h:r.height};});}
+    function sample(){return [...root.querySelectorAll('.group-member-shell,.member-chip,.member-menu-btn,.group-composer,.bus-log')].map((el,i)=>{const r=el.getBoundingClientRect();return {key:el.dataset.groupMember||el.id||el.className+'|'+i,x:r.x,y:r.y,w:r.width,h:r.height};});}
     const before=sample(), samples=[], failures=[];
     for(const state of ['working','waiting','stuck','idle','closed','retired','elsewhere','unknown','background']) {
      __memberStep(state);
@@ -49,8 +49,7 @@ const path = require('path');
      if(state==='background'&&!mark.title.includes('No window'))failures.push({state,detail:mark.title});
      const glyph=mark.querySelector('.glyph');if(glyph&&glyph.getBoundingClientRect().width<16)failures.push({state,glyphWidth:glyph.getBoundingClientRect().width});
      if(!glyph&&mark.scrollHeight>mark.clientHeight+1)failures.push({state,clippedLifecycle:true});
-     const aggregate=getComputedStyle(root.querySelector('.group-aggregate .chat-state'),'::before');
-     if(aggregate.display!=='inline-block'||parseFloat(aggregate.width)<16||aggregate.maskImage==='none')failures.push({state,aggregateGlyph:{display:aggregate.display,width:aggregate.width,mask:aggregate.maskImage}});
+     if(root.querySelector('.group-aggregate')||!root.querySelector('.group-state-chip .chat-state')?.getAttribute('aria-label'))failures.push({state,aggregate:'missing title status or duplicate body status'});
     }
     for(const remaining of [10,1,0,9]) {
      __memberBudget(remaining);

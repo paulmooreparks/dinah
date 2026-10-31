@@ -59,6 +59,18 @@
     command(list, { label: 'Edit Current Theme…', run: function () { document.getElementById('appearance-edit').click(); } });
     command(list, { label: 'Appearance Settings…', run: function () { return bench.open('settings').then(function () { document.getElementById('settings-tab-appearance').click(); }); } });
   }
+  function drawSkins() {
+    var list = document.getElementById('host-skins'), appearance = window.dinahAppearance;
+    if (!list || !appearance) return;
+    var snapshot = appearance.snapshot(), desired = snapshot.state.skin || 'standard';
+    list.replaceChildren();
+    snapshot.skins.forEach(function (skin) {
+      command(list, { label: skin.label, checked: desired === skin.id, run: function () { return appearance.selectSkin(skin.id); } });
+    });
+    if (!snapshot.skins.some(function (skin) { return skin.id === desired; })) {
+      command(list, { label: desired + ' (unavailable)', checked: true, disabled: true, reason: snapshot.skinNotice });
+    }
+  }
   /* A registry menu's rows go into its host list: all of it, or after the
      list's placeholder (li[data-commands]) where some rows are written in
      the page. */
@@ -102,7 +114,7 @@
       }
       return;
     }
-    ['dinah', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes();
+    ['dinah', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes(); drawSkins();
     // The host registry supplies markup rows rather than PUDL commands.
     // Its explicit open-menu updates still use the documented notification.
     if (event?.detail?.refreshOpenMenus && window.pudlMenubar) window.pudlMenubar.refresh();

@@ -105,15 +105,15 @@
 .picker-tools > button { flex-shrink: 0; }
 .picker-new-chat { margin: 0; }
 
-.group-member-shell { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; max-height: 40%; overflow: auto; padding: var(--space-2) var(--space-5); border-bottom: 1px solid var(--border); container-type: inline-size; }
-.group-member-heading { flex: none; flex-wrap: nowrap; min-inline-size: 0; }
-.group-member-heading > .disclosure { flex: none; }
-.group-aggregate { flex: 1; min-inline-size: 0; overflow: hidden; }
-.group-aggregate > .badge.chat-state { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.group-aggregate > .badge.chat-state::before { display: inline-block; vertical-align: middle; margin-inline-end: var(--space-1); --glyph-size: max(16px, 1em); }
-.group-member-shell .group-members { flex: 0 1 auto; min-height: 0; overflow: auto; align-content: flex-start; align-items: flex-start; border-bottom: 0; padding: var(--space-2) 0 0; }
+.group-member-shell { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; max-height: 40%; overflow: auto; padding: 0; container-type: inline-size; }
+.group-member-shell .group-members { flex: 0 1 auto; min-height: 0; overflow: auto; align-content: flex-start; align-items: flex-start; border-bottom: 0; padding: var(--space-2) var(--space-5); }
 .group-members[hidden] { display: none; }
-.group-toolbar { flex: none; margin: 0; padding: var(--space-2) var(--space-5); }
+.group-toolbar { flex: none; margin: 0; padding: var(--space-2) var(--space-5); border-bottom: 1px solid var(--border); }
+.group-toolbar > .toolbar-group { flex: 1; flex-wrap: wrap; min-inline-size: 0; }
+.group-toolbar .btn { max-inline-size: 100%; min-inline-size: 0; white-space: normal; overflow-wrap: anywhere; }
+.group-toolbar .toolbar-words { min-inline-size: 0; white-space: normal; overflow-wrap: anywhere; }
+.group-member-shell:has(.group-members[hidden]) .group-toolbar { border-bottom: 0; }
+.group-transcript-separator { flex: none; margin: 0; border: 0; border-block-start: 1px solid var(--border); inline-size: 100%; }
 .group-lookup-status { flex: none; margin: 0; padding: var(--space-2) var(--space-5); }
 .group-lookup-status + button { flex: none; align-self: flex-start; margin-inline: var(--space-5); }
 .group-draft-choices { display: flex; flex-direction: column; gap: var(--space-2); margin-block-end: var(--space-2); }

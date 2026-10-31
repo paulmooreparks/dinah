@@ -136,6 +136,8 @@ const fs = require('fs'), path = require('path');
    if (mode === 'open-failure' || mode === 'history-failure') {
     await win.locator('[data-view-id=session-note]').waitFor();
     ok(mode + ': a failed opening or history read retains the available saved copy', await win.getByText('PRE-OPEN-SAVED-CONTENT', {exact:true}).isVisible() && !await win.locator('[data-view-id=session-save-history]').isDisabled());
+    ok(mode + ': terminal failure removes the loading chip', await win.locator('.chat-loading-chip').evaluate(el => el.hidden));
+    await t.shot('loading-failed-'+mode);
     if (mode === 'history-failure') {
      ok('history failure is not labelled as provider startup failure', /opened, but its current history/.test(await win.locator('[data-view-id=session-note-title]').textContent()));
      await p.evaluate(() => { const item={n:4,name:'agent:update',data:{update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:' [DURING-FAILURE]'}}}}; __journal.push(item); __emitJournal(item); });

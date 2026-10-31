@@ -533,7 +533,7 @@
      a message in the box as a quotation, and Edit puts one of the person's
      back in the box, with the chats it mentioned. The person's messages are
      the box's history for Up and Down. */
-  function conversation(root, emptyBody, fetch, box, seenKey) {
+  function conversation(root, emptyBody, fetch, box, seenKey, stopped) {
     root.classList.add('bus-conversation');
     var log = node('div', 'bus-log transcript'), list = node('div', 'bus-log-list transcript-messages');
     log.setAttribute('data-scroll-defer', '');
@@ -547,7 +547,7 @@
       ledger = ledgerKey && window.dinahUIState.get(ledgerKey) || { through: seenKey && Number((window.dinahUIState.get('bus-seen') || {})[seenKey]) || 0, unseen: [] };
       return ledger;
     }
-    var navigation = window.dinahTranscript.mount({ root: root, log: log, content: list,
+    var navigation = window.dinahTranscript.mount({ root: root, log: log, content: list, stopped: stopped,
       ready: function () { return !painting; }, canTail: function () { return !painting; },
       entries: function () { return drawn.map(function (d) { return { key: d.message && d.message.id, element: d.div, eligible: !!d.message && !d.message.fromPerson && d.message.kind !== 'member' }; }); },
       initialSeen: function (entry) { var saved = readLedger(); return Number(entry.key) <= saved.through && saved.unseen.indexOf(Number(entry.key)) < 0; },
@@ -890,8 +890,10 @@
     function fileLimit() { var l = room && room.fileLimit; return l && l.limit > 0 ? { max: l.limit, reason: l.reason } : null; }
     var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit, function () { return room; });
     box.canRead = function () { return lookupState === 'resolved' && ((!overviewFailure && !!group(key)) || checkedOverview === overviewVersion); };
+    var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button';
+    stopped.appendChild(node('span', 'toolbar-words', 'Jump to Where You Stopped'));
     var c = conversation(root, 'Everything said in the group appears here. The chats a message mentions are asked to answer it, and the other members are told that it was said.',
-      function () { return Promise.resolve(app().BusGroupMessages(key)).then(function (ms) { markRead(); return ms; }); }, box, 'group:' + key);
+      function () { return Promise.resolve(app().BusGroupMessages(key)).then(function (ms) { markRead(); return ms; }); }, box, 'group:' + key, stopped);
     var draftChoices = node('div', 'group-draft-choices'), draftLabel = node('label', 'form-field');
     var draftSelect = node('select', 'form-select'); draftSelect.setAttribute('aria-label', 'Other saved drafts');
     draftLabel.append(node('span', 'form-label', 'Other saved drafts'), draftSelect);
@@ -929,24 +931,26 @@
     box.dropOn(root);
     /* The members, over the conversation: a chip for each chat with its
        state and a menu, then the person, then Add Chats…. */
-    var memberShell = node('section', 'group-member-shell'), memberHeading = node('div', 'group-member-heading hstack gap-2');
+    var memberShell = node('section', 'group-member-shell');
     var bar = node('div', 'group-members'); bar.setAttribute('role', 'list'); bar.setAttribute('aria-label', 'Members'); bar.tabIndex = 0;
     bar.id = 'group-members-' + (++groupSerial);
     var memberToggle = node('button', 'btn btn-sm disclosure', 'Members'); memberToggle.type = 'button';
     memberToggle.setAttribute('aria-expanded', 'true'); memberToggle.setAttribute('aria-controls', bar.id);
     memberToggle.addEventListener('click', function () { bar.hidden = !bar.hidden; memberToggle.setAttribute('aria-expanded', String(!bar.hidden)); });
-    var aggregate = node('span', 'group-aggregate'); memberHeading.append(memberToggle, aggregate); memberShell.append(memberHeading, bar);
-    var commandBar = node('div', 'toolbar group-toolbar'); commandBar.setAttribute('role', 'toolbar'); commandBar.setAttribute('aria-label', 'Group commands'); commandBar.setAttribute('data-toolbar-fold', '');
-    var commandGroup = node('div', 'toolbar-group'); commandGroup.setAttribute('role', 'group'); commandGroup.setAttribute('aria-label', 'Group'); commandGroup.dataset.toolbarGroup = 'Group'; commandGroup.dataset.toolbarGlyph = 'comments';
+    var commandBar = node('div', 'toolbar group-toolbar'); commandBar.setAttribute('role', 'toolbar'); commandBar.setAttribute('aria-label', 'Group commands');
+    var commandGroup = node('div', 'toolbar-group'); commandGroup.setAttribute('role', 'group'); commandGroup.setAttribute('aria-label', 'Group');
     function command(label, glyph, cls, run) {
       var button = node('button', 'btn btn-sm ' + cls); button.type = 'button'; button.setAttribute('aria-label', label);
       var icon = node('span', 'glyph'); icon.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')'); icon.setAttribute('aria-hidden', 'true');
       button.append(icon, node('span', 'toolbar-words', label)); button.addEventListener('click', run); commandGroup.appendChild(button);
     }
+    commandGroup.appendChild(memberToggle);
     command('Add Chats…', 'plus', 'group-add-chats', addChats);
     command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
-    commandBar.appendChild(commandGroup); root.prepend(lookupNote, lookupRetry, memberShell, commandBar);
-    if (window.pudlToolbar) window.pudlToolbar.enhance(commandBar);
+    commandGroup.appendChild(stopped); commandBar.appendChild(commandGroup); memberShell.append(commandBar, bar);
+    var separator = node('hr', 'group-transcript-separator');
+    root.prepend(lookupNote, lookupRetry, memberShell, separator);
+    if (window.pudlToolbar) window.pudlToolbar.enhance(memberShell);
     var menu = node('nav', 'menu-panel group-member-menu'); menu.setAttribute('popover', ''); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', 'Member');
     menu.id = 'group-member-menu-' + Math.random().toString(36).slice(2);
     root.appendChild(menu);
@@ -1039,7 +1043,6 @@
       }
       window.dinahRender.enqueue(drawMembers, root, function () {
         memberToggle.textContent = 'Members (' + members().length + ')';
-        aggregate.replaceChildren(window.dinahChatState.badge(room || {}));
         var wanted = [];
         members().forEach(function (m) {
           var key = m.state === 'person' ? 'person' : m.id, view = memberViews.get(key);
