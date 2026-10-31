@@ -175,8 +175,14 @@ jobs:
             *) edge='/usr/bin/microsoft-edge' ;;
           esac
           mkdir -p "$E2E_OUT"
-          test -x "$edge" || { echo "::error::Microsoft Edge is not at $edge"; exit 1; }
-          "$edge" --version 2>/dev/null | tee "$E2E_OUT/browser.txt" || echo "$edge" > "$E2E_OUT/browser.txt"
+          test -f "$edge" || { echo "::error::Microsoft Edge is not at $edge"; exit 1; }
+          # msedge.exe --version opens a browser on Windows instead of
+          # printing, so there the version is read from the file.
+          if [ "$RUNNER_OS" = Windows ]; then
+            pwsh -NoProfile -Command "(Get-Item '$edge').VersionInfo.ProductVersion"
+          else
+            "$edge" --version
+          fi | tee "$E2E_OUT/browser.txt"
 
       # run.ps1 prints one line per suite and only the failing suites' lines;
       # failures.txt and the screenshots are kept in the artifact.
