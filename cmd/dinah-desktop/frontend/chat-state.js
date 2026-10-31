@@ -53,7 +53,7 @@
       if (!spec && words) return { text: words, kind: '', cls: 'chat-state chat-lifecycle', label: words, glyph: '' };
       if (!totals.stuck && !totals.waiting && !totals.working && !totals.idle && totals.closed) words = spec.word + ' (' + words + ')';
     } else if (why && options.reason !== false && (state === 'waiting' || state === 'stuck')) words += ' (' + why + ')';
-    if (!spec) return { text: 'State unavailable', kind: '', cls: 'chat-state chat-state-unknown', label: 'The engine has not supplied an execution state', glyph: '' };
+    if (!spec) return { text: 'Unknown', kind: '', cls: 'chat-state chat-state-unknown', label: 'The engine has not supplied an execution state', glyph: '' };
     return { state: state, text: words, kind: spec.colour, glyph: spec.glyph, cls: 'chat-state chat-state-' + state, label: aggregate ? spec.word + ': ' + words : spec.word + (why ? ': ' + why : '') };
   }
   function describe(value, options) {

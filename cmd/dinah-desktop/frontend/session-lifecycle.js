@@ -257,7 +257,7 @@
           // The reconnect failed: the saved copy stays, as it was.
           s.log = kept.log; s.keptLog = null; s.rows = kept.rows; s.trimmed = kept.trimmed; s.current = null; s.saved = true; s.settling = false;
           sessionNote();
-          if (s.view) { s.view.stateLine(); s.view.sessionNote(); }
+          if (s.view) { s.view.drawLoadingChip(); s.view.stateLine(); s.view.sessionNote(); }
           return r;
         }
         // A line the opening returned, such as a stored substitution it made,
