@@ -8,7 +8,7 @@
       onWindowsChange, offWindowsChange, openChatIds, chatWindowsFor,
       fail, toast, providerName, title, show, showChat, drawSaved, drawSavedCopy,
       replayProgress, sessionNote, stateLine, enqueue, drainAgentEvents,
-      rememberCatalog, drawAgentState, openingNote, stampReplay, drawAll,
+      rememberCatalog, drawAgentState, openingNote, stampReplay, drawAll, resetMessageItems,
       presentHistory, noWorkspaceYet, startLog, catchUpLog } = adapter;
     const sessions = store.records, S = store.get;
     const applySessionInfo = store.applyInfo, sessionProvider = store.provider;
@@ -149,7 +149,7 @@
       s.keptLog = kept && kept.log;
       s.quiet = !!kept;
       s.saved = false;
-      s.log.innerHTML = ''; s.rows = {}; s.current = null; s.trimmed = 0; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
+      resetMessageItems(s); s.log.innerHTML = ''; s.rows = {}; s.current = null; s.trimmed = 0; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
       s.settling = true;
       s.loading = true; s.replayed = 0; s.failed = ''; s.unoffered = null;
       if (s.view) s.view.drawLoadingChip(); // the window's title bar says it is loading
@@ -244,7 +244,7 @@
             if (sessions[id] === s && saved && saved.available) {
               s.loading = false;
               s.historyWarning = saved.warning || ''; s.historyComplete = saved.complete !== false; s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
-              s.log.replaceChildren(); s.rows = {}; s.current = null;
+              resetMessageItems(s); s.log.replaceChildren(); s.rows = {}; s.current = null;
               await drawSaved(s, saved.messages || []);
             }
           } catch (_) { /* Preserve the provider error when the local copy is unavailable. */ }

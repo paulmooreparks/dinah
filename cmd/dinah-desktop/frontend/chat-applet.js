@@ -12,6 +12,18 @@
     const sessions = sessionStore.records;
     const S = sessionStore.get, applySessionInfo = sessionStore.applyInfo, sessionProvider = sessionStore.provider;
 
+    // Each retained log owns its item ledger. Retired entries hold no DOM row.
+    var textItemIndexes = new WeakMap();
+    function textItemKey(s, kind, update) {
+      return update && typeof update.turnId === 'string' && update.turnId && typeof update.itemId === 'string' && update.itemId &&
+        (update.contentMode === 'append' || update.contentMode === 'snapshot') ? JSON.stringify([s.id, kind, update.turnId, update.itemId]) : null;
+    }
+    function textItemIndex(s) {
+      var index = textItemIndexes.get(s.log);
+      if (!index) { index = new Map(); textItemIndexes.set(s.log, index); }
+      return index;
+    }
+    function resetMessageItems(s) { textItemIndexes.delete(s.log); }
     var active = null;      // the id of the session in front
     var providers = [], defaultProvider = '', providerCatalogs = {}, providerPins = {}, providerDefaults = {};
     // Each provider's limit on the files in one message, with its default and
@@ -169,7 +181,7 @@
         return ids;
       },
       chatWindowsFor: chatWindowsFor, fail: fail, toast: toast, providerName: providerName, title: title,
-      show: show, showChat: showChat, drawSaved: drawSaved, drawSavedCopy: drawSavedCopy, replayProgress: replayProgress,
+      show: show, showChat: showChat, drawSaved: drawSaved, drawSavedCopy: drawSavedCopy, resetMessageItems: resetMessageItems, replayProgress: replayProgress,
       sessionNote: (...args) => currentChat()?.sessionNote(...args), stateLine: (...args) => currentChat()?.stateLine(...args),
       enqueue: function () { return window.dinahRender.enqueue.apply(window.dinahRender, arguments); },
       drainAgentEvents: drainAgentEvents, rememberCatalog: rememberCatalog, drawAgentState: drawAgentState,
@@ -200,6 +212,7 @@
       return drawSaved(copy, saved.messages || []).then(function () { return copy; });
     }
     function drawSaved(s, messages) {
+      resetMessageItems(s);
       s.log.innerHTML = ''; s.log.hidden = true; s.settling = true; s.rows = {}; s.current = null; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
       // Drawn as a replay is, so that the rows take their times from the
       // session's journal (stampReplay) rather than the time of drawing.
@@ -216,7 +229,12 @@
               var i = index++, m = messages[i];
               var u = null;
               if (m.role === 'you') u = { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: m.text } };
-              else if (m.role === 'agent') u = { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: m.text } };
+              else if (m.role === 'agent') {
+                // Saved rows already have explicit boundaries, including legacy files.
+                s.current = null;
+                u = { sessionUpdate: 'agent_message_chunk', turnId: m.turnId, itemId: m.itemId,
+                  contentMode: m.messageComplete === true ? 'snapshot' : 'append', content: { type: 'text', text: m.text } };
+              }
               // A message the bus delivered is drawn as the replay draws it
               // (delivered.go): Dinah's own update, not the agent's.
               else if (m.role === 'delivered') u = { sessionUpdate: 'dinah_delivered', message: m };
@@ -1466,6 +1484,8 @@
       var all = [li].concat(Array.prototype.slice.call(li.querySelectorAll('li')));
       all.forEach(function (x) {
         if (x._tool) Object.keys(s.rows).forEach(function (k) { if (s.rows[k] === x._tool) delete s.rows[k]; });
+        var item = x._msg || x._thought;
+        if (item && item.textItemKey) textItemIndex(s).set(item.textItemKey, { retired: true });
         if (s.current && s.current.li === x) s.current = null;
         dirty.forEach(function (m) { if (m.li === x) dirty.delete(m); });
       });
@@ -1791,8 +1811,12 @@
         r.drawnText = r.text;
       }
     }
-    function appendChunk(s, kind, text) {
-      if (!s.current || s.current.kind !== kind) {
+    function appendChunk(s, kind, text, update) {
+      var key = textItemKey(s, kind, update), index = key && textItemIndex(s), entry = key && index.get(key);
+      if (entry && (entry.retired || entry.complete && update.contentMode === 'append')) return;
+      if (entry && !s.log.contains(entry.message.li)) { index.set(key, { retired: true }); return; }
+      if (entry) s.current = entry.message;
+      if (!entry && (key || !s.current || s.current.kind !== kind || s.current.textItemKey)) {
         if (kind === 'agent') s.current = message(s, 'agent', '');
         else if (kind === 'you') s.current = message(s, 'you', '');
         else {
@@ -1805,7 +1829,13 @@
         }
         s.current.s = s;
       }
-      s.current.text += text;
+      if (key && !entry) {
+        s.current.textItemKey = key;
+        entry = { message: s.current, complete: false }; index.set(key, entry);
+      }
+      if (key && update.contentMode === 'snapshot') { s.current.text = text; entry.complete = true; }
+      else s.current.text += text;
+      if (key) s.current.li.hidden = !s.current.text;
       dirty.add(s.current);
       if (s.loading) { if (!s.drawingSaved) { s.replayed = (s.replayed || 0) + 1; replayProgress(s); } return; }
       scheduleDraw();
@@ -2046,8 +2076,8 @@
     });
     function applyUpdate(s, u) {
       switch (u.sessionUpdate) {
-        case 'agent_message_chunk': if (u.content && u.content.type === 'text') appendChunk(s, 'agent', u.content.text); break;
-        case 'agent_thought_chunk': if (u.content && u.content.type === 'text') appendChunk(s, 'thought', u.content.text); break;
+        case 'agent_message_chunk': if (u.content && u.content.type === 'text') appendChunk(s, 'agent', u.content.text, u); break;
+        case 'agent_thought_chunk': if (u.content && u.content.type === 'text') appendChunk(s, 'thought', u.content.text, u); break;
         // A user message arrives only when Devin replays a session's history.
         case 'user_message_chunk':
           if (u.content && u.content.type === 'text') appendChunk(s, 'you', u.content.text);
