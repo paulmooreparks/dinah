@@ -1,6 +1,6 @@
 # Terminal shutdown release investigation
 
-Engine owns the investigation assigned in bus 2373. The stopped skins merge is bb2878939c70bf845f920383ba56799b6c315180. The comparison baseline is installed history merge c8c6038e7c6b0e4272afd2e3ff5e0f7633058223. Release remains held. The original timeout has not been explained, and no product correction is proposed.
+Engine owns the investigation assigned in bus 2373. The stopped skins merge is bb2878939c70bf845f920383ba56799b6c315180. The comparison baseline is installed history merge c8c6038e7c6b0e4272afd2e3ff5e0f7633058223. Release remains held. The original timeout has not been explained. Quality's subsequent source-contract review establishes a separate completion defect, assessed below, so the initial no-correction disposition is withdrawn.
 
 ## Original evidence
 
@@ -47,3 +47,27 @@ Microsoft documents that ClosePseudoConsole sends CTRL_CLOSE_EVENT to connected 
 Microsoft also warns that closing while a client is still starting and connecting can produce an initialization error dialog. The test closes after observing child process creation, which does not independently establish completed startup. This remains a hypothesis because no reproduced failure or original process-lifetime evidence establishes it here. See [Creating a Pseudoconsole session](https://learn.microsoft.com/en-us/windows/console/creating-a-pseudoconsole-session).
 
 Passing runs establish successful lifecycles under their recorded conditions. They do not identify the original blocked stage or directory holder and do not establish a load explanation. Quality should review the evidence and this unresolved disposition before Team Lead decides the next release action. An isolated pass does not close the incident.
+
+## Completion contract assessment after Quality review
+
+Quality's bus 2379 finding is valid. The comment at `pty_windows.go:449` incorrectly equates ClosePseudoConsole return with drained output and released console/folder resources. Session.Close observes shell termination and the API call's return, but not output EOF. Service.CloseAll joins those Close calls and explicitly omits pump completion. The folder-release test assumes a stronger result. The host shutdown path in `cmd/dinah-desktop/app.go` also calls CloseAll before allowing the process to end or the update to start. On modern Windows that ordering can let the host exit before its clients finish disconnecting and its output pipe closes. No successful reproduction overrides the documented API contract.
+
+The existing terminal:exit event already waits for both output Read termination and Session.Wait. Therefore adding an output-completion wait would address the separate shutdown guarantee; it does not explain why the original test failed to receive terminal:exit. The original incident remains unresolved.
+
+### Callback and cleanup implications
+
+The output reader invokes emit synchronously. If an output callback invokes a CloseAll that waits for pump completion, the pump cannot resume reading until its own callback returns. Waiting for a terminal:exit callback creates the same dependency. Neither the service mutex nor sync.Once solves that cycle. On older Windows even the existing synchronous CloseAll can wait for ClosePseudoConsole's bounded thirty-second wait while an output callback prevents draining. Session.Close must not acquire an unconditional output-completion wait that callback paths would inherit.
+
+An output-read error also needs a distinct result from clean EOF. Closing the local pipe to unblock a reader cannot be reported as proof that console clients disconnected. A bounded shutdown that times out must report incomplete completion; returning success would preserve the defect under a different name.
+
+The directory guarantee must cover resources owned by the terminal. A deliberately detached program may legitimately retain its inherited current directory after the console closes. The existing no-descendant folder test can require immediate removal after confirmed shutdown, but a general promise that no descendant holds the folder would contradict detached-program survival.
+
+### Recommended correction contract
+
+The correction should separate close requests from host completion waits. The service's individual and aggregate close requests should initiate closure and return without awaiting output or callbacks, so an emit callback can request closure safely. A separate host shutdown operation should reject new terminal starts, account for starts already admitted, request closure, and wait for shell termination and a clean output EOF for each admitted session. Completion must be signaled by the reader independently of emit callback return, before terminal:exit is delivered. Shutdown must never hold the service mutex while waiting or invoking emit.
+
+The host shutdown operation belongs to the host lifecycle caller, outside emit callbacks. Its bounded context must return an error on incomplete shutdown, which the host must retain and report instead of claiming cleanup succeeded. Callback callers use the request operation and must not wait for the output they themselves are servicing. This is an explicit caller contract; goroutine identity or undocumented Windows behavior must not select between the operations.
+
+Before implementation, Team Lead and Quality should confirm that contract, including the host's handling of an incomplete shutdown. Focused verification should establish that output EOF is required even when the console API returns early, that a callback can request aggregate closure without waiting on itself, that timeout/read errors remain incomplete, and that admitted concurrent starts cannot escape shutdown. Real Windows coverage should retain attached-program termination, detached-program survival and immediate folder removal for the no-descendant case. These are tests for the correction's own contract; they must not be presented as proof of the original timeout's cause.
+
+This assessment required no new test run, process cleanup or product mutation. The shared gate remains free. Engine retains ownership of the source-contract issue pending the coordinated correction contract; the documentation-only result supplies no release approval.
