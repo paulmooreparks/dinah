@@ -72,6 +72,9 @@ type Row struct {
 	// history replay has merged, so its calls are recorded as the replay has
 	// them and not one row for each event.
 	MergedToolCalls bool
+	// SnapshotToolCalls identifies adapters whose terminal tool updates replace
+	// streamed output with the complete result, as their replay does.
+	SnapshotToolCalls bool
 	// FileLimit is what the provider's documentation says about the files in
 	// one message. Its Source is empty when the provider has nothing to limit.
 	FileLimit FileLimit
@@ -109,7 +112,7 @@ var Registry = map[string]Row{
 		Executable: "Devin", ChooseExecutable: true, SignIn: true, HookSteering: true, HookNamespace: "devin:",
 		FileLimit: FileLimit{Source: "Devin's documentation gives no limit on the files in one message, so there is none unless you set one. {product} sends what you attach and shows Devin's error if it refuses a file."}},
 	"codex": {Name: "Codex", BudgetUnit: "tokens", RequestUsage: true, ImageInput: "initialize", Removal: "hides", Usage: "read", TakesSkills: true, Executable: "Codex", ChooseExecutable: true,
-		SignIn: true, SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex",
+		SignIn: true, SessionPrefix: "codex:", ManagedServers: true, OwnPreferences: true, SteerAccepted: true, JournalFolder: "codex", SnapshotToolCalls: true,
 		// 600,000 is under the app-server's 1,048,576-character request cap, leaving room for the turn that follows and for the thread to grow.
 		HandoffChars: 600_000,
 		FileLimit: FileLimit{Default: 20, Ceiling: 1500,
