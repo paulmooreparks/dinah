@@ -94,3 +94,23 @@ Final metadata review found that session Info always serializes `title`, includi
 
 
 The final correction passed seven affected suites in 86 seconds in `.diagnostics/chat-loading-empty-title-fixed/`: loading interval, open copy, resumed chat, saved restore, steering recovery, taskbar stacks and workbench. JavaScript syntax and whitespace checks are clean. No unrelated product or suite change followed this focused pass. The combined candidate includes Engine's saved-history export commit; it remains a review candidate until UI verifies the generated file's reveal and usable full-history access.
+
+
+## Review follow-up for generation changes
+
+Architecture requested separate coverage of a generation change after bounded saved rendering has started, and a generation change while zero-based fallback catch-up is in progress. The existing changed mode covers only a change during the fresh saved read.
+
+The render-generation fixture wraps the existing saved-history scheduler step, lets its first batch construct rows, then delivers the new session generation before the old copy finishes. Its old snapshot carries an identifiable marker. The fallback-generation fixture delivers a new session generation while the old zero-based journal request is unresolved, then returns that old generation's marked entries. Both cases require a fresh current-generation snapshot, catch-up after its checkpoint, exactly one copy of new-generation content and no sampled frame showing the obsolete marker. State is delivered at the controlled boundary through the page's own event dispatcher, so these cases do not depend on an arbitrary timer.
+
+This follow-up changes only the generation-race coverage and the correction it establishes. UI's original review remains scoped to committed `cc34562`; it released the shared slot before these checks started. The 159-suite result remains evidence from before the final title correction, and the seven-suite result covers that correction. These new cases have their own results below.
+
+
+The initial expanded matrix ran against unchanged `cc34562` product code. The render-generation case passed, exercising the existing guard after the old copy completed. The fallback-generation case failed all three new assertions: it did not read a fresh current snapshot, did not replace the obsolete copy/checkpoint, and exposed marked old-generation journal rows on sampled frames. The 86-second run and failure output are retained in `.diagnostics/chat-loading-generation-before/`.
+
+The correction rechecks generation after fallback catch-up and after bounded parent presentation is prepared. If either asynchronous step crossed a generation boundary, opening reads a fresh snapshot and establishes the current position before attaching the replacement. The saved display remains in sight while this happens. No export, bridge, saved-file or provider policy changes are needed.
+
+
+The first corrected nine-suite run passed eight suites and both new generation cases, but its existing changed mode failed the one-event count. The new guard legitimately reread the fresh snapshot, and the fixture emitted a second distinct event with the same AFTER-SNAPSHOT marker on every read. The fixture now schedules that one in-flight event once per generation, retaining the one-copy assertion. The initial 113-second result is retained in `.diagnostics/chat-loading-generation-fixed/`; no production change followed that run.
+
+
+The confirmation run passed all nine focused suites in 110 seconds in `.diagnostics/chat-loading-generation-confirmation/`. It covers twelve loading modes, including both generation races, plus background membership, running catch-up, sequence ordering, resumed display/following, open copy, saved restoration and recovery. Neither new race showed an obsolete-generation row on any sampled frame. Syntax and whitespace checks are clean. Only `session-lifecycle.js`, `e2e/chat-loading-interval.js` and this report changed after `cc34562`; no bridge or export code changed. This focused result covers the successor's correction. The historical 159-suite pass remains separately scoped and is not a full-suite claim for the successor.

@@ -339,9 +339,12 @@
         startLog(s.id, current, 0);
         await catchUpLog(s.id);
         if (sessions[s.id] !== s) return;
+        if ((s.info.streamGen || info.streamGen) !== current) return drawSnapshot(s, s.info, kept, readParent);
         if (!s.log.children.length && saved && saved.available) throw new Error('The current journal checkpoint could not be verified. The saved copy remains available.');
       }
       await prependParent(s, readParent);
+      if (sessions[s.id] !== s) return;
+      if ((s.info.streamGen || info.streamGen) !== current) return drawSnapshot(s, s.info, kept, readParent);
       s.checkpointDraw = false;
     }
     /* Load Full History asks the agent for the whole conversation, which makes the chat a closed and

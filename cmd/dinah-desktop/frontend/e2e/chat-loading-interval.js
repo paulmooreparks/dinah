@@ -4,7 +4,7 @@ const { launch, OUT } = require('./lib/page');
 const fs = require('fs'), path = require('path');
 (async () => {
  const evidence = [];
- for (const mode of ['matching', 'zero', 'missing', 'mismatch', 'changed', 'unavailable', 'cached-title', 'cross-workspace', 'open-failure', 'history-failure']) {
+ for (const mode of ['matching', 'zero', 'missing', 'mismatch', 'changed', 'unavailable', 'cached-title', 'cross-workspace', 'open-failure', 'history-failure', 'render-generation', 'fallback-generation']) {
   const t = await launch({ viewport: { width: 1440, height: 950 }, args: { mode },
    state: { titles: mode === 'cached-title' ? {} : { 'codex:loading': 'Known Loading Member' } },
    app: ({ mode }) => {
@@ -12,16 +12,22 @@ const fs = require('fs'), path = require('path');
     const lead = { chat: 'lead', title: 'Known Lead', group: 'loading-team' };
     const parent = Array.from({ length: 1000 }, (_, n) => ({ role: n % 2 ? 'you' : 'agent', text: 'Parent entry ' + n, provider: 'claude' }));
     const saved = parent.concat([{ role: 'agent', text: 'PRE-OPEN-SAVED-CONTENT' }]);
-    const info = (gen = 'new') => ({ sessionId: id, provider: 'codex', cwd: ws, title: 'Known Loading Member', open: true, working: false, streamGen: gen, streamHead: 4, stateGen: 'loading', stateVer: ++window.__version });
+    const info = (gen = window.__activeGen || 'new') => ({ sessionId: id, provider: 'codex', cwd: ws, title: 'Known Loading Member', open: true, working: false, streamGen: gen, streamHead: 4, stateGen: 'loading', stateVer: ++window.__version });
     const entry = (n, text, role = 'agent_message_chunk') => ({ n, name: 'agent:update', data: { update: { sessionUpdate: role, content: { type: 'text', text } } } });
-    window.__providerReturned = false; window.__version = 0; window.__trace = []; window.__historyRequests = []; window.__cancels = [];
+    window.__activeGen = 'new'; window.__freshReads = 0; window.__afterScheduled = new Set(); window.__providerReturned = false; window.__version = 0; window.__trace = []; window.__historyRequests = []; window.__cancels = [];
     window.__mark = phase => __trace.push({ phase, at: performance.now() });
     window.__journal = [entry(1, 'CURRENT-QUESTION', 'user_message_chunk'), entry(2, 'CURRENT-ANSWER'), entry(3, ' [BETWEEN-READS]')];
     window.__savedGate = new Promise(resolve => { window.__releaseSaved = resolve; });
     window.__providerGate = new Promise(resolve => { window.__releaseProvider = resolve; });
     window.__membershipGate = new Promise(resolve => { window.__releaseMembership = resolve; });
-    window.__emitJournal = item => __emit(item.name, { sessionId: id, gen: 'new', n: item.n, ...item.data });
+    window.__emitJournal = item => __emit(item.name, { sessionId: id, gen: __activeGen, n: item.n, ...item.data });
     window.__working = () => __emit('agent:session', { ...info(), working: true });
+    window.__switchGeneration = phase => {
+     __mark(phase); window.__activeGen = 'next';
+     window.__journal = [entry(1, 'CURRENT-QUESTION', 'user_message_chunk'), entry(2, 'CURRENT-ANSWER [NEW-GENERATION]'), entry(3, ' [BETWEEN-READS]')];
+     // Deliver this state at the controlled boundary, without relying on a timer.
+     dinahHelpers.events.dispatch('agent:session', info());
+    };
     return {
      AgentProviders: async () => [__provider('codex'), __provider('claude')],
      Sessions: async () => [], SessionsAt: async () => [],
@@ -32,15 +38,43 @@ const fs = require('fs'), path = require('path');
       if (mode === 'history-failure' && !window.__retry) throw new Error('Fixture current-history read failed');
       if (mode === 'unavailable') return { available: false, messages: [] };
       if (mode === 'changed') __emit('agent:session', info('new'));
-      requestAnimationFrame(() => { const item = entry(__journal.length + 1, ' [AFTER-SNAPSHOT]'); __journal.push(item); __emitJournal(item); });
+      window.__freshReads++;
+      if (mode === 'render-generation' && __freshReads === 1) {
+       const enqueue = dinahRender.enqueue;
+       let wrapped = false;
+       dinahRender.enqueue = function(key, root, step, after, label) {
+        if (label === 'saved history' && !wrapped) {
+         wrapped = true;
+         return enqueue(key, root, deadline => {
+          const more = step(deadline);
+          if (more && __activeGen === 'new') __switchGeneration('generation-change-during-saved-render');
+          return more;
+         }, after, label);
+        }
+        return enqueue(key, root, step, after, label);
+       };
+      }
+      const snapshotGen = __activeGen;
+      if (!__afterScheduled.has(snapshotGen)) {
+       __afterScheduled.add(snapshotGen);
+       requestAnimationFrame(() => { if (__activeGen !== snapshotGen) return; const item = entry(__journal.length + 1, ' [AFTER-SNAPSHOT]'); __journal.push(item); __emitJournal(item); });
+      }
       return { available: true, complete: false, warning: 'Saved history is incomplete.',
-       ...(mode === 'missing' ? {} : { streamGen: mode === 'mismatch' ? 'old' : 'new' }),
+       ...(mode === 'missing' ? {} : { streamGen: mode === 'mismatch' || mode === 'fallback-generation' && __freshReads === 1 ? 'old' : __activeGen }),
        ...(mode === 'zero' ? {} : { streamThrough: 2 }),
-       messages: mode === 'zero' ? parent : parent.concat([{ role: 'you', text: 'CURRENT-QUESTION' }, { role: 'agent', text: 'CURRENT-ANSWER' }]) };
+       messages: mode === 'zero' ? parent : parent.concat([{ role: 'you', text: 'CURRENT-QUESTION' }, { role: 'agent', text: 'CURRENT-ANSWER' + (mode === 'render-generation' && __freshReads === 1 ? ' [OLD-GENERATION-COPY]' : __activeGen === 'next' ? ' [NEW-GENERATION]' : '') }]) };
      },
      SessionContinuation: async () => { __mark('parent-query'); return { parentSessionId: 'claude:parent', history: parent }; },
      OpenSessionAt: async () => { __mark('provider-open-request'); await __providerGate; window.__providerReturned = true; __mark('provider-open-return'); if (mode === 'open-failure' && !window.__retry) throw new Error('Fixture provider opening failed'); return info(mode === 'changed' ? 'old' : 'new'); },
-     ChatEvents: async (value, gen, after) => { __mark('journal-after-' + after); return { gen, head: __journal.length, events: __journal.filter(item => item.n > after) }; },
+     ChatEvents: async (value, gen, after) => {
+      __mark('journal-' + gen + '-after-' + after);
+      if (mode === 'fallback-generation' && gen === 'new' && after === 0 && __activeGen === 'new') {
+       const obsolete = [entry(1, 'CURRENT-QUESTION', 'user_message_chunk'), entry(2, 'CURRENT-ANSWER [OLD-GENERATION-JOURNAL]'), entry(3, ' [BETWEEN-READS]'), entry(4, ' [AFTER-SNAPSHOT]')];
+       __switchGeneration('generation-change-during-zero-catch-up');
+       return {gen, head:4, events:obsolete};
+      }
+      return { gen, head: __journal.length, events: __journal.filter(item => item.n > after) };
+     },
      ChatLead: async () => { await __membershipGate; if (window.__membershipFailure) throw new Error('Fixture membership failure'); return lead; },
      Team: async () => ({ lead: { chat: id }, members: [], counts: { top: 'idle', idle: 1 } }),
      Cancel: async value => { __cancels.push(value); __emit('agent:session', info()); },
@@ -70,7 +104,7 @@ const fs = require('fs'), path = require('path');
       const visible = el => !!el && !el.hidden && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
       const logs = [...win.querySelectorAll('[data-view-id=logs] > *')].filter(visible);
       __intervalFrames.push({ at: performance.now(), title: win.querySelector('.win-title').textContent, content: body.textContent.trim().length > 0,
-       empty: visible(empty), ordinaryComposer: visible(prompt), member: !!root?.hasAttribute('data-team-member'), savedContent: logs.some(el=>el.children.length>0) });
+       empty: visible(empty), ordinaryComposer: visible(prompt), member: !!root?.hasAttribute('data-team-member'), savedContent: logs.some(el=>el.children.length>0), staleCopy: logs.some(el=>/OLD-GENERATION/.test(el.textContent)) });
      }
      requestAnimationFrame(sample);
     }
@@ -115,6 +149,10 @@ const fs = require('fs'), path = require('path');
    await p.waitForFunction(() => !document.querySelector('.win.active .chat-loading-chip') || document.querySelector('.win.active .chat-loading-chip').hidden);
    if (!['unavailable'].includes(mode)) await win.getByText(/AFTER-SNAPSHOT/).first().waitFor();
    const transcript = await win.locator('[data-view-id=logs]').innerText();
+   if (mode === 'render-generation' || mode === 'fallback-generation') {
+    ok(mode + ': a generation change rereads the current snapshot', await p.evaluate(() => __freshReads >= 2));
+    ok(mode + ': the obsolete copy and checkpoint are replaced', !/OLD-GENERATION/.test(transcript) && transcript.split('[NEW-GENERATION]').length === 2 && await p.evaluate(() => __trace.some(item => item.phase === 'journal-next-after-2')), transcript.slice(-400));
+   }
    if(mode === 'history-failure') ok('retry recovers journal events received during the failed history read', transcript.split('[DURING-FAILURE]').length === 2 && transcript.split('SENT-DURING-FAILURE').length === 2 && transcript.split('finished its turn').length === 2);
    ok(mode + ': snapshot and in-flight journal entries appear once', transcript.split('CURRENT-ANSWER').length === 2 && transcript.split('[BETWEEN-READS]').length === 2 && (mode === 'unavailable' || transcript.split('[AFTER-SNAPSHOT]').length === 2), transcript.slice(-400));
    const button = win.getByRole('button', { name: 'Show Saved Chat History', exact: true });
@@ -131,7 +169,7 @@ const fs = require('fs'), path = require('path');
    ok(mode + ': Stop retains the provider-turn cancellation contract', await p.evaluate(() => __cancels[0] === 'codex:loading'));
    const frames = await p.evaluate(() => { __sampleInterval = false; return __intervalFrames; });
    let memberSeen = false;
-   const invalid = frames.filter(frame => { memberSeen ||= frame.member; return !frame.content || frame.empty || frame.ordinaryComposer || memberSeen && !frame.member || !['Stored Known Title','Known Loading Member'].includes(frame.title); });
+   const invalid = frames.filter(frame => { memberSeen ||= frame.member; return frame.staleCopy || !frame.content || frame.empty || frame.ordinaryComposer || memberSeen && !frame.member || !['Stored Known Title','Known Loading Member'].includes(frame.title); });
    ok(mode + ': every sampled loading frame preserves content state, title and membership', frames.length > 0 && invalid.length === 0, JSON.stringify(invalid.slice(0,3)));
    evidence.push({ mode, frames, trace: await p.evaluate(() => __trace), finalText: transcript.slice(-400) });
    await t.shot('loading-' + mode);
