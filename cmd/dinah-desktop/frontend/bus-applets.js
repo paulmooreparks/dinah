@@ -35,16 +35,22 @@
   }
 
   var overview = { inbox: [], unread: 0, rooms: [], workspaces: [], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }, loading = null, listeners = new Set();
+  var overviewVersion = 0, overviewFailure = null;
   function load() {
     if (!app() || !app().BusOverview) return Promise.resolve(overview);
     if (loading) return loading;
     loading = Promise.resolve(app().BusOverview()).then(function (o) {
       overview = o || overview;
+      overviewVersion++; overviewFailure = null;
       listeners.forEach(function (fn) { fn(); });
       // A chat's cards show its title as it is now (app.js, deliveredSender).
       document.dispatchEvent(new CustomEvent('dinah:bus-chats'));
       if (window.pudlCommands) window.pudlCommands.changed();
       return overview;
+    }).catch(function (error) {
+      overviewVersion++; overviewFailure = error;
+      listeners.forEach(function (fn) { fn(); });
+      throw error;
     }).finally(function () { loading = null; });
     return loading;
   }
@@ -61,6 +67,17 @@
     return found;
   }
   function group(key) { return (overview.rooms || []).find(function (r) { return r.name === key; }) || null; }
+  function resolveGroup(key) {
+    if (!app().BusResolveGroup) return Promise.reject(new Error('The group lookup service is unavailable.'));
+    return Promise.resolve().then(function () { return app().BusResolveGroup(key); }).then(function (result) {
+      if (!result || !['resolved', 'not-found', 'ambiguous'].includes(result.state) ||
+          (result.state === 'resolved' && (!result.room || !result.room.name))) throw new Error('The group lookup returned an invalid result.');
+      return result;
+    });
+  }
+  function lookupWords(state) {
+    return state === 'ambiguous' ? 'More than one group used this name. Open the group from Group Chats.' : 'This group chat is unavailable. Open Group Chats to find it.';
+  }
   /* How a person writes a workspace as an address: its name in the window,
      unless another workspace has that name too. */
   function workspaceAddress(w) {
@@ -557,11 +574,11 @@
     // A message whose file was removed is drawn again, to show it removed.
     function signature(m) { return [m.id, m.from, m.text, JSON.stringify(m.relay || null), (m.mentions || []).map(function (x) { return x.title; }).join('|'), (m.attachments || []).map(function (a) { return a.index + (a.removed ? '-' : ''); }).join('|')].join('\u0000'); }
     function draw(end) {
-      if (disposed) return Promise.resolve();
+      if (disposed || (box.canRead && !box.canRead())) return Promise.resolve();
       if (end === true) navigation.scroll(true);
       var requested = ++revision;
       return Promise.resolve(fetch()).then(function (ms) {
-        if (disposed || requested !== revision) return;
+        if (disposed || requested !== revision || (box.canRead && !box.canRead())) return;
         ms = ms || [];
         box.history.set(ms.filter(function (m) { return m.fromPerson && m.kind !== 'member'; }).map(box.entry));
         var same = drawn.length <= ms.length && drawn.every(function (d, i) { return d.sig === signature(ms[i]); });
@@ -605,7 +622,7 @@
      the box holds, so a draft, a message brought back with Up and one put
      back with Edit keep them. A group has no provider, model, Steer or Stop
      of its own, and no skills, which run in a chat's agent. */
-  function mentionComposer(key, members, addChat, send, limit) {
+  function mentionComposer(key, members, addChat, send, limit, currentRoom) {
     var mentioned = [];
     var box = composer({ label: 'Message to the Group', placeholder: 'Write to the group. Type @ and a chat\'s title to ask particular chats, or @everyone to ask them all.', draftKey: 'group:' + key, files: true, limit: limit, send: function (text, state, files) {
       var ids = mentioned.filter(function (x) { return text.indexOf('@' + x.title) >= 0; }).map(function (x) { return x.id; });
@@ -727,7 +744,7 @@
     function refreshNote() {
       var value = text.value, mentions = /(^|\s)@everyone\b/.test(value) || mentioned.some(function (x) { return value.indexOf('@' + x.title) >= 0; });
       note.hidden = !value.trim() || mentions;
-      var room = group(key), lead = room && room.lead, member = lead && (room.members || []).find(function (m) { return m.id === lead; });
+      var room = currentRoom ? currentRoom() : group(key), lead = room && room.lead, member = lead && (room.members || []).find(function (m) { return m.id === lead; });
       routing.textContent = lead ? 'Reply requested from ' + (member ? member.title : 'the team lead') + '.' : 'No replies requested.';
       explanation.textContent = lead ? 'An unmentioned message asks the team lead to answer. Other members receive a notice.' : 'Each member receives a notice. Mention a chat to ask it to answer, or mention everyone to ask them all.';
     }
@@ -754,10 +771,90 @@
   }
 
   /* ---- A group chat's window ---- */
-  window.dinahWorkbench.register('bus-room', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Group Chat', glyph: 'comments', statuses: true, init: function (root, opts, item) {
-    var key = item.path, room = group(key), disposed = false;
+  var groupWindows = new Map();
+  function alternativeDraftKey(name) { return 'dinah-group-draft-alternatives:' + name; }
+  var GROUP_IDENTITIES = 'dinah-group-canonical-names';
+  function rememberGroup(windowKey, name) {
+    var known = Object.assign({}, window.dinahUIState.get(GROUP_IDENTITIES, {}) || {});
+    known[windowKey] = name; window.dinahUIState.set(GROUP_IDENTITIES, known);
+  }
+  function moveGroupDraft(address, name, occupied) {
+    if (address === name || !window.dinahUIState) return;
+    var source = 'dinah-draft:group:' + address, target = 'dinah-draft:group:' + name;
+    var draft = window.dinahUIState.get(source), current = window.dinahUIState.get(target);
+    if (!draft || !draft.text) return;
+    if (!current && !occupied) window.dinahUIState.set(target, draft);
+    else if (JSON.stringify(current) !== JSON.stringify(draft)) {
+      var saved = (window.dinahUIState.get(alternativeDraftKey(name), []) || []).slice();
+      if (!saved.some(function (entry) { return JSON.stringify(entry.draft) === JSON.stringify(draft); })) saved.push({ draft: draft });
+      window.dinahUIState.set(alternativeDraftKey(name), saved);
+    }
+    window.dinahUIState.set(source, undefined);
+  }
+  function initGroupWindow(root, opts, item) {
+    var inner = null, disposed = false, epoch = 0, state = opts.state;
+    var win = root.closest('[data-win]'), windowKey = win.dataset.win;
+    var pending = node('section', 'group-lookup'), words = node('p', 'form-help', 'Loading the group chat…');
+    words.setAttribute('role', 'status');
+    var retry = node('button', 'btn btn-sm', 'Retry Group Lookup'); retry.type = 'button'; retry.hidden = true;
+    pending.append(words, retry); root.appendChild(pending);
+    var controller = {
+      state: function () { return inner ? inner.state() : state; },
+      setState: function (value) { state = value; if (inner) inner.setState(value); },
+      focus: function () { if (inner) inner.focus(); },
+      commands: function () { return inner ? inner.commands() : [{ label: 'Retry Group Lookup', run: begin }]; },
+      hasDraft: function () { return !!(inner && inner.hasDraft()); },
+      refreshDrafts: function () { if (inner) inner.refreshDrafts(); },
+      destroy: function () { disposed = true; epoch++; groupWindows.delete(windowKey); if (inner) inner.destroy(); }
+    };
+    groupWindows.set(windowKey, controller);
+    function fail(error) {
+      if (!pending.isConnected) root.replaceChildren(pending);
+      words.textContent = 'The group lookup failed. ' + message(error); retry.hidden = false;
+    }
+    function begin() {
+      var requested = ++epoch;
+      words.textContent = 'Loading the group chat…'; retry.hidden = true;
+      load().catch(function () {});
+      return Promise.all([window.dinahUIState ? window.dinahUIState.ready : Promise.resolve(), resolveGroup(item.path)]).then(function (values) {
+        var result = values[1];
+        if (disposed || requested !== epoch) return;
+        if (result.state !== 'resolved') { fail(new Error(lookupWords(result.state))); return; }
+        var expected = (window.dinahUIState.get(GROUP_IDENTITIES, {}) || {})[windowKey];
+        if (expected && result.room.name !== expected) throw new Error('The original group chat is unavailable. The lookup matched another group.');
+        var room = result.room, canonical = { kind: 'bus-room', path: room.name, title: room.title };
+        var canonicalKey = window.dinahWorkbench.key(canonical), other = groupWindows.get(canonicalKey);
+        rememberGroup(canonicalKey, room.name);
+        moveGroupDraft(item.path, room.name, !!(other && other !== controller && other.hasDraft()));
+        if (canonicalKey !== windowKey && window.pudlWindows.state().open.includes(canonicalKey)) {
+          if (other) other.refreshDrafts();
+          if (state !== undefined) window.dinahWorkbench.setState(canonicalKey, state);
+          var foreground = window.pudlWindows.state().top === windowKey;
+          window.pudlWindows.close(windowKey);
+          if (foreground) window.pudlWindows.raise(canonicalKey);
+          return;
+        }
+        if (canonicalKey !== windowKey) {
+          var oldKey = windowKey;
+          windowKey = window.dinahWorkbench.rekey(windowKey, canonical);
+          groupWindows.delete(oldKey); groupWindows.set(windowKey, controller);
+        }
+        root.replaceChildren();
+        inner = initGroupRoom(root, Object.assign({}, opts, { key: windowKey, state: state }), canonical, room);
+        if (window.pudlCommands) window.pudlCommands.changed();
+      }).catch(function (error) { if (!disposed && requested === epoch) fail(error); });
+    }
+    retry.addEventListener('click', begin);
+    begin();
+    return controller;
+  }
+  function initGroupRoom(root, opts, item, initialRoom) {
+    var key = item.path, room = initialRoom, disposed = false;
+    var lookupState = 'resolved', lookupEpoch = 0, checkedOverview = overviewVersion;
+    var lookupNote = node('p', 'form-help group-lookup-status'); lookupNote.setAttribute('role', 'status'); lookupNote.hidden = true;
+    var lookupRetry = node('button', 'btn btn-sm', 'Retry Group Lookup'); lookupRetry.type = 'button'; lookupRetry.hidden = true;
     var targetMessage = 0, pendingMention = null, targetFrame = 0, targetPending = false;
-    function stateString() { return JSON.stringify({ message: targetMessage }); }
+    function stateString() { return JSON.stringify(Object.assign({ message: targetMessage }, pendingMention ? { mention: pendingMention } : {})); }
     function showTarget() {
       if (disposed || !targetMessage || !targetPending) return;
       var row = root.querySelector('[data-bus-message="' + targetMessage + '"]');
@@ -791,9 +888,43 @@
        the member chats that have one, worked out in Go with the member that
        set it (file_limits.go, groupFileLimit). */
     function fileLimit() { var l = room && room.fileLimit; return l && l.limit > 0 ? { max: l.limit, reason: l.reason } : null; }
-    var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit);
+    var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit, function () { return room; });
+    box.canRead = function () { return lookupState === 'resolved' && ((!overviewFailure && !!group(key)) || checkedOverview === overviewVersion); };
     var c = conversation(root, 'Everything said in the group appears here. The chats a message mentions are asked to answer it, and the other members are told that it was said.',
       function () { return Promise.resolve(app().BusGroupMessages(key)).then(function (ms) { markRead(); return ms; }); }, box, 'group:' + key);
+    var draftChoices = node('div', 'group-draft-choices'), draftLabel = node('label', 'form-field');
+    var draftSelect = node('select', 'form-select'); draftSelect.setAttribute('aria-label', 'Other saved drafts');
+    draftLabel.append(node('span', 'form-label', 'Other saved drafts'), draftSelect);
+    var useDraft = node('button', 'btn btn-sm', 'Use Selected Draft'); useDraft.type = 'button';
+    draftChoices.append(node('p', 'form-help', 'Another saved window contained a different draft. Choose which one to edit.'), draftLabel, useDraft);
+    box.content.prepend(draftChoices);
+    function refreshDrafts() {
+      var saved = window.dinahUIState.get(alternativeDraftKey(key), []) || [];
+      var current = window.dinahUIState.get('dinah-draft:group:' + key);
+      if (!box.text.value && !box.files().length && current && current.text) box.write(current);
+      draftChoices.hidden = !saved.length;
+      draftSelect.replaceChildren();
+      saved.forEach(function (entry, i) {
+        var preview = String(entry.draft.text || '').split('\n')[0].slice(0, 70);
+        var option = node('option', '', 'Saved draft ' + (i + 1) + ': ' + preview); option.value = String(i); draftSelect.appendChild(option);
+      });
+      useDraft.disabled = lookupState !== 'resolved' || !!box.files().length;
+      useDraft.title = box.files().length ? 'Remove attached files before switching drafts.' : '';
+    }
+    useDraft.addEventListener('click', function () {
+      var saved = (window.dinahUIState.get(alternativeDraftKey(key), []) || []).slice();
+      var index = Number(draftSelect.value), selected = saved[index];
+      if (!selected || lookupState !== 'resolved' || box.files().length) return;
+      var current = box.history.draft(box.read());
+      if (current && current.text && JSON.stringify(current) !== JSON.stringify(selected.draft)) saved[index] = { draft: current };
+      else saved.splice(index, 1);
+      window.dinahUIState.set(alternativeDraftKey(key), saved.length ? saved : undefined);
+      box.history.push(null); box.write(selected.draft); refreshDrafts(); box.text.focus();
+    });
+    box.text.addEventListener('input', refreshDrafts);
+    var draftAttachments = new MutationObserver(refreshDrafts);
+    draftAttachments.observe(box.el.querySelector('.group-attachments'), { childList: true });
+    refreshDrafts();
     // Files dropped anywhere on the group's window go with the next message.
     box.dropOn(root);
     /* The members, over the conversation: a chip for each chat with its
@@ -814,7 +945,7 @@
     }
     command('Add Chats…', 'plus', 'group-add-chats', addChats);
     command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
-    commandBar.appendChild(commandGroup); root.prepend(memberShell, commandBar);
+    commandBar.appendChild(commandGroup); root.prepend(lookupNote, lookupRetry, memberShell, commandBar);
     if (window.pudlToolbar) window.pudlToolbar.enhance(commandBar);
     var menu = node('nav', 'menu-panel group-member-menu'); menu.setAttribute('popover', ''); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', 'Member');
     menu.id = 'group-member-menu-' + Math.random().toString(36).slice(2);
@@ -879,15 +1010,14 @@
     }
     function drawMembers() {
       if (disposed) return;
-      room = group(key);
+      var listed = !overviewFailure && group(key);
+      if (listed) { room = listed; lookupState = 'resolved'; checkedOverview = overviewVersion; lookupEpoch++; lookupNote.hidden = true; lookupRetry.hidden = true; }
+      else if (loaded && checkedOverview !== overviewVersion) checkAvailability();
       box.routingChanged();
-      // A group deleted elsewhere, such as on the bus's page, takes no more
-      // messages; its conversation stays readable.
-      var gone = !room && loaded;
-      box.close(gone);
+      box.close(lookupState !== 'resolved');
       box.limitChanged();
-      if (gone) { bar.replaceChildren(node('span', 'md-meta', 'This group chat has been deleted.')); commandBar.hidden = true; return; }
-      commandBar.hidden = false;
+      refreshDrafts();
+      commandBar.hidden = lookupState !== 'resolved';
       var win = root.closest('[data-win]');
       if (room && win && window.pudlWindows) {
         var t = win.querySelector('.win-title');
@@ -927,6 +1057,7 @@
             chip.append(name, view.mark, more); memberViews.set(key, view);
           }
           view.member = m; view.name.textContent = m.title; view.more.setAttribute('aria-label', m.title + ' Menu');
+          view.more.disabled = lookupState !== 'resolved';
           var mark = memberMark(m); view.mark.replaceWith(mark); view.mark = mark;
           if (menuMember === m.id && menuState) { menuState.textContent = memberDescription(m); menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent); }
           wanted.push(view.chip);
@@ -946,6 +1077,32 @@
         } else if (oldBudget) oldBudget.remove();
       });
     }
+    function checkAvailability() {
+      var requested = ++lookupEpoch;
+      checkedOverview = overviewVersion; lookupState = 'loading';
+      lookupNote.hidden = false; lookupNote.textContent = 'Checking whether the group chat is available…'; lookupRetry.hidden = true;
+      box.close(true); commandBar.hidden = true;
+      root.querySelectorAll('.member-menu-btn').forEach(function (button) { button.disabled = true; });
+      if (menu.matches(':popover-open')) menu.hidePopover();
+      return resolveGroup(key).then(function (result) {
+        if (disposed || requested !== lookupEpoch) return;
+        if (result.state === 'resolved' && result.room.name !== key) throw new Error('The group lookup returned a different group identity.');
+        lookupState = result.state;
+        if (result.state === 'resolved') {
+          room = result.room; lookupNote.hidden = !overviewFailure;
+          if (overviewFailure) lookupNote.textContent = 'The group list could not refresh. This group was checked separately.';
+          lookupRetry.hidden = true; drawMembers(); c.draw();
+        } else {
+          lookupNote.textContent = lookupWords(result.state); lookupRetry.hidden = false;
+          box.close(true); commandBar.hidden = true;
+        }
+      }).catch(function (error) {
+        if (disposed || requested !== lookupEpoch) return;
+        lookupState = 'error'; lookupNote.hidden = false; lookupNote.textContent = 'The group lookup failed. ' + message(error); lookupRetry.hidden = false;
+        box.close(true); commandBar.hidden = true;
+      });
+    }
+    lookupRetry.addEventListener('click', checkAvailability);
     var loaded = false;
     function refresh() { loaded = true; drawMembers(); applyMention(); }
     listeners.add(refresh);
@@ -1006,18 +1163,21 @@
         if (!yes) return;
         return Promise.resolve(app().BusDeleteGroup(key)).then(function () {
           box.forget();
+          window.dinahUIState.set(alternativeDraftKey(key), undefined);
           var win = root.closest('[data-win]');
           if (win && window.pudlWindows) window.pudlWindows.close(win.dataset.win);
           load();
         });
       }).catch(host().fail);
     }
-    return { state: stateString, setState: setState, destroy: function () { disposed = true; targetObserver.disconnect(); if (targetFrame) cancelAnimationFrame(targetFrame); window.dinahRender.cancel(drawMembers); listeners.delete(refresh); stopChats(); document.removeEventListener('dinah:file-limits-changed', limitsChanged); c.destroy(); menu.remove(); },
+    return { state: stateString, setState: setState, hasDraft: function () { return !!box.text.value || !!box.files().length; }, refreshDrafts: refreshDrafts, destroy: function () { disposed = true; lookupEpoch++; draftAttachments.disconnect(); targetObserver.disconnect(); if (targetFrame) cancelAnimationFrame(targetFrame); window.dinahRender.cancel(drawMembers); listeners.delete(refresh); stopChats(); document.removeEventListener('dinah:file-limits-changed', limitsChanged); c.destroy(); menu.remove(); },
       focus: function () { box.text.focus(); },
       // The person is always a member, so a group has no Leave (decision 8).
       // Attach… is disabled at the limit on the files in one message.
-      commands: function () { var full = box.attachReason(); return [{ label: 'Make This Group a Team…', hidden: !!(room && room.lead) || !app().MakeGroupATeam, run: function () { return window.dinahTeams.convertGroup(room).then(load); } }, { label: 'Add Chats…', run: addChats }, { label: 'Turn Budget…', run: openBudget }, { label: 'Rename Group…', run: renameGroup }, { label: 'Attach…', disabled: !!full, reason: full, run: function () { return box.attach(); } },{ label: 'Refresh', run: function () { c.draw(); load(); } }, { label: 'Delete Group…', danger: true, run: deleteGroup }]; } };
-  } });
+      commands: function () { if (lookupState !== 'resolved') return [{ label: 'Retry Group Lookup', run: checkAvailability }]; var full = box.attachReason(); return [{ label: 'Make This Group a Team…', hidden: !!(room && room.lead) || !app().MakeGroupATeam, run: function () { return window.dinahTeams.convertGroup(room).then(load); } }, { label: 'Add Chats…', run: addChats }, { label: 'Turn Budget…', run: openBudget }, { label: 'Rename Group…', run: renameGroup }, { label: 'Attach…', disabled: !!full, reason: full, run: function () { return box.attach(); } },{ label: 'Refresh', run: function () { c.draw(); load(); } }, { label: 'Delete Group…', danger: true, run: deleteGroup }]; } };
+  }
+
+  window.dinahWorkbench.register('bus-room', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Group Chat', glyph: 'comments', statuses: true, init: initGroupWindow });
 
   /* ---- The picker of a group chat ----
      Every chat the window knows, by workspace, the workspace of the chat it
@@ -1281,5 +1441,18 @@
     host().on('bus:changed', function () { load().catch(function () {}); });
     host().onResync(function () { return load(); });
   });
-  window.dinahBus = { load: load, overview: function () { return overview; }, chat: chat, startGroup: startGroup, addItems: addItems, addChatToGroup: addChatToGroup, openGroup: function (key, target) { var r = group(key) || { name: key, title: key }; return window.dinahWorkbench.open({ kind: 'bus-room', path: r.name, title: r.title }, target ? JSON.stringify(target) : undefined); } };
+  window.dinahBus = { load: load, overview: function () { return overview; }, chat: chat, startGroup: startGroup, addItems: addItems, addChatToGroup: addChatToGroup, openGroup: function (key, target) {
+    return Promise.all([window.dinahUIState ? window.dinahUIState.ready : Promise.resolve(), resolveGroup(key)]).then(function (values) {
+      var result = values[1];
+      if (result.state !== 'resolved') throw new Error(lookupWords(result.state));
+      var room = result.room, item = { kind: 'bus-room', path: room.name, title: room.title };
+      var windowKey = window.dinahWorkbench.key(item), existing = groupWindows.get(windowKey);
+      rememberGroup(windowKey, room.name);
+      moveGroupDraft(key, room.name, !!(existing && existing.hasDraft()));
+      return window.dinahWorkbench.open(item, target ? JSON.stringify(target) : undefined);
+    }).then(function (windowKey) {
+      var controller = groupWindows.get(windowKey); if (controller) controller.refreshDrafts();
+      return windowKey;
+    });
+  } };
 })();

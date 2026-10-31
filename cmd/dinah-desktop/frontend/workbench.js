@@ -237,6 +237,15 @@
   function windowMenuRows(key) {
     return window.pudlWindows && window.pudlWindows.menuCommands ? window.pudlWindows.menuCommands(key) : [];
   }
+  function setWindowState(key, state) {
+    var url = new URL(location.href);
+    if (state == null) url.searchParams.delete('view.' + key);
+    else url.searchParams.set('view.' + key, String(state));
+    history.replaceState(history.state, '', url);
+    var instance = instances.get(key);
+    if (instance && instance.setState) instance.setState(state);
+    saveLayout();
+  }
   window.dinahWorkbench = {
     windowMenuRows: windowMenuRows,
     applySavedTitles: applySavedTitles,
@@ -298,15 +307,7 @@
     open: function (item, state) {
       if (typeof item === 'string') item = { kind: item };
       var key = source(item);
-      if (state !== undefined) {
-        var url = new URL(location.href);
-        if (state == null) url.searchParams.delete('view.' + key);
-        else url.searchParams.set('view.' + key, String(state));
-        history.replaceState(history.state, '', url);
-        var instance = instances.get(key);
-        if (instance && instance.setState) instance.setState(state);
-        saveLayout();
-      }
+      if (state !== undefined) setWindowState(key, state);
       if (window.pudlWindows.state().open.includes(key)) {
         window.pudlWindows.raise(key);
         return Promise.resolve(key);
@@ -323,6 +324,8 @@
       });
     },
     key: encode,
+    // Apply a navigation target without raising a background restored window.
+    setState: setWindowState,
     /* A window for a resource: the resource viewer. */
     resourceItem: function (ref, title) {
       return { kind: 'workspace-resource', workspace: ref.workspaceId, path: JSON.stringify([ref.sourceId, ref.path || '']), title: title || 'Resource' };
