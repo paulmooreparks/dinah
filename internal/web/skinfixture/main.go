@@ -11,6 +11,7 @@ import (
 
 	"studio/internal/bus"
 	"studio/internal/profile"
+	"studio/internal/providers"
 	"studio/internal/web"
 )
 
@@ -23,7 +24,8 @@ func main() {
 	must(err)
 	defer b.Close()
 	ctx := context.Background()
-	_, err = b.RegisterSession(ctx, "codex:skin-fixture", "C:/SkinFixture", "Skin Fixture Chat")
+	sessionID := providers.Registry[profile.Current().DefaultProvider].SessionPrefix + "skin-fixture"
+	_, err = b.RegisterSession(ctx, sessionID, "C:/SkinFixture", "Skin Fixture Chat")
 	must(err)
 	room, err := b.CreateGroup(ctx, bus.Sender{}, "Skin Fixture Group", []string{"Skin Fixture Chat"})
 	must(err)
