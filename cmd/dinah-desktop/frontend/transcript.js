@@ -16,8 +16,11 @@
       var glyph = node('span', 'glyph'); glyph.style.setProperty('--glyph', 'var(--glyph-arrow-down)'); glyph.setAttribute('aria-hidden', 'true');
       jump.appendChild(glyph); wrap.appendChild(jump); log.appendChild(wrap);
     }
-    var controls = node('div', 'transcript-unread-controls'), stopped = node('button', 'btn btn-sm', 'Jump to Where You Stopped');
-    stopped.type = 'button'; controls.appendChild(stopped); controls.hidden = true; log.before(controls);
+    var stopped = o.stopped || node('button', 'btn btn-sm', 'Jump to Where You Stopped');
+    var controls = o.stopped || node('div', 'transcript-unread-controls');
+    stopped.type = 'button';
+    if (!o.stopped) { controls.appendChild(stopped); log.before(controls); }
+    controls.hidden = true;
     var divider = node('p', 'transcript-unread-divider'); divider.setAttribute('role', 'status');
     var unreadGlyph = node('span', 'glyph'), unreadWords = node('span');
     unreadGlyph.style.setProperty('--glyph', 'var(--glyph-info)'); unreadGlyph.setAttribute('aria-hidden', 'true'); divider.append(unreadGlyph, unreadWords);

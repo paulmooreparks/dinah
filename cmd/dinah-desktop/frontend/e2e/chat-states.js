@@ -47,7 +47,7 @@ const { launch } = require('./lib/page');
       ok(life + ' is lifecycle text without an execution glyph', await badge.isVisible() && await badge.locator('.glyph').count() === 0);
     }
     ok('waiting and stuck retain their complete reasons', /Context full/.test(await group.locator('[data-group-member="bus-waiting"] .member-state').getAttribute('aria-label')) && /provider cannot run/.test(await group.locator('[data-group-member="bus-stuck"] .member-state').getAttribute('aria-label')));
-    ok('the group aggregate uses engine counts and priority', /1 stuck, 1 waiting, 1 working, 1 idle, 1 running elsewhere, 2 closed/.test(await group.locator('.group-aggregate').innerText()));
+    ok('the group aggregate uses engine counts and priority', /1 stuck, 1 waiting, 1 working, 1 idle, 1 running elsewhere, 2 closed/.test(await group.locator('.group-state-chip').innerText()));
     const elsewhere = group.locator('[data-group-member="bus-elsewhere"] .chat-lifecycle');
     ok('activity in another window is words without a claimed execution state', /Running in another Dinah window/.test(await elsewhere.innerText()) && await elsewhere.locator('.glyph').count() === 0);
     async function usableTranscript(name) {
@@ -66,7 +66,7 @@ const { launch } = require('./lib/page');
       await t.shot('group-states-' + theme);
     }
     await group.getByRole('button', { name: /^Members/ }).click();
-    ok('folding members preserves aggregate words', await group.locator('.group-members').isHidden() && await group.locator('.group-aggregate').isVisible());
+    ok('folding members preserves aggregate words', await group.locator('.group-members').isHidden() && await group.locator('.group-state-chip').count() === 1);
     await page.setViewportSize({ width: 700, height: 900 });
     await group.locator('[data-win-action="maximize"]').click();
     await group.getByRole('button', { name: /^Members/ }).click();
@@ -85,8 +85,8 @@ const { launch } = require('./lib/page');
       __reviewTextTokens.forEach(([name, value]) => root.style.setProperty(name, parseFloat(value) * 2 + 'px'));
     });
     await page.setViewportSize({ width: 420, height: 900 });
-    await group.locator('.group-toolbar [data-toolbar-stage]:not([data-toolbar-stage="1"])').waitFor();
-    ok('the folded aggregate remains fully visible with large text', await group.evaluate(win => win.querySelector('.group-aggregate').getBoundingClientRect().bottom <= win.querySelector('.group-member-shell').getBoundingClientRect().bottom));
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    ok('the title aggregate retains complete accessible status with large text', /stuck/.test(await group.locator('.group-state-chip .chat-state').getAttribute('aria-label')) && await group.locator('.group-aggregate').count() === 0);
     await page.waitForFunction(key => {
       const win = document.querySelector('[data-win="' + key + '"]'), log = win.querySelector('.bus-log'), text = win.querySelector('.msg-text p');
       const viewport = log.getBoundingClientRect(), message = text.getBoundingClientRect();
@@ -97,16 +97,10 @@ const { launch } = require('./lib/page');
     for (const width of [320, 280, 240]) {
       await page.setViewportSize({ width, height: 900 });
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      if (Number(await group.locator('.group-toolbar [data-toolbar-stage]').getAttribute('data-toolbar-stage')) >= 3) break;
+      ok('the unified toolbar wraps within width ' + width, await group.locator('.group-toolbar').evaluate(el => el.scrollWidth <= el.clientWidth + 1));
     }
-    const overflow = group.locator('.group-toolbar :is(.toolbar-fold, .toolbar-more) > .menu-btn:visible').first();
-    await overflow.click();
-    const menu = page.locator('.menu-panel:popover-open');
-    await menu.getByText('Add Chats…', { exact: true }).waitFor();
-    await menu.getByText('Turn Budget…', { exact: true }).waitFor();
-    await t.shot('group-toolbar-overflow-open');
-    await page.keyboard.press('Escape');
-    ok('the command row uses PUDL overflow without a wrapping command row', await group.locator('.group-toolbar[data-toolbar-fold]').count() === 1);
+    ok('the toolbar has no standalone Group folding control', await group.locator('.group-toolbar[data-toolbar-fold], .group-toolbar .toolbar-fold').count() === 0);
+    await t.shot('group-toolbar-wrapped');
     await page.evaluate(() => __reviewTextTokens.forEach(([name]) => document.documentElement.style.removeProperty(name)));
     await page.setViewportSize({ width: 1440, height: 1000 });
     const chatKey = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'working' }));
@@ -177,7 +171,7 @@ const { launch } = require('./lib/page');
     await t.shot('add-chats-states');
     await page.evaluate(() => __changeExecution());
     await group.locator('[data-group-member="bus-waiting"] .chat-state-working').waitFor({ state: 'attached' });
-    ok('one numbered event updates a group member and its aggregate', /2 working/.test(await group.locator('.group-aggregate').innerText()));
+    ok('one numbered event updates a group member and its aggregate', /2 working/.test(await group.locator('.group-state-chip').innerText()));
     await page.evaluate(() => __emit('agent:chatstate', { stateGen: 'states', stateVer: 1, chats: [], groups: [] }));
     ok('an older event cannot replace the current execution state', await group.locator('[data-group-member="bus-waiting"] .chat-state-working').count() === 1);
     await page.evaluate(() => __resync());
