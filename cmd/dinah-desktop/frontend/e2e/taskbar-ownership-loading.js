@@ -23,6 +23,6 @@ const { launch, PAGE } = require('./lib/page');
     ok('a mounted restored chat with unresolved ownership stays ungrouped', await win.getAttribute('data-win-group') === null);
     await page.evaluate(() => __releaseGroupingState());
     await page.waitForFunction(([key, group]) => document.querySelector('.win[data-win="' + key + '"]').getAttribute('data-win-group') === group, [key, group]);
-    ok('workspace facts regroup the restored window without selecting a workspace', await win.getAttribute('data-win-group-label') === 'Chats (Later)' && (await t.calls('SelectWorkspace')).length === 0);
+    ok('workspace facts regroup the restored window without selecting a workspace', await win.getAttribute('data-win-group-label') === 'Later (Chats)' && (await t.calls('SelectWorkspace')).length === 0);
   } finally { await t.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

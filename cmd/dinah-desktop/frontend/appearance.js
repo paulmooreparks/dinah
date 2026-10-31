@@ -1,4 +1,4 @@
-/* Dinah owns theme documents and persistence; PUDL owns mode and tokens. */
+/* Dinah owns theme documents and persistence; PUDL renders mode, skin and tokens. */
 (function () {
   'use strict';
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -13,7 +13,9 @@
     const id = window.dinahProduct && window.dinahProduct.defaultTheme;
     return id && Object.prototype.hasOwnProperty.call(builtins, id) ? id : Object.keys(builtins)[0];
   };
-  let state = { version: 1, active: defaultTheme(), themes: [], overrides: {} }, revision = '', error = '', notice = '', serial = 0;
+  let skinChoices = [{ id: 'standard', label: 'Standard' }], skinNotice = '', skinContrastNotice = '';
+  let state = { version: 1, active: defaultTheme(), skin: document.documentElement.dataset.skinPref || 'standard', themes: [], overrides: {} }, revision = '', error = '', notice = '', serial = 0;
+  window.dinahSkinAssets?.reconcile();
   const forcedColours = matchMedia('(forced-colors: active)');
   let saving = Promise.resolve(), resolveReady, appliedMode;
   const ready = new Promise(resolve => { resolveReady = resolve; });
@@ -150,7 +152,7 @@
   }
   function font(value, role) { face(value, role); return value.fallback === 'inherit' ? 'var(--font)' : value.families.map(name => JSON.stringify(name)).concat(value.fallback).join(', '); }
   function documentFor(id, source = state) { return Object.prototype.hasOwnProperty.call(builtins, id) ? builtins[id] : source.themes.find(t => t.id === id)?.document; }
-  function snapshot() { return copy({ state, revision, error, notice }); }
+  function snapshot() { return copy({ state, revision, error, notice, skins: skinChoices, skinNotice, skinContrastNotice, effectiveSkin: window.pudlSkins?.current() || 'standard' }); }
   function content(kind) {
     const doc = documentFor(state.active), override = state.overrides[kind] || {}, role = ['editor', 'terminal'].includes(kind) ? 'monospace' : 'reading';
     return { font: font(override.font || doc.typography[role], override.font ? kind : role), size: override.size || (kind === 'chat' ? 15 : 14) };
@@ -162,6 +164,15 @@
       if (value.font) face(value.font, kind);
       if (value.size !== undefined && (!Number.isInteger(value.size) || value.size < 6 || value.size > (kind === 'terminal' ? 22 : 32))) throw Error('Content text size is out of range.');
     });
+  }
+  function startupCache() {
+    try { localStorage.setItem('dinah-appearance-startup-v1', JSON.stringify({ skin: state.skin || 'standard', mode: window.pudlThemePreference() })); } catch (_) { /* Native preferences remain authoritative. */ }
+  }
+  function applySkin() {
+    const desired = state.skin || 'standard';
+    window.pudlSkins?.select(desired);
+    skinNotice = window.pudlSkins && pudlSkins.current() !== desired ? 'The chosen skin "' + desired + '" is unavailable in this build. Standard is shown; your choice is kept.' : '';
+    startupCache();
   }
   function apply(notify = true) {
     const doc = documentFor(state.active) || base, mode = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light', style = document.documentElement.style;
@@ -197,8 +208,8 @@
   function cache() { try { localStorage.setItem(cacheKey, JSON.stringify({ document: documentFor(state.active), overrides: state.overrides })); } catch (_) { /* Native preferences remain authoritative. */ } }
   try {
     const saved = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-    if (saved) { validate(fillCategories(saved.document)); validateOverrides(saved.overrides); if (contrast(saved.document).length) throw Error('Invalid cached palette.'); state = { version: 1, active: 'startup-cache', themes: [{ id: 'startup-cache', document: saved.document }], overrides: saved.overrides }; apply(false); }
-  } catch (_) { state = { version: 1, active: defaultTheme(), themes: [], overrides: {} }; }
+    if (saved) { validate(fillCategories(saved.document)); validateOverrides(saved.overrides); if (contrast(saved.document).length) throw Error('Invalid cached palette.'); state = { version: 1, active: 'startup-cache', skin: state.skin, themes: [{ id: 'startup-cache', document: saved.document }], overrides: saved.overrides }; apply(false); }
+  } catch (_) { state = { version: 1, active: defaultTheme(), skin: state.skin, themes: [], overrides: {} }; }
   document.addEventListener('pudl:theme-change', () => apply());
   forcedColours.addEventListener('change', () => apply());
   new MutationObserver(() => { if (document.documentElement.dataset.theme !== appliedMode) apply(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -212,10 +223,15 @@
         if (contrast(documentFor(result.state.active, result.state)).length) throw Error('Saved active theme has invalid contrast.');
         // The notice says what reading changed, such as an old theme in use
         // whose filled category colours did not pass (appearance.go).
-        state = result.state; revision = result.revision; notice = result.notice || '';
+        state = result.state; state.skin ||= 'standard'; skinChoices = result.skins || [{ id: 'standard', label: 'Standard' }]; revision = result.revision; notice = result.notice || '';
       } else state = { version: 1, active: defaultTheme(), themes: [], overrides: {} };
-      apply(); cache();
-    } catch (e) { error = String(e.message || e); state = { version: 1, active: defaultTheme(), themes: [], overrides: {} }; apply(); }
+      applySkin(); apply(); cache();
+      skinContrastNotice = '';
+      if (window.dinahSkinContrast) {
+        try { skinContrastNotice = (await dinahSkinContrast.check(documentFor(state.active))).join('; '); }
+        catch (e) { skinContrastNotice = 'Skin contrast could not be checked: ' + String(e.message || e); }
+      }
+    } catch (e) { error = String(e.message || e); applySkin(); apply(); }
     resolveReady(); document.dispatchEvent(new Event('dinah:appearance-library'));
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true }); else initialize();
@@ -228,11 +244,31 @@
       next.themes.forEach(record => validate(record.document));
       const active = documentFor(next.active, next); if (!active) throw Error('Theme does not exist.');
       const failures = contrast(active); if (failures.length) throw Error(failures.join('; '));
+      if (window.dinahSkinContrast && (JSON.stringify(active) !== JSON.stringify(documentFor(state.active)) || next.skin !== state.skin)) {
+        let skinFailures = await dinahSkinContrast.check(active);
+        if (JSON.stringify(active) === JSON.stringify(documentFor(state.active))) {
+          const effective = pudlSkins.available().includes(next.skin) ? next.skin : 'standard', label = skinChoices.find(skin => skin.id === effective)?.label || 'Standard';
+          skinFailures = skinFailures.filter(failure => failure.startsWith(label + ' '));
+        }
+        if (skinFailures.length) throw Error(skinFailures.join('; '));
+      }
       const saved = await app.SaveAppearance(next, revision);
-      state = saved.state; revision = saved.revision; apply(); cache(); document.dispatchEvent(new Event('dinah:appearance-library')); return result;
+      state = saved.state; state.skin ||= 'standard'; skinChoices = saved.skins || skinChoices; revision = saved.revision; skinContrastNotice = ''; applySkin(); apply(); cache(); document.dispatchEvent(new Event('dinah:appearance-library')); return result;
     });
     saving = job.catch(() => {}); return job;
   }
+  document.addEventListener('pudl:theme-change', startupCache);
+  document.addEventListener('pudl:skin-change', event => {
+    const desired = state.skin || 'standard';
+    skinNotice = event.detail.skin !== desired ? 'The chosen skin "' + desired + '" is unavailable in this build. Standard is shown; your choice is kept.' : '';
+    document.dispatchEvent(new Event('dinah:appearance-library'));
+  });
+  document.querySelectorAll('link[data-pudl-skin]').forEach(link => {
+    link.addEventListener('load', () => { window.pudlSkins?.register(link.dataset.pudlSkin, link); applySkin(); document.dispatchEvent(new Event('dinah:appearance-library')); });
+    link.addEventListener('error', () => { window.pudlSkins?.unregister(link.dataset.pudlSkin); applySkin(); document.dispatchEvent(new Event('dinah:appearance-library')); });
+  });
+  window.dinahHost.on('appearance:changed', value => { if (value?.revision !== revision) window.dinahAppearance.reload().catch(e => { error = String(e.message || e); document.dispatchEvent(new Event('dinah:appearance-library')); }); });
+  window.dinahHost.onResync(() => window.dinahAppearance.reload());
   function newID() { return 'theme-' + [...crypto.getRandomValues(new Uint8Array(12))].map(n => n.toString(16).padStart(2, '0')).join(''); }
   function save(doc, id, activate) {
     validate(doc);
@@ -255,6 +291,7 @@
   window.dinahAppearance = { ready, builtins: copy(builtins), validate, contrast, fillCategories, categoryKeys, diffTints, font, snapshot, content, keys, defaultTheme,
     document: id => documentFor(id) ? copy(documentFor(id)) : null, save,
     select: id => transact(next => { next.active = id; }),
+    selectSkin: id => { if (!skinChoices.some(skin => skin.id === id)) return Promise.reject(Error('This skin is not admitted in this build.')); return transact(next => { next.skin = id; }); },
     overrides: values => { validateOverrides(values); return transact(next => { next.overrides = copy(values); }); },
     remove: id => transact(next => { if (Object.prototype.hasOwnProperty.call(builtins, id)) throw Error('Built-in themes cannot be deleted.'); if (next.active === id) next.active = defaultTheme(); next.themes = next.themes.filter(t => t.id !== id); }),
     reload: () => { const job = saving.then(async () => { error = ''; await initialize(); if (error) throw Error(error); }); saving = job.catch(() => {}); return job; }

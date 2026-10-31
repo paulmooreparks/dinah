@@ -151,7 +151,7 @@
         var identity = owner ? [applet.id, owner.key] : [applet.id];
         var bytes = new TextEncoder().encode(JSON.stringify(identity));
         var key = 'applet-' + btoa(Array.from(bytes, function (byte) { return String.fromCharCode(byte); }).join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        group = { key: key, label: applet.title + (owner ? ' (' + owner.label + ')' : ''), glyph: applet.glyph || cfg.glyph || 'app' };
+        group = { key: key, label: owner ? owner.label + ' (' + applet.title + ')' : applet.title, glyph: applet.glyph || cfg.glyph || 'app' };
       }
     }
     Object.keys(GROUP_ATTRS).forEach(function (part) {

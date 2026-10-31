@@ -1,4 +1,4 @@
-# Runs the browser suites against the page in a stubbed window (no Go, no Devin).
+# Most browser suites use a stubbed desktop window. web-skins builds an isolated Go test host.
 # Each suite prints PASS or FAIL lines; this script prints only the failures and
 # exits 1 if there were any. Screenshots go to $Out.
 #

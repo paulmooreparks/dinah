@@ -49,9 +49,10 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
     // Gruvbox, One Dark Pro, Dracula and GitHub were lightened on 28 October
     // 2026 so that their tints show. Every palette now reaches 10 percent but
     // Tokyo Night's dark added lines, at 9, and Dracula's, at 8, where 10
-    // would have made its pink and purple pastel.
+    // would have made its pink and purple pastel. Nord's corrected danger
+    // color limits its dark deleted-line tint to 9 percent.
     const tints = await page.evaluate(() => Object.fromEntries(Object.entries(dinahAppearance.builtins).flatMap(([id, doc]) => ['light', 'dark'].map(m => [id + ' ' + m, dinahAppearance.diffTints(doc.palettes[m])]))));
-    const lower = { 'tokyo-night dark': { add: 9, del: 10 }, 'dracula dark': { add: 8, del: 10 } };
+    const lower = { 'nord dark': { add: 10, del: 9 }, 'tokyo-night dark': { add: 9, del: 10 }, 'dracula dark': { add: 8, del: 10 } };
     const tintsExpected = Object.entries(tints).every(([key, t]) => t.add === (lower[key]?.add ?? 10) && t.del === (lower[key]?.del ?? 10));
     ok('every built-in palette has the diff tints expected of it', tintsExpected);
     if (!tintsExpected) console.log(JSON.stringify(tints));

@@ -54,7 +54,8 @@
     const css = new URL('pudl/pudl.css', location.href).href, brand = new URL('brand.css', location.href).href;
     // The sample shows the product's name (product.js) as markup.
     const name = String(window.dinahProduct?.name || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-    return '<!doctype html><html lang="en" data-theme="' + mode + '"><meta charset="utf-8"><link rel="stylesheet" href="' + css + '"><link rel="stylesheet" href="' + brand + '"><style>body{margin:0;padding:14px;background:var(--bg)}.sample{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px}h2{font-size:18px;margin:0 0 12px}.sample p{font-family:var(--reading-font,var(--font))}.row{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.picked{background:var(--surface-alt);border-left:3px solid var(--accent);padding:7px}textarea{width:100%;resize:vertical}code{font-family:var(--mono);color:var(--syntax-keyword)}.muted{color:var(--text-muted);font-size:12px}.status{color:var(--positive)}.warning{color:var(--warn)}.error{color:var(--danger)}.swatches span{width:18px;height:18px;border-radius:4px}' + [1, 2, 3, 4, 5, 6, 7, 8].map(n => '.swatches .c' + n + '{background:var(--category-' + n + ')}').join('') + '</style><body><header class="topbar" style="display:flex;gap:12px;margin-bottom:10px"><strong>' + name + '</strong><span>Documents</span><button class="btn btn-sm">Tools</button></header><div class="sample"><h2>' + name + ' Development</h2><div class="picked">Selected conversation</div><p>The theme preview keeps your other chats unchanged.</p><p class="muted">Secondary text and the default reading font.</p><code>const theme = "custom";</code><pre style="background:var(--input-bg);font-family:var(--mono);padding:6px">$ echo ready&#10;ready</pre><div class="row"><span class="status">✓ Done</span><span class="warning">△ Waiting</span><span class="error">× Failed</span></div><div class="row swatches" title="Category colors 1 to 8">' + [1, 2, 3, 4, 5, 6, 7, 8].map(n => '<span class="c' + n + '"></span>').join('') + '</div><textarea class="form-textarea" aria-label="Preview composer" placeholder="Message"></textarea><div class="row"><button class="btn btn-primary btn-sm">Send</button><button class="btn btn-sm">Open menu</button><button class="btn btn-danger btn-sm">Remove</button><button class="btn btn-sm" disabled>Disabled</button></div><input class="form-input" aria-label="Preview field" placeholder="Focusable input"></div></body></html>';
+    const skins = [...document.querySelectorAll('link[data-pudl-skin]')].map(link => '<link rel="stylesheet" href="' + link.href + '">').join('');
+    return '<!doctype html><html lang="en" data-theme="' + mode + '" data-skin="' + api().snapshot().effectiveSkin + '"><meta charset="utf-8"><link rel="stylesheet" href="' + css + '">' + skins + '<link rel="stylesheet" href="' + brand + '"><link rel="stylesheet" href="' + new URL('dinah.css',location.href).href + '"><style>body{margin:0;padding:14px;background:var(--bg)}.sample{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px}h2{font-size:18px;margin:0 0 12px}.sample p{font-family:var(--reading-font,var(--font))}.row{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.picked{background:var(--surface-alt);border-left:3px solid var(--accent);padding:7px}textarea{width:100%;resize:vertical}code{font-family:var(--mono);color:var(--syntax-keyword)}.muted{color:var(--text-muted);font-size:12px}.status{color:var(--positive)}.warning{color:var(--warn)}.error{color:var(--danger)}.swatches span{width:18px;height:18px;border-radius:4px}' + [1, 2, 3, 4, 5, 6, 7, 8].map(n => '.swatches .c' + n + '{background:var(--category-' + n + ')}').join('') + '</style><body><header class="topbar" style="display:flex;gap:12px;margin-bottom:10px"><strong>' + name + '</strong><span>Documents</span><button class="btn btn-sm">Tools</button></header><div class="sample"><h2>' + name + ' Development</h2><div class="picked">Selected conversation</div><p>The theme preview keeps your other chats unchanged.</p><p class="muted">Secondary text and the default reading font.</p><code>const theme = "custom";</code><pre style="background:var(--input-bg);font-family:var(--mono);padding:6px">$ echo ready&#10;ready</pre><div class="row"><span class="status">✓ Done</span><span class="warning">△ Waiting</span><span class="error">× Failed</span></div><div class="row swatches" title="Category colors 1 to 8">' + [1, 2, 3, 4, 5, 6, 7, 8].map(n => '<span class="c' + n + '"></span>').join('') + '</div><textarea class="form-textarea" aria-label="Preview composer" placeholder="Message"></textarea><div class="row"><button class="btn btn-primary btn-sm">Send</button><button class="btn btn-sm">Open menu</button><button class="btn btn-danger btn-sm">Remove</button><button class="btn btn-sm" disabled>Disabled</button></div><input class="form-input" aria-label="Preview field" placeholder="Focusable input"></div></body></html>';
   }
   window.dinahWorkbench.register('theme-editor', { applet: { id: 'dinah.themes', title: 'Theme Editor', glyph: 'gear', workspace: false }, singleton: true, title: 'Theme Editor', glyph: 'gear', launcher: { run: () => dinahWorkbench.open('theme-editor') }, init(root, opts) {
     root.classList.add('theme-editor'); let selected = 'new', section = 'surfaces', mode = 'light', draft, baseline = '', disposed = false, busy = false, pendingState = opts.state || '', allowClose = false;
@@ -65,6 +66,8 @@
     Object.entries(sectionNames).forEach(([value, text]) => { const option = element('option', text); option.value = value; sections.append(option); }); sections.className = 'form-select'; sections.setAttribute('aria-label', 'Theme section');
     ['light', 'dark'].forEach(value => { const option = element('option', value === 'light' ? 'Edit light variant' : 'Edit dark variant'); option.value = value; variants.append(option); }); variants.className = 'form-select'; variants.setAttribute('aria-label', 'Theme variant');
     const fields = element('div', '', 'theme-editor-fields'), checks = element('ul', '', 'theme-contrast'), previews = element('div', '', 'theme-previews'), frames = ['light', 'dark'].map(value => { const article = element('section'); article.append(element('h3', value === 'light' ? 'Light preview' : 'Dark preview')); const frame = element('iframe'); frame.title = value + ' theme preview'; frame.srcdoc = previewMarkup(value); frame.addEventListener('load', () => schedulePreview()); article.append(frame); previews.append(article); return frame; });
+    const skinChanged = () => schedulePreview();
+    document.addEventListener('dinah:appearance-library', skinChanged);
     const picker = element('input'); picker.type = 'file'; picker.accept = '.json,application/json'; picker.hidden = true;
     function say(error) { status.textContent = String(error?.message || error || ''); }
     function address() { return new URLSearchParams({ theme: selected, section, variant: mode }).toString(); }
@@ -102,12 +105,21 @@
       if (section === 'categories') fields.append(element('p', 'Category colors tell things apart, such as tags and the series of a chart, and say nothing about state. Each needs 3:1 contrast on the workspace, the content surface and input fields, stays apart from the accent and the warning, error and success colors, and differs from the next one for every reader.', 'form-help'));
     }
     function schedulePreview() { if (!disposed && draft) dinahRender.enqueue(root, root, drawPreview, null, 'theme preview'); }
+    let contrastRevision = 0;
     function drawPreview() {
       try {
         api().validate(draft); checks.replaceChildren();
-        const failures = api().contrast(draft); (failures.length ? failures : ['Contrast checks pass for the tested pairs. Review focus, status distinctions and surface elevation in the previews.']).forEach(text => checks.append(element('li', text)));
+        const revision = ++contrastRevision, failures = api().contrast(draft);
+        checks.replaceChildren(...failures.map(text => element('li',text)));
+        checks.append(element('li','Checking admitted skins…'));
+        dinahSkinContrast.check(draft).then(skinFailures => {
+          if(disposed || revision !== contrastRevision)return;
+          const all=failures.concat(skinFailures);
+          checks.replaceChildren(...(all.length?all:['Contrast checks pass for all admitted skins. Review focus and surface elevation in the previews.']).map(text=>element('li',text)));
+        }).catch(error=>{if(!disposed && revision===contrastRevision)checks.replaceChildren(element('li',String(error.message||error)));});
         frames.forEach((frame, index) => {
           const doc = frame.contentDocument; if (!doc?.body) return;
+          doc.documentElement.dataset.skin = api().snapshot().effectiveSkin;
           Object.entries(draft.palettes[index ? 'dark' : 'light']).forEach(([key, value]) => doc.documentElement.style.setProperty('--' + key, value));
           [['--font', 'interface'], ['--font-display', 'heading'], ['--reading-font', 'reading'], ['--mono', 'monospace']].forEach(([key, role]) => doc.documentElement.style.setProperty(key, api().font(draft.typography[role], role)));
         });
@@ -141,11 +153,12 @@
     function setState(value) { pendingState = value || ''; if (!draft) return; const params = new URLSearchParams(value); mode = params.get('variant') === 'dark' ? 'dark' : 'light'; variants.value = mode; section = Object.hasOwn(sectionNames, params.get('section') || '') ? params.get('section') : 'surfaces'; const id = params.get('theme') || selected; if (id !== selected) run(async () => { if (await discardQuestion()) choose(id); }); else { sections.value = section; renderFields(); } }
     const ready = Promise.all([api().ready, dinahUIState.ready]).then(() => { if (disposed) return; const params = new URLSearchParams(pendingState); mode = params.get('variant') === 'dark' ? 'dark' : 'light'; section = Object.hasOwn(sectionNames, params.get('section') || '') ? params.get('section') : 'surfaces'; choose(params.get('theme') || api().snapshot().state.active); if (api().snapshot().error) say(api().snapshot().error); });
     currentEditor = { ready, setState, importTheme: actions.Import };
-    return { ready, state: address, setState, commands: () => Object.entries(actions).map(([label, run]) => ({ label, disabled: busy, run })), destroy() { disposed = true; currentEditor = null; dinahRender.cancel(root); win.removeEventListener('pudl:window-closing', closing); } };
+    return { ready, state: address, setState, commands: () => Object.entries(actions).map(([label, run]) => ({ label, disabled: busy, run })), destroy() { disposed = true; document.removeEventListener('dinah:appearance-library',skinChanged); currentEditor = null; dinahRender.cancel(root); win.removeEventListener('pudl:window-closing', closing); } };
   } });
   function settings() {
     const select = document.getElementById('appearance-theme'), status = document.getElementById('appearance-status'), fonts = document.getElementById('appearance-fonts'), overrides = document.getElementById('appearance-overrides');
-    let fontDraft, overrideDraft, busy = false;
+    let fontDraft, overrideDraft, fontSource = '', busy = false;
+    const skinSelect = document.getElementById('appearance-skin'), skinStatus = document.getElementById('appearance-skin-status');
     for (const [id, names] of [['theme-text-faces', ['Inter', 'Segoe UI', 'Arial', 'Verdana', 'Georgia']], ['theme-code-faces', ['Cascadia Code', 'Consolas', 'Courier New', 'Menlo', 'DejaVu Sans Mono']]]) { const list = element('datalist'); list.id = id; names.forEach(name => { const option = element('option'); option.value = name; list.append(option); }); document.body.append(list); }
     async function run(action) { if (busy) return; busy = true; try { await action(); status.textContent = ''; } catch (error) { status.textContent = String(error.message || error); } finally { busy = false; } }
     /* Your Themes: every theme the person made, each with Delete, so one can
@@ -172,8 +185,15 @@
       }));
     }
     function refresh() {
-      const snapshot = api().snapshot(); list(select, snapshot.state.active); status.textContent = snapshot.error || snapshot.notice;
+      const snapshot = api().snapshot(); list(select, snapshot.state.active); status.textContent = snapshot.error || [snapshot.notice,snapshot.skinContrastNotice].filter(Boolean).join(' ');
+      skinSelect.replaceChildren(...snapshot.skins.map(skin => { const option=element('option',skin.label); option.value=skin.id; return option; }));
+      const desired=snapshot.state.skin || 'standard';
+      if(!snapshot.skins.some(skin=>skin.id===desired)){const option=element('option',desired+' (unavailable)');option.value=desired;option.disabled=true;skinSelect.append(option);}
+      skinSelect.value=desired;skinStatus.textContent=snapshot.skinNotice;
       drawYours(snapshot);
+      const source = JSON.stringify([snapshot.state.active,api().document(snapshot.state.active),snapshot.state.overrides]);
+      if (source === fontSource) return;
+      fontSource = source;
       fontDraft = api().document(snapshot.state.active); overrideDraft = clone(snapshot.state.overrides); fonts.replaceChildren(); overrides.replaceChildren();
       fontRoles.forEach(role => fonts.append(field(role.charAt(0).toUpperCase() + role.slice(1), fontField(fontDraft.typography[role], role, value => { fontDraft.typography[role] = value; }))));
       ['chat', 'editor', 'preview', 'terminal'].forEach(kind => {
@@ -189,6 +209,7 @@
       });
       enhance(fonts); enhance(overrides);
     }
+    skinSelect.addEventListener('change', () => run(async () => { try { await api().selectSkin(skinSelect.value); } catch(error) { skinSelect.value=api().snapshot().state.skin || 'standard'; throw error; } }));
     select.addEventListener('change', () => run(async () => { const id = select.value; try { await api().select(id); } catch (e) { select.value = api().snapshot().state.active; throw e; } }));
     document.getElementById('appearance-edit').addEventListener('click', () => run(async () => { const editor = await openEditor(); editor?.setState(new URLSearchParams({ theme: api().snapshot().state.active }).toString()); }));
     document.getElementById('appearance-default').addEventListener('click', () => run(() => api().select(api().defaultTheme())));
