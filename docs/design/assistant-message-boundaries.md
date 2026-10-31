@@ -40,4 +40,18 @@ The official [Codex App Server contract](https://learn.chatgpt.com/docs/app-serv
 
 Regression coverage must compare live updates, saved rows and replay for same-turn distinct items, distinct turns, late old-item fragments, reasoning versus assistant output, authoritative empty and nonempty snapshots, repeated completion and post-completion deltas. It must preserve legacy missing-ID behavior and demonstrate reconstructed-fragment redaction. Front End owns rendered verification with the same contract. Quality independently reviews the immutable correction. Existing snapshots are never rewritten to manufacture missing identities.
 
-Engine releases the shared test slot after the retained negative probe. Product implementation and combined release expansion are not claimed by this diagnosis record.
+Engine released the shared test slot after the retained negative probe. Team Lead authorized the recorded contract in bus 2470, and Quality accepted it in bus 2471. Engine then implemented the adapter/capture correction on this separate branch. Implementation acceptance remains pending independent review.
+
+## Backend lifecycle handling
+
+The prepared adapter admits identified deltas only for its currently active original provider turn and rejects deltas from a completed or replaced turn. An authoritative item snapshot can still reconcile its original identity while that session remains registered. Removing the session prevents subsequent live text updates, including completed snapshots, from escaping the adapter. Replay bypasses live-turn admission and supplies each stored turn's own ID.
+
+Saved-capture reconstruction state is scoped to its transcript. Completion and turn retirement release raw partial buffers. Restore, replay completion and deletion invalidate old accumulator references; restored historical rows accept authoritative snapshots but do not resume partial appending. Row indexes follow an intervening tool-row insertion. Legacy chunks cannot append to an identified saved row, and identified updates cannot target a legacy row.
+
+## Backend verification
+
+After Release's explicit slot handoff in bus 2480, the focused regressions passed. Complete ACP, Codex adapter, session-host and desktop package checks passed, with the desktop package taking 81.082 seconds. Affected vet passed. Final identity/capture regressions passed five times under the race detector; this final run includes additional persisted split-token redaction assertions added after the complete package check compiled. Only test assertions, formatting and a field comment changed after that package compilation; runtime behavior stayed unchanged.
+
+The positive adapter-to-capture fixture now preserves separate old and new item rows, authoritative completion text and an independent delivered notice. Replaying the completed items under their original turn produces the same identified saved rows. Additional coverage includes empty snapshots, repeated snapshots, ignored post-completion deltas, same item ID in a different turn, reasoning separation, legacy append isolation, restore/replay/deletion retirement and tool-row insertion. The raw negative and positive results remain separate evidence files.
+
+No live provider turn, original-chat reopen, transcript rewrite, install or restart occurred. The original unfinished provider item's fate remains unresolved. This backend candidate requires the coordinated renderer correction and independent implementation review before any release expansion. Command provenance and hashes are recorded in `assistant-message-boundary-implementation-evidence.json`.

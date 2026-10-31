@@ -72,6 +72,7 @@ type model struct {
 }
 type session struct {
 	model, effort, turn string
+	textTurn            string // The live turn admitted for identified text deltas.
 	approvals           string
 	baseApprovals       string
 	appletApprovals     string
@@ -375,7 +376,7 @@ func (c *Conn) open(ctx context.Context, method string, params, out any) error {
 	if method == "session/load" {
 		for _, t := range r.Thread.Turns {
 			for _, item := range t.Items {
-				c.item(id, item, true, true)
+				c.itemInTurn(id, t.ID, item, true, true)
 			}
 		}
 		return acp.Result(acp.LoadSessionResult{ConfigOptions: opts}, out)
@@ -526,6 +527,7 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 			s.cancelRequests()
 			s.completion = nil
 			s.turn = ""
+			s.textTurn = ""
 		}
 		c.mu.Unlock()
 	}()

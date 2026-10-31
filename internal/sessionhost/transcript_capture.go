@@ -115,6 +115,7 @@ var captureAfterRecord func()
 
 func (c *TranscriptCapture) recordUpdateLocked(s *Conversation, replay bool, update json.RawMessage) {
 	var u struct {
+		acp.MessageIdentity
 		Type       string          `json:"sessionUpdate"`
 		ToolCallID string          `json:"toolCallId"`
 		Title      string          `json:"title"`
@@ -142,6 +143,10 @@ func (c *TranscriptCapture) recordUpdateLocked(s *Conversation, replay bool, upd
 		}
 		var content acp.ContentBlock
 		if json.Unmarshal(u.Content, &content) != nil {
+			return
+		}
+		if u.Type == "agent_message_chunk" && content.Type == "text" && u.Identified() {
+			s.HistoryRecordIdentifiedMessageLocked(replay, u.MessageIdentity, content.Text, c.host.VisibleText)
 			return
 		}
 		role := "agent"
