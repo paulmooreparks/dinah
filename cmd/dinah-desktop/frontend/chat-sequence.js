@@ -53,7 +53,7 @@
       if (st.dropped.has(data.gen)) return;
       if (st.gen === undefined) { st.gen = data.gen; st.last = data.n - 1; }
       else if (st.gen !== data.gen) {
-        if (adapter.loading(id)) { st.gen = data.gen; st.last = data.n - 1; st.held = []; st.filling = false; st.reading = null; st.again = false; st.retried = false; }
+        if (adapter.loading(id)) { st.dropped.add(st.gen); st.gen = data.gen; st.last = data.n - 1; st.held = []; st.filling = false; st.reading = null; st.again = false; st.retried = false; }
         else { reset(id, st, null); st.gen = data.gen; }
       }
       if (data.n <= st.last) return;
