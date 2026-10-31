@@ -745,7 +745,7 @@
       function chatProvider() { return active ? sessionProvider(S(active)) : chosenProvider; }
       function agentName() { return providerName(chatProvider()); }
       function chatPins() { return chatProvider() === defaultProvider ? pinned : providerPins[chatProvider()] || []; }
-      var listeners = [], deleted = false;
+      var listeners = [], deleted = false, cancelSwitchDialog = null, localSwitch = null, switchEpoch = 0;
       var teamPanel = window.dinahTeams.mount({ root: root, keepPlace: keepChatPlace,
         title: function () { return active ? title(sessions[active]) : 'New Chat'; },
         openChat: function (id) { return openSession(id); },
@@ -757,6 +757,7 @@
           fn(data);
         });
         listeners.push(stop);
+        return stop;
       };
       function providerSwitchRow(s, text) {
         var li = row(s, 'turn-row');
@@ -792,103 +793,114 @@
           timer = setTimeout(finish, 30000);
         });
       }
-      /* The confirmation of a switch and its facts, every word from what the
-         preview's facts say; the page makes up nothing of its own
-         (docs/plans/chat-workspaces-and-switching.md, The Confirmation). */
-      function confirmSwitchFacts(preview) {
+      // Closing a confirmation ends ownership of its outstanding facts request.
+      function confirmSwitchFacts(load, initial) {
         return new Promise(function (resolve) {
-          var facts = preview.facts, h = facts.handoff || {}, running = facts.running || {};
-          var provider = facts.kind === 'provider';
-          var toName = provider ? facts.to.providerName : (facts.to.workspaceName || facts.to.workspace);
-          var dlg = document.createElement('dialog');
-          dlg.className = 'dialog switch-confirm';
+          var dlg = document.createElement('dialog'); dlg.className = 'dialog switch-confirm';
           var form = document.createElement('form'); form.method = 'dialog';
           var title = document.createElement('h2'); title.className = 'dialog-title';
-          title.textContent = provider ? 'Continue with ' + toName + '?' : 'Continue in ' + toName + '?';
+          title.textContent = initial && initial.title || 'Continue this chat?';
           var body = document.createElement('div'); body.className = 'dialog-body vstack gap-3';
-          function para(text, cls) { var p0 = document.createElement('p'); p0.className = cls || 'form-help'; p0.textContent = text; body.appendChild(p0); return p0; }
-          if (provider) para('The chat continues as a new chat with ' + (facts.to.providerName || '') + (facts.to.model ? ' (' + facts.to.model + ')' : '') + ', and this one stays as it is, linked to it.');
-          else para('The chat continues as a new chat in ' + toName + '; its files, skills and applet actions are that workspace’s, and this one stays where it is, linked to it.');
-          if (h.messages > 0) {
-            var sized = num(h.chars) + ' characters of the ' + num(h.budget) + ' budget';
-            var how = h.judged ? 'a summary the judge wrote' : 'a summary the rule wrote';
-            if (h.summarised) para('The new chat starts from ' + how + ' of ' + num(h.summarised) + ' earlier messages, plus the ' + num(h.whole) + ' recent in full (' + num(h.chars) + ' characters against the ' + num(h.budget) + ' the handoff may take).');
-            else para('The new chat starts from the whole conversation in full: ' + num(h.messages) + ' messages (' + num(h.chars) + ' characters against the ' + num(h.budget) + ' budget).');
-          } else para('The new chat starts with no earlier conversation.');
-          if (!provider && facts.notCarried && facts.notCarried.length) para('Settings that grant authority do not carry over and are set again there if wanted: ' + facts.notCarried.map(function (o) { return o.name + ' (' + o.value + ')'; }).join(', ') + '.');
-          if (provider && facts.notCarried && facts.notCarried.length) {
-            para('These stay with ' + (facts.from.providerName || 'the current provider') + ':');
-            var list = document.createElement('ul'); list.className = 'form-help';
-            facts.notCarried.forEach(function (o) { var li = document.createElement('li'); li.textContent = o.name + ': ' + o.value; list.appendChild(li); });
-            body.appendChild(list);
-          }
-          /* The engine's warnings of a switch are part of what changes. */
-          (preview.warnings || []).forEach(function (text) { para('⚠ ' + text, 'form-help switch-warning'); });
-          if (preview.blocked) para(preview.blocked + (running.canStop ? '' : ''), 'form-help switch-blocked');
           var actions = document.createElement('div'); actions.className = 'dialog-actions';
-          var done = false;
-          function finish(what) { if (done) return; done = true; if (dlg.open) dlg.close(); dlg.remove(); resolve(what); }
           var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
-          cancel.addEventListener('click', function () { finish('cancel'); });
-          dlg.addEventListener('close', function () { finish('cancel'); });
-          actions.appendChild(cancel);
-          if (preview.blocked && running.turn && running.canStop) {
-            var stop = document.createElement('button'); stop.type = 'submit'; stop.className = 'btn btn-primary'; stop.textContent = 'Stop the Turn and Continue';
-            stop.addEventListener('click', function (e) { e.preventDefault(); finish('stop'); });
-            actions.appendChild(stop);
-          } else if (!preview.blocked) {
-            var go = document.createElement('button'); go.type = 'submit'; go.className = 'btn btn-primary'; go.textContent = 'Continue';
-            go.addEventListener('click', function (e) { e.preventDefault(); finish('continue'); });
-            actions.appendChild(go);
+          var go = document.createElement('button'); go.type = 'submit'; go.className = 'btn btn-primary'; go.textContent = 'Continue'; go.disabled = true;
+          var done = false, current = null, decision = 'continue';
+          function finish(answer) {
+            if (done) return;
+            done = true;
+            if (cancelSwitchDialog === closeDialog) cancelSwitchDialog = null;
+            if (dlg.open) dlg.close();
+            dlg.remove();
+            resolve({ answer: answer, preview: current });
           }
-          form.append(title, body, actions);
-          dlg.appendChild(form);
-          document.body.appendChild(dlg);
-          dlg.showModal();
+          function closeDialog() { finish('cancel'); }
+          cancelSwitchDialog = closeDialog;
+          cancel.addEventListener('click', closeDialog);
+          dlg.addEventListener('cancel', function (event) { event.preventDefault(); closeDialog(); });
+          dlg.addEventListener('close', closeDialog);
+          form.addEventListener('submit', function (event) { event.preventDefault(); if (!go.disabled && current) finish(decision); });
+          function para(words, cls) { var p = document.createElement('p'); p.className = cls || 'form-help'; p.textContent = words; body.appendChild(p); return p; }
+          para('The conversation continues as a new chat, with older messages summarised when needed and recent turns carried in full. This chat stays linked to it.');
+          var loading = para('Checking what will change…', 'form-help switch-facts-loading'); loading.setAttribute('role', 'status');
+          actions.append(cancel, go); form.append(title, body, actions); dlg.appendChild(form);
+          document.body.appendChild(dlg); dlg.showModal();
+          Promise.resolve().then(function () { if (!done && !deleted) return typeof load === 'function' ? load() : load; }).then(function (preview) {
+            if (done || deleted) return;
+            current = preview;
+            var facts = preview.facts || {}, h = facts.handoff, running = facts.running || {};
+            var provider = facts.kind !== 'workspace', to = facts.to || {}, from = facts.from || {};
+            var toName = provider ? to.providerName : (to.workspaceName || to.workspace);
+            if (toName) title.textContent = provider ? 'Continue with ' + toName + '?' : 'Continue in ' + toName + '?';
+            body.replaceChildren();
+            if (!provider) para('The chat continues as a new chat in ' + toName + '; its files, skills and applet actions are that workspace’s, and this one stays where it is, linked to it.');
+            else para('The chat continues as a new chat with ' + (toName || initial && initial.providerName || 'the chosen provider') + (to.model ? ' (' + to.model + ')' : '') + ', and this one stays as it is, linked to it.');
+            if (!h) para('The new chat carries the conversation, summarising older messages when needed and keeping recent turns in full. The handoff is prepared after you continue.');
+            else if (!h.messages) para('The new chat starts with no earlier conversation.');
+            else if (h.summarised) para('The new chat starts from ' + (h.judged ? 'a summary the judge wrote' : 'a summary the rule wrote') + ' of ' + num(h.summarised) + ' earlier messages, plus the ' + num(h.whole) + ' recent in full (' + num(h.chars) + ' characters against the ' + num(h.budget) + ' the handoff may take).');
+            else para('The new chat starts from the whole conversation in full: ' + num(h.messages) + ' messages (' + num(h.chars) + ' characters against the ' + num(h.budget) + ' budget).');
+            if (facts.notCarried && facts.notCarried.length) {
+              para(provider ? 'These stay with ' + (from.providerName || 'the current provider') + ':' : 'Settings that grant authority do not carry over and are set again there if wanted:');
+              var list = document.createElement('ul'); list.className = 'form-help';
+              facts.notCarried.forEach(function (option) { var li = document.createElement('li'); li.textContent = provider ? option.name + ': ' + option.value : option.name + ' (' + option.value + ')'; list.appendChild(li); });
+              body.appendChild(list);
+            }
+            (preview.warnings || []).forEach(function (warning) { para('⚠ ' + warning, 'form-help switch-warning'); });
+            if (preview.blocked) para(preview.blocked, 'form-help switch-blocked');
+            decision = preview.blocked && running.turn && running.canStop ? 'stop' : 'continue';
+            go.textContent = decision === 'stop' ? 'Stop the Turn and Continue' : 'Continue';
+            go.disabled = decision !== 'stop' && (!preview.revision || !!preview.blocked);
+          }, function (error) {
+            if (done || deleted) return;
+            body.replaceChildren(); para(String(error), 'form-help switch-facts-error');
+          });
         });
+      }
+      function paintSwitchPreparation(before, kind, target) {
+        localSwitch = { sessionId: before.id, kind: kind, to: target, stage: 'preparing', label: 'Preparing the conversation…' };
+        drawSwitchState(before);
+        // The second callback permits a progress frame to paint before the RPC.
+        return new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
       }
       async function switchProvider(provider, recovery) {
         var before = active && sessions[active];
         recovery = !!(recovery || (before && before.failed));
         if (!before || switchingProvider || before.working || before.loading || (before.queued || []).length || (provider === chatProvider() && !recovery)) { renderComposerOptions(); return; }
-        switchingProvider = true; renderComposerOptions(); typed();
+        switchingProvider = true; var epoch = ++switchEpoch; renderComposerOptions(); typed();
         try {
-          var preview = await (recovery ? app().PreviewSessionRecovery(before.id, provider) : app().PreviewSessionContinuation(before.id, provider));
-          var confirmed;
-          if (recovery || !preview.facts) {
-            // Recovery keeps its own confirmation; an engine without facts gets the plain one.
-            var approved = ask(recovery ? 'Continue from Saved History?' : 'Continue with ' + providerName(provider) + '?', (recovery ? productName() + ' will create a fresh ' + providerName(provider) + ' chat and preserve the original records. ' : '') + 'The conversation below will be sent to ' + providerName(provider) + ' with your next message. Completed actions must not be repeated. Your unsent draft and attachments stay in this chat.', 'Continue');
-            var warnings = document.createElement('ul');
-            (preview.warnings || []).forEach(function (text) { var item = document.createElement('li'); item.textContent = text; warnings.appendChild(item); });
-            if (warnings.children.length) document.getElementById('ask-body').appendChild(warnings);
-            var history = document.createElement('pre'); history.className = 'form-help';
-            history.style.cssText = 'white-space:pre-wrap;overflow:auto;max-height:38vh;text-align:left;overflow-wrap:anywhere';
-            history.textContent = preview.context || 'There are no earlier messages to transfer.';
-            document.getElementById('ask-body').appendChild(history);
-            confirmed = await approved;
-            warnings.remove();
-            history.remove();
-          } else {
-            /* The switch's confirmation, from the preview's facts alone. */
-            var answer = await confirmSwitchFacts(preview);
-            confirmed = answer !== 'cancel';
-            if (confirmed && answer === 'stop') {
-              await app().Cancel(before.id);
-              await waitTurnEnd(before.id);
-              /* The blocked preview carried no history; the new one reviews
-                 with the conversation as it ended. */
-              preview = await app().PreviewSessionContinuation(before.id, provider);
-            }
+          var review = await confirmSwitchFacts(function () {
+            return recovery ? app().PreviewSessionRecovery(before.id, provider) : app().PreviewSessionContinuation(before.id, provider);
+          }, { title: recovery ? 'Continue from Saved History?' : 'Continue with ' + providerName(provider) + '?', providerName: providerName(provider) });
+          if (review.answer === 'cancel' || deleted || epoch !== switchEpoch || active !== before.id) return;
+          var preview = review.preview;
+          if (review.answer === 'stop') {
+            await app().Cancel(before.id);
+            await waitTurnEnd(before.id);
+            if (deleted || epoch !== switchEpoch || active !== before.id) return;
+            review = await confirmSwitchFacts(function () { return app().PreviewSessionContinuation(before.id, provider); }, { title: 'Continue with ' + providerName(provider) + '?' });
+            if (review.answer !== 'continue' || deleted || epoch !== switchEpoch || active !== before.id) return;
+            preview = review.preview;
           }
-          if (!confirmed || deleted || active !== before.id) return;
+          await paintSwitchPreparation(before, 'provider', provider);
+          if (deleted || epoch !== switchEpoch || active !== before.id) return;
+          var result = await (recovery ? app().RecoverSession(before.id, provider, preview.revision) : app().ContinueSessionWithProvider(before.id, provider, preview.revision));
+          if (deleted || epoch !== switchEpoch || active !== before.id) return;
           await applyContinuation(before, {
-            result: await (recovery ? app().RecoverSession(before.id, provider, preview.revision) : app().ContinueSessionWithProvider(before.id, provider, preview.revision)),
+            result: result,
             provider: provider,
             recovery: recovery,
             note: recovery ? 'Continued from saved history with ' + providerName(provider) + '.' : 'Switched from ' + providerName(sessionProvider(before)) + ' to ' + providerName(provider) + '.'
           });
-        } catch (error) { fail(error); }
-        finally { switchingProvider = false; renderComposerOptions(); typed(); }
+        } catch (error) {
+          if (!deleted && epoch === switchEpoch && active === before.id) {
+            localSwitch = { sessionId: before.id, kind: 'provider', to: provider, failed: String(error) };
+            drawSwitchState(before); fail(error);
+          }
+        }
+        finally {
+          if (localSwitch && !localSwitch.failed) localSwitch = null;
+          switchingProvider = false;
+          if (!deleted) { drawSwitchState(active && sessions[active]); renderComposerOptions(); typed(); }
+        }
       }
       /* A continuation's answer is applied the same way for both kinds of
          switch: the old chat links to the new and stays as it was; the window
@@ -949,21 +961,24 @@
       }
       async function moveToWorkspace(id, record) {
         if (switchingProvider) return;
-        switchingProvider = true; renderComposerOptions(); typed();
+        switchingProvider = true; var epoch = ++switchEpoch; renderComposerOptions(); typed();
         try {
           var folder = record.executionPath;
           var before = sessions[id];
-          var preview = await app().PreviewSessionWorkspaceMove(id, folder);
-          if (preview.facts) {
-            var answer = await confirmSwitchFacts(preview);
-            if (answer === 'cancel') return;
-            if (answer === 'stop') {
-              await app().Cancel(id);
-              await waitTurnEnd(id);
-              preview = await app().PreviewSessionWorkspaceMove(id, folder);
-            }
+          var review = await confirmSwitchFacts(function () { return app().PreviewSessionWorkspaceMove(id, folder); }, { title: 'Continue in ' + (record.name || folder) + '?' });
+          if (review.answer === 'cancel' || deleted || epoch !== switchEpoch || active !== id) return;
+          if (review.answer === 'stop') {
+            await app().Cancel(id);
+            await waitTurnEnd(id);
+            if (deleted || epoch !== switchEpoch || active !== id) return;
+            review = await confirmSwitchFacts(function () { return app().PreviewSessionWorkspaceMove(id, folder); }, { title: 'Continue in ' + (record.name || folder) + '?' });
+            if (review.answer !== 'continue' || deleted || epoch !== switchEpoch || active !== id) return;
           }
+          var preview = review.preview;
+          await paintSwitchPreparation(before, 'workspace', folder);
+          if (deleted || epoch !== switchEpoch || active !== id) return;
           var result = await app().ContinueSessionInWorkspace(id, folder, preview.revision);
+          if (deleted || epoch !== switchEpoch || active !== id) return;
           await applyContinuation(before, {
             result: result,
             provider: sessionProvider(before),
@@ -971,8 +986,17 @@
             note: 'Continued in ' + (record.name || folder) + '.'
           });
           if (result.optionsNotCarried && result.optionsNotCarried.length) toast('The provider did not take: ' + result.optionsNotCarried.join(', ') + '.', 'warn');
-        } catch (error) { fail(error); }
-        finally { switchingProvider = false; renderComposerOptions(); typed(); }
+        } catch (error) {
+          if (!deleted && epoch === switchEpoch && active === id) {
+            localSwitch = { sessionId: id, kind: 'workspace', to: folder, failed: String(error) };
+            drawSwitchState(before); fail(error);
+          }
+        }
+        finally {
+          if (localSwitch && !localSwitch.failed) localSwitch = null;
+          switchingProvider = false;
+          if (!deleted) { drawSwitchState(active && sessions[active]); renderComposerOptions(); typed(); }
+        }
       }
       function newSession() {
         if (creating) return creating;
@@ -1135,10 +1159,11 @@
         if (!prog) return;
         var composer = $('composer');
         var sw = s && s.info && s.info.switch;
+        if (localSwitch && s && localSwitch.sessionId === s.id && (localSwitch.failed || !sw || !sw.stage)) sw = localSwitch;
         var running = !!(sw && sw.stage);
         var failed = !!(sw && sw.failed);
         prog.hidden = !running && !failed;
-        composer.hidden = running || failed;
+        composer.hidden = running;
         var row = prog.querySelector('.switch-running');
         var stageEl = prog.querySelector('.switch-stage');
         var notice = prog.querySelector('.switch-failure');
@@ -1337,6 +1362,7 @@
     /* The failure of a switch is dismissed where it is said (switch.go). */
     (function () { var d = $('switch-progress').querySelector('.switch-dismiss'); d.addEventListener('click', function () {
       var sn = active && sessions[active];
+      localSwitch = null; drawSwitchState(sn);
       if (sn && app().DismissSwitchFailure) Promise.resolve(app().DismissSwitchFailure(sn.id)).catch(fail);
     }); })();
     $('session-save-history').addEventListener('click', function () {
@@ -3462,11 +3488,13 @@
         // The window's Actions menu, by the ids of the chat's commands.
         commands: function () { return chatCommandTable().filter(function (command) { return command.actions; }).map(function (command) { return command.id; }); },
         destroy: function () {
+          switchEpoch++;
+          if (cancelSwitchDialog) cancelSwitchDialog();
           if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; }
           if (deleted) root.remove(); else document.getElementById('applet-storage').appendChild(root);
           appletOptions = null;
         },
-        dispose: function () { composerLayout.destroy(); teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
+        dispose: function () { switchEpoch++; if (cancelSwitchDialog) cancelSwitchDialog(); composerLayout.destroy(); teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
       };
       chatControllers.set(key, controller);
       if (active) { var s = S(active); s.view = controller; $('logs').appendChild(s.log); }
