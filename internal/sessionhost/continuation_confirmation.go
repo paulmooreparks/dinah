@@ -130,56 +130,83 @@ func (c *Continuations) confirmationLocked(s *Conversation, provider, cwd string
 	id, workspace := s.ID(), s.Cwd()
 	var fallback string
 	var unavailable error
+	var source confirmationTranscript
+	missingSnapshot := false
 	for id != "" {
 		if seen[id] || len(seen) >= 100 {
-			unavailable = errors.New("the chat continuation links contain a cycle or exceed 100 segments")
+			if unavailable == nil {
+				unavailable = errors.New("the chat continuation links contain a cycle or exceed 100 segments")
+			}
 			break
 		}
 		seen[id] = true
 		tr, digest, err := readConfirmation(TranscriptPath(c.host.StateDir(), id), id)
-		unavailable = err
-		part, _ := json.Marshal([]any{id, digest})
+		failure := ""
+		if err != nil {
+			failure = err.Error()
+		}
+		part, _ := json.Marshal([]any{id, digest, failure})
 		hash.Write(part)
-		if unavailable != nil {
+		if err != nil {
 			if id == s.ID() {
-				return p, unavailable
+				return p, err
+			}
+			if unavailable == nil {
+				unavailable = err
 			}
 			break
 		}
 		if id == s.ID() {
+			source = tr
 			if tr.Deleted {
 				return p, errors.New("this conversation was deleted")
 			}
 			if tr.CaptureError != "" && tr.CaptureError != InterruptedTurn {
 				return p, errors.New(tr.CaptureError)
 			}
-			if tr.CaptureError == InterruptedTurn || !tr.Complete {
-				addWarning(c.host.InterruptedNote)
-			}
 		}
 		if fallback == "" {
 			fallback = tr.Summary
 		}
-		if !layout.SamePath(tr.Workspace, workspace) || !tr.Complete && id != s.ID() || tr.ParentSessionID != "" && tr.ParentHistory == nil {
-			unavailable = errors.New("the saved continuation history is incomplete or crosses workspaces")
-			break
+		// Match TranscriptHistory's validation order. SavedSummary can still
+		// find a fallback beyond an incomplete copy or workspace mismatch, so
+		// continue reading metadata after remembering the first history fault.
+		if unavailable == nil {
+			switch {
+			case !tr.Complete && id != s.ID():
+				unavailable = errors.New("the complete chat history has not finished loading")
+			case !layout.SamePath(tr.Workspace, workspace):
+				unavailable = errors.New("chat continuation cannot cross workspaces")
+			}
 		}
-		for _, m := range tr.Messages {
-			addWarning(m.Text)
-		}
-		for _, m := range tr.ParentHistory {
-			addWarning(m.Text)
-		}
+		missingSnapshot = missingSnapshot || tr.ParentSessionID != "" && tr.ParentHistory == nil
 		id = tr.ParentSessionID
 		if tr.ParentWorkspace != "" {
 			workspace = tr.ParentWorkspace
 		}
+	}
+	// Parent snapshots are checked as recursive history reads return, after
+	// ancestor read/validation errors have taken precedence.
+	if unavailable == nil && missingSnapshot {
+		unavailable = errors.New("the saved continuation history is incomplete")
+	}
+	for _, m := range source.Messages {
+		addWarning(m.Text)
 	}
 	if unavailable != nil {
 		if fallback == "" {
 			return p, unavailable
 		}
 		addWarning("The earlier chats could not be read in full, so the summary saved beside this chat is handed over instead. " + unavailable.Error())
+	} else if source.ParentSessionID != "" {
+		// The source's saved parent snapshot replaces the ancestor bodies in
+		// TranscriptHistory, so only its inherited limitations are disclosed.
+		for _, m := range source.ParentHistory {
+			addWarning(m.Text)
+		}
+	}
+	if source.CaptureError == InterruptedTurn || !source.Complete {
+		addWarning(c.host.InterruptedNote)
 	}
 	invocations, err := c.host.Invocations(s.Cwd(), s.ID())
 	if err != nil {
