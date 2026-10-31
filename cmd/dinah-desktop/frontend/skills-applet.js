@@ -31,7 +31,7 @@
     if (skill.scope==='mine') return { key:'mine', title:'My Skills', location:skill.location };
     return { key:'workspace:'+skill.workspaceId+':'+skill.location, title:skill.origin.split(' / ')[0], location:skill.location };
   }
-  dinahWorkbench.register('skills-browser', { singleton:true, title:'Skills', glyph:'document', mode:'dock-left', init:function (root,opts) {
+  dinahWorkbench.register('skills-browser', { applet: { id: 'dinah.skills', title: 'Skills', glyph: 'document', workspace: false }, singleton:true, title:'Skills', glyph:'document', mode:'dock-left', init:function (root,opts) {
     root.classList.add('skills-browser'); var disposed=false, selected='', scope='all', query='', currentWorkspace='';
     var bar=dinahBrowserList.toolbar({
       search:{label:'Find a Skill',onInput:function (value) { query=value; draw(); opts.changed(state()); }},
@@ -223,7 +223,7 @@
   }
 
   /* ---- The Skill window ------------------------------------------------ */
-  dinahWorkbench.register('skill', { title:'Skill',glyph:'document',init:function (root,opts,item) {
+  dinahWorkbench.register('skill', { applet: { id: 'dinah.skills', title: 'Skills', glyph: 'document', workspace: true }, title:'Skill',glyph:'document',init:function (root,opts,item) {
     var disposed=false, pack, viewer, editor, draft, fields, design, formRevision='', filesViewer, filesLoading=false, version=0, activeTab='edit', launchDialog, fieldsTimer=0;
     root.classList.add('skill-window');
     var toolbar=element('div','skills-toolbar'), status=element('p','form-help'), title=element('h2',''), origin=element('p','form-help'), tabs=element('div','tablist'), body=element('div','skill-window-body'); tabs.setAttribute('role','tablist'); status.setAttribute('role','status');

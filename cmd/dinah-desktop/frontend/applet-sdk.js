@@ -207,7 +207,7 @@
     refreshRequests: refreshRequests,
     showArtifact: function (artifact,ws) { return window.dinahWorkbench.open({kind:'applet-artifact',path:artifact.id,workspace:ws,title:artifact.name}); }
   });
-  window.dinahWorkbench.register('applet-artifact',{title:'Applet Artifact',glyph:'file',init:function(root,opts,item) {
+  window.dinahWorkbench.register('applet-artifact',{ applet: { id: 'dinah.artifacts', title: 'Applet Artifacts', glyph: 'file', workspace: true },title:'Applet Artifact',glyph:'file',init:function(root,opts,item) {
     var alive = true, h = node('div','applet-artifact vstack gap-3'); root.appendChild(h);
     var artifact;
     api().AppletArtifactAt(item.workspace,item.path).then(function (v) {

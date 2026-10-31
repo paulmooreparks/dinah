@@ -66,6 +66,7 @@
   }
   window.dinahDocumentPreview = { renderBlocks: renderBlocks, loadAttachments: loadAttachments };
   var documentApplet = {
+    applet: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true },
     title: 'Resource', glyph: 'document',
     init: function (root, opts, item) {
       var win = root.closest('[data-win]'), key = opts.key || win.dataset.win;
@@ -230,7 +231,7 @@
   window.dinahWorkbench.register('workspace-resource', documentApplet);
   /* A document opens in the Editor. A document window kept in a layout saved
      before then opens the Editor for its file and closes itself. */
-  window.dinahWorkbench.register('document', { title: 'Document', glyph: 'document', init: function (root, opts, item) {
+  window.dinahWorkbench.register('document', { applet: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true }, title: 'Document', glyph: 'document', init: function (root, opts, item) {
     var key = opts.key || root.closest('[data-win]').dataset.win;
     root.textContent = 'Opening the document in the Editor…';
     Promise.resolve().then(function () { return window.dinahHelpers.app().DocumentRefAt(item.workspace, item.path); })

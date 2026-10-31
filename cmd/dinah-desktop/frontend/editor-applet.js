@@ -509,5 +509,5 @@
   window.dinahEditor = { open: open, openResource: openResource, newDocument: newEmpty, openDocument: openDocument };
   // An Editor restored behind other windows starts when it is seen, or in
   // idle time after the windows in sight.
-  window.dinahWorkbench.register('editor', { title: 'Editor', glyph: 'document', start: 'idle', launcher: { mnemonic: 'E', description: 'Start an empty document, for notes or a script.', run: newEmpty }, init: init });
+  window.dinahWorkbench.register('editor', { applet: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true }, title: 'Editor', glyph: 'document', start: 'idle', launcher: { mnemonic: 'E', description: 'Start an empty document, for notes or a script.', run: newEmpty }, init: init });
 })();

@@ -43,23 +43,8 @@
     // The workspaces whose main folder is not on this computer, by ID.
     var missingWorkspaces = [];
 
-    /* ---- Taskbar stacks ----------------------------------------------------
-       The taskbar stacks each workspace's windows under its name, with the
-       folder glyph the status area gives a workspace, the chosen workspace's
-       as well as the others' (docs/plans/taskbar-stacks.md). The group
-       key is the workspace's ID, so renaming it never splits its stack. PUDL
-       takes keys of letters, digits, underscore and hyphen, which the IDs
-       the engine makes already are; any other ID becomes "ws-" and a 64-bit hash
-       of it, the same for the same ID on every load. */
-    function groupKey(id) {
-      if (/^[A-Za-z0-9_-]+$/.test(id)) return id;
-      function fnv(seed) {
-        var h = seed >>> 0;
-        for (var i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
-        return ('0000000' + h.toString(16)).slice(-8);
-      }
-      return 'ws-' + fnv(2166136261) + fnv(84696351);
-    }
+    /* Workbench combines the applet identity with the workspace's stable ID.
+       This resolver supplies current labels without changing that identity. */
     function recordPath(record) {
       if (record.executionPath) return record.executionPath;
       var sources = record.sources || [], primary = sources.find(function (source) { return source.id === record.primarySourceId; }) || sources[0];
@@ -77,7 +62,7 @@
       }
       if (!record || !record.id) return null;
       var path = recordPath(record);
-      return { key: groupKey(record.id), label: path ? workspaceLabel(path) : record.name || record.id, glyph: 'folder' };
+      return { key: record.id, label: path ? workspaceLabel(path) : record.name || record.id, glyph: 'folder' };
     }
     function drawGroups() {
       if (window.dinahWorkbench) window.dinahWorkbench.regroup();
