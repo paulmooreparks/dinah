@@ -58,7 +58,7 @@ func TestConversationLinksFollowChangedFiles(t *testing.T) {
 func TestContinuationCreatesLinkedChatWithoutPrompt(t *testing.T) {
 	a, c := providerTestApp(t)
 	s := continuationSource(t, a)
-	preview, err := a.PreviewSessionContinuation(s.ID(), "codex")
+	preview, err := a.continuations().Preview(s, "codex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestContinuationRedactionAndTransferWarnings(t *testing.T) {
 	a.transcriptCapture().RecordMessage(s, "agent", "Visible result "+secret, false, false)
 	a.transcriptCapture().RecordPrompt(s, promptPointer("Look at this image", []acp.ContentBlock{{Type: "text", Text: "Look at this image"}, {Type: "image", Data: "PRIVATE_IMAGE_DATA"}}))
 	a.transcriptCapture().FinishTurn(s, nil, "end_turn")
-	p, err := a.PreviewSessionContinuation(s.ID(), "codex")
+	p, err := a.continuations().Preview(s, "codex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestContinuationRedactionAndTransferWarnings(t *testing.T) {
 	// Text attachment and skill-expanded instructions must remain available.
 	a.transcriptCapture().RecordPrompt(s, promptPointer("/review", []acp.ContentBlock{{Type: "text", Text: "Selected skill instructions"}, {Type: "resource", Resource: &acp.EmbeddedResource{URI: "file:///notes.txt", Text: "Attachment text"}}}))
 	a.transcriptCapture().FinishTurn(s, nil, "end_turn")
-	p, err = a.PreviewSessionContinuation(s.ID(), "codex")
+	p, err = a.continuations().Preview(s, "codex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestContinuationReplayPreservesCapturedHistory(t *testing.T) {
 	a.transcriptCapture().RecordUpdate(s, json.RawMessage(`{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"is saved."}}`))
 	s.SetReplaying(false)
 	a.transcriptCapture().FinishReplay(s, true)
-	if _, err := a.PreviewSessionContinuation(s.ID(), "codex"); err != nil {
+	if _, err := a.continuations().Preview(s, "codex"); err != nil {
 		t.Fatalf("chunked partial replay damaged complete local history: %v", err)
 	}
 	s.SetReplaying(true)
@@ -256,7 +256,7 @@ func TestContinuationReplayPreservesCapturedHistory(t *testing.T) {
 	// The agent's history has a message the saved copy lacked, so its replay
 	// becomes the saved copy: nothing is left out of a handoff, and the chat
 	// reopens from the copy next time.
-	p, err := a.PreviewSessionContinuation(s.ID(), "codex")
+	p, err := a.continuations().Preview(s, "codex")
 	if err != nil || !strings.Contains(p.Context, "An external message not captured here.") {
 		t.Fatalf("the replay did not become the saved copy: %v %q", err, p.Context)
 	}
@@ -318,7 +318,7 @@ func TestContinuationFailurePreservesOriginalAndPendingHandoff(t *testing.T) {
 	s := continuationSource(t, a)
 	failing := &failingContinuationConnection{testProviderConnection: c, failNew: true}
 	setTestConnection(a, "codex", failing)
-	p, err := a.PreviewSessionContinuation(s.ID(), "codex")
+	p, err := a.continuations().Preview(s, "codex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,7 +379,7 @@ func TestContinuationCycleAndOversizeAreRefused(t *testing.T) {
 	// summarised to fit, and the preview says so.
 	a.transcriptCapture().RecordMessage(s, "agent", strings.Repeat("x", 2<<20), false, false)
 	a.transcriptCapture().FinishTurn(s, nil, "end_turn")
-	preview, err := a.PreviewSessionContinuation(s.ID(), "codex")
+	preview, err := a.continuations().Preview(s, "codex")
 	if err != nil {
 		t.Fatalf("an oversize history was refused: %v", err)
 	}
@@ -487,7 +487,7 @@ func TestContinuationReplayLimitationsAndInterruptedCapture(t *testing.T) {
 func TestASwitchKeepsADeterministicSummary(t *testing.T) {
 	a, _ := providerTestApp(t)
 	s := continuationSource(t, a)
-	preview, err := a.PreviewSessionContinuation(s.ID(), "codex")
+	preview, err := a.continuations().Preview(s, "codex")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -506,7 +506,7 @@ func TestASwitchKeepsADeterministicSummary(t *testing.T) {
 	if err := os.Remove(transcriptPath(s.ID())); err != nil {
 		t.Fatal(err)
 	}
-	again, err := a.PreviewSessionContinuation(result.Session.ID, "claude")
+	again, err := a.continuations().Preview(a.session(result.Session.ID), "claude")
 	if err != nil {
 		t.Fatalf("a second switch without the earlier chat failed: %v", err)
 	}

@@ -27,7 +27,7 @@ func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) 
 		t.Fatalf("an unsent continuation hid its saved history: %+v", view)
 	}
 	preview, err := a.PreviewSessionRecovery(tr.SessionID, "codex")
-	if err != nil || !strings.Contains(preview.Context, "The report is saved.") {
+	if err != nil || preview.Context != "" || len(preview.History) != 0 || preview.Facts.Handoff != nil || preview.Revision == "" {
 		t.Fatalf("offline preview: %v", err)
 	}
 	if _, err := a.RecoverSession(tr.SessionID, "codex", "stale"); err == nil {
@@ -52,7 +52,7 @@ func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) 
 	if head, err := a.ResolveSessionContinuation(tr.SessionID); err != nil || head != result.Session.ID {
 		t.Fatalf("the failed chat does not resolve to its recovery: %s %v", head, err)
 	}
-	if handoff, err := a.continuations().PendingContext(a.session(result.Session.ID)); err != nil || handoff != preview.Context {
+	if handoff, err := a.continuations().PendingContext(a.session(result.Session.ID)); err != nil || !strings.Contains(handoff, "The report is saved.") {
 		t.Fatalf("recovery lost the reviewed context: %v", err)
 	}
 }
@@ -75,7 +75,7 @@ func TestACutOffTurnCanBeRecoveredWithANote(t *testing.T) {
 		if err != nil {
 			t.Fatalf("a cut-off turn could not be recovered: %v", err)
 		}
-		if !slices.Contains(preview.Warnings, interruptedTurnNote) || !strings.Contains(preview.Context, "Keep this partial record.") {
+		if !slices.Contains(preview.Warnings, interruptedTurnNote) || preview.Context != "" {
 			t.Fatalf("the handoff does not say the turn was cut off: %+v", preview.Warnings)
 		}
 	}

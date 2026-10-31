@@ -140,13 +140,13 @@ type RunningFacts struct {
 // carried, and those that do, such as a permission mode, are not: authority given
 // in one folder never follows a chat silently into another.
 type SwitchFacts struct {
-	Kind       string       `json:"kind"`
-	From       SwitchEnd    `json:"from"`
-	To         SwitchEnd    `json:"to"`
-	Handoff    HandoffFacts `json:"handoff"`
-	Carried    []OptionFact `json:"carried"`
-	NotCarried []OptionFact `json:"notCarried"`
-	Running    RunningFacts `json:"running"`
+	Kind       string        `json:"kind"`
+	From       SwitchEnd     `json:"from"`
+	To         SwitchEnd     `json:"to"`
+	Handoff    *HandoffFacts `json:"handoff,omitempty"`
+	Carried    []OptionFact  `json:"carried"`
+	NotCarried []OptionFact  `json:"notCarried"`
+	Running    RunningFacts  `json:"running"`
 }
 
 // authorityCategory is the category the protocol gives a setting that is a

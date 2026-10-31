@@ -1,10 +1,7 @@
 package sessionhost
 
 import (
-	"crypto/sha256"
 	_ "embed"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -85,6 +82,10 @@ type SessionContinuationView struct {
 }
 
 type SessionContinuationPreview struct {
+	// options is the settings snapshot covered by Revision. It also supplies the
+	// displayed authority facts, so a concurrent update cannot mix revisions.
+	options         []acp.ConfigOption
+	invocations     []broker.Invocation
 	SourceSessionID string                `json:"sourceSessionId"`
 	Provider        string                `json:"provider"`
 	History         []ConversationMessage `json:"history"`
@@ -235,25 +236,38 @@ func (c *Continuations) Preview(s *Conversation, provider string) (SessionContin
 // takes seconds, so that is done after the lock is released, and the text is the
 // rule's when the judge has none.
 func (c *Continuations) PreviewFor(s *Conversation, provider, cwd string) (SessionContinuationPreview, error) {
+	return c.prepareFor(s, provider, cwd, "")
+}
+
+// prepareFor checks an approved revision before reading full message bodies.
+// An empty revision is reserved for internal preparation and compaction.
+func (c *Continuations) prepareFor(s *Conversation, provider, cwd, revision string) (SessionContinuationPreview, error) {
 	c.mu.Lock()
-	p, err := c.previewLocked(s, provider, cwd)
+	confirmation, err := c.confirmationLocked(s, provider, cwd)
+	var p SessionContinuationPreview
+	if err == nil && revision != "" && confirmation.Revision != revision {
+		err = errors.New("the chat changed; review the provider switch again")
+	}
+	if err == nil {
+		p, err = c.previewLocked(s, provider, cwd, confirmation.invocations)
+	}
 	c.mu.Unlock()
 	if err != nil {
 		return p, err
 	}
+	p.Revision = confirmation.Revision
+	p.options = confirmation.options
 	budget := c.host.Budget(provider, nil)
-	res := compactResult{Text: p.Context, Dropped: p.Dropped}
-	if c.host.Formatter.Digest != nil {
-		if r := c.host.Formatter.compact(s.ID(), p.History, budget, true); r.Dropped > 0 {
-			res = r
-			p.Context = r.Text
-		}
+	res := c.host.Formatter.compact(s.ID(), p.History, budget, c.host.Formatter.Digest != nil)
+	p.Context, p.Dropped = res.Text, res.Dropped
+	if res.Dropped > 0 {
+		p.Warnings = append(p.Warnings, fmt.Sprintf("%d earlier message(s) do not fit the context of the provider this chat moves to, so they are summarised in the handoff. The full history stays in the earlier chat, and the chat you continue in keeps its link to it.", res.Dropped))
 	}
 	p.Facts = c.facts(s, provider, cwd, p, res, budget)
 	return p, nil
 }
 
-func (c *Continuations) previewLocked(s *Conversation, provider, cwd string) (SessionContinuationPreview, error) {
+func (c *Continuations) previewLocked(s *Conversation, provider, cwd string, invocations []broker.Invocation) (SessionContinuationPreview, error) {
 	if s.HistoryErrorLocked() != nil {
 		return SessionContinuationPreview{}, fmt.Errorf("the chat history could not be saved: %w", s.HistoryErrorLocked())
 	}
@@ -292,10 +306,6 @@ func (c *Continuations) previewLocked(s *Conversation, provider, cwd string) (Se
 	if cutOff {
 		history = append(history, ConversationMessage{Role: "limitation", Provider: tr.Provider, SessionID: s.ID(), Text: c.host.InterruptedNote})
 	}
-	invocations, err := c.host.Invocations(s.Cwd(), s.ID())
-	if err != nil {
-		return SessionContinuationPreview{}, err
-	}
 	for _, v := range invocations {
 		if v.Status == "running" || v.Status == "waiting" {
 			return SessionContinuationPreview{}, errors.New("finish or cancel this chat's pending applet work before changing provider")
@@ -305,14 +315,6 @@ func (c *Continuations) previewLocked(s *Conversation, provider, cwd string) (Se
 		}
 		history = append(history, ConversationMessage{Role: "tool", Provider: tr.Provider, SessionID: s.ID(), Text: c.host.Redact("Applet " + v.Action + "\nStatus: " + v.Status + "\n" + v.OutputJSON + "\n" + v.Error)})
 	}
-	budget := c.host.Budget(provider, nil)
-	text, dropped := c.host.Formatter.Compact(history, budget)
-	identity := []any{s.ID(), provider, s.Cwd(), history}
-	if cwd != "" {
-		identity = append(identity, cwd)
-	}
-	b, _ := json.Marshal(identity)
-	hash := sha256.Sum256(b)
 	warnings := []string{}
 	// The saved summary has a warning of its own below, so its whole text is
 	// left out of the warnings.
@@ -326,12 +328,7 @@ func (c *Continuations) previewLocked(s *Conversation, provider, cwd string) (Se
 	if unreadable != "" {
 		warnings = append(warnings, unreadable)
 	}
-	if dropped > 0 {
-		// Said plainly, because the person is about to approve what the new
-		// provider will and will not see.
-		warnings = append(warnings, fmt.Sprintf("%d earlier message(s) do not fit the context of the provider this chat moves to, so they are summarised in the handoff. The full history stays in the earlier chat, and the chat you continue in keeps its link to it.", dropped))
-	}
-	return SessionContinuationPreview{SourceSessionID: s.ID(), Provider: provider, History: history, Context: text, Revision: hex.EncodeToString(hash[:]), Warnings: warnings, Dropped: dropped}, nil
+	return SessionContinuationPreview{SourceSessionID: s.ID(), Provider: provider, History: history, Warnings: warnings}, nil
 }
 
 func (c *Continuations) PreviewSession(id, provider string) (SessionContinuationPreview, error) {
@@ -346,7 +343,7 @@ func (c *Continuations) PreviewSession(id, provider string) (SessionContinuation
 		}
 		return SessionContinuationPreview{}, err
 	}
-	return c.Preview(s, provider)
+	return c.confirmation(s, provider, "")
 }
 
 // PreviewWorkspace is what continuing the chat in the workspace folder cwd would hand
@@ -368,7 +365,7 @@ func (c *Continuations) PreviewWorkspace(id, cwd string) (SessionContinuationPre
 		}
 		return SessionContinuationPreview{}, err
 	}
-	return c.PreviewFor(s, provider, cwd)
+	return c.confirmation(s, provider, cwd)
 }
 
 func (c *Continuations) checkWorkspace(s *Conversation, cwd string) error {
@@ -399,7 +396,10 @@ func (c *Continuations) facts(s *Conversation, provider, cwd string, p SessionCo
 	case provider == own:
 		kind = SwitchCompaction
 	}
-	options := s.Options()
+	options := p.options
+	if options == nil {
+		options = s.Options()
+	}
 	model := ""
 	for _, o := range options {
 		if o.Category == "model" {
@@ -419,7 +419,9 @@ func (c *Continuations) facts(s *Conversation, provider, cwd string, p SessionCo
 	} else {
 		f.NotCarried = optionFacts(options)
 	}
-	f.Handoff = HandoffFacts{Messages: len(p.History), Whole: len(p.History) - res.Dropped, Summarised: res.Dropped, Chars: len(res.Text), Budget: budget, Judged: res.Judged}
+	if budget > 0 {
+		f.Handoff = &HandoffFacts{Messages: len(p.History), Whole: len(p.History) - res.Dropped, Summarised: res.Dropped, Chars: len(res.Text), Budget: budget, Judged: res.Judged}
+	}
 	f.Running = c.runningFacts(s)
 	return f
 }
@@ -549,15 +551,15 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		EmitSession(c.host.Emit, s)
 	}()
 	c.setStage(s, kind, to, StageSummary, "Building the summary of the conversation")
-	preview, err := c.PreviewFor(s, provider, o.cwd)
+	if revision == "" && !o.compaction {
+		return SessionContinuationResult{}, errors.New("the chat changed; review the provider switch again")
+	}
+	preview, err := c.prepareFor(s, provider, o.cwd, revision)
 	if err != nil {
 		return SessionContinuationResult{}, err
 	}
 	if o.compaction {
 		revision = preview.Revision
-	}
-	if revision == "" || preview.Revision != revision {
-		return SessionContinuationResult{}, errors.New("the chat changed; review the provider switch again")
 	}
 	busID := c.host.BusIdentity(s)
 	cwd := s.Cwd()
@@ -585,11 +587,11 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 	// A move to another workspace keeps the chat's settings that grant no authority.
 	var notCarried []string
 	if o.cwd != "" && c.host.ApplyOptions != nil {
-		carried, _ := splitOptions(s.Options())
+		carried, _ := splitOptions(preview.options)
 		notCarried = c.host.ApplyOptions(next.ID(), carried)
 	}
 	c.setStage(s, kind, to, StageHandover, "Handing the conversation over")
-	latest, err := c.PreviewFor(s, provider, o.cwd)
+	latest, err := c.confirmation(s, provider, o.cwd)
 	if err != nil || latest.Revision != revision {
 		cleanup()
 		return SessionContinuationResult{}, errors.New("the chat changed while connecting; review the provider switch again")
@@ -805,14 +807,20 @@ func (c *Continuations) RecoverySession(id string) (*Conversation, error) {
 }
 
 func (c *Continuations) PreviewRecovery(id, provider string) (SessionContinuationPreview, error) {
-	s, err := c.RecoverySession(id)
+	c.mu.Lock()
+	tr, _, err := readConfirmation(TranscriptPath(c.host.StateDir(), id), id)
+	c.mu.Unlock()
 	if err != nil {
 		return SessionContinuationPreview{}, err
 	}
+	if tr.Deleted || tr.CaptureError != "" && tr.CaptureError != InterruptedTurn {
+		return SessionContinuationPreview{}, errors.New("the saved history is incomplete; save the available history before starting a new chat")
+	}
+	s := NewConversation(Identity{ID: id, Provider: tr.Provider, Cwd: tr.Workspace}, InitialActivity{Open: true}, false, false)
 	if err := c.GuardMode(s, provider, false, true); err != nil {
 		return SessionContinuationPreview{}, err
 	}
-	return c.Preview(s, provider)
+	return c.confirmation(s, provider, "")
 }
 
 func (c *Continuations) Recover(id, provider, revision string) (SessionContinuationResult, error) {
