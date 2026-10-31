@@ -1,0 +1,234 @@
+{
+  "base": "40d133aeb8e2d4181d75aa89c0f225ef275f43fc",
+  "contractCommit": "2aebb557150d341c40599f113a60be2d14e5096e",
+  "provenance": "Commands and exit codes reconstructed from retained tool invocations; JSON results are original raw output. Ambient environment was not snapshotted.",
+  "records": [
+    {
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent -run 'Test(NewConversationPersists|FailedOrCancelledPersistence|PersistenceReceiptPreservesHost)' -count=1 -json",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/persistence-focused-first.jsonl",
+      "note": "Initial regressions before expanded ancestor/cancellation/cleanup coverage.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T05:57:35.0946936+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 0.209
+        }
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent ./internal/sessionhost -count=1 -json",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/persistence-packages.jsonl",
+      "note": "Initial package gate; later test additions are covered separately.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T05:58:13.4260387+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 2.358
+        },
+        {
+          "Time": "2026-11-01T05:58:18.5902573+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/sessionhost",
+          "Elapsed": 7.15
+        }
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent -run 'Test(NewConversationPersists|FailedOrCancelledPersistence|PersistenceReceiptPreservesHost|UnacknowledgedCleanup)' -race -count=5 -json",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/persistence-race.jsonl",
+      "note": "Final lifecycle tests; blocked-write case was added afterward.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T05:59:24.3805456+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 14.6
+        }
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent -run '^TestInstalledEmptyThreadPersistence$' -count=1 -json",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {
+        "DINAH_CODEX_PERSISTENCE_SMOKE": "1"
+      },
+      "exitCode": 0,
+      "output": ".diagnostics/persistence-installed.jsonl",
+      "note": "Test uses a fresh CODEX_HOME and clears credential variables; no model turn.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T05:59:45.9713577+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 2.833
+        }
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent '-overlay=.diagnostics/baseline-overlay.json' -run '^TestNewConversationPersistsBeforeAnyTurnAndResumesWithoutReinjection$' -count=1 -json",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {},
+      "exitCode": 1,
+      "output": ".diagnostics/persistence-baseline-regression.jsonl",
+      "note": "Expected regression failure with only session.go replaced by released 40d133a source. Worktree source was not reverted.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T05:59:51.96083+08:00",
+          "Action": "fail",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 0.136
+        }
+      ]
+    },
+    {
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent ./internal/sessionhost ./cmd/dinah-desktop -count=1 -json",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/persistence-final-packages.jsonl",
+      "note": "Final runtime source and then-present tests. Only the separate blocked-write test was added after this gate compiled.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T06:00:08.9662808+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 2.466
+        },
+        {
+          "Time": "2026-11-01T06:00:11.3748006+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/sessionhost",
+          "Elapsed": 4.875
+        },
+        {
+          "Time": "2026-11-01T06:01:38.0748085+08:00",
+          "Action": "pass",
+          "Package": "studio/cmd/dinah-desktop",
+          "Elapsed": 78.947
+        }
+      ]
+    },
+    {
+      "command": "go vet ./internal/codexagent ./internal/sessionhost ./cmd/dinah-desktop",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/persistence-vet.txt",
+      "note": "Affected vet ran while the owned desktop package gate completed; no other agent gate overlapped."
+    },
+    {
+      "command": "pwsh -NoProfile scripts/go-gate.ps1 ./internal/codexagent -run '^TestBlockedCleanupWriteCannotHoldTheCreationError$' -race -count=5 -json",
+      "cwd": "C:\\Users\\paul\\source\\repos\\studio\\.worktrees\\codex-resume",
+      "explicitEnvironment": {},
+      "exitCode": 0,
+      "output": ".diagnostics/persistence-blocked-write-race.jsonl",
+      "note": "Final supplemental test source; runtime source unchanged.",
+      "packageResults": [
+        {
+          "Time": "2026-11-01T06:02:09.3103041+08:00",
+          "Action": "pass",
+          "Package": "studio/internal/codexagent",
+          "Elapsed": 11.117
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "internal/codexagent/session.go",
+      "bytes": 23507,
+      "sha256": "e18429b675ac3db27633d670cd7d510fc7cfd69a826f0ae394a5972d980fa984"
+    },
+    {
+      "path": "internal/codexagent/conn_test.go",
+      "bytes": 18893,
+      "sha256": "070d4bc5fc43d0fcc396257aed7af3e5a73ee445f2d6f3575a0a48d5e626c2cf"
+    },
+    {
+      "path": "internal/codexagent/persistence_test.go",
+      "bytes": 8898,
+      "sha256": "3f767911459ba7fc0e97fe12e17aab55ea7c978c0ff2b178e2656d45ae78987f"
+    },
+    {
+      "path": "internal/codexagent/persistence_host_test.go",
+      "bytes": 8158,
+      "sha256": "2c7cada0170aede82bb47fb51e68e8248956f3f38a9a9f01cb1a57b353ac335e"
+    },
+    {
+      "path": "internal/codexagent/persistence_smoke_test.go",
+      "bytes": 1730,
+      "sha256": "a4eaeb0eca910bdbc2cf6f5e949fb50859305132e3b13e7c3217972d5f864e3a"
+    },
+    {
+      "path": "docs/design/codex-resume-persistence.md",
+      "bytes": 9215,
+      "sha256": "d1ec430880dc8a7d2f60a028d6ea743d5e3dae749abee01d2dfe954ae85bd252"
+    },
+    {
+      "path": ".diagnostics/persistence-focused-first.jsonl",
+      "bytes": 11848,
+      "sha256": "21765e700f0596408fd2a113609530d857810c68a54ac7a512b3dadb2245e37e"
+    },
+    {
+      "path": ".diagnostics/persistence-packages.jsonl",
+      "bytes": 264087,
+      "sha256": "9150bf61589998213f457d9791d77db30e126dcf65fd2f855e3334039986d925"
+    },
+    {
+      "path": ".diagnostics/persistence-race.jsonl",
+      "bytes": 71840,
+      "sha256": "a8fff83bdde585a6347be4d81a02fae309eab1349ad9ff63780931a58294977b"
+    },
+    {
+      "path": ".diagnostics/persistence-installed.jsonl",
+      "bytes": 1505,
+      "sha256": "d5fe9b7e72d00562829e3788668a3b80e567531f7488ca42aba97a637c81703f"
+    },
+    {
+      "path": ".diagnostics/persistence-baseline-regression.jsonl",
+      "bytes": 4372,
+      "sha256": "4cc4f400e8fd9713fae8e903dbf4c771853a82f66418ce13d5627b6fa1307ea8"
+    },
+    {
+      "path": ".diagnostics/persistence-final-packages.jsonl",
+      "bytes": 774575,
+      "sha256": "dbb3b01d0b2b102b9d49a40ecbad1a01d1f483bae152565261f2e142d9cdaa91"
+    },
+    {
+      "path": ".diagnostics/persistence-vet.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".diagnostics/persistence-blocked-write-race.jsonl",
+      "bytes": 4511,
+      "sha256": "6bb36ff2b310b06352bbcb10a4b6cac7b3aaf1339585a95c6a9add8771f9cdab"
+    },
+    {
+      "path": ".diagnostics/baseline-session.go",
+      "bytes": 22123,
+      "sha256": "0c5a5b20a210f3f08f9e275c0d6bdaceb119d7269f622683ce4e90071bcdd669"
+    },
+    {
+      "path": ".diagnostics/baseline-overlay.json",
+      "bytes": 218,
+      "sha256": "eed46c28c5e1c694c40eba14f206c131b39bc8ade3b15281d63f4613d6e2e08a"
+    },
+    {
+      "path": ".diagnostics/prepare-regression-overlay.py",
+      "bytes": 411,
+      "sha256": "4ab2a3afee3163c0d233e70adb3b8d00aa94c2e37b9ba71de9700c4e4ddb98a5"
+    }
+  ]
+}

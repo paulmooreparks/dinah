@@ -85,6 +85,8 @@ func TestSessionLifecycle(t *testing.T) {
 		case "thread/start":
 			json.Unmarshal(m.Params, &opened)
 			send(answer(m, map[string]any{"thread": map[string]string{"id": "thread"}, "model": "test", "reasoningEffort": "medium"}))
+		case "thread/inject_items":
+			send(answer(m, map[string]any{}))
 		case "turn/start":
 			json.Unmarshal(m.Params, &sentPrompt)
 			send(answer(m, map[string]any{"turn": turn{ID: "turn", Status: "inProgress"}}))
@@ -424,6 +426,11 @@ func TestSessionAppletApprovalPreference(t *testing.T) {
 					switch m.Method {
 					case "thread/read":
 						send(answer(m, map[string]any{"thread": thread{ID: "thread", Cwd: "C:/test"}}))
+					case "thread/inject_items":
+						if method != "session/new" {
+							t.Error("resume injected another context item")
+						}
+						send(answer(m, map[string]any{}))
 					case "config/read":
 						send(answer(m, map[string]any{"config": map[string]any{}}))
 					case "model/list":
