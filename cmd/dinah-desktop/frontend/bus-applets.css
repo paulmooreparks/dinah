@@ -114,6 +114,9 @@
 .group-member-shell .group-members { flex: 0 1 auto; min-height: 0; overflow: auto; align-content: flex-start; align-items: flex-start; border-bottom: 0; padding: var(--space-2) 0 0; }
 .group-members[hidden] { display: none; }
 .group-toolbar { flex: none; margin: 0; padding: var(--space-2) var(--space-5); }
+.group-lookup-status { flex: none; margin: 0; padding: var(--space-2) var(--space-5); }
+.group-lookup-status + button { flex: none; align-self: flex-start; margin-inline: var(--space-5); }
+.group-draft-choices { display: flex; flex-direction: column; gap: var(--space-2); margin-block-end: var(--space-2); }
 .bus-composer.composer { padding: var(--space-2) var(--space-5) var(--space-3); }
 
 .group-member-shell:has(.group-members[hidden]) { flex: none; max-height: none; overflow: visible; }

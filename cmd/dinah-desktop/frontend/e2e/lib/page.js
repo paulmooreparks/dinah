@@ -115,6 +115,12 @@ function stub({ state, app, init, args }) {
     ReportWindowFocus: async () => {}, Log: async () => {},
     HostLocale: async () => ({ tag: 'en-US' }),
     BusOverview: async () => ({ inbox: [], rooms: [], workspaces: [], links: [], unread: 0, defaultHops: 3, defaultMax: 3, noHopLimit: -1 }),
+    BusResolveGroup: async key => {
+      const rooms = (await App.BusOverview()).rooms || [];
+      const address = String(key).trim().replace(/^#/, '').trim();
+      const room = rooms.find(r => r.name === address.toLowerCase()) || rooms.find(r => String(r.title || r.name).toLowerCase() === address.toLowerCase());
+      return room ? { state: 'resolved', room } : { state: 'not-found' };
+    },
     AppletCatalog: none, AppletRequests: none, AppletResults: none, AppletAttention: async () => ({}),
     Extensions: none, TerminalShells: none, TerminalProfiles: none,
     UpdateState: async () => ({}), NativeWindowState: async () => ({}),
