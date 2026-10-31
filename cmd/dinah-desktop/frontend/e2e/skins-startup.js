@@ -22,5 +22,19 @@ const {launch,OUT}=require('./lib/page');const fs=require('fs'),path=require('pa
    evidence.push({skin,mode,first,stable});
   }finally{await t.close();}
  }
+ const invalid=await launch({goto:false,app:()=>{window.__readAppearanceGate=new Promise(resolve=>{window.__releaseAppearance=resolve;});return {ReadUIState:async()=>{await __readAppearanceGate;return {version:1,values:{'pudl-theme':'light'}};},ReadAppearance:async()=>{await __readAppearanceGate;return {state:{version:1,active:'mineral',skin:'gel',themes:[],overrides:{}},revision:'0',skins:[{id:'standard',label:'Standard'},{id:'gel',label:'Gel'}]};}};},init:()=>{
+  if(window!==top)return;localStorage.setItem('dinah-appearance-startup-v1','null');localStorage.setItem('pudl-theme','dark');
+  window.__firstInvalidCacheFrame=null;function sample(){if(document.body&&window.pudlSkins)__firstInvalidCacheFrame={skin:pudlSkins.current(),preference:pudlSkins.preference(),mode:document.documentElement.dataset.theme};else requestAnimationFrame(sample);}requestAnimationFrame(sample);
+ }});
+ try{
+  await invalid.page.goto('http://dinah.test/index.html');await invalid.page.waitForFunction(()=>!!__firstInvalidCacheFrame);
+  const first=await invalid.page.evaluate(()=>__firstInvalidCacheFrame);
+  invalid.ok('a null startup cache uses Standard and the legacy dark mode while native reads wait',first.skin==='standard'&&first.preference==='standard'&&first.mode==='dark',JSON.stringify(first));
+  invalid.ok('a null startup cache causes no page errors before native reads resolve',invalid.errors.length===0,JSON.stringify(invalid.errors));
+  await invalid.page.evaluate(()=>__releaseAppearance());await invalid.page.evaluate(()=>dinahAppearance.ready);
+  await invalid.page.waitForFunction(()=>pudlSkins.current()==='gel'&&document.documentElement.dataset.theme==='light');
+  invalid.ok('native preferences replace the invalid cache fallback without page errors',invalid.errors.length===0,JSON.stringify(invalid.errors));
+  evidence.push({cache:'null',first,native:{skin:'gel',mode:'light'}});
+ }finally{await invalid.close();}
  fs.writeFileSync(path.join(OUT,'skin-first-frames.json'),JSON.stringify(evidence,null,2));
 })().catch(error=>{console.error(error);process.exitCode=1;});
