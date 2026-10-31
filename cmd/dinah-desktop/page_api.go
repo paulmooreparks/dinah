@@ -93,7 +93,7 @@ var pageMethods = func() map[string]pageMethodClass {
  SetDefaultProvider SetDocumentView SetExtensionCommandReview SetLogLevel SetNewWindowMode
  SetNotifyWhenNeeded SetOllamaApprovals SetOllamaFileScope SetOllamaRoundLimit SetPersonName SetPinned SetPinnedForProvider
  SetPromptSendKey SetProviderFileLimit SetSessionOption SetShowThinking SetSkillField
- SetTerminalShell SetUsagePage SetWindowKindMode SetWorkspace ShowChatLog ShowLogFolder SignIn
+ SetTerminalShell SetUsagePage SetWindowKindMode SetWorkspace ShowChatLog ShowSavedChatHistory ShowLogFolder SignIn
  StartPreparedExtensionTerminal StartSkill Steer Stop StopAndSteer StopBackgroundTask
  TerminalClose TerminalStart TerminalWrite UnhideSessions UnpinWorkspaceItem Unqueue
  UpdateDraft UploadToWorkspaceFolder WriteWorkspaceMount`)
