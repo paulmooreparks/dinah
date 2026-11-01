@@ -83,7 +83,7 @@ var pageMethods = func() map[string]pageMethodClass {
  OpenSession OpenSessionAt OpenSessionWith OpenWaitingSession RetryWaitingSession ReloadWaitingChatState OpenSkillDraft OpenUsage OpenWorkspaceMount
  OpenWorkspaceResource PickAttachments PickDraftFiles PinWorkspaceItem 
  PrepareSkill Queue RecoverSession RecoverSessionModel
- RecoverSteering RejectSuggestion RelocateWorkspaceSource RemoveExtension RemoveOldAttachments
+ RecoverSteering RejectSuggestion RelocateWorkspaceSource RemoveChat RemoveExtension RemoveOldAttachments
  RemoveOptionSubstitution RemovePackages RemoveTerminalProfile RemoveWorkspace
  RemoveWorkspaceMount RenameDocumentFile RenameSession RenameSkill RenameWorkspace
  RenameWorkspaceSource ResetProviderFileLimit Restart ReviseSuggestion

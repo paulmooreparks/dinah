@@ -105,7 +105,7 @@ func TestWaitingContinuationKeepsBothRecipientsAndEveryDelivery(t *testing.T) {
 	for _, card := range cards {
 		if card.Kind == "delivery-failure" && card.Lead == parent {
 			found = true
-			if card.RetryAllowed || card.SessionID != child || !strings.Contains(card.Body, "Recover the original saved chat") {
+			if card.RetryAllowed || card.SessionID != child || !strings.Contains(card.Body, "2 messages are waiting.") {
 				t.Fatal(card)
 			}
 		}
@@ -153,8 +153,11 @@ func TestWaitingFailureCardsSurviveRetentionAndRejectUnknownStore(t *testing.T) 
 		t.Fatal(err)
 	}
 	cards, err = a.Notifications()
-	if err != nil || len(cards) != 1 {
-		t.Fatal("clear erased unresolved recovery", cards, err)
+	if err != nil || len(cards) != 0 {
+		t.Fatal("clear did not dismiss the recovery incident", cards, err)
+	}
+	if records, err := readWaitingChats(); err != nil || len(records) != 1 {
+		t.Fatal("clear changed the durable delivery hold", records, err)
 	}
 	for _, data := range []string{`{"version":2,"items":{}}`, `{"version":1,"items":null}`, `{"version":1,"items":{"wrong":{"attempt":"a","stage":"failed"}}}`} {
 		if _, err := decodeWaitingChats([]byte(data)); err == nil {

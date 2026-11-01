@@ -166,5 +166,8 @@ func conversationAppletInvocations(workspace, id string) ([]AppletInvocation, er
 }
 
 func (a *App) ResolveSessionContinuation(id string) (string, error) {
+	if a.removedChat(id) {
+		return "", errors.New("this chat was removed")
+	}
 	return a.continuations().Resolve(id)
 }

@@ -29,6 +29,7 @@ func (a *App) backgroundUsedLocked() int { return a.runtime.BackgroundUsedLocked
 func (a *App) busCoordinator() *sessionhost.BusChats {
 	a.busChatsOnce.Do(func() {
 		a.busChatsService = sessionhost.NewBusChats(&a.mu, &a.runtime, sessionhost.BusChatsHost{
+			Removed:      a.removedChat,
 			DeliveryHeld: a.transferHeld,
 			WakeAttempts: &sessionhost.WakeAttempts{Read: a.readReconciledWaitingChats, Write: writeWaitingChats, Now: a.wakeClock},
 			ResolveWake:  a.waitingRoute,

@@ -49,7 +49,7 @@ const relayColumns = `r.message_id, r.member, r.lead, r.created_at, r.state, r.r
 func (b *Bus) PendingRelays(ctx context.Context) ([]Relay, error) {
 	rows, err := b.db.QueryContext(ctx, `SELECT `+relayColumns+` FROM relays r
 		WHERE r.state = 'pending' AND EXISTS (SELECT 1 FROM deliveries d WHERE d.message_id = r.message_id
-			AND d.recipient_kind = 'session' AND d.recipient = r.lead AND d.delivered_at IS NULL) ORDER BY r.message_id`)
+			AND d.recipient_kind = 'session' AND d.recipient = r.lead AND d.delivered_at IS NULL AND d.cancelled_at IS NULL) ORDER BY r.message_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (b *Bus) FailPendingRelaysTo(ctx context.Context, lead, reason string) ([]i
 	var failed []int64
 	err := b.tx(ctx, func(t *sql.Tx) error {
 		rows, err := t.Query(`SELECT r.message_id FROM relays r WHERE r.lead = ? AND r.state = 'pending' AND EXISTS
-			(SELECT 1 FROM deliveries d WHERE d.message_id = r.message_id AND d.recipient_kind = 'session' AND d.recipient = r.lead AND d.delivered_at IS NULL)`, lead)
+			(SELECT 1 FROM deliveries d WHERE d.message_id = r.message_id AND d.recipient_kind = 'session' AND d.recipient = r.lead AND d.delivered_at IS NULL AND d.cancelled_at IS NULL)`, lead)
 		if err != nil {
 			return err
 		}

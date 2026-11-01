@@ -213,6 +213,11 @@ func committedDestination(s *Settings, source, recipient string) (target, parent
 func (a *App) transferHeld(id, recipient string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	for source, removed := range a.settings.RemovedChats {
+		if source == id || recipient != "" && removed.Recipient == recipient {
+			return true
+		}
+	}
 	for _, tr := range a.settings.ChatTransfers {
 		if tr.Stage != "committed" && (recipient != "" && tr.Recipient == recipient || id == tr.Source || id == tr.Target) {
 			return true
@@ -242,7 +247,7 @@ func (a *App) transferNotifications() []Notification {
 		if tr.Stage == "committed" {
 			continue
 		}
-		out = append(out, Notification{ID: "transfer_" + source, Kind: "delivery-failure", Severity: "error", Title: "Chat recovery has no committed destination", Body: "Messages remain waiting with their original recipient. Review the original saved chat and choose a provider to start a new recovery. The earlier candidate is retained; it has no confirmed delivery.", Lead: source, SessionID: source, Provider: tr.Provider, Created: tr.Created, Details: []string{"Stage: " + tr.Stage, "Allocated target: " + tr.Target, "Recipient: " + tr.Recipient}})
+		out = append(out, Notification{ID: recoveryIncidentID(source, tr.Recipient), Kind: "delivery-failure", Severity: "error", Title: "Chat recovery has no committed destination", Body: "Review the original saved chat to continue or replace this interrupted recovery. Its allocated candidate is retained; message ownership has not changed.", Lead: source, SessionID: source, Provider: tr.Provider, Created: tr.Created, Details: []string{"Stage: " + tr.Stage, "Allocated target: " + tr.Target, "Recipient: " + tr.Recipient}})
 	}
 	return out
 }

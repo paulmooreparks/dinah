@@ -68,6 +68,9 @@ func writeWaitingChats(items map[string]sessionhost.WakeFailure) error {
 }
 
 func (a *App) waitingRoute(origin, cwd string) (sessionhost.WakeRoute, error) {
+	if a.removedChat(origin) {
+		return sessionhost.WakeRoute{}, errors.New("this chat was removed")
+	}
 	if a.transferHeld(origin, "") {
 		return sessionhost.WakeRoute{}, errors.New("the chat has an unfinished continuation transfer; review saved-history recovery")
 	}
@@ -95,7 +98,9 @@ func (a *App) waitingRoute(origin, cwd string) (sessionhost.WakeRoute, error) {
 	recipient := a.settings.BusSessions[origin]
 	if recipient == "" {
 		tr := a.settings.ChatTransfers[origin]
-		if destination, _, ok := committedDestination(&a.settings, origin, tr.Recipient); ok && destination == target { recipient = tr.Recipient }
+		if destination, _, ok := committedDestination(&a.settings, origin, tr.Recipient); ok && destination == target {
+			recipient = tr.Recipient
+		}
 	}
 	return sessionhost.WakeRoute{Origin: origin, Target: target, Recipient: recipient, TargetRecipient: a.settings.BusSessions[target], Cwd: cwd, Provider: provider, Title: a.settings.SessionTitles[target], RoutingError: resolutionError}, nil
 }
@@ -134,7 +139,6 @@ func (a *App) waitingChatNotifications() ([]Notification, error) {
 		if _, _, active := a.busCoordinator().CurrentDeliveryAttempt(origin); record.Stage == "opening" && active {
 			continue
 		}
-		sum := sha256.Sum256([]byte(origin))
 		r := record.Route
 		target := r
 		if record.Observed != nil {
@@ -147,7 +151,16 @@ func (a *App) waitingChatNotifications() ([]Notification, error) {
 		if record.Stage == "routing-recovery" {
 			record.Error += " Recover the original saved chat to preserve its waiting recipient. The separate continuation keeps its own recipient and history. Reviewing history alone does not deliver these messages."
 		}
-		out = append(out, Notification{ID: "waiting_" + hex.EncodeToString(sum[:]), Kind: "delivery-failure", Severity: "error", Title: "Messages are waiting for " + name, Body: record.Error, SessionID: target.Target, SessionTitle: name, Workspace: target.Cwd, Provider: target.Provider, Created: record.Created, Lead: origin, RetryAllowed: record.Stage != "routing-recovery" && r.Recipient != "" && r.Recipient == r.TargetRecipient, Details: []string{fmt.Sprintf("Original chat: %s; recipient: %s", origin, r.Recipient), fmt.Sprintf("Original target: %s; recipient: %s", r.Target, r.TargetRecipient), fmt.Sprintf("Actual target: %s; recipient: %s", target.Target, target.TargetRecipient), "All pending messages are retained. Review the saved chat's recovery controls. Stage: " + record.Stage}})
+		out = append(out, Notification{ID: recoveryIncidentID(origin, r.Recipient), Kind: "delivery-failure", Severity: "error", Title: "Messages are waiting for " + name, Body: record.Error, SessionID: target.Target, SessionTitle: name, Workspace: target.Cwd, Provider: target.Provider, Created: record.Created, Lead: origin, RetryAllowed: record.Stage != "routing-recovery" && r.Recipient != "" && r.Recipient == r.TargetRecipient, Details: []string{fmt.Sprintf("Original chat: %s; recipient: %s", origin, r.Recipient), fmt.Sprintf("Original target: %s; recipient: %s", r.Target, r.TargetRecipient), fmt.Sprintf("Actual target: %s; recipient: %s", target.Target, target.TargetRecipient), "All pending messages are retained. Review the saved chat's recovery controls. Stage: " + record.Stage}})
 	}
 	return out, nil
+}
+
+func recoveryIncidentID(origin, recipient string) string {
+	key := "recipient:" + recipient
+	if recipient == "" {
+		key = "source:" + origin
+	}
+	sum := sha256.Sum256([]byte(key))
+	return "waiting_" + hex.EncodeToString(sum[:])
 }

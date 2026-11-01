@@ -34,6 +34,9 @@ func (a *App) continuations() *sessionhost.Continuations {
 				for _, id := range a.settings.Hidden {
 					hidden[id] = true
 				}
+				for id := range a.settings.RemovedChats {
+					hidden[id] = true
+				}
 				for id, title := range a.settings.SessionTitles {
 					titles[id] = title
 				}

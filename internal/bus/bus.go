@@ -167,6 +167,9 @@ func (b *Bus) RegisterSession(ctx context.Context, id, workspacePath, title stri
 			return err
 		}
 		now := b.stamp()
+		if taken(t, `SELECT 1 FROM sessions WHERE id=? AND removed_at IS NOT NULL`, id) {
+			return errors.New("the recipient chat was removed")
+		}
 		if taken(t, `SELECT 1 FROM sessions WHERE id = ?`, id) {
 			_, err = t.Exec(`UPDATE sessions SET last_seen = ?, ended_at = NULL, stop_continues = 0,
 				title = CASE WHEN ? <> '' THEN ? ELSE title END WHERE id = ?`, now, title, title, id)
@@ -888,7 +891,7 @@ func (b *Bus) Deliver(ctx context.Context, sessionID, event string) (msgs []Mess
 		// over here (questions.go).
 		// A group's message does not advance the hop count (rooms.go).
 		rows, err := t.Query(`SELECT d.id, d.message_id, CASE WHEN m.room = '' THEN m.hops ELSE 0 END, m.from_session = '' AND m.from_name = 'paul', `+trustedSQL("m.from_workspace", "?")+`, `+askedSQL+`, `+wakesSQL+`, m.room, m.from_session <> '' AND m.kind = 'text' FROM deliveries d
-			JOIN messages m ON m.id = d.message_id JOIN sessions s ON s.id = ? WHERE d.delivered_at IS NULL AND m.kind <> '`+QuestionKind+`' AND
+			JOIN messages m ON m.id = d.message_id JOIN sessions s ON s.id = ? WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL AND s.removed_at IS NULL AND m.kind <> '`+QuestionKind+`' AND
 			((d.recipient_kind = 'session' AND d.recipient = s.id) OR (d.recipient_kind = 'workspace' AND d.recipient = ? AND m.from_session <> s.id))`+quiet+`
 			ORDER BY d.message_id`, ws, ws, sessionID, ws)
 		if err != nil {
@@ -1226,7 +1229,7 @@ func (b *Bus) release(ctx context.Context, m Message) (Release, error) {
 // HumanInbox returns the messages sent to the person, newest first, and
 // marks them read when markRead is set.
 func (b *Bus) HumanInbox(ctx context.Context, limit int, markRead bool) ([]Message, error) {
-	rows, err := b.db.QueryContext(ctx, `SELECT d.message_id, d.delivered_at IS NULL FROM deliveries d
+	rows, err := b.db.QueryContext(ctx, `SELECT d.message_id, d.delivered_at IS NULL AND d.cancelled_at IS NULL FROM deliveries d
 		WHERE d.recipient_kind = 'human' ORDER BY d.message_id DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -1319,7 +1322,7 @@ func doorbellFor(wake string) string {
 	return `FROM deliveries d
 		JOIN messages m ON m.id = d.message_id
 		JOIN sessions s ON s.id = ?
-		WHERE d.delivered_at IS NULL AND m.kind <> '` + QuestionKind + `' AND (m.room <> '' OR ` + hopLimitSQL("m.from_workspace", "s.workspace") + ` = ` + fmt.Sprint(NoHopLimit) + ` OR m.hops <= ` + hopLimitSQL("m.from_workspace", "s.workspace") + `) AND ` + budgetOpenSQL + ` AND ` + wake + ` AND
+		WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL AND s.removed_at IS NULL AND m.kind <> '` + QuestionKind + `' AND (m.room <> '' OR ` + hopLimitSQL("m.from_workspace", "s.workspace") + ` = ` + fmt.Sprint(NoHopLimit) + ` OR m.hops <= ` + hopLimitSQL("m.from_workspace", "s.workspace") + `) AND ` + budgetOpenSQL + ` AND ` + wake + ` AND
 			((d.recipient_kind = 'session' AND d.recipient = s.id) OR (d.recipient_kind = 'workspace' AND d.recipient = s.workspace AND m.from_session <> s.id))`
 }
 
@@ -1420,7 +1423,7 @@ func (b *Bus) Waking(ctx context.Context) ([]Wake, error) {
 		JOIN messages m ON m.id = d.message_id
 		JOIN sessions s ON d.recipient_kind = 'session' AND s.id = d.recipient
 		JOIN workspaces w ON w.key = s.workspace
-		WHERE d.delivered_at IS NULL AND m.kind <> '`+MemberKind+`' AND (m.kind = '`+QuestionKind+`' OR (`+budgetOpenSQL+` AND (m.room <> '' OR `+limit+` = `+fmt.Sprint(NoHopLimit)+` OR m.hops <= `+limit+`))) AND
+		WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL AND s.removed_at IS NULL AND m.kind <> '`+MemberKind+`' AND (m.kind = '`+QuestionKind+`' OR (`+budgetOpenSQL+` AND (m.room <> '' OR `+limit+` = `+fmt.Sprint(NoHopLimit)+` OR m.hops <= `+limit+`))) AND
 			(m.room = '' OR m.mentions LIKE '%,' || s.id || ',%' OR m.mentions LIKE '%,*,%')
 		GROUP BY s.id, w.path ORDER BY MIN(d.message_id)`)
 	if err != nil {
@@ -1447,7 +1450,7 @@ func (b *Bus) Waiting(ctx context.Context) ([]Pending, error) {
 		FROM deliveries d
 		LEFT JOIN sessions s ON d.recipient_kind = 'session' AND s.id = d.recipient
 		LEFT JOIN workspaces w ON w.key = CASE d.recipient_kind WHEN 'session' THEN s.workspace WHEN 'workspace' THEN d.recipient END
-		WHERE d.delivered_at IS NULL AND d.recipient_kind NOT IN ('human', '`+humanRoom+`')
+		WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL AND d.recipient_kind NOT IN ('human', '`+humanRoom+`')
 		GROUP BY d.recipient_kind, d.recipient`)
 	if err != nil {
 		return nil, err

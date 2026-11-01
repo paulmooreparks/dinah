@@ -59,6 +59,7 @@ type BusChats struct {
 }
 
 type BusChatsHost struct {
+	Removed          func(string) bool
 	DeliveryHeld     func(string, string) bool
 	WakeAttempts     *WakeAttempts
 	ResolveWake      func(string, string) (WakeRoute, error)
@@ -388,6 +389,10 @@ func (a *BusChats) ReloadWaitingState() error { return a.host.WakeAttempts.Reloa
 
 func (a *BusChats) ReleaseCommittedRecovery(origin, recipient string) error {
 	return a.host.WakeAttempts.ReleaseCommitted(origin, recipient)
+}
+
+func (a *BusChats) RemoveRecoveryRecipient(origin, recipient string) error {
+	return a.host.WakeAttempts.RemoveRecipient(origin, recipient)
 }
 
 func (a *BusChats) CloseIdleBackground() {

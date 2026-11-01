@@ -314,6 +314,9 @@ func (a *BusChats) Ask(ctx context.Context, caller *Conversation, target BusAskT
 // open after the question was posted, with the reason.
 func (a *BusChats) AwaitAskable(ctx context.Context, chat string, posted time.Time) (*Conversation, error) {
 	for {
+		if a.host.Removed != nil && a.host.Removed(chat) {
+			return nil, fmt.Errorf("the recipient chat was removed; the question was cancelled")
+		}
 		if s := a.session(chat); s != nil {
 			ready := s.Askable()
 			if ready {

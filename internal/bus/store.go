@@ -252,6 +252,9 @@ func OpenAt(path string) (*Bus, error) {
 // columns added since the first release, which CREATE TABLE IF NOT EXISTS
 // does not add to a database made before them.
 var added = []struct{ table, column, decl string }{
+	{"sessions", "removed_at", "TEXT"},
+	{"deliveries", "cancelled_at", "TEXT"},
+	{"deliveries", "cancel_reason", "TEXT NOT NULL DEFAULT ''"},
 	{"steers", "turn_token", "TEXT NOT NULL DEFAULT ''"},
 	{"agent_sessions", "turn_token", "TEXT NOT NULL DEFAULT ''"},
 	{"agent_sessions", "prompt_id", "TEXT NOT NULL DEFAULT ''"},
@@ -309,6 +312,11 @@ func upgrade(db *sql.DB) error {
 		}
 	}
 	if err := widenLinks(db); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE TRIGGER IF NOT EXISTS reject_removed_recipient BEFORE INSERT ON deliveries
+ WHEN NEW.recipient_kind='session' AND EXISTS (SELECT 1 FROM sessions WHERE id=NEW.recipient AND removed_at IS NOT NULL)
+ BEGIN SELECT RAISE(ABORT, 'the recipient chat was removed'); END;`); err != nil {
 		return err
 	}
 	return convertRooms(db)

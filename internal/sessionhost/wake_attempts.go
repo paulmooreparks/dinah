@@ -112,6 +112,29 @@ func (w *WakeAttempts) ReleaseCommitted(origin, recipient string) error {
 	return w.persistLocked(records)
 }
 
+func (w *WakeAttempts) RemoveRecipient(origin, recipient string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	records, err := w.recordsLocked()
+	if err != nil {
+		return err
+	}
+	for source, record := range records {
+		if source != origin && (recipient == "" || record.Route.Recipient != recipient) {
+			continue
+		}
+		if a := w.active[source]; a != nil {
+			select {
+			case <-a.done:
+			default:
+				return errors.New("this recipient still has an active opening")
+			}
+		}
+		delete(records, source)
+	}
+	return w.persistLocked(records)
+}
+
 // Reload is explicit because a corrupt store must not be reread on every ring.
 // An active attempt keeps its original write-ahead authority until completion.
 func (w *WakeAttempts) Reload() error {

@@ -34,6 +34,13 @@ func TestBusAwaitReadinessAndFailurePrecedeCancellation(t *testing.T) {
 	}
 }
 
+func TestBusAwaitRemovedRecipientEndsQuestion(t *testing.T) {
+	owner := NewBusChats(nil, nil, BusChatsHost{Removed: func(id string) bool { return id == "removed" }})
+	if _, err := owner.AwaitAskable(context.Background(), "removed", time.Now()); err == nil {
+		t.Fatal("question continued waiting for a removed chat")
+	}
+}
+
 func TestBusAskRegistersBeforeAwaitAndWithdrawsOnCancellation(t *testing.T) {
 	var mu sync.Mutex
 	var runtime Runtime

@@ -251,6 +251,9 @@ func (a *App) startup(ctx context.Context) {
 		logf("bus", "error", "opening the bus: %v; chats will not be woken by messages", err)
 	}
 	a.shortenTitles()
+	if err := a.reconcileChatRemovals(); err != nil {
+		logf("chat", "error", "finishing saved chat removals: %v", err)
+	}
 	a.nameContinuations()
 	// A chat deleted or continued while it was not running has queued messages that
 	// cannot wait for it to be opened.

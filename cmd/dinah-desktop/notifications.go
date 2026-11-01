@@ -19,17 +19,21 @@ import (
 // their sources keep them and their response channels do not survive a
 // restart.
 type Notification struct {
-	ID           string   `json:"id"`
-	Kind         string   `json:"kind"`
-	Severity     string   `json:"severity"`
-	Title        string   `json:"title"`
-	Body         string   `json:"body"`
-	Details      []string `json:"details"`
-	SessionID    string   `json:"sessionId"`
-	SessionTitle string   `json:"sessionTitle"`
-	Workspace    string   `json:"workspace"`
-	Provider     string   `json:"provider"`
-	RetryAllowed bool     `json:"retryAllowed,omitempty"`
+	ID              string   `json:"id"`
+	Kind            string   `json:"kind"`
+	Severity        string   `json:"severity"`
+	Title           string   `json:"title"`
+	Body            string   `json:"body"`
+	Details         []string `json:"details"`
+	SessionID       string   `json:"sessionId"`
+	SessionTitle    string   `json:"sessionTitle"`
+	Workspace       string   `json:"workspace"`
+	Provider        string   `json:"provider"`
+	RetryAllowed    bool     `json:"retryAllowed,omitempty"`
+	OriginTitle     string   `json:"originTitle,omitempty"`
+	OriginProvider  string   `json:"originProvider,omitempty"`
+	OriginStarted   string   `json:"originStarted,omitempty"`
+	IncidentVersion string   `json:"incidentVersion,omitempty"`
 	// DraftID is the draft a report is about, which the card reopens.
 	DraftID string `json:"draftId,omitempty"`
 	// Lead is the chat ID, in the window, of the lead a failed relay was rerouted to, so the card can link to it.
@@ -50,8 +54,9 @@ type Notification struct {
 var notificationDraftID = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 type notificationStore struct {
-	Version int            `json:"version"`
-	Items   []Notification `json:"items"`
+	Version            int               `json:"version"`
+	Items              []Notification    `json:"items"`
+	RecoveryDismissals map[string]string `json:"recoveryDismissals,omitempty"`
 }
 
 var notificationStoreMu sync.Mutex
@@ -195,12 +200,15 @@ func (a *App) Notifications() ([]Notification, error) {
 			out = append(out, item)
 		}
 	}
-	waiting, err := a.waitingChatNotifications()
+	waiting, err := a.recoveryNotifications()
 	if err != nil {
 		return nil, err
 	}
-	out = append(out, waiting...)
-	out = append(out, a.transferNotifications()...)
+	for _, item := range waiting {
+		if item.IncidentVersion == "" || store.RecoveryDismissals[item.ID] != item.IncidentVersion {
+			out = append(out, item)
+		}
+	}
 	return out, nil
 }
 
@@ -214,6 +222,18 @@ func (a *App) ClearNotifications() error {
 		return err
 	}
 	store.Items = pruned(store.Items)
+	incidents, err := a.recoveryNotifications()
+	if err != nil {
+		return err
+	}
+	if store.RecoveryDismissals == nil {
+		store.RecoveryDismissals = map[string]string{}
+	}
+	for _, item := range incidents {
+		if item.IncidentVersion != "" {
+			store.RecoveryDismissals[item.ID] = item.IncidentVersion
+		}
+	}
 	for i := range store.Items {
 		store.Items[i].Dismissed = true
 	}
@@ -259,6 +279,19 @@ func (a *App) DismissNotification(id string) error {
 	store, err := readNotifications()
 	if err != nil {
 		return err
+	}
+	incidents, err := a.recoveryNotifications()
+	if err != nil {
+		return err
+	}
+	for _, item := range incidents {
+		if item.ID == id && item.IncidentVersion != "" {
+			if store.RecoveryDismissals == nil {
+				store.RecoveryDismissals = map[string]string{}
+			}
+			store.RecoveryDismissals[id] = item.IncidentVersion
+			return writeNotifications(store)
+		}
 	}
 	for i := range store.Items {
 		if store.Items[i].ID == id {

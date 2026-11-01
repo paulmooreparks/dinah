@@ -22,7 +22,7 @@ var kindsNotMentions = "('" + ResultKind + "', '" + MemberKind + "', '" + Questi
 // has not read, with numbers above after, oldest first. It changes nothing.
 func (b *Bus) Mentions(ctx context.Context, after int64) ([]Message, error) {
 	rows, err := b.db.QueryContext(ctx, `SELECT m.id FROM deliveries d JOIN messages m ON m.id = d.message_id
-		WHERE d.recipient_kind = 'human' AND d.delivered_at IS NULL AND m.from_session <> '' AND m.id > ?
+		WHERE d.recipient_kind = 'human' AND d.delivered_at IS NULL AND d.cancelled_at IS NULL AND m.from_session <> '' AND m.id > ?
 			AND m.kind NOT IN `+kindsNotMentions+` ORDER BY m.id`, after)
 	if err != nil {
 		return nil, err

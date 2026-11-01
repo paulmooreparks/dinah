@@ -116,6 +116,9 @@ func (a *App) OpenSession(id string) (SessionInfo, error) {
 // that cannot be opened is logged with the agent's reason, which the page
 // shows only until the window closes.
 func (a *App) OpenSessionAt(ws, id string) (SessionInfo, error) {
+	if a.removedChat(id) {
+		return SessionInfo{}, errors.New("this chat was removed")
+	}
 	if a.transferHeld(id, "") {
 		return SessionInfo{}, errors.New("this chat has an unfinished continuation transfer; use saved-history recovery")
 	}
@@ -141,7 +144,12 @@ func (a *App) LoadFullHistory(ws, id string) (SessionInfo, error) {
 // offer to hide the session instead.
 var errNoDelete = sessionhost.ErrNoDelete
 
-func (a *App) DeleteSession(id string) error { return a.sessionsLifecycle().Delete(id) }
+func (a *App) DeleteSession(id string) error {
+	if err := a.sessionsLifecycle().Delete(id); err != nil {
+		return err
+	}
+	return a.RemoveChat(id)
+}
 
 // HideSession takes a session off this app's list without deleting it in
 // Devin.
@@ -163,6 +171,9 @@ func (a *App) UnhideSessions() error {
 }
 
 func (a *App) hidden(id string) bool {
+	if _, removed := a.settings.RemovedChats[id]; removed {
+		return true
+	}
 	for _, h := range a.settings.Hidden {
 		if h == id {
 			return true

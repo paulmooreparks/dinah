@@ -314,7 +314,7 @@
       if (!app().Notifications) return Promise.resolve();
       return app().Notifications().then(function (items) {
         var waiting = new Set((items || []).filter(function (item) { return item.kind === 'delivery-failure' || item.kind === 'delivery-store-error'; }).map(function (item) { return item.id; }));
-        notices.list(function (entry) { return String(entry.id).indexOf('waiting_') === 0 && !waiting.has(entry.id); }).forEach(function (entry) { notices.remove(entry.id); });
+        notices.list(function (entry) { return /^(waiting_|transfer_)/.test(String(entry.id)) && !waiting.has(entry.id); }).forEach(function (entry) { notices.remove(entry.id); });
         (items || []).forEach(function (item) {
           if (item.kind === 'delivery-store-error') {
             if (notices.get(item.id)) notices.remove(item.id);

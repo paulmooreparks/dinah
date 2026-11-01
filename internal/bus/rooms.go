@@ -801,7 +801,7 @@ func (b *Bus) room(ctx context.Context, key, title string) (Room, error) {
 	}
 	err = b.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(created_at), ''),
 		(SELECT COUNT(*) FROM deliveries d JOIN messages x ON x.id = d.message_id
-			WHERE d.recipient_kind = ? AND d.delivered_at IS NULL AND x.room = ?)
+			WHERE d.recipient_kind = ? AND d.delivered_at IS NULL AND d.cancelled_at IS NULL AND x.room = ?)
 		FROM messages WHERE room = ?`, humanRoom, key, key).Scan(&r.LastAt, &r.Unread)
 	if err != nil {
 		return r, err
@@ -809,7 +809,7 @@ func (b *Bus) room(ctx context.Context, key, title string) (Room, error) {
 	if r.Unread > 0 {
 		var newest int64
 		err = b.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.message_id), 0) FROM deliveries d JOIN messages x ON x.id = d.message_id
-			WHERE d.recipient_kind = ? AND d.delivered_at IS NULL AND x.room = ? AND x.kind = 'text'`, humanRoom, key).Scan(&newest)
+			WHERE d.recipient_kind = ? AND d.delivered_at IS NULL AND d.cancelled_at IS NULL AND x.room = ? AND x.kind = 'text'`, humanRoom, key).Scan(&newest)
 		if err != nil {
 			return r, err
 		}
@@ -871,7 +871,7 @@ func (b *Bus) RoomMessages(ctx context.Context, room string, limit int) ([]Messa
 func (b *Bus) MarkRoomRead(ctx context.Context, room string) error {
 	var n int
 	if err := b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM deliveries d JOIN messages m ON m.id = d.message_id
-		WHERE d.recipient_kind IN (?, 'human') AND d.delivered_at IS NULL AND m.room = ?`, humanRoom, room).Scan(&n); err != nil || n == 0 {
+		WHERE d.recipient_kind IN (?, 'human') AND d.delivered_at IS NULL AND d.cancelled_at IS NULL AND m.room = ?`, humanRoom, room).Scan(&n); err != nil || n == 0 {
 		return err
 	}
 	return b.tx(ctx, func(t *sql.Tx) error {

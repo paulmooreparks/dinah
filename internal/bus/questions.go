@@ -67,7 +67,7 @@ func (b *Bus) TakeQuestion(ctx context.Context, sessionID string, id int64) (Mes
 		var hops int
 		err := t.QueryRow(`SELECT d.id, m.hops FROM deliveries d JOIN messages m ON m.id = d.message_id
 			WHERE d.message_id = ? AND m.kind = '`+QuestionKind+`' AND d.recipient_kind = 'session' AND d.recipient = ?
-			AND d.delivered_at IS NULL`, id, sessionID).Scan(&delivery, &hops)
+			AND d.delivered_at IS NULL AND d.cancelled_at IS NULL`, id, sessionID).Scan(&delivery, &hops)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrQuestionGone
 		}
@@ -94,7 +94,7 @@ func (b *Bus) TakeQuestion(ctx context.Context, sessionID string, id int64) (Mes
 // bus's messages, as a record that it was asked; only its delivery goes.
 func (b *Bus) WithdrawQuestion(ctx context.Context, id int64) error {
 	return b.tx(ctx, func(t *sql.Tx) error {
-		_, err := t.Exec(`DELETE FROM deliveries WHERE message_id = ? AND delivered_at IS NULL
+		_, err := t.Exec(`DELETE FROM deliveries WHERE message_id = ? AND delivered_at IS NULL AND cancelled_at IS NULL
 			AND EXISTS (SELECT 1 FROM messages m WHERE m.id = ? AND m.kind = '`+QuestionKind+`')`, id, id)
 		return err
 	})
@@ -104,7 +104,7 @@ func (b *Bus) WithdrawQuestion(ctx context.Context, id int64) error {
 // withdrawn, oldest first.
 func (b *Bus) WaitingQuestions(ctx context.Context) ([]int64, error) {
 	rows, err := b.db.QueryContext(ctx, `SELECT DISTINCT d.message_id FROM deliveries d JOIN messages m ON m.id = d.message_id
-		WHERE d.delivered_at IS NULL AND m.kind = '`+QuestionKind+`' ORDER BY d.message_id`)
+		WHERE d.delivered_at IS NULL AND d.cancelled_at IS NULL AND m.kind = '`+QuestionKind+`' ORDER BY d.message_id`)
 	if err != nil {
 		return nil, err
 	}
