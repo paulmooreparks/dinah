@@ -175,8 +175,14 @@ func TestAtMostThreeChatsOpenInTheBackground(t *testing.T) {
 	withResume(a)
 	wholeCopy(t, asked[0]["cwd"].(string), func(tr *sessionhost.Transcript) { tr.SessionID = "codex:four" })
 	c.resumeErr = &acp.Error{Code: acp.CodeResourceNotFound, Message: "Resource not found"}
-	if _, err := a.OpenWaitingSession("codex:four", asked[0]["deliveryAttempt"].(string)); !errors.Is(err, c.resumeErr) {
-		t.Fatalf("the provider failure was not retained: %v", err)
+	// The missing session now tries saved-history recovery. A failed allocation
+	// must finish the original opening and free its background slot.
+	c.newErr = errors.New("recovery allocation unavailable")
+	if _, err := a.OpenWaitingSession("codex:four", asked[0]["deliveryAttempt"].(string)); !errors.Is(err, c.newErr) {
+		t.Fatalf("the recovery failure was not retained: %v", err)
+	}
+	if _, _, active := a.busCoordinator().CurrentDeliveryAttempt("codex:four"); active {
+		t.Fatal("failed original opening is still active")
 	}
 	wakeRound(t, a)
 	if got := askedIDs(r.take()); strings.Join(got, ",") != "codex:five" {
@@ -442,4 +448,44 @@ func TestWakeAdmissionWithConcurrentCompletionAndWindowChanges(t *testing.T) {
 	}
 	work.Wait()
 	check()
+}
+
+func TestRecoveredBackgroundWakeKeepsItsSlotAndFinishesOriginalAttempt(t *testing.T) {
+	a, c := providerTestApp(t)
+	r := watchConnects(a)
+	for _, id := range []string{"codex:one", "codex:two", "codex:three", "codex:four"} {
+		closedChat(t, a, id, "Chat "+id)
+	}
+	a.ChatWindows(nil)
+	wakeRound(t, a)
+	asked := r.take()
+	if len(asked) != 3 {
+		t.Fatalf("initial background slots: %v", askedIDs(asked))
+	}
+	openAsAsked(t, a, asked[:2])
+	withResume(a)
+	source := "codex:three"
+	ws := asked[2]["cwd"].(string)
+	wholeCopy(t, ws, func(tr *sessionhost.Transcript) { tr.SessionID = source })
+	c.resumeErr = &acp.Error{Code: acp.CodeResourceNotFound, Message: "Resource not found"}
+	info, err := a.OpenWaitingSession(source, asked[2]["deliveryAttempt"].(string))
+	if err != nil || info.ID == source {
+		t.Fatalf("wake recovery: %+v %v", info, err)
+	}
+	if !a.turnIO().Close(3 * time.Second) {
+		t.Fatal("recovery prompt did not finish")
+	}
+	if _, _, active := a.busCoordinator().CurrentDeliveryAttempt(source); active {
+		t.Fatal("original attempt remained active")
+	}
+	if !a.session(info.ID).Info().InBackground {
+		t.Fatal("recovered chat lost its background slot")
+	}
+	if countCalls(c, "session/new") != 1 || countCalls(c, "session/prompt") != 1 {
+		t.Fatal("wake recovery did not allocate and prompt once")
+	}
+	wakeRound(t, a)
+	if got := r.take(); len(got) != 0 {
+		t.Fatalf("fourth background chat exceeded limit: %v", askedIDs(got))
+	}
 }

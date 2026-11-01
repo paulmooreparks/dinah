@@ -140,6 +140,11 @@ func (a *App) recoverNativeSession(ws, id, provider string) (SessionInfo, error)
 	if !a.nativeRecord(id).Refused {
 		refusal = a.unverifiedNative(id, provider)
 	}
+	// A wake attempt must finish with its exact original target before a
+	// recipient-preserving recovery can publish the replacement target.
+	if _, _, active := a.busCoordinator().CurrentDeliveryAttempt(id); active {
+		return SessionInfo{}, refusal
+	}
 	if err := a.updateSettings(func(settings *Settings) error {
 		if settings.NativeRecoveryAttempts == nil {
 			settings.NativeRecoveryAttempts = map[string]string{}
