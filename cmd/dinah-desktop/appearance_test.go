@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -42,12 +43,24 @@ func TestAppearanceBuiltinsAndDurableSelection(t *testing.T) {
 	// does not exist" on 27 October 2026), and a person's own theme cannot
 	// take a built-in theme's ID.
 	current := saved
+	custom := builtinThemes()["mineral"]
+	custom.Name = "Preserved custom theme"
+	current.State.Themes = []ThemeRecord{{ID: "preserved-custom", Document: custom}}
 	for id := range builtinThemes() {
 		next := current.State
 		next.Active = id
 		if current, err = a.SaveAppearance(next, current.Revision); err != nil {
 			t.Fatalf("choosing the built-in theme %s: %v", id, err)
 		}
+	}
+	restored, err = a.ReadAppearance()
+	if err != nil || len(restored.State.Themes) != 1 || !reflect.DeepEqual(restored.State.Themes[0].Document, custom) || restored.State.Overrides["terminal"].Size != 18 {
+		t.Fatalf("built-in switching changed custom theme or overrides: %+v %v", restored, err)
+	}
+	next := restored.State
+	next.Active = "preserved-custom"
+	if _, err := a.SaveAppearance(next, restored.Revision); err != nil {
+		t.Fatalf("custom theme cannot be selected after built-ins: %v", err)
 	}
 	clash := current.State
 	clash.Themes = []ThemeRecord{{ID: "solarized", Document: builtinThemes()["mineral"]}}

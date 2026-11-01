@@ -35,3 +35,15 @@ Prepared verification covers all embedded built-ins, custom palettes and font ov
 Quality message 2829 rejected 46d2db0 before tests could execute. The new web custom-font fixture assigned a field directly inside a map value, which Go forbids. The extraction also omitted the desktop compatibility wrapper for themePaletteCategoryErrors, still called by the unchanged category test. The correction assigns the font through a local value and restores that wrapper through the exported shared PaletteCategoryErrors function. Assertions, validation policy and deadlines are unchanged.
 
 The corrected source passes gofmt and git diff --check. Package tests and vet remain pending in Quality's serialized slot after Front End's UI correction. No acceptance, published-asset adoption or release gate is claimed.
+
+## Published contract review
+
+PUDL supplied 0.96.1 in message 2867 at immutable commit 6ac2906930c0232f464ccdd689cc8881d598530c, archive SHA-256 d6868e709dd21fa62d183ca93fc773dac7812c3c75df459edff3acd1bdc11611. Release independently owns public provenance verification. The catalogue retains version 1 with eight admitted entries and seven optional stylesheets, compatible with the existing parser. Engine changes no catalogue schema or admission policy.
+
+The three published companion themes contain partial authored overrides. Their generated dist stylesheets contain the PUDL base plus those overrides. Host mapping must preserve that distinction and keep named palette selection independent of light/dark/system mode. Published docs/THEMES.md permits host overrides afterwards. Dinah's validation policy remains intact, so an unchanged published palette that fails it needs an explicit host adaptation or a reported admission gap.
+
+A bounded source calculation against the immutable generated CSS found warning/danger contrast pairs below Dinah's 4.5 threshold. Examples include Bevel light warning on background at 3.390 and dark danger on surface-alt at 3.092; Gel light warning on background at 3.945 and dark danger on surface-alt at 3.043; Glaze light warning on background at 3.608 and dark danger on surface-alt at 3.039. This is a partial precheck, not a full host validation result. Front End owns the palette mapping and must run the unchanged complete validation on it.
+
+Quality accepted exact f77450a as the backend base in 2854 after skins/web, thirteen desktop tests and vet passed. The follow-up tests now enumerate both forms of every embedded theme without a hard-coded count and assert that switching among all built-ins preserves a custom document and content overrides and leaves that custom theme selectable. These follow-up changes have not run in a gate yet. The existing accepted base and original compile-failure evidence remain preserved.
+
+PUDL's original tag WebKit result was 113/115; the unchanged rerun passed 115/115, and both initiating causes remain unexplained. Its release owner accepted that documented risk. Dinah's consumer acceptance remains separate.

@@ -7,11 +7,15 @@ import (
 	"testing"
 )
 
-// Every built-in palette, eleven themes in two forms, sets all eight category
+// Every built-in palette, in both forms, sets all eight category
 // colours and keeps every rule of PUDL's chapter 3.
 func TestEveryBuiltinPaletteKeepsTheCategoryRules(t *testing.T) {
 	palettes := 0
-	for id, doc := range builtinThemes() {
+	builtins := builtinThemes()
+	if len(builtins) == 0 {
+		t.Fatal("no built-in themes were checked")
+	}
+	for id, doc := range builtins {
 		for _, mode := range []string{"light", "dark"} {
 			p := doc.Palettes[mode]
 			for _, key := range themeCategoryKeys {
@@ -25,8 +29,8 @@ func TestEveryBuiltinPaletteKeepsTheCategoryRules(t *testing.T) {
 			palettes++
 		}
 	}
-	if palettes != 22 {
-		t.Fatalf("checked %d palettes, want 22", palettes)
+	if want := 2 * len(builtins); palettes != want {
+		t.Fatalf("checked %d palettes, want %d", palettes, want)
 	}
 }
 
