@@ -30,8 +30,19 @@
 .member-state { display: inline-grid; place-items: center; flex: none; inline-size: max(16px, 1em); block-size: max(16px, 1.4em); line-height: 1.4; color: var(--text-muted); }
 .member-chip.member-ended .member-title { color: var(--text-muted); }
 .member-state > .glyph { --glyph-size: max(16px, 1em); }
-.win-status:is(.chat-working-chip, .team-stuck-chip, .group-state-chip) { padding: 0; border: 0; }
-.win-status > .chat-state { background: color-mix(in srgb, var(--chat-state-colour) 18%, var(--surface)); }
+/* A title bar's state mark is drawn as PUDL's standard status chip: a
+   transparent pill outlined in the title's own colour, with bold extra-small
+   words, so it reads on any title bar, active or not, in either mode
+   (WINDOW-STATUS.md). The host chip around it is not painted; the working
+   chip keeps its fixed width there, the pill set at its end, so the title
+   bar never moves as the state changes. */
+.win-statuses > .win-status:is(.chat-working-chip, .team-stuck-chip, .group-state-chip) { padding: 0; border: 0; justify-content: flex-end; }
+.win-statuses > .win-status > .badge.chat-state {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 0 6px; border: 1px solid currentColor; border-radius: var(--radius-pill);
+  background: transparent; color: inherit; box-shadow: none;
+  font: 700 var(--text-2xs)/1.55 var(--font);
+}
 .badge.chat-state::before { content: ""; --glyph: var(--badge-glyph); }
 .badge.chat-state-idle, .badge.chat-lifecycle, .badge.chat-state-unknown { color: var(--text-muted); }
 .badge.chat-lifecycle::before, .badge.chat-state-unknown::before { content: none; }
