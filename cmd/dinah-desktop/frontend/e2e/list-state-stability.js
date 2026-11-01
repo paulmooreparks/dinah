@@ -24,7 +24,7 @@ const { launch } = require('./lib/page');
   try {
     const teamKey = await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'beta' }));
     const team = p.locator('[data-win="' + teamKey + '"]');
-    await team.locator('.chat-team > .disclosure').click();
+    await team.locator('.chat-team .team-toggle').click();
     await team.locator('[data-team-member="bus-alpha"]').waitFor();
     await team.locator('[data-win-action="maximize"]').click();
     const listKey = await p.evaluate(() => dinahWorkbench.open('chat-browser'));

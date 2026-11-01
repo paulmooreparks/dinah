@@ -868,7 +868,7 @@
     var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit);
     box.canRead = function () { return lookupState === 'resolved' && ((!overviewFailure && !!group(key)) || checkedOverview === overviewVersion); };
     var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button'; stopped.title = 'Go to where you stopped reading'; stopped.disabled = true;
-    stopped.appendChild(node('span', 'toolbar-words', 'Last Read'));
+    window.dinahHelpers.toolbarLabel(stopped, 'history', 'Last Read');
     var c = conversation(root, 'Everything said in the group appears here. The chats a message mentions are asked to answer it, and the other members are told that it was said.',
       function () { return Promise.resolve(app().BusGroupMessages(key)).then(function (ms) { markRead(); return ms; }); }, box, 'group:' + key, stopped);
     var draftChoices = node('div', 'group-draft-choices'), draftLabel = node('label', 'form-field');
@@ -911,11 +911,15 @@
     var memberShell = node('section', 'group-member-shell');
     var bar = node('div', 'group-members'); bar.setAttribute('role', 'list'); bar.setAttribute('aria-label', 'Members'); bar.tabIndex = 0;
     bar.id = 'group-members-' + (++groupSerial);
-    var memberToggle = node('button', 'btn btn-sm disclosure', 'Members'); memberToggle.type = 'button';
+    var memberToggle = node('button', 'btn btn-sm disclosure'); memberToggle.type = 'button';
+    var memberWords = window.dinahHelpers.toolbarLabel(memberToggle, 'account', 'Members');
     memberToggle.setAttribute('aria-expanded', 'true'); memberToggle.setAttribute('aria-controls', bar.id);
     memberToggle.addEventListener('click', function () { bar.hidden = !bar.hidden; memberToggle.setAttribute('aria-expanded', String(!bar.hidden)); });
     var commandBar = node('div', 'toolbar group-toolbar'); commandBar.setAttribute('role', 'toolbar'); commandBar.setAttribute('aria-label', 'Group commands');
+    // A folding PUDL toolbar, as every chat's is: each control has its glyph.
+    commandBar.setAttribute('data-toolbar-fold', ''); commandBar.setAttribute('data-toolbar-captions', 'none');
     var commandGroup = node('div', 'toolbar-group'); commandGroup.setAttribute('role', 'group'); commandGroup.setAttribute('aria-label', 'Group');
+    commandGroup.setAttribute('data-toolbar-group', 'Group'); commandGroup.setAttribute('data-toolbar-glyph', 'comments');
     function command(label, glyph, cls, run) {
       var button = node('button', 'btn btn-sm ' + cls); button.type = 'button'; button.setAttribute('aria-label', label);
       var icon = node('span', 'glyph'); icon.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')'); icon.setAttribute('aria-hidden', 'true');
@@ -926,7 +930,7 @@
     commandGroup.appendChild(memberToggle);
     command('Add Chats…', 'plus', 'group-add-chats', addChats);
     command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
-    command('Mention Everyone', null, 'group-mention-everyone', function () { box.mention({ id: 'everyone', title: 'everyone' }); box.text.focus(); });
+    command('Mention Everyone', 'comments', 'group-mention-everyone', function () { box.mention({ id: 'everyone', title: 'everyone' }); box.text.focus(); });
     commandBar.appendChild(commandGroup); memberShell.append(commandBar, bar);
     var separator = node('hr', 'group-transcript-separator');
     root.prepend(lookupNote, lookupRetry, memberShell, separator);
@@ -1024,7 +1028,7 @@
         }
       }
       window.dinahRender.enqueue(drawMembers, root, function () {
-        memberToggle.textContent = 'Members (' + members().length + ')';
+        memberWords.textContent = 'Members (' + members().length + ')';
         var wanted = [];
         members().forEach(function (m) {
           var key = m.state === 'person' ? 'person' : m.id, view = memberViews.get(key);

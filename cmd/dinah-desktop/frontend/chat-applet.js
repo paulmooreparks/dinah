@@ -778,7 +778,7 @@
          (teams.js), not in a row of its own above the transcript. It keeps
          its place, and is disabled while there is nowhere to go back to. */
       var lastRead = document.createElement('button');
-      lastRead.type = 'button'; lastRead.className = 'btn btn-sm chat-last-read'; lastRead.textContent = 'Last Read'; lastRead.title = 'Go to where you stopped reading'; lastRead.disabled = true;
+      lastRead.type = 'button'; lastRead.className = 'btn btn-sm chat-last-read'; window.dinahHelpers.toolbarLabel(lastRead, 'history', 'Last Read'); lastRead.title = 'Go to where you stopped reading'; lastRead.disabled = true;
       var teamPanel = window.dinahTeams.mount({ root: root, keepPlace: keepChatPlace, lastRead: lastRead,
         title: function () { return active ? title(sessions[active]) : 'New Chat'; },
         openChat: function (id) { return openSession(id); },

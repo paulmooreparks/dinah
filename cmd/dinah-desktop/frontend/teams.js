@@ -107,8 +107,10 @@
     var session = null, relationKnown = true, relationError = '', waitsForOpen = false;
     var section = node('section', 'chat-team'), content = node('div', 'team-content vstack gap-2');
     section.hidden = true;
-    var toggle = disclosure('Team', content, prefix + '-content');
-    var openTeamButton = node('button', 'btn btn-sm team-open', 'Open Team'); openTeamButton.type = 'button'; openTeamButton.hidden = true;
+    var toggle = disclosure('Team', content, prefix + '-content'); toggle.classList.add('team-toggle');
+    var toggleWords = H.toolbarLabel(toggle, 'account', 'Team');
+    var openTeamButton = node('button', 'btn btn-sm team-open'); openTeamButton.type = 'button'; openTeamButton.hidden = true;
+    H.toolbarLabel(openTeamButton, 'open', 'Open Team');
     function navigateTeam() { return lead && lead.group ? groupLink(lead.group) : Promise.resolve(); }
     openTeamButton.addEventListener('click', function () { navigateTeam().catch(host().fail); });
     // The bar is also the chat's top bar. A chat that keeps its Last Read
@@ -116,9 +118,14 @@
     // transcript never moves when there comes to be something unread.
     var lastRead = o.lastRead || null;
     function showSection() { section.hidden = !lastRead && openTeamButton.hidden && toggle.hidden; }
-    // Last Read comes first in every chat's toolbar, then the team's controls.
-    if (lastRead) section.appendChild(lastRead);
-    section.append(toggle, openTeamButton, content);
+    // The bar's controls are a folding PUDL toolbar, Last Read first, then the
+    // team's controls; the team's details open below it.
+    var bar = node('div', 'toolbar chat-team-toolbar'), group = node('div', 'toolbar-group');
+    bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Chat'); bar.setAttribute('data-toolbar-fold', ''); bar.setAttribute('data-toolbar-captions', 'none');
+    group.setAttribute('data-toolbar-group', 'Chat'); group.setAttribute('data-toolbar-glyph', 'comments');
+    if (lastRead) group.appendChild(lastRead);
+    group.append(toggle, openTeamButton); bar.appendChild(group);
+    section.append(bar, content);
     o.root.querySelector('.chat-output').before(section);
     var tree = node('ul', 'tree team-tree'); tree.setAttribute('aria-label', 'Team members');
     var retiredTree = node('ul', 'tree team-tree'); retiredTree.setAttribute('aria-label', 'Retired members');
@@ -244,7 +251,7 @@
       o.keepPlace(function () {
         toggle.hidden = !v.group && !members.length;
         showSection();
-        toggle.textContent = 'Team (' + members.length + ')';
+        toggleWords.textContent = 'Team (' + members.length + ')';
         drawMembers(tree, activeMembers, v.group); drawMembers(retiredTree, retired, v.group, true);
         retiredBox.hidden = !retired.length;
         budgetLines(budget, v.budget, prefix);

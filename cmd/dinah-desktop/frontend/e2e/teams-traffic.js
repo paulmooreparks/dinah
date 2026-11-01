@@ -48,7 +48,7 @@ const path = require('path');
     await p.waitForFunction(() => __exported.includes('Live outgoing assignment.'));
     ok('exports retain incoming, outgoing and direct message text', await p.evaluate(() => ['First outgoing assignment.', 'The incoming answer.', 'Paul asks a direct question.', 'Second outgoing assignment.', 'Live outgoing assignment.'].every(s => __exported.includes(s))));
     await win.locator('[data-win-action="maximize"]').click();
-    await win.locator('.chat-team > button.disclosure').click();
+    await win.locator('.chat-team .team-toggle').click();
     await win.locator('[data-view-id="activity"]').focus(); await p.keyboard.press('Control+Home');
     await t.shot('teams-traffic-folds');
     ok('the successful send tool call remains visible alongside its structured sent entry', await win.locator('.tool-row').filter({ hasText: 'Send the assignment' }).isVisible());

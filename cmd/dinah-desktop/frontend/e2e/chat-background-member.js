@@ -30,7 +30,7 @@ const { launch } = require('./lib/page');
   try {
     const key = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'lead' }));
     const lead = page.locator('[data-win="' + key + '"]');
-    await lead.locator('.chat-team > button.disclosure').click();
+    await lead.locator('.chat-team .team-toggle').click();
     await lead.locator('[data-team-member="bus-member"] > a').click();
     const member = page.locator('.win[data-chat-current]');
     await member.getByText('SAVED-MEMBER-ANSWER', { exact: true }).first().waitFor();

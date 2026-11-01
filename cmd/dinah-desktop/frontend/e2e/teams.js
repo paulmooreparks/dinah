@@ -47,7 +47,7 @@ const { launch } = require('./lib/page');
     const leadKey = await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'lead' }));
     const lead = p.locator('[data-win="' + leadKey + '"]');
     await lead.locator('.chat-team').waitFor();
-    await lead.locator('.chat-team > button.disclosure').click();
+    await lead.locator('.chat-team .team-toggle').click();
     await lead.locator('[data-team-member="bus-builder"]').waitFor();
     ok('the lead sees named state glyphs, reasons, task and provider usage', /Working/.test(await lead.locator('[data-team-member="bus-builder"] .team-state').getAttribute('aria-label')) && /Context full/.test(await lead.locator('[data-team-member="bus-held"]').innerText()) && /200 tokens/.test(await lead.locator('[data-team-member="bus-builder"]').innerText()));
     const nested = lead.locator('[data-team-member="bus-nested"] > a');

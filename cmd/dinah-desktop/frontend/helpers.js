@@ -90,6 +90,15 @@
     };
   }
   const events = { dispatch, route: function (fn) { route = fn; }, drainer: function (fn) { drainer = fn; } };
+  /* A toolbar button's content as PUDL folds it: its glyph, then its words,
+     which a folded toolbar hides and keeps as the button's name and tooltip
+     (pudl-toolbar.js). Returns the words, which a changing label rewrites. */
+  function toolbarLabel(button, glyph, words) {
+    const mark = node('span', 'glyph'), text = node('span', 'toolbar-words', words);
+    mark.setAttribute('aria-hidden', 'true'); mark.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')');
+    button.replaceChildren(mark, text);
+    return text;
+  }
   window.dinahHost = { on, onResync, settled };
-  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events };
+  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel };
 }());

@@ -99,7 +99,7 @@ const { launch } = require('./lib/page');
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       ok('the unified toolbar wraps within width ' + width, await group.locator('.group-toolbar').evaluate(el => el.scrollWidth <= el.clientWidth + 1));
     }
-    ok('the toolbar has no standalone Group folding control', await group.locator('.group-toolbar[data-toolbar-fold], .group-toolbar .toolbar-fold').count() === 0);
+    ok('the group toolbar folds like every chat toolbar, each control with its glyph', await group.locator('.group-toolbar[data-toolbar-fold]').count() === 1 && await group.locator('.group-toolbar .toolbar-group[aria-label="Group"] > button:not(:has(> .glyph))').count() === 0);
     await t.shot('group-toolbar-wrapped');
     await page.evaluate(() => __reviewTextTokens.forEach(([name]) => document.documentElement.style.removeProperty(name)));
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -125,13 +125,13 @@ const { launch } = require('./lib/page');
     await t.shot('comparison-chat');
     ok('chat and group comparison windows use the same size', JSON.stringify(await chat.boundingBox()) === JSON.stringify(await group.boundingBox()));
     ok('the title bar presents the execution state once, through its own chip', await chat.evaluate(win => !Array.from(win.querySelectorAll('.win-execution .win-state')).some(el => el.getClientRects().length)) && await chat.locator('.chat-working-chip .chat-state-working').count() === 1);
-    await chat.locator('.chat-team > button.disclosure').click();
+    await chat.locator('.chat-team .team-toggle').click();
     await chat.locator('[data-team-member="bus-waiting"] .chat-state-waiting').waitFor();
     await t.shot('chat-team-states');
     await page.setViewportSize({ width: 1920, height: 1100 });
     await page.evaluate(({ chatKey, groupKey }) => { pudlWindows.snap(chatKey, 'left'); pudlWindows.snap(groupKey, 'right'); }, { chatKey, groupKey });
     for (const expanded of [false, true]) {
-      const teamToggle = chat.locator('.chat-team > button.disclosure'), memberToggle = group.getByRole('button', { name: /^Members/ });
+      const teamToggle = chat.locator('.chat-team .team-toggle'), memberToggle = group.getByRole('button', { name: /^Members/ });
       if ((await teamToggle.getAttribute('aria-expanded') === 'true') !== expanded) await teamToggle.click();
       if ((await memberToggle.getAttribute('aria-expanded') === 'true') !== expanded) await memberToggle.click();
       for (const theme of ['light', 'dark']) {
