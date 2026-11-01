@@ -1120,6 +1120,11 @@
     function syncWindowExecution(win, s) {
       var execution = s && window.dinahChatState.describe(s.info, { reason: false }).state;
       win.dataset.winStatusRows = '2';
+      // The chat's own title chip shows its state, so PUDL's generated title
+      // mark and its Window status row are left out (data-win-state-title,
+      // WINDOW-STATUS.md, 0.96.1). The taskbar, docks and stacks keep using
+      // data-win-state.
+      win.dataset.winStateTitle = 'none';
       if (execution) {
         win.dataset.winState = execution;
         win.dataset.winStateLabel = window.dinahChatState.describe(s.info, { reason: false }).text;
@@ -1130,7 +1135,7 @@
     }
     function drawWindowLifecycle(chip, s, execution) {
       chip.setAttribute('role', 'img'); chip.replaceChildren(); chip.hidden = false;
-      var concealed = !!execution || (!s && !workspace);
+      var concealed = !s && !workspace;
       chip.style.visibility = concealed ? 'hidden' : '';
       chip.setAttribute('aria-hidden', String(concealed));
       chip.title = stateDetail; chip.setAttribute('aria-label', stateDetail);
@@ -3487,8 +3492,9 @@
             if (was !== named) window.pudlWindows.retitle(key, named);
             var work = backgroundWork(s), helpers = runningSubagents(s);
             var execution = syncWindowExecution(win, s);
-            // PUDL owns execution marks. Host statuses retain lifecycle,
-            // background work and subagent details (WINDOW-STATUS.md).
+            // The chat's own chip shows its execution state and lifecycle in
+            // the title (syncWindowExecution), with background work and
+            // subagent details beside it (WINDOW-STATUS.md).
             // The group is in the window's markup from the start
             // (workbench.js, statuses); PUDL draws the chips, folds them into
             // its Window status control when the bar is narrow, and keeps its

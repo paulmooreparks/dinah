@@ -2,11 +2,13 @@
    surface uses this one presentation of that state (plans/chat-states.md). */
 (function () {
   'use strict';
+  // PUDL's static state glyphs (0.96.1, WINDOW-STATUS.md): each state keeps
+  // one still glyph under every motion preference.
   var mapping = {
-    working: { word: 'Working', colour: 'accent', glyph: 'chat-working' },
-    waiting: { word: 'Waiting', colour: 'warn', glyph: 'flag' },
+    working: { word: 'Working', colour: 'accent', glyph: 'play' },
+    waiting: { word: 'Waiting', colour: 'warn', glyph: 'pause' },
     stuck: { word: 'Stuck', colour: 'danger', glyph: 'warning' },
-    idle: { word: 'Idle', colour: '', glyph: 'ring' }
+    idle: { word: 'Idle', colour: '', glyph: 'square' }
   };
   var chats = new Map(), buses = new Map(), groups = new Map();
   function read(value) {
