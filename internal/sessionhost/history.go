@@ -60,6 +60,50 @@ const deliveredRole = "delivered"
 const sentRole = "sent"
 const deliveredUpdate = "dinah_delivered"
 const maxConversationToolText = 16 << 10
+
+// CaptureOmission is disclosed when building an explicit continuation. Older
+// builds also stored it as an untyped limitation for every non-text item.
+const CaptureOmission = "Image, binary attachment, or non-text result contents are not included in this handoff. The original remains in the earlier chat; attach any required content in the continued chat."
+const captureHandoffKind = "handoff-non-text"
+
+func legacyCaptureLimitation(m ConversationMessage) bool {
+	return m.Role == "limitation" && m.Kind == "" && m.Text == CaptureOmission && m.Provider != "" && m.SessionID != ""
+}
+
+// visibleCaptureHistory projects old generated capture notices out of the
+// displayed copy. It never edits persisted messages or matches ordinary prose.
+func visibleCaptureHistory(messages []ConversationMessage) []ConversationMessage {
+	out := make([]ConversationMessage, 0, len(messages))
+	for _, m := range messages {
+		if !legacyCaptureLimitation(m) {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func captureHandoffHistory(messages []ConversationMessage, unsupported bool, provider, id string) []ConversationMessage {
+	out := make([]ConversationMessage, 0, len(messages)+1)
+	disclosed := false
+	for _, m := range messages {
+		if legacyCaptureLimitation(m) {
+			unsupported = true
+			continue
+		}
+		if m.Role == "limitation" && m.Kind == captureHandoffKind && m.Text == CaptureOmission {
+			if disclosed {
+				continue
+			}
+			disclosed = true
+		}
+		out = append(out, m)
+	}
+	if unsupported && !disclosed {
+		out = append(out, ConversationMessage{Role: "limitation", Kind: captureHandoffKind, Text: CaptureOmission, Provider: provider, SessionID: id})
+	}
+	return out
+}
+
 const OutsideHistory = "the provider history contains messages outside Dinah's saved transcript; keep the current provider or start a separate chat with the required context"
 const InterruptedTurn = "a previous turn ended before its history was completely captured; keep this provider or start a separate chat with the required context"
 
@@ -293,9 +337,7 @@ func (h *History) FinishReplayLocked(dir string, succeeded bool) {
 		if h.tools != nil {
 			h.tools[h.saved] = h.tools[h.replay]
 		}
-		for _, m := range h.saved.Messages {
-			h.saved.Unsupported = h.saved.Unsupported || m.Role == "limitation"
-		}
+		h.saved.Unsupported = h.saved.Unsupported || h.replay.Unsupported
 		h.saved.Complete, h.saved.CaptureError = true, ""
 		h.replay = nil
 		h.err = h.write(dir, h.saved)
@@ -303,12 +345,7 @@ func (h *History) FinishReplayLocked(dir string, succeeded bool) {
 	}
 	h.saved.Complete = true
 	if h.replay != nil && h.replay != h.saved {
-		for _, m := range h.replay.Messages {
-			if m.Role == "limitation" {
-				h.saved.Messages = append(h.saved.Messages, m)
-				h.saved.Unsupported = true
-			}
-		}
+		h.saved.Unsupported = h.saved.Unsupported || h.replay.Unsupported
 	}
 	h.replay = nil
 	h.err = h.write(dir, h.saved)
@@ -336,9 +373,6 @@ func (h *History) RecordMessageLocked(replay bool, id, role, text string, unsupp
 		return
 	}
 	tr.Unsupported = tr.Unsupported || unsupported
-	if unsupported {
-		tr.Messages = append(tr.Messages, ConversationMessage{Role: "limitation", Text: "Image, binary attachment, or non-text result contents are not included in this handoff. The original remains in the earlier chat; attach any required content in the continued chat.", Provider: tr.Provider, SessionID: id})
-	}
 	// A tool's result is kept to its first part: the chat's log has the rest,
 	// and a long chat of large results must not fill memory. The cut is the
 	// same whenever the same result is recorded, so a replayed history still

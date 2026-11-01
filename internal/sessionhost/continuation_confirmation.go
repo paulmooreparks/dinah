@@ -19,7 +19,7 @@ type warningEntry struct{ Text string }
 // confirmationTranscript retains metadata and warnings after schema validation.
 type confirmationTranscript struct {
 	SessionID, Provider, Workspace, ParentSessionID, ParentWorkspace string
-	Complete, Deleted                                                bool
+	Unsupported, Complete, Deleted                                   bool
 	CaptureError, Summary                                            string
 	ParentHistory                                                    []warningEntry
 	Messages                                                         []warningEntry
@@ -51,19 +51,23 @@ func confirmationMetadata(tr *Transcript) confirmationTranscript {
 	m := confirmationTranscript{
 		SessionID: tr.SessionID, Provider: tr.Provider, Workspace: tr.Workspace,
 		ParentSessionID: tr.ParentSessionID, ParentWorkspace: tr.ParentWorkspace,
-		Complete: tr.Complete, Deleted: tr.Deleted, CaptureError: tr.CaptureError,
+		Complete: tr.Complete, Deleted: tr.Deleted, CaptureError: tr.CaptureError, Unsupported: tr.Unsupported,
 		Summary: tr.Summary,
 	}
 	if tr.ParentHistory != nil {
 		m.ParentHistory = []warningEntry{}
 	}
 	for _, entry := range tr.ParentHistory {
-		if entry.Role == "limitation" {
+		if legacyCaptureLimitation(entry) {
+			m.Unsupported = true
+		} else if entry.Role == "limitation" {
 			m.ParentHistory = append(m.ParentHistory, warningEntry{Text: entry.Text})
 		}
 	}
 	for _, entry := range tr.Messages {
-		if entry.Role == "limitation" {
+		if legacyCaptureLimitation(entry) {
+			m.Unsupported = true
+		} else if entry.Role == "limitation" {
 			m.Messages = append(m.Messages, warningEntry{Text: entry.Text})
 		}
 	}
@@ -189,6 +193,9 @@ func (c *Continuations) confirmationLocked(s *Conversation, provider, cwd string
 	// ancestor read/validation errors have taken precedence.
 	if unavailable == nil && missingSnapshot {
 		unavailable = errors.New("the saved continuation history is incomplete")
+	}
+	if source.Unsupported {
+		addWarning(CaptureOmission)
 	}
 	for _, m := range source.Messages {
 		addWarning(m.Text)

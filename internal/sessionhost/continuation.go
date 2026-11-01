@@ -165,7 +165,7 @@ func TranscriptHistory(stateDir func() string, id, workspace string, seen map[st
 			return nil, errors.New("the saved continuation history is incomplete")
 		}
 	}
-	return append(history, tr.Messages...), nil
+	return captureHandoffHistory(append(history, tr.Messages...), tr.Unsupported, tr.Provider, tr.SessionID), nil
 }
 
 func SavedSummary(stateDir func() string, id string) string {
@@ -315,6 +315,7 @@ func (c *Continuations) previewLocked(s *Conversation, provider, cwd string, inv
 		}
 		history = append(history, ConversationMessage{Role: "tool", Provider: tr.Provider, SessionID: s.ID(), Text: c.host.Redact("Applet " + v.Action + "\nStatus: " + v.Status + "\n" + v.OutputJSON + "\n" + v.Error)})
 	}
+	history = captureHandoffHistory(history, tr.Unsupported, tr.Provider, tr.SessionID)
 	warnings := []string{}
 	// The saved summary has a warning of its own below, so its whole text is
 	// left out of the warnings.
@@ -671,7 +672,7 @@ func (c *Continuations) View(id string) (SessionContinuationView, error) {
 	if tr.ParentHistory == nil {
 		return v, errors.New("the saved continuation history is incomplete")
 	}
-	v.History = append([]ConversationMessage{}, tr.ParentHistory...)
+	v.History = visibleCaptureHistory(tr.ParentHistory)
 	return v, nil
 }
 
@@ -694,7 +695,7 @@ func (c *Continuations) Saved(id string) SavedConversationView {
 	if err != nil || tr.Deleted {
 		return SavedConversationView{Messages: []ConversationMessage{}}
 	}
-	messages := append(append([]ConversationMessage{}, tr.ParentHistory...), tr.Messages...)
+	messages := visibleCaptureHistory(append(append([]ConversationMessage{}, tr.ParentHistory...), tr.Messages...))
 	warning, cutOff := "", InterruptedHistory(tr)
 	switch {
 	case cutOff:
