@@ -27,6 +27,8 @@ func (c *Conversation) State() State {
 func (c *Conversation) StartTurn(p *Prompt) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.turns.promptActive = true
+	c.activity.StartWorkLocked()
 	c.details.ResetUpdateLocked()
 	c.turns.StartCaptureLocked(p, true)
 }

@@ -463,6 +463,7 @@ func (t *TurnIO) Run(s *Conversation, next *Prompt) {
 		}
 
 		s.StartTurn(current)
+		EmitSession(t.host.Emit, s)
 
 		t.host.RecordPrompt(s, next)
 		t.host.LogPrompt(s.ID(), next.Label(), t.promptText(next))
