@@ -47,3 +47,11 @@ A bounded source calculation against the immutable generated CSS found warning/d
 Quality accepted exact f77450a as the backend base in 2854 after skins/web, thirteen desktop tests and vet passed. The follow-up tests now enumerate both forms of every embedded theme without a hard-coded count and assert that switching among all built-ins preserves a custom document and content overrides and leaves that custom theme selectable. These follow-up changes have not run in a gate yet. The existing accepted base and original compile-failure evidence remain preserved.
 
 PUDL's original tag WebKit result was 113/115; the unchanged rerun passed 115/115, and both initiating causes remain unexplained. Its release owner accepted that documented risk. Dinah's consumer acceptance remains separate.
+
+## Authorized split for the immediate release
+
+Lead message 2883 authorizes adoption of all eight skins, static execution states and title-only suppression while preserving the currently admitted palettes and custom settings. Bevel, Gel and Glaze companion palettes remain outstanding in Paul's requested batch. Their asset presence does not admit their selection. No persisted role-format change, theme-ID exemption, blanket threshold reduction or published-token rewrite is authorized by this split.
+
+The rendered-use inventory must cover warning and danger text, graphics, on-warn and input identification before one complete backward-compatible contract is ratified. The current validator separately checks raw border and the actual derived input-border mix. PUDL 0.96.1 defines the latter as 55 percent text plus 45 percent surface; inventory must distinguish decorative raw border uses from required control identification. Engine will implement no role-policy change before ratification.
+
+Release message 2874 independently verifies the archive and provides the shared expanded source at C:/Users/paul/AppData/Local/Temp/dinah-pudl-0961-verified/expanded/pudl-0.96.1. Engine's source-only comparison of Front End's working copies against that source is retained under .diagnostics/split-asset-source-check.json. It is an observation of mutable preparation and does not replace exact-candidate verification or rendered review.
