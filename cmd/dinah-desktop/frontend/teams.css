@@ -22,7 +22,10 @@
 .menu-panel.members-menu { width: min(24rem, calc(100vw - 16px)); }
 .members-menu .member-list { display: flex; flex-direction: column; min-width: 0; }
 .members-menu .member-row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
-.members-menu .member-open { flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.members-menu .member-open { flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+/* The chat glyph before a member's name, as the taskbar's chat rows draw it. */
+.members-menu .member-glyph { flex: none; }
+.members-menu .member-ended .member-glyph { color: var(--text-muted); }
 .members-menu .member-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
 .members-menu .member-state-slot { flex: none; display: inline-flex; }
 /* A row's … button stands in from the menu's edge by the same space as

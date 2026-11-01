@@ -1267,8 +1267,11 @@
       win.dataset.winStateTitle = 'none';
       if (execution) {
         win.dataset.winState = execution;
-        win.dataset.winStateLabel = window.dinahChatState.describe(s.info, { reason: false }).text;
-        win.dataset.winStateDetail = stateContext;
+        // The short word, as the chips show it; the stack row's column has no
+        // room for more, and the detail gives the rest in the tooltip.
+        var spec = window.dinahChatState.describe(s.info, { reason: false });
+        win.dataset.winStateLabel = spec.short;
+        win.dataset.winStateDetail = spec.text !== spec.short ? spec.text + ' · ' + stateContext : stateContext;
       }
       else { win.removeAttribute('data-win-state'); win.removeAttribute('data-win-state-label'); win.removeAttribute('data-win-state-detail'); }
       return execution;

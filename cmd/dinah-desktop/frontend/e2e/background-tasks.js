@@ -67,7 +67,7 @@ const { launch } = require('./lib/page');
   await p.locator(win + ' .background-task button', { hasText: 'Stop' }).click();
   await p.waitForTimeout(200);
   ok('Stop asks the agent to stop that task', await p.evaluate(() => JSON.stringify(window.__calls.find(x => x[0] === 'Stop')) === JSON.stringify(['Stop', 'bg', 'build'])));
-  ok('the taskbar shows the PUDL working state labelled Background work', await p.evaluate(w => document.querySelector(w).dataset.winState === 'working' && /^Background work/.test(document.querySelector(w).dataset.winStateLabel) && !document.querySelector(w).hasAttribute('data-win-running'), win));
+  ok('the taskbar shows the PUDL working state labelled Background, with Background work in its detail', await p.evaluate(w => document.querySelector(w).dataset.winState === 'working' && document.querySelector(w).dataset.winStateLabel === 'Background' && /^Background work/.test(document.querySelector(w).dataset.winStateDetail) && !document.querySelector(w).hasAttribute('data-win-running'), win));
   await t.shot('background-tasks');
 
   await state({ working: false, background: [linux, { id: 'autonomous-turn-1', name: 'Claude is working', type: 'turn', state: 'running', canStop: true }] }, { state: 'working', why: "Agent's own turn in progress", tasks: 1 });

@@ -242,7 +242,9 @@
           var row = node('div', 'member-row lead-member'); row.setAttribute('role', 'listitem'); row.dataset.teamMember = key;
           var open = node('button', 'menu-action member-open'); open.type = 'button';
           var name = node('span', 'member-name'), slot = node('span', 'member-state-slot');
-          open.append(name, slot); row.appendChild(open);
+          // The chat glyph the taskbar draws for a chat window, before the name.
+          var mark = node('span', 'glyph member-glyph'); mark.setAttribute('aria-hidden', 'true'); mark.style.setProperty('--glyph', 'var(--glyph-comments)');
+          open.append(mark, name, slot); row.appendChild(open);
           held = { row: row, open: open, name: name, slot: slot, member: m };
           (function (entry) {
             entry.open.addEventListener('click', function () {

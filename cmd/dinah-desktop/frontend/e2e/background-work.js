@@ -63,7 +63,7 @@ const { launch } = require('./lib/page');
       const far = document.querySelector('[data-group-member="bus-far"] .badge:not(.chat-state-reserve)');
       return {
         chip: chip.textContent.trim(), chipCls: chip.className, chipLabel: (chip.getAttribute('aria-label') || '') + ' | ' + (chip.title || ''), chipBox: [Math.round(w.querySelector('.chat-working-chip').getBoundingClientRect().width), Math.round(chip.getBoundingClientRect().height)],
-        winState: w.dataset.winState, winLabel: w.dataset.winStateLabel,
+        winState: w.dataset.winState, winLabel: w.dataset.winStateLabel, winDetail: w.dataset.winStateDetail || '',
         row: rowChip.textContent.trim(), rowCls: rowChip.className, rowLabel: r.getAttribute('aria-label'), slotWidth: Math.round(slot.getBoundingClientRect().width), titleWidth: Math.round(r.querySelector('.browser-row-title').getBoundingClientRect().width),
         listGroup: r.closest('.browser-group') && r.closest('.browser-group').querySelector('.browser-group-title').textContent.trim(),
         aggregate: (g.querySelector('.group-state-chip .badge') || g.querySelector('.group-state-chip')).getAttribute('aria-label') || g.querySelector('.group-state-chip').textContent.trim(),
@@ -83,7 +83,7 @@ const { launch } = require('./lib/page');
     s = await read();
     ok('after the turn ends, the title chip shows Background, named Background work with the task', s.chip === 'Background' && /Background work/.test(s.chipLabel) && /Run tests/.test(s.chipLabel) && /chat-state-background/.test(s.chipCls), JSON.stringify(s));
     ok('the title chip keeps its width and one line', s.chipBox[0] === base.chipBox[0] && s.chipBox[1] === base.chipBox[1], JSON.stringify({ base: base.chipBox, now: s.chipBox }));
-    ok('the window gives PUDL its working state with the Background work label, for the taskbar', s.winState === 'working' && /^Background work/.test(s.winLabel), JSON.stringify(s));
+    ok('the window gives PUDL its working state labelled Background, with Background work in its detail, for the taskbar', s.winState === 'working' && s.winLabel === 'Background' && /^Background work/.test(s.winDetail), JSON.stringify(s));
     ok('the Chats list shows Background in the Working group', s.row === 'Background' && glyphOf(s.rowCls) && s.listGroup === 'Working', JSON.stringify(s));
     ok('the group aggregate counts it and ranks it above idle', /1 with background work, 1 idle/.test(s.aggregate) && !/Idle/.test(s.aggregate.split(':')[0]), s.aggregate);
     ok('the state chip slot and the title keep their widths', s.slotWidth === base.slotWidth && s.titleWidth === base.titleWidth, JSON.stringify({ base: [base.slotWidth, base.titleWidth], now: [s.slotWidth, s.titleWidth] }));

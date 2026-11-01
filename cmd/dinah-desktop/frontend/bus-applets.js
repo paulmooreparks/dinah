@@ -348,7 +348,7 @@
   }
 
   /* ---- The Group Chats pane ---- */
-  window.dinahWorkbench.register('bus', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, singleton: true, title: 'Group Chats', glyph: 'inbox', mode: 'dock-right', init: function (root) {
+  window.dinahWorkbench.register('bus', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, singleton: true, title: 'Group Chats', glyph: 'inbox', mode: 'dock-right', init: function (root) {
     root.classList.add('bus-browser');
     var disposed = false;
     var bar = window.dinahBrowserList.toolbar({
@@ -1224,7 +1224,9 @@
             var row = node('div', 'member-row'); row.setAttribute('role', 'listitem'); row.dataset.groupMember = m.id;
             var open = node('button', 'menu-action member-open'); open.type = 'button';
             var name = node('span', 'member-name'), slot = node('span', 'member-state-slot');
-            open.append(name, slot);
+            // The chat glyph the taskbar draws for a chat window, before the name.
+            var mark = node('span', 'glyph member-glyph'); mark.setAttribute('aria-hidden', 'true'); mark.style.setProperty('--glyph', 'var(--glyph-comments)');
+            open.append(mark, name, slot);
             var more = glyphButton('member-menu-btn', 'more', m.title + ' Menu');
             more.id = menu.id + '-' + (++memberSerial); more.setAttribute('aria-haspopup', 'menu');
             view = { row: row, open: open, name: name, slot: slot, more: more, member: m };
@@ -1369,7 +1371,7 @@
       commands: function () { if (lookupState !== 'resolved') return [{ label: 'Retry Group Lookup', run: checkAvailability }]; var full = box.attachReason(); return [{ label: 'Make This Group a Team…', hidden: !!(room && room.lead) || !app().MakeGroupATeam, run: function () { return window.dinahTeams.convertGroup(room).then(load); } }, { label: 'Add Chats…', run: addChats }, { label: 'Turn Budget…', run: openBudget }, { label: 'Rename Group…', run: renameGroup }, { label: 'Attach…', disabled: !!full, reason: full, run: function () { return box.attach(); } },{ label: 'Refresh', run: function () { c.draw(); load(); } }, { label: 'Delete Group…', danger: true, run: deleteGroup }]; } };
   }
 
-  window.dinahWorkbench.register('bus-room', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Group Chat', glyph: 'comments', statuses: true, init: initGroupWindow });
+  window.dinahWorkbench.register('bus-room', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, title: 'Group Chat', glyph: 'comments', statuses: true, init: initGroupWindow });
 
   /* ---- The picker of a group chat ----
      Every chat the window knows, by workspace, the workspace of the chat it
@@ -1379,7 +1381,7 @@
      reading "Untitled Chat in studio" cannot be told apart (decision 7). A
      new group is named, or takes its chats' titles as its name. The ticked
      chats and the name are the window's state, so its address keeps them. */
-  window.dinahWorkbench.register('group-picker', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Start a Group Chat', glyph: 'comments', init: function (root, opts, item) {
+  window.dinahWorkbench.register('group-picker', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, title: 'Start a Group Chat', glyph: 'comments', init: function (root, opts, item) {
     var spec = {};
     try { spec = JSON.parse(item.path || '{}') || {}; } catch (err) { spec = {}; }
     var adding = spec.group || '', from = spec.from || '', chosen = {}, name = '', filter = '', titling = '', disposed = false, active = 0;
@@ -1570,7 +1572,7 @@
     e.detail.placement = { mode: 'floating', x: 0.1, y: 0.04, w: 0.8, h: 0.9 };
   }, true);
 
-  window.dinahWorkbench.register('bus-thread', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'comments', workspace: false }, title: 'Thread', glyph: 'inbox', init: function (root, opts, item) {
+  window.dinahWorkbench.register('bus-thread', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, title: 'Thread', glyph: 'inbox', init: function (root, opts, item) {
     var id = Number(item.path);
     var box = composer({ label: 'Reply', draftKey: 'thread:' + id, send: function (text) { return Promise.resolve(app().BusReplyInThread(id, text)).then(function () { c.draw(true); }); } });
     box.restore();
