@@ -6,8 +6,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
+	"studio/internal/acp"
 	"studio/internal/bus"
 	"studio/internal/sessionhost"
 )
@@ -52,6 +55,9 @@ func TestRecoveryConflictKeepsLogicalRecipientAndDeliversOnlyItsQueue(t *testing
 			if err != nil {
 				t.Fatal(err)
 			}
+			if !a.turnIO().Close(3 * time.Second) {
+				t.Fatal("recovery's initial continuation did not finish")
+			}
 			if result.Session.ID == source || result.Session.ID == other || a.settings.BusSessions[result.Session.ID] != owner || a.settings.BusSessions[other] != otherOwner {
 				t.Fatal("recovery merged recipients or reused a native identity")
 			}
@@ -65,9 +71,42 @@ func TestRecoveryConflictKeepsLogicalRecipientAndDeliversOnlyItsQueue(t *testing
 				t.Fatal("historical source lost its committed recipient", route, err)
 			}
 			for _, call := range c.calls {
-				if call.method == "session/prompt" || call.method == "session/load" || call.method == "session/resume" {
-					t.Fatal("recovery submitted a turn or contacted a missing native session")
+				if call.method == "session/load" || call.method == "session/resume" {
+					t.Fatal("recovery contacted a missing native session")
 				}
+				if call.method == "session/prompt" && call.params.(acp.PromptParams).SessionID != result.Session.ID {
+					t.Fatal("continuation prompt went to a different native session")
+				}
+			}
+			got := prompts(c)
+			if len(got) != 1 || !strings.Contains(got[0], "A question for Original owner") || strings.Contains(got[0], "A question for Separate owner") {
+				t.Fatalf("initial continuation did not carry exactly the original owner's waiting message: %q", got)
+			}
+			tr, err := readTranscript(result.Session.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			deliveries := 0
+			for _, entry := range tr.Messages {
+				if entry.Delivered == nil {
+					continue
+				}
+				deliveries++
+				if entry.Delivered.ID == 0 || !strings.Contains(entry.Delivered.Prompt, "A question for Original owner") {
+					t.Fatal("saved delivery lost its stable message identity or submitted prompt")
+				}
+				if err := a.busHost().With(func(b *bus.Bus) error {
+					message, err := b.Message(context.Background(), entry.Delivered.ID)
+					if err == nil && message.Text != "A question for Original owner" {
+						t.Fatal("saved delivery points at another message")
+					}
+					return err
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if deliveries != 1 {
+				t.Fatalf("saved %d deliveries, want exactly the original message", deliveries)
 			}
 			after, _ := os.ReadFile(transcriptPath(source))
 			afterOther, _ := os.ReadFile(transcriptPath(other))
@@ -91,23 +130,15 @@ func TestRecoveryConflictKeepsLogicalRecipientAndDeliversOnlyItsQueue(t *testing
 				t.Fatal(records, err)
 			}
 			err = a.busHost().With(func(b *bus.Bus) error {
-				for id, want := range map[string]int{owner: 1, otherOwner: 1} {
-					n, _, err := b.Doorbell(context.Background(), id)
-					if err != nil {
-						return err
-					}
-					if n != want {
-						t.Fatalf("before delivery %s=%d", id, n)
-					}
-				}
-				a.busCoordinator().Ring(context.Background(), b, a.session(result.Session.ID))
+				// Recovery now submits its first prompt immediately. The original
+				// queue was included in that prompt, while the separate fork stays waiting.
 				for id, want := range map[string]int{owner: 0, otherOwner: 1} {
 					n, _, err := b.Doorbell(context.Background(), id)
 					if err != nil {
 						return err
 					}
 					if n != want {
-						t.Fatalf("after delivery %s=%d", id, n)
+						t.Fatalf("after recovery %s=%d", id, n)
 					}
 				}
 				return nil
@@ -136,6 +167,9 @@ func TestRecoveryModelChoiceIsConfirmedBeforeRecipientCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !a.turnIO().Close(3 * time.Second) {
+		t.Fatal("recovery prompt did not finish")
+	}
 	if a.settings.ChatTransfers[source].Model != "changed" || a.settings.BusSessions[r.Session.ID] != owner || a.settings.BusSessions[other] != otherOwner {
 		t.Fatal("model or ownership was not retained")
 	}
@@ -145,7 +179,16 @@ func TestRecoveryModelChoiceIsConfirmedBeforeRecipientCommit(t *testing.T) {
 			found = true
 		}
 	}
-	if !found || countCalls(c, "session/prompt") != 0 {
+	selectedBeforePrompt := false
+	for _, call := range c.calls {
+		if call.method == "session/set_config_option" && call.params.(acp.SetConfigOptionParams).ConfigID == "model" {
+			selectedBeforePrompt = true
+		}
+		if call.method == "session/prompt" && !selectedBeforePrompt {
+			t.Fatal("delivery preceded model selection")
+		}
+	}
+	if !found || !selectedBeforePrompt || countCalls(c, "session/prompt") != 1 {
 		t.Fatal("model was not selected before any delivery")
 	}
 }
