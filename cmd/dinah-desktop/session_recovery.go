@@ -56,6 +56,14 @@ func (a *App) RecoverSession(id, provider, revision string) (SessionContinuation
 
 func (a *App) finishRecovered(id string, result SessionContinuationResult, err error) (SessionContinuationResult, error) {
 	if err == nil {
+		// Recovery starts the saved conversation immediately. Waiting for the
+		// person's next message would leave another untouched allocation.
+		if sendErr := a.Send(result.Session.ID, "Continue the saved conversation and resume the user's pending task. Preserve its decisions and verify unfinished work before proceeding.", nil, nil); sendErr != nil {
+			return result, sendErr
+		}
+		if s := a.session(result.Session.ID); s != nil {
+			result.Session = s.InfoVersioned()
+		}
 		a.mu.Lock()
 		recipient := a.settings.BusSessions[result.Session.ID]
 		a.mu.Unlock()

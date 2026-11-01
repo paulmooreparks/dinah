@@ -18,8 +18,10 @@ import (
 
 // Settings are the person's choices that outlast a restart.
 type Settings struct {
-	RemovedChats  map[string]chatRemoval `json:"removedChats,omitempty"`
-	NewWindowMode string                 `json:"newWindowMode,omitempty"`
+	NativeSessions         map[string]nativeSessionRecord `json:"nativeSessions,omitempty"`
+	NativeRecoveryAttempts map[string]string              `json:"nativeRecoveryAttempts,omitempty"`
+	RemovedChats           map[string]chatRemoval         `json:"removedChats,omitempty"`
+	NewWindowMode          string                         `json:"newWindowMode,omitempty"`
 	// HostNotificationsOff turns off the operating system's notifications
 	// when an agent needs the person (host_notices.go), which are
 	// on unless it is set.

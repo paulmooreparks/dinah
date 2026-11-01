@@ -21,6 +21,7 @@ func (c *lifecycleChannel) Revoke()              { c.app.revokeAppletChannel(c.c
 func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 	a.sessionsOnce.Do(func() {
 		a.sessionsService = sessionhost.NewSessionLifecycle(&a.mu, &a.runtime, sessionhost.SessionLifecycleHost{
+			BeforeOpen: a.beforeNativeOpen, MissingSession: a.nativeSessionMissing,
 			NormalizeProvider: normalizedProvider, PrepareApplets: prepareProviderApplets, Live: func(provider string) (agentConnection, acp.InitializeResult, error) {
 				return a.lifecycle().Live(provider)
 			},

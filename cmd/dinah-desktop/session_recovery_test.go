@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) {
@@ -37,12 +38,15 @@ func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !a.turnIO().Close(3 * time.Second) {
+		t.Fatal("recovery prompt did not finish")
+	}
 	if result.Session.ID == tr.SessionID || result.ParentSessionID != tr.SessionID {
 		t.Fatalf("recovery reused the failed thread: %+v", result)
 	}
 	for _, call := range c.calls {
-		if call.method == "session/prompt" || call.method == "session/load" {
-			t.Fatal("recovery contacted the failed thread or ran a model turn")
+		if call.method == "session/load" || call.method == "session/resume" {
+			t.Fatal("recovery contacted the failed thread")
 		}
 	}
 	after, _ := os.ReadFile(transcriptPath(tr.SessionID))
@@ -52,7 +56,7 @@ func TestRecoveryPreservesUnsentContinuationAndCreatesFreshThread(t *testing.T) 
 	if head, err := a.ResolveSessionContinuation(tr.SessionID); err != nil || head != result.Session.ID {
 		t.Fatalf("the failed chat does not resolve to its recovery: %s %v", head, err)
 	}
-	if handoff, err := a.continuations().PendingContext(a.session(result.Session.ID)); err != nil || !strings.Contains(handoff, "The report is saved.") {
+	if handoff, err := a.continuations().PendingContext(a.session(result.Session.ID)); err != nil || handoff != "" {
 		t.Fatalf("recovery lost the reviewed context: %v", err)
 	}
 }

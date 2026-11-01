@@ -62,6 +62,8 @@ func (t *TurnIO) Close(limit time.Duration) bool {
 func NewTurnIO(host TurnHost) *TurnIO { return &TurnIO{host: host} }
 
 type TurnHost struct {
+	BeforeNativePrompt  func(*Conversation) error
+	AfterNativePrompt   func(*Conversation, error) error
 	LookupConversation  func(string) *Conversation
 	SessionConnection   func(*Conversation) Connection
 	HoldingTurns        func() error
@@ -511,7 +513,15 @@ func (t *TurnIO) Run(s *Conversation, next *Prompt) {
 					blocks = append(blocks, acp.ContentBlock{Type: "text", Text: marker})
 				}
 				if err == nil {
+					if t.host.BeforeNativePrompt != nil {
+						err = t.host.BeforeNativePrompt(s)
+					}
+				}
+				if err == nil {
 					err = t.host.Call(conn, "session/prompt", acp.PromptParams{SessionID: s.ID(), Prompt: blocks}, &res)
+					if t.host.AfterNativePrompt != nil {
+						err = errors.Join(err, t.host.AfterNativePrompt(s, err))
+					}
 				}
 				if err == nil {
 					t.host.ConsumeContinuationContext(s)
