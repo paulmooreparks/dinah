@@ -864,8 +864,8 @@
     function fileLimit() { var l = room && room.fileLimit; return l && l.limit > 0 ? { max: l.limit, reason: l.reason } : null; }
     var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit);
     box.canRead = function () { return lookupState === 'resolved' && ((!overviewFailure && !!group(key)) || checkedOverview === overviewVersion); };
-    var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button';
-    stopped.appendChild(node('span', 'toolbar-words', 'Jump to Where You Stopped'));
+    var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button'; stopped.title = 'Go to where you stopped reading';
+    stopped.appendChild(node('span', 'toolbar-words', 'Last Read'));
     var c = conversation(root, 'Everything said in the group appears here. The chats a message mentions are asked to answer it, and the other members are told that it was said.',
       function () { return Promise.resolve(app().BusGroupMessages(key)).then(function (ms) { markRead(); return ms; }); }, box, 'group:' + key, stopped);
     var draftChoices = node('div', 'group-draft-choices'), draftLabel = node('label', 'form-field');

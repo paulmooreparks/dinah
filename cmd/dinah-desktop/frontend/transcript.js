@@ -16,11 +16,15 @@
       var glyph = node('span', 'glyph'); glyph.style.setProperty('--glyph', 'var(--glyph-arrow-down)'); glyph.setAttribute('aria-hidden', 'true');
       jump.appendChild(glyph); wrap.appendChild(jump); log.appendChild(wrap);
     }
-    var stopped = o.stopped || node('button', 'btn btn-sm', 'Jump to Where You Stopped');
+    var stopped = o.stopped || node('button', 'btn btn-sm', 'Last Read');
+    if (!o.stopped) stopped.title = 'Go to where you stopped reading';
     var controls = o.stopped || node('div', 'transcript-unread-controls');
     stopped.type = 'button';
     if (!o.stopped) { controls.appendChild(stopped); log.before(controls); }
-    controls.hidden = true;
+    // A host that keeps the control in place itself, enabling it rather
+    // than hiding it, is told when it is offered.
+    function showStopped(shown) { if (o.stoppedChanged) o.stoppedChanged(shown); else controls.hidden = !shown; }
+    showStopped(false);
     var divider = node('p', 'transcript-unread-divider'); divider.setAttribute('role', 'status');
     var unreadGlyph = node('span', 'glyph'), unreadWords = node('span');
     unreadGlyph.style.setProperty('--glyph', 'var(--glyph-info)'); unreadGlyph.setAttribute('aria-hidden', 'true'); divider.append(unreadGlyph, unreadWords);
@@ -79,7 +83,7 @@
         if (unreadWords.textContent !== words) unreadWords.textContent = words;
         if (divider.nextElementSibling !== first.element) first.element.before(divider);
       } else if (divider.parentNode) divider.remove();
-      controls.hidden = !first;
+      showStopped(!!first);
       if (anchor && anchor.element.isConnected) {
         var shift = anchor.element.getBoundingClientRect().top - log.getBoundingClientRect().top - anchorTop;
         if (Math.abs(shift) > 0.5) { log.scrollTop += shift; }
@@ -171,7 +175,7 @@
     setFollowing(true); schedule();
     return {
       pause: function () { release(); setFollowing(false); },
-      resetMessages: function () { known.clear(); unseen.clear(); started = false; seenSignature = ''; divider.remove(); controls.hidden = true; },
+      resetMessages: function () { known.clear(); unseen.clear(); started = false; seenSignature = ''; divider.remove(); showStopped(false); },
       navigate: navigate, atEnd: atEnd, following: function () { return following; }, scroll: scroll, queueTail: queueTail, update: schedule,
       keep: function (run, deferTail) {
         if (!following) return window.dinahChatText.keepPlace(log, run);

@@ -47,7 +47,7 @@ const { launch } = require('./lib/page');
     await win.locator('.transcript-unread-divider').waitFor();
     ok('every new message is counted while the reader is scrolled back', await unseen() === 5);
     ok('blue side bars are absent', await win.locator('.bus-unseen').count() === 0);
-    await win.getByRole('button', { name: 'Jump to Where You Stopped', exact: true }).click();
+    await win.getByRole('button', { name: 'Last Read', exact: true }).click();
     console.log('after unread jump', JSON.stringify(await logGeometry(page)));
     await page.waitForFunction(() => {
       const divider = document.querySelector('.win[data-win-kind="bus-room"] .transcript-unread-divider');

@@ -8,6 +8,8 @@
     stuck: { word: 'Stuck', colour: 'danger', glyph: 'warning' },
     idle: { word: 'Idle', colour: '', glyph: 'ring' }
   };
+  // Every short word a labelled compact mark can show (badge).
+  var SHORT = ['Working', 'Waiting', 'Stuck', 'Idle', 'Closed', 'Retired', 'Elsewhere', 'Unknown'];
   var chats = new Map(), buses = new Map(), groups = new Map();
   function read(value) {
     value = value || {};
@@ -43,18 +45,18 @@
     value = aggregate ? counts(value) : read(value);
     var state = aggregate ? value.top : value.exec && value.exec.state;
     var life = value.life;
-    if (!aggregate && value.elsewhere) return { text: value.elsewhere, kind: '', cls: 'chat-state chat-lifecycle', label: value.elsewhere, glyph: '' };
-    if (!aggregate && (life === 'closed' || life === 'retired')) return { text: life === 'closed' ? 'Closed' : 'Retired', kind: '', cls: 'chat-state chat-lifecycle', label: life === 'closed' ? 'The session has ended' : 'The team member is retired', glyph: '' };
+    if (!aggregate && value.elsewhere) return { text: value.elsewhere, short: 'Elsewhere', kind: '', cls: 'chat-state chat-lifecycle', label: value.elsewhere, glyph: '' };
+    if (!aggregate && (life === 'closed' || life === 'retired')) return { text: life === 'closed' ? 'Closed' : 'Retired', short: life === 'closed' ? 'Closed' : 'Retired', kind: '', cls: 'chat-state chat-lifecycle', label: life === 'closed' ? 'The session has ended' : 'The team member is retired', glyph: '' };
     var spec = mapping[state], why = !aggregate && value.exec && value.exec.why || '', words = spec ? spec.word : '';
     if (aggregate) {
       var totals = value.counts || value;
       var parts = ['stuck', 'waiting', 'working', 'idle', 'unknown', 'closed'].filter(function (name) { return totals[name] > 0; }).map(function (name) { return totals[name] + ' ' + (name === 'unknown' ? 'running elsewhere' : name); });
       words = parts.length ? parts.join(', ') : words;
-      if (!spec && words) return { text: words, kind: '', cls: 'chat-state chat-lifecycle', label: words, glyph: '' };
+      if (!spec && words) return { text: words, short: totals.unknown ? 'Elsewhere' : 'Closed', kind: '', cls: 'chat-state chat-lifecycle', label: words, glyph: '' };
       if (!totals.stuck && !totals.waiting && !totals.working && !totals.idle && totals.closed) words = spec.word + ' (' + words + ')';
     } else if (why && options.reason !== false && (state === 'waiting' || state === 'stuck')) words += ' (' + why + ')';
-    if (!spec) return { text: 'Unknown', kind: '', cls: 'chat-state chat-state-unknown', label: 'The engine has not supplied an execution state', glyph: '' };
-    return { state: state, text: words, kind: spec.colour, glyph: spec.glyph, cls: 'chat-state chat-state-' + state, label: aggregate ? spec.word + ': ' + words : spec.word + (why ? ': ' + why : '') };
+    if (!spec) return { text: 'Unknown', short: 'Unknown', kind: '', cls: 'chat-state chat-state-unknown', label: 'The engine has not supplied an execution state', glyph: '' };
+    return { state: state, text: words, short: spec.word, kind: spec.colour, glyph: spec.glyph, cls: 'chat-state chat-state-' + state, label: aggregate ? spec.word + ': ' + words : spec.word + (why ? ': ' + why : '') };
   }
   function describe(value, options) {
     var spec = describeState(value, options);
@@ -66,8 +68,16 @@
     if (options && options.className) el.classList.add(options.className);
     if (options && options.compact) {
       el.classList.add('chat-state-compact');
-      var words = document.createElement('span'); words.className = 'chat-state-words'; words.textContent = spec.glyph ? '' : spec.text;
+      var words = document.createElement('span'); words.className = 'chat-state-words'; words.textContent = spec.glyph && !options.labelled ? '' : options.labelled ? spec.short : spec.text;
       el.replaceChildren(words);
+      /* A labelled compact mark, as a chat list draws it, gives every state
+         its short word. Hidden copies of every short word share its cell, so
+         the mark is always as wide as the widest of them in the page's own
+         type, and a row never moves when its state changes. */
+      if (options.labelled) {
+        el.classList.add('chat-state-labelled');
+        SHORT.forEach(function (word) { var r = document.createElement('span'); r.className = 'chat-state-reserve'; r.setAttribute('aria-hidden', 'true'); r.textContent = word; el.appendChild(r); });
+      }
     }
     return el;
   }

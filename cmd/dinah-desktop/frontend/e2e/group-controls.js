@@ -18,7 +18,7 @@ const choices=JSON.parse(fs.readFileSync(path.join(FRONTEND,'pudl/pudl-skins.jso
  }});
  const {page:p,ok}=t,records=[];
  try{
-  await p.evaluate(()=>dinahAppearance.ready);const key=await p.evaluate(()=>dinahWorkbench.open({kind:'bus-room',path:'controls'}));const win=p.locator('[data-win="'+key+'"]'),log=win.locator('.bus-log'),jump=win.getByRole('button',{name:'Jump to Where You Stopped',exact:true});
+  await p.evaluate(()=>dinahAppearance.ready);const key=await p.evaluate(()=>dinahWorkbench.open({kind:'bus-room',path:'controls'}));const win=p.locator('[data-win="'+key+'"]'),log=win.locator('.bus-log'),jump=win.getByRole('button',{name:'Last Read',exact:true});
   await win.locator('[data-bus-message="12"]').waitFor({state:'attached'});
   const end=()=>p.waitForFunction(key=>{const log=document.querySelector('[data-win="'+key+'"] .bus-log');return log.dataset.following==='true'&&log.scrollHeight-log.scrollTop-log.clientHeight<24;},key);
   const geometry=()=>win.evaluate(win=>{
@@ -36,7 +36,7 @@ const choices=JSON.parse(fs.readFileSync(path.join(FRONTEND,'pudl/pudl-skins.jso
      if(shown){await log.focus();await p.keyboard.press('Control+Home');await p.waitForFunction(key=>document.querySelector('[data-win="'+key+'"] .bus-log').scrollTop<2,key);const count=await win.locator('.bus-message').count();await p.evaluate(()=>__appendReports(4));await p.waitForFunction(({key,count})=>document.querySelectorAll('[data-win="'+key+'"] .bus-message').length===count+4,{key,count});await jump.waitFor();}
      const composer=win.locator('.group-composer'),input=composer.locator('textarea');await input.fill('Draft');const before=await composer.boundingBox();await input.fill('Draft text');const after=await composer.boundingBox();ok('typing preserves composer geometry '+skin.id+' '+mode+' '+width,Math.abs(before.y-after.y)<1&&Math.abs(before.height-after.height)<1&&await composer.locator('.group-notice-note').count()===0);await input.fill('');
      const data=await geometry(),label=[skin.id,mode,motion,width,collapsed?'collapsed':'expanded',shown?'shown':'hidden'].join('-');records.push({label,...data});
-     ok(label+' has the ordered controls and explicit recipient action',data.controls.length===5&&/^Members/.test(data.controls[0].text)&&data.controls[1].text==='Add Chats…'&&data.controls[2].text==='Turn Budget…'&&data.controls[3].text==='Jump to Where You Stopped'&&data.controls[3].hidden!==shown&&data.controls[4].text==='Mention Everyone'&&!data.extraRow);
+     ok(label+' has the ordered controls and explicit recipient action',data.controls.length===5&&/^Members/.test(data.controls[0].text)&&data.controls[1].text==='Add Chats…'&&data.controls[2].text==='Turn Budget…'&&data.controls[3].text==='Last Read'&&data.controls[3].hidden!==shown&&data.controls[4].text==='Mention Everyone'&&!data.extraRow);
      ok(label+' keeps title status without a duplicate body pill',!data.bodyAggregate&&data.titleStatus?.includes('Idle')&&await win.locator('[data-group-member="member"] .member-state').getAttribute('aria-label')!==null);
      ok(label+' separates the complete controls/member area from the transcript',data.separator.y>=data.shell.bottom-1&&data.log.y>=data.separator.bottom-1&&data.separatorPaint.style==='solid'&&data.separatorPaint.width>=1&&data.separatorPaint.color!=='rgba(0, 0, 0, 0)');
      ok(label+' wraps controls without horizontal overflow',await win.locator('.group-toolbar').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
