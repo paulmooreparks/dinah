@@ -2,9 +2,48 @@ package main
 
 import (
 	"context"
+	"strings"
 
 	"studio/internal/bus"
 )
+
+// inboxMessage keeps captured aliases out of the readable chat-name heading.
+func (a *App) inboxMessage(m bus.Message) BusMessage {
+	out := busMessage(m)
+	if out.FromPerson {
+		return out
+	}
+	out.From = strings.TrimSpace(m.FromTitle)
+	if out.From != "" || m.FromSession == "" {
+		return out
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for native, recipient := range a.settings.BusSessions {
+		if recipient != m.FromSession {
+			continue
+		}
+		title := strings.TrimSpace(a.settings.SessionTitles[native])
+		if title == "" {
+			continue
+		}
+		if out.From != "" && out.From != title {
+			// Conflicting saved owners do not authorize choosing one by map order.
+			out.From = ""
+			return out
+		}
+		out.From = title
+	}
+	return out
+}
+
+func (a *App) inboxMessages(ms []bus.Message) []BusMessage {
+	out := make([]BusMessage, 0, len(ms))
+	for _, m := range ms {
+		out = append(out, a.inboxMessage(m))
+	}
+	return out
+}
 
 type BusInboxResult struct {
 	Items      []BusMessage `json:"items"`
@@ -17,7 +56,7 @@ func (a *App) BusInboxPage(view string, before int64) (BusInboxResult, error) {
 	var out BusInboxResult
 	err := a.busHost().With(func(b *bus.Bus) error {
 		page, err := b.HumanInboxPage(context.Background(), view, before, busInboxLimit)
-		out = BusInboxResult{Items: busMessages(page.Items), Unread: page.Unread, NextBefore: page.NextBefore, Newest: page.Newest}
+		out = BusInboxResult{Items: a.inboxMessages(page.Items), Unread: page.Unread, NextBefore: page.NextBefore, Newest: page.Newest}
 		return err
 	})
 	return out, err
@@ -27,7 +66,7 @@ func (a *App) BusInboxMessage(id int64) (BusMessage, error) {
 	var out BusMessage
 	err := a.busHost().With(func(b *bus.Bus) error {
 		m, err := b.HumanInboxMessage(context.Background(), id)
-		out = busMessage(m)
+		out = a.inboxMessage(m)
 		return err
 	})
 	return out, err
