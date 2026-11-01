@@ -88,8 +88,18 @@
   // state chip (badge).
   var RESERVES = SHORT.map(function (word) {
     var state = Object.keys(mapping).filter(function (k) { return shortOf(mapping[k]) === word; })[0];
-    return { text: word, glyph: state ? mapping[state].glyph : '', cls: 'chat-state ' + (state ? 'chat-state-' + state : word === 'Unknown' ? 'chat-state-unknown' : 'chat-lifecycle') + ' chat-state-reserve' };
+    return { text: word, pudl: state ? mapping[state].pudl || state : '', cls: 'chat-state ' + (state ? 'chat-state-' + state : word === 'Unknown' ? 'chat-state-unknown' : 'chat-lifecycle') + ' chat-state-reserve' };
   });
+  /* A chip with an execution state is PUDL's execution-state badge (0.96.4):
+     data-state gives it the state's glyph and colour, the ones the taskbar's
+     stack rows draw, and the words are Dinah's. Background work is PUDL's
+     working state with its own words. A lifecycle word has no state and
+     stays a plain badge. */
+  function chip(spec, text) {
+    var el = window.dinahBrowserList.badge({ text: text, cls: spec.cls, label: spec.label, chip: false });
+    if (spec.pudl) el.dataset.state = spec.pudl;
+    return el;
+  }
   function badge(value, options) {
     var spec = describe(value, options);
     /* A chat list draws the standard chip with the state's short word, as
@@ -97,15 +107,14 @@
        slot that hidden copies of every state's chip size to the widest, so
        the row never moves when the state changes. */
     if (options && options.labelled) {
-      var chip = window.dinahBrowserList.badge(Object.assign({}, spec, { text: spec.short }));
       var slot = document.createElement('span'); slot.className = 'chat-state-slot' + (options.className ? ' ' + options.className : '');
-      slot.appendChild(chip);
-      RESERVES.forEach(function (r) { var copy = window.dinahBrowserList.badge(r); copy.setAttribute('aria-hidden', 'true'); copy.removeAttribute('title'); slot.appendChild(copy); });
+      slot.appendChild(chip(spec, spec.short));
+      RESERVES.forEach(function (r) { var copy = chip(r, r.text); copy.setAttribute('aria-hidden', 'true'); copy.removeAttribute('title'); slot.appendChild(copy); });
       return slot;
     }
     // options.short draws the state's short word, for a fixed-width chip
     // such as a title bar's; its name keeps the full words.
-    var el = window.dinahBrowserList.badge(options && options.short ? Object.assign({}, spec, { text: spec.short }) : spec);
+    var el = chip(spec, options && options.short ? spec.short : spec.text);
     if (options && options.className) el.classList.add(options.className);
     if (options && options.compact) {
       el.classList.add('chat-state-compact');

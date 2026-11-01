@@ -338,9 +338,7 @@ body:not(.show-thoughts) .thought-row { display: none; }
 /* A popup attached to the page's body takes the body's text size unless it
    sets its own, which made its rows larger than the controls that open them.
    A menu's note is secondary text under the menu's actions; PUDL's taskbar
-   stack list takes the size of a menu's rows. Both follow PUDL's text tokens,
-   so they scale with the interface text setting. */
-.win-stack-panel { font-size: var(--text-sm); }
+   stack list sets the size of a menu's rows itself (0.96.4). */
 /* A stack row's title takes the whole row between its glyph and its close
    button, on one line, ending in an ellipsis as a window's title does. A
    detail that says something the stack button does not follows it in the

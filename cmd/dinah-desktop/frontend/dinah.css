@@ -105,8 +105,9 @@
 /* Every badge leads with a glyph. PUDL gives the four status kinds theirs
    and leaves the plain badge bare; here the plain badge, which marks a
    neutral state such as an agent that is off, takes PUDL's circle drawn
-   small. It is not the ring, which marks work in progress. */
-.badge:not(.warn, .danger, .positive, .pr, .accent)::before {
+   small. It is not the ring, which marks work in progress. An
+   execution-state badge (data-state, PUDL 0.96.4) has its state's glyph. */
+.badge:not(.warn, .danger, .positive, .pr, .accent, [data-state])::before {
   content: ""; --glyph: var(--glyph-circle);
   -webkit-mask-size: 60%; mask-size: 60%;
 }

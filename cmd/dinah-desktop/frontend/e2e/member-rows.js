@@ -29,9 +29,10 @@ const { launch } = require('./lib/page');
   const measure = sel => p.evaluate(sel => {
     const panel = document.querySelector(sel), pr = panel.getBoundingClientRect();
     return [...panel.querySelectorAll('.win-stack-row, .member-row')].filter(r => r.getClientRects().length).map(r => {
-      const name = r.querySelector('.win-item-title, .member-name'), glyph = r.querySelector('.win-item-glyph, .member-glyph'), action = r.querySelector('.win-stack-close, .member-menu-btn'), chip = r.querySelector('.badge.chat-state:not(.chat-state-reserve)');
+      const name = r.querySelector('.win-item-title, .member-name'), glyph = r.querySelector('.win-item-glyph, .member-glyph'), action = r.querySelector('.win-stack-close, .member-menu-btn'), chip = r.querySelector('.badge.chat-state:not(.chat-state-reserve), .win-state.badge');
       return { name: name.textContent.trim(), font: getComputedStyle(name).fontSize, glyph: glyph ? glyph.style.getPropertyValue('--glyph').trim() : '', gap: glyph ? Math.round(name.getBoundingClientRect().left - glyph.getBoundingClientRect().right) : null,
-        inset: action ? Math.round(pr.right - action.getBoundingClientRect().right) : null, chip: chip ? chip.textContent.trim() + '|' + chip.className : '' };
+        inset: action ? Math.round(pr.right - action.getBoundingClientRect().right) : null, chip: chip ? chip.textContent.trim() + '|' + chip.className : '',
+        height: Math.round(r.getBoundingClientRect().height), look: chip && chip.dataset.state ? [chip.dataset.state, getComputedStyle(chip).color, getComputedStyle(chip).backgroundColor, getComputedStyle(chip).fontSize, getComputedStyle(chip).fontWeight, getComputedStyle(chip).borderRadius, (g => g === getComputedStyle(document.documentElement).getPropertyValue('--glyph-play').trim() ? 'play' : g === getComputedStyle(document.documentElement).getPropertyValue('--glyph-square').trim() ? 'square' : 'other')(getComputedStyle(chip, '::before').getPropertyValue('--glyph').trim()), getComputedStyle(chip, '::before').width, getComputedStyle(chip, '::before').maskSize || getComputedStyle(chip, '::before').webkitMaskSize].join(' ; ') : '' };
     });
   }, sel);
   try {
@@ -63,6 +64,9 @@ const { launch } = require('./lib/page');
     const g = await measure(groupPanel);
     ok('group Members: each row has the chat glyph 8px before the name, as the taskbar rows do', g.length === 3 && g.every(r => /--glyph-comments/.test(r.glyph) && r.gap === stack[0].gap), JSON.stringify({ g, stackGap: stack[0].gap }));
     ok('group Members: the same type size and trailing inset as the taskbar rows', g.every(r => r.font === stack[0].font && r.inset === stack[0].inset), JSON.stringify({ g, stack: stack[0] }));
+    const sameChip = (a, b) => a.look && a.look === b.look;
+    const byName = (rows, n) => rows.find(r => r.name === n);
+    ok('the taskbar rows and group Members draw the same PUDL state chip for each state, with its play or square glyph, and rows of the same height', ['Alpha', 'Beta', 'Team Lead'].every(n => sameChip(byName(stack, n), byName(g, n)) && / ; (play|square) ; /.test(byName(g, n).look) && byName(stack, n).height === byName(g, n).height), JSON.stringify({ stack: stack.map(r => [r.name, r.look, r.height]), g: g.map(r => [r.name, r.look, r.height]) }));
     ok('group Members: the standard chips, Background included', /^Working\|/.test(g[1].chip) && /^Background\|.*chat-state-background/.test(g[2].chip), JSON.stringify(g.map(r => r.chip)));
     await t.shot('rows-group', { clip: await p.locator(groupPanel).boundingBox() });
     await p.locator(groupPanel + ' [data-group-member="bus-alpha"] .member-menu-btn').click();
@@ -76,6 +80,7 @@ const { launch } = require('./lib/page');
     const leadPanel = '.members-menu:popover-open';
     await p.locator(leadPanel).waitFor();
     const l = await measure(leadPanel);
+    ok('lead Members: the same PUDL state chip as the taskbar rows', ['Alpha', 'Beta'].every(n => sameChip(byName(stack, n), byName(l, n))), JSON.stringify(l.map(r => [r.name, r.look])));
     ok('lead Members: each row has the chat glyph 8px before the name and the standard chip', l.length === 2 && l.every(r => /--glyph-comments/.test(r.glyph) && r.gap === stack[0].gap && r.font === stack[0].font) && /^Background\|/.test(l[1].chip), JSON.stringify(l));
     await t.shot('rows-lead', { clip: await p.locator(leadPanel).boundingBox() });
     const opened = await p.evaluate(() => { const b = document.querySelector('.members-menu:popover-open .member-open'); b.focus(); return document.activeElement === b && !document.querySelector('.members-menu:popover-open .member-menu-btn'); });

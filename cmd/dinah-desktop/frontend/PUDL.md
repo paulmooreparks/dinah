@@ -1,6 +1,6 @@
 # PUDL Distribution
 
-The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.96.2](https://github.com/paulmooreparks/pudl/releases/tag/v0.96.2), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
+The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.96.4](https://github.com/paulmooreparks/pudl/releases/tag/v0.96.4), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
 
 To update PUDL, replace both folders whole with the new release's `dist/`, write its version into `VERSION`, and run the Go tests and the browser suites in `e2e/`. Changes to PUDL itself go to Paul as a proposal first; publishing a release of PUDL needs his say-so.
 
@@ -24,3 +24,4 @@ Dinah depends on these parts of PUDL's behaviour:
 - Of the glyphs 0.92.0 adds, the diff window uses `compare` and the Files window's Upload Files uses `upload`; a package's update notification uses `download`, which now also means bringing something here from elsewhere. The Subagents windows use `branch` for a subagent beneath its chat, which is still its meaning; Dinah has no version-control branch.
 
 Desktop enables `data-win-dock-splits` with shared tabs on all four edges. PUDL owns split placement, tab menus and `ds.<edge>` URL state. The workbench regression exercises split creation and URL serialization at each edge. The bus page does not enable shared docks.
+- A chat's state chip is PUDL's execution-state badge, a `.badge` with `data-state` (0.96.4), the chip a taskbar stack's rows draw, so the Members dropdowns, the Chats lists and the stack rows show one chip. Background work is the working state with Dinah's words. A lifecycle word, such as Closed or Elsewhere, has no state and is a plain muted badge (`chat-state.js`, `chat-state.css`).
