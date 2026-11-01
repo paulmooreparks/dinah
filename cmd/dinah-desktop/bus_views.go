@@ -257,7 +257,7 @@ func (a *App) BusOverview() (BusOverview, error) {
 		if err != nil {
 			return err
 		}
-		out.Inbox = busMessages(inbox.Items)
+		out.Inbox = a.inboxMessages(inbox.Items)
 		out.Unread = inbox.Unread
 		rooms, err := b.Rooms(ctx)
 		if err != nil {

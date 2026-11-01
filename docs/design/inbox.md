@@ -1,5 +1,13 @@
 # Useful Inbox
 
+## Chat names in Inbox rows
+
+The 2 November presentation correction supersedes the earlier message-first layout. Each row leads with the sending chat's readable name, followed by the original message preview, then useful group, workspace and date context. Exact-message navigation and historical message text stay unchanged.
+
+Inbox `from` resolves through the stable `fromSession` identity to the current bus session title. Closed sessions retain that title. If the bus title is unavailable, an exact saved bus-recipient mapping can supply the saved chat title. Captured sender aliases and message text never establish identity. If no trustworthy title exists, the backend sends an empty `from` and retains `fromSession`; the page displays "A chat that is no longer available" and exposes the raw sender ID only in optional diagnostics. Overview, paged Inbox and exact item lookup use the same resolution. Front End owns presentation and the integrated Release handoff; Engine owns this narrow backend correction.
+
+The focused backend check `pwsh -NoProfile -File scripts/go-gate.ps1 ./cmd/dinah-desktop -run TestInboxSenderTitlesFollowStableIdentity -count=1` passed in 0.414 seconds. It verifies current names, renamed closed sessions, historical messages after their bus session disappears, exact saved recipient/title fallback, conflicting saved owners and unavailable names across Overview, InboxPage and exact lookup. The message retains its original body containing an old address and stays unread throughout. Front End separately passed its fourteen Inbox presentation checks and inspected the rendered pane on `2d082fe`; it owns the combined handoff.
+
 The Inbox defaults to unread, undismissed messages addressed to the person. Its badge reports the full unread, undismissed count, including items beyond the first page. Read and Dismissed views provide explicit history access; All includes both. A zero unread count stays zero. Reading or dismissing an item records no answer, approval or agent delivery acknowledgement.
 
 Each preview opens and highlights its own stable message ID. A group item opens its group with that ID as the target, suppressing the normal blanket group-read operation. A direct item opens `BusThread(id)` rooted at the selected message, regardless of `replyTo`. Desktop replies retain that displayed root so a sent reply remains visible on refresh. Other bus callers retain their existing parent-thread reply behavior. The page marks only that item read after its target row has been drawn and highlighted. Failed lookup or rendering leaves it unread. Updates preserve the selected target and scroll position.
