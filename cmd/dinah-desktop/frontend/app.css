@@ -689,7 +689,9 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
   .composer-actions > .btn { flex: none; }
 }
 
-.composer-scroll { display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; overflow: auto; }
+/* Keep PUDL's outer focus ring inside the scrolling clip. The negative
+   margin offsets the padding, preserving the controls' positions and sizes. */
+.composer-scroll { --composer-focus-space: var(--focus-ring-width, 3px); display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; overflow: auto; padding: var(--composer-focus-space); margin: calc(-1 * var(--composer-focus-space)); }
 .composer > .slash-pop { left: var(--space-5); right: var(--space-5); }
 
 /* Dinah folds its own tray items before they crowd the taskbar. */

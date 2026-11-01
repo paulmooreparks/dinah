@@ -1,0 +1,17 @@
+# Composer focus rectangle
+
+Lead message 3019 assigns this fix to Engine after delivery of the companion themes. Release 3023 installed those themes at 7616cf170913d126d09aca208d6834874d9836c8. This branch starts from that released commit. Front End confirmed composer-file ownership in 3024 and retains the browser slot for its bounded PUDL menu work, with direct handoff to Engine afterwards.
+
+## Source comparison and correction
+
+The reference application and Dinah both use PUDL's form-textarea focus rule, which keeps the entry shadow and adds an outer focus ring at the skin's focus-ring-width (Gel uses two pixels; the fallback is three). Their composer inputs use the same form-textarea and composer-input classes. The ring's radius comes from the skin's standard input styling. the reference application's composer has no clipping ancestor around that input. Dinah's shared composer layout inserts composer-scroll with overflow auto; the last row lies directly against its clipping edge. This can cut off the outside ring, particularly along the bottom, without changing the textarea's own shadow definition.
+
+The correction gives the scroll wrapper padding equal to the existing focus-ring-width token, with its existing three-pixel fallback, and an equal negative margin. The scroll clip expands around the existing controls while their positions and dimensions stay fixed. PUDL's input border, radius, focus shadow and forced-color styling remain untouched. Completion lists remain outside the scroll wrapper; resizing, attachments and keyboard input use the existing code. The shared wrapper covers ordinary, group and thread composers.
+
+## Focused verification plan
+
+The prepared browser check covers matched Gel styling, light/dark, with and without a real attachment chip. It measures each clipping ancestor around the focused textarea, checks focus causes no composer geometry change, captures screenshots, and checks content-driven growth and keyboard editing. An optional DINAH_REFERENCE_FRONTEND fixture source loads actual reference styles into an isolated reference frame and compares the focused input's shadow, radius and outline at the same skin, mode and device scale. The same run briefly removes the new padding and margin to retain the original clipping reproduction, then restores the fix for the four light/dark and attachment cases. Standard and other-skin regression coverage belongs to the batch-end pass under message 3028.
+
+Front End handed over the slot in 3035. The focused check passed all four cases in four seconds, with no page errors and an empty failures file. Actual reference styles were loaded from the local working integration into an isolated reference frame. The focused box shadow, radius and outline match in all four cases. No clipping ancestor cuts the corrected ring; focus leaves composer and textarea geometry unchanged. Attachment add/remove, content-driven resize and keyboard editing pass. The original clipping screenshot and corrected light/dark screenshots were inspected.
+
+The first check completed the four cases but hit a ReferenceError in duplicated fixture code after the loop. That fixture-only error was removed and the same focused check was rerun successfully. Both runs remain under .diagnostics. No product code changed between those runs, and no timeout or assertion was relaxed. The source passes node syntax and git diff --check. Release owns the necessary installation build and publication; no broad regression, repeated behavior suite or serial Quality gate is requested.
