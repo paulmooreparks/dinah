@@ -187,12 +187,16 @@ func TestThePaneShowsAndAnswersAThread(t *testing.T) {
 		t.Fatalf("the answer is from %q (%q)", o.Inbox[0].From, o.Inbox[0].FromSession)
 	}
 	thread, err := a.BusThread(o.Inbox[0].ID)
-	if err != nil || len(thread) != 2 || thread[0].ID != ask.ID {
+	if err != nil || len(thread) != 1 || thread[0].ID != o.Inbox[0].ID {
 		t.Fatalf("the thread is wrong: %+v %v", thread, err)
 	}
 	reply, err := a.BusReplyInThread(o.Inbox[0].ID, "Tell me when it is.")
-	if err != nil || reply.To != me.Display() || reply.ReplyTo != ask.ID {
+	if err != nil || reply.To != me.Display() || reply.ReplyTo != o.Inbox[0].ID {
 		t.Fatalf("the reply is wrong: %+v %v", reply, err)
+	}
+	thread, err = a.BusThread(o.Inbox[0].ID)
+	if err != nil || len(thread) != 2 || thread[1].ID != reply.ID {
+		t.Fatalf("the sent reply disappeared from the selected conversation: %+v %v", thread, err)
 	}
 	if err := a.MarkBusInboxRead(); err != nil {
 		t.Fatal(err)

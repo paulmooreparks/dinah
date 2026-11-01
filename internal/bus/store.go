@@ -252,6 +252,7 @@ func OpenAt(path string) (*Bus, error) {
 // columns added since the first release, which CREATE TABLE IF NOT EXISTS
 // does not add to a database made before them.
 var added = []struct{ table, column, decl string }{
+	{"deliveries", "inbox_dismissed_at", "TEXT"},
 	{"sessions", "removed_at", "TEXT"},
 	{"deliveries", "cancelled_at", "TEXT"},
 	{"deliveries", "cancel_reason", "TEXT NOT NULL DEFAULT ''"},

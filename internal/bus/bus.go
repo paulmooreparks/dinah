@@ -113,6 +113,7 @@ type Message struct {
 	Verdict     string // for a verdict
 	Attachments []Attachment
 	Unread      bool // for the person's inbox
+	Dismissed   bool // for the person's inbox; independent of read state
 	// Trusted is set on a message delivered to a session across a trusted
 	// link, so the agent may act on it as on Paul's request (links.go).
 	Trusted bool
@@ -518,6 +519,15 @@ func (b *Bus) sendRouted(ctx context.Context, from Sender, to, text string, atts
 // rule as a reply (replyTarget), and it joins the thread, so a thread that
 // began with the sender's own message stays one conversation.
 func (b *Bus) ReplyInThread(ctx context.Context, from Sender, root int64, text string) (Message, error) {
+	return b.replyInThread(ctx, from, root, text, true)
+}
+
+// ReplyToSelectedThread keeps the displayed message as the conversation root.
+func (b *Bus) ReplyToSelectedThread(ctx context.Context, from Sender, root int64, text string) (Message, error) {
+	return b.replyInThread(ctx, from, root, text, false)
+}
+
+func (b *Bus) replyInThread(ctx context.Context, from Sender, root int64, text string, useParent bool) (Message, error) {
 	if strings.TrimSpace(text) == "" {
 		return Message{}, errors.New("the message is empty")
 	}
@@ -529,7 +539,7 @@ func (b *Bus) ReplyInThread(ctx context.Context, from Sender, root int64, text s
 		} else if err != nil {
 			return err
 		}
-		if parent != 0 {
+		if parent != 0 && useParent {
 			root = parent
 		}
 		// Whoever spoke is told apart by session, or for the person, by the
