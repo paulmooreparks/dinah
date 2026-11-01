@@ -561,17 +561,22 @@
         inboxSection.body.appendChild(list.empty({ title: emptyWords[0], body: emptyWords[1] }));
       }
       inboxState.items.forEach(function (m) {
-        var where = m.from + (m.fromWorkspace && m.fromWorkspace !== m.from ? ' (' + m.fromWorkspace + ')' : '') + (m.room ? ' in ' + (m.roomTitle || m.room) : ' to you');
+        /* A row leads with the chat that sent it, by its title as the bus
+           gives it now (BusMessage.from), then the message's first line, then
+           where and when. A sender with no title left is said plainly; its
+           id is only in the tooltip (docs/design/inbox.md). */
+        var sender = m.fromPerson ? 'You' : (m.from || '').trim() || 'A chat that is no longer available';
+        var context = [m.room ? 'In ' + (m.roomTitle || m.room) : 'To you', m.fromWorkspace && m.fromWorkspace !== m.from ? m.fromWorkspace : '', when(m.createdAt)].filter(Boolean).join(' · ');
         var row = list.row({
-          title: firstLine(m.text) || (m.kind === 'release' ? 'Release ' + m.version : 'Message'), meta: [where, when(m.createdAt)],
+          title: sender, meta: [firstLine(m.text) || (m.kind === 'release' ? 'Release ' + m.version : ''), context],
           badge: m.dismissed ? { text: 'Dismissed', chip: true } : m.unread ? { text: 'New', kind: 'accent', label: 'Not read yet' } : null,
-          tooltip: m.text, data: { busMessage: String(m.id) },
+          tooltip: (m.from ? '' : 'Sender ' + (m.fromSession || 'unknown') + '\n') + m.text, data: { busMessage: String(m.id) },
           onOpen: function () { openInboxItem(m); }
         });
         row.classList.add('bus-inbox-row');
         if (!m.dismissed && app().BusDismissInbox) {
           var dismiss = node('button', 'icon-btn bus-inbox-dismiss'); dismiss.type = 'button';
-          dismiss.setAttribute('aria-label', 'Dismiss: ' + (firstLine(m.text) || 'message')); dismiss.title = 'Dismiss from the inbox';
+          dismiss.setAttribute('aria-label', 'Dismiss the message from ' + sender); dismiss.title = 'Dismiss from the inbox';
           dismiss.innerHTML = '<span class="glyph" aria-hidden="true" style="--glyph: var(--glyph-close)"></span>';
           dismiss.addEventListener('click', function () {
             dismiss.disabled = true;

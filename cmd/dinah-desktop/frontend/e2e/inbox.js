@@ -1,5 +1,5 @@
 // The Inbox (docs/design/inbox.md). It shows unread messages by default,
-// counting every unread one; each row leads with its message. Opening one
+// counting every unread one; each row leads with the sending chat by name. Opening one
 // shows that exact message, highlighted, in its group (loading the group
 // from before it when it is older than the newest messages) or in a thread
 // that starts with it, and marks that one message read once it is shown,
@@ -17,7 +17,11 @@ const { launch, PAGE } = require('./lib/page');
   for (let i = 1; i <= 30; i++) add({ from: 'Engine', room: 'team-a', roomTitle: 'Team A', text: i === 4 ? '@Paul the old schema question is still open.' : 'Group note ' + i + '.', inbox: i === 4 });
   const direct = add({ from: 'Release', fromWorkspace: 'studio', to: 'Paul', text: 'Install finished.', inbox: true });
   const reply = add({ from: 'Quality', fromWorkspace: 'studio', to: 'Paul', text: 'Re: the checks, all passed.', replyTo: direct.id, inbox: true });
-  for (let i = 1; i <= 4; i++) add({ from: 'Front End', to: 'Paul', text: 'Status ' + i + ' for you.', inbox: true });
+  for (let i = 1; i <= 2; i++) add({ from: 'Front End', fromSession: 'fe-1', to: 'Paul', text: 'Status ' + i + ' for you.', inbox: true });
+  // A sender gone from the bus, with no title left: the backend sends no name.
+  add({ from: '', fromSession: 'yavchn-1', to: 'Paul', text: 'Status 3 for you.', inbox: true });
+  // A renamed chat: its title as it is now, its old address only in its words.
+  add({ from: 'XferLang Reboot', fromSession: 'xfer-1', fromWorkspace: 'xferlang', to: 'Paul', text: 'From xfer-1: Status 4 for you.', inbox: true });
   const state = { read: new Set(), dismissed: new Set(), calls: [] };
   const inbox = () => all.filter(m => m.inbox).sort((a, b) => b.id - a.id);
   const view = (m) => Object.assign({}, m, { unread: !state.read.has(m.id), dismissed: state.dismissed.has(m.id) });
@@ -67,7 +71,11 @@ const { launch, PAGE } = require('./lib/page');
     const header = async () => (await pane.innerText()).split('\n').slice(0, 3).join(' ');
     let first = await rows().first().innerText();
     ok('by default the inbox shows unread messages, its count every unread one (7), beyond the page shown', (await rows().count()) === 3 && /\b7\b/.test(await header()), JSON.stringify({ header: await header(), n: await rows().count() }));
-    ok('a row leads with its message, then who sent it, where and when', /^Status 4 for you\./.test(first) && /Front End to you/.test(first), first);
+    ok('a row leads with the sending chat\'s name, then its message, then where and when', /^XferLang Reboot\n/.test(first) && /From xfer-1: Status 4 for you\./.test(first) && /To you · xferlang · /.test(first), first);
+    await t.shot('inbox-names');
+    const gone = rows().filter({ hasText: 'Status 3 for you' });
+    const goneText = await gone.innerText(), goneTip = await gone.locator('.md-item').getAttribute('title');
+    ok('a sender with no title left is said plainly, its id only in the tooltip', /^A chat that is no longer available\n/.test(goneText) && !/yavchn-1/.test(goneText) && /yavchn-1/.test(goneTip), JSON.stringify({ goneText, goneTip }));
     // An old group mention, beyond the group's newest messages.
     await pane.getByRole('button', { name: 'Load Older' }).click();
     await pane.getByRole('button', { name: 'Load Older' }).click();
