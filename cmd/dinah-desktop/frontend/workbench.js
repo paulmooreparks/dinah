@@ -140,7 +140,7 @@
      owner. Missing metadata or ownership stays ungrouped until regroup runs.
      PUDL owns projection, overflow and represented-window command scope. */
   var grouping = null;
-  var GROUP_ATTRS = { key: 'data-win-group', label: 'data-win-group-label', glyph: 'data-win-group-glyph' };
+  var GROUP_ATTRS = { key: 'data-win-group', label: 'data-win-group-label', glyph: 'data-win-group-glyph', workspace: 'data-dinah-group-workspace' };
   function groupWindow(win, item) {
     var cfg = item && kinds.get(item.kind), group = null;
     var applet = cfg && (typeof cfg.applet === 'function' ? cfg.applet(item, win.dataset.win) : cfg.applet);
@@ -151,7 +151,7 @@
         var identity = owner ? [applet.id, owner.key] : [applet.id];
         var bytes = new TextEncoder().encode(JSON.stringify(identity));
         var key = 'applet-' + btoa(Array.from(bytes, function (byte) { return String.fromCharCode(byte); }).join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        group = { key: key, label: owner ? owner.label + ' (' + applet.title + ')' : applet.title, glyph: applet.glyph || cfg.glyph || 'app' };
+        group = { key: key, label: owner ? owner.label + ' (' + applet.title + ')' : applet.title, glyph: applet.glyph || cfg.glyph || 'app', workspace: owner ? owner.label : '' };
       }
     }
     Object.keys(GROUP_ATTRS).forEach(function (part) {
@@ -172,6 +172,30 @@
     document.querySelectorAll('.win[data-win]').forEach(function (win) { groupWindow(win, windowItem(win)); });
   }
   document.addEventListener('dinah:ui-state-restored', regroup);
+  /* A taskbar stack holds one workspace's windows of one applet, and its
+     button already says which workspace. A row whose title detail is only
+     that workspace's name drops the detail, so the title has the row; other
+     details stay as a muted suffix after the title (app.css). The full title
+     stays in the row's tooltip and spoken name, which PUDL keeps. */
+  function markStackDetails(panel) {
+    panel.querySelectorAll('.win-stack-row[data-stack-row]').forEach(function (row) {
+      var win = document.querySelector('.win[data-win="' + CSS.escape(row.getAttribute('data-stack-row')) + '"]');
+      var detail = row.querySelector('.win-item-detail');
+      if (!detail) return;
+      var workspace = win && win.getAttribute('data-dinah-group-workspace');
+      var same = !!workspace && (win.getAttribute('data-win-detail') || '').trim() === workspace;
+      if (detail.hasAttribute('data-dinah-redundant') !== same) detail.toggleAttribute('data-dinah-redundant', same);
+    });
+  }
+  new MutationObserver(function (changes) {
+    changes.forEach(function (change) {
+      change.addedNodes.forEach(function (node) {
+        if (!node.matches || !node.matches('.win-stack-panel')) return;
+        markStackDetails(node);
+        new MutationObserver(function () { markStackDetails(node); }).observe(node, { childList: true, subtree: true, characterData: true });
+      });
+    });
+  }).observe(document.body, { childList: true });
   /* PUDL copies a window from its markup when it is asked to open it and
      adds the copy to the page later, so a copy taken before the workspaces
      were read, as the windows of the saved layout are at startup, missed
