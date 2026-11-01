@@ -121,6 +121,7 @@
     /* The counts: the item's badge and the Notifications window's mark are
        the entries that need the person, and a chat's mark its questions. */
     var noticeCountsQueued = false;
+    var noticesKnown = false;
     function drawNoticeCounts() {
       noticeCountsQueued = false;
       var n = notices.count().needsPerson, clearable = notices.list(function (e) { return e.clearable; }).length > 0;
@@ -135,8 +136,13 @@
       st.dataset.statusGlyph = errors ? 'stop' : n ? 'comments' : 'ring';
       st.dataset.statusColour = errors ? 'danger' : n ? 'warn' : 'text-muted';
       st.dataset.statusCount = n;
-      b.hidden = n === 0;
-      b.textContent = n ? (n > 99 ? '99+' : String(n)) : '';
+      /* Once the stored notifications are read, none waiting shows as a
+         neutral 0; before then the badge stays empty, never a false 0. A
+         count above 0 keeps its warning badge. */
+      if (noticesKnown) st.dataset.statusCountKnown = ''; else delete st.dataset.statusCountKnown;
+      b.hidden = n === 0 && !noticesKnown;
+      b.classList.toggle('warn', n > 0);
+      b.textContent = n ? (n > 99 ? '99+' : String(n)) : noticesKnown ? '0' : '';
       if (n) st.removeAttribute('data-empty'); else st.setAttribute('data-empty', '');
       var words = n ? n + ' unread' : 'none';
       st.setAttribute('aria-label', 'Notifications: ' + words);
@@ -349,6 +355,8 @@
           s.info.title = s.info.title || item.sessionTitle;
           notices.add(turnFailureNotice(item));
         });
+        // The stored notifications are read, so a count of none is known.
+        if (!noticesKnown) { noticesKnown = true; drawNoticeCounts(); }
       });
     }
 

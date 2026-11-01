@@ -76,10 +76,13 @@
     glyph.style.setProperty('--glyph', 'var(--glyph-' + item.dataset.statusGlyph + ')');
     glyph.style.color = 'var(--' + item.dataset.statusColour + ')';
     badge.className = 'badge';
-    if (!state) { badge.hidden = true; }
+    // While the state is being read the badge stays empty, never a false 0;
+    // once read, no undismissed warnings is a neutral 0.
+    if (state && state.state !== 'off') item.dataset.statusCountKnown = ''; else delete item.dataset.statusCountKnown;
+    if (!state) { badge.hidden = true; badge.textContent = ''; }
     else if (state.unseen > 0) { badge.hidden = false; badge.classList.add('warn'); badge.textContent = state.unseen > 99 ? '99+' : String(state.unseen); }
     else if (state.state === 'off') { badge.hidden = false; badge.textContent = 'off'; }
-    else { badge.hidden = true; badge.textContent = ''; }
+    else { badge.hidden = false; badge.textContent = '0'; }
     var words = stateWords(state);
     if (state && state.unseen > 0) words += ', ' + state.unseen + (state.unseen === 1 ? ' undismissed warning' : ' undismissed warnings');
     item.setAttribute('aria-label', words);

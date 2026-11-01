@@ -45,7 +45,7 @@
       rows.set(source, { li: li, row: row, glyph: glyph, words: words, value: value });
     });
     function paint() {
-      var urgent = null, total = 0, labels = [], rank = { stuck: 0, waiting: 1, working: 2, idle: 3 };
+      var urgent = null, total = 0, labels = [], rank = { stuck: 0, waiting: 1, working: 2, idle: 3 }, knownCounts = 0, unknownCounts = 0;
       sources.forEach(function (source) {
         var spec = describe(source), parts = rows.get(source);
         parts.li.hidden = !spec.available;
@@ -56,12 +56,20 @@
         setText(parts.words, spec.word + (spec.text ? ' · ' + spec.text : ''));
         setAttr(parts.row, 'aria-label', spec.label); setAttr(parts.row, 'title', spec.label);
         parts.glyph.style.setProperty('--glyph', 'var(--glyph-' + spec.glyph + ')'); parts.glyph.style.color = 'var(--' + spec.colour + ')';
-        setText(parts.value, spec.count > 99 ? '99+' : String(spec.count || '')); parts.value.hidden = !spec.count;
+        /* A row shows its count as its item does: a warning badge above 0,
+           a neutral 0 once the item knows it has none, nothing while it does not know. */
+        var known = source.hasAttribute('data-status-count-known');
+        setText(parts.value, spec.count > 99 ? '99+' : spec.count ? String(spec.count) : known ? '0' : ''); parts.value.hidden = !spec.count && !known;
+        parts.value.classList.toggle('warn', spec.count > 0);
+        if (spec.available && known) knownCounts++; else if (spec.available && source.hasAttribute('data-status-count')) unknownCounts++;
       });
       var starting = document.getElementById('status-starting');
       if (!starting.hidden) { labels.unshift('Dinah is starting.'); if (!urgent || rank[urgent.state] > rank.working) urgent = { state: 'working', glyph: 'chat-working', colour: 'accent' }; }
       var badge = opener.querySelector('[data-status-badge]'), glyph = opener.querySelector('.glyph');
-      setText(badge, total > 99 ? '99+' : String(total || '')); badge.hidden = !total;
+      // The folded Status button totals its rows: 0 only when every counted row knows its count.
+      var zeroKnown = !total && knownCounts > 0 && !unknownCounts;
+      setText(badge, total > 99 ? '99+' : total ? String(total) : zeroKnown ? '0' : ''); badge.hidden = !total && !zeroKnown;
+      badge.classList.toggle('warn', total > 0);
       glyph.style.setProperty('--glyph', 'var(--glyph-' + (urgent ? urgent.glyph : 'ring') + ')'); glyph.style.color = 'var(--' + (urgent ? urgent.colour : 'text-muted') + ')';
       setAttr(opener, 'data-status-state', urgent ? urgent.state : 'idle'); setAttr(opener, 'data-status-count', String(total));
       setAttr(opener, 'title', 'Status: ' + total + ' unseen. ' + labels.join(' ')); setAttr(opener, 'aria-label', 'Status: ' + total + ' unseen. ' + labels.join(' '));
@@ -103,7 +111,7 @@
       if (changes.some(function (change) { return change.target.id === 'status-starting' || sources.some(function (source) { return source === change.target || source.contains(change.target); }); })) paint();
     });
     observer.observe(area, { subtree: true, childList: true, characterData: true, attributes: true,
-      attributeFilter: ['hidden', 'title', 'aria-label', 'data-status-state', 'data-status-text', 'data-status-glyph', 'data-status-colour', 'data-status-count'] });
+      attributeFilter: ['hidden', 'title', 'aria-label', 'data-status-state', 'data-status-text', 'data-status-glyph', 'data-status-colour', 'data-status-count', 'data-status-count-known'] });
     window.addEventListener('resize', fit);
     var sizes = new ResizeObserver(fit); sizes.observe(probe);
     paint(); fit();
