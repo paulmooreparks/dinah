@@ -201,6 +201,9 @@
   document.addEventListener('dinah:launchers-change', function () { drawTools(); if (window.pudlMenubar && !panelOpen()) window.pudlMenubar.refresh(); });
   document.addEventListener('pudl:windows-change', function () { C.changed(); });
   document.addEventListener('dinah:commands-change', drawAll);
-  document.addEventListener('dinah:appearance-library', drawAll);
+  // A theme or skin saved while a menu or the ribbon shows its list ticks the
+  // new choice in that open list at once, through PUDL's documented refresh,
+  // so a list opened before the save ended never keeps the old tick.
+  document.addEventListener('dinah:appearance-library', function () { drawAll({ detail: { refreshOpenMenus: true } }); });
   document.addEventListener('DOMContentLoaded', function () { drawTools(); drawAll(); });
 })();
