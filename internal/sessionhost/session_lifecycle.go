@@ -25,6 +25,8 @@ type ChannelCapability interface {
 }
 
 type SessionLifecycleHost struct {
+	BeforeOpen        func(string, string) (Info, bool, error)
+	MissingSession    func(string, string, error) (Info, error)
 	NormalizeProvider func(string) string
 	PrepareApplets    func(string, string) error
 	Live              func(string) (Connection, acp.InitializeResult, error)
@@ -361,7 +363,16 @@ func (l *SessionLifecycle) openExact(ws, id string, override map[string]json.Raw
 		l.openMu.Unlock()
 		close(call.done)
 	}()
+	if l.host.BeforeOpen != nil {
+		if info, handled, err := l.host.BeforeOpen(ws, id); handled || err != nil {
+			call.info, call.err = info, err
+			return call.info, call.err
+		}
+	}
 	call.info, call.err = l.openOne(ws, id, override, full)
+	if call.err != nil && notFound(call.err) && l.host.MissingSession != nil {
+		call.info, call.err = l.host.MissingSession(ws, id, call.err)
+	}
 	return call.info, call.err
 }
 

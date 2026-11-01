@@ -10,6 +10,7 @@ import (
 func (a *App) turnIO() *sessionhost.TurnIO {
 	a.turnOnce.Do(func() {
 		a.turnService = sessionhost.NewTurnIO(sessionhost.TurnHost{
+			BeforeNativePrompt: a.beforeNativePrompt, AfterNativePrompt: a.afterNativePrompt,
 			LookupConversation: a.session, SessionConnection: a.sessionConn, HoldingTurns: a.holdingTurns, ContextGate: a.contextGate,
 			ResolveContinuation: a.ResolveSessionContinuation, MakePrompt: a.makePrompt, PromptFrom: a.promptFrom,
 			DraftDocRef: a.draftDocRef, WithDoc: withDoc, Remember: a.remember, Unpark: func(s *Session) { a.busCoordinator().Unpark(s) }, Journal: a.journal,
