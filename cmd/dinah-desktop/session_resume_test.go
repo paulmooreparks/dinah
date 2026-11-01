@@ -172,15 +172,22 @@ func TestAResumeRefusedForAnyOtherReasonFallsBackToALoad(t *testing.T) {
 	}
 }
 
-func TestAResumeAnsweredNotFoundIsAFailedReopenWithTheCopyKept(t *testing.T) {
+func TestAResumeAnsweredNotFoundContinuesWithTheCopyKept(t *testing.T) {
 	a, c := providerTestApp(t)
 	withResume(a)
 	c.resumeErr = &acp.Error{Code: acp.CodeResourceNotFound, Message: "Resource not found"}
 	ws := t.TempDir()
 	id := wholeCopy(t, ws, nil)
-	_, err := a.OpenSessionAt(ws, id)
-	if err == nil || !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("the reopen did not fail: %v", err)
+	// A refused native ID now continues immediately from the saved copy.
+	info, err := a.OpenSessionAt(ws, id)
+	if err != nil || info.ID == id {
+		t.Fatalf("the reopen did not continue: %+v %v", info, err)
+	}
+	if !a.turnIO().Close(3 * time.Second) {
+		t.Fatal("recovery prompt did not finish")
+	}
+	if countCalls(c, "session/new") != 1 || countCalls(c, "session/prompt") != 1 {
+		t.Fatal("recovery did not allocate and prompt once")
 	}
 	if countCalls(c, "session/load") != 0 {
 		t.Fatal("a session the agent does not have was loaded")

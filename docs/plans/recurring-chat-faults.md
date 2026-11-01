@@ -1,5 +1,13 @@
 # Recurring native-session faults
 
+## Background wake recovery ordering
+
+Front End found that automatic recovery was being attempted inside a generation-bound background opening. The saved-history transfer committed a new native target while WakeAttempts still owned the original target and refused to release its active record. This was a real ordering defect. Automatic allocation must wait until that exact failed opening finishes. OpenWaitingSession can then recover under the committed same-recipient transfer, clear the finished hold, and count the recovered chat as background work. WakeAttempts keeps its strict target checks. The three-background-chat limit remains in force; a successful recovered background chat occupies the original slot.
+
+The corrected wake test retains the failed-opening scenario by making recovery allocation fail after the original not-found response. It verifies the allocation error, an inactive original opening and the next waiting chat receiving the freed slot. A separate successful-recovery test opens two background chats, recovers the third, verifies the original opening ended and exactly one new session/prompt occurred, and confirms a fourth chat is not opened. The recovered chat is marked background only when it has no window, matching ordinary wake completion.
+
+The old resume-not-found test now expects a fresh continuation, retaining the assertions that the dead session receives no session/load and its complete saved copy remains intact. The combined focused recovery/native/ownership/model/resume/wake checks passed in 6.944 seconds. After matching the window-presence guard to ordinary wake completion, the two background-slot checks passed in 1.454 seconds. Front End retains the full two-package Go and page gate; these focused results do not replace it. Live recovery is still pending.
+
 ## Claude continuation failure on 2 November
 
 Read-only evidence is retained under `.diagnostics/recurring-chat-20261102-0349`. The original Claude conversation contains 575 own rows and ends with a weekly-limit error. Its six descendants (Devin, two Codex, three Claude) each have zero own messages and an unsent handoff. The last Claude descendant carries 581 inherited rows. Settings record the actual source and destination IDs and committed recipient mapping for the latest switch at 03:31:33. Its readable log has allocation/open headings but no prompt; reopening at 03:47:23 attempts resume and receives Resource not found. This disproves the hypothesis that the final Claude ID failed its first prompt on the limit, and supplies no evidence of an unrecorded replacement ID.

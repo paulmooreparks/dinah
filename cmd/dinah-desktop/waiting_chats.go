@@ -109,6 +109,27 @@ func (a *App) waitingRoute(origin, cwd string) (sessionhost.WakeRoute, error) {
 // used by both the page and fallback rather than opening the requested alias.
 func (a *App) OpenWaitingSession(origin, attempt string) (SessionInfo, error) {
 	info, err := a.busCoordinator().OpenDeliveryAttempt(origin, attempt)
+	var missing *missingNativeError
+	if errors.As(err, &missing) && missing.detail.Recoverable {
+		id := missing.detail.SessionID
+		r := a.nativeRecord(id)
+		if !r.LastFailed && (r.Refused || !r.Prompted) {
+			if tr, readErr := readTranscript(id); readErr == nil && tr != nil {
+				info, err = a.recoverNativeSession(tr.Workspace, id, missing.detail.Provider)
+				if err == nil {
+					if s := a.session(info.ID); s != nil {
+						a.mu.Lock()
+						if !a.runtime.HasWindowLocked(info.ID) {
+							s.ConnectedBackground(a.wakeClock())
+						}
+						a.mu.Unlock()
+						sessionhost.EmitSession(a.emit, s)
+						info = s.InfoVersioned()
+					}
+				}
+			}
+		}
+	}
 	a.emit("notification:delivery", nil)
 	return info, err
 }
