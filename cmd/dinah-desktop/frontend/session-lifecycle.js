@@ -272,10 +272,11 @@
         // values it offers instead, for Open With… (sessionNote).
         var detail = err && err.detail;
         s.unoffered = detail && detail.kind === 'unoffered-option' && (detail.offered || []).length ? detail : null;
-        // The provider refused to resume this session as not found
-        // (docs/plans/recurring-chat-faults.md). The engine records it and
-        // never asks again, so the note offers no Try Again (sessionNote).
-        s.notFound = detail && detail.kind === 'session-not-found' ? detail : null;
+        // The provider refused to resume this session as not found, or its
+        // first turn failed before the session was confirmed for reopening
+        // (docs/plans/recurring-chat-faults.md). The engine records either
+        // and never resumes it, so the note offers no Try Again (sessionNote).
+        s.notFound = detail && (detail.kind === 'session-not-found' || detail.kind === 'session-unverified') ? detail : null;
         if (!kept && app().SavedConversation) {
           try {
             var saved = await app().SavedConversation(id);

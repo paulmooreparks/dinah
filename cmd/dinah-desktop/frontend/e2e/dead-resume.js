@@ -6,7 +6,9 @@
 // be continued, otherwise New Chat. Save History… stays while there is
 // history to export. Opening the chat again shows the same note, the page
 // asks the engine once per opening and never by itself, and other open
-// failures keep Try Again.
+// failures keep Try Again. A first turn that failed before the session
+// was confirmed for reopening (session-unverified) gets the same actions,
+// in words that do not say the provider lost it.
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -28,6 +30,7 @@ const { launch } = require('./lib/page');
           __calls.push(['open', id]);
           if (id === 'claude:dead') throw notFound(id, true);
           if (id === 'claude:bare') throw notFound(id, false);
+          if (id === 'claude:first') { const e = new Error('You have reached your weekly limit'); e.detail = { kind: 'session-unverified', provider: 'claude', sessionId: id, recoverable: true }; throw e; }
           throw new Error('The agent stopped while opening the chat');
         },
         PreviewSessionRecovery: async id => { __calls.push(['preview-recovery', id]); return { messages: [] }; },
@@ -44,7 +47,7 @@ const { launch } = require('./lib/page');
   }).filter(Boolean));
   const opens = id => p.evaluate(id => __calls.filter(c => c[0] === 'open' && c[1] === id).length, id);
   try {
-    await p.evaluate(() => ['claude:dead', 'claude:bare', 'claude:other'].forEach(id => __emit('agent:session', { sessionId: id, provider: 'claude', cwd: 'C:/Test', title: id.slice(7), open: false })));
+    await p.evaluate(() => ['claude:dead', 'claude:bare', 'claude:first', 'claude:other'].forEach(id => __emit('agent:session', { sessionId: id, provider: 'claude', cwd: 'C:/Test', title: id.slice(7), open: false })));
     // Not found, with saved history.
     await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Test', path: 'claude:dead' }));
     await v('session-note-title').getByText('Claude no longer has this session.', { exact: true }).waitFor();
@@ -77,6 +80,19 @@ const { launch } = require('./lib/page');
     ok('with no history to continue, the one recovery is New Chat', JSON.stringify(shown) === JSON.stringify(['New Chat*']), JSON.stringify(shown));
     ok('and the note says to start a new chat', /Start a new chat to carry on/.test(await v('session-note-body').innerText()));
     await t.shot('dead-resume-bare', { clip: await front().locator('[data-view-id="session-note"]').boundingBox() });
+    // A first turn that failed before the session was confirmed.
+    await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Test', path: 'claude:first' }));
+    await v('session-note-title').getByText('The first turn in this session could not finish.', { exact: true }).waitFor();
+    await p.waitForTimeout(300);
+    const firstBody = await v('session-note-body').innerText();
+    shown = await buttons();
+    ok('an unverified first turn gets the same one recovery and no Try Again', JSON.stringify(shown) === JSON.stringify(['Continue from Saved History*', 'Save History…']), JSON.stringify(shown));
+    ok('and its note does not say the provider lost or refused the session', /not confirmed for reopening/.test(firstBody) && !/no longer has|could not find|not found/i.test(firstBody), firstBody);
+    const firstOpens = await opens('claude:first');
+    await v('session-retry').evaluate(b => b.click());
+    await p.waitForTimeout(300);
+    ok('a Try Again press resumes nothing there either', await opens('claude:first') === firstOpens);
+    await t.shot('dead-resume-unverified', { clip: await front().locator('[data-view-id="session-note"]').boundingBox() });
     // Any other failure keeps Try Again.
     await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Test', path: 'claude:other' }));
     await v('session-note-title').getByText('Claude could not open this session.', { exact: true }).waitFor();

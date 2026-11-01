@@ -1481,8 +1481,11 @@
            session from the saved history, or a new chat when there is none
            to continue; Save History… stays, since it only exports. */
         recoverable = recoverable && s.notFound.recoverable !== false;
-        $('session-note-title').textContent = agentName() + ' no longer has this session.';
-        $('session-note-body').textContent = agentName() + ' could not find it to reopen it, so trying again would not help. ' +
+        var unverified = s.notFound.kind === 'session-unverified';
+        // An unverified session is not said to be lost: its first turn failed
+        // before it was confirmed for reopening, so it is never resumed.
+        $('session-note-title').textContent = unverified ? 'The first turn in this session could not finish.' : agentName() + ' no longer has this session.';
+        $('session-note-body').textContent = (unverified ? 'This session was not confirmed for reopening, so trying again here would not help. ' : agentName() + ' could not find it to reopen it, so trying again would not help. ') +
           (recoverable ? 'Continue from Saved History carries on this chat in a fresh session with its saved history, shown above.' : 'Its saved history cannot be continued here. Start a new chat to carry on.') +
           (s.historyWarning ? ' ' + s.historyWarning : '');
       } else {
