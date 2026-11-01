@@ -5,7 +5,7 @@
 
   function create(adapter) {
     const { app, on, element: $, session: S, getSession, sessionProvider,
-      workspace, title, openSession, openSavedRecovery, row, now, drawSessions, toast, fail } = adapter;
+      workspace, title, openSession, openSavedRecovery, openRemove, row, now, drawSessions, toast, fail } = adapter;
 
     /* ask puts a yes-or-no question to the person in the page's own dialog,
        never the browser's, and resolves true when they confirm. Escape or
@@ -259,12 +259,23 @@
         className: 'question heads-up', data: { session: item.sessionId, notificationId: item.id } };
     }
 
+    /* Messages waiting for a chat that could not be opened. The card is about
+       the original chat, known by its title, provider and start, since
+       several can share a title. Recover continues its saved history in a
+       new chat the person chooses; Remove removes the chat from this app and
+       cancels its waiting messages, with no new chat; Dismiss and Clear All
+       hide the card, which stays hidden until the incident changes, and
+       leave the chat and its messages as they are, recoverable from it. */
     function deliveryFailureNotice(item) {
       var entry = turnFailureNotice(item);
-      entry.dismissible = false;
-      entry.clearable = false;
+      entry.dismissible = true;
+      entry.clearable = true;
+      if (item.originTitle) entry.source = item.originTitle;
+      entry.data.lead = item.lead || '';
+      var origin = { title: item.originTitle, provider: item.originProvider, started: item.originStarted };
       entry.actions = [{ label: 'Review Chat', primary: true, run: function () { return openSession(item.sessionId); } }];
-        entry.actions.push({ label: 'Recover Original Chat', run: function () { return openSavedRecovery(item.lead, item.workspace); } });
+        entry.actions.push({ label: 'Recover Original Chat', run: function () { return openSavedRecovery(item.lead, item.workspace, origin); } });
+      if (item.lead && app().RemoveChat) entry.actions.push({ label: 'Remove Chat…', run: function () { return openRemove(item.lead, origin); } });
         entry.actions.push({ label: 'Refresh Recovery Status', run: function () { return app().ReloadWaitingChatState().then(function () { return restoreNotifications(); }); } });
       if (item.retryAllowed) entry.actions.push({ label: 'Retry Waiting Delivery', run: function () {
           return app().RetryWaitingSession(item.lead).then(function () { return restoreNotifications(); });

@@ -305,6 +305,13 @@ body:not(.show-thoughts) .thought-row { display: none; }
 /* Renaming a session: its row's title becomes a field in place. */
 .session-rename { width: 100%; height: 28px; padding: 2px 8px; font-size: var(--text-sm); }
 .chat-rename-dialog .session-rename { display: block; margin-block-start: var(--space-1); }
+/* Recovering a chat: the chat it is, then PUDL's form groups. The reason
+   Review Recovery cannot go on stands on its own line above the buttons. */
+.recovery-dialog .recovery-chat { margin: 0 0 var(--space-2); color: var(--text); }
+.recovery-dialog .recovery-intro { margin: 0 0 var(--space-4); }
+.recovery-dialog .dialog-actions { flex-wrap: wrap; }
+.recovery-dialog .recovery-why { flex: 1 1 100%; margin: 0; text-align: end; }
+.recovery-dialog .recovery-why[hidden] { display: none; }
 
 /* The Devin item in the status area is a button that opens the Devin menu;
    it looks like the other status items. */
