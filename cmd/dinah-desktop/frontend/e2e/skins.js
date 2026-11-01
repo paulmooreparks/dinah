@@ -82,7 +82,7 @@ const admitted=catalogue.skins.filter(s=>s.admitted),choices=admitted.map(({id,l
   fs.writeFileSync(path.join(OUT,'skin-switching.json'),JSON.stringify(snapshots,null,2));
   await p.evaluate(()=>__invalidStoredCustom());await p.waitForFunction(()=>dinahAppearance.snapshot().state.active==='existing-custom'&&dinahAppearance.snapshot().skinContrastNotice.includes('4.5:1'));
   const saves=await p.evaluate(()=>__saveSkinCalls.length);let contrastFailed=false;try{await p.evaluate(()=>dinahAppearance.selectSkin('standard'));}catch(_){contrastFailed=true;}
-  ok('a skin-invalid stored custom theme is explained and remains unchanged on failure',contrastFailed&&await p.evaluate(saves=>__saveSkinCalls.length===saves&&dinahAppearance.snapshot().state.skin==='glaze'&&dinahAppearance.document('existing-custom').palettes.dark['on-accent']==='#002b36'&&__skinPrompt.value==='Keep the skin-switch draft.',saves));
+  ok('a skin-invalid stored custom theme is explained and remains unchanged on failure',contrastFailed&&await p.evaluate(({saves,last})=>__saveSkinCalls.length===saves&&dinahAppearance.snapshot().state.skin===last&&dinahAppearance.document('existing-custom').palettes.dark['on-accent']==='#002b36'&&__skinPrompt.value==='Keep the skin-switch draft.',{saves,last:choices[choices.length-1].id}));
   await p.evaluate(()=>{const document=dinahAppearance.document('existing-custom');document.palettes.dark['on-accent']=dinahAppearance.builtins.solarized.palettes.dark['on-accent'];return dinahAppearance.save(document,'existing-custom',true);});
   ok('the user can explicitly correct the stored custom theme',await p.evaluate(()=>!dinahAppearance.snapshot().skinContrastNotice));
  }finally{await t.close();}

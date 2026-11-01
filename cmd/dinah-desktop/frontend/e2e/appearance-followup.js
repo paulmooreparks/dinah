@@ -42,7 +42,7 @@ const choices=JSON.parse(fs.readFileSync(path.join(FRONTEND,'pudl/pudl-skins.jso
   ok('skin switching preserves mounted windows and the draft',await p.evaluate(()=>__retainedPrompt.isConnected&&__retainedPrompt.value==='Retain this draft across menu skin changes.'&&__retainedWindows.every(el=>el.isConnected)));
   await p.evaluate(()=>{__saveFailure=true;});await choose(choices.find(s=>s.id==='bevel'));
   await p.locator('.toast').filter({hasText:'Appearance storage unavailable'}).last().waitFor();
-  ok('a menu save failure preserves the previous preference and draft',await p.evaluate(()=>dinahAppearance.snapshot().state.skin==='glaze'&&pudlSkins.current()==='glaze'&&__retainedPrompt.value.includes('Retain this draft')));
+  ok('a menu save failure preserves the previous preference and draft',await p.evaluate(last=>dinahAppearance.snapshot().state.skin===last&&pudlSkins.current()===last&&__retainedPrompt.value.includes('Retain this draft'),choices[choices.length-1].id));
   await p.evaluate(()=>{__saveFailure=false;__externalSkin('later-skin');});await p.waitForFunction(()=>dinahAppearance.snapshot().state.skin==='later-skin');
   await p.locator('#host-skins button').filter({hasText:'later-skin (unavailable)'}).waitFor({state:'attached'});const unavailable=await skinMenu();fs.writeFileSync(path.join(OUT,'unavailable-menu.html'),await unavailable.innerHTML());const row=unavailable.getByRole('menuitemradio',{name:/later-skin \(unavailable\)/});
   ok('an unknown saved skin is checked and disabled with Standard fallback',await row.isDisabled()&&await row.getAttribute('aria-checked')==='true'&&await p.evaluate(()=>pudlSkins.current()==='standard'&&document.getElementById('appearance-skin').value==='later-skin'));

@@ -36,7 +36,7 @@ const { launch } = require('./lib/page');
   await recovered.getByRole('button',{name:'Dismiss',exact:true}).click();await recovered.waitFor({state:'detached'});
   await page.evaluate(()=>__emit('agent:session',{sessionId:'codex:test',working:true,chatState:{life:'open',window:true,exec:{state:'working',why:'Turn in progress'}},open:true,queued:[]}));
   await page.waitForFunction(()=>document.querySelector('.win[data-chat-current] [data-view-id=steer-send]').classList.contains('btn-primary'));
-  const workingChip = win.locator('.win-execution .win-state[data-state="working"]');
+  const workingChip = win.locator('.chat-working-chip .chat-state-working');
   await workingChip.waitFor({state:'attached'});
   if (!await workingChip.isVisible()) {
    await win.getByRole('button',{name:'Window status',exact:true}).click();

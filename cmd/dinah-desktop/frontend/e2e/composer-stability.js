@@ -38,7 +38,7 @@ const fs = require('fs'), path = require('path');
     ok('a capable working agent defaults to Steer before typing', true);
     await page.evaluate(k => pudlWindows.snap(k, 'maximized'), key);
     ok('the window keeps its accessible name', await page.getByRole('dialog', { name: 'Composer', exact: true }).count() === 1);
-    await win.getByRole('img', { name: 'Working: Fixture · Turn in progress', exact: true }).waitFor();
+    await win.getByRole('img', { name: 'Working · Fixture · Turn in progress', exact: true }).waitFor();
     ok('title status exposes its complete accessible name', true);
     await box.fill('A follow-up'); await primary('steer-send');
     ok('typing rechecks the capable agent', await page.evaluate(() => __primaryCalls.length > 1));
@@ -137,7 +137,7 @@ const fs = require('fs'), path = require('path');
               label: root.querySelector('[data-view-id=send]').textContent });
           }
         }
-        return { before, frames, hint, titleReason: __composerRoot.querySelector('.win-execution .win-state').title };
+        return { before, frames, hint, titleReason: __composerRoot.querySelector('.chat-working-chip').title };
       });
       const actualTextSize = await box.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
       ok('the text-size fixture applies scale ' + scale + ' at ' + width, Math.abs(actualTextSize - textBaseline.prompt * scale) < .02, String(actualTextSize));
@@ -217,7 +217,7 @@ const fs = require('fs'), path = require('path');
         for (let i = 0; i < 4; i++) { await new Promise(requestAnimationFrame); values.push({
           label: __composerRoot.querySelector('[data-view-id=send]').textContent,
           steer: __composerRoot.querySelector('[data-view-id=steer-send]').classList.contains('btn-primary'),
-          state: __composerRoot.querySelector('.win-execution .win-state').title
+          state: __composerRoot.querySelector('.chat-working-chip').title
         }); }
       }
       return values;

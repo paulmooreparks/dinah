@@ -37,7 +37,7 @@ const path = require('path');
       const key = await p.evaluate(id => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: id }), id);
       const win = p.locator('[data-win="' + key + '"]');
       if (id === 'ordinary') await win.locator('[data-win-action="maximize"]').click();
-      const state = win.locator('.win-execution .win-state[data-state="working"]');
+      const state = win.locator('.chat-working-chip .chat-state-working');
       await state.waitFor({ state: 'attached' });
       await frames(3);
       if (!await state.isVisible()) {
