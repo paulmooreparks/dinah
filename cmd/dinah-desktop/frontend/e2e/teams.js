@@ -89,6 +89,7 @@ const { launch } = require('./lib/page');
     const member = p.locator('[data-win="' + builderKey + '"]');
     await member.locator('.team-member-note').waitFor();
     ok('a member keeps its toolbar and approvals outside the removed message box', await member.locator('.composer-row').isHidden() && await member.locator('.composer-bar').isVisible() && await member.locator('[data-command="provider"]').count() > 0 && await member.locator('[data-view-id="context-hold"]').count() === 1);
+    ok('team bodies omit aggregates while the title retains live state', await lead.locator('.team-aggregate').count() === 0 && await lead.locator('.team-stuck-chip .chat-state').count() === 1);
     await t.shot('teams-member');
     // The team draft survives and gains a mention, without being sent.
     await p.evaluate(() => dinahBus.openGroup('team-room'));

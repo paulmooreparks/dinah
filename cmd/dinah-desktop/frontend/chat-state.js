@@ -43,14 +43,14 @@
     value = aggregate ? counts(value) : read(value);
     var state = aggregate ? value.top : value.exec && value.exec.state;
     var life = value.life;
-    if (!aggregate && value.elsewhere) return { text: value.elsewhere, kind: '', cls: 'chat-state chat-lifecycle', label: value.elsewhere, glyph: '' };
-    if (!aggregate && (life === 'closed' || life === 'retired')) return { text: life === 'closed' ? 'Closed' : 'Retired', kind: '', cls: 'chat-state chat-lifecycle', label: life === 'closed' ? 'The session has ended' : 'The team member is retired', glyph: '' };
+    if (!aggregate && value.elsewhere) return { text: value.elsewhere, kind: '', cls: 'chat-state chat-lifecycle', label: value.elsewhere, glyph: '', compactGlyph: 'window' };
+    if (!aggregate && (life === 'closed' || life === 'retired')) return { text: life === 'closed' ? 'Closed' : 'Retired', kind: '', cls: 'chat-state chat-lifecycle', label: life === 'closed' ? 'The session has ended' : 'The team member is retired', glyph: '', compactGlyph: 'minus' };
     var spec = mapping[state], why = !aggregate && value.exec && value.exec.why || '', words = spec ? spec.word : '';
     if (aggregate) {
       var totals = value.counts || value;
       var parts = ['stuck', 'waiting', 'working', 'idle', 'unknown', 'closed'].filter(function (name) { return totals[name] > 0; }).map(function (name) { return totals[name] + ' ' + (name === 'unknown' ? 'running elsewhere' : name); });
       words = parts.length ? parts.join(', ') : words;
-      if (!spec && words) return { text: words, kind: '', cls: 'chat-state chat-lifecycle', label: words, glyph: '' };
+      if (!spec && words) return { text: words, kind: '', cls: 'chat-state chat-lifecycle', label: words, glyph: '', compactGlyph: 'minus' };
       if (!totals.stuck && !totals.waiting && !totals.working && !totals.idle && totals.closed) words = spec.word + ' (' + words + ')';
     } else if (why && options.reason !== false && (state === 'waiting' || state === 'stuck')) words += ' (' + why + ')';
     if (!spec) return { text: 'Unknown', kind: '', cls: 'chat-state chat-state-unknown', label: 'The engine has not supplied an execution state', glyph: '' };
@@ -64,9 +64,14 @@
   function badge(value, options) {
     var spec = describe(value, options), el = window.dinahBrowserList.badge(spec);
     if (options && options.className) el.classList.add(options.className);
+    /* A compact mark is a glyph alone, its words in its label, so every
+       state fits one fixed square and a row never moves when its state
+       changes. A state with no glyph of its own is given one here, in its
+       own muted colour: ended, open elsewhere, or not yet known. */
     if (options && options.compact) {
       el.classList.add('chat-state-compact');
-      var words = document.createElement('span'); words.className = 'chat-state-words'; words.textContent = spec.glyph ? '' : spec.text;
+      if (!spec.glyph) el.style.setProperty('--badge-glyph', 'var(--glyph-' + (spec.compactGlyph || 'empty') + ')');
+      var words = document.createElement('span'); words.className = 'chat-state-words';
       el.replaceChildren(words);
     }
     return el;

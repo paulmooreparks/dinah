@@ -319,6 +319,8 @@
         line.appendChild(window.dinahChatState.badge(s.info, { compact: true, className: 'session-badge' }));
         var attention = line.querySelector('.session-attention-slot'), n = needsCount(id);
         attention.replaceChildren();
+        // The slot keeps the width of the widest count, so a count arriving
+        // or going never moves the title.
         var reservedCount = window.dinahBrowserList.badge({ text: '99+', kind: 'warn', cls: 'session-attention-reserve' });
         reservedCount.setAttribute('aria-hidden', 'true'); attention.appendChild(reservedCount);
         if (n) attention.appendChild(window.dinahBrowserList.badge({ text: n > 99 ? '99+' : n, kind: 'warn', cls: 'session-attention', label: n === 1 ? '1 question waits for you' : n + ' questions wait for you' }));
@@ -329,8 +331,10 @@
           if (aggregate) aggregateBadge.appendChild(window.dinahChatState.badge(aggregate, { compact: true, className: 'team-stuck-badge' }));
         }
         var oldAggregate = line.querySelector('.team-state-slot');
-        if (oldAggregate) oldAggregate.replaceWith(aggregateBadge); else line.appendChild(aggregateBadge);
-        line.insertBefore(line.querySelector('.session-badge'), aggregateBadge);
+        if (aggregateBadge.firstChild) {
+          if (oldAggregate) oldAggregate.replaceWith(aggregateBadge); else line.appendChild(aggregateBadge);
+          line.insertBefore(line.querySelector('.session-badge'), aggregateBadge);
+        } else if (oldAggregate) oldAggregate.remove();
         a.title = [title(s), window.dinahChatState.describe(s.info).label, meta.join(' · ')].filter(Boolean).join('. ');
         a.setAttribute('aria-label', a.title);
         if (id === adapter.active()) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');

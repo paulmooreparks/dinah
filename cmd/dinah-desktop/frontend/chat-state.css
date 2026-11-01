@@ -6,14 +6,15 @@
 .session-list .chat-state-line { inline-size: 100%; }
 .chat-state-line > .browser-row-title { flex: 1 1 auto; max-width: 100%; }
 .chat-state-line > .chat-state { max-width: 100%; }
-.badge.chat-state.chat-state-compact { display: grid; place-items: center; flex: none; inline-size: clamp(16px, 18cqw, 9ch); block-size: max(18px, 1.55em); padding: 0; overflow: hidden; white-space: nowrap; --glyph-size: max(16px, 1em); }
+/* Every compact mark is the same square, a glyph alone (chat-state.js), so a row keeps one fixed reserve on its right for it and the title takes the rest. */
+.badge.chat-state.chat-state-compact { display: grid; place-items: center; flex: none; inline-size: max(18px, 1.55em); block-size: max(18px, 1.55em); padding: 0; overflow: hidden; white-space: nowrap; --glyph-size: max(16px, 1em); }
 .chat-state-compact::before, .chat-state-compact > .chat-state-words { grid-area: 1 / 1; }
 .chat-state-words { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .session-reason, .session-row-meta { display: block; block-size: 1.5em; line-height: 1.5; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--text-sm); }
 .session-attention-slot { display: inline-grid; place-items: center; flex: none; block-size: max(18px, 1.55em); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
 .session-attention-slot > .badge { grid-area: 1 / 1; white-space: nowrap; }
 .session-attention-reserve { visibility: hidden; }
-.team-state-slot { display: inline-flex; flex: none; inline-size: clamp(16px, 18cqw, 9ch); block-size: max(18px, 1.55em); }
+.team-state-slot { display: inline-flex; flex: none; inline-size: max(18px, 1.55em); block-size: max(18px, 1.55em); }
 .team-state-slot > .chat-state { inline-size: 100%; }
 .session-browser-group .browser-group-count { inline-size: calc(3ch + 16px); justify-content: center; font-variant-numeric: tabular-nums; }
 .member-chip { max-width: 100%; flex-wrap: nowrap; min-width: 0; }
@@ -29,5 +30,6 @@
 .badge.chat-state::before { content: ""; --glyph: var(--badge-glyph); }
 .badge.chat-state-idle, .badge.chat-lifecycle, .badge.chat-state-unknown { color: var(--text-muted); }
 .badge.chat-lifecycle::before, .badge.chat-state-unknown::before { content: none; }
+.badge.chat-state-compact:is(.chat-lifecycle, .chat-state-unknown)::before { content: ""; }
 .badge.chat-state-working::before { animation: pudl-spin .9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .badge.chat-state-working::before { animation: none; } }

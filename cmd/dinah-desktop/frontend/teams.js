@@ -108,7 +108,17 @@
     var section = node('section', 'chat-team'), content = node('div', 'team-content vstack gap-2');
     section.hidden = true;
     var toggle = disclosure('Team', content, prefix + '-content');
-    section.append(toggle, content);
+    var openTeamButton = node('button', 'btn btn-sm team-open', 'Open Team'); openTeamButton.type = 'button'; openTeamButton.hidden = true;
+    function navigateTeam() { return lead && lead.group ? groupLink(lead.group) : Promise.resolve(); }
+    openTeamButton.addEventListener('click', function () { navigateTeam().catch(host().fail); });
+    // The bar is also the chat's top bar: the chat's Last Read (o.lastRead,
+    // which its transcript shows and hides) sits in it, so an ordinary chat
+    // shows the bar while Last Read is offered.
+    var lastRead = o.lastRead || null;
+    function showSection() { section.hidden = openTeamButton.hidden && toggle.hidden && (!lastRead || lastRead.hidden); }
+    section.append(toggle, openTeamButton);
+    if (lastRead) section.appendChild(lastRead);
+    section.appendChild(content);
     o.root.querySelector('.chat-output').before(section);
     var tree = node('ul', 'tree team-tree'); tree.setAttribute('aria-label', 'Team members');
     var retiredTree = node('ul', 'tree team-tree'); retiredTree.setAttribute('aria-label', 'Retired members');
@@ -146,6 +156,9 @@
       lead = value; renderMember();
     }
     function renderMember() {
+      openTeamButton.hidden = !lead || !lead.group;
+      toggle.hidden = !current || (!current.group && !(current.members || []).length);
+      showSection();
       o.root.toggleAttribute('data-team-member', member());
       o.root.toggleAttribute('data-team-pending', !!id && !relationKnown);
       memberNote.hidden = !member() && relationKnown && !relationError; memberNote.replaceChildren();
@@ -229,11 +242,9 @@
       var members = v.members || [], activeMembers = members.filter(function (m) { return m.life !== 'retired'; }), retired = [];
       (function collect(list) { list.forEach(function (m) { if (m.life === 'retired') retired.push(m); else collect(m.members || []); }); })(members);
       o.keepPlace(function () {
-        section.hidden = !v.group && !members.length;
+        toggle.hidden = !v.group && !members.length;
+        showSection();
         toggle.textContent = 'Team (' + members.length + ')';
-        var aggregate = section.querySelector('.team-aggregate');
-        if (!aggregate) { aggregate = node('span', 'team-aggregate'); toggle.after(aggregate); }
-        aggregate.replaceChildren(window.dinahChatState.badge(v));
         drawMembers(tree, activeMembers, v.group); drawMembers(retiredTree, retired, v.group, true);
         retiredBox.hidden = !retired.length;
         budgetLines(budget, v.budget, prefix);
@@ -284,14 +295,17 @@
         header();
       },
       isMember: member,
+      lastReadChanged: showSection,
       isPending: function () { return !!id && !relationKnown; },
       focus: function () { (memberNote.querySelector('a, button') || memberNote).focus(); },
       openTeam: function () { return lead ? groupLink(lead.group, 0, { chat: id, title: o.title() }) : Promise.resolve(); },
       commands: function () {
-        if (!id || !api().SetTeamLead) return [];
-        return [{ id: 'change-team-lead', label: member() ? 'Change Team Lead…' : 'Make a Team Member…', run: function () { return chooseLead(id, lead).then(read); } },
-          { id: 'leave-team', label: 'Make an Ordinary Chat', hidden: !member(), run: function () { return Promise.resolve(api().ClearTeamLead(id)).then(function () { return read(true); }); } },
-          { id: 'open-team', label: 'Open Team Chat', hidden: !member(), run: function () { return groupLink(lead.group); } }];
+        if (!id) return [];
+        var commands = [{ id: 'open-team', label: 'Open Team', hidden: !member() || !lead.group, run: navigateTeam }];
+        if (api().SetTeamLead) commands.unshift(
+          { id: 'change-team-lead', label: member() ? 'Change Team Lead…' : 'Make a Team Member…', run: function () { return chooseLead(id, lead).then(read); } },
+          { id: 'leave-team', label: 'Make an Ordinary Chat', hidden: !member(), run: function () { return Promise.resolve(api().ClearTeamLead(id)).then(function () { return read(true); }); } });
+        return commands;
       },
       destroy: function () { trafficObserver.disconnect(); if (foldFrame) cancelAnimationFrame(foldFrame); disposed = true; generation++; document.removeEventListener('dinah:execution-state', executionChanged); if (stopTeam) stopTeam(); if (stopResync) stopResync(); section.remove(); memberNote.remove(); }
     };
