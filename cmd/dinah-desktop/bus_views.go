@@ -47,6 +47,7 @@ type BusMessage struct {
 	Verdict       string          `json:"verdict,omitempty"`
 	Attachments   []BusAttachment `json:"attachments"`
 	Unread        bool            `json:"unread"`
+	Dismissed     bool            `json:"dismissed"`
 	// Relay is set on a team member's message to the person that was rerouted to its lead: the
 	// group shows it for the person, who is not notified (teams.go).
 	Relay *BusRelay `json:"relay,omitempty"`
@@ -209,7 +210,7 @@ func busMessage(m bus.Message) BusMessage {
 	}
 	out := BusMessage{ID: m.ID, CreatedAt: m.CreatedAt, Kind: m.Kind, From: from, FromSession: m.FromSession, FromPerson: person,
 		FromWorkspace: m.FromWorkspaceLabel, To: m.ToPerson, Room: m.Room, RoomTitle: m.RoomTitle, Mentions: []BusMention{},
-		ReplyTo: m.ReplyTo, Text: m.Text, Version: m.Version, Verdict: m.Verdict, Attachments: []BusAttachment{}, Unread: m.Unread}
+		ReplyTo: m.ReplyTo, Text: m.Text, Version: m.Version, Verdict: m.Verdict, Attachments: []BusAttachment{}, Unread: m.Unread, Dismissed: m.Dismissed}
 	if m.Kind == bus.MemberKind {
 		out.Line = m.MemberLine(speakerName(bus.Human))
 	}
@@ -252,16 +253,12 @@ func (a *App) BusOverview() (BusOverview, error) {
 	var out BusOverview
 	err := a.busHost().With(func(b *bus.Bus) error {
 		ctx := context.Background()
-		inbox, err := b.HumanInbox(ctx, busInboxLimit, false)
+		inbox, err := b.HumanInboxPage(ctx, "unread", 0, busInboxLimit)
 		if err != nil {
 			return err
 		}
-		out.Inbox = busMessages(inbox)
-		for _, m := range inbox {
-			if m.Unread {
-				out.Unread++
-			}
-		}
+		out.Inbox = busMessages(inbox.Items)
+		out.Unread = inbox.Unread
 		rooms, err := b.Rooms(ctx)
 		if err != nil {
 			return err
@@ -608,19 +605,11 @@ func (a *App) RemoveOldAttachments(days int) (BusFiles, error) {
 	return BusFiles{Files: n.Files, Bytes: n.Bytes}, err
 }
 
-// BusThread returns the thread a message belongs to, oldest first: the
-// message it answers, if any, and every reply to that one.
+// BusThread returns the selected message and its replies, oldest first.
 func (a *App) BusThread(id int64) ([]BusMessage, error) {
 	var out []BusMessage
 	err := a.busHost().With(func(b *bus.Bus) error {
 		ctx := context.Background()
-		m, err := b.Message(ctx, id)
-		if err != nil {
-			return err
-		}
-		if m.ReplyTo != 0 {
-			id = m.ReplyTo
-		}
 		ms, err := b.Thread(ctx, id)
 		out = busMessages(ms)
 		return err
@@ -628,11 +617,11 @@ func (a *App) BusThread(id int64) ([]BusMessage, error) {
 	return out, err
 }
 
-// BusReplyInThread answers a thread as Paul (bus.ReplyInThread).
+// BusReplyInThread answers the displayed conversation's selected root.
 func (a *App) BusReplyInThread(id int64, text string) (BusMessage, error) {
 	var out BusMessage
 	err := a.busHost().With(func(b *bus.Bus) error {
-		m, err := b.ReplyInThread(context.Background(), bus.Sender{}, id, text)
+		m, err := b.ReplyToSelectedThread(context.Background(), bus.Sender{}, id, text)
 		out = busMessage(m)
 		return err
 	})
