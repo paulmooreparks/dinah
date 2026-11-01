@@ -622,7 +622,7 @@
      the box holds, so a draft, a message brought back with Up and one put
      back with Edit keep them. A group has no provider, model, Steer or Stop
      of its own, and no skills, which run in a chat's agent. */
-  function mentionComposer(key, members, addChat, send, limit, currentRoom) {
+  function mentionComposer(key, members, addChat, send, limit) {
     var mentioned = [];
     var box = composer({ label: 'Message to the Group', placeholder: 'Write to the group. Type @ and a chat\'s title to ask particular chats, or @everyone to ask them all.', draftKey: 'group:' + key, files: true, limit: limit, send: function (text, state, files) {
       var ids = mentioned.filter(function (x) { return text.indexOf('@' + x.title) >= 0; }).map(function (x) { return x.id; });
@@ -637,7 +637,7 @@
       if (/(^|\s)@everyone\b/.test(text)) list.push({ id: 'everyone', title: 'everyone' });
       return { text: text, mentioned: list };
     };
-    box.sent = function () { close(); setTimeout(function () { refreshNote(); }, 0); };
+    box.sent = close;
     box.el.classList.add('group-composer');
     var pop = box.pop;
     pop.classList.add('group-mention-pop'); pop.setAttribute('aria-label', 'Members');
@@ -733,30 +733,6 @@
         }
       }
     }, true);
-    /* A message that mentions nobody reaches the members as a notice they may read, and asks none of them to answer.
-       The box says so while that is what the message would do, and offers @everyone as one press. */
-    var note = node('div', 'form-help group-notice-note'); note.hidden = true;
-    var everyone = node('button', 'btn btn-sm', 'Mention Everyone'); everyone.type = 'button';
-    var routing = node('span', 'group-routing-summary'), details = node('details', 'group-routing-details');
-    var summary = node('summary', null, 'Who receives this?'), explanation = node('p');
-    details.append(summary, explanation); note.append(routing, everyone, details);
-    box.content.appendChild(note);
-    function refreshNote() {
-      var value = text.value, mentions = /(^|\s)@everyone\b/.test(value) || mentioned.some(function (x) { return value.indexOf('@' + x.title) >= 0; });
-      note.hidden = !value.trim() || mentions;
-      var room = currentRoom ? currentRoom() : group(key), lead = room && room.lead, member = lead && (room.members || []).find(function (m) { return m.id === lead; });
-      routing.textContent = lead ? 'Reply requested from ' + (member ? member.title : 'the team lead') + '.' : 'No replies requested.';
-      explanation.textContent = lead ? 'An unmentioned message asks the team lead to answer. Other members receive a passive notice on their next turn.' : 'Each member receives a passive notice on their next turn. Mention a chat to ask it to answer, or mention everyone to ask them all.';
-    }
-    everyone.addEventListener('click', function () {
-      text.value = '@everyone ' + text.value;
-      if (!mentioned.some(function (x) { return x.id === 'everyone'; })) mentioned.push({ id: 'everyone', title: 'everyone' });
-      text.focus(); text.setSelectionRange(text.value.length, text.value.length);
-      box.changed();
-    });
-    var changed = box.changed;
-    box.changed = function () { var r = changed.apply(box, arguments); refreshNote(); return r; };
-    text.addEventListener('input', refreshNote);
     box.mention = function (m) {
       if (!m) return;
       var word = '@' + m.title;
@@ -764,9 +740,7 @@
       if (!mentioned.some(function (x) { return x.id === m.id; })) mentioned.push({ id: m.id, title: m.title });
       box.changed();
     };
-    box.routingChanged = refreshNote;
     box.restore();
-    refreshNote();
     return box;
   }
 
@@ -888,7 +862,7 @@
        the member chats that have one, worked out in Go with the member that
        set it (file_limits.go, groupFileLimit). */
     function fileLimit() { var l = room && room.fileLimit; return l && l.limit > 0 ? { max: l.limit, reason: l.reason } : null; }
-    var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit, function () { return room; });
+    var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit);
     box.canRead = function () { return lookupState === 'resolved' && ((!overviewFailure && !!group(key)) || checkedOverview === overviewVersion); };
     var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button';
     stopped.appendChild(node('span', 'toolbar-words', 'Jump to Where You Stopped'));
@@ -942,12 +916,14 @@
     function command(label, glyph, cls, run) {
       var button = node('button', 'btn btn-sm ' + cls); button.type = 'button'; button.setAttribute('aria-label', label);
       var icon = node('span', 'glyph'); icon.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')'); icon.setAttribute('aria-hidden', 'true');
-      button.append(icon, node('span', 'toolbar-words', label)); button.addEventListener('click', run); commandGroup.appendChild(button);
+      if (glyph) button.appendChild(icon); button.appendChild(node('span', 'toolbar-words', label)); button.addEventListener('click', run); commandGroup.appendChild(button);
     }
     commandGroup.appendChild(memberToggle);
     command('Add Chats…', 'plus', 'group-add-chats', addChats);
     command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
-    commandGroup.appendChild(stopped); commandBar.appendChild(commandGroup); memberShell.append(commandBar, bar);
+    commandGroup.appendChild(stopped);
+    command('Mention Everyone', null, 'group-mention-everyone', function () { box.mention({ id: 'everyone', title: 'everyone' }); box.text.focus(); });
+    commandBar.appendChild(commandGroup); memberShell.append(commandBar, bar);
     var separator = node('hr', 'group-transcript-separator');
     root.prepend(lookupNote, lookupRetry, memberShell, separator);
     if (window.pudlToolbar) window.pudlToolbar.enhance(memberShell);
@@ -1017,7 +993,6 @@
       var listed = !overviewFailure && group(key);
       if (listed) { room = listed; lookupState = 'resolved'; checkedOverview = overviewVersion; lookupEpoch++; lookupNote.hidden = true; lookupRetry.hidden = true; }
       else if (loaded && checkedOverview !== overviewVersion) checkAvailability();
-      box.routingChanged();
       box.close(lookupState !== 'resolved');
       box.limitChanged();
       refreshDrafts();

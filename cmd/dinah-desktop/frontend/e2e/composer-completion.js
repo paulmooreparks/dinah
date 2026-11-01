@@ -49,12 +49,10 @@ const { launch } = require('./lib/page');
     await box.press('ArrowDown'); await box.press('ArrowUp'); await box.press('Enter');
     ok('the keyboard selects the group mention', (await box.inputValue()).includes('@Reviewer '));
     await box.fill('A report for the group');
-    await group.locator('.group-routing-summary', { hasText: 'No replies requested.' }).waitFor();
-    await group.getByText('Who receives this?', { exact: true }).click();
-    await t.shot('group-routing-disclosure');
+    ok('typing leaves the bottom composer free of routing panels', await group.locator('.group-notice-note, .group-routing-summary, .group-routing-details').count() === 0);
     await page.evaluate(() => __teamRouting(true));
-    await group.locator('.group-routing-summary', { hasText: 'Reply requested from Reviewer.' }).waitFor();
-    ok('a team group names the lead who receives an unmentioned message', /asks the team lead/.test(await group.locator('.group-routing-details').innerText()));
-    await t.shot('team-routing-disclosure');
+    await group.locator('.group-toolbar .group-mention-everyone').waitFor();
+    ok('team routing changes keep the explicit recipient action above the transcript', await group.locator('.group-toolbar .group-mention-everyone').count() === 1 && await group.locator('.group-composer .group-mention-everyone').count() === 0);
+    await t.shot('team-composer-without-routing-panel');
   } finally { await t.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
