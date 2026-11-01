@@ -13,6 +13,9 @@ func (a *App) continuations() *sessionhost.Continuations {
 			Session: a.session, Invocations: conversationAppletInvocations,
 			HasPending:  func(id string) bool { return a.permissions().HasPending(id) },
 			BusIdentity: a.busIdentityOf, MoveBusIdentity: a.moveBusSession,
+			Transfer: a.transferChat, Bindings: a.chatBindings, RecoverableFork: a.recoverableFork,
+			TransferVersion: a.transferVersion, TransferFinished: a.finishTransfer,
+			RecoveryModel: a.recoveryModel,
 			NewSession: func(ws, provider, adopt string) (SessionInfo, error) {
 				return a.sessionsLifecycle().NewAdopting(ws, provider, adopt)
 			}, RevokeSession: a.revokeAppletSession, Emit: a.emit,

@@ -37,6 +37,27 @@
       }).catch(function (error) { fail(error); return null; });
       return openResolvedSession(id, reveal);
     }
+    // Recovery reviews this recipient's saved history without following a
+    // conflicting continuation or contacting its unavailable provider.
+    async function openSavedRecovery(id, cwd) {
+      var s = S(id);
+      if (s.info.open || s.loading) throw new Error('Finish the current chat operation before recovering it.');
+      s.info.cwd = cwd || s.info.cwd || workspace();
+      var saved = await app().SavedConversation(id);
+      if (!saved || !saved.available) throw new Error('No saved history is available for this recipient.');
+      s.historyWarning = saved.warning || '';
+      s.historyComplete = saved.complete !== false;
+      s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
+      s.recoveryReview = true;
+      s.titleKnown = true; s.restoring = false;
+      s.info.title = s.info.title || 'Saved chat for recovery';
+      s.failed = 'The original recipient has waiting messages. Choose a provider using Continue from Saved History. Its separate continuation keeps its own history and messages.';
+      show(id); await showChat();
+      await drawSaved(s, saved.messages || []);
+      drawAgentState();
+      if (s.view) { s.view.sessionNote(); s.view.stateLine(); }
+      return s;
+    }
     /* A chat window restored with the layout shows Dinah's saved copy
        of the chat at once, and then reconnects to its agent behind it, one
        chat at a time, so that every chat in the layout is live again, and
@@ -48,6 +69,7 @@
        a chat at once. A chat with no complete saved copy, or one continued in
        another chat, reopens as before. */
     function restoreChat(s) {
+      if (s.recoveryReview) { s.restoring = false; return Promise.resolve(s); }
       if (s.loading) return s.displayBuild ? s.displayBuild.then(function () { return s; }) : Promise.resolve(s);
       if (s.restorePromise) return s.restorePromise;
       var id = s.id;
@@ -107,8 +129,12 @@
     function connect(m) {
       var s = S(m.sessionId);
       if (!s.info.cwd && m.cwd) s.info.cwd = m.cwd;
+      if (m.provider) s.info.provider = m.provider;
+      if (m.title) s.info.title = m.title;
       if (s.info.open || s.loading || s.savedBuild) return;
+      if (m.deliveryAttempt) s.deliveryOpening = { origin: m.deliveryOrigin, attempt: m.deliveryAttempt };
       reconnectChat(s.id, false).then(function (r) {
+        if (m.deliveryAttempt) return; // The durable waiting-delivery card owns this diagnostic.
         if (r || sessions[s.id] !== s || chatWindowsFor(s.id).length) return;
         var agent = providerName(sessionProvider(s));
         toast(agent + ' reported: ' + String(s.failed || 'the agent did not open it').replace(/^Error:\s*/, '') + ' The messages waiting for it keep waiting.', 'danger', { title: agent + ' could not open "' + title(s) + '".' });
@@ -128,6 +154,7 @@
     // The chat in front reconnects when its agent's live values are needed.
     function reconnectSaved() {
       var id = active(), s = id && sessions[id];
+      if (s && s.recoveryReview) return;
       if (s && s.saved && !s.info.open && !s.loading) openSession(id).catch(function () {});
     }
     /* behind reconnects the chat without making it the current chat, for a
@@ -198,6 +225,8 @@
       s.displayBuild = display;
       return s.loadingPromise = Promise.resolve().then(function () {
         if (sessions[id] !== s) return null;
+        var delivery = s.deliveryOpening; s.deliveryOpening = null;
+        if (delivery && app().OpenWaitingSession) return app().OpenWaitingSession(delivery.origin, delivery.attempt);
         // Open With… reopens the chat with the value the person chose in
         // place of its saved one (option_substitutions.go).
         var openWith = s.openWith; s.openWith = null;
@@ -368,7 +397,7 @@
     }
 
 
-    return { openSession, restoreChat, reconnectChat, connect, reportChatWindows,
+    return { openSession, openSavedRecovery, restoreChat, reconnectChat, connect, reportChatWindows,
       reconnectSaved, openResolvedSession, newSession, loadFullHistory };
   }
 

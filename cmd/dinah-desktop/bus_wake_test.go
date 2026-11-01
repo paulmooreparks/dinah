@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"studio/internal/acp"
 	"studio/internal/bus"
+	"studio/internal/sessionhost"
 )
 
 // connectRequests collects the page's requests to connect a chat
@@ -136,7 +139,7 @@ func TestAWakingMessageOpensAClosedChatInTheBackground(t *testing.T) {
 }
 
 func TestAtMostThreeChatsOpenInTheBackground(t *testing.T) {
-	a, _ := providerTestApp(t)
+	a, c := providerTestApp(t)
 	r := watchConnects(a)
 	ids := []string{"codex:one", "codex:two", "codex:three", "codex:four", "codex:five"}
 	for _, id := range ids {
@@ -169,7 +172,12 @@ func TestAtMostThreeChatsOpenInTheBackground(t *testing.T) {
 		t.Fatalf("the queued chat did not open when a slot freed: %v", got)
 	}
 	// A chat that fails to open frees its slot too, and the next opens.
-	a.busCoordinator().Connected("codex:four", context.DeadlineExceeded)
+	withResume(a)
+	wholeCopy(t, asked[0]["cwd"].(string), func(tr *sessionhost.Transcript) { tr.SessionID = "codex:four" })
+	c.resumeErr = &acp.Error{Code: acp.CodeResourceNotFound, Message: "Resource not found"}
+	if _, err := a.OpenWaitingSession("codex:four", asked[0]["deliveryAttempt"].(string)); !errors.Is(err, c.resumeErr) {
+		t.Fatalf("the provider failure was not retained: %v", err)
+	}
 	wakeRound(t, a)
 	if got := askedIDs(r.take()); strings.Join(got, ",") != "codex:five" {
 		t.Fatalf("the last chat did not open when a failed one freed its slot: %v", got)
@@ -348,8 +356,14 @@ func TestAFailedReconnectKeepsTheMessageWaiting(t *testing.T) {
 		t.Fatal(err)
 	}
 	wakeRound(t, a)
-	if got := r.take(); len(got) != 1 {
-		t.Fatalf("a newer message did not ask for the chat again: %v", got)
+	if got := r.take(); len(got) != 0 {
+		t.Fatalf("new delivery bypassed the unchanged durable failure: %v", got)
+	}
+	initial := a.runtime.ProviderLocked("codex").Initialization()
+	initial.AgentCapabilities.LoadSession = true
+	setTestInitialization(a, "codex", initial)
+	if _, err := a.RetryWaitingSession("codex:broken"); err != nil {
+		t.Fatalf("explicit retry lost the automatic wake workspace: %v", err)
 	}
 }
 

@@ -120,7 +120,10 @@ type Settings struct {
 	SessionTitles map[string]string `json:"sessionTitles,omitempty"`
 	// BusSessions are each chat's session ID on the bus, by chat, so a chat
 	// keeps its name on the bus when it is reopened (bus_chats.go).
-	BusSessions map[string]string `json:"busSessions,omitempty"`
+	BusSessions         map[string]string       `json:"busSessions,omitempty"`
+	ChatBindings        map[string]string       `json:"chatBindings,omitempty"`
+	ChatTransfers       map[string]chatTransfer `json:"chatTransfers,omitempty"`
+	ChatTransferHistory []chatTransfer          `json:"chatTransferHistory,omitempty"`
 	// TerminalShell is the shell a new Terminal runs (terminal_shells.go).
 	TerminalShell    string            `json:"terminalShell,omitempty"`
 	TerminalProfiles []TerminalProfile `json:"terminalProfiles,omitempty"`

@@ -43,6 +43,7 @@ import (
 //	agent:sent        {sessionId, text, kind}          a queued or steering message went to the agent
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
+	transferRunning            sync.Map
 	startupErr                 error
 	terminalShutdownIncomplete atomic.Bool
 	// judging is the set of judges and the person's choices for them

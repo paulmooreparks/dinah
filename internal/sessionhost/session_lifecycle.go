@@ -333,6 +333,16 @@ func (l *SessionLifecycle) current(id string) string {
 
 func (l *SessionLifecycle) open(ws, id string, override map[string]json.RawMessage, full bool) (Info, error) {
 	id = l.current(id)
+	return l.openExact(ws, id, override, full)
+}
+
+// OpenExact opens the target already resolved and checked by a delivery attempt.
+// It must not redirect the attempt to another recipient during the open.
+func (l *SessionLifecycle) OpenExact(ws, id string) (Info, error) {
+	return l.openExact(ws, id, nil, false)
+}
+
+func (l *SessionLifecycle) openExact(ws, id string, override map[string]json.RawMessage, full bool) (Info, error) {
 	l.openMu.Lock()
 	if call, ok := l.opening[id]; ok {
 		l.openMu.Unlock()

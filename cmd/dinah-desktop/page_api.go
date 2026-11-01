@@ -49,7 +49,7 @@ var pageMethods = func() map[string]pageMethodClass {
  ExtensionWorkspace Extensions GetDraft HomeMountPath ListDrafts ListWorkspaceMounts
  ListWorkspaceMountsExpected ListWorkspaceResources PageBlocksOf PageDocumentMarkdown
  PageDocumentOf PageSourceOf PreviewDraft PreviewExtension PreviewSessionContinuation PreviewSessionWorkspaceMove
- PreviewSessionRecovery PreviewWorkspaceResource ReadAppearance ReadFile ReadSkill ReadUIState
+ PreviewSessionRecovery PreviewSessionRecoveryModel PreviewWorkspaceResource ReadAppearance ReadFile ReadSkill ReadUIState
  ReadWorkspaceMount ReadWorkspaceMountExpected ReadWorkspaceResource RecentDocuments
  ReadLinkedImage RenderD2 ReportWindowFocus ResolveDocumentLink ResolveDocumentLinks
  ResolveSessionContinuation ResolveWorkspaceResourceMount SessionContinuation SessionOptions
@@ -80,9 +80,9 @@ var pageMethods = func() map[string]pageMethodClass {
  LoadFullHistory MakeWorkspaceDirectory MarkBusInboxRead MergeIntoDraft MoveWorkspaceMount
  MoveWorkspacePin NewEmptyDraft NewSession NewSessionAt NewSessionWithProviderAt 
  OpenComputerDocument OpenComputerFile OpenDraft OpenPath OpenProviderUsage
- OpenSession OpenSessionAt OpenSessionWith OpenSkillDraft OpenUsage OpenWorkspaceMount
+ OpenSession OpenSessionAt OpenSessionWith OpenWaitingSession RetryWaitingSession ReloadWaitingChatState OpenSkillDraft OpenUsage OpenWorkspaceMount
  OpenWorkspaceResource PickAttachments PickDraftFiles PinWorkspaceItem 
- PrepareSkill Queue RecoverSession
+ PrepareSkill Queue RecoverSession RecoverSessionModel
  RecoverSteering RejectSuggestion RelocateWorkspaceSource RemoveExtension RemoveOldAttachments
  RemoveOptionSubstitution RemovePackages RemoveTerminalProfile RemoveWorkspace
  RemoveWorkspaceMount RenameDocumentFile RenameSession RenameSkill RenameWorkspace

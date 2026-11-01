@@ -29,6 +29,12 @@ func (a *App) backgroundUsedLocked() int { return a.runtime.BackgroundUsedLocked
 func (a *App) busCoordinator() *sessionhost.BusChats {
 	a.busChatsOnce.Do(func() {
 		a.busChatsService = sessionhost.NewBusChats(&a.mu, &a.runtime, sessionhost.BusChatsHost{
+			DeliveryHeld: a.transferHeld,
+			WakeAttempts: &sessionhost.WakeAttempts{Read: a.readReconciledWaitingChats, Write: writeWaitingChats, Now: a.wakeClock},
+			ResolveWake:  a.waitingRoute,
+			OpenDeliveryChat: func(route sessionhost.WakeRoute) (sessionhost.Info, error) {
+				return a.sessionsLifecycle().OpenExact(route.Cwd, route.Target)
+			},
 			BusService:       a.busHost,
 			ResultBroker:     func() (*broker.Broker, error) { return a.appletHostService().Broker() },
 			SavedBusIdentity: func(id string) string { a.mu.Lock(); defer a.mu.Unlock(); return a.settings.BusSessions[id] },
@@ -46,7 +52,7 @@ func (a *App) busCoordinator() *sessionhost.BusChats {
 				return err
 			},
 			ConnectGrace:  a.connectGrace(),
-			ConnectFailed: a.relayDeliveryFailed,
+			ConnectFailed: func(chat string, err error) { a.relayDeliveryFailed(chat, err); a.emit("notification:delivery", nil) },
 			Log:           func(level, format string, args ...any) { logf("bus", level, format, args...) },
 		})
 	})

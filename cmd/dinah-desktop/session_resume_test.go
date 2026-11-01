@@ -456,7 +456,12 @@ func TestAChatTheWindowDoesNotOpenIsOpenedByTheEngine(t *testing.T) {
 		t.Fatalf("the page was not asked: %v", asked)
 	}
 	deadline := time.Now().Add(testWait)
-	for s := a.session("codex:ignored"); s == nil || !s.State().Ready; s = a.session("codex:ignored") {
+	for {
+		s := a.session("codex:ignored")
+		_, _, pending := a.busCoordinator().CurrentDeliveryAttempt("codex:ignored")
+		if s != nil && s.State().Ready && !pending {
+			break
+		}
 		if time.Now().After(deadline) {
 			t.Fatal("the engine did not open a chat the window left alone")
 		}

@@ -29,6 +29,7 @@ type Notification struct {
 	SessionTitle string   `json:"sessionTitle"`
 	Workspace    string   `json:"workspace"`
 	Provider     string   `json:"provider"`
+	RetryAllowed bool     `json:"retryAllowed,omitempty"`
 	// DraftID is the draft a report is about, which the card reopens.
 	DraftID string `json:"draftId,omitempty"`
 	// Lead is the chat ID, in the window, of the lead a failed relay was rerouted to, so the card can link to it.
@@ -194,6 +195,12 @@ func (a *App) Notifications() ([]Notification, error) {
 			out = append(out, item)
 		}
 	}
+	waiting, err := a.waitingChatNotifications()
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, waiting...)
+	out = append(out, a.transferNotifications()...)
 	return out, nil
 }
 

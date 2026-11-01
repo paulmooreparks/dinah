@@ -42,6 +42,12 @@ func (a *BusChats) DeliverRound(ctx context.Context, b *bus.Bus) {
 // meantime can start a second turn, and messages taken are never dropped.
 func (a *BusChats) Ring(ctx context.Context, b *bus.Bus, s *Conversation) {
 	state := s.State()
+	if a.host.DeliveryHeld != nil && a.host.DeliveryHeld(s.ID(), state.BusID) {
+		return
+	}
+	if a.host.WakeAttempts != nil && a.host.WakeAttempts.DeliveryHeld(s.ID(), state.BusID) {
+		return
+	}
 	id := state.BusID
 	gone := !state.Open && id != ""
 

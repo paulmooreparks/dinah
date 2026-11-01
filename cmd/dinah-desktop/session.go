@@ -116,6 +116,12 @@ func (a *App) OpenSession(id string) (SessionInfo, error) {
 // that cannot be opened is logged with the agent's reason, which the page
 // shows only until the window closes.
 func (a *App) OpenSessionAt(ws, id string) (SessionInfo, error) {
+	if a.transferHeld(id, "") {
+		return SessionInfo{}, errors.New("this chat has an unfinished continuation transfer; use saved-history recovery")
+	}
+	if origin, attempt, ok := a.busCoordinator().CurrentDeliveryAttempt(id); ok {
+		return a.OpenWaitingSession(origin, attempt)
+	}
 	return a.sessionsLifecycle().Open(ws, id, nil)
 }
 

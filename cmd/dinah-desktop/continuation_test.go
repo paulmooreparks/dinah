@@ -329,6 +329,10 @@ func TestContinuationFailurePreservesOriginalAndPendingHandoff(t *testing.T) {
 		t.Fatal("failed switch changed original")
 	}
 	failing.failNew = false
+	p, err = a.continuations().Preview(s, "codex")
+	if err != nil {
+		t.Fatal(err)
+	}
 	result, err := a.ContinueSessionWithProvider(s.ID(), "codex", p.Revision)
 	if err != nil {
 		t.Fatal(err)

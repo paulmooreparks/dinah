@@ -190,7 +190,7 @@
       startLog: function (id, gen, through) { return adapter.startLog ? adapter.startLog(id, gen, through) : false; },
       catchUpLog: function (id) { return adapter.catchUpLog ? adapter.catchUpLog(id) : Promise.resolve(); }
     });
-    const { openSession, restoreChat, reconnectChat, reportChatWindows,
+    const { openSession, openSavedRecovery, restoreChat, reconnectChat, reportChatWindows,
       reconnectSaved, openResolvedSession, newSession, loadFullHistory } = sessionLifecycle;
     on('chat:connect', sessionLifecycle.connect);
     document.addEventListener('pudl:windows-change', reportChatWindows);
@@ -894,13 +894,56 @@
         // The second callback permits a progress frame to paint before the RPC.
         return new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
       }
+      function chooseRecoveryDestination(provider) {
+        return new Promise(function (resolve) {
+          var dlg = document.createElement('dialog'), form = document.createElement('form'); form.method = 'dialog';
+          dlg.className = 'dialog';
+          var heading = document.createElement('h2'); heading.className = 'dialog-title'; heading.textContent = 'Choose the recovery destination';
+          var body = document.createElement('div'); body.className = 'dialog-body vstack gap-3';
+          var explanation = document.createElement('p'); explanation.textContent = 'The new chat keeps this recipient and its waiting messages. Other recipients remain separate. No message is sent until recovery commits.';
+          var providerLabel = document.createElement('label'); providerLabel.textContent = 'Provider';
+          var providerSelect = document.createElement('select'); providerSelect.setAttribute('aria-label', 'Recovery provider');
+          providerChoices(provider).filter(function (p) { return !p.problem; }).forEach(function (p) { providerSelect.add(new Option(p.name, p.id)); });
+          providerSelect.value = provider;
+          var modelLabel = document.createElement('label'); modelLabel.textContent = 'Model';
+          var modelSelect = document.createElement('select'); modelSelect.setAttribute('aria-label', 'Recovery model');
+          var actions = document.createElement('div'); actions.className = 'dialog-actions';
+          var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
+          var next = document.createElement('button'); next.type = 'submit'; next.className = 'btn btn-primary'; next.textContent = 'Review Recovery';
+          var generation = 0, done = false;
+          function finish(value) { if (done) return; done = true; dlg.close(); dlg.remove(); resolve(value); }
+          async function models() {
+            var mine = ++generation, id = providerSelect.value;
+            next.disabled = true; modelSelect.disabled = true;
+            try { if (!providerCatalogs[id] && adapter.readProviderPreferences) await adapter.readProviderPreferences(id); } catch (_) { }
+            if (done || mine !== generation) return;
+            modelSelect.replaceChildren(new Option('Use the configured provider default', ''));
+            var model = byCat(providerCatalogs[id] || (id === defaultProvider ? catalog : []) || [], 'model');
+            if (model) optValues(model).forEach(function (v) { modelSelect.add(new Option(v.name || v.value, v.value)); });
+            modelSelect.disabled = false; next.disabled = !id;
+          }
+          providerLabel.appendChild(providerSelect); modelLabel.appendChild(modelSelect);
+          body.append(explanation, providerLabel, modelLabel); actions.append(cancel, next); form.append(heading, body, actions); dlg.appendChild(form); document.body.appendChild(dlg);
+          cancel.addEventListener('click', function () { finish(null); }); dlg.addEventListener('cancel', function (event) { event.preventDefault(); finish(null); });
+          providerSelect.addEventListener('change', models);
+          form.addEventListener('submit', function (event) { event.preventDefault(); if (!next.disabled) finish({ provider: providerSelect.value, model: modelSelect.value }); });
+          dlg.showModal(); models();
+        });
+      }
       async function switchProvider(provider, recovery) {
         var before = active && sessions[active];
         recovery = !!(recovery || (before && before.failed));
         if (!before || switchingProvider || before.working || before.loading || (before.queued || []).length || (provider === chatProvider() && !recovery)) { renderComposerOptions(); return; }
         switchingProvider = true; var epoch = ++switchEpoch; renderComposerOptions(); typed();
         try {
+          var recoveryModel = '';
+          if (recovery && app().RecoverSessionModel) {
+            var destination = await chooseRecoveryDestination(provider);
+            if (!destination || deleted || epoch !== switchEpoch || active !== before.id) return;
+            provider = destination.provider; recoveryModel = destination.model;
+          }
           var review = await confirmSwitchFacts(function () {
+            if (recovery && app().PreviewSessionRecoveryModel) return app().PreviewSessionRecoveryModel(before.id, provider, recoveryModel);
             return recovery ? app().PreviewSessionRecovery(before.id, provider) : app().PreviewSessionContinuation(before.id, provider);
           }, { title: recovery ? 'Continue from Saved History?' : 'Continue with ' + providerName(provider) + '?', providerName: providerName(provider) });
           if (review.answer === 'cancel' || deleted || epoch !== switchEpoch || active !== before.id) return;
@@ -915,7 +958,7 @@
           }
           await paintSwitchPreparation(before, 'provider', provider);
           if (deleted || epoch !== switchEpoch || active !== before.id) return;
-          var result = await (recovery ? app().RecoverSession(before.id, provider, preview.revision) : app().ContinueSessionWithProvider(before.id, provider, preview.revision));
+          var result = await (recovery ? app().RecoverSessionModel ? app().RecoverSessionModel(before.id, provider, preview.revision, recoveryModel) : app().RecoverSession(before.id, provider, preview.revision) : app().ContinueSessionWithProvider(before.id, provider, preview.revision));
           if (deleted || epoch !== switchEpoch || active !== before.id) return;
           await applyContinuation(before, {
             result: result,
@@ -1333,8 +1376,8 @@
       var note = $('session-note');
       note.hidden = !(s && s.failed && !s.loading);
       if (note.hidden) { openWithShown = false; return; }
-      $('session-note-title').textContent = s.failedHistory ? 'This chat opened, but its current history could not be loaded.' : agentName() + ' could not open this session.';
-      $('session-note-body').textContent = (s.failedHistory ? 'The history read failed: ' : agentName() + ' reported: ') + s.failed.replace(/^Error:\s*/, '') + (s.unoffered ? ' Open With lets you choose one of the values ' + agentName() + ' offers now.' : '') + (s.historyAvailable ? ' Your saved history is shown above. You can save it or continue it in a fresh chat.' : ' Try again to reconnect. No saved history is available here.') + (s.historyWarning ? ' ' + s.historyWarning : '');
+      $('session-note-title').textContent = s.recoveryReview ? 'Recover the original message recipient' : s.failedHistory ? 'This chat opened, but its current history could not be loaded.' : agentName() + ' could not open this session.';
+      $('session-note-body').textContent = (s.recoveryReview ? '' : s.failedHistory ? 'The history read failed: ' : agentName() + ' reported: ') + s.failed.replace(/^Error:\s*/, '') + (s.unoffered ? ' Open With lets you choose one of the values ' + agentName() + ' offers now.' : '') + (s.historyAvailable ? ' Your saved history is shown above. You can save it or continue it in a fresh chat.' : ' Try again to reconnect. No saved history is available here.') + (s.historyWarning ? ' ' + s.historyWarning : '');
       $('session-recover').disabled = !s.historyAvailable || s.historyRecoverable === false;
       $('session-save-history').disabled = !s.historyAvailable;
       drawOpenWith(s);
@@ -3764,7 +3807,7 @@
       ensure: ensureChat, current: currentChat, active: () => active,
       providerName, frontProvider, defaultProvider: () => defaultProvider,
       chatWorking, backgroundWork, earlierSubagents,
-      show, showChat, openSession, reconnectChat, startNewChat, restartAgent, signIn,
+      show, showChat, openSession, openSavedRecovery, reconnectChat, startNewChat, restartAgent, signIn,
       setContext, disposeChat, setDraftWorkspace, restorePreferences, restoreView, setupChatWindows,
       setTemplates: value => { templates = value; },
       refreshChatTitles: () => chatControllers.forEach(chat => chat.stateLine()),

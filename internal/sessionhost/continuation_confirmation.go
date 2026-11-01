@@ -118,6 +118,9 @@ func (c *Continuations) confirmationLocked(s *Conversation, provider, cwd string
 		return p, errors.New("this chat already continues in another session")
 	}
 	hash := sha256.New()
+	if c.host.TransferVersion != nil {
+		hash.Write([]byte(c.host.TransferVersion(s.ID())))
+	}
 	p.options = s.Options()
 	if p.options == nil {
 		p.options = []acp.ConfigOption{}

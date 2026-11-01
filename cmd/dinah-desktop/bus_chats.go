@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"errors"
 	"flag"
+	"fmt"
 	"path/filepath"
+	"slices"
 
 	"studio/internal/bus"
 	"studio/internal/bushost"
@@ -247,6 +249,24 @@ func (a *App) registerBusServer(id, cwd, title string, servers []any) ([]any, er
 // in one settings write, so no saved state has both chats or neither.
 func (a *App) moveBusSession(from, to, id string) error {
 	return a.updateSettings(func(s *Settings) error {
+		if s.BusSessions[from] != id {
+			return fmt.Errorf("the original chat no longer owns its message recipient")
+		}
+		if existing := s.BusSessions[to]; existing != "" && existing != id {
+			return fmt.Errorf("the destination already owns another message recipient")
+		}
+		if tr, ok := s.ChatTransfers[from]; ok {
+			if tr.Stage != "prepared" || tr.Target != to || tr.Recipient != id {
+				return fmt.Errorf("the continuation transfer is not prepared for this recipient")
+			}
+			tr.Stage = "committed"
+			s.ChatTransfers[from] = tr
+			s.Hidden = slices.DeleteFunc(s.Hidden, func(value string) bool { return value == to })
+		}
+		if s.ChatBindings == nil {
+			s.ChatBindings = map[string]string{}
+		}
+		s.ChatBindings[from] = to
 		if s.BusSessions == nil {
 			s.BusSessions = map[string]string{}
 		}

@@ -5,7 +5,7 @@
 
   function create(adapter) {
     const { app, on, element: $, session: S, getSession, sessionProvider,
-      workspace, title, openSession, row, now, drawSessions, toast, fail } = adapter;
+      workspace, title, openSession, openSavedRecovery, row, now, drawSessions, toast, fail } = adapter;
 
     /* ask puts a yes-or-no question to the person in the page's own dialog,
        never the browser's, and resolves true when they confirm. Escape or
@@ -258,6 +258,29 @@
         time: item.created || null, source: title(S(item.sessionId)), target: { chat: item.sessionId }, dismissible: true, announced: true,
         className: 'question heads-up', data: { session: item.sessionId, notificationId: item.id } };
     }
+
+    function deliveryFailureNotice(item) {
+      var entry = turnFailureNotice(item);
+      entry.dismissible = false;
+      entry.clearable = false;
+      entry.actions = [{ label: 'Review Chat', primary: true, run: function () { return openSession(item.sessionId); } }];
+        entry.actions.push({ label: 'Recover Original Chat', run: function () { return openSavedRecovery(item.lead, item.workspace); } });
+        entry.actions.push({ label: 'Refresh Recovery Status', run: function () { return app().ReloadWaitingChatState().then(function () { return restoreNotifications(); }); } });
+      if (item.retryAllowed) entry.actions.push({ label: 'Retry Waiting Delivery', run: function () {
+          return app().RetryWaitingSession(item.lead).then(function () { return restoreNotifications(); });
+        } });
+      return entry;
+    }
+
+    function deliveryStoreFailureNotice(item) {
+      var entry = reportNotice(item);
+      entry.details = item.details || [];
+      entry.dismissible = false; entry.clearable = false;
+      entry.actions = [{ label: 'Reload Recovery State', primary: true, run: function () {
+        return app().ReloadWaitingChatState().then(function () { return restoreNotifications(); });
+      } }];
+      return entry;
+    }
     /* A chat mentioned the person, in a group or directly (mention_notices.go). The
        card opens the group, whose window marks its messages read, which ends the
        card; Dismiss only removes the card. */
@@ -290,7 +313,21 @@
     function restoreNotifications() {
       if (!app().Notifications) return Promise.resolve();
       return app().Notifications().then(function (items) {
+        var waiting = new Set((items || []).filter(function (item) { return item.kind === 'delivery-failure' || item.kind === 'delivery-store-error'; }).map(function (item) { return item.id; }));
+        notices.list(function (entry) { return String(entry.id).indexOf('waiting_') === 0 && !waiting.has(entry.id); }).forEach(function (entry) { notices.remove(entry.id); });
         (items || []).forEach(function (item) {
+          if (item.kind === 'delivery-store-error') {
+            if (notices.get(item.id)) notices.remove(item.id);
+            notices.add(deliveryStoreFailureNotice(item)); return;
+          }
+          if (item.kind === 'delivery-failure') {
+            if (notices.get(item.id)) notices.remove(item.id);
+            var waitingSession = S(item.sessionId);
+            waitingSession.info.cwd = waitingSession.info.cwd || item.workspace;
+            waitingSession.info.provider = waitingSession.info.provider || item.provider;
+            waitingSession.info.title = waitingSession.info.title || item.sessionTitle;
+            notices.add(deliveryFailureNotice(item)); return;
+          }
           if (item.dismissed || notices.get(item.id)) return;
           if (item.kind === 'document' || item.kind === 'app') { notices.add(reportNotice(item)); return; }
           if (item.kind === 'mention' || item.kind === 'relay') { notices.add(mentionNotice(item)); return; }
@@ -423,6 +460,7 @@
       if (item && (item.kind === 'mention' || item.kind === 'relay') && !item.dismissed && !notices.get(item.id)) notices.add(mentionNotice(item));
     });
     on('notifications:dismissed', function (done) { if (done && done.id) notices.remove(done.id); });
+    on('notification:delivery', function () { restoreNotifications().catch(fail); });
     /* After a resync the engine's pending questions are read again: one the
        page has not seen is shown, and one the page shows that is no longer
        pending was answered or ended while the page was not told. */

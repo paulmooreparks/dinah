@@ -80,6 +80,7 @@
     session: function (id) { return S(id); }, getSession: function (id) { return sessions[id]; },
     sessionProvider: function (s) { return sessionProvider(s); }, workspace: function () { return workspace; },
     title: session => title(session), openSession: function (id) { return openSession(id); }, row: (session, cls) => chats.ensure(session).row(session, cls),
+    openSavedRecovery: function (id, cwd) { return chats.openSavedRecovery(id, cwd); },
     now: () => dinahRegional.format(new Date(), 'clock'), drawSessions: () => drawSessions(), toast: toast, fail: fail
   });
   const { notices, ask, noteEntry, needsCount, drawNoticeCounts,

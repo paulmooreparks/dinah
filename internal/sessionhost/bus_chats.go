@@ -3,6 +3,7 @@ package sessionhost
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"sync"
 	"time"
 
@@ -58,6 +59,10 @@ type BusChats struct {
 }
 
 type BusChatsHost struct {
+	DeliveryHeld     func(string, string) bool
+	WakeAttempts     *WakeAttempts
+	ResolveWake      func(string, string) (WakeRoute, error)
+	OpenDeliveryChat func(WakeRoute) (Info, error)
 	ResultBroker     func() (*broker.Broker, error)
 	SavedBusIdentity func(string) string
 	TurnIO           func() *TurnIO
@@ -243,6 +248,30 @@ func (a *BusChats) OpenQueued(paths map[string]string) {
 }
 
 func (a *BusChats) AskToConnect(chat, cwd string, background bool) {
+	if a.host.WakeAttempts != nil {
+		route, err := a.host.ResolveWake(chat, cwd)
+		if err != nil {
+			a.completeWake(chat, err)
+			return
+		}
+		id, fresh, err := a.host.WakeAttempts.Begin(route, false)
+		if err != nil {
+			a.completeWake(chat, err)
+			return
+		}
+		if !fresh {
+			return
+		}
+		if s := a.session(route.Target); s != nil && s.Parked() {
+			_, _ = a.OpenDeliveryAttempt(chat, id)
+			return
+		}
+		a.host.Emit("chat:connect", map[string]any{"sessionId": route.Target, "cwd": route.Cwd, "background": background, "deliveryOrigin": chat, "deliveryAttempt": id, "provider": route.Provider, "title": route.Title})
+		if a.host.ConnectGrace > 0 {
+			time.AfterFunc(a.host.ConnectGrace, func() { _, _ = a.OpenDeliveryAttempt(chat, id) })
+		}
+		return
+	}
 	if s := a.session(chat); s != nil {
 		parked := s.Parked()
 		if parked {
@@ -273,6 +302,13 @@ func (a *BusChats) openIfStillClosed(chat, cwd string) {
 }
 
 func (a *BusChats) Connected(chat string, err error) {
+	if a.host.WakeAttempts != nil && a.host.WakeAttempts.ActiveTarget(chat) {
+		return
+	}
+	a.completeWake(chat, err)
+}
+
+func (a *BusChats) completeWake(chat string, err error) {
 	now := a.host.Clock()
 	a.mu.Lock()
 	changed, asked := a.runtime.CompleteWakeLocked(chat, err, now)
@@ -290,6 +326,68 @@ func (a *BusChats) Connected(chat string, err error) {
 	if changed != nil {
 		EmitSession(a.host.Emit, changed)
 	}
+}
+
+func (a *BusChats) OpenDeliveryAttempt(origin, id string) (Info, error) {
+	if a.host.WakeAttempts == nil {
+		return Info{}, fmt.Errorf("waiting-chat attempts are unavailable")
+	}
+	info, err, owner := a.host.WakeAttempts.Open(origin, id, func(route WakeRoute) (WakeRoute, error) { return a.host.ResolveWake(route.Origin, route.Cwd) }, a.host.OpenDeliveryChat)
+	if owner {
+		a.completeWake(origin, err)
+		if err == nil {
+			a.mu.Lock()
+			s := a.runtime.ConversationLocked(info.ID)
+			if s != nil && !a.runtime.HasWindowLocked(info.ID) {
+				s.ConnectedBackground(a.host.Clock())
+			}
+			a.mu.Unlock()
+			if s != nil {
+				EmitSession(a.host.Emit, s)
+			}
+		}
+	}
+	return info, err
+}
+
+func (a *BusChats) CurrentDeliveryAttempt(target string) (string, string, bool) {
+	if a.host.WakeAttempts == nil {
+		return "", "", false
+	}
+	return a.host.WakeAttempts.Current(target)
+}
+
+func (a *BusChats) RetryDelivery(origin string) (Info, error) {
+	if a.host.WakeAttempts == nil {
+		return Info{}, fmt.Errorf("waiting-chat attempts are unavailable")
+	}
+	records, err := a.host.WakeAttempts.Snapshot()
+	if err != nil {
+		return Info{}, err
+	}
+	previous, ok := records[origin]
+	if !ok {
+		return Info{}, fmt.Errorf("this waiting-chat recovery record is no longer current")
+	}
+	route, err := a.host.ResolveWake(origin, previous.Route.Cwd)
+	if err != nil {
+		return Info{}, err
+	}
+	id, _, err := a.host.WakeAttempts.Begin(route, true)
+	if err != nil {
+		return Info{}, err
+	}
+	return a.OpenDeliveryAttempt(origin, id)
+}
+
+func (a *BusChats) WaitingFailures() (map[string]WakeFailure, error) {
+	return a.host.WakeAttempts.Snapshot()
+}
+
+func (a *BusChats) ReloadWaitingState() error { return a.host.WakeAttempts.Reload() }
+
+func (a *BusChats) ReleaseCommittedRecovery(origin, recipient string) error {
+	return a.host.WakeAttempts.ReleaseCommitted(origin, recipient)
 }
 
 func (a *BusChats) CloseIdleBackground() {

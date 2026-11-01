@@ -81,7 +81,11 @@ func continuationContext(history []ConversationMessage, budget int) (string, int
 }
 
 func (a *App) PreviewSessionContinuation(id, provider string) (SessionContinuationPreview, error) {
-	return a.continuations().PreviewSession(id, provider)
+	p, err := a.continuations().PreviewSession(id, provider)
+	if warning := a.transferWarning(id); warning != "" {
+		p.Warnings = append(p.Warnings, warning)
+	}
+	return p, err
 }
 
 func (a *App) ContinueSessionWithProvider(id, provider, revision string) (SessionContinuationResult, error) {

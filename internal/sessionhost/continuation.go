@@ -49,17 +49,24 @@ type ContinuationHost struct {
 	// MoveBusIdentity records in the settings that the identity now belongs
 	// to the chat "to" and not to "from", in one write.
 	MoveBusIdentity func(from, to, id string) error
-	HideSession     func(string) error
-	RevokeSession   func(string)
-	Emit            func(string, any)
-	Title           func(string) string
-	RenameSession   func(string, string) (map[string]string, error)
-	ListPreferences func() (map[string]bool, map[string]string)
-	Budget          func(string, []acp.ConfigOption) int
-	Redact          func(string) string
-	Formatter       HandoffFormatter
-	InterruptedNote string
-	SummaryBudget   int
+	// Transfer records allocation and preparation before publishing ownership.
+	Transfer         func(source, target, provider, recipient, revision, stage string, recovery bool) error
+	Bindings         func() map[string]string
+	RecoverableFork  func(source, child string) bool
+	TransferVersion  func(source string) string
+	TransferFinished func(source string)
+	RecoveryModel    func(source, target, model string) error
+	HideSession      func(string) error
+	RevokeSession    func(string)
+	Emit             func(string, any)
+	Title            func(string) string
+	RenameSession    func(string, string) (map[string]string, error)
+	ListPreferences  func() (map[string]bool, map[string]string)
+	Budget           func(string, []acp.ConfigOption) int
+	Redact           func(string) string
+	Formatter        HandoffFormatter
+	InterruptedNote  string
+	SummaryBudget    int
 }
 
 func NewContinuations(mu, stateMu *sync.Mutex, runtime *Runtime, host ContinuationHost) *Continuations {
@@ -73,6 +80,14 @@ func (c *Continuations) readTranscript(id string) (*Transcript, error) {
 }
 func (c *Continuations) child(id string) string {
 	links, _ := ConversationLinks(c.host.StateDir())
+	if c.host.Bindings != nil {
+		if target, ok := c.host.Bindings()[id]; ok {
+			return target
+		}
+	}
+	if c.host.RecoverableFork != nil && c.host.Session(id) == nil && c.host.RecoverableFork(id, links[id]) {
+		return ""
+	}
 	return links[id]
 }
 
@@ -500,6 +515,7 @@ func (c *Continuations) Compact(s *Conversation) (SessionContinuationResult, err
 // continueOpts say what a continuation is for. cwd is the workspace folder the new
 // chat is in, and empty for the chat's own.
 type continueOpts struct {
+	model                   string
 	provider, revision, cwd string
 	recovery, compaction    bool
 }
@@ -568,6 +584,14 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		cwd = o.cwd
 	}
 	c.setStage(s, kind, to, StageStarting, startingLabel)
+	if c.host.Transfer != nil {
+		if c.host.TransferFinished != nil {
+			defer c.host.TransferFinished(id)
+		}
+		if err := c.host.Transfer(id, "", provider, busID, revision, "allocating", o.recovery || !o.compaction && revision != ""); err != nil {
+			return SessionContinuationResult{}, err
+		}
+	}
 	info, err := c.host.NewSession(cwd, provider, busID)
 	if err != nil {
 		return SessionContinuationResult{}, err
@@ -584,6 +608,22 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		c.host.RevokeSession(info.ID)
 		next.Close()
 		EmitSession(c.host.Emit, next)
+	}
+	if c.host.Transfer != nil {
+		if err := c.host.Transfer(id, info.ID, provider, busID, revision, "allocated", o.recovery); err != nil {
+			cleanup()
+			return SessionContinuationResult{}, err
+		}
+	}
+	if o.model != "" {
+		if c.host.RecoveryModel == nil {
+			cleanup()
+			return SessionContinuationResult{}, errors.New("this host cannot apply a recovery model")
+		}
+		if err := c.host.RecoveryModel(id, info.ID, o.model); err != nil {
+			cleanup()
+			return SessionContinuationResult{}, err
+		}
 	}
 	// A move to another workspace keeps the chat's settings that grant no authority.
 	var notCarried []string
@@ -609,8 +649,19 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 		cleanup()
 		return SessionContinuationResult{}, err
 	}
+	if c.host.Transfer != nil {
+		if err := c.host.Transfer(id, info.ID, provider, busID, revision, "prepared", o.recovery); err != nil {
+			cleanup()
+			return SessionContinuationResult{}, err
+		}
+	}
 	if busID != "" {
 		if err := c.moveBusIdentity(s, next, busID); err != nil {
+			cleanup()
+			return SessionContinuationResult{}, err
+		}
+	} else if c.host.Transfer != nil {
+		if err := c.host.Transfer(id, info.ID, provider, busID, revision, "committed", o.recovery); err != nil {
 			cleanup()
 			return SessionContinuationResult{}, err
 		}
@@ -748,12 +799,30 @@ func (c *Continuations) Resolve(id string) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	links, records := ConversationLinks(c.host.StateDir())
+	bindings := map[string]string{}
+	if c.host.Bindings != nil {
+		bindings = c.host.Bindings()
+		for source, target := range bindings {
+			links[source] = target
+		}
+	}
 	seen := map[string]bool{}
 	for {
 		if seen[id] || len(seen) >= 100 {
 			return "", errors.New("the chat continuation links contain a cycle")
 		}
 		seen[id] = true
+		if _, committed := bindings[id]; !committed {
+			children := 0
+			for _, record := range records {
+				if record.ParentSessionID == id && !record.Deleted {
+					children++
+				}
+			}
+			if children > 1 {
+				return "", errors.New("this chat has multiple continuation branches without a committed destination; review the original recipient's saved-history recovery")
+			}
+		}
 		if tr := records[id]; tr != nil && tr.Deleted && links[id] == "" {
 			return "", errors.New("this conversation was deleted; its old links cannot reopen it")
 		}
@@ -770,6 +839,11 @@ func (c *Continuations) FilterAncestors(in []Info, workspace string) []Info {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	links, records := ConversationLinks(c.host.StateDir())
+	if c.host.Bindings != nil {
+		for source, target := range c.host.Bindings() {
+			links[source] = target
+		}
+	}
 	seen := map[string]bool{}
 	out := make([]Info, 0, len(in))
 	for _, s := range in {
@@ -825,11 +899,15 @@ func (c *Continuations) PreviewRecovery(id, provider string) (SessionContinuatio
 }
 
 func (c *Continuations) Recover(id, provider, revision string) (SessionContinuationResult, error) {
+	return c.RecoverModel(id, provider, revision, "")
+}
+
+func (c *Continuations) RecoverModel(id, provider, revision, model string) (SessionContinuationResult, error) {
 	sessionRecoveryMu.Lock()
 	defer sessionRecoveryMu.Unlock()
 	s, err := c.RecoverySession(id)
 	if err != nil {
 		return SessionContinuationResult{}, err
 	}
-	return c.Continue(s, provider, revision, true)
+	return c.continueWith(s, continueOpts{provider: provider, revision: revision, recovery: true, model: model})
 }
