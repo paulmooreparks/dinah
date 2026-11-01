@@ -309,18 +309,18 @@
         <div class="ws-frozen">
         <div class="browser-toolbar ws-toolbar">
           <span class="form-select-wrap ws-choose"><select class="form-select" id="ws-select" aria-label="Workspace"></select></span>
-          <!-- A folding PUDL toolbar: the chosen workspace's New Chat and
-               Add Source… first and kept longest, then New Workspace… and
-               Actions. As the pane narrows the words go before anything
-               folds into a menu. -->
+          <!-- A folding PUDL toolbar: Actions, whose menu holds New
+               Workspace… and the other workspace commands, then Add
+               Source…, and New Chat at the row's end (data-toolbar-end), so
+               it keeps its words longest. As the pane narrows the words go
+               before anything folds into a menu. -->
           <div class="toolbar ws-commands" role="toolbar" aria-label="Workspace Commands" data-toolbar-fold data-toolbar-captions="none">
-            <div class="toolbar-group" role="group" aria-label="This Workspace" data-toolbar-group="This Workspace" data-toolbar-glyph="comments" data-toolbar-priority="30">
-              <button type="button" class="btn btn-sm" data-cmd="new-session" title="Start a New Chat in This Workspace"><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="toolbar-words">New Chat</span></button>
+            <div class="toolbar-group" role="group" aria-label="Workspace" data-toolbar-group="Workspace" data-toolbar-glyph="folder" data-toolbar-priority="20">
+              <div class="menu browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions" aria-label="Actions"><span class="glyph" style="--glyph: var(--glyph-menu)" aria-hidden="true"></span><span class="toolbar-words">Actions</span></button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-workspace" title="Make a workspace on a main folder you choose">New Workspace…</button><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button></nav></div>
               <button type="button" class="btn btn-sm" id="workspace-source-choose" title="Add a folder on this computer to this workspace" hidden><span class="glyph" style="--glyph: var(--glyph-plus)" aria-hidden="true"></span><span class="toolbar-words">Add Source…</span></button>
             </div>
-            <div class="toolbar-group" role="group" aria-label="Workspaces" data-toolbar-group="Workspaces" data-toolbar-glyph="folder" data-toolbar-priority="20">
-              <button type="button" class="btn btn-sm" data-cmd="new-workspace" title="Make a workspace on a main folder you choose"><span class="glyph" style="--glyph: var(--glyph-folder)" aria-hidden="true"></span><span class="toolbar-words">New Workspace…</span></button>
-              <div class="menu browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions" aria-label="Actions"><span class="glyph" style="--glyph: var(--glyph-menu)" aria-hidden="true"></span><span class="toolbar-words">Actions</span></button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button></nav></div>
+            <div class="toolbar-group" role="group" aria-label="Chats" data-toolbar-group="Chats" data-toolbar-glyph="comments" data-toolbar-priority="30" data-toolbar-end>
+              <button type="button" class="btn btn-sm" data-cmd="new-session" title="Start a New Chat in This Workspace"><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="toolbar-words">New Chat</span></button>
             </div>
           </div>
         </div>
