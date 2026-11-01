@@ -40,7 +40,7 @@ func (a *App) ExitStatus() exitStatus {
 		// Background work and subagents end with the agent's process when
 		// Dinah exits.
 		state := s.State()
-		if state.Working || state.Switching || len(state.Queued) > 0 || state.HasSteer || state.BackgroundCount > 0 || state.RunningSubagents > 0 {
+		if state.WorkActivity().Busy() {
 			status.Chats++
 		}
 	}

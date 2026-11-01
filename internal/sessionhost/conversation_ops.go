@@ -329,7 +329,9 @@ func (c *Conversation) IdleBackground(now time.Time, after time.Duration) bool {
 }
 
 func (c *Conversation) BackgroundUpdate(update json.RawMessage) bool {
-	return c.details.BackgroundUpdate(update)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.details.backgroundUpdateLocked(update, c.activity.OpenLocked() && !c.activity.ParkedLocked() && !c.details.ReplayingLocked())
 }
 
 func (c *Conversation) BackgroundTask(id string) (BackgroundTask, bool) {
