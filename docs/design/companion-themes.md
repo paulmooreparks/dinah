@@ -1,0 +1,19 @@
+# Bevel, Gel and Glaze companion themes
+
+Engine implements Lead message 3003 from released 965e4b96ff98ea8558cd82326f7025ba49d20520. The three built-in documents are selectable through the existing Settings theme control in desktop and rendered through the shared web appearance endpoint. The active document persists independently of skin and light/dark/system mode. This change adds data and focused coverage only; it changes no persisted format, validator threshold, admission exemption or published PUDL asset.
+
+## Source and host mapping
+
+The source is the reference application's actual working theme-data.js at repository HEAD 95a8573981c519a3ec2bc57a76c9f7018d651ac1, with source bytes SHA-256 421d7b7fab054cbf784eb92f7587a36064a45746b005fc7b93b3dc54d2bb3d2e. That working tree contains uncommitted integration work; the hash identifies the inspected bytes rather than claiming they are committed. Its palette documents already apply narrow warning, danger, border and on-warn corrections needed by the existing host text/boundary requirements. Dinah preserves those mappings, renames reference-specific semantic roles to the corresponding Dinah roles and retains Dinah typography.
+
+Category colors come unchanged from the complete generated companion stylesheets in Release's verified PUDL 0.96.1 archive, commit 6ac2906930c0232f464ccdd689cc8881d598530c. Those stylesheets contain the published base plus authored overrides. Partial themes/*.json files are not merged over Mineral. Both theme-data.js copies are byte-identical. All pre-existing built-in documents are unchanged. Existing custom documents and content overrides remain in the same library and format.
+
+The unchanged Go validator accepts all three mapped documents in both forms. Actual rendered validation then found Standard dark destructive-button rest/focus text just below 4.5:1: Bevel 4.46, Gel 4.47 and Glaze 4.43. The sole additional adjustment blends the mapped dark danger tone two percent toward white: Bevel #e99089 becomes #e9928b, Gel #ea928a becomes #ea948c, and Glaze #eb9992 becomes #eb9b94. The same eight-skin rendered admission check then passes. Every other reference mapping value is retained. This is a bounded host mapping correction, not a blanket repaint or a published-token change. The full source comparison is in companion-themes-mapping.json.
+
+## Focused verification and delivery
+
+The focused desktop appearance/category tests and web palette/data-identity tests passed on the final data. They compile the affected desktop and web packages, exercise every built-in through the unchanged validation, and cover durable native selection, custom-document retention and the web stylesheet response. The final package times were 1.478 seconds for desktop and 6.843 seconds for web. No broad regression was run.
+
+The companion-themes browser suite passed in nine seconds. It selects each theme through Settings, verifies all palette tokens in light/dark and both motion preferences, and runs the existing rendered admission check across all eight skins. It checks selection independent of skin and mode, authoritative reload, page restart, preserved custom documents and overrides, and continued custom-theme selection. Six screenshots are retained; Bevel light, Gel light and Glaze dark were inspected. Earlier selection failures and their exact diagnosis remain under .diagnostics, including the first fixture's omitted skin catalogue and relative output path. No assertion or timeout was weakened.
+
+The direct Release handoff uses the exact scoped commit under Paul's sequential-fix workflow. Release performs the necessary installation build and publication without a broad or serial Quality gate. No live restart is authorized here. The composer focus rectangle is a separate queued change under message 3019, after theme delivery.

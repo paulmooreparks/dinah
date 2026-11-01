@@ -1,0 +1,102 @@
+{
+  "gkSourceSHA256": "421d7b7fab054cbf784eb92f7587a36064a45746b005fc7b93b3dc54d2bb3d2e",
+  "gkRevision": "95a8573981c519a3ec2bc57a76c9f7018d651ac1",
+  "themes": {
+    "bevel": {
+      "light": {
+        "border": {
+          "published": "#cfd4da",
+          "host": "#919499"
+        },
+        "warn": {
+          "published": "#9c5e18",
+          "host": "#814e14"
+        },
+        "danger": {
+          "published": "#b42318",
+          "host": "#ad2217"
+        }
+      },
+      "dark": {
+        "border": {
+          "published": "#353b43",
+          "host": "#767a7f"
+        },
+        "warn": {
+          "published": "#d9954a",
+          "host": "#db9a53"
+        },
+        "danger": {
+          "published": "#e06156",
+          "host": "#e99089"
+        }
+      }
+    },
+    "gel": {
+      "light": {
+        "border": {
+          "published": "#cfd4da",
+          "host": "#919499"
+        },
+        "warn": {
+          "published": "#a9651a",
+          "host": "#8e5516"
+        }
+      },
+      "dark": {
+        "border": {
+          "published": "#353b43",
+          "host": "#74787d"
+        },
+        "warn": {
+          "published": "#d9954a",
+          "host": "#dc9c57"
+        },
+        "danger": {
+          "published": "#e06156",
+          "host": "#ea928a"
+        }
+      }
+    },
+    "glaze": {
+      "light": {
+        "border": {
+          "published": "#cfd4da",
+          "host": "#919499"
+        },
+        "warn": {
+          "published": "#af691b",
+          "host": "#955917"
+        }
+      },
+      "dark": {
+        "border": {
+          "published": "#353b43",
+          "host": "#787c81"
+        },
+        "warn": {
+          "published": "#d9954a",
+          "host": "#dea362"
+        },
+        "danger": {
+          "published": "#e2695e",
+          "host": "#eb9992"
+        }
+      }
+    }
+  },
+  "additionalDarkDangerCorrection": {
+    "bevel": {
+      "old": "#e99089",
+      "new": "#e9928b"
+    },
+    "gel": {
+      "old": "#ea928a",
+      "new": "#ea948c"
+    },
+    "glaze": {
+      "old": "#eb9992",
+      "new": "#eb9b94"
+    }
+  }
+}

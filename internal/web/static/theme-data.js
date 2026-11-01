@@ -1252,5 +1252,356 @@ window.dinahThemeBuiltins = {
         "category-8": "#e0037f"
       }
     }
+  },
+  "bevel": {
+    "format": "dinah-theme",
+    "version": 1,
+    "name": "Bevel",
+    "typography": {
+      "interface": {
+        "families": [
+          "Inter"
+        ],
+        "fallback": "system-ui"
+      },
+      "heading": {
+        "families": [],
+        "fallback": "inherit"
+      },
+      "reading": {
+        "families": [],
+        "fallback": "inherit"
+      },
+      "monospace": {
+        "families": [
+          "Cascadia Code",
+          "Consolas"
+        ],
+        "fallback": "monospace"
+      }
+    },
+    "palettes": {
+      "light": {
+        "bg": "#d4d0c8",
+        "surface": "#f5f4ee",
+        "surface-alt": "#d4d0c8",
+        "text": "#151515",
+        "text-muted": "#52504c",
+        "border": "#919499",
+        "accent": "#000080",
+        "accent-hover": "#000060",
+        "on-accent": "#ffffff",
+        "warn": "#814e14",
+        "on-warn": "#ffffff",
+        "danger": "#ad2217",
+        "danger-hover": "#8f1c13",
+        "positive": "#005020",
+        "light": "#ffffff",
+        "shade": "#0e1621",
+        "lit": "90%",
+        "depth": "18%",
+        "tb-bg": "#005858",
+        "tb-fg": "#ffffff",
+        "syntax-keyword": "#90295c",
+        "syntax-string": "#1a5d32",
+        "syntax-number": "#7c4300",
+        "syntax-comment": "#4a525b",
+        "syntax-name": "#1d4f91",
+        "syntax-tag": "#6b36a3",
+        "syntax-attr": "#654f00",
+        "syntax-heading": "#1b1f24",
+        "syntax-link": "#2c5282",
+        "syntax-error": "#9e1f15",
+        "dinah-skill": "#000080",
+        "dinah-title": "#151515",
+        "category-1": "#4e5efe",
+        "category-2": "#11827f",
+        "category-3": "#641b50",
+        "category-4": "#627e04",
+        "category-5": "#106e9a",
+        "category-6": "#7400bb",
+        "category-7": "#6f6eaa",
+        "category-8": "#ce1a6f"
+      },
+      "dark": {
+        "bg": "#202626",
+        "surface": "#293030",
+        "surface-alt": "#373f3f",
+        "text": "#f4f4ec",
+        "text-muted": "#bec7c1",
+        "border": "#767a7f",
+        "accent": "#b2c4ff",
+        "accent-hover": "#c5d3ff",
+        "on-accent": "#111b36",
+        "warn": "#db9a53",
+        "on-warn": "#121417",
+        "danger": "#e9928b",
+        "danger-hover": "#f0857b",
+        "positive": "#8af7ac",
+        "light": "#e8eef6",
+        "shade": "#000000",
+        "lit": "1%",
+        "depth": "48%",
+        "tb-bg": "#003f3f",
+        "tb-fg": "#f4f4ec",
+        "syntax-keyword": "#f08dc0",
+        "syntax-string": "#85cf9b",
+        "syntax-number": "#efad6b",
+        "syntax-comment": "#a0a9b2",
+        "syntax-name": "#8fbcef",
+        "syntax-tag": "#c6a3f2",
+        "syntax-attr": "#e2c275",
+        "syntax-heading": "#e6e8eb",
+        "syntax-link": "#8db3e0",
+        "syntax-error": "#f18b82",
+        "dinah-skill": "#b2c4ff",
+        "dinah-title": "#f4f4ec",
+        "category-1": "#496dfd",
+        "category-2": "#07d5d1",
+        "category-3": "#f558d8",
+        "category-4": "#749c54",
+        "category-5": "#1783a7",
+        "category-6": "#af4ae1",
+        "category-7": "#a19efd",
+        "category-8": "#e01f99"
+      }
+    },
+    "extensions": {
+      "pudl-palette": "bevel"
+    }
+  },
+  "gel": {
+    "format": "dinah-theme",
+    "version": 1,
+    "name": "Gel",
+    "typography": {
+      "interface": {
+        "families": [
+          "Inter"
+        ],
+        "fallback": "system-ui"
+      },
+      "heading": {
+        "families": [],
+        "fallback": "inherit"
+      },
+      "reading": {
+        "families": [],
+        "fallback": "inherit"
+      },
+      "monospace": {
+        "families": [
+          "Cascadia Code",
+          "Consolas"
+        ],
+        "fallback": "monospace"
+      }
+    },
+    "palettes": {
+      "light": {
+        "bg": "#e9eef4",
+        "surface": "#f8fbff",
+        "surface-alt": "#d5e0ef",
+        "text": "#172337",
+        "text-muted": "#495c77",
+        "border": "#919499",
+        "accent": "#0042a3",
+        "accent-hover": "#00327f",
+        "on-accent": "#ffffff",
+        "warn": "#8e5516",
+        "on-warn": "#ffffff",
+        "danger": "#b42318",
+        "danger-hover": "#8f1c13",
+        "positive": "#005020",
+        "light": "#ffffff",
+        "shade": "#0e1621",
+        "lit": "90%",
+        "depth": "18%",
+        "tb-bg": "#c6d5e8",
+        "tb-fg": "#172337",
+        "syntax-keyword": "#9b2c63",
+        "syntax-string": "#1c6737",
+        "syntax-number": "#8a4a00",
+        "syntax-comment": "#535b66",
+        "syntax-name": "#1d4f91",
+        "syntax-tag": "#6b36a3",
+        "syntax-attr": "#6d5500",
+        "syntax-heading": "#1b1f24",
+        "syntax-link": "#2c5282",
+        "syntax-error": "#af2217",
+        "dinah-skill": "#0042a3",
+        "dinah-title": "#172337",
+        "category-1": "#4e5efe",
+        "category-2": "#139894",
+        "category-3": "#83296b",
+        "category-4": "#729305",
+        "category-5": "#106e9a",
+        "category-6": "#7400bb",
+        "category-7": "#8382c8",
+        "category-8": "#ce1a6f"
+      },
+      "dark": {
+        "bg": "#192532",
+        "surface": "#202e3e",
+        "surface-alt": "#2d4055",
+        "text": "#edf5ff",
+        "text-muted": "#b6c8df",
+        "border": "#74787d",
+        "accent": "#87c7ff",
+        "accent-hover": "#b0d9ff",
+        "on-accent": "#122638",
+        "warn": "#dc9c57",
+        "on-warn": "#121417",
+        "danger": "#ea948c",
+        "danger-hover": "#f0857b",
+        "positive": "#8af7ac",
+        "light": "#e8eef6",
+        "shade": "#000000",
+        "lit": "1%",
+        "depth": "48%",
+        "tb-bg": "#263c54",
+        "tb-fg": "#edf5ff",
+        "syntax-keyword": "#f08dc0",
+        "syntax-string": "#85cf9b",
+        "syntax-number": "#efad6b",
+        "syntax-comment": "#a2aab4",
+        "syntax-name": "#8fbcef",
+        "syntax-tag": "#c6a3f2",
+        "syntax-attr": "#e2c275",
+        "syntax-heading": "#e6e8eb",
+        "syntax-link": "#8db3e0",
+        "syntax-error": "#f18e84",
+        "dinah-skill": "#87c7ff",
+        "dinah-title": "#edf5ff",
+        "category-1": "#456afd",
+        "category-2": "#07d5d1",
+        "category-3": "#f558d8",
+        "category-4": "#7c9c54",
+        "category-5": "#1481a6",
+        "category-6": "#ae46e0",
+        "category-7": "#a19efd",
+        "category-8": "#df297f"
+      }
+    },
+    "extensions": {
+      "pudl-palette": "gel"
+    }
+  },
+  "glaze": {
+    "format": "dinah-theme",
+    "version": 1,
+    "name": "Glaze",
+    "typography": {
+      "interface": {
+        "families": [
+          "Inter"
+        ],
+        "fallback": "system-ui"
+      },
+      "heading": {
+        "families": [],
+        "fallback": "inherit"
+      },
+      "reading": {
+        "families": [],
+        "fallback": "inherit"
+      },
+      "monospace": {
+        "families": [
+          "Cascadia Code",
+          "Consolas"
+        ],
+        "fallback": "monospace"
+      }
+    },
+    "palettes": {
+      "light": {
+        "bg": "#e7eddb",
+        "surface": "#fffdf2",
+        "surface-alt": "#e4e8d0",
+        "text": "#182510",
+        "text-muted": "#4e6342",
+        "border": "#919499",
+        "accent": "#184da8",
+        "accent-hover": "#123b87",
+        "on-accent": "#ffffff",
+        "warn": "#955917",
+        "on-warn": "#ffffff",
+        "danger": "#b42318",
+        "danger-hover": "#8f1c13",
+        "positive": "#005020",
+        "light": "#ffffff",
+        "shade": "#0e1621",
+        "lit": "90%",
+        "depth": "18%",
+        "tb-bg": "#1c56b0",
+        "tb-fg": "#ffffff",
+        "syntax-keyword": "#9b2c63",
+        "syntax-string": "#1d6a39",
+        "syntax-number": "#8a4a00",
+        "syntax-comment": "#57606b",
+        "syntax-name": "#1d4f91",
+        "syntax-tag": "#6b36a3",
+        "syntax-attr": "#6d5500",
+        "syntax-heading": "#1b1f24",
+        "syntax-link": "#2c5282",
+        "syntax-error": "#b42318",
+        "dinah-skill": "#184da8",
+        "dinah-title": "#182510",
+        "category-1": "#4e5efe",
+        "category-2": "#139591",
+        "category-3": "#83296b",
+        "category-4": "#719205",
+        "category-5": "#106e9a",
+        "category-6": "#7400bb",
+        "category-7": "#8180c6",
+        "category-8": "#ce1a6f"
+      },
+      "dark": {
+        "bg": "#1c2627",
+        "surface": "#263333",
+        "surface-alt": "#354644",
+        "text": "#f6f7e8",
+        "text-muted": "#c4d0bd",
+        "border": "#787c81",
+        "accent": "#a6c6ff",
+        "accent-hover": "#c7daff",
+        "on-accent": "#162344",
+        "warn": "#dea362",
+        "on-warn": "#121417",
+        "danger": "#eb9b94",
+        "danger-hover": "#f0857b",
+        "positive": "#8af7ac",
+        "light": "#e8eef6",
+        "shade": "#000000",
+        "lit": "1%",
+        "depth": "48%",
+        "tb-bg": "#183773",
+        "tb-fg": "#f6f7e8",
+        "syntax-keyword": "#f192c3",
+        "syntax-string": "#85cf9b",
+        "syntax-number": "#efad6b",
+        "syntax-comment": "#a8b0b8",
+        "syntax-name": "#8fbcef",
+        "syntax-tag": "#c6a3f2",
+        "syntax-attr": "#e2c275",
+        "syntax-heading": "#e6e8eb",
+        "syntax-link": "#8db3e0",
+        "syntax-error": "#f2968d",
+        "dinah-skill": "#a6c6ff",
+        "dinah-title": "#f6f7e8",
+        "category-1": "#4c70fd",
+        "category-2": "#07d5d1",
+        "category-3": "#f558d8",
+        "category-4": "#84a060",
+        "category-5": "#1b85a9",
+        "category-6": "#b14de1",
+        "category-7": "#a19efd",
+        "category-8": "#e1269c"
+      }
+    },
+    "extensions": {
+      "pudl-palette": "glaze"
+    }
   }
 };
