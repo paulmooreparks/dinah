@@ -36,7 +36,7 @@
    (WINDOW-STATUS.md). The host chip around it is not painted; the working
    chip keeps its fixed width there, the pill set at its end, so the title
    bar never moves as the state changes. */
-.win-statuses > .win-status:is(.chat-working-chip, .team-stuck-chip, .group-state-chip) { padding: 0; border: 0; justify-content: flex-end; }
+.win-statuses > .win-status:is(.chat-working-chip, .group-state-chip) { padding: 0; border: 0; justify-content: flex-end; }
 .win-statuses > .win-status > .badge.chat-state {
   display: inline-flex; align-items: center; gap: var(--space-1);
   padding: 0 6px; border: 1px solid currentColor; border-radius: var(--radius-pill);

@@ -2562,11 +2562,18 @@
     /* While the chat's history loads behind the saved copy, the window says so in its title bar, since its
        controls are those of the chat as it was and change when the load ends. It is drawn on its own, since
        drawing the whole window again also moves the logs. */
+    /* Loading stands just before the chat's status chip, whichever of the
+       two an update drew first; it is moved only when it is out of place. */
+    function orderLoadingChip(group) {
+      var loading = group.querySelector(':scope > .chat-loading-chip'), status = group.querySelector(':scope > .chat-working-chip');
+      if (loading && status && loading.nextElementSibling !== status) group.insertBefore(loading, status);
+    }
     function drawLoadingChip() {
       var win = root.closest('[data-win]'), group = win && win.querySelector('.win-head > .win-statuses');
       if (!group) return;
       var s = active && sessions[active], el = group.querySelector('.chat-loading-chip');
       if (!el) { el = document.createElement('span'); el.className = 'win-status chat-loading-chip'; group.appendChild(el); }
+      orderLoadingChip(group);
       if (!el.firstChild) { el.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Loading</span>'; el.setAttribute('role', 'status'); }
       el.title = 'The rest of this chat is still loading in the background. Its controls may change when it finishes.';
       el.hidden = !(s && (s.loading || s.restoring));
@@ -3508,7 +3515,7 @@
             if (group) {
               var chip = function (cls, strong) {
                 var el = group.querySelector('.' + cls);
-                if (!el) { el = document.createElement('span'); el.className = 'win-status ' + cls + (strong ? ' strong' : ''); group.appendChild(el); }
+                if (!el) { el = document.createElement('span'); el.className = 'win-status ' + cls + (strong ? ' strong' : ''); group.appendChild(el); orderLoadingChip(group); }
                 return el;
               };
               drawWindowLifecycle(chip('chat-working-chip'), s, execution);

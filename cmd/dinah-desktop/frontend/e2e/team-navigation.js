@@ -38,7 +38,7 @@ const {launch} = require('./lib/page');
     ok('keyboard Open Team reopens the canonical team with its draft',await group.count()===1&&await group.locator('textarea').inputValue()==='Keep the group draft');
     await p.evaluate(key=>pudlWindows.raise(key),key);
     ok('navigation preserves member draft, transcript and reading position',await win.locator('[data-view-id=prompt]').inputValue()===draft&&draft==='Keep the member draft'&&await win.locator('[data-view-id=logs]').textContent()===transcript&&Math.abs(await activity.evaluate(el=>el.scrollTop)-position)<2);
-    ok('the Team body omits its duplicate aggregate',await win.locator('.team-aggregate').count()===0&&await win.locator('.team-stuck-chip .chat-state').count()===1);
+    ok('the Team body and the title bar omit the team aggregate',await win.locator('.team-aggregate').count()===0&&await win.locator('.team-stuck-chip').count()===0);
     await p.evaluate(()=>__membership(true));await open.click();
     await p.waitForFunction(()=>[...document.querySelectorAll('.win[data-win-kind="bus-room"] .win-title')].some(el=>el.textContent.includes('Other Workspace Team')));
     ok('membership changes use the new canonical group identity',await p.locator('.win[data-win-kind="bus-room"]').count()===2);

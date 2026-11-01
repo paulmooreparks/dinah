@@ -56,7 +56,7 @@ const { launch } = require('./lib/page');
     await nested.press('ArrowRight');
     await lead.locator('[data-team-member="bus-child"]').waitFor();
     ok('nested members show incomplete usage in words', /3 turns unmeasured/.test(await lead.locator('[data-team-member="bus-child"]').innerText()));
-    ok('retired members start folded and stuck descendants are counted', await lead.locator('.team-retired .tree').isHidden() && /1 stuck/.test(await lead.locator('.team-stuck-chip').textContent()));
+    ok('retired members start folded, and the lead\'s title bar has no team chip', await lead.locator('.team-retired .tree').isHidden() && await lead.locator('.team-stuck-chip').count() === 0);
     ok('allowances keep the provider unit and explain incomplete remaining usage', /Remaining usage is incomplete/.test(await lead.locator('.team-budget').textContent()) && await lead.locator('meter').count() === 1);
     const taskFocus = lead.locator('[data-team-member="bus-builder"] .team-task');
     await taskFocus.focus();
@@ -89,7 +89,7 @@ const { launch } = require('./lib/page');
     const member = p.locator('[data-win="' + builderKey + '"]');
     await member.locator('.team-member-note').waitFor();
     ok('a member keeps its toolbar and approvals outside the removed message box', await member.locator('.composer-row').isHidden() && await member.locator('.composer-bar').isVisible() && await member.locator('[data-command="provider"]').count() > 0 && await member.locator('[data-view-id="context-hold"]').count() === 1);
-    ok('team bodies omit aggregates while the title retains live state', await lead.locator('.team-aggregate').count() === 0 && await lead.locator('.team-stuck-chip .chat-state').count() === 1);
+    ok('team bodies omit aggregates, and the title shows the lead\'s own state alone', await lead.locator('.team-aggregate').count() === 0 && await lead.locator('.team-stuck-chip').count() === 0 && await lead.locator('.chat-working-chip .chat-state').count() === 1);
     await t.shot('teams-member');
     // The team draft survives and gains a mention, without being sent.
     await p.evaluate(() => dinahBus.openGroup('team-room'));

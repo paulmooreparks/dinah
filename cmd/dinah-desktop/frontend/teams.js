@@ -290,17 +290,10 @@
         retiredBox.hidden = !retired.length;
         if (window.pudlTree) { window.pudlTree.enhance(tree); window.pudlTree.enhance(retiredTree); }
       });
-      refreshTraffic(); header();
+      refreshTraffic();
     }
-    function header() {
-      var win = o.root.closest('.win'), statuses = win && win.querySelector('.win-statuses');
-      if (!statuses) return;
-      var chip = statuses.querySelector('.team-stuck-chip');
-      if (!chip) { chip = node('span', 'win-status team-stuck-chip'); statuses.appendChild(chip); }
-      chip.hidden = !current || !current.counts || (!current.group && !(current.members || []).length);
-      chip.replaceChildren();
-      if (current && current.counts) chip.appendChild(window.dinahChatState.badge(current));
-    }
+    /* A lead's title bar shows its own chat's state alone; the team's state
+       as a whole is its group window's (bus-applets.js). */
     function read(force) {
       if (!id || !api().ChatLead) { relationKnown = true; renderMember(); return Promise.resolve(); }
       var epoch = ++generation, relation = relationEpoch;
@@ -332,7 +325,6 @@
         if (next !== id) { id = next; infoLeadSignature = JSON.stringify(s && s.info.lead); relationEpoch++; lead = s && s.info.lead || null; relationKnown = !next || !!lead || !api().ChatLead; relationError = ''; waitsForOpen = false; current = null; renderMember(); read(); }
         else if (s && Object.prototype.hasOwnProperty.call(s.info, 'lead') && JSON.stringify(s.info.lead) !== infoLeadSignature) { infoLeadSignature = JSON.stringify(s.info.lead); relationEpoch++; if (s.info.lead || !api().ChatLead) setLead(s.info.lead); else read(); }
         if (waitsForOpen && s && !s.loading && !s.restoring) { waitsForOpen = false; read(); }
-        header();
       },
       isMember: member,
       isPending: function () { return !!id && !relationKnown; },
