@@ -13,15 +13,13 @@
 .session-attention-slot { display: inline-grid; place-items: center; flex: none; block-size: max(18px, 1.55em); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
 .session-attention-slot > .badge { grid-area: 1 / 1; white-space: nowrap; padding-inline: var(--space-1); }
 .session-attention-reserve { visibility: hidden; }
-.team-state-slot { display: inline-flex; flex: none; block-size: max(18px, 1.55em); }
-/* A chat list's mark is a glyph column, then its short word set to the right
-   over hidden copies of every short word, so it is as wide as the widest word
-   in the skin's own type and no wider (chat-state.js). A state without a
-   glyph keeps the empty column, so every mark has the same width. */
-.badge.chat-state.chat-state-labelled { display: inline-grid; grid-template-columns: var(--glyph-size) max-content; column-gap: var(--space-1); align-items: center; inline-size: auto; padding-inline: var(--space-1); }
-.chat-state-labelled::before { grid-area: 1 / 1; }
-.chat-state-labelled > .chat-state-words, .chat-state-labelled > .chat-state-reserve { grid-area: 1 / 2; justify-self: end; }
-.chat-state-reserve { visibility: hidden; }
+/* A chat list's state chip is the standard chip, as wide as its own glyph and
+   word. The slot around it is not painted: hidden copies of every state's chip
+   share its cell and size it to the widest, and the chip sits at its right
+   edge, so the row never moves when the state changes (chat-state.js). */
+.chat-state-slot { display: inline-grid; flex: none; justify-items: end; align-items: center; }
+.chat-state-slot > .badge { grid-area: 1 / 1; white-space: nowrap; }
+.chat-state-slot > .chat-state-reserve { visibility: hidden; }
 .session-browser-group .browser-group-count { inline-size: calc(3ch + 16px); justify-content: center; font-variant-numeric: tabular-nums; }
 .member-chip { max-width: 100%; flex-wrap: nowrap; min-width: 0; }
 .member-chip .member-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

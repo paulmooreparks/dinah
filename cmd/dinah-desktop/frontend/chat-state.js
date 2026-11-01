@@ -65,21 +65,31 @@
     spec.variables = { '--chat-state-colour': 'var(--' + (spec.kind || 'text-muted') + ')' };
     return spec;
   }
+  // The chip each short word is drawn in, for the hidden copies of a list's
+  // state chip (badge).
+  var RESERVES = SHORT.map(function (word) {
+    var state = Object.keys(mapping).filter(function (k) { return mapping[k].word === word; })[0];
+    return { text: word, glyph: state ? mapping[state].glyph : '', cls: 'chat-state ' + (state ? 'chat-state-' + state : word === 'Unknown' ? 'chat-state-unknown' : 'chat-lifecycle') + ' chat-state-reserve' };
+  });
   function badge(value, options) {
-    var spec = describe(value, options), el = window.dinahBrowserList.badge(spec);
+    var spec = describe(value, options);
+    /* A chat list draws the standard chip with the state's short word, as
+       wide as its own glyph and word. It sits at the right of an unpainted
+       slot that hidden copies of every state's chip size to the widest, so
+       the row never moves when the state changes. */
+    if (options && options.labelled) {
+      var chip = window.dinahBrowserList.badge(Object.assign({}, spec, { text: spec.short }));
+      var slot = document.createElement('span'); slot.className = 'chat-state-slot' + (options.className ? ' ' + options.className : '');
+      slot.appendChild(chip);
+      RESERVES.forEach(function (r) { var copy = window.dinahBrowserList.badge(r); copy.setAttribute('aria-hidden', 'true'); copy.removeAttribute('title'); slot.appendChild(copy); });
+      return slot;
+    }
+    var el = window.dinahBrowserList.badge(spec);
     if (options && options.className) el.classList.add(options.className);
     if (options && options.compact) {
       el.classList.add('chat-state-compact');
-      var words = document.createElement('span'); words.className = 'chat-state-words'; words.textContent = spec.glyph && !options.labelled ? '' : options.labelled ? spec.short : spec.text;
+      var words = document.createElement('span'); words.className = 'chat-state-words'; words.textContent = spec.glyph ? '' : spec.text;
       el.replaceChildren(words);
-      /* A labelled compact mark, as a chat list draws it, gives every state
-         its short word. Hidden copies of every short word share its cell, so
-         the mark is always as wide as the widest of them in the page's own
-         type, and a row never moves when its state changes. */
-      if (options.labelled) {
-        el.classList.add('chat-state-labelled');
-        SHORT.forEach(function (word) { var r = document.createElement('span'); r.className = 'chat-state-reserve'; r.setAttribute('aria-hidden', 'true'); r.textContent = word; el.appendChild(r); });
-      }
     }
     return el;
   }

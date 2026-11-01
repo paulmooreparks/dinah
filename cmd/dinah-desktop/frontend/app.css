@@ -92,6 +92,13 @@
 /* A row with PUDL's row actions button gives the rest of the row to its
    link, and the pinned rows lead with the item's glyph. */
 .browser-row:has(> [data-row-actions]) > .md-item { flex: 1 1 auto; min-width: 0; }
+/* In a chat list the row actions button sits over the end of the row's lower
+   lines, so the first line, with the title and the state chip, reaches the
+   same right edge in Workspace, whose rows have actions, as in Chats, whose
+   rows have none. The lower lines leave the button's room. */
+.session-list .browser-row:has(> [data-row-actions]) { position: relative; }
+.session-list .browser-row > [data-row-actions] { position: absolute; inset-inline-end: 14px; inset-block-end: 5px; }
+.session-list .browser-row:has(> [data-row-actions]) :is(.session-reason, .session-row-meta) { padding-inline-end: calc(24px + var(--space-2)); }
 .pin-glyph { flex: none; }
 .browser-row.dragging { opacity: 0.5; }
 .workspace-pins-empty { margin: var(--space-1) var(--space-3) var(--space-2); }

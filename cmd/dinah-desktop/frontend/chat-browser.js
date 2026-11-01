@@ -313,10 +313,10 @@
         var why = reason && reason.why || '';
         a.querySelector('.session-reason').textContent = why;
         a.querySelector('.session-reason').title = why;
-        a.querySelectorAll('.session-badge, .team-stuck-badge').forEach(function (badge) { badge.remove(); });
+        a.querySelectorAll('.session-badge').forEach(function (badge) { badge.remove(); });
         var line = a.querySelector('.browser-row-line');
         line.classList.add('chat-state-line');
-        line.appendChild(window.dinahChatState.badge(s.info, { compact: true, labelled: true, className: 'session-badge' }));
+        line.appendChild(window.dinahChatState.badge(s.info, { labelled: true, className: 'session-badge' }));
         var attention = line.querySelector('.session-attention-slot'), n = needsCount(id);
         attention.replaceChildren();
         // The slot keeps the width of the widest count, so a count arriving
@@ -325,16 +325,9 @@
         reservedCount.setAttribute('aria-hidden', 'true'); attention.appendChild(reservedCount);
         if (n) attention.appendChild(window.dinahBrowserList.badge({ text: n > 99 ? '99+' : n, kind: 'warn', cls: 'session-attention', label: n === 1 ? '1 question waits for you' : n + ' questions wait for you' }));
         attention.setAttribute('aria-hidden', String(!n));
-        var aggregateBadge = document.createElement('span'); aggregateBadge.className = 'team-state-slot';
-        if (window.dinahTeams && window.dinahTeams.aggregate) {
-          var aggregate = s.info.team || window.dinahTeams.aggregate(id);
-          if (aggregate) aggregateBadge.appendChild(window.dinahChatState.badge(aggregate, { compact: true, labelled: true, className: 'team-stuck-badge' }));
-        }
-        var oldAggregate = line.querySelector('.team-state-slot');
-        if (aggregateBadge.firstChild) {
-          if (oldAggregate) oldAggregate.replaceWith(aggregateBadge); else line.appendChild(aggregateBadge);
-          line.insertBefore(line.querySelector('.session-badge'), aggregateBadge);
-        } else if (oldAggregate) oldAggregate.remove();
+        // A row shows its own chat's state only; a team's state is shown
+        // where the team is (Paul, 1 November 2026).
+        line.querySelectorAll('.team-state-slot').forEach(function (slot) { slot.remove(); });
         a.title = [title(s), window.dinahChatState.describe(s.info).label, meta.join(' · ')].filter(Boolean).join('. ');
         a.setAttribute('aria-label', a.title);
         if (id === adapter.active()) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
