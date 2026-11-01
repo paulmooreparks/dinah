@@ -18,6 +18,8 @@ import (
 //go:embed static/theme-data.js
 var themeBuiltinsSource string
 
+var appearanceFallbackHeader = http.CanonicalHeaderKey("X-" + profile.Current().ID + "-Appearance-Fallback")
+
 func appearanceLibrary() appearance.Library {
 	return appearance.Library{Source: themeBuiltinsSource, Default: profile.Current().DefaultTheme}
 }
@@ -54,7 +56,7 @@ func writeAppearanceCSS(w http.ResponseWriter, state appearance.AppearanceState,
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if notice != "" {
-		w.Header().Set("X-Dinah-Appearance-Fallback", notice)
+		w.Header().Set(appearanceFallbackHeader, notice)
 	}
 	doc, found := appearanceLibrary().Builtins()[state.Active]
 	if !found {
