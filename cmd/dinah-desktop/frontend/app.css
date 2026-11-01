@@ -326,7 +326,13 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .session-list .session-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .session-list .md-meta { flex-basis: 100%; }
 .session-badge { flex: none; }
-.menu-note { margin: var(--space-2) 14px; }
+.menu-note { margin: var(--space-2) 14px; font-size: var(--text-xs); color: var(--text-muted); }
+/* A popup attached to the page's body takes the body's text size unless it
+   sets its own, which made its rows larger than the controls that open them.
+   A menu's note is secondary text under the menu's actions; PUDL's taskbar
+   stack list takes the size of a menu's rows. Both follow PUDL's text tokens,
+   so they scale with the interface text setting. */
+.win-stack-panel { font-size: var(--text-sm); }
 
 /* The composer. A bar of small controls (the document, the mode, the model,
    anything queued, and Stop while Devin works) sits over one row: the
