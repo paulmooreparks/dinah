@@ -98,6 +98,7 @@ const { launch } = require('./lib/page');
     await member.locator('.team-member-note a').click();
     await p.waitForFunction(() => document.querySelector('.group-composer textarea').value.includes('@Builder'));
     ok('Open Team Chat preserves the draft, adds its mention and sends nothing', /Existing draft text.*@Builder/.test(await group.locator('textarea').inputValue()) && await p.evaluate(() => !__teamCalls.some(c => c[0] === 'group-send')));
+    ok('member and routed team composer have no bottom recipient panel', await member.locator('.group-notice-note, .group-routing-summary, .group-routing-details').count() === 0 && await group.locator('.group-composer .group-notice-note').count() === 0 && await group.locator('.group-toolbar .group-mention-everyone').isVisible());
     await group.locator('[data-bus-message="12"] .bus-relay-mark').waitFor();
     ok('a relayed group message says how it is addressed without a notification', /For Paul through Team Lead/.test(await group.locator('.bus-relay-mark').textContent()) && await p.evaluate(() => dinahHost.notices.list(e => e.data.notificationId).length) === 0);
     await p.evaluate(key => pudlWindows.raise(key), leadKey);
