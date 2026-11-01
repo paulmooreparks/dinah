@@ -1474,10 +1474,30 @@
       var note = $('session-note');
       note.hidden = !(s && s.failed && !s.loading);
       if (note.hidden) { openWithShown = false; return; }
-      $('session-note-title').textContent = s.recoveryReview ? 'Recover the original message recipient' : s.failedHistory ? 'This chat opened, but its current history could not be loaded.' : agentName() + ' could not open this session.';
-      $('session-note-body').textContent = (s.recoveryReview ? '' : s.failedHistory ? 'The history read failed: ' : agentName() + ' reported: ') + s.failed.replace(/^Error:\s*/, '') + (s.unoffered ? ' Open With lets you choose one of the values ' + agentName() + ' offers now.' : '') + (s.historyAvailable ? ' Your saved history is shown above. You can save it or continue it in a fresh chat.' : ' Try again to reconnect. No saved history is available here.') + (s.historyWarning ? ' ' + s.historyWarning : '');
-      $('session-recover').disabled = !s.historyAvailable || s.historyRecoverable === false;
+      var recoverable = s.historyAvailable && s.historyRecoverable !== false;
+      if (s.notFound) {
+        /* The provider no longer has the session, and the engine will not ask
+           it again, so trying again cannot help. The one recovery is a fresh
+           session from the saved history, or a new chat when there is none
+           to continue; Save History… stays, since it only exports. */
+        recoverable = recoverable && s.notFound.recoverable !== false;
+        $('session-note-title').textContent = agentName() + ' no longer has this session.';
+        $('session-note-body').textContent = agentName() + ' could not find it to reopen it, so trying again would not help. ' +
+          (recoverable ? 'Continue from Saved History carries on this chat in a fresh session with its saved history, shown above.' : 'Its saved history cannot be continued here. Start a new chat to carry on.') +
+          (s.historyWarning ? ' ' + s.historyWarning : '');
+      } else {
+        $('session-note-title').textContent = s.recoveryReview ? 'Recover the original message recipient' : s.failedHistory ? 'This chat opened, but its current history could not be loaded.' : agentName() + ' could not open this session.';
+        $('session-note-body').textContent = (s.recoveryReview ? '' : s.failedHistory ? 'The history read failed: ' : agentName() + ' reported: ') + s.failed.replace(/^Error:\s*/, '') + (s.unoffered ? ' Open With lets you choose one of the values ' + agentName() + ' offers now.' : '') + (s.historyAvailable ? ' Your saved history is shown above. You can save it or continue it in a fresh chat.' : ' Try again to reconnect. No saved history is available here.') + (s.historyWarning ? ' ' + s.historyWarning : '');
+      }
+      var retry = $('session-retry'), recover = $('session-recover'), fresh = $('session-new');
+      retry.hidden = !!s.notFound;
+      recover.hidden = !!s.notFound && !recoverable;
+      fresh.hidden = !!s.notFound && recoverable;
+      recover.disabled = !recoverable;
+      recover.classList.toggle('btn-primary', !!s.notFound && recoverable);
+      fresh.classList.toggle('btn-primary', !!s.notFound && !recoverable);
       $('session-save-history').disabled = !s.historyAvailable;
+      $('session-save-history').hidden = !s.historyAvailable && !!s.notFound;
       drawOpenWith(s);
     }
     /* Open With… is offered when the chat was refused because the agent no
@@ -1538,7 +1558,8 @@
     $('hold-new').addEventListener('click', function () { startNewChat(); });
     $('saved-reconnect').addEventListener('click', function () { if (active) reconnectChat(active, true).catch(function () {}); });
     $('session-retry').addEventListener('click', function () {
-      if (active) { sessions[active].failed = ''; reconnectChat(active, false); }
+      // A session the provider refused as not found is never resumed again.
+      if (active && !sessions[active].notFound) { sessions[active].failed = ''; reconnectChat(active, false); }
     });
     $('session-new').addEventListener('click', function () { startNewChat().catch(function () {}); });
     $('session-recover').addEventListener('click', function () { switchProvider(chatProvider(), true); });

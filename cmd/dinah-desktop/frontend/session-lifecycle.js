@@ -183,7 +183,7 @@
       s.saved = false;
       resetMessageItems(s); s.log.innerHTML = ''; s.rows = {}; s.current = null; s.trimmed = 0; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
       s.settling = true;
-      s.loading = true; s.replayed = 0; s.failed = ''; s.unoffered = null;
+      s.loading = true; s.replayed = 0; s.failed = ''; s.unoffered = null; s.notFound = null;
       if (s.view) s.view.drawLoadingChip(); // the window's title bar says it is loading
       s.info.resumed = false; // omitted from an opening that replayed, so a stale true would stay
       s.log.hidden = true;
@@ -272,6 +272,10 @@
         // values it offers instead, for Open With… (sessionNote).
         var detail = err && err.detail;
         s.unoffered = detail && detail.kind === 'unoffered-option' && (detail.offered || []).length ? detail : null;
+        // The provider refused to resume this session as not found
+        // (docs/plans/recurring-chat-faults.md). The engine records it and
+        // never asks again, so the note offers no Try Again (sessionNote).
+        s.notFound = detail && detail.kind === 'session-not-found' ? detail : null;
         if (!kept && app().SavedConversation) {
           try {
             var saved = await app().SavedConversation(id);
