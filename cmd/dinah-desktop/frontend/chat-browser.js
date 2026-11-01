@@ -356,7 +356,7 @@
         a.setAttribute('aria-label', a.title);
         if (id === adapter.active()) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
         var state = window.dinahChatState.read(s.info), execution = state.exec && state.exec.state;
-        var groupName = execution === 'waiting' || execution === 'stuck' ? 'Needs You' : execution === 'working' ? 'Working' : 'Chats';
+        var groupName = execution === 'waiting' || execution === 'stuck' ? 'Needs You' : execution === 'working' || execution === 'background' ? 'Working' : 'Chats';
         if (!groups[groupName]) groups[groupName] = [];
         groups[groupName].push(row);
         // A chat with subagents from earlier runs has a Subagents part under

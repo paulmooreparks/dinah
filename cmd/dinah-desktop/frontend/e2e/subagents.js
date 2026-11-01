@@ -131,9 +131,14 @@ const { launch } = require('./lib/page');
   ok('the chat shows a row where the agent handed work to a subagent, with its name, task, state and Open', rows.length === 1 && rows[0].id === 'sub-a' && rows[0].text.includes('Explore') && rows[0].text.includes('Find where the parser lives') && rows[0].state === 'Running' && rows[0].open, JSON.stringify(rows));
   ok('the state is a glyph and a word', await p.evaluate(w => { const b = document.querySelector(w + ' .subagent-row .subagent-state'); return b.classList.contains('accent') && getComputedStyle(b, '::before').content !== 'none'; }, win));
   const chips = () => p.evaluate(w => { const el = document.querySelector(w), c = el.querySelector('.chat-subagents-chip'), wk = el.querySelector('.chat-working-chip .chat-state-working'); return { subagents: c && !c.hidden ? c.textContent : '', working: !!wk && !wk.hidden, line: el.querySelector('.chat-working-chip').title }; }, win);
+  // The engine's execution state counts the running subagents (exec.subagents,
+  // docs/design/background-activity.md).
+  const engineState = exec => p.evaluate(exec => { window.__stateVer = (window.__stateVer || 0) + 1; window.__emit('agent:chatstate', { chats: [{ sessionId: 'sa', bus: '', life: 'open', window: true, exec }], groups: [], stateGen: 'subagents', stateVer: window.__stateVer }); }, exec);
+  await engineState({ state: 'working', why: 'Turn in progress', subagents: 2 });
+  await p.waitForTimeout(200);
   let c = await chips();
   ok('the chat head shows Subagents 2 beside Working while they run', c.subagents === 'Subagents 2' && c.working, JSON.stringify(c));
-  ok('the state line counts the running subagents', c.line.includes('2 subagents are running.'), c.line);
+  ok('the state line counts the running subagents', c.line.includes('Background work continues: 2 subagents.'), c.line);
   ok('the nested subagent has no row in the chat itself', rows.every(r => r.id !== 'sub-b'));
 
   // The tree, from Show All Subagents in the Subagents menu.
@@ -211,6 +216,7 @@ const { launch } = require('./lib/page');
   await sub('b', { state: 'completed', ended: new Date().toISOString() });
   await sub('a', { state: 'disconnected', local: true, ended: new Date().toISOString() });
   await emit('agent:session', { sessionId: 'sa', cwd: 'C:\\Work\\Parser Workspace', title: 'Parser Hunt', open: true, queued: [], working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, background: [], subagents: await p.evaluate(() => [window.__subs.a, window.__subs.b]) });
+  await engineState({ state: 'idle', why: 'No work in progress' });
   await p.waitForTimeout(400);
   tr = await tree();
   ok('the tree shows each end as a glyph and a word', tr && tr[0].kids[0].state === 'Completed' && tr[0].state === 'Disconnected', JSON.stringify(tr));
@@ -333,8 +339,10 @@ const { launch } = require('./lib/page');
   await p.waitForTimeout(400);
   ctl = await control();
   ok('earlier subagents do not change the count', ctl && ctl.text === 'Subagents4', JSON.stringify(ctl));
+  await engineState({ state: 'background', why: '1 subagent', subagents: 1 });
+  await p.waitForTimeout(200);
   c = await chips();
-  ok('nor the title bar\'s count or the state line', c.subagents === 'Subagents 1' && c.line.includes('1 subagent is running.'), JSON.stringify(c));
+  ok('nor the title bar\'s count or the state line', c.subagents === 'Subagents 1' && c.line.startsWith('Background work') && c.line.includes('1 subagent'), JSON.stringify(c));
   panel = await openMenu();
   menu = await menuOf(panel);
   await p.keyboard.press('Escape');

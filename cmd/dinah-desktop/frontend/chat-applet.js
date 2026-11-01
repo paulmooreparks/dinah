@@ -1256,7 +1256,9 @@
     }
     var stateDetail = '', stateContext = '';
     function syncWindowExecution(win, s) {
-      var execution = s && window.dinahChatState.describe(s.info, { reason: false }).state;
+      // PUDL's window states are stuck, waiting, working and idle: background
+      // work is its working state, with Dinah's words as the label.
+      var execution = s && window.dinahChatState.describe(s.info, { reason: false }).pudl;
       win.dataset.winStatusRows = '2';
       // The chat's own title chip shows its state, so PUDL's generated title
       // mark and its Window status row are left out (data-win-state-title,
@@ -1278,7 +1280,7 @@
       chip.setAttribute('aria-hidden', String(concealed));
       chip.title = stateDetail; chip.setAttribute('aria-label', stateDetail);
       if (concealed) return;
-      var mark = s ? window.dinahChatState.badge(s.info, { reason: false }) : document.createElement('span');
+      var mark = s ? window.dinahChatState.badge(s.info, { reason: false, short: true }) : document.createElement('span');
       if (!s) { mark.className = 'chat-state chat-lifecycle'; mark.textContent = workspaceLabel(workspace); }
       mark.title = stateDetail; mark.setAttribute('aria-label', stateDetail); chip.appendChild(mark);
       // PUDL's folded status lists the full host-owned lifecycle text.
@@ -1299,10 +1301,13 @@
         : '';
       // The agent waits on its background work rather than on the person
       // (Paul, 26 October 2026); the count says how much is running.
-      var work = backgroundWork(s);
-      if (work.length) t += ' ' + (work.length === 1 ? '1 background task is' : work.length + ' background tasks are') + ' running.';
-      var helpers = runningSubagents(s);
-      if (helpers) t += ' ' + (helpers === 1 ? '1 subagent is' : helpers + ' subagents are') + ' running.';
+      // The engine's execution state counts the background work still
+      // running (docs/design/background-activity.md). In Background work its
+      // reason gives the counts, unless the line says something else first;
+      // in any other state they are added here.
+      var work = backgroundWork(s), described = s && window.dinahChatState.describe(s.info);
+      var saidByReason = described && described.state === 'background' && state.exec && t === state.exec.why;
+      if (described && described.background && !saidByReason) t += ' Background work continues: ' + described.background + '.';
       var stateWindow = root.closest('.win'), stateChip = stateWindow && stateWindow.querySelector('.chat-working-chip');
       var mark = s ? window.dinahChatState.describe(s.info, { reason: false }).text : 'New Chat';
       var destination = workspace ? workspaceLabel(workspace) : '';

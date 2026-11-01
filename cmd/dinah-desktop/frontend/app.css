@@ -467,7 +467,7 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .composer-stop-reserve { visibility: hidden; pointer-events: none; line-height: normal; }
 .composer-stop { inline-size: 100%; block-size: 100%; justify-content: center; }
 .chat-working-chip { box-sizing: border-box; inline-size: 8em; flex: none; overflow: hidden; white-space: nowrap; }
-.chat-working-chip .chat-state { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-working-chip .chat-state, .win-statuses > .chat-working-chip > .badge.chat-state { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Complete status details stay in the accessible text while each row stays on one line. */
 .win-status-popover li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

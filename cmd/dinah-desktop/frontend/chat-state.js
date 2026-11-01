@@ -4,14 +4,29 @@
   'use strict';
   // PUDL's static state glyphs (0.96.1, WINDOW-STATUS.md): each state keeps
   // one still glyph under every motion preference.
+  /* Background work is what the agent runs after its turn has ended
+     (docs/design/background-activity.md). PUDL's window states have no
+     such state, so it is drawn as PUDL's working state, its glyph and
+     colour, with its own words; windows show it as working with this label
+     (pudl). */
   var mapping = {
     working: { word: 'Working', colour: 'accent', glyph: 'play' },
+    background: { word: 'Background work', short: 'Background', colour: 'accent', glyph: 'play', pudl: 'working' },
     waiting: { word: 'Waiting', colour: 'warn', glyph: 'pause' },
     stuck: { word: 'Stuck', colour: 'danger', glyph: 'warning' },
     idle: { word: 'Idle', colour: '', glyph: 'square' }
   };
   // Every short word a labelled compact mark can show (badge).
-  var SHORT = ['Working', 'Waiting', 'Stuck', 'Idle', 'Closed', 'Retired', 'Elsewhere', 'Unknown'];
+  var SHORT = ['Working', 'Background', 'Waiting', 'Stuck', 'Idle', 'Closed', 'Retired', 'Elsewhere', 'Unknown'];
+  function shortOf(spec) { return spec.short || spec.word; }
+  /* The background work still running, in words, from the counts the engine
+     gives on any execution state: "2 background tasks, 1 subagent". */
+  function backgroundWords(exec) {
+    var tasks = exec && exec.tasks || 0, helpers = exec && exec.subagents || 0, parts = [];
+    if (tasks) parts.push(tasks + (tasks === 1 ? ' background task' : ' background tasks'));
+    if (helpers) parts.push(helpers + (helpers === 1 ? ' subagent' : ' subagents'));
+    return parts.join(', ');
+  }
   var chats = new Map(), buses = new Map(), groups = new Map();
   function read(value) {
     value = value || {};
@@ -52,13 +67,17 @@
     var spec = mapping[state], why = !aggregate && value.exec && value.exec.why || '', words = spec ? spec.word : '';
     if (aggregate) {
       var totals = value.counts || value;
-      var parts = ['stuck', 'waiting', 'working', 'idle', 'unknown', 'closed'].filter(function (name) { return totals[name] > 0; }).map(function (name) { return totals[name] + ' ' + (name === 'unknown' ? 'running elsewhere' : name); });
+      var parts = ['stuck', 'waiting', 'working', 'background', 'idle', 'unknown', 'closed'].filter(function (name) { return totals[name] > 0; }).map(function (name) { return totals[name] + ' ' + (name === 'unknown' ? 'running elsewhere' : name === 'background' ? 'with background work' : name); });
       words = parts.length ? parts.join(', ') : words;
       if (!spec && words) return { text: words, short: totals.unknown ? 'Elsewhere' : 'Closed', kind: '', cls: 'chat-state chat-lifecycle', label: words, glyph: '' };
-      if (!totals.stuck && !totals.waiting && !totals.working && !totals.idle && totals.closed) words = spec.word + ' (' + words + ')';
-    } else if (why && options.reason !== false && (state === 'waiting' || state === 'stuck')) words += ' (' + why + ')';
+      if (!totals.stuck && !totals.waiting && !totals.working && !totals.background && !totals.idle && totals.closed) words = spec.word + ' (' + words + ')';
+    } else if (why && options.reason !== false && (state === 'waiting' || state === 'stuck' || state === 'background')) words += ' (' + why + ')';
     if (!spec) return { text: 'Unknown', short: 'Unknown', kind: '', cls: 'chat-state chat-state-unknown', label: 'The engine has not supplied an execution state', glyph: '' };
-    return { state: state, text: words, short: spec.word, kind: spec.colour, glyph: spec.glyph, cls: 'chat-state chat-state-' + state, label: aggregate ? spec.word + ': ' + words : spec.word + (why ? ': ' + why : '') };
+    /* A chat in another state with background work still running says so
+       in its name and tooltip, so Working after a turn never hides it. */
+    var also = !aggregate && state !== 'background' ? backgroundWords(value.exec) : '';
+    var label = aggregate ? spec.word + ': ' + words : spec.word + (why ? ': ' + why : '') + (also ? '. Background work continues: ' + also : '');
+    return { state: state, pudl: spec.pudl || state, text: words, short: shortOf(spec), kind: spec.colour, glyph: spec.glyph, cls: 'chat-state chat-state-' + state, label: label, background: backgroundWords(value.exec) };
   }
   function describe(value, options) {
     var spec = describeState(value, options);
@@ -68,7 +87,7 @@
   // The chip each short word is drawn in, for the hidden copies of a list's
   // state chip (badge).
   var RESERVES = SHORT.map(function (word) {
-    var state = Object.keys(mapping).filter(function (k) { return mapping[k].word === word; })[0];
+    var state = Object.keys(mapping).filter(function (k) { return shortOf(mapping[k]) === word; })[0];
     return { text: word, glyph: state ? mapping[state].glyph : '', cls: 'chat-state ' + (state ? 'chat-state-' + state : word === 'Unknown' ? 'chat-state-unknown' : 'chat-lifecycle') + ' chat-state-reserve' };
   });
   function badge(value, options) {
@@ -84,7 +103,9 @@
       RESERVES.forEach(function (r) { var copy = window.dinahBrowserList.badge(r); copy.setAttribute('aria-hidden', 'true'); copy.removeAttribute('title'); slot.appendChild(copy); });
       return slot;
     }
-    var el = window.dinahBrowserList.badge(spec);
+    // options.short draws the state's short word, for a fixed-width chip
+    // such as a title bar's; its name keeps the full words.
+    var el = window.dinahBrowserList.badge(options && options.short ? Object.assign({}, spec, { text: spec.short }) : spec);
     if (options && options.className) el.classList.add(options.className);
     if (options && options.compact) {
       el.classList.add('chat-state-compact');

@@ -30,7 +30,7 @@ const { launch } = require('./lib/page');
   await p.click('.win[data-chat-current] [data-view-id=send]');
   await p.waitForTimeout(300);
   const win = '.win[data-chat-current]';
-  const state = (info, execution = 'idle') => p.evaluate(([i, execution]) => window.__emit('agent:session', Object.assign({ sessionId: 'bg', cwd: 'C:\\Work\\Parser Workspace', title: 'Builds', open: true, queued: [], chatState: { life: 'open', window: true, exec: { state: execution, why: execution === 'working' ? 'Turn in progress' : 'No work in progress' } } }, i)), [info, execution]);
+  const state = (info, execution = 'idle') => p.evaluate(([i, execution]) => window.__emit('agent:session', Object.assign({ sessionId: 'bg', cwd: 'C:\\Work\\Parser Workspace', title: 'Builds', open: true, queued: [], chatState: { life: 'open', window: true, exec: typeof execution === 'object' ? execution : { state: execution, why: execution === 'working' ? 'Turn in progress' : 'No work in progress' } } }, i)), [info, execution]);
   const chips = () => p.evaluate(w => {
     const el = document.querySelector(w), working = el.querySelector('.chat-working-chip .chat-state-working'), background = el.querySelector('.chat-background-chip');
     return { working: !!working && !working.hidden, background: background && !background.hidden ? background.textContent : '', line: el.querySelector('.chat-working-chip').title, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent) };
@@ -38,7 +38,9 @@ const { launch } = require('./lib/page');
   const build = { id: 'build', name: 'Build Windows', type: 'shell', description: 'go build ./...', state: 'running', canStop: true };
   const linux = { id: 'linux', name: 'Build Linux', type: 'shell', summary: 'linking', state: 'running', canStop: false };
 
-  await state({ working: true, background: [build] }, 'working');
+  // The engine's execution state counts the background work (exec.tasks,
+  // docs/design/background-activity.md).
+  await state({ working: true, background: [build] }, { state: 'working', why: 'Turn in progress', tasks: 1 });
   await p.waitForTimeout(200);
   let c = await chips();
   ok('a turn with background work shows Working and Background 1 side by side', c.working && c.background === 'Background 1', JSON.stringify(c));
@@ -55,20 +57,20 @@ const { launch } = require('./lib/page');
   }, win));
   ok('PUDL gives the window its Window status command', await p.evaluate(w => pudlWindows.menuCommands(document.querySelector(w).dataset.win).some(c => c.id === 'status'), win));
 
-  await state({ working: false, background: [build, linux] });
+  await state({ working: false, background: [build, linux] }, { state: 'background', why: '2 background tasks', tasks: 2 });
   await p.waitForTimeout(200);
   c = await chips();
   ok('after the turn the chat still shows its background work, not Working', !c.working && c.background === 'Background 2', JSON.stringify(c));
-  ok('the state line keeps the engine state and background task count separate', c.line.includes('Idle') && c.line.includes('2 background tasks are running.'), c.line);
+  ok('the state line says Background work with the count from the engine, once', c.line.startsWith('Background work') && (c.line.match(/2 background tasks/g) || []).length === 1 && !c.line.includes('Idle'), c.line);
   ok('each task is listed with what it is doing', c.tasks.length === 2 && c.tasks[0].includes('Build Windows') && c.tasks[0].includes('go build ./...') && c.tasks[1].includes('linking'), JSON.stringify(c.tasks));
   ok('Stop is offered only where the agent allows it', await p.locator(win + ' .background-task button').count() === 1);
   await p.locator(win + ' .background-task button', { hasText: 'Stop' }).click();
   await p.waitForTimeout(200);
   ok('Stop asks the agent to stop that task', await p.evaluate(() => JSON.stringify(window.__calls.find(x => x[0] === 'Stop')) === JSON.stringify(['Stop', 'bg', 'build'])));
-  ok('background work does not replace the engine execution state in the taskbar', await p.evaluate(w => document.querySelector(w).dataset.winState === 'idle' && !document.querySelector(w).hasAttribute('data-win-running'), win));
+  ok('the taskbar shows the PUDL working state labelled Background work', await p.evaluate(w => document.querySelector(w).dataset.winState === 'working' && /^Background work/.test(document.querySelector(w).dataset.winStateLabel) && !document.querySelector(w).hasAttribute('data-win-running'), win));
   await t.shot('background-tasks');
 
-  await state({ working: false, background: [linux, { id: 'autonomous-turn-1', name: 'Claude is working', type: 'turn', state: 'running', canStop: true }] }, 'working');
+  await state({ working: false, background: [linux, { id: 'autonomous-turn-1', name: 'Claude is working', type: 'turn', state: 'running', canStop: true }] }, { state: 'working', why: "Agent's own turn in progress", tasks: 1 });
   await p.waitForTimeout(200);
   c = await chips();
   ok('a turn the agent starts of its own shows as Working, and is not counted as background', c.working && c.background === 'Background 1' && c.line.includes('Working'), JSON.stringify(c));
