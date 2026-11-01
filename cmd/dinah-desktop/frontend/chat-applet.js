@@ -1539,8 +1539,7 @@
     $('pin-go').addEventListener('click', function () {
       var s = active && sessions[active];
       if (s && s.lastYou) {
-        navigation.pause();
-        s.lastYou.li.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        navigation.navigate(s.lastYou.li);
       }
     });
 

@@ -132,8 +132,24 @@
       frame = requestAnimationFrame(function () { frame = 0; if (disposed) return; if (following && (!o.canTail || o.canTail())) scroll(); else { updateSeen(); centreTarget(); } });
     }
     function input(event) {
-      if (event.type === 'keydown' && (!['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key) || event.target.closest('input, textarea, [contenteditable="true"]'))) return;
+      if (event.type === 'keydown' && (event.defaultPrevented || event.target !== log || !['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key))) return;
       if (event.type === 'pointerdown' && event.target !== log) return;
+      if (event.type === 'keydown' && !event.altKey && (!event.shiftKey || event.key === ' ') && (!(event.ctrlKey || event.metaKey) || event.key === 'Home' || event.key === 'End')) {
+        event.preventDefault();
+        if (event.key === 'End') latest();
+        else {
+          release(); setFollowing(false);
+          if (event.key === 'Home') log.scrollTop = 0;
+          else {
+            var line = parseFloat(getComputedStyle(log).lineHeight) || parseFloat(getComputedStyle(log).fontSize) * 1.5;
+            var amount = event.key === 'ArrowUp' || event.key === 'ArrowDown' ? line : log.clientHeight;
+            var backward = event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === ' ' && event.shiftKey;
+            log.scrollTop += backward ? -amount : amount;
+          }
+          updateSeen();
+        }
+        return;
+      }
       release();
       if (event.type !== 'wheel' || event.deltaY < 0) setFollowing(false);
     }
@@ -147,7 +163,8 @@
     }
     jump.addEventListener('click', latest); stopped.addEventListener('click', whereStopped);
     log.addEventListener('scroll', check, { passive: true }); log.addEventListener('dinah:scroll-restored', restored);
-    ['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (name) { log.addEventListener(name, input, { passive: true }); });
+    ['wheel', 'touchstart', 'pointerdown'].forEach(function (name) { log.addEventListener(name, input, { passive: true }); });
+    log.addEventListener('keydown', input);
     var mutation = new MutationObserver(schedule); mutation.observe(content, { childList: true, subtree: true, characterData: true });
     var resize = new ResizeObserver(schedule); resize.observe(content); resize.observe(log);
     document.addEventListener('pudl:windows-change', schedule); document.addEventListener('visibilitychange', schedule);
