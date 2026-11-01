@@ -46,29 +46,28 @@ const { launch } = require('./lib/page');
     ok('there is no row of its own for it', await win.locator('.transcript-unread-controls').count() === 0);
     await toTop();
     const before = await geometry();
-    await page.evaluate(() => __readingUpdate({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'New report.\n\n' } }));
+    await page.evaluate(() => { __readingUpdate({ sessionUpdate: 'tool_call', toolCallId: 'new-report', title: 'Prepare the new report', status: 'completed' }); __readingUpdate({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'New report.\n\n' } }); });
     await win.locator('.transcript-unread-divider').waitFor({ state: 'attached' });
     await page.waitForFunction(key => !document.querySelector('[data-win="' + key + '"] .chat-last-read').disabled, key);
     ok('something unread enables Last Read', await lastRead.isEnabled());
     ok('the bar, transcript and composer do not move when it is enabled', same(before, await geometry()), JSON.stringify([before, await geometry()]));
     ok('the place is not yet in view', !(await inView()));
     await lastRead.focus(); await page.keyboard.press('Enter');
-    await page.waitForFunction(inViewKey => {
-      const win = document.querySelector('[data-win="' + inViewKey + '"]'), log = win.querySelector('[data-view-id="activity"]'), d = win.querySelector('.transcript-unread-divider');
-      if (!d) return false;
-      const l = log.getBoundingClientRect(), r = d.getBoundingClientRect();
+    // The place the reader stopped is the new message. Reaching it marks it
+    // seen, which removes the divider, so the message itself is looked for.
+    const reached = () => page.waitForFunction(key => {
+      const win = document.querySelector('[data-win="' + key + '"]'), log = win.querySelector('[data-view-id="activity"]');
+      const row = [...log.querySelectorAll('.activity-row')].find(r => r.textContent.includes('New report.'));
+      if (!row) return false;
+      const l = log.getBoundingClientRect(), r = row.getBoundingClientRect();
       return r.bottom > l.top && r.top < l.bottom;
     }, key);
+    await reached();
     ok('the keyboard takes the reader to where they stopped', true);
     await toTop();
     if (await lastRead.isEnabled()) {
       await lastRead.click();
-      await page.waitForFunction(key => {
-        const win = document.querySelector('[data-win="' + key + '"]'), log = win.querySelector('[data-view-id="activity"]'), d = win.querySelector('.transcript-unread-divider');
-        if (!d) return log.scrollHeight - log.scrollTop - log.clientHeight < 24;
-        const l = log.getBoundingClientRect(), r = d.getBoundingClientRect();
-        return r.bottom > l.top && r.top < l.bottom;
-      }, key);
+      await reached();
       ok('the pointer takes the reader to where they stopped', true);
     }
     const enabled = await geometry();

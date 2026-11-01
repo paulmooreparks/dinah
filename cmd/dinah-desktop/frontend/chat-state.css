@@ -11,7 +11,7 @@
 .chat-state-words { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .session-reason, .session-row-meta { display: block; block-size: 1.5em; line-height: 1.5; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--text-sm); }
 .session-attention-slot { display: inline-grid; place-items: center; flex: none; block-size: max(18px, 1.55em); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
-.session-attention-slot > .badge { grid-area: 1 / 1; white-space: nowrap; }
+.session-attention-slot > .badge { grid-area: 1 / 1; white-space: nowrap; padding-inline: var(--space-1); }
 .session-attention-reserve { visibility: hidden; }
 .team-state-slot { display: inline-flex; flex: none; block-size: max(18px, 1.55em); }
 /* A chat list's mark is a glyph column, then its short word set to the right

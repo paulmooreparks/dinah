@@ -11,7 +11,7 @@ const {launch} = require('./lib/page');
     const info=id=>({sessionId:id,title:id,cwd,provider:'codex',open:true,working:false,lead:id==='member'?lead:null});
     return {State:async()=>({workspace:cwd,recent:[cwd]}),Sessions:async()=>[info('member'),info('ordinary')],SessionsAt:async()=>[info('member'),info('ordinary')],
       ReadUIState:async()=>({version:1,values:{'dinah-workbench-layout':'?open=workspace','dinah-draft:chat:member':{text:'Keep the member draft'}}}),SaveUIState:async()=>{},
-      OpenSessionAt:async(cwd,id)=>{__navigationCalls.push(['open',id]);__emit('agent:updates',{sessionId:id,updates:Array.from({length:30},(_,n)=>({sessionUpdate:'agent_message_chunk',turnId:'history',itemId:String(n),contentMode:'snapshot',content:{type:'text',text:'Retained report '+n+'. '+('Paragraph text. '.repeat(12))}}))});return info(id);},
+      OpenSessionAt:async(cwd,id)=>{__navigationCalls.push(['open',id]);return info(id);},
       ChatLead:async id=>id==='member'?lead:null,
       Team:async id=>({lead:{chat:id,bus:'bus-'+id,title:id},group:id==='member'?'child-team':'',stateGen:'own-team',stateVer:1,counts:{top:'idle',idle:1},members:id==='member'?[{chat:'child',bus:'bus-child',title:'Child',life:'open',window:true,exec:{state:'idle',why:''}}]:[]}),
       BusOverview:async()=>({inbox:[],rooms,workspaces:[],links:[]}),BusResolveGroup:async name=>({state:'resolved',room:rooms.find(r=>r.name===name)}),BusGroupMessages:async()=>[],BusMarkGroupRead:async()=>{},
@@ -21,6 +21,7 @@ const {launch} = require('./lib/page');
   try {
     const key=await p.evaluate(()=>dinahWorkbench.open({kind:'chat-session',workspace:'C:/Fixture',path:'member'})),win=p.locator('[data-win="'+key+'"]');
     const open=win.getByRole('button',{name:'Open Team',exact:true});await open.waitFor();
+    await p.evaluate(()=>{for(let n=0;n<30;n++)__emit('agent:update',{sessionId:'member',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:'Retained report '+n+'. '+'Paragraph text. '.repeat(12)+'\n\n'}}});});
     await win.getByText('Retained report 29.',{exact:false}).waitFor();
     const transcript=await win.locator('[data-view-id=logs]').textContent(),draft=await win.locator('[data-view-id=prompt]').inputValue();
     const activity=win.locator('[data-view-id=activity]');await activity.hover();await p.mouse.wheel(0,-600);
