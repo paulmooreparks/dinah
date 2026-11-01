@@ -320,7 +320,8 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .agent-state { color: var(--text-muted); font-size: var(--text-sm); }
 
 /* The Workspace pane's toolbar stays in view as the pane scrolls: the
-   workspace chosen in a select, then New Workspace… and Actions. */
+   workspace chosen in a select, then a folding PUDL toolbar of New Chat,
+   Add Source…, New Workspace… and Actions. */
 /* The toolbar and Pinned are frozen at the top of the Workspace pane; a
    long list of pins scrolls inside its own section. */
 .ws-frozen { position: sticky; top: 0; z-index: 2; flex: none; background: var(--surface); border-bottom: 1px solid var(--border); }

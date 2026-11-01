@@ -126,7 +126,7 @@ const { choose, shows } = require('./lib/commands');
     ok('connection checks load a provider catalog without a prompt', await page.evaluate(() => __calls.some(c => c[0] === 'check') && !__calls.some(c => c[0] === 'send')));
     await t.shot('agent-providers-settings');
     await page.evaluate(() => dinahWorkbench.open('workspace'));
-    await page.locator('[data-section="workspace-chats"] .browser-group-head').getByRole('button', { name: 'New Chat', exact: true }).click();
+    await page.locator('.ws-commands').getByRole('button', { name: 'New Chat', exact: true }).click();
     const front = () => page.locator('.win.active');
     ok('New Session opens a draft with provider choice before creating an agent session', await shows(front(), 'provider', 'Codex') && await front().locator('[data-command="provider"]').isEnabled() && await page.evaluate(() => !__calls.some(c => c[0] === 'new')));
     ok('a new chat selects the configured provider and its own model', await shows(front(), 'provider', 'Codex') && await shows(front(), 'model', 'Codex Model'));

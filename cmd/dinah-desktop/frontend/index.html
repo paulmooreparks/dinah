@@ -309,11 +309,19 @@
         <div class="ws-frozen">
         <div class="browser-toolbar ws-toolbar">
           <span class="form-select-wrap ws-choose"><select class="form-select" id="ws-select" aria-label="Workspace"></select></span>
-          <div class="browser-toolbar-row">
-            <span class="browser-commands">
-              <button type="button" class="btn btn-sm" data-cmd="new-workspace" title="Make a workspace on a main folder you choose">New Workspace…</button>
-              <span class="browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions">Actions</button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button></nav></span>
-            </span>
+          <!-- A folding PUDL toolbar: the chosen workspace's New Chat and
+               Add Source… first and kept longest, then New Workspace… and
+               Actions. As the pane narrows the words go before anything
+               folds into a menu. -->
+          <div class="toolbar ws-commands" role="toolbar" aria-label="Workspace Commands" data-toolbar-fold data-toolbar-captions="none">
+            <div class="toolbar-group" role="group" aria-label="This Workspace" data-toolbar-group="This Workspace" data-toolbar-glyph="comments" data-toolbar-priority="30">
+              <button type="button" class="btn btn-sm" data-cmd="new-session" title="Start a New Chat in This Workspace"><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="toolbar-words">New Chat</span></button>
+              <button type="button" class="btn btn-sm" id="workspace-source-choose" title="Add a folder on this computer to this workspace" hidden><span class="glyph" style="--glyph: var(--glyph-plus)" aria-hidden="true"></span><span class="toolbar-words">Add Source…</span></button>
+            </div>
+            <div class="toolbar-group" role="group" aria-label="Workspaces" data-toolbar-group="Workspaces" data-toolbar-glyph="folder" data-toolbar-priority="20">
+              <button type="button" class="btn btn-sm" data-cmd="new-workspace" title="Make a workspace on a main folder you choose"><span class="glyph" style="--glyph: var(--glyph-folder)" aria-hidden="true"></span><span class="toolbar-words">New Workspace…</span></button>
+              <div class="menu browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions" aria-label="Actions"><span class="glyph" style="--glyph: var(--glyph-menu)" aria-hidden="true"></span><span class="toolbar-words">Actions</span></button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button></nav></div>
+            </div>
           </div>
         </div>
 
@@ -326,7 +334,7 @@
         </section>
         </div>
         <section class="browser-group workspace-list" data-section="workspace-chats">
-          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-chats-title"></button><h3 class="browser-group-title" id="workspace-chats-title">Chats</h3><button type="button" class="btn btn-sm browser-group-action" data-cmd="new-session">New Chat</button></div>
+          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-chats-title"></button><h3 class="browser-group-title" id="workspace-chats-title">Chats</h3></div>
           <div class="browser-group-body">
             <div id="workspace-chats" class="session-list" role="list" aria-label="Workspace Chats"></div>
             <div id="workspace-chats-empty" class="empty-state browser-empty"><p class="empty-state-title">No Chats Yet</p><p class="empty-state-body">A chat with an agent in this workspace appears here.</p></div>
@@ -340,7 +348,7 @@
           </div>
         </section>
         <section id="workspace-sources" class="browser-group workspace-sources" data-section="workspace-sources" hidden aria-label="Workspace Sources">
-          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-sources-title"></button><h3 class="browser-group-title" id="workspace-sources-title">Sources</h3><button type="button" class="btn btn-sm browser-group-action" id="workspace-source-choose">Add Source…</button></div>
+          <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-sources-title"></button><h3 class="browser-group-title" id="workspace-sources-title">Sources</h3></div>
           <div class="browser-group-body">
             <div id="workspace-source-tree" role="group" aria-label="Sources"></div>
           </div>

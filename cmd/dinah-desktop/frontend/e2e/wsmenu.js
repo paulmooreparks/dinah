@@ -23,8 +23,8 @@ const { launch } = require('./lib/page');
     });
     t.ok('the Actions menu opens under its button', r.dx < 40 && r.below >= 0 && r.below < 20, JSON.stringify(r));
     t.ok('the workspace commands are menu rows', r.rows.join('|') === 'menu-action:New Empty Workspace|menu-action:Rename Workspace…|menu-action:Export Workspace…|menu-action:Import Workspace…|menu-action:Refresh Workspace|menu-action:Remove Workspace…');
-    const pane = await p.evaluate(() => Array.from(document.querySelectorAll('.ws-toolbar .btn'), x => x.textContent));
-    t.ok('the toolbar has New Workspace… and Actions as raised buttons', pane.join('|') === 'New Workspace…|Actions', pane.join('|'));
+    const pane = await p.evaluate(() => Array.from(document.querySelectorAll('.ws-commands .toolbar-group > .btn:not([hidden]), .ws-commands .toolbar-group > .menu:not(.toolbar-fold) > .btn'), x => x.querySelector('.toolbar-words').textContent));
+    t.ok('the toolbar has New Chat, New Workspace… and Actions as raised buttons', pane.join('|') === 'New Chat|New Workspace…|Actions', pane.join('|'));
     await t.shot('wsmenu-side').catch(() => {});
   } finally { await t.close(); }
 })();

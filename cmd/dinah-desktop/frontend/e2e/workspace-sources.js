@@ -209,11 +209,11 @@ const { launch, PAGE } = require('./lib/page');
     ok('refresh can restore children to a previously empty root', await sources.getByRole('button', { name: 'Collapse Shared Drive', exact: true }).count() === 1);
     // Add Source… asks for a folder; Cancel in the folder dialog adds nothing.
     await page.evaluate(() => { window.__cancelFolder = true; });
-    await sources.getByRole('button', { name: 'Add Source…', exact: true }).click();
+    await page.locator('.ws-commands').getByRole('button', { name: 'Add Source…', exact: true }).click();
     await page.waitForFunction(() => __calls.some(call => call[0] === 'choose'));
     ok('canceling the native folder picker leaves sources unchanged', await resource('Reference Files').count() === 0);
     await page.evaluate(() => { window.__cancelFolder = false; });
-    await sources.getByRole('button', { name: 'Add Source…', exact: true }).click();
+    await page.locator('.ws-commands').getByRole('button', { name: 'Add Source…', exact: true }).click();
     await resource('Reference Files').waitFor();
     ok('Add Source… adds the chosen folder to the workspace in front', await page.evaluate(() => __calls.filter(call => call[0] === 'choose').every(call => call[1] === 'w1')) && await resource('Working Files').count() === 1);
     await page.evaluate(() => __renameFixtureSource('added', 'Updated Files'));

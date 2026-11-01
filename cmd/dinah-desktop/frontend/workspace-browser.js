@@ -216,7 +216,8 @@
       }
       function setWorkspace(next) {
         var available = !!(next && next.mountAlias && api().ListWorkspaceMounts);
-        $('workspace-sources').hidden = !available;
+        // Add Source… sits in the pane's toolbar and is offered only where Sources is.
+        $('workspace-sources').hidden = !available; $('workspace-source-choose').hidden = !available;
         if (!available) { record = null; ++generation; tree.replaceChildren(); return; }
         var signature = JSON.stringify(next.sources || []), changed = !record || record.id !== next.id;
         if (!changed && signature === sourceSignature) { record = next; return; }
