@@ -118,6 +118,7 @@ func New(b *bus.Bus, addr string) (*Server, error) {
 	s := &Server{bus: b, addr: addr, tmpl: t, mux: http.NewServeMux()}
 	static, _ := fs.Sub(staticFS, "static")
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
+	s.mux.HandleFunc("GET /appearance.css", s.appearanceCSS)
 	s.mux.HandleFunc("GET /signin", s.signin)
 	s.mux.HandleFunc("GET /{$}", s.desktop)
 	s.mux.HandleFunc("GET /win/{key}", s.window)
@@ -169,6 +170,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := r.Cookie(cookieName)
 	if err != nil || !s.bus.ValidWebToken(r.Context(), c.Value) {
+		if r.URL.Path == "/appearance.css" {
+			writeAppearanceCSS(w, defaultAppearance(), "")
+			return
+		}
 		w.WriteHeader(http.StatusUnauthorized)
 		s.render(w, "signedout.html", map[string]any{"Title": "Signed Out", "Product": profile.Current().Name, "Command": profile.Current().CommandProgram})
 		return
