@@ -28,13 +28,6 @@
   }
   // A member's state is the standard chip, as wide as its own glyph and word.
   function stateBadge(m) { return window.dinahChatState.badge(m, { labelled: true, className: 'team-state' }); }
-  function disclosure(label, body, id) {
-    var b = node('button', 'btn btn-sm disclosure', label);
-    b.type = 'button'; body.id = id; body.hidden = true;
-    b.setAttribute('aria-controls', id); b.setAttribute('aria-expanded', 'false');
-    b.addEventListener('click', function () { body.hidden = !body.hidden; b.setAttribute('aria-expanded', String(!body.hidden)); });
-    return b;
-  }
   function usageWords(u) {
     if (!u) return 'Usage unavailable';
     if (Array.isArray(u)) return u.length ? u.map(usageWords).join('; ') : 'Usage unavailable';
@@ -103,11 +96,11 @@
     });
     log.querySelectorAll(':scope > .team-traffic-fold').forEach(function (li) { if (!retained.has(li)) li.remove(); });
   }
-  /* A tree of a team's members, nested teams under their leads. Each row
-     opens its member's chat. The lead's Team list shows each member's name
-     and state alone; the Team Report (detailed) adds what it is doing,
-     where and on what it runs, its usage, its counts and its last
-     assignment. Rows are kept and updated in place as the team changes. */
+  /* The Team Report's tree of a team's members, nested teams under their
+     leads. Each row opens its member's chat and, with detailed, says what
+     it is doing, where and on what it runs, its usage, its counts and its
+     last assignment. Rows are kept and updated in place as the team
+     changes. */
   function memberTree(opts) {
     var rows = new Map(), expanded = new Map();
     function draw(into, members, group, includeRetired) {
@@ -181,10 +174,19 @@
   function mount(o) {
     var prefix = 'team-' + (++serial), id = '', current = null, lead = null, generation = 0, disposed = false, infoLeadSignature, relationEpoch = 0;
     var session = null, relationKnown = true, relationError = '', waitsForOpen = false;
-    var section = node('section', 'chat-team'), content = node('div', 'team-content vstack gap-2');
+    var section = node('section', 'chat-team');
     section.hidden = true;
-    var toggle = disclosure('Team', content, prefix + '-content'); toggle.classList.add('team-toggle');
-    var toggleWords = H.toolbarLabel(toggle, 'account', 'Team');
+    /* The lead's direct reports are the Members dropdown, the one a team's
+       group chat has too (bus-applets.js): a row for each, its name and
+       standard state chip, which opens its chat. Each member that leads a
+       team of its own has its own Members. Rows are kept and updated in
+       place, so a state change leaves an open dropdown and its focus. */
+    var content = node('nav', 'menu-panel members-menu team-members'); content.setAttribute('popover', ''); content.setAttribute('aria-label', 'Members');
+    content.id = prefix + '-members';
+    var toggle = node('button', 'btn btn-sm menu-btn team-toggle'); toggle.type = 'button'; toggle.hidden = true;
+    toggle.id = content.id + '-button'; toggle.setAttribute('popovertarget', content.id);
+    var toggleWords = H.toolbarLabel(toggle, 'account', 'Members');
+    var membersMenu = node('div', 'menu'); membersMenu.append(toggle, content);
     var openTeamButton = node('button', 'btn btn-sm team-open'); openTeamButton.type = 'button'; openTeamButton.hidden = true;
     H.toolbarLabel(openTeamButton, 'open', 'Open Team');
     /* Open Team opens a member's lead's team group, or the team group a
@@ -209,26 +211,74 @@
     // transcript never moves when there comes to be something unread.
     var lastRead = o.lastRead || null;
     function showSection() { section.hidden = !lastRead && openTeamButton.hidden && ownTeamButton.hidden && toggle.hidden; }
-    // The bar's controls are a folding PUDL toolbar, Last Read first, then the
-    // team's controls; the team's details open below it.
-    var bar = node('div', 'toolbar chat-team-toolbar'), group = node('div', 'toolbar-group');
+    /* The bar's controls are a folding PUDL toolbar, as the group's is: Last
+       Read first and longest, then Members, then the team's navigation. */
+    var bar = node('div', 'toolbar chat-team-toolbar');
     bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Chat'); bar.setAttribute('data-toolbar-fold', ''); bar.setAttribute('data-toolbar-captions', 'none');
-    group.setAttribute('data-toolbar-group', 'Chat'); group.setAttribute('data-toolbar-glyph', 'comments');
-    if (lastRead) group.appendChild(lastRead);
-    group.append(toggle, openTeamButton, ownTeamButton); bar.appendChild(group);
-    section.append(bar, content);
+    function toolbarGroup(name, glyph, priority) {
+      var g = node('div', 'toolbar-group'); g.setAttribute('role', 'group'); g.setAttribute('aria-label', name);
+      g.setAttribute('data-toolbar-group', name); g.setAttribute('data-toolbar-glyph', glyph); g.setAttribute('data-toolbar-priority', String(priority));
+      return g;
+    }
+    var readingGroup = toolbarGroup('Reading', 'history', 30), membersGroup = toolbarGroup('Members', 'account', 20), teamGroupBar = toolbarGroup('Team', 'open', 10);
+    if (lastRead) readingGroup.appendChild(lastRead);
+    membersGroup.appendChild(membersMenu);
+    teamGroupBar.append(openTeamButton, ownTeamButton);
+    bar.append(readingGroup, membersGroup, teamGroupBar);
+    section.appendChild(bar);
     o.root.querySelector('.chat-output').before(section);
-    var tree = node('ul', 'tree team-tree'); tree.setAttribute('aria-label', 'Team members');
-    var retiredTree = node('ul', 'tree team-tree'); retiredTree.setAttribute('aria-label', 'Retired members');
-    var retiredBox = node('div', 'team-retired');
-    var retiredToggle = disclosure('Retired', retiredTree, prefix + '-retired');
-    retiredBox.append(retiredToggle, retiredTree);
-    // The allowances and the detailed report are the team group's, in its
-    // window's toolbar (bus-applets.js); this list is names and states.
-    content.append(tree, retiredBox);
+    var memberList = node('div', 'member-list'); memberList.setAttribute('role', 'list'); memberList.setAttribute('aria-label', 'Members');
+    var retiredLabel = node('p', 'md-section-label members-section', 'Retired');
+    var retiredList = node('div', 'member-list'); retiredList.setAttribute('role', 'list'); retiredList.setAttribute('aria-label', 'Retired members');
+    content.append(memberList, retiredLabel, retiredList);
+    var leadRows = new Map();
+    /* A row opens the chat of the member it was made for, read as it is when
+       pressed; a state change only redraws its words and chip. */
+    function drawRows(into, members) {
+      var wanted = [];
+      members.forEach(function (m) {
+        var key = m.bus || m.chat, held = leadRows.get(key);
+        if (!held) {
+          var row = node('div', 'member-row lead-member'); row.setAttribute('role', 'listitem'); row.dataset.teamMember = key;
+          var open = node('button', 'menu-action member-open'); open.type = 'button';
+          var name = node('span', 'member-name'), slot = node('span', 'member-state-slot');
+          open.append(name, slot); row.appendChild(open);
+          held = { row: row, open: open, name: name, slot: slot, member: m };
+          (function (entry) {
+            entry.open.addEventListener('click', function () {
+              var latest = entry.member;
+              if (content.matches(':popover-open')) content.hidePopover();
+              if (latest.chat) Promise.resolve(o.openChat(latest.chat)).catch(host().fail);
+            });
+          })(held);
+          leadRows.set(key, held);
+        }
+        held.member = m;
+        if (held.name.textContent !== m.title) held.name.textContent = m.title;
+        var label = window.dinahChatState.describe(m).label;
+        held.open.setAttribute('aria-label', 'Open ' + m.title + ', ' + label);
+        held.open.title = m.chat ? 'Open ' + m.title + '. ' + label : 'Open this chat in its owning window. ' + label;
+        held.open.setAttribute('aria-disabled', String(!m.chat));
+        held.slot.replaceChildren(stateBadge(m));
+        held.row.classList.toggle('member-ended', m.life === 'retired' || m.life === 'closed');
+        wanted.push(held.row);
+      });
+      // A member that moved, active to retired, leaves this list and is put in the other.
+      Array.from(into.children).forEach(function (row) { if (wanted.indexOf(row) < 0) row.remove(); });
+      wanted.forEach(function (row, i) { if (into.children[i] !== row && !row.contains(document.activeElement)) into.insertBefore(row, into.children[i] || null); });
+      return wanted;
+    }
+    function drawMembersMenu(active, retired) {
+      var shown = drawRows(memberList, active).concat(drawRows(retiredList, retired));
+      retiredLabel.hidden = retiredList.hidden = !retired.length;
+      leadRows.forEach(function (held, key) {
+        if (shown.indexOf(held.row) >= 0) return;
+        if (held.row.contains(document.activeElement)) toggle.focus();
+        held.row.remove(); leadRows.delete(key);
+      });
+    }
     var memberNote = node('div', 'team-member-note form-help'); memberNote.hidden = true;
     o.root.querySelector('[data-view-id="composer"]').appendChild(memberNote);
-    var memberRows = memberTree({ detailed: false, openChat: o.openChat, group: function () { return current && current.group; } });
     var activity = o.root.querySelector('[data-view-id="activity"]'), foldFrame = 0;
     function observeTraffic() { trafficObserver.observe(activity, { childList: true, subtree: true }); }
     function refreshTraffic() {
@@ -279,16 +329,14 @@
       if (disposed || !v || chatId(v.lead) !== id) return;
       if (!window.dinahStateOrder.accept('team:state', id, v, again)) return;
       current = v; publish(v);
-      var members = v.members || [], activeMembers = members.filter(function (m) { return m.life !== 'retired'; }), retired = [];
-      (function collect(list) { list.forEach(function (m) { if (m.life === 'retired') retired.push(m); else collect(m.members || []); }); })(members);
+      // The lead's direct reports; a nested team's members are in its own lead's Members.
+      var members = v.members || [], activeMembers = members.filter(function (m) { return m.life !== 'retired'; }), retired = members.filter(function (m) { return m.life === 'retired'; });
       o.keepPlace(function () {
         toggle.hidden = !v.group && !members.length;
         syncOpen();
         showSection();
-        toggleWords.textContent = 'Team (' + members.length + ')';
-        memberRows.draw(tree, activeMembers, v.group); memberRows.draw(retiredTree, retired, v.group, true);
-        retiredBox.hidden = !retired.length;
-        if (window.pudlTree) { window.pudlTree.enhance(tree); window.pudlTree.enhance(retiredTree); }
+        if (toggleWords.textContent !== 'Members (' + activeMembers.length + ')') toggleWords.textContent = 'Members (' + activeMembers.length + ')';
+        drawMembersMenu(activeMembers, retired);
       });
       refreshTraffic();
     }

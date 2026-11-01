@@ -21,15 +21,6 @@
 .chat-state-slot > .badge { grid-area: 1 / 1; white-space: nowrap; }
 .chat-state-slot > .chat-state-reserve { visibility: hidden; }
 .session-browser-group .browser-group-count { inline-size: calc(3ch + 16px); justify-content: center; font-variant-numeric: tabular-nums; }
-.member-chip { max-width: 100%; flex-wrap: nowrap; min-width: 0; }
-.member-chip .member-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.member-chip .chat-state { max-width: 100%; }
-/* A member's state is a glyph alone, before its name, as wide as the glyph. A
-   member with no live state keeps the empty slot and a muted name, so a chip
-   never changes width as its member's state changes (bus-applets.js). */
-.member-state { display: inline-grid; place-items: center; flex: none; inline-size: max(16px, 1em); block-size: max(16px, 1.4em); line-height: 1.4; color: var(--text-muted); }
-.member-chip.member-ended .member-title { color: var(--text-muted); }
-.member-state > .glyph { --glyph-size: max(16px, 1em); }
 /* A title bar's state mark is drawn as PUDL's standard status chip: a
    transparent pill outlined in the title's own colour, with bold extra-small
    words, so it reads on any title bar, active or not, in either mode

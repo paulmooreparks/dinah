@@ -44,14 +44,10 @@
 .system-line { display: flex; align-items: center; justify-content: center; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
 .system-line::before { content: ""; flex: none; width: 13px; height: 13px; background: currentColor; -webkit-mask: var(--glyph-info) center / contain no-repeat; mask: var(--glyph-info) center / contain no-repeat; }
 
-/* A group's members: PUDL chips in a row, each with its state glyph and a
-   small raised button that opens its menu. */
-.group-members { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px solid var(--surface-alt); }
-.group-members .md-meta { margin-inline-end: var(--space-1); }
-.member-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px 3px 2px 5px; font-size: var(--text-sm); }
-.member-chip.person { padding-inline-end: 8px; }
-.member-chip .icon-btn { width: 20px; height: 20px; --glyph-size: 10px; }
-.group-budget { display: block; flex: 0 0 100%; min-inline-size: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* A group's members are the shared Members dropdown (teams.css). Its turn
+   budget, when it has one, is a line under the toolbar. */
+.group-member-shell > .group-budget { margin: 0; padding: 0 var(--space-5) var(--space-2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.group-member-shell > .group-budget.warn { color: var(--text); font-weight: 600; }
 
 .menu-panel.group-member-menu { margin: 0; width: min(22rem, calc(100vw - 16px)); }
 .member-menu-state { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -105,18 +101,12 @@
 .picker-tools > button { flex-shrink: 0; }
 .picker-new-chat { margin: 0; }
 
-.group-member-shell { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; max-height: 40%; overflow: auto; padding: 0; container-type: inline-size; }
-.group-member-shell .group-members { flex: 0 1 auto; min-height: 0; overflow: auto; align-content: flex-start; align-items: flex-start; border-bottom: 0; padding: var(--space-2) var(--space-5); }
-.group-members[hidden] { display: none; }
-.group-toolbar { flex: none; margin: 0; padding: var(--space-2) var(--space-5); border-bottom: 1px solid var(--border); }
-.group-toolbar > .toolbar-group { flex: 1; flex-wrap: wrap; min-inline-size: 0; }
-.group-toolbar .btn { max-inline-size: 100%; min-inline-size: 0; white-space: normal; overflow-wrap: anywhere; }
-.group-toolbar .toolbar-words { min-inline-size: 0; white-space: normal; overflow-wrap: anywhere; }
-.group-member-shell:has(.group-members[hidden]) .group-toolbar { border-bottom: 0; }
+/* The group's toolbar is one row that folds, as PUDL folds a toolbar,
+   rather than wrapping; its labels come back as the window widens. */
+.group-member-shell { display: flex; flex-direction: column; flex: none; min-height: 0; padding: 0; container-type: inline-size; }
+.group-toolbar { flex: none; margin: 0; padding: var(--space-2) var(--space-5); }
 .group-transcript-separator { flex: none; margin: 0; border: 0; border-block-start: 1px solid var(--border); inline-size: 100%; }
 .group-lookup-status { flex: none; margin: 0; padding: var(--space-2) var(--space-5); }
 .group-lookup-status + button { flex: none; align-self: flex-start; margin-inline: var(--space-5); }
 .group-draft-choices { display: flex; flex-direction: column; gap: var(--space-2); margin-block-end: var(--space-2); }
 .bus-composer.composer { padding: var(--space-2) var(--space-5) var(--space-3); }
-
-.group-member-shell:has(.group-members[hidden]) { flex: none; max-height: none; overflow: visible; }

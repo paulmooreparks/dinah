@@ -2,8 +2,6 @@
 .chat-team { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-block-end: 1px solid var(--border); }
 .chat-team[hidden] { display: none; }
 .chat-team > .chat-team-toolbar { flex: 1 1 auto; min-width: 0; }
-.team-content { padding-block-start: var(--space-2); max-height: min(28vh, 240px); overflow: auto; }
-.team-content { flex-basis: 100%; min-width: 0; }
 .team-tree { container-type: inline-size; }
 .team-tree .team-person { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 var(--space-2); min-width: 0; white-space: nowrap; }
 .team-person > .tree-toggle { grid-column: 1; grid-row: 1; }
@@ -18,6 +16,21 @@
 .team-assignment { padding-inline: var(--space-5) var(--space-2); }
 .team-task { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .team-budget-row .meter { width: 100%; }
+/* The Members dropdown, the same in a team's group chat (bus-applets.js) and
+   a lead's chat: a row for each member, its name and its standard state
+   chip, which opens its chat, and in the group a … button for its menu. */
+.menu-panel.members-menu { width: min(24rem, calc(100vw - 16px)); }
+.members-menu .member-list { display: flex; flex-direction: column; min-width: 0; }
+.members-menu .member-row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.members-menu .member-open { flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.members-menu .member-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+.members-menu .member-state-slot { flex: none; display: inline-flex; }
+/* The person's row is not pressable, but reads as the others do. */
+.members-menu .member-row.person { gap: var(--space-2); padding: 6px 14px; font: var(--text-sm)/1.5 var(--font); }
+.members-menu .member-row.person .member-name { color: var(--text); }
+.members-menu .member-ended .member-name { color: var(--text-muted); }
+.members-menu .member-menu-btn { flex: none; }
+.members-menu .members-section { margin: var(--space-2) var(--space-3) var(--space-1); }
 /* The Team Report, opened from the team group's toolbar: the members in
    detail, then the allowances, scrolling within the window's height. */
 .team-report { width: min(36rem, calc(100vw - 16px)); max-height: min(70vh, 34rem); overflow: auto; }

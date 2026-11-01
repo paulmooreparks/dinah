@@ -34,26 +34,26 @@ const { launch } = require('./lib/page');
     const key = await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'lead' })), win = p.locator('[data-win="' + key + '"]');
     const open = win.locator('.chat-team-toolbar').getByRole('button', { name: 'Open Team', exact: true });
     await open.waitFor();
-    ok('a lead\'s toolbar has Last Read first, then Team and Open Team', await win.evaluate(w => {
-      const shown = [...w.querySelectorAll('.chat-team-toolbar button')].filter(b => b.getClientRects().length && !b.closest('.toolbar-fold'));
-      return /Last Read/.test(shown[0].textContent) && shown.some(b => /^Team/.test(b.textContent.trim())) && shown.some(b => b.textContent.trim() === 'Open Team');
+    ok('a lead\'s toolbar has Last Read first, then Members and Open Team', await win.evaluate(w => {
+      const shown = [...w.querySelectorAll('.chat-team-toolbar button')].filter(b => b.getClientRects().length && !b.closest('.toolbar-fold') && !b.closest('[popover]'));
+      return /Last Read/.test(shown[0].textContent) && shown.some(b => /^Members/.test(b.textContent.trim())) && shown.some(b => b.textContent.trim() === 'Open Team' || b.getAttribute('aria-label') === 'Open Team');
     }));
     // The Team list: names and standard chips alone.
     await win.locator('.chat-team .team-toggle').click();
-    await win.locator('.team-tree .team-person').first().waitFor();
-    const rows = await win.evaluate(w => [...w.querySelectorAll('.team-content .team-person')].map(a => {
+    await win.locator('.members-menu:popover-open .member-open').first().waitFor();
+    const rows = await win.evaluate(w => [...w.querySelectorAll('.team-members .member-open')].map(a => {
       const chip = a.querySelector('.badge.chat-state:not(.chat-state-reserve)');
-      return { name: a.querySelector('.team-name').textContent, chip: chip ? chip.textContent.trim() : '', chipWidth: chip ? chip.getBoundingClientRect().width : 0, rowWidth: a.getBoundingClientRect().width,
-        extra: a.querySelectorAll('.team-reason, .team-meta, .team-usage').length + a.closest('li').querySelectorAll(':scope > .team-assignment').length, text: a.textContent };
+      return { name: a.querySelector('.member-name').textContent, chip: chip ? chip.textContent.trim() : '', chipWidth: chip ? chip.getBoundingClientRect().width : 0, rowWidth: a.getBoundingClientRect().width,
+        extra: a.querySelectorAll('.team-reason, .team-meta, .team-usage, .team-task').length, text: a.textContent };
     }));
     ok('the Team list shows each member\'s name and standard chip', rows.length === 2 && rows[0].name === 'Alpha' && rows[0].chip === 'Working' && rows[1].chip === 'Idle', JSON.stringify(rows));
     ok('the chip is as wide as its glyph and word, not stretched', rows.every(r => r.chipWidth > 0 && r.chipWidth < r.rowWidth / 3), JSON.stringify(rows));
     ok('the Team list has no progress, workspace, provider, model, usage or last message', rows.every(r => !r.extra && !/Parser|gpt-5|requests|lexer|Writing the parser/.test(r.text)), JSON.stringify(rows));
-    ok('the Team list has no allowances', await win.locator('.team-content').getByText(/Allowance/).count() === 0 && await win.getByRole('button', { name: /Team Allowances/ }).count() === 0);
+    ok('the Team list has no allowances', await win.locator('.team-members').getByText(/Allowance/).count() === 0 && await win.getByRole('button', { name: /Team Allowances/ }).count() === 0);
     await p.evaluate(() => __stuck());
-    await win.locator('.team-content .team-person').first().locator('.badge.chat-state:not(.chat-state-reserve)').filter({ hasText: 'Stuck' }).waitFor();
+    await win.locator('.team-members .member-open').first().locator('.badge.chat-state:not(.chat-state-reserve)').filter({ hasText: 'Stuck' }).waitFor();
     ok('the Team list follows a member\'s state live', true);
-    await win.locator('.team-content .team-person').first().click();
+    await win.locator('.team-members .member-open').first().click();
     await p.locator('.win[data-win-kind="chat-session"]').filter({ has: p.locator('.win-title', { hasText: /^alpha$/ }) }).waitFor();
     ok('a member\'s row opens its chat', true);
     // Open Team opens the team group and keeps the lead's draft.

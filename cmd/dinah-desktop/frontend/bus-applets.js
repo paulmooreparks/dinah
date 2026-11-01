@@ -736,10 +736,20 @@
         }
       }
     }, true);
-    box.mention = function (m) {
+    /* A mention added from outside the box: at its end, or with atCaret where
+       the caret was last, replacing what was selected there as typing would,
+       with a space either side only where none is, and the caret after it.
+       Either way the chat is bound as a typed mention is (mentioned). */
+    box.mention = function (m, atCaret) {
       if (!m) return;
       var word = '@' + m.title;
-      if (text.value.indexOf(word) < 0) text.value += (text.value && !/\s$/.test(text.value) ? ' ' : '') + word + ' ';
+      if (atCaret) {
+        var start = text.selectionStart, end = text.selectionEnd, before = text.value.slice(0, start), after = text.value.slice(end);
+        var insert = (before && !/\s$/.test(before) ? ' ' : '') + word + (!after || !/^\s/.test(after) ? ' ' : '');
+        text.value = before + insert + after;
+        var caret = before.length + insert.length;
+        text.setSelectionRange(caret, caret);
+      } else if (text.value.indexOf(word) < 0) text.value += (text.value && !/\s$/.test(text.value) ? ' ' : '') + word + ' ';
       if (!mentioned.some(function (x) { return x.id === m.id; })) mentioned.push({ id: m.id, title: m.title });
       box.changed();
     };
@@ -906,20 +916,31 @@
     refreshDrafts();
     // Files dropped anywhere on the group's window go with the next message.
     box.dropOn(root);
-    /* The members, over the conversation: a chip for each chat with its
-       state and a menu, then the person, then Add Chats…. */
+    /* The members are the Members dropdown in the toolbar, the one a lead's
+       chat has too (teams.js): a row for each chat, its name and standard
+       state chip, which opens the chat, with a … button for its menu; then
+       the person; then the turn budget when the group has one. Rows are kept
+       and updated in place, so a state change leaves an open dropdown, its
+       focus and the composer's caret as they are. */
     var memberShell = node('section', 'group-member-shell');
-    var bar = node('div', 'group-members'); bar.setAttribute('role', 'list'); bar.setAttribute('aria-label', 'Members'); bar.tabIndex = 0;
+    var bar = node('nav', 'menu-panel members-menu'); bar.setAttribute('popover', ''); bar.setAttribute('aria-label', 'Members');
     bar.id = 'group-members-' + (++groupSerial);
-    var memberToggle = node('button', 'btn btn-sm disclosure'); memberToggle.type = 'button';
+    var memberList = node('div', 'member-list'); memberList.setAttribute('role', 'list'); memberList.setAttribute('aria-label', 'Members');
+    bar.appendChild(memberList);
+    var memberToggle = node('button', 'btn btn-sm menu-btn group-members-toggle'); memberToggle.type = 'button';
     var memberWords = window.dinahHelpers.toolbarLabel(memberToggle, 'account', 'Members');
-    memberToggle.setAttribute('aria-expanded', 'true'); memberToggle.setAttribute('aria-controls', bar.id);
-    memberToggle.addEventListener('click', function () { bar.hidden = !bar.hidden; memberToggle.setAttribute('aria-expanded', String(!bar.hidden)); });
+    memberToggle.id = bar.id + '-button'; memberToggle.setAttribute('popovertarget', bar.id);
+    var memberMenu = node('div', 'menu'); memberMenu.append(memberToggle, bar);
     var commandBar = node('div', 'toolbar group-toolbar'); commandBar.setAttribute('role', 'toolbar'); commandBar.setAttribute('aria-label', 'Group commands');
     // A folding PUDL toolbar, as every chat's is: each control has its glyph.
+    // Last Read stays longest, then Members, then the group's commands.
     commandBar.setAttribute('data-toolbar-fold', ''); commandBar.setAttribute('data-toolbar-captions', 'none');
-    var commandGroup = node('div', 'toolbar-group'); commandGroup.setAttribute('role', 'group'); commandGroup.setAttribute('aria-label', 'Group');
-    commandGroup.setAttribute('data-toolbar-group', 'Group'); commandGroup.setAttribute('data-toolbar-glyph', 'comments');
+    function toolbarGroup(name, glyph, priority) {
+      var g = node('div', 'toolbar-group'); g.setAttribute('role', 'group'); g.setAttribute('aria-label', name);
+      g.setAttribute('data-toolbar-group', name); g.setAttribute('data-toolbar-glyph', glyph); g.setAttribute('data-toolbar-priority', String(priority));
+      return g;
+    }
+    var readingGroup = toolbarGroup('Reading', 'history', 30), membersGroup = toolbarGroup('Members', 'account', 20), commandGroup = toolbarGroup('Group', 'comments', 10);
     function command(label, glyph, cls, run) {
       var button = node('button', 'btn btn-sm ' + cls); button.type = 'button'; button.setAttribute('aria-label', label);
       var icon = node('span', 'glyph'); icon.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')'); icon.setAttribute('aria-hidden', 'true');
@@ -927,8 +948,8 @@
       return button;
     }
     // Last Read comes first in every chat's toolbar.
-    commandGroup.appendChild(stopped);
-    commandGroup.appendChild(memberToggle);
+    readingGroup.appendChild(stopped);
+    membersGroup.appendChild(memberMenu);
     command('Add Chats…', 'plus', 'group-add-chats', addChats);
     command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
     command('Mention Everyone', 'comments', 'group-mention-everyone', function () { box.mention({ id: 'everyone', title: 'everyone' }); box.text.focus(); });
@@ -961,35 +982,25 @@
       });
       teamAllowances.hidden = true;
     }
-    commandBar.appendChild(commandGroup); memberShell.append(commandBar, bar);
+    commandBar.append(readingGroup, membersGroup, commandGroup); memberShell.appendChild(commandBar);
     var separator = node('hr', 'group-transcript-separator');
     root.prepend(lookupNote, lookupRetry, memberShell, separator);
     if (window.pudlToolbar) window.pudlToolbar.enhance(memberShell);
+    /* A member's menu is inside the Members dropdown, so opening it leaves
+       the dropdown open beneath it, and Escape closes only the menu. */
     var menu = node('nav', 'menu-panel group-member-menu'); menu.setAttribute('popover', ''); menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', 'Member');
     menu.id = 'group-member-menu-' + Math.random().toString(36).slice(2);
-    root.appendChild(menu);
+    bar.appendChild(menu);
     var memberViews = new Map(), memberSerial = 0, menuMember = null, menuState = null;
     menu.addEventListener('beforetoggle', function (event) {
       if (event.newState === 'closed' && menu.contains(document.activeElement)) {
-        var view = memberViews.get(menuMember); (view ? view.more : memberToggle).focus({ preventScroll: true });
+        var view = memberViews.get(menuMember);
+        (view && view.more && bar.matches(':popover-open') ? view.more : memberToggle).focus({ preventScroll: true });
       }
     });
     function memberDescription(m) {
       var value = memberState(m), spec = window.dinahChatState.describe(value), presence = window.dinahChatState.read(value);
       return spec.label + (presence.life === 'open' && presence.window === false && !presence.elsewhere ? '. No window' : '');
-    }
-    function memberMark(m) {
-      var spec = window.dinahChatState.describe(memberState(m)), mark = node('span', 'member-state ' + spec.cls);
-      mark.setAttribute('role', 'img'); mark.setAttribute('aria-label', (spec.glyph ? '' : spec.text + '. ') + memberDescription(m)); mark.title = mark.getAttribute('aria-label');
-      if (spec.glyph) {
-        var glyph = node('span', 'glyph'); glyph.setAttribute('aria-hidden', 'true');
-        glyph.style.setProperty('--glyph', 'var(--glyph-' + spec.glyph + ')');
-        glyph.style.color = 'var(--' + (spec.kind || 'text-muted') + ')'; mark.appendChild(glyph);
-      }
-      // A member with no live state, closed, retired or elsewhere, has no
-      // glyph: its slot stays empty at the glyph's width, its name is muted
-      // (member-ended), and its word is in the label above and in its menu.
-      return mark;
     }
     function markRead() { if (room && room.unread && app().BusMarkGroupRead) Promise.resolve(app().BusMarkGroupRead(key)).catch(function () {}); }
     /* Renaming a group changes its title alone: its members, messages,
@@ -1015,16 +1026,24 @@
       menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent);
       var open = node('button', 'menu-action', 'Open Chat'); open.type = 'button'; open.setAttribute('role', 'menuitem');
       if (!m.chat) { open.setAttribute('aria-disabled', 'true'); open.title = 'This chat runs outside the window.'; }
-      open.addEventListener('click', function () { menu.hidePopover(); if (m.chat) Promise.resolve(window.dinahChats.open(m.chat)).catch(host().fail); });
+      open.addEventListener('click', function () { menu.hidePopover(); if (bar.matches(':popover-open')) bar.hidePopover(); if (m.chat) Promise.resolve(window.dinahChats.open(m.chat)).catch(host().fail); });
+      // Address Message mentions the chat where the composer's caret was,
+      // bound to it as a typed mention is, and goes back to the composer.
+      var address = node('button', 'menu-action', 'Address Message'); address.type = 'button'; address.setAttribute('role', 'menuitem');
+      address.title = 'Mention ' + m.title + ' where your message\'s caret is';
+      address.addEventListener('click', function () {
+        menu.hidePopover(); if (bar.matches(':popover-open')) bar.hidePopover();
+        box.mention({ id: m.id, title: m.title }, true); box.text.focus();
+      });
       var remove = node('button', 'menu-action danger', 'Remove From Group…'); remove.type = 'button'; remove.setAttribute('role', 'menuitem');
       remove.addEventListener('click', function () {
-        menu.hidePopover();
+        menu.hidePopover(); if (bar.matches(':popover-open')) bar.hidePopover();
         host().ask('Remove ' + m.title + ' From the Group?', m.title + ' stops receiving the group\'s messages. What was said stays in the group.', 'Remove', true).then(function (yes) {
           if (!yes) return;
           return Promise.resolve(app().BusRemoveFromGroup(key, m.id)).then(load);
         }).catch(host().fail);
       });
-      menu.append(open, remove);
+      menu.append(open, address, remove);
       menu.dataset.menuAnchor = button.id;
       if (menu.matches(':popover-open')) menu.hidePopover();
       menu.showPopover();
@@ -1066,37 +1085,61 @@
         members().forEach(function (m) {
           var key = m.state === 'person' ? 'person' : m.id, view = memberViews.get(key);
           if (m.state === 'person') {
-            if (!view) { var you = node('span', 'chip member-chip person'); you.setAttribute('role', 'listitem'); you.dataset.groupMember = 'person'; view = { chip: you }; memberViews.set(key, view); }
-            view.chip.textContent = m.title + ' (You)'; wanted.push(view.chip);
+            if (!view) {
+              var you = node('div', 'member-row person'); you.setAttribute('role', 'listitem'); you.dataset.groupMember = 'person';
+              var who = node('span', 'member-name'); you.append(who, node('span', 'chip member-you', 'You'));
+              view = { row: you, name: who }; memberViews.set(key, view);
+            }
+            if (view.name.textContent !== m.title) view.name.textContent = m.title;
+            wanted.push(view.row);
             return;
           }
           if (!view) {
-            var chip = node('span', 'chip member-chip'); chip.setAttribute('role', 'listitem'); chip.dataset.groupMember = m.id;
-            var name = node('span', 'member-title'), more = glyphButton('member-menu-btn', 'caret', m.title + ' Menu');
+            var row = node('div', 'member-row'); row.setAttribute('role', 'listitem'); row.dataset.groupMember = m.id;
+            var open = node('button', 'menu-action member-open'); open.type = 'button';
+            var name = node('span', 'member-name'), slot = node('span', 'member-state-slot');
+            open.append(name, slot);
+            var more = glyphButton('member-menu-btn', 'more', m.title + ' Menu');
             more.id = menu.id + '-' + (++memberSerial); more.setAttribute('aria-haspopup', 'menu');
-            view = { chip: chip, name: name, more: more, member: m, mark: memberMark(m) };
-            (function (entry) { entry.more.addEventListener('click', function () { showMenu(entry.more, entry.member); }); })(view);
-            chip.append(view.mark, name, more); memberViews.set(key, view);
+            view = { row: row, open: open, name: name, slot: slot, more: more, member: m };
+            /* The row acts for the member it was made for, by its id, read as
+               it is when pressed; a state change only redraws its words. */
+            (function (entry) {
+              entry.open.addEventListener('click', function () {
+                var current = entry.member;
+                if (bar.matches(':popover-open')) bar.hidePopover();
+                if (current.chat) Promise.resolve(window.dinahChats.open(current.chat)).catch(host().fail);
+              });
+              entry.more.addEventListener('click', function () { showMenu(entry.more, entry.member); });
+            })(view);
+            row.append(open, more); memberViews.set(key, view);
           }
-          view.member = m; view.name.textContent = m.title; view.more.setAttribute('aria-label', m.title + ' Menu');
+          view.member = m;
+          if (view.name.textContent !== m.title) view.name.textContent = m.title;
+          view.more.setAttribute('aria-label', m.title + ' Menu');
           view.more.disabled = lookupState !== 'resolved';
-          var mark = memberMark(m); view.mark.replaceWith(mark); view.mark = mark;
-          view.chip.classList.toggle('member-ended', !window.dinahChatState.describe(memberState(m)).glyph);
-          if (menuMember === m.id && menuState) { menuState.textContent = memberDescription(m); menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent); }
-          wanted.push(view.chip);
+          var description = memberDescription(m);
+          view.open.setAttribute('aria-label', 'Open ' + m.title + ', ' + description);
+          view.open.title = m.chat ? 'Open ' + m.title + '. ' + description : 'This chat runs outside the window. ' + description;
+          view.open.setAttribute('aria-disabled', String(!m.chat));
+          view.slot.replaceChildren(window.dinahChatState.badge(memberState(m), { labelled: true, className: 'member-state-chip' }));
+          view.row.classList.toggle('member-ended', !window.dinahChatState.describe(memberState(m)).glyph);
+          if (menuMember === m.id && menuState) { menuState.textContent = description; menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent); }
+          wanted.push(view.row);
         });
-        memberViews.forEach(function (view, key) { if (!wanted.includes(view.chip)) { if (menuMember === key && menu.matches(':popover-open')) menu.hidePopover(); if (view.chip.contains(document.activeElement)) memberToggle.focus(); view.chip.remove(); memberViews.delete(key); } });
-        wanted.forEach(function (chip, i) { if (bar.children[i] !== chip) bar.insertBefore(chip, bar.children[i] || null); });
-        var oldBudget = bar.querySelector('.group-budget');
-        // The turn budget is shown only when the group has one.
+        memberViews.forEach(function (view, key) { if (!wanted.includes(view.row)) { if (menuMember === key && menu.matches(':popover-open')) menu.hidePopover(); if (view.row.contains(document.activeElement)) memberToggle.focus(); view.row.remove(); memberViews.delete(key); } });
+        // Rows move only when the order changes, and never the one with focus.
+        wanted.forEach(function (row, i) { if (memberList.children[i] !== row && !row.contains(document.activeElement)) memberList.insertBefore(row, memberList.children[i] || null); });
+        var oldBudget = memberShell.querySelector(':scope > .group-budget');
+        // The turn budget is a line under the toolbar, only when the group has one.
         if (room && typeof room.budget === 'number' && room.budget >= 0) {
           var remaining = room.budget - (room.used || 0), spent = remaining <= 0;
-          var left = node('span', 'chip group-budget' + (spent ? ' warn' : ''),
-            spent ? 'Turn budget spent (' + room.budget + '). Your next message starts it again.'
-              : remaining + (remaining === 1 ? ' turn' : ' turns') + ' left before the group waits for you');
-          left.setAttribute('role', 'listitem'); left.dataset.groupBudget = spent ? 'spent' : 'open';
-          left.title = left.textContent; left.setAttribute('aria-label', left.textContent);
-          if (oldBudget) oldBudget.replaceWith(left); else bar.appendChild(left);
+          var words = spent ? 'Turn budget spent (' + room.budget + '). Your next message starts it again.'
+            : remaining + (remaining === 1 ? ' turn' : ' turns') + ' left before the group waits for you';
+          var left = oldBudget || node('p', 'form-help group-budget');
+          if (left.textContent !== words) left.textContent = words;
+          left.classList.toggle('warn', spent); left.dataset.groupBudget = spent ? 'spent' : 'open';
+          if (!oldBudget) memberShell.appendChild(left);
         } else if (oldBudget) oldBudget.remove();
       });
     }
