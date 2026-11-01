@@ -166,7 +166,7 @@ func (a *App) workingChats() int {
 		// process, so a chat with some is still working
 		// (background_tasks.go, subagents.go).
 		state := s.State()
-		if state.Working || state.BackgroundCount > 0 || state.RunningSubagents > 0 {
+		if state.WorkActivity().Busy() {
 			n++
 		}
 	}

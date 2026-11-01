@@ -31,6 +31,12 @@ type BackgroundTask struct {
 // backgroundUpdate takes one of the three async task updates into the
 // session, and says whether it was one.
 func (s *Details) BackgroundUpdate(update json.RawMessage) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.backgroundUpdateLocked(update, true)
+}
+
+func (s *Details) backgroundUpdateLocked(update json.RawMessage, live bool) bool {
 	var u struct {
 		SessionUpdate string  `json:"sessionUpdate"`
 		ID            string  `json:"asyncTaskId"`
@@ -50,8 +56,9 @@ func (s *Details) BackgroundUpdate(update json.RawMessage) bool {
 	default:
 		return false
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if !live {
+		return true
+	}
 	t := s.background[u.ID]
 	if t == nil {
 		if u.SessionUpdate != "async_task_spawned" {

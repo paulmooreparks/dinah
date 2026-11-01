@@ -63,11 +63,14 @@ func (a *Activity) ParkedLocked() bool         { return a.parked }
 func (a *Activity) IdleSinceLocked() time.Time { return a.idleSince }
 func (a *Activity) SetSwitchingLocked(v bool)  { a.switching = v }
 func (a *Activity) SetSupersededLocked(v bool) { a.superseded = v }
-func (a *Activity) CloseLocked()               { a.open = false }
-func (a *Activity) StartWorkLocked()           { a.working = true }
-func (a *Activity) ReleaseWorkLocked()         { a.working = false }
-func (a *Activity) QueueCountLocked() int      { return len(a.queued) }
-func (a *Activity) HasSteerLocked() bool       { return a.steer != nil }
+func (a *Activity) CloseLocked() {
+	a.open = false
+	a.details.ClearBackgroundLocked()
+}
+func (a *Activity) StartWorkLocked()      { a.working = true }
+func (a *Activity) ReleaseWorkLocked()    { a.working = false }
+func (a *Activity) QueueCountLocked() int { return len(a.queued) }
+func (a *Activity) HasSteerLocked() bool  { return a.steer != nil }
 func (a *Activity) QueueTextsLocked() []string {
 	out := make([]string, len(a.queued))
 	for i, p := range a.queued {
@@ -243,7 +246,7 @@ func (a *Activity) SetBackgroundLocked()             { a.inBackground = true }
 func (a *Activity) MarkClosedLocked(now time.Time)   { a.closedSince = now }
 func (a *Activity) SetIdleSinceLocked(now time.Time) { a.idleSince = now }
 func (a *Activity) ParkLocked() bool {
-	if !a.inBackground || a.working {
+	if !a.inBackground || a.working || a.details.BackgroundCountLocked() > 0 || a.details.RunningSubagentsLocked() > 0 {
 		return false
 	}
 	a.inBackground, a.parked, a.warm = false, true, false
@@ -440,5 +443,5 @@ func (a *Activity) BeginContinuationLocked() bool {
 	return true
 }
 func (a *Activity) IdleBackgroundLocked(now time.Time, after time.Duration) bool {
-	return a.inBackground && !a.working && !a.idleSince.IsZero() && now.Sub(a.idleSince) >= after
+	return a.inBackground && !a.working && a.details.BackgroundCountLocked() == 0 && a.details.RunningSubagentsLocked() == 0 && !a.idleSince.IsZero() && now.Sub(a.idleSince) >= after
 }

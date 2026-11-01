@@ -21,10 +21,11 @@ type (
 )
 
 const (
-	execStuck   = sessionhost.ExecStuck
-	execWaiting = sessionhost.ExecWaiting
-	execWorking = sessionhost.ExecWorking
-	execIdle    = sessionhost.ExecIdle
+	execStuck      = sessionhost.ExecStuck
+	execWaiting    = sessionhost.ExecWaiting
+	execWorking    = sessionhost.ExecWorking
+	execBackground = sessionhost.ExecBackground
+	execIdle       = sessionhost.ExecIdle
 
 	lifeOpen    = sessionhost.LifeOpen
 	lifeClosed  = sessionhost.LifeClosed
@@ -57,8 +58,13 @@ func (a *App) chatState(ctx context.Context, b *bus.Bus, busID, chat string, ret
 
 // execOf is what an open chat is doing. Stuck is a failure: the last turn ended in an error, a switch failed, or the
 // chat's agent could not start. Waiting is what only the person (or a lead's relay) can end: a full context, a
-// permission or a question. Working is a running turn, and Idle is the rest.
-func (a *App) execOf(ctx context.Context, b *bus.Bus, busID, chat string, st sessionhost.State) *ChatExec {
+// permission or a question. Working includes foreground and queued host work.
+// Confirmed remaining tasks or subagents show Background; the rest is Idle.
+func (a *App) execOf(ctx context.Context, b *bus.Bus, busID, chat string, st sessionhost.State) (out *ChatExec) {
+	activity := st.WorkActivity()
+	defer func() {
+		out.Tasks, out.Subagents = activity.Tasks, activity.Subagents
+	}()
 	info := st.Info
 	switch {
 	case turnFailure(chat) != "":
@@ -80,8 +86,11 @@ func (a *App) execOf(ctx context.Context, b *bus.Bus, busID, chat string, st ses
 			return &ChatExec{State: execWaiting, Why: "Needs lead to relay message"}
 		}
 	}
-	if info.Working {
-		return &ChatExec{State: execWorking, Why: "Turn in progress"}
+	if activity.Foreground != "" {
+		return &ChatExec{State: execWorking, Why: activity.Foreground}
+	}
+	if activity.Busy() {
+		return &ChatExec{State: execBackground, Why: activity.Detail}
 	}
 	return &ChatExec{State: execIdle, Why: "No work in progress"}
 }

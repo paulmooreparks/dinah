@@ -7,10 +7,11 @@ package sessionhost
 
 // The execution states, most urgent first, and the lives.
 const (
-	ExecStuck   = "stuck"
-	ExecWaiting = "waiting"
-	ExecWorking = "working"
-	ExecIdle    = "idle"
+	ExecStuck      = "stuck"
+	ExecWaiting    = "waiting"
+	ExecWorking    = "working"
+	ExecBackground = "background"
+	ExecIdle       = "idle"
 
 	LifeOpen    = "open"
 	LifeClosed  = "closed"
@@ -19,8 +20,10 @@ const (
 
 // ChatExec is what an open chat is doing, and why in words, so that the mark is never the only fact.
 type ChatExec struct {
-	State string `json:"state"`
-	Why   string `json:"why"`
+	State     string `json:"state"`
+	Why       string `json:"why"`
+	Tasks     int    `json:"tasks,omitempty"`
+	Subagents int    `json:"subagents,omitempty"`
 }
 
 // ChatState is a chat's life, whether it has a window, and, when its session runs, its execution state.
@@ -34,14 +37,15 @@ type ChatState struct {
 }
 
 // StateCounts is how many of a set of chats are in each execution state, and the state the set shows as a whole:
-// Stuck, then Waiting, then Working, else Idle, which includes a set whose chats are all closed. Closed counts the
+// Stuck, then Waiting, then Working, then Background, else Idle, which includes a set whose chats are all closed. Closed counts the
 // chats that do not run, closed or retired, which have no execution state. Unknown counts the chats that run elsewhere.
 type StateCounts struct {
-	Stuck   int `json:"stuck"`
-	Waiting int `json:"waiting"`
-	Working int `json:"working"`
-	Idle    int `json:"idle"`
-	Closed  int `json:"closed"`
+	Stuck      int `json:"stuck"`
+	Waiting    int `json:"waiting"`
+	Working    int `json:"working"`
+	Background int `json:"background"`
+	Idle       int `json:"idle"`
+	Closed     int `json:"closed"`
 	// Unknown counts the chats that run elsewhere, whose activity is not known; they are counted as nothing else
 	// and Top ignores them: when no chat has a known state and any is unknown, Top is empty.
 	Unknown int    `json:"unknown"`
@@ -75,6 +79,8 @@ func (c *StateCounts) Add(s ChatState) {
 		c.Waiting++
 	case ExecWorking:
 		c.Working++
+	case ExecBackground:
+		c.Background++
 	default:
 		c.Idle++
 	}
@@ -85,6 +91,7 @@ func (c *StateCounts) Merge(o StateCounts) {
 	c.Stuck += o.Stuck
 	c.Waiting += o.Waiting
 	c.Working += o.Working
+	c.Background += o.Background
 	c.Idle += o.Idle
 	c.Closed += o.Closed
 	c.Unknown += o.Unknown
@@ -99,6 +106,8 @@ func (c *StateCounts) Finish() {
 		c.Top = ExecWaiting
 	case c.Working > 0:
 		c.Top = ExecWorking
+	case c.Background > 0:
+		c.Top = ExecBackground
 	case c.Idle > 0:
 		c.Top = ExecIdle
 	case c.Unknown > 0:
