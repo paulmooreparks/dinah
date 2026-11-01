@@ -73,8 +73,12 @@ const fs = require('node:fs'), path = require('node:path');
             }
             const expected = ['unknown', 'closed'].includes(state) ? null : state;
             if (__stateWindows.some(win => win.getAttribute('data-win-state') !== expected)) failures.push({ state, frame, issue: 'wrong engine state' });
-            const marks = __stateWindows.map(win => win.querySelector('.win-execution .win-state'));
-            if (marks.some(mark => expected ? mark.hidden || mark.dataset.state !== expected : !mark.hidden)) failures.push({ state, frame, issue: 'wrong rendered execution mark' });
+            // A chat window suppresses PUDL's generated title mark, and its own
+            // title chip shows the state instead (data-win-state-title).
+            const shown = el => !!el && el.getClientRects().length > 0;
+            if (__stateWindows.some(win => shown(win.querySelector('.win-execution .win-state')))) failures.push({ state, frame, issue: 'generated title mark shown' });
+            const chipClasses = state === 'unknown' ? ['chat-state-unknown', 'chat-lifecycle'] : state === 'closed' ? ['chat-lifecycle'] : ['chat-state-' + state];
+            if (__stateWindows.some(win => { const c = win.querySelector('.chat-working-chip .chat-state'); return !c || !chipClasses.some(k => c.classList.contains(k)); })) failures.push({ state, frame, issue: 'wrong rendered execution mark', chips: __stateWindows.map(win => { const c = win.querySelector('.chat-working-chip .chat-state'); return c ? c.className : null; }) });
             if (document.activeElement !== focused) failures.push({ state, frame, issue: 'status focus was lost' });
             if (document.querySelector('[data-win-running]')) failures.push({ state, frame, issue: 'legacy running attribute' });
             frames.push({ state, frame, boxes, stackOpen: !!document.querySelector('.win-stack-panel'), statusOpen: !!document.querySelector('.win-status-popover:popover-open') });

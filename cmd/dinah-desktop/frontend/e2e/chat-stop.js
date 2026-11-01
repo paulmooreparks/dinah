@@ -26,20 +26,20 @@ const { launch } = require('./lib/page');
     const win = page.locator('[data-win="' + key + '"]');
     await win.locator('[data-view-id="prompt"]').waitFor();
     const stop = win.locator('[data-command="stop-turn"]').first();
-    const line = () => win.locator('.win-execution .win-state').getAttribute('title');
+    const line = () => win.evaluate(w => (w.dataset.winStateLabel || '') + ' ' + (w.dataset.winStateDetail || ''));
     await stop.waitFor({ state: 'attached' });
-    await page.waitForFunction(k => /Working/.test(document.querySelector('[data-win="' + k + '"] .win-execution .win-state').title), key);
+    await page.waitForFunction(k => /Working/.test((w => (w.dataset.winStateLabel || '') + ' ' + (w.dataset.winStateDetail || ''))(document.querySelector('[data-win="' + k + '"]'))), key);
     ok('a running turn says it is working', /Working/.test(await line()));
 
     await page.evaluate(() => { window.__failCancel = true; });
     await stop.click();
     await page.waitForFunction(() => window.__cancels.length === 1);
-    await page.waitForFunction(k => /Working/.test(document.querySelector('[data-win="' + k + '"] .win-execution .win-state').title), key);
+    await page.waitForFunction(k => /Working/.test((w => (w.dataset.winStateLabel || '') + ' ' + (w.dataset.winStateDetail || ''))(document.querySelector('[data-win="' + k + '"]'))), key);
     ok('a stop that could not be asked for is reported and the chat is back to working', /Working/.test(await line()) && (await page.evaluate(() => document.body.textContent)).includes('the stop was not delivered'));
 
     await page.evaluate(() => { window.__failCancel = false; });
     await stop.click();
-    await page.waitForFunction(k => /Stop was asked for/.test(document.querySelector('[data-win="' + k + '"] .win-execution .win-state').title), key);
+    await page.waitForFunction(k => /Stop was asked for/.test((w => (w.dataset.winStateLabel || '') + ' ' + (w.dataset.winStateDetail || ''))(document.querySelector('[data-win="' + k + '"]'))), key);
     ok('after Stop the chat says it was asked for', /Stop was asked for/.test(await line()));
     ok('the Stop control shows it', (await stop.textContent()).includes('Stopping'));
     ok('the execution badge remains Working while stopping is pending', await win.getAttribute('data-win-state') === 'working');
@@ -53,16 +53,16 @@ const { launch } = require('./lib/page');
 
     await page.evaluate(i => __emit('agent:turn', { sessionId: i, stopReason: 'cancelled' }), ID);
     await page.evaluate(i => __emit('agent:session', { sessionId: i, working: false, chatState: { life: 'open', window: true, exec: { state: 'idle', why: 'No work in progress' } }, open: true, queued: [], provider: 'ollama' }), ID);
-    await page.waitForFunction(k => !/Stop was asked for/.test(document.querySelector('[data-win="' + k + '"] .win-execution .win-state').title), key);
+    await page.waitForFunction(k => !/Stop was asked for/.test((w => (w.dataset.winStateLabel || '') + ' ' + (w.dataset.winStateDetail || ''))(document.querySelector('[data-win="' + k + '"]'))), key);
     ok('the end of the turn clears it', /Idle/.test(await line()));
 
     // The Stop command, from the menu or command search, is the same Stop.
     await page.evaluate(i => __emit('agent:session', { sessionId: i, working: true, chatState: { life: 'open', window: true, exec: { state: 'working', why: 'Turn in progress' } }, open: true, queued: [], provider: 'ollama' }), ID);
-    await page.waitForFunction(k => /Working/.test(document.querySelector('[data-win="' + k + '"] .win-execution .win-state').title), key);
+    await page.waitForFunction(k => /Working/.test((w => (w.dataset.winStateLabel || '') + ' ' + (w.dataset.winStateDetail || ''))(document.querySelector('[data-win="' + k + '"]'))), key);
     await page.evaluate(() => { window.__cancels.length = 0; });
     ok('the Stop command is available while a turn runs', await page.evaluate(() => dinahCommands.enabled ? dinahCommands.enabled('cancel') !== false : true));
     await page.evaluate(() => dinahCommands.run('cancel'));
-    await page.waitForFunction(k => /Stop was asked for/.test(document.querySelector('[data-win="' + k + '"] .win-execution .win-state').title), key);
+    await page.waitForFunction(k => /Stop was asked for/.test((w => (w.dataset.winStateLabel || '') + ' ' + (w.dataset.winStateDetail || ''))(document.querySelector('[data-win="' + k + '"]'))), key);
     ok('stopping from the command shows the same feedback and asks the engine', (await page.evaluate(() => window.__cancels.join(','))) === ID, await page.evaluate(() => window.__cancels.join(',')));
   } finally {
     await t.close();

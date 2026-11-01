@@ -9,7 +9,7 @@ const fs = require('node:fs'), path = require('node:path');
   const { page, ok } = t, traces = [];
   try {
     const key = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'status-fixture' }));
-    await page.locator('[data-win="' + key + '"] .win-execution .win-state[data-state="idle"]').waitFor({ state: 'attached' });
+    await page.locator('[data-win="' + key + '"][data-win-state="idle"]').waitFor({ state: 'attached' });
     const tokens = await page.evaluate(() => ['--text-xs', '--text-sm', '--text-md', '--text-base', '--text-lg'].map(name => [name, getComputedStyle(document.documentElement).getPropertyValue(name)]));
     for (const theme of ['light', 'dark']) for (const scale of [1, 2]) {
       await page.evaluate(({ key, theme, scale, tokens }) => {

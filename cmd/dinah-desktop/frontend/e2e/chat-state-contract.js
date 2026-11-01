@@ -9,8 +9,8 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '../state-order.js'), 'utf8
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../chat-state.js'), 'utf8'), context);
 const describe = window.dinahChatState.describe;
 for (const [state, word, colour, glyph] of [
-  ['working', 'Working', 'accent', 'chat-working'], ['waiting', 'Waiting', 'warn', 'flag'],
-  ['stuck', 'Stuck', 'danger', 'warning'], ['idle', 'Idle', '', 'ring']
+  ['working', 'Working', 'accent', 'play'], ['waiting', 'Waiting', 'warn', 'pause'],
+  ['stuck', 'Stuck', 'danger', 'warning'], ['idle', 'Idle', '', 'square']
 ]) {
   const result = describe({ life: 'open', exec: { state, why: state === 'waiting' ? 'Context full' : '' } });
   assert.equal(result.state, state); assert.equal(result.kind, colour); assert.equal(result.glyph, glyph);

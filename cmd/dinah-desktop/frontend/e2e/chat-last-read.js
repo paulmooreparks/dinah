@@ -31,7 +31,7 @@ const { launch } = require('./lib/page');
       await log.focus(); await page.keyboard.press('Control+Home');
       await page.waitForFunction(key => document.querySelector('[data-win="' + key + '"] [data-view-id="activity"]').scrollTop < 2, key);
     };
-    await win.locator('.win-execution .win-state[data-state="working"]').waitFor({ state: 'attached' });
+    await page.locator('[data-win="' + key + '"][data-win-state="working"]').waitFor({ state: 'attached' });
     await page.evaluate(() => {
       window.__readingUpdate = update => __emit('agent:update', { sessionId: 'reading', update });
       for (let i = 0; i < 16; i++) __readingUpdate({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Earlier report ' + i + '.\n\n' + 'Report paragraph.\n\n'.repeat(12) } });
