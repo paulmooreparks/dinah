@@ -132,7 +132,6 @@
   }
 
   function openRoom(r) { return window.dinahWorkbench.open({ kind: 'bus-room', path: r.name, title: r.title || r.name }); }
-  function openThread(m) { return window.dinahWorkbench.open({ kind: 'bus-thread', path: String(m.replyTo || m.id), title: 'Thread With ' + (m.fromPerson ? m.to : m.from) }); }
   /* The picker of a group chat: for a new group, ticking the chat it was
      opened from, or for chats to add to a group. */
   function openPicker(o) {
@@ -354,7 +353,7 @@
     var disposed = false;
     var bar = window.dinahBrowserList.toolbar({
       primary: { label: 'New Group Chat…', title: 'Start a group chat with chats you choose', run: function () { openPicker({}).catch(host().fail); } },
-      actions: [{ label: 'Trust a Link…', run: function () { showLinkForm(null); } }, { label: 'Mark All Read', run: markRead }, { label: 'Refresh', run: refresh }]
+      actions: [{ label: 'Trust a Link…', run: function () { showLinkForm(null); } }, { label: 'Refresh', run: refresh }]
     });
     // New Message… stands beside New Group Chat…, before the Actions menu.
     var newMessage = node('button', 'btn btn-sm', 'New Message…'); newMessage.type = 'button';
@@ -365,8 +364,67 @@
     var forms = node('div', 'bus-forms'), groups = node('div', 'bus-results');
     root.append(bar.el, forms, groups);
 
-    function refresh() { load().catch(host().fail); draw(); }
-    function markRead() { return Promise.resolve(app().MarkBusInboxRead()).then(load).catch(host().fail); }
+    function refresh() { load().catch(host().fail); draw(); readInbox(); }
+    /* The inbox's list, read a page at a time for the view chosen
+       (docs/design/inbox.md): items newest first, nextBefore for the page
+       after, and newest, the highest inbox message when it was read, which
+       bounds the bulk actions so a message arriving later is untouched. */
+    var inboxState = { view: 'unread', items: [], nextBefore: 0, newest: 0, loading: false, error: '', generation: 0 };
+    function readInbox(more) {
+      if (!app().BusInboxPage) { inboxState.items = (overview.inbox || []).filter(function (m) { return inboxState.view === 'all' || (inboxState.view === 'unread' ? m.unread && !m.dismissed : m.dismissed); }); draw(); return Promise.resolve(); }
+      var mine = ++inboxState.generation, view = inboxState.view;
+      inboxState.loading = true; if (!more) inboxState.error = '';
+      /* Load Older reads the next page. A refresh reads again every page
+         already shown, down to the oldest row shown, so each row's state is
+         current and the list does not shrink under the reader. */
+      var depth = !more && inboxState.items.length ? inboxState.items[inboxState.items.length - 1].id : 0;
+      var items = more ? inboxState.items.slice() : [], newest = 0;
+      function next(before, pages) {
+        return Promise.resolve(app().BusInboxPage(view, before)).then(function (page) {
+          page = page || {};
+          if (!newest) newest = page.newest || 0;
+          (page.items || []).forEach(function (m) { if (!items.some(function (x) { return x.id === m.id; })) items.push(m); });
+          var cursor = page.nextBefore || 0;
+          if (!more && cursor && depth && cursor > depth && pages < 50) return next(cursor, pages + 1);
+          return cursor;
+        });
+      }
+      return next(more ? inboxState.nextBefore : 0, 1).then(function (cursor) {
+        if (disposed || mine !== inboxState.generation) return;
+        inboxState.items = items; inboxState.nextBefore = cursor; inboxState.newest = newest || inboxState.newest;
+        inboxState.loading = false; draw();
+      }).catch(function (error) {
+        if (disposed || mine !== inboxState.generation) return;
+        inboxState.loading = false; inboxState.error = message(error); draw();
+      });
+    }
+    function inboxBulk(label, heading, body, yes, run) {
+      var b = node('button', 'btn btn-sm', label); b.type = 'button';
+      b.addEventListener('click', function () {
+        var newest = inboxState.newest;
+        if (!newest) return;
+        host().ask(heading, body, yes, false).then(function (ok) {
+          if (!ok) return;
+          return Promise.resolve(run(newest)).then(function () { return load(); }).then(function () { return readInbox(); });
+        }).catch(host().fail);
+      });
+      return b;
+    }
+    /* Opens an inbox message where it was said and marks it read once it is
+       shown there, the one message alone. */
+    function openInboxItem(m) {
+      var done = false, timer = 0;
+      function shown(e) {
+        if (done || !e.detail || e.detail.message !== m.id) return;
+        done = true; clearTimeout(timer); document.removeEventListener('dinah:bus-message-shown', shown);
+        if (m.unread && app().BusMarkInboxRead) Promise.resolve(app().BusMarkInboxRead(m.id)).then(function () { return load(); }).then(function () { readInbox(); }).catch(host().fail);
+      }
+      document.addEventListener('dinah:bus-message-shown', shown);
+      timer = setTimeout(function () { done = true; document.removeEventListener('dinah:bus-message-shown', shown); }, 30000);
+      var opening = m.room ? window.dinahBus.openGroup(m.room, { message: m.id, inbox: true })
+        : window.dinahWorkbench.open({ kind: 'bus-thread', path: String(m.id), title: 'Message From ' + (m.fromPerson ? m.to : m.from) });
+      return Promise.resolve(opening).catch(function (error) { done = true; clearTimeout(timer); document.removeEventListener('dinah:bus-message-shown', shown); host().fail(error); });
+    }
     function field(label, input) { var l = node('label', 'form-field'); l.appendChild(node('span', 'form-label', label)); l.appendChild(input); return l; }
     /* The form for a new message, in the pane above the lists. */
     function showForm(to) {
@@ -472,17 +530,65 @@
         groups.appendChild(g.el);
         return g;
       }
-      /* The inbox: messages sent to Paul himself, and a group's messages
-         that mention him. A group's other messages are in the group. */
-      var inbox = section('bus-inbox', 'Inbox', overview.unread || overview.inbox.length);
-      if (!overview.inbox.length) inbox.body.appendChild(list.empty({ title: 'Nothing for You Yet', body: 'Messages agents send to you, and group messages that mention you, arrive here.' }));
-      overview.inbox.forEach(function (m) {
-        inbox.body.appendChild(list.row({
-          title: m.from + (m.fromWorkspace && m.fromWorkspace !== m.from ? ' (' + m.fromWorkspace + ')' : '') + (m.room ? ' in ' + (m.roomTitle || m.room) : ''), meta: [firstLine(m.text) || (m.kind === 'release' ? 'Release ' + m.version : ''), when(m.createdAt)],
-          badge: m.unread ? { text: 'New', kind: 'accent', label: 'Not read yet' } : null, tooltip: m.text, data: { busMessage: String(m.id) },
-          onOpen: function () { openThread(m).catch(host().fail); }
-        }));
+      /* The inbox: messages sent to the person, and a group's messages that
+         mention them (docs/design/inbox.md). It shows what is unread unless
+         the person chooses All or Dismissed, and its count is every unread
+         message, however many. Each row leads with the message, then who
+         sent it, where and when; opening it shows that very message, in its
+         group or in a thread that starts with it, and marks that one message
+         read once it is shown. Dismiss hides a row for good without marking
+         it read, answered or approved; the bulk actions do the same for
+         every message up to the newest the list was read with. */
+      var inboxSection = section('bus-inbox', 'Inbox', overview.unread || 0);
+      var tools = node('div', 'bus-inbox-tools');
+      var views = node('div', 'seg sm bus-inbox-views'); views.setAttribute('role', 'group'); views.setAttribute('aria-label', 'Show');
+      [['unread', 'Unread'], ['all', 'All'], ['dismissed', 'Dismissed']].forEach(function (v) {
+        var b = node('button', '', v[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(inboxState.view === v[0]));
+        b.addEventListener('click', function () { if (inboxState.view !== v[0]) { inboxState.view = v[0]; inboxState.items = []; inboxState.nextBefore = 0; readInbox(); } });
+        views.appendChild(b);
       });
+      tools.appendChild(views);
+      var any = inboxState.items.length > 0;
+      if (inboxState.view === 'unread' && any) tools.appendChild(inboxBulk('Mark All Read', 'Mark All Read?', 'Every message in the inbox up to now is marked read. Newer ones stay as they are. Marking a message read does not answer it or approve anything.', 'Mark Read', function (newest) { return app().BusMarkInboxReadThrough(newest); }));
+      if (inboxState.view !== 'dismissed' && any) tools.appendChild(inboxBulk('Dismiss All', 'Dismiss All?', 'Every message in the inbox up to now is hidden from it, and stays in its group or thread. Newer ones stay. Dismissing a message does not mark it read, answer it or approve anything.', 'Dismiss', function (newest) { return app().BusDismissInboxThrough(newest); }));
+      inboxSection.body.appendChild(tools);
+      if (inboxState.error) {
+        inboxSection.body.appendChild(list.empty({ title: 'The Inbox Could Not Be Read', body: inboxState.error, action: { label: 'Try Again', run: function () { readInbox(); } } }));
+      } else if (!inboxState.items.length && !inboxState.loading) {
+        var emptyWords = { unread: ['No Unread Messages', 'Messages agents send to you, and group messages that mention you, arrive here. Choose All to see the earlier ones.'],
+          all: ['Nothing for You Yet', 'Messages agents send to you, and group messages that mention you, arrive here.'],
+          dismissed: ['Nothing Dismissed', 'Messages you dismiss from the inbox are listed here. They stay in their groups and threads.'] }[inboxState.view];
+        inboxSection.body.appendChild(list.empty({ title: emptyWords[0], body: emptyWords[1] }));
+      }
+      inboxState.items.forEach(function (m) {
+        var where = m.from + (m.fromWorkspace && m.fromWorkspace !== m.from ? ' (' + m.fromWorkspace + ')' : '') + (m.room ? ' in ' + (m.roomTitle || m.room) : ' to you');
+        var row = list.row({
+          title: firstLine(m.text) || (m.kind === 'release' ? 'Release ' + m.version : 'Message'), meta: [where, when(m.createdAt)],
+          badge: m.dismissed ? { text: 'Dismissed', chip: true } : m.unread ? { text: 'New', kind: 'accent', label: 'Not read yet' } : null,
+          tooltip: m.text, data: { busMessage: String(m.id) },
+          onOpen: function () { openInboxItem(m); }
+        });
+        row.classList.add('bus-inbox-row');
+        if (!m.dismissed && app().BusDismissInbox) {
+          var dismiss = node('button', 'icon-btn bus-inbox-dismiss'); dismiss.type = 'button';
+          dismiss.setAttribute('aria-label', 'Dismiss: ' + (firstLine(m.text) || 'message')); dismiss.title = 'Dismiss from the inbox';
+          dismiss.innerHTML = '<span class="glyph" aria-hidden="true" style="--glyph: var(--glyph-close)"></span>';
+          dismiss.addEventListener('click', function () {
+            dismiss.disabled = true;
+            Promise.resolve(app().BusDismissInbox(m.id)).then(function () {
+              if (inboxState.view !== 'all') inboxState.items = inboxState.items.filter(function (x) { return x.id !== m.id; });
+              return load();
+            }).then(function () { readInbox(); }).catch(function (error) { dismiss.disabled = false; host().fail(error); });
+          });
+          row.appendChild(dismiss);
+        }
+        inboxSection.body.appendChild(row);
+      });
+      if (inboxState.nextBefore && !inboxState.error) {
+        var older = node('button', 'btn btn-sm bus-inbox-older', inboxState.loading ? 'Loading…' : 'Load Older'); older.type = 'button'; older.disabled = inboxState.loading;
+        older.addEventListener('click', function () { readInbox(true); });
+        inboxSection.body.appendChild(older);
+      }
       var rooms = section('bus-groups', 'Group Chats', overview.rooms.length);
       if (!overview.rooms.length) rooms.body.appendChild(list.empty({ title: 'No Group Chats', body: 'A group chat holds you and the chats you choose in one conversation.', action: { label: 'New Group Chat…', run: function () { openPicker({}).catch(host().fail); } } }));
       overview.rooms.forEach(function (r) {
@@ -513,12 +619,15 @@
       });
     }
     listeners.add(draw);
+    // The bus changed: the inbox page is read again for the view chosen.
+    function inboxChanged() { readInbox(); }
+    listeners.add(inboxChanged); readInbox();
     var stopChats = onChats(draw);
     draw();
     load().catch(host().fail);
     return { state: function () { return ''; }, setState: function () {},
       commands: function () { return [{ label: 'New Group Chat…', run: function () { return openPicker({}); } }, { label: 'New Message…', run: function () { showForm(); } }, { label: 'Trust a Link…', run: function () { showLinkForm(null); } }, { label: 'Mark All Read', run: markRead }]; },
-      destroy: function () { disposed = true; window.dinahRender.cancel(root); listeners.delete(draw); stopChats(); } };
+      destroy: function () { disposed = true; window.dinahRender.cancel(root); listeners.delete(draw); listeners.delete(inboxChanged); stopChats(); } };
   } });
 
   /* ---- A conversation: a group or a thread ----
@@ -840,14 +949,21 @@
     var lookupState = 'resolved', lookupEpoch = 0, checkedOverview = overviewVersion;
     var lookupNote = node('p', 'form-help group-lookup-status'); lookupNote.setAttribute('role', 'status'); lookupNote.hidden = true;
     var lookupRetry = node('button', 'btn btn-sm', 'Retry Group Lookup'); lookupRetry.type = 'button'; lookupRetry.hidden = true;
-    var targetMessage = 0, pendingMention = null, targetFrame = 0, targetPending = false;
-    function stateString() { return JSON.stringify(Object.assign({ message: targetMessage }, pendingMention ? { mention: pendingMention } : {})); }
+    /* A window opened at a message (state.message) shows and highlights it,
+       loading the group from a little before it when it is older than the
+       newest messages, and keeps loading from there so updates do not take
+       it away. Opened from the Inbox (state.inbox), the window does not mark
+       the group's messages read as it reads them: the Inbox marks the one
+       message it opened, once it is shown (docs/design/inbox.md). */
+    var targetMessage = 0, pendingMention = null, targetFrame = 0, targetPending = false, fromInbox = false, loadFrom = 0;
+    function stateString() { return JSON.stringify(Object.assign({ message: targetMessage }, fromInbox ? { inbox: true } : {}, pendingMention ? { mention: pendingMention } : {})); }
     function showTarget() {
       if (disposed || !targetMessage || !targetPending) return;
       var row = root.querySelector('[data-bus-message="' + targetMessage + '"]');
       if (!row) return;
       root.querySelectorAll('.bus-target-message').forEach(function (n) { n.classList.remove('bus-target-message'); });
       targetPending = false; row.classList.add('bus-target-message'); c.navigate(row);
+      document.dispatchEvent(new CustomEvent('dinah:bus-message-shown', { detail: { message: targetMessage, group: key } }));
     }
     function targetSoon() {
       if (targetFrame || !targetMessage || !targetPending) return;
@@ -862,9 +978,10 @@
       box.mention(m); pendingMention = null;
     }
     function setState(value) {
-      try { var state = value ? JSON.parse(value) : {}; targetMessage = Number(state.message) || 0; pendingMention = state.mention || null; targetPending = !!targetMessage; }
-      catch (error) { targetMessage = 0; pendingMention = null; }
+      try { var state = value ? JSON.parse(value) : {}; targetMessage = Number(state.message) || 0; pendingMention = state.mention || null; targetPending = !!targetMessage; fromInbox = !!(state.inbox && targetMessage); }
+      catch (error) { targetMessage = 0; pendingMention = null; fromInbox = false; }
       applyMention(); targetSoon();
+      if (targetPending && c && !root.querySelector('[data-bus-message="' + targetMessage + '"]')) c.draw();
       if (opts.changed) opts.changed(stateString());
     }
     root.classList.add('group-window');
@@ -880,7 +997,16 @@
     var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button'; stopped.title = 'Go to where you stopped reading'; stopped.disabled = true;
     window.dinahHelpers.toolbarLabel(stopped, 'history', 'Last Read');
     var c = conversation(root, 'Everything said in the group appears here. The chats a message mentions are asked to answer it, and the other members are told that it was said.',
-      function () { return Promise.resolve(app().BusGroupMessages(key)).then(function (ms) { markRead(); return ms; }); }, box, 'group:' + key, stopped);
+      function () {
+        function newest() { return Promise.resolve(app().BusGroupMessages(key)); }
+        function from(id) { return Promise.resolve(app().BusGroupMessagesFrom(key, id, 20)); }
+        var read = loadFrom && app().BusGroupMessagesFrom ? from(loadFrom) : newest().then(function (ms) {
+          var wanted = targetPending && targetMessage;
+          if (!wanted || !app().BusGroupMessagesFrom || (ms || []).some(function (m) { return m.id === wanted; })) return ms;
+          return from(wanted).then(function (older) { loadFrom = wanted; return older; });
+        });
+        return read.then(function (ms) { if (!fromInbox) markRead(); return ms; });
+      }, box, 'group:' + key, stopped);
     var draftChoices = node('div', 'group-draft-choices'), draftLabel = node('label', 'form-field');
     var draftSelect = node('select', 'form-select'); draftSelect.setAttribute('aria-label', 'Other saved drafts');
     draftLabel.append(node('span', 'form-label', 'Other saved drafts'), draftSelect);
@@ -1444,7 +1570,18 @@
     var box = composer({ label: 'Reply', draftKey: 'thread:' + id, send: function (text) { return Promise.resolve(app().BusReplyInThread(id, text)).then(function () { c.draw(true); }); } });
     box.restore();
     var c = conversation(root, 'The message and its replies appear here.', function () { return app().BusThread(id); }, box);
-    return { destroy: c.destroy, commands: function () { return [{ label: 'Refresh', run: c.draw }]; } };
+    /* The thread starts with its message, which it highlights once drawn,
+       saying so for the Inbox, which marks it read then (docs/design/inbox.md). */
+    var shown = false;
+    var watch = new MutationObserver(function () {
+      var row = !shown && root.querySelector('[data-bus-message="' + id + '"]');
+      if (!row) return;
+      shown = true; watch.disconnect();
+      row.classList.add('bus-target-message'); c.navigate(row);
+      document.dispatchEvent(new CustomEvent('dinah:bus-message-shown', { detail: { message: id, thread: true } }));
+    });
+    watch.observe(root, { childList: true, subtree: true });
+    return { destroy: function () { watch.disconnect(); c.destroy(); }, commands: function () { return [{ label: 'Refresh', run: c.draw }]; } };
   } });
 
   window.dinahCommands.register({ id: 'bus', glyph: 'inbox', menu: 'view', mnemonic: 'R', label: 'Group Chats', run: function () { return window.dinahWorkbench.open('bus'); } });
