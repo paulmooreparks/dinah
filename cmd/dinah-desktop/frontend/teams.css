@@ -25,9 +25,9 @@
 .members-menu .member-open { flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .members-menu .member-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
 .members-menu .member-state-slot { flex: none; display: inline-flex; }
-/* The person's row is not pressable, but reads as the others do. */
-.members-menu .member-row.person { gap: var(--space-2); padding: 6px 14px; font: var(--text-sm)/1.5 var(--font); }
-.members-menu .member-row.person .member-name { color: var(--text); }
+/* A row's … button stands in from the menu's edge by the same space as
+   the row's words do from the other, with room for its focus ring. */
+.members-menu .member-row:has(> .member-menu-btn) { padding-inline-end: var(--space-2); }
 .members-menu .member-ended .member-name { color: var(--text-muted); }
 .members-menu .member-menu-btn { flex: none; }
 .members-menu .members-section { margin: var(--space-2) var(--space-3) var(--space-1); }

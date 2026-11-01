@@ -1080,20 +1080,15 @@
         }
       }
       window.dinahRender.enqueue(drawMembers, root, function () {
-        memberWords.textContent = 'Members (' + members().length + ')';
+        /* The dropdown lists the group's chats. The person is a member too,
+           and stays one for routing, but has no row: it is plain who they
+           are, and a row of theirs would have nothing to do. */
+        var chats = members().filter(function (m) { return m.state !== 'person'; });
+        var count = 'Members (' + chats.length + ')';
+        if (memberWords.textContent !== count) memberWords.textContent = count;
         var wanted = [];
-        members().forEach(function (m) {
-          var key = m.state === 'person' ? 'person' : m.id, view = memberViews.get(key);
-          if (m.state === 'person') {
-            if (!view) {
-              var you = node('div', 'member-row person'); you.setAttribute('role', 'listitem'); you.dataset.groupMember = 'person';
-              var who = node('span', 'member-name'); you.append(who, node('span', 'chip member-you', 'You'));
-              view = { row: you, name: who }; memberViews.set(key, view);
-            }
-            if (view.name.textContent !== m.title) view.name.textContent = m.title;
-            wanted.push(view.row);
-            return;
-          }
+        chats.forEach(function (m) {
+          var key = m.id, view = memberViews.get(key);
           if (!view) {
             var row = node('div', 'member-row'); row.setAttribute('role', 'listitem'); row.dataset.groupMember = m.id;
             var open = node('button', 'menu-action member-open'); open.type = 'button';
