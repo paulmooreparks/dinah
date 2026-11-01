@@ -42,6 +42,7 @@ const { launch } = require('./lib/page');
     }, key);
     ok('an ordinary chat keeps its top bar with Last Read in it', await win.locator('.chat-team').isVisible() && await win.locator('.chat-team .chat-last-read').isVisible());
     ok('Last Read says what it does', (await lastRead.getAttribute('title')) === 'Go to where you stopped reading');
+    ok('Last Read is the first control, at the bar’s left edge', await page.evaluate(key => (win => { const bar = win.querySelector('.chat-team'), first = bar && bar.querySelector(':scope > :not([hidden])'), b = bar.getBoundingClientRect(), r = first.getBoundingClientRect(), pad = parseFloat(getComputedStyle(bar).paddingInlineStart); return !!first && first.classList.contains('chat-last-read') && Math.abs(r.left - (b.left + pad)) < 1; })(document.querySelector('[data-win="' + key + '"]')), key));
     ok('with nothing unread Last Read is disabled', await lastRead.isDisabled());
     ok('there is no row of its own for it', await win.locator('.transcript-unread-controls').count() === 0);
     await toTop();

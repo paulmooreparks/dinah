@@ -548,6 +548,9 @@
       return ledger;
     }
     var navigation = window.dinahTranscript.mount({ root: root, log: log, content: list, stopped: stopped,
+      // Last Read keeps its place at the start of the toolbar and is
+      // disabled while there is nowhere to go back to.
+      stoppedChanged: stopped ? function (shown) { stopped.disabled = !shown; } : null,
       ready: function () { return !painting; }, canTail: function () { return !painting; },
       entries: function () { return drawn.map(function (d) { return { key: d.message && d.message.id, element: d.div, eligible: !!d.message && !d.message.fromPerson && d.message.kind !== 'member' }; }); },
       initialSeen: function (entry) { var saved = readLedger(); return Number(entry.key) <= saved.through && saved.unseen.indexOf(Number(entry.key)) < 0; },
@@ -864,7 +867,7 @@
     function fileLimit() { var l = room && room.fileLimit; return l && l.limit > 0 ? { max: l.limit, reason: l.reason } : null; }
     var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit);
     box.canRead = function () { return lookupState === 'resolved' && ((!overviewFailure && !!group(key)) || checkedOverview === overviewVersion); };
-    var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button'; stopped.title = 'Go to where you stopped reading';
+    var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button'; stopped.title = 'Go to where you stopped reading'; stopped.disabled = true;
     stopped.appendChild(node('span', 'toolbar-words', 'Last Read'));
     var c = conversation(root, 'Everything said in the group appears here. The chats a message mentions are asked to answer it, and the other members are told that it was said.',
       function () { return Promise.resolve(app().BusGroupMessages(key)).then(function (ms) { markRead(); return ms; }); }, box, 'group:' + key, stopped);
@@ -918,10 +921,11 @@
       var icon = node('span', 'glyph'); icon.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')'); icon.setAttribute('aria-hidden', 'true');
       if (glyph) button.appendChild(icon); button.appendChild(node('span', 'toolbar-words', label)); button.addEventListener('click', run); commandGroup.appendChild(button);
     }
+    // Last Read comes first in every chat's toolbar.
+    commandGroup.appendChild(stopped);
     commandGroup.appendChild(memberToggle);
     command('Add Chats…', 'plus', 'group-add-chats', addChats);
     command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
-    commandGroup.appendChild(stopped);
     command('Mention Everyone', null, 'group-mention-everyone', function () { box.mention({ id: 'everyone', title: 'everyone' }); box.text.focus(); });
     commandBar.appendChild(commandGroup); memberShell.append(commandBar, bar);
     var separator = node('hr', 'group-transcript-separator');

@@ -116,9 +116,9 @@
     // transcript never moves when there comes to be something unread.
     var lastRead = o.lastRead || null;
     function showSection() { section.hidden = !lastRead && openTeamButton.hidden && toggle.hidden; }
-    section.append(toggle, openTeamButton);
+    // Last Read comes first in every chat's toolbar, then the team's controls.
     if (lastRead) section.appendChild(lastRead);
-    section.appendChild(content);
+    section.append(toggle, openTeamButton, content);
     o.root.querySelector('.chat-output').before(section);
     var tree = node('ul', 'tree team-tree'); tree.setAttribute('aria-label', 'Team members');
     var retiredTree = node('ul', 'tree team-tree'); retiredTree.setAttribute('aria-label', 'Retired members');

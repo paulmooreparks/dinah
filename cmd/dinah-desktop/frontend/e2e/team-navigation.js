@@ -21,6 +21,7 @@ const {launch} = require('./lib/page');
   try {
     const key=await p.evaluate(()=>dinahWorkbench.open({kind:'chat-session',workspace:'C:/Fixture',path:'member'})),win=p.locator('[data-win="'+key+'"]');
     const open=win.getByRole('button',{name:'Open Team',exact:true});await open.waitFor();
+    ok('a team member’s Last Read comes before its team controls, at the bar’s left edge',await p.evaluate(k=>(win => { const bar = win.querySelector('.chat-team'), first = bar && bar.querySelector(':scope > :not([hidden])'), b = bar.getBoundingClientRect(), r = first.getBoundingClientRect(), pad = parseFloat(getComputedStyle(bar).paddingInlineStart); return !!first && first.classList.contains('chat-last-read') && Math.abs(r.left - (b.left + pad)) < 1; })(document.querySelector('[data-win="'+k+'"]')),key));
     await p.evaluate(()=>{for(let n=0;n<30;n++)__emit('agent:update',{sessionId:'member',update:{sessionUpdate:'agent_message_chunk',content:{type:'text',text:'Retained report '+n+'. '+'Paragraph text. '.repeat(12)+'\n\n'}}});});
     await win.getByText('Retained report 29.',{exact:false}).waitFor();
     const transcript=await win.locator('[data-view-id=logs]').textContent(),draft=await win.locator('[data-view-id=prompt]').inputValue();
