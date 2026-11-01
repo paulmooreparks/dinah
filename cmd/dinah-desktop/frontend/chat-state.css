@@ -24,9 +24,12 @@
 .member-chip { max-width: 100%; flex-wrap: nowrap; min-width: 0; }
 .member-chip .member-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .member-chip .chat-state { max-width: 100%; }
-.member-state { display: inline-grid; place-items: center; flex: none; inline-size: clamp(16px, 18cqw, 9ch); block-size: max(16px, 1.4em); line-height: 1.4; color: var(--text-muted); }
+/* A member's state is a glyph alone, before its name, as wide as the glyph. A
+   member with no live state keeps the empty slot and a muted name, so a chip
+   never changes width as its member's state changes (bus-applets.js). */
+.member-state { display: inline-grid; place-items: center; flex: none; inline-size: max(16px, 1em); block-size: max(16px, 1.4em); line-height: 1.4; color: var(--text-muted); }
+.member-chip.member-ended .member-title { color: var(--text-muted); }
 .member-state > .glyph { --glyph-size: max(16px, 1em); }
-.member-state > .member-lifecycle { max-inline-size: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .win-status:is(.chat-working-chip, .team-stuck-chip, .group-state-chip) { padding: 0; border: 0; }
 .win-status > .chat-state { background: color-mix(in srgb, var(--chat-state-colour) 18%, var(--surface)); }
 .badge.chat-state::before { content: ""; --glyph: var(--badge-glyph); }

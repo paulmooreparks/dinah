@@ -48,7 +48,7 @@
    small raised button that opens its menu. */
 .group-members { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px solid var(--surface-alt); }
 .group-members .md-meta { margin-inline-end: var(--space-1); }
-.member-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 3px 2px 8px; font-size: var(--text-sm); }
+.member-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px 3px 2px 5px; font-size: var(--text-sm); }
 .member-chip.person { padding-inline-end: 8px; }
 .member-chip .icon-btn { width: 20px; height: 20px; --glyph-size: 10px; }
 .group-budget { display: block; flex: 0 0 100%; min-inline-size: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

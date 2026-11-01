@@ -947,7 +947,10 @@
         var glyph = node('span', 'glyph'); glyph.setAttribute('aria-hidden', 'true');
         glyph.style.setProperty('--glyph', 'var(--glyph-' + spec.glyph + ')');
         glyph.style.color = 'var(--' + (spec.kind || 'text-muted') + ')'; mark.appendChild(glyph);
-      } else mark.appendChild(node('span', 'member-lifecycle', spec.text));
+      }
+      // A member with no live state, closed, retired or elsewhere, has no
+      // glyph: its slot stays empty at the glyph's width, its name is muted
+      // (member-ended), and its word is in the label above and in its menu.
       return mark;
     }
     function markRead() { if (room && room.unread && app().BusMarkGroupRead) Promise.resolve(app().BusMarkGroupRead(key)).catch(function () {}); }
@@ -1032,11 +1035,12 @@
             more.id = menu.id + '-' + (++memberSerial); more.setAttribute('aria-haspopup', 'menu');
             view = { chip: chip, name: name, more: more, member: m, mark: memberMark(m) };
             (function (entry) { entry.more.addEventListener('click', function () { showMenu(entry.more, entry.member); }); })(view);
-            chip.append(name, view.mark, more); memberViews.set(key, view);
+            chip.append(view.mark, name, more); memberViews.set(key, view);
           }
           view.member = m; view.name.textContent = m.title; view.more.setAttribute('aria-label', m.title + ' Menu');
           view.more.disabled = lookupState !== 'resolved';
           var mark = memberMark(m); view.mark.replaceWith(mark); view.mark = mark;
+          view.chip.classList.toggle('member-ended', !window.dinahChatState.describe(memberState(m)).glyph);
           if (menuMember === m.id && menuState) { menuState.textContent = memberDescription(m); menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent); }
           wanted.push(view.chip);
         });
