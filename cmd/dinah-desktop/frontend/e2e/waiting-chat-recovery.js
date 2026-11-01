@@ -32,9 +32,10 @@ const { launch } = require('./lib/page');
     await page.evaluate(() => dinahWorkbench.open('needs-you'));
     const conflict = page.locator('[data-notification-id="waiting_conflict"]');
     const retry = page.locator('[data-notification-id="waiting_retry"]');
-    ok('routing recovery has actual target details and review without retry or dismissal',
+    // Paul asked on 2 November 2026 that these cards can be dismissed.
+    ok('routing recovery has actual target details, review and Dismiss, without retry',
       await conflict.getByRole('button', { name: 'Review Chat', exact: true }).count() === 1 && await conflict.getByRole('button', { name: 'Recover Original Chat', exact: true }).count() === 1 &&
-      await conflict.getByRole('button', { name: /Retry|Dismiss/ }).count() === 0 && (await conflict.textContent()).includes('Actual target retained'));
+      await conflict.getByRole('button', { name: /Retry/ }).count() === 0 && await conflict.getByRole('button', { name: 'Dismiss', exact: true }).count() === 1 && (await conflict.textContent()).includes('Actual target retained'));
     await retry.getByRole('button', { name: 'Retry Waiting Delivery', exact: true }).click();
     await retry.waitFor({ state: 'detached' });
     ok('explicit retry addresses its original owner and removes only completed state', await page.evaluate(() => __calls.some(c => c[0] === 'retry' && c[1] === 'codex:retry')) && await conflict.count() === 1);
@@ -64,8 +65,9 @@ const { launch } = require('./lib/page');
       await original.locator('[data-view-id="session-recover"]').isEnabled() &&
       await page.evaluate(() => !__calls.some(c => c[0] === 'open' && c[2] === 'codex:older')));
     await original.locator('[data-view-id="session-recover"]').click();
-    await page.getByLabel('Recovery provider', { exact: true }).selectOption('codex');
-    await page.getByLabel('Recovery model', { exact: true }).selectOption('fixture-model');
+    await page.locator('dialog.recovery-dialog[open]').getByLabel('Provider', { exact: true }).selectOption('codex');
+    await page.waitForFunction(() => !document.querySelectorAll('dialog.recovery-dialog[open] select')[1].disabled);
+    await page.locator('dialog.recovery-dialog[open]').getByLabel('Model', { exact: true }).selectOption('fixture-model');
     await page.getByRole('button', { name: 'Review Recovery', exact: true }).click();
     await page.locator('dialog.switch-confirm[open]').getByRole('button', { name: 'Continue', exact: true }).waitFor();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'preview-recovery'));

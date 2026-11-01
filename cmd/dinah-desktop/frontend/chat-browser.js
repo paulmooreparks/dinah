@@ -71,12 +71,26 @@
        which every program that lists Devin's sessions reads, Devin Desktop
        too. If Devin will not, or cannot, the session can be hidden from this
        app's list instead, and Devin keeps it. */
-    var removing = null;
-    function openRemove(id) {
+    var removing = null, removingHere = false;
+    /* A chat that could not be opened, removed from its recovery card
+       (local, with the card's title), is removed from this app alone: its
+       provider may not be reachable, so nothing is asked of it, and the
+       messages waiting for the chat are cancelled, never delivered. No other
+       chat is made or chosen in its place. */
+    function openRemove(id, local) {
       id = id || adapter.active();
       if (!id) return;
-      removing = id;
+      removing = id; removingHere = !!local;
       var s = sessions[id], who = providerName(sessionProvider(s));
+      if (local) {
+        var name = (s && s.info.title) || local.title || 'This chat';
+        $('remove-title').textContent = 'Remove Chat?';
+        $('remove-body').textContent = '"' + name + '" will be removed from ' + productName() + ', with its saved copy here. Messages waiting for it are cancelled and never delivered. Its provider\'s own copy, if it has one, is left as it is. This cannot be undone.';
+        $('remove-go').hidden = false;
+        $('remove-hide').hidden = true;
+        $('remove').showModal();
+        return;
+      }
       if (window.dinahProviderFact(sessionProvider(s), 'removal') === 'hides') {
         $('remove-title').textContent = 'Hide Chat?';
         $('remove-body').textContent = '"' + title(s) + '" will be hidden from ' + productName() + '. ' + who + ' keeps its saved conversation. Chats > Actions > Show Hidden Chats Again restores it to this list.';
@@ -96,16 +110,21 @@
       adapter.disposeChat(s);
       if (s) s.log.remove();
       delete sessions[id]; window.dinahStateOrder.forget(id);
-      notices.list(function (e) { return e.target && e.target.chat === id; }).forEach(function (e) { notices.remove(e.id); });
+      // Its cards go with it, those about it and the recovery cards for it as their original chat.
+      notices.list(function (e) { return (e.target && e.target.chat === id) || (e.data && e.data.lead === id); }).forEach(function (e) { notices.remove(e.id); });
       listed = listed.filter(function (x) { return x.sessionId !== id; });
-      if (adapter.active() === id) { show(null); showChat(); } else drawSessions();
+      // The removed chat's window closed with it (disposeChat). Nothing opens
+      // in its place: showing no chat in a window is New Chat, which the
+      // person did not ask for.
+      if (adapter.active() === id) show(null); else drawSessions();
       refreshSessions();
     }
     $('remove-go').addEventListener('click', function () {
       var id = removing;
       $('remove-go').disabled = true;
       var provider = providerName(sessionProvider(sessions[id]));
-      app().DeleteSession(id).then(function () {
+      var removal = removingHere ? Promise.resolve().then(function () { return app().RemoveChat(id); }) : app().DeleteSession(id);
+      removal.then(function () {
         $('remove').close();
         // A removed chat's unsent draft goes with it; a hidden chat, which
         // can come back, keeps its draft.
@@ -115,6 +134,11 @@
         toast('The session is removed.', 'positive');
       }).catch(function (err) {
         var msg = String(err).replace(/^Error:\s*/, '');
+        if (removingHere) {
+          $('remove-title').textContent = 'The Chat Was Not Removed';
+          $('remove-body').textContent = msg + ' Nothing was changed: the chat and the messages waiting for it are as they were. Press Remove to try again.';
+          return;
+        }
         $('remove-title').textContent = provider + ' Did Not Remove It';
         $('remove-body').textContent = /does not support/.test(msg)
           ? provider + ' does not remove sessions. You can hide this one from ' + productName() + '\'s list instead; ' + provider + ' keeps it.'

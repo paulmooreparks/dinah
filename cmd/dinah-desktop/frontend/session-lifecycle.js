@@ -39,7 +39,9 @@
     }
     // Recovery reviews this recipient's saved history without following a
     // conflicting continuation or contacting its unavailable provider.
-    async function openSavedRecovery(id, cwd) {
+    /* meta is what the recovery card knows of the original chat, its title and provider, which a chat
+       the page has not listed has nowhere else. */
+    async function openSavedRecovery(id, cwd, meta) {
       var s = S(id);
       if (s.info.open || s.loading) throw new Error('Finish the current chat operation before recovering it.');
       s.info.cwd = cwd || s.info.cwd || workspace();
@@ -50,7 +52,10 @@
       s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
       s.recoveryReview = true;
       s.titleKnown = true; s.restoring = false;
-      s.info.title = s.info.title || 'Saved chat for recovery';
+      meta = meta || {};
+      if (!s.info.provider && meta.provider) s.info.provider = meta.provider;
+      if (meta.started) s.recoveryStarted = meta.started;
+      s.info.title = s.info.title || meta.title || 'The original chat';
       s.failed = 'The original recipient has waiting messages. Choose a provider using Continue from Saved History. Its separate continuation keeps its own history and messages.';
       show(id); await showChat();
       await drawSaved(s, saved.messages || []);

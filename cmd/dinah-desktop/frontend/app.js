@@ -80,7 +80,8 @@
     session: function (id) { return S(id); }, getSession: function (id) { return sessions[id]; },
     sessionProvider: function (s) { return sessionProvider(s); }, workspace: function () { return workspace; },
     title: session => title(session), openSession: function (id) { return openSession(id); }, row: (session, cls) => chats.ensure(session).row(session, cls),
-    openSavedRecovery: function (id, cwd) { return chats.openSavedRecovery(id, cwd); },
+    openSavedRecovery: function (id, cwd, meta) { return chats.openSavedRecovery(id, cwd, meta); },
+    openRemove: function (id, local) { return chatBrowser.openRemove(id, local); },
     now: () => dinahRegional.format(new Date(), 'clock'), drawSessions: () => drawSessions(), toast: toast, fail: fail
   });
   const { notices, ask, noteEntry, needsCount, drawNoticeCounts,
@@ -131,7 +132,7 @@
     workspace: () => workspace,
     title: session => chatBrowser.title(session), hasKnownTitle: id => chatBrowser.hasKnownTitle(id),
     drawSessions: () => chatBrowser.drawSessions(), refreshSessions: () => chatBrowser.refreshSessions(), listedSessions: () => chatBrowser.listed(),
-    startRename: (...args) => chatBrowser.startRename(...args), openRemove: id => chatBrowser.openRemove(id),
+    startRename: (...args) => chatBrowser.startRename(...args), openRemove: (id, local) => chatBrowser.openRemove(id, local),
     chatPin: id => chatBrowser.chatPin(id), sameWs: path => chatBrowser.sameWs(path),
     normalizedWorkspace: path => chatBrowser.normalizedWorkspace(path), when: time => chatBrowser.when(time),
     workspaceLabel: path => workspaces.workspaceLabel(path),

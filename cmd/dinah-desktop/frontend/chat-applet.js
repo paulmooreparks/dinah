@@ -894,40 +894,130 @@
         // The second callback permits a progress frame to paint before the RPC.
         return new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
       }
-      function chooseRecoveryDestination(provider) {
+      /* Recovering a chat that could not reopen continues its saved history in a new chat, with the provider
+         and model the person chooses here; the next step reviews what moves, and nothing is sent until then.
+         The list of agents is read again as the dialog opens, since a chat recovered at startup can come
+         before Settings has looked for them; the dialog says whether it is still looking, found no agent
+         ready, or could not look, and Review Recovery says why it cannot go on. The chat's own provider is
+         chosen at the start only when it is ready; no other is chosen for the person. */
+      var recoverySerial = 0;
+      function chooseRecoveryDestination(provider, chat) {
         return new Promise(function (resolve) {
-          var dlg = document.createElement('dialog'), form = document.createElement('form'); form.method = 'dialog';
-          dlg.className = 'dialog';
-          var heading = document.createElement('h2'); heading.className = 'dialog-title'; heading.textContent = 'Choose the recovery destination';
-          var body = document.createElement('div'); body.className = 'dialog-body vstack gap-3';
-          var explanation = document.createElement('p'); explanation.textContent = 'The new chat keeps this recipient and its waiting messages. Other recipients remain separate. No message is sent until recovery commits.';
-          var providerLabel = document.createElement('label'); providerLabel.textContent = 'Provider';
-          var providerSelect = document.createElement('select'); providerSelect.setAttribute('aria-label', 'Recovery provider');
-          providerChoices(provider).filter(function (p) { return !p.problem; }).forEach(function (p) { providerSelect.add(new Option(p.name, p.id)); });
-          providerSelect.value = provider;
-          var modelLabel = document.createElement('label'); modelLabel.textContent = 'Model';
-          var modelSelect = document.createElement('select'); modelSelect.setAttribute('aria-label', 'Recovery model');
-          var actions = document.createElement('div'); actions.className = 'dialog-actions';
-          var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'btn'; cancel.textContent = 'Cancel';
-          var next = document.createElement('button'); next.type = 'submit'; next.className = 'btn btn-primary'; next.textContent = 'Review Recovery';
-          var generation = 0, done = false;
+          var uid = 'recovery-' + (++recoverySerial);
+          function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+          var dlg = el('dialog', 'dialog recovery-dialog'), form = el('form'); form.method = 'dialog';
+          var heading = el('h2', 'dialog-title', 'Recover ' + (chat ? title(chat) : 'This Chat')); heading.id = uid + '-title';
+          dlg.setAttribute('aria-labelledby', heading.id);
+          var body = el('div', 'dialog-body');
+          /* Several chats can share a title, so the chat is also known by its workspace, its provider and
+             when it was started, as far as they are known. It is drawn again once the agents are listed,
+             since a provider's name comes from that list. */
+          var identity = el('p', 'recovery-chat');
+          function drawIdentity() {
+            var info = chat && chat.info || {}, own = sessionProvider(chat);
+            var where = [info.cwd ? workspaceLabel(info.cwd) : '', own ? providerName(own) : '', chat && chat.recoveryStarted ? 'started ' + dinahRegional.format(new Date(chat.recoveryStarted), 'dateTime') : ''].filter(Boolean).join(' · ');
+            identity.replaceChildren(el('strong', null, chat ? title(chat) : 'This chat'), document.createTextNode(where ? ' · ' + where : ''));
+          }
+          drawIdentity();
+          var intro = el('p', 'form-help recovery-intro',(chat ? title(chat) : 'This chat') + ' could not be reopened. Its saved history continues in a new chat, using the provider and model you choose. The new chat takes this chat\'s place for any messages waiting for it; chats it shares a group with stay as they are. You review the change next, and nothing is sent before you confirm it.');
+          var providerGroup = el('div', 'form-group'), providerLabel = el('label', 'form-label', 'Provider'), providerWrap = el('span', 'form-select-wrap');
+          var providerSelect = el('select', 'form-select'); providerSelect.id = uid + '-provider'; providerLabel.htmlFor = providerSelect.id;
+          var providerHelp = el('p', 'form-help'); providerHelp.id = uid + '-provider-help'; providerHelp.setAttribute('role', 'status');
+          providerSelect.setAttribute('aria-describedby', providerHelp.id);
+          providerWrap.appendChild(providerSelect); providerGroup.append(providerLabel, providerWrap, providerHelp);
+          var modelGroup = el('div', 'form-group'), modelLabel = el('label', 'form-label', 'Model'), modelWrap = el('span', 'form-select-wrap');
+          var modelSelect = el('select', 'form-select'); modelSelect.id = uid + '-model'; modelLabel.htmlFor = modelSelect.id;
+          var modelHelp = el('p', 'form-help'); modelHelp.id = uid + '-model-help'; modelHelp.setAttribute('role', 'status');
+          modelSelect.setAttribute('aria-describedby', modelHelp.id);
+          modelWrap.appendChild(modelSelect); modelGroup.append(modelLabel, modelWrap, modelHelp);
+          var problem = el('div', 'notice'); problem.hidden = true;
+          var problemTitle = el('p', 'notice-title'), problemText = el('p', 'notice-body'), problemActions = el('div', 'notice-actions'), problemContent = el('div', 'notice-content');
+          var retry = el('button', 'btn btn-sm', 'Look Again'); retry.type = 'button';
+          problemActions.appendChild(retry); problemContent.append(problemTitle, problemText, problemActions); problem.appendChild(problemContent);
+          body.append(identity, intro, providerGroup, modelGroup, problem);
+          var actions = el('div', 'dialog-actions'), why = el('p', 'form-help recovery-why'); why.id = uid + '-why';
+          var cancel = el('button', 'btn', 'Cancel'); cancel.type = 'button';
+          var next = el('button', 'btn btn-primary', 'Review Recovery'); next.type = 'submit'; next.setAttribute('aria-describedby', why.id);
+          actions.append(why, cancel, next);
+          form.append(heading, body, actions); dlg.appendChild(form); document.body.appendChild(dlg);
+          var listing = 0, modelling = 0, done = false, ready = [];
           function finish(value) { if (done) return; done = true; dlg.close(); dlg.remove(); resolve(value); }
-          async function models() {
-            var mine = ++generation, id = providerSelect.value;
-            next.disabled = true; modelSelect.disabled = true;
-            try { if (!providerCatalogs[id] && adapter.readProviderPreferences) await adapter.readProviderPreferences(id); } catch (_) { }
-            if (done || mine !== generation) return;
-            modelSelect.replaceChildren(new Option('Use the configured provider default', ''));
+          function settle(reason) { next.disabled = !!reason; why.textContent = reason || ''; why.hidden = !reason; }
+          function showProblem(kind, heading, text) { problem.className = 'notice ' + kind; problemTitle.textContent = heading; problemText.textContent = text; problem.hidden = false; }
+          function placeholder(select, words) { select.replaceChildren(new Option(words, '')); select.disabled = true; }
+          async function listProviders() {
+            var mine = ++listing; ++modelling;
+            problem.hidden = true; dlg.setAttribute('aria-busy', 'true');
+            placeholder(providerSelect, 'Looking for agents…'); placeholder(modelSelect, 'Choose a provider first');
+            providerHelp.textContent = 'Looking for the agents installed on this computer.'; modelHelp.textContent = '';
+            settle('Wait while the agents are listed.');
+            var list;
+            try { list = app().AgentProviders ? await app().AgentProviders() : providers; }
+            catch (error) {
+              if (done || mine !== listing) return;
+              dlg.removeAttribute('aria-busy');
+              placeholder(providerSelect, 'No agents listed');
+              providerHelp.textContent = '';
+              showProblem('danger', 'The Agents Could Not Be Listed', window.dinahHelpers.message(error, 'sentence') + ' Press Look Again to try once more.');
+              settle('The agents could not be listed.');
+              return;
+            }
+            if (done || mine !== listing) return;
+            dlg.removeAttribute('aria-busy');
+            if (Array.isArray(list) && list.length) { providers = list; refreshSkillGroups(); drawIdentity(); }
+            // A chat whose provider is not known offers the agents as they are, with no entry for it.
+            var choices = provider ? providerChoices(provider) : providers.map(function (p) { return { id: p.id, name: p.name || providerName(p.id), problem: p.installed ? '' : p.statusWords || 'Not Ready' }; });
+            ready = choices.filter(function (p) { return !p.problem; });
+            providerSelect.replaceChildren();
+            if (!ready.length) {
+              placeholder(providerSelect, 'No agent is ready');
+              providerHelp.textContent = '';
+              var notReady = choices.filter(function (p) { return p.problem; }).map(function (p) { return p.name + ': ' + p.problem; });
+              showProblem('warn', 'No Agent Is Ready', (notReady.length ? notReady.join('. ') + '. ' : 'No agents were found. ') + 'Set one up under Settings, Agents, then press Look Again.');
+              settle('No agent is ready to continue this chat.');
+              return;
+            }
+            var own = ready.some(function (p) { return p.id === provider; });
+            if (!own) providerSelect.add(new Option('Choose a provider', ''));
+            choices.forEach(function (p) {
+              var option = new Option(p.name + (p.problem ? ' (' + p.problem + ')' : ''), p.id);
+              option.disabled = !!p.problem; providerSelect.add(option);
+            });
+            providerSelect.value = own ? provider : '';
+            providerSelect.disabled = false;
+            providerHelp.textContent = own ? 'This chat\'s own provider. Choose another to continue with it instead.'
+              : provider ? providerName(provider) + ', this chat\'s provider, is not ready. Choose the provider the new chat uses.'
+              : 'Choose the provider the new chat uses.';
+            if (!dlg.contains(document.activeElement) || document.activeElement === dlg || document.activeElement === cancel) providerSelect.focus();
+            listModels();
+          }
+          async function listModels() {
+            var mine = ++modelling, id = providerSelect.value;
+            if (!id) { placeholder(modelSelect, 'Choose a provider first'); modelHelp.textContent = ''; settle('Choose the provider the new chat uses.'); return; }
+            placeholder(modelSelect, 'Listing models…'); modelHelp.textContent = 'Listing the models ' + providerName(id) + ' offers.';
+            settle('Wait while the models are listed.');
+            var failed = false;
+            // A catalog cached empty is read again: it may have been cached before the provider was listed.
+            try { if (!(providerCatalogs[id] || []).length && adapter.readProviderPreferences) await adapter.readProviderPreferences(id); } catch (_) { failed = true; }
+            if (done || mine !== modelling) return;
+            modelSelect.replaceChildren(new Option('The provider\'s configured default', ''));
             var model = byCat(providerCatalogs[id] || (id === defaultProvider ? catalog : []) || [], 'model');
             if (model) optValues(model).forEach(function (v) { modelSelect.add(new Option(v.name || v.value, v.value)); });
-            modelSelect.disabled = false; next.disabled = !id;
+            modelSelect.disabled = false;
+            modelHelp.textContent = failed ? 'The models ' + providerName(id) + ' offers could not be listed, so the new chat can use its configured default.'
+              : model ? '' : providerName(id) + ' lists no models here, so the new chat uses its configured default.';
+            settle('');
           }
-          providerLabel.appendChild(providerSelect); modelLabel.appendChild(modelSelect);
-          body.append(explanation, providerLabel, modelLabel); actions.append(cancel, next); form.append(heading, body, actions); dlg.appendChild(form); document.body.appendChild(dlg);
-          cancel.addEventListener('click', function () { finish(null); }); dlg.addEventListener('cancel', function (event) { event.preventDefault(); finish(null); });
-          providerSelect.addEventListener('change', models);
-          form.addEventListener('submit', function (event) { event.preventDefault(); if (!next.disabled) finish({ provider: providerSelect.value, model: modelSelect.value }); });
-          dlg.showModal(); models();
+          cancel.addEventListener('click', function () { finish(null); });
+          dlg.addEventListener('cancel', function (event) { event.preventDefault(); finish(null); });
+          retry.addEventListener('click', listProviders);
+          providerSelect.addEventListener('change', listModels);
+          form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (!next.disabled && providerSelect.value) finish({ provider: providerSelect.value, model: modelSelect.value });
+          });
+          // Focus waits on Cancel while the agents are listed, then moves to Provider.
+          dlg.showModal(); cancel.focus(); listProviders();
         });
       }
       async function switchProvider(provider, recovery) {
@@ -938,7 +1028,7 @@
         try {
           var recoveryModel = '';
           if (recovery && app().RecoverSessionModel) {
-            var destination = await chooseRecoveryDestination(provider);
+            var destination = await chooseRecoveryDestination(provider, before);
             if (!destination || deleted || epoch !== switchEpoch || active !== before.id) return;
             provider = destination.provider; recoveryModel = destination.model;
           }
