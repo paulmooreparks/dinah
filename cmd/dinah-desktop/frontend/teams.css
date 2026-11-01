@@ -18,6 +18,12 @@
 .team-assignment { padding-inline: var(--space-5) var(--space-2); }
 .team-task { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .team-budget-row .meter { width: 100%; }
+/* The Team Report, opened from the team group's toolbar: the members in
+   detail, then the allowances, scrolling within the window's height. */
+.team-report { width: min(36rem, calc(100vw - 16px)); max-height: min(70vh, 34rem); overflow: auto; }
+.team-report-title { margin: 0 0 var(--space-2); font-size: var(--text-md); }
+.team-report-section { margin: var(--space-3) 0 var(--space-1); font-size: var(--text-sm); color: var(--text-muted); }
+.team-report-section[hidden], .team-report .team-tree[hidden] { display: none; }
 .team-member-note { padding-block: var(--space-2); }
 [data-team-member] .composer-row, [data-team-member] .attachments, [data-team-member] .skill-form,
 [data-team-member] [data-toolbar-group="Message"], [data-team-member] .composer-context { display: none; }

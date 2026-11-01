@@ -42,7 +42,12 @@ const {launch} = require('./lib/page');
     await p.evaluate(()=>__membership(true));await open.click();
     await p.waitForFunction(()=>[...document.querySelectorAll('.win[data-win-kind="bus-room"] .win-title')].some(el=>el.textContent.includes('Other Workspace Team')));
     ok('membership changes use the new canonical group identity',await p.locator('.win[data-win-kind="bus-room"]').count()===2);
-    await p.evaluate(key=>pudlWindows.raise(key),key);await p.evaluate(()=>__membership(false));await open.waitFor({state:'hidden'});
+    // The chat leads child-team too: no longer a member, its Open Team is the team it leads.
+    await p.evaluate(key=>pudlWindows.raise(key),key);await p.evaluate(()=>__membership(false));
+    await p.waitForFunction(k=>!document.querySelector('[data-win="'+k+'"] .team-open-own:not([hidden])'),key);
+    ok('a lead that is no one\u2019s member keeps Open Team, for the team it leads',await open.isVisible());
+    const ordinary=await p.evaluate(()=>dinahWorkbench.open({kind:'chat-session',workspace:'C:/Fixture',path:'ordinary'}));
+    await p.locator('[data-win="'+ordinary+'"] [data-view-id="prompt"]').waitFor();
     await p.locator('[data-menubar] .menubar-title').filter({hasText:/^Actions$/}).click();
     ok('ordinary chats have no misleading Open Team action',await p.locator('#menubar-panel .menu-action').filter({hasText:/^Open Team$/}).count()===0);
     await p.keyboard.press('Escape');

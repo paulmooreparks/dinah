@@ -923,7 +923,8 @@
     function command(label, glyph, cls, run) {
       var button = node('button', 'btn btn-sm ' + cls); button.type = 'button'; button.setAttribute('aria-label', label);
       var icon = node('span', 'glyph'); icon.style.setProperty('--glyph', 'var(--glyph-' + glyph + ')'); icon.setAttribute('aria-hidden', 'true');
-      if (glyph) button.appendChild(icon); button.appendChild(node('span', 'toolbar-words', label)); button.addEventListener('click', run); commandGroup.appendChild(button);
+      if (glyph) button.appendChild(icon); button.appendChild(node('span', 'toolbar-words', label)); if (run) button.addEventListener('click', run); commandGroup.appendChild(button);
+      return button;
     }
     // Last Read comes first in every chat's toolbar.
     commandGroup.appendChild(stopped);
@@ -931,6 +932,35 @@
     command('Add Chats…', 'plus', 'group-add-chats', addChats);
     command('Turn Budget…', 'list-numbered', 'group-turn-budget', openBudget);
     command('Mention Everyone', 'comments', 'group-mention-everyone', function () { box.mention({ id: 'everyone', title: 'everyone' }); box.text.focus(); });
+    /* A team's group, the one a lead's team speaks in, has the team's
+       report and its allowances; no other group shows them. The lead is
+       known by its session on the bus (room.lead), which is the id of one
+       of the group's members, whose chat is the lead's. */
+    function teamLead() {
+      var lead = room && room.lead && (room.members || []).filter(function (m) { return m.id === room.lead; })[0];
+      return lead && lead.chat || '';
+    }
+    var teamReport = command('Team Report', 'board', 'group-team-report', null), teamAllowances = null;
+    teamReport.hidden = true;
+    if (window.dinahTeams && window.dinahTeams.reportPanel) {
+      var reportPanel = window.dinahTeams.reportPanel(teamLead, function (chat) { return window.dinahChats.open(chat); });
+      root.appendChild(reportPanel);
+      teamReport.setAttribute('popovertarget', reportPanel.id);
+      if (!teamReport.id) teamReport.id = reportPanel.id + '-button';
+      /* The report stands against its button, or against the fold menu's
+         button when the toolbar has folded it away. */
+      reportPanel.addEventListener('beforetoggle', function (e) {
+        if (e.newState !== 'open') return;
+        var at = teamReport.getClientRects().length ? teamReport : commandBar.querySelector('.toolbar-fold > .menu-btn:not([hidden]), .toolbar-more > .menu-btn:not([hidden])');
+        if (at && !at.id) at.id = reportPanel.id + '-anchor';
+        if (at) reportPanel.dataset.menuAnchor = at.id;
+      });
+      teamAllowances = command('Team Allowances…', 'gear', 'group-team-allowances', function () {
+        var lead = teamLead();
+        if (lead) window.dinahTeams.editAllowances(lead).catch(host().fail);
+      });
+      teamAllowances.hidden = true;
+    }
     commandBar.appendChild(commandGroup); memberShell.append(commandBar, bar);
     var separator = node('hr', 'group-transcript-separator');
     root.prepend(lookupNote, lookupRetry, memberShell, separator);
@@ -1008,6 +1038,9 @@
       box.limitChanged();
       refreshDrafts();
       commandBar.hidden = lookupState !== 'resolved';
+      var isTeam = !!teamLead();
+      if (teamReport.hidden === isTeam) teamReport.hidden = !isTeam;
+      if (teamAllowances && teamAllowances.hidden === isTeam) teamAllowances.hidden = !isTeam;
       var win = root.closest('[data-win]');
       if (room && win && window.pudlWindows) {
         var t = win.querySelector('.win-title');

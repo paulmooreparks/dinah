@@ -26,7 +26,8 @@
   function groupLink(group, message, mention) {
     return window.dinahBus.openGroup(group, { message: message || 0, mention: mention || null });
   }
-  function stateBadge(m) { return window.dinahChatState.badge(m, { reason: false, compact: true, className: 'team-state' }); }
+  // A member's state is the standard chip, as wide as its own glyph and word.
+  function stateBadge(m) { return window.dinahChatState.badge(m, { labelled: true, className: 'team-state' }); }
   function disclosure(label, body, id) {
     var b = node('button', 'btn btn-sm disclosure', label);
     b.type = 'button'; body.id = id; body.hidden = true;
@@ -102,6 +103,81 @@
     });
     log.querySelectorAll(':scope > .team-traffic-fold').forEach(function (li) { if (!retained.has(li)) li.remove(); });
   }
+  /* A tree of a team's members, nested teams under their leads. Each row
+     opens its member's chat. The lead's Team list shows each member's name
+     and state alone; the Team Report (detailed) adds what it is doing,
+     where and on what it runs, its usage, its counts and its last
+     assignment. Rows are kept and updated in place as the team changes. */
+  function memberTree(opts) {
+    var rows = new Map(), expanded = new Map();
+    function draw(into, members, group, includeRetired) {
+      var wanted = new Set();
+      (members || []).forEach(function (m) {
+        var key = m.bus || m.chat; wanted.add(key);
+        var held = rows.get(key);
+        if (!held) {
+          var li = node('li'); li.dataset.teamMember = key;
+          var a = node('a', 'team-person'); a.href = '#';
+          var title = node('span', 'team-name'), status = node('span', 'team-badge');
+          a.append(title, status);
+          held = { li: li, a: a, title: title, status: status, children: node('ul'), member: m };
+          if (opts.detailed) {
+            held.why = node('span', 'team-reason'); held.meta = node('span', 'team-meta'); held.usage = node('span', 'team-usage');
+            a.append(held.why, held.meta, held.usage);
+            held.assignment = node('div', 'team-assignment');
+          }
+          li.append(a, held.children);
+          if (held.assignment) li.appendChild(held.assignment);
+          a.addEventListener('click', function (e) {
+            if (e.target.closest('.tree-toggle')) return;
+            e.preventDefault();
+            if (held.member.chat) Promise.resolve(opts.openChat(held.member.chat)).catch(host().fail);
+          });
+          a.addEventListener('pudl:tree-toggle', function (e) { expanded.set(key, !!e.detail.open); });
+          rows.set(key, held);
+        }
+        held.member = m;
+        if (held.title.textContent !== m.title) held.title.textContent = m.title;
+        var ref = m.chat && window.dinahChats && window.dinahChats.ref(m.chat);
+        if (ref) held.a.href = address({ kind: 'chat-session', workspace: ref.cwd, path: m.chat });
+        held.status.replaceChildren(stateBadge(m));
+        var words = [m.title, window.dinahChatState.describe(m).label];
+        if (opts.detailed) {
+          if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts, { compact: true }));
+          var liveState = window.dinahChatState.read(m);
+          held.why.textContent = (liveState.exec && liveState.exec.why || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
+          held.meta.textContent = [m.workspace, window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider, m.model].filter(Boolean).join(' · ');
+          held.usage.textContent = usageWords(m.usage);
+          [held.why, held.meta, held.usage].forEach(function (line) { line.title = line.textContent; line.setAttribute('aria-label', line.textContent); });
+          words.push(held.why.textContent, held.meta.textContent, held.usage.textContent);
+          if (m.task) {
+            if (!held.task) {
+              held.task = node('a', 'team-task');
+              held.task.addEventListener('click', function (e) { e.preventDefault(); var latest = held.member; groupLink(latest.taskGroup || opts.group(), latest.taskMessage).catch(host().fail); });
+            }
+            if (held.task.textContent !== m.task) held.task.textContent = m.task;
+            held.task.href = groupAddress(m.taskGroup || group, m.taskMessage);
+            if (!held.task.parentElement) held.assignment.appendChild(held.task);
+          } else if (held.task) held.task.remove();
+        }
+        held.a.title = words.filter(Boolean).join('. ');
+        held.a.setAttribute('aria-label', held.a.title);
+        held.a.setAttribute('aria-disabled', String(!m.chat));
+        if ((m.members || []).length) {
+          if (held.children.parentElement !== held.li) held.a.after(held.children);
+          held.a.setAttribute('aria-expanded', String(expanded.get(key) !== false));
+          draw(held.children, includeRetired ? m.members : m.members.filter(function (child) { return child.life !== 'retired'; }), m.group || group, includeRetired);
+        } else {
+          held.children.remove(); held.a.removeAttribute('aria-expanded');
+        }
+        // Existing rows are not replaced as usage and state change.
+        if (held.li.parentElement !== into) into.appendChild(held.li);
+      });
+      Array.from(into.children).forEach(function (li) { if (!wanted.has(li.dataset.teamMember)) li.remove(); });
+    }
+    return { draw: draw };
+  }
+
   function mount(o) {
     var prefix = 'team-' + (++serial), id = '', current = null, lead = null, generation = 0, disposed = false, infoLeadSignature, relationEpoch = 0;
     var session = null, relationKnown = true, relationError = '', waitsForOpen = false;
@@ -111,20 +187,35 @@
     var toggleWords = H.toolbarLabel(toggle, 'account', 'Team');
     var openTeamButton = node('button', 'btn btn-sm team-open'); openTeamButton.type = 'button'; openTeamButton.hidden = true;
     H.toolbarLabel(openTeamButton, 'open', 'Open Team');
-    function navigateTeam() { return lead && lead.group ? groupLink(lead.group) : Promise.resolve(); }
+    /* Open Team opens a member's lead's team group, or the team group a
+       lead that is no one's member leads. A chat that is both, a lead
+       within another's team, has Open Own Team for the team it leads. Each
+       opens the group's stable key through the same navigation as every
+       group link, which keeps every chat's draft. */
+    function ownGroup() { return (current && current.group) || ''; }
+    function teamGroup() { return (lead && lead.group) || ownGroup(); }
+    function navigateTeam() { var g = teamGroup(); return g ? groupLink(g) : Promise.resolve(); }
+    function navigateOwnTeam() { var g = ownGroup(); return g ? groupLink(g) : Promise.resolve(); }
+    var ownTeamButton = node('button', 'btn btn-sm team-open-own'); ownTeamButton.type = 'button'; ownTeamButton.hidden = true;
+    H.toolbarLabel(ownTeamButton, 'open', 'Open Own Team');
+    ownTeamButton.addEventListener('click', function () { navigateOwnTeam().catch(host().fail); });
+    function syncOpen() {
+      openTeamButton.hidden = !teamGroup();
+      ownTeamButton.hidden = !(lead && lead.group && ownGroup() && ownGroup() !== lead.group);
+    }
     openTeamButton.addEventListener('click', function () { navigateTeam().catch(host().fail); });
     // The bar is also the chat's top bar. A chat that keeps its Last Read
     // here (o.lastRead) keeps the bar mounted at one height, so the
     // transcript never moves when there comes to be something unread.
     var lastRead = o.lastRead || null;
-    function showSection() { section.hidden = !lastRead && openTeamButton.hidden && toggle.hidden; }
+    function showSection() { section.hidden = !lastRead && openTeamButton.hidden && ownTeamButton.hidden && toggle.hidden; }
     // The bar's controls are a folding PUDL toolbar, Last Read first, then the
     // team's controls; the team's details open below it.
     var bar = node('div', 'toolbar chat-team-toolbar'), group = node('div', 'toolbar-group');
     bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Chat'); bar.setAttribute('data-toolbar-fold', ''); bar.setAttribute('data-toolbar-captions', 'none');
     group.setAttribute('data-toolbar-group', 'Chat'); group.setAttribute('data-toolbar-glyph', 'comments');
     if (lastRead) group.appendChild(lastRead);
-    group.append(toggle, openTeamButton); bar.appendChild(group);
+    group.append(toggle, openTeamButton, ownTeamButton); bar.appendChild(group);
     section.append(bar, content);
     o.root.querySelector('.chat-output').before(section);
     var tree = node('ul', 'tree team-tree'); tree.setAttribute('aria-label', 'Team members');
@@ -132,13 +223,12 @@
     var retiredBox = node('div', 'team-retired');
     var retiredToggle = disclosure('Retired', retiredTree, prefix + '-retired');
     retiredBox.append(retiredToggle, retiredTree);
-    var budget = node('div', 'team-budget');
-    var budgetButton = node('button', 'btn btn-sm', 'Team Allowances'); budgetButton.type = 'button';
-    budgetButton.addEventListener('click', function () { editBudget(id, current).catch(host().fail); });
-    content.append(tree, retiredBox, budget, budgetButton);
+    // The allowances and the detailed report are the team group's, in its
+    // window's toolbar (bus-applets.js); this list is names and states.
+    content.append(tree, retiredBox);
     var memberNote = node('div', 'team-member-note form-help'); memberNote.hidden = true;
     o.root.querySelector('[data-view-id="composer"]').appendChild(memberNote);
-    var rows = new Map(), expanded = new Map();
+    var memberRows = memberTree({ detailed: false, openChat: o.openChat, group: function () { return current && current.group; } });
     var activity = o.root.querySelector('[data-view-id="activity"]'), foldFrame = 0;
     function observeTraffic() { trafficObserver.observe(activity, { childList: true, subtree: true }); }
     function refreshTraffic() {
@@ -163,7 +253,7 @@
       lead = value; renderMember();
     }
     function renderMember() {
-      openTeamButton.hidden = !lead || !lead.group;
+      syncOpen();
       toggle.hidden = !current || (!current.group && !(current.members || []).length);
       showSection();
       o.root.toggleAttribute('data-team-member', member());
@@ -185,63 +275,6 @@
       if (lead && memberNote.isConnected && o.root.querySelector('.composer-row').contains(document.activeElement)) memberNote.querySelector('a').focus();
       if (o.changed) o.changed(lead);
     }
-    function drawMembers(into, members, group, includeRetired) {
-      var wanted = new Set();
-      (members || []).forEach(function (m) {
-        var key = m.bus || m.chat; wanted.add(key);
-        var held = rows.get(key);
-        if (!held) {
-          var li = node('li'); li.dataset.teamMember = key;
-          var a = node('a', 'team-person'); a.href = '#';
-          var title = node('span', 'team-name'), status = node('span', 'team-badge'), why = node('span', 'team-reason');
-          var meta = node('span', 'team-meta'), usage = node('span', 'team-usage');
-          a.append(title, status, why, meta, usage);
-          var children = node('ul'), assignment = node('div', 'team-assignment');
-          li.append(a, children, assignment);
-          held = { li: li, a: a, title: title, status: status, why: why, meta: meta, usage: usage, children: children, assignment: assignment, member: m };
-          a.addEventListener('click', function (e) {
-            if (e.target.closest('.tree-toggle')) return;
-            e.preventDefault();
-            if (held.member.chat) Promise.resolve(o.openChat(held.member.chat)).catch(host().fail);
-          });
-          a.addEventListener('pudl:tree-toggle', function (e) { expanded.set(key, !!e.detail.open); });
-          rows.set(key, held);
-        }
-        held.member = m;
-        held.title.textContent = m.title;
-        var ref = m.chat && window.dinahChats && window.dinahChats.ref(m.chat);
-        if (ref) held.a.href = address({ kind: 'chat-session', workspace: ref.cwd, path: m.chat });
-        held.status.replaceChildren(stateBadge(m));
-        if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts, { compact: true }));
-        var liveState = window.dinahChatState.read(m);
-        held.why.textContent = (liveState.exec && liveState.exec.why || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
-        held.meta.textContent = [m.workspace, window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider, m.model].filter(Boolean).join(' · ');
-        held.usage.textContent = usageWords(m.usage);
-        [held.why, held.meta, held.usage].forEach(function (line) { line.title = line.textContent; line.setAttribute('aria-label', line.textContent); });
-        held.a.title = [m.title, window.dinahChatState.describe(m).label, held.why.textContent, held.meta.textContent, held.usage.textContent].filter(Boolean).join('. ');
-        held.a.setAttribute('aria-label', held.a.title);
-        held.a.setAttribute('aria-disabled', String(!m.chat));
-        if (m.task) {
-          if (!held.task) {
-            held.task = node('a', 'team-task');
-            held.task.addEventListener('click', function (e) { e.preventDefault(); var latest = held.member; groupLink(latest.taskGroup || current.group, latest.taskMessage).catch(host().fail); });
-          }
-          if (held.task.textContent !== m.task) held.task.textContent = m.task;
-          held.task.href = groupAddress(m.taskGroup || group, m.taskMessage);
-          if (!held.task.parentElement) held.assignment.appendChild(held.task);
-        } else if (held.task) held.task.remove();
-        if ((m.members || []).length) {
-          if (held.children.parentElement !== held.li) held.a.after(held.children);
-          held.a.setAttribute('aria-expanded', String(expanded.get(key) !== false));
-          drawMembers(held.children, includeRetired ? m.members : m.members.filter(function (child) { return child.life !== 'retired'; }), m.group || group, includeRetired);
-        } else {
-          held.children.remove(); held.a.removeAttribute('aria-expanded');
-        }
-        // Existing rows are not replaced as usage and state change.
-        if (held.li.parentElement !== into) into.appendChild(held.li);
-      });
-      Array.from(into.children).forEach(function (li) { if (!wanted.has(li.dataset.teamMember)) li.remove(); });
-    }
     function draw(v, again) {
       if (disposed || !v || chatId(v.lead) !== id) return;
       if (!window.dinahStateOrder.accept('team:state', id, v, again)) return;
@@ -250,11 +283,11 @@
       (function collect(list) { list.forEach(function (m) { if (m.life === 'retired') retired.push(m); else collect(m.members || []); }); })(members);
       o.keepPlace(function () {
         toggle.hidden = !v.group && !members.length;
+        syncOpen();
         showSection();
         toggleWords.textContent = 'Team (' + members.length + ')';
-        drawMembers(tree, activeMembers, v.group); drawMembers(retiredTree, retired, v.group, true);
+        memberRows.draw(tree, activeMembers, v.group); memberRows.draw(retiredTree, retired, v.group, true);
         retiredBox.hidden = !retired.length;
-        budgetLines(budget, v.budget, prefix);
         if (window.pudlTree) { window.pudlTree.enhance(tree); window.pudlTree.enhance(retiredTree); }
       });
       refreshTraffic(); header();
@@ -307,7 +340,8 @@
       openTeam: function () { return lead ? groupLink(lead.group, 0, { chat: id, title: o.title() }) : Promise.resolve(); },
       commands: function () {
         if (!id) return [];
-        var commands = [{ id: 'open-team', label: 'Open Team', hidden: !member() || !lead.group, run: navigateTeam }];
+        var commands = [{ id: 'open-team', label: 'Open Team', hidden: !teamGroup(), run: navigateTeam },
+          { id: 'open-own-team', label: 'Open Own Team', hidden: ownTeamButton.hidden, run: navigateOwnTeam }];
         if (api().SetTeamLead) commands.unshift(
           { id: 'change-team-lead', label: member() ? 'Change Team Lead…' : 'Make a Team Member…', run: function () { return chooseLead(id, lead).then(read); } },
           { id: 'leave-team', label: 'Make an Ordinary Chat', hidden: !member(), run: function () { return Promise.resolve(api().ClearTeamLead(id)).then(function () { return read(true); }); } });
@@ -392,5 +426,45 @@
       });
     });
   }
-  window.dinahTeams = { mount: mount, convertGroup: convertGroup, groupLink: groupLink, aggregate: function (id) { var state = snapshots.get(id); return state && state.counts && (state.group || (state.members || []).length) ? state.counts : null; } };
+  /* The Team Report, a popover a team group's window opens from its
+     toolbar (bus-applets.js): every member in detail, as memberTree draws
+     them, then the team's allowances and their use. leadChat() is the
+     lead's chat, read as the report opens, which it then follows live
+     until it closes. Each team group window has one; its button is the
+     popover's invoker. */
+  function reportPanel(leadChat, openChat) {
+    var panel = node('div', 'popover team-report');
+    panel.id = 'team-report-' + (++serial);
+    panel.setAttribute('popover', ''); panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Team Report');
+    var heading = node('h2', 'team-report-title', 'Team Report'), note = node('p', 'form-help', 'Reading the team…');
+    var list = node('ul', 'tree team-tree'), retiredList = node('ul', 'tree team-tree'), retiredHeading = node('h3', 'team-report-section', 'Retired');
+    list.setAttribute('aria-label', 'Team members'); retiredList.setAttribute('aria-label', 'Retired members');
+    var allowances = node('h3', 'team-report-section', 'Allowances'), budget = node('div', 'team-budget');
+    panel.append(heading, note, list, retiredHeading, retiredList, allowances, budget);
+    var lead = '', state = null, stop = null, tree = memberTree({ detailed: true, openChat: openChat, group: function () { return state && state.group; } });
+    function draw(v) {
+      if (!v || chatId(v.lead) !== lead) return;
+      state = v; note.hidden = true;
+      var members = v.members || [], retired = [];
+      (function collect(l) { l.forEach(function (m) { if (m.life === 'retired') retired.push(m); else collect(m.members || []); }); })(members);
+      tree.draw(list, members.filter(function (m) { return m.life !== 'retired'; }), v.group);
+      tree.draw(retiredList, retired, v.group, true);
+      retiredHeading.hidden = retiredList.hidden = !retired.length;
+      budgetLines(budget, v.budget, panel.id);
+      if (window.pudlTree) { window.pudlTree.enhance(list); window.pudlTree.enhance(retiredList); }
+    }
+    panel.addEventListener('beforetoggle', function (e) {
+      if (e.newState !== 'open') { if (stop) stop(); stop = null; return; }
+      lead = leadChat();
+      note.textContent = 'Reading the team…'; note.hidden = false;
+      if (!stop) stop = host().on('team:state', draw);
+      if (lead && api().Team) Promise.resolve(api().Team(lead)).then(draw).catch(function (error) { note.textContent = H.message(error, 'sentence'); note.hidden = false; });
+    });
+    return panel;
+  }
+  /* The allowance editor for the team leadChat leads, with its state now. */
+  function editAllowances(leadChat) {
+    return Promise.resolve(api().Team(leadChat)).then(function (v) { return editBudget(leadChat, v); });
+  }
+  window.dinahTeams = { mount: mount, convertGroup: convertGroup, groupLink: groupLink, reportPanel: reportPanel, editAllowances: editAllowances, aggregate: function (id) { var state = snapshots.get(id); return state && state.counts && (state.group || (state.members || []).length) ? state.counts : null; } };
 })();
