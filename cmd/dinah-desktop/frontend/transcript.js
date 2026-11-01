@@ -21,8 +21,9 @@
     var controls = o.stopped || node('div', 'transcript-unread-controls');
     stopped.type = 'button';
     if (!o.stopped) { controls.appendChild(stopped); log.before(controls); }
-    // A host that places the control itself is told when it is offered.
-    function showStopped(shown) { controls.hidden = !shown; if (o.stoppedChanged) o.stoppedChanged(shown); }
+    // A host that keeps the control in place itself, enabling it rather
+    // than hiding it, is told when it is offered.
+    function showStopped(shown) { if (o.stoppedChanged) o.stoppedChanged(shown); else controls.hidden = !shown; }
     showStopped(false);
     var divider = node('p', 'transcript-unread-divider'); divider.setAttribute('role', 'status');
     var unreadGlyph = node('span', 'glyph'), unreadWords = node('span');

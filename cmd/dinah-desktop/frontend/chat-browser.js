@@ -316,7 +316,7 @@
         a.querySelectorAll('.session-badge, .team-stuck-badge').forEach(function (badge) { badge.remove(); });
         var line = a.querySelector('.browser-row-line');
         line.classList.add('chat-state-line');
-        line.appendChild(window.dinahChatState.badge(s.info, { compact: true, className: 'session-badge' }));
+        line.appendChild(window.dinahChatState.badge(s.info, { compact: true, labelled: true, className: 'session-badge' }));
         var attention = line.querySelector('.session-attention-slot'), n = needsCount(id);
         attention.replaceChildren();
         // The slot keeps the width of the widest count, so a count arriving
@@ -328,7 +328,7 @@
         var aggregateBadge = document.createElement('span'); aggregateBadge.className = 'team-state-slot';
         if (window.dinahTeams && window.dinahTeams.aggregate) {
           var aggregate = s.info.team || window.dinahTeams.aggregate(id);
-          if (aggregate) aggregateBadge.appendChild(window.dinahChatState.badge(aggregate, { compact: true, className: 'team-stuck-badge' }));
+          if (aggregate) aggregateBadge.appendChild(window.dinahChatState.badge(aggregate, { compact: true, labelled: true, className: 'team-stuck-badge' }));
         }
         var oldAggregate = line.querySelector('.team-state-slot');
         if (aggregateBadge.firstChild) {

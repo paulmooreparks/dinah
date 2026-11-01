@@ -775,9 +775,10 @@
       function chatPins() { return chatProvider() === defaultProvider ? pinned : providerPins[chatProvider()] || []; }
       var listeners = [], deleted = false, cancelSwitchDialog = null, localSwitch = null, switchEpoch = 0;
       /* Last Read sits in the chat's top bar beside its team's controls
-         (teams.js), not in a row of its own above the transcript. */
+         (teams.js), not in a row of its own above the transcript. It keeps
+         its place, and is disabled while there is nowhere to go back to. */
       var lastRead = document.createElement('button');
-      lastRead.type = 'button'; lastRead.className = 'btn btn-sm chat-last-read'; lastRead.textContent = 'Last Read'; lastRead.title = 'Go to where you stopped reading'; lastRead.hidden = true;
+      lastRead.type = 'button'; lastRead.className = 'btn btn-sm chat-last-read'; lastRead.textContent = 'Last Read'; lastRead.title = 'Go to where you stopped reading'; lastRead.disabled = true;
       var teamPanel = window.dinahTeams.mount({ root: root, keepPlace: keepChatPlace, lastRead: lastRead,
         title: function () { return active ? title(sessions[active]) : 'New Chat'; },
         openChat: function (id) { return openSession(id); },
@@ -1559,7 +1560,7 @@
        recognised by the position it left, and only a position the run did not
        set is the reader's. */
     var following = true;
-    var navigation = window.dinahTranscript.mount({ root: root, log: $('activity'), content: $('logs'), jump: $('jump-end'), stopped: lastRead, stoppedChanged: function () { teamPanel.lastReadChanged(); },
+    var navigation = window.dinahTranscript.mount({ root: root, log: $('activity'), content: $('logs'), jump: $('jump-end'), stopped: lastRead, stoppedChanged: function (shown) { lastRead.disabled = !shown; },
       ready: function () { var s = active && sessions[active]; return !s || !s.loading && !s.settling; },
       canTail: function () { var s = active && sessions[active]; return !deleted && (!s || !s.loading && !s.settling); },
       followingChanged: function (value) { following = value; syncAnchor(); },

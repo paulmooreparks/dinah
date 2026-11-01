@@ -111,11 +111,11 @@
     var openTeamButton = node('button', 'btn btn-sm team-open', 'Open Team'); openTeamButton.type = 'button'; openTeamButton.hidden = true;
     function navigateTeam() { return lead && lead.group ? groupLink(lead.group) : Promise.resolve(); }
     openTeamButton.addEventListener('click', function () { navigateTeam().catch(host().fail); });
-    // The bar is also the chat's top bar: the chat's Last Read (o.lastRead,
-    // which its transcript shows and hides) sits in it, so an ordinary chat
-    // shows the bar while Last Read is offered.
+    // The bar is also the chat's top bar. A chat that keeps its Last Read
+    // here (o.lastRead) keeps the bar mounted at one height, so the
+    // transcript never moves when there comes to be something unread.
     var lastRead = o.lastRead || null;
-    function showSection() { section.hidden = openTeamButton.hidden && toggle.hidden && (!lastRead || lastRead.hidden); }
+    function showSection() { section.hidden = !lastRead && openTeamButton.hidden && toggle.hidden; }
     section.append(toggle, openTeamButton);
     if (lastRead) section.appendChild(lastRead);
     section.appendChild(content);
@@ -295,7 +295,6 @@
         header();
       },
       isMember: member,
-      lastReadChanged: showSection,
       isPending: function () { return !!id && !relationKnown; },
       focus: function () { (memberNote.querySelector('a, button') || memberNote).focus(); },
       openTeam: function () { return lead ? groupLink(lead.group, 0, { chat: id, title: o.title() }) : Promise.resolve(); },

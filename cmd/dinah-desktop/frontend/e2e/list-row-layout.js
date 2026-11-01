@@ -1,4 +1,4 @@
-// Shared chat rows give the title every width but one fixed status square and the count reserve, which never move.
+// Shared chat rows give the title every width but one status pill, as wide as its widest short word, and the count reserve. Neither moves.
 const { launch, FRONTEND, OUT } = require('./lib/page');
 const fs = require('fs'), path = require('path');
 const skins = JSON.parse(fs.readFileSync(path.join(FRONTEND, 'pudl/pudl-skins.json'), 'utf8')).skins.filter(s => s.admitted).map(({id,label}) => ({id,label}));
@@ -35,12 +35,14 @@ const skins = JSON.parse(fs.readFileSync(path.join(FRONTEND, 'pudl/pudl-skins.js
         const data = await row.evaluate(row=>{
           const link=row.querySelector('a[data-session]'),line=link.querySelector('.browser-row-line'),title=line.querySelector('.session-title'),badge=line.querySelector('.session-badge');
           const rect=el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
-          return {line:rect(line),title:rect(title),badge:rect(badge),emptyAggregate:!!line.querySelector('.team-state-slot:empty'),reserve:!!line.querySelector('.session-attention-reserve'),focused:document.activeElement===link,label:link.getAttribute('aria-label'),badgeClass:badge.className,badgeLabel:badge.getAttribute('aria-label'),reason:link.querySelector('.session-reason').title,actions:row.querySelectorAll('[data-row-actions]').length};
+          return {line:rect(line),title:rect(title),badge:rect(badge),emptyAggregate:!!line.querySelector('.team-state-slot:empty'),reserve:!!line.querySelector('.session-attention-reserve'),focused:document.activeElement===link,label:link.getAttribute('aria-label'),badgeClass:badge.className,words:badge.querySelector('.chat-state-words').textContent,wordsRight:badge.querySelector('.chat-state-words').getBoundingClientRect().right,widest:Math.max(...[...badge.querySelectorAll('.chat-state-reserve')].map(r=>r.getBoundingClientRect().width)),glyph:parseFloat(getComputedStyle(badge).getPropertyValue('--glyph-size'))||0,padEnd:parseFloat(getComputedStyle(badge).paddingRight),gap:parseFloat(getComputedStyle(badge).columnGap)||0,padStart:parseFloat(getComputedStyle(badge).paddingLeft),badgeLabel:badge.getAttribute('aria-label'),reason:link.querySelector('.session-reason').title,actions:row.querySelectorAll('[data-row-actions]').length};
         });
         const label=[skin.id,mode,width,surface,state].join('/'); records.push({label,...data});
         ok(label+' has no empty team column',!data.emptyAggregate);
         ok(label+' keeps the count reserve',data.reserve);
-        ok(label+' puts a square status mark at the trailing content edge',Math.abs(data.badge.right-data.line.right)<1&&Math.abs(data.badge.width-data.badge.height)<1,JSON.stringify(data));
+        const short={idle:'Idle',working:'Working',waiting:'Waiting',stuck:'Stuck',unknown:'Unknown',closed:'Closed',retired:'Retired',elsewhere:'Elsewhere'}[state];
+        ok(label+' shows its short word, right-aligned in a pill at the trailing content edge',data.words===short&&Math.abs(data.badge.right-data.line.right)<1&&Math.abs(data.wordsRight-(data.badge.right-data.padEnd))<1.5,JSON.stringify(data));
+        ok(label+' is no wider than its widest word and glyph',data.badge.width<=data.widest+data.glyph+data.gap+data.padStart+data.padEnd+2.5,JSON.stringify(data));
         ok(label+' gives the remaining width to the title without overlap',data.title.width>data.line.width/2&&data.title.right<=data.badge.x+1,JSON.stringify(data));
         if(!first)first=data;
         ok(label+' holds the title and mark where the first state put them',['x','y','width','height'].every(k=>Math.abs(data.title[k]-first.title[k])<=.02&&Math.abs(data.badge[k]-first.badge[k])<=.02),JSON.stringify({first:[first.title,first.badge],now:[data.title,data.badge]}));

@@ -49,8 +49,8 @@ const path = require('path');
       if (id === 'lead') { await strip(2); }
       for (let round = 0; round < 6; round++) { await output(id, round, id === 'lead'); await tail(win, id + ' follows output ' + round); }
       if (id === 'lead') {
-        await win.locator('.chat-team > button').click(); await tail(win, 'lead follows an expanded strip');
-        await win.locator('.chat-team > button').click(); await tail(win, 'lead follows a collapsed strip');
+        await win.locator('.chat-team > button.disclosure').click(); await tail(win, 'lead follows an expanded strip');
+        await win.locator('.chat-team > button.disclosure').click(); await tail(win, 'lead follows a collapsed strip');
       }
       const log = win.locator('[data-view-id="activity"]');
       await log.hover();
