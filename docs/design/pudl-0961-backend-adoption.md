@@ -29,3 +29,9 @@ The backend preparation extracts desktop appearance decoding, validation and cat
 The authenticated stylesheet reads saved preferences without writing. Malformed or unreadable libraries render the profile default with a machine-readable fallback header. Signed-out pages receive default appearance CSS without exposing the saved library. These fallbacks preserve the original file. The endpoint uses no-store and nosniff and needs no CSP relaxation.
 
 Prepared verification covers all embedded built-ins, custom palettes and font overrides, mode independence, unchanged preferences, invalid-library fallback, signed-out CSS, safe font quoting and data-copy identity. Existing desktop appearance/category tests must still pass after extraction. No test gate has run on this preparation; the shared runner remains reserved by other work. Corrected immutable PUDL publication remains required for final adoption and independent rendered verification.
+
+## Correction after independent compile failure
+
+Quality message 2829 rejected 46d2db0 before tests could execute. The new web custom-font fixture assigned a field directly inside a map value, which Go forbids. The extraction also omitted the desktop compatibility wrapper for themePaletteCategoryErrors, still called by the unchanged category test. The correction assigns the font through a local value and restores that wrapper through the exported shared PaletteCategoryErrors function. Assertions, validation policy and deadlines are unchanged.
+
+The corrected source passes gofmt and git diff --check. Package tests and vet remain pending in Quality's serialized slot after Front End's UI correction. No acceptance, published-asset adoption or release gate is claimed.

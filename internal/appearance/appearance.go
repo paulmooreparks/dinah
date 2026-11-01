@@ -457,7 +457,7 @@ func themeCategoryNeighbourError(mode string, slot int, a, b themeColor) string 
 	return ""
 }
 
-func themePaletteCategoryErrors(mode string, p map[string]string) []string {
+func PaletteCategoryErrors(mode string, p map[string]string) []string {
 	var failures []string
 	colors := make([]themeColor, len(themeCategoryKeys))
 	for i, key := range themeCategoryKeys {
@@ -477,7 +477,7 @@ func CategoryErrors(doc ThemeDocument) []string {
 	var failures []string
 	for _, mode := range []string{"light", "dark"} {
 		if p, ok := doc.Palettes[mode]; ok {
-			failures = append(failures, themePaletteCategoryErrors(mode, p)...)
+			failures = append(failures, PaletteCategoryErrors(mode, p)...)
 		}
 	}
 	return failures

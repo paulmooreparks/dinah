@@ -175,3 +175,7 @@ func (a *App) ExportThemeFile(doc ThemeDocument) error {
 	}
 	return os.WriteFile(name, data, 0o600)
 }
+
+func themePaletteCategoryErrors(mode string, palette map[string]string) []string {
+	return appearance.PaletteCategoryErrors(mode, palette)
+}

@@ -39,7 +39,9 @@ func TestWebPaletteSelectionAndPersistence(t *testing.T) {
 		state := defaultAppearance()
 		doc := appearanceLibrary().Builtins()[state.Active]
 		doc.Name = "My preserved palette"
-		doc.Typography["interface"].Families = []string{`Font "; color:red; /*`}
+		face := doc.Typography["interface"]
+		face.Families = []string{`Font "; color:red; /*`}
+		doc.Typography["interface"] = face
 		state.Active = "custom"
 		state.Themes = []appearance.ThemeRecord{{ID: "custom", Document: doc}}
 		state.Overrides["chat"] = appearance.ContentAppearance{Size: 19}
