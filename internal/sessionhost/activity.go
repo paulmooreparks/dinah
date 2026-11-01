@@ -55,7 +55,7 @@ func (a *Activity) ReceivingLocked() bool {
 	return a.open && !a.parked && !a.superseded && (a.details.RestoringLocked() || a.details.ReplayingLocked())
 }
 func (a *Activity) OpenLocked() bool           { return a.open }
-func (a *Activity) WorkingLocked() bool        { return a.working }
+func (a *Activity) WorkingLocked() bool        { return a.working || a.turns.promptActive }
 func (a *Activity) SwitchingLocked() bool      { return a.switching }
 func (a *Activity) SupersededLocked() bool     { return a.superseded }
 func (a *Activity) BackgroundLocked() bool     { return a.inBackground }
@@ -160,7 +160,7 @@ func (a *Activity) RemoveQuestionLocked(p Prompt) []string {
 	return a.QueueTextsLocked()
 }
 func (a *Activity) AdmitQuestionLocked(p Prompt) (working, occupied bool) {
-	working, occupied = a.working, a.turns.AskedLocked() || a.turns.CapturingLocked() || a.turns.ReservedLocked()
+	working, occupied = a.WorkingLocked(), a.turns.AskedLocked() || a.turns.CapturingLocked() || a.turns.ReservedLocked()
 	if !working {
 		a.working = true
 		a.turns.StartCaptureLocked(&p, false)
@@ -172,6 +172,7 @@ func (a *Activity) ProviderStoppedLocked() []Prompt {
 	// to be restored when the chat is opened again.
 	out := a.dropQueueLocked()
 	a.open, a.working, a.steer = false, false, nil
+	a.turns.promptActive = false
 	a.details.ClearBackgroundLocked()
 	return out
 }
@@ -179,6 +180,7 @@ func (a *Activity) ProviderStoppedLocked() []Prompt {
 // NextTurnLocked is the whole final turn transaction. The caller keeps the
 // steering gate until Submission.Finish releases it before resolving waiters.
 func (a *Activity) NextTurnLocked(messages *Prompt, late []Prompt, advance bool) (next *Prompt, steered bool, queued []string, completion Completion) {
+	a.turns.promptActive = false
 	if messages != nil {
 		a.queued = append([]Prompt{*messages}, a.queued...)
 	}
@@ -201,6 +203,8 @@ func (a *Activity) NextTurnLocked(messages *Prompt, late []Prompt, advance bool)
 	if next == nil {
 		a.working = false
 		a.idleSince = time.Now()
+	} else {
+		a.working = true
 	}
 	a.turns.StartCaptureLocked(next, false)
 	completion = a.turns.DetachReplyLocked()
@@ -238,7 +242,7 @@ func (a *Activity) DeliveredLocked(ids []int64) {
 }
 func (a *Activity) ConnectedBackgroundLocked(now time.Time) {
 	a.inBackground = true
-	if !a.working {
+	if !a.WorkingLocked() {
 		a.idleSince = now
 	}
 }
@@ -246,7 +250,7 @@ func (a *Activity) SetBackgroundLocked()             { a.inBackground = true }
 func (a *Activity) MarkClosedLocked(now time.Time)   { a.closedSince = now }
 func (a *Activity) SetIdleSinceLocked(now time.Time) { a.idleSince = now }
 func (a *Activity) ParkLocked() bool {
-	if !a.inBackground || a.working || a.details.BackgroundCountLocked() > 0 || a.details.RunningSubagentsLocked() > 0 {
+	if !a.inBackground || a.WorkingLocked() || a.details.BackgroundCountLocked() > 0 || a.details.RunningSubagentsLocked() > 0 {
 		return false
 	}
 	a.inBackground, a.parked, a.warm = false, true, false
@@ -263,7 +267,7 @@ func (a *Activity) UnparkLocked() bool {
 func (a *Activity) ClosedDueLocked(window bool, now time.Time, after time.Duration) bool {
 	switch {
 	case !a.ReadyLocked() || a.ending != nil:
-	case window || a.inBackground || a.working || a.details.BackgroundCountLocked() > 0:
+	case window || a.inBackground || a.WorkingLocked() || a.details.BackgroundCountLocked() > 0:
 		a.closedSince = time.Time{}
 	case a.closedSince.IsZero():
 		a.closedSince = now
@@ -285,7 +289,7 @@ func (e *SessionEnd) Wait() {
 func (e *SessionEnd) Complete()               { close(e.done) }
 func (a *Activity) EndingLocked() *SessionEnd { return a.ending }
 func (a *Activity) BeginEndLocked() *SessionEnd {
-	if !a.open || a.working || a.inBackground || a.ending != nil || a.closedSince.IsZero() || a.details.BackgroundCountLocked() > 0 {
+	if !a.open || a.WorkingLocked() || a.inBackground || a.ending != nil || a.closedSince.IsZero() || a.details.BackgroundCountLocked() > 0 {
 		return nil
 	}
 	e := &SessionEnd{done: make(chan struct{})}
@@ -327,7 +331,7 @@ func (a *Activity) AdmitSendLocked(p Prompt) (ready, queued bool, texts []string
 	if !a.ReadyLocked() {
 		return false, false, nil
 	}
-	if a.working {
+	if a.WorkingLocked() {
 		a.EnqueueLocked(p)
 		return true, true, a.QueueTextsLocked()
 	}
@@ -378,7 +382,7 @@ func (a *Activity) RestoreQueuedLocked(ps []Prompt) {
 // TakeWaitingLocked takes the first prompt held while the chat loaded, once it
 // is ready and idle, and reserves the chat for the turn it starts.
 func (a *Activity) TakeWaitingLocked() *Prompt {
-	if !a.ReadyLocked() || a.working || len(a.queued) == 0 {
+	if !a.ReadyLocked() || a.WorkingLocked() || len(a.queued) == 0 {
 		return nil
 	}
 	p := a.queued[0]
@@ -389,7 +393,7 @@ func (a *Activity) TakeWaitingLocked() *Prompt {
 }
 
 func (a *Activity) AdmitLabelledLocked() bool {
-	if a.working || !a.open {
+	if a.WorkingLocked() || !a.open {
 		return false
 	}
 	a.working = true
@@ -400,9 +404,9 @@ func (a *Activity) AdmitLabelledLocked() bool {
 // separately, since those public callers reconstruct their prompt via Send.
 func (a *Activity) QueueActiveLocked(p Prompt) (ready, working bool, texts []string) {
 	if !a.ReadyLocked() {
-		return false, a.working, nil
+		return false, a.WorkingLocked(), nil
 	}
-	if !a.working {
+	if !a.WorkingLocked() {
 		return true, false, nil
 	}
 	a.EnqueueLocked(p)
@@ -410,16 +414,16 @@ func (a *Activity) QueueActiveLocked(p Prompt) (ready, working bool, texts []str
 }
 func (a *Activity) InterruptActiveLocked(p Prompt) (ready, working bool) {
 	if !a.ReadyLocked() {
-		return false, a.working
+		return false, a.WorkingLocked()
 	}
-	if !a.working {
+	if !a.WorkingLocked() {
 		return true, false
 	}
 	a.SetInterruptLocked(&p)
 	return true, true
 }
 func (a *Activity) ClaimDeliveryLocked() (ready, working bool) {
-	working = a.working
+	working = a.WorkingLocked()
 	if !a.ReadyLocked() {
 		return false, working
 	}
@@ -433,7 +437,7 @@ func (a *Activity) AskableLocked() bool {
 	return a.open && !a.parked && a.busID != "" && !a.switching && !a.superseded && !a.details.RestoringLocked() && !a.details.ReplayingLocked()
 }
 func (a *Activity) ContinuationBusyLocked(allowSwitching bool) bool {
-	return !a.open || a.working || a.details.ReplayingLocked() || len(a.queued) > 0 || a.steer != nil || a.turns.CapturingLocked() || (a.switching && !allowSwitching)
+	return !a.open || a.WorkingLocked() || a.details.ReplayingLocked() || len(a.queued) > 0 || a.steer != nil || a.turns.CapturingLocked() || (a.switching && !allowSwitching)
 }
 func (a *Activity) BeginContinuationLocked() bool {
 	if a.ContinuationBusyLocked(false) {
@@ -443,5 +447,5 @@ func (a *Activity) BeginContinuationLocked() bool {
 	return true
 }
 func (a *Activity) IdleBackgroundLocked(now time.Time, after time.Duration) bool {
-	return a.inBackground && !a.working && a.details.BackgroundCountLocked() == 0 && a.details.RunningSubagentsLocked() == 0 && !a.idleSince.IsZero() && now.Sub(a.idleSince) >= after
+	return a.inBackground && !a.WorkingLocked() && a.details.BackgroundCountLocked() == 0 && a.details.RunningSubagentsLocked() == 0 && !a.idleSince.IsZero() && now.Sub(a.idleSince) >= after
 }

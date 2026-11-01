@@ -16,6 +16,7 @@ var TurnsSource []byte
 type Turns struct {
 	mu             *sync.Mutex
 	gate           sync.Mutex
+	promptActive   bool
 	capture        *Prompt
 	asked          bool
 	askedSteer     *Prompt

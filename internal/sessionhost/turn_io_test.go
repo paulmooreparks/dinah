@@ -33,6 +33,43 @@ func turnFixture() (*TurnIO, *Conversation) {
 	return NewTurnIO(h), c
 }
 
+func TestHumanTurnAfterFinishedTurnOwnsWorkingUntilProviderReturns(t *testing.T) {
+	io, c := turnFixture()
+	first := NewPrompt("First turn", nil)
+	io.Run(c, &first)
+	if c.Working() {
+		t.Fatal("finished first turn retained Working")
+	}
+	entered, release, finished := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	io.host.Call = func(_ Connection, _ string, _ any, out any) error {
+		close(entered)
+		<-release
+		out.(*acp.PromptResult).StopReason = "end_turn"
+		return nil
+	}
+	second := NewPrompt("Approved", nil)
+	ready, queued, _ := c.AdmitSend(second)
+	if !ready || queued {
+		t.Fatal("second human turn was not admitted")
+	}
+	go func() { io.Run(c, &second); close(finished) }()
+	<-entered
+	// Reproduce cleanup of the earlier mutable reservation while the native call lives.
+	c.ReleaseWork()
+	if !c.Working() || !c.State().WorkActivity().Busy() {
+		t.Error("reservation cleanup hid a live native prompt")
+	}
+	if ready, queued, _ := c.AdmitSend(NewPrompt("Later message", nil)); !ready || !queued {
+		t.Error("live native prompt admitted a concurrent turn")
+	}
+	c.ClearQueue()
+	close(release)
+	<-finished
+	if c.Working() || c.State().WorkActivity().Busy() {
+		t.Fatal("second turn completion retained Working")
+	}
+}
+
 func TestTurnIOBlockedCallAndHookClosePreserveGateAndWaiterOrder(t *testing.T) {
 	for _, closeFails := range []bool{false, true} {
 		t.Run(map[bool]string{false: "success", true: "hook-close-error"}[closeFails], func(t *testing.T) {
@@ -111,7 +148,7 @@ func TestTurnIOBlockedCallAndHookClosePreserveGateAndWaiterOrder(t *testing.T) {
 			}
 			close(closeRelease)
 			receiveLifecycle(t, done)
-			want := []string{"call", "consume", "hook-close", "transcript", "subagents"}
+			want := []string{"agent:session", "call", "consume", "hook-close", "transcript", "subagents"}
 			if !closeFails {
 				want = append(want, "bus")
 			}
