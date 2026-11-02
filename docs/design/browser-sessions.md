@@ -1,0 +1,17 @@
+# Browser session lifetime and revocation
+
+Paul approved TM-03 in message 3327. This design records the contract before implementation; its source work follows BL-04. The [Architectural Principles](C:/Users/paul/OneDrive/Documents/Architectural%20Principles.md) apply.
+
+Browser authentication currently accepts any token present in web_sessions indefinitely. Each session will retain its issue time and last successful use. A token expires when either 30 days have elapsed since its last use or 90 days have elapsed since issue. Expiry boundaries are inclusive. Successful authenticated use advances last use but never issue time. Invalid timestamps or database failures deny access.
+
+The idle and absolute windows are documented persisted settings shared by every process opening the bus. They are positive whole-day values with defaults of 30 and 90. The command-line browser-sessions settings command will display or change them. Invalid settings must fail clearly without changing the stored policy. Changing policy applies to existing tokens on their next validation; it does not renew their issue time.
+
+The database migration adds last-used metadata without rewriting message history or deliveries. An older token with no last-used time uses its issue time for both limits. Tokens already older than the default windows require a new sign-in. Validation parses timestamps as times rather than relying on variable-width text ordering. It validates and advances activity transactionally so revocation cannot be undone by a concurrent activity update.
+
+Sign Out removes the current browser token server-side and expires its cookie. Sign Out Everywhere removes every browser token and invalidates outstanding single-use sign-in codes in the same transaction, so a previously issued link cannot silently sign a browser back in. Both actions use authenticated same-origin POST requests; a GET never revokes a session. The authenticated page exposes ordinary PUDL controls for both actions. The command-line browser-sessions sign-out-everywhere command provides the same supported revocation operation when the browser is unavailable.
+
+Expired, revoked or unknown cookies receive the existing sign-in page with clear text that the sign-in is no longer valid and a fresh command-line sign-in is required. The page clears an invalid cookie and must not cache authenticated content. A sign-out response redirects to that signed-out state. Neither operation restarts the app or contacts a provider.
+
+An open event stream must stop delivering when its token is revoked or expires. Its periodic validation will check authority without treating passive keepalives as a new use; otherwise a forgotten open tab would keep its own idle window alive. Ordinary authenticated HTTP requests count as use. Reconnecting an event stream validates authority but likewise does not advance activity. Revocation cannot retract content a browser has already received.
+
+The guards use an isolated database and a fake clock. They cover idle expiry, activity extending only the idle window, absolute expiry despite repeated activity, exact boundaries, migration of older tokens, malformed stored times, current-browser revocation, global revocation and sign-in-code replay. HTTP tests cover the sign-in-again response, cookie removal, same-origin POST requirements and stream termination. A legitimate session remains usable within both windows. No live browser token, desktop or listener is needed for these tests.
