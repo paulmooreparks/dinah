@@ -109,10 +109,10 @@ func check(r io.Reader, root, version string) ([]string, error) {
 
 func main() {
 	root := flag.String("root", "", "expected single source package root")
-	version := flag.String("go-version", "go1.26.10", "required analyzed Go version")
+	version := flag.String("go-version", "", "required analyzed Go version")
 	flag.Parse()
-	if *root == "" || flag.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: vulnguard -root <package> [-go-version <version>] <report.json>")
+	if *root == "" || *version == "" || flag.NArg() != 1 {
+		fmt.Fprintln(os.Stderr, "usage: vulnguard -root <package> -go-version <version> <report.json>")
 		os.Exit(2)
 	}
 	f, err := os.Open(flag.Arg(0))
