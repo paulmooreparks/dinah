@@ -2,6 +2,8 @@ module studio
 
 go 1.26.0
 
+toolchain go1.26.10
+
 require (
 	github.com/99designs/keyring v1.2.2
 	github.com/fsnotify/fsnotify v1.9.0
