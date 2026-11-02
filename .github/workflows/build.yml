@@ -302,7 +302,11 @@ jobs:
           cd dist
           sha256sum * > SHA256SUMS
           cat > notes.md <<EOF
-          The newest build of master, from commit ${GITHUB_SHA}. It is replaced on every push, and it is not a release.
+          The newest build of master, from commit ${GITHUB_SHA}. It is replaced on every push.
+
+          This build includes the security fixes reviewed on 2 November 2026: crash and protected-path checks, hashed stored tokens, content sanitizing and an updated toolchain.
+
+          A Terminal test where Node starts but prints nothing on GitHub's runner remains under investigation. PowerShell 7.6 can crash when Ctrl+C arrives as a command ends. A program started at the instant a Terminal closes may keep running.
 
           Each archive holds the command line, \`dinah\`, and the window, \`dinah-desktop\` (Dinah.app on macOS). Put them in \`~/.dinah/bin\` (\`%USERPROFILE%\\.dinah\\bin\` on Windows); on macOS, Dinah.app can go in Applications.
 

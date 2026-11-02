@@ -12,6 +12,49 @@ import (
 // needs is a job's needs list. GitHub accepts either one job name or a list.
 type needs []string
 
+func TestWorkflowGoSuiteHasNoException(t *testing.T) {
+	var workflow struct {
+		On   map[string]yaml.Node
+		Jobs map[string]struct {
+			If    string
+			Steps []struct {
+				Name, Run, If string
+				Env           map[string]string
+			}
+		}
+	}
+	b, err := os.ReadFile("../../.github/workflows/build.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := yaml.Unmarshal(b, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	var dispatch struct{ Inputs map[string]yaml.Node }
+	if node, ok := workflow.On["workflow_dispatch"]; ok {
+		if err := node.Decode(&dispatch); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, ok := dispatch.Inputs["skip_test"]; ok {
+		t.Fatal("the one-off test exception must remain withdrawn")
+	}
+	fullSuite := false
+	for name, job := range workflow.Jobs {
+		for _, step := range job.Steps {
+			if strings.Contains(step.Run, "-skip") || step.Env["DINAH_ONE_OFF_SKIP"] != "" {
+				t.Fatal("workflow must not carry a test exception")
+			}
+			if name == "go-tests" && step.Name == "Test every package" {
+				fullSuite = job.If == "" && step.If == "" && step.Run == "./scripts/go-gate.ps1 ./... -count=1"
+			}
+		}
+	}
+	if !fullSuite {
+		t.Fatal("the required Go job must run every test without a condition or exception")
+	}
+}
+
 func (n *needs) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind == yaml.ScalarNode {
 		*n = needs{node.Value}
