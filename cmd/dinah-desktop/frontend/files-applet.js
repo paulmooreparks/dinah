@@ -1,9 +1,8 @@
 /* Adapted from Paul Parks's Files applet. See vendor/parks-files/NOTICE.txt. */
 (function () {
   'use strict';
-  var serial = 0;
   function init(root, opts, item) {
-    var id = ++serial, FB = window.pcFileBrowser, F = dinahResources.createTree();
+    var FB = window.pcFileBrowser, F = dinahResources.createTree();
     var browser, destroyed = false, previewRequest = 0, timer, loading = false, stateReady = false, failedPath = '';
     // Embedders can omit the toolbar, or keep a fixed directory with displayOnly.
     var displayOnly = opts.displayOnly === true, listOnly = opts.listOnly === true || displayOnly;

@@ -191,7 +191,7 @@
       catchUpLog: function (id) { return adapter.catchUpLog ? adapter.catchUpLog(id) : Promise.resolve(); }
     });
     const { openSession, openSavedRecovery, restoreChat, reconnectChat, reportChatWindows,
-      reconnectSaved, openResolvedSession, newSession, loadFullHistory } = sessionLifecycle;
+      reconnectSaved, openResolvedSession, loadFullHistory } = sessionLifecycle;
     on('chat:connect', sessionLifecycle.connect);
     document.addEventListener('pudl:windows-change', reportChatWindows);
     document.addEventListener('dinah:ui-state-restored', function () { setTimeout(reportChatWindows, 0); });
@@ -314,13 +314,13 @@
     }
     /* A line in the chat that says what Dinah did or what is the matter, in the words it was sent with. */
     function statusRow(s, text, kind) {
-      var li = row(s, 'turn-row status-row' + (kind === 'warning' ? ' status-warning' : ''));
+      var li = rowFor(s, 'turn-row status-row' + (kind === 'warning' ? ' status-warning' : ''));
       var words = document.createElement('span'); words.className = 'activity-muted'; words.textContent = text;
       li.appendChild(words);
     }
     /* openingNote is a muted line in a chat about how it was opened. */
     function openingNote(s, text) {
-      var li = row(s, 'turn-row opening-note');
+      var li = rowFor(s, 'turn-row opening-note');
       var words = document.createElement('span'); words.className = 'activity-muted';
       words.textContent = text;
       li.appendChild(words);
@@ -546,7 +546,7 @@
     });
 
 
-    var catalog = [], defaults = {}, pinned = [], templates = [], context = null;
+    var catalog = [], defaults = {}, pinned = [], templates = [], pickedDocument = null;
     var MODES = {
       'accept-edits': ['Work', 'Reads, writes files and runs tools'],
       'ask': ['Ask', 'Answers questions and changes nothing'],
@@ -559,11 +559,11 @@
       chat.refresh();
       drawSessions();
     }
-    function row(s, cls) { return ensureChat(s).row(s, cls); }
+    function rowFor(s, cls) { return ensureChat(s).row(s, cls); }
     function drawAll(s, ready) { return ensureChat(s).drawAll(s, ready); }
     function stampReplay(s) { return ensureChat(s).stampReplay(s); }
     function replayProgress(s) { return ensureChat(s).replayProgress(s); }
-    function signIn() {
+    function signInChatInFront() {
       var chat = frontChat();
       if (chat) return chat.signIn();
       var provider = frontProvider();
@@ -572,7 +572,6 @@
         toast('Sign-in was requested. Test Connection in Settings checks whether it completed.', 'positive');
       }).catch(fail);
     }
-    function now() { return dinahRegional.format(new Date(), 'clock'); }
 
 
     // Messages are drawn and copied by the renderer every window shares
@@ -602,7 +601,7 @@
        changed until it is. */
 
     function modelRows(host, o, opts) {
-      var rowPins = opts.pinned || pinned, pinModel = opts.pin || togglePin;
+      var rowPins = opts.pinned || pinned, pinModel = opts.pin || toggleDefaultPin;
       host.innerHTML = '';
       var f = (opts.filter || '').trim().toLowerCase();
       var all = optValues(o).filter(function (v) { return !f || (v.name + ' ' + v.value).toLowerCase().indexOf(f) >= 0; });
@@ -649,7 +648,7 @@
       var cur = host.querySelector('[aria-current]');
       if (cur && !f) cur.scrollIntoView({ block: 'nearest' });
     }
-    function togglePin(value, on) {
+    function toggleDefaultPin(value, on) {
       return app().SetPinned(value, on).then(function (p) { pinned = p || []; drawDefaults(); });
     }
 
@@ -785,7 +784,7 @@
       view.query('.composer-toolbar').setAttribute('data-toolbar-fold', '');
       var composerLayout = window.dinahComposer.layout($('composer'));
       var active = item.kind === 'chat-session' ? item.path : null;
-      var workspace = item.workspace || '', key = initialKey, appletOptions = null, creating = null, switchingProvider = false;
+      var workspace = item.workspace || '', key = initialKey, creating = null, switchingProvider = false;
       var chosenProvider = defaultProvider;
       function chatProvider() { return active ? sessionProvider(S(active)) : chosenProvider; }
       function agentName() { return providerName(chatProvider()); }
@@ -1090,7 +1089,6 @@
          in place takes the new chat. */
       async function applyContinuation(before, move) {
           var result = move.result, provider = move.provider;
-          var recovery = !!move.recovery;
           if (move.workspace) workspace = move.workspace;
           var info = result.session, next = S(info.sessionId), oldKey = key;
           // Early provider events can create a view before the RPC returns.
@@ -1650,7 +1648,6 @@
 
 
     /* ---- The run log ------------------------------------------------------ */
-    function now() { return dinahRegional.format(new Date(), 'clock'); }
 
     function row(s, cls) {
       var li = document.createElement('li');
@@ -2965,8 +2962,9 @@
         box.value = v.slice(0, tok.start) + ins + v.slice(tok.end);
         box.setSelectionRange(tok.start + ins.length, tok.start + ins.length);
       } else {
-        var rest = v.replace(/^\/\S*\s*/, '');
-        box.value = ins + rest;
+        // The words after the slash command, untrimmed, follow the skill.
+        var after = v.replace(/^\/\S*\s*/, '');
+        box.value = ins + after;
         box.setSelectionRange(box.value.length, box.value.length);
       }
       hidePop();
@@ -3182,28 +3180,8 @@
     });
 
     /* ---- Agent options: mode and model ------------------------------------
-       Devin offers them per session. The mode is named for people who are not
-       writing code; any mode Devin adds keeps Devin's own name. */
-    var MODES = {
-      'accept-edits': ['Work', 'Reads, writes files and runs tools'],
-      'ask': ['Ask', 'Answers questions and changes nothing'],
-      'plan': ['Plan', 'Proposes a plan and waits for your go-ahead']
-    };
-
-    function optValues(o) {
-      var out = [];
-      (o.options || []).forEach(function (v) {
-        if (v.options) v.options.forEach(function (g) { out.push({ value: g.value, name: g.name, description: g.description }); });
-        else out.push({ value: v.value, name: v.name, description: v.description });
-      });
-      if (o.category === 'mode') out = out.map(function (v) { var m = MODES[v.value]; return m ? { value: v.value, name: m[0], description: m[1] } : v; });
-      return out;
-    }
-    function byCat(opts, cat) { return (opts || []).filter(function (o) { return o.category === cat; })[0]; }
-    function valueName(o, value) {
-      var v = optValues(o).filter(function (x) { return x.value === value; })[0];
-      return v ? v.name : String(value);
-    }
+       Devin offers them per session. The window's MODES, optValues, byCat
+       and valueName read them, as Settings does. */
 
     /* The options the bar over the prompt shows. For an open session, its
        own. With no session in front, what the next session will start with:
@@ -3347,52 +3325,13 @@
       }).catch(fail);
     }
 
-    /* The full list of models, for this session. */
-    function modelRows(host, o, opts) {
-      var pinned = chatPins();
-      host.innerHTML = '';
-      var f = (opts.filter || '').trim().toLowerCase();
-      var all = optValues(o).filter(function (v) { return !f || (v.name + ' ' + v.value).toLowerCase().indexOf(f) >= 0; });
-      var pins = all.filter(function (v) { return pinned.indexOf(v.value) >= 0; });
-      var rest = all.filter(function (v) { return pinned.indexOf(v.value) < 0; });
-      function section(name, vals) {
-        if (!vals.length) return;
-        var h = document.createElement('div');
-        h.className = 'md-section-label';
-        h.textContent = name;
-        host.appendChild(h);
-        vals.forEach(function (v) {
-          var r = document.createElement('div');
-          r.className = 'md-row model-row';
-          var fav = pinned.indexOf(v.value) >= 0;
-          if (opts.choose) {
-            r.innerHTML = '<a class="md-item" href="#" role="option"></a><button type="button" class="icon-btn model-pin"><span class="glyph" style="--glyph: var(--glyph-pin)" aria-hidden="true"></span></button>';
-            var a = r.firstChild, pin = r.lastChild;
-            modelLabel(a, v.name, modelPrice(chatProvider(), v.value));
-            if (v.description) a.title = v.description;
-            if (v.value === opts.current) { a.setAttribute('aria-current', 'true'); a.setAttribute('aria-selected', 'true'); }
-            a.addEventListener('click', function (e) { e.preventDefault(); opts.choose(v.value); });
-            pin.setAttribute('aria-pressed', String(fav));
-            pin.setAttribute('aria-label', (fav ? 'Remove ' : 'Add ') + v.name + (fav ? ' from' : ' to') + ' the favorites');
-            pin.title = fav ? 'A favorite. Press to remove it.' : 'Make it a favorite';
-            pin.addEventListener('click', function () { togglePin(v.value, !fav).then(opts.redraw); });
-          } else {
-            r.innerHTML = '<label class="check fav-check"><input type="checkbox"> <span></span></label>';
-            var box = r.querySelector('input');
-            box.checked = fav;
-            r.querySelector('span').textContent = v.name;
-            box.addEventListener('change', function () { togglePin(v.value, box.checked).then(opts.redraw); });
-          }
-          host.appendChild(r);
-        });
-      }
-      section('Favorites', pins);
-      section(pins.length ? 'All Models' : 'Models', rest);
-      if (!all.length) host.innerHTML = '<p class="form-help menu-note">No model matches the filter.</p>';
-      var cur = host.querySelector('[aria-current]');
-      if (cur && !f) cur.scrollIntoView({ block: 'nearest' });
+    /* The full list of models, for this session: the window's list
+       (modelRows) with this chat's provider, its favorites and its pin. */
+    function sessionModelRows(host, o, opts) {
+      return modelRows(host, o, Object.assign({ pinned: chatPins(), pin: toggleProviderPin, provider: chatProvider() }, opts));
     }
-    function togglePin(value, on) {
+    /* Makes a model a favorite of this chat's provider, or not. */
+    function toggleProviderPin(value, on) {
       var id = chatProvider();
       return (app().SetPinnedForProvider ? app().SetPinnedForProvider(id, value, on) : app().SetPinned(value, on)).then(function (p) {
         providerPins[id] = p || [];
@@ -3407,7 +3346,7 @@
         ? 'Every model ' + agentName() + ' offers. The choice applies to this session; the pin makes a model a favorite.'
         : 'Every model ' + agentName() + ' offers. The choice applies to the session your next message starts; the pin makes a model a favorite.';
       if (!model) { $('models-list').innerHTML = '<p class="form-help menu-note">Available models are not known yet. Test Connection in Settings.</p>'; return; }
-      modelRows($('models-list'), model, {
+      sessionModelRows($('models-list'), model, {
         filter: $('models-filter').value, current: model.currentValue,
         choose: function (v) { setSessionOption(model.id, v).then(function () { $('models').close(); }); },
         redraw: drawModelsDialog
@@ -3711,8 +3650,7 @@
           loadSkills();
           stateLine();
         },
-        attach: function (host, options) {
-          appletOptions = options;
+        attach: function (host) {
           host.appendChild(root);
           // The chat's commands belong to the window it is shown in.
           if (unregisterCommands) unregisterCommands();
@@ -3728,7 +3666,6 @@
           if (cancelSwitchDialog) cancelSwitchDialog();
           if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; }
           if (deleted) root.remove(); else document.getElementById('applet-storage').appendChild(root);
-          appletOptions = null;
         },
         dispose: function () { switchEpoch++; if (cancelSwitchDialog) cancelSwitchDialog(); composerLayout.destroy(); teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
       };
@@ -3857,8 +3794,8 @@
       });
     }
 
-    function setContext(doc) {
-      context = doc;
+    function pickDocument(doc) {
+      pickedDocument = doc;
       var chat = currentChat();
       if (chat) chat.setContext(doc);
     }
@@ -3874,12 +3811,12 @@
         if (doc.draftId === clearedDraft && !doc.raised) return;
         clearedDraft = '';
       }
-      setContext(doc);
+      pickDocument(doc);
     });
     document.addEventListener('pudl:window-close', function (e) {
       var item = window.dinahWorkbench.item(e.detail.key);
-      if (!item || !context) return;
-      if (item.kind === 'editor' ? context.draftId === item.path : item.workspace === context.workspace && item.path === context.path) setContext(null);
+      if (!item || !pickedDocument) return;
+      if (item.kind === 'editor' ? pickedDocument.draftId === item.path : item.workspace === pickedDocument.workspace && item.path === pickedDocument.path) pickDocument(null);
     });
     function showChat() {
       var s = active && sessions[active];
@@ -3934,8 +3871,8 @@
       ensure: ensureChat, current: currentChat, active: () => active,
       providerName, frontProvider, defaultProvider: () => defaultProvider,
       chatWorking, backgroundWork, earlierSubagents,
-      show, showChat, openSession, openSavedRecovery, reconnectChat, startNewChat, restartAgent, signIn,
-      setContext, disposeChat, setDraftWorkspace, restorePreferences, restoreView, setupChatWindows,
+      show, showChat, openSession, openSavedRecovery, reconnectChat, startNewChat, restartAgent, signIn: signInChatInFront,
+      setContext: pickDocument, disposeChat, setDraftWorkspace, restorePreferences, restoreView, setupChatWindows,
       setTemplates: value => { templates = value; },
       refreshChatTitles: () => chatControllers.forEach(chat => chat.stateLine()),
       refreshStates: () => chatControllers.forEach(chat => chat.refresh()),
