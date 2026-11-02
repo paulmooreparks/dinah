@@ -20,7 +20,9 @@ func (a *App) readAgentTextFile(ctx context.Context, conn agentConnection, p acp
 		return "", err
 	}
 	text, err := service.Read(ctx, p.Path, p.Line, p.Limit, scope)
-	a.fileAccessUpdated("file-access:read", nil)
+	if !fileaccess.InOperation(ctx) {
+		a.fileAccessUpdated("file-access:read", nil)
+	}
 	return text, err
 }
 
@@ -66,6 +68,8 @@ func (a *App) readAgentDirectory(ctx context.Context, conn agentConnection, sess
 		return nil, err
 	}
 	entries, err := service.ReadDirectory(ctx, path, scope)
-	a.fileAccessUpdated("file-access:read", nil)
+	if !fileaccess.InOperation(ctx) {
+		a.fileAccessUpdated("file-access:read", nil)
+	}
 	return entries, err
 }

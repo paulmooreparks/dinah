@@ -94,6 +94,7 @@
         "TestFrontendRulesFindTheirHomes",
         "TestFileAccessPageAndProviderShareOnePolicy",
         "TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority",
+        "TestAgentWorkspaceStatUsesPolicyAndAudit",
         "TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit",
         "TestPathlessHistoryRejectsSelectorsAndSymlinkAndAudits"
       ]
@@ -128,6 +129,13 @@
         "TestAuditDatabasePathIsNotAURIFragment",
         "TestAuditDatabaseRefusesNewerSchemaWithoutWriting",
         "TestAuditDenialFloodCannotRotateReadsOrPolicyChanges",
+        "TestSearchAuditCommitsOneSummaryAndPreservesEarlierReads",
+        "TestDefaultOverridesAndSandboxProfiles",
+        "TestOperationWithholdsResultWhenAuditCannotCommit",
+        "TestDirectoryListingOmitsDeniedChildren",
+        "TestAcknowledgementPreservesUnshownRefusalGroups",
+        "TestErrorFloodCollapsesWithoutEvictingReads",
+        "TestWindowsPipeDenyRootDoesNotRefuseOrdinaryReads",
         "TestReadPolicyAuditsWithoutReturningUnauditedContent",
         "TestReadPolicyChangesAndSymlinkAliases",
         "TestDefaultResolversCoverEveryPlatformAndEntry",
@@ -139,6 +147,9 @@
       ],
       "onlyOn": {
         "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles": [
+          "windows"
+        ],
+        "TestWindowsPipeDenyRootDoesNotRefuseOrdinaryReads": [
           "windows"
         ]
       }

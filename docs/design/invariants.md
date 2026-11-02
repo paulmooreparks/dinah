@@ -23,7 +23,7 @@ Each line below is a rule the November 2026 review established, followed by the 
 17. Nothing moves, resizes or loses focus when live state changes. Guard: the `list-state-stability`, `taskbar-state-stability`, `list-row-layout` and `chat-last-read` browser suites.
 18. Every chip, row and title reads a chat's state from one projection. Guard: the `chat-state-contract` browser suite.
 19. Dinah styles or scripts nothing inside PUDL's own markup; a capability PUDL lacks is requested upstream, and Dinah waits for the release. Guard: pending, a static check from FE-32.
-20. Every agent read that takes a path goes through the deny policy and is written to the audit log, and the reads that take no path are the documented set of three. Guard: pending, the file-access suites.
+20. Every agent read that takes a path goes through the deny policy and is written to the audit log, and the reads that take no path are the exhaustive set of four: Skills list, Skills read, prompt-history and read_attachment. Guards: `TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit`, `TestPathlessHistoryRejectsSelectorsAndSymlinkAndAudits`, `TestAttachmentPolicyRefusesDeniedSendAndLaterRead, TestAttachmentPolicyRejectsSymlinkEscapeAndKeepsLiveChanges and TestAttachmentPolicyStoredCopiesStayInCatalogueAndAudit`, and the file-access policy suites.
 
 ## Process (no automatic guard)
 

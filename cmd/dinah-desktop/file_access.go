@@ -226,7 +226,9 @@ func (a *App) readAgentResourceText(ctx context.Context, path string, file *os.F
 		return "", err
 	}
 	text, err := service.ReadOpened(ctx, path, scope, file, resourceText)
-	a.fileAccessUpdated("file-access:read", nil)
+	if !fileaccess.InOperation(ctx) {
+		a.fileAccessUpdated("file-access:read", nil)
+	}
 	return text, err
 }
 
@@ -312,11 +314,15 @@ func (a *App) agentResourceDirectory(ctx context.Context, path string, file *os.
 	}
 	// The source handle has already established source confinement.
 	if _, err := service.ReadMetadata(ctx, path, scope, file); err != nil {
-		a.fileAccessUpdated("file-access:read", nil)
+		if !fileaccess.InOperation(ctx) {
+			a.fileAccessUpdated("file-access:read", nil)
+		}
 		return nil, true, err
 	}
 	entries, err := service.ReadDirectory(ctx, path, scope)
-	a.fileAccessUpdated("file-access:read", nil)
+	if !fileaccess.InOperation(ctx) {
+		a.fileAccessUpdated("file-access:read", nil)
+	}
 	return entries, true, err
 }
 func (a *App) checkAgentResourceMetadata(ctx context.Context, path string, file *os.File) error {
@@ -329,6 +335,8 @@ func (a *App) checkAgentResourceMetadata(ctx context.Context, path string, file 
 		return err
 	}
 	_, err = service.ReadMetadata(ctx, path, scope, file)
-	a.fileAccessUpdated("file-access:read", nil)
+	if !fileaccess.InOperation(ctx) {
+		a.fileAccessUpdated("file-access:read", nil)
+	}
 	return err
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"studio/internal/agents"
 	"studio/internal/layout"
 )
 
@@ -145,35 +146,43 @@ func TestDefaultResolversCoverEveryPlatformAndEntry(t *testing.T) {
 func TestEveryNativeDefaultDeniesItsResolvedPath(t *testing.T) {
 	home := t.TempDir()
 	rules := DefaultRules(runtime.GOOS, home, filepath.Join(home, "roaming"), filepath.Join(home, "local"), nil)
-	scope := Scope{Layout: layout.Layout{State: filepath.Join(home, "state")}}
+	store, _ := testStore(t)
+	svc := &Service{Store: store, Defaults: rules}
+	scope := Scope{Chat: "chat", Workspace: "workspace", Layout: layout.Layout{State: filepath.Join(home, "state")}}
 	policy := Policy{Rules: rules}
 	for _, r := range rules {
-		if r.ID == "other-workspaces" {
-			continue
-		}
 		for _, root := range r.ResolvedPaths {
-			if err := os.MkdirAll(root, 0700); err != nil {
+			if err := os.MkdirAll(filepath.Dir(root), 0700); err != nil {
 				t.Fatal(err)
 			}
-			path := filepath.Join(root, "synthetic.txt")
-			if err := os.WriteFile(path, []byte("synthetic"), 0600); err != nil {
+			if err := os.WriteFile(root, []byte("synthetic"), 0600); err != nil {
 				t.Fatal(err)
 			}
-			check := evaluate(path, scope, policy)
+			file, err := os.Open(root)
+			if err != nil {
+				t.Fatal(err)
+			}
 			found := false
-			for _, id := range check.MatchedRuleIDs {
-				if id == r.ID {
-					found = true
+			err = agents.CheckOpenedPath(root, file, func(chain []os.FileInfo) error {
+				check := evaluateIdentities(root, scope, policy, chain)
+				for _, id := range check.MatchedRuleIDs {
+					if id == r.ID {
+						found = true
+					}
 				}
+				return nil
+			})
+			if err != nil || !found {
+				file.Close()
+				t.Fatalf("opened default %s was not denied: %v", r.ID, err)
 			}
-			if !found {
-				t.Fatalf("default %s did not deny its resolved path: %+v", r.ID, check)
+			if text, err := svc.ReadMetadata(context.Background(), root, scope, file); err == nil || text != "" {
+				file.Close()
+				t.Fatalf("metadata escaped default %s", r.ID)
 			}
-			if runtime.GOOS == "windows" {
-				check = evaluate(strings.ToUpper(path), scope, policy)
-				if len(check.MatchedRuleIDs) == 0 {
-					t.Fatal("case variant bypassed default", r.ID)
-				}
+			file.Close()
+			if runtime.GOOS == "windows" && len(evaluate(strings.ToUpper(root), scope, policy).MatchedRuleIDs) == 0 {
+				t.Fatal("case variant escaped", r.ID)
 			}
 		}
 	}

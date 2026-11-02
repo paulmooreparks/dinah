@@ -171,7 +171,7 @@ func TestAuditDatabasePathIsNotAURIFragment(t *testing.T) {
 
 func TestAuditDatabaseRefusesNewerSchemaWithoutWriting(t *testing.T) {
 	s, path := testStore(t)
-	if _, err := s.db.Exec(`PRAGMA user_version=3`); err != nil {
+	if _, err := s.db.Exec(`PRAGMA user_version=4`); err != nil {
 		t.Fatal(err)
 	}
 	if opened, err := Open(path); err == nil {
@@ -179,7 +179,7 @@ func TestAuditDatabaseRefusesNewerSchemaWithoutWriting(t *testing.T) {
 		t.Fatal("newer schema accepted")
 	}
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 3 {
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 4 {
 		t.Fatal("refusal rewrote the schema version")
 	}
 }

@@ -32,6 +32,14 @@ func TestHostReadPolicyCoversLimitedReadAndSearch(t *testing.T) {
 	h := &policyReadHandler{}
 	c := &Conn{handler: h}
 	c.SetHostFileReads()
+	operationCalls := 0
+	c.SetHostFileOperation(func(ctx context.Context, session, path, source string, work func(context.Context) (string, bool)) (string, bool) {
+		operationCalls++
+		if path == "" || source == "" {
+			t.Fatal("operation lost binding")
+		}
+		return work(ctx)
+	})
 	c.SetHostDirectoryReads(func(_ context.Context, _ string, path, _ string) ([]fs.DirEntry, error) {
 		info, err := os.Stat(path)
 		if err != nil {
@@ -54,6 +62,9 @@ func TestHostReadPolicyCoversLimitedReadAndSearch(t *testing.T) {
 	if !strings.Contains(text, "2 files could not be read") {
 		t.Fatalf("search hid its incomplete coverage: %s", text)
 	}
+	if operationCalls != 1 {
+		t.Fatalf("search was not one operation: %d", operationCalls)
+	}
 	if len(h.paths) != 3 {
 		t.Fatalf("not every candidate reached policy: %v", h.paths)
 	}
@@ -64,6 +75,14 @@ func TestHostDirectoryPolicyCoversListAndFind(t *testing.T) {
 	calls := []string{}
 	c := &Conn{handler: &policyReadHandler{}}
 	c.SetHostFileReads()
+	operationCalls := 0
+	c.SetHostFileOperation(func(ctx context.Context, session, path, source string, work func(context.Context) (string, bool)) (string, bool) {
+		operationCalls++
+		if path == "" || source == "" {
+			t.Fatal("operation lost binding")
+		}
+		return work(ctx)
+	})
 	c.SetHostDirectoryReads(func(_ context.Context, _ string, path, source string) ([]fs.DirEntry, error) {
 		calls = append(calls, source+":"+path)
 		return nil, errors.New("synthetic directory policy refusal")
@@ -78,6 +97,9 @@ func TestHostDirectoryPolicyCoversListAndFind(t *testing.T) {
 		if strings.Contains(text, "a.txt") || strings.Contains(text, "needle") {
 			t.Fatal("directory policy bypass", text)
 		}
+	}
+	if operationCalls != 2 {
+		t.Fatalf("list and find were not separate operations: %d", operationCalls)
 	}
 	if len(calls) != 2 || !strings.HasPrefix(calls[0], "list_directory:") || !strings.HasPrefix(calls[1], "find_files:") {
 		t.Fatalf("directory mediation: %v", calls)

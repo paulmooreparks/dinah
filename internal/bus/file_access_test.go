@@ -188,7 +188,9 @@ func TestAttachmentPolicyStoredCopiesStayInCatalogueAndAudit(t *testing.T) {
 	}
 	service, _ := b.fileAccessPolicy()
 	log, err := service.Store.Log(fileaccess.Filter{})
-	if err != nil || len(log.Rows) != 3 || log.Rows[0].Outcome != "error" || log.Rows[1].Outcome != "error" || log.Rows[2].Outcome != "allowed" || log.Rows[2].Bytes != len("supplied") {
+	// Errors collapse under the same retention rule as refusals. Both failed
+	// catalogue escapes remain represented by the group's exact count.
+	if err != nil || len(log.Rows) != 2 || log.Rows[0].Outcome != "error" || log.Rows[0].Count != 2 || log.Rows[1].Outcome != "allowed" || log.Rows[1].Bytes != len("supplied") {
 		t.Fatalf("copy audit: %+v %v", log, err)
 	}
 	for _, row := range log.Rows {

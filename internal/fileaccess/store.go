@@ -53,6 +53,10 @@ type Policy struct {
 }
 
 type Record struct {
+	Operation bool   `json:"operation,omitempty"`
+	Visited   int    `json:"visited,omitempty"`
+	Denied    int    `json:"denied,omitempty"`
+	Errors    int    `json:"errors,omitempty"`
 	Count     int    `json:"count,omitempty"`
 	Source    string `json:"source,omitempty"`
 	ID        int64  `json:"id"`
@@ -101,7 +105,7 @@ func Open(path string) (*Store, error) {
 	db.SetMaxOpenConns(1)
 	fail := func(err error) (*Store, error) { db.Close(); return nil, err }
 	var schema int
-	if err := db.QueryRow("PRAGMA user_version").Scan(&schema); err != nil || schema > 2 || schema < 0 {
+	if err := db.QueryRow("PRAGMA user_version").Scan(&schema); err != nil || schema > 3 || schema < 0 {
 		return fail(errors.New("unsupported file-access database schema"))
 	}
 	for _, q := range []string{"PRAGMA busy_timeout=5000", "PRAGMA journal_mode=DELETE", "PRAGMA auto_vacuum=FULL", "PRAGMA synchronous=FULL"} {
@@ -126,7 +130,12 @@ func Open(path string) (*Store, error) {
 	if err := db.QueryRow("PRAGMA journal_mode").Scan(&journal); err != nil || journal != "delete" {
 		return fail(errors.New("audit database requires rollback journaling"))
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS policy (id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL, high_water INTEGER NOT NULL);
+	tx, err := db.Begin()
+	if err != nil {
+		return fail(err)
+	}
+	defer tx.Rollback()
+	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS policy (id INTEGER PRIMARY KEY CHECK(id=1), version INTEGER NOT NULL, high_water INTEGER NOT NULL);
  INSERT OR IGNORE INTO policy VALUES(1,1,0);
  CREATE TABLE IF NOT EXISTS custom_rules (id TEXT PRIMARY KEY, path TEXT NOT NULL UNIQUE);
  CREATE TABLE IF NOT EXISTS defaults (id TEXT PRIMARY KEY, enabled INTEGER NOT NULL);
@@ -136,13 +145,17 @@ func Open(path string) (*Store, error) {
  INSERT OR IGNORE INTO policy_changes SELECT * FROM audit WHERE outcome='policy-change';
  DELETE FROM audit WHERE outcome='policy-change';
  CREATE TABLE IF NOT EXISTS denials (id INTEGER PRIMARY KEY, generation INTEGER NOT NULL, bytes INTEGER NOT NULL, chat TEXT NOT NULL, at TEXT NOT NULL, outcome TEXT NOT NULL, payload TEXT NOT NULL, count INTEGER NOT NULL, rule_id TEXT NOT NULL, source TEXT NOT NULL, sealed INTEGER NOT NULL DEFAULT 0);
- CREATE UNIQUE INDEX IF NOT EXISTS denial_open_group ON denials(chat,rule_id,source) WHERE sealed=0;
+ DROP INDEX IF EXISTS denial_open_group;
+ CREATE UNIQUE INDEX IF NOT EXISTS denial_open_group ON denials(chat,rule_id,source,outcome) WHERE sealed=0;
  CREATE INDEX IF NOT EXISTS audit_chat ON audit(chat,id);
  CREATE INDEX IF NOT EXISTS audit_at ON audit(at,id);`)
 	if err != nil {
 		return fail(err)
 	}
-	if _, err := db.Exec("PRAGMA user_version=2"); err != nil {
+	if _, err := tx.Exec("PRAGMA user_version=3"); err != nil {
+		return fail(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return fail(err)
 	}
 	if err := os.Chmod(path, 0600); err != nil {
@@ -302,7 +315,7 @@ func (s *Store) append(tx *sql.Tx, record Record) (Record, error) {
 	default:
 		return Record{}, errors.New("invalid file-access audit outcome")
 	}
-	if record.Bytes < 0 || (record.Outcome != "allowed" && record.Bytes != 0) {
+	if record.Bytes < 0 || (!record.Operation && record.Outcome != "allowed" && record.Bytes != 0) {
 		return Record{}, errors.New("invalid returned audit byte count")
 	}
 	var high int64
@@ -310,18 +323,13 @@ func (s *Store) append(tx *sql.Tx, record Record) (Record, error) {
 		return Record{}, err
 	}
 	record.ID, record.At = high+1, s.now().UTC().Format(auditTimeFormat)
-	if record.Outcome == "denied" {
-		var previous, ack int64
+	grouped := record.Outcome == "error" || (!record.Operation && record.Outcome == "denied")
+	if grouped {
+		var previous int64
 		var count int
-		err := tx.QueryRow(`SELECT id,count FROM denials WHERE chat=? AND rule_id=? AND source=? AND sealed=0`, record.Chat, record.RuleID, record.Source).Scan(&previous, &count)
+		err := tx.QueryRow(`SELECT id,count FROM denials WHERE chat=? AND rule_id=? AND source=? AND outcome=? AND sealed=0`, record.Chat, record.RuleID, record.Source, record.Outcome).Scan(&previous, &count)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return Record{}, err
-		}
-		if err := tx.QueryRow(`SELECT COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0)`, record.Chat).Scan(&ack); err != nil {
-			return Record{}, err
-		}
-		if previous <= ack {
-			count = 0
 		}
 		record.Count = count + 1
 	}
@@ -336,9 +344,9 @@ func (s *Store) append(tx *sql.Tx, record Record) (Record, error) {
 	if record.Outcome == "policy-change" {
 		table = "policy_changes"
 	}
-	if record.Outcome == "denied" {
+	if grouped {
 		table = "denials"
-		if _, err = tx.Exec(`DELETE FROM denials WHERE chat=? AND rule_id=? AND source=? AND sealed=0`, record.Chat, record.RuleID, record.Source); err != nil {
+		if _, err = tx.Exec(`DELETE FROM denials WHERE chat=? AND rule_id=? AND source=? AND outcome=? AND sealed=0`, record.Chat, record.RuleID, record.Source, record.Outcome); err != nil {
 			return Record{}, err
 		}
 	}
@@ -356,7 +364,7 @@ func (s *Store) append(tx *sql.Tx, record Record) (Record, error) {
 	if used+int64(len(payload)) > int64(generationBudget) {
 		generation++
 	}
-	if record.Outcome == "denied" {
+	if grouped {
 		_, err = tx.Exec(`INSERT INTO denials(id,generation,bytes,chat,at,outcome,payload,count,rule_id,source) VALUES(?,?,?,?,?,?,?,?,?,?)`, record.ID, generation, len(payload), record.Chat, record.At, record.Outcome, string(payload), record.Count, record.RuleID, record.Source)
 	} else {
 		_, err = tx.Exec(`INSERT INTO `+table+`(id,generation,bytes,chat,at,outcome,payload) VALUES(?,?,?,?,?,?,?)`, record.ID, generation, len(payload), record.Chat, record.At, record.Outcome, string(payload))
@@ -443,7 +451,7 @@ func (s *Store) Log(filter Filter) (Page, error) {
 	// A row that has been displayed is immutable. Later refusals form another
 	// group, so acknowledging the displayed cursor cannot hide a new refusal.
 	for _, row := range out.Rows {
-		if row.Outcome == "denied" {
+		if row.Outcome == "denied" || row.Outcome == "error" {
 			if _, err = tx.Exec(`UPDATE denials SET sealed=1 WHERE id=?`, row.ID); err != nil {
 				return out, err
 			}
@@ -480,8 +488,11 @@ func (s *Store) Acknowledge(chat string, through int64) (int, error) {
 	if _, err = tx.Exec(`INSERT INTO acknowledgements(chat,through_id) VALUES(?,?) ON CONFLICT(chat) DO UPDATE SET through_id=MAX(through_id,excluded.through_id)`, chat, through); err != nil {
 		return 0, err
 	}
+	if _, err = tx.Exec(`UPDATE denials SET sealed=1 WHERE chat=? AND id<=?`, chat, through); err != nil {
+		return 0, err
+	}
 	var count int
-	if err = tx.QueryRow(`SELECT COALESCE(SUM(n),0) FROM (SELECT 1 n FROM audit WHERE chat=? AND outcome='denied' AND id>COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0) UNION ALL SELECT count n FROM denials WHERE chat=? AND id>COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0))`, chat, chat, chat, chat).Scan(&count); err != nil {
+	if err = tx.QueryRow(`SELECT COALESCE(SUM(n),0) FROM (SELECT COALESCE(json_extract(payload,'$.count'),1) n FROM audit WHERE chat=? AND outcome='denied' AND id>COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0) UNION ALL SELECT count n FROM denials WHERE chat=? AND outcome='denied' AND id>COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0))`, chat, chat, chat, chat).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, tx.Commit()
@@ -491,7 +502,7 @@ func (s *Store) RefusedCounts() (map[string]int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	counts := map[string]int{}
-	rows, err := s.db.Query(`SELECT a.chat,SUM(a.n) FROM (SELECT chat,id,1 n FROM audit WHERE outcome='denied' UNION ALL SELECT chat,id,count n FROM denials) a LEFT JOIN acknowledgements k ON k.chat=a.chat WHERE a.id>COALESCE(k.through_id,0) GROUP BY a.chat`)
+	rows, err := s.db.Query(`SELECT a.chat,SUM(a.n) FROM (SELECT chat,id,COALESCE(json_extract(payload,'$.count'),1) n FROM audit WHERE outcome='denied' UNION ALL SELECT chat,id,count n FROM denials WHERE outcome='denied') a LEFT JOIN acknowledgements k ON k.chat=a.chat WHERE a.id>COALESCE(k.through_id,0) GROUP BY a.chat`)
 	if err != nil {
 		return nil, err
 	}

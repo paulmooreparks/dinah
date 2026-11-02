@@ -33,6 +33,15 @@ func (t turnTools) usesHostFileReads() bool {
 	return t.c.hostFileReads
 }
 
+type FileOperation func(context.Context, string, string, string, func(context.Context) (string, bool)) (string, bool)
+type fileOperationKey struct{}
+
+func (c *Conn) SetHostFileOperation(operation FileOperation) {
+	c.mu.Lock()
+	c.hostFileOperation = operation
+	c.mu.Unlock()
+}
+
 type DirectoryRead func(context.Context, string, string, string) ([]fs.DirEntry, error)
 
 func (c *Conn) SetHostDirectoryReads(read DirectoryRead) {

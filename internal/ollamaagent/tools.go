@@ -164,6 +164,17 @@ func title(name string, args map[string]any) (string, string) {
 func (t turnTools) run(ctx context.Context, id, name string, args map[string]any) (string, bool) {
 	s := func(k string) string { v, _ := args[k].(string); return v }
 	n := func(k string) int { v, _ := args[k].(float64); return int(v) }
+	if t.usesHostFileReads() && ctx.Value(fileOperationKey{}) == nil && (name == "list_directory" || name == "find_files" || name == "search_text") {
+		t.c.mu.Lock()
+		operation := t.c.hostFileOperation
+		t.c.mu.Unlock()
+		if operation == nil {
+			return "host file-operation audit is unavailable", false
+		}
+		return operation(ctx, t.session, t.path(s("path")), name, func(bound context.Context) (string, bool) {
+			return t.run(context.WithValue(bound, fileOperationKey{}, true), id, name, args)
+		})
+	}
 	switch name {
 	case "read_file":
 		return t.read(ctx, t.path(s("path")), n("offset"), n("limit"))

@@ -131,3 +131,33 @@ func TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority(t *testing
 		t.Fatal("metadata refusal not attributed to calling chat")
 	}
 }
+
+func TestAgentWorkspaceStatUsesPolicyAndAudit(t *testing.T) {
+	a, _ := providerTestApp(t)
+	root := t.TempDir()
+	a.settings.Workspace = root
+	a.settings.WorkspaceRecords = []WorkspaceRecord{{ID: "workspace-a", MountAlias: "workspace", ExecutionPath: root, PrimarySourceID: "source", Sources: []WorkspaceSource{{ID: "source", MountAlias: "files", Kind: "local-folder", Name: "Files", Path: root}}}}
+	path := filepath.Join(root, "plain.txt")
+	if err := os.WriteFile(path, []byte("synthetic"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	policy, err := a.FileAccessPolicy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.AddFileAccessEntry(path, policy.Version); err != nil {
+		t.Fatal(err)
+	}
+	ref := ResourceRef{WorkspaceID: "workspace-a", SourceID: "source", Path: "plain.txt"}
+	service := a.resourceService()
+	service.ctx = fileAccessCallerContext(t, a, root)
+	if item, err := (workspaceVFS{service: service, allowedWorkspace: "workspace-a"}).statRef(ref); err == nil || item.Size != 0 {
+		t.Fatalf("denied stat returned metadata: %+v %v", item, err)
+	}
+	if _, err := a.ResolveWorkspaceResourceMount(ref); err != nil {
+		t.Fatal("person stat authority changed", err)
+	}
+	if a.fileAccessRefused("test") != 1 {
+		t.Fatal("stat refusal was not audited")
+	}
+}

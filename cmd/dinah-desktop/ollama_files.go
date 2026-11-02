@@ -14,7 +14,7 @@ import (
 )
 
 // Where Ollama's file tools may go (docs/plans/ollama-file-limits.md). The
-// person chooses under Settings ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Agents ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº Ollama ÃƒÂ¢Ã¢â€šÂ¬Ã‚Âº File Access:
+// person chooses under Settings > Agents > Ollama > File Access:
 //
 //   - workspace: the chat's own folder and the local folders among the sources
 //     of the workspace it belongs to,
@@ -73,6 +73,20 @@ func (a *App) ollamaFileScopeFor(_, cwd string) ([]string, bool) {
 // its file tools may go.
 func (a *App) useOllamaFileScope(c *ollamaagent.Conn) {
 	c.SetHostFileReads()
+	c.SetHostFileOperation(func(ctx context.Context, session, path, source string, work func(context.Context) (string, bool)) (string, bool) {
+		scope, err := a.agentReadScope(c, session)
+		if err != nil {
+			return err.Error(), false
+		}
+		scope.Source = source
+		service, err := a.fileAccessService()
+		if err != nil {
+			return err.Error(), false
+		}
+		text, ok := service.RunOperation(ctx, path, scope, work)
+		a.fileAccessUpdated("file-access:read", nil)
+		return text, ok
+	})
 	c.SetHostDirectoryReads(func(ctx context.Context, session, path, source string) ([]fs.DirEntry, error) {
 		return a.readAgentDirectory(ctx, c, session, path, source)
 	})

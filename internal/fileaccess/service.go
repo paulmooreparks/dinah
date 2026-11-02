@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -194,6 +195,15 @@ func evaluateIdentities(path string, scope Scope, policy Policy, chain []os.File
 			roots = r.ResolvedPaths
 		}
 		for _, root := range roots {
+			if runtime.GOOS == "windows" {
+				if _, err := agents.NormalizeFilePath(root); err != nil {
+					if strings.EqualFold(root, path) {
+						out.MatchedRuleIDs = append(out.MatchedRuleIDs, r.ID)
+						out.Error = r.Reason
+					}
+					continue
+				}
+			}
 			if !filepath.IsAbs(root) {
 				continue
 			}
@@ -300,6 +310,9 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 	if scope.Chat == "" || scope.Workspace == "" {
 		return "", errors.New("a registered chat and workspace are required for a file read")
 	}
+	if err := s.admitOperationPath(ctx, scope, path); err != nil {
+		return "", err
+	}
 	if err := agents.ValidateLineRange(line, limit); err != nil {
 		return "", err
 	}
@@ -316,7 +329,7 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 	}
 	if len(check.MatchedRuleIDs) > 0 {
 		record.Outcome, record.RuleID, record.Reason = "denied", check.MatchedRuleIDs[0], check.Error
-		if _, err = s.Store.Append(record); err != nil {
+		if err = s.recordRead(ctx, scope, record); err != nil {
 			return "", fmt.Errorf("could not record refused file read: %w", err)
 		}
 		return "", errors.New("this read was refused: " + check.Error)
@@ -348,8 +361,8 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 	} else {
 		record.Outcome, record.Bytes = "allowed", len([]byte(text))
 	}
-	if scope.AuditAlways || !check.InsideWorkspace || record.Outcome == "denied" {
-		if _, err = s.Store.Append(record); err != nil {
+	if operationIn(ctx) != nil || scope.AuditAlways || !check.InsideWorkspace || record.Outcome == "denied" {
+		if err = s.recordRead(ctx, scope, record); err != nil {
 			return "", fmt.Errorf("could not commit file-read audit; no content returned: %w", err)
 		}
 	}
@@ -358,6 +371,26 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 
 // ReadDirectory audits the bounded metadata returned by a pathname listing.
 func (s *Service) ReadDirectory(ctx context.Context, path string, scope Scope) ([]fs.DirEntry, error) {
+	if !InOperation(ctx) {
+		var entries []fs.DirEntry
+		text, ok := s.RunOperation(ctx, path, scope, func(ctx context.Context) (string, bool) {
+			var err error
+			entries, err = s.ReadDirectory(ctx, path, scope)
+			if err != nil {
+				return err.Error(), false
+			}
+			names := []string{}
+			for _, entry := range entries {
+				names = append(names, entry.Name())
+			}
+			data, err := json.Marshal(names)
+			return string(data), err == nil
+		})
+		if !ok {
+			return nil, errors.New(text)
+		}
+		return entries, nil
+	}
 	var entries []fs.DirEntry
 	_, err := s.read(ctx, path, nil, nil, scope, func(check func(string, []os.FileInfo) error) (string, error) {
 		var err error
@@ -365,6 +398,30 @@ func (s *Service) ReadDirectory(ctx context.Context, path string, scope Scope) (
 		if err != nil {
 			return "", err
 		}
+		parentInfo, statErr := os.Stat(path)
+		if statErr != nil {
+			return "", statErr
+		}
+		permitted := []fs.DirEntry{}
+		for _, entry := range entries {
+			child := filepath.Join(path, entry.Name())
+			if !parentInfo.IsDir() {
+				child = path
+			}
+			file, openErr := agents.OpenIdentityPath(child)
+			if openErr != nil {
+				if err := s.recordRead(ctx, scope, Record{Source: scope.Source, Chat: scope.Chat, ChatTitle: scope.ChatTitle, Workspace: scope.Workspace, Path: child, Outcome: "error", Reason: "Metadata could not be opened"}); err != nil {
+					return "", err
+				}
+				continue
+			}
+			_, readErr := s.ReadMetadata(ctx, child, scope, file)
+			file.Close()
+			if readErr == nil {
+				permitted = append(permitted, entry)
+			}
+		}
+		entries = permitted
 		metadata := []map[string]any{}
 		for _, e := range entries {
 			metadata = append(metadata, map[string]any{"name": e.Name(), "directory": e.IsDir(), "type": e.Type().String()})

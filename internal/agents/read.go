@@ -257,3 +257,17 @@ func checkOpenedPath(path string, file *os.File, directories bool, check func([]
 	}
 	return nil
 }
+
+// OpenIdentityPath returns a held local file or directory for policy metadata.
+func OpenIdentityPath(path string) (*os.File, error) {
+	resolved, err := ResolveFilePath(path)
+	if err != nil {
+		return nil, err
+	}
+	base := filepath.VolumeName(resolved) + string(filepath.Separator)
+	rel, err := filepath.Rel(base, resolved)
+	if err != nil || !filepath.IsLocal(rel) && rel != "." {
+		return nil, errors.New("a local object path is required")
+	}
+	return openObjectChecked(base, rel, true, nil)
+}
