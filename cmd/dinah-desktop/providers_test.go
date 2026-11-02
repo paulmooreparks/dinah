@@ -147,6 +147,7 @@ func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 	configOverride = t.TempDir()
 	t.Cleanup(func() { configOverride = previous })
 	a := NewApp()
+	configureFileAccessFixture(t, a)
 	a.connectGraceOverride = -1
 	a.settings.DefaultProvider = "codex"
 	c := newTestProviderConnection()

@@ -15,20 +15,47 @@ import (
 // state folder, apart from the managed workspaces' folders, and Devin's own
 // settings, whose config.json holds the person's Devin approvals. Anywhere
 // else, the agent's approvals decide.
-func ProtectedPath(l layout.Layout, p string, managedRoots ...string) string {
-	if layout.Inside(l.State, p) {
-		for _, root := range managedRoots {
-			if l.Managed(root) && layout.Inside(root, p) {
-				return ""
+type ProtectedRoot struct{ Path, Reason string }
+
+// ProtectedRoots supplies both enforcement and the policy page. The managed
+// execution exception is applied only by ProtectedPath for the current scope.
+func ProtectedRoots(l layout.Layout) []ProtectedRoot {
+	roots := []ProtectedRoot{{l.State, "it is among " + profile.Current().Name + "'s settings, which hold the approval rules"}}
+	if base, err := os.UserConfigDir(); err == nil {
+		roots = append(roots, ProtectedRoot{filepath.Join(base, "devin"), "it is among Devin's settings, which hold the person's Devin approvals"})
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		roots = append(roots, ProtectedRoot{filepath.Join(home, ".config", "devin"), "it is among Devin's settings, which hold the person's Devin approvals"})
+	}
+	unique := roots[:0]
+	for _, root := range roots {
+		found := false
+		for _, saved := range unique {
+			if layout.SamePath(saved.Path, root.Path) {
+				found = true
+				break
 			}
 		}
-		return "it is among " + profile.Current().Name + "'s settings, which hold the approval rules"
+		if !found {
+			unique = append(unique, root)
+		}
 	}
-	if base, err := os.UserConfigDir(); err == nil && layout.Inside(filepath.Join(base, "devin"), p) {
-		return "it is among Devin's settings, which hold the approval rules"
-	}
-	if home, err := os.UserHomeDir(); err == nil && layout.Inside(filepath.Join(home, ".config", "devin"), p) {
-		return "it is among Devin's settings, which hold the approval rules"
+	return unique
+}
+
+func ProtectedPath(l layout.Layout, p string, managedRoots ...string) string {
+	for i, root := range ProtectedRoots(l) {
+		if !layout.Inside(root.Path, p) {
+			continue
+		}
+		if i == 0 {
+			for _, managed := range managedRoots {
+				if l.Managed(managed) && layout.Inside(managed, p) {
+					return ""
+				}
+			}
+		}
+		return root.Reason
 	}
 	return ""
 }

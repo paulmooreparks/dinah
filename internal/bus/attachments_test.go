@@ -41,7 +41,7 @@ func TestThePersonsFilesAreKeptAndReachTheGroup(t *testing.T) {
 	if len(m.Attachments) != 3 {
 		t.Fatalf("attachments %+v", m.Attachments)
 	}
-	day := filepath.Join(root, "attachments", "2026-10-28")
+	day := filepath.Join(b.dir, "attachments", "2026-10-28")
 	first, second, third := m.Attachments[0], m.Attachments[1], m.Attachments[2]
 	if first.Path != filepath.Join(day, "shot.png") || third.Path != filepath.Join(day, "shot (2).png") || third.Rel != "shot.png" {
 		t.Fatalf("the copies are %s and %s", first.Path, third.Path)
@@ -109,7 +109,7 @@ func TestAFileOverTheLimitIsRefused(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "huge.bin is larger than 25 MB") {
 		t.Fatalf("the large file: %v", err)
 	}
-	if entries, _ := os.ReadDir(filepath.Join(root, "attachments")); len(entries) != 0 {
+	if entries, _ := os.ReadDir(filepath.Join(b.dir, "attachments")); len(entries) != 0 {
 		t.Fatalf("something was kept: %v", entries)
 	}
 	if ms, _ := b.queryMessages(ctx, messageSelect); len(ms) != 0 {

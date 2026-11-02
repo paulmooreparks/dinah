@@ -18,6 +18,7 @@ func builtinTestContext(ws string) context.Context {
 func TestWorkspaceAppletConfinesAndBoundsReads(t *testing.T) {
 	ws := t.TempDir()
 	a := NewApp()
+	configureFileAccessFixture(t, a)
 	a.settings.WorkspaceRecords = []WorkspaceRecord{newWorkspaceRecord(ws)}
 	bundle, err := a.workspaceAppletBundle()
 	if err != nil {
@@ -30,7 +31,7 @@ func TestWorkspaceAppletConfinesAndBoundsReads(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(ws, "notes.txt"), []byte("workspace notes"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	ctx := builtinTestContext(ws)
+	ctx := fileAccessCallerContext(t, a, ws)
 	result, err := r.Execute(ctx, workspaceReadAction, `{"path":"notes.txt"}`)
 	if err != nil || !strings.Contains(result.OutputJSON, "workspace notes") {
 		t.Fatalf("read: %s, %v", result.OutputJSON, err)

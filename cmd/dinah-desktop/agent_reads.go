@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"studio/internal/acp"
-	"studio/internal/agents"
 )
 
 // readAgentTextFile derives authority from the live transport and registered
@@ -31,7 +30,17 @@ func (a *App) readAgentTextFile(ctx context.Context, conn agentConnection, p acp
 		a.mu.Unlock()
 		return "", errors.New("this connection does not own the requested chat")
 	}
-	roots := managedExecutionRoots(a.settings.WorkspaceRecords)
+	scope := fileAccessScope(a.settings, s.Cwd())
+	scope.Chat, scope.ChatTitle = s.ID(), s.State().Title
+	if module := providerModules[normalizedProvider(s.Provider())]; module.FileReadScope != nil {
+		scope.LimitRoots, scope.Limited = module.FileReadScope(a.settings, s.Cwd())
+	}
 	a.mu.Unlock()
-	return agents.ReadTextFile(ctx, stateLayout(), p.Path, roots, p.Line, p.Limit)
+	service, err := a.fileAccessService()
+	if err != nil {
+		return "", err
+	}
+	text, err := service.Read(ctx, p.Path, p.Line, p.Limit, scope)
+	a.fileAccessUpdated("file-access:read", nil)
+	return text, err
 }

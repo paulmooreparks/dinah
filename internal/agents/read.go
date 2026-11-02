@@ -19,9 +19,19 @@ const UTF8ReplacementNote = "[Invalid UTF-8 sequences were replaced with U+FFFD.
 
 var errProviderTextSize = errors.New("the requested text exceeds the 1 MiB response limit; use line and limit to request a smaller section")
 
+type ProtectedReadError struct{ Path, Reason string }
+
+func (e *ProtectedReadError) Error() string { return "this file is protected: " + e.Reason }
+
 // ReadTextFile preserves ordinary filesystem access while withholding protected
 // settings. It returns only a bounded selected range, never a truncated result.
 func ReadTextFile(ctx context.Context, l layout.Layout, path string, managedRoots []string, line, limit *int) (string, error) {
+	return ReadTextFileChecked(ctx, l, path, managedRoots, line, limit, nil)
+}
+
+// ReadTextFileChecked evaluates additional policy on the final canonical path
+// before the identity-safe open. It never returns content from an unchecked path.
+func ReadTextFileChecked(ctx context.Context, l layout.Layout, path string, managedRoots []string, line, limit *int, check func(string) error) (string, error) {
 	if err := ValidateLineRange(line, limit); err != nil {
 		return "", err
 	}
@@ -30,14 +40,19 @@ func ReadTextFile(ctx context.Context, l layout.Layout, path string, managedRoot
 	}
 	path = filepath.Clean(path)
 	if reason := ProtectedPath(l, path, managedRoots...); reason != "" {
-		return "", errors.New("this file is protected: " + reason)
+		return "", &ProtectedReadError{Path: path, Reason: reason}
 	}
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		return "", err
 	}
 	if reason := ProtectedPath(l, resolved, managedRoots...); reason != "" {
-		return "", errors.New("this file is protected: " + reason)
+		return "", &ProtectedReadError{Path: resolved, Reason: reason}
+	}
+	if check != nil {
+		if err := check(resolved); err != nil {
+			return "", err
+		}
 	}
 	base := filepath.VolumeName(resolved) + string(filepath.Separator)
 	rel, err := filepath.Rel(base, resolved)
@@ -50,6 +65,27 @@ func ReadTextFile(ctx context.Context, l layout.Layout, path string, managedRoot
 	}
 	defer file.Close()
 	return readTextRange(ctx, file, line, limit)
+}
+
+// OpenCatalogFile rejects symbolic-link aliases, including ancestors, for a
+// purpose-specific catalogue read. It grants no general provider file authority.
+func OpenCatalogFile(path string) (*os.File, error) {
+	if !filepath.IsAbs(path) {
+		return nil, errors.New("a catalogue path must be absolute")
+	}
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil, err
+	}
+	if !layout.SamePath(resolved, filepath.Clean(path)) {
+		return nil, errors.New("catalogue entries must not redirect through symbolic links")
+	}
+	base := filepath.VolumeName(resolved) + string(filepath.Separator)
+	rel, err := filepath.Rel(base, resolved)
+	if err != nil || !filepath.IsLocal(rel) || rel == "." {
+		return nil, errors.New("a regular catalogue file is required")
+	}
+	return openReadFile(base, rel)
 }
 
 // Open every directory through its parent's handle and compare identities.

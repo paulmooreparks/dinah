@@ -65,7 +65,7 @@ func TestHumanInboxSelectionPersistenceAndBoundedBulk(t *testing.T) {
 	if err := b.Close(); err != nil {
 		t.Fatal(err)
 	}
-	restarted, err := OpenAt(filepath.Join(root, "bus.db"))
+	restarted, err := OpenAt(filepath.Join(b.dir, "bus.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

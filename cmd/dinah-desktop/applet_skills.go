@@ -29,7 +29,11 @@ func (a *App) skillsAppletBundle() (applet.Bundle, error) {
 		for _, skill := range catalog.Skills {
 			items = append(items, map[string]string{"id": skill.ID, "name": skill.Name, "description": skill.Description, "hint": skill.Hint, "origin": skill.Origin, "revision": skill.Revision})
 		}
-		return builtinJSON(map[string]any{"skills": items, "problems": catalog.Problems})
+		result, err := builtinJSON(map[string]any{"skills": items, "problems": catalog.Problems})
+		if err != nil {
+			return applet.Result{}, err
+		}
+		return a.auditPathlessRead(ctx, "dinah.skills/list@1", "skills", result)
 	}
 	handlers["dinah.skills/read@1"] = func(ctx context.Context, input string) (applet.Result, error) {
 		record, err := a.callingWorkspaceRecord(ctx)
@@ -46,11 +50,15 @@ func (a *App) skillsAppletBundle() (applet.Bundle, error) {
 			if skill.ID != in.ID {
 				continue
 			}
-			read, err := (workspaceVFS{service: a.resourceService(), allowedWorkspace: record.ID}).readResource(*skill.Ref)
+			read, err := (workspaceVFS{service: a.resourceService(), allowedWorkspace: record.ID}).readCatalogResource(*skill.Ref)
 			if err != nil {
 				return applet.Result{}, err
 			}
-			return builtinJSON(map[string]string{"id": skill.ID, "text": read.Text, "revision": read.Revision})
+			result, err := builtinJSON(map[string]string{"id": skill.ID, "text": read.Text, "revision": read.Revision})
+			if err != nil {
+				return applet.Result{}, err
+			}
+			return a.auditPathlessRead(ctx, "dinah.skills/read@1", skill.ID, result)
 		}
 		return applet.Result{}, errors.New("this skill is unavailable in the calling workspace")
 	}

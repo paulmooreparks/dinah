@@ -48,6 +48,7 @@ func TestWorkspaceAppletWindowsAttributes(t *testing.T) {
 				t.Cleanup(func() { _ = windows.SetFileAttributes(p, attributes) })
 			}
 			a := NewApp()
+			configureFileAccessFixture(t, a)
 			a.settings.WorkspaceRecords = []WorkspaceRecord{newWorkspaceRecord(ws)}
 			bundle, err := a.workspaceAppletBundle()
 			if err != nil {
@@ -57,7 +58,7 @@ func TestWorkspaceAppletWindowsAttributes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx := builtinTestContext(ws)
+			ctx := fileAccessCallerContext(t, a, ws)
 			for _, path := range []string{"restricted.txt", "restricted-folder/child.txt"} {
 				input, _ := json.Marshal(map[string]string{"path": path})
 				if _, err := r.Execute(ctx, workspaceReadAction, string(input)); err == nil {

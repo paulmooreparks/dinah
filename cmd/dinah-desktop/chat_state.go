@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"studio/internal/bus"
@@ -64,6 +65,10 @@ func (a *App) execOf(ctx context.Context, b *bus.Bus, busID, chat string, st ses
 	activity := st.WorkActivity()
 	defer func() {
 		out.Tasks, out.Subagents = activity.Tasks, activity.Subagents
+		out.RefusedReads = a.fileAccessRefused(chat)
+		if out.RefusedReads > 0 {
+			out.Why += fmt.Sprintf("; %d file reads refused, see Agent File Access log", out.RefusedReads)
+		}
 	}()
 	info := st.Info
 	switch {

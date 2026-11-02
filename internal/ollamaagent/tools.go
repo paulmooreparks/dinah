@@ -192,6 +192,9 @@ func (t turnTools) run(ctx context.Context, id, name string, args map[string]any
 			return refused, false
 		}
 		defer done()
+		if t.usesHostFileReads() {
+			fsys = hostReadFiles{fileSystem: fsys, tools: t, ctx: ctx}
+		}
 		return searchIn(ctx, fsys, p, s("pattern"), s("glob"))
 	case "run_command":
 		dir := t.path(s("cwd"))
@@ -249,9 +252,24 @@ func (t turnTools) read(ctx context.Context, p string, offset, limit int) (strin
 		return refused, false
 	}
 	defer done()
-	if _, limited := fsys.(rootFiles); limited {
+	if _, limited := fsys.(rootFiles); limited && !t.usesHostFileReads() {
 		return t.readLimited(fsys, p, offset, limit)
 	}
+	return t.hostRead(ctx, p, offset, limit)
+}
+
+func (t turnTools) hostRead(ctx context.Context, p string, offset, limit int) (string, bool) {
+	content, ok := t.requestRead(ctx, p, offset, limit)
+	if !ok {
+		return content, false
+	}
+	if len(content) > maxRead {
+		return content[:maxRead] + fmt.Sprintf("\n\n[The file goes on; it was cut at %d KB. Read the rest with offset and limit.]", maxRead>>10), true
+	}
+	return content, true
+}
+
+func (t turnTools) requestRead(ctx context.Context, p string, offset, limit int) (string, bool) {
 	params := acp.ReadTextFileParams{SessionID: t.session, Path: p}
 	if offset > 0 {
 		params.Line = &offset
@@ -267,9 +285,7 @@ func (t turnTools) read(ctx context.Context, p string, offset, limit int) (strin
 	if acp.Decode(out, &r) != nil {
 		return "The file could not be read.", false
 	}
-	if len(r.Content) > maxRead {
-		return r.Content[:maxRead] + fmt.Sprintf("\n\n[The file goes on; it was cut at %d KB. Read the rest with offset and limit.]", maxRead>>10), true
-	}
+
 	return r.Content, true
 }
 
@@ -442,6 +458,7 @@ func searchIn(ctx context.Context, fsys fileSystem, root, pattern, glob string) 
 		}
 	}
 	var lines []string
+	var unreadable int
 	var work searchWork
 	stop := errors.New("enough")
 	walk := func(p string, d fs.DirEntry, err error) error {
@@ -474,7 +491,11 @@ func searchIn(ctx context.Context, fsys fileSystem, root, pattern, glob string) 
 			return errSearchBudget
 		}
 		b, err := fsys.readFile(p)
-		if err != nil || !utf8ish(b) {
+		if err != nil {
+			unreadable++
+			return nil
+		}
+		if !utf8ish(b) {
 			return nil
 		}
 		work.bytes += len(b)
@@ -485,7 +506,7 @@ func searchIn(ctx context.Context, fsys fileSystem, root, pattern, glob string) 
 					rel = filepath.Base(p)
 				}
 				if len(line) > 300 {
-					line = line[:300] + "…"
+					line = line[:300] + "Ã¢â‚¬Â¦"
 				}
 				lines = append(lines, fmt.Sprintf("%s:%d: %s", filepath.ToSlash(rel), i+1, strings.TrimRight(line, "\r")))
 				if len(lines) >= maxMatches {
@@ -504,9 +525,15 @@ func searchIn(ctx context.Context, fsys fileSystem, root, pattern, glob string) 
 		return err.Error(), false
 	}
 	if len(lines) == 0 {
-		return "No line matches.", true
+		if unreadable == 0 {
+			return "No line matches.", true
+		}
+		lines = append(lines, "No line matches in the files read.")
 	}
 	out := strings.Join(lines, "\n")
+	if unreadable > 0 {
+		out += fmt.Sprintf("\n[%d files could not be read. Access policy and the host's 1 MiB read limit apply; inspect the Agent File Access log or search smaller file sections.]", unreadable)
+	}
 	if len(lines) >= maxMatches {
 		out += fmt.Sprintf("\n[Only the first %d matches are listed; narrow the pattern.]", maxMatches)
 	}

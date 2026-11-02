@@ -423,7 +423,7 @@ func (s workspaceResourceService) read(ref ResourceRef) (ResourceRead, error) {
 	if err != nil {
 		return ResourceRead{}, err
 	}
-	text, err := resourceText(f)
+	text, err := s.app.readAgentResourceText(s.ctx, filepath.Join(source.Path, ref.Path), f)
 	if err != nil {
 		return ResourceRead{}, err
 	}

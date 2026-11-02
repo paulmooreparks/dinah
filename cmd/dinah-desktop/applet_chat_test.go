@@ -13,6 +13,7 @@ func TestChatAppletWorkspaceIsolationWithoutAgent(t *testing.T) {
 	t.Cleanup(func() { configOverride = previous })
 	ws, other := t.TempDir(), t.TempDir()
 	a := NewApp()
+	configureFileAccessFixture(t, a)
 	a.runtime.PutConversationLocked("own", newSessionState(&sessionSeed{ID: "own", Cwd: ws, Title: "Own Chat"}))
 	a.runtime.PutConversationLocked("other", newSessionState(&sessionSeed{ID: "other", Cwd: other, Title: "Other Chat"}))
 	a.remember(ws, "", "send", "our prompt", nil)

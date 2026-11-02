@@ -40,6 +40,7 @@ var pageMethods = func() map[string]pageMethodClass {
 		}
 	}
 	list(pageQuery, `
+ FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus
  NativeWindowState NativeWindowAction State Sessions SessionsAt History SavedConversation
  AgentProviders ProviderAccounts ProviderModelPreferences ProviderUsage CanSteer
@@ -63,6 +64,7 @@ var pageMethods = func() map[string]pageMethodClass {
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
  InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate`)
 	list(pageWork, `
+ AddFileAccessEntry RemoveFileAccessEntry SetFileAccessDefault AcknowledgeFileAccessLog
  LogQueueDefault DismissJudgementWarning DismissJudgementWarnings SetJudgementSettings RunJudgementCalibration CorrectJudgement ResolveHold ForgetContextChoice AcceptSuggestion AddDraftFile AddTerminalProfile AgentCheck AgentConnect AgentRestart
  AgentSignIn AgentStop Answer AnswerAppletRequest AnswerExtensionCommand AnswerPage
  AttachLocalWorkspaceSource BusAddToGroup BusDeleteGroup BusMarkGroupRead BusRemoveFromGroup

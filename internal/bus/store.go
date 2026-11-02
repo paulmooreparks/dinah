@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"studio/internal/fileaccess"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -21,8 +23,11 @@ import (
 
 // Bus is an open connection to the bus's database.
 type Bus struct {
-	db  *sql.DB
-	now func() time.Time
+	accessMu       sync.Mutex
+	access         *fileaccess.Service
+	accessDefaults func() ([]fileaccess.Rule, error)
+	db             *sql.DB
+	now            func() time.Time
 	// dir is the folder the database is in.
 	dir string
 }
@@ -396,7 +401,14 @@ func addressOldMessages(db *sql.DB) error {
 }
 
 // Close closes the database.
-func (b *Bus) Close() error { return b.db.Close() }
+func (b *Bus) Close() error {
+	b.accessMu.Lock()
+	if b.access != nil {
+		_ = b.access.Store.Close()
+	}
+	b.accessMu.Unlock()
+	return b.db.Close()
+}
 
 func (b *Bus) stamp() string { return b.now().UTC().Format(time.RFC3339Nano) }
 

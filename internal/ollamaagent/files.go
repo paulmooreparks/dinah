@@ -1,6 +1,7 @@
 package ollamaagent
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -18,6 +19,33 @@ import (
 // person makes in Settings applies from a running chat's next call
 // (docs/plans/ollama-file-limits.md).
 type FileScope func(session, cwd string) (folders []string, limited bool)
+
+// SetHostFileReads routes every text read, including search candidates, through
+// the host request handler. The host must enforce both its policy and FileScope.
+func (c *Conn) SetHostFileReads() { c.mu.Lock(); c.hostFileReads = true; c.mu.Unlock() }
+
+func (t turnTools) usesHostFileReads() bool {
+	if t.c == nil {
+		return false
+	}
+	t.c.mu.Lock()
+	defer t.c.mu.Unlock()
+	return t.c.hostFileReads
+}
+
+type hostReadFiles struct {
+	fileSystem
+	tools turnTools
+	ctx   context.Context
+}
+
+func (f hostReadFiles) readFile(path string) ([]byte, error) {
+	text, ok := f.tools.requestRead(f.ctx, path, 0, 0)
+	if !ok {
+		return nil, errors.New(text)
+	}
+	return []byte(text), nil
+}
 
 // SetFileScope gives the connection the function that says where the file
 // tools may go. Without one they may go anywhere.

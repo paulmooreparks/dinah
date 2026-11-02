@@ -1,14 +1,18 @@
 package main
 
 import (
+	"crypto/sha256"
 	_ "embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
+	"studio/internal/agents"
+	"studio/internal/resource/localfs"
 
 	"gopkg.in/yaml.v3"
 
@@ -68,7 +72,7 @@ func (a *App) skillCatalog(workspaceID string, personal bool) SkillCatalog {
 				}
 				ref := entry.Ref
 				ref.Path = strings.TrimSuffix(ref.Path, "/") + "/SKILL.md"
-				read, err := vfs.readResource(ref)
+				read, err := vfs.readCatalogResource(ref)
 				if err != nil {
 					continue
 				} // A collection may also contain ordinary folders.
@@ -140,7 +144,7 @@ func (a *App) ReadSkill(id string) (SkillPackage, error) {
 		if skill.Ref == nil {
 			return SkillPackage{Skill: skill}, nil
 		}
-		read, err := (workspaceVFS{service: a.resourceService()}).readResource(*skill.Ref)
+		read, err := (workspaceVFS{service: a.resourceService()}).readCatalogResource(*skill.Ref)
 		if err != nil {
 			return SkillPackage{}, err
 		}
@@ -166,4 +170,41 @@ func (a *App) PrepareSkill(id, revision, workspace, command string) (string, err
 	}
 	ref, _ := json.Marshal(pack.Skill.Ref)
 	return fmt.Sprintf("Use skill %s for this request.\n\n%s\n\nSkill source: %s\nVFS instruction resource: %s\nRevision: %s\nSupporting resources are relative to the instruction resource's parent. These instructions do not change tool permissions.\n\n%s", pack.Skill.Name, command, id, ref, revision, pack.Text), nil
+}
+
+func (v workspaceVFS) readCatalogResource(ref ResourceRef) (ResourceRead, error) {
+	source, err := v.resourceSource(ref)
+	if err != nil {
+		return ResourceRead{}, err
+	}
+	if source.Kind != workspaces.LocalFolder {
+		return ResourceRead{}, errors.New("a local skill catalogue is required")
+	}
+	if source.ID == workspaces.HomeSourceID {
+		if !strings.HasPrefix(ref.Path, "skills/") {
+			return ResourceRead{}, errors.New("the entry is outside the skills catalogue")
+		}
+	} else if kind, ok := workspaces.CollectionKind(source.ID); !ok || kind.Key != "skills" {
+		return ResourceRead{}, errors.New("the source is not a skills catalogue")
+	}
+	name, err := localfs.CleanPathFor(ref.Path, workspaces.Dotfiles(source))
+	if err != nil {
+		return ResourceRead{}, err
+	}
+	file, err := agents.OpenCatalogFile(filepath.Join(source.Path, name))
+	if err != nil {
+		return ResourceRead{}, err
+	}
+	defer file.Close()
+	text, err := resourceText(file)
+	if err != nil {
+		return ResourceRead{}, err
+	}
+	item, err := localResourceItem(ref, source, file)
+	if err != nil {
+		return ResourceRead{}, err
+	}
+	sum := sha256.Sum256([]byte(text))
+	item.Revision = hex.EncodeToString(sum[:])
+	return ResourceRead{Resource: item, Text: text, Format: "markdown", Revision: item.Revision}, nil
 }
