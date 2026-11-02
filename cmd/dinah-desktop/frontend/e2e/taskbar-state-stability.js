@@ -24,6 +24,12 @@ const fs = require('node:fs'), path = require('node:path');
       window.__stateKeys = keys;
       window.__stateTokens = [...document.styleSheets].length && ['--text-2xs', '--text-xs', '--text-sm', '--text-md', '--text-base', '--text-lg', '--text-xl', '--text-2xl', '--text-3xl', '--chat-size'].map(name => [name, parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name))]);
       window.__stateWindows = keys.map(k => document.querySelector('[data-win="' + CSS.escape(k) + '"]'));
+      /* A listener slower than a frame's budget, after Dinah's own, stands
+         in for a loaded machine. Dinah applies events a frame's budget at a
+         time, so without it a state change split across frames, some
+         windows new and some old, showed only now and then under load; with
+         it the check fails every run if the split comes back (app.js). */
+      dinahHost.on('agent:session', () => { const end = performance.now() + 12; while (performance.now() < end); });
       window.__transition = state => {
         // Publish complete snapshots in a fixed order, after constructing both.
         const snapshots = ['State One', 'State Two'].map(id => Object.assign(__stateChat(id, state), { stateGen: 'states', stateVer: ++__stateVersion }));
