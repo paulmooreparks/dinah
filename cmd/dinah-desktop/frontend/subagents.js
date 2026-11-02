@@ -260,7 +260,7 @@
       } else if (c.type === 'terminal') parts.push('Terminal ' + c.terminalId);
     });
     // A command's colours and other terminal controls are left out here.
-    return parts.join('\n').replace(/\x1b\[[0-9;?]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|[\x00-\x08\x0b-\x1f\x7f]/g, '');
+    return window.dinahTerminalText.plain(parts.join('\n'));
   }
 
   function initOne(root, opts, item) {
