@@ -3178,7 +3178,7 @@
     window.dinahComposer.bind($('prompt'), { history: recall, send: function (e) { send(e.shiftKey && working ? 'steer' : 'auto'); } });
     $('prompt').addEventListener('keydown', function (e) {
       // Escape while composing cancels the composition, not the turn.
-      if (e.key === 'Escape' && working && !e.isComposing) { e.preventDefault(); stopTurn(); }
+      if (e.key === 'Escape' && working && !window.dinahHelpers.composing(e)) { e.preventDefault(); stopTurn(); }
     });
 
     /* ---- Agent options: mode and model ------------------------------------

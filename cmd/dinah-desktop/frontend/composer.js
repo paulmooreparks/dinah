@@ -111,7 +111,7 @@
     box.addEventListener('keydown', function (e) {
       // While an input method is composing, Enter confirms the text and Up
       // and Down choose a candidate, so none of them sends or recalls.
-      if (e.isComposing) return;
+      if (window.dinahHelpers.composing(e)) return;
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); o.send(e); return; }
       if (e.key === 'Enter' && sendKey === 'enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); o.send(e); return; }
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;

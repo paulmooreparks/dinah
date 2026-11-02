@@ -31,14 +31,21 @@ async function drive(page, box, list, ok, who) {
   // Enter, Tab, Escape and the arrows sent as composing leave the list
   // open on the same row, and pick, close or send nothing.
   const composing = key => box.evaluate((el, key) => el.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true, bubbles: true, cancelable: true })), key);
+  // WebKit, the macOS build's engine, sends the Enter that confirms a
+  // composition after it ends: isComposing is false and keyCode is 229, the
+  // UI Events code for a key the input method is processing.
+  const confirming = key => box.evaluate((el, key) => { const e = new KeyboardEvent('keydown', { key, isComposing: false, bubbles: true, cancelable: true }); Object.defineProperty(e, 'keyCode', { get: () => 229 }); return el.dispatchEvent(e); }, key);
   const before = await selected();
   for (const key of ['ArrowDown', 'Enter', 'Tab', 'Escape']) await composing(key);
   ok(who + ': keys sent while an input method composes leave the list open on the same row', await list.isVisible() && await selected() === before && await box.inputValue() === '@', JSON.stringify({ before, after: await selected(), value: await box.inputValue() }));
+  await confirming('Enter');
+  ok(who + ': an Enter the input method is still processing (keyCode 229) picks nothing', await list.isVisible() && await selected() === before && await box.inputValue() === '@', JSON.stringify({ before, after: await selected(), value: await box.inputValue() }));
   await box.press('Escape');
   await list.waitFor({ state: 'hidden' });
   ok(who + ': Escape closes the list and leaves the text', await box.inputValue() === '@');
   await box.fill('Typed text');
   await composing('Enter');
+  await confirming('Enter');
   await box.fill('');
   await composing('ArrowUp');
   ok(who + ': Enter while composing does not send, and Up does not bring back an earlier message', await box.inputValue() === '' && await page.evaluate(() => window.__sends) === 0, JSON.stringify({ value: await box.inputValue(), sends: await page.evaluate(() => window.__sends) }));

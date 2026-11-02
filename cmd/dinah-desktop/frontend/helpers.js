@@ -208,6 +208,13 @@
     if (!options.keep) rows.forEach(function (view, key) { if (!keys.has(key)) rows.delete(key); });
     return views;
   }
+  /* Whether a key belongs to an input method composing text (FE-45), which
+     a box leaves alone: Enter confirms the text, the arrows choose a
+     candidate, Escape cancels and Backspace edits it. isComposing says so
+     during composition; the UI Events specification gives keyCode 229 to a
+     key the input method is processing, which is how WebKit, the macOS
+     build's engine, reports the Enter that confirms, after compositionend. */
+  function composing(e) { return !!e.isComposing || e.keyCode === 229; }
   window.dinahHost = { on, onResync, settled };
-  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile };
+  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile, composing };
 }());

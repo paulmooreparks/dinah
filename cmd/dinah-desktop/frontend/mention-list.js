@@ -56,7 +56,7 @@
   // While an input method is composing text, its keys are its own: Enter
   // confirms the text and the arrows choose a candidate (FE-45).
   function key(e) {
-    if (e.isComposing) return null;
+    if (window.dinahHelpers.composing(e)) return null;
     if (e.key === 'ArrowDown') return 'down';
     if (e.key === 'ArrowUp') return 'up';
     if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey) || e.key === 'Tab') return 'pick';
