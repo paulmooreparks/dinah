@@ -2092,7 +2092,7 @@
     var ANSI_FG = [30, 31, 32, 33, 34, 35, 36, 37, 90, 91, 92, 93, 94, 95, 96, 97];
     function ansiHTML(text) {
       var out = '', open = false, style = { bold: false, dim: false, italic: false, under: false, fg: null, bg: null };
-      function esc(s) { return s.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+      var esc = window.dinahHTML.text;
       function apply(params) {
         var p = params.length ? params.split(';').map(function (n) { return n === '' ? 0 : Number(n); }) : [0];
         for (var i = 0; i < p.length; i++) {
