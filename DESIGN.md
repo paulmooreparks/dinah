@@ -406,6 +406,8 @@ The window finds the shells where their installers put them: PowerShell on the P
 
 PowerShell 7.6 has a defect of its own that a Terminal running it can meet: a Ctrl+C that arrives just as a command finishes can end the shell, which prints "An error has occurred that was not properly handled" with an ObjectDisposedException from `PipelineProcessor.Stop` and exits. Its break handler cancels a token source that the finished pipeline has already disposed, so the fault lies in PowerShell's own Ctrl+C handling rather than in how Dinah delivers the key, and a new Terminal is the remedy until PowerShell fixes it. The Ctrl+C test in `internal/terminals` tries again in a new shell when it meets exactly this report, and fails on anything else.
 
+A program started in the moment a Terminal closes, before it has drawn anything, may keep running until it ends by itself.
+
 #### Milestones
 
 Each milestone ends with something Paul uses.
