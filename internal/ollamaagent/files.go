@@ -220,7 +220,10 @@ func (t turnTools) readLimited(fsys fileSystem, p string, offset, limit int) (st
 	if limit > 0 {
 		n = &limit
 	}
-	content := agents.SliceLines(string(b), line, n)
+	content, err := agents.SliceLines(string(b), line, n)
+	if err != nil {
+		return err.Error(), false
+	}
 	if len(content) > maxRead {
 		return content[:maxRead] + fmt.Sprintf("\n\n[The file goes on; it was cut at %d KB. Read the rest with offset and limit.]", maxRead>>10), true
 	}

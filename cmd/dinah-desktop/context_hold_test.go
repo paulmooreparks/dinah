@@ -351,7 +351,8 @@ func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 		waitHeldQueue(t, old, i+1)
 	}
 	queued := old.Info().Queued
-	c.newErr = errors.New("the agent refused")
+	// A definite protocol rejection permits a later attempt; transport loss does not.
+	c.newErr = &acp.Error{Code: acp.CodeInternal, Message: "the agent refused"}
 	events = nil
 	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "could not be continued") {
 		t.Fatalf("a failed compaction: %v", err)
@@ -366,10 +367,59 @@ func TestAFailedCompactionPutsTheHoldAndTheQueueBack(t *testing.T) {
 	if sw := old.Info().Switch; sw == nil || sw.Failed == "" {
 		t.Fatalf("the failure is not shown: %+v", old.Info().Switch)
 	}
+	saved, err := loadSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, held := saved.ChatTransfers[info.ID]; held || len(saved.ChatTransferHistory) != 1 || saved.ChatTransferHistory[0].Stage != "rejected" {
+		t.Fatal("definite rejection was not durably settled")
+	}
+	if restarted := (&App{settings: saved}); restarted.transferHeld(info.ID, saved.BusSessions[info.ID]) {
+		t.Fatal("restart held a definitely rejected allocation")
+	}
 	// What stopped it is gone: the same hold resolves.
 	c.newErr = nil
 	if next, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err != nil || next.ID != "codex:second" {
 		t.Fatalf("compacting again: %v %v", next.ID, err)
+	}
+}
+
+func TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart(t *testing.T) {
+	a, c := providerTestApp(t)
+	withContextModule(t, "codex")
+	info, err := a.NewSessionAt(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := a.session(info.ID)
+	a.transcriptCapture().RecordMessage(old, "you", "Keep the question", false, false)
+	a.transcriptCapture().RecordMessage(old, "agent", "Keep the answer", false, false)
+	a.transcriptCapture().FinishTurn(old, nil, "end_turn")
+	c.window = fullWindow
+	if err := a.Send(info.ID, "Keep this queued", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	waitHeldQueue(t, old, 1)
+	queued := old.Info().Queued
+	c.newErr = errors.New("allocation response lost")
+	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil {
+		t.Fatal("uncertain allocation succeeded")
+	}
+	saved, err := loadSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := &App{settings: saved}
+	if saved.ChatTransfers[info.ID].Stage != "allocating" || !restarted.transferHeld(info.ID, saved.BusSessions[info.ID]) {
+		t.Fatal("restart lost the uncertain allocation hold")
+	}
+	before := countCalls(c, "session/new")
+	c.newErr = nil
+	if _, err := a.ResolveHold(info.ID, sessionhost.HoldCompact); err == nil || !strings.Contains(err.Error(), "unconfirmed outcome") {
+		t.Fatalf("blind retry was not blocked: %v", err)
+	}
+	if countCalls(c, "session/new") != before || !slices.Equal(old.Info().Queued, queued) || old.Hold() == nil {
+		t.Fatal("blind retry allocated or changed the held queue")
 	}
 }
 

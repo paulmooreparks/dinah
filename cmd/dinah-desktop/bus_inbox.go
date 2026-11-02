@@ -30,9 +30,15 @@ func (a *App) inboxMessage(m bus.Message) BusMessage {
 		if out.From != "" && out.From != title {
 			// Conflicting saved owners do not authorize choosing one by map order.
 			out.From = ""
-			return out
+			break
 		}
 		out.From = title
+	}
+	// A session still on the bus that has no title of its own is shown by its
+	// display title, as the rest of the bus shows it; only a sender that has
+	// left the bus is "no longer available".
+	if out.From == "" && m.FromKnown {
+		out.From = m.From
 	}
 	return out
 }

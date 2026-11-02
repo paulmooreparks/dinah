@@ -120,6 +120,8 @@ func New(b *bus.Bus, addr string) (*Server, error) {
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 	s.mux.HandleFunc("GET /appearance.css", s.appearanceCSS)
 	s.mux.HandleFunc("GET /signin", s.signin)
+	s.mux.HandleFunc("POST /signout", s.signout)
+	s.mux.HandleFunc("POST /signout/everywhere", s.signout)
 	s.mux.HandleFunc("GET /{$}", s.desktop)
 	s.mux.HandleFunc("GET /win/{key}", s.window)
 	s.mux.HandleFunc("GET /inbox", s.inbox)
@@ -169,13 +171,27 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c, err := r.Cookie(cookieName)
-	if err != nil || !s.bus.ValidWebToken(r.Context(), c.Value) {
+	valid := false
+	if err == nil {
+		if r.URL.Path == "/events" {
+			valid = s.bus.CheckWebToken(r.Context(), c.Value)
+		} else {
+			valid = s.bus.ValidWebToken(r.Context(), c.Value)
+		}
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	if !valid {
 		if r.URL.Path == "/appearance.css" {
 			writeAppearanceCSS(w, defaultAppearance(), "")
 			return
 		}
+		message := ""
+		if err == nil {
+			clearSignInCookie(w)
+			message = "Your sign-in is no longer valid. Sign in again to continue."
+		}
 		w.WriteHeader(http.StatusUnauthorized)
-		s.render(w, "signedout.html", map[string]any{"Title": "Signed Out", "Product": profile.Current().Name, "Command": profile.Current().CommandProgram})
+		s.render(w, "signedout.html", map[string]any{"Title": "Signed Out", "Error": message, "Product": profile.Current().Name, "Command": profile.Current().CommandProgram})
 		return
 	}
 	if r.Method == http.MethodPost && !s.sameOrigin(r) {
@@ -204,6 +220,11 @@ func (s *Server) sameOrigin(r *http.Request) bool {
 }
 
 func (s *Server) signin(w http.ResponseWriter, r *http.Request) {
+	policy, err := s.bus.WebSessionPolicy(r.Context())
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
 	token, err := s.bus.ExchangeWebCode(r.Context(), r.URL.Query().Get("code"))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -211,7 +232,7 @@ func (s *Server) signin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: token, Path: "/", HttpOnly: true,
-		SameSite: http.SameSiteStrictMode, MaxAge: 365 * 24 * 3600})
+		SameSite: http.SameSiteStrictMode, MaxAge: policy.AbsoluteDays * 24 * 3600})
 	// The page moves on to the desktop itself rather than by a redirect. A
 	// sign-in link followed from another site, as the Dinah window's first
 	// page is, makes the whole redirect chain cross-site, and a browser
@@ -222,6 +243,27 @@ func (s *Server) signin(w http.ResponseWriter, r *http.Request) {
 	name := template.HTMLEscapeString(profile.Current().Name)
 	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>%s</title>`+
 		`<meta http-equiv="refresh" content="0; url=/"></head><body><p><a href="/">Open %s</a></p></body></html>`, name, name)
+}
+
+func clearSignInCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})
+}
+
+func (s *Server) signout(w http.ResponseWriter, r *http.Request) {
+	var err error
+	if r.URL.Path == "/signout/everywhere" {
+		err = s.bus.RevokeAllWebTokens(r.Context())
+	} else if cookie, cookieErr := r.Cookie(cookieName); cookieErr == nil {
+		err = s.bus.RevokeWebToken(r.Context(), cookie.Value)
+	} else {
+		err = cookieErr
+	}
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	clearSignInCookie(w)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 type page struct {
@@ -511,6 +553,10 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	for {
+		cookie, err := r.Cookie(cookieName)
+		if err != nil || !s.bus.CheckWebToken(r.Context(), cookie.Value) {
+			return
+		}
 		n, err := s.bus.ChangeCounter(r.Context())
 		if err == nil && n != last {
 			fmt.Fprintf(w, "data: %d\n\n", n)

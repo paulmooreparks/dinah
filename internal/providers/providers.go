@@ -72,6 +72,10 @@ type Row struct {
 	// history replay has merged, so its calls are recorded as the replay has
 	// them and not one row for each event.
 	MergedToolCalls bool
+	// MatchesModelsByName says a saved model choice that the provider no longer
+	// offers is restored to the offered choice with the same display name, as
+	// the provider names its models (docs/design/claude-model-matching.md).
+	MatchesModelsByName bool
 	// SnapshotToolCalls identifies adapters whose terminal tool updates replace
 	// streamed output with the complete result, as their replay does.
 	SnapshotToolCalls bool
@@ -119,7 +123,7 @@ var Registry = map[string]Row{
 			Source: "OpenAI's images and vision guide allows up to 1,500 images and 512 MB in one request. The default of 20 is Paul's own choice, lower than that ceiling.",
 			URL:    "https://developers.openai.com/api/docs/guides/images-vision"}},
 	"claude": {Name: "Claude", BudgetUnit: "tokens", ImageInput: "initialize", Removal: "deletes", Usage: "none", Executable: "Node.js", ChooseExecutable: true,
-		SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, MergedToolCalls: true,
+		SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, MergedToolCalls: true, MatchesModelsByName: true,
 		// 400,000 is about 100,000 tokens, half of a 200,000-token window.
 		HandoffChars: 400_000,
 		FileLimit: FileLimit{Default: 20, Ceiling: 600,

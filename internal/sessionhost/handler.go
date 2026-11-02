@@ -4,9 +4,10 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"os"
+	"errors"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"studio/internal/acp"
 	"studio/internal/agents"
@@ -19,7 +20,17 @@ var HandlerSource []byte
 // Handler receives provider messages through named host effects. It holds no
 // registry or conversation locks while invoking host callbacks. Transcript
 // callbacks retain the host transcript mutex as their serialization authority.
-type Handler struct{ host HandlerHost }
+type Handler struct {
+	host         HandlerHost
+	connectionMu sync.RWMutex
+	connection   Connection
+}
+
+func (h *Handler) BindConnection(c Connection) {
+	h.connectionMu.Lock()
+	defer h.connectionMu.Unlock()
+	h.connection = c
+}
 
 func NewHandler(host HandlerHost) *Handler {
 	h := &Handler{host: host}
@@ -56,6 +67,7 @@ type HandlerHost struct {
 	AskPermission            func(context.Context, string, json.RawMessage, []acp.PermissionOption) (string, bool)
 	AskAsSubagent            func(context.Context, *Conversation, *SubagentInfo, json.RawMessage, []acp.PermissionOption) (string, bool)
 	WriteTextFile            func(string, string) error
+	ReadTextFile             func(context.Context, Connection, acp.ReadTextFileParams) (string, error)
 	DisplayPath              func(string, string) string
 	ProductName              string
 	ReplayBatch              int
@@ -268,11 +280,21 @@ func (h *Handler) Request(ctx context.Context, method string, params json.RawMes
 		if err := json.Unmarshal(params, &p); err != nil {
 			return nil, &acp.Error{Code: acp.CodeInternal, Message: err.Error()}
 		}
-		b, err := os.ReadFile(p.Path)
+		if err := agents.ValidateLineRange(p.Line, p.Limit); err != nil {
+			return nil, &acp.Error{Code: acp.CodeInternal, Message: err.Error()}
+		}
+		h.connectionMu.RLock()
+		conn := h.connection
+		h.connectionMu.RUnlock()
+		var content string
+		err := errors.New("file reads require a bound provider connection")
+		if conn != nil && a.ReadTextFile != nil {
+			content, err = a.ReadTextFile(ctx, conn, p)
+		}
 		if err != nil {
 			return nil, &acp.Error{Code: acp.CodeInternal, Message: err.Error()}
 		}
-		return acp.ReadTextFileResult{Content: agents.SliceLines(string(b), p.Line, p.Limit)}, nil
+		return acp.ReadTextFileResult{Content: content}, nil
 	case "fs/write_text_file":
 		var p acp.WriteTextFileParams
 		if err := json.Unmarshal(params, &p); err != nil {

@@ -144,6 +144,8 @@ type Conn struct {
 	// warned is whether the agent has already been noted in the log for
 	// writing a line that is not protocol; one note per connection is enough.
 	warned bool
+	// notificationFault is reader-owned and limits generic handler-fault logs.
+	notificationFault bool
 }
 
 // Start runs the agent command in dir, hidden and tied to the app, and
@@ -329,7 +331,7 @@ func (c *Conn) read(r io.Reader) {
 			}
 			if !c.warned {
 				c.warned = true
-				Logf("%s wrote a line that is not protocol, which is skipped; later ones are not noted: %.200s", c.agent, line)
+				c.logf("%s wrote a line that is not protocol, which is skipped; later ones are not noted", c.agent)
 			}
 			continue
 		}
@@ -338,7 +340,7 @@ func (c *Conn) read(r io.Reader) {
 		case m.Method != "" && m.ID != nil:
 			go c.answer(m)
 		case m.Method != "":
-			c.handler.Notify(m.Method, m.Params)
+			c.notify(m)
 		case m.ID != nil:
 			var id int64
 			if json.Unmarshal(*m.ID, &id) != nil {
@@ -359,9 +361,31 @@ func (c *Conn) read(r io.Reader) {
 	}
 }
 
+func (c *Conn) notify(m message) {
+	defer func() {
+		if recover() != nil && !c.notificationFault {
+			c.notificationFault = true
+			c.logf("ignored a provider notification after a client handler fault")
+		}
+	}()
+	c.handler.Notify(m.Method, m.Params)
+}
+
 func (c *Conn) answer(m message) {
+	_ = c.send(c.requestReply(m))
+}
+
+// requestReply contains faults in one reverse request. A panic payload may
+// include credentials or file content, so the protocol error is generic.
+func (c *Conn) requestReply(m message) (out message) {
+	out.ID = m.ID
+	defer func() {
+		if recover() != nil {
+			out.Result = nil
+			out.Error = &Error{Code: CodeInternal, Message: "the client could not handle this request"}
+		}
+	}()
 	result, rerr := c.handler.Request(c.ctx, m.Method, m.Params)
-	out := message{ID: m.ID}
 	if rerr != nil {
 		out.Error = rerr
 	} else {
@@ -372,7 +396,7 @@ func (c *Conn) answer(m message) {
 			out.Result = b
 		}
 	}
-	_ = c.send(out)
+	return out
 }
 
 // RegisterTraceSecret excludes a channel credential from protocol and stderr
@@ -414,14 +438,27 @@ func (c *Conn) traceLine(prefix string, b []byte) {
 	if c.trace == nil {
 		return
 	}
-	s := string(b)
+	fmt.Fprintf(c.trace, "%s%s\n", prefix, c.redactLocked(string(b)))
+}
+
+// logf applies the connection's registered redactors at the diagnostic sink.
+// Malformed protocol payloads are omitted even when no secret is registered yet.
+func (c *Conn) logf(format string, args ...any) {
+	c.traceMu.Lock()
+	s := c.redactLocked(fmt.Sprintf(format, args...))
+	c.traceMu.Unlock()
+	Logf("%s", s)
+}
+
+// redactLocked is shared by protocol traces and connection diagnostics.
+func (c *Conn) redactLocked(s string) string {
 	for _, redact := range c.traceRedactors {
 		s = redact(s)
 	}
 	for _, secret := range c.traceSecrets {
 		s = strings.ReplaceAll(s, secret, "[redacted]")
 	}
-	fmt.Fprintf(c.trace, "%s%s\n", prefix, s)
+	return s
 }
 
 // stderr writes can split a credential between chunks. Buffer complete lines

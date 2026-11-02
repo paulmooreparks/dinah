@@ -41,7 +41,9 @@ const { launch } = require('./lib/page');
       }, {name, colour});
     }
     ok('a healthy judge has the positive check glyph', await glyphIs('tick', 'positive'));
-    ok('without undismissed warnings, the badge is hidden', await item.locator('[data-status-badge]').isHidden());
+    // With no undismissed warnings the badge is a neutral 0, not a warning (11d4c27).
+    const neutralZero = () => item.locator('[data-status-badge]').evaluate(el => !el.hidden && el.textContent === '0' && !el.classList.contains('warn'));
+    ok('without undismissed warnings, the badge is a neutral 0', await neutralZero());
     ok('and its name says the counts', /on, 12 calls today, 3 answered by the rule/.test(await item.getAttribute('aria-label')), await item.getAttribute('aria-label'));
     // The popup: the day in words, then the two ways in.
     await item.click();
@@ -74,7 +76,7 @@ const { launch } = require('./lib/page');
     ok('a stale state is not applied over a newer one', (await item.getAttribute('data-judgement')) === 'warning' && (await item.locator('[data-status-badge]').textContent()) === '5');
     await p.evaluate(() => { __emit('judgements:changed', { stateGen: 1, stateVer: 4, state: 'on', unseen: 0, calls: 9, fallbacks: 5, paused: {provider: 'ollama', until: new Date(Date.now() + 600000).toISOString(), reason: 'provider quota reached'} }); });
     await p.waitForFunction(() => document.getElementById('status-judgements').title.includes('provider quota reached'));
-    ok('a paused judge keeps the warning glyph after dismissal', await glyphIs('warning', 'warn') && await item.locator('[data-status-badge]').isHidden());
+    ok('a paused judge keeps the warning glyph after dismissal', await glyphIs('warning', 'warn') && await neutralZero());
     await t.shot('judgements-widget-paused');
     await p.evaluate(() => { __emit('judgements:changed', { stateGen: 1, stateVer: 5, state: 'on', unseen: 0, calls: 10, fallbacks: 5 }); });
     await p.waitForFunction(() => document.getElementById('status-judgements').dataset.statusText === 'On');

@@ -38,7 +38,8 @@ func (a *App) newAgentHandler() *sessionhost.Handler {
 			a.mu.Unlock()
 			return agents.WriteTextFile(stateLayout(), target, content, managedRoots...)
 		},
-		DisplayPath: rel, ProductName: product.Name, ReplayBatch: replayBatch,
+		ReadTextFile: a.readAgentTextFile,
+		DisplayPath:  rel, ProductName: product.Name, ReplayBatch: replayBatch,
 		Judges:   a.judgeSessionSet(),
 		TurnCost: a.noteTurnCost,
 	})

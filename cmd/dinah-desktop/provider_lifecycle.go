@@ -92,6 +92,7 @@ func (a *App) lifecycle() *sessionhost.ProviderLifecycle {
 		}
 		a.providerLifecycle = sessionhost.NewProviderLifecycle(&a.mu, &a.runtime, specs, sessionhost.LifecycleHost{
 			Handler:          func() acp.Handler { return a.newAgentHandler() },
+			BindHandler:      func(h acp.Handler, conn sessionhost.Connection) { h.(*sessionhost.Handler).BindConnection(conn) },
 			TraceForProvider: func(string) sessionhost.Trace { return a.logs().trace },
 			RedactTrace:      redactAppletContexts, RevokeChannels: a.revokeAppletChannels,
 			CloseChatLog:    func(id string) { a.chatLogs().Close(id) },

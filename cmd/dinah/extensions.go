@@ -97,7 +97,11 @@ func installExtensionSource(ctx context.Context, store extension.Store, source, 
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s %s\nPublisher: %s\nPublisher key SHA-256: %s\nPermissions: %s\nOrigin: %s\nNative code runs under your account. Host permissions do not sandbox the native process.\n", preview.Manifest.Title, preview.Manifest.Version, preview.Manifest.Publisher.Name, preview.Fingerprint, strings.Join(preview.Manifest.Permissions, ", "), source)
+	names := strings.Join(preview.Manifest.Environment, ", ")
+	if names == "" {
+		names = "None"
+	}
+	fmt.Printf("%s %s\nPublisher: %s\nPublisher key SHA-256: %s\nPermissions: %s\nOrigin: %s\nAdditional inherited environment variables: %s\nNative code runs with your full local authority until isolation is implemented. Host permissions and environment filtering do not isolate it from your files, credentials or network.\n", preview.Manifest.Title, preview.Manifest.Version, preview.Manifest.Publisher.Name, preview.Fingerprint, strings.Join(preview.Manifest.Permissions, ", "), source, names)
 	if accept == "" {
 		fmt.Print("Install this signed package? Type yes: ")
 		answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')

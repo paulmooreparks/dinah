@@ -36,6 +36,7 @@ type ProviderStart struct {
 // Callbacks reached during Live must not re-enter Live or Restart.
 type LifecycleHost struct {
 	Handler             func() acp.Handler
+	BindHandler         func(acp.Handler, Connection)
 	TraceForProvider    func(string) Trace
 	RedactTrace         func(string) string
 	RevokeChannels      func(Connection)
@@ -197,10 +198,14 @@ func (l *ProviderLifecycle) start(adapter *ProviderSpec) (Connection, acp.Initia
 		return nil, acp.InitializeResult{}, err
 	}
 	l.state(adapter.ID, "starting", adapter.Starting)
-	conn, err := start.Launch(l.host.Handler())
+	handler := l.host.Handler()
+	conn, err := start.Launch(handler)
 	if err != nil {
 		l.state(adapter.ID, "failed", err.Error())
 		return nil, acp.InitializeResult{}, err
+	}
+	if l.host.BindHandler != nil {
+		l.host.BindHandler(handler, conn)
 	}
 	conn.RegisterTraceRedactor(l.host.RedactTrace)
 	ctx, cancel := context.WithTimeout(context.Background(), adapter.InitWithin)

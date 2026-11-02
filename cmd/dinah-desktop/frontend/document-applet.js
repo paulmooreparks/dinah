@@ -10,8 +10,9 @@
       block.className = 'doc-block'; block.dataset.line = b.line;
       // The preview keeps the HTML written in the document, which may have
       // come from anyone, so it is made safe before it is shown
-      // (safe-html.js).
-      block.replaceChildren(window.dinahHTML.fragment(b.html));
+      // (safe-html.js). Its ids are kept under the preview's own scope, so
+      // its heading links work and no id can be one of Dinah's.
+      block.replaceChildren(window.dinahHTML.fragment(b.html, { scope: key + '-preview' }));
       window.dinahWorkbench.namespaceSVG(block); page.appendChild(block);
       (b.diagrams || []).forEach(function (diagram) {
         if (!['d2', 'mermaid'].includes(diagram.language)) return;
@@ -24,16 +25,6 @@
           if (options.changed) options.changed();
         }, true));
       });
-    });
-    var anchors = new Map();
-    page.querySelectorAll('[id]').forEach(function (el) {
-      if (el.closest('svg')) return;
-      var original = el.id; el.id = key + '-preview-' + original; anchors.set(original, el.id);
-    });
-    page.querySelectorAll('a[href^="#"]').forEach(function (link) {
-      var original;
-      try { original = decodeURIComponent(link.getAttribute('href').slice(1)); } catch (_) { return; }
-      if (anchors.has(original)) link.setAttribute('href', '#' + encodeURIComponent(anchors.get(original)));
     });
     return Promise.all(pending);
   }

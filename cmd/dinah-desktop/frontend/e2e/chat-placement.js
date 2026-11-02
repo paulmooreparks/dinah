@@ -5,7 +5,9 @@
 // from Continue from Saved History, from the engine opening the newest
 // continuation of the session the window asked for, or from a restored
 // window whose saved session has been continued (the start-up path). The
-// chat is listed once.
+// window then shows the continuation's own saved copy. When the continuation
+// already has a window of its own, that window comes forward and the other
+// closes, leaving one window and none stuck loading. The chat is listed once.
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({ viewport: { width: 1440, height: 900 }, state: { workspace: 'C:/Test', recent: ['C:/Test'] }, app: () => {
@@ -19,11 +21,14 @@ const { launch } = require('./lib/page');
     return {
       AgentProviders: async () => [{ id: 'claude', name: 'Claude', installed: true, available: true, status: 'detected' }],
       SessionContinuation: async () => ({ history: [] }),
-      SavedConversation: async id => /dead/.test(id) ? { available: true, complete: true, recoverable: true, messages: history } : { available: false },
+      SavedConversation: async id => /dead/.test(id) ? { available: true, complete: true, recoverable: true, messages: history } :
+        id === 'claude:handed-next' ? { available: true, complete: true, streamGen: 'g1', streamThrough: 0, messages: [{ role: 'you', text: 'Continue the handed chat.' }, { role: 'agent', provider: 'claude', text: 'The handed chat carries on here.' }] } : { available: false },
+      ChatEvents: async (id, gen) => ({ gen, head: 0, truncated: false, reset: false, events: [] }),
       ResolveSessionContinuation: async id => { if (id === 'claude:restored' && !window.__gates.resolve) await gate('resolve'); return __heads[id] || id; },
       OpenSessionAt: async (ws, id) => {
         __calls.push(['open', id]);
-        if (id === 'claude:handed') { await gate('open'); return info('claude:handed-next'); }
+        if (id === 'claude:handed') { await gate('open'); return info('claude:handed-next', { streamGen: 'g1', streamHead: 0 }); }
+        if (id === 'claude:twin') return info('claude:twin-next');
         if (id === 'claude:dead') { const e = new Error('Resource not found: ' + id); e.detail = { kind: 'session-not-found', provider: 'claude', sessionId: id, recoverable: true }; throw e; }
         return info(id);
       },
@@ -41,7 +46,7 @@ const { launch } = require('./lib/page');
   const settle = () => p.waitForTimeout(500);
   const same = (a, b) => a && b && JSON.stringify(a.rect) === JSON.stringify(b.rect) && a.order === b.order && a.mode === b.mode;
   try {
-    await p.evaluate(() => ['claude:first', 'claude:restored', 'claude:handed', 'claude:dead', 'claude:last'].forEach(id => __emit('agent:session', { sessionId: id, provider: 'claude', cwd: 'C:/Test', title: 'Chat ' + id.slice(7), open: false })));
+    await p.evaluate(() => ['claude:first', 'claude:restored', 'claude:handed', 'claude:dead', 'claude:last', 'claude:twin', 'claude:twin-next'].forEach(id => __emit('agent:session', { sessionId: id, provider: 'claude', cwd: 'C:/Test', title: 'Chat ' + id.slice(7), open: false })));
     // Windows on either side, so a window opened again would land elsewhere in the order.
     await openChat('claude:first'); await settle();
     // 1. A restored window whose saved session has been continued.
@@ -65,6 +70,16 @@ const { launch } = require('./lib/page');
     await settle();
     const after2 = await place(await keyOf('claude:handed-next'));
     ok('a window whose opening is handed to the continuation keeps its place, size and taskbar slot', same(before2, after2) && !(await keyOf('claude:handed')), JSON.stringify({ before2, after2 }));
+    await p.locator('.win[data-win="' + (await keyOf('claude:handed-next')) + '"]').getByText('The handed chat carries on here.').first().waitFor({ state: 'attached' });
+    ok('and the window shows the continuation\'s own saved copy', await p.locator('.win[data-win="' + (await keyOf('claude:handed-next')) + '"]').getByText('Continue the handed chat.').count() === 1);
+    // 2b. The continuation already has a window: that one comes forward and
+    // the other closes, and neither is left loading.
+    const twinKey = await openChat('claude:twin-next'); await settle();
+    await openChat('claude:twin');
+    await p.waitForFunction(k => pudlWindows.state().top === k && !document.querySelector('.dinah-applet[data-item*=\'"claude:twin"\']'), twinKey);
+    await settle();
+    const twins = await p.evaluate(() => [...document.querySelectorAll('.win[data-win]')].filter(w => /claude:twin/.test(w.querySelector('.dinah-applet') ? w.querySelector('.dinah-applet').dataset.item || '' : '')).map(w => ({ item: w.querySelector('.dinah-applet').dataset.item, title: w.querySelector('.win-title').textContent })));
+    ok('a chat whose continuation already has a window leaves that one window, in front and not loading', twins.length === 1 && /twin-next/.test(twins[0].item) && !/Loading/.test(twins[0].title) && (await p.evaluate(() => pudlWindows.state().top)) === twinKey, JSON.stringify(twins));
     // 3. Continue from Saved History.
     const deadKey = await openChat('claude:dead');
     const front = p.locator('.win.active');

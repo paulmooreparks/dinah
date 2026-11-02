@@ -3,7 +3,8 @@
 // shell_server.go, so this suite tests the policy Dinah uses), an agent's
 // message with hostile HTML in it is drawn as text, and a document's preview
 // with hostile HTML in it keeps its content without its script, frames or
-// unsafe addresses (safe-html.js).
+// unsafe addresses, styles or ids (safe-html.js). That the content also
+// stays inside its box is tested by contained-content.js.
 const path = require('path');
 const fs = require('fs');
 const { launch, PAGE, FRONTEND } = require('./lib/page');
@@ -109,8 +110,8 @@ function shellPolicy() {
     });
     ok('a preview loses script, frames, plug-ins, forms, a base address and a page stylesheet', preview.dropped === 0 && preview.htmlStyle === 0, JSON.stringify(preview));
     ok('a preview loses event handlers and unsafe addresses', preview.handlers.length === 0 && preview.unsafe.length === 0 && preview.jsLinks === 0 && preview.xlink === 0, JSON.stringify(preview));
-    ok('a preview keeps its text, web, mail and relative links, a picture, inline style and SVG style',
-      preview.text.includes('Intro') && preview.text.includes('svg link') && preview.web && preview.mail && preview.relative && preview.picture && preview.style && preview.svgStyle === 1, JSON.stringify(preview));
+    ok('a preview keeps its text, and web, mail and relative links and a picture', preview.text.includes('Intro') && preview.text.includes('svg link') && preview.web && preview.mail && preview.relative && preview.picture, JSON.stringify(preview));
+    ok('a preview loses inline style on HTML and style elements in SVG', !preview.style && preview.svgStyle === 0, JSON.stringify(preview));
     ok('the page is still shown', await page.evaluate(() => getComputedStyle(document.body).display !== 'none'));
 
     await page.waitForTimeout(300);

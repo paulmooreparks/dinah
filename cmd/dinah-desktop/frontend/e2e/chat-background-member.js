@@ -30,8 +30,10 @@ const { launch } = require('./lib/page');
   try {
     const key = await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'lead' }));
     const lead = page.locator('[data-win="' + key + '"]');
-    await lead.locator('.chat-team .team-toggle').click();
-    await lead.locator('[data-team-member="bus-member"] > a').click();
+    // The lead's direct reports are its Members dropdown (f22f9b5); a row's
+    // button opens the member's chat.
+    await lead.locator('.chat-team-toolbar').getByRole('button', { name: /^Members/ }).click();
+    await lead.locator('.members-menu:popover-open [data-team-member="bus-member"] > .member-open').click();
     const member = page.locator('.win[data-chat-current]');
     await member.getByText('SAVED-MEMBER-ANSWER', { exact: true }).first().waitFor();
     ok('the saved copy is readable before the catch-up request returns', await member.locator('[data-view-id=activity]').getByText('The saved assignment.', { exact: true }).last().isVisible() && await member.locator('[data-view-id=replay]').isHidden());
