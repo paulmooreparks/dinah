@@ -6,8 +6,13 @@
 # is checked out beside this one. Its main branch has to contain whatever this
 # commit needs from it.
 #
-# The source vulnerability guard must pass before building and publishing.
-# Other regression gates remain workstation checks until review guard wiring.
+# Building and publishing wait for four gates: the source vulnerability scans,
+# the review's guards (scripts/guards.ps1, docs/design/invariants.md), the full
+# Go suite and the full browser suite. The last three run on Windows only,
+# because the browser suites drive Edge, and that limit is recorded in
+# docs/design/invariants.md. CI has no copy of the private forbidden-terms
+# list, so the guards run with -WithoutForbiddenTerms and that one guard must
+# report itself skipped; the run before each push enforces it.
 name: Build
 
 on:
@@ -71,9 +76,106 @@ jobs:
           path: vulnerability-reports/
           if-no-files-found: error
 
+  guards:
+    name: Run the review's guards
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: dinah
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: dinah
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: dinah/go.mod
+          cache-dependency-path: dinah/go.sum
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dinah/cmd/dinah-desktop/frontend/e2e/package-lock.json
+      - name: Install the browser test driver
+        working-directory: dinah/cmd/dinah-desktop/frontend/e2e
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run every guard in scripts/guards.json
+        run: ./scripts/guards.ps1 -WithoutForbiddenTerms -Out ../guard-reports
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: guard-reports
+          path: guard-reports/
+
+  go-tests:
+    name: Run the full Go suite
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: dinah
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: dinah
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: dinah/go.mod
+          cache-dependency-path: dinah/go.sum
+      - name: Test every package
+        run: ./scripts/go-gate.ps1 ./... -count=1
+
+  browser:
+    name: Run the full browser suite
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: dinah
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: dinah
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: dinah/go.mod
+          cache-dependency-path: dinah/go.sum
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dinah/cmd/dinah-desktop/frontend/e2e/package-lock.json
+      - name: Install the browser test driver
+        working-directory: dinah/cmd/dinah-desktop/frontend/e2e
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run every browser suite
+        working-directory: dinah/cmd/dinah-desktop/frontend/e2e
+        run: ./run.ps1 -Out ${{ runner.temp }}/browser-reports
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: browser-reports
+          path: ${{ runner.temp }}/browser-reports/
+
   build:
     name: Build ${{ matrix.name }}
-    needs: vulnerabilities
+    needs: [vulnerabilities, guards, go-tests, browser]
     strategy:
       fail-fast: false
       matrix:
