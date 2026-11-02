@@ -39,3 +39,5 @@ The page is browser-tested on Windows only, with Edge. Linux and macOS builds ar
 CI runs every guard on Windows and runs the Go guards again on Linux, so a guard that only means something on Unix, such as `TestProtectedIdentityCreationModes` for the permission bits of files and folders an agent creates, runs there. No guard runs on macOS. `scripts/guards.json` lists each platform-specific guard with the systems it runs on, and elsewhere the runner requires it to skip.
 
 PowerShell 7.6 can end itself when a Ctrl+C arrives just as a command finishes: its break handler cancels a token source the finished pipeline has disposed, and the unhandled ObjectDisposedException exits the shell. It is PowerShell's defect, recorded in DESIGN.md under The Terminal. The Terminal's Ctrl+C test tries again in a new shell only on that exact report, and a unit test checks that nothing else counts as it.
+
+A program started in the moment a Terminal closes, before it has drawn anything, may keep running until it ends by itself.

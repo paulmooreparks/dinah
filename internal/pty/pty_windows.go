@@ -33,9 +33,10 @@ type Session struct {
 	code    int
 	waitErr error
 
-	closeOnce sync.Once
-	mu        sync.Mutex
-	closed    bool
+	closeConsole func(windows.Handle) // Optional native-operation seam for lifecycle tests.
+	closeOnce    sync.Once
+	mu           sync.Mutex
+	closed       bool
 	// process is the program's handle until watch releases it, after which
 	// it is 0. It is read and released under mu, so Close never ends a
 	// process through a handle that has been closed.
@@ -418,7 +419,6 @@ func (s *Session) Close() error {
 		s.mu.Lock()
 		s.closed = true
 		s.mu.Unlock()
-		s.in.Close()
 		// Before Windows 11 24H2, ClosePseudoConsole "will wait indefinitely
 		// for the pseudoconsole to exit"
 		// (https://learn.microsoft.com/windows/console/closepseudoconsole),
@@ -428,8 +428,15 @@ func (s *Session) Close() error {
 		grace := time.NewTimer(CloseGrace)
 		defer grace.Stop()
 		consoleGone := make(chan struct{})
+		closeConsole := s.closeConsole
+		if closeConsole == nil {
+			closeConsole = windows.ClosePseudoConsole
+		}
 		go func() {
-			windows.ClosePseudoConsole(s.console)
+			closeConsole(s.console)
+			// Keep input alive until the native close operation returns.
+			// Output completion remains a separate observation.
+			s.in.Close()
 			close(consoleGone)
 		}()
 		select {
