@@ -36,3 +36,5 @@ Each line below is a rule the November 2026 review established, followed by the 
 The page is browser-tested on Windows only, with Edge. Linux and macOS builds are vulnerability-scanned and compiled, but their pages are not exercised.
 
 CI runs every guard on Windows and runs the Go guards again on Linux, so a guard that only means something on Unix, such as `TestProtectedIdentityCreationModes` for the permission bits of files and folders an agent creates, runs there. No guard runs on macOS. `scripts/guards.json` lists each platform-specific guard with the systems it runs on, and elsewhere the runner requires it to skip.
+
+Bundled release assets retain their supplied bytes under every Git checkout line-ending setting. Both hosts validate admitted skin digests before running. Guard: `TestBundledSkinBytesSurviveWindowsCheckout`.
