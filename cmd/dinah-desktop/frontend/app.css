@@ -366,12 +366,12 @@ body:not(.show-thoughts) .thought-row { display: none; }
    button, on one line, ending in an ellipsis as a window's title does. A
    detail that says something the stack button does not follows it in the
    same line, muted, and gives way first; one that only repeats the stack's
-   workspace is dropped (workbench.js). PUDL sizes the state column to the
+   workspace is not drawn (data-win-group-detail, which workbench.js sets;
+   PUDL 0.97.0). PUDL sizes the state column to the
    widest badge in the list (0.96.5). */
 .win-stack-link .win-item-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.win-stack-link .win-item-title:has(+ .win-item-detail:not([hidden]):not([data-dinah-redundant])) { flex: 0 1 auto; }
+.win-stack-link .win-item-title:has(+ .win-item-detail:not([hidden])) { flex: 0 1 auto; }
 .win-stack-link .win-item-detail { flex: 1 1 0; min-width: 0; max-width: none; margin-inline-start: calc(-1 * var(--space-2)); color: var(--text-muted); opacity: 1; }
-.win-stack-link .win-item-detail[data-dinah-redundant] { display: none; }
 
 /* The composer. A bar of small controls (the document, the mode, the model,
    anything queued, and Stop while Devin works) sits over one row: the
