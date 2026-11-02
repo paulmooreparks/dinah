@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"studio/internal/agents"
 	"studio/internal/layout"
 )
 
@@ -46,7 +47,7 @@ func TestNetworkVerificationBoundsAndVisibility(t *testing.T) {
 	}
 	begin := time.Now()
 	result := p.probe(context.Background(), `\\server\fifth`, nil)
-	if result.verified || !strings.Contains(result.reason, "occupied") || time.Since(begin) > time.Second {
+	if result.verified || !strings.Contains(result.reason, "deadline") || time.Since(begin) > time.Second {
 		t.Fatalf("capacity: %+v", result)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), NetworkRuleDeadline)
@@ -93,11 +94,11 @@ func TestNetworkVerificationBoundsAndVisibility(t *testing.T) {
 }
 
 func TestNetworkVerificationDoesNotCacheSuccess(t *testing.T) {
-	a, err := os.Stat(t.TempDir())
+	a, err := agents.StatFileIdentity(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := os.Stat(t.TempDir())
+	b, err := agents.StatFileIdentity(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +133,7 @@ func TestWindowsUNCDefaultRefusesDriveAlias(t *testing.T) {
 	unc := `\\localhost\` + home[:1] + "$" + home[2:]
 	ctx, cancel := context.WithTimeout(context.Background(), NetworkRuleDeadline)
 	defer cancel()
-	probe := newNetworkProber(os.Stat).probe(ctx, unc, nil)
+	probe := newNetworkProber(agents.StatFileIdentity).probe(ctx, unc, nil)
 	if !probe.verified {
 		t.Skip("local administrative share unavailable: " + probe.reason)
 	}
@@ -195,11 +196,11 @@ func TestWindowsSlowNetworkRootsDoNotStarveLaterAlias(t *testing.T) {
 		t.Skip("Windows network deny rules")
 	}
 	first, second := t.TempDir(), t.TempDir()
-	one, err := os.Stat(first)
+	one, err := agents.StatFileIdentity(first)
 	if err != nil {
 		t.Fatal(err)
 	}
-	two, err := os.Stat(second)
+	two, err := agents.StatFileIdentity(second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +258,7 @@ func TestNetworkAccessDeniedIsImmediatelyUnverified(t *testing.T) {
 }
 
 func TestCompletedNetworkRootKeepsItsResultAfterOtherWait(t *testing.T) {
-	info, err := os.Stat(t.TempDir())
+	info, err := agents.StatFileIdentity(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

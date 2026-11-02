@@ -115,7 +115,7 @@ func openObjectChecked(base, rel string, directories bool, check func([]os.FileI
 		return nil, err
 	}
 	defer func() { root.Close() }()
-	info, err := root.Stat(".")
+	info, err := rootIdentitySnapshot(root)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,12 @@ func openObjectChecked(base, rel string, directories bool, check func([]os.FileI
 			next.Close()
 			return nil, errors.New("the file directory changed")
 		}
-		chain = append(chain, opened)
+		captured, err := rootIdentitySnapshot(next)
+		if err != nil {
+			next.Close()
+			return nil, err
+		}
+		chain = append(chain, captured)
 		root.Close()
 		root = next
 	}
@@ -156,7 +161,12 @@ func openObjectChecked(base, rel string, directories bool, check func([]os.FileI
 		file.Close()
 		return nil, errors.New("the file changed while opening it")
 	}
-	chain = append(chain, opened)
+	captured, err := snapshotOpenedIdentity(file, opened)
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	chain = append(chain, captured)
 	if check != nil {
 		if err := check(chain); err != nil {
 			file.Close()

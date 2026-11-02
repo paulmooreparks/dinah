@@ -122,6 +122,7 @@ func (s *Service) rawPolicy(scope Scope) (Policy, error) {
 			}
 		}
 	}
+	s.networkProber().syncRoots(networkRoots(out))
 	return out, nil
 }
 

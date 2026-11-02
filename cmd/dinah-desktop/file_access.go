@@ -54,6 +54,11 @@ func (a *App) fileAccessService() (*fileaccess.Service, error) {
 		return nil, err
 	}
 	f.service = &fileaccess.Service{Store: store, Defaults: defaults}
+	if err := f.service.WarmNetworkRoots(); err != nil {
+		store.Close()
+		f.service = nil
+		return nil, err
+	}
 	f.version, f.highWater, err = store.Metadata()
 	if err == nil {
 		f.counts, err = store.RefusedCounts()
@@ -92,7 +97,10 @@ func (a *App) fileAccessUpdated(event string, payload any) {
 		logf("core", "warning", "could not refresh file-access audit state")
 		return
 	}
-	networkBytes, _ := json.Marshal(f.service.NetworkWorkers())
+	networkBytes, _ := json.Marshal(struct {
+		Workers  []fileaccess.NetworkWorker
+		Revision uint64
+	}{f.service.NetworkWorkers(), f.service.NetworkRevision()})
 	networkChanged := string(networkBytes) != f.networkState
 	f.networkState = string(networkBytes)
 	changed := version != f.version || high != f.highWater || !maps.Equal(counts, f.counts)
