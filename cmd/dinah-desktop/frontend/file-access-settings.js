@@ -191,6 +191,18 @@
     var o = OUTCOMES[r.outcome] || OUTCOMES.error, badge = document.createElement('span');
     badge.className = 'badge' + (o.kind ? ' ' + o.kind : ''); badge.textContent = o.word(r);
     what.append(badge);
+    /* A search or a listing is one row for the whole operation, with how
+       many places it looked at and how many of those were refused or
+       failed (provider-file-reads.md: operation, visited, denied, errors). */
+    if (r.operation && (r.visited || r.denied || r.errors)) {
+      var parts = [];
+      if (r.visited) parts.push(r.visited + (r.visited === 1 ? ' place looked at' : ' places looked at'));
+      if (r.denied) parts.push(r.denied + ' refused');
+      if (r.errors) parts.push(r.errors + ' failed');
+      var detail = document.createElement('p'); detail.className = 'form-help file-access-operation';
+      detail.textContent = r.operation.charAt(0).toUpperCase() + r.operation.slice(1) + ': ' + parts.join(', ') + '.';
+      what.append(detail);
+    }
     when.dataset.label = 'When'; chat.dataset.label = 'Chat'; place.dataset.label = 'Place'; what.dataset.label = 'What happened';
     tr.append(when, chat, place, what);
     return tr;
