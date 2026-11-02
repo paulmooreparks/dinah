@@ -16,7 +16,7 @@
       "onlyOn": { "TestConsoleCloseKeepsInputUntilTeardownReturns": ["windows"] } },
     { "package": "./internal/terminals", "tests": ["TestPingReadinessNeedsVisibleOutput"],
       "onlyOn": { "TestPingReadinessNeedsVisibleOutput": ["windows"] } },
-    { "package": "./tools/vulnguard", "tests": ["TestCalledFindingFailsRegardlessOfScannerExit", "TestModuleOnlyFindingDoesNotInventACall", "TestInvalidOrWrongScanCannotPass", "TestEveryPublishedPlatformHasABlockingSourceScan"] }
+    { "package": "./tools/vulnguard", "tests": ["TestCalledFindingFailsRegardlessOfScannerExit", "TestModuleOnlyFindingDoesNotInventACall", "TestInvalidOrWrongScanCannotPass", "TestEveryPublishedPlatformHasABlockingSourceScan", "TestManualExceptionIsExactAndDispatchOnly"] }
   ],
   "browser": [
     "contained-content", "html-safety", "terminal-escapes", "chat-state-contract",

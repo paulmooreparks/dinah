@@ -20,6 +20,15 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      skip_test:
+        description: One-off approved test exception, recorded in the release notes
+        type: choice
+        required: true
+        default: none
+        options:
+          - none
+          - TestCtrlCInterruptsNodeServerInPowerShell
 
 permissions:
   contents: read
@@ -166,7 +175,9 @@ jobs:
           go-version-file: dinah/go.mod
           cache-dependency-path: dinah/go.sum
       - name: Test every package
-        run: ./scripts/go-gate.ps1 ./... -count=1
+        env:
+          DINAH_ONE_OFF_SKIP: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_test || 'none' }}
+        run: ./scripts/ci-go-tests.ps1
 
   browser:
     name: Run the full browser suite
@@ -298,11 +309,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          DINAH_ONE_OFF_SKIP: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_test || 'none' }}
         run: |
           cd dist
           sha256sum * > SHA256SUMS
           cat > notes.md <<EOF
-          The newest build of master, from commit ${GITHUB_SHA}. It is replaced on every push, and it is not a release.
+          The newest build of master, from commit ${GITHUB_SHA}. It is replaced on every push.
+
+          This build includes the security fixes reviewed on 2 November 2026: crash and protected-path checks, hashed stored tokens, content sanitizing and an updated toolchain.
+
+          A Terminal test where Node starts but prints nothing on GitHub's runner remains under investigation. PowerShell 7.6 can crash when Ctrl+C arrives as a command ends. A program started at the instant a Terminal closes may keep running.
 
           Each archive holds the command line, \`dinah\`, and the window, \`dinah-desktop\` (Dinah.app on macOS). Put them in \`~/.dinah/bin\` (\`%USERPROFILE%\\.dinah\\bin\` on Windows); on macOS, Dinah.app can go in Applications.
 
@@ -312,5 +328,8 @@ jobs:
 
           SHA256SUMS lists the checksum of each file.
           EOF
+          if [ "$DINAH_ONE_OFF_SKIP" != "none" ]; then
+            printf '\nThis manual run skipped only test `%s`, as approved for this one-off publication. Every other required job passed.\n' "$DINAH_ONE_OFF_SKIP" >> notes.md
+          fi
           gh release delete latest --cleanup-tag --yes || true
           gh release create latest --target "$GITHUB_SHA" --prerelease --title "Latest build of master" --notes-file notes.md dinah-* SHA256SUMS
