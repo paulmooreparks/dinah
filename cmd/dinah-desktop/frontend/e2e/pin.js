@@ -23,6 +23,18 @@ const windows = require('./lib/windows');
     await p.click('.win[data-chat-current] [data-view-id=send]');
     await p.locator('.win[data-chat-current] .msg-you').waitFor();
     ok('the pin is hidden while the message is in sight', await p.isHidden('.win[data-chat-current] [data-view-id=pin]'));
+    // A log hidden while a saved copy is drawn behind it gives its rows no
+    // place on the screen. The message has not scrolled away, so the pin
+    // neither shows nor takes its text (chat-placement found it under load).
+    const drawing = await p.evaluate(() => {
+      const win = document.querySelector('.win[data-chat-current]'), log = win.querySelector('.msg-you').closest('.run-log');
+      log.hidden = true;
+      win.querySelector('[data-view-id=activity]').dispatchEvent(new Event('scroll'));
+      const pin = win.querySelector('[data-view-id=pin]'), out = { hidden: pin.hidden, text: win.querySelector('[data-view-id=pin-text]').textContent };
+      log.hidden = false;
+      return out;
+    });
+    ok('while the log is hidden for drawing, the pin neither shows nor takes the message', drawing.hidden && drawing.text === '', JSON.stringify(drawing));
     await p.evaluate(() => {
       for (let i = 0; i < 40; i++) window.__emit('agent:update', { sessionId: 's1', update: { sessionUpdate: 'tool_call', toolCallId: 't' + i, title: 'Read source ' + i, status: 'completed' } });
       window.__emit('agent:update', { sessionId: 's1', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: Array.from({ length: 30 }, (_, i) => 'Finding ' + (i + 1) + ' from the sources.').join('\n\n') } } });

@@ -208,22 +208,33 @@
     var SAVED_DRAW_MESSAGES = 400;
     function drawSavedCopy(owner, saved) {
       var view = ensureChat(owner);
-      var copy = Object.assign({}, owner, { displayOwner: owner, log: owner.log.cloneNode(false), view: view });
+      var copy = Object.assign({}, owner, { displayOwner: owner, log: owner.log.cloneNode(false), view: view, savedDraw: null });
       return drawSaved(copy, saved.messages || []).then(function () { return copy; });
     }
     function drawSaved(s, messages) {
+      /* One draw of a chat's saved copy at a time: the log is cleared once
+         and filled over several frames, so a second draw begun before the
+         first ended would fill it twice. A newer draw stops the older one,
+         which no longer touches the chat; the older one's promise settles
+         with the newer one's, so whoever waits on either goes on only once
+         the chat's copy is drawn. */
+      var older = s.savedDraw, mine = { stopped: false };
+      if (older) { older.stopped = true; window.dinahRender.cancel(older.job); }
+      s.savedDraw = mine;
       resetMessageItems(s);
       s.log.innerHTML = ''; s.log.hidden = true; s.settling = true; s.rows = {}; s.current = null; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
       // Drawn as a replay is, so that the rows take their times from the
       // session's journal (stampReplay) rather than the time of drawing.
       s.loading = true; s.replayed = 0; s.drawingSaved = true; // what is drawn here is Dinah's copy, not a replay to count
       var index = Math.max(0, messages.length - SAVED_DRAW_MESSAGES), job = {}, limit = messages.length;
+      mine.job = job;
       s.trimmed = index;
       ensureChat(s).trimMarker(s);
       var build = new Promise(function (resolve, reject) {
+        mine.settle = resolve;
         window.dinahRender.enqueue(job, null, function (deadline) {
           try {
-            if (sessions[s.id] !== (s.displayOwner || s)) { resolve(); return false; }
+            if (mine.stopped || sessions[s.id] !== (s.displayOwner || s)) { resolve(); return false; }
             var count = 0;
             while (index < limit && count++ < 16 && (count === 1 || performance.now() < deadline)) {
               var i = index++, m = messages[i];
@@ -254,8 +265,8 @@
           return false;
         }, null, 'saved history');
       });
-      s.savedBuild = build.then(function () {
-        if (sessions[s.id] !== (s.displayOwner || s)) return;
+      var built = build.then(function () {
+        if (mine.stopped || sessions[s.id] !== (s.displayOwner || s)) return;
         s.loading = false;
         s.saved = true; s.historyAvailable = true;
         if (s.displayOwner) {
@@ -270,8 +281,14 @@
             resolve();
           });
         });
-      }).finally(function () { s.loading = false; s.drawingSaved = false; s.savedBuild = null; if (s.view) s.view.drawLoadingChip(); });
-      return s.savedBuild;
+      }).finally(function () {
+        // A draw stopped by a newer one leaves the chat to that draw.
+        if (s.savedDraw !== mine) return;
+        s.savedDraw = null; s.loading = false; s.drawingSaved = false; s.savedBuild = null; if (s.view) s.view.drawLoadingChip();
+      });
+      s.savedBuild = built;
+      if (older) older.settle(built);
+      return built;
     }
     function presentHistory(s, kept) {
       var chat = ensureChat(s), position = kept && chat.historyPosition();
@@ -1739,7 +1756,9 @@
     function pinCheck() {
       var s = active && sessions[active], pin = $('pin');
       var m = s && s.lastYou;
-      if (!m || !m.li.isConnected || s.loading) { pin.hidden = true; return; }
+      // A row not laid out, in a log still being drawn behind its saved
+      // copy, has no place on the screen and has not scrolled anywhere.
+      if (!m || !m.li.isConnected || s.loading || !m.li.getClientRects().length) { pin.hidden = true; return; }
       var body = $('activity'), top = body.getBoundingClientRect().top;
       var gone = m.li.getBoundingClientRect().bottom < top + 4;
       if (gone && pin.dataset.text !== m.text) {
