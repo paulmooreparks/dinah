@@ -432,14 +432,14 @@ func TestSubagentRequestsReachTheirChat(t *testing.T) {
 	if wrote["sessionId"] != info.ID || wrote["path"] != "notes/found.txt" || wrote["subagent"].(map[string]string)["name"] != "Verify" {
 		t.Fatalf("the subagent's write was not shown in its chat: %v", wrote)
 	}
-	params, _ = json.Marshal(map[string]any{"sessionId": "grandchild", "path": target})
+	params, _ = json.Marshal(map[string]any{"sessionId": "child", "path": target})
 	h := a.newAgentHandler()
 	h.BindConnection(c)
 	if _, rerr := h.Request(context.Background(), "fs/read_text_file", params); rerr == nil {
 		t.Fatal("an ended subagent could still read")
 	}
-	notify(a, info.ID, spawnUpdate("reader", "Read", "Read the result"))
-	params, _ = json.Marshal(map[string]any{"sessionId": "reader", "path": target})
+	// Cancelling the parent's questions does not terminate its running child.
+	params, _ = json.Marshal(map[string]any{"sessionId": "grandchild", "path": target})
 	if res, rerr := h.Request(context.Background(), "fs/read_text_file", params); rerr != nil || res.(acp.ReadTextFileResult).Content != "parse.go" {
 		t.Fatalf("the subagent's read: %v %v", res, rerr)
 	}
