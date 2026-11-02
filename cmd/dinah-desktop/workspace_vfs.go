@@ -414,7 +414,7 @@ func (v workspaceVFS) stat(path string) (MountItem, error) {
 		return MountItem{}, err
 	}
 	defer f.Close()
-	if err := v.service.app.checkAgentResourceMetadata(v.service.ctx, filepath.Join(target.source.Path, target.ref.Path), f); err != nil {
+	if err := v.service.app.checkAgentResourceMetadata(v.service.ctx, filepath.Join(target.source.Path, target.ref.Path), f, workspaceMountStatAction); err != nil {
 		return MountItem{}, err
 	}
 	item, err := localResourceItem(*target.ref, target.source, f)

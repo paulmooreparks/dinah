@@ -325,10 +325,13 @@ func (a *App) agentResourceDirectory(ctx context.Context, path string, file *os.
 	}
 	return entries, true, err
 }
-func (a *App) checkAgentResourceMetadata(ctx context.Context, path string, file *os.File) error {
+func (a *App) checkAgentResourceMetadata(ctx context.Context, path string, file *os.File, source ...string) error {
 	scope, handled, err := a.agentResourceScope(ctx)
 	if !handled || err != nil {
 		return err
+	}
+	if len(source) > 0 {
+		scope.Source = source[0]
 	}
 	service, err := a.fileAccessService()
 	if err != nil {

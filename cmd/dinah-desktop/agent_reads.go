@@ -19,6 +19,7 @@ func (a *App) readAgentTextFile(ctx context.Context, conn agentConnection, p acp
 	if err != nil {
 		return "", err
 	}
+	scope.Source = "fs/read_text_file"
 	text, err := service.Read(ctx, p.Path, p.Line, p.Limit, scope)
 	if !fileaccess.InOperation(ctx) {
 		a.fileAccessUpdated("file-access:read", nil)

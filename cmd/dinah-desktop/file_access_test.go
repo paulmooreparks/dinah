@@ -157,6 +157,10 @@ func TestAgentWorkspaceStatUsesPolicyAndAudit(t *testing.T) {
 	if _, err := a.ResolveWorkspaceResourceMount(ref); err != nil {
 		t.Fatal("person stat authority changed", err)
 	}
+	log, err := a.FileAccessLog(fileaccess.Filter{Chat: "test"})
+	if err != nil || len(log.Rows) == 0 || log.Rows[0].Source != workspaceMountStatAction {
+		t.Fatalf("stat source attribution: %+v %v", log, err)
+	}
 	if a.fileAccessRefused("test") != 1 {
 		t.Fatal("stat refusal was not audited")
 	}
