@@ -99,6 +99,115 @@
     button.replaceChildren(mark, text);
     return text;
   }
+  /* A list kept in step with its items (FE-18). arrange puts the given
+     elements in a container in order and takes out every other child. It
+     moves as few elements as it can: the longest run of elements already in
+     the right order stays where it is and the rest are put around it. The
+     row holding focus is always in that run, so a focused row never moves,
+     blurs or regains focus because another row moved past it; nothing moves
+     or loses focus as live state changes. When the element with focus is
+     taken out, lost, if given, is called with the place it had, so the list
+     can move focus to a neighbour. */
+  function focusable(element) {
+    return element.matches('button, a[href], input, select, textarea, [tabindex]') ? element : element.querySelector('button, a[href], input, select, textarea, [tabindex]');
+  }
+  // The longest run of the given elements whose places increase, found in
+  // n log n steps (patience sorting), added to stay.
+  function longestRun(list, place, stay) {
+    const tails = [], from = new Array(list.length);
+    for (let i = 0; i < list.length; i++) {
+      const p = place.get(list[i]);
+      let lo = 0, hi = tails.length;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (place.get(list[tails[mid]]) < p) lo = mid + 1; else hi = mid; }
+      from[i] = lo > 0 ? tails[lo - 1] : -1;
+      tails[lo] = i;
+    }
+    for (let i = tails.length ? tails[tails.length - 1] : -1; i >= 0; i = from[i]) stay.add(list[i]);
+  }
+  // The elements, among those already in the container, that stay in place.
+  // A redraw that changes no order, the usual one, keeps them all at once.
+  // Otherwise the focused row stays, with the longest run before it that
+  // sits above it and the longest run after it that sits below it.
+  function staying(elements, place, focused) {
+    const at = elements.filter(function (el) { return place.has(el); });
+    let ordered = true;
+    for (let i = 1; i < at.length && ordered; i++) ordered = place.get(at[i - 1]) < place.get(at[i]);
+    if (ordered) return new Set(at);
+    const stay = new Set(), k = focused ? at.indexOf(focused) : -1;
+    if (k < 0) { longestRun(at, place, stay); return stay; }
+    const mark = place.get(focused);
+    longestRun(at.slice(0, k).filter(function (el) { return place.get(el) < mark; }), place, stay);
+    stay.add(focused);
+    longestRun(at.slice(k + 1).filter(function (el) { return place.get(el) > mark; }), place, stay);
+    return stay;
+  }
+  function arrange(container, elements, lost) {
+    const active = document.activeElement, focus = container.contains(active) ? active : null;
+    const keep = new Set(elements), before = Array.from(container.children);
+    let gone = -1;
+    before.forEach(function (child, i) {
+      if (keep.has(child)) return;
+      if (focus && child.contains(focus)) gone = i;
+      child.remove();
+    });
+    const place = new Map();
+    Array.from(container.children).forEach(function (child, i) { place.set(child, i); });
+    const focusedRow = focus && elements.find(function (el) { return el.contains(focus); });
+    const stay = staying(elements, place, focusedRow);
+    // From the end, each element that does not stay goes before the one
+    // after it, which is already in its final place.
+    let next = null;
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const el = elements[i];
+      if (!stay.has(el) && (el.parentElement !== container || el.nextSibling !== next)) container.insertBefore(el, next);
+      next = el;
+    }
+    if (focus && focus.isConnected) { if (document.activeElement !== focus) focus.focus({ preventScroll: true }); }
+    else if (gone >= 0 && lost) lost(gone);
+  }
+  /* A caller's mistake is thrown in development and in the browser suites,
+     so it is found, and only logged in a production build, so the person's
+     list still draws. The suites set dinahStrict; a development build says
+     what it is through the Wails runtime's Environment, as debug or dev. */
+  let developing = false;
+  if (window.runtime && window.runtime.Environment) Promise.resolve(window.runtime.Environment()).then(function (env) { if (env && env.buildType && env.buildType !== 'production') developing = true; }).catch(function () {});
+  function mistake(text) {
+    if (developing || window.dinahStrict) throw new Error(text);
+    console.error(text);
+  }
+  /* reconcile draws items as keyed rows in a container through arrange.
+     options.rows is a Map from key to a row's view, which the caller keeps
+     between draws; options.key(item) is an item's key; options.create(item,
+     key) makes a view whose node is the row's element; options.update(view,
+     item), if given, brings a view up to date, and may give it a new node,
+     which takes the old one's place and its focus, on options.focus(node)
+     when given and otherwise on its first control. A key no longer listed
+     loses its view unless options.keep is set, for views a caller shares
+     between lists. A key given to two items is a caller's mistake (mistake).
+     Returns the views in order. */
+  function reconcile(container, items, options) {
+    const rows = options.rows, views = [], keys = new Set();
+    let refocus = null;
+    items.forEach(function (item) {
+      const key = options.key(item);
+      // Two items with one key would place one row twice and leave the list
+      // a row short; the row is drawn once and the caller's mistake shown.
+      if (keys.has(key)) { mistake('dinahHelpers.reconcile: the key ' + JSON.stringify(key) + ' is given to more than one item.'); return; }
+      let view = rows.get(key);
+      if (!view) { view = options.create(item, key); rows.set(key, view); }
+      const prior = view.node;
+      if (options.update) options.update(view, item);
+      if (view.node !== prior && prior.parentElement === container) {
+        if (prior.contains(document.activeElement)) refocus = view.node;
+        prior.replaceWith(view.node);
+      }
+      keys.add(key); views.push(view);
+    });
+    arrange(container, views.map(function (view) { return view.node; }), options.lost);
+    if (refocus && refocus.isConnected) { const target = options.focus ? options.focus(refocus) : focusable(refocus); if (target) target.focus({ preventScroll: true }); }
+    if (!options.keep) rows.forEach(function (view, key) { if (!keys.has(key)) rows.delete(key); });
+    return views;
+  }
   window.dinahHost = { on, onResync, settled };
-  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel };
+  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile };
 }());

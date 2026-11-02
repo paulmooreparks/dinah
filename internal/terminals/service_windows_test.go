@@ -175,16 +175,60 @@ func childOf(t *testing.T, parent int, exe string, access uint32) windows.Handle
 // and receives the close event.
 func TestClosingATerminalEndsTheConsoleProgramsItsShellStarted(t *testing.T) {
 	a := testService(t)
-	id, exited := startClosableTerminal(t, a)
+	var mu sync.Mutex
+	var drawn strings.Builder
+	exited := make(chan struct{}, 1)
+	a.emit = func(name string, data any) {
+		if name == "terminal:output" {
+			chunk := data.(map[string]string)
+			decoded, _ := base64.StdEncoding.DecodeString(chunk["data"])
+			mu.Lock()
+			drawn.Write(decoded)
+			mu.Unlock()
+		}
+		if name == "terminal:exit" {
+			exited <- struct{}{}
+		}
+	}
+	started, err := a.StartShell("cmd", nil, shellDir(t), 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := started.ID
+	t.Cleanup(func() { a.Close(id) })
 	shell, err := a.terminal(id)
 	if err != nil {
 		t.Fatal(err)
 	}
+	mu.Lock()
+	writeOffset := drawn.Len()
+	mu.Unlock()
 	if err := a.Write(id, "ping -n 100 127.0.0.1\r\n"); err != nil {
 		t.Fatal(err)
 	}
 	ping := childOf(t, shell.session.Pid(), "PING.EXE", windows.SYNCHRONIZE|windows.PROCESS_TERMINATE)
 	defer windows.CloseHandle(ping)
+	defer func() {
+		if status, err := windows.WaitForSingleObject(ping, 0); err == nil && status == uint32(windows.WAIT_TIMEOUT) {
+			windows.TerminateProcess(ping, 1)
+		}
+	}()
+	visibleOutput := func() (bool, string) {
+		mu.Lock()
+		defer mu.Unlock()
+		return pingHasDrawn(drawn.String(), writeOffset)
+	}
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		ready, visible := visibleOutput()
+		if ready {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("ping did not draw its header and first reply before close; visible output since write=%q", visible)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 	if err := a.Close(id); err != nil {
 		t.Fatal(err)
 	}
@@ -194,11 +238,13 @@ func TestClosingATerminalEndsTheConsoleProgramsItsShellStarted(t *testing.T) {
 	case <-time.After(limit):
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		t.Fatalf("closing the Terminal did not report terminal:exit; completion stages: %v", a.Shutdown(ctx))
+		_, visible := visibleOutput()
+		t.Fatalf("closing the Terminal did not report terminal:exit; completion stages: %v; visible output since write=%q", a.Shutdown(ctx), visible)
 	}
 	if ev, err := windows.WaitForSingleObject(ping, uint32(limit/time.Millisecond)); err != nil || ev != windows.WAIT_OBJECT_0 {
 		windows.TerminateProcess(ping, 1)
-		t.Fatalf("ping was still running after the Terminal closed (%d, %v)", ev, err)
+		_, visible := visibleOutput()
+		t.Fatalf("ping was still running after the Terminal closed (%d, %v); visible output since write=%q", ev, err, visible)
 	}
 }
 

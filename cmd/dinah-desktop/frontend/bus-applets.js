@@ -792,20 +792,8 @@
       if (!choices.length && q.q) { close(); return; }
       choices.push({ add: true, title: 'Add a Chat…', meta: 'Put another chat in the group' });
       chosen = Math.min(chosen, choices.length - 1);
-      pop.replaceChildren(node('div', 'md-section-label', 'Members'));
-      choices.forEach(function (c, i) {
-        var row = node('div', 'md-row skill-row mention-row'); row.setAttribute('role', 'option');
-        row.setAttribute('aria-selected', String(i === chosen)); row.dataset.mention = c.add ? 'add' : c.id;
-        var a = node('a', 'md-item'); a.href = '#';
-        a.appendChild(node('span', 'mention-name', c.title));
-        if (c.meta) a.appendChild(node('span', 'md-meta', c.meta));
-        if (c.state) a.appendChild(stateBadge(c.state));
-        a.addEventListener('mousedown', function (e) { e.preventDefault(); pick(i); });
-        row.appendChild(a);
-        pop.appendChild(row);
-      });
-      pop.appendChild(node('div', 'slash-hint', 'Enter or Tab adds · Up and Down choose · Esc closes'));
-      pop.hidden = false;
+      var items = choices.map(function (c) { return { group: 'Members', label: c.title, meta: c.meta, badge: c.state ? stateBadge(c.state) : null, key: c.add ? 'add' : c.id }; });
+      window.dinahMentionList.draw(pop, items, chosen, pick, { hint: 'Enter or Tab adds · Up and Down choose · Esc closes' });
       text.setAttribute('aria-expanded', 'true');
     }
     function pick(i) {
@@ -841,12 +829,11 @@
     // its keys choose in it and never send or bring back a message.
     text.addEventListener('keydown', function (e) {
       if (!pop.hidden) {
-        var handled = true;
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { chosen = (chosen + (e.key === 'ArrowDown' ? 1 : choices.length - 1)) % choices.length; drawPop(); }
-        else if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey) || e.key === 'Tab') pick(chosen);
-        else if (e.key === 'Escape') close();
-        else handled = false;
-        if (handled) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+        var action = window.dinahMentionList.key(e);
+        if (action === 'down' || action === 'up') { chosen = window.dinahMentionList.step(chosen, choices.length, action); drawPop(); }
+        else if (action === 'pick') pick(chosen);
+        else if (action === 'close') close();
+        if (action) { e.preventDefault(); e.stopImmediatePropagation(); return; }
       }
       if ((e.key === 'Backspace' || e.key === 'Delete') && text.selectionStart === text.selectionEnd) {
         var r = mentionAt(text.selectionStart, e.key === 'Delete');
@@ -1221,10 +1208,9 @@
         var chats = members().filter(function (m) { return m.state !== 'person'; });
         var count = 'Members (' + chats.length + ')';
         if (memberWords.textContent !== count) memberWords.textContent = count;
-        var wanted = [];
-        chats.forEach(function (m) {
-          var key = m.id, view = memberViews.get(key);
-          if (!view) {
+        // A member's menu closes with its row.
+        if (menuMember && menu.matches(':popover-open') && !chats.some(function (m) { return m.id === menuMember; })) menu.hidePopover();
+        window.dinahHelpers.reconcile(memberList, chats, { rows: memberViews, key: function (m) { return m.id; }, lost: function () { memberToggle.focus(); }, create: function (m) {
             var row = node('div', 'member-row'); row.setAttribute('role', 'listitem'); row.dataset.groupMember = m.id;
             var open = node('button', 'menu-action member-open'); open.type = 'button';
             var name = node('span', 'member-name'), slot = node('span', 'member-state-slot');
@@ -1233,19 +1219,18 @@
             open.append(mark, name, slot);
             var more = glyphButton('member-menu-btn', 'more', m.title + ' Menu');
             more.id = menu.id + '-' + (++memberSerial); more.setAttribute('aria-haspopup', 'menu');
-            view = { row: row, open: open, name: name, slot: slot, more: more, member: m };
+            var view = { node: row, row: row, open: open, name: name, slot: slot, more: more, member: m };
             /* The row acts for the member it was made for, by its id, read as
                it is when pressed; a state change only redraws its words. */
-            (function (entry) {
-              entry.open.addEventListener('click', function () {
-                var current = entry.member;
-                if (bar.matches(':popover-open')) bar.hidePopover();
-                if (current.chat) Promise.resolve(window.dinahChats.open(current.chat)).catch(host().fail);
-              });
-              entry.more.addEventListener('click', function () { showMenu(entry.more, entry.member); });
-            })(view);
-            row.append(open, more); memberViews.set(key, view);
-          }
+            view.open.addEventListener('click', function () {
+              var current = view.member;
+              if (bar.matches(':popover-open')) bar.hidePopover();
+              if (current.chat) Promise.resolve(window.dinahChats.open(current.chat)).catch(host().fail);
+            });
+            view.more.addEventListener('click', function () { showMenu(view.more, view.member); });
+            row.append(open, more);
+            return view;
+          }, update: function (view, m) {
           view.member = m;
           if (view.name.textContent !== m.title) view.name.textContent = m.title;
           view.more.setAttribute('aria-label', m.title + ' Menu');
@@ -1257,11 +1242,7 @@
           view.slot.replaceChildren(window.dinahChatState.badge(memberState(m), { labelled: true, className: 'member-state-chip' }));
           view.row.classList.toggle('member-ended', !window.dinahChatState.describe(memberState(m)).glyph);
           if (menuMember === m.id && menuState) { menuState.textContent = description; menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent); }
-          wanted.push(view.row);
-        });
-        memberViews.forEach(function (view, key) { if (!wanted.includes(view.row)) { if (menuMember === key && menu.matches(':popover-open')) menu.hidePopover(); if (view.row.contains(document.activeElement)) memberToggle.focus(); view.row.remove(); memberViews.delete(key); } });
-        // Rows move only when the order changes, and never the one with focus.
-        wanted.forEach(function (row, i) { if (memberList.children[i] !== row && !row.contains(document.activeElement)) memberList.insertBefore(row, memberList.children[i] || null); });
+        } });
         var oldBudget = memberShell.querySelector(':scope > .group-budget');
         // The turn budget is a line under the toolbar, only when the group has one.
         if (room && typeof room.budget === 'number' && room.budget >= 0) {

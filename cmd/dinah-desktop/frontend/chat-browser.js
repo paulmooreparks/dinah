@@ -300,10 +300,7 @@
       if (host.matches(':hover')) renewPointer();
       return view;
     }
-    function arrange(parent, wanted) {
-      wanted.forEach(function (el, i) { if (parent.children[i] !== el) parent.insertBefore(el, parent.children[i] || null); });
-      Array.from(parent.children).forEach(function (el) { if (wanted.indexOf(el) < 0) el.remove(); });
-    }
+    var arrange = window.dinahHelpers.arrange;
     function groupCount(section, n) {
       var count = section.querySelector(':scope > .browser-group-head > .browser-group-count');
       if (!count) {

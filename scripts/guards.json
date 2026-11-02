@@ -12,12 +12,16 @@
     { "package": "./cmd/dinah-desktop", "tests": ["TestThePaneShowsAndAnswersAThread", "TestAFailedCompactionPutsTheHoldAndTheQueueBack", "TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart", "TestRejectedAllocationSettlementIsTransactionalAndStageChecked", "TestMalformedProtocolCannotPersistCapabilities", "TestFrontendJobsStayInTheirHomes", "TestFrontendRulesFindTheirHomes"] },
     { "package": "./cmd/dinah", "tests": ["TestInstallRefusesWrongCompilerBeforeReplacingEitherProgram"] },
     { "package": ".", "tests": ["TestModuleRequiresItsSelectedCompiler", "TestBundledSkinBytesSurviveWindowsCheckout"] },
+    { "package": "./internal/pty", "tests": ["TestConsoleCloseKeepsInputUntilTeardownReturns"],
+      "onlyOn": { "TestConsoleCloseKeepsInputUntilTeardownReturns": ["windows"] } },
+    { "package": "./internal/terminals", "tests": ["TestPingReadinessNeedsVisibleOutput"],
+      "onlyOn": { "TestPingReadinessNeedsVisibleOutput": ["windows"] } },
     { "package": "./tools/vulnguard", "tests": ["TestCalledFindingFailsRegardlessOfScannerExit", "TestModuleOnlyFindingDoesNotInventACall", "TestInvalidOrWrongScanCannotPass", "TestEveryPublishedPlatformHasABlockingSourceScan"] }
   ],
   "browser": [
     "contained-content", "html-safety", "terminal-escapes", "chat-state-contract",
     "list-state-stability", "taskbar-state-stability", "list-row-layout", "chat-last-read",
     "app-ui3", "chat-continued-open", "provider-continuation", "chat-placement",
-    "web-skins", "extensions"
+    "web-skins", "extensions", "reconcile"
   ]
 }

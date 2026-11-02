@@ -301,3 +301,42 @@ func TestTheEnvironmentBlockIsSortedWithLastValuesKept(t *testing.T) {
 		t.Fatal("an entry without = was accepted")
 	}
 }
+
+// Input stays usable while the native close operation is pending,
+// independently of the shell's earlier exit.
+func TestConsoleCloseKeepsInputUntilTeardownReturns(t *testing.T) {
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer read.Close()
+	defer write.Close()
+	entered, release := make(chan struct{}), make(chan struct{})
+	exited := make(chan struct{})
+	close(exited)
+	session := &Session{in: write, exited: exited, closeConsole: func(windows.Handle) { close(entered); <-release }}
+	done := make(chan error, 1)
+	go func() { done <- session.Close() }()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		close(release)
+		t.Fatal("console close was not requested")
+	}
+	_, statErr := write.Stat()
+	close(release)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("console close did not finish")
+	}
+	if statErr != nil {
+		t.Fatalf("input was closed before the native close operation returned: %v", statErr)
+	}
+	if _, err := write.Stat(); err == nil {
+		t.Fatalf("input was not released after teardown: %v", err)
+	}
+}

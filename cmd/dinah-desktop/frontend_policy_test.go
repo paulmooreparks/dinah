@@ -45,6 +45,13 @@ var frontendRules = []frontendRule{
 		home:    []string{"terminal-text.js"},
 	},
 	{
+		row:  "FE-17",
+		what: "an @ list row drawn by hand; use dinahMentionList.draw, which draws a chat's and a group's alike",
+		// The row's class, or the class of the title inside it, in a string.
+		pattern: regexp.MustCompile(`['"]([^'"]* )?mention-(row|name)( [^'"]*)?['"]`),
+		home:    []string{"mention-list.js"},
+	},
+	{
 		row:   "FE-42",
 		what:  "a value put into an attribute selector without CSS.escape",
 		match: unescapedSelectorValue,
