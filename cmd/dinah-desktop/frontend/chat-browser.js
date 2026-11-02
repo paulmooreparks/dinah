@@ -105,7 +105,27 @@
       $('remove-hide').hidden = true;
       $('remove').showModal();
     }
+    /* A removed or hidden chat's rows leave every list at once. A list holds
+       still while the person is in it (listBusy), and the person usually is
+       here, on the row whose menu removed or hid the chat. That row is the
+       one change the person asked for, so it goes without waiting, and the
+       rest of the list stays held as before. Focus moves to the next chat's
+       row in the same list, or the one before it; with neither, it leaves
+       the list, which is then free to redraw. */
+    function dropRows(id) {
+      document.querySelectorAll('.md-row[data-session-row="' + CSS.escape(id) + '"]').forEach(function (row) {
+        if (row.contains(document.activeElement)) {
+          var all = Array.from((row.closest('.session-list') || row.parentElement).querySelectorAll('.md-row[data-session-row]')), at = all.indexOf(row);
+          var others = all.filter(function (r) { return r.dataset.sessionRow !== id; });
+          var next = others.find(function (r) { return all.indexOf(r) > at; }) || others.reverse().find(function (r) { return all.indexOf(r) < at; });
+          var target = next && next.querySelector('a.md-item, [tabindex="0"], button');
+          if (target) target.focus({ preventScroll: true }); else document.activeElement.blur();
+        }
+        row.remove();
+      });
+    }
     function removed(id) {
+      dropRows(id);
       var s = sessions[id];
       adapter.disposeChat(s);
       if (s) s.log.remove();
