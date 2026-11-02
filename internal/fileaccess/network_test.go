@@ -189,3 +189,85 @@ func TestCollapsedAuditKeepsUnverifiedRules(t *testing.T) {
 		t.Fatalf("collapsed verification lost: %+v %v", page, err)
 	}
 }
+
+func TestWindowsSlowNetworkRootsDoNotStarveLaterAlias(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows network deny rules")
+	}
+	first, second := t.TempDir(), t.TempDir()
+	one, err := os.Stat(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	two, err := os.Stat(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, _ := testStore(t)
+	svc := &Service{Store: store, network: newNetworkProber(func(root string) (os.FileInfo, error) {
+		time.Sleep(150 * time.Millisecond)
+		if root == `\\server\first` {
+			return one, nil
+		}
+		return two, nil
+	}), Defaults: []Rule{
+		{ID: "first", Kind: "default", Enabled: true, ResolvedPaths: []string{`\\server\first`}},
+		{ID: "second", Kind: "default", Enabled: true, ResolvedPaths: []string{`\\server\second`}},
+	}}
+	file := filepath.Join(second, "synthetic-key")
+	if err := os.WriteFile(file, []byte("secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	scope := Scope{Chat: "chat", Workspace: "workspace", Layout: layout.Layout{State: filepath.Join(t.TempDir(), "state")}}
+	for i := 0; i < 3; i++ {
+		if text, err := svc.Read(context.Background(), file, nil, nil, scope); err == nil || text != "" {
+			t.Fatalf("second slow root bypassed on read %d: %q %v", i, text, err)
+		}
+	}
+	policy, err := svc.Policy(scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range policy.Rules {
+		if rule.ID == "first" || rule.ID == "second" {
+			if rule.Verification != "verified" {
+				t.Fatalf("slow root starved in settings: %+v", rule)
+			}
+		}
+	}
+}
+
+func TestNetworkAccessDeniedIsImmediatelyUnverified(t *testing.T) {
+	p := newNetworkProber(func(string) (os.FileInfo, error) {
+		return nil, &os.PathError{Op: "stat", Path: "synthetic", Err: os.ErrPermission}
+	})
+	begin := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	result := p.probe(ctx, `\\server\denied`, nil)
+	if result.verified || result.match || result.reason == "" || ctx.Err() != nil || time.Since(begin) >= NetworkRuleDeadline {
+		t.Fatalf("access denial did not return immediately as unverified: %+v", result)
+	}
+	svc := &Service{network: p}
+	policy := Policy{Rules: []Rule{{ID: "denied-share", Enabled: true, paths: []string{`\\server\denied`}}}}
+	svc.describeNetwork(&policy)
+	if policy.Rules[0].Verification != "unverified" || len(policy.Rules[0].NetworkRoots) != 1 || policy.Rules[0].NetworkRoots[0].Status != "unverified" {
+		t.Fatalf("access denial hidden in policy: %+v", policy)
+	}
+}
+
+func TestCompletedNetworkRootKeepsItsResultAfterOtherWait(t *testing.T) {
+	info, err := os.Stat(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := newNetworkProber(func(string) (os.FileInfo, error) { return info, nil })
+	ctx, cancel := context.WithTimeout(context.Background(), NetworkRuleDeadline)
+	defer cancel()
+	wait := p.beginProbe(ctx, "completed", []os.FileInfo{info})
+	<-ctx.Done()
+	result := wait()
+	if !result.verified || !result.match {
+		t.Fatalf("completed identity discarded after another wait: %+v", result)
+	}
+}

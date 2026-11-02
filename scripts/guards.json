@@ -155,7 +155,10 @@
         "TestSearchSummaryKeepsRulesAndBoundedDeniedPaths",
         "TestCredentialOverridesProtectOnlyCredentialFiles",
         "TestWindowsUnverifiedRuleIsAuditedInsideWorkspace",
-        "TestCollapsedAuditKeepsUnverifiedRules"
+        "TestCollapsedAuditKeepsUnverifiedRules",
+        "TestWindowsSlowNetworkRootsDoNotStarveLaterAlias",
+        "TestNetworkAccessDeniedIsImmediatelyUnverified",
+        "TestCompletedNetworkRootKeepsItsResultAfterOtherWait"
       ],
       "onlyOn": {
         "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles": [
@@ -168,6 +171,9 @@
           "windows"
         ],
         "TestWindowsUnverifiedRuleIsAuditedInsideWorkspace": [
+          "windows"
+        ],
+        "TestWindowsSlowNetworkRootsDoNotStarveLaterAlias": [
           "windows"
         ]
       }

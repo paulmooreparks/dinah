@@ -140,8 +140,6 @@ func evaluateIdentities(path string, scope Scope, policy Policy, chain []os.File
 	return evaluateNetwork(path, scope, policy, chain, processNetworkProber)
 }
 func evaluateNetwork(path string, scope Scope, policy Policy, chain []os.FileInfo, network *networkProber) Check {
-	networkContext, cancel := context.WithTimeout(context.Background(), NetworkRuleDeadline)
-	defer cancel()
 	out := Check{MatchedRuleIDs: []string{}}
 	resolved, err := Resolve(path)
 	if err != nil {
@@ -197,6 +195,10 @@ func evaluateNetwork(path string, scope Scope, policy Policy, chain []os.FileInf
 		out.Error = "This path is outside the folders permitted for this agent"
 		return out
 	}
+	results := map[string]networkResult{}
+	if runtime.GOOS == "windows" {
+		results = network.probeRoots(networkRoots(policy), chain)
+	}
 	for _, r := range policy.Rules {
 		if !r.Enabled || r.Kind == "protected" {
 			continue
@@ -210,7 +212,7 @@ func evaluateNetwork(path string, scope Scope, policy Policy, chain []os.FileInf
 		}
 		for _, root := range roots {
 			if runtime.GOOS == "windows" && uncRoot(root) {
-				result := network.probe(networkContext, root, chain)
+				result := results[root]
 				if !result.verified {
 					out.UnverifiedRuleIDs = append(out.UnverifiedRuleIDs, r.ID)
 				}

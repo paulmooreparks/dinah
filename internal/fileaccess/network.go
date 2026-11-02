@@ -56,8 +56,18 @@ func uncRoot(path string) bool {
 	return strings.HasPrefix(strings.ToUpper(path), `\\?\UNC\`) || (strings.HasPrefix(path, `\\`) && !strings.HasPrefix(path, `\\.\`) && !strings.HasPrefix(path, `\\?\`))
 }
 func (p *networkProber) probe(ctx context.Context, root string, chain []os.FileInfo) networkResult {
+	return p.beginProbe(ctx, root, chain)()
+}
+
+// Admission is separate from waiting, so every admitted root starts its own
+// deadline and lookup before any result is awaited. Only the four workers
+// perform filesystem calls; waiting evaluations create no extra goroutines.
+func (p *networkProber) beginProbe(ctx context.Context, root string, chain []os.FileInfo) func() networkResult {
+	immediate := func(reason string) func() networkResult {
+		return func() networkResult { return networkResult{reason: reason} }
+	}
 	if ctx.Err() != nil {
-		return networkResult{reason: "Network verification deadline reached"}
+		return immediate("Network verification deadline reached")
 	}
 	request := &networkRequest{ctx: ctx, chain: append([]os.FileInfo(nil), chain...), done: make(chan networkResult, 1)}
 	p.mu.Lock()
@@ -65,7 +75,7 @@ func (p *networkProber) probe(ctx context.Context, root string, chain []os.FileI
 	if job == nil {
 		if len(p.jobs) >= NetworkRuleWorkers {
 			p.mu.Unlock()
-			return networkResult{reason: "All network verification workers are occupied"}
+			return immediate("All network verification workers are occupied")
 		}
 		job = &networkJob{root: root, started: time.Now()}
 		p.jobs[root] = job
@@ -74,21 +84,70 @@ func (p *networkProber) probe(ctx context.Context, root string, chain []os.FileI
 	} else {
 		if time.Since(job.started) >= NetworkRuleDeadline {
 			p.mu.Unlock()
-			return networkResult{reason: "This network lookup is still running past its deadline"}
+			return immediate("This network lookup is still running past its deadline")
 		}
 		if len(job.pending) >= networkPendingPerRoot {
 			p.mu.Unlock()
-			return networkResult{reason: "This network verification worker has reached its request bound"}
+			return immediate("This network verification worker has reached its request bound")
 		}
 		job.pending = append(job.pending, request)
 	}
 	p.mu.Unlock()
-	select {
-	case result := <-request.done:
-		return result
-	case <-ctx.Done():
-		return networkResult{reason: "Network verification deadline reached"}
+	return func() networkResult {
+		select {
+		case result := <-request.done:
+			return result
+		case <-ctx.Done():
+			// Another root may have used the caller's wait while this result
+			// finished within its own deadline. Keep that completed result.
+			select {
+			case result := <-request.done:
+				return result
+			default:
+			}
+			return networkResult{reason: "Network verification deadline reached"}
+		}
 	}
+}
+
+func (p *networkProber) probeRoots(roots []string, chain []os.FileInfo) map[string]networkResult {
+	type pending struct {
+		wait   func() networkResult
+		cancel context.CancelFunc
+	}
+	waits := map[string]pending{}
+	for _, root := range roots {
+		if _, exists := waits[root]; exists {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), NetworkRuleDeadline)
+		waits[root] = pending{p.beginProbe(ctx, root, chain), cancel}
+	}
+	results := make(map[string]networkResult, len(waits))
+	for root, request := range waits {
+		results[root] = request.wait()
+		request.cancel()
+	}
+	return results
+}
+
+func networkRoots(policy Policy) []string {
+	roots := []string{}
+	for _, rule := range policy.Rules {
+		if !rule.Enabled || rule.Kind == "protected" {
+			continue
+		}
+		paths := rule.paths
+		if paths == nil {
+			paths = rule.ResolvedPaths
+		}
+		for _, root := range paths {
+			if uncRoot(root) {
+				roots = append(roots, root)
+			}
+		}
+	}
+	return roots
 }
 func (p *networkProber) run(job *networkJob) {
 	for {
@@ -126,7 +185,9 @@ func (p *networkProber) run(job *networkJob) {
 					}
 				}
 			}
-			request.done <- result
+			if request.ctx.Err() == nil {
+				request.done <- result
+			}
 		}
 	}
 }
@@ -147,8 +208,7 @@ func (s *Service) networkProber() *networkProber {
 	return processNetworkProber
 }
 func (s *Service) describeNetwork(policy *Policy) {
-	ctx, cancel := context.WithTimeout(context.Background(), NetworkRuleDeadline)
-	defer cancel()
+	results := s.networkProber().probeRoots(networkRoots(*policy), nil)
 	for i := range policy.Rules {
 		rule := &policy.Rules[i]
 		if !rule.Enabled {
@@ -158,7 +218,7 @@ func (s *Service) describeNetwork(policy *Policy) {
 			if !uncRoot(root) {
 				continue
 			}
-			result := s.networkProber().probe(ctx, root, nil)
+			result := results[root]
 			state := NetworkRuleState{Path: root, Status: "verified"}
 			if !result.verified {
 				state.Status = "unverified"
