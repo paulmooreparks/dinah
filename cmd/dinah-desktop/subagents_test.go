@@ -365,7 +365,7 @@ func (c *replayingConnection) Call(ctx context.Context, method string, params, r
 // This is the regression to avoid: before native sessions such requests
 // arrived on the chat's own ID.
 func TestSubagentRequestsReachTheirChat(t *testing.T) {
-	a, _ := providerTestApp(t)
+	a, c := providerTestApp(t)
 	var ev subagentEvents
 	a.sink = ev.sink
 	ws := t.TempDir()
@@ -433,7 +433,14 @@ func TestSubagentRequestsReachTheirChat(t *testing.T) {
 		t.Fatalf("the subagent's write was not shown in its chat: %v", wrote)
 	}
 	params, _ = json.Marshal(map[string]any{"sessionId": "grandchild", "path": target})
-	if res, rerr := a.newAgentHandler().Request(context.Background(), "fs/read_text_file", params); rerr != nil || res.(acp.ReadTextFileResult).Content != "parse.go" {
+	h := a.newAgentHandler()
+	h.BindConnection(c)
+	if _, rerr := h.Request(context.Background(), "fs/read_text_file", params); rerr == nil {
+		t.Fatal("an ended subagent could still read")
+	}
+	notify(a, info.ID, spawnUpdate("reader", "Read", "Read the result"))
+	params, _ = json.Marshal(map[string]any{"sessionId": "reader", "path": target})
+	if res, rerr := h.Request(context.Background(), "fs/read_text_file", params); rerr != nil || res.(acp.ReadTextFileResult).Content != "parse.go" {
 		t.Fatalf("the subagent's read: %v %v", res, rerr)
 	}
 }

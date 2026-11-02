@@ -10,7 +10,7 @@ import (
 	"studio/internal/profile"
 )
 
-// ProtectedPath says why an agent may not write a path, or "" when it may.
+// ProtectedPath says why host-mediated agent file access is denied, or "" when allowed.
 // The folders that hold the approval rules are closed to it: Dinah's
 // state folder, apart from the managed workspaces' folders, and Devin's own
 // settings, whose config.json holds the person's Devin approvals. Anywhere
@@ -77,23 +77,37 @@ func WriteTextFile(l layout.Layout, path, content string, managedRoots ...string
 	return os.WriteFile(path, []byte(content), 0o644)
 }
 
+// ValidateLineRange rejects invalid optional 1-based line ranges.
+func ValidateLineRange(line, limit *int) error {
+	if line != nil && *line < 1 {
+		return errors.New("line must be positive")
+	}
+	if limit != nil && *limit < 1 {
+		return errors.New("limit must be positive")
+	}
+	return nil
+}
+
 // SliceLines returns limit lines starting at the 1-based line, as
 // fs/read_text_file asks; with neither, the whole text.
-func SliceLines(s string, line, limit *int) string {
+func SliceLines(s string, line, limit *int) (string, error) {
+	if err := ValidateLineRange(line, limit); err != nil {
+		return "", err
+	}
 	if line == nil && limit == nil {
-		return s
+		return s, nil
 	}
 	lines := strings.SplitAfter(s, "\n")
 	start := 0
 	if line != nil && *line > 1 {
 		start = *line - 1
 	}
-	if start > len(lines) {
-		return ""
+	if start >= len(lines) {
+		return "", errors.New("line is past the end of the file")
 	}
 	end := len(lines)
-	if limit != nil && start+*limit < end {
+	if limit != nil && *limit < end-start {
 		end = start + *limit
 	}
-	return strings.Join(lines[start:end], "")
+	return strings.Join(lines[start:end], ""), nil
 }

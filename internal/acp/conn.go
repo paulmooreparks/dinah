@@ -360,8 +360,20 @@ func (c *Conn) read(r io.Reader) {
 }
 
 func (c *Conn) answer(m message) {
+	_ = c.send(c.requestReply(m))
+}
+
+// requestReply contains faults in one reverse request. A panic payload may
+// include credentials or file content, so the protocol error is generic.
+func (c *Conn) requestReply(m message) (out message) {
+	out.ID = m.ID
+	defer func() {
+		if recover() != nil {
+			out.Result = nil
+			out.Error = &Error{Code: CodeInternal, Message: "the client could not handle this request"}
+		}
+	}()
 	result, rerr := c.handler.Request(c.ctx, m.Method, m.Params)
-	out := message{ID: m.ID}
 	if rerr != nil {
 		out.Error = rerr
 	} else {
@@ -372,7 +384,7 @@ func (c *Conn) answer(m message) {
 			out.Result = b
 		}
 	}
-	_ = c.send(out)
+	return out
 }
 
 // RegisterTraceSecret excludes a channel credential from protocol and stderr
