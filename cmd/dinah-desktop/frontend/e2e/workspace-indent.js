@@ -108,7 +108,7 @@ const { launch, PAGE } = require('./lib/page');
     await page.evaluate(() => {
       const L = window.dinahBrowserList;
       document.getElementById('workspace-chats').appendChild(L.row({ title: 'Sample Chat', meta: ['A chat'] }));
-      document.getElementById('workspace-pins').appendChild(L.row({ title: 'Sample Pin', meta: ['A pin'] }));
+      const pin = L.row({ title: 'Sample Pin', meta: ['A pin'] }); const pg = document.createElement('span'); pg.className = 'glyph pin-glyph'; pg.style.setProperty('--glyph', 'var(--glyph-comments)'); pin.querySelector('.browser-row-line').prepend(pg); document.getElementById('workspace-pins').appendChild(pin);
       const host = document.getElementById('workspace-in-progress');
       const ws = L.group({ id: 'zz-ws', title: 'Delivery', count: 1, open: true }); host.appendChild(ws.el);
       const kind = L.group({ id: 'zz-kind', title: 'Drafts', count: 1, open: true }); kind.el.classList.add('in-progress-kind'); ws.body.appendChild(kind.el);
@@ -127,15 +127,21 @@ const { launch, PAGE } = require('./lib/page');
         heads: ['Pinned', 'Chats', 'In Progress', 'Sources'].map(n => textLeft(heading(n))),
         pin: textLeft(document.querySelector('#workspace-pins .browser-row-title')), chat: textLeft(document.querySelector('#workspace-chats .browser-row-title')),
         wsGroup: toggleOf(heading('Delivery')), kindGroup: toggleOf(heading('Drafts')), draft: textLeft(document.querySelector('#workspace-in-progress .in-progress-kind .browser-row-title')),
-        tree: ['Working Files', 'Nested', 'Nested Readme'].map(n => ({ row: left(node(n)), toggle: node(n).querySelector('.tree-toggle') ? left(node(n).querySelector('.tree-toggle')) : null })),
+        // A row's leading control: its expand toggle, or on a leaf the
+        // spacer PUDL puts in the toggle's place, else its glyph.
+        tree: ['Working Files', 'Nested', 'Nested Readme'].map(n => { const a = node(n), lead = a.querySelector('.tree-toggle, .tree-spacer') || a.querySelector('.glyph'); return { row: left(a), lead: left(lead) }; }),
+        pinGlyph: (() => { const g = document.querySelector('#workspace-pins .browser-row .glyph'); return g ? left(g) : null; })(),
         overflow: sidebar.scrollWidth > sidebar.clientWidth + 1,
       };
     });
     const start = m.heads[0], step = 16;
     ok('the words of every section heading start at one line', m.heads.every(h => h === start), JSON.stringify(m.heads));
-    ok('Pinned and Chats rows start where the words of their heading start', m.pin === start && m.chat === start, JSON.stringify(m));
+    ok('Pinned and Chats rows lead at the words of their heading: a pin with its glyph, a chat with its title', m.pinGlyph === start && m.chat === start, JSON.stringify(m));
     ok('In Progress steps in one level at a time: workspace, kind of work, then its rows', m.wsGroup === start && m.kindGroup === start + step && m.draft === start + 2 * step, JSON.stringify(m));
-    ok('the Sources tree starts at the words of its heading and steps in one level at a time, three deep', m.tree[0].row === start && m.tree[1].row === start + step && m.tree[2].row === start + 2 * step && m.tree[0].toggle >= start && m.tree[0].toggle < start + 8, JSON.stringify(m.tree));
+    // Paul's rule (2 November 2026): at every level a row's leading control
+    // starts where the heading's words start, plus one step per level.
+    ok('each Sources tree row’s leading control starts at the heading’s words plus one step per level, three deep', m.tree.every((r, level) => r.lead === start + level * step), JSON.stringify({ start, tree: m.tree }));
+    ok('In Progress group toggles start at the heading’s words plus one step per level', m.wsGroup === start && m.kindGroup === start + step, JSON.stringify(m));
     ok('nothing in the pane runs past its edge', !m.overflow);
     await t.shot('workspace-indent', { clip: await page.locator('#sidebar').boundingBox() });
   } finally { await t.close(); }
