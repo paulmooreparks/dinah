@@ -65,6 +65,9 @@ func TestEveryPublishedPlatformHasABlockingSourceScan(t *testing.T) {
 	sha := regexp.MustCompile(`^actions/[a-z-]+@[0-9a-f]{40}$`)
 	for name, job := range workflow.Jobs {
 		for _, step := range job.Steps {
+			if name == "publish" && strings.HasPrefix(step.Uses, "actions/download-artifact@") && (step.With["pattern"] != "dinah-*" || step.With["name"] != "") {
+				t.Fatal("publication must download only build archives, excluding scan reports")
+			}
 			if step.Uses != "" && !sha.MatchString(step.Uses) {
 				t.Fatalf("job %s uses an unpinned action %s", name, step.Uses)
 			}
