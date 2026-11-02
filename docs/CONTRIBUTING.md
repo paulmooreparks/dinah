@@ -24,4 +24,4 @@ Both take the machine-wide test lock, so runs started at the same time queue rat
 
 ## CI
 
-The Build workflow runs the guards, the full Go suite and the full browser suite as required jobs on Windows, together with the vulnerability scans on every published platform. Building and publication wait for all of them, and `TestEveryPublishedPlatformHasABlockingSourceScan` fails if the workflow stops waiting for any of them. CI has no copy of the private terms list, so there the forbidden-terms guard reports itself skipped, and the local run before a push is what enforces it.
+The Build workflow runs the guards, the full Go suite and the full browser suite as required jobs on Windows, the Go guards again on Linux, and the vulnerability scans on every published platform. Building and publication wait for all of them, and `TestEveryPublishedPlatformHasABlockingSourceScan` fails if the workflow stops waiting for any of them. CI has no copy of the private terms list, so there the forbidden-terms guard reports itself skipped, and the local run before a push is what enforces it.
