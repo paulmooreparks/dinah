@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"sync"
 	"time"
 
@@ -36,39 +37,47 @@ type Store struct {
 }
 
 type Rule struct {
-	paths         []string          // Original roots remain available for lexical and canonical checks.
-	ID            string            `json:"id"`
-	Kind          string            `json:"kind"`
-	Pattern       string            `json:"pattern"`
-	Reason        string            `json:"reason"`
-	Enabled       bool              `json:"enabled"`
-	ResolvedPaths []string          `json:"resolvedPaths"`
-	Examples      map[string]string `json:"examples"`
-	Actions       []string          `json:"actions"`
+	Verification  string             `json:"verification,omitempty"`
+	NetworkRoots  []NetworkRuleState `json:"networkRoots,omitempty"`
+	paths         []string           // Original roots remain available for lexical and canonical checks.
+	ID            string             `json:"id"`
+	Kind          string             `json:"kind"`
+	Pattern       string             `json:"pattern"`
+	Reason        string             `json:"reason"`
+	Enabled       bool               `json:"enabled"`
+	ResolvedPaths []string           `json:"resolvedPaths"`
+	Examples      map[string]string  `json:"examples"`
+	Actions       []string           `json:"actions"`
 }
 
 type Policy struct {
-	Version int64  `json:"version"`
-	Rules   []Rule `json:"rules"`
+	NetworkWorkers []NetworkWorker `json:"networkWorkers,omitempty"`
+	Version        int64           `json:"version"`
+	Rules          []Rule          `json:"rules"`
 }
 
 type Record struct {
-	Operation bool   `json:"operation,omitempty"`
-	Visited   int    `json:"visited,omitempty"`
-	Denied    int    `json:"denied,omitempty"`
-	Errors    int    `json:"errors,omitempty"`
-	Count     int    `json:"count,omitempty"`
-	Source    string `json:"source,omitempty"`
-	ID        int64  `json:"id"`
-	At        string `json:"at"`
-	Chat      string `json:"chat"`
-	ChatTitle string `json:"chatTitle"`
-	Workspace string `json:"workspace"`
-	Path      string `json:"path"`
-	Bytes     int    `json:"bytes"`
-	Outcome   string `json:"outcome"`
-	RuleID    string `json:"ruleID"`
-	Reason    string `json:"reason"`
+	RuleIDs            []string `json:"ruleIDs,omitempty"`
+	DeniedPaths        []string `json:"deniedPaths,omitempty"`
+	DeniedPathsOmitted int      `json:"deniedPathsOmitted,omitempty"`
+	DeniedBytes        *int     `json:"deniedBytes,omitempty"`
+	UnverifiedRuleIDs  []string `json:"unverifiedRuleIDs,omitempty"`
+	Operation          bool     `json:"operation,omitempty"`
+	Visited            int      `json:"visited,omitempty"`
+	Denied             int      `json:"denied,omitempty"`
+	Errors             int      `json:"errors,omitempty"`
+	Count              int      `json:"count,omitempty"`
+	Source             string   `json:"source,omitempty"`
+	ID                 int64    `json:"id"`
+	At                 string   `json:"at"`
+	Chat               string   `json:"chat"`
+	ChatTitle          string   `json:"chatTitle"`
+	Workspace          string   `json:"workspace"`
+	Path               string   `json:"path"`
+	Bytes              int      `json:"bytes"`
+	Outcome            string   `json:"outcome"`
+	RuleID             string   `json:"ruleID"`
+	Reason             string   `json:"reason"`
 }
 
 type Filter struct {
@@ -327,9 +336,28 @@ func (s *Store) append(tx *sql.Tx, record Record) (Record, error) {
 	if grouped {
 		var previous int64
 		var count int
-		err := tx.QueryRow(`SELECT id,count FROM denials WHERE chat=? AND rule_id=? AND source=? AND outcome=? AND sealed=0`, record.Chat, record.RuleID, record.Source, record.Outcome).Scan(&previous, &count)
+		var priorPayload string
+		err := tx.QueryRow(`SELECT id,count,payload FROM denials WHERE chat=? AND rule_id=? AND source=? AND outcome=? AND sealed=0`, record.Chat, record.RuleID, record.Source, record.Outcome).Scan(&previous, &count, &priorPayload)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return Record{}, err
+		}
+		if err == nil {
+			var prior Record
+			if err := json.Unmarshal([]byte(priorPayload), &prior); err != nil {
+				return Record{}, err
+			}
+			ids := map[string]bool{}
+			for _, id := range prior.UnverifiedRuleIDs {
+				ids[id] = true
+			}
+			for _, id := range record.UnverifiedRuleIDs {
+				ids[id] = true
+			}
+			record.UnverifiedRuleIDs = nil
+			for id := range ids {
+				record.UnverifiedRuleIDs = append(record.UnverifiedRuleIDs, id)
+			}
+			sort.Strings(record.UnverifiedRuleIDs)
 		}
 		record.Count = count + 1
 	}

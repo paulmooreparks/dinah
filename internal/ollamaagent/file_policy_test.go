@@ -7,7 +7,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"studio/internal/fileaccess"
+	"studio/internal/layout"
 	"testing"
 
 	"studio/internal/acp"
@@ -103,5 +106,62 @@ func TestHostDirectoryPolicyCoversListAndFind(t *testing.T) {
 	}
 	if len(calls) != 2 || !strings.HasPrefix(calls[0], "list_directory:") || !strings.HasPrefix(calls[1], "find_files:") {
 		t.Fatalf("directory mediation: %v", calls)
+	}
+}
+
+func TestRealDirectoryPolicyOmitsDeniedNamesFromTools(t *testing.T) {
+	home := t.TempDir()
+	for _, name := range []string{".netrc", "ordinary.txt"} {
+		if err := os.WriteFile(filepath.Join(home, name), []byte("synthetic"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(home, ".ssh"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".ssh", "private-name"), []byte("synthetic"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := fileaccess.Open(filepath.Join(t.TempDir(), "file-access.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	svc := &fileaccess.Service{Store: store, Defaults: fileaccess.DefaultRules(runtime.GOOS, home, "", "", nil)}
+	scope := fileaccess.Scope{Chat: "chat", Workspace: "workspace", Roots: []string{home}, Layout: layout.Layout{State: filepath.Join(t.TempDir(), "state")}}
+	c := &Conn{handler: &policyReadHandler{}}
+	c.SetHostFileReads()
+	c.SetHostDirectoryReads(func(ctx context.Context, session, path, source string) ([]fs.DirEntry, error) {
+		if session != scope.Chat {
+			t.Fatal("caller changed")
+		}
+		s := scope
+		s.Source = source
+		return svc.ReadDirectory(ctx, path, s)
+	})
+	c.SetHostFileOperation(func(ctx context.Context, session, path, source string, work func(context.Context) (string, bool)) (string, bool) {
+		if session != scope.Chat {
+			t.Fatal("caller changed")
+		}
+		s := scope
+		s.Source = source
+		return svc.RunOperation(ctx, path, s, work)
+	})
+	tools := limited(home, fixedFolders(home))
+	tools.c = c
+	for _, name := range []string{"list_directory", "find_files"} {
+		text, ok := tools.run(context.Background(), "test", name, map[string]any{"path": home, "pattern": "*"})
+		if !ok || !strings.Contains(text, "ordinary.txt") || strings.Contains(text, ".netrc") || strings.Contains(text, ".ssh") || strings.Contains(text, "private-name") {
+			t.Fatalf("%s leaked or failed: %v %s", name, ok, text)
+		}
+	}
+	log, err := store.Log(fileaccess.Filter{})
+	if err != nil || len(log.Rows) != 2 {
+		t.Fatalf("operation audit: %+v %v", log, err)
+	}
+	for _, row := range log.Rows {
+		if !row.Operation || row.Denied != 2 {
+			t.Fatalf("missing real denials: %+v", row)
+		}
 	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"maps"
@@ -22,6 +23,7 @@ type fileAccessRuntime struct {
 	counts             map[string]int
 	closed             bool
 	version, highWater int64
+	networkState       string
 	stop               chan struct{}
 }
 
@@ -90,12 +92,18 @@ func (a *App) fileAccessUpdated(event string, payload any) {
 		logf("core", "warning", "could not refresh file-access audit state")
 		return
 	}
+	networkBytes, _ := json.Marshal(f.service.NetworkWorkers())
+	networkChanged := string(networkBytes) != f.networkState
+	f.networkState = string(networkBytes)
 	changed := version != f.version || high != f.highWater || !maps.Equal(counts, f.counts)
 	if version != f.version {
 		event, payload = "file-access:policy", version
 	}
 	f.version, f.highWater, f.counts = version, high, counts
 	f.mu.Unlock()
+	if networkChanged {
+		a.emit("file-access:network", version)
+	}
 	if changed {
 		a.emit(event, payload)
 		a.chatStatesChanged()

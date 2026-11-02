@@ -148,13 +148,26 @@
         "TestDefaultResolversIgnoreRelativeXDGPaths",
         "TestReadPolicyProtectsCanonicalStateDirectory",
         "TestReadPolicyDirectoryMetadataUsesDenyAndAudit",
-        "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles"
+        "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles",
+        "TestNetworkVerificationBoundsAndVisibility",
+        "TestNetworkVerificationDoesNotCacheSuccess",
+        "TestWindowsUNCDefaultRefusesDriveAlias",
+        "TestSearchSummaryKeepsRulesAndBoundedDeniedPaths",
+        "TestCredentialOverridesProtectOnlyCredentialFiles",
+        "TestWindowsUnverifiedRuleIsAuditedInsideWorkspace",
+        "TestCollapsedAuditKeepsUnverifiedRules"
       ],
       "onlyOn": {
         "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles": [
           "windows"
         ],
         "TestWindowsPipeDenyRootDoesNotRefuseOrdinaryReads": [
+          "windows"
+        ],
+        "TestWindowsUNCDefaultRefusesDriveAlias": [
+          "windows"
+        ],
+        "TestWindowsUnverifiedRuleIsAuditedInsideWorkspace": [
           "windows"
         ]
       }
@@ -163,7 +176,8 @@
       "package": "./internal/ollamaagent",
       "tests": [
         "TestHostReadPolicyCoversLimitedReadAndSearch",
-        "TestHostDirectoryPolicyCoversListAndFind"
+        "TestHostDirectoryPolicyCoversListAndFind",
+        "TestRealDirectoryPolicyOmitsDeniedNamesFromTools"
       ]
     }
   ],

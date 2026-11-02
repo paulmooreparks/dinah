@@ -35,16 +35,18 @@ type Scope struct {
 }
 
 type Check struct {
-	Valid           bool     `json:"valid"`
-	Error           string   `json:"error"`
-	ResolvedPath    string   `json:"resolvedPath"`
-	MatchedRuleIDs  []string `json:"matchedRuleIDs"`
-	InsideWorkspace bool     `json:"insideWorkspace"`
+	UnverifiedRuleIDs []string `json:"unverifiedRuleIDs,omitempty"`
+	Valid             bool     `json:"valid"`
+	Error             string   `json:"error"`
+	ResolvedPath      string   `json:"resolvedPath"`
+	MatchedRuleIDs    []string `json:"matchedRuleIDs"`
+	InsideWorkspace   bool     `json:"insideWorkspace"`
 }
 
 // Service snapshots policy before each read and commits required audit before returning content.
 // Scope is supplied by the registered host session, never by the provider.
 type Service struct {
+	network  *networkProber
 	mu       sync.Mutex
 	Store    *Store
 	Defaults []Rule
@@ -68,6 +70,13 @@ func inside(roots []string, p string) bool {
 }
 
 func (s *Service) policy(scope Scope) (Policy, error) {
+	policy, err := s.rawPolicy(scope)
+	if err == nil {
+		s.describeNetwork(&policy)
+	}
+	return policy, err
+}
+func (s *Service) rawPolicy(scope Scope) (Policy, error) {
 	version, custom, switches, err := s.Store.Snapshot()
 	if err != nil {
 		return Policy{}, err
@@ -128,6 +137,11 @@ func evaluate(path string, scope Scope, policy Policy) Check {
 }
 
 func evaluateIdentities(path string, scope Scope, policy Policy, chain []os.FileInfo) Check {
+	return evaluateNetwork(path, scope, policy, chain, processNetworkProber)
+}
+func evaluateNetwork(path string, scope Scope, policy Policy, chain []os.FileInfo, network *networkProber) Check {
+	networkContext, cancel := context.WithTimeout(context.Background(), NetworkRuleDeadline)
+	defer cancel()
 	out := Check{MatchedRuleIDs: []string{}}
 	resolved, err := Resolve(path)
 	if err != nil {
@@ -195,6 +209,18 @@ func evaluateIdentities(path string, scope Scope, policy Policy, chain []os.File
 			roots = r.ResolvedPaths
 		}
 		for _, root := range roots {
+			if runtime.GOOS == "windows" && uncRoot(root) {
+				result := network.probe(networkContext, root, chain)
+				if !result.verified {
+					out.UnverifiedRuleIDs = append(out.UnverifiedRuleIDs, r.ID)
+				}
+				if result.match || strings.EqualFold(root, path) || strings.EqualFold(root, resolved) {
+					out.MatchedRuleIDs = append(out.MatchedRuleIDs, r.ID)
+					out.Error = r.Reason
+					break
+				}
+				continue
+			}
 			if runtime.GOOS == "windows" {
 				if _, err := agents.NormalizeFilePath(root); err != nil {
 					if strings.EqualFold(root, path) {
@@ -229,11 +255,12 @@ func evaluateIdentities(path string, scope Scope, policy Policy, chain []os.File
 func (s *Service) Check(path string, scope Scope) (Check, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	policy, err := s.policy(scope)
+	policy, err := s.rawPolicy(scope)
 	if err != nil {
 		return Check{}, err
 	}
-	return evaluate(path, scope, policy), nil
+	chain, _ := agents.PathIdentities(path)
+	return evaluateNetwork(path, scope, policy, chain, s.networkProber()), nil
 }
 
 func (s *Service) Add(path string, version int64, scope Scope) (Policy, error) {
@@ -317,13 +344,14 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 		return "", err
 	}
 	s.mu.Lock()
-	policy, err := s.policy(scope)
+	policy, err := s.rawPolicy(scope)
 	s.mu.Unlock()
 	if err != nil {
 		return "", err
 	}
-	check := evaluate(path, scope, policy)
-	record := Record{Source: scope.Source, Chat: scope.Chat, ChatTitle: scope.ChatTitle, Workspace: scope.Workspace, Path: check.ResolvedPath}
+	chain, _ := agents.PathIdentities(path)
+	check := evaluateNetwork(path, scope, policy, chain, s.networkProber())
+	record := Record{UnverifiedRuleIDs: check.UnverifiedRuleIDs, Source: scope.Source, Chat: scope.Chat, ChatTitle: scope.ChatTitle, Workspace: scope.Workspace, Path: check.ResolvedPath}
 	if record.Path == "" {
 		record.Path = path
 	}
@@ -343,7 +371,8 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 	}
 	var refused Check
 	text, readErr := read(func(canonical string, chain []os.FileInfo) error {
-		final := evaluateIdentities(canonical, scope, policy, chain)
+		final := evaluateNetwork(canonical, scope, policy, chain, s.networkProber())
+		record.UnverifiedRuleIDs = append(record.UnverifiedRuleIDs, final.UnverifiedRuleIDs...)
 		record.Path = final.ResolvedPath
 		check.InsideWorkspace = final.InsideWorkspace
 		if len(final.MatchedRuleIDs) > 0 {
@@ -365,7 +394,7 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 	} else {
 		record.Outcome, record.Bytes = "allowed", len([]byte(text))
 	}
-	if operationIn(ctx) != nil || scope.AuditAlways || !check.InsideWorkspace || record.Outcome == "denied" {
+	if len(record.UnverifiedRuleIDs) > 0 || operationIn(ctx) != nil || scope.AuditAlways || !check.InsideWorkspace || record.Outcome == "denied" {
 		if err = s.recordRead(ctx, scope, record); err != nil {
 			return "", fmt.Errorf("could not commit file-read audit; no content returned: %w", err)
 		}

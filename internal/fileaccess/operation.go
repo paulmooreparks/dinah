@@ -2,25 +2,30 @@ package fileaccess
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 )
 
 const MaxOperationPaths = 20000
+const MaxSummaryDeniedPaths = 24
+const MaxSummaryDeniedPathBytes = 4096
 
 type operationKey struct{}
 type operation struct {
-	mu        sync.Mutex
-	store     *Store
-	chat      string
-	workspace string
-	paths     map[string]bool
-	denied    map[string]bool
-	errors    map[string]bool
-	fatal     error
-	rules     map[string]bool
+	mu         sync.Mutex
+	store      *Store
+	chat       string
+	workspace  string
+	paths      map[string]bool
+	denied     map[string]bool
+	errors     map[string]bool
+	fatal      error
+	rules      map[string]bool
+	unverified map[string]bool
 }
 
 func operationIn(ctx context.Context) *operation {
@@ -56,6 +61,15 @@ func (s *Service) admitOperationPath(ctx context.Context, scope Scope, path stri
 func (s *Service) recordRead(ctx context.Context, scope Scope, record Record) error {
 	op := operationIn(ctx)
 	if op == nil {
+		ids := map[string]bool{}
+		for _, id := range record.UnverifiedRuleIDs {
+			ids[id] = true
+		}
+		record.UnverifiedRuleIDs = nil
+		for id := range ids {
+			record.UnverifiedRuleIDs = append(record.UnverifiedRuleIDs, id)
+		}
+		sort.Strings(record.UnverifiedRuleIDs)
 		_, err := s.Store.Append(record)
 		return err
 	}
@@ -63,6 +77,9 @@ func (s *Service) recordRead(ctx context.Context, scope Scope, record Record) er
 	defer op.mu.Unlock()
 	if op.store != s.Store || op.chat != scope.Chat || op.workspace != scope.Workspace {
 		return errors.New("a file operation cannot change its caller or store")
+	}
+	for _, id := range record.UnverifiedRuleIDs {
+		op.unverified[id] = true
 	}
 	switch record.Outcome {
 	case "denied":
@@ -85,10 +102,35 @@ func (s *Service) RunOperation(ctx context.Context, path string, scope Scope, wo
 	if scope.Chat == "" || scope.Workspace == "" {
 		return "a registered file-operation caller is required", false
 	}
-	op := &operation{store: s.Store, chat: scope.Chat, workspace: scope.Workspace, paths: map[string]bool{}, denied: map[string]bool{}, errors: map[string]bool{}, rules: map[string]bool{}}
+	op := &operation{store: s.Store, chat: scope.Chat, workspace: scope.Workspace, paths: map[string]bool{}, denied: map[string]bool{}, errors: map[string]bool{}, rules: map[string]bool{}, unverified: map[string]bool{}}
 	text, ok := work(context.WithValue(ctx, operationKey{}, op))
 	op.mu.Lock()
 	visited, denied, failed, fatal := len(op.paths), len(op.denied), len(op.errors), op.fatal
+	ruleIDs := []string{}
+	for id := range op.rules {
+		ruleIDs = append(ruleIDs, id)
+	}
+	sort.Strings(ruleIDs)
+	unverified := []string{}
+	for id := range op.unverified {
+		unverified = append(unverified, id)
+	}
+	sort.Strings(unverified)
+	paths := []string{}
+	for path := range op.denied {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	retained := []string{}
+	used := 0
+	for _, path := range paths {
+		encoded, _ := json.Marshal(path)
+		if len(retained) >= MaxSummaryDeniedPaths || used+len(encoded) > MaxSummaryDeniedPathBytes {
+			continue
+		}
+		retained = append(retained, path)
+		used += len(encoded)
+	}
 	ruleID := ""
 	if len(op.rules) == 1 {
 		for id := range op.rules {
@@ -111,7 +153,7 @@ func (s *Service) RunOperation(ctx context.Context, path string, scope Scope, wo
 		text = strings.ReplaceAll(text, "No line matches.", "No line matches among permitted entries.")
 		text += fmt.Sprintf("\n[%d paths visited; %d denied by file policy and omitted.]", visited, denied)
 	}
-	record := Record{Operation: true, RuleID: ruleID, Chat: scope.Chat, ChatTitle: scope.ChatTitle, Workspace: scope.Workspace, Source: scope.Source, Path: resolved, Visited: visited, Denied: denied, Errors: failed, Outcome: "allowed", Reason: "File-operation summary"}
+	record := Record{Operation: true, RuleID: ruleID, RuleIDs: ruleIDs, DeniedPaths: retained, DeniedPathsOmitted: denied - len(retained), UnverifiedRuleIDs: unverified, Chat: scope.Chat, ChatTitle: scope.ChatTitle, Workspace: scope.Workspace, Source: scope.Source, Path: resolved, Visited: visited, Denied: denied, Errors: failed, Outcome: "allowed", Reason: "File-operation summary"}
 	if ok {
 		record.Bytes = len(text)
 	} else {
@@ -122,6 +164,8 @@ func (s *Service) RunOperation(ctx context.Context, path string, scope Scope, wo
 	if denied > 0 {
 		record.Outcome = "denied"
 		record.Count = denied
+		zero := 0
+		record.DeniedBytes = &zero
 	}
 	if _, err := s.Store.Append(record); err != nil {
 		return "could not commit file-operation audit; no result returned", false

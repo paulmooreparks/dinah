@@ -109,7 +109,7 @@ func defaultRules(platform, home, roaming, local string, env map[string]string) 
 		gh = join(roaming, "GitHub CLI")
 	}
 	add("github-cli", "GitHub CLI configuration or GH_CONFIG_DIR", "GitHub authentication tokens", gh, env["GH_CONFIG_DIR"])
-	add("provider-credentials", "Agent account credentials and local model state", "Agent account tokens and private state", join(home, ".claude/.credentials.json"), join(home, ".codex/auth.json"), join(home, ".ollama"), env["CLAUDE_CONFIG_DIR"], env["CODEX_HOME"])
+	add("provider-credentials", "Agent account credentials and local model state", "Agent account tokens and private state", join(home, ".claude/.credentials.json"), join(home, ".codex/auth.json"), join(home, ".ollama"), join(env["CLAUDE_CONFIG_DIR"], ".credentials.json"), join(env["CODEX_HOME"], "auth.json"))
 	add("terraform", "Terraform CLI credential configuration", "Infrastructure service credentials", join(home, ".terraform.d"), join(home, ".terraformrc"), join(roaming, "terraform.d"), join(roaming, "terraform.rc"), env["TF_CLI_CONFIG_FILE"])
 	add("other-workspaces", "Other registered workspaces outside this workspace's roots", "Another workspace's data")
 	return rules

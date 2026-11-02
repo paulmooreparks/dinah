@@ -2,6 +2,7 @@ package fileaccess
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -178,7 +179,7 @@ func TestDefaultOverridesAndSandboxProfiles(t *testing.T) {
 		for _, rule := range rules {
 			all = append(all, rule.ResolvedPaths...)
 		}
-		expected := []string{home + "/account-a", home + "/account-b"}
+		expected := []string{home + "/account-a/.credentials.json", home + "/account-b/auth.json"}
 		if platform == "windows" {
 			expected = append(expected, roaming+"/gnupg", local+"/1Password")
 		}
@@ -211,5 +212,74 @@ func TestOperationWithholdsResultWhenAuditCannotCommit(t *testing.T) {
 	text, ok := svc.RunOperation(context.Background(), t.TempDir(), Scope{Chat: "chat", Workspace: "workspace", Source: "find_files"}, func(context.Context) (string, bool) { return "synthetic private result", true })
 	if ok || strings.Contains(text, "synthetic private result") {
 		t.Fatalf("unaudited result escaped: %q", text)
+	}
+}
+
+func TestSearchSummaryKeepsRulesAndBoundedDeniedPaths(t *testing.T) {
+	store, _ := testStore(t)
+	svc := &Service{Store: store}
+	scope := Scope{Chat: "chat", Workspace: "workspace", Source: "find_files"}
+	text, ok := svc.RunOperation(context.Background(), t.TempDir(), scope, func(ctx context.Context) (string, bool) {
+		for i := 0; i < 40; i++ {
+			path := filepath.Join(t.TempDir(), fmt.Sprintf("denied-%02d", i))
+			if err := svc.admitOperationPath(ctx, scope, path); err != nil {
+				t.Fatal(err)
+			}
+			if err := svc.recordRead(ctx, scope, Record{Path: path, Outcome: "denied", RuleID: fmt.Sprintf("rule-%d", i%2)}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return "ordinary.txt", true
+	})
+	if !ok {
+		t.Fatal(text)
+	}
+	log, err := store.Log(Filter{})
+	if err != nil || len(log.Rows) != 1 {
+		t.Fatalf("summary: %+v %v", log, err)
+	}
+	row := log.Rows[0]
+	if len(row.RuleIDs) != 2 || row.RuleIDs[0] != "rule-0" || row.RuleIDs[1] != "rule-1" || row.RuleID != "" {
+		t.Fatalf("rules lost: %+v", row)
+	}
+	if len(row.DeniedPaths) > MaxSummaryDeniedPaths || len(row.DeniedPaths)+row.DeniedPathsOmitted != 40 || row.DeniedPathsOmitted == 0 {
+		t.Fatalf("path bound: %+v", row)
+	}
+	bytes := 0
+	for _, path := range row.DeniedPaths {
+		encoded, _ := json.Marshal(path)
+		bytes += len(encoded)
+	}
+	if bytes > MaxSummaryDeniedPathBytes || row.DeniedBytes == nil || *row.DeniedBytes != 0 || row.Bytes != len(text) {
+		t.Fatalf("byte accounting: %+v", row)
+	}
+}
+
+func TestCredentialOverridesProtectOnlyCredentialFiles(t *testing.T) {
+	store, _ := testStore(t)
+	home := t.TempDir()
+	a, b := filepath.Join(home, "account-a"), filepath.Join(home, "account-b")
+	for _, dir := range []string{a, b} {
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := &Service{Store: store, Defaults: DefaultRules(runtime.GOOS, t.TempDir(), "", "", map[string]string{"CLAUDE_CONFIG_DIR": a, "CODEX_HOME": b})}
+	scope := Scope{Chat: "chat", Workspace: "workspace", Layout: layout.Layout{State: filepath.Join(t.TempDir(), "state")}}
+	for _, tc := range []struct {
+		path   string
+		denied bool
+	}{{filepath.Join(a, ".credentials.json"), true}, {filepath.Join(b, "auth.json"), true}, {filepath.Join(a, "settings.json"), false}, {filepath.Join(b, "config.toml"), false}} {
+		if err := os.WriteFile(tc.path, []byte("synthetic"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		text, err := svc.Read(context.Background(), tc.path, nil, nil, scope)
+		if tc.denied {
+			if err == nil || text != "" {
+				t.Fatalf("credential returned: %q %v", text, err)
+			}
+		} else if err != nil || text != "synthetic" {
+			t.Fatalf("settings refused: %q %v", text, err)
+		}
 	}
 }
