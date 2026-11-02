@@ -30,6 +30,14 @@ const { launch } = require('./lib/page');
     let needs = await badge('status-needs');
     ok('while notifications are still being read, there is no false 0', needs.text === '', JSON.stringify(needs));
     const before = needs.width;
+    // Folded while the count is still being read, PUDL's Status total shows
+    // nothing either (data-status-pending, PUDL 0.97.1).
+    await p.setViewportSize({ width: 560, height: 900 });
+    await p.locator('.status-area > .status-fold:not([hidden])').waitFor();
+    const pending = await p.evaluate(() => { const b = document.querySelector('.status-area > .status-fold .badge'); return b.hidden ? '' : b.textContent; });
+    ok('folded while still reading, the Status total is not a false 0', pending === '', JSON.stringify(pending));
+    await p.setViewportSize({ width: 1440, height: 900 });
+    await p.waitForFunction(() => !document.querySelector('.status-area > [data-status-folded]'));
     await p.evaluate(() => __release());
     await p.waitForFunction(() => document.querySelector('#status-needs [data-status-badge]').textContent === '0');
     needs = await badge('status-needs');
@@ -38,19 +46,24 @@ const { launch } = require('./lib/page');
     ok('with no undismissed warnings, Judgements shows a neutral 0', judge.text === '0' && !judge.warn, JSON.stringify(judge));
     ok('showing 0 does not change the item\'s width', needs.width === before, JSON.stringify({ before, after: needs.width }));
     await t.shot('status-zero');
-    // The folded tray agrees.
+    // PUDL's folded Status item agrees: its total is 0, plain, and its menu
+    // gives each item's 0 (data-status-fold, PUDL 0.97.0 and 0.97.1).
     await p.setViewportSize({ width: 560, height: 900 });
-    await p.locator('#status-folded:not([hidden])').waitFor();
-    const opener = await badge('status-folded');
-    await p.locator('#status-folded').click();
-    await p.locator('#status-tray-menu').waitFor();
-    const rows = await p.evaluate(() => [...document.querySelectorAll('#status-tray-menu .status-tray-row')].filter(r => r.getClientRects().length).map(r => ({ for: r.dataset.statusFor, count: (r.querySelector('.status-row-count .badge:not(.status-badge-reserve)') || {}).hidden ? '' : r.querySelector('.status-row-count .badge:not(.status-badge-reserve)').textContent })));
-    const row = id => (rows.find(r => r.for === id) || {}).count;
-    ok('the folded tray shows 0 for both rows, and 0 on its button', row('status-needs') === '0' && row('status-judgements') === '0' && opener.text === '0' && !opener.warn, JSON.stringify({ rows, opener }));
+    const fold = p.locator('.status-area > .status-fold:not([hidden])');
+    await fold.waitFor();
+    const opener = await fold.evaluate(f => { const b = f.querySelector('.badge'); return { text: b.hidden ? '' : b.textContent, tone: f.getAttribute('data-tone') || '', name: f.getAttribute('aria-label') }; });
+    await fold.click();
+    const menu = p.locator('[popover]:popover-open').last();
+    await menu.waitFor();
+    // Each row is named as its item is and gives the item's badge last.
+    const listed = await menu.locator('.menu-action').evaluateAll(rows => rows.map(r => r.innerText.replace(/\s+/g, ' ').trim()));
+    const rowEnd = word => (listed.find(r => r.startsWith(word)) || '').split(' ').pop();
+    ok('folded, the Status item shows a plain 0 and its menu shows each item\'s 0', opener.text === '0' && opener.tone !== 'warn' && rowEnd('Notifications') === '0' && rowEnd('Judgements') === '0', JSON.stringify({ opener, listed }));
+    ok('a hidden status item is not folded, listed or named', !listed.some(r => /newer build/.test(r)) && !/newer build/.test(opener.name), JSON.stringify({ opener, listed }));
     await t.shot('status-zero-folded');
     await p.keyboard.press('Escape');
     await p.setViewportSize({ width: 1440, height: 900 });
-    await p.locator('#status-folded').waitFor({ state: 'hidden' });
+    await p.waitForFunction(() => !document.querySelector('.status-area > [data-status-folded]'));
     // Counts above 0 keep their warning badges, at the same width.
     await p.evaluate(() => {
       window.__items = [{ id: 'm1', kind: 'mention', severity: 'info', title: 'Engine mentioned you', body: 'In Team A', sessionId: 'x', created: new Date().toISOString() }];

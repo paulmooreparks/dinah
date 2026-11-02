@@ -4791,9 +4791,11 @@
      shown or not, so a count that grows never folds anything. */
   var STATE_RANK = { stuck: 4, waiting: 3, working: 2, idle: 0 };
   var CLASS_RANK = { danger: 4, warn: 3, accent: 2, positive: 1 };
+  /* An item the host hides is not in the tray at all, so it is never
+     folded, listed, named or toned, and joins again when shown (0.97.3). */
   function foldable(area) {
     return Array.prototype.filter.call(area.children, function (c) {
-      return c.classList.contains('status-item') && !c.classList.contains('status-fold') && !c.hasAttribute('data-status-keep');
+      return c.classList.contains('status-item') && !c.classList.contains('status-fold') && !c.hasAttribute('data-status-keep') && !c.hidden;
     });
   }
   function statusFoldItem(area) {
@@ -4810,9 +4812,12 @@
          is fitted again; the Status item's tone, total and name follow it
          (0.97.1). */
       new MutationObserver(function (records) {
+        /* An item shown or hidden changes what may fold, so the bar is
+           fitted again; anything else only repaints the summary. */
+        if (records.some(function (r) { return r.attributeName === 'hidden' && r.target.parentElement === area && r.target !== f; })) { fitBarsSoon(); return; }
         if (f.hidden || !records.some(function (r) { return !f.contains(r.target); })) return;
         paintStatusFold(area, f, foldable(area).filter(function (it) { return it.hasAttribute('data-status-folded'); }));
-      }).observe(area, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'data-state', 'data-status-pending', 'aria-label', 'title'] });
+      }).observe(area, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'data-state', 'data-status-pending', 'data-status-tone', 'aria-label', 'title'] });
     }
     var items = foldable(area), last = items[items.length - 1];
     if (last && last.nextElementSibling !== f) last.after(f);
@@ -4831,12 +4836,19 @@
      warn, accent, positive. */
   function toneOf(items) {
     var best = null, rank = -1;
+    function take(t) {
+      if (!t) return;
+      if (Object.prototype.hasOwnProperty.call(STATE_RANK, t) && STATE_RANK[t] > rank) { rank = STATE_RANK[t]; best = { state: t }; }
+      else if (Object.prototype.hasOwnProperty.call(CLASS_RANK, t) && CLASS_RANK[t] > rank) { rank = CLASS_RANK[t]; best = { cls: t }; }
+    }
     items.forEach(function (it) {
+      /* An item may give a tone its badge does not show, such as a
+         warning on an item whose count is 0 (0.97.2). */
+      take(it.getAttribute('data-status-tone'));
       var b = badgeOf(it);
       if (!b || b.hidden || !b.textContent.trim() && !b.hasAttribute('data-state')) return;
-      var s = b.getAttribute('data-state');
-      if (s && Object.prototype.hasOwnProperty.call(STATE_RANK, s) && STATE_RANK[s] > rank) { rank = STATE_RANK[s]; best = { state: s }; }
-      Object.keys(CLASS_RANK).forEach(function (c) { if (b.classList.contains(c) && CLASS_RANK[c] > rank) { rank = CLASS_RANK[c]; best = { cls: c }; } });
+      take(b.getAttribute('data-state'));
+      Object.keys(CLASS_RANK).forEach(function (c) { if (b.classList.contains(c)) take(c); });
     });
     return best;
   }
@@ -4910,6 +4922,8 @@
       }
     }
     var was = items.filter(function (it) { return it.hasAttribute('data-status-folded'); });
+    /* An item hidden while folded leaves the fold. */
+    Array.prototype.forEach.call(area.querySelectorAll(':scope > .status-item[hidden][data-status-folded]'), function (it) { it.removeAttribute('data-status-folded'); });
     items.forEach(function (it) {
       var on = folded.indexOf(it) >= 0;
       if (it.hasAttribute('data-status-folded') !== on) it.toggleAttribute('data-status-folded', on);

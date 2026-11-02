@@ -722,20 +722,9 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .composer-scroll { --composer-focus-space: var(--focus-ring-width, 3px); display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; overflow: auto; padding: var(--composer-focus-space); margin: calc(-1 * var(--composer-focus-space)); }
 .composer > .slash-pop { left: var(--space-5); right: var(--space-5); }
 
-/* Dinah folds its own tray items before they crowd the taskbar. */
-.status-area[data-status-folded] > :is(.status-tray-item, .status-starting) { display: none; }
-.status-tray-popover { min-inline-size: min(24rem, calc(100vw - 16px)); }
-.status-tray-popover > ul { display: grid; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
-.status-tray-row { display: grid; grid-template-columns: max(16px, 1em) minmax(0, 1fr) auto; gap: var(--space-2); inline-size: 100%; align-items: center; text-align: start; }
-.status-tray-row > .glyph { --glyph-size: max(16px, 1em); }
-.status-tray-row > .status-tray-words { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.status-tray-row .status-row-count { display: inline-grid; }
-.status-tray-row .status-row-count > .badge { grid-area: 1 / 1; font-variant-numeric: tabular-nums; }
-.status-tray-row .status-badge-reserve { visibility: hidden; pointer-events: none; }
-.status-tray-measure { display: flex; align-items: center; position: fixed; inset: 0 auto auto -100000px; inline-size: max-content; visibility: hidden; pointer-events: none; }
-
-.status-tray-measure > * { flex: none; }
-.status-tray-measure-items { display: inline-flex; align-items: center; }
+/* While PUDL has folded the tray into its Status item, the starting line
+   folds away with it. */
+.status-area:has(> [data-status-folded]) > .status-starting { display: none; }
 
 /* Reorder Sections (workspace-sections.js, PUDL's pudl-reorder.js): while
    the pane's sections are put in order, every section's body is hidden, so

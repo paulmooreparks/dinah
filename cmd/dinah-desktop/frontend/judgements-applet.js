@@ -68,6 +68,9 @@
     var badge = item.querySelector('.badge');
     item.dataset.judgement = state ? state.state : '';
     item.dataset.statusState = state && (state.paused || state.state === 'warning') ? 'waiting' : 'idle';
+    // A paused judge needs the person while its badge stays a neutral 0, so
+    // the item gives PUDL's folded Status item the waiting tone (0.97.2).
+    if (item.dataset.statusState === 'waiting') item.setAttribute('data-status-tone', 'waiting'); else item.removeAttribute('data-status-tone');
     item.dataset.statusText = !state ? 'Reading' : state.paused ? 'Paused' : state.state === 'off' ? 'Off' : state.state === 'warning' ? 'Warning' : 'On';
     item.dataset.statusGlyph = state && (state.paused || state.state === 'warning') ? 'warning' : state && state.state === 'on' ? 'tick' : 'ring';
     item.dataset.statusColour = state && (state.paused || state.state === 'warning') ? 'warn' : state && state.state === 'on' ? 'positive' : 'text-muted';
@@ -79,6 +82,9 @@
     // While the state is being read the badge stays empty, never a false 0;
     // once read, no undismissed warnings is a neutral 0.
     if (state && state.state !== 'off') item.dataset.statusCountKnown = ''; else delete item.dataset.statusCountKnown;
+    // A state not read yet is pending, so PUDL's folded Status total waits
+    // for it (0.97.1).
+    badge.toggleAttribute('data-status-pending', !state);
     if (!state) { badge.hidden = true; badge.textContent = ''; }
     else if (state.unseen > 0) { badge.hidden = false; badge.classList.add('warn'); badge.textContent = state.unseen > 99 ? '99+' : String(state.unseen); }
     else if (state.state === 'off') { badge.hidden = false; badge.textContent = 'off'; }

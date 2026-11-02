@@ -36,32 +36,41 @@ const path = require('path');
     __publishWarnings();
    },{theme,scale,base});
    await p.waitForFunction(()=>document.querySelector('#status-judgements .badge').textContent==='3');
-   await p.waitForFunction(() => document.querySelector('#status-folded') && (innerWidth > 500 || !document.querySelector('#status-folded').hidden));
-   const foldedControl=p.locator('#status-folded'), statusMenu=p.locator('#status-tray-menu');
-   const folded=await foldedControl.isVisible();
+   // Folded, the tray is PUDL's Status item and its menu (data-status-fold,
+   // PUDL 0.97.0); each menu row is named as its item is.
+   await p.waitForFunction(() => innerWidth > 500 || !!document.querySelector('.status-area > [data-status-folded]'));
+   const foldedControl=p.locator('.status-area > .status-fold'), statusMenu=p.locator('.menu-panel:popover-open');
+   const folded=await p.evaluate(()=>!!document.querySelector('.status-area > [data-status-folded]'));
+   const rowFor=async id=>{const name=await p.locator('#'+id).evaluate(el=>(el.getAttribute('aria-label')||el.getAttribute('title')||el.textContent).replace(/\s+/g,' ').trim());return statusMenu.locator('.menu-action').filter({hasText:name}).first();};
    if(folded) {
     await foldedControl.focus(); await p.keyboard.press('Enter');
     await statusMenu.waitFor();
-    await p.waitForFunction(()=>!document.querySelector('#status-tray-menu').classList.contains('placing'));
-    t.ok('keyboard opening Status enters its first row',await statusMenu.locator('button:visible').first().evaluate(el=>el===document.activeElement));
-    await statusMenu.locator('[data-status-for="status-needs"]').focus();
+    t.ok('keyboard opening Status enters its first row',await statusMenu.locator('.menu-action').first().evaluate(el=>el===document.activeElement));
+    await p.keyboard.press('Escape');
+    await statusMenu.waitFor({state:'hidden'});
+    await foldedControl.focus();
    }
    const geometry=await p.evaluate(async()=>{
     const samples=[],failures=[];
     __paused=false;__warnings=[];__publishWarnings();
     for(const entry of dinahHost.notices.list()) dinahHost.notices.remove(entry.id);
-    const boxes=()=>Object.fromEntries([...document.querySelectorAll('.status-area button, #status-tray-menu button')].map(el=>[el.id,el.getBoundingClientRect().toJSON()]));
+    const boxes=()=>Object.fromEntries([...document.querySelectorAll('.status-area button')].map((el,i)=>[el.id||'status-'+i,el.getBoundingClientRect().toJSON()]));
+    const isFolded=()=>!!document.querySelector('.status-area > [data-status-folded]');
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-    const before=boxes(), initialFolded=document.querySelector('.status-area').hasAttribute('data-status-folded'), focused=document.activeElement;
+    const before=boxes(), initialFolded=isFolded(), focused=document.activeElement;
     for(const [index,state] of ['stopped','starting','ready','failed'].entries()) {
      __emit('agent:state',{provider:'codex',state,detail:'Fixture provider state',stateGen:'badge',stateVer:__warningVer*10+index});
      for(let frame=0;frame<6;frame++) {
       await new Promise(requestAnimationFrame);
       const after=boxes();
-      if(document.querySelector('.status-area').hasAttribute('data-status-folded')!==initialFolded) failures.push({frame,issue:'state changed tray folding'});
-      if(initialFolded&&document.activeElement!==focused) failures.push({frame,issue:'folded row lost focus'});
+      if(isFolded()!==initialFolded) failures.push({frame,issue:'state changed tray folding'});
+      if(initialFolded&&document.activeElement!==focused) failures.push({frame,issue:'the folded Status item lost focus'});
       for(const id of Object.keys(before)) if(['x','y','width','height'].some(k=>Math.abs(before[id][k]-after[id][k])>.02)) failures.push({state,frame,id,before:before[id],after:after[id]});
-      if(frame===5&&initialFolded&&document.getElementById('status-folded').dataset.statusState!==({stopped:'idle',starting:'working',ready:'idle',failed:'stuck'})[state]) failures.push({state,frame,issue:'wrong folded urgency',actual:document.getElementById('status-folded').dataset.statusState});
+      // PUDL's Status item takes the most urgent tone of the folded badges:
+      // the agent's badge is the only one with a tone here, until a failed
+      // agent's own error notification makes Notifications stuck.
+      if(frame===5&&initialFolded&&state!=='failed'&&(document.querySelector('.status-area > .status-fold').getAttribute('data-tone')||'')!==({stopped:'',starting:'accent',ready:'positive'})[state]) failures.push({state,frame,issue:'wrong folded tone',actual:document.querySelector('.status-area > .status-fold').getAttribute('data-tone')});
+      if(frame===5&&initialFolded&&state==='failed'&&!['danger','stuck'].includes(document.querySelector('.status-area > .status-fold').getAttribute('data-tone'))) failures.push({state,frame,issue:'wrong folded tone',actual:document.querySelector('.status-area > .status-fold').getAttribute('data-tone')});
       samples.push({state,frame,boxes:after});
      }
     }
@@ -76,8 +85,8 @@ const path = require('path');
      for(let frame=0;frame<6;frame++) {
       await new Promise(requestAnimationFrame);
       const after=boxes();
-      if(document.querySelector('.status-area').hasAttribute('data-status-folded')!==initialFolded) failures.push({frame,issue:'state changed tray folding'});
-      if(initialFolded&&document.activeElement!==focused) failures.push({frame,issue:'folded row lost focus'});
+      if(isFolded()!==initialFolded) failures.push({frame,issue:'state changed tray folding'});
+      if(initialFolded&&document.activeElement!==focused) failures.push({frame,issue:'the folded Status item lost focus'});
       for(const id of new Set([...Object.keys(before),...Object.keys(after)])) {
        if(!before[id]||!after[id]||['x','y','width','height'].some(k=>Math.abs(before[id][k]-after[id][k])>.02)) failures.push({count,frame,id,before:before[id],after:after[id]});
       }
@@ -85,8 +94,8 @@ const path = require('path');
       // With none waiting, each item shows a neutral 0 (11d4c27); above 0 it is a warning badge.
       if(frame===5&&badges.some(b=>count===0?b.hidden||b.text!=='0'||b.warn: b.hidden||!b.warn||b.text!==(count>99?'99+':String(count)))) failures.push({count,frame,issue:'wrong visible count',badges});
       if(badges.some(b=>!b.reserveHidden)) failures.push({count,frame,issue:'reserve is exposed'});
-      const aggregate=document.getElementById('status-folded');
-      if(frame===5&&initialFolded&&(Number(aggregate.dataset.statusCount)!==count*2||aggregate.querySelector('[data-status-badge]').textContent!==(count*2>99?'99+':String(count*2)))) failures.push({count,frame,issue:'wrong folded total',value:aggregate.dataset.statusCount});
+      const aggregate=document.querySelector('.status-area > .status-fold .badge');
+      if(frame===5&&initialFolded&&(aggregate.hidden||aggregate.textContent!==(count*2>99?'99+':String(count*2)))) failures.push({count,frame,issue:'wrong folded total',value:aggregate.textContent});
       samples.push({count,frame,boxes:after,badges,folded:initialFolded});
      }
     }
@@ -95,21 +104,21 @@ const path = require('path');
    t.ok('all status controls stay fixed through zero, digit and cap boundaries at '+theme+'/'+width+'/'+scale,geometry.failures.length===0,JSON.stringify(geometry.failures.slice(0,6)));
    if(folded) {
     await t.shot('status-tray-'+theme+'-'+width+'-'+scale);
+    // Each row opens its item's own panel, placed against the Status item,
+    // and closing the panel returns focus to the Status item (PUDL 0.97.0).
     for(const id of ['status-workspace','status-needs','status-agent','status-judgements']) {
-     const row=statusMenu.locator('[data-status-for="'+id+'"]');
+     await foldedControl.focus(); await p.keyboard.press('Enter');
+     await statusMenu.waitFor();
+     const row=await rowFor(id);
      await row.focus(); await p.keyboard.press('Enter');
      const target=await p.locator('#'+id).getAttribute('popovertarget');
      await p.locator('#'+target).waitFor();
-     t.ok('the folded '+id+' row opens its original panel',await statusMenu.evaluate(el=>el.matches(':popover-open')));
+     t.ok('the folded '+id+' row opens its original panel',await p.locator('#'+target).evaluate(el=>el.matches(':popover-open')));
      await p.keyboard.press('Escape');
      await p.locator('#'+target).waitFor({state:'hidden'});
      await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-     t.ok('closing '+id+' returns to its folded row',await row.evaluate(el=>el===document.activeElement),await p.evaluate(()=>document.activeElement.id));
+     t.ok('closing '+id+' returns to the Status item',await foldedControl.evaluate(el=>el===document.activeElement),await p.evaluate(()=>document.activeElement.id||document.activeElement.className));
     }
-    await p.keyboard.press('Escape');
-    await statusMenu.waitFor({state:'hidden'});
-    await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-    t.ok('closing Status returns to its opener',await foldedControl.evaluate(el=>el===document.activeElement));
    }
    await p.evaluate(()=>{for(const entry of dinahHost.notices.list()) dinahHost.notices.remove(entry.id); __emit('agent:state',{provider:'codex',state:'ready',detail:'Ready',stateGen:'badge',stateVer:__warningVer*10+9});});
    await p.evaluate(()=>{window.__lateSummary=true;});
@@ -165,8 +174,10 @@ const path = require('path');
    t.ok('popup, summary and Dismiss All stay fixed on every dismissal frame at '+theme+'/'+width+'/'+scale,trace.frames.length>=24&&popupFailures.length===0,JSON.stringify(popupFailures.slice(0,6)));
    t.ok('the full-tray paused glyph stays a warning after dismissal',await opener.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph')==='var(--glyph-warning)'&&el.style.color==='var(--warn)'));
    if(folded) {
-    await p.waitForFunction(()=>document.querySelector('#status-folded').dataset.statusCount==='0');
-    t.ok('a paused judge keeps the folded warning glyph after its count clears',await foldedControl.getAttribute('data-status-state')==='waiting'&&await neutralZero(foldedControl.locator('[data-status-badge]'))&&await foldedControl.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph').includes('warning')));
+    // The paused judge gives the folded Status item the waiting tone itself
+    // (data-status-tone, PUDL 0.97.2) while its own badge stays a neutral 0.
+    await p.waitForFunction(()=>document.querySelector('.status-area > .status-fold .badge').textContent==='0');
+    t.ok('a paused judge keeps the folded waiting tone after its count clears',await foldedControl.getAttribute('data-tone')==='waiting'&&await foldedControl.locator('.badge').evaluate(el=>!el.hidden&&el.textContent==='0'&&!el.classList.contains('warn'))&&await neutralZero(p.locator('#status-judgements [data-status-badge]')));
    }
    t.ok('dismissing all clears the badge while retaining the condition',await popup.locator('.judgements-warning').count()===0&&/provider quota reached/.test(await popup.locator('.judgements-popup-line').textContent()));
    await p.evaluate(()=>__resync());
