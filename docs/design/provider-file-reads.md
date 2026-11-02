@@ -98,3 +98,13 @@ The focused affected-package gate passed for bus, MCP server, provider reads, lo
 The shared bus process and desktop use the same protected policy database. Policy snapshots and log pages use read transactions so their version, rows and cursor metadata come from one database snapshot. The desktop observes committed metadata once per second to refresh passive counts after a bus-process read; a bus read never sends a Notification. The source field is additive to the page contract.
 
 The backend still requires Quality's independent read and Front End's integrated page check. This record does not claim the UI or release is complete.
+
+## Revision required by independent review
+
+Quality rejected d20a387 in message 3430. The lead ratified the following corrections in message 3431. The integrated page and this backend stay held while the separately scoped Critical path-identity correction is reviewed and released.
+
+After that correction lands, every pathname-bearing directory listing and file search must use the same policy and audit path as content reads. Policy-change records move to their own retained table. Repeated denials must be rate-limited and collapsed so one chat cannot rotate its prior reads or policy changes out of the audit by flooding refusals. The backend must use immediate write transactions, repair the moved bus-database fixture and replace the double-encoded search ellipsis.
+
+The default families also gain netrc files, the GitHub CLI, provider credential files, Terraform, PostgreSQL, Brave, Opera, Vivaldi, Bitwarden and KeePassXC, with documented locations and fixture guards. This inventory remains a deny policy rather than a claim that native agents are confined.
+
+The lead decided that a sender-owned live attachment link is exempt from the other-workspaces default at recipient read time. Its sender must have attached it from that sender's registered workspace through the checked send path. Other deny rules remain in force at send and read time, recipient authorization remains unchanged, and the exemption grants no arbitrary pathname read. The product page must explain this exception. Quality must independently reread the revised backend before Front End resumes integration.
