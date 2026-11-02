@@ -3,7 +3,11 @@ param([string]$LockPath, [string]$Owner = 'browser suite', [string]$Ticket)
 $ErrorActionPreference = 'Stop'
 
 function Get-DinahBrowserLockPath {
-  [IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'Dinah/browser-tests.lock'))
+  # On Linux and macOS .NET maps CommonApplicationData to /usr/share, which
+  # an ordinary user cannot write, so the Go gate there locks in the shared
+  # temporary folder. The browser suites themselves run on Windows only.
+  $root = if ($IsWindows) { [Environment]::GetFolderPath('CommonApplicationData') } else { [IO.Path]::GetTempPath() }
+  [IO.Path]::GetFullPath((Join-Path $root 'Dinah/browser-tests.lock'))
 }
 function Test-DinahSharingViolation($Exception) {
   while ($Exception.InnerException) { $Exception = $Exception.InnerException }
