@@ -3,6 +3,7 @@
 // their search, Go To, Settings as a window, the taskbar, bottom docks, the
 // Window menu, the narrow layout, Close All, split docks, outline resizing,
 // the ribbon and the taskbar's order.
+const { openStatus } = require('./lib/status');
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -162,7 +163,10 @@ const { launch } = require('./lib/page');
       const toasts = [...document.querySelectorAll('.toast-region .toast')], bar = document.querySelector('.win-bar').getBoundingClientRect();
       return toasts.length > 0 && toasts.every(t => t.getBoundingClientRect().bottom <= bar.top);
     }));
-    await p.click('#status-needs');
+    // With many windows open PUDL folds the tray before the taskbar's
+    // buttons (data-status-fold, 0.97.0), so Notifications is opened as it
+    // stands, folded or not.
+    await openStatus(p, 'status-needs');
     await p.click('#notifications-status-menu [data-cmd="needs-you"]');
     ok('Notifications shows questions from every chat', await p.locator('#questions .question:visible').count() === 2 && await p.locator('[data-win="needs-you"]').getAttribute('data-win-attention') === '2');
     await p.evaluate(() => window.pudlWindows.dock('workspace', 'right'));

@@ -79,7 +79,7 @@ const { launch } = require('./lib/page');
     await p.locator('#ws-actions-button').click();
     await p.locator('#ws-actions:popover-open').waitFor();
     const rows = await p.locator('#ws-actions .menu-action').allTextContents();
-    ok('Actions holds New Workspace… first, then the other workspace commands', rows.join('|') === 'New Workspace…|New Empty Workspace|Rename Workspace…|Export Workspace…|Import Workspace…|Refresh Workspace|Remove Workspace…|Move Section Up|Move Section Down', rows.join('|'));
+    ok('Actions holds New Workspace… first, then the other workspace commands', rows.join('|') === 'New Workspace…|New Empty Workspace|Rename Workspace…|Export Workspace…|Import Workspace…|Refresh Workspace|Remove Workspace…|Move Section Up|Move Section Down|Reorder Sections', rows.join('|'));
     await p.locator('#ws-actions [data-cmd="new-workspace"]').click();
     await p.waitForFunction(() => __calls.some(c => c[0] === 'workspace'));
     ok('New Workspace… in Actions asks for a main folder as before', true);
