@@ -31,6 +31,7 @@ Each line below is a rule the November 2026 review established, followed by the 
 22. No design branches on, or argues its correctness from, undocumented behaviour of an external system. When the documented capability is missing, that is reported and decided, not worked around.
 23. A ledger finding closes only when its fix and its guard are both on master.
 24. No agent takes screenshots of the person's desktop or drives it. A missing applet action is reported as a capability gap.
+25. A list that keeps its rows in step with changing items, by key, does it through `dinahHelpers.reconcile`, or `dinahHelpers.arrange` when the caller already has the elements. A conversation log, which only appends, may keep its own update. The `reconcile` browser suite checks the helper's inserts, moves, removals and focus, but no static check can recognise a reconciler written by hand, so review catches a new one.
 
 ## Known limits
 

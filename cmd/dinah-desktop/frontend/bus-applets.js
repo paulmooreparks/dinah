@@ -1209,10 +1209,9 @@
         var chats = members().filter(function (m) { return m.state !== 'person'; });
         var count = 'Members (' + chats.length + ')';
         if (memberWords.textContent !== count) memberWords.textContent = count;
-        var wanted = [];
-        chats.forEach(function (m) {
-          var key = m.id, view = memberViews.get(key);
-          if (!view) {
+        // A member's menu closes with its row.
+        if (menuMember && menu.matches(':popover-open') && !chats.some(function (m) { return m.id === menuMember; })) menu.hidePopover();
+        window.dinahHelpers.reconcile(memberList, chats, { rows: memberViews, key: function (m) { return m.id; }, lost: function () { memberToggle.focus(); }, create: function (m) {
             var row = node('div', 'member-row'); row.setAttribute('role', 'listitem'); row.dataset.groupMember = m.id;
             var open = node('button', 'menu-action member-open'); open.type = 'button';
             var name = node('span', 'member-name'), slot = node('span', 'member-state-slot');
@@ -1221,19 +1220,18 @@
             open.append(mark, name, slot);
             var more = glyphButton('member-menu-btn', 'more', m.title + ' Menu');
             more.id = menu.id + '-' + (++memberSerial); more.setAttribute('aria-haspopup', 'menu');
-            view = { row: row, open: open, name: name, slot: slot, more: more, member: m };
+            var view = { node: row, row: row, open: open, name: name, slot: slot, more: more, member: m };
             /* The row acts for the member it was made for, by its id, read as
                it is when pressed; a state change only redraws its words. */
-            (function (entry) {
-              entry.open.addEventListener('click', function () {
-                var current = entry.member;
-                if (bar.matches(':popover-open')) bar.hidePopover();
-                if (current.chat) Promise.resolve(window.dinahChats.open(current.chat)).catch(host().fail);
-              });
-              entry.more.addEventListener('click', function () { showMenu(entry.more, entry.member); });
-            })(view);
-            row.append(open, more); memberViews.set(key, view);
-          }
+            view.open.addEventListener('click', function () {
+              var current = view.member;
+              if (bar.matches(':popover-open')) bar.hidePopover();
+              if (current.chat) Promise.resolve(window.dinahChats.open(current.chat)).catch(host().fail);
+            });
+            view.more.addEventListener('click', function () { showMenu(view.more, view.member); });
+            row.append(open, more);
+            return view;
+          }, update: function (view, m) {
           view.member = m;
           if (view.name.textContent !== m.title) view.name.textContent = m.title;
           view.more.setAttribute('aria-label', m.title + ' Menu');
@@ -1245,11 +1243,7 @@
           view.slot.replaceChildren(window.dinahChatState.badge(memberState(m), { labelled: true, className: 'member-state-chip' }));
           view.row.classList.toggle('member-ended', !window.dinahChatState.describe(memberState(m)).glyph);
           if (menuMember === m.id && menuState) { menuState.textContent = description; menuState.title = menuState.textContent; menuState.setAttribute('aria-label', menuState.textContent); }
-          wanted.push(view.row);
-        });
-        memberViews.forEach(function (view, key) { if (!wanted.includes(view.row)) { if (menuMember === key && menu.matches(':popover-open')) menu.hidePopover(); if (view.row.contains(document.activeElement)) memberToggle.focus(); view.row.remove(); memberViews.delete(key); } });
-        // Rows move only when the order changes, and never the one with focus.
-        wanted.forEach(function (row, i) { if (memberList.children[i] !== row && !row.contains(document.activeElement)) memberList.insertBefore(row, memberList.children[i] || null); });
+        } });
         var oldBudget = memberShell.querySelector(':scope > .group-budget');
         // The turn budget is a line under the toolbar, only when the group has one.
         if (room && typeof room.budget === 'number' && room.budget >= 0) {
