@@ -277,6 +277,10 @@ func TestCtrlCInterruptsNodeServerInPowerShell(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { a.Close(started.ID) })
+	// nodeTyped is when the node command was typed. A timeout reports every
+	// node.exe started since then and how long it has run, so a failure shows
+	// whether Node was slow to start or started and printed nothing.
+	var nodeTyped time.Time
 	waitOutput := func(marker string, count int) {
 		t.Helper()
 		deadline := time.Now().Add(15 * time.Second)
@@ -289,14 +293,19 @@ func TestCtrlCInterruptsNodeServerInPowerShell(t *testing.T) {
 			}
 			time.Sleep(20 * time.Millisecond)
 		}
+		nodes := "node was not typed yet"
+		if !nodeTyped.IsZero() {
+			nodes = nodeProcessesSince(nodeTyped)
+		}
 		mu.Lock()
 		defer mu.Unlock()
-		t.Fatalf("PowerShell did not produce %s; it drew %q", marker, drawn.String())
+		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; it drew %q", marker, nodes, drawn.String())
 	}
 	if err := a.Write(started.ID, "function prompt { 'interrupt-' + 'prompt> ' }\r"); err != nil {
 		t.Fatal(err)
 	}
 	waitOutput("interrupt-prompt> ", 1)
+	nodeTyped = time.Now()
 	if err := a.Write(started.ID, "node -e \"require('http').createServer((q,s)=>s.end('ok')).listen(0,()=>console.log('interrupt-'+'started'))\"\r"); err != nil {
 		t.Fatal(err)
 	}
@@ -309,6 +318,44 @@ func TestCtrlCInterruptsNodeServerInPowerShell(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitOutput("interrupt-recovered", 1)
+}
+
+// nodeProcessesSince lists each node.exe created at or after since, with its
+// process ID, parent ID and age, from a documented Toolhelp snapshot and
+// GetProcessTimes. It is diagnostic text for a failure, never an assertion.
+func nodeProcessesSince(since time.Time) string {
+	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return "no process snapshot: " + err.Error()
+	}
+	defer windows.CloseHandle(snap)
+	var entry windows.ProcessEntry32
+	entry.Size = uint32(unsafe.Sizeof(entry))
+	var found []string
+	for err = windows.Process32First(snap, &entry); err == nil; err = windows.Process32Next(snap, &entry) {
+		if !strings.EqualFold(windows.UTF16ToString(entry.ExeFile[:]), "node.exe") {
+			continue
+		}
+		h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID)
+		if err != nil {
+			continue
+		}
+		var created, exited, kernel, user windows.Filetime
+		err = windows.GetProcessTimes(h, &created, &exited, &kernel, &user)
+		windows.CloseHandle(h)
+		if err != nil {
+			continue
+		}
+		at := time.Unix(0, created.Nanoseconds())
+		if at.Before(since) {
+			continue
+		}
+		found = append(found, "pid "+strconv.Itoa(int(entry.ProcessID))+" (parent "+strconv.Itoa(int(entry.ParentProcessID))+"), started "+at.Sub(since).Round(time.Millisecond).String()+" after typing, running "+time.Since(at).Round(time.Millisecond).String())
+	}
+	if len(found) == 0 {
+		return "none"
+	}
+	return strings.Join(found, "; ")
 }
 
 func TestCommandUsesSharedPumpAndCallbacksCanReadCount(t *testing.T) {
