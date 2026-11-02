@@ -3177,7 +3177,8 @@
     // Ctrl+Shift+Enter steers while a turn runs.
     window.dinahComposer.bind($('prompt'), { history: recall, send: function (e) { send(e.shiftKey && working ? 'steer' : 'auto'); } });
     $('prompt').addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && working) { e.preventDefault(); stopTurn(); }
+      // Escape while composing cancels the composition, not the turn.
+      if (e.key === 'Escape' && working && !window.dinahHelpers.composing(e)) { e.preventDefault(); stopTurn(); }
     });
 
     /* ---- Agent options: mode and model ------------------------------------

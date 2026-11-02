@@ -829,6 +829,8 @@
     // Registered for the capturing phase, so that while the list is open
     // its keys choose in it and never send or bring back a message.
     text.addEventListener('keydown', function (e) {
+      // Backspace and Delete while composing edit the composition, not a mention.
+      if (window.dinahHelpers.composing(e)) return;
       if (!pop.hidden) {
         var action = window.dinahMentionList.key(e);
         if (action === 'down' || action === 'up') { chosen = window.dinahMentionList.step(chosen, choices.length, action); drawPop(); }

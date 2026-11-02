@@ -27,9 +27,28 @@ async function drive(page, box, list, ok, who) {
   await box.press('ArrowUp'); steps.push(await selected());
   ok(who + ': the list opens on its first row, and Down and Up move one row, Up from the first going to the last', steps.join() === [0, 1, 0, n - 1].join(), JSON.stringify({ steps, n }));
   ok(who + ': every row says whether it is selected, and only one is', rows(s).every(r => r.selected === 'true' || r.selected === 'false') && rows(s).filter(r => r.selected === 'true').length === 1, JSON.stringify(rows(s).map(r => r.selected)));
+  // While an input method composes text, its keys are its own (FE-45):
+  // Enter, Tab, Escape and the arrows sent as composing leave the list
+  // open on the same row, and pick, close or send nothing.
+  const composing = key => box.evaluate((el, key) => el.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true, bubbles: true, cancelable: true })), key);
+  // WebKit, the macOS build's engine, sends the Enter that confirms a
+  // composition after it ends: isComposing is false and keyCode is 229, the
+  // UI Events code for a key the input method is processing.
+  const confirming = key => box.evaluate((el, key) => { const e = new KeyboardEvent('keydown', { key, isComposing: false, bubbles: true, cancelable: true }); Object.defineProperty(e, 'keyCode', { get: () => 229 }); return el.dispatchEvent(e); }, key);
+  const before = await selected();
+  for (const key of ['ArrowDown', 'Enter', 'Tab', 'Escape']) await composing(key);
+  ok(who + ': keys sent while an input method composes leave the list open on the same row', await list.isVisible() && await selected() === before && await box.inputValue() === '@', JSON.stringify({ before, after: await selected(), value: await box.inputValue() }));
+  await confirming('Enter');
+  ok(who + ': an Enter the input method is still processing (keyCode 229) picks nothing', await list.isVisible() && await selected() === before && await box.inputValue() === '@', JSON.stringify({ before, after: await selected(), value: await box.inputValue() }));
   await box.press('Escape');
   await list.waitFor({ state: 'hidden' });
   ok(who + ': Escape closes the list and leaves the text', await box.inputValue() === '@');
+  await box.fill('Typed text');
+  await composing('Enter');
+  await confirming('Enter');
+  await box.fill('');
+  await composing('ArrowUp');
+  ok(who + ': Enter while composing does not send, and Up does not bring back an earlier message', await box.inputValue() === '' && await page.evaluate(() => window.__sends) === 0, JSON.stringify({ value: await box.inputValue(), sends: await page.evaluate(() => window.__sends) }));
   await box.fill('');
   await box.pressSequentially('@');
   await list.locator('[role="option"]').first().waitFor();
@@ -55,9 +74,11 @@ async function drive(page, box, list, ok, who) {
           Sessions: async () => ['First', 'Second'].map(id => ({ ...info(id), open: false })),
           OpenSessionAt: async (ws, id) => info(id),
           AppletInvocationsAt: async () => [],
-          AppletCatalog: async () => [{ id: 'example.sketch', title: 'Sketch Pad', description: 'Draw and describe sketches.', actions: [{ ref: 'example.sketch/draw@1', title: 'Draw Sketch', description: 'Create an SVG.' }] }]
+          AppletCatalog: async () => [{ id: 'example.sketch', title: 'Sketch Pad', description: 'Draw and describe sketches.', actions: [{ ref: 'example.sketch/draw@1', title: 'Draw Sketch', description: 'Create an SVG.' }] }],
+          Send: async () => { window.__sends++; }
         };
       },
+      init: () => { window.__sends = 0; },
       ready: 'workbench',
     });
     const { page, ok } = t;
@@ -80,9 +101,13 @@ async function drive(page, box, list, ok, who) {
           State: async () => ({ workspace: 'C:/Work/docs', workspaces: ['C:/Work/docs'], recent: ['C:/Work/docs'] }),
           ReadUIState: async () => ({ version: 1, values: { 'dinah-workbench-layout': '?open=workspace' } }), SaveUIState: async () => {},
           BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, person], counts: { top: 'idle', idle: 1, working: 0, waiting: 0, stuck: 0, closed: 0, unknown: 0 } }], workspaces: [{ name: 'docs', label: 'docs', path: 'C:/Work/docs', chats: [{ id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass' }] }], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
-          BusGroupMessages: async () => [], BusMarkGroupRead: async () => {}
+          // One earlier message of the person's, which Up would bring back.
+          BusGroupMessages: async () => [{ id: 1, createdAt: '2026-10-22T08:00:00Z', kind: 'text', from: 'Paul', fromPerson: true, fromSession: '', fromWorkspace: '', to: 'Release Review', room: 'release-review', roomTitle: 'Release Review', mentions: [], replyTo: 0, text: 'Earlier from me', attachments: [], unread: false }],
+          BusMarkGroupRead: async () => {},
+          BusSendToGroup: async () => { window.__sends++; return null; }
         };
       },
+      init: () => { window.__sends = 0; },
     });
     const { page: p, ok } = t;
     try {

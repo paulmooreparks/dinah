@@ -198,6 +198,7 @@
     // Registered on the box for the capturing phase, so it runs before the
     // box's other key handlers while the pop-up is open.
     $('prompt').addEventListener('keydown', function (e) {
+      if (window.dinahHelpers.composing(e)) return;
       if (skillForm.isOpen() && e.key === 'Escape' && $('slash-pop').hidden) {
         e.preventDefault();
         e.stopImmediatePropagation();
