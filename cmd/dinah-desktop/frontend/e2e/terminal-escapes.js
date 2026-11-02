@@ -27,7 +27,7 @@ const HOSTILE = 'EVIL' + E + '[2J' + E + '[H' + E + '[1A' + E + '[2K' + E + ']0;
       const A = {
         BeginExitWork: async () => '1', EndExitWork: async () => true,
         StatWorkspaceMount: async p => item(norm(p)),
-        ListWorkspaceMounts: async (p, start, limit) => { p = norm(p); const all = Object.keys(fsMap).filter(k => k !== p && parent(k) === p).sort(); return { entries: all.slice(start, start + limit).map(item), nextStart: start + limit < all.length ? start + limit : 0 }; },
+        ListWorkspaceMounts: async (p, start, limit) => { p = norm(p); const all = Object.keys(fsMap).filter(k => k !== p && parent(k) === p).sort(); return { entries: all.slice(start, start + limit).map(item), nextStart: start + limit < all.length ? start + limit : -1 }; },
         ReadWorkspaceMount: async p => { p = norm(p); const e = fsMap[p]; if (!e || e.text == null) throw new Error('no such file'); return { resource: item(p), text: e.text, format: 'markdown', revision: 'r' + e.text.length }; },
         WriteWorkspaceMount: async (p, text) => { fsMap[p] = { text, local: true }; return item(p); },
         Log: async () => {}
@@ -75,7 +75,7 @@ const HOSTILE = 'EVIL' + E + '[2J' + E + '[H' + E + '[1A' + E + '[2K' + E + ']0;
       ok(name + ': the concealed text is not hidden', s.includes('HIDDEN') && await page.evaluate(() => [...document.querySelectorAll('#one .xterm-rows span')].filter(el => el.textContent.includes('HIDDEN')).every(el => getComputedStyle(el).opacity !== '0' && getComputedStyle(el).visibility !== 'hidden' && !el.classList.contains('xterm-invisible'))));
     }
     await route('a file name', 'ls');
-    await route('a tool description', 'help');
+    await route('a tool description', 'man hostile');
     await route('Lua output', "lua -e 'io.write(string.char(27) .. \"[0m\" .. " + JSON.stringify(HOSTILE).replace(/\\u001b/g, '\\27').replace(/\\u0007/g, '\\7').replace(/\\u009b/g, '\\194\\155') + " .. \"\\n\")'");
     ok('the Terminal\'s own colours still work', await page.evaluate(() => [...document.querySelectorAll('#one .xterm-rows span')].some(el => /xterm-fg-\d|xterm-bold/.test(el.className))));
 

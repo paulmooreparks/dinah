@@ -41,7 +41,7 @@
      barrier: whichever path text took, it cannot move the cursor, rewrite
      an earlier line, set the title or the clipboard, or hide itself. */
   var SGR = /^\x1b\[([\d;]{0,48})m/, STYLE = /^(0|1|2|3|4|7|22|23|24|27|3[0-7]|39|4[0-7]|49|9[0-7]|10[0-7])$/;
-  function screen(value) {
+  function inert(value) {
     var s = String(value == null ? '' : value).replace(/\r\n?/g, '\n'), out = '', i = 0;
     while (i < s.length) {
       var at = s.indexOf('\x1b', i);
@@ -879,9 +879,9 @@
     function announce() { root.dataset.terminalCwd = cwd; if (opts.changed) opts.changed('cwd=' + encodeURIComponent(cwd)); save(); }
     /* write is for the terminal's own text, which may carry its own colours;
        anything from a document or a person goes through safe first, and
-       everything goes through screen. */
+       everything goes through inert. */
     function write(text) {
-      text = screen(text);
+      text = inert(text);
       if (!altScreen) output = (output + text.replace(/\r\n?/g, '\n')).slice(-MAX_OUTPUT);
       term.write(text.replace(/\r?\n/g, '\r\n'));
       if (!altScreen) save();
@@ -1708,7 +1708,7 @@
       // The saved transcript is the terminal's own text and what it showed.
       // It was made safe when it was first written, but it comes back from
       // saved state, so it passes the same barrier again.
-      if (output) term.write(screen(output).replace(/\n/g, '\r\n')); else write(paint('bold', productName() + ' Terminal.') + ' Type ' + paint('green', 'help') + ' for the commands; your own folder is ' + paint('blue', '~') + '.\n\n');
+      if (output) term.write(inert(output).replace(/\n/g, '\r\n')); else write(paint('bold', productName() + ' Terminal.') + ' Type ' + paint('green', 'help') + ' for the commands; your own folder is ' + paint('blue', '~') + '.\n\n');
       // Capture the owner before a source can be removed and its alias reused.
       var initialGeneration = generation;
       busy = true;
