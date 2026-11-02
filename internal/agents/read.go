@@ -35,14 +35,14 @@ func ReadTextFileChecked(ctx context.Context, l layout.Layout, path string, mana
 	if err := ValidateLineRange(line, limit); err != nil {
 		return "", err
 	}
-	if !filepath.IsAbs(path) {
-		return "", errors.New("an absolute file path is required")
+	path, err := NormalizeFilePath(path)
+	if err != nil {
+		return "", err
 	}
-	path = filepath.Clean(path)
 	if reason := ProtectedPath(l, path, managedRoots...); reason != "" {
 		return "", &ProtectedReadError{Path: path, Reason: reason}
 	}
-	resolved, err := filepath.EvalSymlinks(path)
+	resolved, err := ResolveFilePath(path)
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +59,9 @@ func ReadTextFileChecked(ctx context.Context, l layout.Layout, path string, mana
 	if err != nil || !filepath.IsLocal(rel) || rel == "." {
 		return "", errors.New("a regular file path is required")
 	}
-	file, err := openReadFile(base, rel)
+	file, err := openReadFileChecked(base, rel, func(chain []os.FileInfo) error {
+		return protectedIdentity(l, chain, managedRoots...)
+	})
 	if err != nil {
 		return "", err
 	}
@@ -91,11 +93,20 @@ func OpenCatalogFile(path string) (*os.File, error) {
 // Open every directory through its parent's handle and compare identities.
 // A concurrently replaced directory or final file cannot redirect this read.
 func openReadFile(base, rel string) (*os.File, error) {
+	return openReadFileChecked(base, rel, nil)
+}
+
+func openReadFileChecked(base, rel string, check func([]os.FileInfo) error) (*os.File, error) {
 	root, err := os.OpenRoot(base)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { root.Close() }()
+	info, err := root.Stat(".")
+	if err != nil {
+		return nil, err
+	}
+	chain := []os.FileInfo{info}
 	parts := strings.Split(rel, string(filepath.Separator))
 	for _, part := range parts[:len(parts)-1] {
 		before, err := root.Lstat(part)
@@ -111,6 +122,7 @@ func openReadFile(base, rel string) (*os.File, error) {
 			next.Close()
 			return nil, errors.New("the file directory changed")
 		}
+		chain = append(chain, opened)
 		root.Close()
 		root = next
 	}
@@ -130,6 +142,13 @@ func openReadFile(base, rel string) (*os.File, error) {
 	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
 		file.Close()
 		return nil, errors.New("the file changed while opening it")
+	}
+	chain = append(chain, opened)
+	if check != nil {
+		if err := check(chain); err != nil {
+			file.Close()
+			return nil, err
+		}
 	}
 	return file, nil
 }

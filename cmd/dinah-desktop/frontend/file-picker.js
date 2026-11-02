@@ -81,7 +81,7 @@
           '<button type="submit" class="btn btn-primary" data-pick="ok"></button>' +
         '</div>' +
       '</form>';
-    var q = function (name) { return dlg.querySelector('[data-pick="' + name + '"]'); };
+    var q = function (name) { return dlg.querySelector('[data-pick="' + CSS.escape(String(name)) + '"]'); };
     var input = q('input'), error = q('error'), ok = q('ok'), computer = q('computer'), label = q('label'), readonly = q('readonly');
     dlg.querySelector('.dialog-title').textContent = o.title || (save ? 'Save As' : 'Open');
     var b = null, done = null, working = false, kind = null, why = '', fileName = o.name || '', kindRequest = 0, home = '/workspaces';

@@ -2092,7 +2092,7 @@
     var ANSI_FG = [30, 31, 32, 33, 34, 35, 36, 37, 90, 91, 92, 93, 94, 95, 96, 97];
     function ansiHTML(text) {
       var out = '', open = false, style = { bold: false, dim: false, italic: false, under: false, fg: null, bg: null };
-      function esc(s) { return s.replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+      var esc = window.dinahHTML.text;
       function apply(params) {
         var p = params.length ? params.split(';').map(function (n) { return n === '' ? 0 : Number(n); }) : [0];
         for (var i = 0; i < p.length; i++) {
@@ -2756,7 +2756,7 @@
       try {
         var records = await app().RecoverSteering(s.id);
         for (var record of records || []) {
-          if (s.log.querySelector('[data-steering-recovery="' + record.id + '"]')) continue;
+          if (s.log.querySelector('[data-steering-recovery="' + CSS.escape(String(record.id)) + '"]')) continue;
           var payload = JSON.parse(record.payload);
           var m = message(s, 'you', payload.text, record.state === 'queued' ? 'You, recovered follow-up (not resent)' : 'You, recovered steering (delivery unconfirmed; not resent)');
           m.li.dataset.steeringRecovery = record.id;

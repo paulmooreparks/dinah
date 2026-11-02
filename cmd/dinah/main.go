@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	buildpolicy "studio"
 	"studio/internal/bus"
 	"studio/internal/hooks"
 	"studio/internal/mcpserver"
@@ -249,13 +250,16 @@ func install() error {
 	if err != nil {
 		return err
 	}
-	dst := filepath.Join(dir, exeName(product.CommandProgram))
-	if err := place(self, dst); err != nil {
+	required, err := buildpolicy.Toolchain()
+	if err != nil {
 		return err
 	}
-	fmt.Printf("Installed %s. Sessions started from now on use it.\n", dst)
+	programs := []installProgram{{self, filepath.Join(dir, exeName(product.CommandProgram))}}
 
 	if _, err := os.Stat(filepath.Join("cmd", "dinah-desktop", "main.go")); err != nil {
+		if err := installPrograms(programs, required); err != nil {
+			return err
+		}
 		fmt.Printf("Run this from %[1]s's source folder to install the %[1]s window too.\n", product.Name)
 		return nil
 	}
@@ -275,11 +279,12 @@ func install() error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("building the %s window: %w", product.Name, err)
 	}
-	dst = filepath.Join(dir, exeName(product.WindowProgram))
-	if err := place(built, dst); err != nil {
+	dst := filepath.Join(dir, exeName(product.WindowProgram))
+	programs = append(programs, installProgram{built, dst})
+	if err := installPrograms(programs, required); err != nil {
 		return err
 	}
-	fmt.Printf("Installed %s. Close the %s window and start it again to use it.\n", dst, product.Name)
+	fmt.Printf("Close the %s window and start it again to use it.\n", product.Name)
 	return nil
 }
 

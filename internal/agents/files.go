@@ -17,35 +17,33 @@ import (
 // else, the agent's approvals decide.
 type ProtectedRoot struct{ Path, Reason string }
 
-// ProtectedRoots supplies both enforcement and the policy page. The managed
-// execution exception is applied only by ProtectedPath for the current scope.
+// ProtectedRoots is shared by lexical and opened-identity checks.
 func ProtectedRoots(l layout.Layout) []ProtectedRoot {
 	roots := []ProtectedRoot{{l.State, "it is among " + profile.Current().Name + "'s settings, which hold the approval rules"}}
 	if base, err := os.UserConfigDir(); err == nil {
-		roots = append(roots, ProtectedRoot{filepath.Join(base, "devin"), "it is among Devin's settings, which hold the person's Devin approvals"})
+		roots = append(roots, ProtectedRoot{filepath.Join(base, "devin"), "it is among the provider's approval settings"})
 	}
 	if home, err := os.UserHomeDir(); err == nil {
-		roots = append(roots, ProtectedRoot{filepath.Join(home, ".config", "devin"), "it is among Devin's settings, which hold the person's Devin approvals"})
+		roots = append(roots, ProtectedRoot{filepath.Join(home, ".config", "devin"), "it is among the provider's approval settings"})
 	}
-	unique := roots[:0]
-	for _, root := range roots {
-		found := false
-		for _, saved := range unique {
-			if layout.SamePath(saved.Path, root.Path) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			unique = append(unique, root)
-		}
-	}
-	return unique
+	return roots
 }
 
 func ProtectedPath(l layout.Layout, p string, managedRoots ...string) string {
+	var err error
+	p, err = NormalizeFilePath(p)
+	if err != nil {
+		return err.Error()
+	}
+	chain, err := pathIdentityChain(p)
+	if err != nil {
+		return "the file identity could not be checked"
+	}
+	if err = protectedIdentity(l, chain, managedRoots...); err != nil {
+		return err.Error()
+	}
 	for i, root := range ProtectedRoots(l) {
-		if !layout.Inside(root.Path, p) {
+		if root.Path == "" || !layout.Inside(root.Path, p) {
 			continue
 		}
 		if i == 0 {
@@ -60,48 +58,28 @@ func ProtectedPath(l layout.Layout, p string, managedRoots ...string) string {
 	return ""
 }
 
-// WriteTextFile writes a file for an agent, refusing a protected path. A
-// write into a managed workspace goes through an open root, so that a link
-// below its folder cannot redirect the write into Dinah's settings
-// or another workspace.
+// WriteTextFile writes through a checked parent handle. Both the requested
+// spelling and opened identities must pass the protected-root policy before
+// creation or truncation. Managed workspace writes also reject redirects.
 func WriteTextFile(l layout.Layout, path, content string, managedRoots ...string) error {
 	if reason := ProtectedPath(l, path, managedRoots...); reason != "" {
 		return errors.New(profile.Current().Name + " does not let the agent write " + path + ": " + reason)
 	}
-	for _, managed := range managedRoots {
-		if !l.Managed(managed) || !layout.Inside(managed, path) {
-			continue
-		}
-		root, err := os.OpenRoot(managed)
-		if err != nil {
-			return err
-		}
-		defer root.Close()
-		resolved, err := filepath.EvalSymlinks(managed)
-		if err != nil || !layout.SamePath(resolved, managed) {
-			return errors.New("the managed workspace execution folder must not redirect through a symbolic link")
-		}
-		opened, err := root.Stat(".")
-		if err != nil {
-			return err
-		}
-		current, err := os.Lstat(managed)
-		if err != nil || !current.IsDir() || !os.SameFile(opened, current) {
-			return errors.New("the managed workspace execution folder changed while opening it")
-		}
-		rel, err := filepath.Rel(managed, path)
-		if err != nil || !filepath.IsLocal(rel) {
-			return errors.New("the file is outside the managed workspace")
-		}
-		if err := root.MkdirAll(filepath.Dir(rel), 0o700); err != nil {
-			return err
-		}
-		return root.WriteFile(rel, []byte(content), 0o600)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	var err error
+	path, err = NormalizeFilePath(path)
+	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(content), 0o644)
+	resolved, err := ResolveFilePath(path)
+	if err != nil {
+		return err
+	}
+	for _, managed := range managedRoots {
+		if l.Managed(managed) && layout.Inside(managed, path) && !layout.SamePath(path, resolved) {
+			return errors.New("a managed workspace write must not redirect through a symbolic link")
+		}
+	}
+	return writeIdentityFile(l, resolved, content, managedRoots)
 }
 
 // ValidateLineRange rejects invalid optional 1-based line ranges.

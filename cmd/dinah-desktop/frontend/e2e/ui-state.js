@@ -39,7 +39,7 @@ const { launch, PAGE } = require('./lib/page');
           },
           PreviewWorkspaceResource: async ref => {
             if (window.__options.delay && !documentsReady) await new Promise(resolve => pendingDocuments.push(resolve));
-            return { resource: { ref, title: ref.path, revision: '1', actions: ['preview'] }, title: ref.path, problems: [], blocks: Array.from({ length: 80 }, (_, i) => ({ line: i + 1, html: '<p>Passage ' + i + '</p>' + (i === 0 ? '<pre style="width:1800px">Wide document content</pre>' : '') })) };
+            return { resource: { ref, title: ref.path, revision: '1', actions: ['preview'] }, title: ref.path, problems: [], blocks: Array.from({ length: 80 }, (_, i) => ({ line: i + 1, html: '<p>Passage ' + i + '</p>' + (i === 0 ? '<table><tr>' + Array.from({ length: 40 }, (_, c) => '<td>Wide_document_column_' + c + '</td>').join('') + '</tr></table>' : '') })) };
           },
         };
       },
