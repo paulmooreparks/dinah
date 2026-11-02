@@ -261,7 +261,9 @@
           preview.fingerprint +
           '\nPermissions: ' +
           m.permissions.join(', ') +
-          '\nNative code runs under your account. Host permissions do not sandbox the native process.';
+          '\nAdditional inherited environment variables: ' +
+          ((m.environment || []).join(', ') || 'None') +
+          '\nNative code runs with your full local authority until isolation is implemented. Host permissions and environment filtering do not isolate it from your files, credentials or network.';
         if (!(await dinahHost.ask('Install This Extension?', text, 'Trust and Install', true))) return;
         await app().InstallExtension(source.value.trim(), { fingerprint: preview.fingerprint, signature: m.signature });
         await reload();

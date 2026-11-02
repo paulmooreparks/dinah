@@ -22,7 +22,7 @@ import (
 )
 
 func helperManifest() extension.Manifest {
-	return extension.Manifest{ID: "test.native-extension", Version: "0.1.0", Contract: 1, Title: "Native fixture", Publisher: extension.Publisher{Name: "Test"}, Backends: map[string]string{runtime.GOOS: "backend.exe"}, Permissions: []string{"workspace.read", "process.run:git"}, Actions: []extension.Action{
+	return extension.Manifest{ID: "test.native-extension", Version: "0.1.0", Contract: 1, Title: "Native fixture", Publisher: extension.Publisher{Name: "Test"}, Backends: map[string]string{runtime.GOOS: "backend.exe"}, Environment: []string{"EXTENSION_TEST_HELPER", "EXTENSION_DECLARED_CANARY"}, Permissions: []string{"workspace.read", "process.run:git"}, Actions: []extension.Action{
 		{Name: "inspect", Title: "Inspect", InputSchema: json.RawMessage(`{"type":"object","properties":{"z":{"type":"string"},"a":{"type":"boolean"}}}`), OutputSchema: json.RawMessage(`{"type":"object"}`), Permissions: []string{"workspace.read"}, Replay: "pure"},
 		{Name: "version", Title: "Git version", InputSchema: json.RawMessage(`{"type":"object"}`), OutputSchema: json.RawMessage(`{"type":"object"}`), Permissions: []string{"process.run:git"}, Replay: "once"},
 		{Name: "fail", Title: "Fail", InputSchema: json.RawMessage(`{"type":"object"}`), OutputSchema: json.RawMessage(`{"type":"object"}`), Replay: "pure"},
@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 			"inspect": func(ctx context.Context, h *extension.Host, input json.RawMessage) (any, error) {
 				var result []extension.Workspace
 				err := h.Call(ctx, "host.workspaces", map[string]any{}, &result)
-				return map[string]any{"workspaces": result, "scope": h.Scope}, err
+				return map[string]any{"workspaces": result, "scope": h.Scope, "canaries": map[string]string{"blocked": os.Getenv("EXTENSION_PRIVATE_PASSWORD"), "declared": os.Getenv("EXTENSION_DECLARED_CANARY")}}, err
 			},
 			"version": func(ctx context.Context, h *extension.Host, input json.RawMessage) (any, error) {
 				return h.Run(ctx, extension.RunInput{Program: "git", Args: []string{"--version"}, Cwd: h.Scope.Workspace.Path, Explanation: "Read the installed Git version."})
@@ -54,6 +54,8 @@ func TestMain(m *testing.M) {
 
 func TestSignedBackendScopeLifecycleAndIsolation(t *testing.T) {
 	t.Setenv("EXTENSION_TEST_HELPER", "1")
+	t.Setenv("EXTENSION_PRIVATE_PASSWORD", "test-only-blocked-secret")
+	t.Setenv("EXTENSION_DECLARED_CANARY", "test-only-declared-secret")
 	root := t.TempDir()
 	self, err := os.Executable()
 	if err != nil {
@@ -102,9 +104,13 @@ func TestSignedBackendScopeLifecycleAndIsolation(t *testing.T) {
 		var reply struct {
 			Scope      extension.Scope
 			Workspaces []extension.Workspace
+			Canaries   map[string]string
 		}
 		if err = json.Unmarshal(data, &reply); err != nil || len(reply.Workspaces) != 1 || reply.Workspaces[0].ID != ws.ID {
 			t.Fatalf("bad response %s: %v", data, err)
+		}
+		if reply.Canaries["blocked"] != "" || reply.Canaries["declared"] != "test-only-declared-secret" {
+			t.Fatal("backend inherited an undeclared canary or lost the declared one")
 		}
 		// The scope is revoked before returning the action result.
 		host := extension.Host{Scope: reply.Scope}

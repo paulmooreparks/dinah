@@ -1,0 +1,15 @@
+# Native extension environment inheritance
+
+Paul authorized the TM-04 interim correction in message 3327. Native backends still run with the person's full local authority. This correction controls inherited environment values and installation disclosure; it implements no sandbox.
+
+The standard allow list contains PATH, PATHEXT, SystemRoot, WINDIR, COMSPEC, TEMP, TMP, TMPDIR, HOME, USERPROFILE, HOMEDRIVE, HOMEPATH, USER, USERNAME, LOGNAME, LANG, LC_ALL, LC_CTYPE and TZ. These values support executable lookup, runtime location, temporary files, home-directory selection and regional behavior. Every other variable is omitted unless explicitly named in the signed manifest's optional environment array. Names are matched case-insensitively on Windows and exactly on other platforms. Duplicate parent entries keep their final value, matching exec.Cmd.Env semantics. Invalid environment entries are omitted.
+
+The manifest declares names only, with a maximum of 64 portable identifier names and no case-insensitive duplicates. The declaration participates in signing. Existing manifests with no declaration retain their signed representation and receive the standard set. Installation review displays the additional names and states that the extension receives full local authority until isolation is implemented. It never displays the inherited values.
+
+The backend process and host-launched subprocesses for an invocation use the same policy. Each invocation captures the signed manifest's declared names. Credential-related environment such as SSH_AUTH_SOCK or a service secret requires a declaration even when an earlier host passed it implicitly. Publishers must update and sign manifests for those dependencies; the host must not silently restore the old broad inheritance for compatibility.
+
+Guards use synthetic environment entries, including secrets whose names the old deny list missed. They cover explicit opt-in, Windows case matching, Unix exact matching, duplicate entries and empty input. SDK guards cover malformed names, duplicate declarations, the size limit, signature invalidation after changing a declaration and unchanged serialization when the declaration is absent. No real credentials or extension execution is required to test this policy.
+
+The host canary guard also passed through the existing signed-backend fixture, which runs a copied test executable rather than an installed extension. Its declared canary arrived and its undeclared password canary did not. The allow-list unit guard, both SDK guards and frontend syntax check passed. The fixture now explicitly declares its helper switch; the standard policy contains no test-only exemption.
+
+This candidate requires the matching extension SDK change on fix/extension-environment in the SDK repository. Verification uses a temporary alternate modfile pointing at that isolated SDK worktree; the production go.mod and shared SDK checkout are unchanged. Release must integrate the SDK commit before building the host candidate. Both repositories remain local during the history-rewrite freeze.
