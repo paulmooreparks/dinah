@@ -3,6 +3,7 @@
 // detail with what the judge saw and what the rule would have said, the
 // correction, and the empty state before anything has been judged.
 const { launch } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 (async () => {
   function fixture() {
     // Records are made in the page, since the fixture's app function is sent
@@ -88,7 +89,8 @@ const { launch } = require('./lib/page');
     // Calls arrive; the numbered event refreshes the page in place.
     await p.evaluate(() => { sessionStorage.setItem('judgements-fixture', '1'); window.__records = Array.from({ length: 52 }, (_, i) => window.__mk(i + 1)); __emit('judgements:changed', { id: 52, stateGen: 1, stateVer: 1, state: 'on', why: '', calls: 52, fallbacks: 13, streak: 0, warnStreak: 3, latest: new Date().toISOString() }); });
     await win.locator('.judgements-graph .jbar').first().waitFor();
-    ok('the graph draws one bar per day', (await win.locator('.judgements-graph .jbar').count()) === 7);
+    const bars = await settledCount(p, win.locator('.judgements-graph .jbar'), 7);
+    ok('the graph draws one bar per day', bars.ok, bars.detail);
     ok('graph controls have raised button surfaces and a pattern legend', await win.locator('.jbar.btn').count() === 7 && /solid.*striped/.test(await win.locator('.judgements-graph-legend').textContent()) && await win.locator('.jbar-fallback').first().evaluate(n => getComputedStyle(n).backgroundImage.includes('gradient')));
 
     const todaybar = win.locator('.judgements-graph .jbar').last();

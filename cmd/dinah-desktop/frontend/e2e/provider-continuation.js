@@ -1,4 +1,5 @@
 const { launch, PAGE } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 const { choose, shows } = require('./lib/commands');
 (async () => {
   const t = await launch({
@@ -95,9 +96,10 @@ const { choose, shows } = require('./lib/commands');
     });
     await front().getByText('Devin finished its turn.', { exact: true }).first().waitFor();
     await page.waitForFunction(() => [...document.querySelectorAll('.win.active .msg-text')].some(n => n.textContent.includes('view.')));
-    ok('early continuation events leave one consumer for each streamed chunk', await front().getByText("I'll add a Calendar view.", { exact: true }).count() === 1);
-    ok('text arriving before the continuation reply is retained once', await front().getByText('Early provider notification.', { exact: true }).count() === 1);
-    ok('a continued turn finishes once', await front().getByText('Devin finished its turn.', { exact: true }).count() === 1);
+    const once = await settled(page, { chunk: [front().getByText("I'll add a Calendar view.", { exact: true }), 1], early: [front().getByText('Early provider notification.', { exact: true }), 1], finished: [front().getByText('Devin finished its turn.', { exact: true }), 1] });
+    ok('early continuation events leave one consumer for each streamed chunk', once.counts.chunk === 1, once.detail);
+    ok('text arriving before the continuation reply is retained once', once.counts.early === 1, once.detail);
+    ok('a continued turn finishes once', once.counts.finished === 1, once.detail);
     await page.evaluate(() => __emit('agent:session', { sessionId: 'devin-next', provider: 'devin', cwd: 'C:/Test', title: 'Ongoing Work', open: true, working: true }));
     ok('a running turn prevents another switch', await locked());
     await page.evaluate(() => __emit('agent:session', { sessionId: 'devin-next', provider: 'devin', cwd: 'C:/Test', title: 'Ongoing Work', open: true, working: false, queued: ['queued'] }));

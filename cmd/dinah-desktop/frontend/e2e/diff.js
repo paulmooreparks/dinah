@@ -4,6 +4,7 @@
 // enabling the line button; a second open with the same key reusing the
 // window; the theme following the application's; screenshots.
 const { launch } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 (async () => {
   const t = await launch({
     viewport: { width: 1600, height: 1000 },
@@ -201,7 +202,8 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => pudlWindows.state().open.filter(k => (dinahWorkbench.item(k) || {}).kind === 'diff').length === 2);
     const second = p.locator('.win[data-win-kind="diff"]').filter({ hasText: 'docs · Added, staged' });
     await second.locator('.diff-hunk').first().waitFor();
-    ok('a diff with no actions has no tick boxes, no hunk buttons and no line button', await second.locator('.diff-tick').count() === 0 && await second.locator('[data-hunk-action]').count() === 0 && await second.locator('[data-line-action]').count() === 0);
+    const bare = await settled(p, { ticks: [second.locator('.diff-tick'), 0], hunk: [second.locator('[data-hunk-action]'), 0], line: [second.locator('[data-line-action]'), 0] });
+    ok('a diff with no actions has no tick boxes, no hunk buttons and no line button', bare.ok, bare.counts);
     ok('Edit the File is not offered for a path that is not a workspace file', await second.locator('[data-command="edit-file"][hidden]').count() === 1);
     ok('a new file is one hunk of added lines', (await second.locator('[data-df-meta]').textContent()).includes('1 hunk · +3 −0'));
 

@@ -1,5 +1,6 @@
 // Team traffic is folded without changing conversation data or exports.
 const { launch, OUT } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 const fs = require('fs');
 const path = require('path');
 (async () => {
@@ -38,7 +39,8 @@ const path = require('path');
     await win.locator('.tool-row').filter({ hasText: 'Send the assignment (replayed)' }).waitFor();
     await win.locator('.team-traffic-fold').first().waitFor();
     await p.waitForFunction(key => document.querySelector('[data-win="' + key + '"] .team-traffic-fold')?.textContent.startsWith('2 team messages'), key);
-    ok('incoming and outgoing messages share a fold, interrupted by the person', await win.locator('.team-traffic-fold').count() === 2 && await win.locator('.you-row, .msg-row').filter({ hasText: 'Paul asks a direct question.' }).count() > 0);
+    const shared = await settledCount(p, win.locator('.team-traffic-fold'), 2);
+    ok('incoming and outgoing messages share a fold, interrupted by the person', shared.ok && await win.locator('.you-row, .msg-row').filter({ hasText: 'Paul asks a direct question.' }).count() > 0, shared.detail);
     await p.evaluate(() => __emit('agent:teamsent', { sessionId: 'lead', message: { id: 34, room: 'team-room', roomTitle: 'Development Team', from: 'Lead' }, text: 'Live outgoing assignment.' }));
     await p.waitForFunction(key => [...document.querySelectorAll('[data-win="' + key + '"] .team-traffic-fold')].at(-1)?.textContent.startsWith('2 team messages'), key);
     await p.evaluate(() => __emit('agent:update', { sessionId: 'lead', update: { sessionUpdate: 'tool_call', toolCallId: 'failed-send', title: 'A failed send', status: 'failed', content: [{ type: 'content', content: { type: 'text', text: 'The delivery failed.' } }] } }));
@@ -102,7 +104,8 @@ const path = require('path');
     ok('the fold opens its original group message', true);
     await p.reload();
     await p.locator('.team-traffic-fold').first().waitFor();
-    ok('restored history retains the structured folds', await p.locator('.team-traffic-fold').count() === 2);
+    const restored = await settledCount(p, p.locator('.team-traffic-fold'), 2);
+    ok('restored history retains the structured folds', restored.ok, restored.detail);
   } catch (error) {
     const state = await p.evaluate(() => ({ exported: __exported, calls: __bridgeCalls.filter(c => c[0] === 'SaveRun'), rows: [...document.querySelectorAll('.activity-row')].map(r => ({ text: r.textContent, message: r._msg && r._msg.text })) }));
     fs.writeFileSync(path.join(OUT, 'teams-traffic-failure.json'), JSON.stringify(state, null, 2));

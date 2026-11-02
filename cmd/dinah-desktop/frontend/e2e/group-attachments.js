@@ -10,6 +10,7 @@
 // space before it asks.
 const path = require('path');
 const { launch, OUT } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 (async () => {
   const t = await launch({
     viewport: { width: 1440, height: 900 },
@@ -71,7 +72,8 @@ const { launch, OUT } = require('./lib/page');
       el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
     }, await p.evaluate(() => __pixel));
     await chips.first().waitFor();
-    ok('a pasted picture is a chip with its thumbnail, name and size', await chips.count() === 1 && await chips.first().locator('img').count() === 1 &&
+    const pasted = await settledCount(p, chips, 1);
+    ok('a pasted picture is a chip with its thumbnail, name and size', pasted.ok && await chips.first().locator('img').count() === 1 &&
       await chips.first().locator('.attachment-name').innerText() === 'pasted.png' && await box.inputValue() === 'With files');
     await room.locator('.bus-conversation').evaluate(el => {
       const dt = new DataTransfer(); dt.items.add(new File(['dropped words'], 'dropped.txt', { type: 'text/plain' }));

@@ -3,6 +3,7 @@
 // and its Undo and Redo, Check, launching into a chat, Copy to My Skills,
 // Rename… and what restores after a reload.
 const { launch } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 const { press } = require('./lib/commands');
 (async () => {
   const t = await launch({
@@ -86,13 +87,15 @@ const { press } = require('./lib/commands');
     await skill.locator('.editor-applet [data-command-choice="view"] [data-command]').nth(3).waitFor({state:'attached'});
     ok('the Editor offers the same four views as a document',await skill.locator('.editor-applet [data-command-choice="view"] [data-command]').allTextContents().then(v=>v.join(',')==='Visual,Text,Split,Preview'));
     ok('description appears below the skill name',await skill.locator('.skill-description').textContent()==='Personal review instructions');
-    ok('the Edit tab holds the text alone, with no expander',await skill.locator('#skill-1-edit .skill-form, #skill-1-edit details, #skill-1-edit .card.disclosure').count()===0);
+    const alone=await settledCount(page,skill.locator('#skill-1-edit .skill-form, #skill-1-edit details, #skill-1-edit .card.disclosure'),0);
+    ok('the Edit tab holds the text alone, with no expander',alone.ok,alone.detail);
     // The form over the front matter is the Parameters tab, with the designer.
     const goTab=name=>skill.getByRole('tab',{name,exact:true}).click();
     await goTab('Parameters');
     await skill.locator('.skill-form .skill-param-row').first().waitFor();
     ok('the description field shows its whole text',await skill.locator('#skill-1-description').evaluate(el=>el.scrollHeight<=el.clientHeight+1));
-    ok('the form shows the description and the parameters the hint gives',await skill.locator('#skill-1-description').inputValue()==='Personal review instructions' && await skill.locator('.skill-param-row').count()===1 && await skill.locator('.skill-param-row input[aria-label="Parameter name"]').inputValue()==='TITLE');
+    const params=await settledCount(page,skill.locator('.skill-param-row'),1);
+    ok('the form shows the description and the parameters the hint gives',await skill.locator('#skill-1-description').inputValue()==='Personal review instructions' && params.ok &&await skill.locator('.skill-param-row input[aria-label="Parameter name"]').inputValue()==='TITLE');
     ok('other fields are listed under Other Fields, in a PUDL disclosure card',(await skill.locator('.skill-other-fields.card.disclosure .card-title').textContent())==='Other Fields (1)' && await skill.locator('[data-win-kind=skill] details').count()===0);
     await skill.locator('#skill-1-description').fill('Reviews the notes carefully');
     await skill.locator('#skill-1-description').dispatchEvent('change');

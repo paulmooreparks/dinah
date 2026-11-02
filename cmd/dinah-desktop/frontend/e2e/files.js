@@ -1,4 +1,5 @@
 const { launch, PAGE } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 const { press, openMenu } = require('./lib/commands');
 (async () => {
   const t = await launch({
@@ -151,7 +152,8 @@ const { press, openMenu } = require('./lib/commands');
     ok('Files attachment previews open in the shared lightbox', await page.locator('#media-viewer [data-media-stage] img').evaluate(image => image.naturalWidth === 90));
     await page.keyboard.press('Escape');
     await win.locator('.fm-preview .msg-diagram svg').nth(1).waitFor();
-    ok('Files previews render D2 and Mermaid with source retained',await win.locator('.fm-preview .msg-diagram details').count()===2&&(await win.locator('.fm-preview').textContent()).includes('D2 Preview'));
+    const sources=await settledCount(page,win.locator('.fm-preview .msg-diagram details'),2);
+    ok('Files previews render D2 and Mermaid with source retained',sources.ok&&(await win.locator('.fm-preview').textContent()).includes('D2 Preview'),sources.detail);
     await win.getByRole('button',{name:'Expand D2 Diagram',exact:true}).click();
     await page.locator('#media-viewer [data-media-stage] svg').waitFor();
     ok('Files diagrams use the shared vector viewer',(await page.locator('#media-viewer [data-media-stage] svg').textContent()).includes('D2 Preview'));

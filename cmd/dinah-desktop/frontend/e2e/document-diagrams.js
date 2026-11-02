@@ -1,4 +1,5 @@
 const { launch, PAGE } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 (async () => {
   const external = [];
   const t = await launch({
@@ -44,7 +45,8 @@ const { launch, PAGE } = require('./lib/page');
     const key = await open('diagrams.md');
     const doc = page.locator('[data-win="' + key + '"]');
     await doc.locator('.msg-diagram').nth(3).waitFor();
-    ok('documents render D2 and the real bundled Mermaid with source disclosures', await doc.locator('.msg-diagram svg').count() === 3 && await doc.locator('.msg-diagram details').count() === 3 && (await doc.textContent()).includes('Start'));
+    const drawn = await settled(page, { diagrams: [doc.locator('.msg-diagram svg'), 3], disclosures: [doc.locator('.msg-diagram details'), 3] });
+    ok('documents render D2 and the real bundled Mermaid with source disclosures', drawn.ok && (await doc.textContent()).includes('Start'), drawn.detail);
     await doc.getByRole('button', { name: 'Expand Mermaid Diagram', exact: true }).click();
     await page.locator('#media-viewer [data-media-stage] svg').waitFor();
     ok('real Mermaid diagrams expand as vector snapshots with their labels', (await page.locator('#media-viewer [data-media-stage] svg').textContent()).includes('Start') && (await page.locator('#media-viewer [data-media-stage] svg').textContent()).includes('Done'));

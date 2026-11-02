@@ -1,4 +1,5 @@
 const { launch, PAGE } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 (async () => {
   const t = await launch({
     viewport: { width: 1440, height: 900 },
@@ -70,14 +71,16 @@ const { launch, PAGE } = require('./lib/page');
     await page.waitForFunction(() => __sent.length > 0);
     ok('sending keeps all image payloads on the intended chat', await page.evaluate(() => __sent[0].id === 'codex:first' && __sent[0].attachments.length === 4 && __sent[0].attachments.every(a => a.mimeType === 'image/png' && a.data.length > 0)));
     await a.locator('.sent-images img').first().waitFor();
-    ok('sent images retain thumbnails', await a.locator('.sent-images img').count() === 4);
+    const thumbs = await settledCount(page, a.locator('.sent-images img'), 4);
+    ok('sent images retain thumbnails', thumbs.ok, thumbs.detail);
     await a.locator('.sent-images img').first().click();
     await page.locator('#media-viewer[open]').waitFor();
     ok('sent thumbnail opens the image viewer', true);
     await page.keyboard.press('Escape');
     await page.evaluate(() => __emit('agent:update', {sessionId:'codex:first', update:{sessionUpdate:'agent_message_chunk', content:{type:'text',text:'Read [the design note](docs/proposals/note.md) and [a spaced path](<docs/my note.md>). [unsafe](javascript:alert)'}}}));
     await a.locator('[data-chip-local]').first().waitFor();
-    ok('relative and spaced local Markdown links render safely', await a.locator('[data-chip-local]').count() === 2 && await a.locator('a[href^="javascript:"]').count() === 0);
+    const links = await settled(page, { local: [a.locator('[data-chip-local]'), 2], unsafe: [a.locator('a[href^="javascript:"]'), 0] });
+    ok('relative and spaced local Markdown links render safely', links.ok, links.detail);
     await a.locator('[data-chip-local]').first().click();
     ok('local link uses the owning chat execution folder', await page.evaluate(() => __links.length === 1 && __links[0].cwd.toLowerCase() === 'c:/test' && __links[0].path === 'docs/proposals/note.md'));
   } finally { await t.close(); }
