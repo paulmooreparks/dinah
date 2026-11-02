@@ -166,6 +166,9 @@ async function launch(options = {}) {
   // The stub and the suite's functions are sent as one script's source, so
   // nothing is evaluated from a string in the page and a page served under
   // its real Content Security Policy runs them as any init script.
+  // The suites run the page strict: a caller's mistake that a production
+  // build only logs is thrown (helpers.js, mistake).
+  await context.addInitScript({ content: 'window.dinahStrict = true;' });
   await context.addInitScript({ content: '(' + stub.toString() + ')({ state: ' + JSON.stringify(state) + ', args: ' + JSON.stringify(args) + ', app: ' + (app ? app.toString() : 'null') + ', init: ' + (init ? init.toString() : 'null') + ' });' });
   const page = await context.newPage();
   page.setDefaultTimeout(timeout);

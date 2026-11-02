@@ -100,13 +100,32 @@
     return text;
   }
   /* A list kept in step with its items (FE-18). arrange puts the given
-     elements in a container in order, moving only those out of place, and
-     takes out every other child. Moving a focused element takes its focus,
-     so focus is put back where it was afterwards; when the element with
-     focus is taken out, lost, if given, is called with the place it had,
-     so the list can move focus to a neighbour. */
+     elements in a container in order and takes out every other child. It
+     moves as few elements as it can: the longest run of elements already in
+     the right order stays where it is and the rest are put around it. The
+     row holding focus is always in that run, so a focused row never moves,
+     blurs or regains focus because another row moved past it; nothing moves
+     or loses focus as live state changes. When the element with focus is
+     taken out, lost, if given, is called with the place it had, so the list
+     can move focus to a neighbour. */
   function focusable(element) {
     return element.matches('button, a[href], input, select, textarea, [tabindex]') ? element : element.querySelector('button, a[href], input, select, textarea, [tabindex]');
+  }
+  // The elements, among those already in the container, that stay in place:
+  // the heaviest run whose places increase, where the focused row outweighs
+  // all the others together.
+  function staying(elements, place, focused) {
+    const at = [], weight = [], best = [], from = [];
+    elements.forEach(function (el) { if (place.has(el)) { at.push(el); weight.push(el === focused ? elements.length + 1 : 1); } });
+    let top = -1;
+    for (let i = 0; i < at.length; i++) {
+      best[i] = weight[i]; from[i] = -1;
+      for (let j = 0; j < i; j++) if (place.get(at[j]) < place.get(at[i]) && best[j] + weight[i] > best[i]) { best[i] = best[j] + weight[i]; from[i] = j; }
+      if (top < 0 || best[i] > best[top]) top = i;
+    }
+    const stay = new Set();
+    for (let i = top; i >= 0; i = from[i]) stay.add(at[i]);
+    return stay;
   }
   function arrange(container, elements, lost) {
     const active = document.activeElement, focus = container.contains(active) ? active : null;
@@ -117,9 +136,30 @@
       if (focus && child.contains(focus)) gone = i;
       child.remove();
     });
-    elements.forEach(function (child, i) { if (container.children[i] !== child) container.insertBefore(child, container.children[i] || null); });
+    const place = new Map();
+    Array.from(container.children).forEach(function (child, i) { place.set(child, i); });
+    const focusedRow = focus && elements.find(function (el) { return el.contains(focus); });
+    const stay = staying(elements, place, focusedRow);
+    // From the end, each element that does not stay goes before the one
+    // after it, which is already in its final place.
+    let next = null;
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const el = elements[i];
+      if (!stay.has(el) && (el.parentElement !== container || el.nextSibling !== next)) container.insertBefore(el, next);
+      next = el;
+    }
     if (focus && focus.isConnected) { if (document.activeElement !== focus) focus.focus({ preventScroll: true }); }
     else if (gone >= 0 && lost) lost(gone);
+  }
+  /* A caller's mistake is thrown in development and in the browser suites,
+     so it is found, and only logged in a production build, so the person's
+     list still draws. The suites set dinahStrict; a development build says
+     what it is through the Wails runtime's Environment, as debug or dev. */
+  let developing = false;
+  if (window.runtime && window.runtime.Environment) Promise.resolve(window.runtime.Environment()).then(function (env) { if (env && env.buildType && env.buildType !== 'production') developing = true; }).catch(function () {});
+  function mistake(text) {
+    if (developing || window.dinahStrict) throw new Error(text);
+    console.error(text);
   }
   /* reconcile draws items as keyed rows in a container through arrange.
      options.rows is a Map from key to a row's view, which the caller keeps
@@ -129,12 +169,16 @@
      which takes the old one's place and its focus, on options.focus(node)
      when given and otherwise on its first control. A key no longer listed
      loses its view unless options.keep is set, for views a caller shares
-     between lists. Returns the views in order. */
+     between lists. A key given to two items is a caller's mistake (mistake).
+     Returns the views in order. */
   function reconcile(container, items, options) {
     const rows = options.rows, views = [], keys = new Set();
     let refocus = null;
     items.forEach(function (item) {
       const key = options.key(item);
+      // Two items with one key would place one row twice and leave the list
+      // a row short; the row is drawn once and the caller's mistake shown.
+      if (keys.has(key)) { mistake('dinahHelpers.reconcile: the key ' + JSON.stringify(key) + ' is given to more than one item.'); return; }
       let view = rows.get(key);
       if (!view) { view = options.create(item, key); rows.set(key, view); }
       const prior = view.node;

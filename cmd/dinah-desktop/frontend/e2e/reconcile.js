@@ -46,7 +46,30 @@ const { launch } = require('./lib/page');
       y.focus();
       window.dinahHelpers.arrange(box, [y, x]);
       out.arranged = [...box.children].map(n => n.textContent).join(',') + (document.activeElement === y ? ' focus kept' : ' focus lost');
-      return out;
+      // A focused row already in place never moves while another row moves
+      // past it: it is not blurred and focused again.
+      const rows2 = new Map(), list2 = document.createElement('ul'); document.body.appendChild(list2);
+      const draw2 = items => window.dinahHelpers.reconcile(list2, items, { rows: rows2, key: k => k, create: k => { const li = document.createElement('li'); const b = document.createElement('button'); b.textContent = k; li.appendChild(b); li.dataset.key = k; return { node: li }; } });
+      draw2(['a', 'b', 'c', 'd']);
+      const focusedButton = list2.querySelector('[data-key="b"] button');
+      let blurs = 0, moved = 0;
+      focusedButton.addEventListener('blur', () => blurs++);
+      focusedButton.focus();
+      new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(n => { if (n.dataset && n.dataset.key === 'b') moved++; }))).observe(list2, { childList: true });
+      draw2(['b', 'c', 'd', 'a']);
+      return new Promise(resolve => setTimeout(() => {
+        out.passed = { order: [...list2.children].map(li => li.dataset.key).join(','), blurs, moved, focused: document.activeElement === focusedButton };
+        // A key given to two items: thrown in the suites (dinahStrict), and
+        // logged with the row drawn once in a production build.
+        try { draw2(['b', 'c', 'c', 'd']); out.thrown = ''; } catch (e) { out.thrown = e.message; }
+        const errors = [], log = console.error;
+        console.error = text => errors.push(String(text));
+        window.dinahStrict = false;
+        try { draw2(['b', 'c', 'c', 'd']); out.logged = { errors, order: [...list2.children].map(li => li.dataset.key).join(',') }; }
+        catch (e) { out.logged = { threw: e.message }; }
+        finally { window.dinahStrict = true; console.error = log; }
+        resolve(out);
+      }, 0));
     });
     ok('new items get rows in order', result.inserted === 'a,b,c', result.inserted);
     ok('a changed order moves rows, keeping each row rather than rebuilding it', result.moved === 'c,a,b' && result.kept, JSON.stringify(result));
@@ -54,5 +77,8 @@ const { launch } = require('./lib/page');
     ok('a rebuilt row takes the old row\'s place and its focus', result.rebuilt);
     ok('a gone item loses its row, the list says where focus was lost, and the row is forgotten', result.removed === 'c,b' && result.lost === '1' && result.forgotten, JSON.stringify(result));
     ok('arrange orders the given elements, takes out the rest and keeps focus', result.arranged === 'y,x focus kept', result.arranged);
+    ok('a focused row in place stays put, unblurred and focused, while another row moves past it', result.passed.order === 'b,c,d,a' && result.passed.blurs === 0 && result.passed.moved === 0 && result.passed.focused, JSON.stringify(result.passed));
+    ok('a key given to two items is thrown in the suites, naming the key', /"c"/.test(result.thrown) && /more than one item/.test(result.thrown), result.thrown);
+    ok('in a production build it is logged and the row is drawn once', result.logged.errors && result.logged.errors.length === 1 && /"c"/.test(result.logged.errors[0]) && result.logged.order === 'b,c,d', JSON.stringify(result.logged));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
