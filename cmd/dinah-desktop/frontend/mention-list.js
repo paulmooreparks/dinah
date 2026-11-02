@@ -12,7 +12,8 @@
        line of keys at the end; with no items and a note, the note alone is
        shown.
      key(event) is 'down', 'up', 'pick' or 'close' for a key the list
-       answers while open, or null.
+       answers while open, or null, as it is for every key while an input
+       method is composing.
      step(selected, count, direction) is the row Up or Down moves to. */
 (function () {
   'use strict';
@@ -52,7 +53,10 @@
     if (current) current.scrollIntoView({ block: 'nearest' });
   }
 
+  // While an input method is composing text, its keys are its own: Enter
+  // confirms the text and the arrows choose a candidate (FE-45).
   function key(e) {
+    if (e.isComposing) return null;
     if (e.key === 'ArrowDown') return 'down';
     if (e.key === 'ArrowUp') return 'up';
     if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey) || e.key === 'Tab') return 'pick';
