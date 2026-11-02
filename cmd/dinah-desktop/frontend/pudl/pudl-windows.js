@@ -645,8 +645,13 @@
        which the stack's button already shows (0.96.10); the name and
        tooltip still carry both. */
     if (detail) {
-      var d = detailOf(key), groupLabel = node.hasAttribute('data-win-stack-row') && win.getAttribute('data-win-group') ? stackMetadata(win.getAttribute('data-win-group')).label : null;
-      setText(detail, d); setHidden(detail, !d || d === titleOf(key) || d === groupLabel);
+      /* Or, in a stack's row, one that repeats what the window says its
+         group's detail is, data-win-group-detail (0.97.0), for a stack
+         whose label says the same thing in its own form. */
+      var d = detailOf(key), inStack = node.hasAttribute('data-win-stack-row') && win.getAttribute('data-win-group');
+      var groupLabel = inStack ? stackMetadata(win.getAttribute('data-win-group')).label : null;
+      var groupDetail = inStack ? (win.getAttribute('data-win-group-detail') || '').trim() : '';
+      setText(detail, d); setHidden(detail, !d || d === titleOf(key) || d === groupLabel || (!!groupDetail && d === groupDetail));
     }
     var badge = node.querySelector('.win-item-attention');
     setHidden(badge, !count);
@@ -4775,6 +4780,178 @@
       return panel && panel.hasAttribute('popover') && panel.matches(':popover-open');
     });
   }
+  /* === A taskbar's status area that folds (0.97.0) =========================
+     A .status-area marked data-status-fold folds its items into one
+     Status item when the bar cannot hold them, and unfolds them as room
+     returns; an item marked data-status-keep never folds. "all" folds
+     every foldable item at once; "items", or the attribute bare, folds
+     them one at a time from the first. Nothing may move on a live change
+     of state, so every decision is made on reserved widths: a badge with
+     data-status-reserve, such as "99+", is measured as if it read that,
+     shown or not, so a count that grows never folds anything. */
+  var STATE_RANK = { stuck: 4, waiting: 3, working: 2, idle: 0 };
+  var CLASS_RANK = { danger: 4, warn: 3, accent: 2, positive: 1 };
+  /* An item the host hides is not in the tray at all, so it is never
+     folded, listed, named or toned, and joins again when shown (0.97.3). */
+  function foldable(area) {
+    return Array.prototype.filter.call(area.children, function (c) {
+      return c.classList.contains('status-item') && !c.classList.contains('status-fold') && !c.hasAttribute('data-status-keep') && !c.hidden;
+    });
+  }
+  function statusFoldItem(area) {
+    var f = area.querySelector(':scope > .status-fold');
+    if (!f) {
+      f = document.createElement('button');
+      f.type = 'button';
+      f.className = 'status-item status-fold';
+      f.setAttribute('aria-haspopup', 'menu');
+      f.hidden = true;
+      f.innerHTML = '<span class="glyph" aria-hidden="true"></span><span class="status-fold-words"></span><span class="badge" aria-hidden="true"><span class="status-fold-count"></span></span>';
+      f.addEventListener('click', function () { openStatusFold(area, f); });
+      /* A folded item's badge or name changing takes no room, so nothing
+         is fitted again; the Status item's tone, total and name follow it
+         (0.97.1). */
+      new MutationObserver(function (records) {
+        /* An item shown or hidden changes what may fold, so the bar is
+           fitted again; anything else only repaints the summary. */
+        if (records.some(function (r) { return r.attributeName === 'hidden' && r.target.parentElement === area && r.target !== f; })) { fitBarsSoon(); return; }
+        if (f.hidden || !records.some(function (r) { return !f.contains(r.target); })) return;
+        paintStatusFold(area, f, foldable(area).filter(function (it) { return it.hasAttribute('data-status-folded'); }));
+      }).observe(area, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'data-state', 'data-status-pending', 'data-status-tone', 'aria-label', 'title'] });
+    }
+    var items = foldable(area), last = items[items.length - 1];
+    if (last && last.nextElementSibling !== f) last.after(f);
+    return f;
+  }
+  function itemName(it) { return (it.getAttribute('aria-label') || it.getAttribute('title') || it.textContent).replace(/\s+/g, ' ').trim(); }
+  function badgeOf(it) { return it.querySelector(':scope > .badge'); }
+  function countOf(it) {
+    var b = badgeOf(it);
+    if (!b || b.hidden) return 0;
+    var m = /^(\d+)\+?$/.exec(b.textContent.trim());
+    return m ? Number(m[1]) : 0;
+  }
+  /* The most urgent tone among the folded items' badges: an execution
+     state ranks stuck, waiting, working, idle; a status class danger,
+     warn, accent, positive. */
+  function toneOf(items) {
+    var best = null, rank = -1;
+    function take(t) {
+      if (!t) return;
+      if (Object.prototype.hasOwnProperty.call(STATE_RANK, t) && STATE_RANK[t] > rank) { rank = STATE_RANK[t]; best = { state: t }; }
+      else if (Object.prototype.hasOwnProperty.call(CLASS_RANK, t) && CLASS_RANK[t] > rank) { rank = CLASS_RANK[t]; best = { cls: t }; }
+    }
+    items.forEach(function (it) {
+      /* An item may give a tone its badge does not show, such as a
+         warning on an item whose count is 0 (0.97.2). */
+      take(it.getAttribute('data-status-tone'));
+      var b = badgeOf(it);
+      if (!b || b.hidden || !b.textContent.trim() && !b.hasAttribute('data-state')) return;
+      take(b.getAttribute('data-state'));
+      Object.keys(CLASS_RANK).forEach(function (c) { if (b.classList.contains(c)) take(c); });
+    });
+    return best;
+  }
+  var TONE_GLYPHS = { stuck: 'warning', waiting: 'pause', working: 'play', idle: 'square', danger: 'square', warn: 'triangle', accent: 'diamond', positive: 'circle' };
+  function paintStatusFold(area, f, folded) {
+    var tone = toneOf(folded), sum = folded.reduce(function (n, it) { return n + countOf(it); }, 0);
+    var glyph = f.firstElementChild, badge = f.querySelector('.badge');
+    styleProp(glyph, '--glyph', 'var(--glyph-' + (tone ? TONE_GLYPHS[tone.state || tone.cls] : 'more') + ')');
+    setAttr(f, 'data-tone', tone ? (tone.state || tone.cls) : '');
+    setText(f.querySelector('.status-fold-words'), text('status', 'Status'));
+    /* The total is shown when it is known (0.97.1): not while any folded
+       badge says its count is not known yet with data-status-pending, and
+       not when no folded badge reads a number. A total of 0 that every
+       counting badge reads is shown, plainly, so known-none and not-yet
+       look different. */
+    var badges = folded.map(badgeOf).filter(Boolean);
+    var pending = badges.some(function (b) { return b.hasAttribute('data-status-pending'); });
+    var counted = badges.some(function (b) { return !b.hidden && /^\d+\+?$/.test(b.textContent.trim()); });
+    var show = !pending && counted;
+    setText(badge.firstElementChild, show ? (sum > 99 ? '99+' : String(sum)) : '');
+    var reserve = folded.map(function (it) { var b = badgeOf(it); return b && b.getAttribute('data-status-reserve'); }).filter(Boolean).sort(function (x, y) { return y.length - x.length; })[0];
+    if (reserve) setAttr(badge, 'data-status-reserve', reserve); else if (badge.hasAttribute('data-status-reserve')) badge.removeAttribute('data-status-reserve');
+    /* With a reserve the badge holds its widest width on screen, blank or
+       not, so the Status item never changes width as its total changes
+       (0.97.4); without one it shows only with a total, as before. */
+    if (reserve) { setHidden(badge, false); if (badge.hasAttribute('data-status-blank') === show) badge.toggleAttribute('data-status-blank', !show); }
+    else { setHidden(badge, !show); if (badge.hasAttribute('data-status-blank')) badge.removeAttribute('data-status-blank'); }
+    var name = text('status', 'Status') + ': ' + folded.map(itemName).join(', ');
+    setAttr(f, 'aria-label', name);
+    setAttr(f, 'title', name);
+  }
+  /* The area's width with the given items folded, measured on a copy
+     that stands where the bar is, with each reserved badge reading its
+     reserve. */
+  function foldedWidth(bar, area, folded, compact) {
+    var probe = bar.cloneNode(false);
+    probe.removeAttribute('id');
+    ['position:fixed', 'visibility:hidden', 'pointer-events:none', 'left:0', 'top:0', 'width:auto', 'max-width:none'].forEach(function (d) { var kv = d.split(':'); probe.style.setProperty(kv[0], kv[1], 'important'); });
+    if (compact) probe.setAttribute('data-win-bar-compact', ''); else probe.removeAttribute('data-win-bar-compact');
+    var copy = area.cloneNode(true);
+    copy.removeAttribute('id');
+    copy.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
+    var live = Array.prototype.slice.call(area.children), kids = Array.prototype.slice.call(copy.children);
+    kids.forEach(function (k, i) {
+      var orig = live[i];
+      if (orig.classList.contains('status-fold')) {
+        k.hidden = !folded.length;
+        if (folded.length) { var fb = k.querySelector('.badge'); var r = fb && fb.getAttribute('data-status-reserve'); if (r) { fb.textContent = r; fb.hidden = false; } }
+        return;
+      }
+      if (orig.hasAttribute('data-status-folded')) k.removeAttribute('data-status-folded');
+      if (folded.indexOf(orig) >= 0) k.setAttribute('data-status-folded', '');
+      k.querySelectorAll('.badge[data-status-reserve]').forEach(function (b) { b.textContent = b.getAttribute('data-status-reserve'); b.hidden = false; });
+    });
+    probe.appendChild(copy);
+    bar.parentElement.appendChild(probe);
+    try { return copy.getBoundingClientRect().width; } finally { probe.remove(); }
+  }
+  /* Folds and unfolds the area, deciding on reserved widths whether the
+     window buttons, each at its floor, still fit beside it. Returns
+     whether the bar must be compact. */
+  function fitStatus(bar, dock, area, tabs) {
+    var f = statusFoldItem(area), items = foldable(area);
+    var mode = area.getAttribute('data-status-fold') === 'all' ? 'all' : 'items';
+    var style = getComputedStyle(dock), gap = parseFloat(style.columnGap) || 0;
+    var need = tabs.reduce(function (n, t) { var w = parseFloat(t.style.getPropertyValue('--win-tab-natural')) || t.getBoundingClientRect().width; return n + Math.min(120, w); }, 0) + Math.max(0, tabs.length - 1) * gap;
+    var room = dock.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0) + area.getBoundingClientRect().width;
+    var fits = function (folded, compact) { return need <= room - foldedWidth(bar, area, folded, compact) + 0.5; };
+    var folded = [], compact = false;
+    if (!fits([], false)) {
+      compact = true;
+      if (!fits([], true)) {
+        if (mode === 'all') folded = items.slice();
+        else for (var k = 1; k <= items.length; k++) { folded = items.slice(0, k); if (fits(folded, true)) break; }
+      }
+    }
+    var was = items.filter(function (it) { return it.hasAttribute('data-status-folded'); });
+    /* An item hidden while folded leaves the fold. */
+    Array.prototype.forEach.call(area.querySelectorAll(':scope > .status-item[hidden][data-status-folded]'), function (it) { it.removeAttribute('data-status-folded'); });
+    items.forEach(function (it) {
+      var on = folded.indexOf(it) >= 0;
+      if (it.hasAttribute('data-status-folded') !== on) it.toggleAttribute('data-status-folded', on);
+    });
+    setHidden(f, !folded.length);
+    if (folded.length) paintStatusFold(area, f, folded);
+    if (was.length !== folded.length || was.some(function (it, i) { return it !== folded[i]; })) {
+      if (!folded.length && document.activeElement === f) { var first = items[0]; if (first) first.focus({ preventScroll: true }); }
+      area.dispatchEvent(new CustomEvent('pudl:status-fold', { bubbles: true, detail: { folded: folded.slice(), count: folded.length } }));
+    }
+    return compact;
+  }
+  function openStatusFold(area, f) {
+    if (!window.pudlMenu || !window.pudlMenu.openAt) return;
+    var rows = foldable(area).filter(function (it) { return it.hasAttribute('data-status-folded'); }).map(function (it) {
+      var g = it.querySelector(':scope > .glyph'), m = g && /--glyph-([a-z0-9-]+)/.exec(g.getAttribute('style') || '');
+      var b = badgeOf(it), detail = b && !b.hidden && b.textContent.trim();
+      return { label: itemName(it), glyph: m ? m[1] : null, detail: detail || null, run: function () { it.click(); } };
+    });
+    var r = f.getBoundingClientRect(), low = (r.top + r.bottom) / 2 > window.innerHeight / 2;
+    window.pudlMenu.openAt(Math.round(r.left), Math.round(low ? r.top - 4 : r.bottom + 4), rows,
+      { owner: f, 'for': f, edges: { top: Math.round(r.top - 4), bottom: Math.round(r.bottom + 4) } });
+  }
+
   function fitBar(bar) {
     var dock = bar.querySelector(':scope > [data-win-dock]');
     if (taskbarDrag && taskbarDrag.dock === dock) return;
@@ -4811,7 +4988,14 @@
     }
     if (more) more.hidden = true;
     var over = function () { return dock.scrollWidth > dock.clientWidth + 1; };
-    if (!over()) { finished(); return; }
+    /* A status area that folds decides the tray's steps itself, on
+       reserved widths. */
+    var foldArea = bar.querySelector(':scope > .status-area[data-status-fold]');
+    if (foldArea) {
+      if (fitStatus(bar, dock, foldArea, tabs)) bar.setAttribute('data-win-bar-compact', '');
+      if (!over()) { finished(); return; }
+    }
+    else if (!over()) { finished(); return; }
     bar.setAttribute('data-win-bar-compact', '');
     /* A tray item showing its glyph alone keeps its words as its name. */
     bar.querySelectorAll(':scope > .status-area .status-item').forEach(function (it) {
@@ -5230,7 +5414,7 @@
       if (taskbarDrag) taskbarDrag.cancel();
       renderDocks(); fitBarsSoon(); renderDockGroups(); if (taskbarArrangement) taskbarArrangement.refresh();
     }).observe(layer, { subtree: true, attributes: true,
-      attributeFilter: ['data-win-glyph', 'data-win-icon', 'data-win-attention', 'data-win-running', 'data-win-state', 'data-win-lifecycle', 'data-win-state-label', 'data-win-state-detail', 'data-win-progress', 'data-win-group', 'data-win-group-label', 'data-win-group-glyph', 'data-win-section', 'data-win-group-open', 'data-win-taskbar-stacks'] });
+      attributeFilter: ['data-win-glyph', 'data-win-icon', 'data-win-attention', 'data-win-running', 'data-win-state', 'data-win-lifecycle', 'data-win-state-label', 'data-win-state-detail', 'data-win-progress', 'data-win-group', 'data-win-group-label', 'data-win-group-detail', 'data-win-group-glyph', 'data-win-section', 'data-win-group-open', 'data-win-taskbar-stacks'] });
     new MutationObserver(function () { if (taskbarDrag) taskbarDrag.cancel(); renderDocks(); fitBarsSoon(); if (taskbarArrangement) taskbarArrangement.refresh(); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-win-dock-omit-docked'] });
     new MutationObserver(function (records) {
       var changed = records.some(function (record) {

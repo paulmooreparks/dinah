@@ -366,12 +366,12 @@ body:not(.show-thoughts) .thought-row { display: none; }
    button, on one line, ending in an ellipsis as a window's title does. A
    detail that says something the stack button does not follows it in the
    same line, muted, and gives way first; one that only repeats the stack's
-   workspace is dropped (workbench.js). PUDL sizes the state column to the
+   workspace is not drawn (data-win-group-detail, which workbench.js sets;
+   PUDL 0.97.0). PUDL sizes the state column to the
    widest badge in the list (0.96.5). */
 .win-stack-link .win-item-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.win-stack-link .win-item-title:has(+ .win-item-detail:not([hidden]):not([data-dinah-redundant])) { flex: 0 1 auto; }
+.win-stack-link .win-item-title:has(+ .win-item-detail:not([hidden])) { flex: 0 1 auto; }
 .win-stack-link .win-item-detail { flex: 1 1 0; min-width: 0; max-width: none; margin-inline-start: calc(-1 * var(--space-2)); color: var(--text-muted); opacity: 1; }
-.win-stack-link .win-item-detail[data-dinah-redundant] { display: none; }
 
 /* The composer. A bar of small controls (the document, the mode, the model,
    anything queued, and Stop while Devin works) sits over one row: the
@@ -722,17 +722,22 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 .composer-scroll { --composer-focus-space: var(--focus-ring-width, 3px); display: flex; flex-direction: column; gap: var(--space-2); min-height: 0; overflow: auto; padding: var(--composer-focus-space); margin: calc(-1 * var(--composer-focus-space)); }
 .composer > .slash-pop { left: var(--space-5); right: var(--space-5); }
 
-/* Dinah folds its own tray items before they crowd the taskbar. */
-.status-area[data-status-folded] > :is(.status-tray-item, .status-starting) { display: none; }
-.status-tray-popover { min-inline-size: min(24rem, calc(100vw - 16px)); }
-.status-tray-popover > ul { display: grid; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
-.status-tray-row { display: grid; grid-template-columns: max(16px, 1em) minmax(0, 1fr) auto; gap: var(--space-2); inline-size: 100%; align-items: center; text-align: start; }
-.status-tray-row > .glyph { --glyph-size: max(16px, 1em); }
-.status-tray-row > .status-tray-words { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.status-tray-row .status-row-count { display: inline-grid; }
-.status-tray-row .status-row-count > .badge { grid-area: 1 / 1; font-variant-numeric: tabular-nums; }
-.status-tray-row .status-badge-reserve { visibility: hidden; pointer-events: none; }
-.status-tray-measure { display: flex; align-items: center; position: fixed; inset: 0 auto auto -100000px; inline-size: max-content; visibility: hidden; pointer-events: none; }
+/* While PUDL has folded the tray into its Status item, the starting line
+   folds away with it. */
+.status-area:has(> [data-status-folded]) > .status-starting { display: none; }
 
-.status-tray-measure > * { flex: none; }
-.status-tray-measure-items { display: inline-flex; align-items: center; }
+/* Reorder Sections (workspace-sections.js, PUDL's pudl-reorder.js): while
+   the pane's sections are put in order, every section's body is hidden, so
+   each comes back as it was when the mode ends, and a movable heading
+   shows PUDL's grip where its expand toggle stands. The bar with Done is
+   shown only then. */
+#sidebar[data-reorder-active] .browser-group > .browser-group-body { display: none; }
+#sidebar[data-reorder-active] > .browser-group[data-reorder-id] > .browser-group-head > .browser-group-toggle { display: none; }
+.section-grip:empty { display: none; }
+/* The grip's slot takes the toggle's box exactly, 16px as PUDL draws a
+   tree toggle, so a heading's words do not move as the mode starts or ends.
+   The grip inside it is PUDL's, drawn with PUDL's own spacing. */
+.section-grip:not(:empty) { flex: 0 0 16px; inline-size: 16px; min-inline-size: 0; display: flex; justify-content: center; }
+.ws-reorder-bar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); }
+.ws-reorder-bar[hidden] { display: none; }
+.ws-reorder-bar > .form-help { margin: 0; flex: 1 1 auto; }

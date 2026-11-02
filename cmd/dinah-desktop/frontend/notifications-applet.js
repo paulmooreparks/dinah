@@ -133,6 +133,9 @@
       var st = $('status-needs'), b = st.querySelector('.badge');
       var errors = notices.list(function (entry) { return entry.needsPerson && entry.type === 'error'; }).length;
       st.dataset.statusState = errors ? 'stuck' : n ? 'waiting' : 'idle';
+      // An error waiting is stuck, which the warning badge does not say, so
+      // the item gives PUDL's folded Status item that tone (0.97.2).
+      if (errors) st.setAttribute('data-status-tone', 'stuck'); else st.removeAttribute('data-status-tone');
       st.dataset.statusText = n ? 'Needs you' : 'Nothing waiting';
       st.dataset.statusGlyph = errors ? 'stop' : n ? 'comments' : 'ring';
       st.dataset.statusColour = errors ? 'danger' : n ? 'warn' : 'text-muted';
@@ -142,6 +145,9 @@
          count above 0 keeps its warning badge. */
       if (noticesKnown) st.dataset.statusCountKnown = ''; else delete st.dataset.statusCountKnown;
       b.hidden = n === 0 && !noticesKnown;
+      // A count not read yet is pending, so PUDL's folded Status total waits
+      // for it (0.97.1).
+      b.toggleAttribute('data-status-pending', !noticesKnown);
       b.classList.toggle('warn', n > 0);
       b.textContent = n ? (n > 99 ? '99+' : String(n)) : noticesKnown ? '0' : '';
       if (n) st.removeAttribute('data-empty'); else st.setAttribute('data-empty', '');

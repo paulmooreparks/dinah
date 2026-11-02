@@ -72,7 +72,7 @@
 .group-picker .listbox { flex: 1 1 auto; height: auto; min-height: 8rem; container-type: inline-size; }
 .group-picker .listbox-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; row-gap: var(--space-1); column-gap: var(--space-3); padding-block: 4px; }
 .group-picker .listbox-row > input { grid-column: 1; grid-row: 1; }
-.group-picker .listbox-row > .listbox-text { grid-column: 2; grid-row: 1; min-width: 0; flex-wrap: wrap; }
+.group-picker .listbox-row > .listbox-title { grid-column: 2; grid-row: 1; min-width: 0; flex-wrap: wrap; }
 .group-picker .listbox-row > .col-provider { grid-column: 3; grid-row: 1; }
 .group-picker .listbox-row > .col-active { grid-column: 4; grid-row: 1; }
 .group-picker .listbox-row > .col.state { grid-column: 2 / -1; grid-row: 2; white-space: normal; }
@@ -80,15 +80,15 @@
 @container (max-width: 30rem) {
   .group-picker .listbox-row { grid-template-columns: 16px minmax(0, 1fr) auto; row-gap: 2px; }
   .group-picker .listbox-row > input { grid-row: 1; }
-  .group-picker .listbox-row > .listbox-text { grid-column: 2; grid-row: 1; }
+  .group-picker .listbox-row > .listbox-title { grid-column: 2; grid-row: 1; }
   .group-picker .listbox-row > .col.state { grid-column: 2 / -1; grid-row: 3; }
   .group-picker .listbox-row > .col-provider { grid-column: 2; grid-row: 2; }
   .group-picker .listbox-row > .col-active { grid-column: 3; grid-row: 2; text-align: end; }
   .group-picker .listbox-row > .row-note { grid-row: 4; }
 }
 .group-picker .listbox-row[hidden], .group-picker [role="group"][hidden] { display: none; }
-.group-picker .listbox-text { display: flex; align-items: center; gap: var(--space-2); }
-.group-picker .listbox-text .chip { font-size: var(--text-2xs); }
+.group-picker .listbox-title { display: flex; align-items: center; gap: var(--space-2); }
+.group-picker .listbox-title .chip { font-size: var(--text-2xs); }
 .group-picker .picker-title-input { width: 100%; }
 .group-picker .col { font-size: var(--text-sm); color: var(--text-muted); white-space: nowrap; }
 .group-picker .col.state .badge { font-size: var(--text-2xs); }
