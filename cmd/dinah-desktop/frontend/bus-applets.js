@@ -119,11 +119,8 @@
     var ref = member.chat && window.dinahChats && window.dinahChats.ref(member.chat);
     return ref ? Object.assign({}, member, { exec: ref.exec, life: ref.life, window: ref.window, elsewhere: ref.elsewhere }) : member;
   }
-  function stateBadge(value, cls) {
-    var badge = window.dinahChatState.describe(value);
-    if (cls) badge.cls += ' ' + cls;
-    return badge;
-  }
+  // A chat's or group's state as the shared state chip (chat-state.js).
+  function stateBadge(value, cls) { return window.dinahChatState.badge(value, cls ? { className: cls } : undefined); }
   function stateGlyph(value) { return window.dinahChatState.badge(value); }
   /* The members of a group as a sentence: its chats' titles, and you. */
   function memberNames(r) {
@@ -791,7 +788,7 @@
         var a = node('a', 'md-item'); a.href = '#';
         a.appendChild(node('span', 'mention-name', c.title));
         if (c.meta) a.appendChild(node('span', 'md-meta', c.meta));
-        if (c.state) a.appendChild(window.dinahBrowserList.badge(stateBadge(c.state)));
+        if (c.state) a.appendChild(stateBadge(c.state));
         a.addEventListener('mousedown', function (e) { e.preventDefault(); pick(i); });
         row.appendChild(a);
         pop.appendChild(row);
@@ -1498,7 +1495,7 @@
             if (already) text.appendChild(node('span', 'chip', 'In the Group'));
           }
           row.append(box, text, node('span', 'col col-provider', c.provider), node('span', 'col state'), node('span', 'col col-active', c.updatedAt ? when(c.updatedAt) : ''));
-          row.querySelector('.state').appendChild(window.dinahBrowserList.badge(stateBadge(c)));
+          row.querySelector('.state').appendChild(stateBadge(c));
           if (c.life === 'open' && c.window === false && !c.elsewhere) row.querySelector('.col-provider').appendChild(node('span', 'md-meta', ' · No window'));
           if (c.untitled && titling !== c.id) row.appendChild(node('p', 'row-note', 'Give this chat a title before it joins a group. Choose it to title it here.'));
           else if (c.life === 'closed' && on && !already) row.appendChild(node('p', 'row-note', 'This chat is closed. A message that mentions it opens it in the background; the group\'s other messages wait for it until it opens.'));

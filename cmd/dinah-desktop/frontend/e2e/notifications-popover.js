@@ -30,7 +30,8 @@ const {openStatus}=require('./lib/status');
     // Empty.
     await open();
     ok('an empty list says so in one line', await menu.locator('.notices-empty').isVisible() && await menu.locator('.notices-empty').textContent() === 'No notifications.' && await rows.count() === 0);
-    ok('the badge is hidden with nothing waiting', await page.locator('#status-needs [data-status-badge]').isHidden());
+    // With none waiting, the badge is a neutral 0 (Paul, 2 November 2026).
+    ok('the badge is a neutral 0 with nothing waiting', await page.locator('#status-needs [data-status-badge]').evaluate(b => !b.hidden && b.textContent === '0' && !b.classList.contains('warn')));
     await close();
 
     // A report of each kind, then two questions.

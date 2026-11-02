@@ -3,7 +3,6 @@
 /* A chip with an execution state is PUDL's execution-state badge
    (data-state, 0.96.4), which gives its glyph and colour; one without, a
    lifecycle word, is a muted plain badge (chat-state.js). */
-.badge.chat-state { white-space: normal; }
 .badge.chat-state:not([data-state]) { color: var(--text-muted); background: color-mix(in srgb, var(--text-muted) 18%, var(--surface)); }
 .chat-state-line { flex-wrap: nowrap; container-type: inline-size; }
 .session-list .browser-row > .md-item { display: block; flex: 1 1 auto; min-width: 0; }

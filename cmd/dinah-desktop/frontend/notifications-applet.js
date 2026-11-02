@@ -59,7 +59,8 @@
       var id = entry.target && entry.target.chat, session = id && getSession(id);
       if (!session || !window.dinahChatState.read(session.info).life) return null;
       var badge = window.dinahChatState.badge(session.info, { className: 'notice-chat-state' });
-      badge.title = 'Current chat state: ' + badge.textContent;
+      var named = 'Current chat state: ' + (badge.getAttribute('aria-label') || badge.textContent);
+      badge.title = named; badge.setAttribute('aria-label', named);
       return badge;
     }
     // Historical notification tone stays separate from the chat's current state.

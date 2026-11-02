@@ -112,9 +112,10 @@
       RESERVES.forEach(function (r) { var copy = chip(r, r.text); copy.setAttribute('aria-hidden', 'true'); copy.removeAttribute('title'); slot.appendChild(copy); });
       return slot;
     }
-    // options.short draws the state's short word, for a fixed-width chip
-    // such as a title bar's; its name keeps the full words.
-    var el = chip(spec, options && options.short ? spec.short : spec.text);
+    /* Every chip shows the state's short word, as the title bar's does, and
+       keeps the full description, a reason or counts included, in its
+       tooltip and accessible name (Paul, 2 November 2026). */
+    var el = chip(spec, spec.short);
     if (options && options.className) el.classList.add(options.className);
     if (options && options.compact) {
       el.classList.add('chat-state-compact');

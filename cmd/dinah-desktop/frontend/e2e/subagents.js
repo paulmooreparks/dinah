@@ -97,8 +97,8 @@ const { launch } = require('./lib/page');
   let panel = await openMenu();
   let menu = await menuOf(panel);
   ok('its menu lists each subagent with its state as a glyph and a word, then Show All Subagents', menu.length === 4 &&
-    menu[0].label === 'Explore' && menu[0].detail === 'Running: Find where the parser lives' && menu[0].glyph === 'var(--glyph-diamond)' &&
-    menu[1].label === 'Verify' && menu[1].detail === 'Running, under Explore: Run the parser tests' && menu[1].glyph === 'var(--glyph-diamond)' &&
+    menu[0].label === 'Explore' && menu[0].detail === 'Running: Find where the parser lives' && menu[0].glyph === 'var(--glyph-play)' &&
+    menu[1].label === 'Verify' && menu[1].detail === 'Running, under Explore: Run the parser tests' && menu[1].glyph === 'var(--glyph-play)' &&
     menu[2] === '-' && menu[3].label === 'Show All Subagents', JSON.stringify(menu));
   await p.locator(panel + ' .menu-action').filter({ hasText: 'Verify' }).click();
   await p.waitForSelector('.win[data-win-kind=subagent] [data-sa-name]');
@@ -129,7 +129,7 @@ const { launch } = require('./lib/page');
   const inline = () => p.evaluate(w => Array.from(document.querySelectorAll(w + ' .subagent-row')).map(li => ({ id: li.dataset.subagent, text: li.textContent, state: li.querySelector('.subagent-state') && li.querySelector('.subagent-state').textContent, open: !!li.querySelector('button.subagent-open') })), win);
   let rows = await inline();
   ok('the chat shows a row where the agent handed work to a subagent, with its name, task, state and Open', rows.length === 1 && rows[0].id === 'sub-a' && rows[0].text.includes('Explore') && rows[0].text.includes('Find where the parser lives') && rows[0].state === 'Running' && rows[0].open, JSON.stringify(rows));
-  ok('the state is a glyph and a word', await p.evaluate(w => { const b = document.querySelector(w + ' .subagent-row .subagent-state'); return b.classList.contains('accent') && getComputedStyle(b, '::before').content !== 'none'; }, win));
+  ok('the state is a glyph and a word, Running as PUDL\'s working state badge', await p.evaluate(w => { const b = document.querySelector(w + ' .subagent-row .subagent-state'); return b.dataset.state === 'working' && b.textContent === 'Running' && getComputedStyle(b, '::before').getPropertyValue('--glyph').trim() === getComputedStyle(document.documentElement).getPropertyValue('--glyph-play').trim(); }, win));
   const chips = () => p.evaluate(w => { const el = document.querySelector(w), c = el.querySelector('.chat-subagents-chip'), wk = el.querySelector('.chat-working-chip .chat-state-working'); return { subagents: c && !c.hidden ? c.textContent : '', working: !!wk && !wk.hidden, line: el.querySelector('.chat-working-chip').title }; }, win);
   // The engine's execution state counts the running subagents (exec.subagents,
   // docs/design/background-activity.md).

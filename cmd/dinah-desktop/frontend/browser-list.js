@@ -128,7 +128,9 @@
     var a = node('a', 'md-item'); a.href = '#';
     var line = node('span', 'browser-row-line');
     line.appendChild(node('span', 'browser-row-title session-title', o.title));
-    if (o.badge && o.badge.text != null && o.badge.text !== '') line.appendChild(badge(o.badge));
+    // A ready-made chip, such as a chat's state chip, is placed as it is.
+    if (o.badge instanceof Element) line.appendChild(o.badge);
+    else if (o.badge && o.badge.text != null && o.badge.text !== '') line.appendChild(badge(o.badge));
     a.appendChild(line);
     [].concat(o.meta || []).filter(Boolean).forEach(function (m) {
       var meta = node('span', 'md-meta' + (o.clamp ? ' browser-row-clamp' : ''), m); a.appendChild(meta);
@@ -147,6 +149,8 @@
   function badge(o) {
     var b = node('span', (o.chip ? 'chip' : 'badge') + ' browser-row-badge' + (o.kind ? ' ' + o.kind : '') + (o.cls ? ' ' + o.cls : ''), String(o.text));
     if (o.glyph) b.style.setProperty('--badge-glyph', 'var(--glyph-' + o.glyph + ')');
+    // An execution state is PUDL's state badge (data-state, 0.96.4).
+    if (o.state) b.dataset.state = o.state;
     Object.entries(o.variables || {}).forEach(function (entry) { b.style.setProperty(entry[0], entry[1]); });
     if (o.label) { b.setAttribute('aria-label', o.label); b.title = o.label; }
     return b;

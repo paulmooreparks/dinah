@@ -1915,7 +1915,7 @@
       li.className = 'activity-row arriving-row'; li.dataset.arriving = String(msg.id);
       var card = document.createElement('section');
       card.className = 'card arriving-card';
-      card.innerHTML = '<div class="card-head"><span class="badge warn">Waiting</span><span class="card-title arriving-heading"></span></div><div class="card-body msg-text arriving-text"></div>';
+      card.innerHTML = '<div class="card-head"><span class="badge" data-state="waiting" title="Waiting to be delivered" aria-label="Waiting to be delivered">Waiting</span><span class="card-title arriving-heading"></span></div><div class="card-body msg-text arriving-text"></div>';
       card.querySelector('.arriving-heading').textContent = 'Arriving: message from ' + arrivingFrom(msg);
       card.querySelector('.arriving-text').textContent = msg.text || '';
       li.appendChild(card);

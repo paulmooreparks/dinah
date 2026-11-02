@@ -28,7 +28,8 @@
      row shows the same glyph as the badge (app.js, the chat's Subagents
      menu). */
   var STATES = {
-    running: { kind: 'accent', word: 'Running', glyph: 'diamond' },
+    // Running is an execution state: PUDL's working state badge, as a chat's.
+    running: { kind: '', state: 'working', word: 'Running', glyph: 'play' },
     completed: { kind: 'positive', word: 'Completed', glyph: 'circle', tone: 'positive' },
     failed: { kind: 'danger', word: 'Failed', glyph: 'square', tone: 'danger' },
     cancelled: { kind: 'subagent-cancelled', word: 'Cancelled', glyph: 'stop' },
@@ -48,7 +49,7 @@
     el.className = 'badge subagent-state ' + st.kind;
     el.textContent = st.word;
     el.title = stateTitle(sub);
-    el.dataset.state = sub.state || '';
+    el.dataset.state = st.state || sub.state || '';
     return el;
   }
 

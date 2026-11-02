@@ -30,7 +30,8 @@
     });
   }
   var STATUS = {
-    running: { text: 'Running', kind: 'accent' }, waiting: { text: 'Waiting', kind: 'warn', label: 'Waiting for someone in Notifications' },
+    // Running and waiting are execution states: PUDL's state badge, as a chat's.
+    running: { text: 'Running', state: 'working', label: 'Running' }, waiting: { text: 'Waiting', state: 'waiting', label: 'Waiting for someone in Notifications' },
     done: { text: 'Done', kind: 'positive' }, failed: { text: 'Failed', kind: 'danger' }, cancelled: { text: 'Stopped' }
   };
   function artifactButton(artifact, ws) { return button('Open '+artifact.name,function () { window.dinahWorkbench.open({kind:'applet-artifact',path:artifact.id,workspace:ws,title:artifact.name}).catch(error); }); }
