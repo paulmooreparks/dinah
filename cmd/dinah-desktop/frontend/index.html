@@ -97,6 +97,7 @@
   <script src="pudl/pudl-menu.js" defer></script>
   <script src="pudl/pudl-md.js" defer></script>
   <script src="pudl/pudl-tree.js" defer></script>
+  <script src="pudl/pudl-reorder.js" defer></script>
   <script src="pudl/pudl-disclose.js" defer></script>
   <script src="pudl/pudl-zoom.js" defer></script>
   <script src="pudl/pudl-rows.js" defer></script>
@@ -317,7 +318,7 @@
                before anything folds into a menu. -->
           <div class="toolbar ws-commands" role="toolbar" aria-label="Workspace Commands" data-toolbar-fold data-toolbar-captions="none">
             <div class="toolbar-group" role="group" aria-label="Workspace" data-toolbar-group="Workspace" data-toolbar-glyph="folder" data-toolbar-priority="20">
-              <div class="menu browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions" aria-label="Actions"><span class="glyph" style="--glyph: var(--glyph-menu)" aria-hidden="true"></span><span class="toolbar-words">Actions</span></button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-workspace" title="Make a workspace on a main folder you choose">New Workspace…</button><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button><hr class="menu-sep"><button type="button" class="menu-action" data-cmd="workspace-section-up" data-command-label disabled>Move Section Up</button><button type="button" class="menu-action" data-cmd="workspace-section-down" data-command-label disabled>Move Section Down</button></nav></div>
+              <div class="menu browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions" aria-label="Actions"><span class="glyph" style="--glyph: var(--glyph-menu)" aria-hidden="true"></span><span class="toolbar-words">Actions</span></button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-workspace" title="Make a workspace on a main folder you choose">New Workspace…</button><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button><hr class="menu-sep"><button type="button" class="menu-action" data-cmd="workspace-section-up" data-command-label disabled>Move Section Up</button><button type="button" class="menu-action" data-cmd="workspace-section-down" data-command-label disabled>Move Section Down</button><button type="button" class="menu-action" data-cmd="workspace-sections-reorder" disabled>Reorder Sections</button></nav></div>
               <button type="button" class="btn btn-sm" id="workspace-source-choose" title="Add a folder on this computer to this workspace" hidden><span class="glyph" style="--glyph: var(--glyph-plus)" aria-hidden="true"></span><span class="toolbar-words">Add Source…</span></button>
             </div>
             <div class="toolbar-group" role="group" aria-label="Chats" data-toolbar-group="Chats" data-toolbar-glyph="comments" data-toolbar-priority="30" data-toolbar-end>
@@ -326,6 +327,12 @@
           </div>
         </div>
 
+        <!-- Reorder Sections (workspace-sections.js): shown only while the
+             sections are being put in order, which Done or Escape ends. -->
+        <div class="ws-reorder-bar" hidden>
+          <p class="form-help" id="ws-reorder-help">Drag a section by its grip, or press Up or Down on a grip.</p>
+          <button type="button" class="btn btn-sm" id="ws-reorder-done">Done</button>
+        </div>
         <section class="browser-group workspace-list" data-section="workspace-pins" id="workspace-pins-group">
           <div class="browser-group-head"><button type="button" class="tree-toggle browser-group-toggle" aria-labelledby="workspace-pins-title"></button><h3 class="browser-group-title" id="workspace-pins-title">Pinned</h3></div>
           <div class="browser-group-body">

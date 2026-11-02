@@ -736,3 +736,20 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 
 .status-tray-measure > * { flex: none; }
 .status-tray-measure-items { display: inline-flex; align-items: center; }
+
+/* Reorder Sections (workspace-sections.js, PUDL's pudl-reorder.js): while
+   the pane's sections are put in order, every section's body is hidden, so
+   each comes back as it was when the mode ends, and a movable heading
+   shows PUDL's grip where its expand toggle stands. The bar with Done is
+   shown only then. */
+#sidebar[data-reorder-active] .browser-group > .browser-group-body { display: none; }
+#sidebar[data-reorder-active] > .browser-group[data-reorder-id] > .browser-group-head > .browser-group-toggle { display: none; }
+.section-grip:empty { display: none; }
+/* The grip takes the toggle's box exactly, 16px as PUDL draws a tree toggle,
+   centred where the toggle's centre was, so a heading's words do not move
+   as the mode starts or ends. */
+.section-grip:not(:empty) { flex: 0 0 16px; inline-size: 16px; min-inline-size: 0; display: flex; justify-content: center; }
+.section-grip > .reorder-grip { margin-inline: 0; }
+.ws-reorder-bar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); }
+.ws-reorder-bar[hidden] { display: none; }
+.ws-reorder-bar > .form-help { margin: 0; flex: 1 1 auto; }

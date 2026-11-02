@@ -5,9 +5,9 @@
 // Alt+Down; a move at an end is offered but disabled. Moving keeps focus on
 // the heading and does not scroll the pane. The order is kept across a
 // reload and shared by every workspace, and a section added later, such as
-// an applet's, goes at the end. (Reordering by dragging needs a PUDL
-// reorderable-list contract, which does not exist yet.) The fixture is the
-// Sources check's.
+// an applet's, goes at the end. Reorder Sections, on PUDL's reorderable
+// list, collapses the sections and moves them by grip, key or drag (see the
+// end). The fixture is the Sources check's.
 const { launch, PAGE } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -163,5 +163,52 @@ const { launch, PAGE } = require('./lib/page');
     await page.waitForTimeout(800);
     ok('another workspace shows the same order', await is(['Pinned', 'In Progress', 'Sources', 'Chats'])() && await page.evaluate(() => /Other Work/.test(document.getElementById('ws-select').selectedOptions[0].textContent)), JSON.stringify(await order()));
     await t.shot('section-order', { clip: await page.locator('#sidebar').boundingBox() });
+
+    // Reorder Sections (PUDL's reorderable list, 0.97.0): from Actions,
+    // every section's body is hidden and each movable heading has PUDL's
+    // grip where its toggle stands, Pinned none. Up and Down on a grip and a
+    // drag of a grip move a section and save the order; Done and Escape end
+    // the mode, and every section is open or closed as it was.
+    const bodies = () => page.evaluate(() => [...document.querySelectorAll('#sidebar .browser-group[data-section]:not([hidden])')].map(s => s.dataset.section + ':' + (s.querySelector(':scope > .browser-group-body').getClientRects().length > 0)));
+    const openAtStart = await bodies();
+    const titlesAt = () => page.evaluate(() => [...document.querySelectorAll('#sidebar .browser-group[data-section]:not([hidden]) > .browser-group-head .browser-group-title')].map(t => Math.round(t.getBoundingClientRect().left)));
+    const titlesBefore = await titlesAt();
+    const enter = async () => { await page.click('#ws-actions-button'); await page.locator('#ws-actions [data-cmd="workspace-sections-reorder"]').click(); await page.locator('#sidebar .reorder-grip').first().waitFor(); };
+    await enter();
+    const mode = await page.evaluate(() => ({
+      grips: [...document.querySelectorAll('#sidebar .reorder-grip')].map(g => [g.closest('[data-section]').dataset.section, g.getAttribute('aria-label') || g.textContent, !!g.closest('.browser-group-head')]),
+      pinned: !!document.querySelector('#workspace-pins-group .reorder-grip'),
+      open: [...document.querySelectorAll('#sidebar .browser-group[data-section]')].filter(s => s.querySelector(':scope > .browser-group-body').getClientRects().length > 0).length,
+      toggles: [...document.querySelectorAll('#sidebar > .browser-group[data-reorder-id] .browser-group-toggle')].filter(b => b.getClientRects().length > 0).length,
+      bar: !document.querySelector('.ws-reorder-bar').hidden,
+      focus: document.activeElement && document.activeElement.matches('.reorder-grip')
+    }));
+    const titlesDuring = await titlesAt();
+    ok('no heading\'s words move as the mode starts', JSON.stringify(titlesDuring) === JSON.stringify(titlesBefore), JSON.stringify({ titlesBefore, titlesDuring }));
+    await t.shot('section-reorder-mode', { clip: await page.locator('#sidebar').boundingBox() });
+    ok('Reorder Sections hides every body and puts a grip on each movable heading in its toggle\'s place', mode.grips.length === 3 && mode.grips.every(g => g[2] && /^Move /.test(g[1])) && !mode.pinned && mode.open === 0 && mode.toggles === 0 && mode.bar && mode.focus, JSON.stringify(mode));
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(200);
+    const savedOrder = () => page.evaluate(() => JSON.parse(dinahUIState.get('dinah-workspace-section-order', '[]')));
+    ok('Down on a grip moves its section one place and saves the order', await is(['Pinned', 'Sources', 'In Progress', 'Chats'])() && (await savedOrder()).slice(0, 3).join() === 'workspace-sources,workspace-in-progress,workspace-chats', JSON.stringify({ order: await order(), saved: await savedOrder() }));
+    // A drag of Chats' grip to above Sources' heading.
+    const grip = page.locator('#sidebar [data-section="workspace-chats"] .reorder-grip'), target = await page.locator('#sidebar [data-section="workspace-sources"] > .browser-group-head').boundingBox(), from = await grip.boundingBox();
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2); await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 4 });
+    await page.mouse.move(target.x + 20, target.y + 2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    ok('dragging a grip moves its section and saves the order', await is(['Pinned', 'Chats', 'Sources', 'In Progress'])() && (await savedOrder())[0] === 'workspace-chats', JSON.stringify({ order: await order(), saved: await savedOrder() }));
+    ok('the frozen top and the applets\' place keep their places', await page.evaluate(() => document.getElementById('sidebar').firstElementChild.classList.contains('ws-frozen') && document.getElementById('sidebar').lastElementChild.id === 'workspace-applets'));
+    await page.locator('#ws-reorder-done').click();
+    await page.waitForFunction(() => !document.querySelector('#sidebar .reorder-grip'));
+    const afterDone = await bodies();
+    ok('Done ends the mode and every section is open or closed as it was', JSON.stringify(afterDone.map(x => x.split(':')[1])) === JSON.stringify(openAtStart.map(x => x.split(':')[1])) && await page.evaluate(() => document.querySelector('.ws-reorder-bar').hidden && document.activeElement && document.activeElement.matches('.browser-group-toggle, #ws-actions-button')), JSON.stringify({ openAtStart, afterDone }));
+    await enter();
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('#sidebar .reorder-grip'));
+    ok('Escape ends the mode too, leaving the order as it was', await is(['Pinned', 'Chats', 'Sources', 'In Progress'])());
+    await page.reload(); await page.waitForTimeout(1200);
+    ok('the order made in Reorder Sections is kept across a reload', await is(['Pinned', 'Chats', 'Sources', 'In Progress'])(), JSON.stringify(await order()));
   } finally { await t.close(); }
 })();

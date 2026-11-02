@@ -40,6 +40,7 @@
   /* Puts the sections in the saved order, the ones it does not name after
      them in the order they are in, all just before the applets' place. */
   function apply() {
+    prepare();
     var sections = movable(), order = saved(), at = anchor();
     if (!sections.length || !at) return;
     var ranked = sections.slice().sort(function (a, b) {
@@ -56,8 +57,8 @@
   /* Writes the order the sections are in now, keeping the places of sections
      the saved order has that this pane does not show, such as another
      workspace's applet's. */
-  function record() {
-    var now = movable().map(function (s) { return s.dataset.section; }), order = saved(), queue = now.slice();
+  function record(ids) {
+    var now = ids || movable().map(function (s) { return s.dataset.section; }), order = saved(), queue = now.slice();
     var next = order.map(function (id) { return now.indexOf(id) >= 0 ? queue.shift() : id; });
     queue.forEach(function (id) { next.push(id); });
     save(next);
@@ -88,9 +89,62 @@
       { label: 'Move ' + name + ' Down', disabled: !canMove(section, 1), run: function () { move(section, 1); } }
     ];
   }
+  /* Reorder Sections (Paul's decision of 2 November, the second path): the
+     pane is PUDL's reorderable list (pudl-reorder.js, 0.97.0). Its frozen
+     top, with the toolbar and Pinned, and the applets' place at its end are
+     fixed, so they keep their places; every other section is an item, whose
+     grip stands where its expand toggle does. While the mode is on, every
+     section's body is hidden (app.css, data-reorder-active), so each comes
+     back as it was when the mode ends; Done and Escape end it. A move
+     saves the order before PUDL makes it, so the pane's own ordering
+     (apply) agrees with the move and never undoes it. */
+  function prepare() {
+    var p = pane();
+    if (!p) return;
+    if (!p.hasAttribute('data-reorder')) { p.setAttribute('data-reorder', 'off'); p.setAttribute('data-reorder-done', 'ws-reorder-done'); }
+    p.querySelectorAll(':scope > .ws-frozen, :scope > #workspace-applets').forEach(function (el) { el.setAttribute('data-reorder-fixed', ''); });
+    movable().forEach(function (section) {
+      section.setAttribute('data-reorder-id', section.dataset.section);
+      section.setAttribute('data-reorder-label', nameOf(section));
+      var head = section.querySelector(':scope > .browser-group-head');
+      if (head && !head.querySelector(':scope > [data-reorder-grip]')) {
+        var slot = document.createElement('span'); slot.className = 'section-grip'; slot.setAttribute('data-reorder-grip', '');
+        head.insertBefore(slot, head.firstChild);
+      }
+    });
+  }
+  function reordering() { var p = pane(); return !!p && p.getAttribute('data-reorder') === 'on'; }
+  function startReorder() {
+    var p = pane();
+    if (!p || !window.pudlReorder || reordering()) return;
+    prepare();
+    window.pudlReorder.on(p);
+  }
   function start() {
     var p = pane();
     if (!p) return;
+    prepare();
+    p.addEventListener('pudl:reorder', function (e) {
+      var ids = movable().map(function (s) { return s.dataset.section; });
+      record((e.detail.order || []).filter(function (id) { return ids.indexOf(id) >= 0; }));
+      if (window.dinahCommands) window.dinahCommands.changed();
+    });
+    var lastGrip = null;
+    p.addEventListener('focusin', function (e) { if (e.target.matches && e.target.matches('.reorder-grip')) lastGrip = e.target.closest('.browser-group[data-section]'); });
+    p.addEventListener('pudl:reorder-mode', function (e) {
+      var bar = p.querySelector('.ws-reorder-bar'), on = !!(e.detail && e.detail.on);
+      if (bar) bar.hidden = !on;
+      if (on) {
+        var first = p.querySelector('.reorder-grip');
+        if (first) first.focus({ preventScroll: true });
+      } else {
+        // Focus goes back to the heading whose grip had it, or to Actions.
+        var toggle = lastGrip && lastGrip.isConnected && lastGrip.querySelector(':scope > .browser-group-head .browser-group-toggle');
+        (toggle || document.getElementById('ws-actions-button')).focus({ preventScroll: true });
+        lastGrip = null;
+      }
+      if (window.dinahCommands) window.dinahCommands.changed();
+    });
     // The heading's menu: its context menu, which PUDL opens on a right-click,
     // Shift+F10 or the Menu key.
     p.addEventListener('pudl:contextmenu', function (e) {
@@ -120,6 +174,8 @@
       window.dinahCommands.register({ id: 'workspace-section-down', menu: 'view', inline: true,
         label: function () { return current ? 'Move ' + nameOf(current) + ' Down' : 'Move Section Down'; },
         enabled: function () { return canMove(current, 1); }, run: function () { if (current) move(current, 1); } });
+      window.dinahCommands.register({ id: 'workspace-sections-reorder', menu: 'view', inline: true, label: 'Reorder Sections',
+        enabled: function () { return !!window.pudlReorder && !reordering() && movable().filter(shown).length > 1; }, run: startReorder });
     }
     // Actions draws its rows for the heading that last had focus as it opens.
     var actions = document.getElementById('ws-actions');
