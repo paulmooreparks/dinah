@@ -34,8 +34,14 @@
   function queueAgentEvent(name, data, done) {
     agentEvents.push({ name: name, data: data, done: done, index: 0 });
     window.dinahRender.enqueue(agentEventKey, null, function (deadline) {
-      var count = 0;
-      while (agentEventHead < agentEvents.length && count++ < 128 && (count === 1 || performance.now() < deadline)) {
+      var count = 0, last = '';
+      /* Events are applied a frame's budget at a time, at least one a
+         frame. Chats' session states that arrive together are applied in
+         the same frame, past the budget, so the taskbar, stacks and title
+         chips never show some chats in their new state and others in their
+         old one for a frame. */
+      function together() { var next = agentEvents[agentEventHead]; return last === 'agent:session' && !!next && next.name === 'agent:session'; }
+      while (agentEventHead < agentEvents.length && count++ < 128 && (count === 1 || performance.now() < deadline || together())) {
         var event = agentEvents[agentEventHead], complete = true;
         try {
           if (event.done) event.done();
@@ -52,6 +58,7 @@
           } else dispatchEvent(event.name, event.data);
         } catch (error) { setTimeout(function (e) { return function () { throw e; }; }(error), 0); }
         if (complete) { agentEvents[agentEventHead++] = null; }
+        last = event.done ? '' : event.name;
       }
       if (agentEventHead < agentEvents.length) return true;
       agentEvents = []; agentEventHead = 0;
