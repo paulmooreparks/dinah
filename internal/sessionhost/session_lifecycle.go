@@ -148,7 +148,21 @@ func (l *SessionLifecycle) NewAdopting(ws, provider, adopt string) (Info, error)
 	return l.newSession(ws, provider, true, adopt)
 }
 
-func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adopt string) (Info, error) {
+// AllocationNotCreatedError marks a failure before dispatch or an explicit
+// rejection of session/new. Transport loss and post-allocation errors do not
+// carry this marker, even when a later operation returns a JSON-RPC error.
+type AllocationNotCreatedError struct{ Err error }
+
+func (e *AllocationNotCreatedError) Error() string { return e.Err.Error() }
+func (e *AllocationNotCreatedError) Unwrap() error { return e.Err }
+
+func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adopt string) (_ Info, resultErr error) {
+	allocationMayExist := false
+	defer func() {
+		if resultErr != nil && !allocationMayExist {
+			resultErr = &AllocationNotCreatedError{Err: resultErr}
+		}
+	}()
 	provider = l.host.NormalizeProvider(provider)
 	if ws == "" || !filepath.IsAbs(ws) {
 		return Info{}, errors.New("choose an absolute workspace path first")
@@ -189,7 +203,12 @@ func (l *SessionLifecycle) newSession(ws, provider string, continuing bool, adop
 	} else if servers, err = l.host.AdoptBusServer(adopt, ws, servers); err != nil {
 		return Info{}, fmt.Errorf("keep the chat's place on the bus: %w", err)
 	}
+	allocationMayExist = true
 	if err := l.host.Call(conn, "session/new", l.host.SessionParams(provider, "", ws, servers), &ns); err != nil {
+		var refusal *acp.Error
+		if errors.As(err, &refusal) {
+			allocationMayExist = false
+		}
 		return Info{}, err
 	}
 	if err := channel.Bind(ns.SessionID); err != nil {
