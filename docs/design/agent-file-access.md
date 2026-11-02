@@ -78,3 +78,5 @@ The Team Lead settled two questions on 2 November 2026 (messages 3357 and 3359),
 The default rules can be turned off but not edited or removed. Their paths and reasons are read-only, each has a persistent switch, and turning one off asks first and is recorded in the log with its time. Protected rules have no switch. Custom rules keep Add and Remove.
 
 A refused read does not go to Notifications. It is the policy working, and a notification for every refusal would teach Paul to dismiss them. It goes to the log, and the chat whose read was refused shows a passive count of refused reads in its status detail and tooltip, which clears when he opens the log.
+
+A live attachment crosses workspaces (message 3431). A file a chat attaches from its own workspace can be read by the chat it is sent to in any other workspace, since the deny list already applied when it was attached and the sender could read it anyway. The page says so under the rules list.
