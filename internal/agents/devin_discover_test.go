@@ -22,6 +22,18 @@ func copyFile(t *testing.T, from, to string) {
 	}
 }
 
+// inDir reports whether path names a file directly inside dir, compared by
+// the folders' identity: the temporary folders may be spelled with 8.3 short
+// names, as on CI runners, while discovery reports the long form.
+func inDir(path, dir string) bool {
+	a, err := os.Stat(filepath.Dir(path))
+	if err != nil {
+		return false
+	}
+	b, err := os.Stat(dir)
+	return err == nil && os.SameFile(a, b)
+}
+
 // On a machine where Devin Desktop is on the search path ahead of the Devin
 // command line, and a .cmd launcher and an old command line that does not
 // answer are there too, FindDevin passes each over, says why, and uses the
@@ -45,13 +57,13 @@ func TestFindDevinPassesOverWhatIsNotTheCommandLine(t *testing.T) {
 	var started []string
 	probeACP = func(path string) (acp.InitializeResult, error) {
 		started = append(started, path)
-		if strings.HasPrefix(path, cli) {
+		if inDir(path, cli) {
 			return acp.InitializeResult{ProtocolVersion: ProtocolVersion, AgentInfo: &acp.Implementation{Name: "devin", Version: "3000.10.48"}}, nil
 		}
 		return acp.InitializeResult{}, errors.New("unknown command acp")
 	}
 	path, found := FindDevin(nil)
-	if !strings.HasPrefix(path, cli) {
+	if !inDir(path, cli) {
 		t.Fatalf("found %q; candidates %+v", path, found)
 	}
 	// A Devin installed on this machine, on the account's own search path,
@@ -64,7 +76,7 @@ func TestFindDevinPassesOverWhatIsNotTheCommandLine(t *testing.T) {
 	}
 	// Devin Desktop and the launcher are never started.
 	for _, p := range started {
-		if strings.HasPrefix(p, desktop) || strings.HasPrefix(p, launcher) {
+		if inDir(p, desktop) || inDir(p, launcher) {
 			t.Fatalf("started %q", started)
 		}
 	}
@@ -93,7 +105,7 @@ func TestFindDevinLeavesTwoWorkingCopiesToThePerson(t *testing.T) {
 		return acp.InitializeResult{ProtocolVersion: ProtocolVersion}, nil
 	}
 	releaseOf = func(path string) string {
-		if strings.HasPrefix(path, stale) {
+		if inDir(path, stale) {
 			return "devin 2026.4.15-0"
 		}
 		return "devin 3000.10.48 (7e8e528a)"
@@ -103,7 +115,7 @@ func TestFindDevinLeavesTwoWorkingCopiesToThePerson(t *testing.T) {
 	if path != "" || len(choices) != 2 {
 		t.Fatalf("path %q, candidates %+v", path, found)
 	}
-	if i := LikelyCurrent(choices); i < 0 || !strings.HasPrefix(choices[i].Path, current) {
+	if i := LikelyCurrent(choices); i < 0 || !inDir(choices[i].Path, current) {
 		t.Fatalf("likely %d of %+v", i, choices)
 	}
 	msg := DevinMissing(found, "Devin 3.10.48")
