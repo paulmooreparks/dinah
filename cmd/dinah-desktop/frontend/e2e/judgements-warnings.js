@@ -48,7 +48,8 @@ const path = require('path');
     t.ok('keyboard opening Status enters its first row',await statusMenu.locator('.menu-action').first().evaluate(el=>el===document.activeElement));
     await p.keyboard.press('Escape');
     await statusMenu.waitFor({state:'hidden'});
-    await foldedControl.focus();
+    await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    t.ok('closing Status returns to its opener',await foldedControl.evaluate(el=>el===document.activeElement),await p.evaluate(()=>document.activeElement.id||document.activeElement.className));
    }
    const geometry=await p.evaluate(async()=>{
     const samples=[],failures=[];

@@ -734,11 +734,10 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 #sidebar[data-reorder-active] .browser-group > .browser-group-body { display: none; }
 #sidebar[data-reorder-active] > .browser-group[data-reorder-id] > .browser-group-head > .browser-group-toggle { display: none; }
 .section-grip:empty { display: none; }
-/* The grip takes the toggle's box exactly, 16px as PUDL draws a tree toggle,
-   centred where the toggle's centre was, so a heading's words do not move
-   as the mode starts or ends. */
+/* The grip's slot takes the toggle's box exactly, 16px as PUDL draws a
+   tree toggle, so a heading's words do not move as the mode starts or ends.
+   The grip inside it is PUDL's, drawn with PUDL's own spacing. */
 .section-grip:not(:empty) { flex: 0 0 16px; inline-size: 16px; min-inline-size: 0; display: flex; justify-content: center; }
-.section-grip > .reorder-grip { margin-inline: 0; }
 .ws-reorder-bar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); }
 .ws-reorder-bar[hidden] { display: none; }
 .ws-reorder-bar > .form-help { margin: 0; flex: 1 1 auto; }
