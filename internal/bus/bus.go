@@ -97,6 +97,7 @@ type Message struct {
 	FromName           string
 	From               string
 	FromTitle          string // joined session title, without a captured alias fallback
+	FromKnown          bool   // the sending session is still on the bus, so From is its current display title
 	FromWorkspace      string // workspace name, empty for the person
 	FromWorkspaceLabel string // workspace label, empty for the person
 	ToLabel            string
@@ -757,6 +758,7 @@ func scanMessage(r scanner) (Message, error) {
 		&fromKnown, &fromTitle, &toKind, &toKnown, &toTitle, &toWS, &toWSLabel, &m.RoomTitle, &m.mentions, &m.RelayLead)
 	m.ForPerson = m.RelayLead != ""
 	m.FromTitle = fromTitle
+	m.FromKnown = fromKnown
 	m.From = m.FromName
 	if fromKnown {
 		m.From = DisplayTitle(fromTitle, m.FromWorkspaceLabel)
