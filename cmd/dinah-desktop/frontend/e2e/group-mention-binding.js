@@ -52,5 +52,13 @@ const { launch } = require('./lib/page');
     ok('a member\'s title typed whole, spaces and all, asks that member, as does a second', JSON.stringify((member.mentions || []).slice().sort()) === JSON.stringify(['window-d1', 'window-r1']), JSON.stringify(member));
     const inside = await sendAs('not at a word start', async () => { await box.fill('mail docs@everyone.example and @Reviewer'); });
     ok('an @ inside a word, or a title that runs on into longer text, asks no one', JSON.stringify(inside.mentions) === '[]', JSON.stringify(inside));
+    const bracketed = await sendAs('after punctuation', async () => { await box.fill('(@everyone) please'); });
+    ok('a mention after punctuation, as in "(@everyone)", asks every member', JSON.stringify(bracketed.mentions) === JSON.stringify(['everyone']), JSON.stringify(bracketed));
+    const quoted = await sendAs('in quotation marks', async () => { await box.fill('She wrote "@everyone, look" and ‘@Review’ replied.'); });
+    ok('a quoted "@everyone" and a quoted title bind', JSON.stringify((quoted.mentions || []).slice().sort()) === JSON.stringify(['everyone', 'window-r1']), JSON.stringify(quoted));
+    // A letter that grows when lowercased, before the mention, does not
+    // shift where its edges are read.
+    const grown = await sendAs('after a letter that grows', async () => { await box.fill('İİİ @everyone please, and İİ@Review'); });
+    ok('a letter that changes length when lowercased does not move a mention\'s edges', JSON.stringify(grown.mentions) === JSON.stringify(['everyone']), JSON.stringify(grown));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
