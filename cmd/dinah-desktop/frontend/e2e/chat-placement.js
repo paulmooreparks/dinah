@@ -70,8 +70,15 @@ const { launch } = require('./lib/page');
     await settle();
     const after2 = await place(await keyOf('claude:handed-next'));
     ok('a window whose opening is handed to the continuation keeps its place, size and taskbar slot', same(before2, after2) && !(await keyOf('claude:handed')), JSON.stringify({ before2, after2 }));
-    await p.locator('.win[data-win="' + (await keyOf('claude:handed-next')) + '"]').getByText('The handed chat carries on here.').first().waitFor({ state: 'attached' });
-    ok('and the window shows the continuation\'s own saved copy', await p.locator('.win[data-win="' + (await keyOf('claude:handed-next')) + '"]').getByText('Continue the handed chat.').count() === 1);
+    // The saved copy is judged once the display has settled: each of its lines
+    // exactly once, still so after a further pause. A doubled or cleared copy
+    // fails; a frame caught mid-draw does not. The counts go with a failure.
+    const handedWin = p.locator('.win[data-win="' + (await keyOf('claude:handed-next')) + '"]');
+    const copyLines = async () => [await handedWin.getByText('Continue the handed chat.').count(), await handedWin.getByText('The handed chat carries on here.').count()];
+    for (let waited = 0, lines = await copyLines(); waited < 5000 && !(lines[0] === 1 && lines[1] === 1); waited += 100, lines = await copyLines()) await p.waitForTimeout(100);
+    await settle();
+    const lines = await copyLines();
+    ok('and the window shows the continuation\'s own saved copy', lines[0] === 1 && lines[1] === 1, JSON.stringify({ person: lines[0], agent: lines[1] }));
     // 2b. The continuation already has a window: that one comes forward and
     // the other closes, and neither is left loading.
     const twinKey = await openChat('claude:twin-next'); await settle();
