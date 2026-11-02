@@ -832,7 +832,7 @@
         dom.dataset.kind = nd.attrs.kind;
         var inner = document.createElement('div');
         dom.replaceChildren(inner);
-        o.draw(inner, nd.attrs.html || '<pre>' + (nd.attrs.src || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>', nd.attrs.diagrams || []);
+        o.draw(inner, nd.attrs.html || '<pre>' + window.dinahHTML.text(nd.attrs.src || '') + '</pre>', nd.attrs.diagrams || []);
       }
       function edit() {
         if (box) return;

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const cache = new Map();
-  const escape = value => String(value).replace(/[&<>"]/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'})[c]);
+  const escape = value => window.dinahHTML.text(value);
   function links() { return [...document.querySelectorAll('link[data-pudl-skin]')].map(link => ({id:link.dataset.pudlSkin, href:link.href})); }
   function sheets() { return [...document.querySelectorAll('link[rel="stylesheet"]')].map(link => link.href); }
   function markup() {

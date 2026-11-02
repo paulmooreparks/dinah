@@ -123,6 +123,12 @@
     });
     return t.content;
   }
+  /* Text as HTML that shows it as it is: the five characters that markup
+     reads, &, <, >, " and ', become their references, so the result is
+     safe in an element's content and in a quoted attribute alike. This is
+     the page's one escaper (frontend_policy_test.go). */
+  var REFERENCES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  function text(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) { return REFERENCES[c]; }); }
   // The HTML as a string, made safe.
   function clean(html, options) {
     var box = document.createElement('div');
@@ -130,5 +136,5 @@
     return box.innerHTML;
   }
 
-  window.dinahHTML = Object.freeze({ attr: attr, fragment: fragment, clean: clean, declarations: declarations, safeValue: safeValue });
+  window.dinahHTML = Object.freeze({ attr: attr, fragment: fragment, clean: clean, text: text, declarations: declarations, safeValue: safeValue });
 })();
