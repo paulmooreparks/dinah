@@ -73,7 +73,7 @@ const { launch, PAGE } = require('./lib/page');
     // A successful overview that omits the known room starts a separate lookup.
     await p.evaluate(() => { __omitRoom = true; __pauseLookup = true; return dinahBus.load(); });
     await p.waitForFunction(() => __heldLookups.length === 1);
-    ok('a missing overview keeps the known draft, members and conversation while checking', await box().isDisabled() && await box().inputValue() === 'Keep this unsent draft' && (await canonical().innerText()).includes('The loaded conversation stays readable.') && await canonical().locator('.member-title', { hasText: 'Writer' }).count() === 1 && !(await canonical().innerText()).includes('has been deleted'));
+    ok('a missing overview keeps the known draft, members and conversation while checking', await box().isDisabled() && await box().inputValue() === 'Keep this unsent draft' && (await canonical().innerText()).includes('The loaded conversation stays readable.') && await canonical().locator('.member-name', { hasText: 'Writer' }).count() === 1 && !(await canonical().innerText()).includes('has been deleted'));
     await p.evaluate(() => dinahBus.load());
     await p.waitForFunction(() => __heldLookups.length === 2);
     await p.evaluate(() => { __room.title = 'Renamed During Lookup'; __pauseLookup = false; __heldLookups[1].resolve({ state: 'resolved', room: structuredClone(__room) }); });

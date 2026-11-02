@@ -100,9 +100,19 @@ const { launch } = require('./lib/page');
       await pane.locator('.browser-commands').getByRole('button', { name: 'New Message…' }).count() === 1);
     const sections = await pane.locator('[data-section]').evaluateAll(els => els.map(e => e.dataset.section));
     ok('the pane has the inbox, the group chats, the chats and the trusted links, in that order', JSON.stringify(sections) === JSON.stringify(['bus-inbox', 'bus-groups', 'bus-chats', 'bus-links']), JSON.stringify(sections));
-    const inbox = await pane.locator('[data-section="bus-inbox"]').innerText();
-    ok('the inbox lists Paul\'s messages, newest first, the unread one marked', inbox.indexOf('Parser Release') < inbox.indexOf('Guide Fixes') && /New/.test(inbox) && inbox.includes('Release 2.4 is tagged.') && !inbox.includes('Notes are in'), inbox);
-    ok('an inbox row shows the sending chat\'s title and its workspace, and a group\'s name', inbox.includes('Parser Release (Parser Library)') && inbox.includes('Guide Fixes (Docs Site)') && inbox.includes('Docs Pass (docs) in Release Review'), inbox);
+    // The Inbox shows unread messages by default, with All for the rest
+    // (29b1e5e, c3d1b6d); each row leads with the sending chat, then the
+    // message's first line, then where it was said (2d082fe, docs/design/inbox.md).
+    const inboxSection = pane.locator('[data-section="bus-inbox"]');
+    const unreadInbox = await inboxSection.innerText();
+    ok('the unread inbox lists only the unread message, marked, by its first line', /New/.test(unreadInbox) && unreadInbox.includes('Release 2.4 is tagged.') && !unreadInbox.includes('Notes are in') && !unreadInbox.includes('Guide Fixes') && await inboxSection.locator('[data-bus-message]').count() === 1, unreadInbox);
+    await inboxSection.locator('.bus-inbox-views').getByRole('button', { name: 'All', exact: true }).click();
+    await inboxSection.locator('[data-bus-message="6"]').waitFor();
+    const inbox = await inboxSection.innerText();
+    ok('the inbox lists Paul\'s messages, newest first, the unread one marked', inbox.indexOf('Parser Release') < inbox.indexOf('Guide Fixes') && (inbox.match(/\bNew\b/g) || []).length === 1 && inbox.includes('Release 2.4 is tagged.') && !inbox.includes('Notes are in'), inbox);
+    ok('an inbox row shows the sending chat\'s title and its workspace, and a group\'s name', /Parser Release\s+New\s+Release 2\.4 is tagged\.\s+To you · Parser Library/.test(inbox) && /Guide Fixes\s+The guide builds again\.\s+To you · Docs Site/.test(inbox) && /Docs Pass\s+Paul, the guide needs your call\.\s+In Release Review · docs/.test(inbox), inbox);
+    await inboxSection.locator('.bus-inbox-views').getByRole('button', { name: 'Unread', exact: true }).click();
+    await inboxSection.locator('[data-bus-message="6"]').waitFor({ state: 'detached' });
     const groupsText = await pane.locator('[data-section="bus-groups"]').innerText();
     ok('a group chat is listed by its name, with its members and its unread messages', groupsText.includes('Release Review') && groupsText.includes('Parser Release, Docs Pass and you') && /2 new messages/.test(groupsText), groupsText);
     ok('a group with unread messages shows who sent the newest and its line, and a group with none shows no line', groupsText.includes('Docs Pass: The guide is ready for a second look') && (groupsText.match(/second look/g) || []).length === 1, groupsText);
@@ -137,23 +147,28 @@ const { launch } = require('./lib/page');
     ok('a message opens its whole thread, from the question it answers', (await thread.locator('.bus-message').count()) === 2 && (await thread.locator('.bus-message').first().innerText()).includes('Is 2.4 ready?'));
     const answer = await thread.locator('.bus-message').nth(1).innerText();
     ok('a thread heads each message with the chat\'s title and workspace, and the person by name', answer.includes('Parser Release') && /in\s+Parser Library/.test(answer) && /Paul[\s\S]*to\s+Parser Library/.test(await thread.locator('.bus-message').first().innerText()), answer);
-    ok('a thread\'s window is named for the chat', await p.locator('.win[data-win-kind="bus-thread"] .win-title').innerText() === 'Thread With Parser Release');
+    // An Inbox item opens as "Message From" its sender (29b1e5e).
+    ok('a thread\'s window is named for the chat', await p.locator('.win[data-win-kind="bus-thread"] .win-title').innerText() === 'Message From Parser Release');
     await thread.locator('textarea').fill('Thanks, announce it.');
     await thread.locator('textarea').press('Control+Enter');
     await thread.locator('.bus-message').nth(2).waitFor();
-    ok('Ctrl+Enter replies in the thread', await p.evaluate(() => JSON.stringify(__calls.find(c => c[0] === 'reply'))) === JSON.stringify(['reply', 1, 'Thanks, announce it.']));
+    // The reply keeps the displayed root, the selected message (docs/design/inbox.md).
+    ok('Ctrl+Enter replies in the thread', await p.evaluate(() => JSON.stringify(__calls.find(c => c[0] === 'reply'))) === JSON.stringify(['reply', 3, 'Thanks, announce it.']));
 
     // A group's window: its members, its conversation and its box.
     await pane.locator('[data-bus-room="release-review"]').click();
     const room = p.locator('.win[data-win-kind="bus-room"]').filter({ has: p.locator('.win-title', { hasText: 'Release Review' }) });
     await room.locator('.bus-message').first().waitFor();
     ok('a group opens in its own window, titled with its name', await room.count() === 1);
-    const chips = await room.locator('.group-members .member-chip').evaluateAll(chips => chips.map(chip => chip.querySelector('.member-title')?.textContent || chip.textContent));
-    ok('the members are chips: each chat by its title, then the person', JSON.stringify(chips.map(t => t.trim())) === JSON.stringify(['Parser Release', 'Docs Pass', 'Paul (You)']), JSON.stringify(chips));
-    // A chip shows a chat in the window as the window has it, so Docs Pass,
+    // Members is a dropdown listing the group's chats; the person has no row
+    // and is not counted (f22f9b5, 8bc2cc0).
+    const membersButton = room.getByRole('button', { name: /^Members/ });
+    const chips = await room.locator('.members-menu .member-row').evaluateAll(rows => rows.map(row => row.querySelector('.member-name')?.textContent || row.textContent));
+    ok('the members are rows: each chat by its title, and the person has none', JSON.stringify(chips.map(t => t.trim())) === JSON.stringify(['Parser Release', 'Docs Pass']) && (await membersButton.textContent()).trim() === 'Members (2)', JSON.stringify(chips));
+    // A row shows a chat in the window as the window has it, so Docs Pass,
     // which the bus has as open, is working, as the window was told above.
-    ok('each chat chip shares the execution or lifecycle word', await room.locator('[data-group-member="window-p1"] .chat-lifecycle').count() === 1 &&
-      await room.locator('[data-group-member="window-d1"] .chat-state-working').count() === 1);
+    ok('each chat chip shares the execution or lifecycle word', await room.locator('[data-group-member="window-p1"] .chat-lifecycle:not(.chat-state-reserve)').count() === 1 &&
+      await room.locator('[data-group-member="window-d1"] .chat-state-working:not(.chat-state-reserve)').count() === 1);
     ok('the group toolbar offers Add Chats…', await room.locator('.group-toolbar').getByRole('button', { name: 'Add Chats…' }).count() === 1);
     const said = await room.locator('.bus-log').innerText();
     ok('the conversation shows each message under its sender\'s title, with its mentions marked', said.includes('Parser Release') && await room.locator('[data-bus-message="4"] .mention').innerText() === '@Docs Pass', said);
@@ -195,10 +210,13 @@ const { launch } = require('./lib/page');
     ok('a group draws again when the bus changes, each message under its chat\'s title', (await room.locator('[data-bus-message="50"]').innerText()).includes('Docs Pass'));
 
     // A chip's menu opens the chat or takes it out of the group.
+    // The row's … button is inside the Members dropdown, and its menu gains Address Message (f22f9b5).
+    await membersButton.click();
+    await room.locator('.members-menu:popover-open').waitFor();
     await room.locator('[data-group-member="window-d1"] .member-menu-btn').click();
     const chipMenu = room.locator('.group-member-menu');
     await chipMenu.waitFor();
-    ok('a chip\'s menu offers Open Chat and Remove From Group…', JSON.stringify(await chipMenu.locator('.menu-action').allInnerTexts()) === JSON.stringify(['Open Chat', 'Remove From Group…']));
+    ok('a chip\'s menu offers Open Chat, Address Message and Remove From Group…', JSON.stringify(await chipMenu.locator('.menu-action').allInnerTexts()) === JSON.stringify(['Open Chat', 'Address Message', 'Remove From Group…']));
     await chipMenu.getByText('Remove From Group…').click();
     await p.locator('#ask-yes').click();
     await p.waitForFunction(() => __calls.some(c => c[0] === 'remove-member' && c[1] === 'release-review' && c[2] === 'window-d1'));

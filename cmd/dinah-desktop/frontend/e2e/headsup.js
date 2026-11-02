@@ -35,7 +35,9 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => pudlCommands.run('failure-summaries', undefined, document.querySelector('.win[data-chat-current] .chat-instance')));
     await p.locator('.failure-summary').waitFor();
     ok('opting in shows one summary inside the scrolling chat history', await p.locator('.activity .failure-summary').count() === 1 && (await p.locator('.failure-summary').textContent()).includes('2 steps failed.'));
-    ok('failed tools do not increment Notifications', await p.isHidden('#status-needs .badge'));
+    // None waiting is a neutral 0 (11d4c27), so the count stays 0 with no warning badge.
+    const needs = await p.evaluate(() => { const b = document.querySelector('#status-needs [data-status-badge]'); return { count: document.getElementById('status-needs').dataset.statusCount, text: b.hidden ? '' : b.textContent, warn: b.classList.contains('warn') }; });
+    ok('failed tools do not increment Notifications', needs.count === '0' && needs.text === '0' && !needs.warn, JSON.stringify(needs));
     await p.locator('.failure-summary').getByRole('button', { name: 'Review Failed Commands' }).click();
     await p.locator('.failure-review details').first().waitFor();
     const items = await p.locator('.failure-review details').allTextContents();
