@@ -31,7 +31,7 @@ const path = require('path');
     });
     ok('delayed document does not replace saved scroll with zero', await page.evaluate(() => dinahUIState.get('dinah-scroll:doc-one:document').top === 650));
     await page.evaluate(async () => {
-      __documentReady({resource:{ref:{workspaceId:'w1',sourceId:'local',path:'sample.md'},title:'Sample',revision:'1',actions:['preview']},blocks:[{line:1,html:'<div style="height:1600px">Sample</div>'}],problems:[{line:1,severity:'warning',message:'Example problem'}]});
+      __documentReady({resource:{ref:{workspaceId:'w1',sourceId:'local',path:'sample.md'},title:'Sample',revision:'1',actions:['preview']},blocks:Array.from({length:80},(_,i)=>({line:i+1,html:'<p>Sample passage '+i+'</p>'})),problems:[{line:1,severity:'warning',message:'Example problem'}]});
       await __doc.ready;
     });
     ok('document restores scroll after content arrives', await page.locator('[data-doc-scroll]').evaluate(el => el.scrollTop === 650));
