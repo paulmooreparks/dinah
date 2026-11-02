@@ -102,8 +102,7 @@ func protectedIdentity(l layout.Layout, chain []os.FileInfo, managedRoots ...str
 				if !l.Managed(root) {
 					continue
 				}
-				resolved, err := filepath.EvalSymlinks(root)
-				if err != nil || !layout.SamePath(root, resolved) {
+				if err := unredirectedDirectory(root); err != nil {
 					continue
 				}
 				found, err := IdentityContains(root, chain)
@@ -140,5 +139,39 @@ func pathIdentityChain(path string) ([]os.FileInfo, error) {
 			return chain, nil
 		}
 		resolved = parent
+	}
+}
+
+// unredirectedDirectory checks the metadata of each spelling before identity
+// comparison. Expanding a short filename is not evidence of redirection.
+func unredirectedDirectory(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return errors.New("the managed root is not a directory")
+	}
+	return unredirectedPath(path)
+}
+
+func unredirectedPath(path string) error {
+	path, err := NormalizeFilePath(path)
+	if err != nil {
+		return err
+	}
+	for {
+		info, err := os.Lstat(path)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err == nil && redirectsFileInfo(info) {
+			return errors.New("the managed workspace execution folder redirects or is not a directory")
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return nil
+		}
+		path = parent
 	}
 }
