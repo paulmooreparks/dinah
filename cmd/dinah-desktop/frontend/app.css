@@ -513,6 +513,20 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .settings-window-kinds { display: flex; flex-direction: column; gap: var(--space-3); margin-left: var(--space-2); padding-left: var(--space-4); border-left: 2px solid var(--border); }
 .settings-window-kinds:empty { display: none; }
 .settings-window-kind-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+/* Settings › Agent File Access (file-access-settings.js): each rule is a
+   flat row of its mark, its place and reason, and the one control its kind
+   allows, which stays the same size whatever its state. */
+.file-access-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.file-access-rule { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; align-items: start; gap: var(--space-1) var(--space-3); }
+.file-access-rule .form-help { margin: 0; }
+.file-access-rule > .switch, .file-access-rule > .btn { align-self: center; }
+.file-access-mark { margin-top: 2px; }
+.file-access-place { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm); }
+.file-access-rule[data-off] .file-access-place { color: var(--text-muted); }
+.file-access-filters { flex-wrap: wrap; }
+.file-access-add-row { flex-wrap: nowrap; }
+.file-access-add-row > .form-input { flex: 1 1 0; width: auto; min-width: 0; }
+.file-access-log td { vertical-align: top; }
 /* A command that cannot run now is listed in command search, faded. */
 #go-to-list tr.go-to-disabled { opacity: 0.55; }
 /* Documents › Recent › Show All… and Help › Keyboard Shortcuts. */

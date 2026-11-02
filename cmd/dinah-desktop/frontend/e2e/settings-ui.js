@@ -36,7 +36,7 @@ const shotPath = name => path.join(OUT, name + '.png');
     const settings = page.locator('#settings');
     const tab = name=>settings.getByRole('tab',{name,exact:true});
     const mode = value=>settings.locator('#new-window-mode [role=radio][data-value="'+value+'"]');
-    ok('Settings presents seven named sections', (await settings.getByRole('tab').allTextContents()).map(x=>x.trim()).join('|')==='Appearance|Agents|Judgements|Chat|Terminal|Packages|Diagnostics');
+    ok('Settings presents eight named sections', (await settings.getByRole('tab').allTextContents()).map(x=>x.trim()).join('|')==='Appearance|Agents|Agent File Access|Judgements|Chat|Terminal|Packages|Diagnostics');
     ok('Appearance is initially selected',await tab('Appearance').getAttribute('aria-selected')==='true');
     // Every tab shows its own panel when it is clicked, the last added among them.
     const shown=[];

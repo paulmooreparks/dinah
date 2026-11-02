@@ -139,6 +139,7 @@
   <!-- Host declarations fill menu labels before PUDL reads the source rows. -->
   <script src="pudl/pudl-menubar.js" defer></script>
   <script src="shell-applets.js" defer></script>
+  <script src="file-access-settings.js" defer></script>
   <script src="theme-editor.js" defer></script>
   <script src="extensions.js" defer></script>
   <script src="group-new-chat.js" defer></script>
@@ -697,6 +698,7 @@
       <div class="settings-tabs tablist doc-tabs" id="settings-tabs" role="tablist" aria-label="Settings Sections">
         <button type="button" role="tab" id="settings-tab-appearance" aria-controls="settings-appearance" aria-selected="true" data-settings-section="appearance">Appearance</button>
         <button type="button" role="tab" id="settings-tab-agents" aria-controls="settings-agents" aria-selected="false" tabindex="-1" data-settings-section="agents">Agents</button>
+        <button type="button" role="tab" id="settings-tab-file-access" aria-controls="settings-file-access" aria-selected="false" tabindex="-1" data-settings-section="file-access">Agent File Access</button>
         <button type="button" role="tab" id="settings-tab-judgements" aria-controls="settings-judgements" aria-selected="false" tabindex="-1" data-settings-section="judgements">Judgements</button>
         <button type="button" role="tab" id="settings-tab-chat" aria-controls="settings-chat" aria-selected="false" tabindex="-1" data-settings-section="chat">Chat</button>
         <button type="button" role="tab" id="settings-tab-terminal" aria-controls="settings-terminal" aria-selected="false" tabindex="-1" data-settings-section="terminal">Terminal</button>
@@ -787,6 +789,37 @@
           <ul class="row-list" id="applet-grants" aria-labelledby="set-applet-grants"></ul>
           <p class="settings-status" id="applet-grants-status" role="status"></p>
         </section>
+        </div>
+
+        <!-- Settings › Agent File Access (docs/design/agent-file-access.md),
+             drawn by file-access-settings.js from Go's policy and log. -->
+        <div class="settings-panel" id="settings-file-access" role="tabpanel" aria-labelledby="settings-tab-file-access" tabindex="0" hidden>
+          <section class="card vstack gap-3" aria-labelledby="set-file-rules">
+            <h3 class="card-title" id="set-file-rules">Places Agents Cannot Read</h3>
+            <p class="form-help">Agents can ask <span data-product-name>Dinah</span> to read files anywhere on this computer, except in the places listed here. <span data-product-name>Dinah</span>'s own places are always protected. Each of the other common places can be turned off, and you can add your own.</p>
+            <p class="form-help" id="file-access-unavailable" hidden>This version of <span data-product-name>Dinah</span> cannot show or change where agents read.</p>
+            <ul class="file-access-rules" id="file-access-rules" aria-labelledby="set-file-rules"></ul>
+            <div class="form-group">
+              <label class="form-label" for="file-access-path">Add a Place</label>
+              <div class="hstack gap-2 align-center file-access-add-row"><input class="form-input" id="file-access-path" type="text" spellcheck="false" autocomplete="off" aria-describedby="file-access-preview"><button type="button" class="btn btn-sm" id="file-access-add" disabled>Add</button></div>
+              <p class="form-help" id="file-access-preview" aria-live="polite"></p>
+            </div>
+            <p class="settings-status" id="file-access-status" role="status"></p>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="set-file-reads">
+            <h3 class="card-title" id="set-file-reads">Reads</h3>
+            <p class="form-help">Each read an agent made outside its workspace's own folders, each read that was refused, and each change to the places above, newest first.</p>
+            <div class="hstack gap-3 align-end file-access-filters">
+              <div class="form-group"><label class="form-label" for="file-access-chat">Chat</label><span class="form-select-wrap"><select class="form-select" id="file-access-chat"><option value="">Every chat</option></select></span></div>
+              <div class="form-group"><label class="form-label" for="file-access-since">When</label><span class="form-select-wrap"><select class="form-select" id="file-access-since"><option value="">Everything kept</option><option value="hour">The last hour</option><option value="today">Today</option><option value="week">The last 7 days</option></select></span></div>
+              <div class="form-group"><label class="form-label" for="file-access-outcome">Show</label><span class="form-select-wrap"><select class="form-select" id="file-access-outcome"><option value="">Everything</option><option value="denied">Refused reads only</option></select></span></div>
+              <button type="button" class="btn btn-sm push-end" id="file-access-newer" hidden></button>
+            </div>
+            <div class="data-table-wrap"><table class="data-table stack file-access-log" id="file-access-log" aria-labelledby="set-file-reads"><thead><tr><th scope="col">When</th><th scope="col">Chat</th><th scope="col">Place</th><th scope="col">What happened</th></tr></thead><tbody></tbody></table></div>
+            <p class="form-help" id="file-access-empty" hidden></p>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" id="file-access-older" hidden>Load Older</button></div>
+            <p class="settings-status" id="file-access-log-status" role="status"></p>
+          </section>
         </div>
 
         <div class="settings-panel" id="settings-terminal" role="tabpanel" aria-labelledby="settings-tab-terminal" tabindex="0" hidden>
