@@ -58,6 +58,13 @@
     var parsed = new DOMParser().parseFromString(svgText, 'image/svg+xml'), svg = parsed.documentElement;
     if (parsed.querySelector('parsererror') || svg.localName !== 'svg' || svg.namespaceURI !== svgNS) throw new Error('The renderer returned an invalid SVG.');
     if (!svg.id) svg.id = 'dinah-diagram-root-' + (++serial);
+    // Only elements and text are kept. A processing instruction or a comment
+    // is removed, and a CDATA section, such as the one d2 puts its
+    // stylesheet in, becomes plain text. HTML reads none of them as XML
+    // does, so markup hidden in one would otherwise come alive in the page.
+    var walker = parsed.createTreeWalker(svg, NodeFilter.SHOW_PROCESSING_INSTRUCTION | NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_CDATA_SECTION), odd = [];
+    while (walker.nextNode()) odd.push(walker.currentNode);
+    odd.forEach(function (n) { if (n.nodeType === Node.CDATA_SECTION_NODE) n.replaceWith(parsed.createTextNode(n.data)); else n.remove(); });
     var fonts = embeddedFonts(svg);
     [svg].concat(Array.from(svg.querySelectorAll('*'))).forEach(function (element) {
       if (!svg.contains(element) && element !== svg) return;
@@ -106,7 +113,7 @@
     var figure = document.createElement('figure'); figure.className = 'msg-diagram';
     var pre = document.createElement('pre'), code = document.createElement('code'); code.textContent = source; pre.appendChild(code);
     if (result.svg !== undefined) {
-      var drawing = document.createElement('div'); drawing.className = 'msg-diagram-svg'; drawing.innerHTML = result.svg;
+      var drawing = document.createElement('div'); drawing.className = 'msg-diagram-svg'; drawing.appendChild(element(result.svg));
       var details = document.createElement('details'), summary = document.createElement('summary');
       summary.textContent = 'The ' + (language === 'd2' ? 'd2' : 'Mermaid') + ' source'; details.append(summary, pre); figure.append(drawing, details);
       window.dinahWorkbench.namespaceSVG(figure);
@@ -130,5 +137,13 @@
       place(target, language, source, result); if (changed) changed(result);
     });
   }
-  window.dinahDiagrams = { draw: draw, sanitize: sanitize };
+  /* A sanitized drawing as an element of this page. It is read again as SVG
+     and its nodes are imported, never handed to the HTML parser, which
+     reads some XML differently and would make its own elements from it. */
+  function element(svgText) {
+    var parsed = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+    if (parsed.querySelector('parsererror') || parsed.documentElement.namespaceURI !== svgNS) throw new Error('The drawing is not a valid SVG.');
+    return document.importNode(parsed.documentElement, true);
+  }
+  window.dinahDiagrams = { draw: draw, sanitize: sanitize, element: element };
 })();

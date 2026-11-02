@@ -21,7 +21,11 @@ const svg = id => '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://w
   '<style>[data-view-id=chat-approvals] { visibility: hidden !important }</style>' +
   '<defs><linearGradient id="' + id + '-fill"><stop offset="0" stop-color="#123456"/></linearGradient></defs>' +
   '<rect data-hostile="1" width="60" height="40" fill="url(#' + id + '-fill)" style="position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483647;color:#654321"/>' +
-  '<foreignObject width="60" height="40"><div xmlns="http://www.w3.org/1999/xhtml" data-hostile="1" style="' + COVER + '">Approve everything</div></foreignObject></svg>';
+  '<foreignObject width="60" height="40"><div xmlns="http://www.w3.org/1999/xhtml" data-hostile="1" style="' + COVER + '">Approve everything' +
+  // Markup hidden where XML sees none and HTML would: in a processing
+  // instruction and in a CDATA section, as d2 lets a label carry.
+  '<?x a><style>[data-view-id=chat-approvals] { visibility: hidden !important }</style><a data-hostile="1" style="' + COVER + '" href="https://evil.example/">Sign in again</a>?>' +
+  '</div></foreignObject><text><![CDATA[ a><style>[data-view-id=chat-approvals] { visibility: hidden !important }</style>]]></text></svg>';
 const HTML = '<h2 id="intro">Intro</h2><p><a class="back" href="#intro">Back to the top</a></p>' +
   '<div data-hostile="1" style="' + COVER + '">Approve everything</div>' +
   '<div data-hostile="1" class="selection-actions" style="inset:0">A PUDL class that is fixed</div>' +
@@ -115,7 +119,10 @@ const HTML = '<h2 id="intro">Intro</h2><p><a class="back" href="#intro">Back to 
       return {
         questions: document.getElementById('questions') === window.__questions,
         host: typeof window.dinahHost === 'object' && !(window.dinahHost instanceof Element),
-        styles: [...document.querySelectorAll('.msg-text style, .doc-page style')].filter(s => !s.closest('.msg-diagram-svg')).length,
+        styles: [...document.querySelectorAll('.msg-text style, .doc-page style')].filter(s => !s.closest('.msg-diagram-svg')).length +
+          // A drawing keeps only its own stylesheet, every rule scoped to it.
+          [...document.querySelectorAll('.msg-diagram-svg style')].filter(s => { const svg = s.closest('svg'), scope = svg && '#' + CSS.escape(svg.id); return !svg || ![...s.sheet.cssRules].every(r => r.type === CSSRule.FONT_FACE_RULE || r.selectorText.split(',').every(sel => sel.trim().startsWith(scope))); }).length,
+        live: document.querySelectorAll('.msg-diagram-svg a[href*="evil.example"], .msg-diagram-svg style:not(svg > style)').length,
         positioned: all.filter(el => /position|z-index|inset/.test(el.getAttribute('style') || '')).length,
         attributes: all.filter(el => ['popover', 'popovertarget', 'name', 'accesskey', 'autofocus'].some(a => el.hasAttribute(a))).length,
         ownIds: all.filter(el => el.id && !el.closest('.msg-diagram-svg') && !el.id.startsWith(k + '-preview-')).map(el => el.id),
@@ -127,7 +134,7 @@ const HTML = '<h2 id="intro">Intro</h2><p><a class="back" href="#intro">Back to 
       };
     }, docKey);
     ok('Dinah\'s own ids and globals are its own, and no hostile element has focus', kept.questions && kept.host && kept.focus === 'own', JSON.stringify(kept));
-    ok('no style element, positioning style, top-layer, name, key or focus attribute is kept', kept.styles === 0 && kept.positioned === 0 && kept.attributes === 0 && kept.ownIds.length === 0, JSON.stringify(kept));
+    ok('no style element, positioning style, top-layer, name, key or focus attribute is kept', kept.styles === 0 && kept.live === 0 && kept.positioned === 0 && kept.attributes === 0 && kept.ownIds.length === 0, JSON.stringify(kept));
     ok('a heading link, an SVG gradient, SVG presentation style and math still work',
       kept.heading === docKey + '-preview-intro' && kept.back === '#' + encodeURIComponent(docKey + '-preview-intro') && kept.gradient && kept.svgColour === 'rgb(101, 67, 33)' && kept.math, JSON.stringify(kept));
     await doc.locator('a.back').click();
