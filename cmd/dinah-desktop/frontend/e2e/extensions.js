@@ -6,7 +6,7 @@ const path = require('path'), fs = require('fs');
   app:()=>{
    const workspace={id:'fixture',name:'Fixture',path:'C:/Fixture',sources:[]};
    window.__calls=[];window.__cancelled=[];window.__enabled=true;window.__nativeFull=false;window.__nativeActions=[];window.__nativeFail=false;window.__exitReplies=[];
-   const manifest={id:'test.fixture',version:'0.1.0',title:'Extension Fixture',description:'Fixture',publisher:{name:'Test'},permissions:['workspace.read'],actions:[{name:'inspect'},{name:'wait'}],views:[{id:'fixture',title:'Extension Fixture',page:'index.html'},{id:'window',title:'Fixture Window',page:'index.html'}]};
+   const manifest={id:'test.fixture',version:'0.1.0',title:'Extension Fixture',description:'Fixture',publisher:{name:'Test'},permissions:['workspace.read'],actions:[{name:'inspect'},{name:'wait'}],views:[{id:'fixture',title:'Extension Fixture',page:'index.html'},{id:'window',title:'Fixture Window',page:'index.html',glyph:'x);background:url(//example.invalid/g'}]};
    return{AnswerExitConfirmation:async(id,accepted)=>{__exitReplies.push({id,accepted});__emit('dinah:exit-confirmation-resolved',{id});},NativeWindowState:async()=>({available:true,fullscreen:__nativeFull}),NativeWindowAction:async(action)=>{__nativeActions.push(action);if(__nativeFail)throw Error('Native action failed');if(action==='toggle')__nativeFull=!__nativeFull;if(action==='restore')__nativeFull=false;},State:async()=>({workspaceId:'fixture',workspace:'C:/Fixture',recent:['C:/Fixture'],workspaces:['C:/Fixture'],workspaceRecords:[{id:'fixture',name:'Fixture',primarySourceId:'local',sources:[{id:'local',kind:'local-folder',name:'Fixture',path:'C:/Fixture'}]}]}),Extensions:async()=>[{manifest,enabled:window.__enabled}],ExtensionWorkspace:async()=>workspace,ExtensionCall:async(id,action,ws,input,requestID)=>{window.__calls.push({id,action,ws,input,requestID});if(action==='wait')return new Promise(()=>{});return{workspace:ws,answer:'ready'};},CancelExtensionCall:async(id,ws,requestID)=>window.__cancelled.push(requestID)};
   },
   // The fixture's stub runs in the extension's sandboxed frames too; an
@@ -113,6 +113,7 @@ const path = require('path'), fs = require('fs');
   ok('extension navigation becomes host URL state',page.url().includes('selected-file'));
   await frame.locator('main').evaluate(()=>dinah.hostCommand('open-view/window'));
   const other=page.frameLocator('.extension-frame[title="Fixture Window"]');await other.locator('output').filter({hasText:'ready'}).waitFor();
+  ok('a view glyph that is not a glyph name is refused, as a command glyph is',await page.locator('.extension-frame[title="Fixture Window"]').evaluate(n=>n.closest('.win').dataset.winGlyph==='app'));
   ok('declared view opens as a separate window with addressable state',await other.locator('main').evaluate(async()=>(await dinah.ready).state)==='selected-file');
   await page.locator('.extension-frame[title="Fixture Window"]').evaluate(n=>parent.pudlWindows.close(n.closest('.win').dataset.win));
   await page.setViewportSize({width:390,height:800});

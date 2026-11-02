@@ -2756,7 +2756,7 @@
       try {
         var records = await app().RecoverSteering(s.id);
         for (var record of records || []) {
-          if (s.log.querySelector('[data-steering-recovery="' + record.id + '"]')) continue;
+          if (s.log.querySelector('[data-steering-recovery="' + CSS.escape(String(record.id)) + '"]')) continue;
           var payload = JSON.parse(record.payload);
           var m = message(s, 'you', payload.text, record.state === 'queued' ? 'You, recovered follow-up (not resent)' : 'You, recovered steering (delivery unconfirmed; not resent)');
           m.li.dataset.steeringRecovery = record.id;

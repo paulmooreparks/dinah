@@ -18,7 +18,9 @@
   var KEY = 'dinah.desktop';
   try {
     var saved = localStorage.getItem(KEY);
-    if (!location.search && saved) { location.replace('/' + saved); return; }
+    // Only an address's query is remembered, so only one is followed: a
+    // value that does not start with "?" could name another site.
+    if (!location.search && saved && saved.charAt(0) === '?') { location.replace('/' + saved); return; }
   } catch (e) {}
   var layer = document.querySelector('[data-win-layer]');
   if (layer) layer.addEventListener('pudl:windows-change', function () {

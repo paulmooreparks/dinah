@@ -155,11 +155,12 @@
       var dialog = document.createElement('dialog');
       dialog.className = 'dialog editor-dialog';
       dialog.setAttribute('aria-labelledby', ed.key + '-link-title');
-      dialog.innerHTML = '<h2 class="dialog-title" id="' + ed.key + '-link-title">Link</h2><div class="dialog-body">' +
-        '<div class="form-group"><label class="form-label" for="' + ed.key + '-link-text">Text</label><input class="form-input" id="' + ed.key + '-link-text"></div>' +
-        '<div class="form-group"><label class="form-label" for="' + ed.key + '-link-url">Address</label><input class="form-input" id="' + ed.key + '-link-url" placeholder="https://"></div></div>' +
+      var k = window.dinahHTML.text(ed.key);
+      dialog.innerHTML = '<h2 class="dialog-title" id="' + k + '-link-title">Link</h2><div class="dialog-body">' +
+        '<div class="form-group"><label class="form-label" for="' + k + '-link-text">Text</label><input class="form-input" id="' + k + '-link-text"></div>' +
+        '<div class="form-group"><label class="form-label" for="' + k + '-link-url">Address</label><input class="form-input" id="' + k + '-link-url" placeholder="https://"></div></div>' +
         '<div class="dialog-actions"><button type="button" class="btn" data-no>Cancel</button><button type="button" class="btn btn-primary" data-yes>Add the Link</button></div>';
-      var text = dialog.querySelector('#' + ed.key + '-link-text'), url = dialog.querySelector('#' + ed.key + '-link-url');
+      var text = dialog.querySelector('#' + CSS.escape(ed.key + '-link-text')), url = dialog.querySelector('#' + CSS.escape(ed.key + '-link-url'));
       text.value = s.text;
       ed.root.appendChild(dialog);
       // Escape closes the dialog too, so the text takes focus back on close.

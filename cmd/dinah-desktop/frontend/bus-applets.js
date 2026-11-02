@@ -973,7 +973,7 @@
     function stateString() { return JSON.stringify(Object.assign({ message: targetMessage }, fromInbox ? { inbox: true } : {}, pendingMention ? { mention: pendingMention } : {})); }
     function showTarget() {
       if (disposed || !targetMessage || !targetPending) return;
-      var row = root.querySelector('[data-bus-message="' + targetMessage + '"]');
+      var row = root.querySelector('[data-bus-message="' + CSS.escape(String(targetMessage)) + '"]');
       if (!row) return;
       root.querySelectorAll('.bus-target-message').forEach(function (n) { n.classList.remove('bus-target-message'); });
       targetPending = false; row.classList.add('bus-target-message'); c.navigate(row);
@@ -995,7 +995,7 @@
       try { var state = value ? JSON.parse(value) : {}; targetMessage = Number(state.message) || 0; pendingMention = state.mention || null; targetPending = !!targetMessage; fromInbox = !!(state.inbox && targetMessage); }
       catch (error) { targetMessage = 0; pendingMention = null; fromInbox = false; }
       applyMention(); targetSoon();
-      if (targetPending && c && !root.querySelector('[data-bus-message="' + targetMessage + '"]')) c.draw();
+      if (targetPending && c && !root.querySelector('[data-bus-message="' + CSS.escape(String(targetMessage)) + '"]')) c.draw();
       if (opts.changed) opts.changed(stateString());
     }
     root.classList.add('group-window');
@@ -1590,7 +1590,7 @@
        saying so for the Inbox, which marks it read then (docs/design/inbox.md). */
     var shown = false;
     var watch = new MutationObserver(function () {
-      var row = !shown && root.querySelector('[data-bus-message="' + id + '"]');
+      var row = !shown && root.querySelector('[data-bus-message="' + CSS.escape(String(id)) + '"]');
       if (!row) return;
       shown = true; watch.disconnect();
       row.classList.add('bus-target-message'); c.navigate(row);

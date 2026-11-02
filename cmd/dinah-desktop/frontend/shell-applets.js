@@ -63,7 +63,7 @@
         function commands() {
           if (kind === 'workspace') {
             return ['new-workspace', 'new-empty-workspace', 'rename-workspace', 'refresh-workspace', 'remove-workspace'].map(function (name) {
-              var button = document.querySelector('#workspace-status-menu [data-cmd="' + name + '"]');
+              var button = document.querySelector('#workspace-status-menu [data-cmd="' + CSS.escape(String(name)) + '"]');
               return window.dinahCommands.describe(name, button.textContent);
             });
           }

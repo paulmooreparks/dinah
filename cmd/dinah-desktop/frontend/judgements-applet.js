@@ -919,7 +919,7 @@
     $('judgements-save-budgets').addEventListener('click', function () {
       var status = $('judgements-status'), bad = false;
       var budgets = (settings.budgets || []).map(function (b) {
-        var input = $('judgement-budgets').querySelector('[data-provider="' + b.provider + '"] input');
+        var input = $('judgement-budgets').querySelector('[data-provider="' + CSS.escape(String(b.provider)) + '"] input');
         var text = input ? input.value.trim() : '';
         if (text === '') return { provider: b.provider, unit: b.unit, limit: null };
         var n = Number(text);
