@@ -263,61 +263,129 @@ func TestCtrlCInterruptsNodeServerInPowerShell(t *testing.T) {
 	t.Cleanup(func() { ctrlHandler.Call(0, 0) })
 	a := testService(t)
 	var mu sync.Mutex
-	var drawn strings.Builder
+	drawn := map[string]*strings.Builder{}
 	a.emit = func(name string, data any) {
 		if name == "terminal:output" {
-			b, _ := base64.StdEncoding.DecodeString(data.(map[string]string)["data"])
+			m := data.(map[string]string)
+			b, _ := base64.StdEncoding.DecodeString(m["data"])
 			mu.Lock()
-			drawn.Write(b)
+			if drawn[m["id"]] == nil {
+				drawn[m["id"]] = &strings.Builder{}
+			}
+			drawn[m["id"]].Write(b)
 			mu.Unlock()
 		}
 	}
+	// PowerShell 7.6 can itself crash when a Ctrl+C arrives as a pipeline
+	// ends: PipelineProcessor.Stop, which its source says may be called
+	// asynchronously, cancels a token source that Dispose may already have
+	// disposed (PowerShell #24620), and the break handler's
+	// ObjectDisposedException ends the process. That is PowerShell's race,
+	// not Dinah's delivery of Ctrl+C, so an attempt that ends in exactly that
+	// failure is tried again in a new shell, up to three attempts in all.
+	// Every other failure fails at once.
+	const attempts = 3
+	for attempt := 1; ; attempt++ {
+		if !ctrlCInterruptsNode(t, a, &mu, drawn) {
+			return
+		}
+		if attempt == attempts {
+			t.Fatalf("PowerShell's own Ctrl+C race ended the shell in all %d attempts", attempts)
+		}
+		t.Logf("attempt %d: PowerShell's Ctrl+C race (ObjectDisposedException in PipelineProcessor.Stop) ended the shell; trying a new shell", attempt)
+	}
+}
+
+// powerShellCtrlCRace is how PowerShell reports its own break-handler
+// failure: an unhandled ObjectDisposedException from the pipeline's stop.
+func powerShellCtrlCRace(output string) bool {
+	return strings.Contains(output, "ObjectDisposedException: The CancellationTokenSource has been disposed") &&
+		strings.Contains(output, "PipelineProcessor.Stop")
+}
+
+// Only PowerShell's own crash, as it printed it in a reproduction on
+// 2 November 2026, counts as its race; a shell that simply stops answering
+// does not.
+func TestPowerShellCtrlCRaceIsRecognisedOnlyByItsOwnReport(t *testing.T) {
+	crash := "interrupt-started\r\nAn error has occurred that was not properly handled. Additional information is shown below. The PowerShell process will exit.\r\n" +
+		"Unhandled exception. System.ObjectDisposedException: The CancellationTokenSource has been disposed.\r\n" +
+		"   at System.Threading.CancellationTokenSource.Cancel()\r\n   at System.Management.Automation.Internal.PipelineProcessor.Stop()\r\n" +
+		"   at Microsoft.PowerShell.ConsoleHost.HandleBreak()\r\n"
+	if !powerShellCtrlCRace(crash) {
+		t.Fatal("PowerShell's own Ctrl+C crash was not recognised")
+	}
+	for _, other := range []string{"interrupt-started\r\n", "ObjectDisposedException: The CancellationTokenSource has been disposed. at Dinah.Something()", "interrupt-prompt> "} {
+		if powerShellCtrlCRace(other) {
+			t.Fatalf("%q was taken for PowerShell's race", other)
+		}
+	}
+}
+
+// ctrlCInterruptsNode runs one attempt in a new shell: Node starts a server,
+// Ctrl+C interrupts it, and PowerShell gives its prompt back and runs the
+// next command. It reports true only when PowerShell itself crashed with its
+// Ctrl+C race; any other failure fails the test.
+func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[string]*strings.Builder) (upstreamRace bool) {
+	t.Helper()
 	started, err := a.StartShell("pwsh", nil, shellDir(t), 160, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { a.Close(started.ID) })
+	defer a.Close(started.ID)
+	output := func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		if b := drawn[started.ID]; b != nil {
+			return b.String()
+		}
+		return ""
+	}
 	// nodeTyped is when the node command was typed. A timeout reports every
 	// node.exe started since then and how long it has run, so a failure shows
 	// whether Node was slow to start or started and printed nothing.
 	var nodeTyped time.Time
-	waitOutput := func(marker string, count int) {
+	waitOutput := func(marker string, count int) bool {
 		t.Helper()
 		deadline := time.Now().Add(15 * time.Second)
 		for time.Now().Before(deadline) {
-			mu.Lock()
-			found := strings.Count(drawn.String(), marker) >= count
-			mu.Unlock()
-			if found {
-				return
+			if strings.Count(output(), marker) >= count {
+				return true
 			}
 			time.Sleep(20 * time.Millisecond)
+		}
+		if powerShellCtrlCRace(output()) {
+			return false
 		}
 		nodes := "node was not typed yet"
 		if !nodeTyped.IsZero() {
 			nodes = nodeProcessesSince(nodeTyped)
 		}
-		mu.Lock()
-		defer mu.Unlock()
-		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; it drew %q", marker, nodes, drawn.String())
+		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; it drew %q", marker, nodes, output())
+		return false
 	}
 	if err := a.Write(started.ID, "function prompt { 'interrupt-' + 'prompt> ' }\r"); err != nil {
 		t.Fatal(err)
 	}
-	waitOutput("interrupt-prompt> ", 1)
+	if !waitOutput("interrupt-prompt> ", 1) {
+		return true
+	}
 	nodeTyped = time.Now()
 	if err := a.Write(started.ID, "node -e \"require('http').createServer((q,s)=>s.end('ok')).listen(0,()=>console.log('interrupt-'+'started'))\"\r"); err != nil {
 		t.Fatal(err)
 	}
-	waitOutput("interrupt-started", 1)
+	if !waitOutput("interrupt-started", 1) {
+		return true
+	}
 	if err := a.Write(started.ID, "\x03"); err != nil {
 		t.Fatal(err)
 	}
-	waitOutput("interrupt-prompt> ", 2)
+	if !waitOutput("interrupt-prompt> ", 2) {
+		return true
+	}
 	if err := a.Write(started.ID, "Write-Output ('interrupt-' + 'recovered')\r"); err != nil {
 		t.Fatal(err)
 	}
-	waitOutput("interrupt-recovered", 1)
+	return !waitOutput("interrupt-recovered", 1)
 }
 
 // nodeProcessesSince lists each node.exe created at or after since, with its
