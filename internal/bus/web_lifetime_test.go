@@ -13,7 +13,7 @@ func TestWebSessionLifetimeAndRevocation(t *testing.T) {
 	ctx := context.Background()
 	for _, mode := range []string{"idle", "sliding", "absolute", "passive", "single-revoke", "global-revoke", "legacy", "invalid-time", "policy"} {
 		t.Run(mode, func(t *testing.T) {
-			b, dir := open(t)
+			b, _ := open(t)
 			now := time.Date(2026, 1, 1, 0, 0, 0, 123, time.UTC)
 			issued := now
 			b.now = func() time.Time { return now }
@@ -106,7 +106,7 @@ func TestWebSessionLifetimeAndRevocation(t *testing.T) {
 				if err := b.SetWebSessionPolicy(ctx, WebSessionPolicy{IdleDays: 0, AbsoluteDays: 4}); err == nil {
 					t.Fatal("invalid policy accepted")
 				}
-				reopened, err := OpenAt(filepath.Join(dir, "bus.db"))
+				reopened, err := OpenAt(filepath.Join(b.dir, "bus.db"))
 				if err != nil {
 					t.Fatal(err)
 				}

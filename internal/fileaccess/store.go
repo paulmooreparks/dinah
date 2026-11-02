@@ -16,6 +16,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const auditRows = `(SELECT id,chat,at,outcome,payload FROM audit UNION ALL SELECT id,chat,at,outcome,payload FROM policy_changes UNION ALL SELECT id,chat,at,outcome,payload FROM denials)`
+
 const auditTimeFormat = "2006-01-02T15:04:05.000000000Z"
 
 const (
@@ -51,6 +53,7 @@ type Policy struct {
 }
 
 type Record struct {
+	Count     int    `json:"count,omitempty"`
 	Source    string `json:"source,omitempty"`
 	ID        int64  `json:"id"`
 	At        string `json:"at"`
@@ -91,14 +94,14 @@ func Open(path string) (*Store, error) {
 		uriPath = "/" + uriPath
 	}
 	uri := url.URL{Scheme: "file", Path: uriPath}
-	db, err := sql.Open("sqlite", uri.String())
+	db, err := sql.Open("sqlite", uri.String()+"?_txlock=immediate")
 	if err != nil {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
 	fail := func(err error) (*Store, error) { db.Close(); return nil, err }
 	var schema int
-	if err := db.QueryRow("PRAGMA user_version").Scan(&schema); err != nil || schema > 1 || schema < 0 {
+	if err := db.QueryRow("PRAGMA user_version").Scan(&schema); err != nil || schema > 2 || schema < 0 {
 		return fail(errors.New("unsupported file-access database schema"))
 	}
 	for _, q := range []string{"PRAGMA busy_timeout=5000", "PRAGMA journal_mode=DELETE", "PRAGMA auto_vacuum=FULL", "PRAGMA synchronous=FULL"} {
@@ -129,12 +132,17 @@ func Open(path string) (*Store, error) {
  CREATE TABLE IF NOT EXISTS defaults (id TEXT PRIMARY KEY, enabled INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS acknowledgements (chat TEXT PRIMARY KEY, through_id INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, generation INTEGER NOT NULL, bytes INTEGER NOT NULL, chat TEXT NOT NULL, at TEXT NOT NULL, outcome TEXT NOT NULL, payload TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS policy_changes (id INTEGER PRIMARY KEY, generation INTEGER NOT NULL, bytes INTEGER NOT NULL, chat TEXT NOT NULL, at TEXT NOT NULL, outcome TEXT NOT NULL, payload TEXT NOT NULL);
+ INSERT OR IGNORE INTO policy_changes SELECT * FROM audit WHERE outcome='policy-change';
+ DELETE FROM audit WHERE outcome='policy-change';
+ CREATE TABLE IF NOT EXISTS denials (id INTEGER PRIMARY KEY, generation INTEGER NOT NULL, bytes INTEGER NOT NULL, chat TEXT NOT NULL, at TEXT NOT NULL, outcome TEXT NOT NULL, payload TEXT NOT NULL, count INTEGER NOT NULL, rule_id TEXT NOT NULL, source TEXT NOT NULL, sealed INTEGER NOT NULL DEFAULT 0);
+ CREATE UNIQUE INDEX IF NOT EXISTS denial_open_group ON denials(chat,rule_id,source) WHERE sealed=0;
  CREATE INDEX IF NOT EXISTS audit_chat ON audit(chat,id);
  CREATE INDEX IF NOT EXISTS audit_at ON audit(at,id);`)
 	if err != nil {
 		return fail(err)
 	}
-	if _, err := db.Exec("PRAGMA user_version=1"); err != nil {
+	if _, err := db.Exec("PRAGMA user_version=2"); err != nil {
 		return fail(err)
 	}
 	if err := os.Chmod(path, 0600); err != nil {
@@ -302,6 +310,21 @@ func (s *Store) append(tx *sql.Tx, record Record) (Record, error) {
 		return Record{}, err
 	}
 	record.ID, record.At = high+1, s.now().UTC().Format(auditTimeFormat)
+	if record.Outcome == "denied" {
+		var previous, ack int64
+		var count int
+		err := tx.QueryRow(`SELECT id,count FROM denials WHERE chat=? AND rule_id=? AND source=? AND sealed=0`, record.Chat, record.RuleID, record.Source).Scan(&previous, &count)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return Record{}, err
+		}
+		if err := tx.QueryRow(`SELECT COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0)`, record.Chat).Scan(&ack); err != nil {
+			return Record{}, err
+		}
+		if previous <= ack {
+			count = 0
+		}
+		record.Count = count + 1
+	}
 	payload, err := json.Marshal(record)
 	if err != nil {
 		return Record{}, err
@@ -309,23 +332,42 @@ func (s *Store) append(tx *sql.Tx, record Record) (Record, error) {
 	if len(payload) > MaxAuditRecordBytes {
 		return Record{}, errors.New("file-access audit metadata exceeds 16 KiB")
 	}
+	table := "audit"
+	if record.Outcome == "policy-change" {
+		table = "policy_changes"
+	}
+	if record.Outcome == "denied" {
+		table = "denials"
+		if _, err = tx.Exec(`DELETE FROM denials WHERE chat=? AND rule_id=? AND source=? AND sealed=0`, record.Chat, record.RuleID, record.Source); err != nil {
+			return Record{}, err
+		}
+	}
 	var generation, used int64
-	if err = tx.QueryRow(`SELECT COALESCE(MAX(generation),1) FROM audit`).Scan(&generation); err != nil {
+	if err = tx.QueryRow(`SELECT COALESCE(MAX(generation),1) FROM ` + table).Scan(&generation); err != nil {
 		return Record{}, err
 	}
-	if err = tx.QueryRow(`SELECT COALESCE(SUM(bytes),0) FROM audit WHERE generation=?`, generation).Scan(&used); err != nil {
+	if err = tx.QueryRow(`SELECT COALESCE(SUM(bytes),0) FROM `+table+` WHERE generation=?`, generation).Scan(&used); err != nil {
 		return Record{}, err
 	}
-	if used+int64(len(payload)) > AuditGenerationBytes {
+	generationBudget := AuditGenerationBytes
+	if table != "audit" {
+		generationBudget = AuditGenerationBytes / 4
+	}
+	if used+int64(len(payload)) > int64(generationBudget) {
 		generation++
 	}
-	if _, err = tx.Exec(`INSERT INTO audit(id,generation,bytes,chat,at,outcome,payload) VALUES(?,?,?,?,?,?,?)`, record.ID, generation, len(payload), record.Chat, record.At, record.Outcome, string(payload)); err != nil {
+	if record.Outcome == "denied" {
+		_, err = tx.Exec(`INSERT INTO denials(id,generation,bytes,chat,at,outcome,payload,count,rule_id,source) VALUES(?,?,?,?,?,?,?,?,?,?)`, record.ID, generation, len(payload), record.Chat, record.At, record.Outcome, string(payload), record.Count, record.RuleID, record.Source)
+	} else {
+		_, err = tx.Exec(`INSERT INTO `+table+`(id,generation,bytes,chat,at,outcome,payload) VALUES(?,?,?,?,?,?,?)`, record.ID, generation, len(payload), record.Chat, record.At, record.Outcome, string(payload))
+	}
+	if err != nil {
 		return Record{}, err
 	}
-	if _, err = tx.Exec(`DELETE FROM audit WHERE generation<=?`, generation-AuditGenerations); err != nil {
+	if _, err = tx.Exec(`DELETE FROM `+table+` WHERE generation<=?`, generation-AuditGenerations); err != nil {
 		return Record{}, err
 	}
-	if _, err = tx.Exec(`DELETE FROM acknowledgements WHERE NOT EXISTS(SELECT 1 FROM audit WHERE audit.chat=acknowledgements.chat)`); err != nil {
+	if _, err = tx.Exec(`DELETE FROM acknowledgements WHERE NOT EXISTS(SELECT 1 FROM ` + auditRows + ` a WHERE a.chat=acknowledgements.chat)`); err != nil {
 		return Record{}, err
 	}
 	if _, err = tx.Exec(`UPDATE policy SET high_water=? WHERE id=1`, record.ID); err != nil {
@@ -367,14 +409,14 @@ func (s *Store) Log(filter Filter) (Page, error) {
 	if err := tx.QueryRow(`SELECT high_water FROM policy WHERE id=1`).Scan(&out.HighWater); err != nil {
 		return out, err
 	}
-	if err := tx.QueryRow(`SELECT COALESCE(MIN(id),0) FROM audit`).Scan(&out.RetentionStart); err != nil {
+	if err := tx.QueryRow(`SELECT COALESCE(MIN(id),0) FROM `+auditRows+` WHERE (?='' OR outcome=?)`, filter.Outcome, filter.Outcome).Scan(&out.RetentionStart); err != nil {
 		return out, err
 	}
 	if filter.Before > 0 && out.RetentionStart > 0 && filter.Before <= out.RetentionStart {
 		return out, errors.New("that audit page is no longer retained; reload from the retention boundary")
 	}
 	// All stored timestamps use the same fixed-width UTC representation below.
-	rows, err := tx.Query(`SELECT payload FROM audit WHERE (?='' OR chat=?) AND (?='' OR at>=?) AND (?='' OR outcome=?) AND (?=0 OR id<?) ORDER BY id DESC LIMIT ?`, filter.Chat, filter.Chat, filter.Since, filter.Since, filter.Outcome, filter.Outcome, filter.Before, filter.Before, filter.Limit+1)
+	rows, err := tx.Query(`SELECT payload FROM `+auditRows+` WHERE (?='' OR chat=?) AND (?='' OR at>=?) AND (?='' OR outcome=?) AND (?=0 OR id<?) ORDER BY id DESC LIMIT ?`, filter.Chat, filter.Chat, filter.Since, filter.Since, filter.Outcome, filter.Outcome, filter.Before, filter.Before, filter.Limit+1)
 	if err != nil {
 		return out, err
 	}
@@ -398,6 +440,15 @@ func (s *Store) Log(filter Filter) (Page, error) {
 		return out, err
 	}
 	rows.Close()
+	// A row that has been displayed is immutable. Later refusals form another
+	// group, so acknowledging the displayed cursor cannot hide a new refusal.
+	for _, row := range out.Rows {
+		if row.Outcome == "denied" {
+			if _, err = tx.Exec(`UPDATE denials SET sealed=1 WHERE id=?`, row.ID); err != nil {
+				return out, err
+			}
+		}
+	}
 	return out, tx.Commit()
 }
 
@@ -420,7 +471,7 @@ func (s *Store) Acknowledge(chat string, through int64) (int, error) {
 		return 0, errors.New("audit cursor is newer than the displayed log")
 	}
 	var retained int
-	if err = tx.QueryRow(`SELECT COUNT(*) FROM audit WHERE chat=?`, chat).Scan(&retained); err != nil {
+	if err = tx.QueryRow(`SELECT COUNT(*) FROM `+auditRows+` WHERE chat=?`, chat).Scan(&retained); err != nil {
 		return 0, err
 	}
 	if retained == 0 {
@@ -430,7 +481,7 @@ func (s *Store) Acknowledge(chat string, through int64) (int, error) {
 		return 0, err
 	}
 	var count int
-	if err = tx.QueryRow(`SELECT COUNT(*) FROM audit WHERE chat=? AND outcome='denied' AND id>COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0)`, chat, chat).Scan(&count); err != nil {
+	if err = tx.QueryRow(`SELECT COALESCE(SUM(n),0) FROM (SELECT 1 n FROM audit WHERE chat=? AND outcome='denied' AND id>COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0) UNION ALL SELECT count n FROM denials WHERE chat=? AND id>COALESCE((SELECT through_id FROM acknowledgements WHERE chat=?),0))`, chat, chat, chat, chat).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, tx.Commit()
@@ -440,7 +491,7 @@ func (s *Store) RefusedCounts() (map[string]int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	counts := map[string]int{}
-	rows, err := s.db.Query(`SELECT a.chat,COUNT(*) FROM audit a LEFT JOIN acknowledgements k ON k.chat=a.chat WHERE a.outcome='denied' AND a.id>COALESCE(k.through_id,0) GROUP BY a.chat`)
+	rows, err := s.db.Query(`SELECT a.chat,SUM(a.n) FROM (SELECT chat,id,1 n FROM audit WHERE outcome='denied' UNION ALL SELECT chat,id,count n FROM denials) a LEFT JOIN acknowledgements k ON k.chat=a.chat WHERE a.id>COALESCE(k.through_id,0) GROUP BY a.chat`)
 	if err != nil {
 		return nil, err
 	}

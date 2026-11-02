@@ -1077,7 +1077,7 @@ func (b *Bus) ReadAttachment(ctx context.Context, sessionID string, messageID in
 		return out, nil
 	}
 
-	data, err := b.readAttachmentWithPolicy(ctx, s, *a)
+	data, err := b.readAttachmentWithPolicy(ctx, s, *a, m.FromSession)
 	if errors.Is(err, os.ErrNotExist) {
 		out.Missing = true
 		return out, nil

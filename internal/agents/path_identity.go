@@ -120,9 +120,9 @@ func protectedIdentity(l layout.Layout, chain []os.FileInfo, managedRoots ...str
 	return nil
 }
 
-// pathIdentityChain is an early metadata check. Operation checks below also
+// PathIdentities is an early metadata check. Operation checks below also
 // use the identities taken from the handles that actually perform the I/O.
-func pathIdentityChain(path string) ([]os.FileInfo, error) {
+func PathIdentities(path string) ([]os.FileInfo, error) {
 	resolved, err := ResolveFilePath(path)
 	if err != nil {
 		return nil, err

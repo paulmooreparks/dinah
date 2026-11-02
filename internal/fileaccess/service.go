@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,17 +19,18 @@ import (
 )
 
 type Scope struct {
-	AuditAlways  bool
-	Source       string
-	LimitRoots   []string
-	Limited      bool
-	Chat         string
-	ChatTitle    string
-	Workspace    string
-	Roots        []string
-	OtherRoots   []string
-	ManagedRoots []string
-	Layout       layout.Layout
+	SharedLinkRoots []string
+	AuditAlways     bool
+	Source          string
+	LimitRoots      []string
+	Limited         bool
+	Chat            string
+	ChatTitle       string
+	Workspace       string
+	Roots           []string
+	OtherRoots      []string
+	ManagedRoots    []string
+	Layout          layout.Layout
 }
 
 type Check struct {
@@ -50,26 +53,7 @@ func Resolve(path string) (string, error) {
 	if !filepath.IsAbs(path) || len(path) > 4096 || strings.ContainsAny(path, "\x00\r\n") {
 		return "", errors.New("use an absolute path of at most 4096 characters without control characters")
 	}
-	path = filepath.Clean(path)
-	tail := []string{}
-	for {
-		resolved, err := filepath.EvalSymlinks(path)
-		if err == nil {
-			for i := len(tail) - 1; i >= 0; i-- {
-				resolved = filepath.Join(resolved, tail[i])
-			}
-			return resolved, nil
-		}
-		if !os.IsNotExist(err) {
-			return "", err
-		}
-		parent := filepath.Dir(path)
-		if parent == path {
-			return "", errors.New("no existing ancestor resolves this path")
-		}
-		tail = append(tail, filepath.Base(path))
-		path = parent
-	}
+	return agents.ResolveFilePath(path)
 }
 
 func inside(roots []string, p string) bool {
@@ -138,10 +122,18 @@ func (s *Service) Policy(scope Scope) (Policy, error) {
 }
 
 func evaluate(path string, scope Scope, policy Policy) Check {
+	chain, _ := agents.PathIdentities(path)
+	return evaluateIdentities(path, scope, policy, chain)
+}
+
+func evaluateIdentities(path string, scope Scope, policy Policy, chain []os.FileInfo) Check {
 	out := Check{MatchedRuleIDs: []string{}}
 	resolved, err := Resolve(path)
 	if err != nil {
 		out.Error = err.Error()
+		if _, boundary := agents.NormalizeFilePath(path); boundary != nil {
+			out.MatchedRuleIDs = append(out.MatchedRuleIDs, "path-boundary")
+		}
 		return out
 	}
 	out.Valid, out.ResolvedPath, out.InsideWorkspace = true, resolved, inside(scope.Roots, resolved)
@@ -162,7 +154,20 @@ func evaluate(path string, scope Scope, policy Policy) Check {
 	// A protected root may itself be configured through a symbolic link.
 	// Compare its canonical identity as well as the requested path spelling.
 	for _, rule := range policy.Rules {
-		if rule.Kind != "protected" || !inside(rule.paths, resolved) {
+		if rule.Kind != "protected" {
+			continue
+		}
+		matched := inside(rule.paths, resolved)
+		for _, root := range rule.paths {
+			same, err := agents.IdentityContains(root, chain)
+			if err != nil {
+				out.Valid = false
+				out.Error = "A protected-rule identity could not be checked"
+				return out
+			}
+			matched = matched || same
+		}
+		if !matched {
 			continue
 		}
 		if rule.ID == "protected-state" && inside(scope.ManagedRoots, resolved) {
@@ -181,7 +186,7 @@ func evaluate(path string, scope Scope, policy Policy) Check {
 		if !r.Enabled || r.Kind == "protected" {
 			continue
 		}
-		if r.ID == "other-workspaces" && out.InsideWorkspace {
+		if r.ID == "other-workspaces" && (out.InsideWorkspace || inside(scope.SharedLinkRoots, resolved)) {
 			continue
 		}
 		roots := r.paths
@@ -193,7 +198,13 @@ func evaluate(path string, scope Scope, policy Policy) Check {
 				continue
 			}
 			canonical, err := Resolve(root)
-			if layout.Inside(root, path) || (err == nil && layout.Inside(canonical, resolved)) {
+			same, identityErr := agents.IdentityContains(root, chain)
+			if identityErr != nil {
+				out.Valid = false
+				out.Error = "A deny-rule identity could not be checked"
+				return out
+			}
+			if same || layout.Inside(root, path) || (err == nil && layout.Inside(canonical, resolved)) {
 				out.MatchedRuleIDs = append(out.MatchedRuleIDs, r.ID)
 				if out.Error == "" {
 					out.Error = r.Reason
@@ -265,28 +276,16 @@ func (s *Service) SetDefault(id string, enabled bool, version int64, scope Scope
 }
 
 func (s *Service) Read(ctx context.Context, path string, line, limit *int, scope Scope) (string, error) {
-	return s.read(ctx, path, line, limit, scope, func(check func(string) error) (string, error) {
-		return agents.ReadTextFileChecked(ctx, scope.Layout, path, scope.ManagedRoots, line, limit, check)
+	return s.read(ctx, path, line, limit, scope, func(check func(string, []os.FileInfo) error) (string, error) {
+		return agents.ReadTextFileChecked(ctx, scope.Layout, path, scope.ManagedRoots, line, limit, nil, func(chain []os.FileInfo) error { return check(path, chain) })
 	})
 }
 
 // ReadOpened applies the same policy and audit to a resource handle already
 // opened through its confined source. Identity is checked before any content read.
 func (s *Service) ReadOpened(ctx context.Context, path string, scope Scope, file *os.File, reader func(*os.File) (string, error)) (string, error) {
-	return s.read(ctx, path, nil, nil, scope, func(check func(string) error) (string, error) {
-		canonical, err := filepath.EvalSymlinks(path)
-		if err != nil {
-			return "", err
-		}
-		opened, err := file.Stat()
-		if err != nil {
-			return "", err
-		}
-		current, err := os.Stat(canonical)
-		if err != nil || !os.SameFile(opened, current) {
-			return "", errors.New("the source file identity changed")
-		}
-		if err := check(canonical); err != nil {
+	return s.read(ctx, path, nil, nil, scope, func(check func(string, []os.FileInfo) error) (string, error) {
+		if err := agents.CheckOpenedFile(path, file, func(chain []os.FileInfo) error { return check(path, chain) }); err != nil {
 			return "", err
 		}
 		text, err := reader(file)
@@ -297,7 +296,7 @@ func (s *Service) ReadOpened(ctx context.Context, path string, scope Scope, file
 	})
 }
 
-func (s *Service) read(ctx context.Context, path string, line, limit *int, scope Scope, read func(func(string) error) (string, error)) (string, error) {
+func (s *Service) read(ctx context.Context, path string, line, limit *int, scope Scope, read func(func(string, []os.FileInfo) error) (string, error)) (string, error) {
 	if scope.Chat == "" || scope.Workspace == "" {
 		return "", errors.New("a registered chat and workspace are required for a file read")
 	}
@@ -326,9 +325,9 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 		return "", errors.New(check.Error)
 	}
 	var refused Check
-	text, readErr := read(func(canonical string) error {
-		final := evaluate(canonical, scope, policy)
-		record.Path = canonical
+	text, readErr := read(func(canonical string, chain []os.FileInfo) error {
+		final := evaluateIdentities(canonical, scope, policy, chain)
+		record.Path = final.ResolvedPath
 		check.InsideWorkspace = final.InsideWorkspace
 		if len(final.MatchedRuleIDs) > 0 {
 			refused = final
@@ -355,4 +354,32 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 		}
 	}
 	return text, readErr
+}
+
+// ReadDirectory audits the bounded metadata returned by a pathname listing.
+func (s *Service) ReadDirectory(ctx context.Context, path string, scope Scope) ([]fs.DirEntry, error) {
+	var entries []fs.DirEntry
+	_, err := s.read(ctx, path, nil, nil, scope, func(check func(string, []os.FileInfo) error) (string, error) {
+		var err error
+		entries, err = agents.ReadDirectoryChecked(ctx, path, func(chain []os.FileInfo) error { return check(path, chain) })
+		if err != nil {
+			return "", err
+		}
+		metadata := []map[string]any{}
+		for _, e := range entries {
+			metadata = append(metadata, map[string]any{"name": e.Name(), "directory": e.IsDir(), "type": e.Type().String()})
+		}
+		data, err := json.Marshal(metadata)
+		if err != nil {
+			return "", err
+		}
+		if len(data) > agents.MaxProviderText {
+			return "", errors.New("the directory metadata exceeds 1 MiB; choose a smaller directory")
+		}
+		return string(data), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
 }

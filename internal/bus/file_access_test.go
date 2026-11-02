@@ -142,8 +142,11 @@ func TestAttachmentPolicyDefaultsProtectOtherWorkspaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := b.ReadAttachment(ctx, reader.ID, message.ID, 1); err == nil || len(got.Data) != 0 {
-		t.Fatal("other workspace bypassed default")
+	if got, err := b.ReadAttachment(ctx, reader.ID, message.ID, 1); err != nil || got.Text != "synthetic" {
+		t.Fatalf("sender-owned link: %+v %v", got, err)
+	}
+	if got, err := b.readAttachmentWithPolicy(ctx, reader, message.Attachments[0]); err == nil || len(got) != 0 {
+		t.Fatal("a raw pathname received the sharing exception")
 	}
 	log, err := service.Store.Log(fileaccess.Filter{Outcome: "denied"})
 	if err != nil || len(log.Rows) != 1 || log.Rows[0].RuleID != "other-workspaces" || log.Rows[0].Chat != reader.ID {

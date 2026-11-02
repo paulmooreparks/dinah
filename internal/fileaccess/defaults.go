@@ -86,22 +86,31 @@ func defaultRules(platform, home, roaming, local string, env map[string]string) 
 	add("password-store", "{home}/.password-store or PASSWORD_STORE_DIR", "Password-store data", join(home, ".password-store"), env["PASSWORD_STORE_DIR"])
 	switch platform {
 	case "windows":
-		add("browser-profiles", "Browser profile directories", "Browser passwords, cookies and sign-in sessions", join(local, "Google/Chrome/User Data"), join(local, "Chromium/User Data"), join(local, "Microsoft/Edge/User Data"), join(roaming, "Mozilla/Firefox"))
-		add("password-managers", "Password manager application data", "Password manager data and settings", join(roaming, "1Password"))
+		add("browser-profiles", "Browser profile directories", "Browser passwords, cookies and sign-in sessions", join(local, "Google/Chrome/User Data"), join(local, "Chromium/User Data"), join(local, "Microsoft/Edge/User Data"), join(roaming, "Mozilla/Firefox"), join(local, "BraveSoftware/Brave-Browser/User Data"), join(roaming, "Opera Software"), join(local, "Vivaldi/User Data"))
+		add("password-managers", "Password manager application data", "Password manager data and settings", join(roaming, "1Password"), join(roaming, "Bitwarden"), join(roaming, "Bitwarden CLI"), join(roaming, "KeePassXC"), join(local, "KeePassXC"))
 		add("credential-stores", "Windows credential storage directories", "Operating-system credential data", join(roaming, "Microsoft/Credentials"), join(local, "Microsoft/Credentials"), join(roaming, "Microsoft/Vault"), join(local, "Microsoft/Vault"), join(roaming, "Microsoft/Protect"))
 	case "darwin":
-		add("browser-profiles", "Browser profile directories", "Browser passwords, cookies and sign-in sessions", join(home, "Library/Application Support/Google/Chrome"), join(home, "Library/Application Support/Chromium"), join(home, "Library/Application Support/Microsoft Edge"), join(home, "Library/Application Support/Firefox"), join(home, "Library/Safari"))
-		add("password-managers", "Password manager application data", "Password manager data and settings", join(home, "Library/Group Containers/2BUA8C4S2C.com.1password"))
+		add("browser-profiles", "Browser profile directories", "Browser passwords, cookies and sign-in sessions", join(home, "Library/Application Support/Google/Chrome"), join(home, "Library/Application Support/Chromium"), join(home, "Library/Application Support/Microsoft Edge"), join(home, "Library/Application Support/Firefox"), join(home, "Library/Safari"), join(home, "Library/Application Support/BraveSoftware/Brave-Browser"), join(home, "Library/Application Support/com.operasoftware.Opera"), join(home, "Library/Application Support/Vivaldi"))
+		add("password-managers", "Password manager application data", "Password manager data and settings", join(home, "Library/Group Containers/2BUA8C4S2C.com.1password"), join(home, "Library/Application Support/Bitwarden"), join(home, "Library/Containers/com.bitwarden.desktop"), join(home, "Library/Application Support/KeePassXC"))
 		add("credential-stores", "{home}/Library/Keychains", "Operating-system credential data", join(home, "Library/Keychains"))
 	default:
 		chromeConfig := config
 		if env["CHROME_CONFIG_HOME"] != "" {
 			chromeConfig = env["CHROME_CONFIG_HOME"]
 		}
-		add("browser-profiles", "Browser profile directories", "Browser passwords, cookies and sign-in sessions", join(chromeConfig, "google-chrome"), join(chromeConfig, "chromium"), join(config, "microsoft-edge"), join(home, ".mozilla/firefox"), env["CHROME_USER_DATA_DIR"])
-		add("password-managers", "Password manager application data", "Password manager data and settings", join(config, "1Password"), join(home, "snap/1password/current/.config/1Password"))
+		add("browser-profiles", "Browser profile directories", "Browser passwords, cookies and sign-in sessions", join(chromeConfig, "google-chrome"), join(chromeConfig, "chromium"), join(config, "microsoft-edge"), join(home, ".mozilla/firefox"), env["CHROME_USER_DATA_DIR"], join(config, "BraveSoftware/Brave-Browser"), join(config, "opera"), join(config, "vivaldi"))
+		add("password-managers", "Password manager application data", "Password manager data and settings", join(config, "1Password"), join(home, "snap/1password/current/.config/1Password"), join(config, "Bitwarden"), join(config, "Bitwarden CLI"), join(config, "keepassxc"), join(home, ".var/app/com.bitwarden.desktop"), join(home, ".var/app/org.keepassxc.KeePassXC"))
 		add("credential-stores", "XDG data keyring directories", "Desktop credential data", join(data, "keyrings"), join(data, "kwalletd"))
 	}
+	add("network-credentials", "netrc and PostgreSQL password files", "Network service passwords", join(home, ".netrc"), join(home, "_netrc"), join(home, ".pgpass"), env["PGPASSFILE"], join(roaming, "postgresql/pgpass.conf"))
+	add("password-overrides", "Password manager storage overrides", "Password manager data and settings", env["BITWARDEN_APPDATA_DIR"], env["KPXC_CONFIG"], env["KPXC_CONFIG_LOCAL"])
+	gh := join(config, "gh")
+	if platform == "windows" && env["XDG_CONFIG_HOME"] == "" {
+		gh = join(roaming, "GitHub CLI")
+	}
+	add("github-cli", "GitHub CLI configuration or GH_CONFIG_DIR", "GitHub authentication tokens", gh, env["GH_CONFIG_DIR"])
+	add("provider-credentials", "Agent account credentials and local model state", "Agent account tokens and private state", join(home, ".claude/.credentials.json"), join(home, ".codex/auth.json"), join(home, ".ollama"))
+	add("terraform", "Terraform CLI credential configuration", "Infrastructure service credentials", join(home, ".terraform.d"), join(home, ".terraformrc"), join(roaming, "terraform.d"), join(roaming, "terraform.rc"), env["TF_CLI_CONFIG_FILE"])
 	add("other-workspaces", "Other registered workspaces outside this workspace's roots", "Another workspace's data")
 	return rules
 }

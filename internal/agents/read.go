@@ -31,7 +31,7 @@ func ReadTextFile(ctx context.Context, l layout.Layout, path string, managedRoot
 
 // ReadTextFileChecked evaluates additional policy on the final canonical path
 // before the identity-safe open. It never returns content from an unchecked path.
-func ReadTextFileChecked(ctx context.Context, l layout.Layout, path string, managedRoots []string, line, limit *int, check func(string) error) (string, error) {
+func ReadTextFileChecked(ctx context.Context, l layout.Layout, path string, managedRoots []string, line, limit *int, check func(string) error, identityChecks ...func([]os.FileInfo) error) (string, error) {
 	if err := ValidateLineRange(line, limit); err != nil {
 		return "", err
 	}
@@ -60,7 +60,15 @@ func ReadTextFileChecked(ctx context.Context, l layout.Layout, path string, mana
 		return "", errors.New("a regular file path is required")
 	}
 	file, err := openReadFileChecked(base, rel, func(chain []os.FileInfo) error {
-		return protectedIdentity(l, chain, managedRoots...)
+		if err := protectedIdentity(l, chain, managedRoots...); err != nil {
+			return &ProtectedReadError{Path: resolved, Reason: err.Error()}
+		}
+		for _, check := range identityChecks {
+			if err := check(chain); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return "", err
@@ -72,8 +80,9 @@ func ReadTextFileChecked(ctx context.Context, l layout.Layout, path string, mana
 // OpenCatalogFile rejects symbolic-link aliases, including ancestors, for a
 // purpose-specific catalogue read. It grants no general provider file authority.
 func OpenCatalogFile(path string) (*os.File, error) {
-	if !filepath.IsAbs(path) {
-		return nil, errors.New("a catalogue path must be absolute")
+	path, err := NormalizeFilePath(path)
+	if err != nil {
+		return nil, err
 	}
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -203,4 +212,35 @@ func readTextRange(ctx context.Context, file io.Reader, line, limit *int) (strin
 		return "", errProviderTextSize
 	}
 	return content, nil
+}
+
+// CheckOpenedFile verifies a source handle against a second identity-safe walk.
+// No contents are read by this function.
+func CheckOpenedFile(path string, file *os.File, check func([]os.FileInfo) error) error {
+	resolved, err := ResolveFilePath(path)
+	if err != nil {
+		return err
+	}
+	base := filepath.VolumeName(resolved) + string(filepath.Separator)
+	rel, err := filepath.Rel(base, resolved)
+	if err != nil || !filepath.IsLocal(rel) || rel == "." {
+		return errors.New("a regular file path is required")
+	}
+	checked, err := openReadFileChecked(base, rel, check)
+	if err != nil {
+		return err
+	}
+	defer checked.Close()
+	a, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	b, err := checked.Stat()
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(a, b) {
+		return errors.New("the source file identity changed")
+	}
+	return nil
 }

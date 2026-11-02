@@ -169,8 +169,9 @@ type Conn struct {
 	applets map[string]*appletServer
 	redact  func(string) string
 	// scope says where the file tools may go (files.go); nil is anywhere.
-	scope         FileScope
-	hostFileReads bool
+	scope              FileScope
+	hostFileReads      bool
+	hostDirectoryReads DirectoryRead
 	// rounds says how many rounds a turn may take; nil is no limit.
 	rounds RoundLimit
 }

@@ -33,7 +33,16 @@ func (t turnTools) usesHostFileReads() bool {
 	return t.c.hostFileReads
 }
 
+type DirectoryRead func(context.Context, string, string, string) ([]fs.DirEntry, error)
+
+func (c *Conn) SetHostDirectoryReads(read DirectoryRead) {
+	c.mu.Lock()
+	c.hostDirectoryReads = read
+	c.mu.Unlock()
+}
+
 type hostReadFiles struct {
+	source string
 	fileSystem
 	tools turnTools
 	ctx   context.Context
@@ -45,6 +54,71 @@ func (f hostReadFiles) readFile(path string) ([]byte, error) {
 		return nil, errors.New(text)
 	}
 	return []byte(text), nil
+}
+
+func (f hostReadFiles) readDir(path string) ([]fs.DirEntry, error) {
+	f.tools.c.mu.Lock()
+	read := f.tools.c.hostDirectoryReads
+	f.tools.c.mu.Unlock()
+	if read == nil {
+		return nil, errors.New("the host directory policy is unavailable")
+	}
+	return read(f.ctx, f.tools.session, path, f.source)
+}
+
+type incompleteWalk struct{ count int }
+
+func (e *incompleteWalk) Error() string {
+	return fmt.Sprintf("%d paths could not be listed; access policy applies. Inspect the Agent File Access log.", e.count)
+}
+
+func (f hostReadFiles) walk(root string, fn fs.WalkDirFunc) error {
+	missed := 0
+	var visit func(string, fs.DirEntry) error
+	visit = func(path string, entry fs.DirEntry) error {
+		var entries []fs.DirEntry
+		var err error
+		{
+			entries, err = f.readDir(path)
+			if err != nil {
+				if entry == nil {
+					return err
+				}
+				missed++
+				return fn(path, entry, err)
+			}
+			if entry == nil {
+				info, e := os.Stat(path)
+				if e != nil {
+					return e
+				}
+				entry = fs.FileInfoToDirEntry(info)
+			}
+		}
+		if err = fn(path, entry, nil); err != nil {
+			if err == fs.SkipDir {
+				return nil
+			}
+			return err
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		for _, child := range entries {
+			if err = visit(filepath.Join(path, child.Name()), child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	err := visit(root, nil)
+	if err == fs.SkipAll {
+		err = nil
+	}
+	if err == nil && missed > 0 {
+		return &incompleteWalk{missed}
+	}
+	return err
 }
 
 // SetFileScope gives the connection the function that says where the file

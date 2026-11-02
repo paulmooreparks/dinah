@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"slices"
 
@@ -71,6 +73,9 @@ func (a *App) ollamaFileScopeFor(_, cwd string) ([]string, bool) {
 // its file tools may go.
 func (a *App) useOllamaFileScope(c *ollamaagent.Conn) {
 	c.SetHostFileReads()
+	c.SetHostDirectoryReads(func(ctx context.Context, session, path, source string) ([]fs.DirEntry, error) {
+		return a.readAgentDirectory(ctx, c, session, path, source)
+	})
 	c.SetFileScope(func(session, cwd string) ([]string, bool) { return a.ollamaFileScopeFor(session, cwd) })
 }
 

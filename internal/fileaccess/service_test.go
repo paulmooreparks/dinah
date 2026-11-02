@@ -129,14 +129,14 @@ func TestDefaultResolversCoverEveryPlatformAndEntry(t *testing.T) {
 				t.Fatalf("invalid default %s/%s", platform, r.ID)
 			}
 			seen[r.ID] = true
-			if r.ID != "other-workspaces" && len(r.ResolvedPaths) == 0 {
+			if r.ID != "other-workspaces" && r.ID != "password-overrides" && len(r.ResolvedPaths) == 0 {
 				t.Fatalf("unresolved default %s/%s", platform, r.ID)
 			}
 			if r.ID == "ssh" && !strings.Contains(strings.Join(r.ResolvedPaths, ";"), "/custom/socket") {
 				t.Fatal("agent endpoint override missing")
 			}
 		}
-		if len(seen) != 15 {
+		if len(seen) != 20 {
 			t.Fatalf("default fixture lost entries: %s %d", platform, len(seen))
 		}
 	}
@@ -219,5 +219,64 @@ func TestReadPolicyProtectsCanonicalStateDirectory(t *testing.T) {
 	log, err := store.Log(Filter{Outcome: "denied"})
 	if err != nil || len(log.Rows) != 1 || log.Rows[0].RuleID != "protected-state" {
 		t.Fatalf("denied canonical audit: %+v %v", log, err)
+	}
+}
+
+func TestReadPolicyDirectoryMetadataUsesDenyAndAudit(t *testing.T) {
+	store, _ := testStore(t)
+	home, workspace, outside := t.TempDir(), t.TempDir(), t.TempDir()
+	denied := filepath.Join(home, ".ssh")
+	if err := os.MkdirAll(denied, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(denied, "private-name"), []byte("synthetic"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "public-name"), []byte("synthetic"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	svc := &Service{Store: store, Defaults: DefaultRules(runtime.GOOS, home, "", "", nil)}
+	scope := Scope{Chat: "chat", Workspace: "workspace", Roots: []string{workspace}, Layout: layout.Layout{State: filepath.Join(t.TempDir(), "state")}, Source: "list_directory"}
+	if entries, err := svc.ReadDirectory(context.Background(), denied, scope); err == nil || len(entries) != 0 {
+		t.Fatal("denied directory metadata escaped")
+	}
+	scope.Source = "find_files"
+	if entries, err := svc.ReadDirectory(context.Background(), outside, scope); err != nil || len(entries) != 1 || entries[0].Name() != "public-name" {
+		t.Fatalf("outside metadata: %v %v", entries, err)
+	}
+	log, err := store.Log(Filter{})
+	if err != nil || len(log.Rows) != 2 || log.Rows[0].Source != "find_files" || log.Rows[0].Bytes == 0 || log.Rows[1].Outcome != "denied" || log.Rows[1].RuleID != "ssh" {
+		t.Fatalf("directory audit: %+v %v", log, err)
+	}
+}
+
+func TestReadPolicyNamespaceAliasesCannotReadDeniedFiles(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows namespace fixture")
+	}
+	store, _ := testStore(t)
+	home := t.TempDir()
+	path := filepath.Join(home, "denied.txt")
+	if err := os.WriteFile(path, []byte("synthetic"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	svc := &Service{Store: store}
+	scope := Scope{Chat: "chat", Workspace: "workspace", Layout: layout.Layout{State: filepath.Join(t.TempDir(), "state")}}
+	if _, err := svc.Add(path, 1, scope); err != nil {
+		t.Fatal(err)
+	}
+	share := `\\localhost\` + string(path[0]) + `$` + path[2:]
+	for _, alias := range []string{path, `\\?\` + path, `\\.\` + path, share, strings.ToUpper(path)} {
+		if text, err := svc.Read(context.Background(), alias, nil, nil, scope); err == nil || text != "" {
+			t.Fatal("namespace escaped custom denial", alias)
+		}
+	}
+	log, err := store.Log(Filter{Outcome: "denied"})
+	if err != nil || len(log.Rows) < 2 {
+		t.Fatalf("namespace audit: %+v %v", log, err)
+	}
+	counts, err := store.RefusedCounts()
+	if err != nil || counts["chat"] != 5 {
+		t.Fatalf("denial count: %v %v", counts, err)
 	}
 }

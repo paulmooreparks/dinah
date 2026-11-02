@@ -176,6 +176,9 @@ func (t turnTools) run(ctx context.Context, id, name string, args map[string]any
 			return refused, false
 		}
 		defer done()
+		if t.usesHostFileReads() {
+			fsys = hostReadFiles{fileSystem: fsys, tools: t, ctx: ctx, source: name}
+		}
 		return listIn(fsys, p)
 	case "find_files":
 		p := t.path(s("path"))
@@ -184,6 +187,9 @@ func (t turnTools) run(ctx context.Context, id, name string, args map[string]any
 			return refused, false
 		}
 		defer done()
+		if t.usesHostFileReads() {
+			fsys = hostReadFiles{fileSystem: fsys, tools: t, ctx: ctx, source: name}
+		}
 		return findIn(ctx, fsys, p, s("pattern"))
 	case "search_text":
 		p := t.path(s("path"))
@@ -193,7 +199,7 @@ func (t turnTools) run(ctx context.Context, id, name string, args map[string]any
 		}
 		defer done()
 		if t.usesHostFileReads() {
-			fsys = hostReadFiles{fileSystem: fsys, tools: t, ctx: ctx}
+			fsys = hostReadFiles{fileSystem: fsys, tools: t, ctx: ctx, source: name}
 		}
 		return searchIn(ctx, fsys, p, s("pattern"), s("glob"))
 	case "run_command":
@@ -421,6 +427,11 @@ func findIn(ctx context.Context, fsys fileSystem, root, pattern string) (string,
 		}
 		return nil
 	})
+	var incomplete *incompleteWalk
+	if errors.As(err, &incomplete) {
+		found = append(found, "["+incomplete.Error()+"]")
+		err = nil
+	}
 	if errors.Is(err, errSearchBudget) {
 		sort.Strings(found)
 		return strings.Join(append(found, "["+work.note(root)+"]"), "\n"), true
@@ -506,7 +517,7 @@ func searchIn(ctx context.Context, fsys fileSystem, root, pattern, glob string) 
 					rel = filepath.Base(p)
 				}
 				if len(line) > 300 {
-					line = line[:300] + "Ã¢â‚¬Â¦"
+					line = line[:300] + "..."
 				}
 				lines = append(lines, fmt.Sprintf("%s:%d: %s", filepath.ToSlash(rel), i+1, strings.TrimRight(line, "\r")))
 				if len(lines) >= maxMatches {
@@ -522,7 +533,11 @@ func searchIn(ctx context.Context, fsys fileSystem, root, pattern, glob string) 
 		if ctx.Err() != nil {
 			return stoppedSearch(lines), false
 		}
-		return err.Error(), false
+		var incomplete *incompleteWalk
+		if !errors.As(err, &incomplete) {
+			return err.Error(), false
+		}
+		lines = append(lines, "["+incomplete.Error()+"]")
 	}
 	if len(lines) == 0 {
 		if unreadable == 0 {

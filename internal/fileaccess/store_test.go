@@ -1,6 +1,7 @@
 package fileaccess
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +32,7 @@ func TestAuditPolicyChangesAreAtomicAndVersioned(t *testing.T) {
 	if err := s.Change(1, "remove", "custom-a", "", false); err == nil {
 		t.Fatal("stale change accepted")
 	}
-	if _, err := s.db.Exec(`CREATE TRIGGER fail_audit BEFORE INSERT ON audit BEGIN SELECT RAISE(ABORT,'synthetic audit failure'); END;`); err != nil {
+	if _, err := s.db.Exec(`CREATE TRIGGER fail_audit BEFORE INSERT ON policy_changes BEGIN SELECT RAISE(ABORT,'synthetic audit failure'); END;`); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Change(2, "remove", "custom-a", "", false); err == nil {
@@ -75,6 +76,9 @@ func TestAuditCursorsPreserveNewerAndOtherChats(t *testing.T) {
 	s.now = func() time.Time { return now }
 	first, err := s.Append(Record{Chat: "a", Outcome: "denied", RuleID: "ssh"})
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Log(Filter{Chat: "a"}); err != nil {
 		t.Fatal(err)
 	}
 	now = now.Add(time.Nanosecond)
@@ -130,11 +134,11 @@ func TestAuditRotationBoundsFilesAndRetainsPolicy(t *testing.T) {
 	if err := s.db.QueryRow(`SELECT MAX(n) FROM (SELECT SUM(bytes) n FROM audit GROUP BY generation)`).Scan(&maxGeneration); err != nil || maxGeneration > AuditGenerationBytes {
 		t.Fatal("generation exceeds bound")
 	}
-	page, err := s.Log(Filter{})
+	page, err := s.Log(Filter{Outcome: "allowed"})
 	if err != nil || page.RetentionStart <= 1 || page.HighWater != 651 {
 		t.Fatalf("rotation metadata: %+v %v", page, err)
 	}
-	if _, err = s.Log(Filter{Before: 2}); err == nil {
+	if _, err = s.Log(Filter{Before: 2, Outcome: "allowed"}); err == nil {
 		t.Fatal("expired cursor silently moved")
 	}
 	version, custom, _, err := s.Snapshot()
@@ -167,7 +171,7 @@ func TestAuditDatabasePathIsNotAURIFragment(t *testing.T) {
 
 func TestAuditDatabaseRefusesNewerSchemaWithoutWriting(t *testing.T) {
 	s, path := testStore(t)
-	if _, err := s.db.Exec(`PRAGMA user_version=2`); err != nil {
+	if _, err := s.db.Exec(`PRAGMA user_version=3`); err != nil {
 		t.Fatal(err)
 	}
 	if opened, err := Open(path); err == nil {
@@ -175,7 +179,47 @@ func TestAuditDatabaseRefusesNewerSchemaWithoutWriting(t *testing.T) {
 		t.Fatal("newer schema accepted")
 	}
 	var version int
-	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 2 {
+	if err := s.db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != 3 {
 		t.Fatal("refusal rewrote the schema version")
+	}
+}
+
+func TestAuditDenialFloodCannotRotateReadsOrPolicyChanges(t *testing.T) {
+	s, path := testStore(t)
+	if err := s.Change(1, "add", "custom-a", "/synthetic", true); err != nil {
+		t.Fatal(err)
+	}
+	original, err := s.Append(Record{Chat: "chat", Outcome: "allowed", Path: "/outside/read", Bytes: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 1000; i++ {
+		if _, err := s.Append(Record{Chat: "chat", Outcome: "denied", RuleID: "ssh", Source: "find_files", Path: fmt.Sprintf("/synthetic/%d", i)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var rows int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM denials`).Scan(&rows); err != nil || rows != 1 {
+		t.Fatalf("denials did not collapse: %d %v", rows, err)
+	}
+	log, err := s.Log(Filter{})
+	if err != nil || len(log.Rows) != 3 || log.Rows[0].Count != 1000 || log.Rows[1].ID != original.ID || log.Rows[2].Outcome != "policy-change" {
+		t.Fatalf("retained audit: %+v %v", log, err)
+	}
+	shown := log.HighWater
+	if _, err := s.Append(Record{Chat: "chat", Outcome: "denied", RuleID: "ssh", Source: "find_files", Path: "/synthetic/new"}); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.Acknowledge("chat", shown); err != nil || n != 1 {
+		t.Fatalf("new refusal was lost: %d %v", n, err)
+	}
+	other, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer other.Close()
+	counts, err := other.RefusedCounts()
+	if err != nil || counts["chat"] != 1 {
+		t.Fatalf("counts did not survive reopen: %v %v", counts, err)
 	}
 }

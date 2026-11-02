@@ -74,7 +74,7 @@ func attachmentFailure(service *fileaccess.Service, scope fileaccess.Scope, path
 	return failure
 }
 
-func (b *Bus) readPolicyAttachment(ctx context.Context, session Session, path, source string, read func(*os.File) (string, error)) (string, error) {
+func (b *Bus) readPolicyAttachment(ctx context.Context, session Session, path, source string, ownerRoot string, read func(*os.File) (string, error)) (string, error) {
 	service, err := b.fileAccessPolicy()
 	if err != nil {
 		return "", err
@@ -82,6 +82,15 @@ func (b *Bus) readPolicyAttachment(ctx context.Context, session Session, path, s
 	scope, err := b.attachmentScope(ctx, session, source)
 	if err != nil {
 		return "", err
+	}
+	if ownerRoot != "" {
+		resolved, err := fileaccess.Resolve(path)
+		if err == nil && layout.Inside(ownerRoot, path) {
+			root, err := fileaccess.Resolve(ownerRoot)
+			if err == nil && layout.Inside(root, resolved) {
+				scope.SharedLinkRoots = []string{root}
+			}
+		}
 	}
 	check, err := service.Check(path, scope)
 	if err != nil {
@@ -105,7 +114,7 @@ func (b *Bus) readPolicyAttachment(ctx context.Context, session Session, path, s
 func (b *Bus) hashAttachmentWithPolicy(ctx context.Context, session Session, path string) (string, int64, error) {
 	var hash string
 	var size int64
-	_, err := b.readPolicyAttachment(ctx, session, path, "bus.attach", func(file *os.File) (string, error) {
+	_, err := b.readPolicyAttachment(ctx, session, path, "bus.attach", "", func(file *os.File) (string, error) {
 		sum := sha256.New()
 		var err error
 		size, err = io.Copy(sum, file)
@@ -118,7 +127,7 @@ func (b *Bus) hashAttachmentWithPolicy(ctx context.Context, session Session, pat
 	return hash, size, err
 }
 
-func (b *Bus) readAttachmentWithPolicy(ctx context.Context, session Session, attachment Attachment) ([]byte, error) {
+func (b *Bus) readAttachmentWithPolicy(ctx context.Context, session Session, attachment Attachment, senderIDs ...string) ([]byte, error) {
 	read := func(file *os.File) (string, error) {
 		data, err := io.ReadAll(io.LimitReader(file, MaxAttachmentRead+1))
 		if err != nil {
@@ -130,7 +139,13 @@ func (b *Bus) readAttachmentWithPolicy(ctx context.Context, session Session, att
 		return string(data), nil
 	}
 	if !attachment.Stored {
-		text, err := b.readPolicyAttachment(ctx, session, attachment.Path, "read_attachment", read)
+		ownerRoot := ""
+		if len(senderIDs) == 1 {
+			if sender, err := b.Session(ctx, senderIDs[0]); err == nil {
+				ownerRoot = sender.WorkspacePath
+			}
+		}
+		text, err := b.readPolicyAttachment(ctx, session, attachment.Path, "read_attachment", ownerRoot, read)
 		return []byte(text), err
 	}
 	// Person-owned stored copies contain supplied bytes, not an agent-chosen
