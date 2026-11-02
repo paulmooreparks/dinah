@@ -26,7 +26,7 @@ func TestReadPolicyAuditsWithoutReturningUnauditedContent(t *testing.T) {
 		}
 	}
 	scope := Scope{Chat: "chat-a", Workspace: "workspace-a", Roots: []string{root}, Layout: layout.Layout{State: state}}
-	svc := &Service{Store: store, Defaults: DefaultRules("windows", home, "", "", nil)}
+	svc := &Service{Store: store, Defaults: DefaultRules(runtime.GOOS, home, "", "", nil)}
 	ctx := context.Background()
 	if text, err := svc.Read(ctx, filepath.Join(root, "value.txt"), nil, nil, scope); err != nil || text != "synthetic text" {
 		t.Fatalf("workspace read: %q %v", text, err)
@@ -71,7 +71,7 @@ func TestReadPolicyChangesAndSymlinkAliases(t *testing.T) {
 		t.Fatal("symlink guard requires supported test host", err)
 	}
 	scope := Scope{Chat: "a", Workspace: "w", Roots: []string{root}, Layout: layout.Layout{State: filepath.Join(t.TempDir(), "state")}}
-	svc := &Service{Store: store, Defaults: DefaultRules("windows", home, "", "", nil)}
+	svc := &Service{Store: store, Defaults: DefaultRules(runtime.GOOS, home, "", "", nil)}
 	if text, err := svc.Read(context.Background(), filepath.Join(alias, "key"), nil, nil, scope); err == nil || text != "" {
 		t.Fatal("alias bypassed denial")
 	}
