@@ -11,6 +11,8 @@ var standardEnvironment = []string{
 	"PATH", "PATHEXT", "SystemRoot", "WINDIR", "COMSPEC", "TEMP", "TMP", "TMPDIR",
 	"HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "USER", "USERNAME", "LOGNAME",
 	"LANG", "LC_ALL", "LC_CTYPE", "TZ",
+	"APPDATA", "LOCALAPPDATA", "ProgramData", "ProgramFiles", "ProgramFiles(x86)",
+	"SystemDrive", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE",
 }
 
 func cleanEnvironment(env []string, declared ...string) []string {
