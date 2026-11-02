@@ -29,6 +29,7 @@
     <a href="/releases"{{if eq .Section "releases"}} aria-current="page"{{end}}>Releases</a>
     <a href="/bus"{{if eq .Section "bus"}} aria-current="page"{{end}}>Bus</a>
   </nav>
+  {{template "signout-controls"}}
 </header>
 <main class="dinah-main vstack gap-5">
 <div class="notice" role="status" id="reload-notice" hidden><div class="notice-content"><p class="notice-title">New Activity</p><p class="notice-body">The bus has changed since this page was drawn. <a href="">Reload the page</a> when you have finished typing.</p></div></div>
@@ -84,6 +85,7 @@
   </div>
   <nav class="win-dock" data-win-dock aria-label="Open windows"></nav>
   {{if .Unread}}<a class="badge accent" href="/inbox" data-win-open="inbox">{{.Unread}} New</a>{{end}}
+  {{template "signout-controls"}}
 </header>
 <main class="win-host dinah-desktop-area">
   <div class="win-layer" data-win-layer data-win-menu data-win-switcher data-win-src="/win/{key}" data-win-default="{{.Data.Defaults}}">{{.Data.Windows}}</div>
@@ -91,6 +93,11 @@
 </body>
 </html>
 {{end}}
+
+{{define "signout-controls"}}<nav class="hstack gap-2" aria-label="Browser sign-in">
+  <form method="post" action="/signout"><button class="btn" type="submit">Sign Out</button></form>
+  <form method="post" action="/signout/everywhere"><button class="btn" type="submit">Sign Out Everywhere</button></form>
+</nav>{{end}}
 
 {{define "message"}}
 <article class="card dinah-message" id="m{{.ID}}">

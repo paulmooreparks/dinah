@@ -1,6 +1,6 @@
 # Browser session lifetime and revocation
 
-Paul approved TM-03 in message 3327. This design records the contract before implementation; its source work follows BL-04. The [Architectural Principles](C:/Users/paul/OneDrive/Documents/Architectural%20Principles.md) apply.
+Paul approved TM-03 in message 3327. This contract was recorded before implementation, whose source work followed BL-04's passing local recovery checks. Publication remains held by the history-rewrite freeze. The [Architectural Principles](C:/Users/paul/OneDrive/Documents/Architectural%20Principles.md) apply.
 
 Browser authentication currently accepts any token present in web_sessions indefinitely. Each session will retain its issue time and last successful use. A token expires when either 30 days have elapsed since its last use or 90 days have elapsed since issue. Expiry boundaries are inclusive. Successful authenticated use advances last use but never issue time. Invalid timestamps or database failures deny access.
 
@@ -15,3 +15,7 @@ Expired, revoked or unknown cookies receive the existing sign-in page with clear
 An open event stream must stop delivering when its token is revoked or expires. Its periodic validation will check authority without treating passive keepalives as a new use; otherwise a forgotten open tab would keep its own idle window alive. Ordinary authenticated HTTP requests count as use. Reconnecting an event stream validates authority but likewise does not advance activity. Revocation cannot retract content a browser has already received.
 
 The guards use an isolated database and a fake clock. They cover idle expiry, activity extending only the idle window, absolute expiry despite repeated activity, exact boundaries, migration of older tokens, malformed stored times, current-browser revocation, global revocation and sign-in-code replay. HTTP tests cover the sign-in-again response, cookie removal, same-origin POST requirements and stream termination. A legitimate session remains usable within both windows. No live browser token, desktop or listener is needed for these tests.
+
+The supported settings commands are `dinah browser-sessions settings`, `dinah browser-sessions settings --idle-days 30 --absolute-days 90` and `dinah browser-sessions sign-out-everywhere`. Each window accepts 1 to 3650 whole days. The policy is stored in the bus database's singleton web_session_policy row. Authentication metadata updates do not advance the message change counter, avoiding refresh loops caused by the act of authenticating a request.
+
+The focused clock, legacy-schema migration, concurrent revocation, HTTP sign-out, event-stream termination and command-line guards pass. The HTTP guards use in-process request handlers and no listening socket. The broader affected-package run and exact-tip profile checks are still required before independent review and handoff after migration.

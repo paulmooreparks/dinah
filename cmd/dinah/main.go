@@ -47,6 +47,10 @@ var usage = strings.NewReplacer(
   {cmd} serve          serve {name} and open it in the browser ({window}
                        is the {name} window, which serves it itself)
   {cmd} open           sign a browser in to a page that is already served
+  {cmd} browser-sessions settings [--idle-days N] [--absolute-days N]
+                       show or change browser sign-in lifetime settings
+  {cmd} browser-sessions sign-out-everywhere
+                       revoke all browser sign-ins and unused sign-in links
   {cmd} send TO TEXT   send a message as paul
   {cmd} claude [ARGS]  start Claude Code here, live on the bus: it wakes
                        when a message arrives (ARGS go to claude)
@@ -95,6 +99,8 @@ func main() {
 		err = serve(ctx, os.Args[2:])
 	case "open":
 		err = open(ctx, os.Args[2:])
+	case "browser-sessions":
+		err = withBus(func(b *bus.Bus) error { return browserSessions(ctx, b, os.Args[2:], os.Stdout) })
 	case "send":
 		err = send(ctx, os.Args[2:])
 	case "claude":
