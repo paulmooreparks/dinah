@@ -3,7 +3,7 @@
   "go": [
     { "package": "./internal/profile", "tests": ["TestNoForbiddenTermsInTrackedFiles", "TestNoProductNameOutsideTheProfile", "TestNoProviderNamesInSharedCodeBeyondTheList"] },
     { "package": "./internal/agents", "tests": ["TestProtectedIdentityWritesAndManagedException", "TestProtectedIdentityCaseVariant", "TestProtectedIdentityCreationModes", "TestWindowsProtectedPathNamespaceReadAndWrite", "TestWindowsJunctionWriteCannotReachState", "TestSliceLinesRejectsInvalidRanges", "FuzzSliceLines", "TestProviderReadPolicyAndBounds"],
-      "onlyOn": { "TestProtectedIdentityCreationModes": ["linux", "darwin"], "TestWindowsProtectedPathNamespaceReadAndWrite": ["windows"], "TestWindowsJunctionWriteCannotReachState": ["windows"] } },
+      "onlyOn": { "TestProtectedIdentityCaseVariant": ["windows", "darwin"], "TestProtectedIdentityCreationModes": ["linux", "darwin"], "TestWindowsProtectedPathNamespaceReadAndWrite": ["windows"], "TestWindowsJunctionWriteCannotReachState": ["windows"] } },
     { "package": "./internal/acp", "tests": ["TestDiagnosticsCannotBypassConnectionRedaction", "TestNotificationPanicKeepsConnectionServingChats", "TestReverseRequestPanicKeepsConnectionServingOtherChats", "TestTraceRedactorCoversReplayedValues"] },
     { "package": "./internal/sessionhost", "tests": ["FuzzReverseRequestParameters"] },
     { "package": "./internal/bus", "tests": ["TestWebCodesAreSingleUse", "TestWebSessionLifetimeAndRevocation", "TestLegacyWebTokenMigrationInvalidatesPlaintext", "TestWebRevocationCannotBeUndoneByConcurrentUse", "TestWebSessionRenewalIsThrottledAndClockTolerant", "TestWebSessionDatabaseContainsOnlyNonBearerHashes"] },
@@ -17,6 +17,7 @@
   "browser": [
     "contained-content", "html-safety", "terminal-escapes", "chat-state-contract",
     "list-state-stability", "taskbar-state-stability", "list-row-layout", "chat-last-read",
-    "app-ui3", "chat-continued-open", "provider-continuation", "chat-placement"
+    "app-ui3", "chat-continued-open", "provider-continuation", "chat-placement",
+    "web-skins", "extensions"
   ]
 }
