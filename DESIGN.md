@@ -404,6 +404,8 @@ The Terminal runs real shells: whatever Paul chooses, PowerShell, cmd, Git Bash,
 
 The window finds the shells where their installers put them: PowerShell on the PATH, Windows PowerShell and the Command Prompt in the Windows folder, Git Bash beside the git on the PATH or in Git's default folder, and WSL. Dinah's own shell over its file system stays as one of the choices. Settings › Terminal chooses the shell a new Terminal runs, and Tools › New Terminal With runs another. What the shell draws reaches the page as events of base64 bytes, so a character split between two reads arrives whole, and typed text goes back one call at a time in order. Ctrl+C copies when text is selected and interrupts otherwise, as in Windows Terminal, and Ctrl+Shift+C and Ctrl+Shift+V always copy and paste.
 
+PowerShell 7.6 has a defect of its own that a Terminal running it can meet: a Ctrl+C that arrives just as a command finishes can end the shell, which prints "An error has occurred that was not properly handled" with an ObjectDisposedException from `PipelineProcessor.Stop` and exits. Its break handler cancels a token source that the finished pipeline has already disposed, so the fault lies in PowerShell's own Ctrl+C handling rather than in how Dinah delivers the key, and a new Terminal is the remedy until PowerShell fixes it. The Ctrl+C test in `internal/terminals` tries again in a new shell when it meets exactly this report, and fails on anything else.
+
 #### Milestones
 
 Each milestone ends with something Paul uses.
