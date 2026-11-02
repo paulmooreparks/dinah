@@ -35,8 +35,19 @@ func TestSearchAuditCommitsOneSummaryAndPreservesEarlierReads(t *testing.T) {
 			if i == 0 {
 				path = denied
 			}
-			if _, err := svc.Read(ctx, path, nil, nil, scope); err == nil {
-				t.Fatal("synthetic path unexpectedly returned content")
+			if i == 0 {
+				if _, err := svc.Read(ctx, path, nil, nil, scope); err == nil {
+					t.Fatal("denied path returned content")
+				}
+				continue
+			}
+			// Drive the audit boundary with search observations. Filesystem
+			// admission and host-tool routing have separate product-path guards.
+			if err := svc.admitOperationPath(ctx, scope, path); err != nil {
+				t.Fatal(err)
+			}
+			if err := svc.recordRead(ctx, scope, Record{Chat: scope.Chat, Workspace: scope.Workspace, Source: scope.Source, Path: path, Outcome: "error"}); err != nil {
+				t.Fatal(err)
 			}
 		}
 		return "No file matches.", true
