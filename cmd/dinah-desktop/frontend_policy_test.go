@@ -23,28 +23,39 @@ type frontendRule struct {
 
 var frontendRules = []frontendRule{
 	{
-		row:     "FE-14",
-		what:    "an HTML escaper written by hand; use dinahHTML.text, which escapes all five characters markup reads",
-		pattern: regexp.MustCompile(`'&amp;'|"&amp;"|'&lt;'|"&lt;"|'&quot;'|"&quot;"`),
+		row:  "FE-14",
+		what: "an HTML escaper written by hand; use dinahHTML.text, which escapes all five characters markup reads",
+		// A character reference that opens a quoted string in any of the
+		// three quote marks, named or numeric, is how an escaper's table
+		// starts; a reference inside longer text is not one.
+		pattern: regexp.MustCompile("['\"`]&(amp|lt|gt|quot|apos|#[0-9]+|#[xX][0-9a-fA-F]+);"),
 		home:    []string{"safe-html.js"},
 	},
 }
 
-// frontendScripts lists Dinah's own scripts: those of the desktop page and
-// of the web pages Go serves, without the browser suites and the vendored
-// libraries.
+// frontendScripts lists Dinah's own scripts, in every folder beneath the
+// desktop page and the web pages Go serves, without the browser suites,
+// PUDL and the vendored libraries.
+var notDinahs = map[string]bool{"e2e": true, "pudl": true, "vendor": true, "node_modules": true}
+
 func frontendScripts(t *testing.T) []string {
 	t.Helper()
 	var files []string
 	for _, dir := range []string{"frontend", filepath.Join("..", "..", "internal", "web", "static")} {
-		entries, err := os.ReadDir(dir)
+		err := filepath.WalkDir(dir, func(path string, e os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if e.IsDir() && path != dir && notDinahs[e.Name()] {
+				return filepath.SkipDir
+			}
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".js") {
+				files = append(files, path)
+			}
+			return nil
+		})
 		if err != nil {
 			t.Fatal(err)
-		}
-		for _, e := range entries {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), ".js") {
-				files = append(files, filepath.Join(dir, e.Name()))
-			}
 		}
 	}
 	if len(files) < 50 {
