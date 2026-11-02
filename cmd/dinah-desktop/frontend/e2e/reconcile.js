@@ -68,6 +68,34 @@ const { launch } = require('./lib/page');
         try { draw2(['b', 'c', 'c', 'd']); out.logged = { errors, order: [...list2.children].map(li => li.dataset.key).join(',') }; }
         catch (e) { out.logged = { threw: e.message }; }
         finally { window.dinahStrict = true; console.error = log; }
+        // Random reorders of 200 rows with one focused: the order always
+        // comes out as asked, and the focused row is never put back.
+        const rows3 = new Map(), list3 = document.createElement('ul'); document.body.appendChild(list3);
+        const make = k => { const li = document.createElement('li'); const b = document.createElement('button'); b.textContent = k; li.appendChild(b); li.dataset.key = k; return { node: li }; };
+        const draw3 = items => window.dinahHelpers.reconcile(list3, items, { rows: rows3, key: k => k, create: make });
+        let keys = Array.from({ length: 200 }, (_, i) => 'r' + i), wrong = 0, focusMoved = 0, seed = 7;
+        const random = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+        draw3(keys);
+        const watch = new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(n => { if (n.contains(document.activeElement)) focusMoved++; })));
+        watch.observe(list3, { childList: true });
+        for (let round = 0; round < 50; round++) {
+          list3.children[Math.floor(random() * keys.length)].querySelector('button').focus();
+          keys = keys.slice();
+          for (let n = 0; n < 5; n++) { const a = Math.floor(random() * keys.length), b = Math.floor(random() * keys.length); const t = keys[a]; keys[a] = keys[b]; keys[b] = t; }
+          draw3(keys);
+          if ([...list3.children].map(li => li.dataset.key).join() !== keys.join()) wrong++;
+        }
+        watch.disconnect();
+        out.random = { wrong, focusMoved };
+        // A chat list of 5000 rows: a redraw that changes nothing and one
+        // that reverses the list, timed.
+        const rows4 = new Map(), list4 = document.createElement('ul'); document.body.appendChild(list4);
+        const big = Array.from({ length: 5000 }, (_, i) => 'k' + i);
+        const draw4 = items => window.dinahHelpers.reconcile(list4, items, { rows: rows4, key: k => k, create: make });
+        draw4(big);
+        let start = performance.now(); draw4(big); const same = performance.now() - start;
+        start = performance.now(); draw4(big.slice().reverse()); const reversed = performance.now() - start;
+        out.timing = { same: Math.round(same), reversed: Math.round(reversed) };
         resolve(out);
       }, 0));
     });
@@ -79,6 +107,11 @@ const { launch } = require('./lib/page');
     ok('arrange orders the given elements, takes out the rest and keeps focus', result.arranged === 'y,x focus kept', result.arranged);
     ok('a focused row in place stays put, unblurred and focused, while another row moves past it', result.passed.order === 'b,c,d,a' && result.passed.blurs === 0 && result.passed.moved === 0 && result.passed.focused, JSON.stringify(result.passed));
     ok('a key given to two items is thrown in the suites, naming the key', /"c"/.test(result.thrown) && /more than one item/.test(result.thrown), result.thrown);
+    ok('fifty random reorders of 200 rows come out in order, and the focused row is never moved', result.random.wrong === 0 && result.random.focusMoved === 0, JSON.stringify(result.random));
+    // Generous bounds, for a loaded machine: the search is n log n and an
+    // unchanged list skips it, where the first version compared every pair.
+    console.log('timing for 5000 rows (ms): ' + JSON.stringify(result.timing));
+    ok('5000 rows redraw unchanged in under 100 ms and reversed in under 500 ms', result.timing.same < 100 && result.timing.reversed < 500, JSON.stringify(result.timing));
     ok('in a production build it is logged and the row is drawn once', result.logged.errors && result.logged.errors.length === 1 && /"c"/.test(result.logged.errors[0]) && result.logged.order === 'b,c,d', JSON.stringify(result.logged));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

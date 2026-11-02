@@ -111,20 +111,34 @@
   function focusable(element) {
     return element.matches('button, a[href], input, select, textarea, [tabindex]') ? element : element.querySelector('button, a[href], input, select, textarea, [tabindex]');
   }
-  // The elements, among those already in the container, that stay in place:
-  // the heaviest run whose places increase, where the focused row outweighs
-  // all the others together.
-  function staying(elements, place, focused) {
-    const at = [], weight = [], best = [], from = [];
-    elements.forEach(function (el) { if (place.has(el)) { at.push(el); weight.push(el === focused ? elements.length + 1 : 1); } });
-    let top = -1;
-    for (let i = 0; i < at.length; i++) {
-      best[i] = weight[i]; from[i] = -1;
-      for (let j = 0; j < i; j++) if (place.get(at[j]) < place.get(at[i]) && best[j] + weight[i] > best[i]) { best[i] = best[j] + weight[i]; from[i] = j; }
-      if (top < 0 || best[i] > best[top]) top = i;
+  // The longest run of the given elements whose places increase, found in
+  // n log n steps (patience sorting), added to stay.
+  function longestRun(list, place, stay) {
+    const tails = [], from = new Array(list.length);
+    for (let i = 0; i < list.length; i++) {
+      const p = place.get(list[i]);
+      let lo = 0, hi = tails.length;
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (place.get(list[tails[mid]]) < p) lo = mid + 1; else hi = mid; }
+      from[i] = lo > 0 ? tails[lo - 1] : -1;
+      tails[lo] = i;
     }
-    const stay = new Set();
-    for (let i = top; i >= 0; i = from[i]) stay.add(at[i]);
+    for (let i = tails.length ? tails[tails.length - 1] : -1; i >= 0; i = from[i]) stay.add(list[i]);
+  }
+  // The elements, among those already in the container, that stay in place.
+  // A redraw that changes no order, the usual one, keeps them all at once.
+  // Otherwise the focused row stays, with the longest run before it that
+  // sits above it and the longest run after it that sits below it.
+  function staying(elements, place, focused) {
+    const at = elements.filter(function (el) { return place.has(el); });
+    let ordered = true;
+    for (let i = 1; i < at.length && ordered; i++) ordered = place.get(at[i - 1]) < place.get(at[i]);
+    if (ordered) return new Set(at);
+    const stay = new Set(), k = focused ? at.indexOf(focused) : -1;
+    if (k < 0) { longestRun(at, place, stay); return stay; }
+    const mark = place.get(focused);
+    longestRun(at.slice(0, k).filter(function (el) { return place.get(el) < mark; }), place, stay);
+    stay.add(focused);
+    longestRun(at.slice(k + 1).filter(function (el) { return place.get(el) > mark; }), place, stay);
     return stay;
   }
   function arrange(container, elements, lost) {
