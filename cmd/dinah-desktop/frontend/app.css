@@ -85,8 +85,8 @@
 .browser-group-action { flex: none; margin-inline-start: auto; }
 .browser-group-where { margin: calc(-1 * var(--space-1)) var(--space-3) var(--space-1) calc(10px + 16px + var(--space-2)); font-size: var(--text-2xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-group-body > .browser-subheading { padding-top: var(--space-2); }
-/* One indent rule for every section of the Workspace pane (Paul, 2
-   November 2026). A section's content starts where its heading's words
+/* One indent rule for every section of the Workspace pane and the Chats
+   pane (Paul, 2 November 2026). A section's content starts where its heading's words
    do, past the head's 10px, its 16px toggle and the gap; each level
    nested in it starts one step further in, the step PUDL's tree uses
    (var(--space-4)). --ws-at is where a level's content starts: a group
@@ -95,10 +95,10 @@
    their kinds of work and their rows, the Pinned and Chats rows and the
    Sources tree all share it. The tree's links keep PUDL's own small inner
    padding, so its toggles sit just inside the line. */
-#sidebar .browser-group-body { --ws-at: var(--ws-inner, calc(10px + 16px + var(--space-2))); }
-#sidebar .browser-group-body .browser-group { --ws-inner: calc(var(--ws-at) + var(--space-4)); }
-#sidebar .browser-group-body .browser-group > .browser-group-head { padding-inline-start: var(--ws-at); }
-#sidebar .browser-group-body .md-item { padding-inline-start: var(--ws-at); }
+:is(#sidebar, #chat-browser-view) .browser-group-body { --ws-at: var(--ws-inner, calc(10px + 16px + var(--space-2))); }
+:is(#sidebar, #chat-browser-view) .browser-group-body .browser-group { --ws-inner: calc(var(--ws-at) + var(--space-4)); }
+:is(#sidebar, #chat-browser-view) .browser-group-body .browser-group > .browser-group-head { padding-inline-start: var(--ws-at); }
+:is(#sidebar, #chat-browser-view) .browser-group-body .md-item { padding-inline-start: var(--ws-at); }
 #sidebar .workspace-resource-tree, #workspace-source-tree > .form-help { margin-inline-start: var(--ws-at); }
 .browser-row .md-item { display: block; }
 /* A row with PUDL's row actions button gives the rest of the row to its
@@ -119,7 +119,8 @@
 .browser-row-badge { flex: none; }
 /* A part of an entry, such as a chat's earlier subagents in the Chats pane,
    sits one step in under the entry it belongs to. */
-.browser-row.browser-row-part { margin-inline-start: var(--space-4); border-inline-start: 1px solid var(--border); }
+/* A part of a row is one level in: its 1px rule is inside the step. */
+.browser-row.browser-row-part { margin-inline-start: calc(var(--space-4) - 1px); border-inline-start: 1px solid var(--border); }
 .browser-row-clamp { display: -webkit-box !important; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .browser-empty { padding: var(--space-4) var(--space-3); --glyph-size: 24px; }
 .browser-empty .empty-state-title { font-size: var(--text-md); }
