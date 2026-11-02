@@ -191,7 +191,7 @@ func TestDefaultOverridesAndSandboxProfiles(t *testing.T) {
 			}
 			found := false
 			for _, got := range all {
-				if got == want {
+				if strings.ReplaceAll(got, `\`, "/") == strings.ReplaceAll(want, `\`, "/") {
 					found = true
 				}
 			}
