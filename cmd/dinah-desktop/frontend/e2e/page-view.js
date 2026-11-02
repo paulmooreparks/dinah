@@ -485,7 +485,7 @@ const path = require('path');
     ok('Ctrl+E goes from Visual to Text', await editor.locator('[data-ed-panes]').getAttribute('data-view') === 'text' && await editor.locator('.cm-content').isVisible());
     await editor.locator('[data-command="view-preview"]').click();
     await page.locator('.doc-block').first().waitFor();
-    const noEditor = await settledCount(page, page.locator('.ProseMirror'), 0);
+    const noEditor = await settledCount(p, page.locator('.ProseMirror'), 0);
     ok('Preview is the page drawn from the text, with no editor on it', await editor.locator('[data-ed-panes]').getAttribute('data-view') === 'preview' &&
       noEditor.ok && (await page.textContent()).includes('Rewritten by an agent.'), noEditor.detail);
 
