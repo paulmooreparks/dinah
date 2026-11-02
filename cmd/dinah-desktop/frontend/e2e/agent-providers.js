@@ -1,4 +1,5 @@
 const { launch } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 const { choose, shows } = require('./lib/commands');
 (async () => {
   const t = await launch({
@@ -80,8 +81,9 @@ const { choose, shows } = require('./lib/commands');
       await claudeCard.getByRole('button', { name: 'Sign In' }).count() === 0 && (await claudeCard.textContent()).includes('never asks for your Claude password'));
     await claudeCard.getByRole('button', { name: 'Install the Claude Adapter' }).click();
     await settings.locator('[data-provider="claude"]').getByText('Ready', { exact: false }).first().waitFor();
+    const installed = await settledCount(page, settings.locator('[data-provider="claude"]').getByRole('button', { name: 'Install the Claude Adapter' }), 0);
     ok('Install the Claude Adapter installs it, and Claude can then be chosen', await page.evaluate(() => __calls.some(c => c[0] === 'install-claude')) && !(await page.locator('#default-provider option[value="claude"]').isDisabled()) &&
-      await settings.locator('[data-provider="claude"]').getByRole('button', { name: 'Install the Claude Adapter' }).count() === 0);
+      installed.ok, installed.detail);
     await t.shot('agent-providers-claude');
     const key = settings.locator('#claude-api-key');
     ok('the key field is a password field, and Use This Key waits for a key', await key.getAttribute('type') === 'password' && await settings.locator('[data-provider="claude"]').getByRole('button', { name: 'Use This Key' }).isDisabled());

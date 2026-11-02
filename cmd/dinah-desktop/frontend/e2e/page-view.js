@@ -7,6 +7,7 @@
 // Preview. The fixture reads and writes the document as pageview (Go) does,
 // simplified; Go's own tests cover pageview.
 const { launch, OUT } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 const path = require('path');
 (async () => {
   const t = await launch({
@@ -484,8 +485,9 @@ const path = require('path');
     ok('Ctrl+E goes from Visual to Text', await editor.locator('[data-ed-panes]').getAttribute('data-view') === 'text' && await editor.locator('.cm-content').isVisible());
     await editor.locator('[data-command="view-preview"]').click();
     await page.locator('.doc-block').first().waitFor();
+    const noEditor = await settledCount(p, page.locator('.ProseMirror'), 0);
     ok('Preview is the page drawn from the text, with no editor on it', await editor.locator('[data-ed-panes]').getAttribute('data-view') === 'preview' &&
-      await page.locator('.ProseMirror').count() === 0 && (await page.textContent()).includes('Rewritten by an agent.'));
+      noEditor.ok && (await page.textContent()).includes('Rewritten by an agent.'), noEditor.detail);
 
     await editor.locator('[data-command="view-page"]').click();
     await pm.waitFor();

@@ -3,6 +3,7 @@
 // and subagents are not shown. Load Full History asks the agent for the whole conversation,
 // which the page treats as the chat closed and opened again; it is unavailable while the chat works.
 const { launch } = require('./lib/page');
+const { settled, settledCount } = require('./lib/settled');
 
 (async () => {
   const t = await launch({
@@ -44,7 +45,8 @@ const { launch } = require('./lib/page');
     const text = await win.innerText();
     ok('the saved copy is in sight and the turn so far follows it', /Summarise the plan\./.test(text) && /SAVED-ANSWER/.test(text) && text.indexOf('SAVED-ANSWER') < text.indexOf('[turn so far one]'), text);
     ok('the chat\'s log is read from its start in the generation the reopen made', JSON.stringify(await page.evaluate(() => window.__calls.filter(c => c[0] === 'events'))) === JSON.stringify([['events', 'claude:resumed', 'r1', 0]]));
-    ok('it is not shown as a saved copy waiting to reconnect, nor as reopening', await win.locator('#saved-note').count() === 0 || await win.locator('[data-view-id="saved-note"]').isHidden());
+    const note = await settledCount(page, win.locator('#saved-note:visible, [data-view-id="saved-note"]:visible'), 0);
+    ok('it is not shown as a saved copy waiting to reconnect, nor as reopening', note.ok, note.detail);
 
     const menuAction = async () => {
       await page.evaluate(k => pudlWindows.raise(k), key);
