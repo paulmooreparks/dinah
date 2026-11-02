@@ -8,6 +8,7 @@ import (
 	"strings"
 	"studio/internal/acp"
 	"studio/internal/agents"
+	"studio/internal/providers"
 )
 
 //go:embed option_substitutions.go
@@ -211,7 +212,7 @@ func (r *Reopening) SavedName(option string, saved json.RawMessage) string {
 // equivalentModel uses names supplied by the provider, never a guessed
 // family-to-version alias mapping. ACP offers no alias-resolution field.
 func (r *Reopening) equivalentModel(option acp.ConfigOption, saved json.RawMessage) (json.RawMessage, bool) {
-	if r.provider != "claude" || option.Type != "select" {
+	if !providers.For(r.provider).MatchesModelsByName || option.Type != "select" {
 		return nil, false
 	}
 	name := r.SavedName(option.ID, saved)
