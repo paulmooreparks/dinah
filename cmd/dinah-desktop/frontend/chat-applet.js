@@ -215,9 +215,11 @@
       /* One draw of a chat's saved copy at a time: the log is cleared once
          and filled over several frames, so a second draw begun before the
          first ended would fill it twice. A newer draw stops the older one,
-         whose promise settles without touching the chat. */
+         which no longer touches the chat; the older one's promise settles
+         with the newer one's, so whoever waits on either goes on only once
+         the chat's copy is drawn. */
       var older = s.savedDraw, mine = { stopped: false };
-      if (older) { older.stopped = true; window.dinahRender.cancel(older.job); older.settle(); }
+      if (older) { older.stopped = true; window.dinahRender.cancel(older.job); }
       s.savedDraw = mine;
       resetMessageItems(s);
       s.log.innerHTML = ''; s.log.hidden = true; s.settling = true; s.rows = {}; s.current = null; s.arriving = {}; s.arrivingMore = 0; s.arrivingMoreLi = null;
@@ -285,6 +287,7 @@
         s.savedDraw = null; s.loading = false; s.drawingSaved = false; s.savedBuild = null; if (s.view) s.view.drawLoadingChip();
       });
       s.savedBuild = built;
+      if (older) older.settle(built);
       return built;
     }
     function presentHistory(s, kept) {
