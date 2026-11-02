@@ -51,16 +51,19 @@ const { launch, PAGE } = require('./lib/page');
       await panel.waitFor();
       await page.waitForTimeout(150);
       const rows = await panel.evaluate(p => [...p.querySelectorAll('.win-stack-row')].map(row => {
-        const link = row.querySelector('.win-stack-link'), title = row.querySelector('.win-item-title'), detail = row.querySelector('.win-item-detail'), close = row.querySelector('.win-stack-close'), glyph = row.querySelector('.win-item-glyph');
-        const tr = title.getBoundingClientRect(), dr = detail.getBoundingClientRect(), cr = close.getBoundingClientRect(), gr = glyph.getBoundingClientRect();
+        const link = row.querySelector('.win-stack-link'), title = row.querySelector('.win-item-title'), detail = row.querySelector('.win-item-detail'), close = row.querySelector('.win-stack-close'), glyph = row.querySelector('.win-item-glyph'), state = row.querySelector('.win-item-state');
+        const tr = title.getBoundingClientRect(), dr = detail.getBoundingClientRect(), cr = close.getBoundingClientRect(), gr = glyph.getBoundingClientRect(), sr = state.getBoundingClientRect();
+        // PUDL 0.96.5 (a2385ab) keeps a state column before Close, sized to
+        // the widest badge in the list; the title's room ends where it starts.
         return { text: title.textContent, lines: Math.round(tr.height / parseFloat(getComputedStyle(title).lineHeight || 16)), titleH: tr.height, linkH: link.getBoundingClientRect().height,
-          detailShown: dr.width > 0, detailRight: dr.right, titleRight: tr.right, titleW: tr.width, natural: title.scrollWidth, space: cr.left - gr.right, label: link.getAttribute('aria-label'), tip: link.getAttribute('title') };
+          detailShown: dr.width > 0, detailRight: dr.right, titleRight: tr.right, titleW: tr.width, natural: title.scrollWidth, space: Math.min(sr.left, cr.left) - gr.right, stateW: sr.width, closeGap: cr.left - gr.right, label: link.getAttribute('aria-label'), tip: link.getAttribute('title') };
       }));
       const byText = s => rows.find(r => r.text === s);
       const long = byText(titles[0][0]), short = byText('a.md'), changed = byText('Untitled (changed)'), other = byText(titles[3][0]);
       ok(name + ': every title is one line', rows.every(r => r.titleH < 30), JSON.stringify(rows.map(r => r.titleH)));
       ok(name + ': the redundant workspace is not shown', !long.detailShown && !short.detailShown && !changed.detailShown);
-      ok(name + ': a long title takes the room from glyph to close button', long.titleW >= long.space - 24, JSON.stringify({ w: long.titleW, space: long.space }));
+      ok(name + ': with no window in a state, the state column takes no width', rows.every(r => r.stateW < 1), JSON.stringify(rows.map(r => r.stateW)));
+      ok(name + ': a long title takes the room from glyph to close button', long.titleW >= long.space - 24, JSON.stringify({ w: long.titleW, space: long.space, closeGap: long.closeGap }));
       ok(name + ': the changed marker is in the visible title', changed.natural <= changed.titleW + 1);
       ok(name + ': the other workspace follows the title in the same line', other.detailShown || other.natural > other.titleW, JSON.stringify(other));
       ok(name + ': the full title stays in the tooltip and spoken name', long.label.includes(titles[0][0]) && long.tip.includes(titles[0][0]) && other.label.includes('Beta'));

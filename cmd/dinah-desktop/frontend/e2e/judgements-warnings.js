@@ -25,6 +25,8 @@ const path = require('path');
   const p=t.page, opener=p.locator('#status-judgements'), popup=p.locator('#judgements-status-menu');
   const base=await p.evaluate(()=>Object.fromEntries(['--text-2xs','--text-xs','--text-sm','--text-md','--text-base','--text-lg','--text-xl','--text-2xl','--text-3xl'].map(k=>[k,getComputedStyle(document.documentElement).getPropertyValue(k)])));
   const evidence=[];
+  // A cleared count is a visible neutral 0 badge, never the warning badge (11d4c27).
+  const neutralZero=badge=>badge.evaluate(el=>!el.hidden&&el.textContent==='0'&&!el.classList.contains('warn'));
   for(const theme of ['light','dark']) for(const width of [1440,500,390]) for(const scale of [1,2]) {
    await p.setViewportSize({width,height:900});
    await p.evaluate(({theme,scale,base})=>{
@@ -79,11 +81,12 @@ const path = require('path');
       for(const id of new Set([...Object.keys(before),...Object.keys(after)])) {
        if(!before[id]||!after[id]||['x','y','width','height'].some(k=>Math.abs(before[id][k]-after[id][k])>.02)) failures.push({count,frame,id,before:before[id],after:after[id]});
       }
-      const badges=['status-needs','status-judgements'].map(id=>{const button=document.getElementById(id),badge=button.querySelector('[data-status-badge]'),reserve=button.querySelector('.status-badge-reserve');return {id,text:badge.textContent,hidden:badge.hidden,reserveHidden:reserve.getAttribute('aria-hidden')==='true'&&getComputedStyle(reserve).visibility==='hidden',label:button.getAttribute('aria-label')};});
-      if(frame===5&&badges.some(b=>count===0?!b.hidden: b.hidden||b.text!==(count>99?'99+':String(count)))) failures.push({count,frame,issue:'wrong visible count',badges});
+      const badges=['status-needs','status-judgements'].map(id=>{const button=document.getElementById(id),badge=button.querySelector('[data-status-badge]'),reserve=button.querySelector('.status-badge-reserve');return {id,text:badge.textContent,hidden:badge.hidden,warn:badge.classList.contains('warn'),reserveHidden:reserve.getAttribute('aria-hidden')==='true'&&getComputedStyle(reserve).visibility==='hidden',label:button.getAttribute('aria-label')};});
+      // With none waiting, each item shows a neutral 0 (11d4c27); above 0 it is a warning badge.
+      if(frame===5&&badges.some(b=>count===0?b.hidden||b.text!=='0'||b.warn: b.hidden||!b.warn||b.text!==(count>99?'99+':String(count)))) failures.push({count,frame,issue:'wrong visible count',badges});
       if(badges.some(b=>!b.reserveHidden)) failures.push({count,frame,issue:'reserve is exposed'});
       const aggregate=document.getElementById('status-folded');
-      if(frame===5&&initialFolded&&(Number(aggregate.dataset.statusCount)!==count*2||aggregate.querySelector('[data-status-badge]').textContent!==(count*2>99?'99+':String(count*2||'')))) failures.push({count,frame,issue:'wrong folded total',value:aggregate.dataset.statusCount});
+      if(frame===5&&initialFolded&&(Number(aggregate.dataset.statusCount)!==count*2||aggregate.querySelector('[data-status-badge]').textContent!==(count*2>99?'99+':String(count*2)))) failures.push({count,frame,issue:'wrong folded total',value:aggregate.dataset.statusCount});
       samples.push({count,frame,boxes:after,badges,folded:initialFolded});
      }
     }
@@ -152,7 +155,7 @@ const path = require('path');
    await popup.locator('[data-warning-id="10"] button').click();
    await p.waitForFunction(()=>document.querySelectorAll('#judgements-status-menu .judgements-warning').length===9);
    await popup.getByRole('button',{name:'Dismiss All',exact:true}).click();
-   await p.waitForFunction(()=>document.querySelector('#status-judgements .badge').hidden);
+   await p.waitForFunction(()=>document.querySelector('#status-judgements .badge').textContent==='0');
    await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
    const trace=await p.evaluate(()=>{__popupTrace.active=false;return __popupTrace;});
    const popupFailures=[];
@@ -163,18 +166,18 @@ const path = require('path');
    t.ok('the full-tray paused glyph stays a warning after dismissal',await opener.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph')==='var(--glyph-warning)'&&el.style.color==='var(--warn)'));
    if(folded) {
     await p.waitForFunction(()=>document.querySelector('#status-folded').dataset.statusCount==='0');
-    t.ok('a paused judge keeps the folded warning glyph after its count clears',await foldedControl.getAttribute('data-status-state')==='waiting'&&await foldedControl.locator('[data-status-badge]').isHidden()&&await foldedControl.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph').includes('warning')));
+    t.ok('a paused judge keeps the folded warning glyph after its count clears',await foldedControl.getAttribute('data-status-state')==='waiting'&&await neutralZero(foldedControl.locator('[data-status-badge]'))&&await foldedControl.locator('.glyph').evaluate(el=>el.style.getPropertyValue('--glyph').includes('warning')));
    }
    t.ok('dismissing all clears the badge while retaining the condition',await popup.locator('.judgements-warning').count()===0&&/provider quota reached/.test(await popup.locator('.judgements-popup-line').textContent()));
    await p.evaluate(()=>__resync());
    await p.waitForFunction(()=>__bridgeCalls.filter(c=>c[0]==='JudgementState').length>1);
    await p.evaluate(()=>__publishWarnings());
-   t.ok('a state refresh does not restore dismissed counts',await opener.locator('[data-status-badge]').isHidden());
+   t.ok('a state refresh does not restore dismissed counts',await neutralZero(opener.locator('[data-status-badge]')));
    await p.keyboard.press('Escape');
    await openStatus(p,'status-judgements');
    await p.waitForFunction(()=>document.querySelector('#judgements-status-menu').style.getPropertyValue('--judgements-popup-height'));
    t.ok('reopening sizes to the empty content at '+theme+'/'+width+'/'+scale,(await popup.boundingBox()).height<trace.before.panel.height);
-   t.ok('reopening keeps the warnings dismissed',await popup.locator('.judgements-warning').count()===0&&await opener.locator('[data-status-badge]').isHidden());
+   t.ok('reopening keeps the warnings dismissed',await popup.locator('.judgements-warning').count()===0&&await neutralZero(opener.locator('[data-status-badge]')));
    await p.evaluate(()=>{__warnings=[{id:4,at:new Date().toISOString(),kind:'chat-title',why:'error',reason:'the next provider probe failed'}];__publishWarnings();});
    await p.waitForFunction(()=>document.querySelector('#status-judgements .badge').textContent==='1'&&!document.querySelector('#status-judgements .badge').hidden);
    t.ok('a new warning counts after dismissal',await popup.locator('[data-warning-id="4"]').count()===1);
