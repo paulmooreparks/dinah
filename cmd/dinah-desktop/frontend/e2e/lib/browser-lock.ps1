@@ -1,5 +1,9 @@
 # FileShare.None makes this an OS-held lock, independent of file existence.
-param([string]$LockPath, [string]$Owner = 'browser suite', [string]$Ticket)
+# MaxSeconds bounds a direct suite's lease: the operating system frees the
+# lock when its holder exits, but a suite that is alive and stuck would hold
+# it for every other run. run.ps1 batches and Go gates take the lock through
+# the functions below and keep their own limits.
+param([string]$LockPath, [string]$Owner = 'browser suite', [string]$Ticket, [int]$MaxSeconds = 900)
 $ErrorActionPreference = 'Stop'
 
 function Get-DinahBrowserLockPath {
@@ -69,6 +73,18 @@ if ($MyInvocation.InvocationName -ne '.') {
   try {
     [Console]::Out.WriteLine('DINAH_BROWSER_LOCK_READY acquired')
     [Console]::Out.Flush()
-    [Console]::In.ReadLine() | Out-Null
+    # The suite writes a line, or closes stdin by exiting, to release. One
+    # that has held the lock past MaxSeconds is taken to be stuck: the lock
+    # is released and this helper exits, and the suite stops itself when it
+    # sees its holder gone (browser-lock.js).
+    # Console.In is a synchronized reader, whose ReadLineAsync completes
+    # synchronously and so cannot time out; the raw input stream's read runs
+    # apart from this thread. Any byte, or the end of input, releases.
+    $released = [Console]::OpenStandardInput().ReadAsync((New-Object byte[] 1), 0, 1)
+    if (-not $released.Wait([TimeSpan]::FromSeconds($MaxSeconds))) {
+      [Console]::Error.WriteLine("Browser test lock held for over $MaxSeconds seconds by $Owner; releasing it and stopping that suite.")
+      $lease.Stream.Dispose()
+      exit 3
+    }
   } finally { $lease.Stream.Dispose() }
 }

@@ -156,6 +156,12 @@ async function launch(options = {}) {
   // https://playwright.dev/docs/api/class-browsertype#browser-type-launch-option-ignore-default-args
   try { browser = await chromium.launch({ executablePath: EDGE, ignoreDefaultArgs: options.nativeScrollbars ? ['--hide-scrollbars'] : undefined }); }
   catch (error) { await releaseLock(); throw error; }
+  // A launch's share of the lock ends with its browser, however that is
+  // closed: a suite that relaunches closes the earlier browser itself rather
+  // than through t.close, and its share must not outlive it
+  // (https://playwright.dev/docs/api/class-browser#browser-event-disconnected).
+  // Releasing is idempotent, so the releases below stay harmless.
+  browser.once('disconnected', () => { releaseLock().catch(() => {}); });
   let t;
   try {
   // expectErrors is the message of a page error a suite causes on purpose; such an error is kept in expected,
