@@ -37,9 +37,14 @@ try {
     try {
       & node --test (Join-Path $repo 'scripts/npm-audit-gate.test.mjs')
       if ($LASTEXITCODE -ne 0) { $failures.Add('npm audit gate contract tests failed') }
-      npm run audit:guard -- (Join-Path $Out 'npm-audit.json')
+      # On Windows npm is called through its batch shim, npm.cmd, which takes
+      # its arguments as given. Its PowerShell shim, npm.ps1, rebuilds them by
+      # slicing the text of the calling statement, which a call operator in
+      # front shifts; that parsing is npm's own and undocumented.
+      $npm = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
+      & $npm run audit:guard -- (Join-Path $Out 'npm-audit.json')
       if ($LASTEXITCODE -ne 0) { $failures.Add('npm dependency audit failed') }
-      npm run lint
+      & $npm run lint
       if ($LASTEXITCODE -ne 0) { $failures.Add('frontend ESLint checks failed') }
     } finally {
       Pop-Location
