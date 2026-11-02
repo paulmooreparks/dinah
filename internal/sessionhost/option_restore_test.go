@@ -8,6 +8,18 @@ import (
 	"testing"
 )
 
+func TestClaudeEquivalentModelRejectsAmbiguousOrUnrecordedAliases(t *testing.T) {
+	option := acp.ConfigOption{ID: "model", Type: "select", Options: json.RawMessage(`[{"value":"one","name":"Fable 5.1"},{"value":"two","name":"Fable 5.1"}]`)}
+	r := NewReopening("claude", nil, nil, func(s string) string { return s })
+	if _, ok := r.equivalentModel(option, json.RawMessage(`"Fable 5.1"`)); ok {
+		t.Fatal("ambiguous model name was selected")
+	}
+	option.Options = json.RawMessage(`[{"value":"claude-fable-5-1","name":"Fable 5.1"}]`)
+	if _, ok := r.equivalentModel(option, json.RawMessage(`"fable"`)); ok {
+		t.Fatal("an alias mapping was guessed without provider-supplied names")
+	}
+}
+
 func TestReopeningCopiesCatalogAndSubstitutionBytes(t *testing.T) {
 	subs := []OptionSubstitution{{Option: "model", From: json.RawMessage(` "old" `), To: json.RawMessage(` "new" `), FromName: "Old", ToName: "New"}}
 	catalog := []acp.ConfigOption{{ID: "model", CurrentValue: json.RawMessage(`"old"`), Options: json.RawMessage(`[{"value":"old","name":"Old catalog"}]`)}}

@@ -40,6 +40,11 @@ func (o *Options) Restore(conn Connection, session string, opts []acp.ConfigOpti
 			}
 		}
 		value := chosen[id]
+		if modelIDs[id] && offered != nil && reopen != nil && !agents.Allowed(*offered, value) {
+			if equivalent, ok := reopen.equivalentModel(*offered, value); ok {
+				value = equivalent
+			}
+		}
 		// Only the model must be the chat's own: it is what makes the
 		// conversation the same one. A setting that depends on the model,
 		// such as fast mode or effort, may be missing for the model the chat

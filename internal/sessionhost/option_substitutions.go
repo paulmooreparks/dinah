@@ -208,6 +208,37 @@ func (r *Reopening) SavedName(option string, saved json.RawMessage) string {
 	return ""
 }
 
+// equivalentModel uses names supplied by the provider, never a guessed
+// family-to-version alias mapping. ACP offers no alias-resolution field.
+func (r *Reopening) equivalentModel(option acp.ConfigOption, saved json.RawMessage) (json.RawMessage, bool) {
+	if r.provider != "claude" || option.Type != "select" {
+		return nil, false
+	}
+	name := r.SavedName(option.ID, saved)
+	if name == "" {
+		name = ValueText(saved)
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, false
+	}
+	var match string
+	for _, choice := range agents.OptionChoices(option) {
+		if !strings.EqualFold(strings.TrimSpace(choice.Name), name) {
+			continue
+		}
+		if match != "" && match != choice.Value {
+			return nil, false
+		}
+		match = choice.Value
+	}
+	if match == "" {
+		return nil, false
+	}
+	value, err := json.Marshal(match)
+	return value, err == nil
+}
+
 // substitute is the stored substitution for an option's saved value whose
 // value the option offers now, if there is one.
 func (r *Reopening) substitute(option acp.ConfigOption, saved json.RawMessage) (AppliedSubstitution, bool) {
