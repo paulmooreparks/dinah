@@ -151,8 +151,8 @@
     images.forEach(function (image) {
       if (!eligible(image)) {
         if (image.dataset.mediaExpand) { delete image.dataset.mediaExpand; image.removeAttribute('tabindex'); image.removeAttribute('role'); image.removeAttribute('aria-label'); }
-        var frame = image.parentElement;
-        if (frame && frame.classList.contains('media-image-frame')) frame.replaceWith(image);
+        var wrapper = image.parentElement;
+        if (wrapper && wrapper.classList.contains('media-image-frame')) wrapper.replaceWith(image);
         return;
       }
       if (image.dataset.mediaExpand) {

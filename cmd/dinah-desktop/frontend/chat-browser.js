@@ -4,7 +4,7 @@
   'use strict';
 
   function create(adapter) {
-    const { app, fail, toast, productName, sessionProvider, providerName, notices, sessions, S, show, showChat, openSession, workspaceLabel, chatWorking, needsCount, waitingApproval, backgroundWork, earlierSubagents, browserSection } = adapter;
+    const { app, fail, toast, productName, sessionProvider, providerName, notices, sessions, S, show, openSession, workspaceLabel, needsCount, earlierSubagents, browserSection } = adapter;
     const $ = id => document.getElementById(id);
 
     /* A session's name: the one the person gave it, else Devin's title. */

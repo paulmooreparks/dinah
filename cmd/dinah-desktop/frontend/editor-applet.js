@@ -12,13 +12,12 @@
 (function () {
   'use strict';
 
-  // What the Editor's files share (editor-common.js), its key table
-  // (editor-keys.js) and its text surface (editor-codemirror.js).
+  // What the Editor's files share (editor-common.js) and its text surface
+  // (editor-codemirror.js).
   var common = window.dinahEditorCommon;
   var api = common.api, productName = common.productName, host = common.host, message = common.message;
   var VIEWS = common.VIEWS, workspaceName = common.workspaceName, originRef = common.originRef, isMarkdown = common.isMarkdown;
-  var EDITOR_KEYS = window.dinahEditorKeys.table, editorKeyRows = window.dinahEditorKeys.rows;
-  var loadCodeMirror = window.dinahEditorCodeMirror.load, makeTheme = window.dinahEditorCodeMirror.theme;
+  var loadCodeMirror = window.dinahEditorCodeMirror.load;
 
   /* The view a Markdown document opens in when it has none of its own yet,
      a choice in Settings (document_views.go); Visual unless chosen. */
@@ -186,7 +185,6 @@
       ed.$('status').classList.toggle('warn', !!warn);
       if (warn && text && host().documentFailed) host().documentFailed(ed.id, title || '"' + (ed.draft && ed.draft.title || 'Untitled') + '":', text);
     }
-    function has(action) { return !!ed.draft && (ed.draft.actions || []).indexOf(action) >= 0; }
     function isNew() { return !!ed.draft && ed.draft.origin.kind === 'new'; }
     function unsaved() { return !!ed.draft && (ed.draft.changed || ed.pending); }
 

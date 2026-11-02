@@ -121,7 +121,6 @@
   }
   // A chat's or group's state as the shared state chip (chat-state.js).
   function stateBadge(value, cls) { return window.dinahChatState.badge(value, cls ? { className: cls } : undefined); }
-  function stateGlyph(value) { return window.dinahChatState.badge(value); }
   /* The members of a group as a sentence: its chats' titles, and you. */
   function memberNames(r) {
     var t = (r.members || []).filter(function (m) { return m.state !== 'person'; }).map(function (m) { return m.title; }).concat(['you']);

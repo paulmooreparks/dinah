@@ -86,10 +86,6 @@
   function sharedSnapshot(ext, ws) {
     return Object.fromEntries(sharedMap(ext, ws, false) || []);
   }
-  function frameOf(ext, viewID, ws) {
-    for (const f of frames) if (f.extension() === ext && f.view() === viewID && f.workspace() === ws) return f;
-    return null;
-  }
   /* Opens a declared view. A view already open in the workspace is raised and
      given the state instead of being opened again, unless options.reuse is
      false. A pane is one per view; a view with follows takes the selected
