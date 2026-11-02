@@ -3698,11 +3698,13 @@
             // A retitle redraws the docks and the window rows, so the title
             // is set only when it changed.
             if (was !== named) window.pudlWindows.retitle(key, named);
-            var work = backgroundWork(s), helpers = runningSubagents(s);
             var execution = syncWindowExecution(win, s);
             // The chat's own chip shows its execution state and lifecycle in
-            // the title (syncWindowExecution), with background work and
-            // subagent details beside it (WINDOW-STATUS.md).
+            // the title (syncWindowExecution). It is the title's one state
+            // chip, always: background work and subagents are counted in its
+            // tooltip and the state line, not in chips of their own, which
+            // would come and go and shift the title (Paul's ruling, 2
+            // November 2026).
             // The group is in the window's markup from the start
             // (workbench.js, statuses); PUDL draws the chips, folds them into
             // its Window status control when the bar is narrow, and keeps its
@@ -3716,17 +3718,6 @@
               };
               drawWindowLifecycle(chip('chat-working-chip'), s, execution);
               drawLoadingChip();
-              var backgroundChip = chip('chat-background-chip');
-              backgroundChip.hidden = !work.length;
-              backgroundChip.textContent = 'Background ' + work.length;
-              backgroundChip.title = work.length === 1 ? '1 background task is running' : work.length + ' background tasks are running';
-              // The chip only reports how many subagents run. PUDL's status
-              // chips hold no controls (WINDOW-STATUS.md), so the action is
-              // the Subagents menu button in the composer's toolbar.
-              var subagentsChip = chip('chat-subagents-chip');
-              subagentsChip.hidden = !helpers;
-              subagentsChip.textContent = 'Subagents ' + helpers;
-              subagentsChip.title = helpers === 1 ? '1 subagent is running' : helpers + ' subagents are running';
             }
             win.dataset.winAttention = String(active ? needsCount(active) : 0);
           }

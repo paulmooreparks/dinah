@@ -1,8 +1,10 @@
 // A chat whose agent has work running after its turn (background_tasks.go)
-// shows a Background chip with the number of tasks, beside Working when a
-// turn runs too; its state line says so and lists the tasks, each with a
-// Stop button; and a turn the agent starts of its own shows as Working.
-// Against a stub of the Go side.
+// shows it in its one state chip, Background, whose tooltip and state line
+// count the tasks; with a turn running too it shows Working and says the
+// background work continues. The title has no count chip of its own, so it
+// never moves as the work starts and ends (Paul's ruling, 2 November 2026).
+// The tasks are listed, each with a Stop button, and a turn the agent starts
+// of its own shows as Working. Against a stub of the Go side.
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -32,8 +34,10 @@ const { launch } = require('./lib/page');
   const win = '.win[data-chat-current]';
   const state = (info, execution = 'idle') => p.evaluate(([i, execution]) => window.__emit('agent:session', Object.assign({ sessionId: 'bg', cwd: 'C:\\Work\\Parser Workspace', title: 'Builds', open: true, queued: [], chatState: { life: 'open', window: true, exec: typeof execution === 'object' ? execution : { state: execution, why: execution === 'working' ? 'Turn in progress' : 'No work in progress' } } }, i)), [info, execution]);
   const chips = () => p.evaluate(w => {
-    const el = document.querySelector(w), working = el.querySelector('.chat-working-chip .chat-state-working'), background = el.querySelector('.chat-background-chip');
-    return { working: !!working && !working.hidden, background: background && !background.hidden ? background.textContent : '', line: el.querySelector('.chat-working-chip').title, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent) };
+    const el = document.querySelector(w), working = el.querySelector('.chat-working-chip .chat-state-working'), group = el.querySelector('.win-head > .win-statuses'), title = el.querySelector('.win-title');
+    const shown = [...group.querySelectorAll(':scope > .win-status')].filter(c => !c.hidden && c.getClientRects().length && c.textContent.trim());
+    return { working: !!working && !working.hidden, chips: shown.map(c => c.className.replace('win-status ', '') + ':' + c.textContent.trim()), line: el.querySelector('.chat-working-chip').title, tasks: Array.from(el.querySelectorAll('.background-task')).map(li => li.textContent),
+      geometry: [Math.round(title.getBoundingClientRect().width), Math.round(group.getBoundingClientRect().left), Math.round(group.getBoundingClientRect().width)] };
   }, win);
   const build = { id: 'build', name: 'Build Windows', type: 'shell', description: 'go build ./...', state: 'running', canStop: true };
   const linux = { id: 'linux', name: 'Build Linux', type: 'shell', summary: 'linking', state: 'running', canStop: false };
@@ -43,24 +47,16 @@ const { launch } = require('./lib/page');
   await state({ working: true, background: [build] }, { state: 'working', why: 'Turn in progress', tasks: 1 });
   await p.waitForTimeout(200);
   let c = await chips();
-  ok('a turn with background work shows Working and Background 1 side by side', c.working && c.background === 'Background 1', JSON.stringify(c));
-  // The chips take the title bar's own text colour, with no fill, so they
-  // have the title's contrast in every theme, active or not.
-  const inks = await p.evaluate(w => {
-    const el = document.querySelector(w), title = getComputedStyle(el.querySelector('.win-title')).color;
-    return ['.chat-background-chip'].map(sel => { const cs = getComputedStyle(el.querySelector(sel)); return { title, color: cs.color, bg: cs.backgroundColor, active: el.classList.contains('active') }; });
-  }, win);
-  ok('the background chip inherits the title colour without its own fill', inks.every(i => i.color === i.title && i.bg === 'rgba(0, 0, 0, 0)'), JSON.stringify(inks));
-  ok('its own chip shows the execution state beside the host background status', await p.evaluate(w => {
-    const head = document.querySelector(w + ' .win-head'), group = head.querySelector(':scope > .win-statuses');
-    return !!group && !!group.querySelector('.chat-working-chip .chat-state-working') && group.querySelector('.chat-background-chip').matches('.win-status:not(.strong)');
-  }, win));
+  const geometry = [c.geometry];
+  ok('a turn with background work shows one chip, Working, whose tooltip says the background work continues', c.working && c.chips.length === 1 && /^chat-working-chip/.test(c.chips[0]) && /Background work continues: 1 background task/.test(c.line), JSON.stringify(c));
+  ok('the title has no count chip of its own', await p.evaluate(w => !document.querySelector(w + ' .chat-background-chip, ' + w + ' .chat-subagents-chip'), win));
   ok('PUDL gives the window its Window status command', await p.evaluate(w => pudlWindows.menuCommands(document.querySelector(w).dataset.win).some(c => c.id === 'status'), win));
 
   await state({ working: false, background: [build, linux] }, { state: 'background', why: '2 background tasks', tasks: 2 });
   await p.waitForTimeout(200);
   c = await chips();
-  ok('after the turn the chat still shows its background work, not Working', !c.working && c.background === 'Background 2', JSON.stringify(c));
+  geometry.push(c.geometry);
+  ok('after the turn the one chip says Background, not Working', !c.working && c.chips.length === 1 && /^chat-working-chip:Background /.test(c.chips[0]), JSON.stringify(c));
   ok('the state line says Background work with the count from the engine, once', c.line.startsWith('Background work') && (c.line.match(/2 background tasks/g) || []).length === 1 && !c.line.includes('Idle'), c.line);
   ok('each task is listed with what it is doing', c.tasks.length === 2 && c.tasks[0].includes('Build Windows') && c.tasks[0].includes('go build ./...') && c.tasks[1].includes('linking'), JSON.stringify(c.tasks));
   ok('Stop is offered only where the agent allows it', await p.locator(win + ' .background-task button').count() === 1);
@@ -73,11 +69,14 @@ const { launch } = require('./lib/page');
   await state({ working: false, background: [linux, { id: 'autonomous-turn-1', name: 'Claude is working', type: 'turn', state: 'running', canStop: true }] }, { state: 'working', why: "Agent's own turn in progress", tasks: 1 });
   await p.waitForTimeout(200);
   c = await chips();
-  ok('a turn the agent starts of its own shows as Working, and is not counted as background', c.working && c.background === 'Background 1' && c.line.includes('Working'), JSON.stringify(c));
+  geometry.push(c.geometry);
+  ok('a turn the agent starts of its own shows as Working, and is not counted as background', c.working && c.chips.length === 1 && c.line.includes('Working') && /1 background task/.test(c.line), JSON.stringify(c));
 
   await state({ working: false, background: [] });
   await p.waitForTimeout(200);
   c = await chips();
-  ok('when the work ends, the chips and the list go', !c.working && !c.background && !c.tasks.length && c.line.includes('Idle') && !c.line.includes('background'), JSON.stringify(c));
+  geometry.push(c.geometry);
+  ok('when the work ends, the chip says Idle and the list goes', !c.working && c.chips.length === 1 && /^chat-working-chip:Idle /.test(c.chips[0]) && !c.tasks.length && c.line.includes('Idle') && !c.line.includes('background'), JSON.stringify(c));
+  ok('the title and its chip keep their place and width through Working, Background, Working and Idle', geometry.every(g => JSON.stringify(g) === JSON.stringify(geometry[0])), JSON.stringify(geometry));
   await t.close();
 })();
