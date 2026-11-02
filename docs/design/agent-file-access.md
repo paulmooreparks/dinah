@@ -20,7 +20,7 @@ Each row shows the rule's path as it resolves on this computer, with its reason 
 
 Below the list sit a sunken path field and a raised Add button for a new custom rule. While the person types, the page asks Go what the path resolves to and shows the answer under the field: the resolved path, whether it already falls under another rule, and whether it is inside the current workspace. A path that cannot be a rule, because it is empty, relative or unreadable as a path, disables Add and says why under the field.
 
-**Reads.** This card is the audit log: every read an agent made through Dinah outside the current workspace's registered roots, newest first, together with each change to the rules, such as a default turned off, with its time. Each read's row shows the time, the chat, the path, and either the number of bytes returned or the rule that refused it. The outcome is shown as a glyph and a colour together, and the row's text says the outcome as well, so it never depends on colour alone. Above the list sit three filters, all sunken: the chat, the time range (last hour, today, last 7 days, everything kept), and the outcome (all reads or refused reads only). Load Older at the end reads the next page.
+**Reads.** This card is the audit log: every read an agent made through Dinah outside the current workspace's registered roots, newest first, together with each change to the rules, such as a default turned off, with its time. Each read's row shows the time, the chat, the path, and either the number of bytes returned or the rule that refused it. The outcome is shown as a glyph and a colour together, and the row's text says the outcome as well, so it never depends on colour alone. Above the list sit three filters, all sunken: the chat, the time range (last hour, today, last 7 days, everything kept), and the outcome (everything, or denied reads only). Load Older at the end reads the next page.
 
 ## PUDL categories
 
@@ -36,24 +36,27 @@ The section's state is written into the Settings window's address as `file-acces
 
 - `chat=<chat ID>` limits the log to one chat.
 - `since=hour`, `since=today` or `since=week` limits the time range; with no `since`, everything kept is shown.
-- `outcome=refused` shows refused reads only.
+- `outcome=denied` shows denied reads only.
 
 The path being typed is not part of the address, since it is a draft and not a view.
 
-## The contract the page needs from Go
+## The contract the page uses
 
-This is a proposal for Engine. The page follows the Architectural Principles' rule that an action the person may not take is absent from what Go returns, instead of being hidden by the page.
+Engine owns the contract, in `docs/design/provider-file-reads.md` (fix/agent-file-access, 3caaa10). The page uses these parts of it, by the names it gives them. Go returns each rule's actions, and the page draws only those, as the Architectural Principles require.
 
-| Call | Returns | Notes |
-| --- | --- | --- |
-| `FileAccessPolicy()` | The policy as one list of rules and a version. Each rule has an id, a kind (`protected`, `default` or `custom`), a path pattern, a plain reason, an enabled flag where the kind allows one, the path it resolves to on this computer, and its actions. | A default rule carries `actions: ["enable"]` or `["disable"]`, a custom rule `["remove"]`, and a protected rule none. |
-| `CheckFileAccessPath(path)` | Whether the path can be a custom rule, the reason when it cannot, the resolved path, the ids of any rules it already falls under, and whether it is inside the current workspace. | Read-only; called while the person types. |
-| `AddFileAccessRule(path, version)` | The new policy. | Refused when the version is stale, so two windows cannot lose each other's changes. |
-| `SetFileAccessRuleEnabled(id, enabled, version)` | The new policy. | Only for a default rule; the change is recorded in the log. |
-| `RemoveFileAccessRule(id, version)` | The new policy. | Only for a custom rule; refused when the version is stale. |
-| `FileAccessLog(filter)` | A page of reads, newest first, each with an id, the time, the chat's id and title, the workspace, the path, the bytes returned or the rule that refused it, and the cursor for the next page. | `filter` holds `chat`, `since`, `outcome`, `before` and `limit`. |
-| Event `file-access:read` | The new read, as a log row. | Sent after the read is recorded. |
-| Event `file-access:policy` | The new version. | The page then reads the policy again. |
+| Call or event | What the page does with it |
+| --- | --- |
+| `FileAccessPolicy()` | Draws the rules list from its one list of rules, each with its kind, pattern, reason, enabled flag, resolved paths, example per platform and actions. |
+| `CheckFileAccessPath(path, workspaceID)` | Shows the preview under the path field while the person types. The page passes the Settings window's workspace explicitly. |
+| `AddFileAccessEntry(path, version)` | Adds a custom rule. |
+| `RemoveFileAccessEntry(id, version)` | Removes a custom rule, after the person confirms. |
+| `SetFileAccessDefault(id, enabled, version)` | Turns an optional default on or off, after the person confirms turning it off. |
+| `FileAccessLog(filter)` | Reads a page of the log, newest first, by chat, `since` (sent as an RFC 3339 time worked out from the chosen range), outcome, `before` and `limit`. A row is a read allowed or denied, an error, or a policy change. |
+| `AcknowledgeFileAccessLog(chat, through)` | Clears a chat's passive count of refused reads up to the rows the page has shown, after they are shown. |
+| Event `file-access:read` | Adds the new row to the log. |
+| Event `file-access:policy` | Reads the policy again. |
+
+A call with a stale version fails without changing anything, so the page reads the policy again and says that the rules changed in another window.
 
 ## Guard
 
