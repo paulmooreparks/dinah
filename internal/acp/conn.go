@@ -331,7 +331,7 @@ func (c *Conn) read(r io.Reader) {
 			}
 			if !c.warned {
 				c.warned = true
-				Logf("%s wrote a line that is not protocol, which is skipped; later ones are not noted: %.200s", c.agent, line)
+				c.logf("%s wrote a line that is not protocol, which is skipped; later ones are not noted", c.agent)
 			}
 			continue
 		}
@@ -365,7 +365,7 @@ func (c *Conn) notify(m message) {
 	defer func() {
 		if recover() != nil && !c.notificationFault {
 			c.notificationFault = true
-			Logf("ignored a provider notification after a client handler fault")
+			c.logf("ignored a provider notification after a client handler fault")
 		}
 	}()
 	c.handler.Notify(m.Method, m.Params)
@@ -438,14 +438,27 @@ func (c *Conn) traceLine(prefix string, b []byte) {
 	if c.trace == nil {
 		return
 	}
-	s := string(b)
+	fmt.Fprintf(c.trace, "%s%s\n", prefix, c.redactLocked(string(b)))
+}
+
+// logf applies the connection's registered redactors at the diagnostic sink.
+// Malformed protocol payloads are omitted even when no secret is registered yet.
+func (c *Conn) logf(format string, args ...any) {
+	c.traceMu.Lock()
+	s := c.redactLocked(fmt.Sprintf(format, args...))
+	c.traceMu.Unlock()
+	Logf("%s", s)
+}
+
+// redactLocked is shared by protocol traces and connection diagnostics.
+func (c *Conn) redactLocked(s string) string {
 	for _, redact := range c.traceRedactors {
 		s = redact(s)
 	}
 	for _, secret := range c.traceSecrets {
 		s = strings.ReplaceAll(s, secret, "[redacted]")
 	}
-	fmt.Fprintf(c.trace, "%s%s\n", prefix, s)
+	return s
 }
 
 // stderr writes can split a credential between chunks. Buffer complete lines
