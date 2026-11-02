@@ -5,12 +5,9 @@
   var svgNS = 'http://www.w3.org/2000/svg', htmlNS = 'http://www.w3.org/1999/xhtml';
   var svgTags = new Set('svg g defs path text tspan textPath rect circle ellipse line polyline polygon marker pattern mask clipPath linearGradient radialGradient stop title desc style foreignObject use image filter feGaussianBlur feOffset feBlend feColorMatrix feComposite feFlood feMerge feMergeNode'.split(' '));
   var htmlTags = new Set('div span p b strong i em br sub sup ul ol li table tbody tr td th code pre'.split(' '));
-  var cssProperties = new Set(('fill fill-opacity fill-rule stroke stroke-width stroke-opacity stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit opacity color background-color font font-family font-size font-weight font-style font-variant text-anchor text-decoration text-transform dominant-baseline alignment-baseline baseline-shift letter-spacing word-spacing line-height white-space word-break overflow overflow-wrap display visibility width height min-width min-height max-width max-height text-align vertical-align padding padding-top padding-right padding-bottom padding-left margin margin-top margin-right margin-bottom margin-left border border-width border-style border-color border-radius box-sizing filter clip-path mask marker-start marker-mid marker-end').split(' '));
-  function safeValue(value) {
-    if (/[\\@<>]|\/\*|expression\s*\(/i.test(value)) return false;
-    var functions = value.replace(/url\(\s*["']?#[\w:.-]+["']?\s*\)/gi, '').match(/[\w-]+\s*\(/g) || [];
-    return functions.every(function (name) { return /^(rgb|rgba|hsl|hsla|lab|lch|oklab|oklch|color|calc|min|max|clamp|drop-shadow|blur|brightness|contrast|grayscale|hue-rotate|invert|opacity|saturate|sepia|matrix|matrix3d|translate|translateX|translateY|scale|scaleX|scaleY|rotate|skewX|skewY)\s*\($/i.test(name); });
-  }
+  // The CSS a drawing may use is the shared list in safe-html.js, which
+  // lets nothing position an element or paint outside its box.
+  var safeValue = window.dinahHTML.safeValue;
   // A font the SVG brings inside itself, as d2 does with the fonts it measured
   // its labels in. Only a font in a data URL is kept, so nothing is fetched.
   var embeddedFont = /^url\(\s*"?data:(font\/(woff2?|ttf|otf|sfnt)|application\/(font-woff2?|x-font-woff|font-sfnt|x-font-ttf|x-font-opentype));base64,[A-Za-z0-9+\/=]+"?\s*\)(\s*format\(\s*"?[\w-]+"?\s*\))?$/;
@@ -22,13 +19,7 @@
     return value.split(',').map(function (part) { var own = fonts[familyName(part)]; return own ? '"' + own + '"' : part.trim(); }).join(', ');
   }
   function declarations(style, fonts) {
-    var output = [];
-    Array.from(style).forEach(function (property) {
-      var value = style.getPropertyValue(property);
-      if (property === 'font-family' && fonts) value = renameFamilies(value, fonts);
-      if (cssProperties.has(property) && safeValue(value)) output.push(property + ':' + value + (style.getPropertyPriority(property) ? ' !important' : ''));
-    });
-    return output.join(';');
+    return window.dinahHTML.declarations(style, fonts && function (property, value) { return property === 'font-family' ? renameFamilies(value, fonts) : value; });
   }
   function parsed(text) {
     // Constructed stylesheets are parsed without attaching them to the page.
