@@ -6,8 +6,8 @@
 # is checked out beside this one. Its main branch has to contain whatever this
 # commit needs from it.
 #
-# These builds are not tested here. The gates run on the workstation before
-# anything reaches master; this workflow only builds and publishes.
+# The source vulnerability guard must pass before building and publishing.
+# Other regression gates remain workstation checks until review guard wiring.
 name: Build
 
 on:
@@ -23,8 +23,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  vulnerabilities:
+    name: Check called vulnerabilities on Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: dinah
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: dinah
+      - uses: actions/checkout@v4
+        with:
+          repository: paulmooreparks/dinah-extension-go
+          path: dinah-extension-go
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.10"
+          cache-dependency-path: dinah/go.sum
+      - name: Test the JSON finding guard
+        run: |
+          go test ./tools/vulnguard -count=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Scan desktop production and command line source
+        run: ./scripts/vulnerability-gate.ps1 -Out ../vulnerability-reports
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vulnerability-reports
+          path: vulnerability-reports/
+          if-no-files-found: error
+
   build:
     name: Build ${{ matrix.name }}
+    needs: vulnerabilities
     strategy:
       fail-fast: false
       matrix:
