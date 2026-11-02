@@ -7,7 +7,7 @@
     const { store, app, workspace, active, chatKey, isWindowOpen, closeWindow,
       onWindowsChange, offWindowsChange, openChatIds, chatWindowsFor,
       fail, toast, providerName, title, show, showChat, drawSaved, drawSavedCopy,
-      replayProgress, sessionNote, stateLine, enqueue, drainAgentEvents,
+      replayProgress, sessionNote, stateLine, drainAgentEvents,
       rememberCatalog, drawAgentState, openingNote, stampReplay, drawAll, resetMessageItems,
       presentHistory, noWorkspaceYet, startLog, catchUpLog } = adapter;
     const sessions = store.records, S = store.get;

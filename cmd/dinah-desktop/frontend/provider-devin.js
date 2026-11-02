@@ -5,7 +5,6 @@
   'use strict';
 
   function mount(root, api) {
-    var product = window.dinahProduct ? window.dinahProduct.name : '';
     root.innerHTML = `<section class="card vstack gap-3" aria-labelledby="set-approvals">
   <h3 class="card-title" id="set-approvals">Devin Approvals</h3>
   <p class="form-help">These settings apply only to Devin. A change applies when Devin next starts.</p>
