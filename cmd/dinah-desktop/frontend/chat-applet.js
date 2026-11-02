@@ -1294,8 +1294,17 @@
         var spec = window.dinahChatState.describe(s.info, { reason: false });
         win.dataset.winStateLabel = spec.short;
         win.dataset.winStateDetail = spec.text !== spec.short ? spec.text + ' · ' + stateContext : stateContext;
+        win.removeAttribute('data-win-lifecycle');
       }
-      else { win.removeAttribute('data-win-state'); win.removeAttribute('data-win-state-label'); win.removeAttribute('data-win-state-detail'); }
+      else {
+        win.removeAttribute('data-win-state'); win.removeAttribute('data-win-state-label'); win.removeAttribute('data-win-state-detail');
+        /* A chat with no execution state gives PUDL its lifecycle word
+           (data-win-lifecycle, 0.96.5): Closed, Retired, Elsewhere or
+           Unknown, the words its Chats list chip shows, so its stack row says
+           it rather than showing nothing. */
+        var life = s && window.dinahChatState.describe(s.info, { reason: false }).short;
+        if (life) win.dataset.winLifecycle = life; else win.removeAttribute('data-win-lifecycle');
+      }
       return execution;
     }
     function drawWindowLifecycle(chip, s, execution) {
