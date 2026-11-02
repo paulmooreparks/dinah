@@ -1,7 +1,7 @@
 /* The UI SDK is for reviewed, bundled applets in the host trust boundary. */
 (function () {
   'use strict';
-  var workspace = '', contributions = new Map(), mounts = [], listeners = new Set();
+  var workspace = '', contributions = new Map(), mounts = [], groups = [], listeners = new Set();
   var requestTimer = 0;
   const api = window.dinahHelpers.app;
   const node = window.dinahHelpers.node;
@@ -69,6 +69,9 @@
   function renderWorkspace() {
     mounts.forEach(function (destroy) { destroy(); }); mounts = [];
     var host = document.getElementById('workspace-applets'); if (!host) return;
+    /* A group drawn here may have been moved among the pane's sections in the
+       person's order (workspace-sections.js), so each is removed by itself. */
+    groups.forEach(function (el) { el.remove(); }); groups = [];
     host.replaceChildren(); if (!workspace || !api().AppletInvocationsAt) return;
     // Each contribution is a group like the application's own. Its actions,
     // if it gives any, are at the end of the group's heading: one as a
@@ -78,7 +81,7 @@
       var actions = (c.actions || []).map(function (a) { return { label: a.label, title: a.title, run: function () { Promise.resolve().then(function () { return a.run(workspace); }).catch(error); } }; });
       if (actions.length === 1) { var b = node('button','btn btn-sm browser-group-action',actions[0].label); b.type = 'button'; if (actions[0].title) b.title = actions[0].title; b.addEventListener('click',actions[0].run); g.head.appendChild(b); }
       else if (actions.length > 1) { var m = window.dinahBrowserList.actionsMenu(actions); m.classList.add('browser-group-action'); g.head.appendChild(m); }
-      g.body.classList.add('applet-workspace'); host.appendChild(g.el);
+      g.body.classList.add('applet-workspace'); host.appendChild(g.el); groups.push(g.el);
       var destroy = c.mount(g.body,scoped(c.provider,workspace)); if (destroy) mounts.push(destroy);
     });
     // Applet results are entries under Notifications, and each applet's own
