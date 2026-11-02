@@ -37,9 +37,9 @@ try {
     try {
       & node --test (Join-Path $repo 'scripts/npm-audit-gate.test.mjs')
       if ($LASTEXITCODE -ne 0) { $failures.Add('npm audit gate contract tests failed') }
-      & npm run audit:guard -- (Join-Path $Out 'npm-audit.json')
+      npm run audit:guard -- (Join-Path $Out 'npm-audit.json')
       if ($LASTEXITCODE -ne 0) { $failures.Add('npm dependency audit failed') }
-      & npm run lint
+      npm run lint
       if ($LASTEXITCODE -ne 0) { $failures.Add('frontend ESLint checks failed') }
     } finally {
       Pop-Location
