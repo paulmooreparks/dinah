@@ -99,15 +99,16 @@
      redraw waits until the panel closes; PUDL reads the rows afresh for a
      key, so keys are not held up. */
   var waiting = false;
-  function panelOpen() { var panel = document.getElementById('menubar-panel'); return !!panel && panel.matches(':popover-open'); }
+  // Whether a menu of the bar is open, and its closing, are PUDL's to say
+  // (pudlMenubar.isOpen and pudl:menubar-close, 0.96.9).
+  function panelOpen() { return !!(window.pudlMenubar && window.pudlMenubar.isOpen && window.pudlMenubar.isOpen()); }
   function drawAll(event) {
     // Native mode changes use PUDL's documented refresh of an open menu.
     if (panelOpen() && !event?.detail?.refreshOpenMenus) {
       if (!waiting) {
         waiting = true;
-        document.getElementById('menubar-panel').addEventListener('toggle', function closed(event) {
-          if (event.newState !== 'closed') return;
-          this.removeEventListener('toggle', closed);
+        document.addEventListener('pudl:menubar-close', function closed() {
+          document.removeEventListener('pudl:menubar-close', closed);
           waiting = false;
           drawAll();
         });
