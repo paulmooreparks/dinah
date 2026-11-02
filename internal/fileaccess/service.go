@@ -335,6 +335,10 @@ func (s *Service) read(ctx context.Context, path string, line, limit *int, scope
 		return "", errors.New("this read was refused: " + check.Error)
 	}
 	if !check.Valid {
+		record.Outcome, record.Reason = "error", "The file identity could not be checked"
+		if err := s.recordRead(ctx, scope, record); err != nil {
+			return "", err
+		}
 		return "", errors.New(check.Error)
 	}
 	var refused Check
@@ -407,6 +411,9 @@ func (s *Service) ReadDirectory(ctx context.Context, path string, scope Scope) (
 			child := filepath.Join(path, entry.Name())
 			if !parentInfo.IsDir() {
 				child = path
+			}
+			if err := s.admitOperationPath(ctx, scope, child); err != nil {
+				return "", err
 			}
 			file, openErr := agents.OpenIdentityPath(child)
 			if openErr != nil {
