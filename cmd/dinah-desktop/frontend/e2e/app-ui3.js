@@ -167,6 +167,10 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.click('#remove-hide');
   await p.waitForTimeout(300);
   ok('hiding takes it off the list and out of the front', !(await p.textContent('#sessions')).includes('Note 14 Design Doc') && (await p.textContent('.win[data-chat-current] .win-title')) === 'New Chat');
+  // Every group's count says how many chat rows it shows, so a hidden chat
+  // cannot stay listed under a count that has already dropped it (BL-05).
+  const counts = await p.evaluate(() => Array.from(document.querySelectorAll('#sessions .browser-group')).map(g => ({ count: (g.querySelector('.browser-group-count') || {}).textContent, rows: g.querySelectorAll('.md-row[data-session-row]').length })));
+  ok('each group\'s count matches the chat rows it shows', counts.length > 0 && counts.every(c => c.count == null || Number(String(c.count).trim()) === c.rows), JSON.stringify(counts));
   await p.evaluate(() => dinahWorkbench.open('chat-browser'));
   await p.locator('.menubar-title').filter({ hasText: /^Actions$/ }).click();
   ok('Show Hidden Chats Again is available in the Chats browser', await p.locator('#menubar-panel').getByText('Show Hidden Chats Again', { exact: true }).isEnabled());
