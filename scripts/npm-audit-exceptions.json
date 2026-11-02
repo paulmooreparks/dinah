@@ -1,0 +1,14 @@
+{
+  "exceptions": [
+    {
+      "advisory": "GHSA-g3hv-75wg-m249",
+      "package": "minimatch",
+      "version": "3.1.5",
+      "rootVersion": "9.39.5",
+      "paths": ["node_modules/minimatch"],
+      "expires": "2026-12-02",
+      "approved": true,
+      "reason": "Quality 3682 and lead 3683: minimatch 3.1.5 lacks the vulnerable preprocessing code. ESLint does not enable optimizationLevel >= 2, and glob patterns are repository-owned. Only the eslint 9.39.5 development tree may reach this path."
+    }
+  ]
+}

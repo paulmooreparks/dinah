@@ -1,5 +1,12 @@
 {
+  "scripts": {
+    "lint": "cd ../../../.. && eslint cmd/dinah-desktop/frontend internal/web/static",
+    "audit:guard": "node ../../../../scripts/npm-audit-gate.mjs"
+  },
   "dependencies": {
     "playwright-core": "^1.63.0"
+  },
+  "devDependencies": {
+    "eslint": "9.39.5"
   }
 }

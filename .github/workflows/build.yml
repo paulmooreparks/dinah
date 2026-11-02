@@ -106,7 +106,7 @@ jobs:
         run: |
           npm ci
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Run every guard in scripts/guards.json
+      - name: Run ESLint, the npm audit gate and every guard in scripts/guards.json
         run: ./scripts/guards.ps1 -WithoutForbiddenTerms -Out ../guard-reports
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

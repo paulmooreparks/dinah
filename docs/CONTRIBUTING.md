@@ -9,7 +9,9 @@ $env:DINAH_FORBIDDEN_TERMS = '<path to the private forbidden-terms list>'
 pwsh scripts/guards.ps1
 ```
 
-The command runs every guard listed in `scripts/guards.json`: the static checks, the security and stability tests, and the browser suites that protect the review's fixes. It fails if any listed test is missing, skipped or failing. `-Skip browser` runs only the Go guards. Nothing is pushed to master unless the forbidden-terms, product-name and provider-name guards pass on that commit. This holds on the fast path too.
+Install the locked JavaScript development tools with `npm ci` in `cmd/dinah-desktop/frontend/e2e` before running the guards. The command runs ESLint over desktop and web scripts, audits the complete npm tree, checks the audit gate's failure cases, and runs every guard listed in `scripts/guards.json`. It fails if any listed test is missing, skipped or failing. `-Skip browser` runs only the Go guards. Nothing is pushed to master unless the forbidden-terms, product-name and provider-name guards pass on that commit. This holds on the fast path too.
+
+The same folder provides `npm run lint` and `npm run audit:guard` for focused checks. Audit exceptions are version- and path-specific and expire; the current exception and its evidence are in `docs/review/supply-chain.md`. Expiry fails the guard even if npm stops reporting that advisory, so the exception must be reviewed and removed explicitly.
 
 The rules these guards protect are in `docs/design/invariants.md`, and a change is reviewed against that list. A new guard is added to `scripts/guards.json` in the same change that adds its test. A guard that only means something on some operating systems is listed under `onlyOn` with those systems, and on any other system the runner requires it to skip.
 

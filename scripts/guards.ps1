@@ -31,6 +31,20 @@ if ($WithoutForbiddenTerms) { Remove-Item Env:DINAH_FORBIDDEN_TERMS -ErrorAction
 
 Push-Location $repo
 try {
+  if ($Skip -notcontains 'browser') {
+    $e2e = Join-Path $repo 'cmd/dinah-desktop/frontend/e2e'
+    Push-Location $e2e
+    try {
+      & node --test (Join-Path $repo 'scripts/npm-audit-gate.test.mjs')
+      if ($LASTEXITCODE -ne 0) { $failures.Add('npm audit gate contract tests failed') }
+      & npm run audit:guard -- (Join-Path $Out 'npm-audit.json')
+      if ($LASTEXITCODE -ne 0) { $failures.Add('npm dependency audit failed') }
+      & npm run lint
+      if ($LASTEXITCODE -ne 0) { $failures.Add('frontend ESLint checks failed') }
+    } finally {
+      Pop-Location
+    }
+  }
   $goos = (& go env GOOS).Trim()
   if ($Skip -notcontains 'go') {
     foreach ($entry in $manifest.go) {
