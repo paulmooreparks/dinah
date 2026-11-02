@@ -91,15 +91,23 @@ const { launch } = require('./lib/page');
     const glyph = await row.locator('.chat-state-idle').evaluate(el => getComputedStyle(el, '::before').getPropertyValue('--glyph').trim());
     ok('Idle uses the shared hollow-circle glyph', /glyph-ring/.test(glyph) || /svg/.test(glyph), glyph);
     // The Workspace pane's list of chats is drawn as the Chats pane's is.
+    // A list row's chip sits in a slot beside hidden copies of every state's
+    // chip, which size the slot (c8031ec); the shown chip is the one that is
+    // not a reserve copy.
     const listed = p.locator('#workspace-chats [data-session-row="chat-parser"]');
-    await listed.locator('.chat-state-idle').waitFor();
-    ok('the chat lists keep Idle separate from window presence', (await listed.locator('.chat-state-idle').getAttribute('aria-label')).includes('Idle') && (await listed.innerText()).includes('No window'));
+    const listedChip = listed.locator('.session-badge > .chat-state-idle:not(.chat-state-reserve)');
+    await listedChip.waitFor();
+    ok('the chat lists keep Idle separate from window presence', (await listedChip.getAttribute('aria-label')).includes('Idle') && (await listed.innerText()).includes('No window'));
 
     // A group's chip and the picker show the same state.
     await pane.locator('[data-bus-room="release-review"]').click();
     const room = p.locator('.win[data-win-kind="bus-room"]');
-    await room.locator('[data-group-member="window-p1"] .chat-state-idle').waitFor();
-    ok('a group member chip shows Idle', await room.locator('[data-group-member="window-p1"] .chat-state-idle').count() === 1);
+    // The group's members are rows of its Members dropdown (f22f9b5).
+    await room.getByRole('button', { name: /^Members/ }).click();
+    const memberChip = room.locator('.members-menu:popover-open [data-group-member="window-p1"] .chat-state-idle:not(.chat-state-reserve)');
+    await memberChip.waitFor();
+    ok('a group member chip shows Idle', await memberChip.count() === 1);
+    await p.keyboard.press('Escape');
     await p.evaluate(() => window.dinahBus.startGroup(''));
     const picker = p.locator('.win[data-win-kind="group-picker"]');
     await picker.locator('[data-chat="chat-parser"]').waitFor();

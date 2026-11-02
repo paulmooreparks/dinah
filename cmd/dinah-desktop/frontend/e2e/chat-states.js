@@ -37,44 +37,59 @@ const { launch } = require('./lib/page');
   try {
     const groupKey = await page.evaluate(() => dinahWorkbench.open({ kind: 'bus-room', path: 'states' }));
     const group = page.locator('[data-win="' + groupKey + '"]');
-    await group.locator('[data-group-member="bus-working"] .chat-state-working').waitFor();
+    /* The group's members are rows of its Members dropdown (f22f9b5, 8bc2cc0).
+       Each row's chip sits in a slot beside hidden reserve copies of every
+       state's chip (c8031ec), so the shown chip is the one that is not a
+       reserve. The chip is PUDL's execution-state badge, whose glyph is its
+       ::before (70e4a94), and shows the short word, with the reason or counts
+       in its name and tooltip (2d0f96d). */
+    const membersButton = group.getByRole('button', { name: /^Members/ }), panel = group.locator('.members-menu:popover-open');
+    const shown = (member, cls) => group.locator('[data-group-member="' + member + '"] .badge' + cls + ':not(.chat-state-reserve)');
+    const glyphOf = badge => badge.evaluate(b => { const g = getComputedStyle(b, '::before'); return { state: b.dataset.state || '', drawn: g.content !== 'none' && parseFloat(g.width) > 0 }; });
+    await membersButton.click();
+    await panel.waitFor();
+    await panel.locator('[data-group-member="bus-working"] .chat-state-working:not(.chat-state-reserve)').waitFor();
     for (const state of ['working', 'waiting', 'stuck', 'idle']) {
-      const badge = group.locator('[data-group-member="bus-' + state + '"] .chat-state-' + state);
-      ok('group member names ' + state + ' and displays its shared glyph', await badge.isVisible() && (await badge.getAttribute('aria-label')).toLowerCase().includes(state) && await badge.locator('.glyph').isVisible());
+      const badge = shown('bus-' + state, '.chat-state-' + state), glyph = await glyphOf(badge);
+      ok('group member names ' + state + ' and displays its shared glyph', await badge.isVisible() && (await badge.getAttribute('aria-label')).toLowerCase().includes(state) && glyph.state === state && glyph.drawn, JSON.stringify(glyph));
     }
     for (const life of ['closed', 'retired']) {
-      const badge = group.locator('[data-group-member="bus-' + life + '"] .chat-lifecycle');
-      ok(life + ' is lifecycle text without an execution glyph', await badge.isVisible() && await badge.locator('.glyph').count() === 0);
+      const badge = shown('bus-' + life, '.chat-lifecycle'), glyph = await glyphOf(badge);
+      ok(life + ' is lifecycle text without an execution glyph', await badge.isVisible() && !glyph.state && !glyph.drawn, JSON.stringify(glyph));
     }
-    ok('waiting and stuck retain their complete reasons', /Context full/.test(await group.locator('[data-group-member="bus-waiting"] .member-state').getAttribute('aria-label')) && /provider cannot run/.test(await group.locator('[data-group-member="bus-stuck"] .member-state').getAttribute('aria-label')));
-    ok('the group aggregate uses engine counts and priority', /1 stuck, 1 waiting, 1 working, 1 idle, 1 running elsewhere, 2 closed/.test(await group.locator('.group-state-chip').innerText()));
-    const elsewhere = group.locator('[data-group-member="bus-elsewhere"] .chat-lifecycle');
-    ok('activity in another window is words without a claimed execution state', /Running in another Dinah window/.test(await elsewhere.innerText()) && await elsewhere.locator('.glyph').count() === 0);
+    ok('waiting and stuck retain their complete reasons', /Context full/.test(await shown('bus-waiting', '.chat-state-waiting').getAttribute('aria-label')) && /provider cannot run/.test(await shown('bus-stuck', '.chat-state-stuck').getAttribute('aria-label')));
+    ok('the group aggregate uses engine counts and priority', /1 stuck, 1 waiting, 1 working, 1 idle, 1 running elsewhere, 2 closed/.test(await group.locator('.group-state-chip .chat-state').getAttribute('aria-label')));
+    const elsewhere = shown('bus-elsewhere', '.chat-lifecycle'), elsewhereGlyph = await glyphOf(elsewhere);
+    ok('activity in another window is words without a claimed execution state', /Running in another Dinah window/.test(await elsewhere.getAttribute('aria-label')) && !elsewhereGlyph.state && !elsewhereGlyph.drawn, JSON.stringify(elsewhereGlyph));
+    // The dropdown lies over the conversation, so seven members never take the transcript's room, and its list stays inside the window.
     async function usableTranscript(name) {
       await page.waitForFunction(key => document.querySelector('[data-win="' + key + '"] .bus-log').clientHeight >= 128, groupKey);
       const geometry = await group.evaluate(win => {
-        const body = win.querySelector('.bus-conversation'), shell = win.querySelector('.group-member-shell'), list = win.querySelector('.group-members'), log = win.querySelector('.bus-log');
-        return { body: body.clientHeight, members: shell.getBoundingClientRect().height, transcript: log.clientHeight, overflow: list.scrollHeight > list.clientHeight };
+        const body = win.querySelector('.bus-conversation'), shell = win.querySelector('.group-member-shell'), menu = win.querySelector('.members-menu'), log = win.querySelector('.bus-log');
+        const m = menu.getBoundingClientRect(), w = win.getBoundingClientRect();
+        return { body: body.clientHeight, members: shell.getBoundingClientRect().height, transcript: log.clientHeight, rows: menu.querySelectorAll('[data-group-member]').length, menu: { top: m.top, bottom: m.bottom }, window: { top: w.top, bottom: w.bottom } };
       });
-      ok(name + ' reserves the conversation with seven expanded members', geometry.transcript >= 128 && geometry.members <= geometry.body * .4 + 2, JSON.stringify(geometry));
+      ok(name + ' reserves the conversation with seven expanded members', geometry.transcript >= 128 && geometry.members <= geometry.body * .4 + 2 && geometry.rows === 7, JSON.stringify(geometry));
       return geometry;
     }
     const standard = await usableTranscript('the standard window');
-    ok('a long member list scrolls inside its bounded area', standard.overflow);
+    ok('a long member list stays inside its bounded area', standard.menu.top >= standard.window.top - 1 && standard.menu.bottom <= standard.window.bottom + 1, JSON.stringify(standard));
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => pudlSetTheme(theme), theme);
       await t.shot('group-states-' + theme);
     }
-    await group.getByRole('button', { name: /^Members/ }).click();
-    ok('folding members preserves aggregate words', await group.locator('.group-members').isHidden() && await group.locator('.group-state-chip').count() === 1);
+    await membersButton.click();
+    ok('folding members preserves aggregate words', await group.locator('.members-menu').isHidden() && await group.locator('.group-state-chip').count() === 1);
     await page.setViewportSize({ width: 700, height: 900 });
     await group.locator('[data-win-action="maximize"]').click();
-    await group.getByRole('button', { name: /^Members/ }).click();
+    await membersButton.click();
+    await panel.waitFor();
     await usableTranscript('the narrow window');
-    const tops = await group.locator('[data-group-member]').evaluateAll(chips => chips.map(chip => Math.round(chip.getBoundingClientRect().top)));
-    ok('short member chips share a row when there is room', new Set(tops).size < tops.length, JSON.stringify(tops));
+    // A dropdown has a row for each member (f22f9b5), one under another.
+    const tops = await group.locator('[data-group-member]').evaluateAll(rows => rows.map(row => Math.round(row.getBoundingClientRect().top)));
+    ok('each member has its own row in the dropdown', tops.length === 7 && tops.every((top, i) => !i || top > tops[i - 1]), JSON.stringify(tops));
     await t.shot('group-members-narrow-expanded');
-    await group.getByRole('button', { name: /^Members/ }).click();
+    await membersButton.click();
     await group.locator('.group-composer textarea').fill('A multiline draft for the group.\nThe attachment stays beside the message.\nThis draft has not been sent.');
     await group.locator('.group-composer input[type="file"]').setInputFiles({ name: 'review-notes.txt', mimeType: 'text/plain', buffer: Buffer.from('Review notes for the group.') });
     await group.locator('.attachment-name', { hasText: 'review-notes.txt' }).waitFor();
@@ -126,7 +141,7 @@ const { launch } = require('./lib/page');
     ok('chat and group comparison windows use the same size', JSON.stringify(await chat.boundingBox()) === JSON.stringify(await group.boundingBox()));
     ok('the title bar presents the execution state once, through its own chip', await chat.evaluate(win => !Array.from(win.querySelectorAll('.win-execution .win-state')).some(el => el.getClientRects().length)) && await chat.locator('.chat-working-chip .chat-state-working').count() === 1);
     await chat.locator('.chat-team .team-toggle').click();
-    await chat.locator('[data-team-member="bus-waiting"] .chat-state-waiting').waitFor();
+    await chat.locator('[data-team-member="bus-waiting"] .chat-state-waiting:not(.chat-state-reserve)').waitFor();
     await t.shot('chat-team-states');
     await page.setViewportSize({ width: 1920, height: 1100 });
     await page.evaluate(({ chatKey, groupKey }) => { pudlWindows.snap(chatKey, 'left'); pudlWindows.snap(groupKey, 'right'); }, { chatKey, groupKey });
@@ -170,13 +185,13 @@ const { launch } = require('./lib/page');
     await page.locator('.group-picker .chat-state-waiting').waitFor();
     await t.shot('add-chats-states');
     await page.evaluate(() => __changeExecution());
-    await group.locator('[data-group-member="bus-waiting"] .chat-state-working').waitFor({ state: 'attached' });
-    ok('one numbered event updates a group member and its aggregate', /2 working/.test(await group.locator('.group-state-chip').innerText()));
+    await shown('bus-waiting', '.chat-state-working').waitFor({ state: 'attached' });
+    ok('one numbered event updates a group member and its aggregate', /2 working/.test(await group.locator('.group-state-chip .chat-state').getAttribute('aria-label')));
     await page.evaluate(() => __emit('agent:chatstate', { stateGen: 'states', stateVer: 1, chats: [], groups: [] }));
-    ok('an older event cannot replace the current execution state', await group.locator('[data-group-member="bus-waiting"] .chat-state-working').count() === 1);
+    ok('an older event cannot replace the current execution state', await shown('bus-waiting', '.chat-state-working').count() === 1);
     await page.evaluate(() => __resync());
     await page.waitForFunction(() => __bridgeCalls.filter(call => call[0] === 'ChatStates').length >= 2);
-    await group.locator('[data-group-member="bus-waiting"] .chat-state-working').waitFor({ state: 'attached' });
+    await shown('bus-waiting', '.chat-state-working').waitFor({ state: 'attached' });
     ok('resync rereads the same authoritative state', (await t.calls('ChatStates')).length >= 2);
   } catch (error) { await t.shot('chat-states-failure'); console.error(await page.locator('.group-window').evaluate(win => { const log = win.querySelector('.bus-log'), text = win.querySelector('.msg-text p'); return { height: log.clientHeight, log: log.getBoundingClientRect().toJSON(), text: text && text.getBoundingClientRect().toJSON(), html: win.querySelector('.msg-text').innerHTML }; })); throw error; } finally { await t.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
