@@ -749,12 +749,14 @@
      of its own, and no skills, which run in a chat's agent. */
   /* The mentions a group message's text writes out whole, typed or pasted
      without choosing them from the @ list: "@everyone", or "@" and a member
-     chat's title, in any case, at the start of a word and ending where a
-     word ends. A longer title is matched before a shorter one that begins
+     chat's title, in any case, at the start of a word (no letter or digit
+     glued before the @) and ending where a word ends. A longer title is matched before a shorter one that begins
      it, and each @ binds once, so "@Docs Pass" is Docs Pass and not a member
      titled Docs. Paul's typed "@everyone" was sent unbound on 2 November
      2026 and woke no member. */
-  var WORD = /[\p{L}\p{N}_]/u;
+  // A word's characters: letters, the marks that sit on them (a lowercased
+  // İ ends in a combining dot), digits and the underscore.
+  var WORD = /[\p{L}\p{M}\p{N}_]/u;
   function typedMentions(text, members) {
     var named = members.filter(function (m) { return m.state !== 'person' && m.title; }).map(function (m) { return { id: m.id, title: m.title }; });
     named.push({ id: 'everyone', title: 'everyone' });
@@ -763,8 +765,12 @@
     named.forEach(function (m) {
       var word = '@' + m.title.toLowerCase();
       for (var at = lower.indexOf(word); at >= 0; at = lower.indexOf(word, at + 1)) {
+        // Both edges are read in the lowercased text the match was found in,
+        // since a letter can change length when lowercased (İ becomes two
+        // characters). An @ starts a word unless a letter or digit is glued
+        // to it, so "(@everyone" binds and "docs@everyone.example" does not.
         var end = at + word.length;
-        if (taken[at] || (at > 0 && !/\s/.test(text[at - 1])) || (end < text.length && WORD.test(text[end]))) continue;
+        if (taken[at] || (at > 0 && WORD.test(lower[at - 1])) || (end < lower.length && WORD.test(lower[end]))) continue;
         taken[at] = true;
         if (found.indexOf(m.id) < 0) found.push(m.id);
       }
