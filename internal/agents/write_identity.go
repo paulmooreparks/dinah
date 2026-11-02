@@ -25,6 +25,13 @@ func writeIdentityFile(l layout.Layout, path, content string, managedRoots []str
 		return err
 	}
 	chain := []os.FileInfo{info}
+	dirMode, fileMode := os.FileMode(0755), os.FileMode(0644)
+	for _, managed := range managedRoots {
+		if l.Managed(managed) && layout.Inside(managed, path) {
+			dirMode, fileMode = 0700, 0600
+			break
+		}
+	}
 	parts := strings.Split(rel, string(filepath.Separator))
 	for _, part := range parts[:len(parts)-1] {
 		before, err := root.Lstat(part)
@@ -32,7 +39,7 @@ func writeIdentityFile(l layout.Layout, path, content string, managedRoots []str
 			if err := protectedIdentity(l, chain, managedRoots...); err != nil {
 				return err
 			}
-			if err := root.Mkdir(part, 0700); err != nil {
+			if err := root.Mkdir(part, dirMode); err != nil {
 				return err
 			}
 			before, err = root.Lstat(part)
@@ -70,7 +77,7 @@ func writeIdentityFile(l layout.Layout, path, content string, managedRoots []str
 		return errors.New("only regular files can be written")
 	}
 	// Do not truncate until the opened object's identity has been checked.
-	file, err := root.OpenFile(name, flags, 0600)
+	file, err := root.OpenFile(name, flags, fileMode)
 	if err != nil {
 		return err
 	}

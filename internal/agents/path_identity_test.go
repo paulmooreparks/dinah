@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -105,5 +106,54 @@ func TestProtectedIdentityCaseVariant(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(path); strings.TrimSpace(string(got)) != "synthetic" {
 		t.Fatal("case write changed original")
+	}
+}
+
+func TestProtectedIdentityCreationModes(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits do not apply on Windows")
+	}
+	state := filepath.Join(t.TempDir(), "state")
+	l := layout.Layout{State: state}
+	managed := l.ManagedRoot("workspace")
+	if err := os.MkdirAll(managed, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name      string
+		root      string
+		file, dir os.FileMode
+		managed   []string
+	}{
+		{"ordinary", t.TempDir(), 0644, 0755, nil},
+		{"managed", managed, 0600, 0700, []string{managed}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			control := filepath.Join(tc.root, "control")
+			if err := os.Mkdir(control, tc.dir); err != nil {
+				t.Fatal(err)
+			}
+			controlFile := filepath.Join(control, "control.txt")
+			if err := os.WriteFile(controlFile, []byte("control"), tc.file); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(tc.root, "created", "written.txt")
+			if err := WriteTextFile(l, path, "written", tc.managed...); err != nil {
+				t.Fatal(err)
+			}
+			for actual, expected := range map[string]string{path: controlFile, filepath.Dir(path): control} {
+				a, err := os.Stat(actual)
+				if err != nil {
+					t.Fatal(err)
+				}
+				e, err := os.Stat(expected)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if a.Mode().Perm() != e.Mode().Perm() {
+					t.Fatalf("creation mode %s: %o want %o", actual, a.Mode().Perm(), e.Mode().Perm())
+				}
+			}
+		})
 	}
 }
