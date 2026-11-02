@@ -395,16 +395,30 @@
         inboxState.loading = false; inboxState.error = message(error); draw();
       });
     }
-    function inboxBulk(label, heading, body, yes, run) {
-      var b = node('button', 'btn btn-sm', label); b.type = 'button';
-      b.addEventListener('click', function () {
+    /* The inbox's two bulk actions, each confirmed first and applied to
+       every message up to the newest the list was read with. The inbox's
+       buttons and the window's commands run the same actions, and offer
+       them in the same cases (bulkActions). */
+    function bulk(label, heading, body, yes, run) {
+      return { label: label, run: function () {
         var newest = inboxState.newest;
         if (!newest) return;
-        host().ask(heading, body, yes, false).then(function (ok) {
+        return host().ask(heading, body, yes, false).then(function (ok) {
           if (!ok) return;
           return Promise.resolve(run(newest)).then(function () { return load(); }).then(function () { return readInbox(); });
         }).catch(host().fail);
-      });
+      } };
+    }
+    var markAllRead = bulk('Mark All Read', 'Mark All Read?', 'Every message in the inbox up to now is marked read. Newer ones stay as they are. Marking a message read does not answer it or approve anything.', 'Mark Read', function (newest) { return app().BusMarkInboxReadThrough(newest); });
+    var dismissAll = bulk('Dismiss All', 'Dismiss All?', 'Every message in the inbox up to now is hidden from it, and stays in its group or thread. Newer ones stay. Dismissing a message does not mark it read, answer it or approve anything.', 'Dismiss', function (newest) { return app().BusDismissInboxThrough(newest); });
+    // The bulk actions that apply to the inbox as it is shown.
+    function bulkActions() {
+      var any = inboxState.items.length > 0;
+      return [inboxState.view === 'unread' && any ? markAllRead : null, inboxState.view !== 'dismissed' && any ? dismissAll : null].filter(Boolean);
+    }
+    function inboxBulk(action) {
+      var b = node('button', 'btn btn-sm', action.label); b.type = 'button';
+      b.addEventListener('click', function () { action.run(); });
       return b;
     }
     /* Opens an inbox message where it was said and marks it read once it is
@@ -545,9 +559,7 @@
         views.appendChild(b);
       });
       tools.appendChild(views);
-      var any = inboxState.items.length > 0;
-      if (inboxState.view === 'unread' && any) tools.appendChild(inboxBulk('Mark All Read', 'Mark All Read?', 'Every message in the inbox up to now is marked read. Newer ones stay as they are. Marking a message read does not answer it or approve anything.', 'Mark Read', function (newest) { return app().BusMarkInboxReadThrough(newest); }));
-      if (inboxState.view !== 'dismissed' && any) tools.appendChild(inboxBulk('Dismiss All', 'Dismiss All?', 'Every message in the inbox up to now is hidden from it, and stays in its group or thread. Newer ones stay. Dismissing a message does not mark it read, answer it or approve anything.', 'Dismiss', function (newest) { return app().BusDismissInboxThrough(newest); }));
+      bulkActions().forEach(function (action) { tools.appendChild(inboxBulk(action)); });
       inboxSection.body.appendChild(tools);
       if (inboxState.error) {
         inboxSection.body.appendChild(list.empty({ title: 'The Inbox Could Not Be Read', body: inboxState.error, action: { label: 'Try Again', run: function () { readInbox(); } } }));
@@ -628,7 +640,7 @@
     draw();
     load().catch(host().fail);
     return { state: function () { return ''; }, setState: function () {},
-      commands: function () { return [{ label: 'New Group Chat…', run: function () { return openPicker({}); } }, { label: 'New Message…', run: function () { showForm(); } }, { label: 'Trust a Link…', run: function () { showLinkForm(null); } }, { label: 'Mark All Read', run: markRead }]; },
+      commands: function () { return [{ label: 'New Group Chat…', run: function () { return openPicker({}); } }, { label: 'New Message…', run: function () { showForm(); } }, { label: 'Trust a Link…', run: function () { showLinkForm(null); } }].concat(bulkActions()); },
       destroy: function () { disposed = true; window.dinahRender.cancel(root); listeners.delete(draw); listeners.delete(inboxChanged); stopChats(); } };
   } });
 
