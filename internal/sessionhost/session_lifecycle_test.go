@@ -18,7 +18,7 @@ func (c *lifecycleTestChannel) Bind(id string) error { return c.bind(id) }
 func (c *lifecycleTestChannel) Revoke()              { c.revoke() }
 
 func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
-	for _, mode := range []string{"success", "bind", "restore", "finish", "stale"} {
+	for _, mode := range []string{"success", "bind", "restore", "finish", "stale", "prepare", "refused", "lost"} {
 		t.Run(mode, func(t *testing.T) {
 			var mu sync.Mutex
 			var runtime Runtime
@@ -35,7 +35,12 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 				return nil
 			}, revoke: func() { order = append(order, "revoke") }}
 			host := SessionLifecycleHost{
-				NormalizeProvider: func(p string) string { return p }, PrepareApplets: func(string, string) error { return nil },
+				NormalizeProvider: func(p string) string { return p }, PrepareApplets: func(string, string) error {
+					if mode == "prepare" {
+						return failure
+					}
+					return nil
+				},
 				Live:       func(string) (Connection, acp.InitializeResult, error) { return conn, acp.InitializeResult{}, nil },
 				Defaults:   func(string) map[string]json.RawMessage { return nil },
 				NewChannel: func(Connection, string) (ChannelCapability, []any, error) { return ch, nil, nil }, ManagedServers: func() ([]any, error) { return nil, nil },
@@ -46,6 +51,12 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 						t.Fatal(method)
 					}
 					order = append(order, "new")
+					if mode == "refused" {
+						return &acp.Error{Code: acp.CodeInternal, Message: "allocation refused"}
+					}
+					if mode == "lost" {
+						return failure
+					}
 					out.(*acp.NewSessionResult).SessionID = "chat"
 					if mode == "stale" {
 						runtime.PutProviderLocked("codex", NewProvider(&lifecycleConnection{done: make(chan struct{})}, acp.InitializeResult{}, nil))
@@ -65,7 +76,8 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 				RestoreOptions: func(Connection, string, []acp.ConfigOption, map[string]json.RawMessage, *Reopening) ([]acp.ConfigOption, []AppliedSubstitution, error) {
 					order = append(order, "restore")
 					if mode == "restore" {
-						return nil, nil, failure
+						// A later RPC rejection cannot prove that allocation failed.
+						return nil, nil, &acp.Error{Code: acp.CodeInternal, Message: "option refused"}
 					}
 					return nil, nil, nil
 				},
@@ -83,6 +95,10 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 			_, err := service.New(t.TempDir(), "codex", false)
 			want := []string{"new", "bind"}
 			switch mode {
+			case "prepare":
+				want = nil
+			case "refused", "lost":
+				want = []string{"new", "revoke", "bus-end"}
 			case "success":
 				want = append(want, "transcript", "log", "restore", "finish", "join", "event")
 			case "restore":
@@ -94,6 +110,10 @@ func TestSessionLifecycleNewPublicationAndRollbackOrder(t *testing.T) {
 			}
 			if !reflect.DeepEqual(order, want) {
 				t.Fatalf("order %v", order)
+			}
+			var notCreated *AllocationNotCreatedError
+			if got, want := errors.As(err, &notCreated), mode == "prepare" || mode == "refused"; got != want {
+				t.Fatalf("definite allocation failure = %v, want %v: %v", got, want, err)
 			}
 			if mode == "success" {
 				if err != nil || runtime.ConversationLocked("chat") != published {

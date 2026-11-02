@@ -594,6 +594,12 @@ func (c *Continuations) continueWith(s *Conversation, o continueOpts) (result Se
 	}
 	info, err := c.host.NewSession(cwd, provider, busID)
 	if err != nil {
+		var notCreated *AllocationNotCreatedError
+		if c.host.Transfer != nil && errors.As(err, &notCreated) {
+			if settleErr := c.host.Transfer(id, "", provider, busID, revision, "rejected", o.recovery); settleErr != nil {
+				return SessionContinuationResult{}, fmt.Errorf("%w; could not settle the rejected allocation: %v", err, settleErr)
+			}
+		}
 		return SessionContinuationResult{}, err
 	}
 	next := c.host.Session(info.ID)

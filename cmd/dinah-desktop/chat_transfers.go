@@ -137,6 +137,15 @@ func (a *App) transferChat(source, target, provider, recipient, revision, stage 
 		if !exists || old.Revision != revision || old.Provider != provider || old.Recipient != recipient {
 			return errors.New("the continuation transfer changed; review recovery again")
 		}
+		if stage == "rejected" {
+			if old.Stage != "allocating" || old.Target != "" || target != "" {
+				return errors.New("only an unallocated continuation can be rejected")
+			}
+			old.Stage = stage
+			s.ChatTransferHistory = append(s.ChatTransferHistory, old)
+			delete(s.ChatTransfers, source)
+			return nil
+		}
 		if old.Target != "" && old.Target != target {
 			return errors.New("the allocated continuation target changed")
 		}

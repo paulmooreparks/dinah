@@ -271,6 +271,34 @@ func TestRecoveryAllocationFailureAndRestartRetainOwnership(t *testing.T) {
 	}
 }
 
+func TestRejectedAllocationSettlementIsTransactionalAndStageChecked(t *testing.T) {
+	a, _ := providerTestApp(t)
+	source, _, owner, _ := recoveryConflict(t, a)
+	if err := a.transferChat(source, "", "codex", owner, "reviewed", "allocating", true); err != nil {
+		t.Fatal(err)
+	}
+	pending := filepath.Join(configDir(), "settings.json.pending")
+	stateTestWrite(t, pending, "invalid transaction")
+	if err := a.transferChat(source, "", "codex", owner, "reviewed", "rejected", true); err == nil {
+		t.Fatal("rejection settled through a failed settings write")
+	}
+	if a.settings.ChatTransfers[source].Stage != "allocating" || len(a.settings.ChatTransferHistory) != 0 || !a.transferHeld(source, owner) {
+		t.Fatal("failed settlement changed the allocation hold")
+	}
+	if err := os.Remove(pending); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.transferChat(source, "codex:candidate", "codex", owner, "reviewed", "allocated", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.transferChat(source, "codex:candidate", "codex", owner, "reviewed", "rejected", true); err == nil {
+		t.Fatal("an existing candidate was treated as never allocated")
+	}
+	if a.settings.ChatTransfers[source].Stage != "allocated" || !a.transferHeld(source, owner) {
+		t.Fatal("invalid settlement released a known allocation")
+	}
+}
+
 func TestRecoveryTransferCommitBoundariesKeepQueueHeld(t *testing.T) {
 	for _, stage := range []string{"allocating", "allocated", "prepared"} {
 		t.Run(stage, func(t *testing.T) {
