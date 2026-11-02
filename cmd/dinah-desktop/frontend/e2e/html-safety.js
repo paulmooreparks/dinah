@@ -35,10 +35,6 @@ function shellPolicy() {
   try {
     const policy = shellPolicy();
     ok('the shell server\'s policy was read', /script-src 'self'/.test(policy), policy);
-    // The page's one escaper escapes every character markup reads, so its
-    // result is safe in content and in a quoted attribute (FE-14).
-    const escaped = await page.evaluate(() => dinahHTML.text('a&b<c>d"e\'f'));
-    ok('dinahHTML.text escapes &, <, >, " and \'', escaped === 'a&amp;b&lt;c&gt;d&quot;e&#39;f', escaped);
     // The page's files are served with the policy, and a file that is not
     // there is not found; this route is tried before the fixture's.
     await t.context.route('http://dinah.test/**', route => {
@@ -48,6 +44,10 @@ function shellPolicy() {
     });
     await page.goto(PAGE);
     await t.waitReady();
+    // The page's one escaper escapes every character markup reads, so its
+    // result is safe in content and in a quoted attribute (FE-14).
+    const escaped = await page.evaluate(() => dinahHTML.text('a&b<c>d"e\'f'));
+    ok('dinahHTML.text escapes &, <, >, " and \'', escaped === 'a&amp;b&lt;c&gt;d&quot;e&#39;f', escaped);
 
     // The policy is in force: an event handler written straight into the
     // page, past the sanitizer, does not run, and the browser reports it.
