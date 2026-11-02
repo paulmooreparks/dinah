@@ -87,6 +87,11 @@ const { launch } = require('./lib/page');
       ok(st.word + ': the group\'s title chip shows its state as the chat\'s does', same('group', ['text', 'state', 'glyph', 'font', 'height']), JSON.stringify([r.group.text, r.group.state, r.group.glyph]));
       ok(st.word + ': off the title bar, each chip has the same PUDL colour', surfaces.every(k => r[k].color === r.list.color && r[k].bg === r.list.bg), JSON.stringify(Object.fromEntries(surfaces.map(k => [k, [r[k].color, r[k].bg]]))));
       if (st.reason) ok(st.word + ': the reason is in the chip\'s name, not inside it', ['list', 'notice', 'pane', 'members'].every(k => !r[k].text.includes(st.reason) && (r[k].name + r[k].tip).includes(st.reason)), JSON.stringify(Object.fromEntries(['list', 'notice', 'pane', 'members'].map(k => [k, [r[k].text, r[k].name]]))));
+      if (st.word === 'Waiting') {
+        await p.evaluate(() => pudlWindows.raise('needs-you')); await p.waitForTimeout(300);
+        const gap = await p.evaluate(() => { const card = document.querySelector('#questions .notices-card'), a = card.querySelector('.notice-actions'), c = card.querySelector('.notice-chat-state'); return Math.round(c.getBoundingClientRect().top - a.getBoundingClientRect().bottom); });
+        ok('on a Notifications card the chip stands a gap below the actions', gap >= 8, String(gap));
+      }
       if (st.word === 'Waiting') { await p.evaluate(() => pudlWindows.raise('needs-you')); await p.waitForTimeout(300); await t.shot('state-chips-waiting-notice', { clip: await p.locator('#questions .notices-card').first().boundingBox() }); }
     }
     ok('nothing moves as the state changes', geometries.every(g => JSON.stringify(g) === JSON.stringify(geometries[0])), JSON.stringify(geometries));

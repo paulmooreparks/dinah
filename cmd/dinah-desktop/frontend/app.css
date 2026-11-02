@@ -93,13 +93,16 @@
    nested in a section's body has its head there and passes the next
    step to its own body (--ws-inner), so In Progress's workspace groups,
    their kinds of work and their rows, the Pinned and Chats rows and the
-   Sources tree all share it. The tree's links keep PUDL's own small inner
-   padding, so its toggles sit just inside the line. */
+   Sources tree all share it. A row's leading control, its toggle or else
+   its glyph, starts on that line: the tree's rows have no space before it
+   (--tree-row-pad-start, PUDL 0.96.8) and step in by the same unit
+   (--tree-indent). */
 :is(#sidebar, #chat-browser-view) .browser-group-body { --ws-at: var(--ws-inner, calc(10px + 16px + var(--space-2))); }
 :is(#sidebar, #chat-browser-view) .browser-group-body .browser-group { --ws-inner: calc(var(--ws-at) + var(--space-4)); }
 :is(#sidebar, #chat-browser-view) .browser-group-body .browser-group > .browser-group-head { padding-inline-start: var(--ws-at); }
 :is(#sidebar, #chat-browser-view) .browser-group-body .md-item { padding-inline-start: var(--ws-at); }
 #sidebar .workspace-resource-tree, #workspace-source-tree > .form-help { margin-inline-start: var(--ws-at); }
+#sidebar .workspace-resource-tree { --tree-row-pad-start: 0px; --tree-indent: var(--space-4); }
 .browser-row .md-item { display: block; }
 /* A row with PUDL's row actions button gives the rest of the row to its
    link, and the pinned rows lead with the item's glyph. */

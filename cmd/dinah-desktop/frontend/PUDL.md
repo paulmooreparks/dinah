@@ -1,6 +1,6 @@
 # PUDL Distribution
 
-The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.96.7](https://github.com/paulmooreparks/pudl/releases/tag/v0.96.7), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
+The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.96.8](https://github.com/paulmooreparks/pudl/releases/tag/v0.96.8), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
 
 To update PUDL, replace both folders whole with the new release's `dist/`, write its version into `VERSION`, and run the Go tests and the browser suites in `e2e/`. Changes to PUDL itself go to Paul as a proposal first; publishing a release of PUDL needs his say-so.
 
@@ -27,3 +27,4 @@ Desktop enables `data-win-dock-splits` with shared tabs on all four edges. PUDL 
 - A chat's state chip is PUDL's execution-state badge, a `.badge` with `data-state` (0.96.4), the chip a taskbar stack's rows draw, so the Members dropdowns, the Chats lists and the stack rows show one chip. Background work is the working state with Dinah's words. A lifecycle word, such as Closed or Elsewhere, has no state and is a plain muted badge (`chat-state.js`, `chat-state.css`).
 - A chat window with no execution state sets `data-win-lifecycle` (0.96.5) to its chip's lifecycle word, Closed, Retired, Elsewhere or Unknown, so its taskbar stack row shows that word as a plain badge. PUDL sizes the stack list to its longest title and the state column to its widest badge, so Dinah keeps no rule of its own for either (`chat-applet.js`, `app.css`).
 - A command shortcut pressed with nothing focused, as after a window is activated by its title bar, reaches the front window's applet (0.96.7); the chat window's F2, Rename Chat, is checked in `e2e/shortcut-unfocused.js`. The menu bar's own shortcuts for an applet's contributed menus still need focus inside the applet.
+- The Workspace pane's Sources tree sets PUDL's tree properties (0.96.8) so each row's toggle or glyph starts on the pane's indent line: `--tree-row-pad-start: 0px` and `--tree-indent: var(--space-4)` (`app.css`).
