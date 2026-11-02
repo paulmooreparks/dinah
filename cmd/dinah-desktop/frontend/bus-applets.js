@@ -1108,14 +1108,10 @@
       root.appendChild(reportPanel);
       teamReport.setAttribute('popovertarget', reportPanel.id);
       if (!teamReport.id) teamReport.id = reportPanel.id + '-button';
-      /* The report stands against its button, or against the fold menu's
-         button when the toolbar has folded it away. */
-      reportPanel.addEventListener('beforetoggle', function (e) {
-        if (e.newState !== 'open') return;
-        var at = teamReport.getClientRects().length ? teamReport : commandBar.querySelector('.toolbar-fold > .menu-btn:not([hidden]), .toolbar-more > .menu-btn:not([hidden])');
-        if (at && !at.id) at.id = reportPanel.id + '-anchor';
-        if (at) reportPanel.dataset.menuAnchor = at.id;
-      });
+      /* The report stands against its button. When the toolbar has folded
+         that button away, PUDL places it against the fold or More button
+         instead (data-menu-anchor, 0.96.9). */
+      reportPanel.dataset.menuAnchor = teamReport.id;
       teamAllowances = command('Team Allowances…', 'gear', 'group-team-allowances', function () {
         var lead = teamLead();
         if (lead) window.dinahTeams.editAllowances(lead).catch(host().fail);

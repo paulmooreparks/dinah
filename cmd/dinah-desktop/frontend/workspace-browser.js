@@ -192,12 +192,15 @@
           if (event.detail.open) expanded.add(key); else expanded.delete(key);
           persist(); drawTree();
         });
-        window.pudlTree.enhance(list);
-        list.querySelectorAll('a[aria-expanded]').forEach(function (link) {
-          var toggle = link.querySelector('.tree-toggle');
-          toggle.classList.add('workspace-resource-expand'); toggle.removeAttribute('aria-hidden'); toggle.setAttribute('role', 'button');
-          toggle.setAttribute('aria-label', (link.getAttribute('aria-expanded') === 'true' ? 'Collapse ' : 'Expand ') + link.querySelector('.fm-ti-label').textContent);
+        // Each folder's toggle is a named button, Expand or Collapse and the
+        // folder's name, which PUDL keeps as it toggles (data-tree-toggles,
+        // 0.96.9). The name is the row's label alone, without its chips.
+        list.setAttribute('data-tree-toggles', 'buttons');
+        list.querySelectorAll('a[data-resource]').forEach(function (link) {
+          var label = link.querySelector('.fm-ti-label');
+          if (label) link.setAttribute('data-tree-label', label.textContent);
         });
+        window.pudlTree.enhance(list);
         if (focusedKey) {
           var restored = Array.from(list.querySelectorAll('[data-resource]')).find(function (link) { return link.dataset.resource === focusedKey; });
           if (restored) { list.querySelectorAll('[tabindex="0"]').forEach(function (link) { link.tabIndex = -1; }); restored.tabIndex = 0; restored.focus(); }

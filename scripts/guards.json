@@ -17,6 +17,7 @@
         "TestProtectedIdentityCreationModes",
         "TestWindowsProtectedPathNamespaceReadAndWrite",
         "TestWindowsJunctionWriteCannotReachState",
+        "TestWindowsManagedRootAllowsShortNames",
         "TestSliceLinesRejectsInvalidRanges",
         "FuzzSliceLines",
         "TestProviderReadPolicyAndBounds"
@@ -34,6 +35,9 @@
           "windows"
         ],
         "TestWindowsJunctionWriteCannotReachState": [
+          "windows"
+        ],
+        "TestWindowsManagedRootAllowsShortNames": [
           "windows"
         ]
       }
@@ -108,7 +112,8 @@
     {
       "package": ".",
       "tests": [
-        "TestModuleRequiresItsSelectedCompiler"
+        "TestModuleRequiresItsSelectedCompiler",
+        "TestBundledSkinBytesSurviveWindowsCheckout"
       ]
     },
     {

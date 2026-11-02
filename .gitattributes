@@ -1,0 +1,5 @@
+* text=auto eol=lf
+
+# Vendored release assets are embedded and checked against byte digests.
+/cmd/dinah-desktop/frontend/pudl/** -text
+/internal/web/static/pudl/** -text

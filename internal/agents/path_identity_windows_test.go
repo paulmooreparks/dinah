@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"testing"
 
+	"golang.org/x/sys/windows"
 	"studio/internal/layout"
 )
 
@@ -68,5 +69,57 @@ func TestWindowsJunctionWriteCannotReachState(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(path); string(got) != "original" {
 		t.Fatal("junction write changed protected data")
+	}
+}
+
+func TestWindowsManagedRootAllowsShortNames(t *testing.T) {
+	longRoot := filepath.Join(t.TempDir(), "managed-workspace-long-name")
+	if err := os.MkdirAll(longRoot, 0700); err != nil {
+		t.Fatal(err)
+	}
+	wide, err := windows.UTF16PtrFromString(longRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]uint16, 32768)
+	n, err := windows.GetShortPathName(wide, &buf[0], uint32(len(buf)))
+	if err != nil || n == 0 || n >= uint32(len(buf)) {
+		t.Fatalf("short path fixture: %d %v", n, err)
+	}
+	shortRoot := windows.UTF16ToString(buf[:n])
+	if strings.EqualFold(longRoot, shortRoot) {
+		t.Fatal("this filesystem did not supply an 8.3 short name for the required guard")
+	}
+	l := layout.Layout{State: shortRoot}
+	managed := l.ManagedRoot("workspace")
+	if err := os.MkdirAll(managed, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(managed, "nested", "draft.txt")
+	if err := WriteTextFile(l, path, "legitimate", managed); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ReadTextFile(context.Background(), l, path, []string{managed}, nil, nil)
+	if err != nil || got != "legitimate" {
+		t.Fatalf("managed read: %q %v", got, err)
+	}
+	if err := WriteTextFile(l, filepath.Join(shortRoot, "settings.json"), "forbidden", managed); err == nil {
+		t.Fatal("state file became writable")
+	}
+	target := filepath.Join(longRoot, "redirect-target")
+	if err := os.MkdirAll(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	redirected := l.ManagedRoot("redirected")
+	if err := os.MkdirAll(filepath.Dir(redirected), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("cmd.exe", "/d", "/c", "mklink", "/J", redirected, target)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("junction fixture: %s %v", out, err)
+	}
+	if err := WriteTextFile(l, filepath.Join(redirected, "draft.txt"), "forbidden", redirected); err == nil {
+		t.Fatal("redirected managed root became writable")
 	}
 }

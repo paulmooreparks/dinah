@@ -1,6 +1,6 @@
 # PUDL Distribution
 
-The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.96.8](https://github.com/paulmooreparks/pudl/releases/tag/v0.96.8), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
+The `pudl/` folder holds the whole `dist/` folder of [PUDL v0.96.10](https://github.com/paulmooreparks/pudl/releases/tag/v0.96.10), copied unchanged from the release tag, including the minified copies in `dist/min/` and the full font set, which Dinah does not load. The bus pages in `internal/web/static/pudl` hold the same copy. `VERSION` records the release, without the tag's "v".
 
 To update PUDL, replace both folders whole with the new release's `dist/`, write its version into `VERSION`, and run the Go tests and the browser suites in `e2e/`. Changes to PUDL itself go to Paul as a proposal first; publishing a release of PUDL needs his say-so.
 
@@ -28,3 +28,6 @@ Desktop enables `data-win-dock-splits` with shared tabs on all four edges. PUDL 
 - A chat window with no execution state sets `data-win-lifecycle` (0.96.5) to its chip's lifecycle word, Closed, Retired, Elsewhere or Unknown, so its taskbar stack row shows that word as a plain badge. PUDL sizes the stack list to its longest title and the state column to its widest badge, so Dinah keeps no rule of its own for either (`chat-applet.js`, `app.css`).
 - A command shortcut pressed with nothing focused, as after a window is activated by its title bar, reaches the front window's applet (0.96.7); the chat window's F2, Rename Chat, is checked in `e2e/shortcut-unfocused.js`. The menu bar's own shortcuts for an applet's contributed menus still need focus inside the applet.
 - The Workspace pane's Sources tree sets PUDL's tree properties (0.96.8) so each row's toggle or glyph starts on the pane's indent line: `--tree-row-pad-start: 0px` and `--tree-indent: var(--space-4)` (`app.css`).
+- The Sources tree marks itself `data-tree-toggles="buttons"` (0.96.9), so each folder's toggle is a button named Expand or Collapse and the folder's name, from `data-tree-label` on its link, which PUDL keeps as it toggles (`workspace-browser.js`).
+- A group's Team Report popover sets `data-menu-anchor` to its own button (0.96.9); when the folding toolbar has folded that button away, PUDL places the report against the fold or More button (`bus-applets.js`).
+- The menu bar's host lists are not redrawn while one of its menus is open: `host-menus.js` asks `pudlMenubar.isOpen()` and waits for `pudl:menubar-close` (0.96.9).
