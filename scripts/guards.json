@@ -11,7 +11,7 @@
     { "package": "./internal/extensions", "tests": ["TestExtensionEnvironmentUsesAllowListAndSignedDeclarations", "TestExtensionEnvironmentSupportsGitCommands"] },
     { "package": "./cmd/dinah-desktop", "tests": ["TestThePaneShowsAndAnswersAThread", "TestAFailedCompactionPutsTheHoldAndTheQueueBack", "TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart", "TestRejectedAllocationSettlementIsTransactionalAndStageChecked", "TestMalformedProtocolCannotPersistCapabilities", "TestFrontendJobsStayInTheirHomes", "TestFrontendRulesFindTheirHomes"] },
     { "package": "./cmd/dinah", "tests": ["TestInstallRefusesWrongCompilerBeforeReplacingEitherProgram"] },
-    { "package": ".", "tests": ["TestModuleRequiresItsSelectedCompiler"] },
+    { "package": ".", "tests": ["TestModuleRequiresItsSelectedCompiler", "TestBundledSkinBytesSurviveWindowsCheckout"] },
     { "package": "./tools/vulnguard", "tests": ["TestCalledFindingFailsRegardlessOfScannerExit", "TestModuleOnlyFindingDoesNotInventACall", "TestInvalidOrWrongScanCannotPass", "TestEveryPublishedPlatformHasABlockingSourceScan"] }
   ],
   "browser": [

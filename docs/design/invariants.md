@@ -22,14 +22,15 @@ Each line below is a rule the November 2026 review established, followed by the 
 16. A definite refusal from a provider settles a continuation record, and an uncertain outcome blocks a blind retry. Guard: `TestAFailedCompactionPutsTheHoldAndTheQueueBack`, `TestRejectedAllocationSettlementIsTransactionalAndStageChecked` and `TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart`.
 17. Nothing moves, resizes or loses focus when live state changes. Guard: the `list-state-stability`, `taskbar-state-stability`, `list-row-layout` and `chat-last-read` browser suites.
 18. Every chip, row and title reads a chat's state from one projection. Guard: the `chat-state-contract` browser suite.
-19. Dinah styles or scripts nothing inside PUDL's own markup; a capability PUDL lacks is requested upstream, and Dinah waits for the release. Guard: pending, a static check from FE-32.
-20. Every agent read that takes a path goes through the deny policy and is written to the audit log, and the reads that take no path are the documented set of three. Guard: pending, the file-access suites.
+19. Repository text checks out with LF on every platform, and vendored release assets retain their supplied bytes under every Git line-ending setting. Both hosts validate admitted skin digests before running. Guard: `TestBundledSkinBytesSurviveWindowsCheckout`.
+20. Dinah styles or scripts nothing inside PUDL's own markup; a capability PUDL lacks is requested upstream, and Dinah waits for the release. Guard: pending, a static check from FE-32.
+21. Every agent read that takes a path goes through the deny policy and is written to the audit log, and the reads that take no path are the documented set of three. Guard: pending, the file-access suites.
 
 ## Process (no automatic guard)
 
-21. No design branches on, or argues its correctness from, undocumented behaviour of an external system. When the documented capability is missing, that is reported and decided, not worked around.
-22. A ledger finding closes only when its fix and its guard are both on master.
-23. No agent takes screenshots of the person's desktop or drives it. A missing applet action is reported as a capability gap.
+22. No design branches on, or argues its correctness from, undocumented behaviour of an external system. When the documented capability is missing, that is reported and decided, not worked around.
+23. A ledger finding closes only when its fix and its guard are both on master.
+24. No agent takes screenshots of the person's desktop or drives it. A missing applet action is reported as a capability gap.
 
 ## Known limits
 
