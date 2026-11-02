@@ -85,9 +85,21 @@
 .browser-group-action { flex: none; margin-inline-start: auto; }
 .browser-group-where { margin: calc(-1 * var(--space-1)) var(--space-3) var(--space-1) calc(10px + 16px + var(--space-2)); font-size: var(--text-2xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-group-body > .browser-subheading { padding-top: var(--space-2); }
-/* In Progress puts a group for each kind of work inside a workspace's
-   group, one step in, so the two levels read apart. */
-.in-progress-kind { margin-inline-start: var(--space-4); }
+/* One indent rule for every section of the Workspace pane (Paul, 2
+   November 2026). A section's content starts where its heading's words
+   do, past the head's 10px, its 16px toggle and the gap; each level
+   nested in it starts one step further in, the step PUDL's tree uses
+   (var(--space-4)). --ws-at is where a level's content starts: a group
+   nested in a section's body has its head there and passes the next
+   step to its own body (--ws-inner), so In Progress's workspace groups,
+   their kinds of work and their rows, the Pinned and Chats rows and the
+   Sources tree all share it. The tree's links keep PUDL's own small inner
+   padding, so its toggles sit just inside the line. */
+#sidebar .browser-group-body { --ws-at: var(--ws-inner, calc(10px + 16px + var(--space-2))); }
+#sidebar .browser-group-body .browser-group { --ws-inner: calc(var(--ws-at) + var(--space-4)); }
+#sidebar .browser-group-body .browser-group > .browser-group-head { padding-inline-start: var(--ws-at); }
+#sidebar .browser-group-body .md-item { padding-inline-start: var(--ws-at); }
+#sidebar .workspace-resource-tree, #workspace-source-tree > .form-help { margin-inline-start: var(--ws-at); }
 .browser-row .md-item { display: block; }
 /* A row with PUDL's row actions button gives the rest of the row to its
    link, and the pinned rows lead with the item's glyph. */
@@ -101,7 +113,7 @@
 .session-list .browser-row:has(> [data-row-actions]) :is(.session-reason, .session-row-meta) { padding-inline-end: calc(24px + var(--space-2)); }
 .pin-glyph { flex: none; }
 .browser-row.dragging { opacity: 0.5; }
-.workspace-pins-empty { margin: var(--space-1) var(--space-3) var(--space-2); }
+.workspace-pins-empty { margin: var(--space-1) var(--space-3) var(--space-2) var(--ws-at); }
 .browser-row-line { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .browser-row-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .browser-row-badge { flex: none; }
