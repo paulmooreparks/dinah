@@ -48,7 +48,7 @@ func TestBundledSkinBytesSurviveWindowsCheckout(t *testing.T) {
 			if err := catalogue.ValidateAssets(os.DirFS(host)); err != nil {
 				t.Fatal(err)
 			}
-			inputs := map[string][]byte{"pudl-skins.json": catalogueBytes}
+			inputs := map[string][]byte{"pudl-skins.json": catalogueBytes, "release-crlf-fixture.txt": []byte("release bytes\r\nsecond line\r\n")}
 			sourceName := "cmd/dinah-desktop/shell_server.go"
 			source, err := os.ReadFile(sourceName)
 			if err != nil {
