@@ -27,6 +27,10 @@
             function redirect() {
               if (!isWindowOpen(oldKey)) return;
               offWindowsChange(redirect);
+              /* The window follows the continuation under its new key, so it
+                 keeps its place, size, dock and stack order; it is neither
+                 closed nor brought forward (chat-applet.js, follow). */
+              if (old.view && old.view.follow) { old.view.follow(S(head)); openResolvedSession(head, false, true).then(resolve); return; }
               openResolvedSession(head).then(function (s) { closeWindow(oldKey); resolve(s); });
             }
             onWindowsChange(redirect);
@@ -325,8 +329,12 @@
       rememberCatalog(head);
       drawAgentState();
       if (isWindowOpen(oldKey)) {
-        window.dinahWorkbench.open({ kind: 'chat-session', workspace: head.info.cwd || workspace(), path: head.id });
-        closeWindow(oldKey);
+        // The window follows the continuation in place (chat-applet.js, follow).
+        if (s.view && s.view.follow) s.view.follow(head);
+        else {
+          window.dinahWorkbench.open({ kind: 'chat-session', workspace: head.info.cwd || workspace(), path: head.id });
+          closeWindow(oldKey);
+        }
       }
       return s;
     }

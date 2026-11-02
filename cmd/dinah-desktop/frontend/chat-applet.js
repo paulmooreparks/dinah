@@ -1104,6 +1104,28 @@
           selectChat(next.id); controller.refresh(); loadSkills();
           refreshSessions();
       }
+      /* The engine opened this chat's newest continuation in place of the
+         session the window was opened for (a chat recovered or switched has
+         a new provider session). The window follows it under the new key, as
+         a switch does, so it keeps its place, size, dock and stack order
+         (workbench.rekey); it is not closed and opened again. */
+      function follow(next) {
+        if (next.view && next.view !== controller) {
+          chatControllers.forEach(function (c, k) { if (c === next.view) chatControllers.delete(k); });
+          next.view.transferRendering(controller);
+          next.view.dispose();
+        }
+        var before = active && sessions[active], old = key;
+        if (before && before !== next) before.view = null;
+        active = next.id;
+        item = { kind: 'chat-session', workspace: workspace, path: next.id };
+        key = chatKey(next.id, workspace);
+        chatControllers.delete(old); chatControllers.set(key, controller); next.view = controller;
+        $('logs').replaceChildren();
+        if (root.closest('[data-win]')) window.dinahWorkbench.rekey(old, item);
+        selectChat(next.id); controller.refresh(); loadSkills();
+        refreshSessions();
+      }
       /* Continue in Another Workspace (docs/plans/chat-workspaces-and-
          switching.md, item 2): a new chat with the same provider in the chosen
          workspace, carrying the summary and the recent turns; this one stays
@@ -3653,7 +3675,7 @@
         updateDefaultProvider: function () { if (!active) { chosenProvider = defaultProvider; pending = {}; renderComposerOptions(); loadSkills(); } drawAgentState(); },
         loadRecall: loadRecall, forgetDraft: function () { if (draftKeeper) { draftKeeper.rekey(draftKey()); draftKeeper.forget(); } }, signIn: signIn, openModels: openModels, pricesChanged: pricesChanged, openHistory: openHistory,
         openTemplates: openTemplates, saveRun: saveRun, typed: typed, setContext: setContext,
-        stopTurn: stopTurn, drawLoadingChip: drawLoadingChip,
+        stopTurn: stopTurn, drawLoadingChip: drawLoadingChip, follow: follow,
         refresh: function () {
           show(active);
           drawSwitchState(active && sessions[active]);
