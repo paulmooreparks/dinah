@@ -1108,8 +1108,24 @@
          session the window was opened for (a chat recovered or switched has
          a new provider session). The window follows it under the new key, as
          a switch does, so it keeps its place, size, dock and stack order
-         (workbench.rekey); it is not closed and opened again. */
+         (workbench.rekey); it is not closed and opened again.
+
+         When the continuation already has a window of its own, PUDL cannot
+         give this window that key. That window is the chat's: it is brought
+         forward and this one closes, and nothing of either is disposed or
+         moved first, so neither is left half-built.
+
+         A window that follows a continuation shows the continuation's own
+         saved copy and events, read as a window opened for it reads them
+         (restoreChat, under the same condition as init). */
       function follow(next) {
+        var target = chatKey(next.id, workspace), own = root.closest('[data-win]');
+        if (own && target !== key && window.pudlWindows.state().open.includes(target)) {
+          var mine = key;
+          window.pudlWindows.raise(target);
+          window.pudlWindows.close(mine);
+          return;
+        }
         if (next.view && next.view !== controller) {
           chatControllers.forEach(function (c, k) { if (c === next.view) chatControllers.delete(k); });
           next.view.transferRendering(controller);
@@ -1122,9 +1138,10 @@
         key = chatKey(next.id, workspace);
         chatControllers.delete(old); chatControllers.set(key, controller); next.view = controller;
         $('logs').replaceChildren();
-        if (root.closest('[data-win]')) window.dinahWorkbench.rekey(old, item);
+        if (own) window.dinahWorkbench.rekey(old, item);
         selectChat(next.id); controller.refresh(); loadSkills();
         refreshSessions();
+        if (!next.info.open || (!next.saved && !next.loading && !next.log.firstChild)) Promise.resolve().then(function () { return restoreChat(next); }).catch(function () {});
       }
       /* Continue in Another Workspace (docs/plans/chat-workspaces-and-
          switching.md, item 2): a new chat with the same provider in the chosen
