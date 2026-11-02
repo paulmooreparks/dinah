@@ -58,6 +58,16 @@ Engine owns the contract, in `docs/design/provider-file-reads.md` (fix/agent-fil
 
 A call with a stale version fails without changing anything, so the page reads the policy again and says that the rules changed in another window.
 
+Engine's revision for network paths, announced in bus message 3584, adds the following fields. The page takes them up when it is rebased onto the backend Quality accepts.
+
+| Field or event | What the page does with it |
+| --- | --- |
+| Rule `verification` (`verified` or `unverified`) and `networkRoots` `[{path, status, reason}]` | An unverified rule is labelled as unverified in plain words, with its reason, and each network root lists its status and reason. While a network identity is unverified the rule matches by name only, and the page says so, since that is the remaining risk. |
+| Policy `networkWorkers` `[{root, ruleIDs, startedAt, stalled}]` | A stalled worker is shown on each rule in its `ruleIDs`, with its root and when it started. |
+| Event `file-access:network` | Contains only the version. The page reads the policy again for the status. |
+| Audit row `unverifiedRuleIDs` | The row marks the rules that were unverified when the read was judged. |
+| Search summary `ruleIDs`, `deniedPaths` (at most 24, 4 KiB), `deniedPathsOmitted`, `deniedBytes` (always 0) | A search row lists its refused paths, then how many more were left out. `bytes` stays the byte count of what was permitted. |
+
 ## Guard
 
 A browser suite, `e2e/agent-file-access.js`, runs the page against a stubbed Go with a fixed policy and log. It covers:
