@@ -82,7 +82,7 @@
       }).catch(function (err) {
         early = null;
         ended = true;
-        term.write('\r\n\x1b[31mThe shell could not start: ' + message(err).replace(/\x1b/g, '') + '\x1b[0m\r\n');
+        term.write('\r\n\x1b[31mThe shell could not start: ' + window.dinahTerminalText.safe(message(err)) + '\x1b[0m\r\n');
       });
     }
     function copySelection() {

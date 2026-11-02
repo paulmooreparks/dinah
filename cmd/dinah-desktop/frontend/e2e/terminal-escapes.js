@@ -56,7 +56,7 @@ const HOSTILE = 'EVIL' + E + '[2J' + E + '[H' + E + '[1A' + E + '[2K' + E + ']0;
     }, [HOSTILE]);
     await t.context.route('http://dinah.test/**', route => {
       const pathname = new URL(route.request().url()).pathname;
-      if (pathname === '/fixture.html') return route.fulfill({ contentType: 'text/html', body: '<html><head><link rel="stylesheet" href="terminal.css"></head><body style="height:700px"><div id="one" style="width:900px;height:600px"></div><div id="two" style="width:900px;height:600px"></div><script src="helpers.js"></script><script src="regional.js"></script><script src="terminal-applet.js"></script><script src="terminal-lua.js"></script></body></html>' });
+      if (pathname === '/fixture.html') return route.fulfill({ contentType: 'text/html', body: '<html><head><link rel="stylesheet" href="terminal.css"></head><body style="height:700px"><div id="one" style="width:900px;height:600px"></div><div id="two" style="width:900px;height:600px"></div><script src="helpers.js"></script><script src="regional.js"></script><script src="terminal-text.js"></script><script src="terminal-applet.js"></script><script src="terminal-lua.js"></script></body></html>' });
       if (pathname.endsWith('.wasm')) return route.fulfill({ path: path.join(FRONTEND, pathname), contentType: 'application/wasm' });
       return route.fallback();
     });

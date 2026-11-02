@@ -35,6 +35,16 @@ var frontendRules = []frontendRule{
 		home:    []string{"safe-html.js"},
 	},
 	{
+		row:  "FE-16",
+		what: "a regular expression for a terminal escape sequence; use dinahTerminalText, which strips, converts and filters them in one place",
+		// A regular expression literal, after the punctuation that can come
+		// before one, holding an escape character in any of its spellings.
+		// The Terminal's key codes and its own output are strings, not
+		// patterns, and are not matched.
+		pattern: regexp.MustCompile(`[(=,:!&|?]\s*/(?:[^/\\\n]|\\.)*\\(?:x1[bB]|u001[bB]|033)`),
+		home:    []string{"terminal-text.js"},
+	},
+	{
 		row:   "FE-42",
 		what:  "a value put into an attribute selector without CSS.escape",
 		match: unescapedSelectorValue,
