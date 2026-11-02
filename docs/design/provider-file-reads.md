@@ -16,6 +16,22 @@ The store will keep policy, acknowledgement cursors and rotating audit generatio
 
 The database uses rollback journaling, FULL auto-vacuum enabled before schema creation, and a verified 16 MiB main-file page limit. The service verifies the configured pragmas instead of assuming an unknown pragma succeeded. It bounds rule counts and record sizes, serializes its operations and closes query rows promptly. Tests must verify physical file bounds, journal cleanup, logical rotation, stable pagination and failure recovery. SQLite documents [single-database atomic commit](https://www.sqlite.org/atomiccommit.html), [auto-vacuum](https://www.sqlite.org/pragma.html#pragma_auto_vacuum) and [maximum page count](https://www.sqlite.org/pragma.html#pragma_max_page_count). No read requiring an audit record returns content when that record cannot commit. No policy mutation succeeds without its audit record.
 
+### Documented default resolver sources
+
+The resolver must include both documented default locations and explicit host environment overrides. Reading a tool's configuration to discover another secret location would itself expose protected content, so the policy does not parse credential files. Each platform fixture supplies a synthetic home, configuration directory and environment.
+
+| Rule family | Documented locations and overrides | Primary contract |
+| --- | --- | --- |
+| AWS | Home .aws/credentials and .aws/config; AWS_SHARED_CREDENTIALS_FILE and AWS_CONFIG_FILE | [AWS file locations](https://docs.aws.amazon.com/sdkref/latest/guide/file-location.html) |
+| Azure CLI | Home .azure or AZURE_CONFIG_DIR | [Azure configuration](https://learn.microsoft.com/en-us/cli/azure/azure-cli-configuration) |
+| Google Cloud CLI | Unix home .config/gcloud, Windows APPDATA/gcloud, or CLOUDSDK_CONFIG | [Google Cloud configurations](https://docs.cloud.google.com/sdk/docs/configurations) |
+| Kubernetes | Home .kube/config and every platform-separated KUBECONFIG entry | [Kubernetes configuration](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/) |
+| npm | Home .npmrc and NPM_CONFIG_USERCONFIG | [npm configuration files](https://docs.npmjs.com/files/npmrc/) |
+| Git credential store | Home .git-credentials and XDG_CONFIG_HOME/git/credentials | [Git credential-store documentation](https://git-scm.com/docs/git-credential-store) |
+| Docker | Home .docker/config.json or DOCKER_CONFIG/config.json | [Docker CLI configuration](https://docs.docker.com/reference/cli/docker/) |
+
+This table records the first verified resolver families. The SSH, browser-profile, password-manager and platform credential-store families still need their primary contracts recorded before resolver implementation and platform guards. A default deny list cannot discover arbitrary credential copies or command-line overrides inside an external process. Custom rules cover additional locations, and the product must describe that limit without claiming confinement.
+
 ### Page and activity contract
 
 The proposed page calls are fixed here before implementation. Front End owns agent-file-access.md and its UI; Engine owns this policy and storage contract.
