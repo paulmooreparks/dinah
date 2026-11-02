@@ -99,6 +99,57 @@
     button.replaceChildren(mark, text);
     return text;
   }
+  /* A list kept in step with its items (FE-18). arrange puts the given
+     elements in a container in order, moving only those out of place, and
+     takes out every other child. Moving a focused element takes its focus,
+     so focus is put back where it was afterwards; when the element with
+     focus is taken out, lost, if given, is called with the place it had,
+     so the list can move focus to a neighbour. */
+  function focusable(element) {
+    return element.matches('button, a[href], input, select, textarea, [tabindex]') ? element : element.querySelector('button, a[href], input, select, textarea, [tabindex]');
+  }
+  function arrange(container, elements, lost) {
+    const active = document.activeElement, focus = container.contains(active) ? active : null;
+    const keep = new Set(elements), before = Array.from(container.children);
+    let gone = -1;
+    before.forEach(function (child, i) {
+      if (keep.has(child)) return;
+      if (focus && child.contains(focus)) gone = i;
+      child.remove();
+    });
+    elements.forEach(function (child, i) { if (container.children[i] !== child) container.insertBefore(child, container.children[i] || null); });
+    if (focus && focus.isConnected) { if (document.activeElement !== focus) focus.focus({ preventScroll: true }); }
+    else if (gone >= 0 && lost) lost(gone);
+  }
+  /* reconcile draws items as keyed rows in a container through arrange.
+     options.rows is a Map from key to a row's view, which the caller keeps
+     between draws; options.key(item) is an item's key; options.create(item,
+     key) makes a view whose node is the row's element; options.update(view,
+     item), if given, brings a view up to date, and may give it a new node,
+     which takes the old one's place and its focus, on options.focus(node)
+     when given and otherwise on its first control. A key no longer listed
+     loses its view unless options.keep is set, for views a caller shares
+     between lists. Returns the views in order. */
+  function reconcile(container, items, options) {
+    const rows = options.rows, views = [], keys = new Set();
+    let refocus = null;
+    items.forEach(function (item) {
+      const key = options.key(item);
+      let view = rows.get(key);
+      if (!view) { view = options.create(item, key); rows.set(key, view); }
+      const prior = view.node;
+      if (options.update) options.update(view, item);
+      if (view.node !== prior && prior.parentElement === container) {
+        if (prior.contains(document.activeElement)) refocus = view.node;
+        prior.replaceWith(view.node);
+      }
+      keys.add(key); views.push(view);
+    });
+    arrange(container, views.map(function (view) { return view.node; }), options.lost);
+    if (refocus && refocus.isConnected) { const target = options.focus ? options.focus(refocus) : focusable(refocus); if (target) target.focus({ preventScroll: true }); }
+    if (!options.keep) rows.forEach(function (view, key) { if (!keys.has(key)) rows.delete(key); });
+    return views;
+  }
   window.dinahHost = { on, onResync, settled };
-  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel };
+  window.dinahHelpers = { app, message, node, num, money, duration, contentPct, fmtDate, fmtSize, events, toolbarLabel, arrange, reconcile };
 }());

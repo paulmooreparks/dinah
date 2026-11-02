@@ -103,17 +103,15 @@
      changes. */
   function memberTree(opts) {
     var rows = new Map(), expanded = new Map();
+    // A tree's rows share one map at every depth, so none is dropped from
+    // it when a branch is drawn (keep).
     function draw(into, members, group, includeRetired) {
-      var wanted = new Set();
-      (members || []).forEach(function (m) {
-        var key = m.bus || m.chat; wanted.add(key);
-        var held = rows.get(key);
-        if (!held) {
+      window.dinahHelpers.reconcile(into, members || [], { rows: rows, keep: true, key: function (m) { return m.bus || m.chat; }, create: function (m, key) {
           var li = node('li'); li.dataset.teamMember = key;
           var a = node('a', 'team-person'); a.href = '#';
           var title = node('span', 'team-name'), status = node('span', 'team-badge');
           a.append(title, status);
-          held = { li: li, a: a, title: title, status: status, children: node('ul'), member: m };
+          var held = { node: li, li: li, a: a, title: title, status: status, children: node('ul'), member: m };
           if (opts.detailed) {
             held.why = node('span', 'team-reason'); held.meta = node('span', 'team-meta'); held.usage = node('span', 'team-usage');
             a.append(held.why, held.meta, held.usage);
@@ -127,8 +125,9 @@
             if (held.member.chat) Promise.resolve(opts.openChat(held.member.chat)).catch(host().fail);
           });
           a.addEventListener('pudl:tree-toggle', function (e) { expanded.set(key, !!e.detail.open); });
-          rows.set(key, held);
-        }
+          return held;
+        }, update: function (held, m) {
+        var key = held.li.dataset.teamMember;
         held.member = m;
         if (held.title.textContent !== m.title) held.title.textContent = m.title;
         var ref = m.chat && window.dinahChats && window.dinahChats.ref(m.chat);
@@ -164,9 +163,7 @@
           held.children.remove(); held.a.removeAttribute('aria-expanded');
         }
         // Existing rows are not replaced as usage and state change.
-        if (held.li.parentElement !== into) into.appendChild(held.li);
-      });
-      Array.from(into.children).forEach(function (li) { if (!wanted.has(li.dataset.teamMember)) li.remove(); });
+      } });
     }
     return { draw: draw };
   }
@@ -234,27 +231,24 @@
     var leadRows = new Map();
     /* A row opens the chat of the member it was made for, read as it is when
        pressed; a state change only redraws its words and chip. */
+    // The active and retired lists share leadRows, so a member moving
+    // between them keeps its row (keep); drawMembersMenu drops the rest.
     function drawRows(into, members) {
-      var wanted = [];
-      members.forEach(function (m) {
-        var key = m.bus || m.chat, held = leadRows.get(key);
-        if (!held) {
+      return window.dinahHelpers.reconcile(into, members, { rows: leadRows, keep: true, key: function (m) { return m.bus || m.chat; }, lost: function () { toggle.focus(); }, create: function (m, key) {
           var row = node('div', 'member-row lead-member'); row.setAttribute('role', 'listitem'); row.dataset.teamMember = key;
           var open = node('button', 'menu-action member-open'); open.type = 'button';
           var name = node('span', 'member-name'), slot = node('span', 'member-state-slot');
           // The chat glyph the taskbar draws for a chat window, before the name.
           var mark = node('span', 'glyph member-glyph'); mark.setAttribute('aria-hidden', 'true'); mark.style.setProperty('--glyph', 'var(--glyph-comments)');
           open.append(mark, name, slot); row.appendChild(open);
-          held = { row: row, open: open, name: name, slot: slot, member: m };
-          (function (entry) {
-            entry.open.addEventListener('click', function () {
-              var latest = entry.member;
-              if (content.matches(':popover-open')) content.hidePopover();
-              if (latest.chat) Promise.resolve(o.openChat(latest.chat)).catch(host().fail);
-            });
-          })(held);
-          leadRows.set(key, held);
-        }
+          var held = { node: row, row: row, open: open, name: name, slot: slot, member: m };
+          held.open.addEventListener('click', function () {
+            var latest = held.member;
+            if (content.matches(':popover-open')) content.hidePopover();
+            if (latest.chat) Promise.resolve(o.openChat(latest.chat)).catch(host().fail);
+          });
+          return held;
+        }, update: function (held, m) {
         held.member = m;
         if (held.name.textContent !== m.title) held.name.textContent = m.title;
         var label = window.dinahChatState.describe(m).label;
@@ -263,12 +257,7 @@
         held.open.setAttribute('aria-disabled', String(!m.chat));
         held.slot.replaceChildren(stateBadge(m));
         held.row.classList.toggle('member-ended', m.life === 'retired' || m.life === 'closed');
-        wanted.push(held.row);
-      });
-      // A member that moved, active to retired, leaves this list and is put in the other.
-      Array.from(into.children).forEach(function (row) { if (wanted.indexOf(row) < 0) row.remove(); });
-      wanted.forEach(function (row, i) { if (into.children[i] !== row && !row.contains(document.activeElement)) into.insertBefore(row, into.children[i] || null); });
-      return wanted;
+      } }).map(function (held) { return held.row; });
     }
     function drawMembersMenu(active, retired) {
       var shown = drawRows(memberList, active).concat(drawRows(retiredList, retired));

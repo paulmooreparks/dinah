@@ -138,32 +138,34 @@
     first.textContent = stateWords(state) + '.';
     list.querySelector('.judgements-popup-today').textContent = popupSummary;
     var warnings = state && state.warnings || [], rows = list.querySelector('.judgements-warnings');
-    var focused = document.activeElement, hadFocus = rows.contains(focused), oldButtons = Array.from(rows.querySelectorAll('button'));
-    var focusIndex = oldButtons.indexOf(focused);
-    var kept = new Set();
-    warnings.forEach(function (warning, index) {
-      var id = String(warning.id), row = Array.from(rows.children).find(function (el) { return el.dataset.warningId === id; });
-      if (!row) {
-        row = node('li', 'judgements-warning vstack gap-2'); row.dataset.warningId = id;
+    var focused = document.activeElement;
+    // The popup draws its list afresh when it opens, so the rows drawn are
+    // read back from the list.
+    var drawn = new Map(Array.from(rows.children).map(function (row) { return [row.dataset.warningId, { node: row }]; }));
+    window.dinahHelpers.reconcile(rows, warnings, { rows: drawn, key: function (warning) { return String(warning.id); },
+      create: function (warning, id) {
+        var row = node('li', 'judgements-warning vstack gap-2'); row.dataset.warningId = id;
         var text = node('p', 'form-help');
         var dismiss = node('button', 'btn btn-sm', 'Dismiss'); dismiss.type = 'button';
         dismiss.addEventListener('click', function () { dismissWarning(warning.id, dismiss); });
         row.append(text, dismiss);
-      }
-      var reason = warning.reason || warning.why;
-      row.querySelector('p').textContent = whenFull(warning.at) + ': ' + reason;
-      row.querySelector('button').setAttribute('aria-label', 'Dismiss warning: ' + reason);
-      kept.add(row);
-      if (rows.children[index] !== row) rows.insertBefore(row, rows.children[index] || null);
-    });
-    Array.from(rows.children).forEach(function (row) { if (!kept.has(row)) row.remove(); });
+        return { node: row };
+      },
+      update: function (view, warning) {
+        var reason = warning.reason || warning.why;
+        view.node.querySelector('p').textContent = whenFull(warning.at) + ': ' + reason;
+        view.node.querySelector('button').setAttribute('aria-label', 'Dismiss warning: ' + reason);
+      },
+      // A dismissed warning's focus goes to the warning now in its place,
+      // or the one before it, or the link when none is left.
+      lost: function (index) {
+        var buttons = rows.querySelectorAll('button');
+        (buttons[Math.min(index, buttons.length - 1)] || list.querySelector('a')).focus();
+      } });
     rows.hidden = !warnings.length;
     list.querySelector('.judgements-warnings-empty').hidden = !!warnings.length;
     var all = list.querySelector('.judgements-dismiss-all'); all.disabled = !warnings.length;
-    if (hadFocus && !focused.isConnected) {
-      var buttons = rows.querySelectorAll('button');
-      (buttons[Math.min(focusIndex, buttons.length - 1)] || list.querySelector('a')).focus();
-    } else if (focused === all && all.disabled) list.querySelector('a').focus();
+    if (focused === all && all.disabled) list.querySelector('a').focus();
   }
   function drawPopup() {
     var list = $('judgements-status-list');

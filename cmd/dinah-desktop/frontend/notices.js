@@ -261,29 +261,14 @@
     function keyed(container, build) {
       var nodes = new Map();
       return function draw(entries) {
-        var keep = new Set(entries.map(function (e) { return e.id; }));
-        // Moving a focused element takes its focus, so the gone go first and
-        // the rest move only when their order changed, and focus is put back.
-        var focus = container.contains(document.activeElement) ? document.activeElement : null;
-        nodes.forEach(function (v, id) { if (!keep.has(id)) { v.node.remove(); nodes.delete(id); } });
-        var cursor = container.firstChild;
-        entries.forEach(function (entry) {
-          var r = records.get(entry.id), had = nodes.get(entry.id), node;
-          if (had && had.version === r.version) node = had.node;
-          else {
-            node = build(entry);
-            if (had) {
-              var focused = had.node.contains(document.activeElement);
-              if (had.node === cursor) cursor = node;
-              had.node.replaceWith(node);
-              if (focused) { var f = node.matches('button') ? node : node.querySelector('button'); if (f) f.focus({ preventScroll: true }); }
-            }
-            nodes.set(entry.id, { node: node, version: r.version });
-          }
-          if (node === cursor) cursor = cursor.nextSibling;
-          else container.insertBefore(node, cursor);
-        });
-        if (focus && focus !== document.activeElement && focus.isConnected) focus.focus({ preventScroll: true });
+        window.dinahHelpers.reconcile(container, entries, { rows: nodes, key: function (entry) { return entry.id; },
+          create: function (entry) { return { node: build(entry), version: records.get(entry.id).version }; },
+          update: function (view, entry) {
+            var version = records.get(entry.id).version;
+            if (view.version !== version) { view.node = build(entry); view.version = version; }
+          },
+          // A rebuilt row that had focus gives it to its first button.
+          focus: function (node) { return node.matches('button') ? node : node.querySelector('button'); } });
         return nodes;
       };
     }
