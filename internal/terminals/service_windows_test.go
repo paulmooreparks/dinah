@@ -373,6 +373,14 @@ func TestPowerShellCtrlCRaceIsRecognisedOnlyByItsOwnReport(t *testing.T) {
 // Ctrl+C race; any other failure fails the test.
 func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[string]*strings.Builder) (upstreamRace bool) {
 	t.Helper()
+	journal, err := os.CreateTemp(shellDir(t), "node-start-*.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	phasePath := journal.Name()
+	if err := journal.Close(); err != nil {
+		t.Fatal(err)
+	}
 	started, err := a.StartShell("pwsh", nil, shellDir(t), 160, 40)
 	if err != nil {
 		t.Fatal(err)
@@ -406,7 +414,8 @@ func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[str
 		if !nodeTyped.IsZero() {
 			nodes = nodeProcessesSince(nodeTyped)
 		}
-		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; it drew %q", marker, nodes, output())
+		phases, phaseErr := os.ReadFile(phasePath)
+		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; fixture phases %q (read error %v); it drew %q", marker, nodes, phases, phaseErr, output())
 		return false
 	}
 	if err := a.Write(started.ID, "function prompt { 'interrupt-' + 'prompt> ' }\r"); err != nil {
@@ -416,7 +425,7 @@ func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[str
 		return true
 	}
 	nodeTyped = time.Now()
-	if err := a.Write(started.ID, "node -e \"require('http').createServer((q,s)=>s.end('ok')).listen(0,()=>console.log('interrupt-'+'started'))\"\r"); err != nil {
+	if err := a.Write(started.ID, nodeStartupCommand(phasePath)); err != nil {
 		t.Fatal(err)
 	}
 	if !waitOutput("interrupt-started", 1) {
@@ -431,7 +440,22 @@ func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[str
 	if err := a.Write(started.ID, "Write-Output ('interrupt-' + 'recovered')\r"); err != nil {
 		t.Fatal(err)
 	}
-	return !waitOutput("interrupt-recovered", 1)
+	recovered := waitOutput("interrupt-recovered", 1)
+	phases, phaseErr := os.ReadFile(phasePath)
+	t.Logf("Node fixture phases %q (read error %v)", phases, phaseErr)
+	return !recovered
+}
+
+// nodeStartupCommand preserves the server and console.log while recording
+// progress to a fixture-owned file. These synchronous writes perturb timing;
+// they provide failure evidence, not a claim that an unobserved stall is fixed.
+func nodeStartupCommand(phasePath string) string {
+	path := base64.StdEncoding.EncodeToString([]byte(phasePath))
+	return "node -e \"const fs=require('fs'),p=Buffer.from('" + path + "','base64').toString('utf8');" +
+		"function mark(phase){try{fs.appendFileSync(p,JSON.stringify({phase,pid:process.pid,at:Date.now()})+'\\n')}catch{}};" +
+		"mark('entered-js');require('http').createServer((q,s)=>s.end('ok')).listen(0,()=>{" +
+		"mark('listening');mark('stdout-tty-'+Boolean(process.stdout.isTTY));" +
+		"console.log('interrupt-'+'started');mark('console-log-returned')})\"\r"
 }
 
 // nodeProcessesSince lists each node.exe created at or after since, with its
@@ -464,7 +488,10 @@ func nodeProcessesSince(since time.Time) string {
 		if at.Before(since) {
 			continue
 		}
-		found = append(found, "pid "+strconv.Itoa(int(entry.ProcessID))+" (parent "+strconv.Itoa(int(entry.ParentProcessID))+"), started "+at.Sub(since).Round(time.Millisecond).String()+" after typing, running "+time.Since(at).Round(time.Millisecond).String())
+		cpuTime := func(ft windows.Filetime) time.Duration {
+			return time.Duration(uint64(ft.HighDateTime)<<32|uint64(ft.LowDateTime)) * 100 * time.Nanosecond
+		}
+		found = append(found, "pid "+strconv.Itoa(int(entry.ProcessID))+" (parent "+strconv.Itoa(int(entry.ParentProcessID))+"), started "+at.Sub(since).Round(time.Millisecond).String()+" after typing, running "+time.Since(at).Round(time.Millisecond).String()+", kernel CPU "+cpuTime(kernel).String()+", user CPU "+cpuTime(user).String())
 	}
 	if len(found) == 0 {
 		return "none"
