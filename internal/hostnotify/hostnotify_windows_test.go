@@ -36,3 +36,33 @@ func TestCopyUTF16ShortensWithoutSplittingAPair(t *testing.T) {
 		t.Fatalf("got %v", buf)
 	}
 }
+
+type fakeNoticeWindow struct {
+	state, prior          string
+	restores, foregrounds int
+}
+
+func (w *fakeNoticeWindow) minimized() bool { return w.state == "minimized" }
+func (w *fakeNoticeWindow) restore()        { w.restores++; w.state = w.prior }
+func (w *fakeNoticeWindow) foreground()     { w.foregrounds++ }
+
+func TestNotificationActivationPreservesWindowPlacement(t *testing.T) {
+	for _, tc := range []struct {
+		name, state, prior, want string
+		restores                 int
+	}{
+		{"maximized", "maximized", "normal", "maximized", 0},
+		{"normal", "normal", "normal", "normal", 0},
+		{"minimized from maximized", "minimized", "maximized", "maximized", 1},
+		{"minimized from normal", "minimized", "normal", "normal", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := &fakeNoticeWindow{state: tc.state, prior: tc.prior}
+			activateNoticeWindow(w)
+			activateNoticeWindow(w)
+			if w.state != tc.want || w.restores != tc.restores || w.foregrounds != 2 {
+				t.Fatalf("state=%s restores=%d foregrounds=%d", w.state, w.restores, w.foregrounds)
+			}
+		})
+	}
+}

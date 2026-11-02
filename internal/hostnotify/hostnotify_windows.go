@@ -50,7 +50,7 @@ import (
 // Focused compares the process of GetForegroundWindow with this one.
 // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getforegroundwindow
 //
-// A click on the notification or the icon restores the main window and asks
+// A click on the notification or the icon restores only a minimized window and asks
 // for it with SetForegroundWindow, which Windows may refuse; when it does,
 // it flashes the taskbar button instead.
 // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow
@@ -314,11 +314,30 @@ func (n *winNotifier) bringForward() {
 	if h == 0 {
 		return
 	}
-	if r, _, _ := procIsIconic.Call(uintptr(h)); r != 0 {
-		procShowWindow.Call(uintptr(h), swRestore)
-	}
-	procSetForegroundWindow.Call(uintptr(h))
+	activateNoticeWindow(nativeNoticeWindow{h})
 }
+
+type noticeWindow interface {
+	minimized() bool
+	restore()
+	foreground()
+}
+
+func activateNoticeWindow(w noticeWindow) {
+	if w.minimized() {
+		w.restore()
+	}
+	w.foreground()
+}
+
+type nativeNoticeWindow struct{ handle windows.HWND }
+
+func (w nativeNoticeWindow) minimized() bool {
+	r, _, _ := procIsIconic.Call(uintptr(w.handle))
+	return r != 0
+}
+func (w nativeNoticeWindow) restore()    { procShowWindow.Call(uintptr(w.handle), swRestore) }
+func (w nativeNoticeWindow) foreground() { procSetForegroundWindow.Call(uintptr(w.handle)) }
 
 func (n *winNotifier) Focused() (bool, bool) {
 	fg := windows.GetForegroundWindow()

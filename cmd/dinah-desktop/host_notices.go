@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -79,12 +80,23 @@ func (a *App) startHostNotices() {
 	if configOverride != "" {
 		return
 	}
-	a.notices.setNotifier(hostnotify.New(product.Name, func() {
+	a.notices.setNotifier(hostnotify.New(product.Name, a.hostNoticeActivation()))
+}
+
+func (a *App) hostNoticeActivation() func() {
+	// The Windows notifier owns native foreground activation and restores
+	// only an iconic window. An earlier Wails restore would un-maximize it.
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	return func() {
 		if a.ctx != nil {
-			wruntime.WindowUnminimise(a.ctx)
+			if wruntime.WindowIsMinimised(a.ctx) {
+				wruntime.WindowUnminimise(a.ctx)
+			}
 			wruntime.WindowShow(a.ctx)
 		}
-	}))
+	}
 }
 
 func (a *App) notifyWhenNeeded() bool {
