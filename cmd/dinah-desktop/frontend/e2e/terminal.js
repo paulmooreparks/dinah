@@ -64,7 +64,7 @@ const { launch } = require('./lib/page');
   try {
     // The page is a fixture of the terminal scripts alone; the other files
     // come from the shared route.
-    await t.context.route('http://dinah.test/fixture.html', route => route.fulfill({ contentType: 'text/html', body: '<html style="--input-bg:#fafafa;--text:#16304c;--accent:#007e87;--danger:#b00020;--positive:#008048;--warn:#996600;--text-muted:#667788;--border:#ccd"><head><link rel="stylesheet" href="terminal.css"></head><body style="display:flex;height:700px;gap:12px"><div id="one" style="width:640px"></div><div id="two" style="width:420px"></div><script src="helpers.js"></script><script src="regional.js"></script><script src="terminal-applet.js"></script></body></html>' }));
+    await t.context.route('http://dinah.test/fixture.html', route => route.fulfill({ contentType: 'text/html', body: '<html style="--input-bg:#fafafa;--text:#16304c;--accent:#007e87;--danger:#b00020;--positive:#008048;--warn:#996600;--text-muted:#667788;--border:#ccd"><head><link rel="stylesheet" href="terminal.css"></head><body style="display:flex;height:700px;gap:12px"><div id="one" style="width:640px"></div><div id="two" style="width:420px"></div><script src="helpers.js"></script><script src="regional.js"></script><script src="terminal-text.js"></script><script src="terminal-applet.js"></script></body></html>' }));
     async function setup(first) {
       await page.goto('http://dinah.test/fixture.html');
       if (first) await page.evaluate(() => localStorage.clear());

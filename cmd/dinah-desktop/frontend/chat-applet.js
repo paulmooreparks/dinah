@@ -2047,7 +2047,7 @@
       r.badge.className = 'badge ' + st[0];
       r.badge.textContent = st[1];
       if (r.drawnText !== r.text) {
-        r.pre.innerHTML = ansiHTML(r.text);
+        r.pre.innerHTML = window.dinahTerminalText.html(r.text);
         r.detail.hidden = !r.text;
         r.drawnText = r.text;
       }
@@ -2100,60 +2100,6 @@
         } else if (c.type === 'terminal') parts.push('Terminal ' + c.terminalId);
       });
       return parts.join('\n');
-    }
-
-    /* A command's output may hold the control sequences a terminal reads
-       (ECMA-48): PowerShell 7 colours a table's header with ESC[32m, for one.
-       The chat draws the colour and weight sequences (SGR, ESC[...m) as styled
-       text and leaves the rest out (other CSI sequences, OSC titles and
-       links, stray ESC and other C0 controls but tab and new line), so the
-       reader sees the output as a terminal would show it. */
-    var ANSI_FG = [30, 31, 32, 33, 34, 35, 36, 37, 90, 91, 92, 93, 94, 95, 96, 97];
-    function ansiHTML(text) {
-      var out = '', open = false, style = { bold: false, dim: false, italic: false, under: false, fg: null, bg: null };
-      var esc = window.dinahHTML.text;
-      function apply(params) {
-        var p = params.length ? params.split(';').map(function (n) { return n === '' ? 0 : Number(n); }) : [0];
-        for (var i = 0; i < p.length; i++) {
-          var n = p[i];
-          if (n === 0) style = { bold: false, dim: false, italic: false, under: false, fg: null, bg: null };
-          else if (n === 1) style.bold = true;
-          else if (n === 2) style.dim = true;
-          else if (n === 3) style.italic = true;
-          else if (n === 4) style.under = true;
-          else if (n === 22) { style.bold = false; style.dim = false; }
-          else if (n === 23) style.italic = false;
-          else if (n === 24) style.under = false;
-          else if (n === 39) style.fg = null;
-          else if (n === 49) style.bg = null;
-          else if (ANSI_FG.indexOf(n) >= 0) style.fg = ANSI_FG.indexOf(n);
-          else if (ANSI_FG.indexOf(n - 10) >= 0) style.bg = ANSI_FG.indexOf(n - 10);
-          // 256-colour and true-colour forms take their own parameters; the
-          // chat keeps to the sixteen colours and skips them.
-          else if (n === 38 || n === 48) i += p[i + 1] === 5 ? 2 : p[i + 1] === 2 ? 4 : 1;
-        }
-      }
-      function span() {
-        var cls = [];
-        if (style.bold) cls.push('ansi-b');
-        if (style.dim) cls.push('ansi-d');
-        if (style.italic) cls.push('ansi-i');
-        if (style.under) cls.push('ansi-u');
-        if (style.fg !== null) cls.push('ansi-fg' + style.fg);
-        if (style.bg !== null) cls.push('ansi-bg' + style.bg);
-        if (open) out += '</span>';
-        open = cls.length > 0;
-        if (open) out += '<span class="' + cls.join(' ') + '">';
-      }
-      var re = /\x1b\[([0-9;?]*)([@-~])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]?|[\x00-\x08\x0b-\x1f\x7f]/g, last = 0, m;
-      while ((m = re.exec(text))) {
-        out += esc(text.slice(last, m.index));
-        last = re.lastIndex;
-        if (m[2] === 'm' && m[1].indexOf('?') < 0) { apply(m[1]); span(); }
-      }
-      out += esc(text.slice(last));
-      if (open) out += '</span>';
-      return out;
     }
 
     var TOOL_TEXT_MAX = 32 * 1024;
