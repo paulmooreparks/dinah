@@ -130,14 +130,22 @@ const path = require('path');
     const fonts = await p.evaluate(async () => { await document.fonts.ready; return [...document.fonts].filter(f => /KaTeX/.test(f.family) && f.status === 'loaded').length; });
     ok('KaTeX loads its fonts from the page', fonts > 0, String(fonts));
 
-    // KaTeX's HTML passes through safe-html.js unchanged.
+    // Math in a message is all KaTeX draws, inline styles included. KaTeX
+    // draws into the message itself, past safe-html.js, which removes
+    // styles from HTML (chat-text.js, typesetOne).
     const untouched = await p.evaluate(() => {
-      const tex = '\\frac{1}{2} + \\sqrt[3]{x} + \\overrightarrow{AB} + \\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix} + \\color{red}{x} + \\text{a}';
+      const tex = '\\frac{1}{2} + \\sqrt[3]{x} + \\overrightarrow{AB} + \\color{red}{x} + \\text{a}';
+      const box = document.createElement('div'); box.appendChild(dinahChatText.nodes('$$' + tex + '$$'));
+      const math = box.querySelector('[data-math]');
       const html = katex.renderToString(tex, { displayMode: true, throwOnError: false, trust: false, strict: 'ignore', output: 'htmlAndMathml' });
-      const box = document.createElement('div'); box.innerHTML = html;
-      return box.innerHTML === dinahHTML.clean(html);
+      const parsed = document.createElement('div'); parsed.innerHTML = html;
+      // Each element by its tag, classes, attributes and style as the browser
+      // reads it, since a style set by script is written out with spaces,
+      // and an SVG KaTeX builds needs no xmlns attribute that its string has.
+      const shape = root => [...root.querySelectorAll('*')].map(el => [el.localName, el.className.baseVal ?? el.className, el.style ? el.style.cssText : '', [...el.attributes].filter(a => !['style', 'class', 'xmlns'].includes(a.name)).map(a => a.name + '=' + a.value).join(' ')].join('|')).join('\n') + root.textContent;
+      return { same: !!math && shape(math) === shape(parsed), styled: !!math && !!math.querySelector('[style]'), tex: math && math.dataset.tex };
     });
-    ok('safe-html.js keeps everything KaTeX draws', untouched);
+    ok('math in a message is all KaTeX draws, inline styles included', untouched.same && untouched.styled, JSON.stringify(untouched));
 
     // Hostile TeX makes no link and loads nothing, and TeX KaTeX cannot read
     // is shown as its source.

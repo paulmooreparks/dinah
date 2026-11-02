@@ -60,7 +60,7 @@
     counter.textContent = items.length > 1 ? (index + 1) + ' of ' + items.length : '';
     prevBtn.hidden = index === 0; nextBtn.hidden = index === items.length - 1;
     if (item.svg) {
-      stage.innerHTML = item.svg;
+      stage.replaceChildren(window.dinahDiagrams.element(item.svg));
       window.dinahWorkbench.namespaceSVG(stage); img = stage.querySelector('svg');
       img.setAttribute('viewBox', [item.x, item.y, item.width, item.height].join(' '));
       img.setAttribute('width', item.width); img.setAttribute('height', item.height);

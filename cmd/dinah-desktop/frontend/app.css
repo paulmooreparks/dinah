@@ -217,6 +217,13 @@
 .msg-diagram { margin: var(--space-2) 0; }
 .msg-diagram-svg { overflow-x: auto; padding: var(--space-2); background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); text-align: center; }
 .msg-diagram-svg svg { max-width: 100%; height: auto; }
+/* What an agent or a document wrote paints only inside the box it is drawn
+   in, whatever classes or positions it uses: paint containment makes the
+   box the containing block of anything fixed or absolutely placed inside
+   it, and clips it there (safe-html.js is the first barrier). A box that
+   scrolls keeps its scrolling and is contained without overflow: clip. */
+.msg-text, .doc-page { contain: paint; overflow: clip; }
+.msg-diagram-svg, .lightbox-stage { contain: paint; }
 .msg-diagram details { margin-top: var(--space-1); font-size: var(--text-sm); }
 .msg-diagram-error { margin: 0 0 var(--space-1); color: var(--danger); font-size: var(--text-sm); }
 /* A table in a message: scrolls sideways rather than squeezing its columns. */
