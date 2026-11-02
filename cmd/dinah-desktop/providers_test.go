@@ -15,9 +15,20 @@ import (
 	"studio/internal/agents"
 	"studio/internal/bus"
 	"studio/internal/codexagent"
-	"studio/internal/layout"
 	"studio/internal/ollamaagent"
 )
+
+// sameFile reports whether two paths reach one existing file, compared by
+// identity: a temporary folder may be spelled with an 8.3 short name, as on
+// CI runners, while Dinah reports the long form.
+func sameFile(a, b string) bool {
+	x, err := os.Stat(a)
+	if err != nil {
+		return false
+	}
+	y, err := os.Stat(b)
+	return err == nil && os.SameFile(x, y)
+}
 
 type providerCall struct {
 	method string
@@ -241,7 +252,7 @@ func TestAgentExecutableOverridePersistsAndNeverFallsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	reopened := NewApp()
-	if p := get(reopened); !layout.SamePath(p.Path, chosen) || p.ExecutableOverride != chosen || !p.Available {
+	if p := get(reopened); !sameFile(p.Path, chosen) || p.ExecutableOverride != chosen || !p.Available {
 		t.Fatalf("override was not retained across restart: %+v", p)
 	}
 	if err := os.Remove(chosen); err != nil {
@@ -253,7 +264,7 @@ func TestAgentExecutableOverridePersistsAndNeverFallsBack(t *testing.T) {
 	if err := reopened.SetAgentExecutable("codex", ""); err != nil {
 		t.Fatal(err)
 	}
-	if p := get(NewApp()); !layout.SamePath(p.Path, auto) || p.ExecutableOverride != "" {
+	if p := get(NewApp()); !sameFile(p.Path, auto) || p.ExecutableOverride != "" {
 		t.Fatalf("automatic discovery was not restored: %+v", p)
 	}
 	for _, path := range []string{"relative.exe", root, filepath.Join(root, "missing.exe")} {
@@ -438,7 +449,7 @@ func TestDiscoverAgentPathSkipsWorkspaceAndRelativeDirectories(t *testing.T) {
 		}
 	}
 	t.Setenv("PATH", strings.Join([]string{".", "relative-dir", ws, safe}, string(os.PathListSeparator)))
-	if got := agents.FindExecutable("test-agent", []string{ws}); !layout.SamePath(got, filepath.Join(safe, "test-agent.exe")) {
+	if got := agents.FindExecutable("test-agent", []string{ws}); !sameFile(got, filepath.Join(safe, "test-agent.exe")) {
 		t.Fatalf("discovery selected unsafe executable: %q", got)
 	}
 	t.Setenv("PATH", strings.Join([]string{".", "relative-dir", ws}, string(os.PathListSeparator)))
