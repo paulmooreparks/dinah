@@ -22,6 +22,6 @@
     "contained-content", "html-safety", "terminal-escapes", "chat-state-contract",
     "list-state-stability", "taskbar-state-stability", "list-row-layout", "chat-last-read",
     "app-ui3", "chat-continued-open", "provider-continuation", "chat-placement",
-    "web-skins", "extensions"
+    "web-skins", "extensions", "reconcile"
   ]
 }
