@@ -8,9 +8,13 @@ Reads retain current access to sibling repositories, dotfiles and SDK paths. Sou
 
 MaxProviderText is a documented 1 MiB response-content bound. Reads stream selected lines rather than loading an entire large file before slicing. An oversized response fails clearly and asks for line and limit; it never silently truncates. Invalid UTF-8 is replaced with U+FFFD, and the returned text includes an explicit replacement note.
 
-Line and limit must be positive when present. A line beyond the end is an error. Large positive limits clamp to the available remainder without arithmetic overflow. Both the request boundary and SliceLines validate ranges. The existing Ollama caller handles SliceLines errors.
+Line and limit must be positive when present. A line beyond the end now returns an error; previously it returned empty text. Large positive limits clamp to the available remainder without arithmetic overflow. Both the request boundary and SliceLines validate ranges. The existing Ollama caller handles SliceLines errors. Ollama's separate whole-file read before slicing remains a TM-02 resource finding.
 
 Each reverse-request reply contains handler and result-encoding panics. It returns a generic internal error with the original request ID and leaves the connection serving other requests. Panic payloads are not echoed to the peer or diagnostics.
+
+Notification dispatch also contains handler panics. The reader drops the faulting notification and continues serving the connection in order, logging one generic fault line per connection without the method, parameters or panic text. This containment does not roll back handler effects that occurred before a panic.
+
+Quality's independent diff read in message 3322 accepted the file-read and request containment changes and required the notification guard before handoff; the lead ratified that addition in message 3323. TestNotificationPanicKeepsConnectionServingChats passes with two faulting notifications, subsequent requests and notifications for two chats, and a single generic log. No additional independent review is required for this ratified addition before direct Release handoff.
 
 Tests use isolated temporary files and fake protocol peers. They cover unknown/cross-provider callers, stale connections, permitted outside-workspace reads, protected paths and their symlink aliases, oversized responses and bounded large-file sections, invalid UTF-8, numeric edge cases, fuzzed range/parameter decoding and a panicking request followed by successful requests on the same connection. No live provider, credential, terminal or desktop is touched.
 

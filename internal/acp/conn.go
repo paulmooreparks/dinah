@@ -144,6 +144,8 @@ type Conn struct {
 	// warned is whether the agent has already been noted in the log for
 	// writing a line that is not protocol; one note per connection is enough.
 	warned bool
+	// notificationFault is reader-owned and limits generic handler-fault logs.
+	notificationFault bool
 }
 
 // Start runs the agent command in dir, hidden and tied to the app, and
@@ -338,7 +340,7 @@ func (c *Conn) read(r io.Reader) {
 		case m.Method != "" && m.ID != nil:
 			go c.answer(m)
 		case m.Method != "":
-			c.handler.Notify(m.Method, m.Params)
+			c.notify(m)
 		case m.ID != nil:
 			var id int64
 			if json.Unmarshal(*m.ID, &id) != nil {
@@ -357,6 +359,16 @@ func (c *Conn) read(r io.Reader) {
 			}
 		}
 	}
+}
+
+func (c *Conn) notify(m message) {
+	defer func() {
+		if recover() != nil && !c.notificationFault {
+			c.notificationFault = true
+			Logf("ignored a provider notification after a client handler fault")
+		}
+	}()
+	c.handler.Notify(m.Method, m.Params)
 }
 
 func (c *Conn) answer(m message) {
