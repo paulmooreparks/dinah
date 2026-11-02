@@ -62,7 +62,9 @@ const { launch } = require('./lib/page');
     const row = picker.locator('[data-chat="created-1"]');
     await row.waitFor();
     ok('the new chat returns ticked with the previous selection preserved', await row.getAttribute('aria-selected') === 'true' && await picker.locator('[data-chat="existing"]').getAttribute('aria-selected') === 'true');
-    const returned = await picker.evaluate(n => ({ focused: document.activeElement.dataset.chat === 'created-1' && n.contains(document.activeElement), filter: n.querySelector('.picker-filter').value, note: n.querySelector('.picker-count').textContent }));
+    // The keyboard is on the new chat: the list has focus and its active
+    // row is the new chat's (PUDL's rich list box, aria-activedescendant).
+    const returned = await picker.evaluate(n => { const a = document.activeElement, active = a && a.getAttribute('aria-activedescendant') && document.getElementById(a.getAttribute('aria-activedescendant')); return { focused: !!a && a.matches('.picker-list') && n.contains(a) && !!active && active.dataset.chat === 'created-1', filter: n.querySelector('.picker-filter').value, note: n.querySelector('.picker-count').textContent }; });
     ok('the new row is focused and an incompatible filter is explained', returned.focused && returned.filter === '' && /filter was cleared/.test(returned.note), JSON.stringify(returned));
     ok('creation uses the chosen workspace, provider, model and title without adding membership', await p.evaluate(() => __creationCalls.some(c => c[0] === 'create' && c.slice(1).join('|') === 'C:/Beta|ollama|ollama-b|Fresh Chat') && !__creationCalls.some(c => c[0] === 'add') && __members.length === 0));
     ok('creation neither switches the pane nor opens another picker or dialog', await p.locator('#ws-select').inputValue() === paneBefore && await p.locator('.win[data-win-kind="group-picker"]').count() === 1 && await p.locator('dialog[open]').count() === 0);

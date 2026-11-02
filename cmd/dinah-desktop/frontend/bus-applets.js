@@ -1389,15 +1389,21 @@
   window.dinahWorkbench.register('group-picker', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, title: 'Start a Group Chat', glyph: 'comments', init: function (root, opts, item) {
     var spec = {};
     try { spec = JSON.parse(item.path || '{}') || {}; } catch (err) { spec = {}; }
-    var adding = spec.group || '', from = spec.from || '', chosen = {}, name = '', filter = '', titling = '', disposed = false, active = 0;
+    var adding = spec.group || '', from = spec.from || '', chosen = {}, name = '', filter = '', titling = '', disposed = false;
     if (from) chosen[from] = true;
     root.classList.add('group-picker');
     root.innerHTML = '';
     var find = node('input', 'form-input picker-filter'); find.type = 'search'; find.placeholder = 'Filter by Title, Workspace or Provider';
     find.setAttribute('aria-label', 'Filter the Chats'); find.autocomplete = 'off';
     var heading = node('h2', 'visually-hidden', adding ? 'Add Chats' : 'Start a Group Chat'); heading.id = 'picker-title-' + Math.random().toString(36).slice(2);
-    var list = node('div', 'listbox picker-list'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-multiselectable', 'true');
-    list.setAttribute('aria-labelledby', heading.id); list.tabIndex = 0;
+    /* The list is PUDL's rich list box (pudl-listbox.js, 0.97.0): PUDL gives
+       it its roles, keys, type-ahead and check marks and does the choosing;
+       Dinah writes a section for each workspace and keeps each row by its
+       chat, filling it in place, so the row PUDL has active stays active
+       as the list is drawn again. */
+    var list = node('div', 'listbox picker-list'); list.setAttribute('data-listbox', 'multiple');
+    list.setAttribute('aria-labelledby', heading.id);
+    var rowsById = new Map(), sectionsByWs = new Map();
     var count = node('p', 'form-help picker-count'); count.setAttribute('role', 'status');
     var nameGroup = node('div', 'form-group picker-name-group');
     var nameLabel = node('label', 'form-label', 'Group Name'), nameInput = node('input', 'form-input picker-name');
@@ -1428,7 +1434,8 @@
           selectionNote = 'Chat created and selected. Press Add to add it to this group.' + (hidden ? ' The filter was cleared so the new chat is visible.' : '');
           showList();
           var row = list.querySelector('[data-chat="' + CSS.escape(ref.id) + '"]');
-          if (row) { active = rowsShown().indexOf(row); row.tabIndex = -1; row.focus(); row.scrollIntoView({ block: 'nearest' }); }
+          // The keyboard goes to the new chat's row (pudlListbox.activate, 0.97.1).
+          if (row && window.pudlListbox) { window.pudlListbox.activate(list, ref.id); list.focus(); }
         }
       });
       changed();
@@ -1456,66 +1463,91 @@
       return Object.keys(byWs).sort(function (a, b) { return (b === home) - (a === home) || a.localeCompare(b, undefined, { sensitivity: 'base' }); })
         .map(function (w) { return { workspace: w, chats: byWs[w].sort(function (a, b) { return (b.updatedAt || '').localeCompare(a.updatedAt || ''); }) }; });
     }
-    function rowsShown() { return Array.prototype.slice.call(list.querySelectorAll('.listbox-row:not([hidden])')); }
+    // Puts children in a parent in the order wanted, moving only those out
+    // of place, and takes out the rest.
+    function arrange(parent, wanted) {
+      wanted.forEach(function (el, i) { if (parent.children[i] !== el) parent.insertBefore(el, parent.children[i] || null); });
+      Array.prototype.slice.call(parent.children, wanted.length).forEach(function (el) { el.remove(); });
+    }
+    /* Fills a row in place: its choice, whether it can be chosen, whether
+       the filter shows it, and its words. The check mark PUDL draws stays
+       its first child. */
+    function fill(row, c, on, already, q) {
+      row.setAttribute('aria-selected', String(on));
+      row.classList.toggle('is-chosen', on);
+      row.toggleAttribute('data-disabled', already);
+      row.hidden = !!q && (c.title + ' ' + c.workspace + ' ' + c.provider).toLowerCase().indexOf(q) < 0;
+      var mark = row.querySelector(':scope > input[aria-hidden="true"]');
+      if (!mark) { mark = node('input'); mark.type = 'checkbox'; mark.tabIndex = -1; mark.setAttribute('aria-hidden', 'true'); }
+      var title = node('span', 'listbox-title');
+      if (titling === c.id) {
+        var give = node('input', 'form-input picker-title-input'); give.placeholder = 'Give This Chat a Title'; give.setAttribute('aria-label', 'Title for ' + c.title);
+        give.addEventListener('click', function (e) { e.stopPropagation(); });
+        give.addEventListener('keydown', function (e) {
+          e.stopPropagation();
+          if (e.key === 'Escape') { e.preventDefault(); titling = ''; draw(); list.focus(); }
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          var t = give.value.trim();
+          if (!t) return;
+          give.disabled = true;
+          Promise.resolve(window.dinahChats.rename(c.id, t)).then(function () { titling = ''; chosen[c.id] = true; changed(); draw(); list.focus(); })
+            .catch(function (err) { give.disabled = false; host().toast(message(err), 'danger', { title: 'Not titled:' }); });
+        });
+        title.appendChild(give);
+        setTimeout(function () { if (give.isConnected) give.focus(); }, 0);
+      } else {
+        title.appendChild(document.createTextNode(c.title));
+        if (c.id === from) title.appendChild(node('span', 'chip', 'This Chat'));
+        if (already) title.appendChild(node('span', 'chip', 'In the Group'));
+      }
+      var provider = node('span', 'col col-provider', c.provider), state = node('span', 'col state');
+      state.appendChild(stateBadge(c));
+      if (c.life === 'open' && c.window === false && !c.elsewhere) provider.appendChild(node('span', 'md-meta', ' · No window'));
+      var parts = [mark, title, provider, state, node('span', 'col col-active', c.updatedAt ? when(c.updatedAt) : '')];
+      if (c.untitled && titling !== c.id) parts.push(node('p', 'row-note', 'Give this chat a title before it joins a group. Choose it to title it here.'));
+      else if (c.life === 'closed' && on && !already) parts.push(node('p', 'row-note', 'This chat is closed. A message that mentions it opens it in the background; the group\'s other messages wait for it until it opens.'));
+      row.replaceChildren.apply(row, parts);
+    }
     function draw() {
       if (disposed) return;
-      var taken = inGroup(), q = filter.trim().toLowerCase(), titles = [];
-      var focused = list.contains(document.activeElement) && document.activeElement.matches('.picker-row') ? document.activeElement.dataset.chat : '';
-      var groups = chats(), known = {};
-      list.replaceChildren();
-      groups.forEach(function (w, gi) {
-        var g = node('div'); g.setAttribute('role', 'group');
-        var label = node('div', 'listbox-group', w.workspace); label.id = heading.id + '-ws-' + gi; label.setAttribute('role', 'presentation');
-        g.setAttribute('aria-labelledby', label.id);
-        g.appendChild(label);
-        var any = false;
+      var taken = inGroup(), q = filter.trim().toLowerCase();
+      var groups = chats(), known = {}, sections = [], seen = new Set();
+      groups.forEach(function (w) {
+        var section = sectionsByWs.get(w.workspace);
+        if (!section) {
+          section = node('div', 'listbox-section');
+          section.appendChild(node('div', 'listbox-group', w.workspace));
+          sectionsByWs.set(w.workspace, section);
+        }
+        var rows = [section.firstChild];
         w.chats.forEach(function (c) {
-          known[c.id] = c;
+          known[c.id] = c; seen.add(c.id);
           var already = taken.indexOf(c.id) >= 0, on = already || !!chosen[c.id];
-          if (on && !already && !c.untitled) titles.push(c);
-          var find = (c.title + ' ' + c.workspace + ' ' + c.provider).toLowerCase();
-          var row = node('div', 'listbox-row picker-row' + (on ? ' is-chosen' : '')); row.setAttribute('role', 'option');
-          row.dataset.chat = c.id; row.setAttribute('aria-selected', String(on));
-          if (already) row.setAttribute('aria-disabled', 'true');
-          row.hidden = !!q && find.indexOf(q) < 0;
-          any = any || !row.hidden;
-          var box = node('input'); box.type = 'checkbox'; box.tabIndex = -1; box.setAttribute('aria-hidden', 'true'); box.checked = on; box.disabled = already;
-          var text = node('span', 'listbox-text');
-          if (titling === c.id) {
-            var give = node('input', 'form-input picker-title-input'); give.placeholder = 'Give This Chat a Title'; give.setAttribute('aria-label', 'Title for ' + c.title);
-            give.addEventListener('click', function (e) { e.stopPropagation(); });
-            give.addEventListener('keydown', function (e) {
-              e.stopPropagation();
-              if (e.key === 'Escape') { e.preventDefault(); titling = ''; draw(); list.focus(); }
-              if (e.key !== 'Enter') return;
-              e.preventDefault();
-              var t = give.value.trim();
-              if (!t) return;
-              give.disabled = true;
-              Promise.resolve(window.dinahChats.rename(c.id, t)).then(function () { titling = ''; chosen[c.id] = true; changed(); draw(); list.focus(); })
-                .catch(function (err) { give.disabled = false; host().toast(message(err), 'danger', { title: 'Not titled:' }); });
-            });
-            text.appendChild(give);
-            setTimeout(function () { if (give.isConnected) give.focus(); }, 0);
-          } else {
-            text.appendChild(document.createTextNode(c.title));
-            if (c.id === from) text.appendChild(node('span', 'chip', 'This Chat'));
-            if (already) text.appendChild(node('span', 'chip', 'In the Group'));
+          var row = rowsById.get(c.id);
+          if (!row) {
+            row = node('div', 'listbox-row picker-row'); row.dataset.value = c.id; row.dataset.chat = c.id;
+            rowsById.set(c.id, row);
           }
-          row.append(box, text, node('span', 'col col-provider', c.provider), node('span', 'col state'), node('span', 'col col-active', c.updatedAt ? when(c.updatedAt) : ''));
-          row.querySelector('.state').appendChild(stateBadge(c));
-          if (c.life === 'open' && c.window === false && !c.elsewhere) row.querySelector('.col-provider').appendChild(node('span', 'md-meta', ' · No window'));
-          if (c.untitled && titling !== c.id) row.appendChild(node('p', 'row-note', 'Give this chat a title before it joins a group. Choose it to title it here.'));
-          else if (c.life === 'closed' && on && !already) row.appendChild(node('p', 'row-note', 'This chat is closed. A message that mentions it opens it in the background; the group\'s other messages wait for it until it opens.'));
-          row.addEventListener('click', function () { toggle(c); });
-          g.appendChild(row);
+          fill(row, c, on, already, q);
+          rows.push(row);
         });
-        g.hidden = !any;
-        list.appendChild(g);
+        arrange(section, rows);
+        sections.push(section);
       });
-      if (!groups.length) list.appendChild(window.dinahBrowserList.empty({ title: 'No Chats Yet', body: 'Open a workspace and start a chat first.' }));
+      rowsById.forEach(function (row, id) { if (!seen.has(id)) rowsById.delete(id); });
+      sectionsByWs.forEach(function (s, w) { if (sections.indexOf(s) < 0) sectionsByWs.delete(w); });
+      var empty = list.querySelector(':scope > .empty-state');
+      if (!groups.length && !empty) empty = window.dinahBrowserList.empty({ title: 'No Chats Yet', body: 'Open a workspace and start a chat first.' });
+      arrange(list, groups.length ? sections : [empty]);
       // The opening chat is ticked; an untitled one asks for its title.
       if (from && known[from] && known[from].untitled && chosen[from] && !titling) { titling = from; chosen[from] = false; draw(); return; }
+      summarise(known);
+    }
+    // The count, the name's placeholder and Start or Add, from the choice.
+    function summarise(known) {
+      if (!known) { known = {}; pickerChats().forEach(function (c) { known[c.id] = c; }); }
+      var taken = inGroup(), titles = Object.keys(chosen).filter(function (id) { return chosen[id] && known[id] && !known[id].untitled && taken.indexOf(id) < 0; }).map(function (id) { return known[id]; });
       titles.sort(function (a, b) { return (b.id === from) - (a.id === from); });
       var names = titles.map(function (c) { return c.title; }), n = names.length;
       nameInput.placeholder = n === 0 ? 'Choose at least one chat' : n === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[n - 1];
@@ -1523,24 +1555,25 @@
         : n === 0 ? 'Choose at least one chat. You are always in the group.' : 'The group will have ' + (n === 1 ? 'one chat' : n + ' chats') + ' and you.';
       if (selectionNote) count.textContent = selectionNote;
       go.disabled = n === 0;
-      var rows = rowsShown();
-      rows.forEach(function (r, i) { r.classList.toggle('is-active', i === active); });
-      if (focused) { var kept = rows.find(function (r) { return r.dataset.chat === focused; }); if (kept) { active = rows.indexOf(kept); rows.forEach(function (r, i) { r.classList.toggle('is-active', i === active); }); kept.tabIndex = -1; kept.focus({ preventScroll: true }); } }
     }
-    function toggle(c) {
-      if (inGroup().indexOf(c.id) >= 0) return;
-      if (c.untitled) { titling = c.id; draw(); return; }
-      chosen[c.id] = !chosen[c.id];
-      changed();
-      draw();
-    }
-    list.addEventListener('keydown', function (e) {
-      var rows = rowsShown();
-      if (!rows.length) return;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(0, Math.min(rows.length - 1, active + (e.key === 'ArrowDown' ? 1 : -1))); rows[active].tabIndex = -1; rows[active].focus(); draw(); }
-      else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); var c = pickerChats().find(function (x) { return x.id === rows[Math.min(active, rows.length - 1)].dataset.chat; }); if (c) toggle(c); }
+    /* PUDL did the choosing; the window keeps what was chosen. A chat with
+       no title is never kept chosen: choosing it opens its title field in
+       its row instead, and it is chosen once it has a title. */
+    list.addEventListener('pudl:listbox-change', function (e) {
+      var taken = inGroup(), all = pickerChats();
+      chosen = {};
+      (e.detail.values || []).forEach(function (id) {
+        if (taken.indexOf(id) >= 0) return;
+        var c = all.find(function (x) { return x.id === id; });
+        if (c && c.untitled) { if (!titling) titling = id; return; }
+        chosen[id] = true;
+      });
+      selectionNote = '';
+      // The rows are filled again in place, for a chosen chat's note, and
+      // keep their places, so the row PUDL has active stays active.
+      changed(); draw();
     });
-    find.addEventListener('input', function () { filter = find.value; selectionNote = ''; active = 0; changed(); draw(); });
+    find.addEventListener('input', function () { filter = find.value; selectionNote = ''; changed(); draw(); });
     nameInput.addEventListener('input', function () { name = nameInput.value; changed(); });
     function closeWindow() { var win = root.closest('[data-win]'); if (win && window.pudlWindows) window.pudlWindows.close(win.dataset.win); }
     cancel.addEventListener('click', closeWindow);
@@ -1563,8 +1596,9 @@
     listeners.add(redraw);
     var stopChats = onChats(redraw);
     draw();
+    if (window.pudlListbox) window.pudlListbox.enhance(list);
     load().catch(function () {});
-    return { state: stateString, setState: setState, focus: function () { if (creation) { creation.focus(); return; } var selected = selectionNote && lastCreated && list.querySelector('[data-chat="' + CSS.escape(lastCreated) + '"][aria-selected="true"]'); if (selected) { selected.tabIndex = -1; selected.focus(); } else find.focus(); },
+    return { state: stateString, setState: setState, focus: function () { if (creation) { creation.focus(); return; } var selected = selectionNote && lastCreated && list.querySelector('[data-chat="' + CSS.escape(lastCreated) + '"][aria-selected="true"]'); if (selected && window.pudlListbox) { window.pudlListbox.activate(list, lastCreated); list.focus(); } else find.focus(); },
       destroy: function () { disposed = true; if (creation) creation.destroy(); listeners.delete(redraw); stopChats(); } };
   } });
 
