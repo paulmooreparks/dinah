@@ -174,7 +174,10 @@
   // colour; the word says the outcome as well.
   var OUTCOMES = {
     allowed: { kind: 'positive', word: function (r) { return 'Read, ' + window.dinahHelpers.fmtSize(r.bytes || 0); } },
-    denied: { kind: 'danger', word: function (r) { return 'Refused' + (r.reason ? ': ' + r.reason : ''); } },
+    // A refused row may stand for several refusals of the same chat, rule
+    // and source; its path and time are the latest, and count says how
+    // many (provider-file-reads.md). No count means one.
+    denied: { kind: 'danger', word: function (r) { return 'Refused' + (r.count > 1 ? ' ' + r.count + ' times' : '') + (r.reason ? ': ' + r.reason : ''); } },
     error: { kind: 'warn', word: function (r) { return 'Failed' + (r.reason ? ': ' + r.reason : ''); } },
     'policy-change': { kind: '', word: function (r) { return r.reason || 'The places changed'; } }
   };
@@ -184,6 +187,7 @@
     var t = document.createElement('time'); window.dinahRegional.stamp(t, r.at, 'dayTime'); when.append(t);
     chat.textContent = r.outcome === 'policy-change' ? 'You' : (r.chatTitle || r.chat || '');
     place.className = 'file-access-place'; place.textContent = r.path || '';
+    if (r.count > 1) place.title = 'The latest of ' + r.count + ' refused reads';
     var o = OUTCOMES[r.outcome] || OUTCOMES.error, badge = document.createElement('span');
     badge.className = 'badge' + (o.kind ? ' ' + o.kind : ''); badge.textContent = o.word(r);
     what.append(badge);

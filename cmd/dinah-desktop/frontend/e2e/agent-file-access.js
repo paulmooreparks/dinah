@@ -25,6 +25,7 @@ const { launch } = require('./lib/page');
       ] };
       const rows = [];
       for (let i = 80; i >= 1; i--) rows.push({ id: i, at: new Date(Date.UTC(2026, 10, 2, 3, 0, 0) - (80 - i) * 60000).toISOString(), chat: i % 2 ? 'chat-a' : 'chat-b', chatTitle: i % 2 ? 'Release Notes' : 'Parser Fix', workspace: 'C:/Fixture', path: 'C:/Other/file' + i + '.txt', bytes: i % 5 ? 2048 : 0, outcome: i % 5 ? 'allowed' : 'denied', ruleID: i % 5 ? '' : 'd1', reason: i % 5 ? '' : 'Your SSH keys' });
+      rows.find(r => r.id === 75).count = 3;
       window.__rows = rows;
       const copy = v => JSON.parse(JSON.stringify(v));
       const stale = v => { if (v !== __policy.version) throw new Error('the policy version is stale: it changed'); };
@@ -128,6 +129,8 @@ const { launch } = require('./lib/page');
     ok('refused reads are acknowledged for each chat through its newest one shown', acks.some(a => a[1] === 'chat-a' && a[2] === 75) && acks.some(a => a[1] === 'chat-b' && a[2] === 80), JSON.stringify(acks));
     // PUDL's status badge draws its kind's glyph before the word.
     const outcome = await p.evaluate(() => { const look = b => [b.className, b.textContent, getComputedStyle(b, '::before').getPropertyValue('--glyph').trim(), getComputedStyle(b).backgroundColor, b.querySelectorAll('.glyph').length]; return { denied: look(document.querySelector('#file-access-log tr[data-read="80"] .badge')), allowed: look(document.querySelector('#file-access-log tr[data-read="79"] .badge')) }; });
+    const summed = await p.evaluate(() => { const r = document.querySelector('#file-access-log tr[data-read="75"]'); return [r.querySelector('.badge').textContent, r.querySelector('.file-access-place').title]; });
+    ok('a refused row that sums several says how many, and its path is the latest', /^Refused 3 times/.test(summed[0]) && /latest of 3/.test(summed[1]), JSON.stringify(summed));
     ok('each outcome is one PUDL glyph, a colour and a word', /danger/.test(outcome.denied[0]) && /Refused/.test(outcome.denied[1]) && /positive/.test(outcome.allowed[0]) && /Read, 2\.0 KB/.test(outcome.allowed[1]) && outcome.denied[2] && outcome.allowed[2] && outcome.denied[2] !== outcome.allowed[2] && outcome.denied[3] !== outcome.allowed[3] && outcome.denied[4] === 0 && outcome.allowed[4] === 0, JSON.stringify(outcome));
 
     // Filters write the address, and an address brings them back.
