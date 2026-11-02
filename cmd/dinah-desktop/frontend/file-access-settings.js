@@ -115,7 +115,8 @@
   // reads the policy again and says so; any other failure is reported.
   function changed(p, done) { policy = p; drawRules(); status('file-access-status', done); }
   function refused(error) {
-    if (stale(error)) { loadPolicy(); status('file-access-status', 'The places changed in another window. The list shows them as they are now.'); return; }
+    loadPolicy();
+    if (stale(error)) { status('file-access-status', 'The places changed in another window. The list shows them as they are now.'); return; }
     status('file-access-status', message(error, true), true);
   }
   function setDefault(rule, enabled, control) {
@@ -249,15 +250,31 @@
     var scroller = $('file-access-log').closest('.settings-panel') || document.scrollingElement;
     return first.getBoundingClientRect().top >= scroller.getBoundingClientRect().top - 1;
   }
-  function arrived(r) {
-    if (!mounted || $('settings-file-access').hidden || !r || !matches(r) || rows.some(function (x) { return x.id === r.id; })) return;
-    if (atTop() && !waiting) {
-      rows.unshift(r);
-      $('file-access-log').tBodies[0].prepend(logRow(r));
-      $('file-access-empty').hidden = true;
-      drawChats();
-      acknowledge([r]);
-    } else { waiting++; drawWaiting(); }
+  /* Go says only that the log has new rows (file-access:read), so the page
+     reads the newest page under the same filters and takes the rows newer
+     than the newest it shows. One read at a time; an event during it is
+     caught by the next. */
+  var catching = null, again = false;
+  function arrived() {
+    if (!mounted || $('settings-file-access').hidden) return;
+    if (catching) { again = true; return; }
+    var newest = rows.length ? rows[0].id : 0, mine = logRequest;
+    catching = Promise.resolve(app().FileAccessLog({ chat: filter.chat, since: sinceTime(), outcome: filter.outcome, before: 0, limit: PAGE })).then(function (page) {
+      if (mine !== logRequest) return;
+      var fresh = ((page && page.rows) || []).filter(function (r) { return r.id > newest && matches(r); });
+      if (!fresh.length) return;
+      if (atTop() && !waiting) {
+        rows = fresh.concat(rows);
+        var body = $('file-access-log').tBodies[0];
+        fresh.slice().reverse().forEach(function (r) { body.prepend(logRow(r)); });
+        $('file-access-empty').hidden = true;
+        drawChats();
+        acknowledge(fresh);
+      } else { waiting = fresh.length; drawWaiting(); }
+    }).catch(function () {}).then(function () {
+      catching = null;
+      if (again) { again = false; arrived(); }
+    });
   }
 
   /* ---- Mounting ---- */
@@ -282,7 +299,8 @@
       loadLog().then(function () { $('file-access-log').scrollIntoView({ block: 'nearest' }); });
     });
     window.dinahHost.on('file-access:read', arrived);
-    window.dinahHost.on('file-access:policy', function (e) { if (policy && e && e.version !== policy.version) loadPolicy(); });
+    // The policy event carries the new version.
+    window.dinahHost.on('file-access:policy', function (version) { if (policy && version !== policy.version) loadPolicy(); });
   }
   function shown(part) {
     if (!$('settings-file-access')) return;

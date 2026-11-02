@@ -113,6 +113,11 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => /changed in another window/.test(document.getElementById('file-access-status').textContent));
     ok('a stale change says the places changed elsewhere and shows them as they are', (await rules.locator('[data-rule="d1"] [role="switch"]').getAttribute('aria-checked')) === 'true');
 
+    // A change made elsewhere arrives as the policy's new version.
+    await p.evaluate(() => { __policy.version++; __policy.rules.push({ id: 'c99', kind: 'custom', pattern: 'F:/Elsewhere', reason: 'Added by you.', resolvedPaths: ['F:/Elsewhere'], actions: ['remove'] }); __emit('file-access:policy', __policy.version); });
+    await rules.locator('[data-rule="c99"]').waitFor();
+    ok('a policy change made elsewhere redraws the list', true);
+
     // The log: newest first, a page at a time, refused reads acknowledged.
     const firstPage = await p.evaluate(() => [...document.querySelectorAll('#file-access-log tbody tr')].map(r => +r.dataset.read));
     ok('the log shows the newest page first', firstPage.length === 50 && firstPage[0] === 80 && firstPage[49] === 31, JSON.stringify([firstPage.length, firstPage[0], firstPage[49]]));
@@ -142,7 +147,7 @@ const { launch } = require('./lib/page');
     // A read arriving at the top is added there.
     const newest = id => ({ id, at: new Date().toISOString(), chat: 'chat-a', chatTitle: 'Release Notes', workspace: 'C:/Fixture', path: 'C:/Other/new' + id + '.txt', bytes: 10, outcome: 'allowed' });
     await p.locator('#settings-file-access').evaluate(el => { el.scrollTop = 0; });
-    await p.evaluate(r => { __rows.unshift(r); __emit('file-access:read', r); }, newest(81));
+    await p.evaluate(r => { __rows.unshift(r); __emit('file-access:read', null); }, newest(81));
     await p.waitForFunction(() => document.querySelector('#file-access-log tbody tr').dataset.read === '81');
     ok('a read arriving while the reader is at the top is added there', await p.locator('#file-access-newer').isHidden());
     // A read arriving while the reader is further down moves nothing.
@@ -150,7 +155,7 @@ const { launch } = require('./lib/page');
     await p.locator('#settings-file-access').evaluate(el => { el.scrollTop += 200; });
     const still = () => p.evaluate(() => [...document.querySelectorAll('#file-access-log tbody tr')].slice(20, 40).map(r => Math.round(r.getBoundingClientRect().top)));
     const boxes = await still();
-    await p.evaluate(r => { __rows.unshift(r); __emit('file-access:read', r); }, newest(82));
+    await p.evaluate(r => { __rows.unshift(r); __emit('file-access:read', null); }, newest(82));
     await p.waitForFunction(() => !document.getElementById('file-access-newer').hidden);
     ok('a read arriving further down moves no row and is counted', JSON.stringify(await still()) === JSON.stringify(boxes) && /1 Newer Read/.test(await p.textContent('#file-access-newer')), JSON.stringify({ boxes, after: await still() }));
     await p.locator('#file-access-newer').click();
