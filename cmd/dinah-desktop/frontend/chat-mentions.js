@@ -126,15 +126,10 @@
       pop.sel = Math.max(0, kept);
       if (!items.length) {
         pop.items = [];
-        var host = $('slash-pop');
-        var note = document.createElement('p');
-        note.className = 'form-help menu-note';
-        note.textContent = appletCatalogState === 'loading' ? 'Loading applets…'
+        window.dinahMentionList.draw($('slash-pop'), [], 0, null, { notes: [appletCatalogState === 'loading' ? 'Loading applets…'
           : appletCatalogState === 'failed' ? 'Applet actions could not be loaded. Choose Add > Windows and Applets to retry.'
           : scope === 'applets' ? 'No matching applets are available.'
-          : 'Nothing matches. Search for a window, an applet, an open document or another chat.';
-        host.replaceChildren(note);
-        host.hidden = false;
+          : 'Nothing matches. Search for a window, an applet, an open document or another chat.'] });
         return;
       }
       drawPop();
@@ -173,46 +168,20 @@
     }
     function drawPop() {
       var host = $('slash-pop');
-      host.innerHTML = '';
       if (pop.mode === 'mention') {
-        var group = '';
-        pop.items.forEach(function (it, n) {
-          if (it.group !== group) {
-            group = it.group;
-            var h = document.createElement('div');
-            h.className = 'md-section-label';
-            h.textContent = group;
-            host.appendChild(h);
-          }
-          var r = document.createElement('div');
-          r.className = 'md-row skill-row mention-row';
-          r.setAttribute('role', 'option');
-          if (n === pop.sel) r.setAttribute('aria-selected', 'true');
-          r.innerHTML = '<a class="md-item" href="#"><span class="mention-name"></span><span class="md-meta"></span></a>';
-          r.querySelector('.mention-name').textContent = it.label;
-          if (it.state) r.firstChild.appendChild(window.dinahChatState.badge(it.state));
-          r.querySelector('.md-meta').textContent = it.meta;
-          r.firstChild.addEventListener('mousedown', function (e) { e.preventDefault(); });
-          r.firstChild.addEventListener('click', function (e) { e.preventDefault(); pickMention(it, pop.tok); });
-          host.appendChild(r);
-        });
+        var items = pop.items.map(function (it) { return { group: it.group, label: it.label, meta: it.meta, badge: it.state ? window.dinahChatState.badge(it.state) : null }; });
         // The windows are listed while the applets are still loading, or
         // could not be; that is said under them.
-        if (appletCatalogState !== 'ready') {
-          var note = document.createElement('p');
-          note.className = 'form-help menu-note';
-          note.textContent = appletCatalogState === 'loading' ? 'Loading applets…' : 'Applet actions could not be loaded. Choose Add > Windows and Applets to retry.';
-          host.appendChild(note);
-        }
-      } else {
-        templateRows(host, adapter.templates().filter(function (t) { return pop.items.indexOf('tpl:' + t.name) >= 0; }), function (name) { insertTemplate(name, pop.tok); }, pop.items[pop.sel]);
-        skillRows(host, adapter.skills().filter(function (s) { return pop.items.indexOf(s.name) >= 0; }), function (name) { insertSkill(name, pop.tok); }, pop.items[pop.sel]);
+        var notes = appletCatalogState === 'ready' ? [] : [appletCatalogState === 'loading' ? 'Loading applets…' : 'Applet actions could not be loaded. Choose Add > Windows and Applets to retry.'];
+        window.dinahMentionList.draw(host, items, pop.sel, function (n) { pickMention(pop.items[n], pop.tok); }, { notes: notes, hint: 'Enter or Tab adds · Up and Down choose · Esc closes' });
+        return;
       }
+      host.innerHTML = '';
+      templateRows(host, adapter.templates().filter(function (t) { return pop.items.indexOf('tpl:' + t.name) >= 0; }), function (name) { insertTemplate(name, pop.tok); }, pop.items[pop.sel]);
+      skillRows(host, adapter.skills().filter(function (s) { return pop.items.indexOf(s.name) >= 0; }), function (name) { insertSkill(name, pop.tok); }, pop.items[pop.sel]);
       var hint = document.createElement('div');
       hint.className = 'slash-hint';
-      hint.textContent = pop.mode === 'mention'
-        ? 'Enter or Tab adds · Up and Down choose · Esc closes'
-        : 'Enter or Tab inserts · Up and Down choose · Esc closes · type \\/ for a plain slash';
+      hint.textContent = 'Enter or Tab inserts · Up and Down choose · Esc closes · type \\/ for a plain slash';
       host.appendChild(hint);
       host.hidden = false;
       var cur = host.querySelector('[aria-selected="true"]');
@@ -238,15 +207,16 @@
       if ($('slash-pop').hidden || !pop.tok) return;
       var n = pop.items.length;
       if (!n && e.key !== 'Escape') return;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        pop.sel = (pop.sel + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+      var action = window.dinahMentionList.key(e);
+      if (action === 'down' || action === 'up') {
+        pop.sel = window.dinahMentionList.step(pop.sel, n, action);
         drawPop();
-      } else if ((e.key === 'Enter' && !e.ctrlKey && !e.metaKey) || e.key === 'Tab') {
+      } else if (action === 'pick') {
         var it = pop.items[pop.sel];
         if (pop.mode === 'mention') pickMention(it, pop.tok);
         else if (it.indexOf('tpl:') === 0) insertTemplate(it.slice(4), pop.tok);
         else insertSkill(it, pop.tok);
-      } else if (e.key === 'Escape') {
+      } else if (action === 'close') {
         hidePop();
       } else {
         return;
