@@ -19,8 +19,9 @@
 // expected count, then pauses `pause` milliseconds and counts them all
 // again, and the second count decides. A doubled, cleared or late element
 // fails, while a frame caught mid-draw does not. On failure, detail holds
-// each count and the text of up to ten of each locator's elements, so the
-// log of a failed run says what the page showed. Absence is an expected
+// each count and, for up to ten of each locator's elements, its text, its
+// tag and classes, the row or view it is in and whether it is shown, so the
+// log of a failed run says what the page showed and where. Absence is an expected
 // count of 0, judged the same way.
 async function settled(page, expected, { within = 5000, pause = 500 } = {}) {
   const names = Object.keys(expected);
@@ -42,8 +43,19 @@ async function settled(page, expected, { within = 5000, pause = 500 } = {}) {
   if (ok) return { ok, counts: seen, detail: undefined };
   const report = {};
   for (const name of names) {
-    const texts = await expected[name][0].evaluateAll(els => els.slice(0, 10).map(el => (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80)));
-    report[name] = { expected: expected[name][1], counted: seen[name], text: texts };
+    // Each element's text and where it is: its tag and classes, its nearest
+    // row or view, and whether it is shown, so two matches with the same
+    // words can be told apart.
+    const found = await expected[name][0].evaluateAll(els => els.slice(0, 10).map(el => {
+      const where = el.closest('[data-view-id], .activity-row, [data-win]');
+      return {
+        text: (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+        element: el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : ''),
+        within: where ? where.tagName.toLowerCase() + (where.dataset.viewId ? '[data-view-id=' + where.dataset.viewId + ']' : where.className ? '.' + String(where.className).trim().split(/\s+/)[0] : '') : '',
+        shown: el.getClientRects().length > 0
+      };
+    }));
+    report[name] = { expected: expected[name][1], counted: seen[name], text: found.map(f => f.text), elements: found };
   }
   return { ok, counts: seen, detail: JSON.stringify(report) };
 }
