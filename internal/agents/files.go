@@ -75,8 +75,10 @@ func WriteTextFile(l layout.Layout, path, content string, managedRoots ...string
 		return err
 	}
 	for _, managed := range managedRoots {
-		if l.Managed(managed) && layout.Inside(managed, path) && !layout.SamePath(path, resolved) {
-			return errors.New("a managed workspace write must not redirect through a symbolic link")
+		if l.Managed(managed) && layout.Inside(managed, path) {
+			if err := unredirectedPath(path); err != nil {
+				return err
+			}
 		}
 	}
 	return writeIdentityFile(l, resolved, content, managedRoots)
