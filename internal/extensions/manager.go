@@ -44,6 +44,7 @@ type scope struct {
 	cancel      context.CancelFunc
 	workspace   extension.Workspace
 	permissions []string
+	environment []string
 	extensionID string
 	effect      string
 }
@@ -209,7 +210,7 @@ func (m *Manager) session(ctx context.Context, v extension.Installation) (*proce
 	}
 	cmd := exec.Command(filepath.Join(m.Store.Path(v.Manifest), filepath.FromSlash(backend)))
 	cmd.Dir = m.Store.Path(v.Manifest)
-	cmd.Env = cleanEnvironment(os.Environ())
+	cmd.Env = cleanEnvironment(os.Environ(), v.Manifest.Environment...)
 	cmd.Stderr = &limitedBuffer{limit: 64 << 10}
 	hideProcess(cmd)
 	if err := procjob.TieRequired(os.Getpid()); err != nil {
@@ -233,18 +234,6 @@ func (m *Manager) session(ctx context.Context, v extension.Installation) (*proce
 	p.session = session
 	p.signature = v.Manifest.Signature
 	return p, session, nil
-}
-func cleanEnvironment(env []string) []string {
-	out := []string{}
-	for _, entry := range env {
-		key, _, _ := strings.Cut(entry, "=")
-		key = strings.ToUpper(key)
-		if strings.HasPrefix(key, "DINAH_") || strings.Contains(key, "API_KEY") || strings.HasSuffix(key, "_TOKEN") {
-			continue
-		}
-		out = append(out, entry)
-	}
-	return out
 }
 func validateTools(manifest extension.Manifest, result *mcp.ListToolsResult) error {
 	if result.NextCursor != "" || len(result.Tools) != len(manifest.Actions) {
@@ -375,7 +364,7 @@ func (m *Manager) callTool(ctx context.Context, id, action, workspace string, in
 		m.mu.Unlock()
 		return nil, nil, errors.New("extension installation is changing")
 	}
-	m.scopes[token] = scope{ctx: callCtx, cancel: cancel, workspace: ws, permissions: spec.Permissions, extensionID: id, effect: spec.Effect}
+	m.scopes[token] = scope{ctx: callCtx, cancel: cancel, workspace: ws, permissions: spec.Permissions, environment: append([]string(nil), v.Manifest.Environment...), extensionID: id, effect: spec.Effect}
 	url := m.url
 	m.mu.Unlock()
 	defer func() { m.mu.Lock(); delete(m.scopes, token); m.mu.Unlock() }()

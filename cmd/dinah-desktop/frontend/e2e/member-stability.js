@@ -23,19 +23,24 @@ const path = require('path');
  try {
   const key=await p.evaluate(()=>dinahWorkbench.open({kind:'bus-room',path:'stable'}));
   const win=p.locator('[data-win="'+key+'"]');
-  await win.locator('[data-group-member="bus-alpha"] button').waitFor();
+  // The members are rows of the group's Members dropdown (f22f9b5): each row
+  // has the button that opens the chat and the … button that opens its menu.
+  const members=win.getByRole('button',{name:/^Members/}), panel=win.locator('.members-menu:popover-open');
+  await members.waitFor();
   await win.locator('[data-win-action="maximize"]').click();
   const tokens=await p.evaluate(()=>['2xs','xs','sm','md','base','lg','xl','2xl','3xl'].map(s=>['--text-'+s,getComputedStyle(document.documentElement).getPropertyValue('--text-'+s)]));
   for(const theme of ['light','dark']) for(const width of [1440,700,390]) for(const scale of [1,2]) {
    await p.setViewportSize({width,height:1000});
    await p.evaluate(({theme,tokens,scale})=>{pudlSetTheme(theme);tokens.forEach(([name,value])=>document.documentElement.style.setProperty(name,parseFloat(value)*scale+'px'));__memberStep('idle');__memberBudget(9);},{theme,tokens,scale});
    await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(r)))));
-   const button=win.locator('[data-group-member="bus-alpha"] button');
+   if(await panel.count()===0) await members.click();
+   await panel.locator('[data-group-member="bus-alpha"]').waitFor();
+   const button=win.locator('[data-group-member="bus-alpha"] .member-menu-btn');
    await button.focus();
    const trace=await p.evaluate(async(key)=>{
-    const root=document.querySelector('[data-win="'+key+'"]'), first=root.querySelector('[data-group-member="bus-alpha"] button');
-    const buttons=[...root.querySelectorAll('.member-menu-btn')];
-    function sample(){return [...root.querySelectorAll('.group-member-shell,.member-chip,.member-menu-btn,.group-composer,.bus-log')].map((el,i)=>{const r=el.getBoundingClientRect();return {key:el.dataset.groupMember||el.id||el.className+'|'+i,x:r.x,y:r.y,w:r.width,h:r.height};});}
+    const root=document.querySelector('[data-win="'+key+'"]'), first=root.querySelector('[data-group-member="bus-alpha"] .member-menu-btn');
+    const buttons=[...root.querySelectorAll('.member-menu-btn,.member-open')];
+    function sample(){return [...root.querySelectorAll('.group-member-shell,.members-menu,.member-row,.member-open,.member-state-slot,.member-menu-btn,.group-composer,.bus-log')].map((el,i)=>{const r=el.getBoundingClientRect();return {key:el.dataset.groupMember||el.id||el.className+'|'+i,x:r.x,y:r.y,w:r.width,h:r.height};});}
     const before=sample(), samples=[], failures=[];
     for(const state of ['working','waiting','stuck','idle','closed','retired','elsewhere','unknown','background']) {
      __memberStep(state);
@@ -44,10 +49,16 @@ const path = require('path');
       now.forEach((r,i)=>{const b=before[i];if(!b||r.key!==b.key||['x','y','w','h'].some(k=>Math.abs(r[k]-b[k])>.02))failures.push({state,frame,before:b,after:r});});
       if(document.activeElement!==first||buttons.some(b=>!b.isConnected))failures.push({state,frame,focus:'member controls were replaced or focus was lost'});
      }
-     const mark=root.querySelector('[data-group-member="bus-alpha"] .member-state'), expected=['closed','retired','elsewhere'].includes(state)?'chat-lifecycle':'chat-state-'+(state==='background'?'idle':state);
+     // The shown chip is the one in the row's slot that is not a hidden reserve copy (c8031ec); its glyph is PUDL's execution-state badge's ::before (70e4a94).
+     const mark=root.querySelector('[data-group-member="bus-alpha"] .member-state-chip > .badge:not(.chat-state-reserve)'), expected=['closed','retired','elsewhere'].includes(state)?'chat-lifecycle':'chat-state-'+(state==='background'?'idle':state);
+     if(!mark){failures.push({state,painted:null,expected});continue;}
      if(!mark.classList.contains(expected))failures.push({state,painted:mark.className,expected});
-     if(state==='background'&&!mark.title.includes('No window'))failures.push({state,detail:mark.title});
-     const glyph=mark.querySelector('.glyph');if(glyph&&glyph.getBoundingClientRect().width<16)failures.push({state,glyphWidth:glyph.getBoundingClientRect().width});
+     const open=root.querySelector('[data-group-member="bus-alpha"] .member-open');
+     if(state==='background'&&!open.title.includes('No window'))failures.push({state,detail:open.title});
+     // The glyph is drawn at PUDL's badge glyph size (--glyph-size, 9px in PUDL 0.96.4), the title chip's, and is never squeezed below it.
+     const pseudo=getComputedStyle(mark,'::before'), glyph=pseudo.content!=='none'&&mark.dataset.state?parseFloat(pseudo.width):0, size=parseFloat(getComputedStyle(mark).getPropertyValue('--glyph-size'));
+     if(glyph&&!(glyph>=size-.02))failures.push({state,glyphWidth:glyph,glyphSize:size});
+     if(mark.dataset.state&&!glyph)failures.push({state,missingGlyph:true});
      if(!glyph&&mark.scrollHeight>mark.clientHeight+1)failures.push({state,clippedLifecycle:true});
      if(root.querySelector('.group-aggregate')||!root.querySelector('.group-state-chip .chat-state')?.getAttribute('aria-label'))failures.push({state,aggregate:'missing title status or duplicate body status'});
     }

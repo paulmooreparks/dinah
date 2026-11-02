@@ -243,7 +243,7 @@ func (m *Manager) hostCall(ctx context.Context, s scope, tool string, raw json.R
 		cmd := exec.CommandContext(ctx, in.Program, in.Args...)
 		cmd.WaitDelay = 2 * time.Second
 		cmd.Dir = cwd
-		cmd.Env = cleanEnvironment(os.Environ())
+		cmd.Env = cleanEnvironment(os.Environ(), s.environment...)
 		cmd.Stdin = strings.NewReader(in.Stdin)
 		out, stderr := &limitedBuffer{limit: 2 << 20}, &limitedBuffer{limit: 2 << 20}
 		cmd.Stdout, cmd.Stderr = out, stderr

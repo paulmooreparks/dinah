@@ -24,12 +24,43 @@
   var C = { reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m', inverse: '\x1b[7m', red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', blue: '\x1b[34m', cyan: '\x1b[36m' };
   function strip(s) { return String(s).replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ''); }
   function paint(color, s) { return C[color] + s + C.reset; }
+  /* Marks that take no room on the screen but change what the reader sees:
+     zero-width characters, the left-to-right and right-to-left marks, line
+     and paragraph separators, the byte order mark, and the directional
+     embeddings, overrides and isolates. Each is shown as its code point,
+     such as <U+200B>, so text cannot hide a character or reorder itself. */
+  var MARKS = /[\u200b-\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]/g;
+  function marks(s) { return s.replace(MARKS, function (c) { return '<U+' + c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') + '>'; }); }
   /* Text that comes from a document or a person, which must not reach the
-     screen as control sequences: escape becomes a visible symbol, and other
-     control and bidirectional characters are dropped. */
+     screen as control sequences: escape becomes a visible symbol, invisible
+     marks are shown as their code points, and other control characters are
+     dropped. */
   function safe(value) {
-    return String(value == null ? '' : value).replace(/\r\n?/g, '\n').replace(/\x1b/g, '\u241b')
-      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g, '');
+    return marks(String(value == null ? '' : value).replace(/\r\n?/g, '\n').replace(/\x1b/g, '\u241b')
+      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, ''));
+  }
+  /* Text on its way to the screen as the terminal's output, and the saved
+     transcript when it is shown again. Only the colour and emphasis
+     sequences of Select Graphic Rendition (ECMA-48) that the Terminal and
+     scripts use pass: reset, bold, dim, italic, underline, inverse, their
+     resets, and the sixteen colours. Any other escape is shown as the
+     visible symbol safe() uses, invisible marks are shown as their code
+     points, and every other control character is dropped apart from line
+     breaks and tabs. This is the last barrier: whichever path text took, it
+     cannot move the cursor, rewrite an earlier line, set the title or the
+     clipboard, or hide itself. */
+  var SGR = /^\x1b\[([\d;]{0,48})m/, STYLE = /^(0|1|2|3|4|7|22|23|24|27|3[0-7]|39|4[0-7]|49|9[0-7]|10[0-7])$/;
+  function inert(value) {
+    var s = String(value == null ? '' : value).replace(/\r\n?/g, '\n'), out = '', i = 0;
+    while (i < s.length) {
+      var at = s.indexOf('\x1b', i);
+      if (at < 0) { out += s.slice(i); break; }
+      out += s.slice(i, at);
+      var m = SGR.exec(s.slice(at, at + 52));
+      if (m && m[1].split(';').every(function (p) { return STYLE.test(String(+p)); })) { out += m[0]; i = at + m[0].length; }
+      else { out += '\u241b'; i = at + 1; }
+    }
+    return marks(out.replace(/[\x00-\x08\x0b-\x1a\x1c-\x1f\x7f-\x9f]/g, ''));
   }
 
   /* === Words ===============================================================
@@ -279,7 +310,7 @@
       io.out(paint('bold', productName() + ' Terminal.') + ' Your workspaces are in /workspaces, and ~ is your own folder.\n');
       Object.keys(COMMANDS).sort().forEach(function (k) { io.out('  ' + paint('green', k.padEnd(11)) + named(COMMANDS[k].summary) + '\n'); });
       var tools = io.tools();
-      if (tools.length) { io.out('\n' + paint('bold', 'Tools and applets') + '\n'); tools.forEach(function (t) { io.out('  ' + paint('green', t.name.padEnd(11)) + (t.description || '') + '\n'); }); }
+      if (tools.length) { io.out('\n' + paint('bold', 'Tools and applets') + '\n'); tools.forEach(function (t) { io.out('  ' + paint('green', safe(t.name).padEnd(11)) + safe(t.description || '') + '\n'); }); }
       io.out('\n' + wrap('Local folders and ~ can be changed, and "edit -g" opens a file in the Editor. Tab completes, the arrow keys recall earlier commands, | pipes one command into another, > and >> save output in a file, and ;, && and || join commands. A script runs by its path, or by its name from ~/bin or /bin, where ' + productName() + ' keeps its standard scripts; yours come first. Scripts are Terminal commands, or Lua 5.4 ("man lua").', io.cols - 1) + '\n');
       if (io.listBin) {
         var standard = await io.listBin();
@@ -296,7 +327,7 @@
       var c = COMMANDS[args[0]];
       if (c) { io.out(paint('bold', c.name) + ' - ' + named(c.summary) + '\n\n' + wrap(named(c.help), io.cols - 1) + '\n'); return; }
       var tool = io.tools().find(function (t) { return t.name === args[0]; });
-      if (tool) { io.out(paint('bold', tool.name) + ' - ' + (tool.description || 'a tool') + '\n\n' + (tool.usage || tool.name) + '\n'); return; }
+      if (tool) { io.out(paint('bold', safe(tool.name)) + ' - ' + safe(tool.description || 'a tool') + '\n\n' + safe(tool.usage || tool.name) + '\n'); return; }
       var script = await io.findScript(args[0]);
       if (!script) { io.err('man: no entry for ' + args[0]); return 1; }
       var text = await io.read(script.path);
@@ -305,7 +336,7 @@
   });
 
   function styledName(e, label) {
-    var name = label || nameOf(e.path);
+    var name = safe(label || nameOf(e.path));
     if (e.directory) return paint('blue', C.bold + name) + '/';
     if (/\.(sh|lua)$/.test(name) || /^\/bin\/[^/]+$/.test(e.path || '')) return paint('green', name) + '*';
     return name;
@@ -856,9 +887,10 @@
     function save() { if (window.dinahUIState && item.instanceId) dinahUIState.set(key, { cwd: cwd, ref: cwdRef, homeRef: homeRef, history: history.slice(-MAX_HISTORY), output: output.slice(-MAX_OUTPUT), fontSize: explicitFontSize ? fontSize : undefined, env: env }); }
     function announce() { root.dataset.terminalCwd = cwd; if (opts.changed) opts.changed('cwd=' + encodeURIComponent(cwd)); save(); }
     /* write is for the terminal's own text, which may carry its own colours;
-       anything from a document or a person goes through safe first. */
+       anything from a document or a person goes through safe first, and
+       everything goes through inert. */
     function write(text) {
-      text = String(text);
+      text = inert(text);
       if (!altScreen) output = (output + text.replace(/\r\n?/g, '\n')).slice(-MAX_OUTPUT);
       term.write(text.replace(/\r?\n/g, '\r\n'));
       if (!altScreen) save();
@@ -1628,7 +1660,7 @@
       else if (data === '\x0b') line = line.slice(0, cursor);
       else if (data === '\x17') { var before = line.slice(0, cursor).replace(/\S+\s*$/, ''); line = before + line.slice(cursor); cursor = before.length; }
       else if (data === '\x0c') { term.clear(); term.write('\x1b[2J\x1b[H'); }
-      else if (data === '\x1b[A' || data === '\x1b[B') { if (histPos === history.length) draft = line; histPos = Math.max(0, Math.min(history.length, histPos + (data === '\x1b[A' ? -1 : 1))); line = histPos === history.length ? draft : history[histPos]; cursor = line.length; }
+      else if (data === '\x1b[A' || data === '\x1b[B') { if (histPos === history.length) draft = line; histPos = Math.max(0, Math.min(history.length, histPos + (data === '\x1b[A' ? -1 : 1))); line = histPos === history.length ? draft : safe(history[histPos]).replace(/[\n\t]/g, ' '); cursor = line.length; }
       else if (data === '\t') { var completionLine = line, completionCursor = cursor, completionGeneration = generation; complete().catch(function (error) { if (current(completionGeneration) && !busy && line === completionLine && cursor === completionCursor) { write('\n' + paint('red', safe('error: ' + message(error))) + '\n'); redraw(); } }); return; }
       else if (!data.startsWith('\x1b')) { insert(data); return; }
       redraw();
@@ -1682,9 +1714,10 @@
       // shell's too: xterm's custom key handler skips it.
       term.attachCustomKeyEventHandler(function (e) { return !e.defaultPrevented; });
       term.textarea.setAttribute('aria-label', 'Terminal Command');
-      // The saved transcript is the terminal's own text and what it showed,
-      // which was made safe when it was first written.
-      if (output) term.write(output.replace(/\n/g, '\r\n')); else write(paint('bold', productName() + ' Terminal.') + ' Type ' + paint('green', 'help') + ' for the commands; your own folder is ' + paint('blue', '~') + '.\n\n');
+      // The saved transcript is the terminal's own text and what it showed.
+      // It was made safe when it was first written, but it comes back from
+      // saved state, so it passes the same barrier again.
+      if (output) term.write(inert(output).replace(/\n/g, '\r\n')); else write(paint('bold', productName() + ' Terminal.') + ' Type ' + paint('green', 'help') + ' for the commands; your own folder is ' + paint('blue', '~') + '.\n\n');
       // Capture the owner before a source can be removed and its alias reused.
       var initialGeneration = generation;
       busy = true;

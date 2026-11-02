@@ -1,5 +1,6 @@
-// Teams retain ordinary chat controls and histories while the lead's window
-// shows the hierarchy and the bus's numbered state.
+// Teams retain ordinary chat controls and histories. The lead's Members
+// dropdown shows its direct reports and their states; the team group's Team
+// Report shows the hierarchy in detail, and its toolbar edits the allowances.
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({ viewport: { width: 1440, height: 1000 }, app: () => {
@@ -47,24 +48,45 @@ const { launch } = require('./lib/page');
     const leadKey = await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'lead' }));
     const lead = p.locator('[data-win="' + leadKey + '"]');
     await lead.locator('.chat-team').waitFor();
-    await lead.locator('.chat-team .team-toggle').click();
-    await lead.locator('[data-team-member="bus-builder"]').waitFor();
-    ok('the lead sees named state glyphs, reasons, task and provider usage', /Working/.test(await lead.locator('[data-team-member="bus-builder"] .team-state').getAttribute('aria-label')) && /Context full/.test(await lead.locator('[data-team-member="bus-held"]').innerText()) && /200 tokens/.test(await lead.locator('[data-team-member="bus-builder"]').innerText()));
-    const nested = lead.locator('[data-team-member="bus-nested"] > a');
+    // The lead's Members dropdown: its direct reports, each with its named state chip (f22f9b5).
+    const openMembers = async () => {
+      await p.evaluate(key => pudlWindows.raise(key), leadKey);
+      if (!(await lead.locator('.team-members:popover-open').count())) await lead.locator('.chat-team .team-toggle').click();
+      await lead.locator('.team-members:popover-open').waitFor();
+    };
+    const leadChip = id => lead.locator('.team-members [data-team-member="' + id + '"] .team-state > .badge.chat-state:not(.chat-state-reserve)');
+    await openMembers();
+    await lead.locator('.team-members [data-team-member="bus-builder"]').waitFor();
+    ok('the lead sees its direct reports\' named state glyphs and reasons, and retired members apart', /Working/.test(await leadChip('bus-builder').getAttribute('aria-label')) && /Context full/.test(await leadChip('bus-held').getAttribute('aria-label'))
+      && await lead.locator('.team-members .member-list[aria-label="Members"] [data-team-member]').count() === 3 && await lead.locator('.team-members [data-team-member="bus-child"]').count() === 0
+      && await lead.locator('.team-members .member-list[aria-label="Retired members"] [data-team-member="bus-retired"]').count() === 1);
+    await p.keyboard.press('Escape');
+    // Reasons, tasks, usage and allowances are the team group's Team Report (9f20613).
+    await p.evaluate(() => dinahBus.openGroup('team-room'));
+    const group = p.locator('.win[data-win-kind="bus-room"]');
+    const report = group.getByRole('button', { name: 'Team Report', exact: true });
+    const panel = p.locator('.team-report:popover-open');
+    await report.click();
+    await panel.locator('[data-team-member="bus-builder"] .team-task').waitFor();
+    ok('the Team Report shows named state glyphs, reasons, task and provider usage', /Working/.test(await panel.locator('[data-team-member="bus-builder"] > a .team-state > .badge.chat-state:not(.chat-state-reserve)').getAttribute('aria-label')) && /Context full/.test(await panel.locator('[data-team-member="bus-held"]').innerText()) && /200 tokens/.test(await panel.locator('[data-team-member="bus-builder"]').innerText()) && /Build the shared controls/.test(await panel.locator('[data-team-member="bus-builder"]').innerText()));
+    const nested = panel.locator('[data-team-member="bus-nested"] > a');
     await nested.focus(); await nested.press('ArrowLeft');
     ok('a nested team folds separately from its chat link', await nested.getAttribute('aria-expanded') === 'false');
     await nested.press('ArrowRight');
-    await lead.locator('[data-team-member="bus-child"]').waitFor();
-    ok('nested members show incomplete usage in words', /3 turns unmeasured/.test(await lead.locator('[data-team-member="bus-child"]').innerText()));
-    ok('retired members start folded, and the lead\'s title bar has no team chip', await lead.locator('.team-retired .tree').isHidden() && await lead.locator('.team-stuck-chip').count() === 0);
-    ok('allowances keep the provider unit and explain incomplete remaining usage', /Remaining usage is incomplete/.test(await lead.locator('.team-budget').textContent()) && await lead.locator('meter').count() === 1);
-    const taskFocus = lead.locator('[data-team-member="bus-builder"] .team-task');
+    await panel.locator('[data-team-member="bus-child"]').waitFor();
+    ok('nested members show incomplete usage in words', /3 turns unmeasured/.test(await panel.locator('[data-team-member="bus-child"]').innerText()));
+    ok('retired members are listed apart, and the lead\'s title bar has no team chip', await panel.locator('ul[aria-label="Retired members"] [data-team-member="bus-retired"]').count() === 1 && await panel.locator('ul[aria-label="Team members"] [data-team-member="bus-retired"]').count() === 0 && await lead.locator('.team-stuck-chip').count() === 0);
+    ok('allowances keep the provider unit and explain incomplete remaining usage', /Remaining usage is incomplete/.test(await panel.locator('.team-budget').textContent()) && await panel.locator('meter').count() === 1);
+    const taskFocus = panel.locator('[data-team-member="bus-builder"] .team-task');
     await taskFocus.focus();
     await p.evaluate(() => { __team.stateVer = 2; __team.members[0].usage[0].today = 250; __emit('team:state', structuredClone(__team)); });
-    await p.waitForFunction(() => document.querySelector('[data-team-member="bus-builder"] .team-usage').textContent.includes('250'));
+    await p.waitForFunction(() => document.querySelector('.team-report [data-team-member="bus-builder"] .team-usage').textContent.includes('250'));
     ok('live usage updates preserve keyboard focus on the assignment link', await taskFocus.evaluate(n => document.activeElement === n));
     await t.shot('teams-lead-light-focused');
-    await lead.getByRole('button', { name: 'Team Allowances', exact: true }).click();
+    await p.keyboard.press('Escape');
+    await panel.waitFor({ state: 'detached' });
+    const allowancesButton = group.getByRole('button', { name: 'Team Allowances…', exact: true });
+    await allowancesButton.click();
     const allowances = p.locator('.team-budget-dialog');
     await allowances.waitFor();
     ok('the allowance dialog has its accessible name', await p.getByRole('dialog', { name: 'Team Allowances', exact: true }).count() === 1);
@@ -73,18 +95,22 @@ const { launch } = require('./lib/page');
     await allowances.getByRole('button', { name: 'Save', exact: true }).click();
     await allowances.waitFor({ state: 'detached' });
     ok('a zero allowance is saved as a real limit', await p.evaluate(() => __teamCalls.some(c => c[0] === 'budget' && c[2].some(r => r.provider === 'codex' && r.allowance === 0))));
-    await lead.getByRole('button', { name: 'Team Allowances', exact: true }).click();
+    await allowancesButton.click();
     await codexAllowance.fill('');
     await allowances.getByRole('button', { name: 'Save', exact: true }).click();
     await allowances.waitFor({ state: 'detached' });
     ok('an empty allowance removes the limit', await p.evaluate(() => !__teamCalls.filter(c => c[0] === 'budget').at(-1)[2].some(r => r.provider === 'codex')));
 
-    await lead.locator('.team-budget').scrollIntoViewIfNeeded();
+    await report.click();
+    await panel.locator('.team-budget').scrollIntoViewIfNeeded();
     await t.shot('teams-allowances');
+    await p.keyboard.press('Escape');
+    await panel.waitFor({ state: 'detached' });
     await p.evaluate(() => { __emit('agent:session', { sessionId: 'builder', title: 'Builder', cwd: 'C:/Fixture', provider: 'codex', open: true, working: true, lead: { bus: 'bus-lead', chat: 'lead', title: 'Team Lead', group: 'team-room' } }); __emit('agent:update', { sessionId: 'builder', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Working in the background.' } } }); });
     await p.waitForFunction(() => document.querySelector('#applet-storage [data-team-member]'));
     ok('background member updates create no window or taskbar button', await p.locator('.win[data-win-kind="chat-session"]').count() === 1);
-    await lead.locator('[data-team-member="bus-builder"] > a').click();
+    await openMembers();
+    await lead.locator('.team-members [data-team-member="bus-builder"] .member-open').click();
     const builderKey = await p.evaluate(() => dinahWorkbench.key({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'builder' }));
     const member = p.locator('[data-win="' + builderKey + '"]');
     await member.locator('.team-member-note').waitFor();
@@ -93,7 +119,6 @@ const { launch } = require('./lib/page');
     await t.shot('teams-member');
     // The team draft survives and gains a mention, without being sent.
     await p.evaluate(() => dinahBus.openGroup('team-room'));
-    const group = p.locator('.win[data-win-kind="bus-room"]');
     await group.locator('textarea').fill('Existing draft text');
     await p.evaluate(() => dinahOpenChat('builder'));
     await member.locator('.team-member-note a').click();
@@ -102,16 +127,19 @@ const { launch } = require('./lib/page');
     ok('member and routed team composer have no bottom recipient panel', await member.locator('.group-notice-note, .group-routing-summary, .group-routing-details').count() === 0 && await group.locator('.group-composer .group-notice-note').count() === 0 && await group.locator('.group-toolbar .group-mention-everyone').isVisible());
     await group.locator('[data-bus-message="12"] .bus-relay-mark').waitFor();
     ok('a relayed group message says how it is addressed without a notification', /For Paul through Team Lead/.test(await group.locator('.bus-relay-mark').textContent()) && await p.evaluate(() => dinahHost.notices.list(e => e.data.notificationId).length) === 0);
-    await p.evaluate(key => pudlWindows.raise(key), leadKey);
-    await lead.locator('[data-team-member="bus-builder"] .team-task').click();
+    await p.evaluate(key => pudlWindows.raise(key), await group.getAttribute('data-win'));
+    await report.click();
+    await panel.locator('[data-team-member="bus-builder"] .team-task').click();
     await group.locator('[data-bus-message="11"].bus-target-message').waitFor();
     ok('the task link opens the assignment at its stable message address', JSON.parse(new URL(await p.url()).searchParams.get('view.' + await group.getAttribute('data-win'))).message === 11);
     await p.evaluate(() => { document.documentElement.dataset.theme = 'dark'; pudlWindows.raise(document.querySelector('.win[data-win-kind="chat-session"] .chat-team')?.closest('.win').dataset.win); });
     await t.shot('teams-lead-dark-focused');
     await p.evaluate(() => { document.documentElement.dataset.theme = 'light'; __team.stateVer = 3; __team.members[0].exec.state = 'idle'; __team.counts.working = 0; __team.counts.idle = 1; __emit('team:state', structuredClone(__team)); });
-    await lead.locator('[data-team-member="bus-builder"] .team-state.chat-state-idle').waitFor();
+    await openMembers();
+    await lead.locator('.team-members [data-team-member="bus-builder"] .team-state > .badge.chat-state-idle:not(.chat-state-reserve)').waitFor();
     await p.evaluate(() => { __team.stateVer = 2; __team.members[0].exec.state = 'working'; __emit('team:state', structuredClone(__team)); });
-    ok('an older team event cannot replace the live snapshot', /Idle/.test(await lead.locator('[data-team-member="bus-builder"] .team-state').getAttribute('aria-label')));
+    ok('an older team event cannot replace the live snapshot', /Idle/.test(await leadChip('bus-builder').getAttribute('aria-label')));
+    await p.keyboard.press('Escape');
 
     await p.evaluate(() => __emit('notifications:added', { id: 'relay-12', kind: 'relay', severity: 'warning', title: 'The lead could not relay the decision', body: 'A decision for Paul.', group: 'team-room', message: 12, lead: 'lead', details: ['The provider could not run.'] }));
     await p.evaluate(() => dinahWorkbench.open('needs-you'));

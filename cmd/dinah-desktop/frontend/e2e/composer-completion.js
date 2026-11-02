@@ -44,14 +44,18 @@ const { launch } = require('./lib/page');
     const group = page.locator('[data-win="' + groupKey + '"]'), box = group.locator('textarea');
     await box.fill('@Reviewer'); await box.press('End');
     await candidateVisible(group.locator('.mention-row').filter({ hasText: 'Reviewer' }).first(), 'group mention completion');
-    ok('the group candidate retains its shared state colour and background', await group.locator('.mention-row .chat-state-idle').first().evaluate(el => el.style.getPropertyValue('--chat-state-colour') === 'var(--text-muted)' && getComputedStyle(el).backgroundColor !== 'rgba(0, 0, 0, 0)'));
+    // The shared state chip is PUDL's execution-state badge, coloured by its data-state (2d0f96d).
+    ok('the group candidate retains its shared state colour and background', await group.locator('.mention-row .chat-state-idle').first().evaluate(el => el.dataset.state === 'idle' && getComputedStyle(el).backgroundColor !== 'rgba(0, 0, 0, 0)'));
     await t.shot('group-mention-visible');
     await box.press('ArrowDown'); await box.press('ArrowUp'); await box.press('Enter');
     ok('the keyboard selects the group mention', (await box.inputValue()).includes('@Reviewer '));
     await box.fill('A report for the group');
     ok('typing leaves the bottom composer free of routing panels', await group.locator('.group-notice-note, .group-routing-summary, .group-routing-details').count() === 0);
     await page.evaluate(() => __teamRouting(true));
-    await group.locator('.group-toolbar .group-mention-everyone').waitFor();
+    // A team group gains Team Report (9f20613); in this narrow window the
+    // folding toolbar (f22f9b5) puts the Group commands in its Group menu, so
+    // the team change is awaited by Team Report appearing, not by visibility.
+    await group.locator('.group-toolbar .group-team-report:not([hidden])').waitFor({ state: 'attached' });
     ok('team routing changes keep the explicit recipient action above the transcript', await group.locator('.group-toolbar .group-mention-everyone').count() === 1 && await group.locator('.group-composer .group-mention-everyone').count() === 0);
     await t.shot('team-composer-without-routing-panel');
   } finally { await t.close(); }

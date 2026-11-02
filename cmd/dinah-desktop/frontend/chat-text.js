@@ -219,7 +219,8 @@
      source until then. KaTeX is given no trust, so \href, \url and
      \includegraphics make no link and load nothing, and TeX it cannot read
      is shown as its source in the theme's danger colour rather than
-     stopping the message. Its HTML is made safe as any message's is. */
+     stopping the message. KaTeX draws into the element itself (see
+     typesetOne), and the message box contains what it draws. */
   var KATEX = 'vendor/katex-0.19.1/', katexState = '', waiting = [];
   function loadKatex() {
     if (katexState) return;
@@ -252,8 +253,14 @@
     var options = { displayMode: el.dataset.math === 'display', throwOnError: false, trust: false, strict: 'ignore', output: 'htmlAndMathml' };
     var color = errorColor();
     if (color) options.errorColor = color;
+    // KaTeX builds the math's elements itself, with the inline styles that
+    // place its parts, which the sanitizer removes from HTML. With trust
+    // off, KaTeX documents that the TeX cannot add a link, a picture, a
+    // class, an id, a data attribute or a style of its own (\href,
+    // \includegraphics, \htmlClass, \htmlId, \htmlData, \htmlStyle), and
+    // the message box contains the math's paint like everything else in it.
     try {
-      el.replaceChildren(window.dinahHTML.fragment(window.katex.renderToString(el.dataset.tex, options)));
+      window.katex.render(el.dataset.tex, el, options);
       el.dataset.typeset = '1';
     } catch (e) { /* The source stays shown. */ }
   }

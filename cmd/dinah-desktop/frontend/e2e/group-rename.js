@@ -33,7 +33,8 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => dinahBus.openGroup('release-review'));
     const room = p.locator('.win[data-win-kind="bus-room"]');
     await room.locator('textarea').waitFor();
-    await room.locator('.member-chip').first().waitFor();
+    // Members are rows in the Members dropdown (f22f9b5, 8bc2cc0), counted on its button.
+    await room.getByRole('button', { name: /^Members/ }).filter({ hasText: 'Members (1)' }).waitFor();
     /* The room window's commands answer from its Actions menu; the bar's own
        focus discipline at the last hop is PUDL's domain, so the suite presses
        the row's command as the bar's act() would, with the panel open and

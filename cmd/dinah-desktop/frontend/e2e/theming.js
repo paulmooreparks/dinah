@@ -52,15 +52,22 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
     // would have made its pink and purple pastel. Nord's corrected danger
     // color limits its dark deleted-line tint to 9 percent.
     const tints = await page.evaluate(() => Object.fromEntries(Object.entries(dinahAppearance.builtins).flatMap(([id, doc]) => ['light', 'dark'].map(m => [id + ' ' + m, dinahAppearance.diffTints(doc.palettes[m])]))));
-    const lower = { 'nord dark': { add: 10, del: 9 }, 'tokyo-night dark': { add: 9, del: 10 }, 'dracula dark': { add: 8, del: 10 } };
+    // The Bevel, Gel and Glaze companion themes (7616cf1, 1 November 2026)
+    // keep their reference syntax colours, so their dark added-line tints
+    // are what the rule allows: Bevel 7, Gel 9 and Glaze 9.5 percent.
+    const lower = { 'nord dark': { add: 10, del: 9 }, 'tokyo-night dark': { add: 9, del: 10 }, 'dracula dark': { add: 8, del: 10 },
+      'bevel dark': { add: 7, del: 10 }, 'gel dark': { add: 9, del: 10 }, 'glaze dark': { add: 9.5, del: 10 } };
     const tintsExpected = Object.entries(tints).every(([key, t]) => t.add === (lower[key]?.add ?? 10) && t.del === (lower[key]?.del ?? 10));
     ok('every built-in palette has the diff tints expected of it', tintsExpected);
     if (!tintsExpected) console.log(JSON.stringify(tints));
-    // Category colours (PUDL 0.91.0): all 22 built-in palettes set the
-    // eight, the check refuses one that breaks a rule, an old theme without
-    // them gets them, a copy of Nord getting Nord's, and in forced colours
-    // they are the reader's text colour.
-    ok('every built-in palette sets all eight category colours', await page.evaluate(() => Object.values(dinahAppearance.builtins).flatMap(doc => [doc.palettes.light, doc.palettes.dark]).filter(p => dinahAppearance.categoryKeys.every(k => /^#[0-9a-f]{6}$/i.test(p[k]))).length === 22));
+    // Category colours (PUDL 0.91.0): all 28 built-in palettes (the 14
+    // themes below, Bevel, Gel and Glaze added by 7616cf1) set the eight,
+    // the check refuses one that breaks a rule, an old theme without them
+    // gets them, a copy of Nord getting Nord's, and in forced colours they
+    // are the reader's text colour.
+    const builtinIds = ['mineral', 'linen', 'solarized', 'nord', 'gruvbox', 'graphite', 'one-dark-pro', 'dracula', 'catppuccin', 'tokyo-night', 'github', 'bevel', 'gel', 'glaze'];
+    ok('the built-in themes are the expected fourteen', await page.evaluate(ids => JSON.stringify(Object.keys(dinahAppearance.builtins)) === JSON.stringify(ids), builtinIds), await page.evaluate(() => JSON.stringify(Object.keys(dinahAppearance.builtins))));
+    ok('every built-in palette sets all eight category colours', await page.evaluate(() => Object.values(dinahAppearance.builtins).flatMap(doc => [doc.palettes.light, doc.palettes.dark]).filter(p => dinahAppearance.categoryKeys.every(k => /^#[0-9a-f]{6}$/i.test(p[k]))).length === 28));
     ok('the contrast check refuses a category colour that breaks a rule', await page.evaluate(() => {
       const doc = dinahAppearance.document('mineral'), failures = () => dinahAppearance.contrast(doc).join('; ');
       doc.palettes.light['category-1'] = doc.palettes.light.surface; const low = failures().includes('light category-1 needs 3:1');

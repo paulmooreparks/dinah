@@ -84,7 +84,7 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.waitForTimeout(200);
   ok('a background question is counted', (await p.textContent('#status-needs .badge')) === '1');
   ok('it is not shown over this session', await p.isHidden('#needs-you'));
-  ok('the session list marks it', (await p.getAttribute('#sessions .session-attention', 'aria-label')) === '1 question waits for you' && /Waiting/.test(await p.getAttribute('#sessions .session-badge.chat-state-waiting', 'aria-label')) && (await p.textContent('#sessions .browser-group-title')) === 'Needs You');
+  ok('the session list marks it', (await p.getAttribute('#sessions .session-attention', 'aria-label')) === '1 question waits for you' && /Waiting/.test(await p.getAttribute('#sessions .session-badge > .badge.chat-state-waiting:not(.chat-state-reserve)', 'aria-label')) && (await p.textContent('#sessions .browser-group-title')) === 'Needs You');
   await p.click('#status-needs');
   await p.click('#notifications-status-menu [data-cmd="needs-you"]');
   await p.waitForTimeout(200);
@@ -167,6 +167,10 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.click('#remove-hide');
   await p.waitForTimeout(300);
   ok('hiding takes it off the list and out of the front', !(await p.textContent('#sessions')).includes('Note 14 Design Doc') && (await p.textContent('.win[data-chat-current] .win-title')) === 'New Chat');
+  // Every group's count says how many chat rows it shows, so a hidden chat
+  // cannot stay listed under a count that has already dropped it (BL-05).
+  const counts = await p.evaluate(() => Array.from(document.querySelectorAll('#sessions .browser-group')).map(g => ({ count: (g.querySelector('.browser-group-count') || {}).textContent, rows: g.querySelectorAll('.md-row[data-session-row]').length })));
+  ok('each group\'s count matches the chat rows it shows', counts.length > 0 && counts.every(c => c.count == null || Number(String(c.count).trim()) === c.rows), JSON.stringify(counts));
   await p.evaluate(() => dinahWorkbench.open('chat-browser'));
   await p.locator('.menubar-title').filter({ hasText: /^Actions$/ }).click();
   ok('Show Hidden Chats Again is available in the Chats browser', await p.locator('#menubar-panel').getByText('Show Hidden Chats Again', { exact: true }).isEnabled());

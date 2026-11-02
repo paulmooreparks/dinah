@@ -54,7 +54,9 @@ const { launch } = require('./lib/page');
           }
           const reason = anchor.querySelector('.session-reason');
           const expected = ['closed','retired','elsewhere'].includes(state) ? 'chat-lifecycle' : 'chat-state-' + state;
-          if (!anchor.querySelector('.session-badge').classList.contains(expected)) failures.push({ state, painted: anchor.querySelector('.session-badge').className });
+          // .session-badge is the chip's slot; the shown chip is the one that is not a hidden reserve copy (c8031ec).
+          const shown = anchor.querySelector('.session-badge > .badge:not(.chat-state-reserve)');
+          if (!shown || !shown.classList.contains(expected)) failures.push({ state, painted: shown && shown.className });
           if (reason.scrollHeight > reason.clientHeight + 1) failures.push({ state, reasonClippedVertically: true });
           if (state === 'waiting' && !reason.title.includes('full reason')) failures.push({ state, missingFullReason: true });
         }
@@ -87,6 +89,9 @@ const { launch } = require('./lib/page');
       await t.shot('list-stability-' + theme + '-' + width + '-' + scale);
       // The team surface uses the same reason and lifecycle states.
       await p.evaluate(key => pudlWindows.raise(key), teamKey);
+      // The team's rows are its Members dropdown (f22f9b5), measured open.
+      if (await team.locator('.members-menu:popover-open').count() === 0) await team.locator('.chat-team .team-toggle').click();
+      await team.locator('.members-menu:popover-open [data-team-member="bus-alpha"]').waitFor();
       await frames();
       const teamTrace = await team.evaluate(async root => {
         const sample = () => [...root.querySelectorAll('.chat-team, [data-team-member], .team-person, .team-reason, .team-state')].map(el => el.getBoundingClientRect().toJSON());
@@ -94,14 +99,16 @@ const { launch } = require('./lib/page');
         for (const state of ['working','waiting','stuck','idle','closed','elsewhere','unknown']) {
           __listStep(state);
           for (let frame = 0; frame < 8; frame++) { await new Promise(requestAnimationFrame); const now = sample(); samples.push({ state, frame, rectangles: now }); now.forEach((r, i) => { const b = before[i]; if (!b || ['x','y','width','height'].some(k => Math.abs(r[k] - b[k]) > .02)) failures.push({ state, frame, before: b, after: r }); }); }
-          const mark = root.querySelector('[data-team-member="bus-alpha"] .team-state');
+          const mark = root.querySelector('[data-team-member="bus-alpha"] .team-state > .badge:not(.chat-state-reserve)');
           const expected = ['closed','elsewhere'].includes(state) ? 'chat-lifecycle' : 'chat-state-' + state;
-          if (!mark.classList.contains(expected)) failures.push({ state, painted: mark.className });
+          if (!mark || !mark.classList.contains(expected)) failures.push({ state, painted: mark && mark.className });
         }
         return { before, samples, failures };
       });
       t.ok('team rows keep their one-line slots ' + [theme,width,scale].join('/'), teamTrace.failures.length === 0, JSON.stringify(teamTrace.failures.slice(0, 2)));
       await t.shot('team-row-stability-' + theme + '-' + width + '-' + scale);
+      await p.keyboard.press('Escape');
+      await team.locator('.members-menu:popover-open').waitFor({ state: 'detached' });
       await p.evaluate(key => pudlWindows.raise(key), listKey);
       evidence.push({ theme, width, scale, list: trace, team: teamTrace });
     }
