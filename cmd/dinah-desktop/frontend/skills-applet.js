@@ -202,7 +202,7 @@
       });
       if (selected >= rows.length) selected = rows.length - 1;
       select(selected);
-      if (focused && selected >= 0) { var again = table.children[selected].querySelector('[aria-label="' + focused + '"]'); if (again && !again.disabled && !again.hidden) again.focus({ preventScroll: true }); }
+      if (focused && selected >= 0) { var again = table.children[selected].querySelector('[aria-label="' + CSS.escape(String(focused)) + '"]'); if (again && !again.disabled && !again.hidden) again.focus({ preventScroll: true }); }
       preview.querySelectorAll('.skill-field').forEach(function (f) { f.remove(); });
       var specs = dinahSkillInputs.parse(text());
       specs.forEach(function (spec, i) { preview.append(dinahSkillInputs.field(spec, prefix + '-preview-' + i).wrap); });

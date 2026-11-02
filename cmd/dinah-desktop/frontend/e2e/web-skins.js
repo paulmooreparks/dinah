@@ -32,6 +32,10 @@ const {launch,OUT,FRONTEND}=require('./lib/page'),{spawn,execFileSync}=require('
   await set('bevel','light');await context.route(info.url+'/static/pudl/pudl-skin-bevel.css',r=>r.fulfill({status:404,body:'',contentType:'text/css'}));await p.goto(info.url+'/inbox');await p.waitForFunction(()=>!!__webSkinFrame);
   const failed=await p.evaluate(()=>__webSkinFrame);t.ok('a failed web stylesheet reports Standard before the first drawn frame',failed.skin==='standard'&&failed.preference==='bevel',JSON.stringify(failed));
   t.ok('failed web assets keep their saved preference and explain the fallback',await p.locator('#skin-unavailable-notice').isVisible()&&JSON.parse(fs.readFileSync(path.join(info.home,'appearance.json'),'utf8')).skin==='bevel');
+  // A remembered address is followed only when it is a query, so a saved
+  // value that names another site leaves the page where it is (FE-07).
+  await p.goto(info.url+'/');await p.evaluate(()=>localStorage.setItem('dinah.desktop','//example.invalid/x'));await p.goto(info.url+'/');await p.waitForTimeout(500);
+  t.ok('a remembered address that is not a query is not followed',new URL(p.url()).origin===new URL(info.url).origin,p.url());
   t.ok('real server pages have no page errors',!errors.length,JSON.stringify(errors));
  }finally{
   fs.writeFileSync(path.join(OUT,'web-skin-records.json'),JSON.stringify({url:info.url,home:info.home,room:info.room,records,errors,stderr},null,2));await context.close();await t.close();const ended=new Promise(resolve=>host.once('exit',resolve));host.stdin.end(JSON.stringify({skin:'quit'})+'\n');await ended;

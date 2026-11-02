@@ -149,7 +149,7 @@
       var c = comparison, dialog = document.createElement('dialog');
       dialog.className = 'dialog editor-dialog editor-compare';
       dialog.setAttribute('aria-labelledby', ed.key + '-compare-title');
-      dialog.innerHTML = '<h2 class="dialog-title" id="' + ed.key + '-compare-title">Changes Since You Opened It</h2><div class="dialog-body"></div>' +
+      dialog.innerHTML = '<h2 class="dialog-title" id="' + window.dinahHTML.text(ed.key) + '-compare-title">Changes Since You Opened It</h2><div class="dialog-body"></div>' +
         '<div class="dialog-actions"><button type="button" class="btn" data-no>Close</button><button type="button" class="btn btn-primary" data-yes>Bring In Their Changes</button></div>';
       var body = dialog.querySelector('.dialog-body');
       function section(title, node) {

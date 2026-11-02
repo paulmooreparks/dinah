@@ -19,6 +19,10 @@
     return el;
   };
   const uuid = () => crypto.randomUUID().replace(/-/g, '');
+  // A view's glyph comes from its extension's manifest and goes into a CSS
+  // custom property, so it is checked as a command's glyph is: a glyph name
+  // or nothing, never a value of the extension's own.
+  const viewGlyph = view => (/^[a-z0-9-]{1,40}$/.test(view.glyph || '') ? view.glyph : 'app');
   // Contract 1 declares one applet identity per manifest, with several views.
   // A missing declaration stays unresolved rather than becoming workspace-free.
   function taskbarView(item) {
@@ -204,7 +208,7 @@
         const id = 'extension-' + m.id + '-' + view.id;
         bench.registerLauncher(id, {
           title: view.title,
-          glyph: view.glyph || 'app',
+          glyph: viewGlyph(view),
           description: m.description,
           applet: m.id,
           run: () => openView(m, view)
@@ -666,7 +670,7 @@
         iframe.title = view.title;
         const title = root.closest('.win').querySelector('.win-title');
         title.textContent = view.title;
-        root.closest('.win').dataset.winGlyph = view.glyph || 'app';
+        root.closest('.win').dataset.winGlyph = viewGlyph(view);
         pinned = view.follows ? savedPin() : '';
         const ws = await setWorkspace();
         if (disposed) return;

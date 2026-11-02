@@ -12,7 +12,7 @@
   };
 
   function mount(root, api) {
-    var product = window.dinahProduct ? window.dinahProduct.name : '';
+    var product = window.dinahHTML.text(window.dinahProduct ? window.dinahProduct.name : '');
     root.innerHTML = `<section class="card vstack gap-3" aria-labelledby="set-ollama-approvals">
   <h3 class="card-title" id="set-ollama-approvals">Ollama Approvals</h3>
   <div class="seg" id="ollama-approvals" role="radiogroup" aria-labelledby="set-ollama-approvals">

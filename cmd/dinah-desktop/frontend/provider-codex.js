@@ -5,7 +5,7 @@
   'use strict';
 
   function mount(root, api) {
-    var product = window.dinahProduct ? window.dinahProduct.name : '';
+    var product = window.dinahHTML.text(window.dinahProduct ? window.dinahProduct.name : '');
     root.innerHTML = `<section class="card vstack gap-3" aria-labelledby="set-codex-applet-approvals">
   <h3 class="card-title" id="set-codex-applet-approvals">Codex Approvals</h3>
   <div class="seg" id="codex-applet-approvals" role="radiogroup" aria-labelledby="set-codex-applet-approvals">

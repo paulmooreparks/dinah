@@ -18,7 +18,10 @@ type frontendRule struct {
 	row     string
 	what    string
 	pattern *regexp.Regexp
-	home    []string
+	// match, when set, decides a line in place of pattern, for a rule a
+	// regular expression without look-ahead cannot state.
+	match func(line string) bool
+	home  []string
 }
 
 var frontendRules = []frontendRule{
@@ -31,7 +34,43 @@ var frontendRules = []frontendRule{
 		pattern: regexp.MustCompile("['\"`]&(amp|lt|gt|quot|apos|#[0-9]+|#[xX][0-9a-fA-F]+);"),
 		home:    []string{"safe-html.js"},
 	},
+	{
+		row:   "FE-42",
+		what:  "a value put into an attribute selector without CSS.escape",
+		match: unescapedSelectorValue,
+	},
 }
+
+// unescapedSelectorValue reports a line that builds an attribute selector,
+// in querySelector, querySelectorAll, closest or matches, from a value
+// joined in with + that is not passed through CSS.escape. A value with a
+// quote in it would otherwise end the selector early or throw.
+func unescapedSelectorValue(line string) bool {
+	if !strings.Contains(line, "querySelector") && !strings.Contains(line, "closest(") && !strings.Contains(line, "matches(") {
+		return false
+	}
+	for _, open := range []string{`="' + `, `=\"' + `} {
+		rest := line
+		for {
+			i := strings.Index(rest, open)
+			if i < 0 {
+				break
+			}
+			rest = rest[i+len(open):]
+			if !strings.HasPrefix(rest, "CSS.escape(") && !markup(line) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// markup reports a line that builds tags rather than a selector, as a
+// selector never holds one; escaping values in markup is the FE-14 rule's
+// concern.
+var tag = regexp.MustCompile(`<[a-z]`)
+
+func markup(line string) bool { return tag.MatchString(line) }
 
 // frontendScripts lists Dinah's own scripts, in every folder beneath the
 // desktop page and the web pages Go serves, without the browser suites,
@@ -80,7 +119,7 @@ func TestFrontendJobsStayInTheirHomes(t *testing.T) {
 				t.Fatal(err)
 			}
 			for n, line := range strings.Split(string(data), "\n") {
-				if rule.pattern.MatchString(line) {
+				if rule.match != nil && rule.match(line) || rule.pattern != nil && rule.pattern.MatchString(line) {
 					t.Errorf("%s:%d: %s (%s)", filepath.ToSlash(file), n+1, rule.what, rule.row)
 				}
 			}
@@ -92,6 +131,9 @@ func TestFrontendJobsStayInTheirHomes(t *testing.T) {
 // guards nothing: a renamed home or a changed pattern would pass silently.
 func TestFrontendRulesFindTheirHomes(t *testing.T) {
 	for _, rule := range frontendRules {
+		if rule.pattern == nil {
+			continue
+		}
 		found := false
 		for _, h := range rule.home {
 			data, err := os.ReadFile(filepath.Join("frontend", h))

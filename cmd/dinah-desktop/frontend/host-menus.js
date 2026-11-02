@@ -75,7 +75,7 @@
      list's placeholder (li[data-commands]) where some rows are written in
      the page. */
   function drawRegistry(menu) {
-    var list = document.querySelector('[data-command-menu="' + menu + '"]');
+    var list = document.querySelector('[data-command-menu="' + CSS.escape(String(menu)) + '"]');
     if (!list) return;
     list.querySelectorAll(':scope > li[data-generated]').forEach(function (li) { li.remove(); });
     var marker = list.querySelector(':scope > li[data-commands]'), at = marker ? marker.nextSibling : null;
