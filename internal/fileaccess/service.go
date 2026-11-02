@@ -383,3 +383,19 @@ func (s *Service) ReadDirectory(ctx context.Context, path string, scope Scope) (
 	}
 	return entries, nil
 }
+
+// ReadMetadata applies policy to an already confined source entry without
+// reading a child directory or file body.
+func (s *Service) ReadMetadata(ctx context.Context, path string, scope Scope, file *os.File) (string, error) {
+	return s.read(ctx, path, nil, nil, scope, func(check func(string, []os.FileInfo) error) (string, error) {
+		if err := agents.CheckOpenedPath(path, file, func(chain []os.FileInfo) error { return check(path, chain) }); err != nil {
+			return "", err
+		}
+		info, err := file.Stat()
+		if err != nil {
+			return "", err
+		}
+		data, err := json.Marshal(map[string]any{"name": info.Name(), "directory": info.IsDir(), "size": info.Size(), "modified": info.ModTime()})
+		return string(data), err
+	})
+}

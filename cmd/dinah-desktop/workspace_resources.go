@@ -283,9 +283,13 @@ func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (Resou
 	// use that reading (folderListings), so the pages are one snapshot of it.
 	// Each entry is still opened and checked when its page is listed, so an
 	// entry removed since the reading is skipped.
-	entries, err := folderListings.get(source.Path+"|"+ref.Path, st, start, func() ([]os.DirEntry, error) {
-		return sortedWorkspaceDirectory(s.ctx, f, 100000)
-	})
+	entries, handled, err := s.app.agentResourceDirectory(s.ctx, filepath.Join(source.Path, ref.Path), f)
+	if !handled && err == nil {
+		entries, err = folderListings.get(source.Path+"|"+ref.Path, st, start, func() ([]os.DirEntry, error) { return sortedWorkspaceDirectory(s.ctx, f, 100000) })
+	}
+	if handled {
+		sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	}
 	if err != nil {
 		return out, err
 	}
@@ -308,6 +312,10 @@ func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (Resou
 		child.Path = filepath.ToSlash(filepath.Join(filepath.FromSlash(ref.Path), e.Name()))
 		opened, e := openWorkspaceResource(source, child.Path)
 		if e != nil {
+			continue
+		}
+		if e := s.app.checkAgentResourceMetadata(s.ctx, filepath.Join(source.Path, child.Path), opened); e != nil {
+			opened.Close()
 			continue
 		}
 		item, e := localResourceItem(child, source, opened)

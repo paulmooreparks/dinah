@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -282,4 +283,52 @@ func (a *App) watchFileAccess(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+func (a *App) agentResourceScope(ctx context.Context) (fileaccess.Scope, bool, error) {
+	invocation, ok := applet.InvocationFromContext(ctx)
+	if !ok || invocation.OwnerKind != "chat" {
+		return fileaccess.Scope{}, false, nil
+	}
+	chat := a.session(invocation.OwnerID)
+	if chat == nil || !chat.Open() || !layout.SamePath(chat.Cwd(), invocation.Workspace) {
+		return fileaccess.Scope{}, true, errors.New("the file-reading chat is no longer registered in this workspace")
+	}
+	a.mu.Lock()
+	scope := fileAccessScope(a.settings, chat.Cwd())
+	a.mu.Unlock()
+	scope.Chat, scope.ChatTitle = chat.ID(), chat.State().Title
+	scope.Source = "dinah.workspace/resources@1"
+	return scope, true, nil
+}
+func (a *App) agentResourceDirectory(ctx context.Context, path string, file *os.File) ([]fs.DirEntry, bool, error) {
+	scope, handled, err := a.agentResourceScope(ctx)
+	if !handled || err != nil {
+		return nil, handled, err
+	}
+	service, err := a.fileAccessService()
+	if err != nil {
+		return nil, true, err
+	}
+	// The source handle has already established source confinement.
+	if _, err := service.ReadMetadata(ctx, path, scope, file); err != nil {
+		a.fileAccessUpdated("file-access:read", nil)
+		return nil, true, err
+	}
+	entries, err := service.ReadDirectory(ctx, path, scope)
+	a.fileAccessUpdated("file-access:read", nil)
+	return entries, true, err
+}
+func (a *App) checkAgentResourceMetadata(ctx context.Context, path string, file *os.File) error {
+	scope, handled, err := a.agentResourceScope(ctx)
+	if !handled || err != nil {
+		return err
+	}
+	service, err := a.fileAccessService()
+	if err != nil {
+		return err
+	}
+	_, err = service.ReadMetadata(ctx, path, scope, file)
+	a.fileAccessUpdated("file-access:read", nil)
+	return err
 }

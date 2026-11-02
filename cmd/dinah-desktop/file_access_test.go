@@ -120,4 +120,14 @@ func TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority(t *testing
 	if a.fileAccessRefused("test") != 1 {
 		t.Fatal("source refusal not attributed to calling chat")
 	}
+	ref.Path = ""
+	if page, err := a.listWorkspaceResources(fileAccessCallerContext(t, a, root), ref, 0, 100); err != nil || len(page.Entries) != 0 {
+		t.Fatalf("agent listing disclosed denied metadata: %+v %v", page, err)
+	}
+	if page, err := a.ListWorkspaceResources(ref, 0, 100); err != nil || len(page.Entries) != 1 {
+		t.Fatalf("person listing authority changed: %+v %v", page, err)
+	}
+	if a.fileAccessRefused("test") != 2 {
+		t.Fatal("metadata refusal not attributed to calling chat")
+	}
 }

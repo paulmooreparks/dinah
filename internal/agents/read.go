@@ -106,6 +106,10 @@ func openReadFile(base, rel string) (*os.File, error) {
 }
 
 func openReadFileChecked(base, rel string, check func([]os.FileInfo) error) (*os.File, error) {
+	return openObjectChecked(base, rel, false, check)
+}
+
+func openObjectChecked(base, rel string, directories bool, check func([]os.FileInfo) error) (*os.File, error) {
 	root, err := os.OpenRoot(base)
 	if err != nil {
 		return nil, err
@@ -140,7 +144,7 @@ func openReadFileChecked(base, rel string, check func([]os.FileInfo) error) (*os
 	if err != nil {
 		return nil, err
 	}
-	if !before.Mode().IsRegular() {
+	if !before.Mode().IsRegular() && !(directories && before.IsDir()) {
 		return nil, errors.New("only regular text files can be read")
 	}
 	file, err := root.Open(name)
@@ -148,7 +152,7 @@ func openReadFileChecked(base, rel string, check func([]os.FileInfo) error) (*os
 		return nil, err
 	}
 	opened, err := file.Stat()
-	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
+	if err != nil || (!opened.Mode().IsRegular() && !(directories && opened.IsDir())) || !os.SameFile(before, opened) {
 		file.Close()
 		return nil, errors.New("the file changed while opening it")
 	}
@@ -217,16 +221,25 @@ func readTextRange(ctx context.Context, file io.Reader, line, limit *int) (strin
 // CheckOpenedFile verifies a source handle against a second identity-safe walk.
 // No contents are read by this function.
 func CheckOpenedFile(path string, file *os.File, check func([]os.FileInfo) error) error {
+	return checkOpenedPath(path, file, false, check)
+}
+
+// CheckOpenedPath also permits directory metadata handles.
+func CheckOpenedPath(path string, file *os.File, check func([]os.FileInfo) error) error {
+	return checkOpenedPath(path, file, true, check)
+}
+
+func checkOpenedPath(path string, file *os.File, directories bool, check func([]os.FileInfo) error) error {
 	resolved, err := ResolveFilePath(path)
 	if err != nil {
 		return err
 	}
 	base := filepath.VolumeName(resolved) + string(filepath.Separator)
 	rel, err := filepath.Rel(base, resolved)
-	if err != nil || !filepath.IsLocal(rel) || rel == "." {
-		return errors.New("a regular file path is required")
+	if err != nil || !filepath.IsLocal(rel) && rel != "." || rel == "." && !directories {
+		return errors.New("a local file path is required")
 	}
-	checked, err := openReadFileChecked(base, rel, check)
+	checked, err := openObjectChecked(base, rel, directories, check)
 	if err != nil {
 		return err
 	}
