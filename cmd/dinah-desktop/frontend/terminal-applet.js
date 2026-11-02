@@ -24,22 +24,31 @@
   var C = { reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m', inverse: '\x1b[7m', red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', blue: '\x1b[34m', cyan: '\x1b[36m' };
   function strip(s) { return String(s).replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ''); }
   function paint(color, s) { return C[color] + s + C.reset; }
+  /* Marks that take no room on the screen but change what the reader sees:
+     zero-width characters, the left-to-right and right-to-left marks, line
+     and paragraph separators, the byte order mark, and the directional
+     embeddings, overrides and isolates. Each is shown as its code point,
+     such as <U+200B>, so text cannot hide a character or reorder itself. */
+  var MARKS = /[\u200b-\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]/g;
+  function marks(s) { return s.replace(MARKS, function (c) { return '<U+' + c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0') + '>'; }); }
   /* Text that comes from a document or a person, which must not reach the
-     screen as control sequences: escape becomes a visible symbol, and other
-     control and bidirectional characters are dropped. */
+     screen as control sequences: escape becomes a visible symbol, invisible
+     marks are shown as their code points, and other control characters are
+     dropped. */
   function safe(value) {
-    return String(value == null ? '' : value).replace(/\r\n?/g, '\n').replace(/\x1b/g, '\u241b')
-      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g, '');
+    return marks(String(value == null ? '' : value).replace(/\r\n?/g, '\n').replace(/\x1b/g, '\u241b')
+      .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, ''));
   }
   /* Text on its way to the screen as the terminal's output, and the saved
      transcript when it is shown again. Only the colour and emphasis
      sequences of Select Graphic Rendition (ECMA-48) that the Terminal and
      scripts use pass: reset, bold, dim, italic, underline, inverse, their
      resets, and the sixteen colours. Any other escape is shown as the
-     visible symbol safe() uses, and every other control or bidirectional
-     character is dropped apart from line breaks and tabs. This is the last
-     barrier: whichever path text took, it cannot move the cursor, rewrite
-     an earlier line, set the title or the clipboard, or hide itself. */
+     visible symbol safe() uses, invisible marks are shown as their code
+     points, and every other control character is dropped apart from line
+     breaks and tabs. This is the last barrier: whichever path text took, it
+     cannot move the cursor, rewrite an earlier line, set the title or the
+     clipboard, or hide itself. */
   var SGR = /^\x1b\[([\d;]{0,48})m/, STYLE = /^(0|1|2|3|4|7|22|23|24|27|3[0-7]|39|4[0-7]|49|9[0-7]|10[0-7])$/;
   function inert(value) {
     var s = String(value == null ? '' : value).replace(/\r\n?/g, '\n'), out = '', i = 0;
@@ -51,7 +60,7 @@
       if (m && m[1].split(';').every(function (p) { return STYLE.test(String(+p)); })) { out += m[0]; i = at + m[0].length; }
       else { out += '\u241b'; i = at + 1; }
     }
-    return out.replace(/[\x00-\x08\x0b-\x1a\x1c-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g, '');
+    return marks(out.replace(/[\x00-\x08\x0b-\x1a\x1c-\x1f\x7f-\x9f]/g, ''));
   }
 
   /* === Words ===============================================================

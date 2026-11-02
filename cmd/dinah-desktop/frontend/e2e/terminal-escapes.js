@@ -10,9 +10,13 @@ const { launch, FRONTEND } = require('./lib/page');
 const path = require('path');
 
 const E = '\x1b';
-// Every way out at once, ending with a carriage return that would put
-// OVERWRITE over the start of the line.
-const HOSTILE = 'EVIL' + E + '[2J' + E + '[H' + E + '[1A' + E + '[2K' + E + ']0;Owned' + '\x07' + E + ']52;c;b3duZWQ=' + '\x07' + E + '[8mHIDDEN' + E + '[0m' + E + 'P1$r' + E + '\\' + '\x9b2J' + 'SAFE\rOVERWRITE';
+// Invisible marks: zero-width, directional, a line separator and the byte
+// order mark, each to be shown as its code point.
+const MARKS = 'ZW​LRM‎RLO‮LS BOM﻿END';
+const SHOWN = ['<U+200B>', '<U+200E>', '<U+202E>', '<U+2028>', '<U+FEFF>'];
+// Every way out at once: escape sequences, a carriage return that would put
+// OVERWRITE over the start of the line, and the invisible marks.
+const HOSTILE = 'EVIL' + E + '[2J' + E + '[H' + E + '[1A' + E + '[2K' + E + ']0;Owned' + '\x07' + E + ']52;c;b3duZWQ=' + '\x07' + E + '[8mHIDDEN' + E + '[0m' + E + 'P1$r' + E + '\\' + '\x9b2J' + 'SAFE\rOVERWRITE' + MARKS;
 
 (async () => {
   const t = await launch({
@@ -72,11 +76,12 @@ const HOSTILE = 'EVIL' + E + '[2J' + E + '[H' + E + '[1A' + E + '[2K' + E + ']0;
       const s = await screen('one');
       ok(name + ': the line before is still on the screen', s.includes('KEEP-' + name), s.slice(0, 400));
       ok(name + ': the hostile text is shown, its escapes as a symbol and its carriage return gone', squeeze(s).includes('EVIL\u241b[2J') && squeeze(s).includes('SAFEOVERWRITE'), s.slice(0, 600));
+      ok(name + ': invisible marks are shown as their code points', SHOWN.every(m => squeeze(s).includes(m)), s.slice(0, 700));
       ok(name + ': the concealed text is not hidden', s.includes('HIDDEN') && await page.evaluate(() => [...document.querySelectorAll('#one .xterm-rows span')].filter(el => el.textContent.includes('HIDDEN')).every(el => getComputedStyle(el).opacity !== '0' && getComputedStyle(el).visibility !== 'hidden' && !el.classList.contains('xterm-invisible'))));
     }
     await route('a file name', 'ls');
     await route('a tool description', 'man hostile');
-    await route('Lua output', "lua -e 'io.write(string.char(27) .. \"[0m\" .. " + JSON.stringify(HOSTILE).replace(/\\u001b/g, '\\27').replace(/\\u0007/g, '\\7').replace(/\\u009b/g, '\\194\\155') + " .. \"\\n\")'");
+    await route('Lua output', "lua -e 'io.write(string.char(27) .. \"[0m\" .. " + JSON.stringify(HOSTILE).replace(/\\u001b/g, '\\27').replace(/\\u0007/g, '\\7').replace(/\\u009b/g, '\\194\\155').replace(/[\u200b-\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\ufeff]/g, ch => '\\u{' + ch.charCodeAt(0).toString(16) + '}') + " .. \"\\n\")'");
     ok('the Terminal\'s own colours still work', await page.evaluate(() => [...document.querySelectorAll('#one .xterm-rows span')].some(el => /xterm-fg-\d|xterm-bold/.test(el.className))));
 
     // A saved transcript shown again passes the same barrier.
@@ -88,7 +93,7 @@ const HOSTILE = 'EVIL' + E + '[2J' + E + '[H' + E + '[1A' + E + '[2K' + E + ']0;
     await page.locator('#two[data-terminal-ready="true"]').waitFor();
     await page.waitForTimeout(300);
     const restored = await screen('two');
-    ok('a restored transcript keeps the line before and shows the hostile text inert', restored.includes('KEEP-restored') && squeeze(restored).includes('EVIL\u241b[2J') && squeeze(restored).includes('SAFEOVERWRITE'), restored.slice(0, 600));
+    ok('a restored transcript keeps the line before and shows the hostile text inert', restored.includes('KEEP-restored') && SHOWN.every(m => squeeze(restored).includes(m)) && squeeze(restored).includes('EVIL\u241b[2J') && squeeze(restored).includes('SAFEOVERWRITE'), restored.slice(0, 600));
     await page.locator('#two textarea').focus();
     await page.keyboard.press('ArrowUp');
     await page.waitForTimeout(250);
