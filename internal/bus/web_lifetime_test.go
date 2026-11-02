@@ -43,7 +43,7 @@ func TestWebSessionLifetimeAndRevocation(t *testing.T) {
 			switch mode {
 			case "idle", "legacy":
 				if mode == "legacy" {
-					if _, err := b.db.Exec(`UPDATE web_sessions SET last_used_at = '' WHERE token = ?`, token); err != nil {
+					if _, err := b.db.Exec(`UPDATE web_sessions SET last_used_at = '' WHERE token = ?`, tokenDigest(token)); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -92,7 +92,7 @@ func TestWebSessionLifetimeAndRevocation(t *testing.T) {
 					t.Fatal("outstanding link survived global sign-out")
 				}
 			case "invalid-time":
-				if _, err := b.db.Exec(`UPDATE web_sessions SET last_used_at = 'invalid' WHERE token = ?`, token); err != nil {
+				if _, err := b.db.Exec(`UPDATE web_sessions SET last_used_at = 'invalid' WHERE token = ?`, tokenDigest(token)); err != nil {
 					t.Fatal(err)
 				}
 				if b.ValidWebToken(ctx, token) {
@@ -123,7 +123,7 @@ func TestWebSessionLifetimeAndRevocation(t *testing.T) {
 	}
 }
 
-func TestLegacyWebTokenMigrationDoesNotRenewIssueTime(t *testing.T) {
+func TestLegacyWebTokenMigrationInvalidatesPlaintext(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "bus.db")
 	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path))
@@ -147,12 +147,12 @@ func TestLegacyWebTokenMigrationDoesNotRenewIssueTime(t *testing.T) {
 	defer b.Close()
 	now := issued.Add(29 * 24 * time.Hour)
 	b.now = func() time.Time { return now }
-	if !b.CheckWebToken(ctx, "legacy") {
-		t.Fatal("migration rejected a token inside both windows")
-	}
-	now = issued.Add(30 * 24 * time.Hour)
 	if b.CheckWebToken(ctx, "legacy") {
-		t.Fatal("migration renewed the old issue time")
+		t.Fatal("copied plaintext credential survived migration")
+	}
+	var count int
+	if err := b.db.QueryRow(`SELECT COUNT(*) FROM web_sessions`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("plaintext rows were retained: %d %v", count, err)
 	}
 }
 
@@ -183,5 +183,78 @@ func TestWebRevocationCannotBeUndoneByConcurrentUse(t *testing.T) {
 	workers.Wait()
 	if b.CheckWebToken(ctx, token) {
 		t.Fatal("a last-use update resurrected a revoked token")
+	}
+}
+
+// A trigger catches an UPDATE even when it would write the same timestamp.
+func TestWebSessionRenewalIsThrottledAndClockTolerant(t *testing.T) {
+	b, _ := open(t)
+	ctx := context.Background()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	issued := now
+	b.now = func() time.Time { return now }
+	code, _ := b.NewWebCode(ctx)
+	token, err := b.ExchangeWebCode(ctx, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.db.Exec(`CREATE TABLE token_writes (n INTEGER); INSERT INTO token_writes VALUES (0);
+ CREATE TRIGGER count_token_updates AFTER UPDATE ON web_sessions BEGIN UPDATE token_writes SET n = n + 1; END;`); err != nil {
+		t.Fatal(err)
+	}
+	for _, elapsed := range []time.Duration{0, time.Minute, 59 * time.Minute} {
+		now = issued.Add(elapsed)
+		if !b.ValidWebToken(ctx, token) {
+			t.Fatal("valid request failed")
+		}
+	}
+	var writes int
+	b.db.QueryRow(`SELECT n FROM token_writes`).Scan(&writes)
+	if writes != 0 {
+		t.Fatalf("requests inside one hour wrote %d times", writes)
+	}
+	now = issued.Add(time.Hour)
+	if !b.ValidWebToken(ctx, token) {
+		t.Fatal("hourly renewal failed")
+	}
+	b.db.QueryRow(`SELECT n FROM token_writes`).Scan(&writes)
+	if writes != 1 {
+		t.Fatalf("hour boundary writes: %d", writes)
+	}
+	now = issued.Add(30 * time.Minute)
+	if !b.ValidWebToken(ctx, token) {
+		t.Fatal("backward correction after activity signed out")
+	}
+	now = issued.Add(-time.Minute)
+	if !b.ValidWebToken(ctx, token) {
+		t.Fatal("backward correction before issue signed out")
+	}
+	now = issued.Add(90 * 24 * time.Hour)
+	if b.ValidWebToken(ctx, token) {
+		t.Fatal("clock tolerance bypassed absolute expiry")
+	}
+}
+
+func TestWebSessionDatabaseContainsOnlyNonBearerHashes(t *testing.T) {
+	b, _ := open(t)
+	ctx := context.Background()
+	code, _ := b.NewWebCode(ctx)
+	token, err := b.ExchangeWebCode(ctx, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored string
+	if err := b.db.QueryRow(`SELECT token FROM web_sessions`).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored == token || stored != tokenDigest(token) {
+		t.Fatal("database did not contain SHA-256 digest")
+	}
+	// A database thief who copies the stored value cannot use it as a cookie.
+	if b.ValidWebToken(ctx, stored) {
+		t.Fatal("copied database key authenticated as bearer")
+	}
+	if !b.ValidWebToken(ctx, token) {
+		t.Fatal("legitimate cookie failed")
 	}
 }

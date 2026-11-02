@@ -3,6 +3,7 @@ package bus
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -13,6 +14,12 @@ import (
 
 // CodeLifetime is how long a sign-in code from dinah open stays usable.
 const CodeLifetime = 2 * time.Minute
+
+// tokenDigest is the database key; the bearer value remains only in the cookie.
+func tokenDigest(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
 
 func randomHex(n int) string {
 	buf := make([]byte, n)
@@ -55,7 +62,7 @@ func (b *Bus) ExchangeWebCode(ctx context.Context, code string) (string, error) 
 			return errors.New("that sign-in code has expired; run " + profile.Current().CommandProgram + " open again")
 		}
 		stamp := b.stamp()
-		_, err = t.Exec(`INSERT INTO web_sessions (token, created_at, last_used_at) VALUES (?, ?, ?)`, token, stamp, stamp)
+		_, err = t.Exec(`INSERT INTO web_sessions (token, token_version, created_at, last_used_at) VALUES (?, 1, ?, ?)`, tokenDigest(token), stamp, stamp)
 		return err
 	})
 	return token, err
@@ -76,6 +83,7 @@ func (b *Bus) validateWebToken(ctx context.Context, token string, touch bool) bo
 	if token == "" {
 		return false
 	}
+	token = tokenDigest(token)
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false
@@ -84,7 +92,7 @@ func (b *Bus) validateWebToken(ctx context.Context, token string, touch bool) bo
 	var created, used string
 	var p WebSessionPolicy
 	if err := tx.QueryRowContext(ctx, `SELECT s.created_at, s.last_used_at, p.idle_days, p.absolute_days
- FROM web_sessions s CROSS JOIN web_session_policy p WHERE s.token = ? AND p.id = 1`, token).Scan(&created, &used, &p.IdleDays, &p.AbsoluteDays); err != nil {
+ FROM web_sessions s CROSS JOIN web_session_policy p WHERE s.token = ? AND s.token_version = 1 AND p.id = 1`, token).Scan(&created, &used, &p.IdleDays, &p.AbsoluteDays); err != nil {
 		return false
 	}
 	if used == "" {
@@ -93,11 +101,15 @@ func (b *Bus) validateWebToken(ctx context.Context, token string, touch bool) bo
 	issued, issueErr := time.Parse(time.RFC3339Nano, created)
 	last, useErr := time.Parse(time.RFC3339Nano, used)
 	now := b.now().UTC()
-	valid := issueErr == nil && useErr == nil && p.valid() && !now.Before(issued) && !now.Before(last) &&
+	// A backward wall-clock correction must not invalidate recent activity.
+	if last.After(now) {
+		last = now
+	}
+	valid := issueErr == nil && useErr == nil && p.valid() &&
 		now.Before(issued.Add(time.Duration(p.AbsoluteDays)*24*time.Hour)) && now.Before(last.Add(time.Duration(p.IdleDays)*24*time.Hour))
 	if !valid {
 		_, err = tx.ExecContext(ctx, `DELETE FROM web_sessions WHERE token = ?`, token)
-	} else if touch {
+	} else if touch && now.Sub(last) >= time.Hour {
 		_, err = tx.ExecContext(ctx, `UPDATE web_sessions SET last_used_at = ? WHERE token = ?`, now.Format(time.RFC3339Nano), token)
 	}
 	// Authentication metadata does not advance the bus change counter.
@@ -132,7 +144,7 @@ func (b *Bus) SetWebSessionPolicy(ctx context.Context, p WebSessionPolicy) error
 }
 
 func (b *Bus) RevokeWebToken(ctx context.Context, token string) error {
-	_, err := b.db.ExecContext(ctx, `DELETE FROM web_sessions WHERE token = ?`, token)
+	_, err := b.db.ExecContext(ctx, `DELETE FROM web_sessions WHERE token = ?`, tokenDigest(token))
 	return err
 }
 

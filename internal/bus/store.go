@@ -181,6 +181,7 @@ CREATE TABLE IF NOT EXISTS web_codes (
 );
 CREATE TABLE IF NOT EXISTS web_sessions (
 	token      TEXT PRIMARY KEY,
+	token_version INTEGER NOT NULL DEFAULT 1,
 	created_at TEXT NOT NULL,
 	last_used_at TEXT NOT NULL DEFAULT ''
 );
@@ -259,6 +260,7 @@ func OpenAt(path string) (*Bus, error) {
 // columns added since the first release, which CREATE TABLE IF NOT EXISTS
 // does not add to a database made before them.
 var added = []struct{ table, column, decl string }{
+	{"web_sessions", "token_version", "INTEGER NOT NULL DEFAULT 0"},
 	{"web_sessions", "last_used_at", "TEXT NOT NULL DEFAULT ''"},
 	{"deliveries", "inbox_dismissed_at", "TEXT"},
 	{"sessions", "removed_at", "TEXT"},
@@ -319,6 +321,11 @@ func upgrade(db *sql.DB) error {
 				return err
 			}
 		}
+	}
+	// Version zero rows contain bearer tokens. Invalidate them instead of
+	// converting copied plaintext credentials into valid hashes.
+	if _, err := db.Exec(`DELETE FROM web_sessions WHERE token_version != 1`); err != nil {
+		return err
 	}
 	if err := widenLinks(db); err != nil {
 		return err
