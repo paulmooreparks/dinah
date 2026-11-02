@@ -81,6 +81,11 @@ func TestFileAccessPageAndProviderShareOnePolicy(t *testing.T) {
 
 func configureFileAccessFixture(t *testing.T, a *App) {
 	t.Helper()
+	// Each app owns an audit store. Sharing TestMain's directory lets an
+	// earlier applet test contaminate a later catalogue-read assertion.
+	previous := configOverride
+	configOverride = t.TempDir()
+	t.Cleanup(func() { configOverride = previous })
 	home := t.TempDir()
 	a.fileAccess.resolveDefaults = func() ([]fileaccess.Rule, error) {
 		return fileaccess.DefaultRules(runtime.GOOS, home, filepath.Join(home, "roaming"), filepath.Join(home, "local"), nil), nil
