@@ -35,7 +35,7 @@ func ProtectedPath(l layout.Layout, p string, managedRoots ...string) string {
 	if err != nil {
 		return err.Error()
 	}
-	chain, err := pathIdentityChain(p)
+	chain, err := PathIdentities(p)
 	if err != nil {
 		return "the file identity could not be checked"
 	}

@@ -457,7 +457,7 @@ func (b *Bus) SendMentioning(ctx context.Context, from Sender, to, text string, 
 	if len(attach) > 0 && from.Session == nil {
 		return Message{}, errors.New("the person has no workspace to link files from; attach the person's files with SendFiles")
 	}
-	atts, err := hashAttachments(from.Session, attach)
+	atts, err := b.hashAttachments(ctx, from.Session, attach)
 	if err != nil {
 		return Message{}, err
 	}
@@ -470,7 +470,7 @@ func (b *Bus) SendActionRecipients(ctx context.Context, from Sender, to, text st
 	if len(attach) > 0 && from.Session == nil {
 		return Message{}, errors.New("the person has no workspace to link files from; attach the person's files with SendFiles")
 	}
-	atts, err := hashAttachments(from.Session, attach)
+	atts, err := b.hashAttachments(ctx, from.Session, attach)
 	if err != nil {
 		return Message{}, err
 	}
@@ -691,7 +691,17 @@ func (b *Bus) insertMessage(t *sql.Tx, from Sender, kind string, r resolved, rep
 
 // hashAttachments checks that each file is inside the sender's workspace and
 // records its hash, so a recipient can tell whether it has changed since.
-func hashAttachments(s *Session, paths []string) ([]Attachment, error) {
+func (b *Bus) hashAttachments(ctx context.Context, s *Session, paths []string) ([]Attachment, error) {
+	if len(paths) > 0 {
+		if s == nil {
+			return nil, errors.New("a registered sender is required for live attachments")
+		}
+		registered, err := b.Session(ctx, s.ID)
+		if err != nil {
+			return nil, err
+		}
+		s = &registered
+	}
 	var out []Attachment
 	for i, p := range paths {
 		p = strings.TrimSpace(p)
@@ -706,7 +716,7 @@ func hashAttachments(s *Session, paths []string) ([]Attachment, error) {
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return nil, fmt.Errorf("%s is outside this session's workspace (%s); only the workspace's own files can be attached", p, s.WorkspacePath)
 		}
-		sum, size, err := hashFile(p)
+		sum, size, err := b.hashAttachmentWithPolicy(ctx, *s, p)
 		if err != nil {
 			return nil, err
 		}
@@ -1083,7 +1093,8 @@ func (b *Bus) ReadAttachment(ctx context.Context, sessionID string, messageID in
 	if a.Removed {
 		return out, nil
 	}
-	sum, size, err := hashFile(a.Path)
+
+	data, err := b.readAttachmentWithPolicy(ctx, s, *a, m.FromSession)
 	if errors.Is(err, os.ErrNotExist) {
 		out.Missing = true
 		return out, nil
@@ -1091,15 +1102,10 @@ func (b *Bus) ReadAttachment(ctx context.Context, sessionID string, messageID in
 	if err != nil {
 		return out, err
 	}
-	out.CurrentSHA256 = sum
-	out.Changed = sum != a.SHA256
-	if size > MaxAttachmentRead {
-		return out, fmt.Errorf("%s is %d bytes, more than the %d this tool returns", a.Rel, size, MaxAttachmentRead)
-	}
-	data, err := os.ReadFile(a.Path)
-	if err != nil {
-		return out, err
-	}
+	sum := sha256.Sum256(data)
+	out.CurrentSHA256 = hex.EncodeToString(sum[:])
+	out.Changed = out.CurrentSHA256 != a.SHA256
+
 	out.Data, out.Text = data, string(data)
 	return out, nil
 }

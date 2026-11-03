@@ -249,7 +249,7 @@ func TestWorkspaceMountSDKAllAppletsShareScope(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			ctx := builtinTestContext(root)
+			ctx := fileAccessCallerContext(t, a, root)
 			result, err := registry.Execute(ctx, tc.id+"list@1", `{"path":"/workspaces"}`)
 			if err != nil {
 				t.Fatal(err)

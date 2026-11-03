@@ -111,3 +111,6 @@ func LookupPinKind(kind string) (PinKind, bool) {
 // LocalFolder is the kind of a source that is a folder on the computer, the
 // one kind every build knows.
 const LocalFolder = "local-folder"
+
+// IsLocalSource includes the older desktop spelling while registries migrate.
+func IsLocalSource(source Source) bool { return source.Kind == LocalFolder || source.Kind == "local" }

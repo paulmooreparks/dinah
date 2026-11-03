@@ -44,7 +44,7 @@ func TestLegacyWorkspaceReadUsesPrimaryVFSSource(t *testing.T) {
 	}
 	v.service.app.settings.WorkspaceRecords[0].ExecutionPath = executionPath
 	v.service.app.settings.WorkspaceRecords[0].Sources[0].Path = primary
-	result, err := v.service.app.workspaceReadOperation(builtinTestContext(executionPath), `{"path":"note.txt"}`, false)
+	result, err := v.service.app.workspaceReadOperation(fileAccessCallerContext(t, v.service.app, executionPath), `{"path":"note.txt"}`, false)
 	if err != nil || !strings.Contains(result.OutputJSON, "mounted primary source") || strings.Contains(result.OutputJSON, "execution folder") {
 		t.Fatalf("legacy action did not use the VFS primary source: %s, %v", result.OutputJSON, err)
 	}

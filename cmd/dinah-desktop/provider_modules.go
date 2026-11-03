@@ -13,6 +13,8 @@ import (
 // name. What differs as a fact, which the table in internal/providers declares,
 // is not here.
 type providerModule struct {
+	// FileReadScope retains provider-specific folder restrictions before host policy.
+	FileReadScope func(Settings, string) ([]string, bool)
 	// Info fills in whether the provider is installed and where.
 	Info func(a *App, p *AgentProviderInfo, workspaces []string)
 	// Check is the part of checking a connected provider that asks the

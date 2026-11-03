@@ -4,16 +4,30 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"studio/internal/fileaccess"
 	"testing"
 )
 
 func open(t *testing.T) (*Bus, string) {
 	t.Helper()
 	dir := t.TempDir()
-	b, err := OpenAt(filepath.Join(dir, "bus.db"))
+	b, err := OpenAt(filepath.Join(dir, "state", "bus.db"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	b.accessDefaults = func() ([]fileaccess.Rule, error) {
+		home := filepath.Join(dir, "synthetic-home")
+		rules := fileaccess.DefaultRules(runtime.GOOS, home, filepath.Join(home, "roaming"), filepath.Join(home, "local"), nil)
+		// Recipient-authorization fixtures opt into cross-workspace attachment links.
+		// The dedicated policy guards below exercise the enabled default instead.
+		for i := range rules {
+			if rules[i].ID == "other-workspaces" {
+				rules[i].Enabled = false
+			}
+		}
+		return rules, nil
 	}
 	t.Cleanup(func() { b.Close() })
 	return b, dir

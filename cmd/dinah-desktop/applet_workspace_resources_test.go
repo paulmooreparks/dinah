@@ -14,6 +14,7 @@ import (
 func TestWorkspaceResourceAppletScopesSourcesToCallingWorkspace(t *testing.T) {
 	isolateWorkspaceSettings(t)
 	a := closeBusWhenDone(t, NewApp())
+	configureFileAccessFixture(t, a)
 	primary, other, attached := t.TempDir(), t.TempDir(), t.TempDir()
 	first, err := a.SetWorkspace(primary)
 	if err != nil {
@@ -38,7 +39,7 @@ func TestWorkspaceResourceAppletScopesSourcesToCallingWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := builtinTestContext(primary)
+	ctx := fileAccessCallerContext(t, a, primary)
 	call := func(action string, input any) (string, error) {
 		b, err := json.Marshal(input)
 		if err != nil {

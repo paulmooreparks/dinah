@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"studio/internal/agents"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -142,8 +144,12 @@ func (a *App) History() ([]HistoryEntry, error) {
 		return nil, err
 	}
 	defer f.Close()
+	return readPromptHistory(f)
+}
+
+func readPromptHistory(reader io.Reader) ([]HistoryEntry, error) {
 	var out []HistoryEntry
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(reader)
 	sc.Buffer(make([]byte, 0, 64<<10), 8<<20)
 	for sc.Scan() {
 		var e HistoryEntry
@@ -155,6 +161,20 @@ func (a *App) History() ([]HistoryEntry, error) {
 		out = out[len(out)-historyLimit:]
 	}
 	return out, sc.Err()
+}
+
+func (a *App) pathlessPromptHistory() ([]HistoryEntry, error) {
+	a.hmu.Lock()
+	defer a.hmu.Unlock()
+	file, err := agents.OpenCatalogFile(historyPath())
+	if errors.Is(err, os.ErrNotExist) {
+		return []HistoryEntry{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return readPromptHistory(file)
 }
 
 // ChatHistory returns the text of the prompts sent to one chat, newest last,

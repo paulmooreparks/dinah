@@ -27,7 +27,7 @@ func TestHostResultIsDurablePrivateAndIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A new connection simulates reconciliation after a process restart.
-	reopened, err := OpenAt(filepath.Join(dir, "bus.db"))
+	reopened, err := OpenAt(filepath.Join(b.dir, "bus.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

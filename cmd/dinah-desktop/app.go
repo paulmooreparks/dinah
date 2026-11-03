@@ -43,6 +43,7 @@ import (
 //	agent:sent        {sessionId, text, kind}          a queued or steering message went to the agent
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
+	fileAccess                 fileAccessRuntime
 	transferRunning            sync.Map
 	startupErr                 error
 	terminalShutdownIncomplete atomic.Bool
@@ -236,6 +237,10 @@ func NewApp() *App {
 }
 
 func (a *App) startup(ctx context.Context) {
+	if _, err := a.fileAccessService(); err != nil {
+		logf("core", "warning", "file-access policy could not be opened; provider reads will fail closed")
+	}
+	a.watchFileAccess(ctx)
 	a.ctx = ctx
 	logf("core", "info", "%s %s started", product.Name, shownVersion())
 	logRestartWait()
@@ -323,6 +328,7 @@ func (a *App) shutdown(ctx context.Context) {
 	a.closeJudges()
 	a.closeAppletBridge()
 	a.closeAgentLogs()
+	a.closeFileAccess()
 	a.notices.close()
 	if a.updateStop != nil {
 		close(a.updateStop)

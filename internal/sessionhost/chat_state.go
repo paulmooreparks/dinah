@@ -20,10 +20,11 @@ const (
 
 // ChatExec is what an open chat is doing, and why in words, so that the mark is never the only fact.
 type ChatExec struct {
-	State     string `json:"state"`
-	Why       string `json:"why"`
-	Tasks     int    `json:"tasks,omitempty"`
-	Subagents int    `json:"subagents,omitempty"`
+	RefusedReads int    `json:"refusedReads,omitempty"`
+	State        string `json:"state"`
+	Why          string `json:"why"`
+	Tasks        int    `json:"tasks,omitempty"`
+	Subagents    int    `json:"subagents,omitempty"`
 }
 
 // ChatState is a chat's life, whether it has a window, and, when its session runs, its execution state.

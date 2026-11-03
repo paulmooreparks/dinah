@@ -20,9 +20,10 @@ import (
 
 func init() {
 	registerProviderModule("ollama", providerModule{
-		Info:    func(_ *App, p *AgentProviderInfo, _ []string) { ollamaInfo(p) },
-		Adapter: ollamaAdapter,
-		Context: &contextModule{State: ollamaContextState, SetAside: ollamaSetAside, Choose: ollamaChoose},
+		FileReadScope: ollamaFileFolderList,
+		Info:          func(_ *App, p *AgentProviderInfo, _ []string) { ollamaInfo(p) },
+		Adapter:       ollamaAdapter,
+		Context:       &contextModule{State: ollamaContextState, SetAside: ollamaSetAside, Choose: ollamaChoose},
 		Judge: &judgeModule{
 			Build: func(_ *App, _, model string) judge.Judge {
 				return &judge.Ollama{Host: ollamaagent.Host(), Model: model}
@@ -152,7 +153,7 @@ var ollamaAdapter = &providerAdapter{
 
 // Dinah runs Ollama's tool calls itself, so the questions they raise are
 // Dinah's rather than a provider's: a shell command, a write outside the
-// workspace, and an applet action that changes something. Settings › Agents
+// workspace, and an applet action that changes something. Settings â€º Agents
 // chooses when they are asked, as Codex's applet actions have their own
 // choice there.
 

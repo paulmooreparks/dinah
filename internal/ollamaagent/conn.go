@@ -169,7 +169,10 @@ type Conn struct {
 	applets map[string]*appletServer
 	redact  func(string) string
 	// scope says where the file tools may go (files.go); nil is anywhere.
-	scope FileScope
+	scope              FileScope
+	hostFileReads      bool
+	hostDirectoryReads DirectoryRead
+	hostFileOperation  FileOperation
 	// rounds says how many rounds a turn may take; nil is no limit.
 	rounds RoundLimit
 }
@@ -1001,7 +1004,7 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 			}
 			shownText := text
 			if len(shownText) > 4000 {
-				shownText = shownText[:4000] + "…"
+				shownText = shownText[:4000] + "\u2026"
 			}
 			c.update(rec.ID, map[string]any{"sessionUpdate": "tool_call_update", "toolCallId": id, "status": status,
 				"content": []any{map[string]any{"type": "content", "content": map[string]string{"type": "text", "text": shownText}}}})
@@ -1019,7 +1022,7 @@ func (c *Conn) prompt(ctx context.Context, params, out any) error {
 func firstLine(s string) string {
 	line, _, _ := strings.Cut(strings.TrimSpace(s), "\n")
 	if r := []rune(line); len(r) > 80 {
-		line = string(r[:80]) + "…"
+		line = string(r[:80]) + "\u2026"
 	}
 	return line
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -14,6 +15,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"studio/internal/fileaccess"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -250,6 +252,39 @@ func localResourceItem(ref ResourceRef, source WorkspaceSource, f *os.File) (Res
 	return item, nil
 }
 func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (ResourcePage, error) {
+	if scope, handled, err := s.app.agentResourceScope(s.ctx); handled && !fileaccess.InOperation(s.ctx) {
+		if err != nil {
+			return ResourcePage{}, err
+		}
+		service, e := s.app.fileAccessService()
+		if e != nil {
+			return ResourcePage{}, e
+		}
+		source, e := s.source(ref)
+		if e != nil {
+			return ResourcePage{}, e
+		}
+		var page ResourcePage
+		var pageErr error
+		result, ok := service.RunOperation(s.ctx, filepath.Join(source.Path, ref.Path), scope, func(ctx context.Context) (string, bool) {
+			scoped := s
+			scoped.ctx = ctx
+			page, pageErr = scoped.list(ref, start, limit)
+			if pageErr != nil {
+				return pageErr.Error(), false
+			}
+			data, e := json.Marshal(page)
+			if e != nil {
+				return e.Error(), false
+			}
+			return string(data), true
+		})
+		s.app.fileAccessUpdated("file-access:read", nil)
+		if !ok {
+			return ResourcePage{}, errors.New(result)
+		}
+		return page, nil
+	}
 	out := ResourcePage{Entries: []ResourceItem{}, NextStart: -1}
 	if s.ctx != nil && s.ctx.Err() != nil {
 		return out, s.ctx.Err()
@@ -283,9 +318,13 @@ func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (Resou
 	// use that reading (folderListings), so the pages are one snapshot of it.
 	// Each entry is still opened and checked when its page is listed, so an
 	// entry removed since the reading is skipped.
-	entries, err := folderListings.get(source.Path+"|"+ref.Path, st, start, func() ([]os.DirEntry, error) {
-		return sortedWorkspaceDirectory(s.ctx, f, 100000)
-	})
+	entries, handled, err := s.app.agentResourceDirectory(s.ctx, filepath.Join(source.Path, ref.Path), f)
+	if !handled && err == nil {
+		entries, err = folderListings.get(source.Path+"|"+ref.Path, st, start, func() ([]os.DirEntry, error) { return sortedWorkspaceDirectory(s.ctx, f, 100000) })
+	}
+	if handled {
+		sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	}
 	if err != nil {
 		return out, err
 	}
@@ -308,6 +347,10 @@ func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (Resou
 		child.Path = filepath.ToSlash(filepath.Join(filepath.FromSlash(ref.Path), e.Name()))
 		opened, e := openWorkspaceResource(source, child.Path)
 		if e != nil {
+			continue
+		}
+		if e := s.app.checkAgentResourceMetadata(s.ctx, filepath.Join(source.Path, child.Path), opened); e != nil {
+			opened.Close()
 			continue
 		}
 		item, e := localResourceItem(child, source, opened)
@@ -423,7 +466,7 @@ func (s workspaceResourceService) read(ref ResourceRef) (ResourceRead, error) {
 	if err != nil {
 		return ResourceRead{}, err
 	}
-	text, err := resourceText(f)
+	text, err := s.app.readAgentResourceText(s.ctx, filepath.Join(source.Path, ref.Path), f)
 	if err != nil {
 		return ResourceRead{}, err
 	}

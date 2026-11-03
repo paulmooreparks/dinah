@@ -1,27 +1,269 @@
 {
   "comment": "The review's guards (docs/design/invariants.md). scripts/guards.ps1 runs exactly these, locally and in CI, and fails if any listed test is missing, skipped or failing. Add a guard here in the same change that adds its test. onlyOn lists the operating systems (Go GOOS values) where a platform-specific guard runs; elsewhere it must skip or not exist.",
   "go": [
-    { "package": "./internal/profile", "tests": ["TestNoForbiddenTermsInTrackedFiles", "TestNoProductNameOutsideTheProfile", "TestNoProviderNamesInSharedCodeBeyondTheList"] },
-    { "package": "./internal/agents", "tests": ["TestProtectedIdentityWritesAndManagedException", "TestProtectedIdentityCaseVariant", "TestProtectedIdentityCreationModes", "TestWindowsProtectedPathNamespaceReadAndWrite", "TestWindowsJunctionWriteCannotReachState", "TestWindowsManagedRootAllowsShortNames", "TestSliceLinesRejectsInvalidRanges", "FuzzSliceLines", "TestProviderReadPolicyAndBounds"],
-      "onlyOn": { "TestProtectedIdentityCaseVariant": ["windows", "darwin"], "TestProtectedIdentityCreationModes": ["linux", "darwin"], "TestWindowsProtectedPathNamespaceReadAndWrite": ["windows"], "TestWindowsJunctionWriteCannotReachState": ["windows"], "TestWindowsManagedRootAllowsShortNames": ["windows"] } },
-    { "package": "./internal/acp", "tests": ["TestDiagnosticsCannotBypassConnectionRedaction", "TestNotificationPanicKeepsConnectionServingChats", "TestReverseRequestPanicKeepsConnectionServingOtherChats", "TestTraceRedactorCoversReplayedValues"] },
-    { "package": "./internal/sessionhost", "tests": ["FuzzReverseRequestParameters"] },
-    { "package": "./internal/bus", "tests": ["TestWebCodesAreSingleUse", "TestWebSessionLifetimeAndRevocation", "TestLegacyWebTokenMigrationInvalidatesPlaintext", "TestWebRevocationCannotBeUndoneByConcurrentUse", "TestWebSessionRenewalIsThrottledAndClockTolerant", "TestWebSessionDatabaseContainsOnlyNonBearerHashes", "TestGroupAttentionMentionsBoundsAndExpiry", "TestGroupAttentionRepliesAreAddressedAndGroupLocal", "TestGroupAttentionClosedRemovedAndRetiredMembers", "TestGroupAttentionPersistsRoutingAndReconstructsAfterRestart", "TestGroupAttentionAgentRulesAndErrorsStayStrict", "TestGroupAttentionTeamLeadFallbackAndEngagedFollowup", "TestGroupAttentionIndexedWindowIgnoresOldHistory", "TestGroupAttentionIndexedTimeHandlesClockRollbackAndLegacyFractions"] },
-    { "package": "./internal/web", "tests": ["TestPagesNeedSignIn", "TestBrowserSignoutScopeAndSignInAgainPage"] },
-    { "package": "./internal/extensions", "tests": ["TestExtensionEnvironmentUsesAllowListAndSignedDeclarations", "TestExtensionEnvironmentSupportsGitCommands"] },
-    { "package": "./cmd/dinah-desktop", "tests": ["TestThePaneShowsAndAnswersAThread", "TestAFailedCompactionPutsTheHoldAndTheQueueBack", "TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart", "TestRejectedAllocationSettlementIsTransactionalAndStageChecked", "TestMalformedProtocolCannotPersistCapabilities", "TestFrontendJobsStayInTheirHomes", "TestFrontendRulesFindTheirHomes", "TestGroupAttentionPreviewAndSendBridge"] },
-    { "package": "./cmd/dinah", "tests": ["TestInstallRefusesWrongCompilerBeforeReplacingEitherProgram"] },
-    { "package": ".", "tests": ["TestModuleRequiresItsSelectedCompiler", "TestBundledSkinBytesSurviveWindowsCheckout"] },
-    { "package": "./internal/pty", "tests": ["TestConsoleCloseKeepsInputUntilTeardownReturns"],
-      "onlyOn": { "TestConsoleCloseKeepsInputUntilTeardownReturns": ["windows"] } },
-    { "package": "./internal/terminals", "tests": ["TestPingReadinessNeedsVisibleOutput"],
-      "onlyOn": { "TestPingReadinessNeedsVisibleOutput": ["windows"] } },
-    { "package": "./tools/vulnguard", "tests": ["TestCalledFindingFailsRegardlessOfScannerExit", "TestModuleOnlyFindingDoesNotInventACall", "TestInvalidOrWrongScanCannotPass", "TestEveryPublishedPlatformHasABlockingSourceScan", "TestWorkflowGoSuiteHasNoException"] }
+    {
+      "package": "./internal/profile",
+      "tests": [
+        "TestNoForbiddenTermsInTrackedFiles",
+        "TestNoProductNameOutsideTheProfile",
+        "TestNoProviderNamesInSharedCodeBeyondTheList"
+      ]
+    },
+    {
+      "package": "./internal/agents",
+      "tests": [
+        "TestProtectedIdentityWritesAndManagedException",
+        "TestProtectedIdentityCaseVariant",
+        "TestProtectedIdentityCreationModes",
+        "TestWindowsProtectedPathNamespaceReadAndWrite",
+        "TestWindowsJunctionWriteCannotReachState",
+        "TestWindowsManagedRootAllowsShortNames",
+        "TestSliceLinesRejectsInvalidRanges",
+        "FuzzSliceLines",
+        "TestProviderReadPolicyAndBounds",
+        "TestWindowsSnapshotUses128BitFileID",
+        "TestWindowsUnsupportedFileIDPreservesOrdinaryMetadata"
+      ],
+      "onlyOn": {
+        "TestProtectedIdentityCaseVariant": [
+          "windows",
+          "darwin"
+        ],
+        "TestProtectedIdentityCreationModes": [
+          "linux",
+          "darwin"
+        ],
+        "TestWindowsProtectedPathNamespaceReadAndWrite": [
+          "windows"
+        ],
+        "TestWindowsJunctionWriteCannotReachState": [
+          "windows"
+        ],
+        "TestWindowsManagedRootAllowsShortNames": [
+          "windows"
+        ],
+        "TestWindowsSnapshotUses128BitFileID": [
+          "windows"
+        ],
+        "TestWindowsUnsupportedFileIDPreservesOrdinaryMetadata": [
+          "windows"
+        ]
+      }
+    },
+    {
+      "package": "./internal/acp",
+      "tests": [
+        "TestDiagnosticsCannotBypassConnectionRedaction",
+        "TestNotificationPanicKeepsConnectionServingChats",
+        "TestReverseRequestPanicKeepsConnectionServingOtherChats",
+        "TestTraceRedactorCoversReplayedValues"
+      ]
+    },
+    {
+      "package": "./internal/sessionhost",
+      "tests": [
+        "FuzzReverseRequestParameters"
+      ]
+    },
+    {
+      "package": "./internal/bus",
+      "tests": [
+        "TestWebCodesAreSingleUse",
+        "TestWebSessionLifetimeAndRevocation",
+        "TestLegacyWebTokenMigrationInvalidatesPlaintext",
+        "TestWebRevocationCannotBeUndoneByConcurrentUse",
+        "TestWebSessionRenewalIsThrottledAndClockTolerant",
+        "TestWebSessionDatabaseContainsOnlyNonBearerHashes",
+        "TestGroupAttentionMentionsBoundsAndExpiry",
+        "TestGroupAttentionRepliesAreAddressedAndGroupLocal",
+        "TestGroupAttentionClosedRemovedAndRetiredMembers",
+        "TestGroupAttentionPersistsRoutingAndReconstructsAfterRestart",
+        "TestGroupAttentionAgentRulesAndErrorsStayStrict",
+        "TestGroupAttentionTeamLeadFallbackAndEngagedFollowup",
+        "TestGroupAttentionIndexedWindowIgnoresOldHistory",
+        "TestGroupAttentionIndexedTimeHandlesClockRollbackAndLegacyFractions",
+        "TestAttachmentPolicyRefusesDeniedSendAndLaterRead",
+        "TestAttachmentPolicyRejectsSymlinkEscapeAndKeepsLiveChanges",
+        "TestAttachmentPolicyDefaultsProtectOtherWorkspaces",
+        "TestAttachmentPolicyStoredCopiesStayInCatalogueAndAudit"
+      ]
+    },
+    {
+      "package": "./internal/web",
+      "tests": [
+        "TestPagesNeedSignIn",
+        "TestBrowserSignoutScopeAndSignInAgainPage"
+      ]
+    },
+    {
+      "package": "./internal/extensions",
+      "tests": [
+        "TestExtensionEnvironmentUsesAllowListAndSignedDeclarations",
+        "TestExtensionEnvironmentSupportsGitCommands"
+      ]
+    },
+    {
+      "package": "./cmd/dinah-desktop",
+      "tests": [
+        "TestThePaneShowsAndAnswersAThread",
+        "TestAFailedCompactionPutsTheHoldAndTheQueueBack",
+        "TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart",
+        "TestRejectedAllocationSettlementIsTransactionalAndStageChecked",
+        "TestMalformedProtocolCannotPersistCapabilities",
+        "TestFrontendJobsStayInTheirHomes",
+        "TestFrontendRulesFindTheirHomes",
+        "TestGroupAttentionPreviewAndSendBridge",
+        "TestFileAccessPageAndProviderShareOnePolicy",
+        "TestFileAccessBackgroundNotificationReachesSettings",
+        "TestFileAccessCachedServiceReadDoesNotTakeAppLock",
+        "TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority",
+        "TestAgentWorkspaceStatUsesPolicyAndAudit",
+        "TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit",
+        "TestPathlessHistoryRejectsSelectorsAndSymlinkAndAudits"
+      ]
+    },
+    {
+      "package": "./cmd/dinah",
+      "tests": [
+        "TestInstallRefusesWrongCompilerBeforeReplacingEitherProgram"
+      ]
+    },
+    {
+      "package": ".",
+      "tests": [
+        "TestModuleRequiresItsSelectedCompiler",
+        "TestBundledSkinBytesSurviveWindowsCheckout"
+      ]
+    },
+    {
+      "package": "./internal/pty",
+      "tests": [
+        "TestConsoleCloseKeepsInputUntilTeardownReturns"
+      ],
+      "onlyOn": {
+        "TestConsoleCloseKeepsInputUntilTeardownReturns": [
+          "windows"
+        ]
+      }
+    },
+    {
+      "package": "./internal/terminals",
+      "tests": [
+        "TestPingReadinessNeedsVisibleOutput"
+      ],
+      "onlyOn": {
+        "TestPingReadinessNeedsVisibleOutput": [
+          "windows"
+        ]
+      }
+    },
+    {
+      "package": "./tools/vulnguard",
+      "tests": [
+        "TestCalledFindingFailsRegardlessOfScannerExit",
+        "TestModuleOnlyFindingDoesNotInventACall",
+        "TestInvalidOrWrongScanCannotPass",
+        "TestEveryPublishedPlatformHasABlockingSourceScan",
+        "TestWorkflowGoSuiteHasNoException"
+      ]
+    },
+    {
+      "package": "./internal/fileaccess",
+      "tests": [
+        "TestAuditPolicyChangesAreAtomicAndVersioned",
+        "TestAuditCursorsPreserveNewerAndOtherChats",
+        "TestAuditRotationBoundsFilesAndRetainsPolicy",
+        "TestAuditDatabasePathIsNotAURIFragment",
+        "TestAuditDatabaseRefusesNewerSchemaWithoutWriting",
+        "TestAuditDenialFloodCannotRotateReadsOrPolicyChanges",
+        "TestSearchAuditCommitsOneSummaryAndPreservesEarlierReads",
+        "TestDefaultOverridesAndSandboxProfiles",
+        "TestOperationWithholdsResultWhenAuditCannotCommit",
+        "TestDirectoryListingOmitsDeniedChildren",
+        "TestAcknowledgementPreservesUnshownRefusalGroups",
+        "TestErrorFloodCollapsesWithoutEvictingReads",
+        "TestWindowsPipeDenyRootDoesNotRefuseOrdinaryReads",
+        "TestReadPolicyAuditsWithoutReturningUnauditedContent",
+        "TestReadPolicyChangesAndSymlinkAliases",
+        "TestDefaultResolversCoverEveryPlatformAndEntry",
+        "TestEveryNativeDefaultDeniesItsResolvedPath",
+        "TestDefaultResolversIgnoreRelativeXDGPaths",
+        "TestReadPolicyProtectsCanonicalStateDirectory",
+        "TestReadPolicyDirectoryMetadataUsesDenyAndAudit",
+        "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles",
+        "TestNetworkVerificationBoundsAndVisibility",
+        "TestNetworkVerificationDoesNotCacheSuccess",
+        "TestWindowsUNCDefaultRefusesDriveAlias",
+        "TestSearchSummaryKeepsRulesAndBoundedDeniedPaths",
+        "TestCredentialOverridesProtectOnlyCredentialFiles",
+        "TestWindowsUnverifiedRuleIsAuditedInsideWorkspace",
+        "TestCollapsedAuditKeepsUnverifiedRules",
+        "TestWindowsSlowNetworkRootsDoNotStarveLaterAlias",
+        "TestNetworkAccessDeniedIsImmediatelyUnverified",
+        "TestCompletedNetworkRootKeepsItsResultAfterOtherWait",
+        "TestNetworkQueuedSharesKeepLateIdentityDuringStalledRefresh",
+        "TestNetworkRegistrySurvivesScopeChanges",
+        "TestNetworkSuppliersRetainEachOthersIdentities",
+        "TestNetworkBackgroundCompletionNotifies",
+        "TestNetworkUnsupportedIdentityReachesPolicy",
+        "TestNetworkPolicyRefreshDoesNotRestartSlowVerification",
+        "TestNetworkHealthyReadsKeepCompletedVerdictAndQuietEvents",
+        "TestNetworkIdentityReplacementAndFailureEachNotifyOnce",
+        "TestNetworkNeverCheckedSnapshotIsUnverified",
+        "TestWindowsUnsupportedRootStillAuditsUnverified",
+        "TestNetworkUnsupportedRefreshKeepsLastKnownIdentity",
+        "TestNetworkTwentyRootsUseOneShareBatch",
+        "TestNetworkPolicyLoadAndRootChangeStartVerificationBeforeRead"
+      ],
+      "onlyOn": {
+        "TestWindowsUnsupportedRootStillAuditsUnverified": [
+          "windows"
+        ],
+        "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles": [
+          "windows"
+        ],
+        "TestWindowsPipeDenyRootDoesNotRefuseOrdinaryReads": [
+          "windows"
+        ],
+        "TestWindowsUNCDefaultRefusesDriveAlias": [
+          "windows"
+        ],
+        "TestWindowsUnverifiedRuleIsAuditedInsideWorkspace": [
+          "windows"
+        ],
+        "TestWindowsSlowNetworkRootsDoNotStarveLaterAlias": [
+          "windows"
+        ]
+      }
+    },
+    {
+      "package": "./internal/ollamaagent",
+      "tests": [
+        "TestHostReadPolicyCoversLimitedReadAndSearch",
+        "TestHostDirectoryPolicyCoversListAndFind",
+        "TestRealDirectoryPolicyOmitsDeniedNamesFromTools"
+      ]
+    }
   ],
   "browser": [
-    "contained-content", "html-safety", "terminal-escapes", "chat-state-contract",
-    "list-state-stability", "taskbar-state-stability", "list-row-layout", "chat-last-read",
-    "app-ui3", "chat-continued-open", "provider-continuation", "chat-placement",
-    "web-skins", "extensions", "reconcile", "mention-lists", "group-mention-binding", "group-reach", "browser-lock"
+    "contained-content",
+    "html-safety",
+    "terminal-escapes",
+    "chat-state-contract",
+    "list-state-stability",
+    "taskbar-state-stability",
+    "list-row-layout",
+    "chat-last-read",
+    "app-ui3",
+    "chat-continued-open",
+    "provider-continuation",
+    "chat-placement",
+    "web-skins",
+    "extensions",
+    "reconcile",
+    "mention-lists",
+    "group-mention-binding",
+    "group-reach",
+    "browser-lock"
   ]
 }

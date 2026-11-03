@@ -1,17 +1,20 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"slices"
 
+	"studio/internal/fileaccess"
 	"studio/internal/layout"
 	"studio/internal/ollamaagent"
 )
 
 // Where Ollama's file tools may go (docs/plans/ollama-file-limits.md). The
-// person chooses under Settings › Agents › Ollama › File Access:
+// person chooses under Settings > Agents > Ollama > File Access:
 //
 //   - workspace: the chat's own folder and the local folders among the sources
 //     of the workspace it belongs to,
@@ -43,18 +46,7 @@ func ollamaFileFolders(s Settings) []string { return slices.Clone(s.OllamaFileFo
 // own folder first, then every local source of the workspace whose execution
 // folder it is. A chat in no registered workspace has its own folder alone.
 func workspaceFolders(s Settings, cwd string) []string {
-	out := []string{filepath.Clean(cwd)}
-	for _, w := range s.WorkspaceRecords {
-		if !layout.SamePath(w.ExecutionPath, cwd) {
-			continue
-		}
-		for _, src := range w.Sources {
-			if src.Kind == "local" && src.Path != "" && !slices.ContainsFunc(out, func(o string) bool { return layout.SamePath(o, src.Path) }) {
-				out = append(out, filepath.Clean(src.Path))
-			}
-		}
-	}
-	return out
+	return fileaccess.WorkspaceScope(stateLayout(), s.WorkspaceRecords, cwd).Roots
 }
 
 // ollamaFileFolderList is the folders a chat's file tools may reach under the
@@ -80,6 +72,24 @@ func (a *App) ollamaFileScopeFor(_, cwd string) ([]string, bool) {
 // useOllamaFileScope gives a connection to Ollama the function that says where
 // its file tools may go.
 func (a *App) useOllamaFileScope(c *ollamaagent.Conn) {
+	c.SetHostFileReads()
+	c.SetHostFileOperation(func(ctx context.Context, session, path, source string, work func(context.Context) (string, bool)) (string, bool) {
+		scope, err := a.agentReadScope(c, session)
+		if err != nil {
+			return err.Error(), false
+		}
+		scope.Source = source
+		service, err := a.fileAccessService()
+		if err != nil {
+			return err.Error(), false
+		}
+		text, ok := service.RunOperation(ctx, path, scope, work)
+		a.fileAccessUpdated("file-access:read", nil)
+		return text, ok
+	})
+	c.SetHostDirectoryReads(func(ctx context.Context, session, path, source string) ([]fs.DirEntry, error) {
+		return a.readAgentDirectory(ctx, c, session, path, source)
+	})
 	c.SetFileScope(func(session, cwd string) ([]string, bool) { return a.ollamaFileScopeFor(session, cwd) })
 }
 

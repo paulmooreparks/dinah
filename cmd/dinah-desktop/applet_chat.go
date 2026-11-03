@@ -99,7 +99,7 @@ func (a *App) chatAppletBundle() (applet.Bundle, error) {
 		if err != nil {
 			return applet.Result{}, err
 		}
-		all, err := a.History()
+		all, err := a.pathlessPromptHistory()
 		if err != nil {
 			return applet.Result{}, err
 		}
@@ -124,7 +124,11 @@ func (a *App) chatAppletBundle() (applet.Bundle, error) {
 			}
 			list = append(list, map[string]any{"time": all[i].Time, "kind": all[i].Kind, "text": text, "textTruncated": textTruncated})
 		}
-		return builtinJSON(map[string]any{"prompts": list, "truncated": truncated, "coverage": "prompt-only"})
+		result, err := builtinJSON(map[string]any{"prompts": list, "truncated": truncated, "coverage": "prompt-only"})
+		if err != nil {
+			return applet.Result{}, err
+		}
+		return a.auditPathlessRead(ctx, chatHistoryAction, "prompt-history", result)
 	}
 	handlers[chatAskAction] = func(ctx context.Context, input string) (applet.Result, error) {
 		var in struct {

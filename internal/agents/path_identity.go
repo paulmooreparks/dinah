@@ -80,7 +80,7 @@ func IdentityContains(root string, chain []os.FileInfo) (bool, error) {
 		return false, err
 	}
 	for _, opened := range chain {
-		if os.SameFile(info, opened) {
+		if os.SameFile(info, originalFileInfo(opened)) {
 			return true, nil
 		}
 	}
@@ -119,16 +119,16 @@ func protectedIdentity(l layout.Layout, chain []os.FileInfo, managedRoots ...str
 	return nil
 }
 
-// pathIdentityChain is an early metadata check. Operation checks below also
+// PathIdentities is an early metadata check. Operation checks below also
 // use the identities taken from the handles that actually perform the I/O.
-func pathIdentityChain(path string) ([]os.FileInfo, error) {
+func PathIdentities(path string) ([]os.FileInfo, error) {
 	resolved, err := ResolveFilePath(path)
 	if err != nil {
 		return nil, err
 	}
 	var chain []os.FileInfo
 	for {
-		info, err := os.Stat(resolved)
+		info, err := StatFileIdentity(resolved)
 		if err == nil {
 			chain = append(chain, info)
 		} else if !os.IsNotExist(err) {

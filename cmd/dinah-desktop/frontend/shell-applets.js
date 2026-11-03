@@ -9,6 +9,17 @@
     'needs-you': { id: 'dinah.notifications', title: 'Notifications', glyph: 'warning', workspace: false },
     settings: { id: 'dinah.settings', title: 'Settings', glyph: 'gear', workspace: false }
   };
+  /* A Settings section that has a view of its own, such as Agent File
+     Access with its log filters, keeps that view in the Settings window's
+     address after the section's name and a "?": "file-access?outcome=denied".
+     The section registers state(), which returns its part of the address,
+     and shown(part), which is called whenever the section is shown with the
+     part it is shown with; it calls changed() when its view changes. */
+  var sectionHooks = {}, settingsChanged = null;
+  window.dinahSettingsSections = Object.freeze({
+    register: function (name, hook) { sectionHooks[name] = hook; },
+    changed: function () { if (settingsChanged) settingsChanged(); }
+  });
   function retain(kind, title, glyph, node, mode, fields) {
     var content = document.querySelector(node);
     content.hidden = false;
@@ -22,22 +33,29 @@
         var settingsSection = 'appearance';
         function settingsTab(value, record) {
           // The sections are the tabs the page has.
+          var at = String(value || '').indexOf('?'), name = at < 0 ? String(value || '') : value.slice(0, at), part = at < 0 ? '' : value.slice(at + 1);
           var choices = Array.from(content.querySelectorAll('[data-settings-section]')).map(function (tab) { return tab.dataset.settingsSection; });
-          settingsSection = choices.includes(value) ? value : 'appearance';
+          settingsSection = choices.includes(name) ? name : 'appearance';
           content.querySelectorAll('[data-settings-section]').forEach(function (tab) {
             var selected = tab.dataset.settingsSection === settingsSection;
             tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
             document.getElementById(tab.getAttribute('aria-controls')).hidden = !selected;
           });
-          if (record) opts.changed(settingsSection);
+          var hook = sectionHooks[settingsSection];
+          if (hook && hook.shown) hook.shown(part);
+          if (record) opts.changed(state());
         }
+        if (kind === 'settings') settingsChanged = function () { opts.changed(state()); };
         function settingsClick(event) {
           var tab = event.target.closest('[data-settings-section]');
           if (tab) settingsTab(tab.dataset.settingsSection, true);
         }
         if (kind === 'settings') content.addEventListener('click', settingsClick);
         function state() {
-          if (kind === 'settings') return settingsSection;
+          if (kind === 'settings') {
+            var hook = sectionHooks[settingsSection], part = hook && hook.state ? hook.state() : '';
+            return settingsSection + (part ? '?' + part : '');
+          }
           var value = {};
           (fields || []).forEach(function (id) { value[id] = document.getElementById(id).value; });
           return JSON.stringify(value);
