@@ -1,5 +1,7 @@
 // Node does not expose Windows FileShare.None. The helper owns that handle
-// while stdin is open; terminating node closes the pipe and releases it.
+// and its FIFO queue ticket while stdin is open. Terminating node closes
+// the pipe and releases both, including while it is still waiting. Queue
+// position and holder notices come from that one PowerShell implementation.
 const { spawn } = require('child_process');
 const path = require('path');
 const readline = require('readline');
