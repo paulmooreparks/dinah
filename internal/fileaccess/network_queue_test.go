@@ -111,13 +111,21 @@ func TestNetworkQueuedSharesKeepLateIdentityDuringStalledRefresh(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, rule := range policy.Rules {
-			if rule.Kind == "default" && (len(rule.NetworkRoots) != 1 || !rule.NetworkRoots[0].UsingLastKnownIdentity || rule.NetworkRoots[0].Status != "unverified") {
-				t.Fatalf("cached denial was not disclosed in policy: %+v", rule)
+			if rule.Kind == "default" && (len(rule.NetworkRoots) != 1 || rule.NetworkRoots[0].UsingLastKnownIdentity || rule.NetworkRoots[0].Status != "verified") {
+				t.Fatalf("running refresh replaced the completed verdict: %+v", rule)
 			}
 		}
 	}
 	releaseLater.Do(func() { close(later) })
 	waitNetworkState(t, p, func() bool { return p.active == 0 })
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, root := range roots {
+		state := p.rootStateLocked(root)
+		if state.Status != "unverified" || !state.UsingLastKnownIdentity || state.LastVerifiedAt == "" {
+			t.Fatalf("completed failed refresh lost the cached denial: %+v", state)
+		}
+	}
 }
 
 func TestNetworkTwentyRootsUseOneShareBatch(t *testing.T) {

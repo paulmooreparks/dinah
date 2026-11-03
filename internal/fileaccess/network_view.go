@@ -14,8 +14,7 @@ func (p *networkProber) rootStateLocked(root string) NetworkRuleState {
 	if !checked {
 		result.reason = "This folder has not been checked yet"
 	}
-	if p.tasks[root] != nil {
-		result.verified = false
+	if !checked && p.tasks[root] != nil {
 		result.reason = "This folder's check is waiting or still running"
 	}
 	if detail := p.unavailable[root]; detail != "" {
@@ -57,9 +56,18 @@ func (p *networkProber) publishLocked() {
 	view := struct {
 		Roots   []rootView
 		Workers []NetworkWorker
-	}{Workers: p.workersLocked()}
+	}{}
+	for _, worker := range p.workersLocked() {
+		if worker.Stalled {
+			view.Workers = append(view.Workers, worker)
+		}
+	}
 	for _, root := range names {
-		view.Roots = append(view.Roots, rootView{p.rootStateLocked(root), p.last[root].key})
+		state := p.rootStateLocked(root)
+		// The latest successful time remains available on a display read, but
+		// advancing it alone must not reload the page after every agent read.
+		state.LastVerifiedAt = ""
+		view.Roots = append(view.Roots, rootView{state, p.last[root].key})
 	}
 	data, _ := json.Marshal(view)
 	if string(data) == p.published {

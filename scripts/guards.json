@@ -171,6 +171,8 @@
         "TestNetworkBackgroundCompletionNotifies",
         "TestNetworkUnsupportedIdentityReachesPolicy",
         "TestNetworkPolicyRefreshDoesNotRestartSlowVerification",
+        "TestNetworkHealthyReadsKeepCompletedVerdictAndQuietEvents",
+        "TestNetworkIdentityReplacementAndFailureEachNotifyOnce",
         "TestNetworkNeverCheckedSnapshotIsUnverified",
         "TestWindowsUnsupportedRootStillAuditsUnverified",
         "TestNetworkUnsupportedRefreshKeepsLastKnownIdentity",

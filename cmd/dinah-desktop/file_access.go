@@ -125,10 +125,9 @@ func (a *App) fileAccessUpdated(event string, payload any) {
 		return
 	}
 	networkBytes, _ := json.Marshal(struct {
-		Workers  []fileaccess.NetworkWorker
 		Revision uint64
-	}{f.service.NetworkWorkers(), f.service.NetworkRevision()})
-	networkChanged := event == "file-access:network" || string(networkBytes) != f.networkState
+	}{f.service.NetworkRevision()})
+	networkChanged := string(networkBytes) != f.networkState
 	f.networkState = string(networkBytes)
 	changed := version != f.version || high != f.highWater || !maps.Equal(counts, f.counts)
 	if version != f.version {

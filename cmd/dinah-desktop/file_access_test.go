@@ -72,6 +72,11 @@ func TestFileAccessBackgroundNotificationReachesSettings(t *testing.T) {
 	defer cancel()
 	released := make(chan struct{})
 	a.watchFileAccessChanges(ctx, changes, func() { close(released) })
+	// The core notification guard tests real revision changes. Here the host
+	// fixture has not yet observed the revision carried by the notification.
+	a.fileAccess.mu.Lock()
+	a.fileAccess.networkState = ""
+	a.fileAccess.mu.Unlock()
 	changes <- struct{}{}
 	select {
 	case name := <-events:
@@ -80,6 +85,12 @@ func TestFileAccessBackgroundNotificationReachesSettings(t *testing.T) {
 		}
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("Settings did not hear completion before the audit poll")
+	}
+	changes <- struct{}{}
+	select {
+	case name := <-events:
+		t.Fatal("duplicate revision emitted another event", name)
+	case <-time.After(50 * time.Millisecond):
 	}
 	cancel()
 	select {
