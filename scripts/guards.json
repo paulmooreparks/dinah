@@ -6,7 +6,7 @@
       "onlyOn": { "TestProtectedIdentityCaseVariant": ["windows", "darwin"], "TestProtectedIdentityCreationModes": ["linux", "darwin"], "TestWindowsProtectedPathNamespaceReadAndWrite": ["windows"], "TestWindowsJunctionWriteCannotReachState": ["windows"], "TestWindowsManagedRootAllowsShortNames": ["windows"] } },
     { "package": "./internal/acp", "tests": ["TestDiagnosticsCannotBypassConnectionRedaction", "TestNotificationPanicKeepsConnectionServingChats", "TestReverseRequestPanicKeepsConnectionServingOtherChats", "TestTraceRedactorCoversReplayedValues"] },
     { "package": "./internal/sessionhost", "tests": ["FuzzReverseRequestParameters"] },
-    { "package": "./internal/bus", "tests": ["TestWebCodesAreSingleUse", "TestWebSessionLifetimeAndRevocation", "TestLegacyWebTokenMigrationInvalidatesPlaintext", "TestWebRevocationCannotBeUndoneByConcurrentUse", "TestWebSessionRenewalIsThrottledAndClockTolerant", "TestWebSessionDatabaseContainsOnlyNonBearerHashes", "TestGroupAttentionMentionsBoundsAndExpiry", "TestGroupAttentionRepliesAreAddressedAndGroupLocal", "TestGroupAttentionClosedRemovedAndRetiredMembers", "TestGroupAttentionPersistsRoutingAndReconstructsAfterRestart", "TestGroupAttentionAgentRulesAndErrorsStayStrict", "TestGroupAttentionTeamLeadFallbackAndEngagedFollowup"] },
+    { "package": "./internal/bus", "tests": ["TestWebCodesAreSingleUse", "TestWebSessionLifetimeAndRevocation", "TestLegacyWebTokenMigrationInvalidatesPlaintext", "TestWebRevocationCannotBeUndoneByConcurrentUse", "TestWebSessionRenewalIsThrottledAndClockTolerant", "TestWebSessionDatabaseContainsOnlyNonBearerHashes", "TestGroupAttentionMentionsBoundsAndExpiry", "TestGroupAttentionRepliesAreAddressedAndGroupLocal", "TestGroupAttentionClosedRemovedAndRetiredMembers", "TestGroupAttentionPersistsRoutingAndReconstructsAfterRestart", "TestGroupAttentionAgentRulesAndErrorsStayStrict", "TestGroupAttentionTeamLeadFallbackAndEngagedFollowup", "TestGroupAttentionIndexedWindowIgnoresOldHistory", "TestGroupAttentionIndexedTimeHandlesClockRollbackAndLegacyFractions"] },
     { "package": "./internal/web", "tests": ["TestPagesNeedSignIn", "TestBrowserSignoutScopeAndSignInAgainPage"] },
     { "package": "./internal/extensions", "tests": ["TestExtensionEnvironmentUsesAllowListAndSignedDeclarations", "TestExtensionEnvironmentSupportsGitCommands"] },
     { "package": "./cmd/dinah-desktop", "tests": ["TestThePaneShowsAndAnswersAThread", "TestAFailedCompactionPutsTheHoldAndTheQueueBack", "TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart", "TestRejectedAllocationSettlementIsTransactionalAndStageChecked", "TestMalformedProtocolCannotPersistCapabilities", "TestFrontendJobsStayInTheirHomes", "TestFrontendRulesFindTheirHomes", "TestGroupAttentionPreviewAndSendBridge"] },
@@ -22,6 +22,6 @@
     "contained-content", "html-safety", "terminal-escapes", "chat-state-contract",
     "list-state-stability", "taskbar-state-stability", "list-row-layout", "chat-last-read",
     "app-ui3", "chat-continued-open", "provider-continuation", "chat-placement",
-    "web-skins", "extensions", "reconcile", "mention-lists", "group-mention-binding"
+    "web-skins", "extensions", "reconcile", "mention-lists", "group-mention-binding", "group-reach"
   ]
 }
