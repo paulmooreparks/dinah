@@ -822,7 +822,9 @@
     // says the message goes to every member, mentioned or by the rule.
     function reachWords(r) {
       if (!r) return '';
-      if (r.everyone) return 'Reaches everyone in the group';
+      // Everyone mentioned, or everyone because no one is in conversation:
+      // the second says why, so the person can see the rule at work.
+      if (r.everyone) return r.reason === 'everyone' ? 'Reaches everyone, since no one is in conversation' : 'Reaches everyone in the group';
       // A team channel with no one engaged goes to its lead.
       if (r.reason === 'lead') return 'Reaches the lead, ' + names(r.reach);
       return 'Reaches ' + names(r.reach);

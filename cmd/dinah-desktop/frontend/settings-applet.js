@@ -714,6 +714,12 @@
        refused or clamped is shown as it is. */
     function drawAttention(s) {
       if (!s) return;
+      // The fields take the engine's ranges, so the page never offers a
+      // value the engine refuses or shows one its field calls invalid.
+      if (s.limitMin) $('set-attention-limit').min = s.limitMin;
+      if (s.limitMax) $('set-attention-limit').max = s.limitMax;
+      if (s.minutesMin) $('set-attention-minutes').min = s.minutesMin;
+      if (s.minutesMax) $('set-attention-minutes').max = s.minutesMax;
       if (document.activeElement !== $('set-attention-limit')) $('set-attention-limit').value = s.limit;
       if (document.activeElement !== $('set-attention-minutes')) $('set-attention-minutes').value = s.minutes;
     }

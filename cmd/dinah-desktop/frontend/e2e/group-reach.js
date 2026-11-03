@@ -22,7 +22,7 @@ const { launch } = require('./lib/page');
         ReadUIState: async () => ({ version: 1, values: { 'dinah-workbench-layout': '?open=workspace' } }), SaveUIState: async () => {},
         BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, review, person], counts: { top: 'idle', idle: 2, working: 0, waiting: 0, stuck: 0, closed: 0, unknown: 0 } }], workspaces: [], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
         BusGroupMessages: async () => window.__messages || [], BusMarkGroupRead: async () => {},
-        BusGroupAttentionSettings: async () => window.__attention || { limit: 3, minutes: 30 },
+        BusGroupAttentionSettings: async () => Object.assign({ limitMin: 1, limitMax: 10, minutesMin: 1, minutesMax: 1440 }, window.__attention || { limit: 3, minutes: 30 }),
         SetBusGroupAttentionSettings: async (limit, minutes) => { window.__attention = { limit, minutes }; window.__attentionSet = (window.__attentionSet || []).concat([[limit, minutes]]); return window.__attention; },
         // The send stores who it reached; __sendReach stands in for an
         // engagement that ran out between the line and the send.
@@ -58,9 +58,9 @@ const { launch } = require('./lib/page');
     const box = room.locator('.group-composer textarea'), line = room.locator('.group-reach');
     await box.waitFor();
     const lineIs = words => p.waitForFunction(w => { const l = document.querySelector('.win[data-win-kind="bus-room"] .group-reach'); return l && l.textContent === w; }, words);
-    await lineIs('Reaches everyone in the group');
+    await lineIs('Reaches everyone, since no one is in conversation');
     ok('with no member engaged, the placeholder offers everyone', await box.getAttribute('placeholder') === 'Type @ to choose who answers, or send to everyone', await box.getAttribute('placeholder'));
-    ok('and the line says everyone', await line.textContent() === 'Reaches everyone in the group');
+    ok('and the line says everyone, and why', await line.textContent() === 'Reaches everyone, since no one is in conversation');
     const before = await room.locator('.group-composer').evaluate(el => { const r = el.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; });
     // An engaged member, with an expiry; a change of the set reaches the page as an event.
     await p.evaluate(() => { window.__engaged = ['window-d1']; window.__expires = new Date(Date.now() + 2500).toISOString(); window.__version = 2; __emit('bus:changed', { counter: 2 }); });
@@ -78,11 +78,16 @@ const { launch } = require('./lib/page');
     await p.waitForTimeout(900);
     const said = await p.evaluate(() => __said.slice());
     ok('the live region speaks once for the new reach, not on every key', said.length === 1 && said[0] === 'Reaches Review', JSON.stringify(said));
+    // A typed @everyone reaches everyone too, without the rule's reason.
+    await box.fill('');
+    await box.pressSequentially('@everyone hello');
+    await lineIs('Reaches everyone in the group');
+    ok('a mentioned @everyone says everyone, not the rule', true);
     // Clearing the box goes back to the engaged member, until the expiry.
     await box.fill('');
     await lineIs('Reaches Docs Pass');
     await p.evaluate(() => { window.__engaged = []; });
-    await lineIs('Reaches everyone in the group');
+    await lineIs('Reaches everyone, since no one is in conversation');
     ok('when the nearest expiry passes, the line follows without a key pressed', true);
     const after = await room.locator('.group-composer').evaluate(el => { const r = el.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; });
     ok('the composer does not move or change size as the line changes', JSON.stringify(before) === JSON.stringify(after), JSON.stringify({ before, after }));
@@ -117,6 +122,8 @@ const { launch } = require('./lib/page');
     const limit = settings.locator('#set-attention-limit'), minutes = settings.locator('#set-attention-minutes');
     await p.waitForFunction(() => document.getElementById('set-attention-limit').value === '3');
     ok('Settings shows the engine\'s limit and minutes', await limit.inputValue() === '3' && await minutes.inputValue() === '30');
+    const ranges = await p.evaluate(() => ['set-attention-limit', 'set-attention-minutes'].map(id => { const f = document.getElementById(id); return f.min + '-' + f.max; }));
+    ok('each field\'s range is the one the engine reports', JSON.stringify(ranges) === JSON.stringify(['1-10', '1-1440']), JSON.stringify(ranges));
     await minutes.fill('45'); await minutes.press('Tab');
     await p.waitForFunction(() => (window.__attentionSet || []).length === 1);
     ok('changing the minutes sets both through the engine', JSON.stringify(await p.evaluate(() => __attentionSet[0])) === JSON.stringify([3, 45]));
