@@ -21,12 +21,16 @@ const { launch } = require('./lib/page');
         rule('p1', 'protected', 'C:/Users/me/.dinah', 'Dinah\'s own settings and approvals.'),
         rule('d1', 'default', 'C:/Users/me/.ssh', 'Your SSH keys. An agent that read them could sign in to your servers as you.', { enabled: true, actions: ['disable'] }),
         rule('d2', 'default', 'C:/Users/me/AppData/Local/Browser', 'Your browser profile, with its saved passwords and cookies.', { enabled: true, actions: ['disable'], resolvedPaths: [] }),
-        rule('c1', 'custom', 'D:/Secrets', 'Added by you.', { actions: ['remove'] })
+        rule('c1', 'custom', 'D:/Secrets', 'Added by you.', { actions: ['remove'] }),
+        // A network folder, verified, as Engine's policy gives it (fileaccess/network.go).
+        rule('n1', 'custom', '//files/finance', 'Added by you.', { actions: ['remove'], verification: 'verified',
+          networkRoots: [{ path: '//files/finance', status: 'verified', lastVerifiedAt: '2026-11-03T03:00:00Z' }] })
       ] };
       const rows = [];
       for (let i = 80; i >= 1; i--) rows.push({ id: i, at: new Date(Date.UTC(2026, 10, 2, 3, 0, 0) - (80 - i) * 60000).toISOString(), chat: i % 2 ? 'chat-a' : 'chat-b', chatTitle: i % 2 ? 'Release Notes' : 'Parser Fix', workspace: 'C:/Fixture', path: 'C:/Other/file' + i + '.txt', bytes: i % 5 ? 2048 : 0, outcome: i % 5 ? 'allowed' : 'denied', ruleID: i % 5 ? '' : 'd1', reason: i % 5 ? '' : 'Your SSH keys' });
       rows.find(r => r.id === 75).count = 3;
       Object.assign(rows.find(r => r.id === 74), { operation: 'search', visited: 120, denied: 3, errors: 1 });
+      rows.find(r => r.id === 73).unverifiedRuleIDs = ['n1'];
       window.__rows = rows;
       const copy = v => JSON.parse(JSON.stringify(v));
       const stale = v => { if (v !== __policy.version) throw new Error('the policy version is stale: it changed'); };
@@ -120,6 +124,31 @@ const { launch } = require('./lib/page');
     await rules.locator('[data-rule="c99"]').waitFor();
     ok('a policy change made elsewhere redraws the list', true);
 
+    // A network folder's state, as file-access:network announces it: the
+    // badge and the words follow it, and nothing in the list moves.
+    const net = rules.locator('[data-rule="n1"] .file-access-network-root');
+    const state = () => net.evaluate(el => ({ status: el.dataset.status, lastKnown: 'lastKnown' in el.dataset, stalled: 'stalled' in el.dataset,
+      badges: [...el.querySelectorAll('.badge')].map(b => b.className.replace('badge ', '') + ':' + b.textContent), words: el.querySelector('.file-access-network-detail').textContent }));
+    const ruleBoxes = () => p.evaluate(() => [...document.querySelectorAll('#file-access-rules [data-rule], #file-access-rules .file-access-network-root')].map(el => { const r = el.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height), Math.round(r.width)]; }));
+    let s = await state();
+    ok('a verified network folder says so, and that other paths to it are refused too', s.status === 'verified' && JSON.stringify(s.badges) === '["positive:Verified"]' && /^Verified .*Other paths to this folder are refused too\.$/.test(s.words), JSON.stringify(s));
+    const steady = await ruleBoxes();
+    const network = (root, workers) => p.evaluate(([r, w]) => { const n = __policy.rules.find(x => x.id === 'n1'); n.networkRoots = [Object.assign({ path: '//files/finance' }, r)]; n.verification = r.status; __policy.networkWorkers = w; __emit('file-access:network', null); }, [root, workers || []]);
+    await network({ status: 'unverified', reason: 'The file system did not give the folder a lasting identity.' });
+    await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-root').dataset.status === 'unverified');
+    s = await state();
+    ok('an unverified folder says why, and that a mapped drive letter to it is not refused', JSON.stringify(s.badges) === '["warn:Unverified"]' &&
+      s.words === 'Not verified: The file system did not give the folder a lasting identity. Until it is, this rule matches the folder by its name only, so another path to the same folder, such as a mapped drive letter, is not refused.', s.words);
+    ok('and the list has not moved or changed size', JSON.stringify(await ruleBoxes()) === JSON.stringify(steady), JSON.stringify({ steady, now: await ruleBoxes() }));
+    await network({ status: 'unverified', reason: 'The server did not answer.', usingLastKnownIdentity: true, lastVerifiedAt: '2026-11-03T03:00:00Z' },
+      [{ root: '//files/finance', roots: ['//files/finance'], ruleIDs: ['n1'], startedAt: '2026-11-03T03:10:00Z', stalled: true }]);
+    await p.waitForFunction(() => 'stalled' in document.querySelector('[data-rule="n1"] .file-access-network-root').dataset);
+    s = await state();
+    ok('a folder on its last known identity says so plainly, with when it was verified', s.lastKnown && s.badges[0] === 'warn:Last Known Identity' && /keeps the identity last verified /.test(s.words), JSON.stringify(s));
+    ok('a stalled check is shown on its rule, with when it started', s.stalled && s.badges[1] === 'warn:Check Stalled' && / The check of this folder has not finished since .*.$/.test(s.words) && /^Not verified just now/.test(s.words), JSON.stringify(s));
+    ok('still nothing has moved or changed size', JSON.stringify(await ruleBoxes()) === JSON.stringify(steady), JSON.stringify({ steady, now: await ruleBoxes() }));
+    ok('the whole text is in the tooltip, whatever the two lines show', (await net.locator('.file-access-network-detail').getAttribute('title')) === s.words);
+
     // The log: newest first, a page at a time, refused reads acknowledged.
     const firstPage = await p.evaluate(() => [...document.querySelectorAll('#file-access-log tbody tr')].map(r => +r.dataset.read));
     ok('the log shows the newest page first', firstPage.length === 50 && firstPage[0] === 80 && firstPage[49] === 31, JSON.stringify([firstPage.length, firstPage[0], firstPage[49]]));
@@ -133,6 +162,7 @@ const { launch } = require('./lib/page');
     const summed = await p.evaluate(() => { const r = document.querySelector('#file-access-log tr[data-read="75"]'); return [r.querySelector('.badge').textContent, r.querySelector('.file-access-place').title]; });
     const operation = await p.evaluate(() => (document.querySelector('#file-access-log tr[data-read="74"] .file-access-operation') || {}).textContent || '');
     ok('a search shows how many places it looked at, refused and failed', operation === 'Search: 120 places looked at, 3 refused, 1 failed.', operation);
+    ok('a read judged while a network folder of its rule was unverified says so', (await p.locator('#file-access-log [data-read="73"] .file-access-unverified').textContent()) === 'Judged while a network folder in its rule was not verified, so the rule matched that folder by name only.');
     ok('a refused row that sums several says how many, and its path is the latest', /^Refused 3 times/.test(summed[0]) && /latest of 3/.test(summed[1]), JSON.stringify(summed));
     ok('each outcome is one PUDL glyph, a colour and a word', /danger/.test(outcome.denied[0]) && /Refused/.test(outcome.denied[1]) && /positive/.test(outcome.allowed[0]) && /Read, 2\.0 KB/.test(outcome.allowed[1]) && outcome.denied[2] && outcome.allowed[2] && outcome.denied[2] !== outcome.allowed[2] && outcome.denied[3] !== outcome.allowed[3] && outcome.denied[4] === 0 && outcome.allowed[4] === 0, JSON.stringify(outcome));
 

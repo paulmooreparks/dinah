@@ -57,6 +57,64 @@
     return SINCE[filter.since] ? new Date(Date.now() - SINCE[filter.since]).toISOString() : '';
   }
 
+  /* ---- Network places ----
+     A rule on a network folder holds only as far as the folder's identity
+     is verified (docs/design/agent-file-access.md). Each network place gets
+     one block of fixed height: its path with a badge for its state, and two
+     lines saying what that state means for the rule, cut short with the
+     whole text in the tooltip, so a change of state changes words, never
+     the size of the row. */
+  function when(at) {
+    return at && !isNaN(new Date(at)) ? window.dinahHelpers.fmtDate(at).trim() : '';
+  }
+  function stalledFor(rule) {
+    return ((policy && policy.networkWorkers) || []).filter(function (w) { return w.stalled && (w.ruleIDs || []).indexOf(rule.id) >= 0; });
+  }
+  function networkWords(root, stalled) {
+    var last = when(root.lastVerifiedAt), words;
+    if (root.status === 'verified') {
+      words = 'Verified' + (last ? ' ' + last : '') + '. Other paths to this folder are refused too.';
+    } else if (root.usingLastKnownIdentity) {
+      words = 'Not verified just now' + (root.reason ? ': ' + root.reason.replace(/\.$/, '') : '') + '. Other paths to this folder are refused while it keeps the identity last verified' + (last ? ' ' + last : '') + '.';
+    } else {
+      words = 'Not verified' + (root.reason ? ': ' + root.reason.replace(/\.$/, '') : '') + '. Until it is, this rule matches the folder by its name only, so another path to the same folder, such as a mapped drive letter, is not refused.';
+    }
+    // What the state means for the rule comes first, within the two lines;
+    // the Check Stalled badge already says a check is stuck.
+    if (stalled) words += ' The check of this folder has not finished since ' + (when(stalled.startedAt) || 'it started') + '.';
+    return words;
+  }
+  function networkList(rule) {
+    var list = document.createElement('ul'), stalled = stalledFor(rule);
+    list.className = 'file-access-network';
+    list.setAttribute('aria-label', 'Network folders');
+    rule.networkRoots.forEach(function (root) {
+      var item = document.createElement('li'), head = document.createElement('span'), path = document.createElement('span'), detail = document.createElement('p');
+      var hung = stalled.filter(function (w) { return w.root === root.path || (w.roots || []).indexOf(root.path) >= 0; })[0];
+      item.className = 'file-access-network-root';
+      item.dataset.status = root.status === 'verified' ? 'verified' : 'unverified';
+      if (root.usingLastKnownIdentity) item.dataset.lastKnown = '';
+      if (hung) item.dataset.stalled = '';
+      head.className = 'file-access-network-head';
+      path.className = 'file-access-place';
+      // A rule on one network folder names it above already.
+      path.textContent = rule.networkRoots.length > 1 ? root.path : 'This network folder';
+      var badge = document.createElement('span');
+      badge.className = 'badge ' + (root.status === 'verified' ? 'positive' : 'warn');
+      badge.textContent = root.status === 'verified' ? 'Verified' : root.usingLastKnownIdentity ? 'Last Known Identity' : 'Unverified';
+      // The path comes first, so a change of the badges after it never moves it.
+      path.title = root.path;
+      head.append(path, badge);
+      if (hung) { var slow = document.createElement('span'); slow.className = 'badge warn'; slow.textContent = 'Check Stalled'; head.append(slow); }
+      detail.className = 'form-help file-access-network-detail';
+      detail.textContent = networkWords(root, hung);
+      detail.title = detail.textContent;
+      item.append(head, detail);
+      list.append(item);
+    });
+    return list;
+  }
+
   /* ---- Rules ---- */
   function ruleRow(rule) {
     var row = document.createElement('li'), text = document.createElement('div'), place = document.createElement('span'), reason = document.createElement('p');
@@ -67,6 +125,7 @@
     text.className = 'file-access-text'; text.append(place, reason);
     if (!paths.length) { var absent = document.createElement('p'); absent.className = 'form-help'; absent.textContent = 'Not present on this computer.'; text.append(absent); }
     if (rule.kind === 'default' && rule.enabled === false) { var off = document.createElement('p'); off.className = 'form-help'; off.textContent = 'Off. Agents can read this place.'; text.append(off); }
+    if ((rule.networkRoots || []).length) text.append(networkList(rule));
     var lead = rule.kind === 'protected' ? glyph('shield') : document.createElement('span');
     lead.classList.add('file-access-mark');
     if (rule.kind === 'protected') { var word = document.createElement('span'); word.className = 'visually-hidden'; word.textContent = 'Always protected. '; text.prepend(word); }
@@ -203,6 +262,12 @@
       detail.textContent = r.operation.charAt(0).toUpperCase() + r.operation.slice(1) + ': ' + parts.join(', ') + '.';
       what.append(detail);
     }
+    // A read judged while a network folder of its rule was unverified.
+    if ((r.unverifiedRuleIDs || []).length) {
+      var risk = document.createElement('p'); risk.className = 'form-help file-access-unverified';
+      risk.textContent = 'Judged while a network folder in its rule was not verified, so the rule matched that folder by name only.';
+      what.append(risk);
+    }
     when.dataset.label = 'When'; chat.dataset.label = 'Chat'; place.dataset.label = 'Place'; what.dataset.label = 'What happened';
     tr.append(when, chat, place, what);
     return tr;
@@ -317,6 +382,9 @@
     window.dinahHost.on('file-access:read', arrived);
     // The policy event carries the new version.
     window.dinahHost.on('file-access:policy', function (version) { if (policy && version !== policy.version) loadPolicy(); });
+    // A network folder's state changed; the event may carry no version, so
+    // the policy, with its network states, is read again.
+    window.dinahHost.on('file-access:network', function () { if (policy) loadPolicy(); });
   }
   function shown(part) {
     if (!$('settings-file-access')) return;
