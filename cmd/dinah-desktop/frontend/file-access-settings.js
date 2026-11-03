@@ -105,10 +105,15 @@
   }
   var BADGES = { pending: ['', 'Not Checked Yet'], verified: ['positive', 'Verified'], unsupported: ['warn', 'Cannot Be Verified'], 'last-known': ['warn', 'Last Known Identity'], unverified: ['warn', 'Unverified'] };
   /* A block whose words are cut short takes focus, so a keyboard or a tap
-     can open it to its whole text (app.css); one that fits does not. */
+     can open it to its whole text (app.css); one that fits does not. It is
+     measured whenever the list changes size, which covers a list drawn while
+     the section was hidden and shown later, and a narrower window; a block
+     open in the person's focus keeps its focus. */
   function markCutShort(scope) {
     requestAnimationFrame(function () {
+      if (!scope.getClientRects().length) return;
       scope.querySelectorAll('.file-access-network-detail').forEach(function (detail) {
+        if (detail === document.activeElement) return;
         if (detail.scrollHeight > detail.clientHeight + 1) detail.tabIndex = 0; else detail.removeAttribute('tabindex');
       });
     });
@@ -402,6 +407,8 @@
     if (mounted) return;
     mounted = true;
     $('file-access-path').addEventListener('input', preview);
+    // A change of the list's size can change which words are cut short.
+    if (window.ResizeObserver) new ResizeObserver(function () { markCutShort($('file-access-rules')); }).observe($('file-access-rules'));
     $('file-access-path').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !$('file-access-add').disabled) { e.preventDefault(); addRule(); } });
     $('file-access-add').addEventListener('click', addRule);
     ['file-access-chat', 'file-access-since', 'file-access-outcome'].forEach(function (id) { $(id).addEventListener('change', filtersFromControls); });
@@ -427,6 +434,8 @@
     controlsFromFilter();
     if (!shownOnce) { shownOnce = true; loadPolicy(); }
     loadLog();
+    // Drawn while hidden, the list had nothing to measure.
+    markCutShort($('file-access-rules'));
   }
 
   window.dinahSettingsSections.register(SECTION, { state: stateText, shown: shown });

@@ -178,6 +178,28 @@ const { launch } = require('./lib/page');
     ok('words cut short take focus and open to their whole text, with no tooltip', shut[1] > shut[0] && open[0] >= open[1] && open[0] > shut[0] && !(await detail.getAttribute('title')), JSON.stringify({ shut, open }));
     await detail.blur();
     ok('a screen reader has the whole text, since the cut is only visual', (await detail.textContent()) === s.words);
+    // Drawn while another Settings tab is in front, the list has nothing to
+    // measure; shown again, its cut-short words take focus.
+    await p.locator('#settings-tab-appearance').click();
+    const wordsBefore = await detail.textContent();
+    await network({ status: 'unverified', reason: 'The server did not answer.', usingLastKnownIdentity: true, lastVerifiedAt: '2026-11-03T03:00:00Z' },
+      [{ root: '//files/finance', roots: ['//files/finance'], ruleIDs: ['n1'], startedAt: '2026-11-03T03:20:00Z', stalled: true }]);
+    await p.waitForFunction(was => document.querySelector('[data-rule="n1"] .file-access-network-detail').textContent !== was, wordsBefore);
+    await p.locator('#settings-tab-file-access').click();
+    ok('words cut short in a list drawn while hidden take focus once it is shown', await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-detail').hasAttribute('tabindex'), null, { timeout: 3000 }).then(() => true, () => false));
+    // Words that fit take no focus; when the list narrows, as in a narrower
+    // window, those it now cuts short do. Settings is maximized first, so
+    // that the verified words fit on its two lines.
+    await p.evaluate(() => pudlWindows.snap('settings', 'maximized'));
+    await network({ status: 'verified', lastVerifiedAt: '2026-11-03T03:30:00Z' });
+    await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-root').dataset.status === 'verified');
+    await p.waitForTimeout(100);
+    const fitDetail = await detail.evaluate(el => ({ tab: el.hasAttribute('tabindex'), sh: el.scrollHeight, ch: el.clientHeight, w: el.clientWidth, text: el.textContent }));
+    const fits = !fitDetail.tab;
+    await p.evaluate(() => { document.getElementById('file-access-rules').style.maxWidth = '260px'; });
+    const narrowed = await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-detail').hasAttribute('tabindex'), null, { timeout: 3000 }).then(() => true, () => false);
+    await p.evaluate(() => { document.getElementById('file-access-rules').style.maxWidth = ''; });
+    ok('words that fit take no focus, and take it once a narrower list cuts them short', fits && narrowed, JSON.stringify({ fits, narrowed, fitDetail }));
 
     // The log: newest first, a page at a time, refused reads acknowledged.
     const firstPage = await p.evaluate(() => [...document.querySelectorAll('#file-access-log tbody tr')].map(r => +r.dataset.read));
