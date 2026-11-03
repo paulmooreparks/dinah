@@ -269,3 +269,82 @@ func TestGroupAttentionTeamLeadFallbackAndEngagedFollowup(t *testing.T) {
 		t.Fatalf("relay did not engage sender %+v", r)
 	}
 }
+
+func TestGroupAttentionIndexedWindowIgnoresOldHistory(t *testing.T) {
+	f := newAttentionFixture(t)
+	old := f.now.Add(-24 * time.Hour).Format(time.RFC3339Nano)
+	tx, err := f.b.db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	for i := 0; i < 4000; i++ {
+		if _, err := tx.Exec(`INSERT INTO messages (created_at, kind, from_name, to_label, room, text, mentions)
+			VALUES (?, 'text', ?, ?, ?, 'Old engagement', ?)`, old, Human, "#"+f.group.Name, f.group.Name, ","+f.members[3].ID+","); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	f.person(t, f.members[0].ID)
+	if r := f.preview(t); r.Reason != "engaged" || reachIDs(r.Reach) != f.members[0].ID {
+		t.Fatalf("recent preview: %+v", r)
+	}
+	rows, err := f.b.db.Query("EXPLAIN QUERY PLAN "+engagementHistoryQuery, f.group.Name, old, Human, "%,"+Human+",%", Human)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(detail, "messages_group_attention_time") {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !found {
+		t.Fatal("engagement query did not use its timestamp expression index")
+	}
+}
+
+func TestGroupAttentionIndexedTimeHandlesClockRollbackAndLegacyFractions(t *testing.T) {
+	f := newAttentionFixture(t)
+	whole := f.person(t, f.members[0].ID)
+	f.now = f.now.Add(500 * time.Millisecond)
+	f.person(t, f.members[1].ID)
+	f.now = f.now.Add(250 * time.Millisecond)
+	legacy := f.person(t, f.members[2].ID)
+	if _, err := f.b.db.Exec(`UPDATE messages SET created_at = ?, attention_reason = '' WHERE id = ?`, "2030-01-01T10:00:00.750000000+00:00", legacy.ID); err != nil {
+		t.Fatal(err)
+	}
+	var wholeStamp string
+	if err := f.b.db.QueryRow(`SELECT created_at FROM messages WHERE id = ?`, whole.ID).Scan(&wholeStamp); err != nil {
+		t.Fatal(err)
+	}
+	if wholeStamp != "2030-01-01T10:00:00Z" {
+		t.Fatalf("whole-second fixture: %q", wholeStamp)
+	}
+	// A higher ID can have an earlier wall-clock stamp.
+	f.now = time.Date(2030, 1, 1, 9, 0, 0, 0, time.UTC)
+	f.person(t, f.members[3].ID)
+	f.now = time.Date(2030, 1, 1, 10, 30, 0, 250000000, time.UTC)
+	if r := f.preview(t); reachIDs(r.Reach) != f.members[2].ID+","+f.members[1].ID {
+		t.Fatalf("rollback and legacy preview: %+v", r)
+	}
+	f.now = f.now.Add(250*time.Millisecond - time.Nanosecond)
+	if r := f.preview(t); len(r.Engaged) != 2 {
+		t.Fatalf("fractional engagement expired early: %+v", r)
+	}
+	f.now = f.now.Add(time.Nanosecond)
+	if r := f.preview(t); reachIDs(r.Reach) != f.members[2].ID {
+		t.Fatalf("exact fractional expiry: %+v", r)
+	}
+}

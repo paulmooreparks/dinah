@@ -163,6 +163,13 @@ func (b *Bus) groupReach(t *sql.Tx, r resolved, now time.Time) (GroupReach, erro
 
 func hasMention(list, id string) bool { return strings.Contains(list, ","+id+",") }
 
+const engagementHistoryQuery = `SELECT m.id, m.created_at, m.from_session, m.mentions FROM messages m INDEXED BY messages_group_attention_time
+		WHERE m.room = ? AND m.kind = 'text' AND julianday(m.created_at) >= julianday(?) AND (
+		(m.from_session = '' AND m.from_name = ? AND m.attention_reason IN ('', 'explicit')) OR
+		(m.from_session <> '' AND (m.mentions LIKE ? OR m.relay_lead <> '' OR EXISTS
+		(SELECT 1 FROM messages p WHERE p.id = m.reply_to AND p.room = m.room AND p.kind = 'text' AND p.from_session = '' AND p.from_name = ?))))
+		ORDER BY m.id DESC`
+
 func engagedMembers(t *sql.Tx, room string, members []chat, settings GroupAttentionSettings, now time.Time) ([]EngagedMember, error) {
 	eligible := map[string]chat{}
 	for _, m := range members {
@@ -171,7 +178,7 @@ func engagedMembers(t *sql.Tx, room string, members []chat, settings GroupAttent
 	// Membership changes are history too. Engagement before a leave/rejoin
 	// boundary cannot return merely because that member joined again.
 	boundaries := map[string]int64{}
-	changes, err := t.Query(`SELECT to_key, MAX(id) FROM messages WHERE room = ? AND kind = ? AND to_kind = 'session' GROUP BY to_key`, room, MemberKind)
+	changes, err := t.Query(`SELECT to_key, MAX(id) FROM messages INDEXED BY messages_group_kind_history WHERE room = ? AND kind = ? AND to_kind = 'session' GROUP BY to_key`, room, MemberKind)
 	if err != nil {
 		return nil, err
 	}
@@ -192,12 +199,7 @@ func engagedMembers(t *sql.Tx, room string, members []chat, settings GroupAttent
 	window := time.Duration(settings.Minutes) * time.Minute
 	// A one-second SQL margin avoids rounding at SQLite's date precision.
 	// The parsed Go timestamps make the exact expiry decision below.
-	rows, err := t.Query(`SELECT m.id, m.created_at, m.from_session, m.mentions FROM messages m
-		WHERE m.room = ? AND m.kind = 'text' AND julianday(m.created_at) >= julianday(?) AND (
-		(m.from_session = '' AND m.from_name = ? AND m.attention_reason IN ('', 'explicit')) OR
-		(m.from_session <> '' AND (m.mentions LIKE ? OR m.relay_lead <> '' OR EXISTS
-		(SELECT 1 FROM messages p WHERE p.id = m.reply_to AND p.room = m.room AND p.kind = 'text' AND p.from_session = '' AND p.from_name = ?))))
-		ORDER BY m.id DESC`, room, now.Add(-window-time.Second).UTC().Format(time.RFC3339Nano), Human, "%,"+Human+",%", Human)
+	rows, err := t.Query(engagementHistoryQuery, room, now.Add(-window-time.Second).UTC().Format(time.RFC3339Nano), Human, "%,"+Human+",%", Human)
 	if err != nil {
 		return nil, err
 	}

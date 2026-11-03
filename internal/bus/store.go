@@ -198,6 +198,8 @@ CREATE TABLE IF NOT EXISTS group_attention_policy (
 );
 INSERT OR IGNORE INTO group_attention_policy (id, member_limit, minutes) VALUES (1, 3, 30);
 CREATE INDEX IF NOT EXISTS messages_group_history ON messages(room, id);
+CREATE INDEX IF NOT EXISTS messages_group_attention_time ON messages(room, julianday(created_at));
+CREATE INDEX IF NOT EXISTS messages_group_kind_history ON messages(room, kind, id);
 CREATE TABLE IF NOT EXISTS changes (
 	id      INTEGER PRIMARY KEY CHECK (id = 1),
 	counter INTEGER NOT NULL
