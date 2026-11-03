@@ -264,6 +264,8 @@
     "mention-lists",
     "group-mention-binding",
     "group-reach",
-    "browser-lock"
+    "browser-lock",
+    "agent-file-access",
+    "ollama-file-access"
   ]
 }
