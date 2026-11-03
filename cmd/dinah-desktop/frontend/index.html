@@ -929,6 +929,21 @@
           </div>
         </section>
 
+        <section class="card vstack gap-3" aria-labelledby="set-group-attention">
+          <h3 class="card-title" id="set-group-attention">Who Your Group Messages Reach</h3>
+          <p class="form-help">A message of yours that mentions no one goes to the members you are in conversation with: those you mentioned, or who answered you, most recently. With no one in conversation it goes to everyone, or in a team channel to its lead. A change here applies at once to every group, including conversations already under way, and a longer time can bring back members who had dropped out.</p>
+          <div class="form-group">
+            <label class="form-label" for="set-attention-limit">Members a Message Follows</label>
+            <input class="form-input" id="set-attention-limit" type="number" min="1" max="10" step="1" inputmode="numeric" aria-describedby="set-attention-limit-help">
+            <p class="form-help" id="set-attention-limit-help">The most recent members kept in conversation, from 1 to 10.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="set-attention-minutes">Minutes Before a Member Drops Out</label>
+            <input class="form-input" id="set-attention-minutes" type="number" min="1" max="1440" step="1" inputmode="numeric" aria-describedby="set-attention-minutes-help">
+            <p class="form-help" id="set-attention-minutes-help">How long after you last mentioned a member, or it answered you, it stays in conversation, from 1 minute to a day.</p>
+          </div>
+        </section>
+
         <section class="card vstack gap-3" aria-labelledby="set-attachments">
           <h3 class="card-title" id="set-attachments">Attachments in Group Chats</h3>
           <p class="form-help"><span data-product-name>Dinah</span> keeps a copy of each file you attach to a group chat's message, in its home folder, for as long as the message. Removing old attachments frees the space; their messages stay, and show each file as removed.</p>

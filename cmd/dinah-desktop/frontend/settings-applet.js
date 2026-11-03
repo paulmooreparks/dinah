@@ -708,6 +708,33 @@
       }).catch(fail).finally(function () { button.disabled = false; });
     });
 
+    /* Who the person's group messages reach (group-attention.md): how many
+       members a message follows and for how long. The engine keeps both and
+       applies a change at once; the fields show what it kept, so a value it
+       refused or clamped is shown as it is. */
+    function drawAttention(s) {
+      if (!s) return;
+      if (document.activeElement !== $('set-attention-limit')) $('set-attention-limit').value = s.limit;
+      if (document.activeElement !== $('set-attention-minutes')) $('set-attention-minutes').value = s.minutes;
+    }
+    function readAttention() {
+      if (!app().BusGroupAttentionSettings) { $('set-attention-limit').closest('.card').hidden = true; return; }
+      Promise.resolve(app().BusGroupAttentionSettings()).then(drawAttention).catch(fail);
+    }
+    ['set-attention-limit', 'set-attention-minutes'].forEach(function (id) {
+      $(id).addEventListener('change', function () {
+        var limit = parseInt($('set-attention-limit').value, 10), minutes = parseInt($('set-attention-minutes').value, 10);
+        if (!app().SetBusGroupAttentionSettings || !(limit >= 1) || !(minutes >= 1)) { readAttention(); return; }
+        var field = this;
+        field.disabled = true;
+        Promise.resolve().then(function () { return app().SetBusGroupAttentionSettings(limit, minutes); })
+          .then(function (s) { if (s) drawAttention(s); else readAttention(); })
+          .catch(function (error) { readAttention(); fail(error); })
+          .finally(function () { field.disabled = false; });
+      });
+    });
+    readAttention();
+
     /* The view a Markdown document opens in when it has none of its own yet
        (Settings › Appearance, document_views.go). */
     function setDocumentViews(views) {

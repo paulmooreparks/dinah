@@ -780,11 +780,15 @@
 
   function mentionComposer(key, members, addChat, send, limit) {
     var mentioned = [];
-    var box = composer({ label: 'Message to the Group', placeholder: 'Write to the group. Type @ and a chat\'s title to ask particular chats, or @everyone to ask them all.', draftKey: 'group:' + key, files: true, limit: limit, send: function (text, state, files) {
-      // The mentions chosen from the list that the text still holds, and
-      // every one it writes out whole.
+    // The mentions a text binds: those chosen from the list that it still
+    // holds, and every one it writes out whole. Send and the reach line both
+    // read them here, so what is shown and what is sent agree.
+    function bound(text) {
       var ids = mentioned.filter(function (x) { return text.indexOf('@' + x.title) >= 0; }).map(function (x) { return x.id; }).concat(typedMentions(text, members()));
-      return send(text, ids.filter(function (id, i) { return ids.indexOf(id) === i; }), files);
+      return ids.filter(function (id, i) { return ids.indexOf(id) === i; });
+    }
+    var box = composer({ label: 'Message to the Group', placeholder: 'Write to the group. Type @ and a chat\'s title to ask particular chats, or @everyone to ask them all.', draftKey: 'group:' + key, files: true, limit: limit, send: function (text, state, files) {
+      return send(text, bound(text), files);
     } });
     box.extra = { read: function () { return { mentioned: mentioned.slice() }; }, write: function (state) { mentioned = (state.mentioned || []).slice(); close(); } };
     // A message of the person's puts back its text with the chats it
@@ -797,6 +801,72 @@
     };
     box.sent = close;
     box.el.classList.add('group-composer');
+    /* Who the message will wake (docs/plans/group-attention.md): the
+       engine decides, from the mentions bound so far, and the page only
+       shows its answer. The line under the box is text in a row of its own
+       height, so nothing moves as it changes; the placeholder says the same
+       when the box is empty. A hidden polite live region says the reach once
+       it has changed and typing has paused, never on every key. Without the
+       engine's call the line stays empty and the placeholder is the box's
+       own. */
+    var IDLE_HINT = box.text.placeholder;
+    var reachLine = node('p', 'form-help group-reach'), reachSpoken = node('span', 'visually-hidden');
+    reachSpoken.setAttribute('aria-live', 'polite'); reachSpoken.setAttribute('role', 'status');
+    box.el.appendChild(reachLine); box.el.appendChild(reachSpoken);
+    var reachAsked = 0, reachTimer = 0, expiryTimer = 0, sayTimer = 0, shown = null;
+    function names(list) {
+      var t = (list || []).map(function (m) { return m.title; });
+      return t.length < 3 ? t.join(' and ') : t.slice(0, -1).join(', ') + ' and ' + t[t.length - 1];
+    }
+    // The engine's answer: reach lists the members it wakes, and everyone
+    // says the message goes to every member, mentioned or by the rule.
+    function reachWords(r) {
+      if (!r) return '';
+      if (r.everyone) return 'Reaches everyone in the group';
+      // A team channel with no one engaged goes to its lead.
+      if (r.reason === 'lead') return 'Reaches the lead, ' + names(r.reach);
+      return 'Reaches ' + names(r.reach);
+    }
+    function drawReach(r) {
+      shown = r;
+      var words = reachWords(r);
+      if (reachLine.textContent !== words) { reachLine.textContent = words; reachLine.title = words; }
+      box.text.placeholder = !r ? IDLE_HINT
+        : r.everyone ? 'Type @ to choose who answers, or send to everyone'
+        : r.reason === 'lead' ? 'Goes to the lead, ' + names(r.reach) + '. Type @ to choose who answers'
+        : 'Reaches ' + names(r.reach) + '. Type @ to choose others';
+      // The live region speaks once the reach has settled, after a pause.
+      clearTimeout(sayTimer);
+      sayTimer = setTimeout(function () { if (reachSpoken.textContent !== words) reachSpoken.textContent = words; }, 700);
+      clearTimeout(expiryTimer);
+      var at = r && r.expires ? Date.parse(r.expires) - Date.now() : NaN;
+      if (isFinite(at)) expiryTimer = setTimeout(askReach, Math.max(0, at) + 50);
+    }
+    var reachEnded = false;
+    function askReach() {
+      if (reachEnded) return;
+      if (!app().BusGroupReach) { drawReach(null); return; }
+      // The box is built before its window puts it on the page.
+      if (!box.el.isConnected) { reachSoon(); return; }
+      var asked = ++reachAsked;
+      Promise.resolve(app().BusGroupReach(key, bound(box.text.value))).then(function (r) {
+        if (asked === reachAsked && box.el.isConnected) drawReach(r || null);
+      }).catch(function () { if (asked === reachAsked) drawReach(null); });
+    }
+    function reachSoon() { clearTimeout(reachTimer); reachTimer = setTimeout(askReach, 250); }
+    box.text.addEventListener('input', reachSoon);
+    var changedBefore = box.changed;
+    box.changed = function () { changedBefore.apply(box, arguments); reachSoon(); };
+    var writeBefore = box.extra.write;
+    box.extra.write = function (state) { writeBefore(state); reachSoon(); };
+    // Any change on the bus may change who is engaged; the answer that
+    // comes back last for the latest question is the one drawn.
+    var offAttention = host().on('bus:changed', function () { askReach(); });
+    box.reachShown = function () { return shown; };
+    box.refreshReach = askReach;
+    var disposeBefore = box.dispose;
+    box.dispose = function () { reachEnded = true; clearTimeout(reachTimer); clearTimeout(expiryTimer); clearTimeout(sayTimer); if (offAttention) offAttention(); if (disposeBefore) disposeBefore(); };
+    askReach();
     var pop = box.pop;
     pop.classList.add('group-mention-pop'); pop.setAttribute('aria-label', 'Members');
     var text = box.text, choices = [], chosen = 0, start = -1;
@@ -1027,7 +1097,32 @@
        the member chats that have one, worked out in Go with the member that
        set it (file_limits.go, groupFileLimit). */
     function fileLimit() { var l = room && room.fileLimit; return l && l.limit > 0 ? { max: l.limit, reason: l.reason } : null; }
-    var box = mentionComposer(key, members, addChats, function (text, mentions, files) { return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function () { c.draw(true); }); }, fileLimit);
+    var box = mentionComposer(key, members, addChats, function (text, mentions, files) {
+      var shown = box.reachShown();
+      return Promise.resolve(app().BusSendToGroup(key, text, mentions, files || [])).then(function (sent) {
+        return Promise.resolve(c.draw(true)).then(function () { noteReach(sent, shown); });
+      });
+    }, fileLimit);
+    /* Who the message actually reached is the engine's, stored with the
+       message (group-attention.md). When it differs from what the line said
+       as it was sent, as when an engagement ran out in between, one line
+       under the sent message says so. */
+    function sameReach(a, b) {
+      if (!a || !b) return true;
+      var ids = function (r) { return (r.reach || []).map(function (m) { return m.id; }).sort().join('|'); };
+      return !!a.everyone === !!b.everyone && (a.everyone || ids(a) === ids(b));
+    }
+    // The conversation draws its rows in a later frame, so the note waits a
+    // few frames for its message's row.
+    function noteReach(sent, shown, tries) {
+      var actual = sent && sent.reach;
+      if (!actual || !shown || sameReach(actual, shown)) return;
+      var row = root.querySelector('[data-bus-message="' + CSS.escape(String(sent.id)) + '"]');
+      if (!row) { if ((tries || 0) < 30 && root.isConnected) requestAnimationFrame(function () { noteReach(sent, shown, (tries || 0) + 1); }); return; }
+      if (row.querySelector(':scope > .group-reach-note')) return;
+      var words = actual.everyone ? 'Sent to everyone in the group' : 'Sent to ' + (actual.reach || []).map(function (m) { return m.title; }).join(', ');
+      row.appendChild(node('p', 'form-help group-reach-note', words + ', not as shown: who was engaged changed before it was sent.'));
+    }
     box.canRead = function () { return lookupState === 'resolved' && ((!overviewFailure && !!group(key)) || checkedOverview === overviewVersion); };
     var stopped = node('button', 'btn btn-sm group-jump-stopped'); stopped.type = 'button'; stopped.title = 'Go to where you stopped reading'; stopped.disabled = true;
     window.dinahHelpers.toolbarLabel(stopped, 'history', 'Last Read');
