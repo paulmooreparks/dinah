@@ -102,6 +102,7 @@
         "TestFrontendRulesFindTheirHomes",
         "TestFileAccessPageAndProviderShareOnePolicy",
         "TestFileAccessBackgroundNotificationReachesSettings",
+        "TestFileAccessCachedServiceReadDoesNotTakeAppLock",
         "TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority",
         "TestAgentWorkspaceStatUsesPolicyAndAudit",
         "TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit",

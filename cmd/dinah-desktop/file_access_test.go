@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,6 +13,51 @@ import (
 	"studio/internal/acp"
 	"studio/internal/fileaccess"
 )
+
+func TestFileAccessCachedServiceReadDoesNotTakeAppLock(t *testing.T) {
+	a, _ := providerTestApp(t)
+	service, err := a.fileAccessService()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ordinary.txt")
+	if err := os.WriteFile(path, []byte("ordinary content"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	scope := fileaccess.Scope{Chat: "cached-reader", Workspace: dir, Roots: []string{dir}, Layout: stateLayout()}
+	done := make(chan error, 1)
+	a.mu.Lock()
+	go func() {
+		cached, err := a.fileAccessService()
+		if err == nil && cached != service {
+			err = fmt.Errorf("the cached service changed")
+		}
+		if err == nil {
+			var text string
+			text, err = cached.Read(context.Background(), path, nil, nil, scope)
+			if err == nil && text != "ordinary content" {
+				err = fmt.Errorf("read returned %q", text)
+			}
+		}
+		done <- err
+	}()
+	select {
+	case err = <-done:
+		a.mu.Unlock()
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		a.mu.Unlock()
+		// Let a blocked accessor finish before the fixture closes its store.
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
+		t.Fatal("a cached service read waited on the app lock")
+	}
+}
 
 func TestFileAccessBackgroundNotificationReachesSettings(t *testing.T) {
 	a, _ := providerTestApp(t)

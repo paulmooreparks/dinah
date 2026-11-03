@@ -32,9 +32,20 @@ func fileAccessScope(settings Settings, cwd string) fileaccess.Scope {
 }
 
 func (a *App) fileAccessService() (*fileaccess.Service, error) {
+	f := &a.fileAccess
+	f.mu.Lock()
+	service, closed := f.service, f.closed
+	f.mu.Unlock()
+	if closed {
+		return nil, errors.New("the file-access service is closed")
+	}
+	if service != nil {
+		return service, nil
+	}
+	// Service creation follows the same lock order as a registry update.
+	// Never wait for a.mu while holding f.mu.
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	f := &a.fileAccess
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.closed {
