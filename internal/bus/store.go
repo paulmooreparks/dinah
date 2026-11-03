@@ -191,6 +191,13 @@ CREATE TABLE IF NOT EXISTS web_session_policy (
 	absolute_days INTEGER NOT NULL CHECK (absolute_days BETWEEN 1 AND 3650)
 );
 INSERT OR IGNORE INTO web_session_policy (id, idle_days, absolute_days) VALUES (1, 30, 90);
+CREATE TABLE IF NOT EXISTS group_attention_policy (
+ id INTEGER PRIMARY KEY CHECK (id = 1),
+ member_limit INTEGER NOT NULL CHECK (member_limit BETWEEN 1 AND 10),
+ minutes INTEGER NOT NULL CHECK (minutes BETWEEN 1 AND 1440)
+);
+INSERT OR IGNORE INTO group_attention_policy (id, member_limit, minutes) VALUES (1, 3, 30);
+CREATE INDEX IF NOT EXISTS messages_group_history ON messages(room, id);
 CREATE TABLE IF NOT EXISTS changes (
 	id      INTEGER PRIMARY KEY CHECK (id = 1),
 	counter INTEGER NOT NULL
@@ -260,6 +267,8 @@ func OpenAt(path string) (*Bus, error) {
 // columns added since the first release, which CREATE TABLE IF NOT EXISTS
 // does not add to a database made before them.
 var added = []struct{ table, column, decl string }{
+	{"messages", "attention_reason", "TEXT NOT NULL DEFAULT ''"},
+	{"messages", "attention_reach", "TEXT NOT NULL DEFAULT ''"},
 	{"web_sessions", "token_version", "INTEGER NOT NULL DEFAULT 0"},
 	{"web_sessions", "last_used_at", "TEXT NOT NULL DEFAULT ''"},
 	{"deliveries", "inbox_dismissed_at", "TEXT"},

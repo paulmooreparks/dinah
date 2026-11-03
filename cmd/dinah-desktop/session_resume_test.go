@@ -427,10 +427,13 @@ func TestThePersonsMessageToEveryoneOpensAClosedMember(t *testing.T) {
 	if asked := askedIDs(r.take()); len(asked) != 0 {
 		t.Fatalf("a chat's message that mentions nobody opened %v", asked)
 	}
+	// An explicit request to the open member engages it; an unaddressed
+	// follow-up stays with it rather than opening the closed member.
+	send(nil, "A question for the open member.", other.ID)
 	send(nil, "Is anyone there?")
 	wakeRound(t, a)
 	if asked := askedIDs(r.take()); len(asked) != 0 {
-		t.Fatalf("the person's message that mentions nobody opened %v", asked)
+		t.Fatalf("a follow-up to the engaged open member opened %v", asked)
 	}
 	send(nil, "Is anyone there?", bus.Everyone)
 	wakeRound(t, a)

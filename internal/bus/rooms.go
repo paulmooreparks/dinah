@@ -330,24 +330,6 @@ func mentionList(t *sql.Tx, from Sender, r *resolved, mentions []string, person 
 	// beside the mention, so the message shows "everyone" and not each member.
 	// The other members get a notice (notice.go).
 	wakeAll := false
-	if len(list) == 0 && from.Session == nil && r.room != "" {
-		// The person's message in a team's group, with no mention, is a request to the team's lead
-		// (docs/plans/teams.md); a mention of a particular chat goes to that chat as ever. A lead that
-		// is no longer in the group, or is unknown, leaves the message as an ordinary unmentioned one.
-		var lead string
-		if err := t.QueryRow(`SELECT lead FROM rooms WHERE name = ?`, r.room).Scan(&lead); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-		if lead != "" {
-			var in int
-			if err := t.QueryRow(`SELECT COUNT(*) FROM room_members WHERE room = ? AND member_kind = 'session' AND member = ?`, r.room, lead).Scan(&in); err != nil {
-				return err
-			}
-			if _, err := knownSession(t, lead); err == nil && in > 0 {
-				list = []string{lead}
-			}
-		}
-	}
 	if len(list) == 0 {
 		return nil
 	}

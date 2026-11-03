@@ -44,7 +44,7 @@ var pageMethods = func() map[string]pageMethodClass {
  NativeWindowState NativeWindowAction State Sessions SessionsAt History SavedConversation
  AgentProviders ProviderAccounts ProviderModelPreferences ProviderUsage CanSteer
  AppletArtifactAt AppletAttention AppletCatalog AppletGrants AppletInvocationAt AppletInvocationsAt
- AppletRequests AppletResults BusOverview BusInboxPage BusInboxMessage BusGroup BusResolveGroup BusGroupMessages BusGroupMessagesFrom BusThread
+ AppletRequests AppletResults BusOverview BusInboxPage BusInboxMessage BusGroup BusResolveGroup BusGroupMessages BusGroupMessagesFrom BusThread BusGroupReach BusGroupAttentionSettings
  ChatLogPath CheckSkillDraft ClipboardRead CompareDraft DocumentRefAt DraftStamp
  ExtensionWorkspace Extensions GetDraft HomeMountPath ListDrafts ListWorkspaceMounts
  ListWorkspaceMountsExpected ListWorkspaceResources PageBlocksOf PageDocumentMarkdown
@@ -67,7 +67,7 @@ var pageMethods = func() map[string]pageMethodClass {
  AgentSignIn AgentStop Answer AnswerAppletRequest AnswerExtensionCommand AnswerPage
  AttachLocalWorkspaceSource BusAddToGroup BusDeleteGroup BusMarkGroupRead BusRemoveFromGroup
  BusMarkInboxRead BusDismissInbox BusMarkInboxReadThrough BusDismissInboxThrough
- BusGroupBudget BusRenameGroup BusReplyInThread BusSend BusSendToGroup BusStartGroup BusTrust BusUntrust Cancel
+ BusGroupBudget BusRenameGroup BusReplyInThread BusSend BusSendToGroup BusStartGroup BusTrust BusUntrust SetBusGroupAttentionSettings Cancel
  CancelAppletInvocationAt CancelExtensionCall CancelRestart CancelSubagent 
  ChooseAgentExecutable ChooseComputerSavePath ChooseDocumentFile
  ChooseExtensionSource ChooseImportFolder ChoosePackageBundle ChooseUploadFiles

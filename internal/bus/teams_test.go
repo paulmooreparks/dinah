@@ -475,18 +475,16 @@ func TestThePersonsUnmentionedMessageInATeamGoesToItsLead(t *testing.T) {
 	}
 }
 
-// A group that is not a team keeps its rule: an unmentioned message asks nobody.
-func TestThePersonsUnmentionedMessageInAnOrdinaryGroupAsksNobody(t *testing.T) {
+// An ordinary group with no engaged members automatically asks everyone.
+func TestThePersonsUnmentionedMessageInAnOrdinaryGroupAsksEveryone(t *testing.T) {
 	ctx := context.Background()
 	b, review, lead, _, _, _ := teamBus(t)
 	if _, err := b.SendMentioning(ctx, Sender{}, "#"+review.Name, "Hello all.", nil, 0, nil); err != nil {
 		t.Fatal(err)
 	}
 	got, _, _ := b.Deliver(ctx, lead.ID, DoorbellTurn)
-	for _, m := range got {
-		if m.Asked {
-			t.Fatalf("an ordinary group's unmentioned message asked a chat: %+v", m)
-		}
+	if len(got) != 1 || !got[0].Asked || got[0].Reach == nil || got[0].Reach.Reason != "everyone" {
+		t.Fatalf("an ordinary group's empty set did not ask everyone: %+v", got)
 	}
 }
 

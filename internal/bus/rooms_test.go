@@ -371,19 +371,25 @@ func TestThePersonsMessagesFollowTheMentions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(sent.Mentioned) != 0 {
-		t.Fatalf("the message shows mentions it did not make: %+v", sent.Mentioned)
+	if sent.Reach == nil || sent.Reach.Reason != "everyone" || !hasMention(sent.mentions, WakesAll) {
+		t.Fatalf("the empty engaged set did not record automatic everyone: %+v", sent)
 	}
-	if rings(lead.ID) != 0 || rings(docs.ID) != 0 {
-		t.Fatalf("the person's message that mentions nobody rang lead %d times and docs %d", rings(lead.ID), rings(docs.ID))
+	if rings(lead.ID) != 1 || rings(docs.ID) != 1 {
+		t.Fatalf("automatic everyone rang lead %d times and docs %d", rings(lead.ID), rings(docs.ID))
 	}
-	if wakes, _ := b.Waking(ctx); len(wakes) != 0 {
-		t.Fatalf("the person's message that mentions nobody has chats opened for it: %+v", wakes)
+	automaticWakes, _ := b.Waking(ctx)
+	foundClosed := false
+	for _, wake := range automaticWakes {
+		foundClosed = foundClosed || wake.Session == closed.ID
+	}
+	if !foundClosed {
+		t.Fatalf("automatic everyone did not wake the closed member: %+v", automaticWakes)
 	}
 	got, _, _ := b.Deliver(ctx, docs.ID, "UserPromptSubmit")
-	if len(got) != 1 || got[0].Asked || !got[0].Notice {
-		t.Fatalf("docs was not given a notice: %+v", got)
+	if len(got) != 1 || !got[0].Asked || got[0].Notice {
+		t.Fatalf("docs was not given the automatic request: %+v", got)
 	}
+	b.Deliver(ctx, lead.ID, "UserPromptSubmit")
 
 	// A mention reaches the chat it names whole, and the others get a notice.
 	if _, err := b.SendMentioning(ctx, Sender{}, "#"+g.Name, "Lead, status?", nil, 0, []string{lead.ID}); err != nil {

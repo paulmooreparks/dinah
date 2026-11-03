@@ -40,6 +40,7 @@ type BusMessage struct {
 	Room          string          `json:"room"`
 	RoomTitle     string          `json:"roomTitle,omitempty"`
 	Mentions      []BusMention    `json:"mentions"`
+	Reach         *bus.GroupReach `json:"reach,omitempty"`
 	Line          string          `json:"line,omitempty"`
 	ReplyTo       int64           `json:"replyTo"`
 	Text          string          `json:"text"`
@@ -210,7 +211,7 @@ func busMessage(m bus.Message) BusMessage {
 	}
 	out := BusMessage{ID: m.ID, CreatedAt: m.CreatedAt, Kind: m.Kind, From: from, FromSession: m.FromSession, FromPerson: person,
 		FromWorkspace: m.FromWorkspaceLabel, To: m.ToPerson, Room: m.Room, RoomTitle: m.RoomTitle, Mentions: []BusMention{},
-		ReplyTo: m.ReplyTo, Text: m.Text, Version: m.Version, Verdict: m.Verdict, Attachments: []BusAttachment{}, Unread: m.Unread, Dismissed: m.Dismissed}
+		ReplyTo: m.ReplyTo, Text: m.Text, Version: m.Version, Verdict: m.Verdict, Attachments: []BusAttachment{}, Unread: m.Unread, Dismissed: m.Dismissed, Reach: m.Reach}
 	if m.Kind == bus.MemberKind {
 		out.Line = m.MemberLine(speakerName(bus.Human))
 	}

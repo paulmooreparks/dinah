@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -109,6 +110,7 @@ type Message struct {
 	// as Human when it mentions the person (rooms.go).
 	RoomTitle   string
 	Mentioned   []Mention
+	Reach       *GroupReach // The person's group routing snapshot, as sent.
 	ReplyTo     int64
 	Text        string
 	Version     string // for a release
@@ -619,6 +621,14 @@ func (b *Bus) replyTarget(t *sql.Tx, from Sender, id int64) (resolved, error) {
 }
 
 func (b *Bus) insertMessage(t *sql.Tx, from Sender, kind string, r resolved, replyTo int64, text, version, verdict string, atts []Attachment) (int64, error) {
+	var attentionReason, attentionReach string
+	if from.Session == nil && r.room != "" && kind == "text" {
+		reach, encoded, err := b.routePersonAttention(t, &r)
+		if err != nil {
+			return 0, err
+		}
+		attentionReason, attentionReach = reach.Reason, encoded
+	}
 	// A message is read by other chats, so it never keeps a chat's applet
 	// context, whoever wrote it (appletcontext).
 	text = appletcontext.Redact(text)
@@ -631,8 +641,8 @@ func (b *Bus) insertMessage(t *sql.Tx, from Sender, kind string, r resolved, rep
 		}
 	}
 	res, err := t.Exec(`INSERT INTO messages (created_at, kind, from_session, from_name, from_workspace, to_label,
-		to_kind, to_key, room, reply_to, text, version, verdict, hops, mentions, relay_lead) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		b.stamp(), kind, fromSession, from.name(), fromWS, r.label, r.toKind, r.toKey, r.room, replyTo, text, version, verdict, hops, r.mentions, r.relay)
+		to_kind, to_key, room, reply_to, text, version, verdict, hops, mentions, relay_lead, attention_reason, attention_reach) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.stamp(), kind, fromSession, from.name(), fromWS, r.label, r.toKind, r.toKey, r.room, replyTo, text, version, verdict, hops, r.mentions, r.relay, attentionReason, attentionReach)
 	if err != nil {
 		return 0, err
 	}
@@ -740,7 +750,7 @@ const messageSelect = `SELECT m.id, m.created_at, m.kind, m.from_session, m.from
 	fs.id IS NOT NULL AS from_known, COALESCE(fs.title, '') AS from_title,
 	m.to_kind, ts.id IS NOT NULL AS to_known, COALESCE(ts.title, '') AS to_title,
 	COALESCE(tw.name, '') AS to_ws_name, COALESCE(CASE WHEN tw.label <> '' THEN tw.label ELSE tw.name END, '') AS to_ws_label,
-	COALESCE(CASE WHEN r.title <> '' THEN r.title ELSE r.name END, '') AS room_title, m.mentions, m.relay_lead
+	COALESCE(CASE WHEN r.title <> '' THEN r.title ELSE r.name END, '') AS room_title, m.mentions, m.relay_lead, m.attention_reach
 	FROM messages m
 	LEFT JOIN rooms r ON m.room <> '' AND r.name = m.room
 	LEFT JOIN workspaces fw ON fw.key = m.from_workspace
@@ -753,9 +763,16 @@ func scanMessage(r scanner) (Message, error) {
 	var m Message
 	var fromKnown, toKnown bool
 	var fromTitle, toKind, toTitle, toWS, toWSLabel string
+	var attentionReach string
 	err := r.Scan(&m.ID, &m.CreatedAt, &m.Kind, &m.FromSession, &m.FromName, &m.FromWorkspace, &m.FromWorkspaceLabel,
 		&m.ToLabel, &m.Room, &m.ReplyTo, &m.Text, &m.Version, &m.Verdict,
-		&fromKnown, &fromTitle, &toKind, &toKnown, &toTitle, &toWS, &toWSLabel, &m.RoomTitle, &m.mentions, &m.RelayLead)
+		&fromKnown, &fromTitle, &toKind, &toKnown, &toTitle, &toWS, &toWSLabel, &m.RoomTitle, &m.mentions, &m.RelayLead, &attentionReach)
+	if err == nil && attentionReach != "" {
+		m.Reach = &GroupReach{}
+		if e := json.Unmarshal([]byte(attentionReach), m.Reach); e != nil {
+			return m, fmt.Errorf("message %d has invalid routing: %w", m.ID, e)
+		}
+	}
 	m.ForPerson = m.RelayLead != ""
 	m.FromTitle = fromTitle
 	m.FromKnown = fromKnown
