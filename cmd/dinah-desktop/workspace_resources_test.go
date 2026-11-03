@@ -12,8 +12,7 @@ import (
 
 func resourceTestService(t *testing.T, source WorkspaceSource) (workspaceResourceService, ResourceRef) {
 	t.Helper()
-	a := NewApp()
-	configureFileAccessFixture(t, a)
+	a := newFileAccessFixtureApp(t)
 	a.settings.WorkspaceRecords = []WorkspaceRecord{{ID: "resource-workspace", Name: "Resources", Sources: []WorkspaceSource{source}}}
 	return workspaceResourceService{app: a, ctx: context.Background()}, ResourceRef{WorkspaceID: "resource-workspace", SourceID: source.ID}
 }

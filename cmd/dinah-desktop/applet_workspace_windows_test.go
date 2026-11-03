@@ -47,8 +47,7 @@ func TestWorkspaceAppletWindowsAttributes(t *testing.T) {
 				}
 				t.Cleanup(func() { _ = windows.SetFileAttributes(p, attributes) })
 			}
-			a := NewApp()
-			configureFileAccessFixture(t, a)
+			a := newFileAccessFixtureApp(t)
 			a.settings.WorkspaceRecords = []WorkspaceRecord{newWorkspaceRecord(ws)}
 			bundle, err := a.workspaceAppletBundle()
 			if err != nil {

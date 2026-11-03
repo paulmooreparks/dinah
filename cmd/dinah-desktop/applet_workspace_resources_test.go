@@ -13,8 +13,7 @@ import (
 
 func TestWorkspaceResourceAppletScopesSourcesToCallingWorkspace(t *testing.T) {
 	isolateWorkspaceSettings(t)
-	a := closeBusWhenDone(t, NewApp())
-	configureFileAccessFixture(t, a)
+	a := closeBusWhenDone(t, newFileAccessFixtureApp(t))
 	primary, other, attached := t.TempDir(), t.TempDir(), t.TempDir()
 	first, err := a.SetWorkspace(primary)
 	if err != nil {

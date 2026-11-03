@@ -29,8 +29,8 @@ func TestSkillCatalogScopesIdentityAndRevision(t *testing.T) {
 	other := t.TempDir()
 	file := write(filepath.Join(root, ".devin", "skills"), "Workspace instructions")
 	write(filepath.Join(other, ".devin", "skills"), "Other instructions")
-	write(filepath.Join(configDir(), "home", "skills"), "Personal instructions")
 	service, _ := resourceTestService(t, WorkspaceSource{ID: "source", Kind: "local-folder", Name: "Files", Path: root})
+	write(filepath.Join(configDir(), "home", "skills"), "Personal instructions")
 	a := service.app
 	a.settings.WorkspaceRecords[0].ExecutionPath = root
 	a.settings.WorkspaceRecords = append(a.settings.WorkspaceRecords, WorkspaceRecord{ID: "other", Name: "Other", ExecutionPath: other, Sources: []WorkspaceSource{{ID: "other-source", Kind: "local-folder", Name: "Files", Path: other}}})
