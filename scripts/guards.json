@@ -170,10 +170,15 @@
         "TestNetworkSuppliersRetainEachOthersIdentities",
         "TestNetworkBackgroundCompletionNotifies",
         "TestNetworkUnsupportedIdentityReachesPolicy",
+        "TestNetworkPolicyRefreshDoesNotRestartSlowVerification",
+        "TestNetworkNeverCheckedSnapshotIsUnverified",
+        "TestWindowsUnsupportedRootStillAuditsUnverified",
+        "TestNetworkUnsupportedRefreshKeepsLastKnownIdentity",
         "TestNetworkTwentyRootsUseOneShareBatch",
         "TestNetworkPolicyLoadAndRootChangeStartVerificationBeforeRead"
       ],
       "onlyOn": {
+        "TestWindowsUnsupportedRootStillAuditsUnverified": ["windows"],
         "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles": [
           "windows"
         ],

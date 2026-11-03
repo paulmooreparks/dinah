@@ -2,7 +2,6 @@ package fileaccess
 
 import (
 	"context"
-	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -32,6 +31,7 @@ type NetworkRuleState struct {
 }
 type networkResult struct {
 	verified, match, cached bool
+	unsupported             bool
 	reason, lastVerifiedAt  string
 }
 type networkRequest struct {
@@ -67,12 +67,14 @@ type networkProber struct {
 	stat        func(string) (os.FileInfo, error)
 	subscribers map[chan struct{}]bool
 	unavailable map[string]string
+	states      map[string]networkResult
+	published   string
 }
 
 var processNetworkProber = newNetworkProber(agents.StatFileIdentity)
 
 func newNetworkProber(stat func(string) (os.FileInfo, error)) *networkProber {
-	return &networkProber{jobs: map[string]*networkJob{}, tasks: map[string]*networkTask{}, last: map[string]verifiedIdentity{}, stat: stat}
+	return &networkProber{jobs: map[string]*networkJob{}, tasks: map[string]*networkTask{}, last: map[string]verifiedIdentity{}, states: map[string]networkResult{}, stat: stat}
 }
 func uncRoot(path string) bool {
 	return strings.HasPrefix(strings.ToUpper(path), `\\?\UNC\`) || (strings.HasPrefix(path, `\\`) && !strings.HasPrefix(path, `\\.\`) && !strings.HasPrefix(path, `\\?\`))
@@ -99,11 +101,12 @@ func identityMatches(key agents.FileIdentity, chain []os.FileInfo) bool {
 func (p *networkProber) fallback(root string, chain []os.FileInfo, reason string) networkResult {
 	p.mu.Lock()
 	last, ok := p.last[root]
-	if detail := p.unavailable[root]; detail != "" {
+	detail := p.unavailable[root]
+	if detail != "" {
 		reason = detail
 	}
 	p.mu.Unlock()
-	out := networkResult{reason: reason}
+	out := networkResult{reason: reason, unsupported: detail != ""}
 	if ok {
 		out.cached = true
 		out.match = identityMatches(last.key, chain)
@@ -126,7 +129,6 @@ func (p *networkProber) scheduleLocked(root string) *networkTask {
 	task := &networkTask{root: root}
 	p.tasks[root] = task
 	job.tasks = append(job.tasks, task)
-	p.revision++
 	p.startLocked()
 	return task
 }
@@ -135,8 +137,8 @@ func (p *networkProber) startLocked() {
 		job := p.queue[0]
 		p.queue = p.queue[1:]
 		job.active = true
+		job.started = time.Now()
 		p.active++
-		p.revision++
 		go p.run(job)
 	}
 }
@@ -169,10 +171,12 @@ func (p *networkProber) syncRootsFor(supplier *Service, roots []string) {
 		}
 	}
 	prior := p.configured
-	if !maps.Equal(prior, wanted) {
-		p.revision++
-	}
 	p.configured = wanted
+	for root := range p.states {
+		if !wanted[root] {
+			delete(p.states, root)
+		}
+	}
 	for root := range p.unavailable {
 		if !wanted[root] {
 			delete(p.unavailable, root)
@@ -181,7 +185,6 @@ func (p *networkProber) syncRootsFor(supplier *Service, roots []string) {
 	for root := range p.last {
 		if !wanted[root] {
 			delete(p.last, root)
-			p.revision++
 		}
 	}
 	for root := range wanted {
@@ -189,6 +192,7 @@ func (p *networkProber) syncRootsFor(supplier *Service, roots []string) {
 			p.scheduleLocked(root)
 		}
 	}
+	p.publishLocked()
 }
 func (p *networkProber) probe(ctx context.Context, root string, chain []os.FileInfo) networkResult {
 	ctx, cancel := context.WithTimeout(ctx, NetworkRuleDeadline)
@@ -253,27 +257,25 @@ func (p *networkProber) probeRoots(roots []string, chain []os.FileInfo) map[stri
 	return out
 }
 func (p *networkProber) run(job *networkJob) {
-	background := false
 	for {
 		p.mu.Lock()
-		if len(job.tasks) == 0 {
-			delete(p.jobs, job.share)
-			p.active--
-			p.revision++
-			p.startLocked()
-			if background {
-				p.notifyLocked()
-			}
-			p.mu.Unlock()
-			return
-		}
 		task := job.tasks[0]
 		job.tasks = job.tasks[1:]
 		job.current = task
-		job.started = time.Now()
-		p.revision++
+		if job.started.IsZero() {
+			job.started = time.Now()
+		}
+		p.publishLocked()
+		stalled := time.AfterFunc(NetworkRuleDeadline, func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			if job.current == task {
+				p.publishLocked()
+			}
+		})
 		p.mu.Unlock()
 		info, err := p.stat(task.root)
+		stalled.Stop()
 		key, known := agents.SnapshotIdentity(info)
 		at := time.Now().UTC().Format(time.RFC3339Nano)
 		p.mu.Lock()
@@ -288,34 +290,47 @@ func (p *networkProber) run(job *networkJob) {
 			}
 			p.unavailable[task.root] = reason
 		}
-		live := false
+		result := networkResult{reason: "The network location could not be verified"}
+		if detail := p.unavailable[task.root]; detail != "" {
+			result.reason, result.unsupported = detail, true
+		}
+		if err == nil && known {
+			result = networkResult{verified: true, lastVerifiedAt: at}
+		} else if last, ok := p.last[task.root]; ok {
+			result.cached = true
+			result.lastVerifiedAt = last.at
+			result.reason += "; using the last verified identity"
+		}
+		if p.configured == nil || p.configured[task.root] {
+			p.states[task.root] = result
+		}
 		for _, r := range task.requests {
 			if r.ctx.Err() != nil {
 				continue
 			}
-			live = true
-			result := networkResult{reason: "The network location could not be verified"}
-			if reason := agents.SnapshotIdentityReason(info); reason != "" {
-				result.reason = reason
-			}
-			if err == nil && known {
-				result = networkResult{verified: true, match: identityMatches(key, r.chain), lastVerifiedAt: at}
+			answer := result
+			if result.verified {
+				answer.match = identityMatches(key, r.chain)
 			} else if last, ok := p.last[task.root]; ok {
-				result.cached = true
-				result.match = identityMatches(last.key, r.chain)
-				result.lastVerifiedAt = last.at
-				result.reason += "; using the last verified identity"
+				answer.match = identityMatches(last.key, r.chain)
 			}
-			r.done <- result
+			r.done <- answer
 		}
 		delete(p.tasks, task.root)
 		job.current = nil
-		p.revision++
-		if !live {
-			background = true
-			p.notifyLocked()
+		finished := len(job.tasks) == 0
+		if finished {
+			delete(p.jobs, job.share)
+			p.active--
+			p.startLocked()
+		} else {
+			job.started = time.Now()
 		}
+		p.publishLocked()
 		p.mu.Unlock()
+		if finished {
+			return
+		}
 	}
 }
 
@@ -328,8 +343,8 @@ func (p *networkProber) notifyLocked() {
 	}
 }
 
-// NetworkChanges coalesces background completions. Foreground verifications
-// return their state to their callers without starting an event/query loop.
+// NetworkChanges coalesces changes to the displayed network snapshot.
+// Reading that snapshot never starts a verification.
 func (s *Service) NetworkChanges() (<-chan struct{}, func()) {
 	p := s.networkProber()
 	ch := make(chan struct{}, 1)
@@ -366,6 +381,10 @@ func networkRoots(policy Policy) []string {
 func (p *networkProber) workers() []NetworkWorker {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	return p.workersLocked()
+}
+
+func (p *networkProber) workersLocked() []NetworkWorker {
 	out := []NetworkWorker{}
 	for _, job := range p.jobs {
 		if !job.active {
@@ -390,7 +409,9 @@ func (s *Service) networkProber() *networkProber {
 	return processNetworkProber
 }
 func (s *Service) describeNetwork(policy *Policy) {
-	results := s.networkProber().probeRoots(networkRoots(*policy), nil)
+	p := s.networkProber()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	for i := range policy.Rules {
 		rule := &policy.Rules[i]
 		if !rule.Enabled {
@@ -400,11 +421,8 @@ func (s *Service) describeNetwork(policy *Policy) {
 			if !uncRoot(root) {
 				continue
 			}
-			result := results[root]
-			state := NetworkRuleState{Path: root, Status: "verified", UsingLastKnownIdentity: result.cached, LastVerifiedAt: result.lastVerifiedAt}
-			if !result.verified {
-				state.Status = "unverified"
-				state.Reason = result.reason
+			state := p.rootStateLocked(root)
+			if state.Status != "verified" {
 				rule.Verification = "unverified"
 			}
 			if rule.Verification == "" {
@@ -413,7 +431,7 @@ func (s *Service) describeNetwork(policy *Policy) {
 			rule.NetworkRoots = append(rule.NetworkRoots, state)
 		}
 	}
-	policy.NetworkWorkers = s.networkProber().workers()
+	policy.NetworkWorkers = p.workersLocked()
 	for i := range policy.NetworkWorkers {
 		worker := &policy.NetworkWorkers[i]
 		for _, rule := range policy.Rules {

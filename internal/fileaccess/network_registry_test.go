@@ -204,8 +204,13 @@ func TestNetworkUnsupportedIdentityReachesPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	waitNetworkState(t, p, func() bool { return p.active == 0 })
+	policy, err = s.Policy(Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := policy.Rules[len(policy.Rules)-1].NetworkRoots[0]
-	if state.Status != "unverified" || state.UsingLastKnownIdentity || !strings.Contains(state.Reason, "does not support FileIdInfo") || !strings.Contains(state.Reason, "mapped drive letter") {
+	if state.Status != "unsupported" || state.UsingLastKnownIdentity || state.Reason != agents.UnsupportedFileIdentityReason || strings.Contains(state.Reason, "FileIdInfo") {
 		t.Fatalf("Settings lacks lasting unsupported warning: %+v", state)
 	}
 	waitNetworkState(t, p, func() bool { return p.active == 0 })

@@ -108,7 +108,7 @@ func (b *Bus) readPolicyAttachment(ctx context.Context, session Session, path, s
 		return "", err
 	}
 	if len(check.MatchedRuleIDs) > 0 {
-		_, auditErr := service.Store.Append(fileaccess.Record{Chat: scope.Chat, ChatTitle: scope.ChatTitle, Workspace: scope.Workspace, Path: check.ResolvedPath, Outcome: "denied", RuleID: check.MatchedRuleIDs[0], Reason: check.Error, Source: source})
+		_, auditErr := service.Store.Append(fileaccess.Record{Chat: scope.Chat, ChatTitle: scope.ChatTitle, Workspace: scope.Workspace, Path: check.ResolvedPath, Outcome: "denied", RuleID: check.MatchedRuleIDs[0], Reason: check.Error, Source: source, UnverifiedRuleIDs: check.UnverifiedRuleIDs})
 		if auditErr != nil {
 			return "", fmt.Errorf("could not commit refused attachment audit: %w", auditErr)
 		}

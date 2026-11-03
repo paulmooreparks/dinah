@@ -10,7 +10,7 @@ type identityFileInfo struct {
 	identity FileIdentity
 }
 
-const UnsupportedFileIdentityReason = "The file system does not support FileIdInfo; this deny rule cannot be enforced against other paths to the same folder, such as a mapped drive letter"
+const UnsupportedFileIdentityReason = "This folder's file system cannot supply a reliable folder identity"
 
 type unavailableIdentityFileInfo struct {
 	os.FileInfo
