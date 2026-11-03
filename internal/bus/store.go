@@ -419,6 +419,7 @@ func addressOldMessages(db *sql.DB) error {
 func (b *Bus) Close() error {
 	b.accessMu.Lock()
 	if b.access != nil {
+		b.access.ReleaseNetworkRoots()
 		_ = b.access.Store.Close()
 	}
 	b.accessMu.Unlock()

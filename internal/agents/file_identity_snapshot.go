@@ -10,6 +10,22 @@ type identityFileInfo struct {
 	identity FileIdentity
 }
 
+const UnsupportedFileIdentityReason = "The file system does not support FileIdInfo; this deny rule cannot be enforced against other paths to the same folder, such as a mapped drive letter"
+
+type unavailableIdentityFileInfo struct {
+	os.FileInfo
+	reason string
+}
+
+func (info *unavailableIdentityFileInfo) IdentityUnavailableReason() string { return info.reason }
+
+func SnapshotIdentityReason(info os.FileInfo) string {
+	if unavailable, ok := info.(interface{ IdentityUnavailableReason() string }); ok {
+		return unavailable.IdentityUnavailableReason()
+	}
+	return ""
+}
+
 func SnapshotIdentity(info os.FileInfo) (FileIdentity, bool) {
 	captured, ok := info.(*identityFileInfo)
 	if !ok {
@@ -18,6 +34,9 @@ func SnapshotIdentity(info os.FileInfo) (FileIdentity, bool) {
 	return captured.identity, true
 }
 func originalFileInfo(info os.FileInfo) os.FileInfo {
+	if unavailable, ok := info.(*unavailableIdentityFileInfo); ok {
+		return unavailable.FileInfo
+	}
 	if captured, ok := info.(*identityFileInfo); ok {
 		return captured.FileInfo
 	}
@@ -35,7 +54,7 @@ func StatFileIdentity(path string) (os.FileInfo, error) {
 	}
 	return snapshotOpenedIdentity(file, info)
 }
-func rootIdentitySnapshot(root *os.Root) (os.FileInfo, error) {
+func rootIdentitySnapshot(root *os.Root, capture func(*os.File, os.FileInfo) (os.FileInfo, error)) (os.FileInfo, error) {
 	file, err := root.Open(".")
 	if err != nil {
 		return nil, err
@@ -45,5 +64,5 @@ func rootIdentitySnapshot(root *os.Root) (os.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return snapshotOpenedIdentity(file, info)
+	return capture(file, info)
 }

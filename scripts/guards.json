@@ -12,6 +12,8 @@
     {
       "package": "./internal/agents",
       "tests": [
+        "TestWindowsSnapshotUses128BitFileID",
+        "TestWindowsUnsupportedFileIDPreservesOrdinaryMetadata",
         "TestProtectedIdentityWritesAndManagedException",
         "TestProtectedIdentityCaseVariant",
         "TestProtectedIdentityCreationModes",
@@ -23,6 +25,8 @@
         "TestProviderReadPolicyAndBounds"
       ],
       "onlyOn": {
+        "TestWindowsSnapshotUses128BitFileID": ["windows"],
+        "TestWindowsUnsupportedFileIDPreservesOrdinaryMetadata": ["windows"],
         "TestProtectedIdentityCaseVariant": [
           "windows",
           "darwin"
@@ -97,6 +101,7 @@
         "TestFrontendJobsStayInTheirHomes",
         "TestFrontendRulesFindTheirHomes",
         "TestFileAccessPageAndProviderShareOnePolicy",
+        "TestFileAccessBackgroundNotificationReachesSettings",
         "TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority",
         "TestAgentWorkspaceStatUsesPolicyAndAudit",
         "TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit",
@@ -160,6 +165,10 @@
         "TestNetworkAccessDeniedIsImmediatelyUnverified",
         "TestCompletedNetworkRootKeepsItsResultAfterOtherWait",
         "TestNetworkQueuedSharesKeepLateIdentityDuringStalledRefresh",
+        "TestNetworkRegistrySurvivesScopeChanges",
+        "TestNetworkSuppliersRetainEachOthersIdentities",
+        "TestNetworkBackgroundCompletionNotifies",
+        "TestNetworkUnsupportedIdentityReachesPolicy",
         "TestNetworkTwentyRootsUseOneShareBatch",
         "TestNetworkPolicyLoadAndRootChangeStartVerificationBeforeRead"
       ],

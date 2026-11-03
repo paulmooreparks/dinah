@@ -46,10 +46,12 @@ type Check struct {
 // Service snapshots policy before each read and commits required audit before returning content.
 // Scope is supplied by the registered host session, never by the provider.
 type Service struct {
-	network  *networkProber
-	mu       sync.Mutex
-	Store    *Store
-	Defaults []Rule
+	workspaceRoots  []string
+	networkReleased bool
+	network         *networkProber
+	mu              sync.Mutex
+	Store           *Store
+	Defaults        []Rule
 }
 
 func Resolve(path string) (string, error) {
@@ -82,6 +84,7 @@ func (s *Service) rawPolicy(scope Scope) (Policy, error) {
 		return Policy{}, err
 	}
 	out := Policy{Version: version, Rules: []Rule{}}
+	configured := Policy{}
 	for i, root := range agents.ProtectedRoots(scope.Layout) {
 		id := "protected-state"
 		if i > 0 {
@@ -95,7 +98,12 @@ func (s *Service) rawPolicy(scope Scope) (Policy, error) {
 			r.Enabled = enabled
 		}
 		if r.ID == "other-workspaces" {
+			all := r
+			all.ResolvedPaths = append(append([]string{}, r.ResolvedPaths...), s.workspaceRoots...)
+			configured.Rules = append(configured.Rules, all)
 			r.ResolvedPaths = append(r.ResolvedPaths, scope.OtherRoots...)
+		} else {
+			configured.Rules = append(configured.Rules, r)
 		}
 		if r.Enabled {
 			r.Actions = []string{"disable"}
@@ -112,6 +120,7 @@ func (s *Service) rawPolicy(scope Scope) (Policy, error) {
 	for _, id := range ids {
 		p := custom[id]
 		out.Rules = append(out.Rules, Rule{ID: id, Kind: "custom", Pattern: p, Reason: "A path you chose to deny", Enabled: true, ResolvedPaths: []string{p}, Examples: map[string]string{}, Actions: []string{"remove"}})
+		configured.Rules = append(configured.Rules, out.Rules[len(out.Rules)-1])
 	}
 	for i := range out.Rules {
 		r := &out.Rules[i]
@@ -122,8 +131,28 @@ func (s *Service) rawPolicy(scope Scope) (Policy, error) {
 			}
 		}
 	}
-	s.networkProber().syncRoots(networkRoots(out))
+	if !s.networkReleased {
+		s.networkProber().syncRootsFor(s, networkRoots(configured))
+	}
 	return out, nil
+}
+
+// SetWorkspaceRoots supplies the complete registry, including folder sources.
+// A scope's OtherRoots affects its denial rules, never cache ownership.
+func (s *Service) SetWorkspaceRoots(roots []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.workspaceRoots = append([]string(nil), roots...)
+	_, err := s.rawPolicy(Scope{})
+	return err
+}
+
+// ReleaseNetworkRoots withdraws this host's cache ownership during shutdown.
+func (s *Service) ReleaseNetworkRoots() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.networkReleased = true
+	s.networkProber().syncRootsFor(s, nil)
 }
 
 func (s *Service) Policy(scope Scope) (Policy, error) {

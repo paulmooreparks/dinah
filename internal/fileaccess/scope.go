@@ -39,6 +39,20 @@ func addRoot(roots []string, path string) []string {
 	return append(roots, path)
 }
 
+// RegisteredWorkspaceRoots includes folder sources regardless of path spelling.
+func RegisteredWorkspaceRoots(records []workspaces.Record) []string {
+	var roots []string
+	for _, record := range records {
+		roots = addRoot(roots, record.ExecutionPath)
+		for _, source := range record.Sources {
+			if workspaces.IsLocalSource(source) {
+				roots = addRoot(roots, source.Path)
+			}
+		}
+	}
+	return roots
+}
+
 func WorkspaceScope(l layout.Layout, records []workspaces.Record, cwd string) Scope {
 	scope := Scope{Workspace: cwd, Roots: []string{cwd}, Layout: l}
 	for _, record := range records {

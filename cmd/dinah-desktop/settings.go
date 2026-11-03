@@ -404,6 +404,7 @@ func (a *App) updateSettings(change func(*Settings) error) error {
 		return err
 	}
 	a.settings = updated
+	a.syncFileAccessWorkspaceRootsLocked()
 	return nil
 }
 

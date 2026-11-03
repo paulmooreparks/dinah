@@ -110,12 +110,16 @@ func openReadFileChecked(base, rel string, check func([]os.FileInfo) error) (*os
 }
 
 func openObjectChecked(base, rel string, directories bool, check func([]os.FileInfo) error) (*os.File, error) {
+	return openObjectSnapshotChecked(base, rel, directories, check, snapshotOpenedIdentity)
+}
+
+func openObjectSnapshotChecked(base, rel string, directories bool, check func([]os.FileInfo) error, capture func(*os.File, os.FileInfo) (os.FileInfo, error)) (*os.File, error) {
 	root, err := os.OpenRoot(base)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { root.Close() }()
-	info, err := rootIdentitySnapshot(root)
+	info, err := rootIdentitySnapshot(root, capture)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +139,7 @@ func openObjectChecked(base, rel string, directories bool, check func([]os.FileI
 			next.Close()
 			return nil, errors.New("the file directory changed")
 		}
-		captured, err := rootIdentitySnapshot(next)
+		captured, err := rootIdentitySnapshot(next, capture)
 		if err != nil {
 			next.Close()
 			return nil, err
@@ -161,7 +165,7 @@ func openObjectChecked(base, rel string, directories bool, check func([]os.FileI
 		file.Close()
 		return nil, errors.New("the file changed while opening it")
 	}
-	captured, err := snapshotOpenedIdentity(file, opened)
+	captured, err := capture(file, opened)
 	if err != nil {
 		file.Close()
 		return nil, err

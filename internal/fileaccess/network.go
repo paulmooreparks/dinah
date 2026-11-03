@@ -2,6 +2,7 @@ package fileaccess
 
 import (
 	"context"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -54,15 +55,18 @@ type verifiedIdentity struct {
 	at  string
 }
 type networkProber struct {
-	mu         sync.Mutex
-	jobs       map[string]*networkJob
-	tasks      map[string]*networkTask
-	queue      []*networkJob
-	active     int
-	last       map[string]verifiedIdentity
-	configured map[string]bool
-	revision   uint64
-	stat       func(string) (os.FileInfo, error)
+	mu          sync.Mutex
+	jobs        map[string]*networkJob
+	tasks       map[string]*networkTask
+	queue       []*networkJob
+	active      int
+	last        map[string]verifiedIdentity
+	configured  map[string]bool
+	suppliers   map[*Service]map[string]bool
+	revision    uint64
+	stat        func(string) (os.FileInfo, error)
+	subscribers map[chan struct{}]bool
+	unavailable map[string]string
 }
 
 var processNetworkProber = newNetworkProber(agents.StatFileIdentity)
@@ -95,6 +99,9 @@ func identityMatches(key agents.FileIdentity, chain []os.FileInfo) bool {
 func (p *networkProber) fallback(root string, chain []os.FileInfo, reason string) networkResult {
 	p.mu.Lock()
 	last, ok := p.last[root]
+	if detail := p.unavailable[root]; detail != "" {
+		reason = detail
+	}
 	p.mu.Unlock()
 	out := networkResult{reason: reason}
 	if ok {
@@ -137,21 +144,47 @@ func (p *networkProber) startLocked() {
 // syncRoots starts new configured roots eagerly and removes obsolete cached
 // authority. An already running system call cannot be cancelled by this change.
 func (p *networkProber) syncRoots(roots []string) {
-	wanted := map[string]bool{}
+	p.syncRootsFor(nil, roots)
+}
+
+func (p *networkProber) syncRootsFor(supplier *Service, roots []string) {
+	supplied := map[string]bool{}
 	for _, root := range roots {
-		wanted[root] = true
+		supplied[root] = true
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.suppliers == nil {
+		p.suppliers = map[*Service]map[string]bool{}
+	}
+	if len(supplied) == 0 {
+		delete(p.suppliers, supplier)
+	} else {
+		p.suppliers[supplier] = supplied
+	}
+	wanted := map[string]bool{}
+	for _, set := range p.suppliers {
+		for root := range set {
+			wanted[root] = true
+		}
+	}
 	prior := p.configured
+	if !maps.Equal(prior, wanted) {
+		p.revision++
+	}
 	p.configured = wanted
+	for root := range p.unavailable {
+		if !wanted[root] {
+			delete(p.unavailable, root)
+		}
+	}
 	for root := range p.last {
 		if !wanted[root] {
 			delete(p.last, root)
 			p.revision++
 		}
 	}
-	for _, root := range roots {
+	for root := range wanted {
 		if !prior[root] {
 			p.scheduleLocked(root)
 		}
@@ -220,6 +253,7 @@ func (p *networkProber) probeRoots(roots []string, chain []os.FileInfo) map[stri
 	return out
 }
 func (p *networkProber) run(job *networkJob) {
+	background := false
 	for {
 		p.mu.Lock()
 		if len(job.tasks) == 0 {
@@ -227,6 +261,9 @@ func (p *networkProber) run(job *networkJob) {
 			p.active--
 			p.revision++
 			p.startLocked()
+			if background {
+				p.notifyLocked()
+			}
 			p.mu.Unlock()
 			return
 		}
@@ -244,12 +281,23 @@ func (p *networkProber) run(job *networkJob) {
 		// timed out. Cancellation of the caller does not cancel the system call.
 		if err == nil && known && (p.configured == nil || p.configured[task.root]) {
 			p.last[task.root] = verifiedIdentity{key, at}
+			delete(p.unavailable, task.root)
+		} else if reason := agents.SnapshotIdentityReason(info); reason != "" && (p.configured == nil || p.configured[task.root]) {
+			if p.unavailable == nil {
+				p.unavailable = map[string]string{}
+			}
+			p.unavailable[task.root] = reason
 		}
+		live := false
 		for _, r := range task.requests {
 			if r.ctx.Err() != nil {
 				continue
 			}
+			live = true
 			result := networkResult{reason: "The network location could not be verified"}
+			if reason := agents.SnapshotIdentityReason(info); reason != "" {
+				result.reason = reason
+			}
 			if err == nil && known {
 				result = networkResult{verified: true, match: identityMatches(key, r.chain), lastVerifiedAt: at}
 			} else if last, ok := p.last[task.root]; ok {
@@ -263,6 +311,37 @@ func (p *networkProber) run(job *networkJob) {
 		delete(p.tasks, task.root)
 		job.current = nil
 		p.revision++
+		if !live {
+			background = true
+			p.notifyLocked()
+		}
+		p.mu.Unlock()
+	}
+}
+
+func (p *networkProber) notifyLocked() {
+	for subscriber := range p.subscribers {
+		select {
+		case subscriber <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// NetworkChanges coalesces background completions. Foreground verifications
+// return their state to their callers without starting an event/query loop.
+func (s *Service) NetworkChanges() (<-chan struct{}, func()) {
+	p := s.networkProber()
+	ch := make(chan struct{}, 1)
+	p.mu.Lock()
+	if p.subscribers == nil {
+		p.subscribers = map[chan struct{}]bool{}
+	}
+	p.subscribers[ch] = true
+	p.mu.Unlock()
+	return ch, func() {
+		p.mu.Lock()
+		delete(p.subscribers, ch)
 		p.mu.Unlock()
 	}
 }

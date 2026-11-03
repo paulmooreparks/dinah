@@ -39,6 +39,14 @@ func (b *Bus) fileAccessPolicy() (*fileaccess.Service, error) {
 }
 
 func (b *Bus) attachmentScope(ctx context.Context, session Session, source string) (fileaccess.Scope, error) {
+	service, err := b.fileAccessPolicy()
+	if err != nil {
+		return fileaccess.Scope{}, err
+	}
+	// Serialize registry snapshots and their publication so an older caller
+	// cannot replace a newer caller's complete root set.
+	b.accessMu.Lock()
+	defer b.accessMu.Unlock()
 	records, err := workspaces.Load(b.dir)
 	if err != nil && !errors.Is(err, workspaces.ErrNoRegistry) {
 		return fileaccess.Scope{}, err
@@ -59,6 +67,9 @@ func (b *Bus) attachmentScope(ctx context.Context, session Session, source strin
 		if !found {
 			records = append(records, workspaces.Record{ID: workspace.Key, ExecutionPath: workspace.Path})
 		}
+	}
+	if err := service.SetWorkspaceRoots(fileaccess.RegisteredWorkspaceRoots(records)); err != nil {
+		return fileaccess.Scope{}, err
 	}
 	scope := fileaccess.WorkspaceScope(layout.Layout{State: b.dir}, records, session.WorkspacePath)
 	scope.Chat, scope.ChatTitle, scope.Source = session.ID, session.Title, source

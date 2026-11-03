@@ -7,10 +7,41 @@ import (
 	"runtime"
 	"studio/internal/applet"
 	"testing"
+	"time"
 
 	"studio/internal/acp"
 	"studio/internal/fileaccess"
 )
+
+func TestFileAccessBackgroundNotificationReachesSettings(t *testing.T) {
+	a, _ := providerTestApp(t)
+	if _, err := a.fileAccessService(); err != nil {
+		t.Fatal(err)
+	}
+	a.fileAccessUpdated("file-access:read", nil)
+	events := make(chan string, 8)
+	a.sink = func(name string, _ any) { events <- name }
+	changes := make(chan struct{}, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	released := make(chan struct{})
+	a.watchFileAccessChanges(ctx, changes, func() { close(released) })
+	changes <- struct{}{}
+	select {
+	case name := <-events:
+		if name != "file-access:network" {
+			t.Fatal("wrong Settings event", name)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Settings did not hear completion before the audit poll")
+	}
+	cancel()
+	select {
+	case <-released:
+	case <-time.After(time.Second):
+		t.Fatal("network subscription was not released")
+	}
+}
 
 func TestFileAccessPageAndProviderShareOnePolicy(t *testing.T) {
 	a, c := providerTestApp(t)

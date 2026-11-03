@@ -32,6 +32,8 @@ func fileAccessScope(settings Settings, cwd string) fileaccess.Scope {
 }
 
 func (a *App) fileAccessService() (*fileaccess.Service, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	f := &a.fileAccess
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -54,7 +56,8 @@ func (a *App) fileAccessService() (*fileaccess.Service, error) {
 		return nil, err
 	}
 	f.service = &fileaccess.Service{Store: store, Defaults: defaults}
-	if err := f.service.WarmNetworkRoots(); err != nil {
+	if err := f.service.SetWorkspaceRoots(fileaccess.RegisteredWorkspaceRoots(a.settings.WorkspaceRecords)); err != nil {
+		f.service.ReleaseNetworkRoots()
 		store.Close()
 		f.service = nil
 		return nil, err
@@ -64,11 +67,24 @@ func (a *App) fileAccessService() (*fileaccess.Service, error) {
 		f.counts, err = store.RefusedCounts()
 	}
 	if err != nil {
+		f.service.ReleaseNetworkRoots()
 		store.Close()
 		f.service = nil
 		return nil, err
 	}
 	return f.service, nil
+}
+
+// The caller holds a.mu, so registry updates and service creation share order.
+func (a *App) syncFileAccessWorkspaceRootsLocked() {
+	f := &a.fileAccess
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.closed && f.service != nil {
+		if err := f.service.SetWorkspaceRoots(fileaccess.RegisteredWorkspaceRoots(a.settings.WorkspaceRecords)); err != nil {
+			logf("core", "warning", "could not refresh file-access workspace roots: %v", err)
+		}
+	}
 }
 
 func resolvedFileAccessDefaults() ([]fileaccess.Rule, error) { return fileaccess.CurrentDefaults() }
@@ -101,7 +117,7 @@ func (a *App) fileAccessUpdated(event string, payload any) {
 		Workers  []fileaccess.NetworkWorker
 		Revision uint64
 	}{f.service.NetworkWorkers(), f.service.NetworkRevision()})
-	networkChanged := string(networkBytes) != f.networkState
+	networkChanged := event == "file-access:network" || string(networkBytes) != f.networkState
 	f.networkState = string(networkBytes)
 	changed := version != f.version || high != f.highWater || !maps.Equal(counts, f.counts)
 	if version != f.version {
@@ -130,6 +146,7 @@ func (a *App) closeFileAccess() {
 		close(f.stop)
 	}
 	if f.service != nil {
+		f.service.ReleaseNetworkRoots()
 		_ = f.service.Store.Close()
 	}
 }
@@ -278,16 +295,27 @@ func (a *App) auditPathlessRead(ctx context.Context, action, key string, result 
 }
 
 func (a *App) watchFileAccess(ctx context.Context) {
+	service, err := a.fileAccessService()
+	if err != nil {
+		return
+	}
+	changes, release := service.NetworkChanges()
+	a.watchFileAccessChanges(ctx, changes, release)
+}
+
+func (a *App) watchFileAccessChanges(ctx context.Context, changes <-chan struct{}, release func()) {
 	f := &a.fileAccess
 	f.mu.Lock()
 	if f.closed || f.stop != nil {
 		f.mu.Unlock()
+		release()
 		return
 	}
 	f.stop = make(chan struct{})
 	stop := f.stop
 	f.mu.Unlock()
 	go func() {
+		defer release()
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
 		for {
@@ -296,6 +324,8 @@ func (a *App) watchFileAccess(ctx context.Context) {
 				return
 			case <-stop:
 				return
+			case <-changes:
+				a.fileAccessUpdated("file-access:network", nil)
 			case <-ticker.C:
 				a.fileAccessUpdated("file-access:read", nil)
 			}
