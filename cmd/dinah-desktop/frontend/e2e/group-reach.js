@@ -23,7 +23,9 @@ const { launch } = require('./lib/page');
         BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, review, person], counts: { top: 'idle', idle: 2, working: 0, waiting: 0, stuck: 0, closed: 0, unknown: 0 } }], workspaces: [], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
         BusGroupMessages: async () => window.__messages || [], BusMarkGroupRead: async () => {},
         BusGroupAttentionSettings: async () => Object.assign({ limitMin: 1, limitMax: 10, minutesMin: 1, minutesMax: 1440 }, window.__attention || { limit: 3, minutes: 30 }),
-        SetBusGroupAttentionSettings: async (limit, minutes) => { window.__attention = { limit, minutes }; window.__attentionSet = (window.__attentionSet || []).concat([[limit, minutes]]); return window.__attention; },
+        // As the engine's call does, it returns nothing; the page reads the
+        // settings again.
+        SetBusGroupAttentionSettings: async (limit, minutes) => { window.__attention = { limit, minutes }; window.__attentionSet = (window.__attentionSet || []).concat([[limit, minutes]]); },
         // The send stores who it reached; __sendReach stands in for an
         // engagement that ran out between the line and the send.
         BusSendToGroup: async (key, text, mentions) => {
@@ -127,6 +129,8 @@ const { launch } = require('./lib/page');
     await minutes.fill('45'); await minutes.press('Tab');
     await p.waitForFunction(() => (window.__attentionSet || []).length === 1);
     ok('changing the minutes sets both through the engine', JSON.stringify(await p.evaluate(() => __attentionSet[0])) === JSON.stringify([3, 45]));
+    await p.waitForFunction(() => !document.getElementById('set-attention-minutes').disabled);
+    ok('and the field shows what the engine then reports', await minutes.inputValue() === '45' && await limit.inputValue() === '3');
     ok('the help says a change applies at once to conversations under way', /applies at once to every group, including conversations already under way/.test(await settings.locator('#set-group-attention').locator('..').textContent()));
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
