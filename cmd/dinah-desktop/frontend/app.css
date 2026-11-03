@@ -524,14 +524,18 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .file-access-place { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm); }
 .file-access-rule[data-off] .file-access-place { color: var(--text-muted); }
 /* A rule's network folders (file-access-settings.js, networkList): each a
-   block of fixed height, its badges and path on one line and what its state
-   means on two, cut short with the whole text in the tooltip, so a change of
-   state never moves or resizes the list. */
+   block of fixed height, its path and badges on one line and what its state
+   means on two, cut short, so a change of state never moves or resizes the
+   list. */
 .file-access-network { list-style: none; margin: var(--space-1) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .file-access-network-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; height: 1.5rem; overflow: hidden; white-space: nowrap; }
 .file-access-network-head > .badge { flex: none; }
 .file-access-network-head > .file-access-place { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .file-access-rule .file-access-network-detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: var(--leading-normal, 1.5); height: calc(2em * var(--leading-normal, 1.5)); }
+/* Words cut short open when the person focuses or taps them; that is their
+   own action, so the list moving then is expected. */
+.file-access-rule .file-access-network-detail[tabindex] { cursor: pointer; border-radius: var(--radius-xs); }
+.file-access-rule .file-access-network-detail[tabindex]:focus { -webkit-line-clamp: unset; height: auto; outline: none; box-shadow: 0 0 0 2px var(--focus-ring); }
 .file-access-filters { flex-wrap: wrap; }
 .file-access-add-row { flex-wrap: nowrap; }
 .file-access-add-row > .form-input { flex: 1 1 0; width: auto; min-width: 0; }

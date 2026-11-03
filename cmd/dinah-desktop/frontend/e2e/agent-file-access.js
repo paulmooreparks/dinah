@@ -131,23 +131,53 @@ const { launch } = require('./lib/page');
       badges: [...el.querySelectorAll('.badge')].map(b => b.className.replace('badge ', '') + ':' + b.textContent), words: el.querySelector('.file-access-network-detail').textContent }));
     const ruleBoxes = () => p.evaluate(() => [...document.querySelectorAll('#file-access-rules [data-rule], #file-access-rules .file-access-network-root')].map(el => { const r = el.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height), Math.round(r.width)]; }));
     let s = await state();
-    ok('a verified network folder says so, and that other paths to it are refused too', s.status === 'verified' && JSON.stringify(s.badges) === '["positive:Verified"]' && /^Verified .*Other paths to this folder are refused too\.$/.test(s.words), JSON.stringify(s));
+    ok('a verified network folder says first that other paths to it are refused too', s.status === 'verified' && JSON.stringify(s.badges) === '["positive:Verified"]' && /^Other paths to this folder are refused too\. Verified .+\.$/.test(s.words), JSON.stringify(s));
     const steady = await ruleBoxes();
     const network = (root, workers) => p.evaluate(([r, w]) => { const n = __policy.rules.find(x => x.id === 'n1'); n.networkRoots = [Object.assign({ path: '//files/finance' }, r)]; n.verification = r.status; __policy.networkWorkers = w; __emit('file-access:network', null); }, [root, workers || []]);
-    await network({ status: 'unverified', reason: 'The file system did not give the folder a lasting identity.' });
+    await network({ status: 'unverified', reason: 'The server did not answer' });
     await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-root').dataset.status === 'unverified');
     s = await state();
-    ok('an unverified folder says why, and that a mapped drive letter to it is not refused', JSON.stringify(s.badges) === '["warn:Unverified"]' &&
-      s.words === 'Not verified: The file system did not give the folder a lasting identity. Until it is, this rule matches the folder by its name only, so another path to the same folder, such as a mapped drive letter, is not refused.', s.words);
+    ok('an unverified folder says first that a mapped drive letter to it is not refused, then why', JSON.stringify(s.badges) === '["warn:Unverified"]' &&
+      s.words === 'Another path to this folder, such as a mapped drive letter, is not refused until the folder is verified, because this rule matches it by name only. It is not verified. The server did not answer.', s.words);
     ok('and the list has not moved or changed size', JSON.stringify(await ruleBoxes()) === JSON.stringify(steady), JSON.stringify({ steady, now: await ruleBoxes() }));
+    // A file system that cannot identify a folder is a lasting limit, told
+    // by the engine's structured state, not by the words of its reason.
+    await network({ status: 'unsupported', reason: 'This file system does not give folders a lasting identity.' });
+    await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-root').dataset.status === 'unsupported');
+    s = await state();
+    ok('a folder that cannot be identified says it will not change, and its badge is not Unverified', JSON.stringify(s.badges) === '["warn:Cannot Be Verified"]' &&
+      s.words === 'Other paths to this folder, such as a mapped drive letter, are not refused, because its file system cannot identify the folder. This will not change. This file system does not give folders a lasting identity.', s.words);
+    ok('and still the list has not moved or changed size', JSON.stringify(await ruleBoxes()) === JSON.stringify(steady), JSON.stringify({ steady, now: await ruleBoxes() }));
+    // An unsupported folder that still has an identity verified earlier is
+    // held to it, so the page gives that fallback, not the lasting limit.
+    await network({ status: 'unsupported', reason: 'This file system does not give folders a lasting identity.', usingLastKnownIdentity: true, lastVerifiedAt: '2026-11-03T02:00:00Z' });
+    await p.waitForFunction(() => 'lastKnown' in document.querySelector('[data-rule="n1"] .file-access-network-root').dataset);
+    s = await state();
+    // A verified status without its time is never shown as verified.
+    await network({ status: 'verified' });
+    await p.waitForFunction(() => /Not Checked Yet/.test(document.querySelector('[data-rule="n1"] .file-access-network-root .badge').textContent));
+    ok('a verified status without when it was verified shows as not checked yet', (await state()).words === 'Whether other paths to this folder are refused is not known until it is checked.');
+    await network({ status: 'unsupported', reason: 'This file system does not give folders a lasting identity.', usingLastKnownIdentity: true, lastVerifiedAt: '2026-11-03T02:00:00Z' });
+    await p.waitForFunction(() => 'lastKnown' in document.querySelector('[data-rule="n1"] .file-access-network-root').dataset);
+    s = await state();
+    ok('an unsupported folder held to an earlier identity says what that refuses, not that nothing is', JSON.stringify(s.badges) === '["warn:Last Known Identity"]' &&
+      /^Other paths to this folder are refused while it keeps the identity last verified .+\. It could not be verified just now. This file system/.test(s.words), s.words);
     await network({ status: 'unverified', reason: 'The server did not answer.', usingLastKnownIdentity: true, lastVerifiedAt: '2026-11-03T03:00:00Z' },
       [{ root: '//files/finance', roots: ['//files/finance'], ruleIDs: ['n1'], startedAt: '2026-11-03T03:10:00Z', stalled: true }]);
     await p.waitForFunction(() => 'stalled' in document.querySelector('[data-rule="n1"] .file-access-network-root').dataset);
     s = await state();
-    ok('a folder on its last known identity says so plainly, with when it was verified', s.lastKnown && s.badges[0] === 'warn:Last Known Identity' && /keeps the identity last verified /.test(s.words), JSON.stringify(s));
-    ok('a stalled check is shown on its rule, with when it started', s.stalled && s.badges[1] === 'warn:Check Stalled' && / The check of this folder has not finished since .*.$/.test(s.words) && /^Not verified just now/.test(s.words), JSON.stringify(s));
+    ok('a folder on its last known identity says first that other paths are refused while it keeps that identity', s.lastKnown && s.badges[0] === 'warn:Last Known Identity' && /^Other paths to this folder are refused while it keeps the identity last verified .+\. It could not be verified just now\. The server did not answer\./.test(s.words), JSON.stringify(s));
+    ok('a stalled check is shown on its rule, with when it started, after the meaning', s.stalled && s.badges[1] === 'warn:Check Stalled' && / The check of this folder has not finished since .+\.$/.test(s.words), JSON.stringify(s));
     ok('still nothing has moved or changed size', JSON.stringify(await ruleBoxes()) === JSON.stringify(steady), JSON.stringify({ steady, now: await ruleBoxes() }));
-    ok('the whole text is in the tooltip, whatever the two lines show', (await net.locator('.file-access-network-detail').getAttribute('title')) === s.words);
+    // Words cut short open to their whole text by keyboard or tap, without a tooltip.
+    const detail = net.locator('.file-access-network-detail');
+    await p.waitForFunction(() => document.querySelector('[data-rule="n1"] .file-access-network-detail').hasAttribute('tabindex'));
+    const shut = await detail.evaluate(el => [el.clientHeight, el.scrollHeight]);
+    await detail.focus();
+    const open = await detail.evaluate(el => [el.clientHeight, el.scrollHeight]);
+    ok('words cut short take focus and open to their whole text, with no tooltip', shut[1] > shut[0] && open[0] >= open[1] && open[0] > shut[0] && !(await detail.getAttribute('title')), JSON.stringify({ shut, open }));
+    await detail.blur();
+    ok('a screen reader has the whole text, since the cut is only visual', (await detail.textContent()) === s.words);
 
     // The log: newest first, a page at a time, refused reads acknowledged.
     const firstPage = await p.evaluate(() => [...document.querySelectorAll('#file-access-log tbody tr')].map(r => +r.dataset.read));

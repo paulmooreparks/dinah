@@ -61,28 +61,57 @@
      A rule on a network folder holds only as far as the folder's identity
      is verified (docs/design/agent-file-access.md). Each network place gets
      one block of fixed height: its path with a badge for its state, and two
-     lines saying what that state means for the rule, cut short with the
-     whole text in the tooltip, so a change of state changes words, never
-     the size of the row. */
+     lines saying what that state means for the rule, so a change of state
+     changes words, never the size of the row. What is or is not refused
+     comes first, so cutting the text short can only cut the reason after
+     it; a block cut short opens to its whole text when it is focused or
+     tapped, and a screen reader reads it whole. The state comes from the
+     engine's structured fields, never from the wording of its reason. */
   function when(at) {
     return at && !isNaN(new Date(at)) ? window.dinahHelpers.fmtDate(at).trim() : '';
   }
   function stalledFor(rule) {
     return ((policy && policy.networkWorkers) || []).filter(function (w) { return w.stalled && (w.ruleIDs || []).indexOf(rule.id) >= 0; });
   }
+  // verified; last-known, when a folder not verified now is held to its
+  // last verified identity, whether it is unverified or unsupported;
+  // unsupported, a lasting limit of the folder's file system; or unverified.
+  function networkState(root) {
+    // A verdict is shown only with when it was reached. Before the first
+    // check the engine reports unverified with a plain reason; a verified
+    // status without its time is not taken for one.
+    if (root.status === 'verified' && !when(root.lastVerifiedAt)) return 'pending';
+    if (root.status === 'verified') return 'verified';
+    if (root.usingLastKnownIdentity) return 'last-known';
+    return root.status === 'unsupported' ? 'unsupported' : 'unverified';
+  }
+  function sentence(text) { text = String(text || '').trim(); return text && !/[.!?]$/.test(text) ? text + '.' : text; }
   function networkWords(root, stalled) {
-    var last = when(root.lastVerifiedAt), words;
-    if (root.status === 'verified') {
-      words = 'Verified' + (last ? ' ' + last : '') + '. Other paths to this folder are refused too.';
-    } else if (root.usingLastKnownIdentity) {
-      words = 'Not verified just now' + (root.reason ? ': ' + root.reason.replace(/\.$/, '') : '') + '. Other paths to this folder are refused while it keeps the identity last verified' + (last ? ' ' + last : '') + '.';
+    var last = when(root.lastVerifiedAt), state = networkState(root), words;
+    if (state === 'pending') {
+      words = 'Whether other paths to this folder are refused is not known until it is checked.';
+    } else if (state === 'verified') {
+      words = 'Other paths to this folder are refused too. Verified ' + last + '.';
+    } else if (state === 'unsupported') {
+      words = 'Other paths to this folder, such as a mapped drive letter, are not refused, because its file system cannot identify the folder. This will not change.' + (root.reason ? ' ' + sentence(root.reason) : '');
+    } else if (state === 'last-known') {
+      words = 'Other paths to this folder are refused while it keeps the identity last verified' + (last ? ' ' + last : '') + '. It could not be verified just now.' + (root.reason ? ' ' + sentence(root.reason) : '');
     } else {
-      words = 'Not verified' + (root.reason ? ': ' + root.reason.replace(/\.$/, '') : '') + '. Until it is, this rule matches the folder by its name only, so another path to the same folder, such as a mapped drive letter, is not refused.';
+      words = 'Another path to this folder, such as a mapped drive letter, is not refused until the folder is verified, because this rule matches it by name only. It is not verified.' + (root.reason ? ' ' + sentence(root.reason) : '');
     }
-    // What the state means for the rule comes first, within the two lines;
-    // the Check Stalled badge already says a check is stuck.
+    // The Check Stalled badge already says a check is stuck.
     if (stalled) words += ' The check of this folder has not finished since ' + (when(stalled.startedAt) || 'it started') + '.';
     return words;
+  }
+  var BADGES = { pending: ['', 'Not Checked Yet'], verified: ['positive', 'Verified'], unsupported: ['warn', 'Cannot Be Verified'], 'last-known': ['warn', 'Last Known Identity'], unverified: ['warn', 'Unverified'] };
+  /* A block whose words are cut short takes focus, so a keyboard or a tap
+     can open it to its whole text (app.css); one that fits does not. */
+  function markCutShort(scope) {
+    requestAnimationFrame(function () {
+      scope.querySelectorAll('.file-access-network-detail').forEach(function (detail) {
+        if (detail.scrollHeight > detail.clientHeight + 1) detail.tabIndex = 0; else detail.removeAttribute('tabindex');
+      });
+    });
   }
   function networkList(rule) {
     var list = document.createElement('ul'), stalled = stalledFor(rule);
@@ -91,24 +120,24 @@
     rule.networkRoots.forEach(function (root) {
       var item = document.createElement('li'), head = document.createElement('span'), path = document.createElement('span'), detail = document.createElement('p');
       var hung = stalled.filter(function (w) { return w.root === root.path || (w.roots || []).indexOf(root.path) >= 0; })[0];
+      var state = networkState(root);
       item.className = 'file-access-network-root';
-      item.dataset.status = root.status === 'verified' ? 'verified' : 'unverified';
-      if (root.usingLastKnownIdentity) item.dataset.lastKnown = '';
+      item.dataset.status = state === 'last-known' ? 'unverified' : state;
+      if (state === 'last-known') item.dataset.lastKnown = '';
       if (hung) item.dataset.stalled = '';
       head.className = 'file-access-network-head';
       path.className = 'file-access-place';
       // A rule on one network folder names it above already.
       path.textContent = rule.networkRoots.length > 1 ? root.path : 'This network folder';
       var badge = document.createElement('span');
-      badge.className = 'badge ' + (root.status === 'verified' ? 'positive' : 'warn');
-      badge.textContent = root.status === 'verified' ? 'Verified' : root.usingLastKnownIdentity ? 'Last Known Identity' : 'Unverified';
+      badge.className = 'badge ' + BADGES[state][0];
+      badge.textContent = BADGES[state][1];
       // The path comes first, so a change of the badges after it never moves it.
       path.title = root.path;
       head.append(path, badge);
       if (hung) { var slow = document.createElement('span'); slow.className = 'badge warn'; slow.textContent = 'Check Stalled'; head.append(slow); }
       detail.className = 'form-help file-access-network-detail';
       detail.textContent = networkWords(root, hung);
-      detail.title = detail.textContent;
       item.append(head, detail);
       list.append(item);
     });
@@ -157,6 +186,7 @@
     var list = $('file-access-rules'), focused = document.activeElement, focusRule = focused && list.contains(focused) && focused.closest('[data-rule]');
     var focusAt = focusRule ? Array.from(focusRule.querySelectorAll('button')).indexOf(focused) : -1, id = focusRule && focusRule.dataset.rule;
     list.replaceChildren.apply(list, (policy && policy.rules || []).map(ruleRow));
+    markCutShort(list);
     if (id) {
       var again = list.querySelector('[data-rule="' + CSS.escape(id) + '"]');
       var target = again && again.querySelectorAll('button')[focusAt];
