@@ -17,8 +17,7 @@ func builtinTestContext(ws string) context.Context {
 
 func TestWorkspaceAppletConfinesAndBoundsReads(t *testing.T) {
 	ws := t.TempDir()
-	a := NewApp()
-	configureFileAccessFixture(t, a)
+	a := newFileAccessFixtureApp(t)
 	a.settings.WorkspaceRecords = []WorkspaceRecord{newWorkspaceRecord(ws)}
 	bundle, err := a.workspaceAppletBundle()
 	if err != nil {

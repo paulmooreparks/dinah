@@ -143,11 +143,7 @@ func (c *testProviderConnection) RegisterTraceRedactor(func(string) string) {}
 
 func providerTestApp(t *testing.T) (*App, *testProviderConnection) {
 	t.Helper()
-	previous := configOverride
-	configOverride = t.TempDir()
-	t.Cleanup(func() { configOverride = previous })
-	a := NewApp()
-	configureFileAccessFixture(t, a)
+	a := newFileAccessFixtureApp(t)
 	a.connectGraceOverride = -1
 	a.settings.DefaultProvider = "codex"
 	c := newTestProviderConnection()

@@ -167,19 +167,20 @@ func TestFileAccessPageAndProviderShareOnePolicy(t *testing.T) {
 	}
 }
 
-func configureFileAccessFixture(t *testing.T, a *App) {
+func newFileAccessFixtureApp(t *testing.T) *App {
 	t.Helper()
-	// Each app owns an audit store. Sharing TestMain's directory lets an
-	// earlier applet test contaminate a later catalogue-read assertion.
-	previous := configOverride
-	configOverride = t.TempDir()
-	t.Cleanup(func() { configOverride = previous })
+	// Establish the state directory before NewApp binds its stores to it.
+	// Taking no App argument makes the former post-construction use a
+	// compile error instead of silently redirecting only some stores.
+	isolateWorkspaceSettings(t)
+	a := NewApp()
 	home := t.TempDir()
 	a.fileAccess.resolveDefaults = func() ([]fileaccess.Rule, error) {
 		return fileaccess.DefaultRules(runtime.GOOS, home, filepath.Join(home, "roaming"), filepath.Join(home, "local"), nil), nil
 	}
 	t.Cleanup(a.closeFileAccess)
 	t.Cleanup(a.closeChatStates)
+	return a
 }
 func fileAccessCallerContext(t *testing.T, a *App, workspace string) context.Context {
 	t.Helper()
