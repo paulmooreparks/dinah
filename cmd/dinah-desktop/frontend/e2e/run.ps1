@@ -36,7 +36,12 @@ if ($Only) {
   $suites = $suites | Where-Object { $Only -contains $_ }
 }
 . (Join-Path $here 'lib/browser-lock.ps1')
-$browserLease = Enter-DinahBrowserLock (Get-DinahBrowserLockPath) ('run.ps1 in ' + $here)
+$browserLease = $null
+$browserTicket = $env:DINAH_BROWSER_TEST_TICKET
+if (-not (Test-DinahBrowserTicket (Get-DinahBrowserLockPath) $browserTicket)) {
+  $browserLease = Enter-DinahBrowserLock (Get-DinahBrowserLockPath) ('run.ps1 in ' + $here)
+  $browserTicket = $browserLease.Ticket
+}
 try {
 $started = Get-Date
 # failures.txt belongs to this run alone: it is truncated now, so an install
@@ -54,7 +59,7 @@ $results = $suites | ForEach-Object -ThrottleLimit $Jobs -Parallel {
   $psi.ArgumentList.Add($using:page)
   $psi.ArgumentList.Add($using:Out)
   $psi.WorkingDirectory = $using:here
-  $psi.Environment['DINAH_BROWSER_TEST_TICKET'] = $using:browserLease.Ticket
+  $psi.Environment['DINAH_BROWSER_TEST_TICKET'] = $using:browserTicket
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError = $true
@@ -91,4 +96,4 @@ Set-Content -Path (Join-Path $Out 'failures.txt') -Value $record -Encoding utf8
 "{0} suites in {1:n0} s, {2} at a time" -f @($suites).Count, ((Get-Date) - $started).TotalSeconds, $Jobs
 if ($failed) { "$failed suite(s) failed"; exit 1 }
 
-} finally { $browserLease.Stream.Dispose() }
+} finally { if ($browserLease) { $browserLease.Stream.Dispose() } }
