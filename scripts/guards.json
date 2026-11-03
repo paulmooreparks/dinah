@@ -158,7 +158,10 @@
         "TestCollapsedAuditKeepsUnverifiedRules",
         "TestWindowsSlowNetworkRootsDoNotStarveLaterAlias",
         "TestNetworkAccessDeniedIsImmediatelyUnverified",
-        "TestCompletedNetworkRootKeepsItsResultAfterOtherWait"
+        "TestCompletedNetworkRootKeepsItsResultAfterOtherWait",
+        "TestNetworkQueuedSharesKeepLateIdentityDuringStalledRefresh",
+        "TestNetworkTwentyRootsUseOneShareBatch",
+        "TestNetworkPolicyLoadAndRootChangeStartVerificationBeforeRead"
       ],
       "onlyOn": {
         "TestReadPolicyNamespaceAliasesCannotReadDeniedFiles": [
