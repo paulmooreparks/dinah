@@ -124,6 +124,7 @@
         "TestFileAccessPageAndProviderShareOnePolicy",
         "TestFileAccessBackgroundNotificationReachesSettings",
         "TestFileAccessCachedServiceReadDoesNotTakeAppLock",
+        "TestCrashOutputSurvivesHandleRelease",
         "TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority",
         "TestAgentWorkspaceStatUsesPolicyAndAudit",
         "TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit",

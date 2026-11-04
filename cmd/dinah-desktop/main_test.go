@@ -13,6 +13,9 @@ import (
 // TestMain keeps the tests away from the person's own settings, flows and
 // history: every test reads and writes a throwaway settings folder instead.
 func TestMain(m *testing.M) {
+	if err := captureTestCrashes(); err != nil {
+		panic(err)
+	}
 	dir, err := os.MkdirTemp("", "dinah-test-config-")
 	if err != nil {
 		panic(err)
