@@ -5,6 +5,8 @@ package terminals
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"golang.org/x/sys/windows"
 	"os"
 	"os/exec"
@@ -13,6 +15,7 @@ import (
 	"strings"
 	"studio/internal/pty"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 	"unsafe"
@@ -294,9 +297,14 @@ func TestClosingATerminalLeavesADetachedProgramRunning(t *testing.T) {
 
 func TestCtrlCInterruptsNodeServerInPowerShell(t *testing.T) {
 	for _, name := range []string{"pwsh.exe", "node.exe"} {
-		if _, err := exec.LookPath(name); err != nil {
+		path, err := exec.LookPath(name)
+		if err != nil {
 			t.Skipf("%s is not installed", name)
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		version, versionErr := exec.CommandContext(ctx, path, "--version").CombinedOutput()
+		cancel()
+		t.Logf("fixture executable %q, version %q, version-query error %v", path, version, versionErr)
 	}
 	// The test process ignores Ctrl+C first, as one started with
 	// CREATE_NEW_PROCESS_GROUP does, Dinah's window after Restart to Update
@@ -386,6 +394,16 @@ func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[str
 		t.Fatal(err)
 	}
 	defer a.Close(started.ID)
+	a.mu.Lock()
+	shell := a.terminals[started.ID]
+	var shellPID uint32
+	if shell != nil {
+		shellPID = uint32(shell.pid)
+	}
+	a.mu.Unlock()
+	if shellPID == 0 {
+		t.Fatal("PowerShell exited before the Node fixture was started")
+	}
 	output := func() string {
 		mu.Lock()
 		defer mu.Unlock()
@@ -412,7 +430,7 @@ func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[str
 		}
 		nodes := "node was not typed yet"
 		if !nodeTyped.IsZero() {
-			nodes = nodeProcessesSince(nodeTyped)
+			nodes = nodeProcessesSince(nodeTyped, shellPID)
 		}
 		phases, phaseErr := os.ReadFile(phasePath)
 		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; fixture phases %q (read error %v); it drew %q", marker, nodes, phases, phaseErr, output())
@@ -450,18 +468,56 @@ func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[str
 // progress to a fixture-owned file. These synchronous writes perturb timing;
 // they provide failure evidence, not a claim that an unobserved stall is fixed.
 func nodeStartupCommand(phasePath string) string {
+	return "node -e \"" + nodeStartupScript(phasePath) + "\"\r"
+}
+
+func nodeStartupScript(phasePath string) string {
 	path := base64.StdEncoding.EncodeToString([]byte(phasePath))
-	return "node -e \"const fs=require('fs'),p=Buffer.from('" + path + "','base64').toString('utf8');" +
-		"function mark(phase){try{fs.appendFileSync(p,JSON.stringify({phase,pid:process.pid,at:Date.now()})+'\\n')}catch{}};" +
+	return "const fs=require('fs'),p=Buffer.from('" + path + "','base64').toString('utf8');" +
+		"function mark(phase){try{fs.appendFileSync(p,JSON.stringify({phase,pid:process.pid,at:Date.now(),execPath:process.execPath,version:process.version,argv:process.argv,execArgv:process.execArgv})+'\\n')}catch(e){process.stderr.write('node-fixture-journal-error: '+e.code+' '+e.message+'\\n')}};" +
 		"mark('entered-js');require('http').createServer((q,s)=>s.end('ok')).listen(0,()=>{" +
 		"mark('listening');mark('stdout-tty-'+Boolean(process.stdout.isTTY));" +
-		"console.log('interrupt-'+'started');mark('console-log-returned')})\"\r"
+		"console.log('interrupt-'+'started');mark('console-log-returned')})"
+}
+
+func TestNodeStartupJournalErrorsAreVisible(t *testing.T) {
+	node, err := exec.LookPath("node.exe")
+	if err != nil {
+		t.Skip("node.exe is not installed")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	invalid := filepath.Join(t.TempDir(), "missing-parent", "phases.jsonl")
+	output, err := exec.CommandContext(ctx, node, "-e", nodeStartupScript(invalid)+";process.stderr.write('node-fixture-continued');process.exit(0)").CombinedOutput()
+	if ctx.Err() != nil || err != nil || !strings.Contains(string(output), "node-fixture-journal-error: ENOENT") || !strings.Contains(string(output), "node-fixture-continued") {
+		t.Fatalf("journal failure was hidden: %v %v %s", err, ctx.Err(), output)
+	}
+	valid := filepath.Join(t.TempDir(), "phases.jsonl")
+	output, err = exec.CommandContext(ctx, node, "-e", nodeStartupScript(valid)+";process.exit(0)").CombinedOutput()
+	if err != nil {
+		t.Fatalf("valid journal fixture: %v %s", err, output)
+	}
+	file, err := os.Open(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	var phase struct {
+		Phase, ExecPath, Version string
+		ExecArgv                 []string
+	}
+	if err := json.NewDecoder(file).Decode(&phase); err != nil {
+		t.Fatal("journal is not decodable JSON", err)
+	}
+	if phase.Phase != "entered-js" || phase.ExecPath == "" || phase.Version == "" || len(phase.ExecArgv) < 2 || phase.ExecArgv[0] != "-e" {
+		t.Fatalf("startup metadata missing: %+v", phase)
+	}
 }
 
 // nodeProcessesSince lists each node.exe created at or after since, with its
 // process ID, parent ID and age, from a documented Toolhelp snapshot and
 // GetProcessTimes. It is diagnostic text for a failure, never an assertion.
-func nodeProcessesSince(since time.Time) string {
+func nodeProcessesSince(since time.Time, shellPID uint32) string {
 	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
 		return "no process snapshot: " + err.Error()
@@ -471,7 +527,7 @@ func nodeProcessesSince(since time.Time) string {
 	entry.Size = uint32(unsafe.Sizeof(entry))
 	var found []string
 	for err = windows.Process32First(snap, &entry); err == nil; err = windows.Process32Next(snap, &entry) {
-		if !strings.EqualFold(windows.UTF16ToString(entry.ExeFile[:]), "node.exe") {
+		if entry.ParentProcessID != shellPID || !strings.EqualFold(windows.UTF16ToString(entry.ExeFile[:]), "node.exe") {
 			continue
 		}
 		h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID)
@@ -480,6 +536,12 @@ func nodeProcessesSince(since time.Time) string {
 		}
 		var created, exited, kernel, user windows.Filetime
 		err = windows.GetProcessTimes(h, &created, &exited, &kernel, &user)
+		image := make([]uint16, 32768)
+		imageSize := uint32(len(image))
+		imageErr := windows.QueryFullProcessImageName(h, 0, &image[0], &imageSize)
+		if imageErr != nil {
+			imageSize = 0
+		}
 		windows.CloseHandle(h)
 		if err != nil {
 			continue
@@ -491,12 +553,19 @@ func nodeProcessesSince(since time.Time) string {
 		cpuTime := func(ft windows.Filetime) time.Duration {
 			return time.Duration(uint64(ft.HighDateTime)<<32|uint64(ft.LowDateTime)) * 100 * time.Nanosecond
 		}
-		found = append(found, "pid "+strconv.Itoa(int(entry.ProcessID))+" (parent "+strconv.Itoa(int(entry.ParentProcessID))+"), started "+at.Sub(since).Round(time.Millisecond).String()+" after typing, running "+time.Since(at).Round(time.Millisecond).String()+", kernel CPU "+cpuTime(kernel).String()+", user CPU "+cpuTime(user).String())
+		found = append(found, "pid "+strconv.Itoa(int(entry.ProcessID))+" (parent "+strconv.Itoa(int(entry.ParentProcessID))+"), image "+strconv.Quote(windows.UTF16ToString(image[:imageSize]))+", image query error "+fmt.Sprint(imageErr)+", started "+at.Sub(since).Round(time.Millisecond).String()+" after typing, running "+time.Since(at).Round(time.Millisecond).String()+", kernel CPU "+cpuTime(kernel).String()+", user CPU "+cpuTime(user).String())
 	}
 	if len(found) == 0 {
 		return "none"
 	}
-	return strings.Join(found, "; ")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// Only this fixture's direct children are queried, never unrelated providers.
+	query := fmt.Sprintf(`Get-CimInstance Win32_Process -Filter "ParentProcessId = %d AND Name = 'node.exe'" | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine | ConvertTo-Json -Compress`, shellPID)
+	command := exec.CommandContext(ctx, "pwsh.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", query)
+	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	args, err := command.CombinedOutput()
+	return strings.Join(found, "; ") + fmt.Sprintf("; owned Node launch metadata %s (query error %v)", args, err)
 }
 
 func TestCommandUsesSharedPumpAndCallbacksCanReadCount(t *testing.T) {
