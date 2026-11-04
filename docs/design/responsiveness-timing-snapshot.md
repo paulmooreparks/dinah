@@ -8,7 +8,7 @@ Record Responsiveness remains the single control. While it is enabled, browser a
 
 Copy runs only on the person's button action. It reads the backend once, builds the closed schema below, validates the result, and copies a fixed explanatory header followed by JSON to the clipboard. It sends nothing and writes no file. There is no polling, automatic export, log dump or persistence of recorded timings. The existing preference may persist that recording is enabled; the timings themselves do not survive a process or page session.
 
-The header is: "Dinah timing snapshot. Contains timings, counts and clock anchors only. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall."
+The header is: "Dinah timing snapshot. Contains timings, counts and clock anchors only, including when each recent key press happened and how long it waited. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall."
 
 ## Shell methods and ordering
 
