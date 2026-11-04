@@ -170,7 +170,8 @@
         "TestNodeWaitDiagnosticBoundsStalledHelper",
         "TestNodeDumpDiagnosticCapturesOwnedChild",
         "TestNodeDumpDiagnosticBoundsStalledHelper",
-        "TestExecutableMetadataDoesNotRequireStartup"
+        "TestExecutableMetadataDoesNotRequireStartup",
+        "TestStartupCapturePrecedesTerminationAndReaps"
       ],
       "onlyOn": {
         "TestPingReadinessNeedsVisibleOutput": [
@@ -192,6 +193,9 @@
           "windows"
         ],
         "TestExecutableMetadataDoesNotRequireStartup": [
+          "windows"
+        ],
+        "TestStartupCapturePrecedesTerminationAndReaps": [
           "windows"
         ]
       }

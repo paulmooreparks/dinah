@@ -301,24 +301,15 @@ func TestCtrlCInterruptsNodeServerInPowerShell(t *testing.T) {
 		if err != nil {
 			t.Skipf("%s is not installed", name)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		started := time.Now()
-		command := exec.CommandContext(ctx, path, "--version")
-		command.WaitDelay = 500 * time.Millisecond
-		if name == "node.exe" && os.Getenv("DINAH_TEST_DIAGNOSTICS_DIR") != "" {
-			// The query deadline has expired before Cancel runs. Observe only
-			// this owned child, then retain CommandContext's original kill.
-			command.Cancel = func() error {
-				pid := uint32(command.Process.Pid)
-				t.Logf("version query deadline: waits %s; dump %s", nodeWaitDiagnostic(os.Getpid(), started, pid), nodeDumpDiagnostic(os.Getpid(), started, pid))
-				return command.Process.Kill()
+		command := exec.Command(path, "--version")
+		result := observeStartupCommand(command, 5*time.Second, func(pid uint32) string {
+			if name != "node.exe" {
+				return "native capture applies only to Node"
 			}
-		}
-		version, versionErr := command.CombinedOutput()
-		duration := time.Since(started)
-		contextErr := ctx.Err()
-		cancel()
-		t.Logf("fixture executable %q, file metadata %s, version %q, version-query error %v, context error %v, duration %s", path, executableFileMetadata(path), version, versionErr, contextErr, duration)
+			return fmt.Sprintf("waits %s; dump %s", nodeWaitDiagnostic(os.Getpid(), started, pid), nodeDumpDiagnostic(os.Getpid(), started, pid))
+		})
+		t.Logf("fixture executable %q, file metadata %s, version %q, version-query error %v, context error %v, deadline observed %t, duration %s, kill error %v, capture %s", path, executableFileMetadata(path), result.output, result.err, result.contextErr, result.deadlineObserved, result.duration, result.killErr, result.capture)
 	}
 	// The test process ignores Ctrl+C first, as one started with
 	// CREATE_NEW_PROCESS_GROUP does, Dinah's window after Restart to Update

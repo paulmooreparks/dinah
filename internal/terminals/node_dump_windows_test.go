@@ -65,9 +65,9 @@ func readExecutableFileMetadata(path string) string {
 // A disposable process bounds a native dump call even if DbgHelp blocks.
 // This runs after the startup or readiness deadline has already expired.
 func nodeDumpDiagnostic(shellPID int, since time.Time, target ...uint32) string {
-	dir := os.Getenv("DINAH_TEST_DIAGNOSTICS_DIR")
+	dir := os.Getenv("DINAH_TEST_NATIVE_SCRATCH_DIR")
 	if dir == "" {
-		return "dump not requested: DINAH_TEST_DIAGNOSTICS_DIR is unset"
+		return "dump not requested: DINAH_TEST_NATIVE_SCRATCH_DIR is unset"
 	}
 	if !filepath.IsAbs(dir) {
 		return "dump unavailable: diagnostics directory is not absolute"
@@ -101,7 +101,7 @@ func TestNodeDumpDiagnosticHelper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := os.Getenv("DINAH_TEST_DIAGNOSTICS_DIR")
+	dir := os.Getenv("DINAH_TEST_NATIVE_SCRATCH_DIR")
 	if !filepath.IsAbs(dir) {
 		t.Fatal("dump directory must be absolute")
 	}
@@ -148,7 +148,7 @@ func TestNodeDumpDiagnosticCapturesOwnedChild(t *testing.T) {
 		t.Skip("node.exe is not installed")
 	}
 	dir := t.TempDir()
-	t.Setenv("DINAH_TEST_DIAGNOSTICS_DIR", dir)
+	t.Setenv("DINAH_TEST_NATIVE_SCRATCH_DIR", dir)
 	since := time.Now()
 	child := exec.Command(node, "-e", "setInterval(()=>{},1000)")
 	if err := child.Start(); err != nil {
@@ -161,24 +161,7 @@ func TestNodeDumpDiagnosticCapturesOwnedChild(t *testing.T) {
 	if err != nil || len(files) != 1 {
 		t.Fatalf("owned child dump missing: %v %v %s", files, err, result)
 	}
-	data, err := os.ReadFile(files[0])
-	if err != nil || len(data) < 32 || string(data[:4]) != "MDMP" {
-		t.Fatalf("invalid dump: length %d error %v", len(data), err)
-	}
-	streams, offset := binary.LittleEndian.Uint32(data[8:]), binary.LittleEndian.Uint32(data[12:])
-	threadList := false
-	for i := uint32(0); i < streams; i++ {
-		entry := uint64(offset) + uint64(i)*12
-		if entry+12 > uint64(len(data)) {
-			t.Fatal("truncated dump directory")
-		}
-		if binary.LittleEndian.Uint32(data[entry:]) == 3 {
-			threadList = true
-		}
-	}
-	if !threadList {
-		t.Fatal("dump has no thread list")
-	}
+	assertDumpHasThreads(t, files[0])
 	other := nodeDumpDiagnostic(child.Process.Pid, since)
 	other += nodeDumpDiagnostic(os.Getpid(), since, uint32(os.Getpid()))
 	remaining, _ := filepath.Glob(filepath.Join(dir, "*.dmp"))
@@ -188,7 +171,7 @@ func TestNodeDumpDiagnosticCapturesOwnedChild(t *testing.T) {
 }
 
 func TestNodeDumpDiagnosticBoundsStalledHelper(t *testing.T) {
-	t.Setenv("DINAH_TEST_DIAGNOSTICS_DIR", t.TempDir())
+	t.Setenv("DINAH_TEST_NATIVE_SCRATCH_DIR", t.TempDir())
 	t.Setenv("TERMINAL_DUMP_STALL", "1")
 	started := time.Now()
 	result := nodeDumpDiagnostic(os.Getpid(), started)
@@ -205,5 +188,27 @@ func TestExecutableMetadataDoesNotRequireStartup(t *testing.T) {
 	}
 	if metadata := executableFileMetadata(filepath.Join(t.TempDir(), "missing.exe")); !strings.Contains(metadata, "unavailable") {
 		t.Fatal(metadata)
+	}
+}
+
+func assertDumpHasThreads(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) < 32 || string(data[:4]) != "MDMP" {
+		t.Fatalf("invalid dump: length %d error %v", len(data), err)
+	}
+	streams, offset := binary.LittleEndian.Uint32(data[8:]), binary.LittleEndian.Uint32(data[12:])
+	threadList := false
+	for i := uint32(0); i < streams; i++ {
+		entry := uint64(offset) + uint64(i)*12
+		if entry+12 > uint64(len(data)) {
+			t.Fatal("truncated dump directory")
+		}
+		if binary.LittleEndian.Uint32(data[entry:]) == 3 {
+			threadList = true
+		}
+	}
+	if !threadList {
+		t.Fatal("dump has no thread list")
 	}
 }
