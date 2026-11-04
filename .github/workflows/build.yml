@@ -149,6 +149,8 @@ jobs:
   go-tests:
     name: Run the full Go suite
     runs-on: windows-latest
+    env:
+      DINAH_TEST_DIAGNOSTICS_DIR: ${{ runner.temp }}/full-go-diagnostics
     defaults:
       run:
         shell: pwsh
@@ -165,8 +167,21 @@ jobs:
         with:
           go-version-file: dinah/go.mod
           cache-dependency-path: dinah/go.sum
+      - name: Prepare full Go diagnostics
+        run: New-Item -ItemType Directory -Force -Path $env:DINAH_TEST_DIAGNOSTICS_DIR -ErrorAction Stop | Out-Null
       - name: Test every package
-        run: ./scripts/go-gate.ps1 ./... -count=1
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          & pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
+          $testExitCode = $LASTEXITCODE
+          exit $testExitCode
+      - name: Retain full Go diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: full-go-diagnostics
+          path: ${{ env.DINAH_TEST_DIAGNOSTICS_DIR }}/
+          if-no-files-found: error
 
   browser:
     name: Run the full browser suite

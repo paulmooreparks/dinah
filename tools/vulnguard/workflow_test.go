@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -11,6 +14,12 @@ import (
 
 // needs is a job's needs list. GitHub accepts either one job name or a list.
 type needs []string
+
+const fullGoTestCommand = `$PSNativeCommandUseErrorActionPreference = $false
+& pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
+$testExitCode = $LASTEXITCODE
+exit $testExitCode
+`
 
 func TestWorkflowGoSuiteHasNoException(t *testing.T) {
 	var workflow struct {
@@ -46,12 +55,111 @@ func TestWorkflowGoSuiteHasNoException(t *testing.T) {
 				t.Fatal("workflow must not carry a test exception")
 			}
 			if name == "go-tests" && step.Name == "Test every package" {
-				fullSuite = job.If == "" && step.If == "" && step.Run == "./scripts/go-gate.ps1 ./... -count=1"
+				fullSuite = job.If == "" && step.If == "" && step.Run == fullGoTestCommand
 			}
 		}
 	}
 	if !fullSuite {
 		t.Fatal("the required Go job must run every test without a condition or exception")
+	}
+}
+
+func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
+	var workflow struct {
+		Jobs map[string]struct {
+			Env   map[string]string
+			Steps []struct {
+				Name, Run, If, Uses string
+				With                map[string]string
+			}
+		}
+	}
+	b, err := os.ReadFile("../../.github/workflows/build.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := yaml.Unmarshal(b, &workflow); err != nil {
+		t.Fatal(err)
+	}
+	job := workflow.Jobs["go-tests"]
+	if job.Env["DINAH_TEST_DIAGNOSTICS_DIR"] != "${{ runner.temp }}/full-go-diagnostics" {
+		t.Fatal("full Go diagnostics must use an absolute runner-temporary directory")
+	}
+	prepare, run, upload := -1, -1, -1
+	for i, step := range job.Steps {
+		switch step.Name {
+		case "Prepare full Go diagnostics":
+			prepare = i
+			if step.If != "" || step.Run != "New-Item -ItemType Directory -Force -Path $env:DINAH_TEST_DIAGNOSTICS_DIR -ErrorAction Stop | Out-Null" {
+				t.Fatal("diagnostics directory setup must fail visibly")
+			}
+		case "Test every package":
+			run = i
+		case "Retain full Go diagnostics":
+			upload = i
+			if step.If != "always()" || !strings.HasPrefix(step.Uses, "actions/upload-artifact@") || step.With["name"] != "full-go-diagnostics" || step.With["path"] != "${{ env.DINAH_TEST_DIAGNOSTICS_DIR }}/" || step.With["if-no-files-found"] != "error" {
+				t.Fatal("available full Go diagnostics must upload even after test failure")
+			}
+		}
+	}
+	if prepare < 0 || run <= prepare || upload <= run {
+		t.Fatal("diagnostics must be prepared before tests and uploaded afterwards")
+	}
+	pwsh, err := exec.LookPath("pwsh")
+	if err != nil {
+		t.Fatal("PowerShell is required to verify the CI capture contract:", err)
+	}
+	t.Run("setup-failure", func(t *testing.T) {
+		blocked := filepath.Join(t.TempDir(), "not-a-directory")
+		if err := os.WriteFile(blocked, []byte("occupied"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(pwsh, "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'\n"+job.Steps[prepare].Run)
+		cmd.Env = append(os.Environ(), "DINAH_TEST_DIAGNOSTICS_DIR="+blocked)
+		if output, err := cmd.CombinedOutput(); err == nil {
+			t.Fatalf("diagnostics setup succeeded over a file: %s", output)
+		}
+	})
+	for _, exitCode := range []int{0, 17} {
+		t.Run(fmt.Sprint(exitCode), func(t *testing.T) {
+			root := t.TempDir()
+			diagnostics := filepath.Join(root, "diagnostics")
+			if err := os.MkdirAll(filepath.Join(root, "scripts"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			result := "[Console]::Out.WriteLine('stdout-marker')\n[Console]::Error.WriteLine('stderr-marker')\nexit " + fmt.Sprint(exitCode) + "\n"
+			if err := os.WriteFile(filepath.Join(root, "result.ps1"), []byte(result), 0600); err != nil {
+				t.Fatal(err)
+			}
+			fixture := "& pwsh -NoProfile -File ./result.ps1\nexit $LASTEXITCODE\n"
+			if err := os.WriteFile(filepath.Join(root, "scripts", "go-gate.ps1"), []byte(fixture), 0600); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(pwsh, "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'\n"+job.Steps[prepare].Run+"\n"+job.Steps[run].Run)
+			cmd.Dir = root
+			cmd.Env = append(os.Environ(), "DINAH_TEST_DIAGNOSTICS_DIR="+diagnostics)
+			output, runErr := cmd.CombinedOutput()
+			got := 0
+			if runErr != nil {
+				if status, ok := runErr.(*exec.ExitError); ok {
+					got = status.ExitCode()
+				} else {
+					t.Fatal(runErr)
+				}
+			}
+			if got != exitCode {
+				t.Fatalf("capture returned %d, want %d: %s", got, exitCode, output)
+			}
+			captured, err := os.ReadFile(filepath.Join(diagnostics, "full-go-output.log"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, marker := range []string{"stdout-marker", "stderr-marker"} {
+				if !strings.Contains(string(captured), marker) {
+					t.Fatalf("capture lost %s: %s", marker, captured)
+				}
+			}
+		})
 	}
 }
 
