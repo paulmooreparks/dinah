@@ -21,6 +21,11 @@ $testExitCode = $LASTEXITCODE
 exit $testExitCode
 `
 
+const prepareGoDiagnostics = `$diagnostics = Join-Path $env:RUNNER_TEMP 'full-go-diagnostics'
+[IO.Directory]::CreateDirectory($diagnostics) | Out-Null
+"DINAH_TEST_DIAGNOSTICS_DIR=$diagnostics" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append -ErrorAction Stop
+`
+
 func TestWorkflowGoSuiteHasNoException(t *testing.T) {
 	var workflow struct {
 		On   map[string]yaml.Node
@@ -82,15 +87,15 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	job := workflow.Jobs["go-tests"]
-	if job.Env["DINAH_TEST_DIAGNOSTICS_DIR"] != "${{ runner.temp }}/full-go-diagnostics" {
-		t.Fatal("full Go diagnostics must use an absolute runner-temporary directory")
+	if job.Env["DINAH_TEST_DIAGNOSTICS_DIR"] != "" {
+		t.Fatal("diagnostics must be handed to later steps through GITHUB_ENV")
 	}
 	prepare, run, upload := -1, -1, -1
 	for i, step := range job.Steps {
 		switch step.Name {
 		case "Prepare full Go diagnostics":
 			prepare = i
-			if step.If != "" || step.Run != "New-Item -ItemType Directory -Force -Path $env:DINAH_TEST_DIAGNOSTICS_DIR -ErrorAction Stop | Out-Null" {
+			if step.If != "" || step.Run != prepareGoDiagnostics {
 				t.Fatal("diagnostics directory setup must fail visibly")
 			}
 		case "Test every package":
@@ -109,13 +114,20 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal("PowerShell is required to verify the CI capture contract:", err)
 	}
+	var environment []string
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(strings.ToUpper(entry), "DINAH_TEST_DIAGNOSTICS_DIR=") {
+			environment = append(environment, entry)
+		}
+	}
 	t.Run("setup-failure", func(t *testing.T) {
-		blocked := filepath.Join(t.TempDir(), "not-a-directory")
+		root := t.TempDir()
+		blocked := filepath.Join(root, "full-go-diagnostics")
 		if err := os.WriteFile(blocked, []byte("occupied"), 0600); err != nil {
 			t.Fatal(err)
 		}
 		cmd := exec.Command(pwsh, "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'\n"+job.Steps[prepare].Run)
-		cmd.Env = append(os.Environ(), "DINAH_TEST_DIAGNOSTICS_DIR="+blocked)
+		cmd.Env = append(environment, "RUNNER_TEMP="+root, "GITHUB_ENV="+filepath.Join(root, "environment"))
 		if output, err := cmd.CombinedOutput(); err == nil {
 			t.Fatalf("diagnostics setup succeeded over a file: %s", output)
 		}
@@ -123,7 +135,23 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 	for _, exitCode := range []int{0, 17} {
 		t.Run(fmt.Sprint(exitCode), func(t *testing.T) {
 			root := t.TempDir()
-			diagnostics := filepath.Join(root, "diagnostics")
+			envFile := filepath.Join(root, "environment")
+			setup := exec.Command(pwsh, "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'\n"+job.Steps[prepare].Run)
+			setup.Env = append(environment, "RUNNER_TEMP="+root, "GITHUB_ENV="+envFile)
+			if output, err := setup.CombinedOutput(); err != nil {
+				t.Fatalf("prepare step failed: %v: %s", err, output)
+			}
+			handoff, err := os.ReadFile(envFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			name, diagnostics, ok := strings.Cut(strings.TrimSpace(string(handoff)), "=")
+			if !ok || name != "DINAH_TEST_DIAGNOSTICS_DIR" || !filepath.IsAbs(diagnostics) || filepath.Clean(diagnostics) != filepath.Join(root, "full-go-diagnostics") {
+				t.Fatalf("invalid prepare-step handoff: %q", handoff)
+			}
+			if info, err := os.Stat(diagnostics); err != nil || !info.IsDir() {
+				t.Fatalf("prepare step did not create its diagnostics directory: %v", err)
+			}
 			if err := os.MkdirAll(filepath.Join(root, "scripts"), 0700); err != nil {
 				t.Fatal(err)
 			}
@@ -135,9 +163,9 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(root, "scripts", "go-gate.ps1"), []byte(fixture), 0600); err != nil {
 				t.Fatal(err)
 			}
-			cmd := exec.Command(pwsh, "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'\n"+job.Steps[prepare].Run+"\n"+job.Steps[run].Run)
+			cmd := exec.Command(pwsh, "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'\n"+job.Steps[run].Run)
 			cmd.Dir = root
-			cmd.Env = append(os.Environ(), "DINAH_TEST_DIAGNOSTICS_DIR="+diagnostics)
+			cmd.Env = append(environment, strings.TrimSpace(string(handoff)))
 			output, runErr := cmd.CombinedOutput()
 			got := 0
 			if runErr != nil {
@@ -160,6 +188,30 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Pin actionlint so workflow context validation is the same locally and in CI.
+// Its v1.7.12 runner table includes macos-15-intel. External shell and Python
+// linters are disabled; workflow syntax and expression checks remain enabled.
+func TestWorkflowSyntaxWithActionlint(t *testing.T) {
+	const tool = "github.com/rhysd/actionlint/cmd/actionlint@v1.7.12"
+	lint := func(file string) ([]byte, error) {
+		cmd := exec.Command("go", "run", tool, "-shellcheck=", "-pyflakes=", file)
+		cmd.Dir = "../.."
+		return cmd.CombinedOutput()
+	}
+	if output, err := lint(".github/workflows/build.yml"); err != nil {
+		t.Fatalf("workflow lint failed: %v: %s", err, output)
+	}
+	invalid := filepath.Join(t.TempDir(), "invalid.yml")
+	fixture := "on: push\njobs:\n  check:\n    runs-on: ubuntu-latest\n    env:\n      DIAGNOSTICS: ${{ runner.temp }}/diagnostics\n    steps:\n      - run: echo check\n"
+	if err := os.WriteFile(invalid, []byte(fixture), 0600); err != nil {
+		t.Fatal(err)
+	}
+	output, err := lint(invalid)
+	if err == nil || !strings.Contains(string(output), `context "runner" is not allowed here`) {
+		t.Fatalf("invalid job-env context was not rejected: %v: %s", err, output)
 	}
 }
 

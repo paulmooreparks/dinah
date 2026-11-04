@@ -149,8 +149,6 @@ jobs:
   go-tests:
     name: Run the full Go suite
     runs-on: windows-latest
-    env:
-      DINAH_TEST_DIAGNOSTICS_DIR: ${{ runner.temp }}/full-go-diagnostics
     defaults:
       run:
         shell: pwsh
@@ -168,7 +166,10 @@ jobs:
           go-version-file: dinah/go.mod
           cache-dependency-path: dinah/go.sum
       - name: Prepare full Go diagnostics
-        run: New-Item -ItemType Directory -Force -Path $env:DINAH_TEST_DIAGNOSTICS_DIR -ErrorAction Stop | Out-Null
+        run: |
+          $diagnostics = Join-Path $env:RUNNER_TEMP 'full-go-diagnostics'
+          [IO.Directory]::CreateDirectory($diagnostics) | Out-Null
+          "DINAH_TEST_DIAGNOSTICS_DIR=$diagnostics" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append -ErrorAction Stop
       - name: Test every package
         run: |
           $PSNativeCommandUseErrorActionPreference = $false

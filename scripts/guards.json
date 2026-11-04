@@ -178,7 +178,9 @@
         "TestModuleOnlyFindingDoesNotInventACall",
         "TestInvalidOrWrongScanCannotPass",
         "TestEveryPublishedPlatformHasABlockingSourceScan",
-        "TestWorkflowGoSuiteHasNoException"
+        "TestWorkflowGoSuiteHasNoException",
+        "TestFullGoDiagnosticsRetainOutputAndExitStatus",
+        "TestWorkflowSyntaxWithActionlint"
       ]
     },
     {
