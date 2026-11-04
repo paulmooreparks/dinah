@@ -8,7 +8,7 @@ Record Responsiveness remains the single control. While it is enabled, browser a
 
 Copy runs only on the person's button action. It reads the backend once, builds the closed schema below, validates the result, and copies a fixed explanatory header followed by JSON to the clipboard. It sends nothing and writes no file. There is no polling, automatic export, log dump or persistence of recorded timings. The existing preference may persist that recording is enabled; the timings themselves do not survive a process or page session.
 
-The header is: "Dinah timing snapshot. Contains timings, counts and clock anchors only, including when each recent key press happened and how long it waited. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall."
+The header is: "Dinah timing snapshot. Contains timings, counts and clock anchors only, including when retained input events, including key presses, happened and how long they waited. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall."
 
 ## Shell methods and ordering
 
@@ -70,13 +70,13 @@ DurationStats is `{count, totalMs, maxMs, maxCompletedOffsetMs, saturated}`. The
 | QueueStats | subscriberPeak: MeasuredNumber; depthPeak: MeasuredNumber; overflowDisconnects: MeasuredNumber |
 | RuntimeInterval | scope: process_wide_interval; time: Span; gcPauseCount: MeasuredNumber; gcPauseMaxBucketLowerMs: MeasuredNumber; gcPauseMaxBucketUpperMs: MeasuredNumber; gcPauseUpperOpen: boolean; mutexWaitMs: MeasuredNumber |
 | BrowserSnapshot | schemaVersion: integer 1; generation: integer; enabled: boolean; anchor: Clock; capturedAt: Clock; features: BrowserFeatures; coverage: BrowserCoverage; slots: BrowserSlot array, maximum 600; raw: BrowserRaw |
-| BrowserFeatures | eventTiming, longTasks, longAnimationFrames, animationFrames: each measured, unavailable or not_supported |
+| BrowserFeatures | eventTiming, longTasks, longAnimationFrames: each measured, unavailable or not_supported |
 | BrowserCoverage | retainedSlots, overwrittenSlots, suspendedPeriods: integers; inputRateOmissions, inputWrapOmissions, workRateOmissions, workWrapOmissions, frameRateOmissions, frameWrapOmissions: integers |
-| BrowserSlot | time: Span; inputDelay: DurationStats; renderWork: DurationStats; renderWait: DurationStats; longTask: DurationStats; longFrame: DurationStats; frameInterval: DurationStats |
+| BrowserSlot | time: Span; inputDelay: DurationStats; renderWork: DurationStats; renderWait: DurationStats; longTask: DurationStats; longFrame: DurationStats |
 | BrowserRaw | input: InputRecord array, maximum 200; work: WorkRecord array, maximum 200; frames: FrameRecord array, maximum 200 |
-| InputRecord | time: Span; category: input_delay; delayMs: MeasuredNumber; processingMs: MeasuredNumber |
+| InputRecord | time: Span; category: input_delay; delayMs: MeasuredNumber; processingMs: MeasuredNumber; eventDurationMs: MeasuredNumber |
 | WorkRecord | time: Span; category: chat, layout_followup, unread, diagnostics, long_task or other; durationMs: MeasuredNumber; waitMs: MeasuredNumber |
-| FrameRecord | time: Span; category: long_frame or frame_interval; durationMs: MeasuredNumber; blockingMs: MeasuredNumber; styleLayoutMs: MeasuredNumber |
+| FrameRecord | time: Span; category: long_frame; durationMs: MeasuredNumber; blockingMs: MeasuredNumber; forcedStyleLayoutMs: MeasuredNumber |
 
 BackendCoverage.disabledObservations is unavailable while disabled, because the disabled hot path deliberately counts nothing. It is not a claim that no work occurred. When recording is off, both sources return empty timing arrays and current disabled state. No old timing remains accessible.
 
@@ -99,3 +99,7 @@ Recording on/off runs use the retained benchmark at zero, one and four streams, 
 The backend must also measure enabled event-update and one-second sampler cost on synthetic canary data, including the disabled path and ring wrap. Browser retained-storage measurements accompany its bounds tests. These checks prove recording overhead and behavior; they are not evidence of relief for Paul's live stall.
 
 Quality reviews the contract, schema, privacy, bounds and overhead, then reviews each implementation branch. The current manual panel capture remains the immediate supported route. This addition requires a reviewed build and normal deployment, with a coordinated restart before its backend measurements exist in the running desktop. Preparation authorizes none of those release actions and bypasses no WPR policy.
+
+V1 uses passive Event Timing, Long Tasks and Long Animation Frames observations. It adds no requestAnimationFrame sampler or frame-interval metric. Event Timing duration is the browser-reported duration rounded to eight milliseconds, and the lowest observer durationThreshold is sixteen milliseconds. Faster events are missing by design; no count of those unreported events can be inferred, and they are never filled in as zero. InputRecord.eventDurationMs preserves that reported total separately from input delay and processing time. FrameRecord.forcedStyleLayoutMs is the sum of the scripts' forcedStyleAndLayoutDuration fields when all required fields are exposed; otherwise it is unavailable. It is not total browser style cost. Script objects and their identifying fields are never exported.
+
+The browser limits follow the [Event Timing working draft](https://www.w3.org/TR/event-timing/) and the feature-detected [Long Animation Frames API](https://www.w3.org/TR/long-animation-frames/). The latter remains a working draft; unavailable or changed fields must produce explicit unavailable values.
