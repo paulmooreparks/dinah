@@ -23,7 +23,10 @@ exit $testExitCode
 
 const prepareGoDiagnostics = `$diagnostics = Join-Path $env:RUNNER_TEMP 'full-go-diagnostics'
 [IO.Directory]::CreateDirectory($diagnostics) | Out-Null
+$nativeScratch = Join-Path $env:RUNNER_TEMP 'full-go-native-scratch'
+[IO.Directory]::CreateDirectory($nativeScratch) | Out-Null
 "DINAH_TEST_DIAGNOSTICS_DIR=$diagnostics" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append -ErrorAction Stop
+"DINAH_TEST_NATIVE_SCRATCH_DIR=$nativeScratch" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append -ErrorAction Stop
 `
 
 func TestWorkflowGoSuiteHasNoException(t *testing.T) {
@@ -74,8 +77,8 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 		Jobs map[string]struct {
 			Env   map[string]string
 			Steps []struct {
-				Name, Run, If, Uses string
-				With                map[string]string
+				Name, Run, If, Uses, ID string
+				With                    map[string]string
 			}
 		}
 	}
@@ -90,7 +93,7 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 	if job.Env["DINAH_TEST_DIAGNOSTICS_DIR"] != "" {
 		t.Fatal("diagnostics must be handed to later steps through GITHUB_ENV")
 	}
-	prepare, run, upload := -1, -1, -1
+	prepare, preflight, run, extraction, boundary, upload := -1, -1, -1, -1, -1, -1
 	for i, step := range job.Steps {
 		switch step.Name {
 		case "Prepare full Go diagnostics":
@@ -100,15 +103,30 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 			}
 		case "Test every package":
 			run = i
+		case "Record ordinary-handle Node startup":
+			preflight = i
+			if step.If != "" || step.Run != `go run ./tools/nodepreflight -out "$env:DINAH_TEST_DIAGNOSTICS_DIR/node-preflight.json"` {
+				t.Fatal("Node preflight must retain evidence without replacing the full test command")
+			}
+		case "Extract restricted native stacks":
+			extraction = i
+			if step.If != "always()" || step.Run != `go run ./tools/diagnosticartifacts -mode extract -scratch "$env:DINAH_TEST_NATIVE_SCRATCH_DIR" -diagnostics "$env:DINAH_TEST_DIAGNOSTICS_DIR"` {
+				t.Fatal("private dumps must be processed and cleaned after failed tests too")
+			}
+		case "Stage diagnostic upload":
+			boundary = i
+			if step.ID != "diagnostics_boundary" || step.If != "always()" || step.Run != `go run ./tools/diagnosticartifacts -mode stage -diagnostics "$env:DINAH_TEST_DIAGNOSTICS_DIR" -upload-parent "$env:RUNNER_TEMP" -github-output "$env:GITHUB_OUTPUT"` {
+				t.Fatal("upload must use the guarded, isolated snapshot")
+			}
 		case "Retain full Go diagnostics":
 			upload = i
-			if step.If != "always()" || !strings.HasPrefix(step.Uses, "actions/upload-artifact@") || step.With["name"] != "full-go-diagnostics" || step.With["path"] != "${{ env.DINAH_TEST_DIAGNOSTICS_DIR }}/" || step.With["if-no-files-found"] != "error" {
+			if step.If != "always() && steps.diagnostics_boundary.outcome == 'success'" || !strings.HasPrefix(step.Uses, "actions/upload-artifact@") || step.With["name"] != "full-go-diagnostics" || step.With["path"] != "${{ steps.diagnostics_boundary.outputs.upload_path }}/\n!${{ steps.diagnostics_boundary.outputs.upload_path }}/**/*.dmp\n" || step.With["if-no-files-found"] != "error" {
 				t.Fatal("available full Go diagnostics must upload even after test failure")
 			}
 		}
 	}
-	if prepare < 0 || run <= prepare || upload <= run {
-		t.Fatal("diagnostics must be prepared before tests and uploaded afterwards")
+	if prepare < 0 || preflight <= prepare || run <= preflight || extraction <= run || boundary <= extraction || upload <= boundary {
+		t.Fatal("prepare, preflight, tests, extraction, boundary and upload must run in order")
 	}
 	pwsh, err := exec.LookPath("pwsh")
 	if err != nil {
@@ -145,8 +163,19 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			name, diagnostics, ok := strings.Cut(strings.TrimSpace(string(handoff)), "=")
-			if !ok || name != "DINAH_TEST_DIAGNOSTICS_DIR" || !filepath.IsAbs(diagnostics) || filepath.Clean(diagnostics) != filepath.Join(root, "full-go-diagnostics") {
+			values := map[string]string{}
+			var exported []string
+			for _, line := range strings.Split(strings.TrimSpace(string(handoff)), "\n") {
+				line = strings.TrimSpace(line)
+				name, value, ok := strings.Cut(line, "=")
+				if !ok {
+					t.Fatalf("malformed environment handoff: %q", handoff)
+				}
+				values[name] = value
+				exported = append(exported, line)
+			}
+			diagnostics := values["DINAH_TEST_DIAGNOSTICS_DIR"]
+			if len(values) != 2 || !filepath.IsAbs(diagnostics) || filepath.Clean(diagnostics) != filepath.Join(root, "full-go-diagnostics") || filepath.Clean(values["DINAH_TEST_NATIVE_SCRATCH_DIR"]) != filepath.Join(root, "full-go-native-scratch") {
 				t.Fatalf("invalid prepare-step handoff: %q", handoff)
 			}
 			if info, err := os.Stat(diagnostics); err != nil || !info.IsDir() {
@@ -165,7 +194,7 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 			}
 			cmd := exec.Command(pwsh, "-NoProfile", "-Command", "$ErrorActionPreference = 'Stop'\n"+job.Steps[run].Run)
 			cmd.Dir = root
-			cmd.Env = append(environment, strings.TrimSpace(string(handoff)))
+			cmd.Env = append(environment, exported...)
 			output, runErr := cmd.CombinedOutput()
 			got := 0
 			if runErr != nil {

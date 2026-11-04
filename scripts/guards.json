@@ -2,6 +2,19 @@
   "comment": "The review's guards (docs/design/invariants.md). scripts/guards.ps1 runs exactly these, locally and in CI, and fails if any listed test is missing, skipped or failing. Add a guard here in the same change that adds its test. onlyOn lists the operating systems (Go GOOS values) where a platform-specific guard runs; elsewhere it must skip or not exist.",
   "go": [
     {
+      "package": "./tools/diagnosticartifacts",
+      "tests": [
+        "TestDiagnosticUploadRejectsDumps",
+        "TestNativeExtractionPublishesOnlyFramesAndCleansDumps"
+      ]
+    },
+    {
+      "package": "./tools/nodepreflight",
+      "tests": [
+        "TestNodePreflightIsBoundedAndRedactsValues"
+      ]
+    },
+    {
       "package": "./internal/profile",
       "tests": [
         "TestNoForbiddenTermsInTrackedFiles",
