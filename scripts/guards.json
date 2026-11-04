@@ -93,6 +93,9 @@
     {
       "package": "./internal/sessionhost",
       "tests": [
+        "TestChatEventsHaveOneEmitPath",
+        "TestStateEventsHaveOneEmitPath",
+        "TestEventPathScanDistinguishesCaseLabelsFromEmissions",
         "FuzzReverseRequestParameters"
       ]
     },

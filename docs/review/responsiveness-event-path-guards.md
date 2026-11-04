@@ -1,0 +1,9 @@
+# Recorder classification and emission guards
+
+Windows full Go on release candidate c9eab196cce28a8b2046a4ae6f4e4f6fc0383d3e failed TestChatEventsHaveOneEmitPath and TestStateEventsHaveOneEmitPath. The retained windows-full-go.jsonl under %TEMP%/dinah-recorder-c9eab19-gates identifies the string case labels in responsiveness.Classify. Both guards previously searched every source line for event-name literals without distinguishing their syntax. The classifier returns a fixed category and performs no emission.
+
+The corrected scans parse each source file and mask only string literals that are direct members of a switch case label list. They then apply their existing literal and constant-emission patterns to the remaining source. Case bodies remain scanned, including bodies on the same line as the label. No package or function is exempted, and no production event names or emission paths change. A parse failure fails the guard rather than bypassing inspection.
+
+The negative fixtures use the same pattern objects as the repository scans. They require rejection of unauthorized literal emissions, qualified and unqualified constant emissions, and literal or constant emissions inside a case body on the label's line. A classifier returning a category from a matching case label is accepted. Both original invariant guards and the new scanner regression are mandatory entries in scripts/guards.json.
+
+The focused verification covers the complete sessionhost, responsiveness and bridge packages under the race detector and vet through the FIFO wrapper. Its output and exit statuses are retained under %TEMP%/dinah-responsiveness-backend-20261104/event-path-race.txt and event-path-results.json. This correction preserves the numbered-emission invariant and makes no claim about recorder overhead, delivery clearance or live sluggishness relief.
