@@ -23,9 +23,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"studio/internal/profile"
+	"studio/internal/responsiveness"
 )
 
 // The replay ring keeps this many of the most recent events, or this many
@@ -53,6 +55,7 @@ const (
 
 // Bridge serves one object's methods and events.
 type Bridge struct {
+	timings atomic.Pointer[responsiveness.Recorder]
 	// ObserveCall records a validated object call until its method returns.
 	// Hosts may use it to account for work that would be interrupted by exit.
 	ObserveCall func(string) func()
@@ -299,6 +302,12 @@ func (b *Bridge) limits() (events, bytes int) {
 // Emit sends an event to every page listening, and keeps it for a page that
 // reconnects. Every event gets the next sequence number.
 func (b *Bridge) Emit(name string, data any) {
+	recorder := b.timings.Load()
+	token := recorder.Begin(name, responsiveness.Bridge)
+	subscribers, depth, drops := -1, -1, -1
+	if token.Active() {
+		defer func() { recorder.End(token, subscribers, depth, drops) }()
+	}
 	payload, err := json.Marshal(struct {
 		Name string `json:"name"`
 		Data any    `json:"data"`
@@ -311,18 +320,36 @@ func (b *Bridge) Emit(name string, data any) {
 	b.seq++
 	frame := b.frame(b.seq, payload)
 	b.keep(b.seq, frame)
+	if token.Active() {
+		subscribers = len(b.subs)
+		depth, drops = 0, 0
+	}
 	for ch := range b.subs {
 		select {
 		case ch <- frame:
+			if token.Active() {
+				depth = max(depth, len(ch))
+			}
 		default:
+			if token.Active() {
+				// The failed send observed a full buffer. A receiver can drain
+				// it before len(ch) is read, so retain its capacity instead.
+				depth = max(depth, cap(ch))
+			}
 			// A page that has stopped reading is not waited for; its stream
 			// is closed, and it comes back with its cursor and is either
 			// replayed what it missed or told to resync.
 			close(ch)
 			delete(b.subs, ch)
+			if token.Active() {
+				drops++
+			}
 		}
 	}
 }
+
+// SetTimingRecorder changes only the optional in-memory timing observer.
+func (b *Bridge) SetTimingRecorder(r *responsiveness.Recorder) { b.timings.Store(r) }
 
 // keep adds a frame to the ring and drops the oldest while either bound is
 // exceeded, so a single frame larger than the byte bound is not kept. The

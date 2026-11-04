@@ -40,6 +40,7 @@ var pageMethods = func() map[string]pageMethodClass {
 		}
 	}
 	list(pageQuery, `
+ SetResponsivenessRecording GetResponsivenessTimingSnapshot
  FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus
  NativeWindowState NativeWindowAction State Sessions SessionsAt History SavedConversation

@@ -38,6 +38,7 @@ The page's own generation is also monotonic for its lifetime. It associates the 
 | BackendOwnedStorageLimit | 524288 bytes |
 | CombinedExportLimit | 4194304 UTF-8 bytes, including header |
 | CopyDeadlineMs | 10000, covering preparation and initiation of clipboard writing |
+| CopyPreparationCapacity | 1 outstanding preparation, including expired actions whose requests remain unresolved |
 
 Both aggregate rings hold ten minutes of one-second slots. Each category retains count, total duration, maximum duration and the maximum's completion offset within its slot. An event is assigned to its completion slot. Its start can precede that slot; the maximum duration and completion offset preserve that fact. Long work must not be averaged away. Count and total use saturating arithmetic with an explicit saturation flag; they never wrap silently.
 
@@ -106,3 +107,32 @@ V1 uses passive Event Timing, Long Tasks and Long Animation Frames observations.
 The browser limits follow the [Event Timing working draft](https://www.w3.org/TR/event-timing/) and the feature-detected [Long Animation Frames API](https://www.w3.org/TR/long-animation-frames/). The latter remains a working draft; unavailable or changed fields must produce explicit unavailable values.
 
 CopyDeadlineMs starts at the person's button press and bounds waiting for control acknowledgment, reading and validating the backend, and initiating the clipboard write. A deadline observed before initiation expires that Copy; late control or read completions cannot initiate a write or change its result. The underlying control queue remains serialized until the request settles. Immediately after serialization and before submission, Copy checks both its monotonic deadline and recording generation again. Once clipboard writing has been submitted, the documented asynchronous clipboard API offers no cancellation guarantee. The UI says "Timing copy submitted; waiting for clipboard" and does not claim a definite failure or cancellation while writing can still complete. It prevents competing writes until that operation settles. Recording changes cannot revoke an already submitted write. A blocked browser thread can delay timer delivery, so the deadline is a logical cutoff rather than a promise of a screen update at exactly ten seconds. The [Clipboard API contract](https://www.w3.org/TR/clipboard-apis/#dom-clipboard-writetext) supplies no abort signal for writeText. Guards cover late reads, a new Copy after preparation timeout and clipboard completion racing the deadline.
+
+A preparation timeout expires the user-facing action while its unresolved request still owns the single preparation gate. Further clicks show fixed pending-request text and attach no waiter, take no additional browser snapshot and issue no additional backend read. Late settlement releases only that gate and cannot write to the clipboard or replace the expired action's status. A fresh Copy requires another explicit click after settlement. The regression holds a read unresolved through timeout, repeated clicks and recording transitions, checks retained preparation bounds, then verifies silent late settlement and success only from a fresh click.
+
+## Backend preparation evidence, 4 November 2026
+
+The isolated backend implements the two shell methods, generation-aware enable/disable, joined sampler lifecycle, the fixed recorder and bridge observer. Focused race checks cover the backend schema/canary, fixed capacity and event floods, expired completions after wrap, stale generations, clearing, disabled locking/allocation behavior, queue overflow evidence and exclusion from applet manifests, bus tools and contributed iframe APIs. The full responsiveness and bridge packages passed under the race detector, as did the focused desktop and bus-boundary checks. Vet passed for all four affected packages. The desktop linker printed its existing multiple-manifest warning.
+
+The recorder and its runtime-reader concrete types total 349928 bytes on Windows amd64, within BackendOwnedStorageLimit. The five local microbenchmark observations are below. Event and runtime measurements each reported zero allocated bytes and zero allocations per operation. Bridge measurements retain the pre-existing serialization allocations and reported seven allocations per event in every mode.
+
+| Microbenchmark | Five observations, nanoseconds per operation |
+| --- | --- |
+| Runtime metric read | 761.1, 759.3, 748.9, 743.3, 748.2 |
+| Recorder event, disabled | 17.54, 17.49, 17.00, 17.11, 17.27 |
+| Recorder event, enabled | 36.17, 42.66, 46.01, 45.10, 41.64 |
+| Bridge emit, no recorder | 451.2, 450.4, 439.3, 432.8, 445.6 |
+| Bridge emit, disabled recorder | 469.9, 468.0, 491.2, 451.4, 595.6 |
+| Bridge emit, enabled recorder | 807.6, 790.1, 681.2, 619.2, 504.8 |
+
+These are local microbenchmarks with visible variance, not the paired zero/one/four-stream browser gate. That gate remains pending integration with Front End. No overhead acceptance or live relief is claimed from these figures. The retained output and exit statuses are under %TEMP%/dinah-responsiveness-backend-20261104, including full-packages.txt, final-integration.txt, final-benchmarks.txt and final-results.json.
+
+The observer classifies event names without parsing or retaining payloads. Generic agent:update and replay envelopes are classified as other because their names alone do not distinguish text from tool updates. The standalone text/tool names in the fixed table are recognized when present. Queue timing ends at enqueue completion and supplies no browser-arrival or presented-frame attribution. No live measurement or deployment was performed with this backend.
+
+## Backend review corrections, 4 November 2026
+
+Shutdown now acquires the recorder-creation mutex and marks the app's recording lifecycle closed even when no recorder exists. It closes and joins an existing recorder before releasing that mutex. Later enable requests return disabled, preserving an existing recorder's generation without allocating a new recorder. Regression guards cover shutdown before first enable and simultaneous first enable/shutdown on one hundred fresh apps.
+
+An overflow observation now includes the subscriber buffer's full capacity in its depth peak. The failed nonblocking send establishes that the buffer was full at that observation; reading its length afterwards could understate it if a receiver drains concurrently. The new guard fills a subscriber queue before enabling recording, then verifies that the first observed event records one disconnect and the full depth without any successful enqueue in that recording interval.
+
+The full responsiveness and bridge packages passed with the race detector after these corrections. Focused desktop and bus-boundary race checks and vet of all four affected packages also passed through the FIFO wrapper. The three regression checks are mandatory entries in scripts/guards.json. Evidence is retained in %TEMP%/dinah-responsiveness-backend-20261104/review-fix-packages.txt, review-fix-integration.txt and review-fix-results.json. The paired browser overhead gate remains pending, and these corrections authorize no push or deployment.
