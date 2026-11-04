@@ -222,7 +222,11 @@ func TestReadPolicyProtectsCanonicalStateDirectory(t *testing.T) {
 		t.Fatal("canonical state escaped protection")
 	}
 	policy, err := svc.Policy(scope)
-	if err != nil || !layout.SamePath(policy.Rules[0].ResolvedPaths[0], actual) {
+	canonical, resolveErr := agents.ResolveFilePath(actual)
+	if resolveErr != nil {
+		t.Fatal(resolveErr)
+	}
+	if err != nil || !layout.SamePath(policy.Rules[0].ResolvedPaths[0], canonical) {
 		t.Fatalf("canonical representation: %+v %v", policy, err)
 	}
 	log, err := store.Log(Filter{Outcome: "denied"})
