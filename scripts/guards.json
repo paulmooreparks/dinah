@@ -142,7 +142,10 @@
         "TestAgentWorkspaceStatUsesPolicyAndAudit",
         "TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit",
         "TestPathlessHistoryRejectsSelectorsAndSymlinkAndAudits",
-        "TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState"
+        "TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState",
+        "TestResponsivenessShellContractClearsAndExcludesOtherSurfaces",
+        "TestResponsivenessShutdownPreventsFirstEnable",
+        "TestResponsivenessFirstEnableRacingShutdownCannotRestart"
       ],
       "onlyOn": {
         "TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState": [
@@ -301,6 +304,29 @@
         "TestHostDirectoryPolicyCoversListAndFind",
         "TestRealDirectoryPolicyOmitsDeniedNamesFromTools"
       ]
+    },
+    {
+      "package": "./internal/responsiveness",
+      "tests": [
+        "TestTimingRingBoundsWrapFloodAndClear",
+        "TestTimingUnknownIsNotZeroAndMaximumKeepsItsOffset",
+        "TestTimingGenerationRejectsOldCompletionAndJoinsSampler",
+        "TestTimingExportHasOnlyClosedFieldsAndNoCanary",
+        "TestTimingDisabledHotPathDoesNoAllocationOrLocking"
+      ]
+    },
+    {
+      "package": "./internal/bridge",
+      "tests": [
+        "TestBridgeTimingCannotExportPayloadAndMeasuresQueueOverflow",
+        "TestBridgeTimingOverflowInFreshIntervalRetainsFullDepth"
+      ]
+    },
+    {
+      "package": "./internal/mcpserver",
+      "tests": [
+        "TestResponsivenessTimingIsAbsentFromBusTools"
+      ]
     }
   ],
   "browser": [
@@ -324,6 +350,7 @@
     "group-reach",
     "browser-lock",
     "agent-file-access",
-    "ollama-file-access"
+    "ollama-file-access",
+    "responsiveness-snapshot"
   ]
 }
