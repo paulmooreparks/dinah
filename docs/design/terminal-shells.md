@@ -1,5 +1,15 @@
 # Terminal shell selection
 
+## CI startup diagnostics, 4 November 2026
+
+The full-Go CI run on 5c84503 failed before the Node fixture's readiness marker. Its empty phase journal cannot establish that JavaScript never entered, because the fixture suppressed journal write errors. This failure therefore does not yet establish a Ctrl+C fault.
+
+The fixture now reports a journal write error to standard error and throws it. Each successful phase records the actual Node executable, version and arguments. The test also logs the resolved PowerShell and Node executables and their version-query results. On a readiness failure it queries only Node children of its own PowerShell process for image, launch arguments, age and CPU time. Query failures remain visible. The existing ConPTY launch, fifteen-second readiness bound, Ctrl+C assertion and recovered-prompt assertion are unchanged. Synchronous journal writes perturb timing, so these diagnostics do not prove that a startup stall is fixed.
+
+The new TestNodeStartupJournalErrorsAreVisible guard checks a failed journal write and decodes a successful phase with executable metadata. It is mandatory on Windows. Baseline 289fb62 and candidate 5c84503 passed the focused terminal comparison in 2.026 and 2.021 seconds, with identical diagnostic-only changes, under the FIFO wrapper. The final candidate check passed in 2.041 seconds, and go vet passed for terminals and desktop. The local executables were PowerShell 7.6.8 and Node v24.4.1. CI's actual Node version was not retained, so the local comparison does not establish matching CI startup conditions.
+
+Evidence is retained under %TEMP%/dinah-full-go-diagnosis-20261104, including per-test JSON, comparison results and the final check. The original startup failure remains unexplained. No deadline was increased, and no assertion was weakened. The next coordinated CI run needs these diagnostics alongside desktop crash capture and retained full-Go output.
+
 ## Ctrl+C investigation, 25 October 2026
 
 Paul reported that Ctrl+C did not stop a Node mockup server in PowerShell 7, with no terminal selection. The browser regression confirms that Ctrl+C copies selected text and clears the selection; without a selection it sends byte 0x03 to TerminalWrite. A Windows integration regression starts a Node HTTP server inside PowerShell, sends that byte, waits for the shell prompt and runs another command successfully. Both checks passed. The reported failure remains unreproduced, pending the exact server launch command; no input-routing change was made.
