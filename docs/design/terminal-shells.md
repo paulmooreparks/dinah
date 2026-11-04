@@ -2,6 +2,18 @@
 
 ## CI startup diagnostics, 4 November 2026
 
+### Instrumented run 41759234944
+
+The diagnostic run on 1b4db72486de04404f7b20876f22b27cd0234e69 failed only TestCtrlCInterruptsNodeServerInPowerShell. Desktop passed in 547.076 seconds. Its two main crash files were empty; the only nonempty crash file was the expected intentional regression child. The earlier desktop exit remains unexplained and was not reproduced by this CI run.
+
+The terminal failure again preceded the readiness marker. PowerShell reported version 7.6.9. The test process's Node version query returned empty output and exit status 1, about 5.44 seconds after the PowerShell version report. The query has a five-second context bound, but its context error was not logged, so this does not distinguish a killed query from Node exiting itself. The actual terminal child was C:\Program Files\nodejs\node.exe, PID 5264 under PowerShell PID 4408. Its command line contained the intended fixture script. At the readiness failure it had run for 14.833 seconds and used 31.25 milliseconds each of kernel and user CPU. Its phase journal was empty, with no read error and no journal-error marker in the drawn output. These observations locate the failure before observable fixture progress, but do not identify the blocked native operation or prove that JavaScript never entered.
+
+TestNodeStartupJournalErrorsAreVisible subsequently passed in 9.51 seconds. Node therefore executed the fixture directly later in the same package, although the evidence does not establish why the earlier startup failed. No Ctrl+C was sent in the failed attempt because readiness was never reached. The failed version query outside ConPTY means a terminal-only explanation is not established either.
+
+The completed job log and full-go-diagnostics artifact are retained under %TEMP%/dinah-full-go-1b4db72-20261104. The browser job also finished successfully, as reported by the jobs API during retrieval. No retry, cancellation, source push or installation was performed for this investigation. The remaining evidence needed is Node's native startup location, its actual binary version, and the version-query context result under the failing CI conditions; elapsed time and low CPU alone cannot supply those answers.
+
+### Diagnostic contract and local comparison
+
 The full-Go CI run on 5c84503 failed before the Node fixture's readiness marker. Its empty phase journal cannot establish that JavaScript never entered, because the fixture suppressed journal write errors. This failure therefore does not yet establish a Ctrl+C fault.
 
 The fixture now reports a journal write error to standard error and continues startup. Each successful phase records the actual Node executable, version and arguments. The test also logs the resolved PowerShell and Node executables and their version-query results. These lookups use the test process's PATH and supply context only; the terminal's PowerShell may resolve a different executable. The actual terminal child's image and recorded metadata are the evidence for this failure. On a readiness failure it queries only Node children of its own PowerShell process for image, launch arguments, age and CPU time. Query failures remain visible. The existing ConPTY launch, fifteen-second readiness bound, Ctrl+C assertion and recovered-prompt assertion are unchanged. Synchronous journal writes perturb timing, so these diagnostics do not prove that a startup stall is fixed.
