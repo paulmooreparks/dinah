@@ -55,6 +55,26 @@ execFileSync(process.execPath, [path.join(__dirname, 'unit/timing-snapshot.test.
     ok('copy leaves recording enabled', await toggle.getAttribute('aria-checked') === 'true');
     ok('the clearing warning is visible beside the control', await p.locator('#settings-diagnostics').getByText(/Turning recording off clears/).isVisible());
 
+    // Hidden diagnostics continue collecting without a retained geometry-check job.
+    await p.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await p.evaluate(() => {
+      const panel = document.getElementById('responsiveness-results');
+      window.__panelRects = 0;
+      const rects = panel.getClientRects.bind(panel);
+      panel.getClientRects = () => { __panelRects++; return rects(); };
+      dinahResponsiveness.record('render', 'chat output', 123, 0);
+    });
+    await p.waitForTimeout(1100);
+    await p.evaluate(() => new Promise(resolve => {
+      let count = 60;
+      function work() { dinahRender.enqueue(work, null, () => { if (--count) requestAnimationFrame(work); else resolve(); }, null, 'fixture'); }
+      work();
+    }));
+    ok('hidden diagnostics retain measurements without scheduler geometry checks', await p.evaluate(() => __panelRects === 0 && dinahResponsiveness.snapshot().some(s => s.duration === 123)));
+    await p.getByRole('tab', { name: 'Diagnostics', exact: true }).click();
+    await p.waitForFunction(() => document.querySelector('[data-render]').textContent.includes('123 ms'));
+    ok('showing diagnostics refreshes the measurements collected while hidden', await toggle.getAttribute('aria-checked') === 'true');
+
     // An unknown field from even the backend refuses the entire copy.
     const count = await copies();
     await p.evaluate(() => { window.__badField = true; });

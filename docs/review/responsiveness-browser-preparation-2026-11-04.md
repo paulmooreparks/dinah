@@ -24,3 +24,47 @@ Quality reproduced two blockers in eabaf5c. A delayed enable acknowledgment coul
 The earlier overhead run, aggregate browser run and queued integrated checks were stopped for these production corrections. Their artifacts remain evidence for the earlier source only, and establish no completed gate. The corrected snapshot suite is registered as a mandatory browser guard and invokes its unit checks before launching the browser. Corrected unit checks and production lint pass. Browser and overhead execution must be repeated against the corrected source.
 
 The corrected unit guards, production lint and the paired responsiveness/responsiveness-snapshot browser suites pass. The latter ran in 36 seconds, including deadline races, wrap/memory checks and the delayed acknowledgment reset test. Corrected output is retained in the temporary directory under dinah-snapshot-corrected and dinah-snapshot-corrected.log. The old partial overhead run retains 14 completed cases plus incomplete-run-status.json; it cannot satisfy the three-pair gate.
+
+The integrated focused race checks pass on corrected 6ba0ae3 for internal/responsiveness, internal/bridge, cmd/dinah-desktop and internal/mcpserver, using the Responsiveness|Timing|Overflow selection. The existing multiple-manifest linker warning appeared before the desktop tests passed. The complete log is retained in the temporary directory as dinah-responsiveness-integrated-6ba0ae3.log. The corrected full browser and overhead runs remain pending.
+
+
+## Completed corrected validation
+
+All 211 browser suites passed in 714 seconds on the frozen corrected source. The log is retained as dinah-responsiveness-full-6ba0ae3.log and artifacts as dinah-responsiveness-full-6ba0ae3 in the temporary directory. This includes web-skins, the snapshot suite and its synchronous unit guards. The earlier incomplete run remains separate.
+
+All eighteen corrected overhead cases completed with zero page errors. Production file hashes match source-manifest.json. The harness preserves the retained benchmark workload, runs three on/off pairs per load, reverses pair order in the second round, and observes Event Timing and Long Animation Frames in both modes. Style/script timings are Chromium CDP ten-second totals; key p95 is the existing keystroke-to-next-frame probe. The backend is stubbed, so these results cover browser recording overhead. Backend microbenchmarks remain separate.
+
+| Streams | Pair | Script off/on ms | Style off/on ms | Key-to-frame p95 off/on ms |
+| --- | --- | --- | --- | --- |
+| 0 | 1 | 0 / 0 | 0 / 0 | 14 / 14 |
+| 0 | 2 | 0 / 0 | 0 / 0 | 13 / 11 |
+| 0 | 3 | 0 / 0 | 0 / 0 | 12 / 13 |
+| 1 | 1 | 350 / 387 | 669 / 696 | 18 / 19 |
+| 1 | 2 | 430 / 431 | 813 / 818 | 20 / 19 |
+| 1 | 3 | 413 / 445 | 815 / 833 | 18 / 15 |
+| 4 | 1 | 1070 / 1072 | 1834 / 1930 | 25 / 24 |
+| 4 | 2 | 1213 / 1256 | 2338 / 2298 | 35 / 35 |
+| 4 | 3 | 1205 / 1264 | 2320 / 2403 | 34 / 35 |
+
+- At 0 streams, script medians off/on are 0/0 ms, ranges 0..0/0..0, and paired deltas [0, 0, 0] ms.
+- At 0 streams, style medians off/on are 0/0 ms, ranges 0..0/0..0, and paired deltas [0, 0, 0] ms.
+- At 0 streams, key p95 medians off/on are 13/13 ms, ranges 12..14/11..14, and paired deltas [0, -2, 1] ms.
+- At 1 streams, script medians off/on are 413/431 ms, ranges 350..430/387..445, and paired deltas [37, 1, 32] ms.
+- At 1 streams, style medians off/on are 813/818 ms, ranges 669..815/696..833, and paired deltas [27, 5, 18] ms.
+- At 1 streams, key p95 medians off/on are 18/19 ms, ranges 18..20/15..19, and paired deltas [1, -1, -3] ms.
+- At 4 streams, script medians off/on are 1205/1256 ms, ranges 1070..1213/1072..1264, and paired deltas [2, 43, 59] ms.
+- At 4 streams, style medians off/on are 2320/2298 ms, ranges 1834..2338/1930..2403, and paired deltas [96, -40, 83] ms.
+- At 4 streams, key p95 medians off/on are 34/35 ms, ranges 25..35/24..35, and paired deltas [-1, 0, 1] ms.
+
+The differences between on/off medians satisfy the numerical ceilings. However, one-stream paired script deltas are 37, 1 and 32 ms, so their median is 32 ms against a roughly 21 ms five-percent allowance. The script and style baselines also vary materially across pairs. This does not establish a variance-resolved overhead pass. The overhead gate remains unproven pending Quality's assessment; no release clearance follows from the median-only comparison. Raw Event Timing, long-frame entries and all pair results remain in dinah-responsiveness-overhead-6ba0ae3.
+
+
+## Focused overhead attribution and proposed correction
+
+The targeted one-stream off/on run enabled the existing CPU-profile and invalidation-trace options. Both runs exited successfully. The output is retained in dinah-responsiveness-attribution-6ba0ae3 in the temporary directory. The ten-second script totals were 375/409 ms and style totals 680/696 ms. These are attribution captures, not additional acceptance pairs.
+
+The sampled profile remains dominated by clientHeight and transcript traversal. Recorder functions did not appear in the top 25 self-time entries; the cutoff was about three milliseconds. Total getClientRects self-time was 12/9 ms and garbage collection 24/23 ms. These samples do not isolate the whole 32 ms paired-median overhead, and do not prove that hidden panel geometry accounts for it.
+
+Source inspection confirms unnecessary recording-only work. The one-second refresh enqueues a Diagnostics panel even when an ancestor is hidden. The scheduler retains that blocked job and checks its geometry during unrelated streaming flushes. The proposed correction uses existing hidden attributes to cancel the job without layout reads, observes the Diagnostics section's hidden attribute for an immediate refresh on showing, and refreshes on supported window-change events. Recording remains active independently of presentation. No scheduler policy or transcript optimization is included.
+
+The new browser regression records a sample while Diagnostics is hidden, exercises 60 unrelated render frames after a refresh interval, requires zero panel geometry checks, then shows Diagnostics and checks that its newly collected sample is displayed. Focused validation and fresh on/off overhead evidence remain required for this correction.

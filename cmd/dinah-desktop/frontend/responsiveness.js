@@ -32,7 +32,12 @@
       }); rows.appendChild(row);
     });
   }
-  function refresh() { window.dinahRender.enqueue(panel, panel, draw, null, 'diagnostics'); }
+  function refresh() {
+    // Hidden ancestors include inactive Settings tabs and closed/minimized windows.
+    // Attribute reads avoid forcing layout or retaining a hidden scheduler job.
+    if (!enabled || document.hidden || !panel.isConnected || panel.closest('[hidden]')) { window.dinahRender.cancel(panel); return; }
+    window.dinahRender.enqueue(panel, panel, draw, null, 'diagnostics');
+  }
   function stopObservers() {
     observers.forEach(function (observer) { observer.disconnect(); }); observers = [];
     clearInterval(timer); timer = 0; window.dinahRender.cancel(panel);
@@ -52,6 +57,9 @@
         observers.push(observer); recorder.feature(source[1], 'measured');
       } catch (_) { recorder.feature(source[1], 'unavailable'); }
     });
+    var visibility = new MutationObserver(refresh);
+    visibility.observe(document.getElementById('settings-diagnostics'), { attributes: true, attributeFilter: ['hidden'] });
+    observers.push(visibility);
     timer = setInterval(refresh, 1000); refresh();
   }
   // Requests are serialized. One reset obligation preserves any intervening off
@@ -129,6 +137,7 @@
       if (!enabled && generation === mine) set(true);
     }
   });
+  document.addEventListener('pudl:windows-change', refresh);
   document.addEventListener('visibilitychange', function () {
     recorder.visibility(document.hidden); startObservers();
   });
