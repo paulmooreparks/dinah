@@ -302,9 +302,23 @@ func TestCtrlCInterruptsNodeServerInPowerShell(t *testing.T) {
 			t.Skipf("%s is not installed", name)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		version, versionErr := exec.CommandContext(ctx, path, "--version").CombinedOutput()
+		started := time.Now()
+		command := exec.CommandContext(ctx, path, "--version")
+		command.WaitDelay = 500 * time.Millisecond
+		if name == "node.exe" && os.Getenv("DINAH_TEST_DIAGNOSTICS_DIR") != "" {
+			// The query deadline has expired before Cancel runs. Observe only
+			// this owned child, then retain CommandContext's original kill.
+			command.Cancel = func() error {
+				pid := uint32(command.Process.Pid)
+				t.Logf("version query deadline: waits %s; dump %s", nodeWaitDiagnostic(os.Getpid(), started, pid), nodeDumpDiagnostic(os.Getpid(), started, pid))
+				return command.Process.Kill()
+			}
+		}
+		version, versionErr := command.CombinedOutput()
+		duration := time.Since(started)
+		contextErr := ctx.Err()
 		cancel()
-		t.Logf("fixture executable %q, version %q, version-query error %v", path, version, versionErr)
+		t.Logf("fixture executable %q, file metadata %s, version %q, version-query error %v, context error %v, duration %s", path, executableFileMetadata(path), version, versionErr, contextErr, duration)
 	}
 	// The test process ignores Ctrl+C first, as one started with
 	// CREATE_NEW_PROCESS_GROUP does, Dinah's window after Restart to Update
@@ -428,12 +442,16 @@ func ctrlCInterruptsNode(t *testing.T, a *Service, mu *sync.Mutex, drawn map[str
 		if powerShellCtrlCRace(output()) {
 			return false
 		}
+		phases, phaseErr := os.ReadFile(phasePath)
+		drawnAtDeadline := output()
 		nodes := "node was not typed yet"
+		waits, dump := nodes, nodes
 		if !nodeTyped.IsZero() {
 			nodes = nodeProcessesSince(nodeTyped, shellPID)
+			waits = nodeWaitDiagnostic(int(shellPID), nodeTyped)
+			dump = nodeDumpDiagnostic(int(shellPID), nodeTyped)
 		}
-		phases, phaseErr := os.ReadFile(phasePath)
-		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; fixture phases %q (read error %v); it drew %q", marker, nodes, phases, phaseErr, output())
+		t.Fatalf("PowerShell did not produce %s; node processes started since the command was typed: %s; fixture phases at deadline %q (read error %v); native waits after deadline %s; dump after deadline %s; it drew at deadline %q", marker, nodes, phases, phaseErr, waits, dump, drawnAtDeadline)
 		return false
 	}
 	if err := a.Write(started.ID, "function prompt { 'interrupt-' + 'prompt> ' }\r"); err != nil {
@@ -542,6 +560,8 @@ func nodeProcessesSince(since time.Time, shellPID uint32) string {
 		if imageErr != nil {
 			imageSize = 0
 		}
+		imagePath := windows.UTF16ToString(image[:imageSize])
+		metadata := executableFileMetadata(imagePath)
 		windows.CloseHandle(h)
 		if err != nil {
 			continue
@@ -553,7 +573,7 @@ func nodeProcessesSince(since time.Time, shellPID uint32) string {
 		cpuTime := func(ft windows.Filetime) time.Duration {
 			return time.Duration(uint64(ft.HighDateTime)<<32|uint64(ft.LowDateTime)) * 100 * time.Nanosecond
 		}
-		found = append(found, "pid "+strconv.Itoa(int(entry.ProcessID))+" (parent "+strconv.Itoa(int(entry.ParentProcessID))+"), image "+strconv.Quote(windows.UTF16ToString(image[:imageSize]))+", image query error "+fmt.Sprint(imageErr)+", started "+at.Sub(since).Round(time.Millisecond).String()+" after typing, running "+time.Since(at).Round(time.Millisecond).String()+", kernel CPU "+cpuTime(kernel).String()+", user CPU "+cpuTime(user).String())
+		found = append(found, "pid "+strconv.Itoa(int(entry.ProcessID))+" (parent "+strconv.Itoa(int(entry.ParentProcessID))+"), image "+strconv.Quote(imagePath)+", image query error "+fmt.Sprint(imageErr)+", file metadata "+metadata+", started "+at.Sub(since).Round(time.Millisecond).String()+" after typing, running "+time.Since(at).Round(time.Millisecond).String()+", kernel CPU "+cpuTime(kernel).String()+", user CPU "+cpuTime(user).String())
 	}
 	if len(found) == 0 {
 		return "none"

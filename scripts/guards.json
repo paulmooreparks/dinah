@@ -165,13 +165,33 @@
       "package": "./internal/terminals",
       "tests": [
         "TestPingReadinessNeedsVisibleOutput",
-        "TestNodeStartupJournalErrorsAreVisible"
+        "TestNodeStartupJournalErrorsAreVisible",
+        "TestNodeWaitDiagnosticFindsOnlyFixtureChild",
+        "TestNodeWaitDiagnosticBoundsStalledHelper",
+        "TestNodeDumpDiagnosticCapturesOwnedChild",
+        "TestNodeDumpDiagnosticBoundsStalledHelper",
+        "TestExecutableMetadataDoesNotRequireStartup"
       ],
       "onlyOn": {
         "TestPingReadinessNeedsVisibleOutput": [
           "windows"
         ],
         "TestNodeStartupJournalErrorsAreVisible": [
+          "windows"
+        ],
+        "TestNodeWaitDiagnosticFindsOnlyFixtureChild": [
+          "windows"
+        ],
+        "TestNodeWaitDiagnosticBoundsStalledHelper": [
+          "windows"
+        ],
+        "TestNodeDumpDiagnosticCapturesOwnedChild": [
+          "windows"
+        ],
+        "TestNodeDumpDiagnosticBoundsStalledHelper": [
+          "windows"
+        ],
+        "TestExecutableMetadataDoesNotRequireStartup": [
           "windows"
         ]
       }
