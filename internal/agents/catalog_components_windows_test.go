@@ -20,6 +20,7 @@ func TestWindowsCatalogTagDecision(t *testing.T) {
 		{"SYMLINK", 0xA000000C, true},
 		{"MOUNT_POINT", 0xA0000003, true},
 		{"CLOUD", 0x9000001A, false},
+		{"CLOUD_6", 0x9000601A, false},
 		{"DEDUP", 0x80000013, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
