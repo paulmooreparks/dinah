@@ -186,7 +186,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, out any) error {
 		return c.cancelTurn(ctx, params)
 	case "session/set_config_option":
 		return c.configure(params, out)
-	case "account/read", "account/login/start", "account/login/cancel", "account/rateLimits/read", "model/list":
+	case "account/read", "account/login/start", "account/login/cancel", "account/rateLimits/read", "model/list", "skills/list":
 		return c.Conn.Call(ctx, method, params, out)
 	default:
 		return &acp.Error{Code: acp.CodeMethodNotFound, Message: "Codex does not support " + method}

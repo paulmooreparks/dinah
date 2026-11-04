@@ -33,9 +33,10 @@ type CatalogSkill struct {
 	// Location is the folder the skill's collection is stored in, for the
 	// Skills pane to say where a skill comes from; empty for a provider's
 	// own command.
-	Location string       `json:"location,omitempty"`
-	Ref      *ResourceRef `json:"ref,omitempty"`
-	Revision string       `json:"revision"`
+	Location        string       `json:"location,omitempty"`
+	Ref             *ResourceRef `json:"ref,omitempty"`
+	Revision        string       `json:"revision"`
+	InstructionPath string       `json:"-"`
 }
 type SkillCatalog struct {
 	Skills   []CatalogSkill `json:"skills"`
@@ -87,6 +88,7 @@ func (a *App) skillCatalog(workspaceID string, personal bool) SkillCatalog {
 	}
 	// An absent personal collection is an empty catalog, not a browsing error.
 	if personal {
+		a.collectPersonalAgentSkills(&result)
 		if _, err := vfs.stat("~/skills"); err == nil {
 			collect(ResourceRef{SourceID: workspaces.HomeSourceID, Path: "skills"}, "mine", "", "My Skills", filepath.Join(configDir(), "home", "skills"))
 		}
@@ -142,6 +144,12 @@ func (a *App) ReadSkill(id string) (SkillPackage, error) {
 			continue
 		}
 		if skill.Ref == nil {
+			if skill.InstructionPath != "" {
+				text, err := readAgentSkill(skill.InstructionPath)
+				sum := sha256.Sum256([]byte(text))
+				skill.Revision = hex.EncodeToString(sum[:])
+				return SkillPackage{Skill: skill, Text: text}, err
+			}
 			return SkillPackage{Skill: skill}, nil
 		}
 		read, err := (workspaceVFS{service: a.resourceService()}).readCatalogResource(*skill.Ref)
@@ -164,6 +172,9 @@ func (a *App) PrepareSkill(id, revision, workspace, command string) (string, err
 	}
 	if pack.Skill.Revision != revision {
 		return "", errors.New("the skill changed; refresh it before preparing the invocation")
+	}
+	if pack.Skill.InstructionPath != "" {
+		return agentSkillPrompt(pack, command), nil
 	}
 	if pack.Skill.Ref == nil {
 		return command, nil

@@ -2785,7 +2785,9 @@
         if (!s) { $('prompt').value = keep.text; attachments = keep.files; mentionPicker.setSelected(keep.mentions); drawAttachments(); typed(); return; }
         if (pickedSkill && pickedSkill.id && text.split(/\s/,1)[0] === '/' + pickedSkill.name && app().PrepareSkill) {
           try {
-            text = await app().PrepareSkill(pickedSkill.id, pickedSkill.revision || '', s.info.cwd || workspace, text);
+            text = app().PrepareChatSkill
+              ? await app().PrepareChatSkill(pickedSkill.id, pickedSkill.revision || '', s.info.cwd || workspace, chatProvider(), text)
+              : await app().PrepareSkill(pickedSkill.id, pickedSkill.revision || '', s.info.cwd || workspace, text);
           } catch (err) {
             $('prompt').value = keep.text; attachments = keep.files; mentionPicker.setSelected(keep.mentions);
             drawAttachments(); typed(); throw err;
@@ -2858,7 +2860,7 @@
        commands and the skills Devin imports from other tools, as Devin last
        offered them. The same list pops up over the prompt when a "/" starts a
        word there; "\/" or a slash inside a word stays plain text. */
-    var skills = [], selectedSkill = null;
+    var skills = [], selectedSkill = null, skillProblems = [], skillLoad = 0;
     var GROUPS = [['mine', 'My Skills'], ['workspace', 'Workspace Skills'], ['personal', 'My Agent Skills'], ['', 'Agent Commands'], ['imported', 'From Other Tools']];
     /* The group of the commands an agent offers is the one of the provider whose facts say it has commands of its
        own, under that provider's name; the skills it lists have that provider's id as their source. */
@@ -2870,11 +2872,14 @@
     listeners.push(function () { skillGroupUpdates.delete(updateSkillGroups); });
     updateSkillGroups();
     function loadSkills() {
-      var requestedProvider = chatProvider(), requestedWorkspace = workspace;
+      var requestedProvider = chatProvider(), requestedWorkspace = workspace, request = ++skillLoad;
       return (app().SkillCatalog ? dinahSkills.forChat(workspace, requestedProvider) : app().SkillsForProviderAt ? app().SkillsForProviderAt(workspace, requestedProvider) : app().SkillsAt(workspace)).then(function (l) {
-        if (chatProvider() !== requestedProvider || workspace !== requestedWorkspace) return;
-        skills = l || []; skillsChanged();
-      }).catch(function () {});
+        if (request !== skillLoad || chatProvider() !== requestedProvider || workspace !== requestedWorkspace) return;
+        skills = l || []; skillProblems = skills.problems || []; skillsChanged();
+      }).catch(function (err) {
+        if (request !== skillLoad) return;
+        skills = []; skillProblems = [String(err && err.message || err)]; skillsChanged();
+      });
     }
     on('agent:commands', function () { loadSkills(); });
     listeners.push(window.dinahHost.onResync(function () { return deleted ? null : loadSkills(); }));
@@ -2895,7 +2900,7 @@
           r.querySelector('.skill-name').textContent = '/' + s.name + (s.hint ? ' ' + s.hint : '');
           r.querySelector('.md-meta').textContent = (s.description || '').trim() + (s.origin ? ' · ' + s.origin : '');
           r.dataset.skill = s.name;
-          if (selected === s.name) r.setAttribute('aria-selected', 'true');
+          if (selected === (s.id || s.name)) r.setAttribute('aria-selected', 'true');
           r.firstChild.addEventListener('mousedown', function (e) { e.preventDefault(); });
           r.firstChild.addEventListener('click', function (e) { e.preventDefault(); onPick(s.id || s.name); });
           host.appendChild(r);
@@ -2910,6 +2915,8 @@
        narrowed as the person types. */
     function skillItems() {
       var out = [];
+      if (skillProblems.length) out.push({ id: 'skills-error', label: 'Skills could not be fully loaded', disabled: true, reason: skillProblems.join('\n') });
+      out.push({ id: 'skills-refresh', label: 'Refresh Skills', run: loadSkills });
       if (templates.length) out.push({ heading: 'My Templates' });
       templates.forEach(function (t) {
         out.push({ id: 'template-' + t.name, label: t.name, detail: t.text.split('\n')[0], run: function () { insertTemplate(t.name, null); } });
@@ -2929,7 +2936,7 @@
         'my-templates');
       return out;
     }
-    function skillsChanged() { if (window.pudlCommands) window.pudlCommands.changed(); }
+    function skillsChanged() { if (window.pudlCommands) window.pudlCommands.changed(); mentionPicker.refreshSkills(); }
 
     const templateEditor = window.dinahChatTemplates.create({
       app, element: $, hidePop: () => hidePop(), typed, skillsChanged, toast, fail,
@@ -2976,7 +2983,7 @@
       app, element: $, productName, sessions, normalizedWorkspace, title, workspaceLabel,
       typed, GROUPS, templateRows, insertTemplate, skillRows, insertSkill, skillForm, closeForm,
       active: () => active, workspace: () => workspace, deleted: () => deleted,
-      skills: () => skills, templates: () => templates
+      skills: () => skills, skillProblems: () => skillProblems, templates: () => templates
     });
     const { refreshMentions, loadAppletMentions, showMentions, wordToken, hidePop } = mentionPicker;
 

@@ -155,12 +155,12 @@
         return ga - gb || pa - pb || a.name.localeCompare(b.name);
       });
       var tpls = adapter.templates().filter(function (t) { return !q || t.name.toLowerCase().indexOf(q) >= 0; });
-      if (!list.length && !tpls.length) { hidePop(); return; }
+      if (!list.length && !tpls.length && !(adapter.skillProblems && adapter.skillProblems().length)) { hidePop(); return; }
       pop.tok = tok;
       // Templates are told from skills by a prefix, since a template may
       // share a skill's name.
       var flat = tpls.map(function (t) { return 'tpl:' + t.name; });
-      GROUPS.forEach(function (g) { list.forEach(function (s) { if (s.source === g[0]) flat.push(s.name); }); });
+      GROUPS.forEach(function (g) { list.forEach(function (s) { if (s.source === g[0]) flat.push(s.id || s.name); }); });
       var keep = pop.items[pop.sel];
       pop.items = flat;
       pop.sel = Math.max(0, flat.indexOf(keep));
@@ -178,7 +178,12 @@
       }
       host.innerHTML = '';
       templateRows(host, adapter.templates().filter(function (t) { return pop.items.indexOf('tpl:' + t.name) >= 0; }), function (name) { insertTemplate(name, pop.tok); }, pop.items[pop.sel]);
-      skillRows(host, adapter.skills().filter(function (s) { return pop.items.indexOf(s.name) >= 0; }), function (name) { insertSkill(name, pop.tok); }, pop.items[pop.sel]);
+      skillRows(host, adapter.skills().filter(function (s) { return pop.items.indexOf(s.id || s.name) >= 0; }), function (name) { insertSkill(name, pop.tok); }, pop.items[pop.sel]);
+      if (adapter.skillProblems && adapter.skillProblems().length) {
+        var problem = document.createElement('p'); problem.className = 'form-help';
+        problem.textContent = 'Some skills could not be loaded. ' + adapter.skillProblems().join(' ') + ' Use Skills > Refresh Skills to retry.';
+        host.appendChild(problem);
+      }
       var hint = document.createElement('div');
       hint.className = 'slash-hint';
       hint.textContent = 'Enter or Tab inserts · Up and Down choose · Esc closes · type \\/ for a plain slash';
@@ -227,6 +232,7 @@
     }, true);
 
     return { refreshMentions, loadAppletMentions, showMentions, wordToken, hidePop,
+      refreshSkills: function () { var tok=slashToken(); if(tok && document.activeElement===$('prompt'))showPop(tok); },
       selected: () => mentions, setSelected: value => { mentions = value; },
       catalogFailed: () => appletCatalogState === 'failed'
     };

@@ -21,12 +21,14 @@
   function button(text, run, cls) { var el = element('button', cls || 'btn btn-sm', text); el.type = 'button'; el.addEventListener('click', run); return el; }
   function message(err) { return window.dinahHelpers.message(err, 'capital'); }
   window.dinahSkills = { refresh:refresh, subscribe:subscribe, open:open, records:function () { return catalog.skills; }, forChat:function (workspace,provider) {
+    if (app().ChatSkillCatalog) return app().ChatSkillCatalog(workspace,provider).then(function (value) { var list=value.skills || []; list.problems=value.problems || []; return list; });
     return refresh().then(function (value) { return value.skills.filter(function (skill) { return (skill.scope !== 'workspace' || skill.workspace === workspace) && (skill.scope !== 'provider' || window.dinahProviderFact(provider, 'ownCommands')); }); });
   }};
   /* The Skills pane groups skills by the collection they come from, and
      each group says where that collection is stored. A skill whose name is in more than one collection
      says in how many, so copies that have drifted apart can be found. */
   function collection(skill) {
+    if (skill.scope==='personal') return { key:'personal', title:'My Agent Skills', location:skill.location };
     if (skill.scope==='provider') return { key:'provider', title:ownCommandsTitle(), location:'Commands ' + ownCommandsName() + ' offers in a chat' };
     if (skill.scope==='mine') return { key:'mine', title:'My Skills', location:skill.location };
     return { key:'workspace:'+skill.workspaceId+':'+skill.location, title:skill.origin.split(' / ')[0], location:skill.location };
@@ -394,7 +396,7 @@
           }
         } else {
           if(editor){editor.destroy();editor=null;} draft=null; design=null; form.replaceChildren(); editorHost.replaceChildren();
-          editorHost.append(element('p','',pack.skill.description||'This provider command has no retrievable instruction package.'));
+          editorHost.append(element(pack.text?'pre':'p','',pack.text||pack.skill.description||'This provider command has no retrievable instruction package.'));
         }
         if(filesViewer)filesViewer.destroy(); filesViewer=null; filesLoading=false; panels.files.replaceChildren();
         if(!pack.skill.ref)panels.files.append(element('p','form-help','This command has no accessible supporting files.'));

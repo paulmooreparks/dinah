@@ -55,7 +55,7 @@ var pageMethods = func() map[string]pageMethodClass {
  ReadWorkspaceMount ReadWorkspaceMountExpected ReadWorkspaceResource RecentDocuments
  ReadLinkedImage RenderD2 ReportWindowFocus ResolveDocumentLink ResolveDocumentLinks
  ResolveSessionContinuation ResolveWorkspaceResourceMount SessionContinuation SessionOptions
- SessionTimes SkillCatalog SkillFields Skills SkillsAt SkillsForProviderAt StatWorkspaceMount
+ SessionTimes SkillCatalog ChatSkillCatalog SkillFields Skills SkillsAt SkillsForProviderAt StatWorkspaceMount
  SubagentUpdates StatWorkspaceMountExpected Templates TerminalProfiles TerminalResize
  TerminalShells UpdateState UploadConflicts UploadNameConflicts WatchFolders
  WorkspaceLocalPath WorkspaceSkills Log SaveUIState ExtensionCall
@@ -86,7 +86,7 @@ var pageMethods = func() map[string]pageMethodClass {
  OpenComputerDocument OpenComputerFile OpenDraft OpenPath OpenProviderUsage
  OpenSession OpenSessionAt OpenSessionWith OpenWaitingSession RetryWaitingSession ReloadWaitingChatState OpenSkillDraft OpenUsage OpenWorkspaceMount
  OpenWorkspaceResource PickAttachments PickDraftFiles PinWorkspaceItem 
- PrepareSkill Queue RecoverSession RecoverSessionModel
+ PrepareSkill PrepareChatSkill Queue RecoverSession RecoverSessionModel
  RecoverSteering RejectSuggestion RelocateWorkspaceSource RemoveChat RemoveExtension RemoveOldAttachments
  RemoveOptionSubstitution RemovePackages RemoveTerminalProfile RemoveWorkspace
  RemoveWorkspaceMount RenameDocumentFile RenameSession RenameSkill RenameWorkspace

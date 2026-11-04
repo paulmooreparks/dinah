@@ -64,9 +64,11 @@ type testProviderConnection struct {
 	// newIDs are the IDs session/new gives, in turn; the last is kept. newErr makes
 	// session/new fail, and onNew runs when it is called, to change things while a
 	// provider is starting.
-	newIDs []string
-	newErr error
-	onNew  func()
+	newIDs      []string
+	newErr      error
+	onNew       func()
+	skillResult any
+	skillError  error
 }
 
 func newTestProviderConnection() *testProviderConnection {
@@ -77,6 +79,11 @@ func newTestProviderConnection() *testProviderConnection {
 func (c *testProviderConnection) Call(_ context.Context, method string, params any, result any) error {
 	c.calls = append(c.calls, providerCall{method, params})
 	switch method {
+	case "skills/list":
+		if c.skillError != nil {
+			return c.skillError
+		}
+		return acp.Result(c.skillResult, result)
 	case "session/new":
 		if c.newErr != nil {
 			return c.newErr
