@@ -103,6 +103,9 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 			}
 		case "Test every package":
 			run = i
+			if step.ID != "full_go_tests" {
+				t.Fatal("the original Go outcome must remain independently addressable")
+			}
 		case "Record ordinary-handle Node startup":
 			preflight = i
 			if step.If != "" || step.Run != `go run ./tools/nodepreflight -out "$env:DINAH_TEST_DIAGNOSTICS_DIR/node-preflight.json"` {
@@ -110,7 +113,7 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 			}
 		case "Extract restricted native stacks":
 			extraction = i
-			if step.If != "always()" || step.Run != `go run ./tools/diagnosticartifacts -mode extract -scratch "$env:DINAH_TEST_NATIVE_SCRATCH_DIR" -diagnostics "$env:DINAH_TEST_DIAGNOSTICS_DIR"` {
+			if step.ID != "native_extraction" || step.If != "always()" || step.Run != `go run ./tools/diagnosticartifacts -mode extract -scratch "$env:DINAH_TEST_NATIVE_SCRATCH_DIR" -diagnostics "$env:DINAH_TEST_DIAGNOSTICS_DIR"` {
 				t.Fatal("private dumps must be processed and cleaned after failed tests too")
 			}
 		case "Stage diagnostic upload":
@@ -120,7 +123,7 @@ func TestFullGoDiagnosticsRetainOutputAndExitStatus(t *testing.T) {
 			}
 		case "Retain full Go diagnostics":
 			upload = i
-			if step.If != "always() && steps.diagnostics_boundary.outcome == 'success'" || !strings.HasPrefix(step.Uses, "actions/upload-artifact@") || step.With["name"] != "full-go-diagnostics" || step.With["path"] != "${{ steps.diagnostics_boundary.outputs.upload_path }}/\n!${{ steps.diagnostics_boundary.outputs.upload_path }}/**/*.dmp\n" || step.With["if-no-files-found"] != "error" {
+			if step.If != "always() && steps.native_extraction.outcome == 'success' && steps.diagnostics_boundary.outcome == 'success'" || !strings.HasPrefix(step.Uses, "actions/upload-artifact@") || step.With["name"] != "full-go-diagnostics" || step.With["path"] != "${{ steps.diagnostics_boundary.outputs.upload_path }}/\n!${{ steps.diagnostics_boundary.outputs.upload_path }}/**/*.dmp\n" || step.With["if-no-files-found"] != "error" {
 				t.Fatal("available full Go diagnostics must upload even after test failure")
 			}
 		}

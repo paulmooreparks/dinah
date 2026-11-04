@@ -176,12 +176,14 @@ jobs:
       - name: Record ordinary-handle Node startup
         run: go run ./tools/nodepreflight -out "$env:DINAH_TEST_DIAGNOSTICS_DIR/node-preflight.json"
       - name: Test every package
+        id: full_go_tests
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
           & pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
           $testExitCode = $LASTEXITCODE
           exit $testExitCode
       - name: Extract restricted native stacks
+        id: native_extraction
         if: always()
         run: go run ./tools/diagnosticartifacts -mode extract -scratch "$env:DINAH_TEST_NATIVE_SCRATCH_DIR" -diagnostics "$env:DINAH_TEST_DIAGNOSTICS_DIR"
       - name: Stage diagnostic upload
@@ -189,7 +191,7 @@ jobs:
         if: always()
         run: go run ./tools/diagnosticartifacts -mode stage -diagnostics "$env:DINAH_TEST_DIAGNOSTICS_DIR" -upload-parent "$env:RUNNER_TEMP" -github-output "$env:GITHUB_OUTPUT"
       - name: Retain full Go diagnostics
-        if: always() && steps.diagnostics_boundary.outcome == 'success'
+        if: always() && steps.native_extraction.outcome == 'success' && steps.diagnostics_boundary.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: full-go-diagnostics
@@ -197,6 +199,12 @@ jobs:
             ${{ steps.diagnostics_boundary.outputs.upload_path }}/
             !${{ steps.diagnostics_boundary.outputs.upload_path }}/**/*.dmp
           if-no-files-found: error
+      - name: Report test and diagnostic outcomes
+        if: always()
+        run: |
+          "Full Go test outcome: ${{ steps.full_go_tests.outcome }}" >> $env:GITHUB_STEP_SUMMARY
+          "Native extraction and cleanup outcome: ${{ steps.native_extraction.outcome }}" >> $env:GITHUB_STEP_SUMMARY
+          "Diagnostic staging outcome: ${{ steps.diagnostics_boundary.outcome }}" >> $env:GITHUB_STEP_SUMMARY
 
   browser:
     name: Run the full browser suite

@@ -12,7 +12,9 @@ The full-suite step invokes the existing FIFO Go gate with `./... -count=1 -json
 
 Desktop crash capture uses the same directory, with a separate file for each process. Its setup must run before standard handles are released. The crash regression child uses its own directory. An external process termination may produce no runtime crash output, so the per-test JSON stream is separate evidence.
 
-Post-test extraction and staging run under `always()`. Upload requires successful staging and uses only the resulting isolated snapshot. A missing artifact is an error. Uploading diagnostics does not turn a failed test step into a successful job, and publication still depends on that job.
+Post-test extraction and staging run under `always()`. Upload requires successful extraction/cleanup and staging and uses only the resulting isolated snapshot. A missing artifact is an error. Uploading diagnostics does not turn a failed test step into a successful job, and publication still depends on that job.
+
+Cleanup failure, unsafe content or staging failure intentionally fails the diagnostic job and prevents upload, even if the Go tests passed. Missing CDB or symbols is a capture limitation rather than a diagnostic failure; safe WCT evidence is retained. The job summary reports the original Go test outcome separately from extraction/cleanup and staging outcomes. The test step still returns its original exit status. Staging remains fail-closed for every unapproved input; a skipped-file manifest is deferred.
 
 ## Ordinary-handle Node preflight
 
