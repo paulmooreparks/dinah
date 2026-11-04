@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -217,12 +216,11 @@ func TestProviderStateEventsAreNumberedWithTheStoredState(t *testing.T) {
 }
 
 // The events that carry whole state are emitted only through the functions
-// that number them. This fails when any other Go source names one of them or
-// emits one by its constant.
+// that number them. This fails when other Go source names one of them outside
+// a parsed switch case label, or emits one by its constant.
 func TestStateEventsHaveOneEmitPath(t *testing.T) {
 	root := filepath.Join("..", "..")
-	names := regexp.MustCompile(`"(agent:(session|queue|options|state|account)|settings:changed|update:state|judgements:changed)"`)
-	constants := regexp.MustCompile(`(?i)emit\(\s*(sessionhost\.)?Event(Session|Queue|Options|State)\b`)
+	names, constants := statePathNames, statePathConstants
 	allowed := map[string]bool{
 		filepath.Join("internal", "sessionhost", "state_events.go"):      true,
 		filepath.Join("cmd", "dinah-desktop", "provider_account.go"):     true,
@@ -251,7 +249,7 @@ func TestStateEventsHaveOneEmitPath(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			for i, line := range strings.Split(string(data), "\n") {
+			for i, line := range strings.Split(string(eventSourceWithoutCaseLabels(t, data)), "\n") {
 				if names.MatchString(line) || constants.MatchString(line) {
 					found = append(found, fmt.Sprintf("%s:%d: %s", rel, i+1, strings.TrimSpace(line)))
 				}

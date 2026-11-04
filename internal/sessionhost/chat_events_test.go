@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -364,12 +363,11 @@ func TestReopeningAChatChangesItsGeneration(t *testing.T) {
 
 // agent:update, agent:updates, agent:turn, agent:steer, agent:sent and agent:arriving are
 // emitted only through EmitChat and EmitChatReplay, so every one is numbered
-// in its chat's log. This fails when any other Go source names one of those
-// events or emits one by its constant.
+// in its chat's log. This fails when other Go source names one of those
+// events outside a parsed switch case label, or emits one by its constant.
 func TestChatEventsHaveOneEmitPath(t *testing.T) {
 	root := filepath.Join("..", "..")
-	names := regexp.MustCompile(`"agent:(update|updates|turn|steer|sent|arriving)"`)
-	constants := regexp.MustCompile(`(?i)emit\(\s*(sessionhost\.)?Event(Update|Updates|Turn|Steer|Sent)\b`)
+	names, constants := chatPathNames, chatPathConstants
 	own := filepath.Join("internal", "sessionhost", "chat_events.go")
 	var found []string
 	for _, dir := range []string{"cmd", "internal"} {
@@ -391,7 +389,7 @@ func TestChatEventsHaveOneEmitPath(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			for i, line := range strings.Split(string(data), "\n") {
+			for i, line := range strings.Split(string(eventSourceWithoutCaseLabels(t, data)), "\n") {
 				if names.MatchString(line) || constants.MatchString(line) {
 					found = append(found, fmt.Sprintf("%s:%d: %s", rel, i+1, strings.TrimSpace(line)))
 				}
