@@ -22,7 +22,9 @@
         "FuzzSliceLines",
         "TestProviderReadPolicyAndBounds",
         "TestWindowsSnapshotUses128BitFileID",
-        "TestWindowsUnsupportedFileIDPreservesOrdinaryMetadata"
+        "TestWindowsUnsupportedFileIDPreservesOrdinaryMetadata",
+        "TestWindowsCatalogTagDecision",
+        "TestWindowsCatalogRejectsLinks"
       ],
       "onlyOn": {
         "TestProtectedIdentityCaseVariant": [
@@ -46,6 +48,12 @@
           "windows"
         ],
         "TestWindowsUnsupportedFileIDPreservesOrdinaryMetadata": [
+          "windows"
+        ],
+        "TestWindowsCatalogTagDecision": [
+          "windows"
+        ],
+        "TestWindowsCatalogRejectsLinks": [
           "windows"
         ]
       }

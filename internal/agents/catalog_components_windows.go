@@ -4,9 +4,23 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
+
+// fileAttributeTagInfo follows FILE_ATTRIBUTE_TAG_INFO's two DWORD fields.
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_attribute_tag_info
+type fileAttributeTagInfo struct {
+	FileAttributes uint32
+	ReparseTag     uint32
+}
+
+// The documented N bit implements IsReparseTagNameSurrogate.
+// https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags
+func catalogNameSurrogate(attributes, tag uint32) bool {
+	return attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 && tag&0x20000000 != 0
+}
 
 // Inspect the object itself rather than inferring redirection from its name.
 // CreateFile documents OPEN_REPARSE_POINT as opening the reparse point itself.
@@ -24,14 +38,14 @@ func checkCatalogComponents(path string) error {
 		if err != nil {
 			return err
 		}
-		var info windows.ByHandleFileInformation
-		err = windows.GetFileInformationByHandle(h, &info)
+		var info fileAttributeTagInfo
+		err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)))
 		windows.CloseHandle(h)
 		if err != nil {
 			return err
 		}
-		if info.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-			return errors.New("catalogue entries must not redirect through reparse points")
+		if catalogNameSurrogate(info.FileAttributes, info.ReparseTag) {
+			return errors.New("catalogue entries must not redirect through links")
 		}
 	}
 	return nil
