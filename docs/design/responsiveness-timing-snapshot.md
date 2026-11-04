@@ -8,7 +8,7 @@ Record Responsiveness remains the single control. While it is enabled, browser a
 
 Copy runs only on the person's button action. It reads the backend once, builds the closed schema below, validates the result, and copies a fixed explanatory header followed by JSON to the clipboard. It sends nothing and writes no file. There is no polling, automatic export, log dump or persistence of recorded timings. The existing preference may persist that recording is enabled; the timings themselves do not survive a process or page session.
 
-The header is: "Dinah timing snapshot. Contains timings, counts and clock anchors only, including when retained input events, including key presses, happened and how long they waited. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall."
+The header is: "Dinah timing snapshot. Contains timings, counts and clock anchors only. It records when retained input events, such as key presses, happened and how long they waited. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall."
 
 ## Shell methods and ordering
 
@@ -37,6 +37,7 @@ The page's own generation is also monotonic for its lifetime. It associates the 
 | BackendCategoryCount | 6 |
 | BackendOwnedStorageLimit | 524288 bytes |
 | CombinedExportLimit | 4194304 UTF-8 bytes, including header |
+| CopyDeadlineMs | 10000, covering preparation and initiation of clipboard writing |
 
 Both aggregate rings hold ten minutes of one-second slots. Each category retains count, total duration, maximum duration and the maximum's completion offset within its slot. An event is assigned to its completion slot. Its start can precede that slot; the maximum duration and completion offset preserve that fact. Long work must not be averaged away. Count and total use saturating arithmetic with an explicit saturation flag; they never wrap silently.
 
@@ -103,3 +104,5 @@ Quality reviews the contract, schema, privacy, bounds and overhead, then reviews
 V1 uses passive Event Timing, Long Tasks and Long Animation Frames observations. It adds no requestAnimationFrame sampler or frame-interval metric. Event Timing duration is the browser-reported duration rounded to eight milliseconds, and the lowest observer durationThreshold is sixteen milliseconds. Faster events are missing by design; no count of those unreported events can be inferred, and they are never filled in as zero. InputRecord.eventDurationMs preserves that reported total separately from input delay and processing time. FrameRecord.forcedStyleLayoutMs is the sum of the scripts' forcedStyleAndLayoutDuration fields when all required fields are exposed; otherwise it is unavailable. It is not total browser style cost. Script objects and their identifying fields are never exported.
 
 The browser limits follow the [Event Timing working draft](https://www.w3.org/TR/event-timing/) and the feature-detected [Long Animation Frames API](https://www.w3.org/TR/long-animation-frames/). The latter remains a working draft; unavailable or changed fields must produce explicit unavailable values.
+
+CopyDeadlineMs starts at the person's button press and bounds waiting for control acknowledgment, reading and validating the backend, and initiating the clipboard write. A deadline observed before initiation expires that Copy; late control or read completions cannot initiate a write or change its result. The underlying control queue remains serialized until the request settles. Immediately after serialization and before submission, Copy checks both its monotonic deadline and recording generation again. Once clipboard writing has been submitted, the documented asynchronous clipboard API offers no cancellation guarantee. The UI says "Timing copy submitted; waiting for clipboard" and does not claim a definite failure or cancellation while writing can still complete. It prevents competing writes until that operation settles. Recording changes cannot revoke an already submitted write. A blocked browser thread can delay timer delivery, so the deadline is a logical cutoff rather than a promise of a screen update at exactly ten seconds. The [Clipboard API contract](https://www.w3.org/TR/clipboard-apis/#dom-clipboard-writetext) supplies no abort signal for writeText. Guards cover late reads, a new Copy after preparation timeout and clipboard completion racing the deadline.
