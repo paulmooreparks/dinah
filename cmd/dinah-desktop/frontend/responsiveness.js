@@ -7,7 +7,7 @@
   var toggle = document.getElementById('set-responsiveness');
   var copyButton = document.getElementById('copy-responsiveness');
   var status = document.getElementById('responsiveness-copy-status');
-  var key = 'dinah-responsiveness', backend = null, control = null, sentGeneration = -1, copying = false, copyPhase = '', preparation = null;
+  var key = 'dinah-responsiveness', backend = null, control = null, sentGeneration = -1, copying = false, copyPhase = '', preparation = null, resetRequired = false;
   var COPY_DEADLINE_MS = 10000;
   function showStatus(text) { status.textContent = text; status.hidden = !text; }
   function app() { return window.dinahHelpers.app(); }
@@ -54,25 +54,28 @@
     });
     timer = setInterval(refresh, 1000); refresh();
   }
-  // Requests are serialized, including changes made while a bridge call is pending.
+  // Requests are serialized. One reset obligation preserves any intervening off
+  // transition even when the final intent is on; idempotent enable cannot clear it.
   function syncBackend() {
     if (control) return control;
     control = (async function () {
-      while (sentGeneration !== generation) {
-        var mine = generation, wanted = enabled; sentGeneration = mine; backend = null;
+      while (sentGeneration !== generation || resetRequired) {
+        var mine = generation, wanted = resetRequired ? false : enabled; sentGeneration = mine; backend = null;
         try {
           var service = app();
           if (!service || typeof service.SetResponsivenessRecording !== 'function') break;
           var state = api.validate('RecordingState', await service.SetResponsivenessRecording(wanted));
-          if (mine === generation && state.enabled === wanted) backend = { browserGeneration: mine, generation: state.generation };
-        } catch (_) { backend = null; }
+          if (state.enabled !== wanted) throw new Error();
+          if (!wanted) { resetRequired = false; if (enabled) sentGeneration = -1; }
+          if (mine === generation && wanted === enabled && !resetRequired) backend = { browserGeneration: mine, generation: state.generation };
+        } catch (_) { backend = null; break; }
       }
     })().finally(function () { control = null; if (sentGeneration !== generation) syncBackend(); });
     return control;
   }
   function set(value) {
     var changed = enabled !== (value === true);
-    if (changed) { enabled = value === true; generation++; }
+    if (changed) { enabled = value === true; generation++; if (!enabled) resetRequired = true; }
     toggle.setAttribute('aria-checked', String(enabled)); panel.hidden = !enabled;
     if (changed || generation === 0) {
       if (enabled) { recorder.begin(generation); if (document.hidden) recorder.visibility(true); }

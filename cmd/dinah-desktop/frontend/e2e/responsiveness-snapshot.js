@@ -8,19 +8,19 @@ execFileSync(process.execPath, [path.join(__dirname, 'unit/timing-snapshot.test.
     app: () => {
       let enabled = false, generation = 0;
       const anchor = () => ({ utc: new Date().toISOString(), monoMs: performance.now() });
-      window.__timingControls = []; window.__timingGets = 0;
+      window.__timingControls = []; window.__timingGets = 0; window.__timingRetained = [];
       return {
         SetResponsivenessRecording: async wanted => {
           __timingControls.push(wanted);
+          if (enabled !== wanted) { enabled = wanted; generation++; if (!wanted) __timingRetained = []; }
           if (window.__holdControl) await new Promise(resolve => { window.__releaseControl = resolve; });
-          if (enabled !== wanted) { enabled = wanted; generation++; }
           return { enabled, generation, anchor: anchor(), state: enabled ? 'on' : 'off' };
         },
         GetResponsivenessTimingSnapshot: async () => {
           __timingGets++;
           if (window.__holdGet) await new Promise(resolve => { window.__releaseGet = resolve; });
           const value = { schemaVersion: 1, recording: { enabled, generation, anchor: anchor(), state: enabled ? 'on' : 'off' }, capturedAt: anchor(),
-            coverage: { retainedSlots: 0, overwrittenSlots: 0, missedPeriods: 0, disabledObservations: { state: 'unavailable', value: null } }, slots: [] };
+            coverage: { retainedSlots: 0, overwrittenSlots: 0, missedPeriods: __timingRetained.length, disabledObservations: { state: 'unavailable', value: null } }, slots: [] };
           if (window.__badField) value.privateText = window.__canary;
           return value;
         },
@@ -89,6 +89,22 @@ execFileSync(process.execPath, [path.join(__dirname, 'unit/timing-snapshot.test.
     await p.waitForFunction(n => __runtime.filter(c => c[0] === 'ClipboardSetText').length === n + 1, count);
     text = await p.evaluate(() => __runtime.filter(c => c[0] === 'ClipboardSetText').at(-1)[1]);
     ok('recording remains copyable after clear', !text.includes('PRIVATE-TIMING-CANARY'));
+    // An off/on intent during a delayed enable acknowledgment must clear backend history.
+    await toggle.click();
+    await p.waitForFunction(() => __timingControls.at(-1) === false);
+    await p.evaluate(() => { window.__holdControl = true; });
+    await toggle.click();
+    await p.waitForFunction(() => !!window.__releaseControl);
+    const delayedStart = await p.evaluate(() => { __timingRetained.push(123); return __timingControls.length; });
+    for (let i = 0; i < 10; i++) await toggle.click();
+    ok('rapid toggles keep only bounded intent while acknowledgment is pending', await p.evaluate(n => __timingControls.length === n, delayedStart));
+    await p.evaluate(() => { window.__holdControl = false; __releaseControl(); window.__releaseControl = null; });
+    await p.waitForFunction(() => __timingControls.slice(-3).join(',') === 'true,false,true');
+    const resetCopies = await copies();
+    await copy.click();
+    await p.waitForFunction(n => __runtime.filter(c => c[0] === 'ClipboardSetText').length === n + 1, resetCopies);
+    const resetExport = await p.evaluate(() => JSON.parse(__runtime.filter(c => c[0] === 'ClipboardSetText').at(-1)[1].split('\n').slice(1).join('\n')));
+    ok('an intervening disable clears the old backend sample before the new copy', resetExport.backend.coverage.missedPeriods === 0 && resetExport.backend.recording.generation >= 3);
     // A stalled control cannot accumulate new reads or change the result after timeout.
     await toggle.click();
     await p.waitForFunction(() => __timingControls.at(-1) === false);

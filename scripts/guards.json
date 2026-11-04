@@ -293,6 +293,7 @@
     }
   ],
   "browser": [
+    "responsiveness-snapshot",
     "contained-content",
     "html-safety",
     "terminal-escapes",

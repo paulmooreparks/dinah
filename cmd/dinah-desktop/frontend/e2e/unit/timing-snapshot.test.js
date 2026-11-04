@@ -74,6 +74,29 @@ result = timing.validate('BrowserSnapshot', store.snapshot());
 assert.equal(result.slots.at(-1).longFrame.count.state, 'not_supported');
 assert.equal(result.slots.at(-1).inputDelay.maxMs.state, 'unavailable');
 
+// Delayed entries at a modulo boundary cannot evict the newest bucket or reset its rate budget.
+now = 0; store.begin(5); store.feature('eventTiming', 'measured');
+now = 600100;
+for (let i = 0; i < 100; i++) store.record('chat output', i, 0);
+store.input({ startTime: 200, duration: 24, processingStart: 210, processingEnd: 211 });
+store.task({ startTime: 100, duration: 60 });
+store.frame({ startTime: 200, duration: 60, scripts: [] });
+store.record('chat output', 777, 0);
+result = timing.validate('BrowserSnapshot', store.snapshot());
+assert.equal(result.slots.length, 1);
+assert.equal(result.slots[0].time.startMonoMs, 600000);
+assert.equal(result.slots[0].renderWork.count.value, 101);
+assert.equal(result.slots[0].renderWork.maxMs.value, 777);
+assert.equal(result.raw.work.length, 100);
+assert.equal(result.coverage.workRateOmissions, 1);
+assert.equal(result.raw.input.length, 0);
+assert.equal(result.raw.frames.length, 0);
+// Out-of-order reports inside the retained window still update their own slot.
+store.input({ startTime: 1100, duration: 24, processingStart: 1110, processingEnd: 1111 });
+result = timing.validate('BrowserSnapshot', store.snapshot());
+assert.equal(result.slots.length, 2);
+assert.equal(result.slots[0].inputDelay.maxMs.value, 10);
+assert.equal(result.slots[1].renderWork.maxMs.value, 777);
 const anchor = { utc: utc(), monoMs: 0 };
 const backend = { schemaVersion: 1, recording: { enabled: true, generation: 42, anchor, state: 'on' }, capturedAt: anchor,
   coverage: { retainedSlots: 0, overwrittenSlots: 0, missedPeriods: 0, disabledObservations: { state: 'unavailable', value: null } }, slots: [] };

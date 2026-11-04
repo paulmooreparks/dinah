@@ -44,6 +44,7 @@
     function slot(completed) {
       const bucket = Math.floor(completed / PERIOD), index = bucket % CAPACITY;
       let value = slots[index];
+      if (value && value.bucket > bucket) return null;
       if (!value || value.bucket !== bucket) {
         if (value) increment('overwrittenSlots');
         value = { bucket, partial: bucket * PERIOD < anchor.monoMs, writes: { input: 0, work: 0, frames: 0 } };
@@ -60,7 +61,7 @@
       raw[source][index] = value;
       positions[source] = (index + 1) % RAW_CAPACITY;
     }
-    function eligible(start, duration) { return enabled && hiddenAt === null && finite(start) && finite(duration) && start >= anchor.monoMs && finite(start + duration) && start + duration >= now() - RETENTION; }
+    function eligible(start, duration) { return enabled && hiddenAt === null && finite(start) && finite(duration) && start >= anchor.monoMs && finite(start + duration) && Math.floor((start + duration) / PERIOD) >= Math.floor(now() / PERIOD) - CAPACITY + 1; }
     function record(label, duration, wait) {
       if (!enabled || hiddenAt !== null) return;
       if (!finite(duration) || !finite(wait)) return;
@@ -75,6 +76,7 @@
       const delay = entry.processingStart - start, processing = entry.processingEnd - entry.processingStart;
       if (!finite(delay) || !finite(processing)) return;
       const completed = start + duration, value = slot(completed);
+      if (!value) return;
       addStats(value.inputDelay, delay, completed % PERIOD);
       retain('input', { time: span(anchor, start, duration), category: 'input_delay', delayMs: measured(delay), processingMs: measured(processing), eventDurationMs: measured(duration) }, completed, value);
     }
@@ -82,6 +84,7 @@
       if (!enabled || hiddenAt !== null) return;
       if (!eligible(entry.startTime, entry.duration)) return;
       const completed = entry.startTime + entry.duration, value = slot(completed);
+      if (!value) return;
       addStats(value.longTask, entry.duration, completed % PERIOD);
       retain('work', { time: span(anchor, entry.startTime, entry.duration), category: 'long_task', durationMs: measured(entry.duration), waitMs: missing() }, completed, value);
     }
@@ -89,6 +92,7 @@
       if (!enabled || hiddenAt !== null) return;
       if (!eligible(entry.startTime, entry.duration)) return;
       const completed = entry.startTime + entry.duration, value = slot(completed);
+      if (!value) return;
       addStats(value.longFrame, entry.duration, completed % PERIOD);
       let forced = 0, exposed = Array.isArray(entry.scripts);
       if (exposed) for (const script of entry.scripts) {
@@ -104,7 +108,7 @@
       else if (!hidden && hiddenAt !== null) { increment('suspendedPeriods', Math.ceil((at - hiddenAt) / PERIOD)); hiddenAt = null; slot(at).partial = true; }
     }
     function snapshot() {
-      const at = now(), cutoff = at - RETENTION;
+      const at = now(), cutoff = (Math.floor(at / PERIOD) - CAPACITY + 1) * PERIOD;
       const retained = enabled ? slots.filter(value => value && (value.bucket + 1) * PERIOD > cutoff).sort((a, b) => a.bucket - b.bucket) : [];
       const projected = retained.map(value => {
         const start = value.bucket * PERIOD, out = { time: span(anchor, start, Math.max(0, Math.min(PERIOD, at - start)), !value.partial && start + PERIOD <= at && (hiddenAt === null || start + PERIOD <= hiddenAt)) };
