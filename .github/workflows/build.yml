@@ -165,8 +165,24 @@ jobs:
         with:
           go-version-file: dinah/go.mod
           cache-dependency-path: dinah/go.sum
+      - name: Prepare full Go diagnostics
+        run: |
+          $diagnostics = Join-Path $env:RUNNER_TEMP 'full-go-diagnostics'
+          [IO.Directory]::CreateDirectory($diagnostics) | Out-Null
+          "DINAH_TEST_DIAGNOSTICS_DIR=$diagnostics" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append -ErrorAction Stop
       - name: Test every package
-        run: ./scripts/go-gate.ps1 ./... -count=1
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          & pwsh -NoProfile -File ./scripts/go-gate.ps1 ./... -count=1 -json 2>&1 | Tee-Object -FilePath (Join-Path $env:DINAH_TEST_DIAGNOSTICS_DIR 'full-go-output.log')
+          $testExitCode = $LASTEXITCODE
+          exit $testExitCode
+      - name: Retain full Go diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: full-go-diagnostics
+          path: ${{ env.DINAH_TEST_DIAGNOSTICS_DIR }}/
+          if-no-files-found: error
 
   browser:
     name: Run the full browser suite
