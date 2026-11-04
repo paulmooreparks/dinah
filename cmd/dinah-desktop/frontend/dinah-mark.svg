@@ -1,27 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" role="img" aria-label="Dinah">
-  <!-- A cast-iron skillet seen from above, turned so its handle runs into
-       the lower right corner: a heavy rim with two pour spouts, the deep
-       sidewall inside it, the cooking surface, a short tapering handle
-       with its hanging hole, and the helper handle opposite. It is drawn
-       level and turned 45 degrees clockwise about the pan's centre. The
-       silhouette is drawn twice, first with a wide light stroke and then
-       filled over it, so a light outline traces only its outside and the
-       mark stands out on a dark background. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dinah">
   <defs>
-    <g id="silhouette">
-      <path d="M19 -5 L39.5 -3.2 Q44 -2.7 44 0 Q44 2.7 39.5 3.2 L19 5 Z"/>
-      <path d="M-22 -5.5 Q-27.5 -4.5 -27.5 0 Q-27.5 4.5 -22 5.5 Z"/>
-      <circle r="23.5"/>
-      <path d="M-6 -22.5 Q0 -28.5 6 -22.5 Z"/>
-      <path d="M-6 22.5 Q0 28.5 6 22.5 Z"/>
-    </g>
+    <linearGradient id="enamel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#55e1d5"/><stop offset=".55" stop-color="#17bfb4"/><stop offset="1" stop-color="#07928d"/></linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#b8c9cb"/></linearGradient>
   </defs>
-  <g transform="translate(27 27) rotate(45)">
-    <use xlink:href="#silhouette" href="#silhouette" fill="#d4d5da" stroke="#d4d5da" stroke-width="2.6" stroke-linejoin="round"/>
-    <use xlink:href="#silhouette" href="#silhouette" fill="#2b2b2e"/>
-    <circle r="20" fill="#3c3d42"/>
-    <circle r="16.5" fill="#4a4b51"/>
-    <circle cx="40" r="1.5" fill="#ffffff"/>
-  </g>
-  <circle cx="21.5" cy="21.5" r="4.6" fill="#64656c" opacity="0.55"/>
+  <!-- The open lower corner and separate striker identify the dinner triangle. -->
+  <path d="M47 51H10Q6 51 9 46L29 11Q32 6 35 11L56 48" fill="none" stroke="#064e52" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M47 50.5H10Q6.5 50.5 9.5 46L29.5 11Q32 7 34.5 11L55.5 48" fill="none" stroke="url(#enamel)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="32" cy="7" rx="2.8" ry="4.8" fill="none" stroke="#a9691d" stroke-width="3.6"/>
+  <ellipse cx="32" cy="6.7" rx="2.6" ry="4.6" fill="none" stroke="#f3c35e" stroke-width="2.2"/>
+  <path d="M24 58L54 33" fill="none" stroke="#25474b" stroke-width="7" stroke-linecap="round"/>
+  <path d="M24 57.5L54 32.5" fill="none" stroke="url(#steel)" stroke-width="4.2" stroke-linecap="round"/>
+  <path d="M23 58L32 50.5" fill="none" stroke="#9c4033" stroke-width="8" stroke-linecap="round"/>
+  <path d="M23 57.5L32 50" fill="none" stroke="#f17b63" stroke-width="5.6" stroke-linecap="round"/>
 </svg>

@@ -22,8 +22,8 @@ var (
 	procExtractIconsExW  = iconShell32.NewProc("ExtractIconExW")
 )
 
-// setWindowIcon gives the main window the program's own icon, the frying
-// pan, for its title bar and the taskbar. Wails loads its window icon from
+// setWindowIcon gives the main window the dinner-triangle application icon
+// for its title bar and the taskbar. Wails loads its window icon from
 // a resource ID that Dinah's resource file does not use, so the window had
 // none and Windows showed its generic one (23 October 2026).
 //

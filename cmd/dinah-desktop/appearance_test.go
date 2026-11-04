@@ -19,7 +19,7 @@ func TestAppearanceBuiltinsAndDurableSelection(t *testing.T) {
 		}
 	}
 	snapshot, err := a.ReadAppearance()
-	if err != nil || snapshot.State.Active != "mineral" {
+	if err != nil || snapshot.State.Active != product.DefaultTheme {
 		t.Fatalf("initial state: %+v %v", snapshot, err)
 	}
 	snapshot.State.Active = "linen"
@@ -86,7 +86,7 @@ func TestAppearanceDraftAndApplyValidation(t *testing.T) {
 		t.Fatal("unreadable theme was activated")
 	}
 	current, _ := a.ReadAppearance()
-	if current.State.Active != "mineral" {
+	if current.State.Active != product.DefaultTheme {
 		t.Fatal("failed apply changed active selection")
 	}
 }

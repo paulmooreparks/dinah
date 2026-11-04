@@ -56,7 +56,7 @@ const fs = require('fs');
       ok(theme + ' document and composer use tinted theme surfaces', result.docColor === result.surface && result.prompt !== 'rgb(255, 255, 255)' && !result.backgrounds.includes('rgb(255, 255, 255)'));
       ok(theme + ' menus inherit the shared accent', result.menuAccent === result.accent);
       ok(theme + ' palette preserves the composer draft', await prompt.inputValue() === 'Keep this draft while changing the theme.');
-      ok(theme + ' workspace matches the approved Mineral palette', result.body === (theme === 'light' ? 'rgb(230, 236, 238)' : 'rgb(12, 20, 27)'));
+      ok(theme + ' workspace matches the approved Clear Chime palette', result.body === (theme === 'light' ? 'rgb(220, 231, 227)' : 'rgb(27, 34, 37)'));
       await t.shot('appearance-' + theme);
     }
     ok('desktop and bus page share the same default palette', fs.readFileSync(path.join(__dirname, '../brand.css'), 'utf8') === fs.readFileSync(path.join(__dirname, '../../../../internal/web/static/brand.css'), 'utf8'));

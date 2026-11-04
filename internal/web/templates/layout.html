@@ -22,7 +22,7 @@
 </head>
 <body data-counter="{{.Counter}}">
 <header class="topbar">
-  <a class="brand" href="/">{{.Product}}</a>
+  <a class="brand hstack align-center gap-2" href="/"><img src="/static/dinah-mark.svg" alt="" width="24" height="24">{{.Product}}</a>
   <nav class="topbar-tabs" aria-label="Sections">
     <a href="/inbox"{{if eq .Section "inbox"}} aria-current="page"{{end}}>Inbox{{if .Unread}} <span class="badge accent">{{.Unread}} New</span>{{end}}</a>
     <a href="/rooms"{{if eq .Section "rooms"}} aria-current="page"{{end}}>Group Chats</a>
@@ -48,7 +48,8 @@
 {{/* The stylesheets and scripts every page and the desktop load. Windows
      load none of their own, because scripts in fetched markup do not run;
      applets and dinah.js bring windows to life. */}}
-{{define "assets"}}<script src="/static/skin-assets.js"></script>
+{{define "assets"}}<link rel="icon" href="/static/dinah-mark.svg" type="image/svg+xml">
+<script src="/static/skin-assets.js"></script>
 <link rel="stylesheet" href="/static/pudl/pudl.css">
 <link rel="stylesheet" href="/static/pudl/pudl-windows.css">
 {{range skinLinks}}<link rel="stylesheet" href="/static/pudl/{{.File}}" data-pudl-skin="{{.ID}}">
@@ -75,7 +76,7 @@
 </head>
 <body class="dinah-desktop" data-counter="{{.Counter}}" data-desktop>
 <header class="topbar dinah-desktop-bar">
-  <span class="brand">{{.Product}}</span>
+  <span class="brand hstack align-center gap-2"><img src="/static/dinah-mark.svg" alt="" width="24" height="24">{{.Product}}</span>
   <div class="md-site-tools hstack gap-2">
     <button class="btn menu-btn" type="button" popovertarget="launcher" aria-label="Open an app">Apps</button>
     <nav class="menu-panel" id="launcher" popover aria-label="Apps">

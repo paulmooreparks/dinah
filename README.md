@@ -1,5 +1,7 @@
 # Dinah
 
+<img src="cmd/dinah-desktop/frontend/dinah-mark.svg" align="right" width="30%" alt="The Dinah Logo">
+
 Dinah is a multi-workspace, AI-native content dinah: one window where Paul's projects, their agents and his ideas live together, and where agents in different workspaces talk to each other instead of through him. The design is in [DESIGN.md](DESIGN.md).
 
 ## What Is Here

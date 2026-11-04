@@ -37,7 +37,7 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
     await page.waitForFunction(() => window.dinahAppearance && window.dinahWorkbench);
     await page.evaluate(() => dinahAppearance.ready);
     ok('View exposes built-in themes and direct editor access', await page.locator('#host-themes').evaluate(el => el.textContent.includes('Mineral (built in)') && el.textContent.includes('Linen (built in)') && el.textContent.includes('Edit Current Theme')));
-    ok('Mineral is the persisted-library default', await page.evaluate(() => dinahAppearance.snapshot().state.active === 'mineral'));
+    ok('an existing Mineral selection is preserved', await page.evaluate(() => dinahAppearance.snapshot().state.active === 'mineral'));
     // Solarized, Nord, Gruvbox and Graphite are built in too (27 October
     // 2026), and One Dark Pro, Dracula, Catppuccin, Tokyo Night and GitHub
     // (28 October 2026), each passing the page's own contrast check in both
@@ -55,7 +55,7 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
     // The Bevel, Gel and Glaze companion themes (7616cf1, 1 November 2026)
     // keep their reference syntax colours, so their dark added-line tints
     // are what the rule allows: Bevel 7, Gel 9 and Glaze 9.5 percent.
-    const lower = { 'nord dark': { add: 10, del: 9 }, 'tokyo-night dark': { add: 9, del: 10 }, 'dracula dark': { add: 8, del: 10 },
+    const lower = { 'clear-chime dark': { add: 9, del: 10 }, 'nord dark': { add: 10, del: 9 }, 'tokyo-night dark': { add: 9, del: 10 }, 'dracula dark': { add: 8, del: 10 },
       'bevel dark': { add: 7, del: 10 }, 'gel dark': { add: 9, del: 10 }, 'glaze dark': { add: 9.5, del: 10 } };
     const tintsExpected = Object.entries(tints).every(([key, t]) => t.add === (lower[key]?.add ?? 10) && t.del === (lower[key]?.del ?? 10));
     ok('every built-in palette has the diff tints expected of it', tintsExpected);
@@ -65,9 +65,9 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
     // the check refuses one that breaks a rule, an old theme without them
     // gets them, a copy of Nord getting Nord's, and in forced colours they
     // are the reader's text colour.
-    const builtinIds = ['mineral', 'linen', 'solarized', 'nord', 'gruvbox', 'graphite', 'one-dark-pro', 'dracula', 'catppuccin', 'tokyo-night', 'github', 'bevel', 'gel', 'glaze'];
-    ok('the built-in themes are the expected fourteen', await page.evaluate(ids => JSON.stringify(Object.keys(dinahAppearance.builtins)) === JSON.stringify(ids), builtinIds), await page.evaluate(() => JSON.stringify(Object.keys(dinahAppearance.builtins))));
-    ok('every built-in palette sets all eight category colours', await page.evaluate(() => Object.values(dinahAppearance.builtins).flatMap(doc => [doc.palettes.light, doc.palettes.dark]).filter(p => dinahAppearance.categoryKeys.every(k => /^#[0-9a-f]{6}$/i.test(p[k]))).length === 28));
+    const builtinIds = ['clear-chime', 'mineral', 'linen', 'solarized', 'nord', 'gruvbox', 'graphite', 'one-dark-pro', 'dracula', 'catppuccin', 'tokyo-night', 'github', 'bevel', 'gel', 'glaze'];
+    ok('the built-in themes are the expected fifteen', await page.evaluate(ids => JSON.stringify(Object.keys(dinahAppearance.builtins)) === JSON.stringify(ids), builtinIds), await page.evaluate(() => JSON.stringify(Object.keys(dinahAppearance.builtins))));
+    ok('every built-in palette sets all eight category colours', await page.evaluate(() => Object.values(dinahAppearance.builtins).flatMap(doc => [doc.palettes.light, doc.palettes.dark]).filter(p => dinahAppearance.categoryKeys.every(k => /^#[0-9a-f]{6}$/i.test(p[k]))).length === 30));
     ok('the contrast check refuses a category colour that breaks a rule', await page.evaluate(() => {
       const doc = dinahAppearance.document('mineral'), failures = () => dinahAppearance.contrast(doc).join('; ');
       doc.palettes.light['category-1'] = doc.palettes.light.surface; const low = failures().includes('light category-1 needs 3:1');
@@ -220,10 +220,10 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
     ok('a theme not in use is deleted without changing the theme in use', await page.evaluate(id => dinahAppearance.snapshot().state.active === id, active) && await rows.count() === await personal() && !(await rows.allTextContents()).some(t => t.includes('Spare Theme')));
     await rows.filter({ hasText: 'In use' }).getByRole('button', { name: /^Delete the theme / }).click();
     await page.locator('#ask').waitFor();
-    ok('deleting the theme in use says Mineral takes its place', (await page.locator('#ask-body').textContent()).includes('Mineral will be used in its place'));
+    ok('deleting the theme in use names the product default', (await page.locator('#ask-body').textContent()).includes('Clear Chime will be used in its place'));
     await page.locator('#ask-yes').click();
-    await page.waitForFunction(() => dinahAppearance.snapshot().state.active === 'mineral');
-    ok('deleting the active personal theme restores Mineral first', await page.evaluate(id => dinahAppearance.snapshot().state.active === 'mineral' && !dinahAppearance.snapshot().state.themes.some(t => t.id === id), active));
+    await page.waitForFunction(() => dinahAppearance.snapshot().state.active === dinahAppearance.defaultTheme());
+    ok('deleting the active personal theme restores the product default', await page.evaluate(id => dinahAppearance.snapshot().state.active === dinahAppearance.defaultTheme() && !dinahAppearance.snapshot().state.themes.some(t => t.id === id), active));
     while (await personal() > 0) {
       const before = await personal();
       await rows.first().getByRole('button', { name: /^Delete the theme / }).click();

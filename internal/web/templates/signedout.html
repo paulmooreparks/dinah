@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Signed Out · {{.Product}}</title>
+<link rel="icon" href="/static/dinah-mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/pudl/pudl.css">
 {{range skinLinks}}<link rel="stylesheet" href="/static/pudl/{{.File}}" data-pudl-skin="{{.ID}}">
 {{end}}<script src="/static/pudl/pudl-theme.js"></script>
@@ -12,7 +13,7 @@
 <link rel="stylesheet" href="/static/dinah.css">
 </head>
 <body>
-<header class="topbar"><a class="brand" href="/">{{.Product}}</a></header>
+<header class="topbar"><a class="brand hstack align-center gap-2" href="/"><img src="/static/dinah-mark.svg" alt="" width="24" height="24">{{.Product}}</a></header>
 <main class="dinah-main">
 <div class="empty-state">
   <p class="empty-state-title">Sign In From the Command Line</p>

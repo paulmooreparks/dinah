@@ -137,7 +137,7 @@ var dinah = Profile{
 
 	DefaultProvider: "devin",
 	Providers:       []string{"devin", "codex", "claude", "ollama"},
-	DefaultTheme:    "mineral",
+	DefaultTheme:    "clear-chime",
 	Updater:         UpdaterInstalled,
 }
 
