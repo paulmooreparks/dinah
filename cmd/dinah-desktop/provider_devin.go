@@ -294,7 +294,7 @@ func throwawayWorkspace(workspace string) bool {
 func insideFolder(root, path string) bool {
 	resolve := func(p string) string {
 		p = filepath.Clean(p)
-		if real, err := filepath.EvalSymlinks(p); err == nil {
+		if real, err := agents.ResolvePath(p); err == nil {
 			return real
 		}
 		return p

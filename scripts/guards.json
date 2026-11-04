@@ -119,8 +119,14 @@
         "TestAgentSourceReadUsesPolicyWhilePersonPreviewKeepsItsAuthority",
         "TestAgentWorkspaceStatUsesPolicyAndAudit",
         "TestPathlessSkillReadsRejectPathsTraversalAndSymlinksAndAudit",
-        "TestPathlessHistoryRejectsSelectorsAndSymlinkAndAudits"
-      ]
+        "TestPathlessHistoryRejectsSelectorsAndSymlinkAndAudits",
+        "TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState"
+      ],
+      "onlyOn": {
+        "TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState": [
+          "windows"
+        ]
+      }
     },
     {
       "package": "./cmd/dinah",

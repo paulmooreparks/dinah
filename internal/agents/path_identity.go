@@ -43,7 +43,7 @@ func ResolveFilePath(path string) (string, error) {
 	}
 	var tail []string
 	for {
-		resolved, err := filepath.EvalSymlinks(path)
+		resolved, err := ResolvePath(path)
 		if err == nil {
 			for i := len(tail) - 1; i >= 0; i-- {
 				resolved = filepath.Join(resolved, tail[i])

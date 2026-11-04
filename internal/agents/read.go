@@ -84,15 +84,11 @@ func OpenCatalogFile(path string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil {
+	if err := checkCatalogComponents(path); err != nil {
 		return nil, err
 	}
-	if !layout.SamePath(resolved, filepath.Clean(path)) {
-		return nil, errors.New("catalogue entries must not redirect through symbolic links")
-	}
-	base := filepath.VolumeName(resolved) + string(filepath.Separator)
-	rel, err := filepath.Rel(base, resolved)
+	base := filepath.VolumeName(path) + string(filepath.Separator)
+	rel, err := filepath.Rel(base, path)
 	if err != nil || !filepath.IsLocal(rel) || rel == "." {
 		return nil, errors.New("a regular catalogue file is required")
 	}
