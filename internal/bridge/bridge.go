@@ -331,6 +331,11 @@ func (b *Bridge) Emit(name string, data any) {
 				depth = max(depth, len(ch))
 			}
 		default:
+			if token.Active() {
+				// The failed send observed a full buffer. A receiver can drain
+				// it before len(ch) is read, so retain its capacity instead.
+				depth = max(depth, cap(ch))
+			}
 			// A page that has stopped reading is not waited for; its stream
 			// is closed, and it comes back with its cursor and is either
 			// replayed what it missed or told to resync.

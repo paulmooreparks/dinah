@@ -4,11 +4,53 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	extension "github.com/paulmooreparks/dinah-extension-go"
 	"studio/internal/bridge"
 )
+
+func TestResponsivenessShutdownPreventsFirstEnable(t *testing.T) {
+	a := &App{}
+	a.closeResponsiveness()
+	if a.SetResponsivenessRecording(true).Enabled || a.responsiveness.Load() != nil {
+		t.Fatal("shutdown allowed first recorder initialization")
+	}
+	if len(a.GetResponsivenessTimingSnapshot().Slots) != 0 {
+		t.Fatal("shutdown retained timing data")
+	}
+}
+
+func TestResponsivenessFirstEnableRacingShutdownCannotRestart(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		a := &App{}
+		start := make(chan struct{})
+		var workers sync.WaitGroup
+		workers.Add(2)
+		go func() {
+			defer workers.Done()
+			<-start
+			a.SetResponsivenessRecording(true)
+		}()
+		go func() {
+			defer workers.Done()
+			<-start
+			a.closeResponsiveness()
+		}()
+		close(start)
+		workers.Wait()
+		if !a.responsivenessClosed || a.SetResponsivenessRecording(true).Enabled {
+			t.Fatal("concurrent shutdown allowed recording to restart")
+		}
+		if r := a.responsiveness.Load(); r != nil && r.Enabled() {
+			t.Fatal("sampler remained enabled after shutdown")
+		}
+		if len(a.GetResponsivenessTimingSnapshot().Slots) != 0 {
+			t.Fatal("concurrent shutdown retained timing data")
+		}
+	}
+}
 
 func TestResponsivenessShellContractClearsAndExcludesOtherSurfaces(t *testing.T) {
 	a := &App{}

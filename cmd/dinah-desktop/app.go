@@ -45,6 +45,7 @@ import (
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
 	responsivenessMu           sync.Mutex
+	responsivenessClosed       bool
 	responsiveness             atomic.Pointer[responsiveness.Recorder]
 	fileAccess                 fileAccessRuntime
 	transferRunning            sync.Map
@@ -278,9 +279,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
-	if r := a.responsiveness.Load(); r != nil {
-		r.Close()
-	}
+	a.closeResponsiveness()
 	// The watcher stops before the handle it shares is closed.
 	a.busHost().StopWatcher()
 	// The watcher admits session-close and fallback provider-stop work. Join

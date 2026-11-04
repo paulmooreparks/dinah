@@ -14,7 +14,8 @@
     {
       "package": "./internal/bridge",
       "tests": [
-        "TestBridgeTimingCannotExportPayloadAndMeasuresQueueOverflow"
+        "TestBridgeTimingCannotExportPayloadAndMeasuresQueueOverflow",
+        "TestBridgeTimingOverflowInFreshIntervalRetainsFullDepth"
       ]
     },
     {
@@ -136,6 +137,8 @@
       "package": "./cmd/dinah-desktop",
       "tests": [
         "TestResponsivenessShellContractClearsAndExcludesOtherSurfaces",
+        "TestResponsivenessShutdownPreventsFirstEnable",
+        "TestResponsivenessFirstEnableRacingShutdownCannotRestart",
         "TestThePaneShowsAndAnswersAThread",
         "TestAFailedCompactionPutsTheHoldAndTheQueueBack",
         "TestUncertainCompactionAllocationBlocksBlindRetryAcrossRestart",

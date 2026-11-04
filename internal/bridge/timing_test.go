@@ -54,3 +54,34 @@ func BenchmarkBridgeResponsiveness(b *testing.B) {
 		})
 	}
 }
+
+func TestBridgeTimingOverflowInFreshIntervalRetainsFullDepth(t *testing.T) {
+	b := New(struct{}{})
+	r := &responsiveness.Recorder{}
+	defer r.Close()
+	b.SetTimingRecorder(r)
+	ch := b.subscribe("")
+	// Fill the queue before the recording interval, so no successful send
+	// contributes a depth measurement to that interval.
+	for i := 0; i < subscriberQueue; i++ {
+		b.Emit("bus:changed", nil)
+	}
+	if len(ch) != subscriberQueue {
+		t.Fatal("fixture queue was not full")
+	}
+	r.Set(true)
+	b.Emit("bus:changed", nil)
+	view := r.Snapshot()
+	var found bool
+	for _, slot := range view.Slots {
+		if slot.Queues.Drops.Value != nil && *slot.Queues.Drops.Value == 1 {
+			found = true
+			if slot.Queues.Depth.Value == nil || *slot.Queues.Depth.Value != subscriberQueue || *slot.Categories.Bus.Bridge.Count.Value != 1 {
+				t.Fatalf("overflow interval lost full queue evidence: %+v", slot)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("overflow interval was not recorded")
+	}
+}
