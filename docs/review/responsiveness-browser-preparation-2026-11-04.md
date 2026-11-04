@@ -57,3 +57,14 @@ All eighteen corrected overhead cases completed with zero page errors. Productio
 - At 4 streams, key p95 medians off/on are 34/35 ms, ranges 25..35/24..35, and paired deltas [-1, 0, 1] ms.
 
 The differences between on/off medians satisfy the numerical ceilings. However, one-stream paired script deltas are 37, 1 and 32 ms, so their median is 32 ms against a roughly 21 ms five-percent allowance. The script and style baselines also vary materially across pairs. This does not establish a variance-resolved overhead pass. The overhead gate remains unproven pending Quality's assessment; no release clearance follows from the median-only comparison. Raw Event Timing, long-frame entries and all pair results remain in dinah-responsiveness-overhead-6ba0ae3.
+
+
+## Focused overhead attribution and proposed correction
+
+The targeted one-stream off/on run enabled the existing CPU-profile and invalidation-trace options. Both runs exited successfully. The output is retained in dinah-responsiveness-attribution-6ba0ae3 in the temporary directory. The ten-second script totals were 375/409 ms and style totals 680/696 ms. These are attribution captures, not additional acceptance pairs.
+
+The sampled profile remains dominated by clientHeight and transcript traversal. Recorder functions did not appear in the top 25 self-time entries; the cutoff was about three milliseconds. Total getClientRects self-time was 12/9 ms and garbage collection 24/23 ms. These samples do not isolate the whole 32 ms paired-median overhead, and do not prove that hidden panel geometry accounts for it.
+
+Source inspection confirms unnecessary recording-only work. The one-second refresh enqueues a Diagnostics panel even when an ancestor is hidden. The scheduler retains that blocked job and checks its geometry during unrelated streaming flushes. The proposed correction uses existing hidden attributes to cancel the job without layout reads, observes the Diagnostics section's hidden attribute for an immediate refresh on showing, and refreshes on supported window-change events. Recording remains active independently of presentation. No scheduler policy or transcript optimization is included.
+
+The new browser regression records a sample while Diagnostics is hidden, exercises 60 unrelated render frames after a refresh interval, requires zero panel geometry checks, then shows Diagnostics and checks that its newly collected sample is displayed. Focused validation and fresh on/off overhead evidence remain required for this correction.
