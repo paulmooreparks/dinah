@@ -86,7 +86,7 @@ const { launch } = require('./lib/page');
     await toggle.click();
     await p.evaluate(() => dinahRender.enqueue({}, null, () => { const end = performance.now() + 75; while (performance.now() < end) {} }, null, 'fixture work'));
     await p.waitForFunction(() => dinahResponsiveness.snapshot().some(s => s.kind === 'render' && s.duration >= 60));
-    await p.waitForFunction(() => document.querySelector('#responsiveness-results tbody').textContent.includes('fixture work'));
+    await p.waitForFunction(() => document.querySelector('#responsiveness-results tbody').textContent.includes('Other work'));
     ok('a slow scheduled task appears in the diagnostic without message content', !(await p.locator('#responsiveness-results').textContent()).includes('BEGIN'));
     await toggle.click();
     ok('turning recording off clears the retained samples', await p.evaluate(() => dinahResponsiveness.snapshot().length === 0));

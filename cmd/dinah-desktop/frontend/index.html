@@ -51,6 +51,7 @@
   <script src="pudl/pudl-applets.js" defer></script>
   <script src="ui-state.js" defer></script>
   <script src="render-scheduler.js" defer></script>
+  <script src="timing-snapshot.js" defer></script>
   <script src="responsiveness.js" defer></script>
   <script src="workbench.js" defer></script>
   <script src="commands.js" defer></script>
@@ -868,12 +869,14 @@
           <section class="card vstack gap-3" aria-labelledby="set-responsiveness-title">
             <h3 class="card-title" id="set-responsiveness-title">UI Responsiveness</h3>
             <button type="button" class="switch" role="switch" aria-checked="false" id="set-responsiveness"><span class="switch-track"><span class="switch-thumb"></span></span>Record Responsiveness</button>
-            <p class="form-help">Keeps up to 200 timing records from the last minute, without typed content. Input timing includes only browser-reported interactions lasting at least 16 ms. Stalls are main-thread tasks lasting at least 50 ms. Hidden windows are excluded. Zero means no retained report, not a guarantee that every interaction was measured.</p>
+            <p class="form-help">Keeps bounded timing records for up to ten minutes, without typed content. Turning recording off clears the captured timings. The recent-work panel shows the last minute. Input timing includes only browser-reported interactions lasting at least 16 ms. Zero means no retained report, not a guarantee that every interaction was measured.</p>
             <div id="responsiveness-results" hidden>
-              <p data-input-delay></p><p data-stalls></p><p data-render></p>
+              <p data-input-delay></p><p data-stalls></p><p data-render></p><p data-long-frames></p>
+              <button type="button" class="btn btn-sm" id="copy-responsiveness" disabled>Copy Timing Snapshot</button>
               <button type="button" class="btn btn-sm" id="clear-responsiveness">Clear Measurements</button>
               <div style="overflow:auto;max-height:16rem"><table><thead><tr><th>When</th><th>Work</th><th>Duration</th><th>Queue wait</th></tr></thead><tbody></tbody></table></div>
             </div>
+            <p class="form-help" id="responsiveness-copy-status" role="status" hidden></p>
           </section>
           <section class="card vstack gap-3" aria-labelledby="set-log">
             <h3 class="card-title" id="set-log">Log</h3>
