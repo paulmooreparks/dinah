@@ -29,6 +29,9 @@ func TestMain(m *testing.M) {
 	case "hang":
 		time.Sleep(30 * time.Second)
 		os.Exit(0)
+	case "error":
+		fmt.Fprintln(os.Stderr, "private-debugger-error")
+		os.Exit(17)
 	}
 	os.Exit(m.Run())
 }
@@ -83,7 +86,7 @@ func TestNativeExtractionPublishesOnlyFramesAndCleansDumps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"frames", "missing", "hang"} {
+	for _, mode := range []string{"frames", "missing", "hang", "error"} {
 		t.Run(mode, func(t *testing.T) {
 			scratch, diagnostics := t.TempDir(), t.TempDir()
 			dump := writeFixture(t, scratch, "raw.dmp", "MDMP private-memory")
@@ -134,9 +137,24 @@ func TestNativeExtractionPublishesOnlyFramesAndCleansDumps(t *testing.T) {
 				if capture.Outcome != "debugger-deadline" || time.Since(started) > 3*time.Second {
 					t.Fatalf("debugger was not bounded: %s", data)
 				}
+			case "error":
+				if capture.Outcome != "debugger-failed" || strings.Contains(string(data), "private-debugger-error") {
+					t.Fatalf("debugger failure was not retained safely: %s", data)
+				}
 			}
 		})
 	}
+	t.Run("report-failure", func(t *testing.T) {
+		scratch, parent := t.TempDir(), t.TempDir()
+		dump := writeFixture(t, scratch, "raw.dmp", "MDMP private-memory")
+		blocked := writeFixture(t, parent, "not-a-directory", "occupied")
+		if err := extract(scratch, blocked, "", runCDB); err == nil {
+			t.Fatal("report write failure was hidden")
+		}
+		if _, err := os.Stat(dump); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("report failure prevented raw-dump cleanup:", err)
+		}
+	})
 	collector := &frameCollector{thread: -1}
 	_, _ = collector.Write([]byte(strings.Repeat("private", 1000) + "\n" + debuggerFixture))
 	if len(collector.pending) > 4096 || len(collector.frames) != 2 {
