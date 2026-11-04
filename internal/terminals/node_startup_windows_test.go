@@ -52,9 +52,19 @@ func observeStartupCommand(command *exec.Cmd, bound time.Duration, capture func(
 			<-done
 		}
 	}()
+	awaitStartupExit(command, done, timer.C, capture, &result)
+	reaped = true
+	result.output, err = os.ReadFile(output.Name())
+	if err != nil {
+		result.err = fmt.Errorf("read query output: %w (process error %v)", err, result.err)
+	}
+	return
+}
+
+func awaitStartupExit(command *exec.Cmd, done <-chan error, deadline <-chan time.Time, capture func(uint32) string, result *startupObservation) {
 	select {
 	case result.err = <-done:
-	case <-timer.C:
+	case <-deadline:
 		// Prefer an already observed ordinary exit over the timer. An exit
 		// during capture remains a deadline observation and is reported.
 		select {
@@ -69,12 +79,6 @@ func observeStartupCommand(command *exec.Cmd, bound time.Duration, capture func(
 			result.err = <-done
 		}
 	}
-	reaped = true
-	result.output, err = os.ReadFile(output.Name())
-	if err != nil {
-		result.err = fmt.Errorf("read query output: %w (process error %v)", err, result.err)
-	}
-	return
 }
 
 func TestStartupCapturePrecedesTerminationAndReaps(t *testing.T) {
@@ -119,12 +123,46 @@ func TestStartupCapturePrecedesTerminationAndReaps(t *testing.T) {
 	}
 	assertDumpHasThreads(t, files[0])
 
-	// An ordinary exit must not be reclassified or captured.
-	ordinary := observeStartupCommand(exec.Command(node, "-e", "process.stdout.write('ordinary-exit')"), 5*time.Second, func(uint32) string {
-		t.Error("ordinary exit triggered capture")
-		return ""
-	})
-	if ordinary.err != nil || ordinary.deadlineObserved || ordinary.contextErr != nil || !strings.Contains(string(ordinary.output), "ordinary-exit") {
-		t.Fatalf("ordinary exit changed: %+v", ordinary)
+	testStartupOrdinaryExitOrdering(t)
+}
+
+func TestStartupOrdinaryExitFixture(t *testing.T) {
+	if os.Getenv("DINAH_STARTUP_ORDINARY_FIXTURE") == "1" {
+		fmt.Println("ordinary-exit")
+	}
+}
+
+func testStartupOrdinaryExitOrdering(t *testing.T) {
+	t.Helper()
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Startup has its own bound and result. Only after Wait has completed do
+	// we offer exit and deadline together to the sequencing decision.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, executable, "-test.run=^TestStartupOrdinaryExitFixture$")
+	command.Env = append(os.Environ(), "DINAH_STARTUP_ORDINARY_FIXTURE=1")
+	command.WaitDelay = 500 * time.Millisecond
+	started := time.Now()
+	output, err := command.CombinedOutput()
+	t.Logf("ordinary fixture startup/exit: duration=%s error=%v context=%v", time.Since(started), err, ctx.Err())
+	if err != nil || ctx.Err() != nil || !strings.Contains(string(output), "ordinary-exit") {
+		t.Fatalf("ordinary fixture did not complete before sequencing check: error=%v context=%v output=%q", err, ctx.Err(), output)
+	}
+	for i := 0; i < 100; i++ {
+		done := make(chan error, 1)
+		done <- nil
+		deadline := make(chan time.Time, 1)
+		deadline <- time.Now()
+		var ordinary startupObservation
+		awaitStartupExit(command, done, deadline, func(uint32) string {
+			t.Error("completed exit triggered capture")
+			return ""
+		}, &ordinary)
+		if ordinary.err != nil || ordinary.deadlineObserved || ordinary.contextErr != nil || ordinary.killErr != nil {
+			t.Fatalf("completed ordinary exit was reclassified: %+v", ordinary)
+		}
 	}
 }
