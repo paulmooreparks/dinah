@@ -474,7 +474,7 @@ func nodeStartupCommand(phasePath string) string {
 func nodeStartupScript(phasePath string) string {
 	path := base64.StdEncoding.EncodeToString([]byte(phasePath))
 	return "const fs=require('fs'),p=Buffer.from('" + path + "','base64').toString('utf8');" +
-		"function mark(phase){try{fs.appendFileSync(p,JSON.stringify({phase,pid:process.pid,at:Date.now(),execPath:process.execPath,version:process.version,argv:process.argv,execArgv:process.execArgv})+'\\n')}catch(e){process.stderr.write('node-fixture-journal-error: '+e.code+' '+e.message+'\\n');throw e}};" +
+		"function mark(phase){try{fs.appendFileSync(p,JSON.stringify({phase,pid:process.pid,at:Date.now(),execPath:process.execPath,version:process.version,argv:process.argv,execArgv:process.execArgv})+'\\n')}catch(e){process.stderr.write('node-fixture-journal-error: '+e.code+' '+e.message+'\\n')}};" +
 		"mark('entered-js');require('http').createServer((q,s)=>s.end('ok')).listen(0,()=>{" +
 		"mark('listening');mark('stdout-tty-'+Boolean(process.stdout.isTTY));" +
 		"console.log('interrupt-'+'started');mark('console-log-returned')})"
@@ -488,8 +488,8 @@ func TestNodeStartupJournalErrorsAreVisible(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	invalid := filepath.Join(t.TempDir(), "missing-parent", "phases.jsonl")
-	output, err := exec.CommandContext(ctx, node, "-e", nodeStartupScript(invalid)).CombinedOutput()
-	if ctx.Err() != nil || err == nil || !strings.Contains(string(output), "node-fixture-journal-error: ENOENT") {
+	output, err := exec.CommandContext(ctx, node, "-e", nodeStartupScript(invalid)+";process.stderr.write('node-fixture-continued');process.exit(0)").CombinedOutput()
+	if ctx.Err() != nil || err != nil || !strings.Contains(string(output), "node-fixture-journal-error: ENOENT") || !strings.Contains(string(output), "node-fixture-continued") {
 		t.Fatalf("journal failure was hidden: %v %v %s", err, ctx.Err(), output)
 	}
 	valid := filepath.Join(t.TempDir(), "phases.jsonl")
