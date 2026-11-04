@@ -21,6 +21,7 @@ import (
 	"studio/internal/extensions"
 	"studio/internal/layout"
 	"studio/internal/providers"
+	"studio/internal/responsiveness"
 	"studio/internal/sessionhost"
 	"studio/internal/setup"
 	"studio/internal/terminals"
@@ -43,6 +44,8 @@ import (
 //	agent:sent        {sessionId, text, kind}          a queued or steering message went to the agent
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
+	responsivenessMu           sync.Mutex
+	responsiveness             atomic.Pointer[responsiveness.Recorder]
 	fileAccess                 fileAccessRuntime
 	transferRunning            sync.Map
 	startupErr                 error
@@ -275,6 +278,9 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	if r := a.responsiveness.Load(); r != nil {
+		r.Close()
+	}
 	// The watcher stops before the handle it shares is closed.
 	a.busHost().StopWatcher()
 	// The watcher admits session-close and fallback provider-stop work. Join
@@ -497,6 +503,11 @@ func (a *App) SetApprovals(level string) error {
 }
 
 func (a *App) emit(name string, data any) {
+	r := a.responsiveness.Load()
+	token := r.Begin(name, responsiveness.App)
+	if token.Active() {
+		defer r.End(token, 0, 0, 0)
+	}
 	// What a team's strip shows changes with its chats' state, so any event of a chat or a notification
 	// says it may have; the strips are rebuilt a moment later and sent only when they differ.
 	if strings.HasPrefix(name, "agent:") || name == "notifications:added" {

@@ -88,6 +88,9 @@ func newShellServer(app *App, frontend fs.FS, addr string) (*shellServer, error)
 		return nil
 	})
 	app.events = s.bridge
+	if recorder := app.responsiveness.Load(); recorder != nil {
+		s.bridge.SetTimingRecorder(recorder)
+	}
 	// The port may still be held for a moment by a window that has just
 	// ended, as when Restart to Update starts this one, so a refusal is
 	// tried again for a few seconds before it is reported.
