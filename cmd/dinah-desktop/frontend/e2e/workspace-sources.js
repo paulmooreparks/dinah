@@ -39,7 +39,7 @@ const { launch, PAGE } = require('./lib/page');
           }
           if (ref.path === 'nested') return { entries: [item({ ...ref, path: 'nested/readme.md' }, 'Nested Readme')], nextStart: -1 };
           if (ref.path || ref.sourceId !== 'primary') return { entries: [], nextStart: -1 };
-          return start ? { entries: [item({ ...ref, path: 'last.md' }, 'Last Page')], nextStart: -1 } : { entries: [{ ...item({ ...ref, path: 'nested' }, 'Nested', true), writable: true, path: '/workspaces/delivery/working/nested' }, item({ ...ref, path: 'report.md' }, 'Report', false, ['read', 'preview', 'open-external', 'rename']), item({ ...ref, path: 'slow.md' }, 'Slow Page'), item({ ...ref, path: 'script.ps1' }, 'Script', false, ['reveal'])], nextStart: 4 };
+          return start ? { entries: [item({ ...ref, path: 'last.md' }, 'Last Page')], nextStart: -1 } : { entries: [{ ...item({ ...ref, path: 'nested' }, 'Nested', true), writable: true, path: '/workspaces/delivery/working/nested' }, item({ ...ref, path: 'report.md' }, 'Report', false, ['read', 'preview', 'open-external', 'rename']), item({ ...ref, path: 'slow.md' }, 'Slow Page'), item({ ...ref, path: 'script.ps1' }, 'Script', false, ['reveal', 'edit-text'])], nextStart: 4 };
         },
         PreviewWorkspaceResource: async ref => {
           window.__calls.push(['preview', ref]);
@@ -182,6 +182,10 @@ const { launch, PAGE } = require('./lib/page');
     await openActions('Script');
     await page.locator('.context-menu').getByRole('menuitem', { name: 'Show in Folder', exact: true }).waitFor();
     ok('unsupported file types offer reveal without promising a preview or execution', await page.locator('.context-menu').getByRole('menuitem', { name: 'Show in Folder', exact: true }).count() === 1 && await page.locator('.context-menu').getByRole('menuitem', { name: 'Open', exact: true }).count() === 0 && await page.locator('.context-menu').getByRole('menuitem', { name: 'Rename…', exact: true }).count() === 0);
+    await page.evaluate(() => { window.__textEdits = []; dinahEditor.openResource = async (ref, intent) => { __textEdits.push({ref,intent}); }; });
+    await page.locator('.context-menu').getByRole('menuitem', { name: 'Edit as Text', exact: true }).click();
+    ok('Workspace exposes explicit text editing without a preview capability', await page.evaluate(() => __textEdits.length === 1 && __textEdits[0].ref.path === 'script.ps1' && __textEdits[0].intent === 'text'));
+    await openActions('Script');
     await page.locator('.context-menu').getByRole('menuitem', { name: 'Show in Folder', exact: true }).click();
     await sources.getByRole('button', { name: 'Expand Shared Drive', exact: true }).click();
     await sources.getByText('Unavailable: The folder S:/Shared is unavailable', { exact: true }).waitFor();

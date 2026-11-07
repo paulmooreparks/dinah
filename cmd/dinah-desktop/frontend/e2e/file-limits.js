@@ -129,10 +129,16 @@ const { openMenu } = require('./lib/commands');
     await p.waitForFunction(() => document.querySelectorAll('.win[data-win-kind="bus-room"] .group-attachments .attachment').length === 1);
     ok('the group\'s box refuses the file past the smallest member\'s limit, saying which member set it',
       (await p.evaluate(() => __toasts.find(t => t.includes('second.png')))).includes('Docs Pass uses Codex, which takes 1 file per message (Settings › Agents › Codex › Files per Message).'));
-    const attach = room.getByRole('button', { name: 'Attach…' });
-    ok('Attach… is disabled at the limit, with the reason as its tip', await attach.isDisabled() && (await attach.getAttribute('title')).includes('Docs Pass uses Codex'));
+    const attach = room.locator('.group-add');
+    await attach.click();
+    const groupMenu = p.locator('.menu-panel:popover-open');
+    ok('Add remains available at the file limit', await attach.isEnabled());
+    ok('the file item is disabled with the member limit', await groupMenu.locator('.menu-action', {hasText:'Files From This Computer'}).getAttribute('aria-disabled') === 'true' && (await groupMenu.innerText()).includes('Docs Pass uses Codex'));
+    await p.keyboard.press('Escape');
     await room.locator('.group-attachments .attachment').first().getByRole('button', { name: 'Remove first.png' }).click();
-    ok('removing the file enables Attach… again', await attach.isEnabled() && await attach.getAttribute('title') === 'Attach files from this computer');
+    await attach.click();
+    ok('removing the file enables the file item again', await groupMenu.locator('.menu-action', {hasText:'Files From This Computer'}).getAttribute('aria-disabled') !== 'true');
+    await p.keyboard.press('Escape');
     // The room alone, which t.shot does not offer.
     await room.screenshot({ path: path.join(OUT, 'file-limits-group.png') });
   } catch (err) {

@@ -453,7 +453,7 @@
 
     function drawHead() {
       if (disposed) return;
-      if (!opts.embedded && spec) window.pudlWindows.retitle(key, spec.title, spec.detail);
+      if (!opts.embedded && spec) window.dinahWorkbench.retitle(key, spec.title, spec.detail);
       // The file's actions are controls of the toolbar, filled from the
       // command table by PUDL.
       var holder = $('file-actions'), list = actionsOf('file'), primary = primaryOf(list);
@@ -667,5 +667,5 @@
 
   window.dinahDiff = { open: open, languageFor: languageFor };
   // PUDL's compare glyph (0.92.0) is for setting two versions side by side.
-  window.dinahWorkbench.register('diff', { applet: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true }, title: 'Diff', glyph: 'compare', init: init });
+  window.dinahWorkbench.register('diff', { pinnable: false, applet: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true }, title: 'Diff', glyph: 'compare', init: init });
 })();

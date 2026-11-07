@@ -307,9 +307,10 @@
         window.dinahBrowserList.setCount(section, n);
         count = section.querySelector(':scope > .browser-group-head > .browser-group-count');
       }
-      count.textContent = n > 99 ? '99+' : String(n);
-      count.setAttribute('aria-label', n + (n === 1 ? ' item' : ' items'));
-      count.title = count.getAttribute('aria-label');
+      var words = n > 99 ? '99+' : String(n), label = n + (n === 1 ? ' item' : ' items');
+      if (count.textContent !== words) count.textContent = words;
+      if (count.getAttribute('aria-label') !== label) count.setAttribute('aria-label', label);
+      if (count.title !== label) count.title = label;
     }
     function drawSessionList(host, scope, query, empty, prefix) {
       if (host.querySelector('input.session-rename')) return;
@@ -326,10 +327,33 @@
       });
       ids = Array.from(new Set(ids));
       ids = ids.filter(function (id) { var s = sessions[id]; return !s.info.continuedBy && (scope === 'all' || sameWs(s.info.cwd)) && title(s).toLowerCase().includes(query); });
+      // Sort the combined workspace list by activity, retaining source order for ties.
+      var activity = new Map(ids.map(function (id) {
+        var time = Date.parse(sessions[id].info.updatedAt);
+        return [id, Number.isFinite(time) ? time : -Infinity];
+      }));
+      ids.sort(function (a, b) {
+        var left = activity.get(a), right = activity.get(b);
+        return left === right ? 0 : left > right ? -1 : 1;
+      });
       var groups = {};
       ids.forEach(function (id) {
         var s = sessions[id];
         var row = rows.get(id);
+        var state = window.dinahChatState.read(s.info), execution = state.exec && state.exec.state;
+        var groupName = execution === 'waiting' || execution === 'stuck' ? 'Needs You' : execution === 'working' || execution === 'background' ? 'Working' : 'Chats';
+        var earlier = earlierSubagents(s).length;
+        // Cache displayed values, including locale-dependent text and live
+        // chat state. Unchanged rows retain their badges, focus and DOM nodes.
+        var rowSignature = JSON.stringify([title(s), providerName(sessionProvider(s)), when(s.info.updatedAt),
+          scope === 'all' ? workspaceLabel(s.info.cwd) : '', state, window.dinahChatState.describe(s.info),
+          needsCount(id), earlier, id === adapter.active()]);
+        if (!groups[groupName]) groups[groupName] = [];
+        if (row && row._chatRowSignature === rowSignature) {
+          groups[groupName].push(row);
+          if (earlier && row._subagents) groups[groupName].push(row._subagents);
+          return;
+        }
         if (!row) {
           row = document.createElement('div');
           row.className = 'md-row browser-row';
@@ -372,15 +396,11 @@
         a.title = [title(s), window.dinahChatState.describe(s.info).label, meta.join(' · ')].filter(Boolean).join('. ');
         a.setAttribute('aria-label', a.title);
         if (id === adapter.active()) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
-        var state = window.dinahChatState.read(s.info), execution = state.exec && state.exec.state;
-        var groupName = execution === 'waiting' || execution === 'stuck' ? 'Needs You' : execution === 'working' || execution === 'background' ? 'Working' : 'Chats';
-        if (!groups[groupName]) groups[groupName] = [];
         groups[groupName].push(row);
         // A chat with subagents from earlier runs has a Subagents part under
         // its entry, which opens them in the Earlier Subagents window. It is
         // absent until the chat's agent has sent them, which it does when the
         // chat is opened (subagents.go).
-        var earlier = earlierSubagents(s).length;
         if (earlier && window.dinahSubagents) {
           var part = row._subagents || window.dinahBrowserList.row({ title: 'Subagents', meta: [earlier === 1 ? '1 from an earlier run' : earlier + ' from earlier runs'],
             tooltip: 'Open the subagents of "' + title(s) + '" from earlier runs', onOpen: function () { window.dinahSubagents.openArchive(id, s.info.cwd || adapter.workspace()).catch(fail); },
@@ -390,6 +410,7 @@
           part.querySelector('.md-meta').textContent = earlier === 1 ? '1 from an earlier run' : earlier + ' from earlier runs';
           groups[groupName].push(part);
         }
+        row._chatRowSignature = rowSignature;
       });
       var sections = [], flat = [], active = document.activeElement;
       var scrolls = [], ancestor = host;
@@ -405,7 +426,7 @@
           browserSection(host, prefix + 'chats-' + name, name, []);
           section = host.lastElementChild;
         }
-        section.classList.add('session-browser-group');
+        if (!section.classList.contains('session-browser-group')) section.classList.add('session-browser-group');
         groupCount(section, wanted.filter(function (row) { return !row.classList.contains('browser-row-part'); }).length);
         arrange(section.querySelector('.browser-group-body'), wanted); sections.push(section);
       });
@@ -417,7 +438,7 @@
       }
       if (prefix === 'workspace-') {
         var workspaceGroup = host.closest('.browser-group');
-        workspaceGroup.classList.add('session-browser-group');
+        if (!workspaceGroup.classList.contains('session-browser-group')) workspaceGroup.classList.add('session-browser-group');
         groupCount(workspaceGroup, ids.length);
       }
       empty.hidden = ids.length > 0;

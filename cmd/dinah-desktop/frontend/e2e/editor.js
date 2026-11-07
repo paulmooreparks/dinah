@@ -70,6 +70,11 @@ const { launch, PAGE } = require('./lib/page');
       };
       return {
         State: async () => state(),
+        WorkspaceLocalPath: async ref => {
+          if (ref.path === 'old-name.md') await new Promise(resolve => { window.__releaseOldPath = resolve; });
+          if (ref.path === 'unavailable.md') throw new Error('The source is unavailable.');
+          return 'C:\\Fixture\\' + ref.path.replace(/\//g, '\\');
+        },
         // The file system the Open and Save As dialog shows: the workspace's
         // folder, and the home folder.
         HomeMountPath: async () => '/home/dinah',
@@ -158,8 +163,11 @@ const { launch, PAGE } = require('./lib/page');
           window.__emit('draft:changed', { id, revision: d.revision, kind: 'updated' });
           return view(d);
         },
+        SaveNotification: async note => { window.__calls.push(['notification', note]); return note; },
         SaveDraft: async (id, expected) => {
           const d = get(id);
+          if (window.__holdSave) await new Promise(resolve => { window.__releaseSave = resolve; });
+          if (window.__saveFailure) throw new Error('Fixture disk unavailable');
           window.__calls.push(['save', d.text]);
           if (window.__remote) throw new Error('the document was changed elsewhere since it was opened; compare or reload before saving');
           if (d.revision !== expected) throw new Error('stale');
@@ -221,6 +229,55 @@ const { launch, PAGE } = require('./lib/page');
     const editor = p.locator('.win[data-win-kind="editor"]').first();
     await editor.locator('.cm-content').waitFor();
     await editor.locator('[data-ed-page] .doc-block').first().waitFor();
+    await p.waitForFunction(() => document.querySelector('[data-ed-meta]').textContent === 'C:\\Fixture\\plan.md');
+    ok('the bottom status bar shows one canonical path without workspace labels', await editor.locator('.editor-statusbar [data-ed-meta]').textContent() === 'C:\\Fixture\\plan.md' && await editor.locator('.doc-meta').count() === 0);
+    ok('an unchanged file has a saved chip', await editor.locator('[data-ed-state-label]').textContent() === 'Saved');
+    ok('the save chip belongs to the titlebar status area', await editor.locator('.win-head > .win-statuses [data-ed-save-state]').count() === 1 && await editor.locator('.editor-statusbar [data-ed-save-state]').count() === 0);
+    ok('the titlebar uses the PUDL chip without custom save-chip paint', await editor.locator('.editor-save-chip').evaluate(chip => {
+      const style = getComputedStyle(chip), head = getComputedStyle(chip.closest('.win-head'));
+      return style.color === head.color && style.backgroundColor === 'rgba(0, 0, 0, 0)' && !chip.querySelector('.editor-save-state');
+    }));
+    const chipSkins = await p.evaluate(async () => {
+      const original = pudlSkins.current(), mode = document.documentElement.dataset.theme;
+      const results = [];
+      for (const skin of pudlSkins.available()) {
+        pudlSkins.select(skin);
+        for (const theme of ['light', 'dark']) {
+          pudlSetTheme(theme);
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const chip = document.querySelector('.editor-save-chip'), head = chip.closest('.win-head');
+          results.push({ skin, theme, inherited: getComputedStyle(chip).color === getComputedStyle(head).color && getComputedStyle(chip.querySelector('[data-ed-state-label]')).color === getComputedStyle(head).color,
+            transparent: getComputedStyle(chip).backgroundColor === 'rgba(0, 0, 0, 0)' });
+        }
+      }
+      pudlSkins.select(original); pudlSetTheme(mode || 'light');
+      return results;
+    });
+    ok('titlebar chip follows every available skin in light and dark themes', chipSkins.length > 0 && chipSkins.every(r => r.inherited && r.transparent), JSON.stringify(chipSkins));
+    await editor.locator('[data-ed-copy-path]').click();
+    ok('Copy Path sends the exact canonical path to the clipboard bridge', await p.evaluate(() => __runtime.some(c => c[0] === 'ClipboardSetText' && c[1] === 'C:\\Fixture\\plan.md')));
+    await t.shot('editor-statusbar-wide');
+    await p.setViewportSize({ width: 480, height: 800 });
+    const statusFits = await editor.locator('.editor-statusbar').evaluate(bar => {
+      const b = bar.getBoundingClientRect();
+      return [...bar.children].every(child => { const c = child.getBoundingClientRect(); return c.left >= b.left && c.right <= b.right + 1 && c.bottom <= b.bottom; });
+    });
+    ok('the status bar fits a narrow editor', statusFits);
+    const saveVisible = await editor.locator('.editor-save-chip').isVisible();
+    const statusToggle = editor.locator('.win-status-toggle');
+    ok('save state remains accessible in a narrow titlebar', saveVisible || await statusToggle.isVisible());
+    if (!saveVisible) {
+      await statusToggle.click();
+      const panelId = await statusToggle.getAttribute('popovertarget');
+      ok('folded window status includes the save state', (await p.locator('#' + panelId).textContent()).includes('Saved'));
+      await p.keyboard.press('Escape');
+    }
+    await t.shot('editor-statusbar-narrow');
+    await p.setViewportSize({ width: 3840, height: 1200 });
+    await editor.locator('.cm-content').click();
+    await p.keyboard.press('ArrowRight');
+    ok('line and column remain in the bottom status bar', /Line \d+, column \d+/.test(await editor.locator('.editor-statusbar [data-ed-status]').textContent()));
+    await t.shot('editor-statusbar-caret');
     ok('a document opens in Split view with text and preview', await editor.locator('[data-ed-panes]').getAttribute('data-view') === 'split' &&
       (await editor.locator('.cm-content').textContent()).includes('The plan as written.'));
     const focusedAtOnce = await editor.locator('.cm-editor.cm-focused').waitFor({ timeout: 3000 }).then(() => true, () => false);
@@ -260,6 +317,21 @@ const { launch, PAGE } = require('./lib/page');
     await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1].includes('Added in the Editor.')));
     await p.waitForFunction(() => !document.querySelector('.win[data-win-kind="editor"] .win-title').textContent.includes('(changed)'));
     ok('once it has saved itself nothing is left to save', await editor.locator('[data-ed-save]').isDisabled());
+    ok('the save chip follows automatic saving', await editor.locator('[data-ed-state-label]').textContent() === 'Saved');
+    ok('typing and saving do not repeatedly resolve the unchanged path', (await t.calls('WorkspaceLocalPath')).length === 1);
+    await p.evaluate(() => { window.__holdSave = true; window.__saveFailure = true; });
+    await editor.locator('.cm-content').click();
+    await p.keyboard.type(' Retry fixture.');
+    await p.waitForFunction(() => !!window.__releaseSave);
+    ok('automatic saving shows work in the titlebar', await editor.locator('.win-head [data-ed-state-label]').textContent() === 'Working…');
+    await p.evaluate(() => { window.__holdSave = false; window.__releaseSave(); });
+    await p.waitForFunction(() => document.querySelector('.win[data-win-kind="editor"] [data-ed-state-label]').textContent === 'Save failed');
+    ok('the failed save retains its explanation', (await editor.locator('.editor-save-chip').getAttribute('title')).includes('Fixture disk unavailable'));
+    await t.shot('editor-titlebar-save-failed');
+    await p.evaluate(() => { window.__saveFailure = false; });
+    await editor.locator('[data-ed-save]').click();
+    await p.waitForFunction(() => document.querySelector('.win[data-win-kind="editor"] [data-ed-state-label]').textContent === 'Saved');
+    ok('a successful retry clears the failure', !(await editor.locator('.editor-save-chip').getAttribute('title')).includes('unavailable'));
 
     // A change made elsewhere is shown when the window holds nothing unsent.
     const id = await p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('fixture-drafts')))[0]);
@@ -359,6 +431,7 @@ const { launch, PAGE } = require('./lib/page');
     // the window, which compares it and brings it in.
     await p.evaluate(() => { window.__remote = { added: 'Added on disk.' }; });
     await editor.locator('[data-ed-moved]').waitFor({ state: 'visible', timeout: 9000 });
+    ok('the save chip warns when the file changes on disk', await editor.locator('[data-ed-state-label]').textContent() === 'Changed elsewhere');
     ok('the window says the file changed on disk and offers to bring the change in', (await editor.locator('[data-ed-moved-body]').textContent()).includes('changed on disk') &&
       await editor.locator('[data-ed-bring]').isVisible());
     await editor.locator('[data-ed-compare]').click();
@@ -408,6 +481,7 @@ const { launch, PAGE } = require('./lib/page');
     // A toolbar's words leave out a label's "…"; its tooltip keeps it.
     await fresh.locator('[data-ed-save]').filter({ hasText: /^Save As$/ }).waitFor();
     ok('a new document offers Save As in place of Save', await fresh.locator('[data-ed-save]').textContent() === 'Save As' && (await fresh.locator('[data-ed-save]').getAttribute('title')).startsWith('Save As…'));
+    ok('a new document has no invented file path or saved claim', await fresh.locator('[data-ed-meta]').textContent() === 'No file location yet' && await fresh.locator('[data-ed-copy-path]').isHidden() && await fresh.locator('[data-ed-state-label]').textContent() === 'Not saved to a file');
     await fresh.locator('[data-ed-save]').click({ timeout: 20000 });
     // Save As shows the file system, starting at the workspace, which is
     // the list of what is mounted in it and takes no file: it is marked
@@ -650,6 +724,7 @@ const { launch, PAGE } = require('./lib/page');
     await p.keyboard.type('\nTyped and kept.');
     await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1].includes('Typed and kept.')), null, { timeout: 8000 });
     await reader.locator('[data-ed-status]').getByText('Saved.').waitFor();
+    ok('saving does not add a success notification', await p.evaluate(() => !__calls.some(c => c[0] === 'notification' && /^Saved/.test(c[1].title || ''))));
     ok('a document kept in a folder saves itself after a pause in typing, without Save', true);
     await p.evaluate(() => { window.__remote = { added: 'Added on disk.' }; });
     await p.keyboard.type(' More.');
@@ -783,6 +858,16 @@ const { launch, PAGE } = require('./lib/page');
     await nameDialog.waitFor({ state: 'detached' });
     await p.waitForFunction(k => document.querySelector('[data-win="' + k + '"] .win-title').textContent.startsWith('new-name.md'), fileKey);
     ok('Rename renames the file and the window follows it', await p.evaluate(() => __calls.some(c => c[0] === 'rename-file' && c[1] === 'old-name.md' && c[2] === 'new-name.md')));
+    await p.waitForFunction(k => document.querySelector('[data-win="' + k + '"] [data-ed-meta]').textContent === 'C:\\Fixture\\new-name.md', fileKey);
+    await p.evaluate(() => __releaseOldPath());
+    await p.waitForTimeout(50);
+    ok('an old path response cannot overwrite the renamed path', await fileWin.locator('[data-ed-meta]').textContent() === 'C:\\Fixture\\new-name.md');
+    await fileWin.locator('[data-ed-copy-path]').click();
+    ok('Copy Path follows a rename', await p.evaluate(() => __runtime.filter(c => c[0] === 'ClipboardSetText').pop()[1] === 'C:\\Fixture\\new-name.md'));
+    const missingKey = await p.evaluate(() => dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'unavailable.md' }));
+    const missingWin = p.locator('[data-win="' + missingKey + '"]');
+    await missingWin.locator('[data-ed-meta]').filter({ hasText: 'Document path unavailable' }).waitFor();
+    ok('a failed path lookup leaves Copy Path disabled', await missingWin.locator('[data-ed-copy-path]').isDisabled());
     // A new document has no file name, so it cannot be renamed.
     await p.evaluate(() => window.dinahEditor.newDocument());
     await p.waitForFunction(() => __calls.some(c => c[0] === 'new'));
@@ -790,6 +875,9 @@ const { launch, PAGE } = require('./lib/page');
     await p.keyboard.press('F2');
     await p.waitForTimeout(200);
     ok('F2 on a new document asks nothing', await p.locator('dialog.dinah-ask-name').count() === 0);
+    const textKey = await p.evaluate(() => dinahEditor.openResource({workspaceId:'w1',sourceId:'local',path:'bound.md'}, 'text'));
+    await p.locator('[data-win="' + textKey + '"] [data-view="text"]').waitFor();
+    ok('Edit as Text selects Text view even for an already open document', true);
     ok('no duplicate IDs in mounted applets', await p.evaluate(() => {
       const ids = [...document.querySelectorAll('[id]')].map(el => el.id); return new Set(ids).size === ids.length;
     }));

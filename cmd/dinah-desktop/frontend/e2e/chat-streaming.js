@@ -46,18 +46,18 @@ const { launch, PAGE } = require('./lib/page');
       __emit('agent:update', { sessionId: 'codex:stream', update: { sessionUpdate: 'tool_call_update', toolCallId: 'stream', status: 'completed' } });
       __emit('agent:update', { sessionId: 'codex:stream', update: { sessionUpdate: 'tool_call_update', toolCallId: 'before', status: 'completed' } });
     });
-    await p.waitForFunction(() => document.querySelector('.tool-group-words')?.textContent === 'Ran 2 commands' && [...document.querySelectorAll('.tool-row pre')].some(el => el.textContent.includes('The rest of this output')));
+    await p.waitForFunction(() => document.querySelector('.tool-group-words')?.textContent === 'Ran 2 commands' && [...document.querySelectorAll('.tool-row .tool-output')].some(el => el.textContent.includes('The rest of this output')));
     const used = await layouts() - before;
     console.log('MEASURE burst layouts ' + used);
     // This budget leaves room for normal frame/observer work, but catches
     // one synchronous layout per output delta without timing assumptions.
     ok('a burst of 5000 tool updates requires fewer than 40 layouts', used < 40, String(used));
-    const rendered = await win.locator('.tool-row pre').allTextContents();
+    const rendered = await win.locator('.tool-row .tool-output').allTextContents();
     const output = rendered.find(text => text.includes('line 0')) || '';
     ok('batched output keeps its order, text escaping and display limit', output.includes('line 0 <tags>') && output.includes('line 1 <tags>') && output.indexOf('line 0') < output.indexOf('line 1') && output.length < 40 * 1024 && output.includes('The rest of this output'));
-    ok('terminal colors survive batching', await win.locator('.tool-row pre .ansi-fg2').count() > 0 && await win.locator('.tool-row pre tags').count() === 0);
-    await p.waitForFunction(k => [...document.querySelectorAll('[data-win="' + CSS.escape(k) + '"] .tool-row .badge')].every(el => el.textContent === 'done'), first);
-    ok('the final tool statuses and group summary are current', (await win.locator('.tool-row .badge').allTextContents()).every(text => text === 'done') && (await win.locator('.tool-group-now').textContent()) === '');
+    ok('terminal colors survive batching', await win.locator('.tool-row .tool-output .ansi-fg2').count() > 0 && await win.locator('.tool-row .tool-output tags').count() === 0);
+    await p.waitForFunction(k => [...document.querySelectorAll('[data-win="' + CSS.escape(k) + '"] .tool-row .badge')].every(el => el.textContent === 'finished'), first);
+    ok('the final tool statuses and group summary are current', (await win.locator('.tool-row .badge').allTextContents()).every(text => text === 'finished') && (await win.locator('.tool-group-now').textContent()) === '');
     await win.locator('[data-view-id="prompt"]').fill('The composer still accepts input.');
     ok('the composer accepts input after the burst', await win.locator('[data-view-id="prompt"]').inputValue() === 'The composer still accepts input.');
 
@@ -69,8 +69,8 @@ const { launch, PAGE } = require('./lib/page');
       for (let i = 0; i < 1000; i++) __emit('agent:update', { sessionId: 'ollama:background', update: { sessionUpdate: 'tool_call_update', toolCallId: 'background', content: [{ type: 'content', content: { type: 'text', text: 'Background line ' + i } }] } });
       __emit('agent:update', { sessionId: 'ollama:background', update: { sessionUpdate: 'tool_call_update', toolCallId: 'background', status: 'failed' } });
     });
-    await p.waitForFunction(k => document.querySelector('[data-win="' + CSS.escape(k) + '"] pre')?.textContent.includes('Background line 999'), second);
-    ok('background output stays in its own chat', !(await win.locator('[data-view-id="logs"]').textContent()).includes('Background line') && (await p.locator('[data-win="' + second + '"] .tool-row .badge').textContent()) === 'failed');
+    await p.waitForFunction(k => document.querySelector('[data-win="' + CSS.escape(k) + '"] .tool-output')?.textContent.includes('Background line 999'), second);
+    ok('background output stays in its own chat', !(await win.locator('[data-view-id="logs"]').textContent()).includes('Background line') && (await p.locator('[data-win="' + second + '"] .tool-row .tool-outcome').textContent()) === 'Status: failed');
     ok('background rendering leaves the front chat and its draft alone', await win.locator('[data-view-id="prompt"]').inputValue() === 'The composer still accepts input.' && await p.evaluate(k => pudlWindows.state().top === k, first));
     const prompt = win.locator('[data-view-id="prompt"]');
     await prompt.fill('');
@@ -106,7 +106,7 @@ const { launch, PAGE } = require('./lib/page');
     ok('typing remains intact while two chats stream command output', await prompt.inputValue() === draft && concurrent.inputs === draft.length && concurrent.ticks > 2, JSON.stringify(concurrent));
     for (const key of [first, second]) await p.waitForFunction(k => {
       const rows = [...document.querySelectorAll('[data-win="' + CSS.escape(k) + '"] .tool-row')];
-      return rows.some(row => row.textContent.includes('Concurrent command') && row.querySelector('.badge')?.textContent === 'done' && row.querySelector('pre')?.textContent.includes('Concurrent 1:0'));
+      return rows.some(row => row.textContent.includes('Concurrent command') && row.querySelector('.badge')?.textContent === 'finished' && row.querySelector('.tool-output')?.textContent.includes('Concurrent 1:0'));
     }, key);
     ok('both concurrent streams finish in their own windows without taking focus', await prompt.evaluate(el => el === document.activeElement) && await p.evaluate(k => pudlWindows.state().top === k, first));
     await p.evaluate(k => {
@@ -122,10 +122,10 @@ const { launch, PAGE } = require('./lib/page');
     ok('a minimized chat defers streamed output rendering', !(await back.locator('pre').allTextContents()).join(' ').includes('Hidden line'));
     await p.evaluate(k => pudlWindows.raise(k), second);
     await back.locator('.tool-row').filter({ hasText: 'Hidden command' }).locator('pre').filter({ hasText: 'Hidden line 99' }).waitFor({ state: 'attached' });
-    ok('revealing a chat draws its retained output and final status', await back.locator('.tool-row').filter({ hasText: 'Hidden command' }).locator('.badge').textContent() === 'done');
+    ok('revealing a chat draws its retained output and final status', await back.locator('.tool-row').filter({ hasText: 'Hidden command' }).locator('.badge').textContent() === 'finished');
     const replay = await p.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Fixture', path: 'codex:replay' }));
-    await p.waitForFunction(k => document.querySelector('[data-win="' + CSS.escape(k) + '"] pre')?.textContent.includes('Saved command output'), replay);
-    ok('history replay flushes its saved tool output and final status', (await p.locator('[data-win="' + replay + '"] .tool-row .badge').textContent()) === 'done');
+    await p.waitForFunction(k => document.querySelector('[data-win="' + CSS.escape(k) + '"] .tool-output')?.textContent.includes('Saved command output'), replay);
+    ok('history replay flushes its saved tool output and final status', (await p.locator('[data-win="' + replay + '"] .tool-row .badge').textContent()) === 'finished');
   } catch (e) {
     t.errors.push(String(e && e.stack || e));
   } finally {

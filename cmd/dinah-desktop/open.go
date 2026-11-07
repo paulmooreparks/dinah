@@ -59,6 +59,7 @@ func (a *App) RenderD2(src string) (string, error) {
 // such as a program or a script, is shown in Explorer instead, so that one
 // click on a link in the agent's message never starts a program.
 var openableExt = map[string]bool{
+	".html": true, ".htm": true,
 	".md": true, ".txt": true, ".log": true, ".csv": true, ".json": true, ".yaml": true, ".yml": true, ".toml": true, ".xml": true,
 	".pdf": true, ".docx": true, ".doc": true, ".xlsx": true, ".xls": true, ".pptx": true, ".ppt": true, ".odt": true, ".ods": true,
 	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".svg": true, ".webp": true, ".bmp": true,

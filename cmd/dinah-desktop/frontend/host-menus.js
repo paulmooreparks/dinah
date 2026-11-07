@@ -1,10 +1,10 @@
 /* Host menus use PUDL's source lists and public window commands. The
    Documents, View, Window and Help rows come from the command registry
-   (commands.js); Tools comes from the launchers. */
+   (commands.js). Launcher destinations are drawn by title-launcher.js. */
 (function () {
   'use strict';
   var bench = window.dinahWorkbench;
-  var tools = document.getElementById('host-tools'), windows = document.getElementById('host-windows');
+  var windows = document.getElementById('host-windows');
   function command(list, definition) {
     var li = document.createElement('li');
     li.dataset.generated = '';
@@ -35,17 +35,6 @@
     }
     list.appendChild(li);
     return li;
-  }
-  function drawTools() {
-    tools.replaceChildren();
-    bench.launchers().filter(function (tool) { return tool.id !== 'terminal'; }).sort(function (a, b) { return a.title.localeCompare(b.title); }).forEach(function (tool) { command(tools, { label: tool.title, mnemonic: tool.mnemonic, glyph: tool.glyph, run: tool.run }); });
-    var terminal = bench.launchers().find(function (tool) { return tool.id === 'terminal'; });
-    var shells = window.dinahShellTerminal ? window.dinahShellTerminal.shells() : [];
-    var choices = [{ label: 'Default Shell', run: terminal ? terminal.run : function () {}, disabled: !terminal }, '-'];
-    shells.forEach(function (shell) { choices.push({ label: shell.name, run: function () { return window.dinahResources.currentPath().then(function (path) { return window.dinahResources.openTerminal(path, null, shell.id); }); } }); });
-    if (window.dinahShellTerminal) { choices.push('-'); choices.push({ label: 'Refresh Shells', run: window.dinahShellTerminal.refresh }); }
-    command(tools, { label: 'New Terminal', mnemonic: 'N', glyph: 'terminal', items: choices });
-    command(tools, '-'); command(tools, { label: 'Find a Tool…', mnemonic: 'D', glyph: 'search', run: function () { window.dinahCommands.run('find-tool'); } });
   }
   function drawThemes() {
     var list = document.getElementById('host-themes'), appearance = window.dinahAppearance;
@@ -115,7 +104,7 @@
       }
       return;
     }
-    ['dinah', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes(); drawSkins();
+    ['dinah', 'workspace', 'documents', 'view', 'help'].forEach(drawRegistry); drawWindows(); drawThemes(); drawSkins();
     // The host registry supplies markup rows rather than PUDL commands.
     // Its explicit open-menu updates still use the documented notification.
     if (event?.detail?.refreshOpenMenus && window.pudlMenubar) window.pudlMenubar.refresh();
@@ -199,12 +188,13 @@
     { where: 'Switching', label: 'Let Go Without Switching', key: 'Esc' }
   ], 'window-switcher');
 
-  document.addEventListener('dinah:launchers-change', function () { drawTools(); if (window.pudlMenubar && !panelOpen()) window.pudlMenubar.refresh(); });
+  document.addEventListener('dinah:launchers-change', function () { if (window.pudlMenubar && !panelOpen()) window.pudlMenubar.refresh(); });
   document.addEventListener('pudl:windows-change', function () { C.changed(); });
   document.addEventListener('dinah:commands-change', drawAll);
   // A theme or skin saved while a menu or the ribbon shows its list ticks the
   // new choice in that open list at once, through PUDL's documented refresh,
   // so a list opened before the save ended never keeps the old tick.
   document.addEventListener('dinah:appearance-library', function () { drawAll({ detail: { refreshOpenMenus: true } }); });
-  document.addEventListener('DOMContentLoaded', function () { drawTools(); drawAll(); });
+  document.addEventListener('DOMContentLoaded', function () { drawAll(); });
 })();
+

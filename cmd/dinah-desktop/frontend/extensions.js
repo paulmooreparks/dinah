@@ -372,6 +372,10 @@
     }
   });
   bench.register('extension-view', {
+    pinReference: function (item) {
+      try { const address = JSON.parse(item.path); return bench.launcherPinReference('extension-' + address[0] + '-' + address[1]); }
+      catch (_) { return null; }
+    },
     applet: taskbarApplet,
     workspaceOf: taskbarWorkspace,
     title: 'Extension',
@@ -451,7 +455,7 @@
         bench.regroup();
         if (view?.follows) {
           ws.pinned = !!pinned;
-          pudlWindows.retitle(key, view.title, ws.name || '');
+          window.dinahWorkbench.retitle(key, view.title, ws.name || '');
         }
         send('workspace', ws);
         if (previous && previous !== ws.id)

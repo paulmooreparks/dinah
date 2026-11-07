@@ -26,6 +26,8 @@
       var record = null, generation = 0, disposed = false;
       var model = window.dinahResources.createTree(), roots = [], selected = '', expanded = new Set();
       var sourceSignature = '', busy = false;
+      var renderedSignature = null, renderedList = null;
+      var entryIdentities = new WeakMap(), nextEntryIdentity = 0;
       var listeners = [];
       function listen(element, event, handler) { element.addEventListener(event, handler); listeners.push(function () { element.removeEventListener(event, handler); }); }
       var tree = $('workspace-source-tree');
@@ -51,7 +53,10 @@
       }
       function select(item) {
         selected = keyFor(item);
-        tree.querySelectorAll('[data-resource]').forEach(function (row) { row.setAttribute('aria-current', String(row.dataset.resource === selected)); });
+        tree.querySelectorAll('[data-resource]').forEach(function (row) {
+          var value = String(row.dataset.resource === selected);
+          if (row.getAttribute('aria-current') !== value) row.setAttribute('aria-current', value);
+        });
         persist();
       }
       // The pin of a tree entry: its reference, its title as the tree shows it, and its kind.
@@ -116,14 +121,13 @@
           return rows.filter(Boolean);
         }
         if (permitted(item, 'preview')) add('Open', function () { open(item); });
-        if (permitted(item, 'edit') && window.dinahEditor) add('Edit', function () { window.dinahEditor.openResource(item.ref).catch(options.fail); });
-        if (permitted(item, 'open-external') || permitted(item, 'reveal')) add(permitted(item, 'reveal') ? 'Show in Folder' : 'Open Externally', function () { Promise.resolve().then(function () { return api().OpenWorkspaceResource(item.ref); }).catch(options.fail); });
+        rows = rows.concat(window.dinahResources.itemCommands(item, options.fail).filter(function (command) {
+          return ['edit', 'edit-text', 'open-external', 'copy-path'].includes(command.id) || (!source && command.id === 'rename');
+        }));
         // A folder on the computer takes files from anywhere on it, and any
         // folder opens in Files.
         if (window.dinahResources.takesFolder(item)) add('Upload Files…', function () { window.dinahResources.chooseAndUpload(item).then(function (r) { if (r && !disposed) reload(entry); }).catch(options.fail); });
         if (permitted(item, 'list') && item.path) add('Open in Files', function () { window.dinahResources.openFiles(item.path, item.ref).catch(options.fail); });
-        if (item.writable && item.ref) add('Copy Path', function () { window.dinahResources.copyPath(item).catch(options.fail); });
-        if (!source && window.dinahResources.renames(item)) add('Rename…', function () { window.dinahResources.renameFile(item).catch(options.fail); });
         var pin = window.dinahPins && item.ref && window.dinahPins.command(pinOf(entry));
         if (pin) rows.push(pin);
         if (permitted(item, 'list')) add(source ? 'Refresh Source' : 'Refresh Children', function () { reload(entry); });
@@ -181,6 +185,19 @@
       }
       function drawTree() {
         if (!record || disposed) return;
+        // Retain the DOM when a model notification changes nothing presented.
+        // Include object identity because event handlers retain model entries.
+        function presentation(entry) {
+          if (!entryIdentities.has(entry)) entryIdentities.set(entry, ++nextEntryIdentity);
+          var key = keyFor(entry), opened = expanded.has(key) && permitted(entry, 'list');
+          return [entryIdentities.get(entry), entry.ref, entry.path, entry.title, entry.kind,
+            entry.directory, entry.writable, entry.actions, entry.missing, entry.unavailable,
+            selected === key, opened, opened && !!entry.loading, opened && entry.error,
+            opened && entry.loaded, opened && entry.nextStart,
+            opened ? (entry.children || []).map(presentation) : null];
+        }
+        var signature = JSON.stringify([record.id, record.sources, roots.map(presentation)]);
+        if (signature === renderedSignature && renderedList && renderedList.parentNode === tree) return;
         var focused = tree.contains(document.activeElement) && document.activeElement.closest('[data-resource]');
         var focusedKey = focused && focused.dataset.resource;
         tree.replaceChildren();
@@ -206,6 +223,7 @@
           if (restored) { list.querySelectorAll('[tabindex="0"]').forEach(function (link) { link.tabIndex = -1; }); restored.tabIndex = 0; restored.focus(); }
         }
         if (!record.sources.length) tree.appendChild(node('p', 'form-help', 'Add a folder to this workspace.'));
+        renderedSignature = signature; renderedList = list;
       }
       function loadChildren(entry, more, force) {
         if (entry.loading) return;

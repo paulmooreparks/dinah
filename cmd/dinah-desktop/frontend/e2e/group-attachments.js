@@ -36,6 +36,8 @@ const { settled, settledCount } = require('./lib/settled');
         BusOverview: async () => ({ inbox: [], unread: 0, rooms: [{ name: 'release-review', title: 'Release Review', lastAt: '', unread: 0, members: [docs, person] }], workspaces: [{ name: 'docs', label: 'docs', path: 'C:/Work/docs', chats: [{ id: 'window-d1', chat: 'chat-docs', title: 'Docs Pass' }] }], links: [], defaultHops: 10, defaultMax: 3, noHopLimit: -1 }),
         BusGroupMessages: async () => messages.slice(),
         BusMarkGroupRead: async () => {},
+        Sessions: async () => [{sessionId:'chat-docs',title:'Docs Pass',cwd:'C:/Work/docs',open:true,queued:[]}],
+        AppletCatalog: async () => [{id:'example.review',title:'Review',actions:[{ref:'example.review/read@1',title:'Read',description:'Read reviews'}]}],
         PickAttachments: async () => { __calls.push(['pick']); return [{ kind: 'file', name: 'picked.csv', mimeType: 'text/csv', data: btoa('a,b\n1,2\n'), size: 8 }]; },
         // Go turns a file address into its path and says where it opens
         // (document_links.go); here, the system's program.
@@ -43,7 +45,7 @@ const { settled, settledCount } = require('./lib/settled');
         OpenPath: async p => { __calls.push(['open', p]); return 'opened'; },
         BusSendToGroup: async (key, text, mentions, files) => {
           __calls.push(['group-send', key, text, mentions, files]);
-          const m = msg(next++, 'Paul', text, { attachments: files.map((f, i) => ({ index: i + 1, rel: f.name, size: atob(f.data).length, mime: f.mimeType, stored: true, uri: 'file:///C:/Users/paul/.dinah/attachments/2026-10-28/' + f.name })) });
+          const m = msg(next++, 'Paul', text, { attachments: files.filter(f => f.kind === 'file').map((f, i) => ({ index: i + 1, rel: f.name, size: atob(f.data).length, mime: f.mimeType, stored: true, uri: 'file:///C:/Users/paul/.dinah/attachments/2026-10-28/' + f.name })) });
           messages.push(m);
           return m;
         },
@@ -83,7 +85,8 @@ const { settled, settledCount } = require('./lib/settled');
     await p.waitForFunction(() => document.querySelectorAll('.win[data-win-kind="bus-room"] .group-attachments .attachment').length === 2);
     ok('a file dropped on the window is a chip, and the outline goes', await chips.nth(1).locator('.attachment-name').innerText() === 'dropped.txt' &&
       !(await room.locator('.bus-conversation').getAttribute('class')).includes('dropping'));
-    await room.getByRole('button', { name: 'Attach…' }).click();
+    await room.locator('.group-add').click();
+    await p.locator('.menu-panel:popover-open .menu-action', { hasText: 'Files From This Computer…' }).click();
     await p.waitForFunction(() => document.querySelectorAll('.win[data-win-kind="bus-room"] .group-attachments .attachment').length === 3);
     ok('Attach… adds the files chosen on the computer', (await calls('pick')).length === 1 && await chips.nth(2).locator('.attachment-name').innerText() === 'picked.csv');
     await box.evaluate(el => {
@@ -128,6 +131,38 @@ const { settled, settledCount } = require('./lib/settled');
       sent[4][0].mimeType === 'image/png' && sent[4][0].kind === 'file' && sent[4][0].data === await p.evaluate(() => __pixel), JSON.stringify(sent).slice(0, 300));
     await p.waitForFunction(() => document.querySelectorAll('.win[data-win-kind="bus-room"] .group-attachments .attachment').length === 0);
     ok('sending empties the chips', await room.locator('.group-attachments').isHidden());
+
+    // Every reference type uses the same catalogue as regular chat.
+    await p.evaluate(() => {
+      window.dinahDocuments.open = () => [{title:'Notes',draftId:'ab'.repeat(16)}];
+    });
+    for (const [menu, label, kind] of [
+      ['Mention an Open Document', 'Notes', 'draft'],
+      ['Mention an Open Document', 'Docs Pass', 'chat'],
+      ['Windows and Applets', 'Review', 'applet'],
+      ['Windows and Applets', 'Editor', 'window']
+    ]) {
+      await room.locator('.group-add').click();
+      await p.locator('.menu-panel:popover-open .menu-action', {hasText:menu}).click();
+      await box.fill('@' + label);
+      await room.locator('.group-mention-pop .mention-name').filter({hasText:new RegExp('^' + label + '$')}).click();
+      ok(kind + ' has a removable attachment chip', await chips.count() === 1);
+      await room.getByRole('button', {name:'Send',exact:true}).click();
+      await p.waitForFunction(kind => __calls.some(c => c[0] === 'group-send' && c[4].some(f => f.kind === kind)), kind);
+      const sent = (await calls('group-send')).at(-1);
+      ok(kind + ' sends context without notifying members', sent[3].length === 0 && sent[4][0].kind === kind && !sent[4][0].token);
+      await chips.waitFor({state:'hidden'});
+    }
+
+    await p.evaluate(() => {
+      dinahFilePicker.pick = async options => options.commit({node:{title:'workspace.md',ref:{workspaceId:'ws',sourceId:'src',path:'workspace.md'}}});
+    });
+    await room.locator('.group-add').click();
+    await p.locator('.menu-panel:popover-open .menu-action', {hasText:'Browse the Workspace'}).click();
+    await chips.first().waitFor();
+    await room.getByRole('button', {name:'Send',exact:true}).click();
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'group-send' && c[4].some(f => f.kind === 'resource')));
+    ok('workspace selection sends its resource identity', (await calls('group-send')).at(-1)[4][0].ref.path === 'workspace.md');
 
     // A sent message's attachments.
     const shown = room.locator('[data-bus-message="2"] .msg-attachments');

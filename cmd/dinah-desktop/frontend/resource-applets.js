@@ -12,7 +12,7 @@
     try { var parsed = JSON.parse(path); if (parsed && typeof parsed.path === 'string') path = parsed.path; } catch (_) { /* A plain path. */ }
     return { mount: path };
   }
-  dinahWorkbench.register('files', { applet: { id: 'dinah.files', title: 'Files', glyph: 'folder', workspace: true }, title: 'Files', glyph: 'folder', workspaceOf: filesWorkspace, launcher: { mnemonic: 'F', description: 'Browse files and workspace sources.', run: function () { return dinahResources.openFiles('/workspaces'); } }, init: function (root, opts, item) { return dinahFiles.init(root, opts, item); } });
+  dinahWorkbench.register('files', { pinByItem: true, applet: { id: 'dinah.files', title: 'Files', glyph: 'folder', workspace: true }, title: 'Files', glyph: 'folder', workspaceOf: filesWorkspace, launcher: { mnemonic: 'F', description: 'Browse files and workspace sources.', run: function () { return dinahResources.openFiles('/workspaces'); } }, init: function (root, opts, item) { return dinahFiles.init(root, opts, item); } });
   // A terminal restored behind other windows starts when it is seen, or in
   // idle time after the windows in sight.
   dinahWorkbench.register('terminal', { applet: { id: 'dinah.terminal', title: 'Terminal', glyph: 'script', workspace: false }, title: 'Terminal', glyph: 'script', start: 'idle', launcher: { title: 'New Terminal', mnemonic: 'T', description: 'Use commands to browse workspace resources.', applet: 'dinah.terminal', run: function () { return dinahResources.currentPath().then(dinahResources.openTerminal); } }, init: function (root, opts, item) {

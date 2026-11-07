@@ -69,6 +69,7 @@
           var started = performance.now(), wait = started - job.since;
           if (job.draw(deadline) === true || version !== job.version) more = true;
           else if (pending.get(key) === job) remove(key);
+          if (window.dinahAgentDiagnostics) window.dinahAgentDiagnostics.record(job.label, performance.now() - started, wait);
           if (window.dinahResponsiveness) window.dinahResponsiveness.record('render', job.label, performance.now() - started, wait);
           job.since = performance.now();
           if (job.after) after.push({ fn: job.after, label: job.label });
@@ -82,6 +83,7 @@
         try {
           var started = performance.now();
           entry.fn();
+          if (window.dinahAgentDiagnostics) window.dinahAgentDiagnostics.record('layout follow-up', performance.now() - started, 0);
           if (window.dinahResponsiveness) window.dinahResponsiveness.record('render', 'layout follow-up', performance.now() - started, 0);
         }
         catch (error) { setTimeout(function () { throw error; }, 0); }
@@ -96,5 +98,9 @@
     pending.forEach(function (job) { job.since = performance.now(); });
     wake();
   });
-  window.dinahRender = { enqueue: enqueue, cancel: remove, wake: wake };
+  window.dinahRender = { enqueue: enqueue, cancel: remove, wake: wake, diagnostics: function () {
+    var blocked = 0, oldest = 0, now = performance.now();
+    pending.forEach(function (job) { if (job.blocked) blocked++; oldest = Math.max(oldest, now - job.since); });
+    return { pending: pending.size, blocked: blocked, watchedRoots: roots.size, framePending: !!frame, oldestWaitMs: Math.max(0, oldest) };
+  } };
 })();

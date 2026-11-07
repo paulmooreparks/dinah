@@ -44,6 +44,8 @@ import (
 //	agent:sent        {sessionId, text, kind}          a queued or steering message went to the agent
 //	agent:options     {sessionId, options}             the session's config options
 type App struct {
+	diagnosticsMu              sync.Mutex
+	diagnosticsNext            time.Time
 	responsivenessMu           sync.Mutex
 	responsivenessClosed       bool
 	responsiveness             atomic.Pointer[responsiveness.Recorder]

@@ -20,7 +20,7 @@ func (a *App) builtinAppletBundles() ([]applet.Bundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	makers := []func() (applet.Bundle, error){a.workspaceAppletBundle, a.chatAppletBundle, a.settingsAppletBundle, a.filesAppletBundle, a.terminalAppletBundle, a.skillsAppletBundle, a.windowsAppletBundle, a.teamAppletBundle}
+	makers := []func() (applet.Bundle, error){a.workspaceAppletBundle, a.chatAppletBundle, a.settingsAppletBundle, a.filesAppletBundle, a.terminalAppletBundle, a.skillsAppletBundle, a.windowsAppletBundle, a.teamAppletBundle, a.diagnosticsAppletBundle}
 	for _, makeBundle := range makers {
 		bundle, err := makeBundle()
 		if err != nil {

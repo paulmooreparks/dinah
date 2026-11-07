@@ -12,7 +12,7 @@ const doc = JSON.parse(JSON.stringify(context.window.dinahThemeBuiltins.mineral)
 doc.name = 'Clear Chime';
 Object.assign(doc.palettes.light, {
  bg:'#dce7e3',surface:'#faf8f1','surface-alt':'#e8eee8',text:'#243c3c','text-muted':'#526967',border:'#829590',
- accent:'#006e70','accent-hover':'#00595d','on-accent':'#ffffff','tb-bg':'#164c4e','tb-fg':'#fffaf0',
+ accent:'#005b5d','accent-hover':'#004c4f','on-accent':'#ffffff','tb-bg':'#164c4e','tb-fg':'#fffaf0',
  light:'#fffdf5',shade:'#153d3b',lit:'48%',depth:'16%',positive:'#287145',warn:'#825b0b','on-warn':'#ffffff',danger:'#b03538','danger-hover':'#90282d'
 });
 Object.assign(doc.palettes.dark, {

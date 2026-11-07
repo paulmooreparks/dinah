@@ -148,7 +148,7 @@
       var list = chats() ? chats().list(rootId) : [], children = tree(list, rootId);
       var running = list.filter(function (s) { return s.state === 'running'; }).length;
       var title = chats() ? chats().title(rootId) : 'the chat';
-      if (!opts.embedded && key && window.pudlWindows) window.pudlWindows.retitle(key, 'Subagents', title);
+      if (!opts.embedded && key && window.pudlWindows) window.dinahWorkbench.retitle(key, 'Subagents', title);
       var before = earlier().length;
       $('meta').textContent = !list.length ? 'The subagents of "' + title + '" in this run.'
         : '"' + title + '" has started ' + (list.length === 1 ? '1 subagent' : list.length + ' subagents') + ' in this run' + (running ? ', and ' + running + ' ' + (running === 1 ? 'is' : 'are') + ' running.' : '.');
@@ -208,7 +208,7 @@
       var list = chats() && chats().earlier ? chats().earlier(rootId) : [], names = {};
       var title = chats() ? chats().title(rootId) : 'the chat';
       list.forEach(function (sub) { names[sub.id] = sub.name || 'Subagent'; });
-      if (!opts.embedded && key && window.pudlWindows) window.pudlWindows.retitle(key, 'Earlier Subagents', title);
+      if (!opts.embedded && key && window.pudlWindows) window.dinahWorkbench.retitle(key, 'Earlier Subagents', title);
       $('meta').textContent = !list.length ? 'The subagents of "' + title + '" from earlier runs.'
         : '"' + title + '" has ' + (list.length === 1 ? '1 subagent' : list.length + ' subagents') + ' from earlier runs, newest first.';
       $('list').replaceChildren.apply($('list'), list.slice().reverse().map(function (sub) {
@@ -295,7 +295,7 @@
       if (sub.state === 'disconnected') notes.push(stateTitle(sub));
       $('note').hidden = !notes.length;
       $('note').textContent = notes.join(' ');
-      if (!opts.embedded && key && window.pudlWindows) window.pudlWindows.retitle(key, sub.name || 'Subagent', chats() ? chats().title(rootId) : '');
+      if (!opts.embedded && key && window.pudlWindows) window.dinahWorkbench.retitle(key, sub.name || 'Subagent', chats() ? chats().title(rootId) : '');
       if (window.pudlCommands) window.pudlCommands.changed();
     }
     function empty(title, text) {
@@ -534,7 +534,7 @@
   }
 
   window.dinahSubagents = { badge: badge, state: stateOf, tree: tree, ran: ran, openTree: openTree, openArchive: openArchive, open: openOne, openButton: openButton };
-  window.dinahWorkbench.register('subagents', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Subagents', glyph: 'subagents', init: initTree });
-  window.dinahWorkbench.register('subagent-archive', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Earlier Subagents', glyph: 'subagents', init: initArchive });
-  window.dinahWorkbench.register('subagent', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Subagent', glyph: 'subagents', init: initOne });
+  window.dinahWorkbench.register('subagents', { pinnable: false, applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Subagents', glyph: 'subagents', init: initTree });
+  window.dinahWorkbench.register('subagent-archive', { pinnable: false, applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Earlier Subagents', glyph: 'subagents', init: initArchive });
+  window.dinahWorkbench.register('subagent', { pinnable: false, applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Subagent', glyph: 'subagents', init: initOne });
 })();

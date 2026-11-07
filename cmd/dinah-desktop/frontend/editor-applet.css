@@ -2,7 +2,6 @@
    description, an optional notice and problems list, then the text and the
    preview side by side (Split), or either alone. */
 .editor-applet { display: flex; flex-direction: column; overflow: hidden; position: relative; background: var(--surface-alt); }
-.editor-applet .doc-meta { overflow-wrap: anywhere; }
 /* The window's two toolbars, the document's and the formatting's, are
    PUDL's folding toolbars of the Editor's commands; each keeps to one row
    and folds its groups as the window narrows. These rules give them their
@@ -62,7 +61,16 @@
 .editor-split > .editor-text { overflow: hidden; }
 .editor-text .cm-editor { height: 100%; }
 .editor-preview .doc-block { cursor: default; }
-.editor-status { flex: none; margin: 0; padding: 2px var(--space-3); font-size: var(--text-xs); color: var(--text-muted); background: var(--surface); border-top: 1px solid var(--border); min-height: 1.6em; }
+.editor-statusbar { flex: none; display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-1) var(--space-3); font-size: var(--text-xs); color: var(--text-muted); background: var(--surface); border-top: 1px solid var(--border); }
+.editor-status-details { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.editor-location { display: flex; align-items: center; gap: var(--space-1); flex: 1 1 16rem; min-width: 0; max-width: 100%; }
+.editor-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: text; }
+.editor-location .icon-btn { flex: none; width: 1.6rem; height: 1.6rem; }
+.editor-save-state { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; border: 1px solid currentColor; border-radius: var(--radius-sm); padding: 1px var(--space-2); white-space: nowrap; }
+.editor-save-state[data-state="saved"] { color: var(--positive); background: color-mix(in srgb, var(--positive) 8%, var(--surface)); }
+.editor-save-state[data-state="unsaved"], .editor-save-state[data-state="warn"] { color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, var(--surface)); }
+.editor-save-state[data-state="working"] { color: var(--accent); }
+.editor-status { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .editor-status.warn { color: var(--danger); }
 .editor-dialog { width: min(36rem, 92vw); }
 .editor-dialog .dialog-body { display: flex; flex-direction: column; gap: var(--space-3); }

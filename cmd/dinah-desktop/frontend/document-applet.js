@@ -115,7 +115,7 @@
       function draw(v) {
         resource = v.resource;
         doc.title = v.title || (resource && resource.title) || doc.title;
-        if (!opts.embedded) window.pudlWindows.retitle(key, doc.title);
+        if (!opts.embedded) window.dinahWorkbench.retitle(key, doc.title);
         var page = $('page');
         page.classList.toggle('media-preview', ['image', 'd2', 'mermaid'].includes(v.format));
         page.dataset.previewFormat = v.format || '';

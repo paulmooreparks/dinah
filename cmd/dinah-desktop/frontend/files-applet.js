@@ -72,7 +72,7 @@
        (pudl-commands.js): the toolbar, the Actions menu and the window's
        menu name them by id, and an agent lists and runs them. What applies
        to the selection is shown; the rest is hidden. */
-    var ACTIONS = ['retry', 'open', 'edit', 'browse-children', 'open-external', 'new-folder', 'upload', 'copy-path', 'rename', 'refresh', 'preview-pane', 'new-terminal'];
+    var ACTIONS = ['retry', 'open', 'edit', 'edit-text', 'browse-children', 'open-external', 'new-folder', 'upload', 'copy-path', 'rename', 'refresh', 'preview-pane', 'new-terminal'];
     function fail(error) { say(String(error), true); }
     function commandTable() {
       var node = current(), cwd = browser && browser.cwd(), takes = !!cwd && !displayOnly && dinahResources.takesFolder(cwd);
@@ -87,6 +87,7 @@
         } },
         { id: 'open', label: node && node.directory && !dinahResources.has(node, 'preview') ? 'Open Folder' : node && node.directory ? 'Open Content' : 'Open', hidden: !opens, run: function () { open(node); } },
         { id: 'edit', label: 'Edit', hidden: !(node && node.ref && dinahResources.has(node, 'edit') && window.dinahEditor), run: function () { window.dinahEditor.openResource(node.ref).catch(fail); } },
+        { id: 'edit-text', label: 'Edit as Text', hidden: !(node && node.ref && dinahResources.has(node, 'edit-text')), run: function () { window.dinahEditor.openResource(node.ref, 'text').catch(fail); } },
         { id: 'browse-children', label: 'Browse Children', hidden: !(node && !displayOnly && node.directory && dinahResources.has(node, 'list') && dinahResources.has(node, 'preview')), run: function () { browser.go(node); } },
         { id: 'open-external', label: external || 'Open Outside', hidden: !external, run: function () {
           var api = window.dinahHelpers.app();
@@ -185,6 +186,17 @@
       stateReady = true; browser.onChange(persist); select(browser.selected()); redraw();
       if (opts.changed) opts.changed(state());
       if (window.dinahUIState) dinahUIState.refreshScroll(root);
+    });
+    root.addEventListener('pudl:contextmenu', function (event) {
+      if (!browser || displayOnly || event.detail.count()) return;
+      var row = event.target.closest('tr.fm-row'), tree = event.target.closest('[data-fb=tree] a[data-path]');
+      if (!row && !tree) return;
+      var item;
+      if (row) { browser.select(row.dataset.name); item = browser.selected(); }
+      else item = F.resolve(null, tree.dataset.path);
+      if (!item) return;
+      event.detail.add(dinahResources.itemCommands(item, fail));
+      event.detail.mark(row || tree); event.preventDefault();
     });
     root.addEventListener('click', function (event) {
       var button = event.target.closest('[data-action]'); if (!button || !browser) return;

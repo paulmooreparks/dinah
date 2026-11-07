@@ -5,8 +5,8 @@
   var node = window.dinahHelpers.node;
   function mount(o) {
     var log = o.log, content = o.content, disposed = false, following = true;
-    var frame = 0, navigationTarget = null;
-    var known = new Map(), unseen = new Map(), started = false, sequence = 0, localKeys = new WeakMap(), seenSignature = '';
+    var frame = 0, navigationTarget = null, leavingEnd = false;
+    var known = new Set(), unseen = new Map(), started = false, sequence = 0, localKeys = new WeakMap(), seenSignature = '';
     log.setAttribute('data-follow-end', '');
     log.tabIndex = log.tabIndex < 0 ? 0 : log.tabIndex;
     var wrap = o.jump && o.jump.parentElement || node('div', 'jump-end-wrap');
@@ -29,6 +29,12 @@
     var unreadGlyph = node('span', 'glyph'), unreadWords = node('span');
     unreadGlyph.style.setProperty('--glyph', 'var(--glyph-info)'); unreadGlyph.setAttribute('aria-hidden', 'true'); divider.append(unreadGlyph, unreadWords);
     function atEnd() { return log.scrollHeight - log.scrollTop - log.clientHeight < 24; }
+    // An upward wheel gesture owns the position even inside the end tolerance.
+    // Release this guard once it leaves that tolerance or reverses direction.
+    function mayResume() {
+      if (!atEnd()) leavingEnd = false;
+      return !leavingEnd && atEnd();
+    }
     function active() {
       var win = o.root.closest('.win');
       return !!win && !win.hidden && !!log.clientHeight && document.visibilityState === 'visible' && window.pudlWindows.state().top === win.dataset.win;
@@ -37,7 +43,7 @@
     function setFollowing(value) {
       following = !!value;
       log.dataset.following = String(following);
-      if (following) { navigationTarget = null; window.dinahChatText.releasePlace(log); }
+      if (following) { leavingEnd = false; navigationTarget = null; window.dinahChatText.releasePlace(log); }
       if (o.followingChanged) o.followingChanged(following);
       jump.hidden = following || !log.clientHeight || atEnd();
     }
@@ -66,13 +72,14 @@
       rows.forEach(function (entry) {
         present.add(entry.key);
         if (!known.has(entry.key) && (started || o.initialSeen && !o.initialSeen(entry))) unseen.set(entry.key, entry);
-        known.set(entry.key, entry);
         if (unseen.has(entry.key)) unseen.set(entry.key, entry);
       });
+      // Remember only current keys; removed rows must remain collectible.
+      known = present;
       started = true;
       Array.from(unseen.keys()).forEach(function (key) { if (!present.has(key)) unseen.delete(key); });
       if (active()) {
-        if (atEnd()) { unseen.clear(); setFollowing(true); }
+        if (mayResume()) { unseen.clear(); setFollowing(true); }
         else unseen.forEach(function (entry, key) { if (wholeVisible(entry.element)) unseen.delete(key); });
       }
       var pending = rows.filter(function (entry) { return unseen.has(entry.key); }), first = pending[0];
@@ -84,6 +91,7 @@
         if (divider.nextElementSibling !== first.element) first.element.before(divider);
       } else if (divider.parentNode) divider.remove();
       showStopped(!!first);
+      jump.hidden = following || !log.clientHeight || atEnd();
       if (anchor && anchor.element.isConnected) {
         var shift = anchor.element.getBoundingClientRect().top - log.getBoundingClientRect().top - anchorTop;
         if (Math.abs(shift) > 0.5) { log.scrollTop += shift; }
@@ -100,7 +108,7 @@
       // Only deliberate navigation releases following. A delayed layout scroll
       // can carry an old position after both the extent and viewport settled.
       if (following) queueTail();
-      else setFollowing(atEnd());
+      else setFollowing(mayResume());
       updateSeen();
     }
     function scroll(force) {
@@ -155,6 +163,7 @@
         return;
       }
       release();
+      if (event.type === 'wheel' && event.deltaY) leavingEnd = event.deltaY < 0;
       if (event.type !== 'wheel' || event.deltaY < 0) setFollowing(false);
     }
     function restored() { window.dinahChatText.releasePlace(log); setFollowing(atEnd()); schedule(); }
@@ -186,6 +195,7 @@
         release(); setFollowing(value.following); log.scrollTop = following ? log.scrollHeight : value.top; schedule();
       },
       destroy: function () {
+        known.clear(); unseen.clear(); navigationTarget = null;
         disposed = true; if (frame) cancelAnimationFrame(frame); mutation.disconnect(); resize.disconnect(); controls.remove(); divider.remove();
         jump.removeEventListener('click', latest); stopped.removeEventListener('click', whereStopped);
         log.removeEventListener('scroll', check); log.removeEventListener('dinah:scroll-restored', restored);

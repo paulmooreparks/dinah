@@ -32,7 +32,6 @@
         autoStopped = '';
         ed.$('moved').hidden = true;
         ed.say('Saved.');
-        host().toast('Saved "' + ed.draft.title + '".', 'positive');
         notes(saved.notes);
       }).catch(refused)
         .finally(function () { ed.busy = false; ed.drawHead(); });
@@ -41,6 +40,7 @@
     /* A saved draft becomes the window's; a save that changed the text
        makes the window show it, unless the person has typed since. */
     function took(saved) {
+      ed.saveError = '';
       var before = ed.view ? ed.view.state.doc.toString() : null;
       ed.draft = saved;
       if (ed.view && !ed.pending && saved.text != null && saved.text !== before) { ed.replaceText(saved.text); ed.schedulePreview(); }
@@ -60,6 +60,7 @@
       if (!autoSaves() || !ed.draft.changed) return;
       if (ed.busy || ed.pending || ed.writing) { scheduleAutoSave(); return; }
       ed.busy = true;
+      ed.drawHead();
       Promise.resolve().then(function () { return api().SaveDraft(ed.id, ed.draft.revision); }).then(function (saved) {
         took(saved);
         ed.$('moved').hidden = true;
@@ -67,6 +68,7 @@
         notes(saved.notes);
       }).catch(function (err) {
         autoStopped = message(err);
+        ed.saveError = autoStopped;
         ed.say('Automatic saving stopped: ' + autoStopped + ' Save once the document is settled to start it again.', true);
         // The banner, when the file moved on, says what changed; the status
         // line keeps saying that saving stopped.
@@ -81,6 +83,7 @@
        service, not read from the error's wording. */
     var comparison = null, movedAt = '';
     function refused(err) {
+      ed.saveError = message(err);
       ed.say(message(err), true, ed.draft ? 'Saving "' + (ed.draft.title || 'Untitled') + '" failed.' : '');
       checkMoved(true);
     }
@@ -95,7 +98,7 @@
       Promise.resolve().then(function () { return api().CompareDraft(ed.id); }).then(function (c) {
         if (ed.disposed || generation !== movedRequest) return;
         if (!c.moved) {
-          if (!afterRefusal && !ed.$('moved').hidden) { ed.$('moved').hidden = true; comparison = null; }
+          if (!afterRefusal && !ed.$('moved').hidden) { ed.$('moved').hidden = true; comparison = null; ed.drawHead(); }
           return;
         }
         var fresh = c.revision !== movedAt;
@@ -109,6 +112,7 @@
             'Your changes and theirs do not touch, so theirs can be brought into your draft' + (afterRefusal ? ' before you try again.' : ' now.'));
         ed.$('bring').hidden = n > 0;
         ed.$('moved').hidden = false;
+        ed.drawHead();
         if (afterRefusal) ed.say('');
       }).catch(function () { /* The next check tries again. */ });
     }
@@ -223,7 +227,6 @@
           });
         }).then(function () {
           ed.say('Saved a copy.');
-          host().toast('Saved a copy to ' + path + '.', 'positive');
           return true;
         });
       });
@@ -264,7 +267,6 @@
               took(saved);
               autoStopped = '';
               ed.say('Saved.');
-              host().toast('Saved "' + choice.name + '".', 'positive');
               notes(saved.notes);
               recordNameChoice(choice.name);
             });

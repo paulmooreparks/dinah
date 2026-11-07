@@ -53,6 +53,7 @@
   <script src="render-scheduler.js" defer></script>
   <script src="timing-snapshot.js" defer></script>
   <script src="responsiveness.js" defer></script>
+  <script src="agent-diagnostics.js" defer></script>
   <script src="workbench.js" defer></script>
   <script src="commands.js" defer></script>
   <script src="browser-list.js" defer></script>
@@ -156,6 +157,10 @@
   <script src="exit-guard.js" defer></script>
   <script src="host-menus.js" defer></script>
   <script src="pudl/pudl-windows.js" defer></script>
+  <script src="pudl/pudl-start.js" defer></script>
+  <script src="pudl/pudl-launcher.js" defer></script>
+  <script src="taskbar-pins.js" defer></script>
+  <script src="title-launcher.js" defer></script>
   <link rel="stylesheet" href="extensions.css">
   <link rel="stylesheet" href="teams.css">
 </head>
@@ -165,14 +170,13 @@
     <!-- A desktop host: Alt alone and F10 reach the bar, and Alt (Ctrl+Option
          on a Mac) with a title's letter opens it; the old Alt+M access key is
          retired. -->
-    <nav class="menubar" data-menubar data-menubar-host="desktop" data-menubar-key="" data-menubar-ribbon aria-label="Dinah" data-product-attrs="aria-label">
+    <nav class="menubar" data-menubar data-menubar-host="desktop" data-menubar-launcher="dinah-launcher" data-menubar-key="" data-menubar-ribbon aria-label="Dinah" data-product-attrs="aria-label">
       <ul data-menubar-source hidden>
         <!-- Each title and row has its access letter (data-mnemonic); PUDL
              underlines it and runs the row. -->
-        <li data-mnemonic="N"><img src="dinah-mark.svg" alt="" width="20" height="20"><span data-product-name>Dinah</span>
-          <ul data-command-menu="dinah">
-            <li><button type="button" data-cmd="settings" data-mnemonic="S" data-menu-glyph="gear" data-command-label></button></li>
-            <li>-</li>
+        <li data-menubar-id="site" data-mnemonic="N"><img src="dinah-mark.svg" alt="" width="20" height="20"><span data-product-name>Dinah</span></li>
+        <li data-menubar-id="workspace" data-mnemonic="O" data-menu-glyph="folder">Workspaces
+          <ul data-command-menu="workspace">
             <li><button type="button" data-cmd="new-chat" data-mnemonic="N" data-menu-glyph="comments" data-command-label></button></li>
             <li>-</li>
             <li><button type="button" data-cmd="new-workspace" data-mnemonic="W" data-menu-glyph="folder" data-command-label></button></li>
@@ -183,8 +187,6 @@
             <li data-commands></li>
             <li data-mnemonic="C">Recent Workspaces
               <ul data-recent-menu data-menu-radio><li><button type="button" disabled>None yet</button></li></ul></li>
-            <li>-</li>
-            <li><button type="button" data-cmd="quit" data-mnemonic="Q" data-command-label></button></li>
           </ul></li>
         <!-- Documents, and the rows after a list's data-commands marker, are
              drawn from the command registry (commands.js, documents.js). -->
@@ -208,7 +210,6 @@
             <li data-mnemonic="H">Themes<ul id="host-themes"></ul></li>
             <li data-mnemonic="K">Skin<ul id="host-skins" data-menu-radio></ul></li>
           </ul></li>
-        <li data-menubar-id="tools" data-mnemonic="T" data-menu-glyph="gear">Tools<ul id="host-tools"></ul></li>
         <li data-menubar-id="window" data-mnemonic="W" data-menu-glyph="window">Window<ul id="host-windows"></ul></li>
         <li data-menubar-id="help" data-mnemonic="H" data-menu-glyph="info">Help
           <ul data-command-menu="help">
@@ -379,8 +380,11 @@
       </section>
       </div>
       <main class="shell-main" id="main" tabindex="-1">
-       <div class="dinah-window-space win-host">
-       <div class="win-layer" data-win-layer data-win-src="#win-source-{key}" data-win-default="workspace,in-progress,chat-browser,needs-you,chat" data-win-required="workspace" data-win-dock-tabs="all" data-win-dock-splits data-win-taskbar-reorder data-win-resize-mode="outline" data-win-dock-rail-width="960" data-win-menu data-win-taskbar-stacks="full"
+       <div class="split launcher-workspace" id="launcher-workspace">
+       <div class="split-pane" id="launcher-slot"></div>
+       <div class="split-handle" aria-label="Resize launcher" data-split-min="220" data-split-max="60%"></div>
+       <div class="split-pane dinah-window-space win-host">
+       <div class="win-layer" data-win-layer data-win-src="#win-source-{key}" data-win-default="workspace,in-progress,chat-browser,needs-you,chat" data-win-required="workspace" data-win-dock-tabs="all" data-win-dock-splits data-win-taskbar-reorder data-win-resize-mode="live" data-win-dock-rail-width="960" data-win-menu data-win-taskbar-stacks="full"
          data-win-switcher data-win-text-switcher="Switch Windows" data-win-text-switch-last="Switch to the Last Window" data-win-text-switch-back="Switch Back Through the Windows"
          data-win-text-minimize-mnemonic="M" data-win-text-unminimize-mnemonic="T" data-win-text-maximize-mnemonic="Z" data-win-text-restore-mnemonic="T"
          data-win-text-snap-mnemonic="S" data-win-text-dock-mnemonic="K" data-win-text-reset-mnemonic="E" data-win-text-collapse-mnemonic="O"
@@ -388,6 +392,7 @@
        <div class="split work-split no-doc" id="work-split">
 
 
+       </div>
        </div>
        </div>
        <!-- PUDL's taskbar: the dock of open windows, the tray with the
@@ -398,10 +403,9 @@
             and close all is kept away from it. -->
        <footer class="win-bar">
          <nav class="win-dock" data-win-dock data-win-dock-omit-docked aria-label="Open Windows"></nav>
-         <!-- PUDL folds the items into one Status item when the bar is short
-                (data-status-fold, 0.97.0); each badge's reserve is the text it is
-                measured as, so a changing count never folds or unfolds anything. -->
-           <nav class="status-area" aria-label="Status" data-status-fold="all">
+         <!-- Tray labels give way to glyph buttons before window tabs fold.
+              Each widget keeps its own action at narrow widths. -->
+    <nav class="status-area" aria-label="Status" data-status-compact-priority="first">
            <button type="button" class="status-item" id="status-update" popovertarget="update-menu" hidden aria-label="A newer build of Dinah is installed" title="A newer build of Dinah is installed" data-product-attrs="aria-label title"><span class="glyph" style="--glyph: var(--glyph-reload)" aria-hidden="true"></span><span class="status-words">Update</span><span class="badge accent" aria-hidden="true">new</span></button>
            <span class="loading status-starting" id="status-starting" role="status"><span class="spinner" aria-hidden="true"></span> Starting…</span>
            <button type="button" class="status-item workspace-status" id="status-workspace" popovertarget="workspace-status-menu" title="Workspace Menu"><span class="glyph" style="--glyph: var(--glyph-folder)" aria-hidden="true"></span><span id="status-workspace-name">Workspace</span></button>
@@ -416,6 +420,23 @@
       </main>
     </div>
   </div>
+
+
+  <section class="menu-panel start-menu" id="dinah-launcher" data-start data-start-side="left" popover aria-label="Launcher">
+    <header class="popover-head start-header"><button class="btn btn-sm" type="button" data-cmd="settings" data-launcher-activate><span class="glyph" style="--glyph:var(--glyph-gear)" aria-hidden="true"></span>Settings</button><button class="btn btn-sm" type="button" data-cmd="quit" data-launcher-activate><span class="glyph" style="--glyph:var(--glyph-close)" aria-hidden="true"></span><span>Quit Dinah</span></button><button class="icon-btn" type="button" data-launcher-pin aria-label="Keep launcher open" aria-pressed="false"><span class="glyph" style="--glyph:var(--glyph-pin)" aria-hidden="true"></span></button><button class="icon-btn popover-close" type="button" data-launcher-close aria-label="Close launcher"></button></header>
+    <div class="start-search"><form class="md-filter-group start-search-form" role="search"><input class="md-filter" data-start-query type="search" aria-label="Find a tool or applet" placeholder="Find a tool or applet" autocomplete="off"><button class="icon-btn md-filter-go" type="submit" aria-label="Open first result"></button></form><button class="btn btn-sm" data-start-clear type="button">Clear</button></div>
+    <div class="split start-content"><nav class="split-pane start-categories" data-start-categories aria-label="Launcher categories"><ul class="row-list start-category-list">
+      <li class="md-row"><a class="md-item start-category" href="?launcher-category=" data-start-category-key=""><span data-start-label>All</span><span data-start-category-count aria-hidden="true"></span></a></li>
+      <li class="md-row"><a class="md-item start-category" href="?launcher-category=chat" data-start-category-key="chat"><span data-start-label>Chat</span><span data-start-category-count aria-hidden="true"></span></a></li>
+      <li class="md-row"><a class="md-item start-category" href="?launcher-category=workspace" data-start-category-key="workspace"><span data-start-label>Workspace</span><span data-start-category-count aria-hidden="true"></span></a></li>
+      <li class="md-row"><a class="md-item start-category" href="?launcher-category=terminals" data-start-category-key="terminals"><span data-start-label>Terminals</span><span data-start-category-count aria-hidden="true"></span></a></li>
+<li class="md-row"><a class="md-item start-category" href="?launcher-category=documents" data-start-category-key="documents"><span data-start-label>Documents</span><span data-start-category-count aria-hidden="true"></span></a></li>
+<li class="md-row"><a class="md-item start-category" href="?launcher-category=help" data-start-category-key="help"><span data-start-label>Help</span><span data-start-category-count aria-hidden="true"></span></a></li>
+      <li class="md-row"><a class="md-item start-category" href="?launcher-category=tools" data-start-category-key="tools"><span data-start-label>Tools</span><span data-start-category-count aria-hidden="true"></span></a></li>
+    </ul></nav><div class="split-handle" aria-label="Resize launcher categories" data-split-min="90" data-split-max="40%"></div><div class="split-pane start-items-pane"><ul class="row-list start-items" data-start-items></ul><p class="empty-state" data-start-empty hidden>No matching tools or applets.</p></div></div>
+    <footer class="popover-actions start-footer"><span role="status" aria-live="polite">Results: <span data-start-count></span></span><button class="btn btn-sm" type="button" data-launcher-size popovertarget="launcher-size">Size</button></footer>
+    <section class="popover" id="launcher-size" data-launcher-size-panel popover aria-label="Launcher size"><div class="popover-head"><h3 class="popover-title">Launcher size</h3><button type="button" class="icon-btn popover-close" popovertarget="launcher-size" popovertargetaction="hide" aria-label="Close size settings"></button></div><label class="form-label">Width (px)<input class="form-input" type="number" data-launcher-width min="280" value="720"></label><label class="form-label">Height (px)<input class="form-input" type="number" data-launcher-height min="260" value="600"></label></section>
+  </section>
 
   <dialog class="lightbox" id="media-viewer" aria-label="Image Viewer" aria-describedby="media-viewer-title">
     <button type="button" class="lightbox-btn lightbox-close" data-media-close aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
@@ -592,6 +613,7 @@
         </div>
       </div>
     </div>
+    <div class="live-work" id="live-work" aria-label="Current work" hidden><ol class="activity run-log"></ol></div>
     <form class="composer" id="composer">
       <!-- The composer's toolbar is drawn from the chat's commands and
            folds into menus as the window narrows.
@@ -870,6 +892,8 @@
             <h3 class="card-title" id="set-responsiveness-title">UI Responsiveness</h3>
             <button type="button" class="switch" role="switch" aria-checked="false" id="set-responsiveness"><span class="switch-track"><span class="switch-thumb"></span></span>Record Responsiveness</button>
             <p class="form-help">Keeps bounded timing records for up to ten minutes, without typed content. Turning recording off clears the captured timings. The recent-work panel shows the last minute. Input timing includes only browser-reported interactions lasting at least 16 ms. Zero means no retained report, not a guarantee that every interaction was measured.</p>
+            <p id="agent-diagnostics-status" role="status">Agent diagnostic capture: idle.</p>
+            <button type="button" class="btn btn-sm" id="agent-diagnostics-stop" disabled>Stop Agent Capture</button>
             <div id="responsiveness-results" hidden>
               <p data-input-delay></p><p data-stalls></p><p data-render></p><p data-long-frames></p>
               <button type="button" class="btn btn-sm" id="copy-responsiveness" disabled>Copy Timing Snapshot</button>

@@ -56,12 +56,12 @@
   };
   var esc = md.utils.escapeHtml;
   // The attributes that make a link a chip: the address goes in a data
-  // attribute that openChip reads, and the link itself goes nowhere. A link
+  // attribute that openChip reads. Real hrefs also support browser link actions. A link
   // to a file says where it opens once Dinah has said (linkPaths, below).
   function chip(href) {
-    if (/^https?:/i.test(href)) return ' class="smart-chip" href="#" data-chip-url="' + esc(href) + '" title="Open in the Browser"';
-    if (/^file:/i.test(href)) return ' class="smart-chip" href="#" data-chip-file="' + esc(href) + '" title="Open the File"';
-    return ' class="smart-chip" href="#" data-chip-local="' + esc(md.normalizeLinkText(href)) + '" title="Open the File"';
+    if (/^https?:/i.test(href)) return ' class="smart-chip" href="' + esc(href) + '" data-chip-url="' + esc(href) + '" title="Open in the Browser"';
+    if (/^file:/i.test(href)) return ' class="smart-chip" tabindex="0" role="link" data-chip-file="' + esc(href) + '" title="Open the File"';
+    return ' class="smart-chip" tabindex="0" role="link" data-chip-local="' + esc(md.normalizeLinkText(href)) + '" title="Open the File"';
   }
   md.renderer.rules.link_open = function (tokens, i) { return '<a' + chip(String(tokens[i].attrGet('href'))) + '>'; };
   // A picture's address is shown as a chip with its description, so that
@@ -315,7 +315,13 @@
   // A word's punctuation around a path in running text is not the path's.
   var LEADING = /^[(\[{"'“‘]+/, TRAILING = /[)\]}"'”’,.;:!?]+$/;
   /* Gives a link the words and glyph of where it opens. */
+  function fileAddress(path) {
+    var p = path.replace(/\\/g, '/');
+    var parts = p.split('/').map(function (part, i) { return i === 0 && /^[a-z]:$/i.test(part) ? part : encodeURIComponent(part); });
+    return p.startsWith('//') ? 'file:' + parts.join('/') : 'file://' + (p.startsWith('/') ? '' : '/') + parts.join('/');
+  }
   function linkLook(a, l) {
+    if (l.path) { a.href = fileAddress(l.path); a.dataset.linkPath = l.path; }
     a.dataset.opens = l.opens || '';
     a.title = l.label || 'Open the File';
     var glyph = a.querySelector(':scope > .link-glyph');
@@ -328,7 +334,7 @@
   }
   function pathLink(ref, l) {
     var a = document.createElement('a');
-    a.className = 'smart-chip'; a.href = '#'; a.dataset.chipPath = ref;
+    a.className = 'smart-chip'; a.dataset.chipPath = ref;
     linkLook(a, l);
     return a;
   }
@@ -376,6 +382,9 @@
      folder of the workspace that wrote the message; with none, only an
      absolute path is asked about. */
   function linkPaths(root, cwd) {
+    if (root.querySelectorAll) root.querySelectorAll('a.smart-chip[data-chip-file]').forEach(function (a) {
+      try { var u = new URL(a.dataset.chipFile); if (u.protocol === 'file:') a.href = u.href; } catch (_) {}
+    });
     var a0 = app();
     if (!a0 || !a0.ResolveDocumentLinks || root.nodeType !== Node.ELEMENT_NODE || root.closest('pre')) return;
     cwd = cwd || '';
@@ -473,11 +482,39 @@
   /* Makes the links in a list of messages open when pressed. cwd(link)
      returns the workspace folder a path in that link is read from. */
   function openLinks(list, cwd) {
+    function link(e) { var a = e.target.closest && e.target.closest('a.smart-chip'); return a && list.contains(a) ? a : null; }
+    function resolved(a) {
+      var ref = a.dataset.chipPath || a.dataset.chipLocal || a.dataset.chipFile;
+      return Promise.resolve(app().ResolveDocumentLink(cwd(a) || '', ref)).then(function (l) {
+        if (!l || !l.found) throw new Error('The linked file could not be found.');
+        linkLook(a, l); return l;
+      });
+    }
+    function external(a) {
+      if (a.dataset.chipUrl) return openChip(a, cwd(a));
+      return resolved(a).then(function (l) { return app().OpenPath(l.path); }).catch(fail);
+    }
     list.addEventListener('click', function (e) {
-      var a = e.target.closest && e.target.closest('a.smart-chip');
-      if (!a) return;
+      var a = link(e); if (!a) return;
       e.preventDefault();
-      openChip(a, cwd(a));
+      if (e.ctrlKey || e.metaKey || e.shiftKey) external(a);
+      else openChip(a, cwd(a));
+    });
+    list.addEventListener('auxclick', function (e) {
+      var a = link(e); if (!a || e.button !== 1) return;
+      e.preventDefault(); external(a);
+    });
+    list.addEventListener('pudl:contextmenu', function (e) {
+      var a = link(e); if (!a) return;
+      var web = !!a.dataset.chipUrl;
+      var rows = [{ label: web ? 'Open in Browser' : a.title || 'Open in Dinah', run: function () { openChip(a, cwd(a)); } }];
+      if (!web) rows.push({ label: 'Open with Default App', detail: 'HTML files open with your default HTML application.', run: function () { return external(a); } });
+      rows.push({ label: 'Copy Link Address', run: function () {
+        if (web) copy(a.dataset.chipUrl);
+        else return resolved(a).then(function (l) { copy(fileAddress(l.path)); }).catch(fail);
+      } });
+      if (!web) rows.push({ label: 'Copy File Path', run: function () { return resolved(a).then(function (l) { copy(l.path); }).catch(fail); } });
+      e.detail.add(rows); e.detail.mark(a); e.preventDefault();
     });
   }
 
@@ -599,7 +636,7 @@
     if (typeof o.label === 'string') labelEl.textContent = o.label;
     else if (o.label) labelEl.appendChild(o.label);
     var m = { div: div, text: o.text || '', el: div.querySelector('.msg-text'), foot: div.querySelector('.msg-foot'), label: labelEl.textContent };
-    div.querySelectorAll('.msg-copy').forEach(function (b) { b.addEventListener('click', function () { copy(m.text.trim(), 'The message is copied.'); }); });
+    div.querySelectorAll('.msg-copy').forEach(function (b) { b.addEventListener('click', function () { copy(m.text.trim(), '', b); }); });
     div.querySelectorAll('[data-act]').forEach(function (b) {
       b.addEventListener('click', function () { if (o.act) o.act(b.getAttribute('data-act'), m); });
     });
@@ -648,7 +685,7 @@
       var size = window.dinahComposer ? window.dinahComposer.sizeWords(a.size) : a.size + ' bytes';
       if (a.uri && !a.removed) {
         var link = document.createElement('a');
-        link.className = 'smart-chip'; link.href = '#'; link.dataset.chipFile = a.uri; link.title = 'Open the File';
+        link.className = 'smart-chip'; link.href = a.uri; link.dataset.chipFile = a.uri; link.title = 'Open the File';
         link.textContent = a.rel;
         li.appendChild(link);
       } else {
@@ -678,13 +715,49 @@
 
   /* Copying uses Wails' documented clipboard call, and the browser's where
      the page runs outside the app. */
-  function copy(text, said) {
-    var done = function () { toast(said || 'Copied.', 'positive'); };
-    if (window.runtime && window.runtime.ClipboardSetText) {
-      window.runtime.ClipboardSetText(text).then(done, function () { toast('The text could not be copied.', 'danger'); });
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(done, function () { toast('The text could not be copied.', 'danger'); });
+  var copyFeedback = new WeakMap(), copyAnnouncement = null, announceTimer = 0;
+  function copied(button) {
+    if (!copyAnnouncement) {
+      copyAnnouncement = document.createElement('span');
+      copyAnnouncement.className = 'visually-hidden';
+      copyAnnouncement.setAttribute('role', 'status');
+      copyAnnouncement.setAttribute('aria-live', 'polite');
+      document.body.appendChild(copyAnnouncement);
     }
+    clearTimeout(announceTimer);
+    copyAnnouncement.textContent = '';
+    announceTimer = setTimeout(function () { copyAnnouncement.textContent = 'Copied'; }, 30);
+    if (!button || !button.isConnected || button.closest('[role="menu"], .context-menu')) return;
+    var old = copyFeedback.get(button);
+    if (old) old.restore();
+    var label = button.getAttribute('aria-label'), title = button.getAttribute('title');
+    var mark = document.createElement('span');
+    mark.className = 'copy-feedback';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = button.getBoundingClientRect().width >= 70 ? '\u2713 Copied' : '\u2713';
+    button.classList.add('copy-confirmed');
+    button.appendChild(mark);
+    button.setAttribute('aria-label', 'Copied'); button.setAttribute('title', 'Copied');
+    var timer;
+    function restore() {
+      clearTimeout(timer); mark.remove(); button.classList.remove('copy-confirmed');
+      if (label === null) button.removeAttribute('aria-label'); else button.setAttribute('aria-label', label);
+      if (title === null) button.removeAttribute('title'); else button.setAttribute('title', title);
+      copyFeedback.delete(button);
+    }
+    timer = setTimeout(restore, 1500);
+    copyFeedback.set(button, { restore: restore });
+  }
+  function copy(text, said, button) {
+    return Promise.resolve().then(function () {
+      if (window.runtime && window.runtime.ClipboardSetText) return window.runtime.ClipboardSetText(text);
+      if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+      throw new Error('Clipboard unavailable');
+    }).then(function (result) {
+      if (result === false) throw new Error('Clipboard write failed');
+      copied(button);
+      return true;
+    }).catch(function () { toast('The text could not be copied. Try again or select the text and press Ctrl+C.', 'danger'); return false; });
   }
 
   /* While the reader is scrolled back, a row's size can still settle after
@@ -748,7 +821,7 @@
      was trimmed away lands where the change left the view, no farther. */
   function keepPlace(log, run) {
     if (!log || !log.clientHeight) return run();
-    if (log.scrollHeight - log.scrollTop - log.clientHeight < 24) { releasePlace(log); return run(); }
+    if (log.dataset.following !== 'false' && log.scrollHeight - log.scrollTop - log.clientHeight < 24) { releasePlace(log); return run(); }
     var top = log.getBoundingClientRect().top;
     var held = watches.get(log);
     if (held && held.want >= 0 && Math.abs(log.scrollTop - held.scrollTop) > 1.5) { releasePlace(log); held = null; }

@@ -233,14 +233,14 @@
      when an earlier message is in the box.
 
      A box with o.files takes files as a chat's box does: pasted into it,
-     dropped on the window (box.dropOn) or chosen with Attach…, shown as the
+     dropped on the window (box.dropOn) or chosen with Add, shown as the
      chat's chips with Remove (composer.js, attachments), and sent with the
      message as o.send's third argument. A message may be files alone. The
      files are not part of the draft, the history or Edit, as a chat's
      pasted files are not kept across a restart: their contents are held
      only in memory. o.limit() is the limit on the files in one message
-     (composer.js, attachments); at the limit Attach… is disabled, with the
-     reason as its tip, and box.attachReason() is that reason for the
+     (composer.js, attachments); at the limit the computer-file menu item is disabled, with the
+     reason shown, and box.attachReason() is that reason for the
      window's menu. */
   function composer(o) {
     var form = node('form', 'bus-composer composer');
@@ -268,8 +268,9 @@
         changed: function () { changed(); }, toast: attachmentFailed,
         limit: o.limit, alive: function () { return form.isConnected; } });
       input.addEventListener('change', function () { chips.add(input.files); input.value = ''; text.focus(); });
-      var attach = node('button', 'btn group-attach', 'Attach…'); attach.type = 'button'; attach.title = 'Attach files from this computer';
-      attach.addEventListener('click', function () { box.attach(); });
+      var attach = node('button', 'btn group-add'); attach.type = 'button'; attach.setAttribute('data-command', 'group-add');
+      var unregisterAdd = pudlCommands.register(form, function () { return [{ id: 'group-add', label: 'Add', glyph: 'clip', disabled: closed,
+        items: function () { return dinahComposer.addItems({full:chips.full,fullReason:chips.fullReason,files:box.attach,browse:box.browse,mention:function (scope) { box.addMention(scope); }}); } }]; });
       parts.el.querySelector('.composer-actions').insertBefore(attach, go);
       form.append(list, input);
       // A picture or a file pasted into the box goes with the message. Text
@@ -284,12 +285,24 @@
       box.dropOn = function (zone) { chips.dropOn(zone, function () { text.focus(); }); };
       box.files = function () { return files; };
       box.attachReason = function () { return chips.fullReason(); };
+      box.addReference = function (at) {
+        if (closed) return;
+        if (!files.some(function (f) { return JSON.stringify(f) === JSON.stringify(at); })) files.push(at);
+        chips.draw(); changed(); text.focus();
+      };
+      box.browse = function () {
+        return dinahFilePicker.pick({ mode:'open',any:true,title:'Attach',okLabel:'Attach',commit:function (choice) {
+          if (choice.computer) return box.attach().then(function () { return true; });
+          if (!choice.node || !choice.node.ref) throw new Error('Choose a workspace file.');
+          box.addReference({kind:'resource',name:choice.node.title || choice.node.name || choice.node.ref.path,ref:choice.node.ref}); return true;
+        }}).catch(function (err) { attachmentFailed(message(err)); });
+      };
       // The limit changed, such as when a member joined or a provider's
-      // limit was set: the chips' line and Attach… follow it.
+      // limit was set: the chips and Add menu follow it.
       box.limitChanged = function () { chips.draw(); changed(); };
     }
     form.appendChild(parts.el);
-    var layout = window.dinahComposer.layout(form); box.content = layout.content; box.dispose = layout.destroy;
+    var layout = window.dinahComposer.layout(form); box.content = layout.content; box.dispose = function () { if (unregisterAdd) unregisterAdd(); layout.destroy(); };
     box.read = function () { return Object.assign({ text: text.value }, box.extra.read()); };
     box.write = function (state) { state = state || {}; text.value = state.text || ''; box.extra.write(state); changed(); };
     // What a message of the person's puts back in the box: its text, and
@@ -300,11 +313,10 @@
     function changed() {
       window.dinahComposer.fit(text);
       go.disabled = closed || sending || (!text.value.trim() && !files.length);
-      var attach = chips && form.querySelector('.group-attach');
+      var attach = chips && form.querySelector('.group-add');
       if (attach) {
-        var reason = chips.fullReason();
-        attach.disabled = closed || !!reason;
-        attach.title = reason || 'Attach files from this computer';
+        attach.disabled = closed;
+        if (window.pudlCommands) pudlCommands.changed();
       }
       if (!kept) return;
       var draft = box.history.draft(box.read());
@@ -320,7 +332,7 @@
     function submit() {
       var words = text.value.trim();
       if ((!words && !files.length) || sending || closed) return;
-      var state = box.read(), sent = chips ? chips.files() : [];
+      var state = box.read(), sent = chips ? chips.files().concat(files.filter(function (f) { return f.kind !== 'file' && (!f.token || referenceToken(f.token).test(text.value)); }).map(function (f) { var at = Object.assign({}, f); delete at.token; return at; })) : [];
       sending = true; changed();
       Promise.resolve(o.send(words, state, sent)).then(function () {
         if (words) box.history.push(Object.assign({}, state, { text: words }));
@@ -532,7 +544,14 @@
       if (disposed) return;
       window.dinahRender.enqueue(root, root, render);
     }
+    var renderedSignature;
     function render() {
+      var chats = knownChats();
+      var signature = JSON.stringify([overview, inboxState, chats,
+        overview.rooms.map(function (r) { return [window.dinahChatState.describe(r), r.lastAt ? when(r.lastAt) : '']; }),
+        chats.map(function (c) { return [window.dinahChatState.describe(c), c.updatedAt ? when(c.updatedAt) : '']; }),
+        inboxState.items.map(function (m) { return when(m.createdAt); })]);
+      if (renderedSignature === signature) return;
       groups.replaceChildren();
       var sections = window.dinahBrowserSections, list = window.dinahBrowserList;
       function section(id, title, count) {
@@ -611,7 +630,6 @@
       });
       /* Every chat the window knows, open or closed, by workspace, each with
          its state. Opening one opens its window, as the Chats pane does. */
-      var chats = knownChats();
       var byWorkspace = {};
       chats.forEach(function (c) { (byWorkspace[c.workspace] = byWorkspace[c.workspace] || []).push(c); });
       var all = section('bus-chats', 'Chats', chats.length);
@@ -630,6 +648,7 @@
           badge: l.hopLimit === overview.noHopLimit ? { text: 'No Limit', kind: 'warn', label: 'These agents can keep each other working without a limit' } : null,
           data: { busLink: l.a + '|' + l.b }, onOpen: function () { showLinkForm(l); } }));
       });
+      renderedSignature = signature;
     }
     listeners.add(draw);
     // The bus changed: the inbox page is read again for the view chosen.
@@ -756,6 +775,9 @@
      2026 and woke no member. */
   // A word's characters: letters, the marks that sit on them (a lowercased
   // İ ends in a combining dot), digits and the underscore.
+  function referenceToken(token) {
+    return new RegExp('(^|\\s)' + token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=$|[\\s.,!?;:)\\]}])', 'g');
+  }
   var WORD = /[\p{L}\p{M}\p{N}_]/u;
   function typedMentions(text, members) {
     var named = members.filter(function (m) { return m.state !== 'person' && m.title; }).map(function (m) { return { id: m.id, title: m.title }; });
@@ -784,6 +806,7 @@
     // holds, and every one it writes out whole. Send and the reach line both
     // read them here, so what is shown and what is sent agree.
     function bound(text) {
+      if (box) box.files().forEach(function (f) { if (f.token) text = text.replace(referenceToken(f.token), ' '); });
       var ids = mentioned.filter(function (x) { return text.indexOf('@' + x.title) >= 0; }).map(function (x) { return x.id; }).concat(typedMentions(text, members()));
       return ids.filter(function (id, i) { return ids.indexOf(id) === i; });
     }
@@ -871,9 +894,9 @@
     askReach();
     var pop = box.pop;
     pop.classList.add('group-mention-pop'); pop.setAttribute('aria-label', 'Members');
-    var text = box.text, choices = [], chosen = 0, start = -1;
+    var text = box.text, choices = [], chosen = 0, start = -1, scope = 'members', catalog = null;
     text.setAttribute('aria-autocomplete', 'list'); text.setAttribute('aria-controls', pop.id);
-    function close() { pop.hidden = true; start = -1; text.removeAttribute('aria-expanded'); }
+    function close() { pop.hidden = true; start = -1; scope = 'members'; text.removeAttribute('aria-expanded'); }
     /* The @ the caret follows and what has been typed after it. Titles have
        spaces, so the search runs to the caret; an @ that begins a mention
        already chosen is finished, and the words typed after it are the
@@ -883,6 +906,7 @@
       if (!m) return null;
       var at = before.length - m[2].length - 1;
       var done = mentioned.some(function (x) { return text.value.slice(at + 1, at + 1 + x.title.length) === x.title; });
+      done = done || box.files().some(function (f) { return f.token && text.value.slice(at, at + f.token.length) === f.token; });
       return done ? null : { at: at, q: m[2].toLowerCase() };
     }
     function drawPop() {
@@ -894,27 +918,40 @@
       if ('everyone'.indexOf(q.q) === 0) choices.push({ id: 'everyone', title: 'everyone', meta: 'Every member chat, opening closed ones in the background' });
       // Typing that matches no member is not a mention, so the list closes
       // rather than offering Add a Chat… alone under every word.
-      if (!choices.length && q.q) { close(); return; }
-      choices.push({ add: true, title: 'Add a Chat…', meta: 'Put another chat in the group' });
+      if (scope !== 'members') {
+        choices = catalog.items(q.q, scope).map(function (c) { return Object.assign({}, c, { title: c.label }); });
+      } else if (!choices.length && q.q) { close(); return; }
+      if (scope === 'members') choices.push({ add: true, title: 'Add a Chat…', meta: 'Put another chat in the group' });
       chosen = Math.min(chosen, choices.length - 1);
-      var items = choices.map(function (c) { return { group: 'Members', label: c.title, meta: c.meta, badge: c.state ? stateBadge(c.state) : null, key: c.add ? 'add' : c.id }; });
-      window.dinahMentionList.draw(pop, items, chosen, pick, { hint: 'Enter or Tab adds · Up and Down choose · Esc closes' });
+      var items = choices.map(function (c) { return { group: c.group || 'Members', label: c.title, meta: c.meta, badge: c.state && !c.att ? stateBadge(c.state) : null, key: c.add ? 'add' : c.ins || c.id }; });
+      window.dinahMentionList.draw(pop, items, chosen, pick, { hint: catalog && scope !== 'members' && catalog.failed() ? 'Applet lookup failed. Reopen Add to retry.' : 'Enter or Tab adds · Up and Down choose · Esc closes' });
       text.setAttribute('aria-expanded', 'true');
     }
     function pick(i) {
       var c = choices[i];
       if (!c) return;
       if (c.add) { text.value = text.value.slice(0, start) + text.value.slice(text.selectionStart); close(); box.changed(); addChat(); return; }
-      var word = '@' + c.title + ' ', end = text.selectionStart;
+      var word = (c.ins || '@' + c.title) + ' ', end = text.selectionStart;
       text.value = text.value.slice(0, start) + word + text.value.slice(end);
       var caret = start + word.length;
       text.setSelectionRange(caret, caret);
-      if (c.id !== 'everyone') mentioned.push({ id: c.id, title: c.title });
+      if (c.att) box.addReference(Object.assign({}, c.att, { token: c.ins }));
+      else if (c.id !== 'everyone') mentioned.push({ id: c.id, title: c.title });
       else mentioned.push({ id: 'everyone', title: 'everyone' });
       close();
       box.changed();
       text.focus();
     }
+    box.addMention = function (kind) {
+      if (reachEnded) return;
+      catalog = catalog || window.dinahChatReferences.catalog();
+      var before = text.value.slice(0, text.selectionStart), after = text.value.slice(text.selectionEnd);
+      var insert = (before && !/\s$/.test(before) ? ' ' : '') + '@';
+      text.value = before + insert + after;
+      text.setSelectionRange(before.length + insert.length, before.length + insert.length);
+      scope = kind; chosen = 0; box.changed(); text.focus(); drawPop();
+      catalog.load().then(function () { if (!reachEnded && scope === kind) drawPop(); });
+    };
     /* The mention the caret is in or at the end of, as a range. */
     function mentionAt(pos, forward) {
       var found = null;
@@ -1318,7 +1355,7 @@
       if (room && win && window.pudlWindows) {
         var t = win.querySelector('.win-title');
         if (t && t.textContent.trim() !== room.title) {
-          window.pudlWindows.retitle(win.dataset.win, room.title);
+          window.dinahWorkbench.retitle(win.dataset.win, room.title);
           /* The menu bar's own copy of the window's title does not follow a
              retitle on its own today; until PUDL draws that link itself, we
              tell the bar. */
@@ -1484,8 +1521,8 @@
     return { state: stateString, setState: setState, hasDraft: function () { return !!box.text.value || !!box.files().length; }, refreshDrafts: refreshDrafts, destroy: function () { disposed = true; lookupEpoch++; draftAttachments.disconnect(); targetObserver.disconnect(); if (targetFrame) cancelAnimationFrame(targetFrame); window.dinahRender.cancel(drawMembers); listeners.delete(refresh); stopChats(); document.removeEventListener('dinah:file-limits-changed', limitsChanged); c.destroy(); menu.remove(); },
       focus: function () { box.text.focus(); },
       // The person is always a member, so a group has no Leave (decision 8).
-      // Attach… is disabled at the limit on the files in one message.
-      commands: function () { if (lookupState !== 'resolved') return [{ label: 'Retry Group Lookup', run: checkAvailability }]; var full = box.attachReason(); return [{ label: 'Make This Group a Team…', hidden: !!(room && room.lead) || !app().MakeGroupATeam, run: function () { return window.dinahTeams.convertGroup(room).then(load); } }, { label: 'Add Chats…', run: addChats }, { label: 'Turn Budget…', run: openBudget }, { label: 'Rename Group…', run: renameGroup }, { label: 'Attach…', disabled: !!full, reason: full, run: function () { return box.attach(); } },{ label: 'Refresh', run: function () { c.draw(); load(); } }, { label: 'Delete Group…', danger: true, run: deleteGroup }]; } };
+      // The Add menu keeps references available at the upload limit.
+      commands: function () { if (lookupState !== 'resolved') return [{ label: 'Retry Group Lookup', run: checkAvailability }]; return [{ label: 'Make This Group a Team…', hidden: !!(room && room.lead) || !app().MakeGroupATeam, run: function () { return window.dinahTeams.convertGroup(room).then(load); } }, { label: 'Add Chats…', run: addChats }, { label: 'Turn Budget…', run: openBudget }, { label: 'Rename Group…', run: renameGroup }, { label: 'Add', glyph: 'clip', items: dinahComposer.addItems({ full: function () { return !!box.attachReason(); }, fullReason: box.attachReason, files: box.attach, browse: box.browse, mention: box.addMention }) },{ label: 'Refresh', run: function () { c.draw(); load(); } }, { label: 'Delete Group…', danger: true, run: deleteGroup }]; } };
   }
 
   window.dinahWorkbench.register('bus-room', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, title: 'Group Chat', glyph: 'comments', statuses: true, init: initGroupWindow });
@@ -1498,7 +1535,7 @@
      reading "Untitled Chat in studio" cannot be told apart (decision 7). A
      new group is named, or takes its chats' titles as its name. The ticked
      chats and the name are the window's state, so its address keeps them. */
-  window.dinahWorkbench.register('group-picker', { applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, title: 'Start a Group Chat', glyph: 'comments', init: function (root, opts, item) {
+  window.dinahWorkbench.register('group-picker', { pinnable: false, applet: { id: 'dinah.groups', title: 'Group Chats', glyph: 'account', workspace: false }, title: 'Start a Group Chat', glyph: 'comments', init: function (root, opts, item) {
     var spec = {};
     try { spec = JSON.parse(item.path || '{}') || {}; } catch (err) { spec = {}; }
     var adding = spec.group || '', from = spec.from || '', chosen = {}, name = '', filter = '', titling = '', disposed = false;

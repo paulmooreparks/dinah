@@ -25,6 +25,7 @@ type ChannelCapability interface {
 }
 
 type SessionLifecycleHost struct {
+	RecordedActivity  func(string) string
 	BeforeOpen        func(string, string) (Info, bool, error)
 	MissingSession    func(string, string, error) (Info, error)
 	NormalizeProvider func(string) string
@@ -289,7 +290,16 @@ func (l *SessionLifecycle) List(ws string) ([]Info, error) {
 			}
 		}
 	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].UpdatedAt > out[j].UpdatedAt })
+	if l.host.RecordedActivity != nil {
+		for i := range out {
+			out[i].UpdatedAt = LatestActivity(out[i].UpdatedAt, l.host.RecordedActivity(out[i].ID))
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		left, _ := time.Parse(time.RFC3339Nano, out[i].UpdatedAt)
+		right, _ := time.Parse(time.RFC3339Nano, out[j].UpdatedAt)
+		return left.After(right)
+	})
 	return l.host.FilterAncestors(out, ws), nil
 }
 
@@ -490,6 +500,9 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 	why := "the full history was asked for"
 	if !full && !tryResume {
 		why = "the agent does not advertise session/resume"
+	}
+	if l.host.RecordedActivity != nil {
+		updated = LatestActivity(updated, l.host.RecordedActivity(id))
 	}
 	s := NewConversation(Identity{ID: id, Provider: provider, Cwd: cwd, Title: title, UpdatedAt: updated}, InitialActivity{Open: true}, !tryResume, true)
 	// The replay announces the chat's subagents again (subagents.go).

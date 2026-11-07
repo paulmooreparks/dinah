@@ -136,74 +136,12 @@ func (a *App) blocks(s *Session, text string, atts []Attachment) ([]acp.ContentB
 				return nil, fmt.Errorf("%s could not be attached: %v", at.Name, err)
 			}
 			atts = append(atts, conv)
-		case "applet":
-			registry, err := a.appletRegistry()
+		case "applet", "window", "chat", "draft":
+			refs, err := a.referenceBlocks(s, at)
 			if err != nil {
 				return nil, err
 			}
-			found := false
-			for _, manifest := range registry.Catalog() {
-				if manifest.ID != at.Provider {
-					continue
-				}
-				selection := struct {
-					Provider string   `json:"provider"`
-					Title    string   `json:"title"`
-					Actions  []string `json:"actions"`
-				}{Provider: manifest.ID, Title: manifest.Title}
-				for _, action := range manifest.Actions {
-					selection.Actions = append(selection.Actions, action.Ref)
-				}
-				data, err := json.Marshal(selection)
-				if err != nil {
-					return nil, err
-				}
-				out = append(out, acp.ContentBlock{Type: "text", Text: "The user selected this bundled applet for the message:\n" + string(data) + "\nUse applet_discover to inspect its current action schemas and implementation digests. Use applet_invoke for the requested operation, then applet_status and applet_artifact for its result. " + product.Name + " manages this internal MCP connection automatically. If the tools are unavailable, report a " + product.Name + " agent-integration failure. Do not ask the person to enable, configure or reconnect dinah-applets; there is no user connection control for it. Selection alone does not execute an action or grant additional permissions. Human requests must be completed by the person in Notifications."})
-				found = true
-				break
-			}
-			if !found {
-				return nil, fmt.Errorf("selected applet %q is unavailable; choose an available applet before sending", at.Provider)
-			}
-		case "window":
-			// A tool window the person chose: the agent drives it through the
-			// Windows applet, as pressing its commands would, and reads its
-			// data through the tool's own applet when it has one.
-			if !windowToolID.MatchString(at.Window) {
-				return nil, fmt.Errorf("%s is not a %s window", at.Name, product.Name)
-			}
-			text := "The user selected the " + product.Name + " window " + strconv.Quote(at.Name) + " (tool " + strconv.Quote(at.Window) + ") for the message. Drive it through the bundled applet dinah.windows: " +
-				windowsListAction + " finds it among the open windows by its kind, " + windowOpenAction + " with this tool opens it when it is not open, " + windowCommandsAction + " lists its commands with their state, and " + windowRunAction + " runs one as pressing it would. Use applet_discover for the schemas and applet_invoke to call them."
-			if at.Provider != "" {
-				if registry, err := a.appletRegistry(); err == nil {
-					for _, manifest := range registry.Catalog() {
-						if manifest.ID == at.Provider {
-							text += " The same tool's data can be read through the bundled applet " + manifest.ID + " (" + manifest.Title + ")."
-							break
-						}
-					}
-				}
-			}
-			out = append(out, acp.ContentBlock{Type: "text", Text: text + " Selection alone does not run anything or grant permissions."})
-		case "chat":
-			// Another open chat the person mentioned: the agent asks it
-			// through the Chat applet.
-			t := a.session(at.SessionID)
-			a.mu.Lock()
-			hidden := a.hidden(at.SessionID)
-			a.mu.Unlock()
-			switch {
-			case t == nil || hidden:
-				return nil, fmt.Errorf("%s is not connected to its agent; open its window and choose Reconnect Now, then send again", at.Name)
-			case t.ID() == s.ID():
-				return nil, fmt.Errorf("%s is this chat, which cannot ask itself", at.Name)
-			}
-			out = append(out, acp.ContentBlock{Type: "text", Text: "The user mentioned the chat " + strconv.Quote(a.chatTitle(t)) + " (session " + strconv.Quote(t.ID()) + ", workspace " + strconv.Quote(a.chatWorkspaceName(t.Cwd())) + "), another chat with its own agent and work. When the message wants something from that chat, ask it with " + chatAskAction + " of the bundled applet dinah.chat, giving this session ID and a question that is complete in itself, since that chat has not seen this conversation. Use applet_discover for the schema and applet_invoke once to ask. " + product.Name + " delivers completion automatically, as steering when supported while busy or as a new prompt otherwise. Continue independent work or end your turn; do not poll or sleep. A busy recipient receives steering when its provider and model support it; otherwise the message waits until its turn ends. Selection alone does not ask anything."})
-		case "draft":
-			if !notificationDraftID.MatchString(at.DraftID) {
-				return nil, fmt.Errorf("%s is not a document open in the Editor", at.Name)
-			}
-			out = append(out, acp.ContentBlock{Type: "text", Text: draftMention(a.draftDocRef(&DocRef{DraftID: at.DraftID, Title: at.Name}))})
+			out = append(out, refs...)
 		case "link":
 			if at.URI == "" {
 				continue
@@ -389,4 +327,84 @@ func fileURI(p string) string {
 	}
 	u := url.URL{Scheme: "file", Path: s}
 	return u.String()
+}
+
+// referenceBlocks validates message context identically for direct and group chats.
+// A group has no single sending agent session, so s may be nil.
+func (a *App) referenceBlocks(s *Session, at Attachment) ([]acp.ContentBlock, error) {
+	var out []acp.ContentBlock
+	switch at.Kind {
+	case "applet":
+		registry, err := a.appletRegistry()
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for _, manifest := range registry.Catalog() {
+			if manifest.ID != at.Provider {
+				continue
+			}
+			selection := struct {
+				Provider string   `json:"provider"`
+				Title    string   `json:"title"`
+				Actions  []string `json:"actions"`
+			}{Provider: manifest.ID, Title: manifest.Title}
+			for _, action := range manifest.Actions {
+				selection.Actions = append(selection.Actions, action.Ref)
+			}
+			data, err := json.Marshal(selection)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, acp.ContentBlock{Type: "text", Text: "The user selected this bundled applet for the message:\n" + string(data) + "\nUse applet_discover to inspect its current action schemas and implementation digests. Use applet_invoke for the requested operation, then applet_status and applet_artifact for its result. " + product.Name + " manages this internal MCP connection automatically. If the tools are unavailable, report a " + product.Name + " agent-integration failure. Do not ask the person to enable, configure or reconnect dinah-applets; there is no user connection control for it. Selection alone does not execute an action or grant additional permissions. Human requests must be completed by the person in Notifications."})
+			found = true
+			break
+		}
+		if !found {
+			return nil, fmt.Errorf("selected applet %q is unavailable; choose an available applet before sending", at.Provider)
+		}
+	case "window":
+		// A tool window the person chose: the agent drives it through the
+		// Windows applet, as pressing its commands would, and reads its
+		// data through the tool's own applet when it has one.
+		if !windowToolID.MatchString(at.Window) {
+			return nil, fmt.Errorf("%s is not a %s window", at.Name, product.Name)
+		}
+		text := "The user selected the " + product.Name + " window " + strconv.Quote(at.Name) + " (tool " + strconv.Quote(at.Window) + ") for the message. Drive it through the bundled applet dinah.windows: " +
+			windowsListAction + " finds it among the open windows by its kind, " + windowOpenAction + " with this tool opens it when it is not open, " + windowCommandsAction + " lists its commands with their state, and " + windowRunAction + " runs one as pressing it would. Use applet_discover for the schemas and applet_invoke to call them."
+		if at.Provider != "" {
+			if registry, err := a.appletRegistry(); err == nil {
+				for _, manifest := range registry.Catalog() {
+					if manifest.ID == at.Provider {
+						text += " The same tool's data can be read through the bundled applet " + manifest.ID + " (" + manifest.Title + ")."
+						break
+					}
+				}
+			}
+		}
+		out = append(out, acp.ContentBlock{Type: "text", Text: text + " Selection alone does not run anything or grant permissions."})
+	case "chat":
+		// Another open chat the person mentioned: the agent asks it
+		// through the Chat applet.
+		t := a.session(at.SessionID)
+		a.mu.Lock()
+		hidden := a.hidden(at.SessionID)
+		a.mu.Unlock()
+		switch {
+		case t == nil || hidden:
+			return nil, fmt.Errorf("%s is not connected to its agent; open its window and choose Reconnect Now, then send again", at.Name)
+		case s != nil && t.ID() == s.ID():
+			return nil, fmt.Errorf("%s is this chat, which cannot ask itself", at.Name)
+		}
+		out = append(out, acp.ContentBlock{Type: "text", Text: "The user mentioned the chat " + strconv.Quote(a.chatTitle(t)) + " (session " + strconv.Quote(t.ID()) + ", workspace " + strconv.Quote(a.chatWorkspaceName(t.Cwd())) + "), another chat with its own agent and work. When the message wants something from that chat, ask it with " + chatAskAction + " of the bundled applet dinah.chat, giving this session ID and a question that is complete in itself, since that chat has not seen this conversation. Use applet_discover for the schema and applet_invoke once to ask. " + product.Name + " delivers completion automatically, as steering when supported while busy or as a new prompt otherwise. Continue independent work or end your turn; do not poll or sleep. A busy recipient receives steering when its provider and model support it; otherwise the message waits until its turn ends. Selection alone does not ask anything."})
+	case "draft":
+		if !notificationDraftID.MatchString(at.DraftID) {
+			return nil, fmt.Errorf("%s is not a document open in the Editor", at.Name)
+		}
+		out = append(out, acp.ContentBlock{Type: "text", Text: draftMention(a.draftDocRef(&DocRef{DraftID: at.DraftID, Title: at.Name}))})
+
+	default:
+		return nil, fmt.Errorf("unsupported reference kind %q", at.Kind)
+	}
+	return out, nil
 }

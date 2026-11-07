@@ -93,6 +93,16 @@
       return { kind: value[0], workspace: value[1], path: value[2] };
     } catch (e) { return null; }
   }
+  function pinReference(item) {
+    var cfg = kinds.get(item.kind);
+    if (!cfg || cfg.pinnable === false) return null;
+    if (typeof cfg.pinReference === 'function') return cfg.pinReference(item);
+    if (item.kind === 'terminal') {
+      try { var address = JSON.parse(item.path); return { provider:'shells', id:encode({kind:'shell',path:address[3] || 'dinah'}) }; } catch (_) { return null; }
+    }
+    if (cfg.singleton || cfg.launcher && !cfg.pinByItem) return { provider:'applets', id:'app-' + item.kind };
+    return { provider:'items', id:encode(item) };
+  }
   function source(item) {
     var cfg = kinds.get(item.kind);
     if (!cfg) throw new Error('Unknown applet: ' + item.kind);
@@ -104,8 +114,12 @@
     win.className = 'win dinah-window';
     win.dataset.win = key;
     win.dataset.winKind = item.kind;
+    var pin = pinReference(item);
+    if (pin) { win.dataset.winDestinationProvider = pin.provider; win.dataset.winDestination = pin.id; }
+    else win.dataset.winPinnable = 'false';
     win.dataset.winMode = cfg.mode || (window.dinahUIState ? dinahUIState.windowMode(item.kind) : 'floating');
     win.dataset.winGlyph = cfg.glyph || 'app';
+    if (cfg.icon) win.dataset.winIcon = cfg.icon;
     if (cfg.dockOnly) win.setAttribute('data-win-dock-only', '');
     // A desktop file has no public HTTP address to share.
     win.setAttribute('data-win-href', '');
@@ -120,8 +134,7 @@
       '<button type="button" class="win-btn" data-win-action="close" aria-label="Close"></button></nav></header>' +
       '<div class="win-body dinah-applet" data-applet-fit="fill"></div>';
     var kept = cfg.singleton ? null : savedTitles()[key];
-    win.querySelector('.win-title').textContent = (cfg.titleOf && cfg.titleOf(item)) || (kept && kept.title) || item.title || cfg.title;
-    if (kept && kept.detail) win.setAttribute('data-win-detail', kept.detail);
+    setHostTitle(win, (cfg.titleOf && cfg.titleOf(item)) || (kept && kept.title) || item.title || cfg.title, kept && kept.detail || '');
     var root = win.querySelector('.dinah-applet');
     root.dataset.applet = 'dinah-' + item.kind;
     root.dataset.item = JSON.stringify(item);
@@ -193,6 +206,22 @@
      only one, such as the Group Chats pane, always has its kind's title, so
      a kind that is renamed is renamed in a saved layout too; the pane kept
      the title Bus from before it was renamed (28 October 2026). */
+  function combinedTitle(title, detail) { return title + (detail ? ' · ' + detail : ''); }
+  function setHostTitle(win, title, detail) {
+    win.dataset.dinahTitle = title;
+    win.dataset.dinahTitleDetail = detail || '';
+    win.querySelector('.win-title').textContent = combinedTitle(title, detail);
+    win.removeAttribute('data-win-detail');
+  }
+  function retitle(key, title, detail) {
+    var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]');
+    if (!win) return;
+    if (detail === undefined) detail = win.dataset.dinahTitleDetail || '';
+    win.dataset.dinahTitle = title;
+    win.dataset.dinahTitleDetail = detail || '';
+    window.pudlWindows.retitle(key, combinedTitle(title, detail), '');
+    document.dispatchEvent(new CustomEvent('dinah:pin-categories-change'));
+  }
   var TITLES_KEY = 'dinah-window-titles', titlesTimer = 0;
   function savedTitles() {
     try { return (window.dinahUIState && window.dinahUIState.get(TITLES_KEY)) || {}; } catch (err) { return {}; }
@@ -204,7 +233,7 @@
       var out = {};
       window.pudlWindows.state().open.forEach(function (key) {
         var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]'), t = win && win.querySelector('.win-title');
-        if (t && t.textContent.trim()) out[key] = { title: t.textContent.trim(), detail: win.getAttribute('data-win-detail') || '' };
+        if (t && t.textContent.trim()) out[key] = { title: win.dataset.dinahTitle || t.textContent.trim(), detail: win.dataset.dinahTitleDetail || '' };
       });
       try { window.dinahUIState.set(TITLES_KEY, out); } catch (err) { /* A view preference is optional. */ }
     }, 500);
@@ -227,11 +256,10 @@
       var kept = saved[key], tpl = document.getElementById('win-source-' + key);
       var t = tpl && tpl.content.querySelector('.win-title');
       if (t) {
-        t.textContent = kept.title;
-        if (kept.detail) tpl.content.querySelector('.win').setAttribute('data-win-detail', kept.detail);
+        setHostTitle(tpl.content.querySelector('.win'), kept.title, kept.detail || '');
       }
       if (window.pudlWindows && window.pudlWindows.state().open.indexOf(key) >= 0 && window.pudlApplets && window.pudlApplets.started && !window.pudlApplets.started(key)) {
-        window.pudlWindows.retitle(key, kept.title, kept.detail || '');
+        retitle(key, kept.title, kept.detail || '');
       }
     });
   }
@@ -244,8 +272,8 @@
       if (!name) return;
       var title = win.querySelector('.win-title');
       if (!title || title.textContent === name) return;
-      if (win.isConnected && window.pudlWindows) window.pudlWindows.retitle(win.dataset.win, name);
-      else title.textContent = name;
+      if (win.isConnected && window.pudlWindows) retitle(win.dataset.win, name);
+      else setHostTitle(win, name, win.dataset.dinahTitleDetail || '');
     }
     document.querySelectorAll('template[id^="win-source-"]').forEach(function (tpl) { var win = tpl.content.querySelector('.win'); if (win) refresh(win); });
     document.querySelectorAll('.win[data-win]').forEach(refresh);
@@ -271,6 +299,7 @@
     saveLayout();
   }
   window.dinahWorkbench = {
+    retitle: retitle,
     windowMenuRows: windowMenuRows,
     applySavedTitles: applySavedTitles, refreshTitles: refreshTitles,
     registerLauncher: function (id, definition) {
@@ -328,6 +357,7 @@
       } });
       if (cfg.singleton) source({ kind: kind });
       hydrate();
+      document.dispatchEvent(new Event('dinah:pin-categories-change'));
     },
     open: function (item, state) {
       if (typeof item === 'string') item = { kind: item };
@@ -337,16 +367,41 @@
         window.pudlWindows.raise(key);
         return Promise.resolve(key);
       }
-      return new Promise(function (resolve, reject) {
-        function opened(e) {
-          if (e.target.dataset.win !== key) return;
-          document.removeEventListener('pudl:window-open', opened);
-          resolve(key);
-        }
-        document.addEventListener('pudl:window-open', opened);
-        try { window.pudlWindows.open(key); }
-        catch (err) { document.removeEventListener('pudl:window-open', opened); reject(err); }
+      return window.pudlWindows.open(key).then(function (result) {
+        if (result.status === 'failed' || result.status === 'blocked') throw result.error || new Error('Window could not be opened');
+        return key;
       });
+    },
+    pinReference: pinReference,
+    launcherPinReference: function (id) { return {provider:'applets',id:kinds.has(id) ? 'app-' + id : encode({kind:'launcher',path:id})}; },
+    pinResolve: function (provider, id) {
+      var item = provider === 'applets' && id.startsWith('app-') ? {kind:id.slice(4)} : decode(id);
+      if (!item) return null;
+      if (provider === 'applets' && item.kind === 'launcher') {
+        var launcher = launchers.get(item.path);
+        return launcher ? {label:launcher.title,glyph:launcher.glyph || 'app',icon:launcher.icon,open:launcher.run} : null;
+      }
+      var cfg = kinds.get(item.kind);
+      if (!cfg || cfg.pinnable === false) return null;
+      var ref = pinReference(item);
+      if (provider === 'applets') { if (!cfg.singleton && !cfg.launcher) return null; }
+      else if (!ref || ref.id !== id || ref.provider !== provider) return null;
+      var kept = savedTitles()[id];
+      var live = document.querySelector('.win[data-win="' + CSS.escape(id) + '"]');
+      if (live && live.dataset.dinahTitle) kept = {title:live.dataset.dinahTitle,detail:live.dataset.dinahTitleDetail || ''};
+      return { label: combinedTitle((kept && kept.title) || item.title || cfg.title, kept && kept.detail || ''),
+        glyph:cfg.glyph || 'app', icon:cfg.icon,
+        open: function () { return cfg.launcher && provider === 'applets' ? cfg.launcher.run() : window.dinahWorkbench.open(item); } };
+    },
+    ready: async function (key) {
+      if (typeof key !== 'string') throw new Error('The destination did not return an opened window');
+      await pudlApplets.start(key);
+      var win = document.querySelector('[data-win="' + CSS.escape(key) + '"]');
+      if (!win || win.querySelector('[data-applet-state="error"]')) throw new Error('The applet did not initialize');
+      var instance = instances.get(key);
+      if (!instance) throw new Error('The applet is unavailable');
+      await instance.ready;
+      return key;
     },
     key: encode,
     // Apply a navigation target without raising a background restored window.
@@ -398,6 +453,9 @@
       }
       var win = document.querySelector('[data-win="' + CSS.escape(key) + '"]');
       win.dataset.winKind = item.kind;
+    var pin = pinReference(item);
+    if (pin) { win.dataset.winDestinationProvider = pin.provider; win.dataset.winDestination = pin.id; }
+    else win.dataset.winPinnable = 'false';
       win.querySelector('.dinah-applet').dataset.item = JSON.stringify(item);
       // A chat continued into another workspace moves to that one's stack.
       groupWindow(win, item);
@@ -465,6 +523,7 @@
     return found;
   }
   var pageAsks = {
+    diagnostics: function (args) { return window.dinahAgentDiagnostics.request(args); },
     windows: function (args) {
       var s = window.pudlWindows.state();
       return { windows: windowsOf(args).map(function (w) {

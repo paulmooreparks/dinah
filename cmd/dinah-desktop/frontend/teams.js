@@ -39,6 +39,9 @@
     return words;
   }
   function budgetLines(target, budget, prefix) {
+    var signature = JSON.stringify([budget, prefix]);
+    if (target._budgetSignature === signature) return;
+    target._budgetSignature = signature;
     target.replaceChildren();
     if (!budget || !(budget.rows || []).length) return;
     target.appendChild(node('p', 'form-help', 'Allowance period: ' + new Date(budget.periodStart).toLocaleString() + ' to ' + new Date(budget.periodEnd).toLocaleString() + '.'));
@@ -129,35 +132,42 @@
         }, update: function (held, m) {
         var key = held.li.dataset.teamMember;
         held.member = m;
-        if (held.title.textContent !== m.title) held.title.textContent = m.title;
         var ref = m.chat && window.dinahChats && window.dinahChats.ref(m.chat);
-        if (ref) held.a.href = address({ kind: 'chat-session', workspace: ref.cwd, path: m.chat });
-        held.status.replaceChildren(stateBadge(m));
-        var words = [m.title, window.dinahChatState.describe(m).label];
-        if (opts.detailed) {
-          if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts, { compact: true }));
-          var liveState = window.dinahChatState.read(m);
-          held.why.textContent = (liveState.exec && liveState.exec.why || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
-          held.meta.textContent = [m.workspace, window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider, m.model].filter(Boolean).join(' · ');
-          held.usage.textContent = usageWords(m.usage);
-          [held.why, held.meta, held.usage].forEach(function (line) { line.title = line.textContent; line.setAttribute('aria-label', line.textContent); });
-          words.push(held.why.textContent, held.meta.textContent, held.usage.textContent);
-          if (m.task) {
-            if (!held.task) {
-              held.task = node('a', 'team-task');
-              held.task.addEventListener('click', function (e) { e.preventDefault(); var latest = held.member; groupLink(latest.taskGroup || opts.group(), latest.taskMessage).catch(host().fail); });
-            }
-            if (held.task.textContent !== m.task) held.task.textContent = m.task;
-            held.task.href = groupAddress(m.taskGroup || group, m.taskMessage);
-            if (!held.task.parentElement) held.assignment.appendChild(held.task);
-          } else if (held.task) held.task.remove();
-        }
-        held.a.title = words.filter(Boolean).join('. ');
-        held.a.setAttribute('aria-label', held.a.title);
-        held.a.setAttribute('aria-disabled', String(!m.chat));
+        var href = ref ? address({ kind: 'chat-session', workspace: ref.cwd, path: m.chat }) : '#';
+        var signature = JSON.stringify([Object.assign({}, m, { members: undefined }), window.dinahChatState.read(m), window.dinahChatState.describe(m), href, group,
+          window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider]);
+        if (held.signature !== signature) {
+          if (held.title.textContent !== m.title) held.title.textContent = m.title;
+          if (held.a.href !== href) held.a.href = href;
+          held.status.replaceChildren(stateBadge(m));
+          var words = [m.title, window.dinahChatState.describe(m).label];
+          if (opts.detailed) {
+            if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts, { compact: true }));
+            var liveState = window.dinahChatState.read(m);
+            held.why.textContent = (liveState.exec && liveState.exec.why || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
+            held.meta.textContent = [m.workspace, window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider, m.model].filter(Boolean).join(' · ');
+            held.usage.textContent = usageWords(m.usage);
+            [held.why, held.meta, held.usage].forEach(function (line) { line.title = line.textContent; line.setAttribute('aria-label', line.textContent); });
+            words.push(held.why.textContent, held.meta.textContent, held.usage.textContent);
+            if (m.task) {
+              if (!held.task) {
+                held.task = node('a', 'team-task');
+                held.task.addEventListener('click', function (e) { e.preventDefault(); var latest = held.member; groupLink(latest.taskGroup || opts.group(), latest.taskMessage).catch(host().fail); });
+              }
+              if (held.task.textContent !== m.task) held.task.textContent = m.task;
+              held.task.href = groupAddress(m.taskGroup || group, m.taskMessage);
+              if (!held.task.parentElement) held.assignment.appendChild(held.task);
+            } else if (held.task) held.task.remove();
+          }
+          held.a.title = words.filter(Boolean).join('. ');
+          held.a.setAttribute('aria-label', held.a.title);
+          held.a.setAttribute('aria-disabled', String(!m.chat));
+          held.signature = signature;
+          }
         if ((m.members || []).length) {
           if (held.children.parentElement !== held.li) held.a.after(held.children);
-          held.a.setAttribute('aria-expanded', String(expanded.get(key) !== false));
+          var open = String(expanded.get(key) !== false);
+          if (held.a.getAttribute('aria-expanded') !== open) held.a.setAttribute('aria-expanded', open);
           draw(held.children, includeRetired ? m.members : m.members.filter(function (child) { return child.life !== 'retired'; }), m.group || group, includeRetired);
         } else {
           held.children.remove(); held.a.removeAttribute('aria-expanded');
@@ -250,6 +260,9 @@
           return held;
         }, update: function (held, m) {
         held.member = m;
+        var signature = JSON.stringify([m.title, m.chat, m.life, window.dinahChatState.read(m), window.dinahChatState.describe(m)]);
+        if (held.signature === signature) return;
+        held.signature = signature;
         if (held.name.textContent !== m.title) held.name.textContent = m.title;
         var label = window.dinahChatState.describe(m).label;
         held.open.setAttribute('aria-label', 'Open ' + m.title + ', ' + label);
@@ -475,12 +488,13 @@
     var lead = '', state = null, stop = null, tree = memberTree({ detailed: true, openChat: openChat, group: function () { return state && state.group; } });
     function draw(v) {
       if (!v || chatId(v.lead) !== lead) return;
-      state = v; note.hidden = true;
+      state = v; if (!note.hidden) note.hidden = true;
       var members = v.members || [], retired = [];
       (function collect(l) { l.forEach(function (m) { if (m.life === 'retired') retired.push(m); else collect(m.members || []); }); })(members);
       tree.draw(list, members.filter(function (m) { return m.life !== 'retired'; }), v.group);
       tree.draw(retiredList, retired, v.group, true);
-      retiredHeading.hidden = retiredList.hidden = !retired.length;
+      if (retiredHeading.hidden !== !retired.length) retiredHeading.hidden = !retired.length;
+      if (retiredList.hidden !== !retired.length) retiredList.hidden = !retired.length;
       budgetLines(budget, v.budget, panel.id);
       if (window.pudlTree) { window.pudlTree.enhance(list); window.pudlTree.enhance(retiredList); }
     }

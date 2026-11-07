@@ -479,7 +479,11 @@ func (a *App) BusDeleteGroup(group string) error {
 // group's limit (groupFileLimit) is refused with the member that set it, as
 // the group's box refuses the file past the limit.
 func (a *App) BusSendToGroup(group, text string, mentions []string, files []Attachment) (BusMessage, error) {
-	kept, err := personFiles(files)
+	text, uploads, err := a.groupAttachments(text, files)
+	if err != nil {
+		return BusMessage{}, err
+	}
+	kept, err := personFiles(uploads)
 	if err != nil {
 		return BusMessage{}, err
 	}
@@ -499,8 +503,40 @@ func (a *App) BusSendToGroup(group, text string, mentions []string, files []Atta
 	return out, err
 }
 
-// personFiles decodes the files the person attached in the window. Only
-// files go with a group's message, and one over the limit is refused with
+// References carry validated context in the message. Only uploaded files count
+// against the group's file limit; workspace files remain links, as in chat.
+func (a *App) groupAttachments(text string, attachments []Attachment) (string, []Attachment, error) {
+	var files []Attachment
+	for _, at := range attachments {
+		switch at.Kind {
+		case "file":
+			files = append(files, at)
+		case "resource":
+			if at.Ref == nil {
+				return "", nil, fmt.Errorf("%s has no workspace resource", at.Name)
+			}
+			link, err := a.resourceAttachment(*at.Ref, at.Name)
+			if err != nil {
+				return "", nil, err
+			}
+			text += "\n\nAttached workspace file " + strconv.Quote(link.Name) + ": " + link.URI
+		case "draft", "chat", "window", "applet":
+			blocks, err := a.referenceBlocks(nil, at)
+			if err != nil {
+				return "", nil, err
+			}
+			for _, block := range blocks {
+				text += "\n\n" + block.Text
+			}
+		default:
+			return "", nil, fmt.Errorf("unsupported group attachment kind %q", at.Kind)
+		}
+	}
+	return text, files, nil
+}
+
+// personFiles decodes uploaded files after references have been resolved.
+// An upload over the limit is refused with
 // the reason, as a single chat refuses it.
 func personFiles(files []Attachment) ([]bus.PersonFile, error) {
 	var out []bus.PersonFile

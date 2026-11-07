@@ -56,3 +56,25 @@ func folderOf(id string) string {
 	}
 	return ""
 }
+
+func TestJournalLatestSurvivesReopen(t *testing.T) {
+	dir := t.TempDir()
+	path := func(id string) string { return JournalPath(dir, id, "") }
+	var first Journal
+	if !first.Latest("chat", path).IsZero() {
+		t.Fatal("missing journal invented activity")
+	}
+	first.Record("chat", "you", path)
+	at := first.Latest("chat", path)
+	if at.IsZero() {
+		t.Fatal("record did not update cached activity")
+	}
+	var reopened Journal
+	if !reopened.Latest("chat", path).Equal(at) {
+		t.Fatal("activity changed on reopen")
+	}
+	reopened.Forget("chat", path)
+	if !reopened.Latest("chat", path).IsZero() {
+		t.Fatal("deleted activity survived")
+	}
+}

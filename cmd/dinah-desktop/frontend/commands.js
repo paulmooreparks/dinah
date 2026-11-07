@@ -29,7 +29,7 @@
   'use strict';
   var entries = [], byId = new Map(), aliases = new Map(), timer = 0;
   // "document" is the Editor's own Document menu, drawn in its window's bar.
-  var MENUS = { documents: 'Documents', document: 'Document', view: 'View', window: 'Window', help: 'Help' };
+  var MENUS = { workspace: 'Workspaces', tools: 'Tools', documents: 'Documents', document: 'Document', view: 'View', window: 'Window', help: 'Help' };
 
   function value(v) { return typeof v === 'function' ? v() : v; }
   function modalOpen() {
@@ -273,14 +273,14 @@
     register({ id: 'show-chat', menu: 'view', inline: true, label: 'Show Chat', run: () => { showChat(); } });
     register({ id: 'find-tool', menu: 'view', inline: true, label: 'Find a Tool…', run: () => { openGoTo('tools'); } });
     register({ id: 'show-workspace', menu: 'view', inline: true, label: 'Workspace', run: () => { window.dinahWorkbench.open('workspace').catch(fail); } });
-    register({ id: 'rename-workspace', menu: 'dinah', inline: true, label: 'Rename Workspace…', enabled: () => workspaceCommands('rename-workspace'), run: () => { openWorkspaceRename(); } });
+    register({ id: 'rename-workspace', menu: 'workspace', inline: true, label: 'Rename Workspace…', enabled: () => workspaceCommands('rename-workspace'), run: () => { openWorkspaceRename(); } });
     register({ id: 'remove-workspace', menu: 'view', inline: true, label: 'Remove Workspace…', enabled: () => workspaceCommands('remove-workspace'), danger: true, run: () => { removeWorkspace(); } });
-    register({ id: 'export-workspace', menu: 'dinah', inline: true, label: 'Export Workspace…', enabled: () => workspaceCommands('export-workspace'), run: () => { exportWorkspace(); } });
-    register({ id: 'import-workspace', menu: 'dinah', inline: true, label: 'Import Workspace…', enabled: () => workspaceCommands('import-workspace'), run: () => { importWorkspace(); } });
-    register({ id: 'install-packages-file', menu: 'dinah', inline: true, label: 'Install Packages…', run: () => { installPackages(); } });
-    register({ id: 'new-chat', menu: 'dinah', inline: true, label: 'New Chat', run: () => { startNewChat().catch(fail); } });
-    register({ id: 'new-workspace', menu: 'dinah', inline: true, label: 'New Workspace…', enabled: () => workspaceCommands('new-workspace'), run: () => { createWorkspace(false); } });
-    register({ id: 'new-empty-workspace', menu: 'dinah', inline: true, label: 'New Empty Workspace', enabled: () => workspaceCommands('new-empty-workspace'), run: () => { createWorkspace(true); } });
+    register({ id: 'export-workspace', menu: 'workspace', inline: true, label: 'Export Workspace…', enabled: () => workspaceCommands('export-workspace'), run: () => { exportWorkspace(); } });
+    register({ id: 'import-workspace', menu: 'workspace', inline: true, label: 'Import Workspace…', enabled: () => workspaceCommands('import-workspace'), run: () => { importWorkspace(); } });
+    register({ id: 'install-packages-file', menu: 'tools', inline: true, label: 'Install Packages…', run: () => { installPackages(); } });
+    register({ id: 'new-chat', menu: 'workspace', inline: true, label: 'New Chat', run: () => { startNewChat().catch(fail); } });
+    register({ id: 'new-workspace', menu: 'workspace', inline: true, label: 'New Workspace…', enabled: () => workspaceCommands('new-workspace'), run: () => { createWorkspace(false); } });
+    register({ id: 'new-empty-workspace', menu: 'workspace', inline: true, label: 'New Empty Workspace', enabled: () => workspaceCommands('new-empty-workspace'), run: () => { createWorkspace(true); } });
     register({ id: 'chat-browser', menu: 'view', inline: true, label: 'Chats', run: () => { window.dinahWorkbench.open('chat-browser').catch(fail); } });
     register({ id: 'skills-browser', menu: 'view', inline: true, label: 'Skills', run: () => { window.dinahWorkbench.open('skills-browser').catch(fail); } });
     register({ id: 'files', menu: 'view', inline: true, label: 'Files', run: () => { dinahResources.currentPath().then(dinahResources.openFiles).catch(fail); } });

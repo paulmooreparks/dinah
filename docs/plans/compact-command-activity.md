@@ -1,0 +1,33 @@
+# Compact command activity
+
+The accepted presentation uses an outer Working disclosure and an inner disclosure for each command. All agent responses remain outside the Working disclosure. This replaces the earlier proposal to group only consecutive tool calls.
+
+While a turn runs, its collapsed heading shows "Working..." and elapsed time. On completion it shows "Worked for 7s", using the actual duration. Tool activity and internal reasoning appear inside it. Progress commentary stays visible in the transcript. The disclosure starts collapsed and preserves the person's expansion choice as events arrive. Approval requests and failures that require a decision remain visible through the existing attention surfaces.
+
+Each command inside Working has a compact, single-line heading such as "Ran curl". Expanding that row reveals the full command line and its output in a bounded scroll area, with copy controls and status. Command headings currently use "Running command" and "Ran command". Other tool kinds retain a clipped provider title. Arbitrary shell scripts are not parsed heuristically to invent a description. A future structured executable field can support headings such as "Ran curl". Long headings are clipped visually while their full text remains available in the expanded command. The full command row toggles this expansion; there is no separate Details button.
+
+New events update the existing disclosures without opening them or moving a reader who has scrolled away from the end. Live turns and replayed history use the same hierarchy. The complete recorded command and output remain available through existing log and export paths. Display limits are identified when output is truncated.
+
+Verification must cover a single multiline command, progress commentary, concurrent commands, streaming output, replayed history, keyboard disclosure controls, failed steps, attention requests, and preservation of reading position and expansion state. Compare transcript height before and after with the same long-command fixture.
+
+Paul accepted this presentation on 6 November 2026. The shared frontend renderer now implements the outer work disclosure and nested command inspectors. Installed as 0.0.0-compact-work-20261106 on 6 November 2026. The installed executable matches the build SHA256. A rollback backup and receipt are retained under build/compact-work-install/install-receipt.json. Dinah was not restarted; existing process IDs were unchanged.
+
+All agent responses, including progress commentary, remain outside work disclosures. Only tool activity and internal reasoning fold into work. Completed tool summaries use "finished" for both successful and unsuccessful commands; the inspector retains the exact outcome. Saved history uses the same renderer, and missing historical durations are shown as "Worked" without an invented time. The live work timer measures from the first folded step; a completed turn uses the duration reported by the host.
+
+The existing retention bound includes messages and tools inside Working. Timers are released at completion, removal, and view disposal. Export traverses nested rows, and replay timestamp matching and Last Read also account for nested messages.
+
+Six focused Edge browser suites passed: compact-work, chat-streaming, chat-tool-retention, message-boundaries, parity, and chat-last-read. They cover keyboard and mouse expansion, copy, completion state, a 5,000-update output burst, background rendering, replay, bounded retention, and reading position. Rendered collapsed and expanded screenshots were inspected. Evidence is under build/compact-work-final-gate. These tests use the real frontend with a stubbed backend; the new executable takes effect after a manual restart.
+
+Installed correction build 0.0.0-activity-corrections-20261106 on 6 November 2026. The compact-work, chat-recent-order, and message-boundaries browser suites passed; the full sessionhost suite and desktop journal integration tests passed. The collapsed screenshot confirms that commentary stays visible. The installed SHA256 matches the build, and existing processes were unchanged. The backup path and verification receipt are in build/activity-corrections/install-receipt.json. Restart remains manual.
+
+
+The work timer is gated by the host's live working state as well as replay state. Tool catch-up received while idle creates a static Worked group. An idle session update settles an existing group even if no turn-end event arrives, and completed group summaries cannot advertise a running step. A later live turn creates a fresh group. Restored tool records retain their recorded statuses; an absent final result is not rewritten as success. Regression coverage includes idle catch-up, a live-to-idle transition without turn-end, and later live work.
+
+Installed timer correction build 0.0.0-idle-work-timer-20261106. Compact-work and chat-streaming browser suites passed, including idle catch-up and missing turn-end coverage. The installed executable hash matches the production build. A rollback backup and receipt are retained in build/work-timer-verified/install-receipt.json. Dinah was not restarted.
+
+
+While a live turn runs, its Working disclosure occupies a separate area immediately above the composer. Responses stay in the scrolling transcript. Expanded live details have a bounded scroll area. Completion moves the same disclosure into the transcript before the trailing agent response sequence, preserving its expansion state. Providers do not consistently mark final-answer phases, so trailing agent responses are the conservative placement boundary. The work block never duplicates command output. Retention and export include its detached live rows. The PUDL upgrade remains on hold during this change.
+
+The live-work panel was verified with compact-work, chat-streaming, chat-tool-retention, chat-last-read and message-boundaries. Final screenshots were inspected. Version 0.0.0-live-work-dock-20261106 was built and installed on 6 November at the person's request. The prior executable was retained as C:/Users/paul/.dinah/bin/dinah-desktop.exe.before-live-work-dock-20261106-163232. The installed SHA256 is C4C05ACD11F0914A87D9F2CA7F96A14559204ACAE951632C3C65EC3CE39956D4. Running process IDs were unchanged and no restart occurred. The receipt is build/live-work-dock-final/install-receipt.json. This build retains the existing PUDL distribution; the window-stack candidate was tested only through browser request overrides.
+
+The live Working panel now uses the same activity-list class as the transcript. Its missing class had allowed the work title to inherit a larger font. The compact-work suite compares computed family, size and weight while active and after completion.

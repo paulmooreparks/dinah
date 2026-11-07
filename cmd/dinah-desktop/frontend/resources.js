@@ -61,6 +61,19 @@
       throw new Error('This resource has no supported Open action.');
     });
   }
+  // The same item actions serve Files, Workspace and their context menus.
+  function itemCommands(item, fail) {
+    if (!item) return [];
+    function run(fn) { return function () { return Promise.resolve().then(fn).catch(fail); }; }
+    return [
+      { id: 'open', label: item.directory ? 'Open in Files' : 'Open', run: run(function () { return open(item); }) },
+      { id: 'edit', label: 'Edit', hidden: !item.ref || !has(item, 'edit'), run: run(function () { return dinahEditor.openResource(item.ref); }) },
+      { id: 'edit-text', label: 'Edit as Text', hidden: !item.ref || !has(item, 'edit-text'), run: run(function () { return dinahEditor.openResource(item.ref, 'text'); }) },
+      { id: 'open-external', label: has(item, 'reveal') ? 'Show in Folder' : 'Open Externally', hidden: !has(item, 'reveal') && !has(item, 'open-external'), run: run(function () { return item.ref ? app().OpenWorkspaceResource(item.ref) : app().OpenWorkspaceMount(item.path); }) },
+      { id: 'copy-path', label: 'Copy Path', hidden: !item.ref || !item.writable, run: run(function () { return copyPath(item); }) },
+      { id: 'rename', label: 'Rename…', shortcut: 'F2', hidden: !renames(item), run: run(function () { return renameFile(item); }) }
+    ].filter(function (command) { return !command.hidden; });
+  }
   function currentPath() {
     return app().State().then(function (state) {
       var record = (state.workspaceRecords || []).find(function (entry) { return entry.id === state.workspaceId; });
@@ -551,5 +564,5 @@
     };
   }
 
-  window.dinahResources = { documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
+  window.dinahResources = { itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
 })();

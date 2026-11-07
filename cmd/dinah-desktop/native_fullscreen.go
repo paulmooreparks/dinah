@@ -15,6 +15,7 @@ type nativeWindowAPI interface {
 	enter()
 	leave()
 	maximize()
+	unmaximize()
 	minimize()
 	close()
 }
@@ -27,11 +28,12 @@ func (w wailsNativeWindow) normalPlacement() (int, int, int, int) {
 	x, y := wruntime.WindowGetPosition(w.ctx)
 	return width, height, x, y
 }
-func (w wailsNativeWindow) enter()    { wruntime.WindowFullscreen(w.ctx) }
-func (w wailsNativeWindow) leave()    { wruntime.WindowUnfullscreen(w.ctx) }
-func (w wailsNativeWindow) maximize() { wruntime.WindowMaximise(w.ctx) }
-func (w wailsNativeWindow) minimize() { wruntime.WindowMinimise(w.ctx) }
-func (w wailsNativeWindow) close()    { wruntime.Quit(w.ctx) }
+func (w wailsNativeWindow) enter()      { wruntime.WindowFullscreen(w.ctx) }
+func (w wailsNativeWindow) leave()      { wruntime.WindowUnfullscreen(w.ctx) }
+func (w wailsNativeWindow) maximize()   { wruntime.WindowMaximise(w.ctx) }
+func (w wailsNativeWindow) unmaximize() { wruntime.WindowUnmaximise(w.ctx) }
+func (w wailsNativeWindow) minimize()   { wruntime.WindowMinimise(w.ctx) }
+func (w wailsNativeWindow) close()      { wruntime.Quit(w.ctx) }
 
 type nativeChromeState struct {
 	Available  bool `json:"available"`
@@ -98,6 +100,16 @@ func (a *App) NativeWindowAction(action string) error {
 			time.Sleep(20 * time.Millisecond)
 		}
 		if wasFull && a.nativeRestoreMax {
+			// Restore normal placement before maximizing again so the native
+			// host recalculates the maximized bounds after fullscreen.
+			host.unmaximize()
+			deadline = time.Now().Add(3 * time.Second)
+			for host.maximized() {
+				if time.Now().After(deadline) {
+					return errors.New("the native window did not restore before maximizing")
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
 			host.maximize()
 		}
 	case "minimize":

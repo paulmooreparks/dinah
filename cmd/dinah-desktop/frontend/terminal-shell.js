@@ -4,7 +4,8 @@
    Dinah's own shell (terminal-applet.js), sends what is typed and each
    change of size, and writes what the shell draws. Typed text is sent in
    order, one call at a time, with what is typed meanwhile gathered into the
-   next. When the shell ends, Enter starts it again. */
+   next. A successful exit closes the window; a failed exit keeps its
+   output available, and Enter starts it again. */
 (function () {
   'use strict';
   const app = window.dinahHelpers.app;
@@ -34,7 +35,7 @@
       window.dinahRender.enqueue(title, root, function () {
         var text = (!ended && shown) || shellName;
         var win = root.closest('[data-win]');
-        if (text && win && window.pudlWindows && window.pudlWindows.retitle) window.pudlWindows.retitle(win.dataset.win, text, shellFolder);
+        if (text && win && window.pudlWindows && window.pudlWindows.retitle) window.dinahWorkbench.retitle(win.dataset.win, text, shellFolder);
       });
     }
     /* What is typed goes to the shell in order: one call at a time, with
@@ -63,6 +64,16 @@
     function exit(m) {
       if (m.id !== id) { if (early) early.push(['exit', m]); return; }
       ended = true; root.dataset.terminalReady = 'false';
+      if (m.code === 0) {
+        // Defer closing until buffered startup events have finished replaying.
+        var exitedId = id;
+        queueMicrotask(function () {
+          if (destroyed || !ended || id !== exitedId) return;
+          var win = root.closest('[data-win]');
+          if (win) window.pudlWindows.close(win.dataset.win);
+        });
+        return;
+      }
       shown = ''; title();
       term.write('\r\n\x1b[2mThe shell ended with code ' + m.code + '. Press Enter to start it again.\x1b[0m\r\n');
     }
@@ -168,7 +179,7 @@
   }
   /* The shells this computer has, for Tools › New Terminal With, read once
      as the page loads; the menu is drawn again when they arrive. */
-  var shells = [];
+  var shells = [], defaultShell = 'dinah';
   /* Settings › Terminal chooses the shell a new Terminal runs. */
   function drawChoice(s) {
     var select = document.getElementById('set-terminal-shell');
@@ -179,7 +190,7 @@
   }
   async function refreshShells() {
     var result = await app().TerminalShells();
-    shells = result.shells || []; drawChoice(result);
+    shells = result.shells || []; defaultShell = result.default || 'dinah'; drawChoice(result);
     document.dispatchEvent(new CustomEvent('dinah:launchers-change'));
     var list = document.getElementById('terminal-profiles');
     if (list && app().TerminalProfiles) {
@@ -216,5 +227,5 @@
       });
     });
   });
-  window.dinahShellTerminal = { init: init, refresh: refreshShells, shells: function () { return shells.slice(); } };
+  window.dinahShellTerminal = { init: init, refresh: refreshShells, defaultShell: function () { return defaultShell; }, shells: function () { return shells.slice(); } };
 })();

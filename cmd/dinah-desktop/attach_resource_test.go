@@ -52,3 +52,42 @@ func TestAnOpenDocumentMentionedWithAtIsToldToTheAgent(t *testing.T) {
 		t.Fatal("a malformed draft ID was accepted")
 	}
 }
+
+// Groups use the same validated references as direct chat, preserving uploads.
+func TestGroupReferencesShareChatValidation(t *testing.T) {
+	isolateWorkspaceSettings(t)
+	a := closeBusWhenDone(t, NewApp())
+	dir := t.TempDir()
+	state, err := a.SetWorkspace(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "notes.md"), []byte("notes"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	record := state.WorkspaceRecords[0]
+	ref := ResourceRef{WorkspaceID: record.ID, SourceID: record.Sources[0].ID, Path: "notes.md"}
+	text, files, err := a.groupAttachments("Review", []Attachment{
+		{Kind: "resource", Name: "notes.md", Ref: &ref},
+		{Kind: "draft", Name: "Unsaved", DraftID: strings.Repeat("ab", 16)},
+		{Kind: "window", Name: "Workspace", Window: "workspace"},
+		{Kind: "file", Name: "upload.txt", Data: "dGVzdA=="},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Name != "upload.txt" || !strings.Contains(text, "file:///") || !strings.Contains(text, "notes.md") || !strings.Contains(text, "open in the Editor") || !strings.Contains(text, "dinah.windows") {
+		t.Fatalf("%q %+v", text, files)
+	}
+	ref.Path = "../outside.md"
+	for _, at := range []Attachment{
+		{Kind: "resource", Ref: &ref}, {Kind: "resource"},
+		{Kind: "draft", DraftID: "../bad"}, {Kind: "window", Window: "../bad"},
+		{Kind: "chat", SessionID: "missing"}, {Kind: "applet", Provider: "missing"},
+		{Kind: "link", URI: "file:///unvalidated"},
+	} {
+		if _, _, err := a.groupAttachments("Review", []Attachment{at}); err == nil {
+			t.Fatalf("accepted invalid reference %+v", at)
+		}
+	}
+}

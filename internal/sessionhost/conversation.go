@@ -76,9 +76,23 @@ func (c *Conversation) UpdateDisplay(title, updated *string) {
 		c.identity.Title = bus.CleanTitle(*title)
 	}
 	if updated != nil {
-		c.identity.UpdatedAt = *updated
+		c.identity.UpdatedAt = LatestActivity(c.identity.UpdatedAt, *updated)
 	}
 }
+
+// LatestActivity keeps the latest valid instant across provider and host records.
+func LatestActivity(current, incoming string) string {
+	next, err := time.Parse(time.RFC3339Nano, incoming)
+	if err != nil {
+		return current
+	}
+	previous, err := time.Parse(time.RFC3339Nano, current)
+	if err != nil || next.After(previous) {
+		return next.UTC().Format(time.RFC3339Nano)
+	}
+	return current
+}
+
 func (c *Conversation) WithReply(ctx context.Context, p Prompt) Prompt {
 	return p.WithReply(ctx, &c.mu)
 }

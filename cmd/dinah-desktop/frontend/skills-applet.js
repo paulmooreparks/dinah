@@ -150,7 +150,7 @@
       up: { label: 'Move Up', glyph: 'arrow-up', can: function () { return editable && selected > 0; }, run: function () { rows.splice(selected - 1, 0, rows.splice(selected, 1)[0]); selected--; write(); } },
       down: { label: 'Move Down', glyph: 'arrow-down', can: function () { return editable && selected >= 0 && selected < rows.length - 1; }, run: function () { rows.splice(selected + 1, 0, rows.splice(selected, 1)[0]); selected++; write(); } },
       remove: { label: 'Remove', glyph: 'close', can: function () { return editable && selected >= 0; }, run: function () { rows.splice(selected, 1); if (selected >= rows.length) selected = rows.length - 1; write(); } },
-      copy: { label: 'Copy the Command', glyph: 'copy', can: function () { return true; }, run: function () { if (navigator.clipboard) navigator.clipboard.writeText(commandEl.textContent).catch(function () {}); } }
+      copy: { label: 'Copy the Command', glyph: 'copy', can: function () { return true; }, run: function () { window.dinahChatText.copy(commandEl.textContent); } }
     };
     var buttons = {};
     [['history', ['undo', 'redo']], ['rows', ['add', 'up', 'down', 'remove']], ['command', ['copy']]].forEach(function (g) {
@@ -383,7 +383,7 @@
         origin.textContent=pack.skill.origin+(pack.skill.ref?'':' · Read Only');
         tabButtons.edit.textContent=pack.skill.ref?'Edit':'Instructions';
         tabButtons.parameters.hidden=!pack.skill.ref; if(!pack.skill.ref&&activeTab==='parameters')tab('edit');
-        if(window.pudlWindows&&!opts.embedded)pudlWindows.retitle(root.closest('[data-win]').dataset.win,pack.skill.name);
+        if(window.pudlWindows&&!opts.embedded)window.dinahWorkbench.retitle(root.closest('[data-win]').dataset.win,pack.skill.name);
         if(pack.skill.ref){
           /* The editor stays open on its draft across a refresh; it is made
              once, and the form follows the draft's events. */

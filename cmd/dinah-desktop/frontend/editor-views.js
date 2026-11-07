@@ -52,6 +52,7 @@
        at the passage at the top of the preview. Preview has no caret, so the
        character itself is not typed; Space scrolls, as it does in any page,
        and keys pressed on the window's buttons and fields are theirs. */
+    ed.root.addEventListener('dinah:editor-text', function () { setMode('text'); });
     ed.root.addEventListener('dinah:editor-work', function () { if (ed.mode === 'preview') setMode('split'); });
     /* A host's Check button: the problems are drawn again from the draft
        as it is and the list is opened. */

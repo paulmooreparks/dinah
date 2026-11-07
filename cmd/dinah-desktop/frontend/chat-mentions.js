@@ -45,6 +45,7 @@
         appletCatalogState = 'failed';
       }).finally(function () {
         appletCatalogJob = null;
+        if (adapter.catalogOnly) return;
         if (adapter.deleted() || $('slash-pop').hidden || pop.mode !== 'mention' || !pop.tok) return;
         var tok = wordToken('@');
         if (tok && tok.start === pop.tok.start) showMentions(tok, pop.mentionScope);
@@ -115,6 +116,7 @@
     }
 
     var pop = { tok: null, items: [], sel: 0, mode: 'skill', mentionScope: 'all' };
+    if (adapter.catalogOnly) return { items: mentionItems, load: loadAppletMentions, failed: function () { return appletCatalogState === 'failed'; } };
     function showMentions(tok, scope) {
       var previous = pop.mode === 'mention' && pop.tok && pop.tok.start === tok.start ? pop.items[pop.sel] : null;
       var items = mentionItems(tok.query, scope);

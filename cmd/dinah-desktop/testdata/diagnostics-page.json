@@ -1,0 +1,78 @@
+{
+  "anchor": {
+    "utc": "2026-11-06T00:39:37.012Z",
+    "monoMs": 956.3999998569489
+  },
+  "capture": {
+    "id": "real-browser",
+    "state": "stopped",
+    "startedMonoMs": 784.5999999046326,
+    "deadlineUtcMs": 1793925581840
+  },
+  "visible": true,
+  "features": {
+    "input": "measured",
+    "longTask": "measured",
+    "longFrame": "measured"
+  },
+  "coverage": {
+    "retained": 3,
+    "overwritten": 0,
+    "rateOmissions": 0,
+    "scriptOmissions": 0
+  },
+  "counts": {
+    "elements": 1892,
+    "windows": 6,
+    "transcriptRows": 0,
+    "toolRows": 0
+  },
+  "scheduler": {
+    "pending": 2,
+    "blocked": 2,
+    "watchedRoots": 2,
+    "framePending": false,
+    "oldestWaitMs": 134.70000004768372
+  },
+  "rendererHeap": "requires_profiler",
+  "events": [
+    {
+      "visible": true,
+      "kind": "render",
+      "atMs": 821.8999998569489,
+      "durationMs": 90,
+      "waitMs": 15.399999856948853,
+      "label": "chat",
+      "blockingMs": null,
+      "scripts": []
+    },
+    {
+      "visible": true,
+      "kind": "long_task",
+      "atMs": 821.7999999523163,
+      "durationMs": 92,
+      "waitMs": 0,
+      "label": "other",
+      "blockingMs": null,
+      "scripts": []
+    },
+    {
+      "visible": true,
+      "kind": "long_frame",
+      "atMs": 806.2999999523163,
+      "durationMs": 106.5,
+      "waitMs": 0,
+      "label": "other",
+      "blockingMs": 41,
+      "scripts": [
+        {
+          "source": "render-scheduler.js",
+          "position": 1682,
+          "durationMs": 90.20000004768372,
+          "forcedLayoutMs": 0
+        }
+      ]
+    }
+  ],
+  "collectionMs": 0.10000014305114746
+}

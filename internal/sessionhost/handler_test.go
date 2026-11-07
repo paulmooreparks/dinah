@@ -75,11 +75,11 @@ func TestHandlerCommandsCopyAndDisplayEventOrder(t *testing.T) {
 			t.Fatal("published stale title")
 		}
 	}
-	notifyHandler(h, `{"sessionUpdate":"session_info_update","title":"provided","updatedAt":"now"}`)
+	notifyHandler(h, `{"sessionUpdate":"session_info_update","title":"provided","updatedAt":"2026-11-06T07:00:00Z"}`)
 	if got := (*order)[len(*order)-3:]; !reflect.DeepEqual(got, []string{"title", "agent:session", "publish"}) {
 		t.Fatalf("title order %v", got)
 	}
-	if c.UpdatedAt() != "now" {
+	if c.UpdatedAt() != "2026-11-06T07:00:00Z" {
 		t.Fatal("updated timestamp lost")
 	}
 	raw, _ := json.Marshal(Command{Name: "x", Source: "devin"})

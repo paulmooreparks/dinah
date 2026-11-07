@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestJournal(t *testing.T) {
@@ -22,6 +23,9 @@ func TestJournal(t *testing.T) {
 	s.SetReplaying(true)
 	update("user_message_chunk")
 	update("agent_message_chunk")
+	if s.UpdatedAt() != "" {
+		t.Fatal("replay invented activity")
+	}
 	s.EndReplay()
 	// A live turn: the person's message, two chunks of one agent message, a
 	// tool call, and a second agent message.
@@ -36,6 +40,18 @@ func TestJournal(t *testing.T) {
 	}
 	if got := strings.Join(kinds, " "); got != "you agent agent" {
 		t.Fatalf("journal %q", got)
+	}
+	at, err := time.Parse(time.RFC3339Nano, s.UpdatedAt())
+	if err != nil || time.Since(at) > time.Minute {
+		t.Fatalf("live activity missing: %q", s.UpdatedAt())
+	}
+	if a.recordedActivity(id) == "" {
+		t.Fatal("activity was not durable")
+	}
+	empty := ""
+	s.UpdateDisplay(nil, &empty)
+	if s.UpdatedAt() == "" {
+		t.Fatal("provider erased live activity")
 	}
 	a.forgetJournal(id)
 	if len(a.SessionTimes(id)) != 0 {

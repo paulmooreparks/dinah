@@ -246,7 +246,7 @@
           '<button type="button" class="icon-btn attachment-remove"><span class="glyph" style="--glyph: var(--glyph-close)" aria-hidden="true"></span></button>';
         if (a.thumb) li.querySelector('img').src = a.thumb;
         li.querySelector('.attachment-name').textContent = a.name;
-        li.querySelector('.attachment-size').textContent = a.kind === 'resource' ? 'from ' + (window.dinahProduct ? window.dinahProduct.name : 'Dinah') : sizeWords(a.size);
+        li.querySelector('.attachment-size').textContent = a.kind !== 'file' ? 'from ' + (window.dinahProduct ? window.dinahProduct.name : 'Dinah') : sizeWords(a.size);
         var rm = li.querySelector('.attachment-remove');
         rm.setAttribute('aria-label', 'Remove ' + a.name);
         rm.title = 'Remove';
@@ -353,6 +353,17 @@
     return c;
   }
 
-  window.dinahComposer = { setSendKey: setSendKey, sendKey: function () { return sendKey; }, sendKeyName: sendKeyName, fit: fit, caretRows: caretRows,
+  function addItems(o) {
+    return [
+      // At the limit on the files in one message the command is disabled,
+      // with the reason, rather than refusing the files afterwards.
+      { id: 'add-files', label: 'Files From This Computer…', detail: 'Pictures, emails, text and any other file', disabled: o.full(), reason: o.fullReason(), run: o.files },
+      { id: 'add-browse', label: 'Browse the Workspace…', detail: 'Choose a document from the workspace\'s folders', run: o.browse },
+      { id: 'add-mention', label: 'Mention an Open Document or Chat…', detail: 'An open document or another chat by name (type @ in the box)', run: function () { o.mention('all'); } },
+      { id: 'add-applets', label: 'Windows and Applets…', detail: 'Choose a window for the agent to drive, or a bundled applet, for this message (type @ in the box)', run: function () { o.mention('applets'); } }
+    ];
+  }
+
+  window.dinahComposer = { addItems: addItems, setSendKey: setSendKey, sendKey: function () { return sendKey; }, sendKeyName: sendKeyName, fit: fit, caretRows: caretRows,
     history: history, bind: bind, box: box, layout: layout, keeper: keeper, forget: forget, attachments: attachments, sizeWords: sizeWords, maxFile: MAX_FILE };
 })();

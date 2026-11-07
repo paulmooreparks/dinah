@@ -53,7 +53,7 @@ const { launch } = require('./lib/page');
     ok('a new Terminal runs the shell chosen in Settings, sized to its window', await p.evaluate(() => { const c = __calls.find(c => c[0] === 'start'); return c && c[1] === 'pwsh' && c[2] > 20 && c[3] > 5; }));
     await win.locator('.xterm-rows', { hasText: 'PS C:\\Work\\parser>' }).waitFor();
     ok('what the shell drew before its start call returned is shown', true);
-    ok('the window is titled with the shell and its folder', (await win.locator('.win-title').innerText()) === 'PowerShell');
+    ok('the window is titled with the shell and its folder', (await win.locator('.win-title').innerText()).startsWith('PowerShell · '));
 
     await win.locator('.xterm').click();
     await p.keyboard.type('Get-Date');
@@ -66,7 +66,7 @@ const { launch } = require('./lib/page');
     // button, with the title it sets (OSC 0 or 2).
     const taskName = () => p.evaluate(() => { const k = document.querySelector('.win[data-win-kind="terminal"]').dataset.win, b = document.querySelector('[data-win-tab="' + CSS.escape(k) + '"]'); return b ? b.innerText.replace(/\s+/g, ' ').trim() : ''; });
     await p.evaluate(() => __draw('term-1', '\x1b]0;vim notes.md\x07'));
-    await p.waitForFunction(() => document.querySelector('.win[data-win-kind="terminal"] .win-title').innerText === 'vim notes.md');
+    await p.waitForFunction(() => document.querySelector('.win[data-win-kind="terminal"] .win-title').innerText.startsWith('vim notes.md · '));
     const shownTask = await taskName();
     ok('the program running in the shell titles the window and its taskbar button', shownTask.startsWith('vim notes.md'), shownTask);
 
@@ -104,10 +104,30 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => __calls.some(c => c[0] === 'close' && c[1] === 'term-2'));
     ok('closing the window closes its shell', true);
 
-    await p.locator('[data-menubar] button', { hasText: 'Tools' }).first().click();
-    const sub = p.locator('#menubar-panel').getByText('New Terminal');
-    ok('Tools offers one New Terminal submenu', await sub.count() === 1);
-    ok('Default Shell precedes specific shell choices', await p.locator('#host-tools').evaluate(el => { const row = [...el.children].find(li => li.firstChild?.textContent === 'New Terminal'); return row?.querySelector('ul button')?.textContent === 'Default Shell' && !el.textContent.includes('New Terminal With'); }));
+    await p.evaluate(() => dinahResources.openTerminal('/workspaces'));
+    const clean = p.locator('.win[data-win-kind="terminal"]').last();
+    await clean.locator('[data-terminal-ready="true"]').waitFor();
+    const cleanKey = await clean.getAttribute('data-win');
+    const cleanId = await clean.locator('[data-terminal-id]').getAttribute('data-terminal-id');
+    await p.evaluate(async key => { await pudlWindows.refreshTaskbarDestinations(); pudlWindows.pinTaskbar(document.querySelector('[data-win="'+key+'"]').dataset.winDestination,true); },cleanKey);
+    await p.evaluate(id => __end(id,0),cleanId);
+    await p.waitForFunction(key => !pudlWindows.state().open.includes(key),cleanKey);
+    ok('a successful shell exit closes its window and retains its pin',await p.locator('[data-win-pin]').count()>=1);
+    ok('normal exit does not send a redundant close to the ended process',await p.evaluate(id=>!__calls.some(c=>c[0]==='close'&&c[1]===id),cleanId));
+
+    await p.evaluate(()=>{
+      const start=go.main.App.TerminalStart;
+      go.main.App.TerminalStart=async(...args)=>{const result=await start(...args);__end(result.id,0);return result;};
+      return dinahResources.openTerminal('/workspaces');
+    });
+    await p.waitForFunction(()=>!document.querySelector('.win[data-win-kind="terminal"]'));
+    ok('successful exit arriving during startup also closes cleanly',true);
+
+
+    await p.evaluate(()=>pudlMenubar.launcherButton().click());
+    await p.locator('[data-start-category-key="terminals"]').click();
+    ok('launcher offers a Terminals category',await p.locator('#dinah-launcher [data-start-item]:visible').count()===5);
+    ok('Default Shell precedes specific shell choices',await p.locator('#dinah-launcher [data-start-item]:visible').first().innerText()==='Default Shell');
     await p.keyboard.press('Escape');
 
     await p.evaluate(() => window.dinahWorkbench.open('settings'));

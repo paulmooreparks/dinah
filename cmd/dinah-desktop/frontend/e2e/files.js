@@ -6,7 +6,7 @@ const { press, openMenu } = require('./lib/commands');
     viewport: { width: 1280, height: 900 },
     state: { workspace: 'C:/Fixture', workspaceId: 'w1', workspaceRecords: [{ id: 'w1', name: 'Alpha Delivery', mountAlias: 'alpha', primarySourceId: 'local', sources: [{ id: 'local', name: 'Working Documents', mountAlias: 'documents', kind: 'local-folder', path: 'C:/Fixture' }] }], recent: ['C:/Fixture'] },
     app: () => {
-      const item = (p, title, directory, kind = 'folder', source = '') => ({ path: p, title, directory, kind, actions: directory ? ['list'] : ['read', 'preview', 'open-external'], ...(source ? { ref: { workspaceId: 'w1', sourceId: source, path: p.split('/').slice(4).join('/') } } : {}) });
+      const item = (p, title, directory, kind = 'folder', source = '') => ({ path: p, title, directory, kind, actions: directory ? ['list'] : ['read', 'preview', 'edit-text', 'open-external'], ...(source ? { ref: { workspaceId: 'w1', sourceId: source, path: p.split('/').slice(4).join('/') } } : {}) });
       const entries = [item('/', '/', true), item('/workspaces', 'Workspaces', true), item('/workspaces/alpha', 'Alpha Delivery', true), item('/workspaces/beta', 'Beta Delivery', true), item('/workspaces/alpha/documents', 'Working Documents', true, 'local-folder', 'local'), item('/workspaces/alpha/documents/readme.md', 'Read Me', false, 'file', 'local'), item('/workspaces/alpha/documents/slow.md', 'Slow Preview', false, 'file', 'local'), item('/workspaces/alpha/documents/script.ps1', 'Script', false, 'file', 'local'), item('/workspaces/alpha/documents/later.md', 'Later Page', false, 'file', 'local'), item('/workspaces/alpha/documents/paged', 'Paged Folder', true, 'folder', 'local'), item('/workspaces/alpha/documents/paged/end.md', 'End', false, 'file', 'local')];
       entries.find(x => x.path.endsWith('script.ps1')).actions = ['reveal'];
       // A Markdown file can be renamed in its folder.
@@ -99,6 +99,15 @@ const { press, openMenu } = require('./lib/commands');
     await win.locator('tr[data-name=documents]').waitFor();
     await win.locator('tr[data-name=documents]').dblclick();
     await win.locator('tr[data-name="readme.md"]').waitFor();
+    await page.evaluate(() => { window.__editCalls = []; dinahEditor.openResource = async (ref, intent) => { __editCalls.push({ref,intent}); }; });
+    const textRow = win.locator('tr[data-name="readme.md"]');
+    await textRow.click({button:'right'});
+    await page.locator('.context-menu:popover-open').getByText('Edit as Text',{exact:true}).click();
+    ok('Files context menu edits the right-clicked file as text', await page.evaluate(() => __editCalls.length === 1 && __editCalls[0].ref.path === 'readme.md' && __editCalls[0].intent === 'text'));
+    await textRow.focus(); await page.keyboard.press('Shift+F10');
+    await page.locator('.context-menu:popover-open').getByText('Edit as Text',{exact:true}).waitFor();
+    ok('Files context menu is keyboard accessible', true);
+    await page.keyboard.press('Escape');
     // New Folder… makes a folder in a folder on the computer and selects it.
     await press(page, win, 'new-folder');
     const folderDialog = page.locator('dialog.dinah-new-folder[open]');

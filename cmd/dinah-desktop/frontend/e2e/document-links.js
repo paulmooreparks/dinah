@@ -23,6 +23,7 @@ const { launch } = require('./lib/page');
       const resource = p => ({ workspaceId: 'w1', sourceId: 'local', path: p });
       // What is on the stub's disk, by absolute path, and where each opens.
       const disk = {
+        'C:/Test/mock up.html': { opens: 'editor', resource: resource('mock up.html') },
         'C:/Test/docs/plan.md': { opens: 'editor', view: 'page', resource: resource('docs/plan.md') },
         'C:/Test/src/main.go': { opens: 'editor', view: 'text', resource: resource('src/main.go') },
         'C:/Test/shots/screen.png': { opens: 'media', resource: resource('shots/screen.png') },
@@ -159,6 +160,41 @@ const { launch } = require('./lib/page');
     }
     ok('a streamed message with paths shows what the whole text shows after every chunk', !mismatch, mismatch);
     ok('the streamed message ends with the same links', await p.evaluate(() => __last().querySelectorAll('a.smart-chip[data-opens]').length) === drawn.plan.length + 5);
+
+    // Real destinations survive the app's click handling and native Copy Link.
+    await p.evaluate(async () => {
+      window.__copied = '';
+      runtime.ClipboardSetText = async text => { __copied = text; };
+      runtime.BrowserOpenURL = url => { __calls.push(['browser', url]); };
+      const root = document.createElement('div'); root.id = 'link-actions-fixture';
+      root.style.cssText = 'position:fixed;top:80px;left:20px;z-index:99999;background:white;padding:20px';
+      root.appendChild(dinahChatText.nodes('[Mockup](<mock up.html>) [Website](https://example.com/a?q=1#part)', null, 'C:/Test'));
+      document.body.appendChild(root); dinahChatText.openLinks(root, () => 'C:/Test');
+      await __pending();
+    });
+    const mock = p.locator('#link-actions-fixture a').first(), web = p.locator('#link-actions-fixture a').last();
+    ok('local Copy Link targets the actual encoded file address', await mock.getAttribute('href') === 'file:///C:/Test/mock%20up.html');
+    ok('web links retain the full original URL', await web.getAttribute('href') === 'https://example.com/a?q=1#part');
+    await mock.click({button:'right'});
+    await p.locator('.context-menu:popover-open').getByText('Copy Link Address',{exact:true}).click();
+    await p.waitForFunction(() => __copied === 'file:///C:/Test/mock%20up.html');
+    ok('context menu copies the real address', true);
+    await mock.focus(); await p.keyboard.press('Shift+F10');
+    await p.locator('.context-menu:popover-open').getByText('Copy File Path',{exact:true}).click();
+    await p.waitForFunction(() => __copied === 'C:/Test/mock up.html');
+    ok('keyboard context menu copies the file path', true);
+    await mock.click({button:'right'});
+    await p.locator('.context-menu:popover-open').getByText('Open with Default App',{exact:true}).click();
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'system' && c[1] === 'C:/Test/mock up.html'));
+    ok('HTML can open through the system HTML association', true);
+    const beforeExternal = await p.evaluate(() => __calls.filter(c => c[0] === 'system').length);
+    await mock.click({button:'middle'});
+    await p.waitForFunction(n => __calls.filter(c => c[0] === 'system').length > n, beforeExternal);
+    ok('middle click opens externally without a new Dinah window', p.context().pages().length === 1);
+    await web.click({modifiers:['Control']});
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'browser' && c[1] === 'https://example.com/a?q=1#part'));
+    ok('modified web click opens the browser', p.context().pages().length === 1);
+    await p.evaluate(() => document.getElementById('link-actions-fixture').remove());
 
     // A file that appears later is linked when the message is drawn again,
     // once the answer about it has gone stale; nothing asks in between.

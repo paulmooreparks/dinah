@@ -1,0 +1,447 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "utc",
+    "build",
+    "scope",
+    "backend",
+    "page"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "utc": {
+      "type": "string"
+    },
+    "build": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "process_wide"
+      ]
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "heapObjectsBytes",
+        "heapObjects",
+        "heapUnusedBytes",
+        "heapReleasedBytes",
+        "memoryTotalBytes",
+        "goroutines",
+        "gcCycles",
+        "gcCPUSeconds",
+        "mutexWaitSeconds"
+      ],
+      "properties": {
+        "heapObjectsBytes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "heapObjects": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "heapUnusedBytes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "heapReleasedBytes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "memoryTotalBytes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "goroutines": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "gcCycles": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "gcCPUSeconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "mutexWaitSeconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "roundTripMs",
+        "data"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "measured",
+            "unavailable",
+            "busy"
+          ]
+        },
+        "roundTripMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/page"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor",
+        "capture",
+        "visible",
+        "features",
+        "coverage",
+        "counts",
+        "scheduler",
+        "rendererHeap",
+        "events",
+        "collectionMs"
+      ],
+      "properties": {
+        "anchor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "utc",
+            "monoMs"
+          ],
+          "properties": {
+            "utc": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "monoMs": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "capture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "state",
+            "startedMonoMs",
+            "deadlineUtcMs"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "idle",
+                "running",
+                "complete",
+                "stopped"
+              ]
+            },
+            "startedMonoMs": {
+              "type": "number",
+              "minimum": 0
+            },
+            "deadlineUtcMs": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "longTask",
+            "longFrame"
+          ],
+          "properties": {
+            "input": {
+              "type": "string",
+              "enum": [
+                "measured",
+                "unavailable"
+              ]
+            },
+            "longTask": {
+              "type": "string",
+              "enum": [
+                "measured",
+                "unavailable"
+              ]
+            },
+            "longFrame": {
+              "type": "string",
+              "enum": [
+                "measured",
+                "unavailable"
+              ]
+            }
+          }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "retained",
+            "overwritten",
+            "rateOmissions",
+            "scriptOmissions"
+          ],
+          "properties": {
+            "retained": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "overwritten": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "rateOmissions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "scriptOmissions": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "elements",
+            "windows",
+            "transcriptRows",
+            "toolRows"
+          ],
+          "properties": {
+            "elements": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "windows": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "transcriptRows": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "toolRows": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "scheduler": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pending",
+            "blocked",
+            "watchedRoots",
+            "framePending",
+            "oldestWaitMs"
+          ],
+          "properties": {
+            "pending": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "blocked": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "watchedRoots": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "framePending": {
+              "type": "boolean"
+            },
+            "oldestWaitMs": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "rendererHeap": {
+          "type": "string",
+          "enum": [
+            "requires_profiler"
+          ]
+        },
+        "events": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "atMs",
+              "durationMs",
+              "waitMs",
+              "label",
+              "blockingMs",
+              "scripts",
+              "visible"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "input",
+                  "long_task",
+                  "long_frame",
+                  "render",
+                  "event_loop"
+                ]
+              },
+              "atMs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "durationMs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "waitMs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "label": {
+                "type": "string",
+                "enum": [
+                  "chat",
+                  "layout",
+                  "unread",
+                  "diagnostics",
+                  "provider",
+                  "other"
+                ]
+              },
+              "blockingMs": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "scripts": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "source",
+                    "position",
+                    "durationMs",
+                    "forcedLayoutMs"
+                  ],
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "maxLength": 160
+                    },
+                    "position": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "durationMs": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "forcedLayoutMs": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "minimum": 0
+                    }
+                  }
+                }
+              },
+              "visible": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "collectionMs": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

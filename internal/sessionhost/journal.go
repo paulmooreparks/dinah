@@ -42,12 +42,19 @@ func JournalPath(dir, id, folder string) string {
 
 // journal records a message of a session, now.
 func (j *Journal) Record(id, kind string, path func(string) string) {
-	b, err := json.Marshal(JournalEntry{Kind: kind, At: time.Now()})
+	at := time.Now()
+	b, err := json.Marshal(JournalEntry{Kind: kind, At: at})
 	if err != nil {
 		return
 	}
 	j.mu.Lock()
 	defer j.mu.Unlock()
+	if j.latest == nil {
+		j.latest = make(map[string]time.Time)
+	}
+	if at.After(j.latest[id]) {
+		j.latest[id] = at
+	}
 	p := path(id)
 	if os.MkdirAll(filepath.Dir(p), 0o700) != nil {
 		return
@@ -63,9 +70,13 @@ func (j *Journal) Record(id, kind string, path func(string) string) {
 // SessionTimes returns a session's journal, oldest first, or an empty list
 // for a session Dinah never saw.
 func (j *Journal) Times(id string, path func(string) string) []JournalEntry {
-	out := []JournalEntry{}
 	j.mu.Lock()
 	defer j.mu.Unlock()
+	return j.timesLocked(id, path)
+}
+
+func (j *Journal) timesLocked(id string, path func(string) string) []JournalEntry {
+	out := []JournalEntry{}
 	f, err := os.Open(path(id))
 	if err != nil {
 		return out
@@ -81,10 +92,32 @@ func (j *Journal) Times(id string, path func(string) string) []JournalEntry {
 	return out
 }
 
+// Latest returns the last recorded message time. It reads an existing journal
+// once per host lifetime, so list refreshes do not repeatedly load transcripts.
+func (j *Journal) Latest(id string, path func(string) string) time.Time {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if at, ok := j.latest[id]; ok {
+		return at
+	}
+	var latest time.Time
+	for _, entry := range j.timesLocked(id, path) {
+		if entry.At.After(latest) {
+			latest = entry.At
+		}
+	}
+	if j.latest == nil {
+		j.latest = make(map[string]time.Time)
+	}
+	j.latest[id] = latest
+	return latest
+}
+
 // forgetJournal removes a session's journal with the session.
 func (j *Journal) Forget(id string, path func(string) string) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
+	delete(j.latest, id)
 	_ = os.Remove(path(id))
 }
 
@@ -93,4 +126,7 @@ var JournalSource []byte
 
 // Journal serializes message-time persistence for one host. It must not be copied
 // after use. Path callbacks run under its lock and must not re-enter Journal.
-type Journal struct{ mu sync.Mutex }
+type Journal struct {
+	mu     sync.Mutex
+	latest map[string]time.Time
+}

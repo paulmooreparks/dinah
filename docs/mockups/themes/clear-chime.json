@@ -69,8 +69,8 @@
       "warn": "#f0cc79"
     },
     "light": {
-      "accent": "#006e70",
-      "accent-hover": "#00595d",
+      "accent": "#005b5d",
+      "accent-hover": "#004c4f",
       "bg": "#dce7e3",
       "border": "#829590",
       "category-1": "#4b59fd",
@@ -99,8 +99,8 @@
       "syntax-error": "#b03538",
       "syntax-heading": "#243c3c",
       "syntax-keyword": "#724466",
-      "syntax-link": "#006e70",
-      "syntax-name": "#006e70",
+      "syntax-link": "#005b5d",
+      "syntax-name": "#005b5d",
       "syntax-number": "#825b0b",
       "syntax-string": "#287145",
       "syntax-tag": "#724466",

@@ -126,12 +126,16 @@ const path = require('path');
     });
     await p.waitForTimeout(150);
     const words = await p.textContent('.tool-group .tool-group-words');
-    ok('a run of tool calls folds into one counted line', words === 'Read 5 files · Ran 2 commands · 1 failed', words);
-    ok('the line names the step in hand', (await p.textContent('.tool-group .tool-group-now')) === 'now: Ran go test');
+    ok('a run of tool calls folds into one counted line', words === 'Read 5 files · Ran 2 commands', words);
+    ok('the line names the step in hand', (await p.textContent('.tool-group .tool-group-now')) === 'Running command');
     ok('the calls are hidden until opened', await p.isHidden('.tool-group-list'));
     await t.shot('fold');
     await p.click('.tool-group .card-toggle');
-    ok('opening shows them', await p.isVisible('.tool-group-list') && (await p.$$('.tool-group-list > li')).length === 7);
+    ok('opening shows them', await p.isVisible('.tool-group-list') && (await p.$$('.tool-group-list > .tool-row')).length === 7);
+    const failedStep = p.locator('.tool-row').filter({ hasText: 'Ran go vet' });
+    ok('failed status stays hidden until Details opens, even without output', await failedStep.locator('.tool-outcome').isHidden() && await failedStep.locator('summary').isVisible());
+    await failedStep.locator('summary').click();
+    ok('Details preserves the exact failed status', await failedStep.locator('.tool-outcome').isVisible() && await failedStep.locator('.tool-outcome').textContent() === 'Status: failed');
     await t.shot('fold-open');
 
     // Drafts per session.

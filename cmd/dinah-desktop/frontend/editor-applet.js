@@ -152,7 +152,6 @@
           '<button type="button" class="btn btn-sm" data-ed-replace-all>Replace All</button>' +
         '</div>' +
       '</div>' +
-      '<p class="doc-meta" data-ed-meta></p>' +
       '<div class="editor-body">' +
       '<div class="editor-proposals" data-ed-proposals hidden></div>' +
       '<div class="notice warn editor-notice" data-ed-notice hidden><div class="notice-content"><p class="notice-body" data-ed-notice-body></p>' +
@@ -170,8 +169,25 @@
         '</div>' +
       '</div>' +
       '</div>' +
-      '<p class="editor-status" data-ed-status role="status"></p>';
+      '<div class="editor-statusbar" aria-label="Document status">' +
+        '<div class="editor-status-details">' +
+        '<div class="editor-location"><span class="editor-path" data-ed-meta></span>' +
+          '<button type="button" class="icon-btn" data-ed-copy-path aria-label="Copy document path" title="Copy document path" disabled><span class="glyph" style="--glyph: var(--glyph-copy)" aria-hidden="true"></span></button></div>' +
+        '<span class="editor-status" data-ed-status role="status"></span>' +
+        '</div>' +
+        '<span class="editor-save-state" data-ed-save-state role="status"><span class="glyph" data-ed-state-glyph aria-hidden="true"></span><span data-ed-state-label></span></span>' +
+      '</div>';
     ed.$ = function (name) { return ed.root.querySelector('[data-ed-' + name + ']'); };
+    var saveChip = ed.$('save-state'), saveGlyph = ed.$('state-glyph'), saveLabel = ed.$('state-label');
+    var saveStatus = null;
+    if (!ed.opts.embedded) {
+      var statuses = ed.win.querySelector('.win-head > .win-statuses');
+      if (statuses) {
+        saveStatus = saveChip;
+        saveStatus.className = 'win-status editor-save-chip';
+        statuses.appendChild(saveStatus);
+      }
+    }
     ed.$('problems').id = ed.key + '-problems';
     // The preview scrolls by keyboard, and a key typed in it switches to Split.
     ed.$('scroll').tabIndex = 0;
@@ -190,14 +206,57 @@
 
     /* ---- Head ---------------------------------------------------------- */
 
-    function describe() {
-      if (!ed.draft) return '';
-      var ref = originRef(ed.draft), parts = [];
-      if (ref) parts.push(window.dinahWorkspaceBrowser ? window.dinahWorkspaceBrowser.describe(ref) : ref.sourceId);
-      else parts.push('New document, not saved anywhere yet');
-      if (ref && ed.draft.origin.kind === 'local-folder') parts.push(ed.draft.origin.path);
-      parts.push(ed.outside ? 'changed elsewhere' : ed.pending ? 'keeping your changes…' : unsaved() ? 'changes not saved' : 'no changes');
-      return parts.join(' · ');
+    var locationKey = '', locationGeneration = 0, copyPath = '';
+    function drawLocation() {
+      var ref = originRef(ed.draft);
+      var records = window.dinahWorkspaceBrowser ? window.dinahWorkspaceBrowser.records() : [];
+      var owner = ref && records.find(function (r) { return r.id === ref.workspaceId; });
+      var source = owner && (owner.sources || []).find(function (s) { return s.id === ref.sourceId; });
+      var key = JSON.stringify([ed.draft.origin, source && source.path]);
+      if (key === locationKey) return;
+      locationKey = key;
+      var generation = ++locationGeneration;
+      copyPath = '';
+      ed.$('copy-path').disabled = true;
+      ed.$('copy-path').hidden = !ref || ed.draft.origin.kind !== 'local-folder';
+      var label = !ref ? 'No file location yet' : ed.draft.origin.kind === 'local-folder' ? 'Resolving document path…' : (source && source.name || ref.sourceId) + ' / ' + ref.path;
+      ed.$('meta').textContent = label;
+      ed.$('meta').title = label;
+      if (!ref || ed.draft.origin.kind !== 'local-folder') return;
+      // The host resolves the path using its OS and workspace source rules.
+      // A changed origin or source invalidates any earlier response.
+      Promise.resolve().then(function () { return api().WorkspaceLocalPath(ref); }).then(function (path) {
+        if (ed.disposed || generation !== locationGeneration) return;
+        if (!path) throw new Error('The document path is unavailable.');
+        copyPath = path;
+        ed.$('meta').textContent = path;
+        ed.$('meta').title = path;
+        ed.$('copy-path').disabled = false;
+      }).catch(function (err) {
+        if (ed.disposed || generation !== locationGeneration) return;
+        ed.$('meta').textContent = 'Document path unavailable';
+        ed.$('meta').title = message(err);
+      });
+    }
+    ed.$('copy-path').addEventListener('click', function () {
+      if (!copyPath) return;
+      var path = copyPath;
+      window.dinahChatText.copy(path, '', ed.$('copy-path'));
+    });
+    function drawSaveState() {
+      var state = ed.outside || !ed.$('moved').hidden ? ['warn', 'warning', 'Changed elsewhere'] :
+        ed.busy ? ['working', 'working', 'Working…'] :
+        ed.saveError ? ['warn', 'warning', 'Save failed'] :
+        ed.pending || ed.writing ? ['working', 'working', 'Keeping changes…'] :
+        isNew() ? ['unsaved', 'document', 'Not saved to a file'] :
+        unsaved() ? ['unsaved', 'document', 'Unsaved changes'] : ['saved', 'check', 'Saved'];
+      var detail = ed.saveError ? state[2] + ': ' + ed.saveError + ' Use Save to retry.' : state[2];
+      if (saveChip.dataset.state !== state[0]) saveChip.dataset.state = state[0];
+      var glyph = 'var(--glyph-' + state[1] + ')';
+      if (saveGlyph.style.getPropertyValue('--glyph') !== glyph) saveGlyph.style.setProperty('--glyph', glyph);
+      if (saveLabel.textContent !== state[2]) saveLabel.textContent = state[2];
+      if (saveChip.title !== detail) { saveChip.title = detail; saveChip.setAttribute('aria-label', detail); }
+      if (saveStatus && saveStatus.title !== detail) { saveStatus.title = detail; saveStatus.setAttribute('aria-label', detail); }
     }
     function drawHead() {
       if (!ed.draft || ed.disposed) return;
@@ -206,10 +265,11 @@
       // which PUDL draws after
       // the title and shortens first, so the taskbar, the dock tabs and the
       // Ctrl+Tab list say it too.
-      if (!ed.opts.embedded) window.pudlWindows.retitle(ed.key, title, workspaceName(ed.draft.origin && ed.draft.origin.workspaceId) || '');
+      if (!ed.opts.embedded) window.dinahWorkbench.retitle(ed.key, title, workspaceName(ed.draft.origin && ed.draft.origin.workspaceId) || '');
       // Save, Save As… and the rest are the command table's, drawn again
       // by commandsChanged below.
-      ed.$('meta').textContent = describe();
+      drawLocation();
+      drawSaveState();
       ed.drawProposals();
       ed.syncMarks();
       ed.pageMarks();
@@ -404,6 +464,7 @@
       },
       destroy: function () {
         ed.disposed = true;
+        if (saveStatus) saveStatus.remove();
         document.removeEventListener('dinah:appearance-change', ed.appearanceChanged); dinahRender.cancel(ed.appearanceChanged);
         openEditors.delete(ed.key);
         clearTimeout(ed.writeTimer);
@@ -430,10 +491,12 @@
     var item = itemFor(v), key = window.dinahWorkbench.key(item);
     var already = window.pudlWindows.state().open.indexOf(key) >= 0;
     if (!already && intent === 'read') requestedViews[v.id] = 'preview';
+    if (!already && intent === 'text') requestedViews[v.id] = 'text';
     return window.dinahWorkbench.open(item).then(function (opened) {
       delete requestedViews[v.id];
       var win = document.querySelector('[data-win="' + CSS.escape(opened) + '"] .editor-applet');
-      if (already && intent !== 'read' && win) win.dispatchEvent(new CustomEvent('dinah:editor-work'));
+      if (intent === 'text' && win) win.dispatchEvent(new CustomEvent('dinah:editor-text'));
+      else if (already && intent !== 'read' && win) win.dispatchEvent(new CustomEvent('dinah:editor-work'));
       if (win) win.dispatchEvent(new CustomEvent('dinah:editor-focus'));
       return opened;
     });
@@ -507,5 +570,5 @@
   window.dinahEditor = { open: open, openResource: openResource, newDocument: newEmpty, openDocument: openDocument };
   // An Editor restored behind other windows starts when it is seen, or in
   // idle time after the windows in sight.
-  window.dinahWorkbench.register('editor', { applet: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true }, title: 'Editor', glyph: 'document', start: 'idle', launcher: { mnemonic: 'E', description: 'Start an empty document, for notes or a script.', run: newEmpty }, init: init });
+  window.dinahWorkbench.register('editor', { pinByItem: true, applet: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true }, title: 'Editor', glyph: 'document', start: 'idle', launcher: { mnemonic: 'E', description: 'Start an empty document, for notes or a script.', run: newEmpty }, init: init });
 })();

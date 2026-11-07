@@ -1,7 +1,7 @@
 // The workbench: the first-run layout, the Workspace pane's scoped chats,
 // the browsers' docking, menus, scope and filters, the Tools launchers and
 // their search, Go To, Settings as a window, the taskbar, bottom docks, the
-// Window menu, the narrow layout, Close All, split docks, outline resizing,
+// Window menu, the narrow layout, Close All, split docks, live resizing,
 // the ribbon and the taskbar's order.
 const { openStatus } = require('./lib/status');
 const { launch } = require('./lib/page');
@@ -54,8 +54,8 @@ const { launch } = require('./lib/page');
     // Tools › Editor starts an empty, untitled document.
     await p.evaluate(() => { window.__emptyDraft = null; go.main.App.NewEmptyDraft = async ws => { window.__emptyDraft = ws; return { id: 'e'.repeat(32), title: 'Untitled', text: '', revision: 'r', documentType: '', origin: { kind: 'new', workspaceId: ws }, actions: ['update', 'discard', 'save-as'], suggestions: [], spans: [], changed: false }; }; return dinahWorkbench.launchers().find(l => l.id === 'editor').run(); });
     ok('Tools › Editor starts an empty document', await p.evaluate(() => window.__emptyDraft !== null));
-    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Tools$/ }).click();
-    await p.locator('#menubar-panel').getByText('Find a Tool…', { exact: true }).click();
+    await p.evaluate(()=>pudlMenubar.launcherButton().click());
+    await p.locator('[data-launcher-action="find-tool"]').click();
     await p.fill('#go-to-filter', 'notes or a script');
     ok('tool search matches descriptions', await p.locator('#go-to-list tr').count() === 1 && (await p.locator('#go-to-list').textContent()).includes('Editor'));
     await p.evaluate(() => document.getElementById('go-to').close());
@@ -125,7 +125,8 @@ const { launch } = require('./lib/page');
     const firstTaskKey = await firstTask.getAttribute('data-win-tab');
     ok('the taskbar leaves visible padding on the left', (await firstTask.boundingBox()).x >= 4);
     await p.mouse.click(0, bottom);
-    ok('the bottom-left corner activates the first task', await p.evaluate(key => pudlWindows.state().top === key, firstTaskKey));
+    await p.waitForFunction(() => pudlWindows.state().top === 'settings');
+    ok('the bottom-left corner activates fixed Settings', true);
     await p.mouse.click(p.viewportSize().width - 1, bottom);
     ok('the bottom-right corner minimizes every window, as Show Desktop does', await p.evaluate(() => { const s = pudlWindows.state(); return s.open.filter(k => !s.min[k] && document.querySelector('[data-win-tab="' + k + '"]')).length === 0; }));
     await p.locator('.win-bar a[data-win-restore]').click();
@@ -136,6 +137,7 @@ const { launch } = require('./lib/page');
       await document.fonts.ready;
     });
     await p.setViewportSize({ width: 390, height: 720 });
+    await t.shot('taskbar-fixed-narrow');
     // Since PUDL 0.81.2 a full taskbar puts the buttons it has no room for
     // into its "N more" button, and the front window's button always stays.
     // Since 0.82.1 that button shrinks below its floor to fit what is left,
@@ -199,8 +201,8 @@ const { launch } = require('./lib/page');
     await p.locator('#go-to-list tr').dblclick();
     ok('All Windows finds and raises a window beyond the direct list', await p.evaluate(() => dinahWorkbench.item(pudlWindows.state().top).path === '10'));
     await p.evaluate(() => { document.querySelectorAll('[data-win-kind="menu-fixture"]').forEach(win => pudlWindows.close(win.dataset.win)); pudlWindows.raise('workspace'); });
-    await p.locator('.menubar-row .menubar-title').filter({ hasText: /^Tools$/ }).click();
-    await t.shot('menus-tools');
+    await p.evaluate(()=>pudlMenubar.launcherButton().click());
+    await p.locator('[data-launcher-action="find-tool"]').click();
     await p.keyboard.press('Escape');
     await t.shot('workbench-wide');
     await p.setViewportSize({ width: 820, height: 700 });
@@ -234,11 +236,11 @@ const { launch } = require('./lib/page');
       ok('split dock and URL state work on ' + edge, result);
       await p.evaluate(edge => pudlWindows.dockArrange(edge, 'merge'), edge);
     }
-    ok('desktop opts into outline resizing', await p.locator('[data-win-layer]').getAttribute('data-win-resize-mode') === 'outline');
-    const outlineKey = await p.evaluate(() => { dinahWorkbench.register('resize-fixture',{title:'Resize Fixture',mode:'floating',init:()=>({})}); return dinahWorkbench.open({kind:'resize-fixture', path:'outline-resize'}); });
-    const outlineWin = p.locator('[data-win="' + outlineKey + '"]');
-    const beforeOutline = await outlineWin.boundingBox();
-    const resizePoint = await outlineWin.locator('.win-rh[data-edge="se"]').evaluate(el => {
+    ok('desktop opts into live resizing', await p.locator('[data-win-layer]').getAttribute('data-win-resize-mode') === 'live');
+    const resizeKey = await p.evaluate(() => { dinahWorkbench.register('resize-fixture',{title:'Resize Fixture',mode:'floating',init:()=>({})}); return dinahWorkbench.open({kind:'resize-fixture', path:'live-resize'}); });
+    const resizeWin = p.locator('[data-win="' + resizeKey + '"]');
+    const beforeResize = await resizeWin.boundingBox();
+    const resizePoint = await resizeWin.locator('.win-rh[data-edge="se"]').evaluate(el => {
       const r=el.getBoundingClientRect();
       for (const y of [.5,.9,.1]) for (const x of [.5,.9,.1]) {
         const point={x:r.x+r.width*x,y:r.y+r.height*y};
@@ -246,30 +248,37 @@ const { launch } = require('./lib/page');
       }
       return null;
     });
-    if (!resizePoint) throw Error('outline resize handle has no exposed target');
+    if (!resizePoint) throw Error('live resize handle has no exposed target');
     await p.mouse.move(resizePoint.x,resizePoint.y); await p.mouse.down();
     await p.mouse.move(resizePoint.x+70,resizePoint.y+40,{steps:4});
-    ok('outline pointer movement keeps mounted content geometry fixed', JSON.stringify(await outlineWin.boundingBox()) === JSON.stringify(beforeOutline) && await p.locator('.win-ghost:not([hidden])').isVisible());
-    await t.shot('outline-resize-preview');
+    const duringResize = await resizeWin.boundingBox();
+    ok('pointer movement resizes mounted content before release', duringResize.width > beforeResize.width+60 && duringResize.height > beforeResize.height+30 && await p.locator('.win-ghost:not([hidden])').count() === 0);
+    await t.shot('live-resize-preview');
     await p.mouse.up();
-    const afterOutline = await outlineWin.boundingBox();
-    ok('outline release commits geometry', afterOutline.width > beforeOutline.width+60 && afterOutline.height > beforeOutline.height+30);
-    await p.evaluate(key => pudlWindows.close(key),outlineKey);
+    const afterResize = await resizeWin.boundingBox();
+    ok('release retains the live geometry', afterResize.width > beforeResize.width+60 && afterResize.height > beforeResize.height+30);
+    await p.evaluate(key => pudlWindows.close(key),resizeKey);
     const ribbonToggle=p.getByRole('button',{name:'Show as ribbon',exact:true});
     await ribbonToggle.click();
-    // Since PUDL 0.87.1 the chooser appears only when the ribbon's tabs do
-    // not fit: none at full width, one in a narrow window.
+    // The chooser appears when titles fold to glyphs. At smaller widths
+    // the whole menubar collapses and the ribbon gives way with it.
     const ribbonChooser=p.getByRole('button',{name:'Ribbon tabs',exact:true});
     await p.waitForTimeout(300);
     ok('the ribbon has no tabs chooser while its tabs fit', !(await ribbonChooser.isVisible().catch(() => false)));
     const ribbonSize=p.viewportSize();
-    await p.setViewportSize({width:560,height:ribbonSize.height});
+    await p.setViewportSize({width:700,height:ribbonSize.height});
     await ribbonChooser.waitFor({timeout:5000});
     await ribbonChooser.focus(); await p.keyboard.press('ArrowDown');
     ok('ribbon tabs chooser opens from the keyboard', await ribbonChooser.getAttribute('aria-expanded')==='true');
     await t.shot('ribbon-tabs-chooser');
     await p.keyboard.press('Escape');
     ok('ribbon chooser regains focus after Escape', await ribbonChooser.evaluate(el=>document.activeElement===el));
+    await p.setViewportSize({width:390,height:ribbonSize.height});
+    await p.waitForFunction(()=>document.querySelector('.menubar-collapsed') && !document.documentElement.hasAttribute('data-menubar-ribbon-on'));
+    ok('fully collapsed menubar hides the ribbon chooser', !(await ribbonChooser.isVisible()));
+    await p.setViewportSize({width:700,height:ribbonSize.height});
+    await ribbonChooser.waitFor();
+    ok('widening restores the ribbon and its chooser', await p.evaluate(()=>document.documentElement.hasAttribute('data-menubar-ribbon-on')));
     // The taskbar's entries can be put in order (PUDL 0.89.0), and the order
     // is part of the address Dinah saves with the layout.
     const order = await p.evaluate(() => {

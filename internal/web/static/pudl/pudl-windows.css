@@ -274,6 +274,10 @@
 .win-dock-entry > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .win-dock-tablist .win-item-title { max-width: 12em; overflow: hidden; text-overflow: ellipsis; }
 .win-dock-toggle { flex: none; align-self: flex-start; margin: 4px; }
+/* The More button stands at the strip's end, before the collapse button,
+   while any tab is outside the strip (0.97.7). */
+.win-dock-more { flex: none; align-self: flex-start; margin: 4px; }
+.win-dock-more + .win-dock-toggle { margin-inline-start: 0; }
 .win[data-win-dock-shared]:is([data-win-edge="left"], [data-win-edge="right"]):not([data-win-dock-peek]) {
   top: calc(var(--dock-top, 0px) + 40px);
   height: calc(100% - var(--dock-top, 0px) - var(--dock-bottom, 0px) - 40px);
@@ -313,12 +317,12 @@
    server or by the script, a shared window keeps its title bar and the
    whole of its dock, with no empty band where the strip would go (issue
    #14). */
-.win-layer:not(:has(> .win-dock-group)) > .win[data-win-dock-shared]:is([data-win-edge="left"], [data-win-edge="right"]) {
+.win-layer > .win[data-win-dock-shared]:not(:where(.win-dock-group, .win-dock-group ~ *)):not(:has(~ .win-dock-group)):is([data-win-edge="left"], [data-win-edge="right"]) {
   top: var(--dock-top, 0px);
   height: calc(100% - var(--dock-top, 0px) - var(--dock-bottom, 0px));
 }
-.win-layer:not(:has(> .win-dock-group)) > .win[data-win-dock-shared] { padding: 0; }
-.win-layer:not(:has(> .win-dock-group)) > .win[data-win-dock-shared]:not([data-win-dock-only]) > .win-head { display: flex; }
+.win-layer > .win[data-win-dock-shared]:not(:where(.win-dock-group, .win-dock-group ~ *)):not(:has(~ .win-dock-group)) { padding: 0; }
+.win-layer > .win[data-win-dock-shared]:not(:where(.win-dock-group, .win-dock-group ~ *)):not(:has(~ .win-dock-group)):not([data-win-dock-only]) > .win-head { display: flex; }
 
 /* Shared top and bottom docks, with data-win-dock-tabs="all". The strip
    runs the width of the layer on the dock's inner side, next to the work
@@ -582,7 +586,7 @@
   -webkit-mask: var(--glyph-caret) center / contain no-repeat;
   mask: var(--glyph-caret) center / contain no-repeat;
 }
-.win[data-win-chrome="compact"]:has([data-win-action="menu"]) .win-head [data-win-action]:not([data-win-action="menu"]) { display: none; }
+.win[data-win-chrome="compact"] .win-head:has([data-win-action="menu"]) [data-win-action]:not([data-win-action="menu"]) { display: none; }
 .win[data-win-restricted] > .win-rh { display: none; }
 .win[data-win-restricted] .win-head { cursor: default; }
 .win-btn[aria-disabled="true"] { opacity: .5; cursor: default; }
@@ -614,7 +618,8 @@
   .win-snap .win-snap-zone:hover, .win-snap .win-snap-zone[aria-current="true"] { forced-color-adjust: none; background: Highlight; }
 }
 
-.win:has(> .win-menu:popover-open) .win-btn[data-win-action="menu"] {
+.win > :where(.win-head):has(~ .win-menu:popover-open) .win-btn[data-win-action="menu"],
+.win > .win-menu:popover-open ~ :where(.win-head) .win-btn[data-win-action="menu"] {
   background: var(--raise-active-bg); box-shadow: var(--raise-active-shadow);
 }
 .win-btn[data-win-action="page"]::before { --glyph: var(--glyph-open); }
@@ -773,6 +778,15 @@
   -webkit-mask: var(--glyph-circle) center / contain no-repeat;
   mask: var(--glyph-circle) center / contain no-repeat;
 }
+/* A persistent entry keeps a running indicator beside its destination mark. */
+.win-bar .win-dock > .win-tab[data-win-pin]::before { display: block; }
+.win-tab[data-win-pin-running="false"]::before {
+  background: var(--text-muted);
+  -webkit-mask-image: var(--glyph-pin);
+  mask-image: var(--glyph-pin);
+}
+.win-tab[aria-disabled="true"] { opacity: .55; cursor: default; }
+.win-tab > .win-pin-progress { width: .85em; height: .85em; }
 .win-tab:hover { background: var(--raise-grad-hover); border-color: var(--raise-border-hover); }
 .win-tab:focus-visible { outline: none; box-shadow: 0 0 0 var(--focus-ring-width, 3px) var(--focus-ring); }
 .win-tab[aria-current="true"] { background: var(--raise-active-bg); box-shadow: var(--raise-active-shadow); }
@@ -940,3 +954,6 @@
 }
 
 .win-statuses[data-win-status-empty], .win-execution:has(> .win-state[hidden]) { visibility: hidden; }
+
+/* Restored fragments receive their saved geometry and stack before exposure. */
+.win[data-win-restoring] { visibility: hidden; }

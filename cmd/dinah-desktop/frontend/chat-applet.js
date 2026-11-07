@@ -576,7 +576,7 @@
 
     // Messages are drawn and copied by the renderer every window shares
     // (chat-text.js).
-    function copyText(text, said) { window.dinahChatText.copy(text, said); }
+    function copyText(text, said, button) { return window.dinahChatText.copy(text, said, button); }
 
     function optValues(o) {
       var out = [];
@@ -719,6 +719,11 @@
       var s = active && sessions[active];
       return s ? ensureChat(s) : chatControllers.get('chat');
     }
+    window.dinahChatReferences = { catalog: function () {
+      return window.dinahChatMentions.create({ catalogOnly: true, app: app, productName: productName,
+        sessions: sessions, normalizedWorkspace: normalizedWorkspace, title: title, workspaceLabel: workspaceLabel,
+        active: function () { return null; }, workspace: adapter.workspace });
+    } };
     window.dinahChatSkills = { targets: function () {
       return Array.from(chatControllers.values()).map(function (chat) { return chat.skillTarget(); }).filter(Boolean);
     } };
@@ -1262,6 +1267,7 @@
       active = id;
       if (id) { var log = S(id).keptLog || S(id).log; $('logs').appendChild(log); log.hidden = false; }
       var s = id ? sessions[id] : null;
+      showLiveWork(s);
       if (s) window.dinahFailures.sync(s);
       // A chat reconnecting quietly keeps its saved copy in sight (openResolvedSession).
       if (s && s.loading) s.log.hidden = true;
@@ -1453,7 +1459,7 @@
     function stampReplay(s) {
       Promise.resolve().then(function () { return app().SessionTimes(s.id); }).then(function (entries) {
         entries = entries || [];
-        var rows = Array.prototype.slice.call(s.log.children);
+        var rows = Array.from(activityRows(s, 'li.activity-row:not(.tool-group)'));
         var msgs = { you: [], agent: [] };
         rows.forEach(function (li) { var m = li._msg; if (m && (m.kind === 'you' || m.kind === 'agent')) msgs[m.kind].push(li); });
         var times = new Map();
@@ -1493,6 +1499,7 @@
     /* The replay is drawn, whether the agent sent it or it came from Dinah's
        saved copy: the progress line goes and the chat's log shows. */
     function replayDone(s) {
+      finishWork(s);
       if (s.id !== active) return;
       $('replay').hidden = true;
       s.log.hidden = false;
@@ -1658,6 +1665,7 @@
       // when the replay ends; the time it is drawn at is not when it was said.
       if (!s.loading) dinahRegional.stamp(t, new Date(), 'clock');
       li.appendChild(t);
+      if (cls === 'turn-row') finishWork(s);
       s.log.appendChild(li);
       trimLog(s);
       if (s.loading && !s.drawingSaved) { s.replayed = (s.replayed || 0) + 1; replayProgress(s); }
@@ -1668,10 +1676,10 @@
     /* A chat keeps its latest rows on the page and lets the oldest go, so that
        a long chat, or many of them, do not fill the window's memory. A row
        at the top counts omitted entries and exports the full available saved
-       history. A fold of tool calls is one row. */
+       history. Folded tool calls count toward the same retained-row limit. */
     var CHAT_MAX_ROWS = 600, CHAT_KEEP_ROWS = 450;
     function trimLog(s) {
-      var rows = s.log.children;
+      var rows = activityRows(s, '.activity-row');
       if (rows.length <= CHAT_MAX_ROWS) return;
       /* Letting rows go shrinks what is above the reader; while the reader
          has scrolled back, the view is held to the row they are at
@@ -1681,12 +1689,31 @@
         var marker = trimmedRow(s);
         var li = marker ? marker.nextElementSibling : s.log.firstElementChild;
         var drop = rows.length - CHAT_KEEP_ROWS;
-        while (drop-- > 0 && li) {
+        while (drop > 0 && li) {
           var next = li.nextElementSibling;
-          forgetRow(s, li);
-          li.remove();
-          s.trimmed = (s.trimmed || 0) + 1;
+          var list = li.classList.contains('tool-group') && li._list;
+          if (list && list.children.length >= drop) {
+            // A long uninterrupted tool run must not bypass the row limit.
+            while (drop > 0 && list.firstElementChild) {
+              var child = list.firstElementChild;
+              forgetRow(s, child); child.remove();
+              s.trimmed = (s.trimmed || 0) + 1; drop--;
+            }
+            if (list.children.length) { dirtyGroups.add(li); break; }
+            dirtyGroups.delete(li); li.remove(); drop--;
+          } else {
+            var count = list ? list.children.length : 1;
+            forgetRow(s, li); li.remove();
+            s.trimmed = (s.trimmed || 0) + count;
+            drop -= count + (list ? 1 : 0);
+          }
           li = next;
+        }
+        var live = s.workGroup;
+        while (drop > 0 && live && !s.log.contains(live) && live._list.firstElementChild) {
+          var child = live._list.firstElementChild;
+          forgetRow(s, child); child.remove(); s.trimmed = (s.trimmed || 0) + 1; drop--;
+          dirtyGroups.add(live);
         }
         trimMarker(s);
       });
@@ -1720,7 +1747,12 @@
     function forgetRow(s, li) {
       var all = [li].concat(Array.prototype.slice.call(li.querySelectorAll('li')));
       all.forEach(function (x) {
-        if (x._tool) Object.keys(s.rows).forEach(function (k) { if (s.rows[k] === x._tool) delete s.rows[k]; });
+        if (x.classList.contains('work-group')) { untrackWork(x); if (s.workGroup === x) s.workGroup = null; }
+        if (x._tool) {
+          Object.keys(s.rows).forEach(function (k) { if (s.rows[k] === x._tool) delete s.rows[k]; });
+          dirtyTools.delete(x._tool);
+        }
+        dirtyGroups.delete(x);
         var item = x._msg || x._thought;
         if (item && item.textItemKey) textItemIndex(s).set(item.textItemKey, { retired: true });
         if (s.current && s.current.li === x) s.current = null;
@@ -1774,7 +1806,7 @@
       $('pin-expand').setAttribute('aria-expanded', String(open));
       $('pin-expand').title = open ? 'Show less' : 'Show the whole message';
     });
-    $('pin-copy').addEventListener('click', function () { copyText($('pin').dataset.text.trim(), 'Your message is copied.'); });
+    $('pin-copy').addEventListener('click', function () { copyText($('pin').dataset.text.trim(), '', $('pin-copy')); });
     $('pin-go').addEventListener('click', function () {
       var s = active && sessions[active];
       if (s && s.lastYou) {
@@ -1801,8 +1833,10 @@
       scrolled: pinCheck,
       entries: function () {
         var s = active && sessions[active]; if (!s) return [];
-        return Array.from(s.log.children).filter(function (row) { return !!row._msg; }).map(function (row) {
+        return Array.from(s.log.querySelectorAll('li.activity-row')).filter(function (row) { return !!row._msg; }).map(function (row) {
           var element = row;
+          var work = row.closest('.tool-group');
+          if (work && work.querySelector('.card-toggle').getAttribute('aria-expanded') !== 'true') element = work;
           if (row.classList.contains('team-traffic-original')) {
             var previous = row.previousElementSibling;
             while (previous && previous.classList.contains('team-traffic-original')) previous = previous.previousElementSibling;
@@ -1865,6 +1899,7 @@
     /* A message is the shared card (chat-text.js): the person's offers Edit
        and the agent's Quote, and both offer Copy. */
     function message(s, who, text, label) {
+      if (who === 'you') finishWork(s);
       var li = row(s, 'msg-row');
       var m = window.dinahChatText.card({ you: who === 'you', text: text, label: label || (who === 'you' ? 'You' : providerName(sessionProvider(s))), act: messageAction });
       li.appendChild(m.div);
@@ -2023,7 +2058,7 @@
         while (!(next = entries.next()).done) {
           var entry = next.value, s = entry.s || entry._session;
           var kept = s.keptLog && s.keptLog.contains(entry.li || entry);
-          if (!s.log.contains(entry.li || entry) && !kept) { queues[i].delete(entry); continue; }
+          if (!containsActivity(s, entry.li || entry) && !kept) { queues[i].delete(entry); continue; }
           if (s.loading && !kept) continue;
           if (didWork && performance.now() >= deadline) return true;
           queues[i].delete(entry);
@@ -2040,19 +2075,23 @@
     }
     function drawTool(r) {
       var st = STATUS[r.status] || ['', r.status];
-      r.title.textContent = r.name;
-      r.badge.className = 'badge ' + st[0];
-      r.badge.textContent = st[1];
+      var running = r.status === 'in_progress' || r.status === 'pending';
+      var command = r.kind === 'execute' || !!r.command;
+      r.title.textContent = command ? (running ? 'Running command' : 'Ran command') : (r.name || (running ? 'Running step' : 'Completed step'));
+      r.badge.className = 'badge ' + (r.status === 'failed' ? '' : st[0]);
+      r.badge.textContent = running ? 'running' : 'finished';
+      r.outcome.textContent = 'Status: ' + st[1];
+      r.commandText.textContent = r.command || r.name;
+      r.detail.hidden = false;
       if (r.drawnText !== r.text) {
         r.pre.innerHTML = window.dinahTerminalText.html(r.text);
-        r.detail.hidden = !r.text;
         r.drawnText = r.text;
       }
     }
     function appendChunk(s, kind, text, update) {
       var key = textItemKey(s, kind, update), index = key && textItemIndex(s), entry = key && index.get(key);
       if (entry && (entry.retired || entry.complete && update.contentMode === 'append')) return;
-      if (entry && !s.log.contains(entry.message.li)) { index.set(key, { retired: true }); return; }
+      if (entry && !containsActivity(s, entry.message.li)) { index.set(key, { retired: true }); return; }
       if (entry) s.current = entry.message;
       if (!entry && (key || !s.current || s.current.kind !== kind || s.current.textItemKey)) {
         if (kind === 'agent') s.current = message(s, 'agent', '');
@@ -2064,6 +2103,7 @@
           li.appendChild(span);
           s.current = { kind: 'thought', li: li, text: '', el: span };
           li._thought = s.current;
+          group(s, li);
         }
         s.current.s = s;
       }
@@ -2118,9 +2158,12 @@
       if (!r) {
         s.current = null;
         var li = row(s, 'tool-row');
-        li.innerHTML += '<span><span class="tool-title"></span><span class="badge"></span></span><details class="tool-detail" hidden><summary>Details</summary><pre></pre></details>';
-        r = s.rows[u.toolCallId] = { s: s, li: li, title: li.querySelector('.tool-title'), name: '', badge: li.querySelector('.badge'), detail: li.querySelector('.tool-detail'), pre: li.querySelector('pre'), text: '', kind: '', status: 'pending' };
+        li.innerHTML += '<details class="tool-detail"><summary><span class="tool-title"></span><span class="badge"></span></summary><div class="tool-inspector"><div class="tool-outcome"></div><button type="button" class="btn btn-sm tool-copy">Copy</button><pre class="tool-command"></pre><pre class="tool-output"></pre></div></details>';
+        r = s.rows[u.toolCallId] = { s: s, li: li, title: li.querySelector('.tool-title'), name: '', badge: li.querySelector('.badge'), detail: li.querySelector('.tool-detail'), pre: li.querySelector('.tool-output'), commandText: li.querySelector('.tool-command'), outcome: li.querySelector('.tool-outcome'), text: '', kind: '', status: 'pending' };
         li._tool = r;
+        li.querySelector('.tool-copy').addEventListener('click', function (event) {
+          window.dinahChatText.copy((r.command || r.name) + (r.text ? '\n\n' + r.text : ''), '', event.currentTarget);
+        });
         group(s, li);
       }
       if (u.kind && u.kind !== r.kind) { r.kind = u.kind; groupChanged = true; }
@@ -2138,9 +2181,8 @@
       }
       if (groupChanged) dirtyTools.add(r);
       if (r.li._group && groupChanged) dirtyGroups.add(r.li._group);
-      if (u.rawInput && u.rawInput.command) r.command = u.rawInput.command;
+      if (u.rawInput && typeof u.rawInput.command === 'string' && r.command !== u.rawInput.command) { r.command = u.rawInput.command; dirtyTools.add(r); }
       var t = contentText(u.content);
-      if (!t && r.command && !r.text) t = r.command;
       if (t && !r.cut) {
         r.text = r.text ? r.text + '\n' + t : t;
         // A tool's output on the page is kept to its first part; the chat's
@@ -2159,7 +2201,7 @@
     }
 
     /* A run of tool calls with nothing between them folds into one line that
-       counts them by kind ("Read 6 files · Ran 2 commands · 1 failed") and,
+       counts them by kind ("Read 6 files · Ran 2 commands") and,
        while the run is live, names the step in hand. Choosing the line shows
        the calls. The kinds are the protocol's tool kinds
        (https://agentclientprotocol.com/protocol/tool-calls). */
@@ -2168,56 +2210,87 @@
       move: ['Moved 1 file', 'Moved {n} files'], search: ['Searched once', 'Searched {n} times'], execute: ['Ran 1 command', 'Ran {n} commands'],
       think: ['Thought once', 'Thought {n} times'], fetch: ['Fetched 1 page', 'Fetched {n} pages'], other: ['1 other step', '{n} other steps']
     };
-    function group(s, li) {
-      var prev = li.previousElementSibling;
-      if (prev && prev.classList.contains('tool-group')) {
-        prev._list.appendChild(li);
-        li._group = prev;
-        return;
+    var workingGroups = new Set(), workClock = null;
+    function containsActivity(s, el) {
+      return s.log.contains(el) || !!(s.workGroup && s.workGroup.contains(el));
+    }
+    function activityRows(s, selector) {
+      var rows = Array.from(s.log.querySelectorAll(selector));
+      if (s.workGroup && !s.log.contains(s.workGroup)) rows = rows.concat(Array.from(s.workGroup.querySelectorAll(selector)));
+      return rows;
+    }
+    function showLiveWork(s) {
+      var dock = $('live-work'), list = dock.querySelector('ol');
+      var g = s && s.workGroup;
+      if (!g || g._complete || s.loading) { list.replaceChildren(); dock.hidden = true; return; }
+      if (list.firstElementChild !== g) list.replaceChildren(g);
+      dock.hidden = false;
+    }
+    function workHeading(g) {
+      var words = g._complete ? 'Worked' : 'Working...';
+      if (g._seconds != null) words += ' for ' + duration(g._seconds);
+      else if (!g._complete) words += ' ' + duration(Math.max(0, Math.floor((performance.now() - g._started) / 1000)), 0);
+      g.querySelector('.work-title').textContent = words;
+    }
+    function untrackWork(g) {
+      workingGroups.delete(g);
+      if (!workingGroups.size && workClock) { clearInterval(workClock); workClock = null; }
+    }
+    function finishWork(s, seconds) {
+      var g = s.workGroup;
+      if (!g) return;
+      g._complete = true;
+      if (Number.isFinite(seconds)) g._seconds = seconds;
+      workHeading(g); g.querySelector('.tool-group-now').textContent = ''; untrackWork(g);
+      if (!s.log.contains(g)) {
+        // Provider text has no portable final-answer flag. Keep the trailing
+        // response sequence after the completed work block.
+        var before = null, tail = s.log.lastElementChild;
+        while (tail && tail._msg && tail._msg.kind === 'agent') { before = tail; tail = tail.previousElementSibling; }
+        s.log.insertBefore(g, before);
       }
-      if (!prev || !prev.classList.contains('tool-row')) return;
-      /* The folded run is a PUDL disclosure card (pudl-disclose.js): a raised
-         toggle at the start of a flat head that counts the calls, and the calls
-         themselves in the body while it is open. */
-      var g = document.createElement('li');
-      g.className = 'activity-row tool-group';
-      g.innerHTML = '<time class="activity-time"></time><div class="card disclosure tool-group-body"><div class="card-head">' +
-        '<button type="button" class="card-toggle" aria-expanded="false" aria-label="Show the steps"></button>' +
-        '<span class="card-title tool-group-words"></span><span class="card-summary tool-group-now"></span></div>' +
-        '<ol class="card-body tool-group-list"></ol></div>';
-      g.querySelector('time').textContent = prev.querySelector('.activity-time').textContent;
-      g._list = g.querySelector('.tool-group-list');
-      g._session = s;
-      g._open = function () { if (window.pudlDisclose) window.pudlDisclose.set(g.querySelector('.card'), true); };
-      s.log.insertBefore(g, prev);
-      g._list.appendChild(prev);
-      g._list.appendChild(li);
-      prev._group = g;
-      li._group = g;
+      s.workGroup = null;
+      if (s.id === active) showLiveWork(s);
+    }
+    function group(s, li) {
+      var g = s.workGroup;
+      if (g && (!containsActivity(s, g) || (g._complete && !s.loading && s.working))) { untrackWork(g); g = null; }
+      if (!g) {
+        g = document.createElement('li'); g.className = 'activity-row tool-group work-group';
+        g.innerHTML = '<time class="activity-time"></time><div class="card disclosure tool-group-body"><div class="card-head">' +
+          '<button type="button" class="card-toggle" aria-expanded="false" aria-label="Show work"></button><span class="card-title work-title"></span>' +
+          '<span class="tool-group-words"></span><span class="card-summary tool-group-now"></span></div><ol class="card-body tool-group-list"></ol></div>';
+        g.querySelector('time').textContent = li.querySelector('.activity-time').textContent;
+        g._list = g.querySelector('.tool-group-list'); g._session = s; g._started = performance.now(); g._complete = !!s.loading || !s.working;
+        g._open = function () { if (window.pudlDisclose) window.pudlDisclose.set(g.querySelector('.card'), true); };
+        s.log.insertBefore(g, li); s.workGroup = g;
+        if (!g._complete) {
+          workingGroups.add(g);
+          if (!workClock) workClock = setInterval(function () {
+            workingGroups.forEach(function (entry) { if (!containsActivity(entry._session, entry)) untrackWork(entry); else if (!entry._session.working) finishWork(entry._session); else workHeading(entry); });
+          }, 1000);
+        }
+      }
+      g._list.appendChild(li); li._group = g; dirtyGroups.add(g); workHeading(g);
+      if (!g._complete) { if (s.log.contains(g)) g.remove(); if (s.id === active) showLiveWork(s); }
+      trimLog(s);
     }
     function summarize(g) {
-      var counts = {}, order = [], failed = 0, live = null;
+      var counts = {}, order = [], live = null;
       Array.prototype.forEach.call(g._list.children, function (li) {
         var r = li._tool;
         if (!r) return;
         var k = KIND_WORDS[r.kind] ? r.kind : 'other';
         if (!counts[k]) { counts[k] = 0; order.push(k); }
         counts[k]++;
-        if (r.status === 'failed') failed++;
         if (r.status === 'in_progress' || r.status === 'pending') live = r;
       });
       var words = order.map(function (k) { var w = KIND_WORDS[k]; return counts[k] === 1 ? w[0] : w[1].replace('{n}', counts[k]); });
       var el = g.querySelector('.tool-group-words');
       el.textContent = words.join(' · ');
-      if (failed) {
-        var f = document.createElement('span');
-        f.className = 'tool-group-failed';
-        f.textContent = ' · ' + failed + ' failed';
-        el.appendChild(f);
-      }
       // The step in hand is the card's summary, shown while the card is closed.
-      g.querySelector('.tool-group-now').textContent = live ? 'now: ' + live.name : '';
-      g.classList.toggle('has-failed', failed > 0);
+      g.querySelector('.tool-group-now').textContent = live && !g._complete ? (live.kind === 'execute' || live.command ? 'Running command' : 'Running step') : '';
+      workHeading(g);
     }
 
     function planRow(s, entries) {
@@ -2499,6 +2572,7 @@
       if (s.failedHistory) return;
       s.current = null;
       s.stopping = false;
+      finishWork(s, t.seconds);
       var r = row(s, 'turn-row');
       r.insertAdjacentHTML('beforeend', '<span class="activity-muted"></span>');
       var name = providerName(sessionProvider(s));
@@ -2655,6 +2729,7 @@
     function setWorking(w) {
       if (!w && root.contains(document.activeElement) && document.activeElement.closest('[data-command="stop-turn"], [data-view-id="steer-send"]')) $('prompt').focus({ preventScroll: true });
       working = w;
+      if (!w && active && sessions[active]) finishWork(sessions[active]);
       $('steer-send').style.visibility = w ? '' : 'hidden';
       $('steer-send').setAttribute('aria-hidden', String(!w));
       $('steer-send').toggleAttribute('inert', !w);
@@ -3090,14 +3165,8 @@
     }
     // The Add menu's rows, with what each adds as their second line.
     function addItems() {
-      return [
-        // At the limit on the files in one message the command is disabled,
-        // with the reason, rather than refusing the files afterwards.
-        { id: 'add-files', label: 'Files From This Computer…', detail: 'Pictures, emails, text and any other file', disabled: chips.full(), reason: chips.fullReason(), run: function () { return pickComputerFiles().catch(fail); } },
-        { id: 'add-browse', label: 'Browse the Workspace…', detail: 'Choose a document from the workspace\'s folders', run: browseToAttach },
-        { id: 'add-mention', label: 'Mention an Open Document or Chat…', detail: 'An open document or another chat by name (type @ in the box)', run: function () { addMention('all'); } },
-        { id: 'add-applets', label: 'Windows and Applets…', detail: 'Choose a window for the agent to drive, or a bundled applet, for this message (type @ in the box)', run: function () { addMention('applets'); } }
-      ];
+      return dinahComposer.addItems({ full: chips.full, fullReason: chips.fullReason,
+        files: function () { return pickComputerFiles().catch(fail); }, browse: browseToAttach, mention: addMention });
     }
 
     // A file dropped anywhere else in the window is not opened as a page.
@@ -3428,7 +3497,7 @@
        in full, and a line for each tool call, file and turn. */
     function runMarkdown(s) {
       var out = ['# ' + title(s), '', productName() + ' session, saved ' + dinahRegional.format(new Date(), 'dateTime') + '.', ''];
-      s.log.querySelectorAll('li.activity-row:not(.tool-group)').forEach(function (li) {
+      activityRows(s, 'li.activity-row:not(.tool-group)').forEach(function (li) {
         var time = (li.querySelector('.activity-time') || {}).textContent || '';
         if (li._msg) {
           out.push('## ' + li._msg.label + ', ' + time, '', li._msg.text.trim(), '');
@@ -3626,7 +3695,7 @@
             var named = !s ? 'New Chat' : known ? title(s) : was ? was : 'Loading chat…';
             // A retitle redraws the docks and the window rows, so the title
             // is set only when it changed.
-            if (was !== named) window.pudlWindows.retitle(key, named);
+            if (was !== named) window.dinahWorkbench.retitle(key, named);
             var execution = syncWindowExecution(win, s);
             // The chat's own chip shows its execution state and lifecycle in
             // the title (syncWindowExecution). It is the title's one state
@@ -3674,7 +3743,7 @@
           if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; }
           if (deleted) root.remove(); else document.getElementById('applet-storage').appendChild(root);
         },
-        dispose: function () { switchEpoch++; if (cancelSwitchDialog) cancelSwitchDialog(); composerLayout.destroy(); teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
+        dispose: function () { if (workClock) clearInterval(workClock); workingGroups.clear(); switchEpoch++; if (cancelSwitchDialog) cancelSwitchDialog(); composerLayout.destroy(); teamPanel.destroy(); navigation.destroy(); deleted = true; document.removeEventListener('dinah:appearance-before', captureAppearance); document.removeEventListener('dinah:appearance-change', restoreAppearance); ['wheel', 'touchstart', 'keydown'].forEach(function (name) { $('activity').removeEventListener(name, cancelAppearanceAnchor); }); window.dinahRender.cancel(renderKey); window.dinahRender.cancel(drawUsage); dirty.clear(); dirtyTools.clear(); dirtyGroups.clear(); dirtyPlans.clear(); renderReady = []; if (unregisterCommands) { unregisterCommands(); unregisterCommands = null; } listeners.forEach(function (stop) { if (stop) stop(); }); root.remove(); }
       };
       chatControllers.set(key, controller);
       if (active) { var s = S(active); s.view = controller; $('logs').appendChild(s.log); }

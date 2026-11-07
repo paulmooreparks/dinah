@@ -234,6 +234,7 @@ func localResourceItem(ref ResourceRef, source WorkspaceSource, f *os.File) (Res
 	if openableExt[strings.ToLower(filepath.Ext(ref.Path))] {
 		item.Actions = []string{"open-external"}
 	}
+	item.Actions = append(item.Actions, "edit-text")
 	if editorOpens(ref.Path, st.Size()) {
 		item.Actions = append(item.Actions, "read", "preview", "edit")
 	}
@@ -243,12 +244,8 @@ func localResourceItem(ref ResourceRef, source WorkspaceSource, f *os.File) (Res
 	if imagePreviewable(ref.Path, st.Size()) {
 		item.Actions = append(item.Actions, "preview")
 	}
-	// A file Dinah knows the kind of can be renamed in its folder
-	// (RenameDocumentFile); one it can only show in its folder is left as
-	// it is.
-	if len(item.Actions) > 1 || item.Actions[0] != "reveal" {
-		item.Actions = append(item.Actions, "rename")
-	}
+	// Renaming a regular file does not depend on its document format.
+	item.Actions = append(item.Actions, "rename")
 	return item, nil
 }
 func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (ResourcePage, error) {

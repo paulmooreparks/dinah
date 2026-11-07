@@ -39,7 +39,7 @@ func Effectful(capability string) bool {
 		return true
 	}
 	switch capability {
-	case "workspace.write", "settings.write", "window.command", "chat.ask", "terminal.open":
+	case "diagnostics.control", "workspace.write", "settings.write", "window.command", "chat.ask", "terminal.open":
 		return true
 	}
 	return false
@@ -63,7 +63,7 @@ func SupportedCapability(capability string) bool {
 		return true
 	}
 	switch capability {
-	case "artifact.create", "attention.request", "notification.post", "workspace.read", "workspace.write", "chat.read", "settings.read", "settings.write", "window.read", "window.command", "chat.ask", "terminal.open", "team.manage":
+	case "diagnostics.read", "diagnostics.control", "artifact.create", "attention.request", "notification.post", "workspace.read", "workspace.write", "chat.read", "settings.read", "settings.write", "window.read", "window.command", "chat.ask", "terminal.open", "team.manage":
 		return true
 	}
 	return false

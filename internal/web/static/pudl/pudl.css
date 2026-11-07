@@ -1,6 +1,6 @@
 /* ==========================================================================
    PUDL, the Pleasantly Usable Design Language (pronounced "puddle").
-   Version 0.97.5.
+   Version 0.103.0.
 
    PUDL gives every affordance one visual representation, so that somebody
    who has learned it once can use any application built with it on sight.
@@ -860,9 +860,11 @@ table, input, select, textarea, time, data, output, code, kbd, samp, .num,
   color: color-mix(in srgb, var(--text) 80%, var(--surface-alt));
 }
 .menubar-pin > span:not(.glyph) { overflow: hidden; text-overflow: ellipsis; }
-.menubar-pin img, .menubar-pin .glyph, .menubar-panel .menubar-icon { flex: none; width: 16px; height: 16px; }
-.menubar-panel .menubar-icon { display: inline-flex; }
-.menubar-panel .menubar-icon > * { width: 100%; height: 100%; }
+.menubar-pin img, .menubar-pin .glyph, :is(.menubar-panel, .menu-panel) .menubar-icon { flex: none; width: 16px; height: 16px; }
+:is(.menubar-panel, .menu-panel) .menubar-icon { display: inline-flex; }
+:is(.menubar-panel, .menu-panel) .menubar-icon > * { width: 100%; height: 100%; }
+/* A row's mark, such as a window's state mark, stands after its words. */
+.menu-action > .menu-mark { display: inline-flex; align-items: center; flex: none; }
 .menubar-pin:hover { color: var(--text); background: color-mix(in srgb, var(--text) 12%, transparent); }
 .menubar-pin:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-ring); }
 .menubar-row.menubar-pins-collapsed .menubar-pin,
@@ -3114,13 +3116,50 @@ button.filter-chip-x { padding: 0; flex: none; cursor: pointer; }
    for a browsed hierarchy only. A site's own sections are its tabs, and a
    record's way back is its back link, so a path bar is never a site's
    breadcrumb trail. The separators are drawn, and say nothing to
-   assistive technology, which hears the list. */
+   assistive technology, which hears the list.
+
+   The bar keeps to one line (0.97.7). When its places do not fit, the
+   places above the current one shrink, each to an ellipsis, and the
+   current place shrinks last; when they still do not fit, the bar scrolls
+   sideways, and it starts scrolled to its end, so the current place is in
+   sight at load without script. The bar is a scroll container of the
+   opposite direction to the page, holding the list in the page's own
+   direction, packed toward its end: a scroll container starts at its
+   start edge, which for the bar is the page's end, and what the list
+   overflows toward the page's start is the bar's scrollable overflow. The
+   list's order, and what assistive technology hears, do not change. A
+   scrolled-off place stays in the Tab order and is scrolled into view as
+   it takes focus. The host gives each place its title, so a shortened
+   name can be read by the pointer. A bar marked .wrap wraps as it did
+   before. */
+.path { display: flex; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.path::-webkit-scrollbar { display: none; }
+.path:dir(ltr) { direction: rtl; }
+.path:dir(ltr) > ol { direction: ltr; margin-right: auto; }
+.path:dir(rtl) { direction: ltr; }
+.path:dir(rtl) > ol { direction: rtl; margin-left: auto; }
 .path ol {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px;
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: 0 2px;
   margin: 0; padding: 0; list-style: none; min-width: 0;
   font-size: var(--text-sm);
 }
-.path li { display: inline-flex; align-items: center; min-width: 0; }
+/* A place starts at its own width and may shrink to 3em, or to its own
+   width where that is less (0.97.8), so a one-character place such as "/"
+   is never padded out. Its flex basis is its content and its minimum is
+   the flex item's automatic one, which the flexbox specification makes
+   the smaller of its width and its content's minimum width. Its width is
+   3em, written as min(3em, 100%) so that it holds a percentage of the
+   list: CSS Sizing treats such a cyclic percentage as auto while the list
+   measures its places, so the list is as wide as their content and not
+   3em for each. */
+.path li { display: inline-flex; align-items: center; flex: 0 1 max-content; width: min(3em, 100%); min-width: auto; }
+.path li:last-child { flex-shrink: 0; width: auto; min-width: 0; max-width: 100%; }
+.path.wrap:where(:dir(ltr), :dir(rtl)) { direction: inherit; display: block; overflow: visible; }
+.path.wrap:where(:dir(ltr), :dir(rtl)) > ol { direction: inherit; margin: 0; flex-wrap: wrap; justify-content: flex-start; }
+.path.wrap li { flex: none; width: auto; min-width: 0; }
+/* In a toolbar the bar takes the room between the buttons, so it shrinks
+   and scrolls there instead of taking a line of its own. */
+.toolbar > .path { flex: 1 1 0; }
 .path li + li::before {
   content: ""; flex: none; width: 12px; height: 12px; margin-inline: 1px;
   background: var(--text-muted);
@@ -3593,7 +3632,7 @@ a.seg-choice { text-decoration: none; }
    whole label in its title. */
 .notice, .toast { min-width: 0; max-width: 100%; box-sizing: border-box; }
 .notice > *, .toast > * { min-width: 0; }
-.notice :is(.notice-content, .notice-body, .notice-title), .toast :is(.toast-content, .toast-body, .toast-title) { overflow-wrap: anywhere; }
+.notice :is(.notice-content, .notice-body, .notice-title), .toast :is(.toast-content, .toast-body, .toast-title, .toast-text) { overflow-wrap: anywhere; }
 .notice pre, .toast pre { max-width: 100%; overflow-x: auto; }
 .notice-actions .btn, .toast-actions .btn { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -4067,4 +4106,54 @@ del.diff-word { text-decoration-color: var(--diff-del); }
   .md-layout[data-md-pane="detail"] .md-sidebar { display: none; }
   .btn, .icon-btn, .card, .dialog { box-shadow: none; }
   a { color: #000000; }
+}
+
+/* Start catalogs compose the existing menu, filter, row-list and splitter surfaces. */
+.start-menu { inset: auto auto calc(var(--space-6) + var(--space-6)) var(--space-3); margin: 0; padding: 0; width: 42rem; max-width: calc(100vw - var(--space-5)); height: min(36rem, calc(100dvh - 9rem)); max-height: none; overflow: hidden; }
+.start-menu:not([popover]), .start-menu:popover-open { display: flex; flex-direction: column; }
+.start-menu .start-header { margin: 0; top: 0; padding: var(--space-2) var(--space-3); flex: none; }
+.start-menu .start-search { display: flex; align-items: stretch; gap: var(--space-2); padding: var(--space-3); flex: none; }
+.start-menu .start-search-form { flex: 1; min-width: 0; }
+.start-menu .start-content { --split-a: calc(100% - 12rem); --split-target-size: 12px; flex: 1; min-height: 0; border-top: 1px solid var(--border); }
+.start-menu .start-items-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.start-menu .start-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-3) var(--space-2); flex: none; }
+.start-menu .start-count-summary, .start-menu [data-start-count] { font-size: var(--text-2xs); color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.start-menu .start-items { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; min-height: 0; scrollbar-gutter: stable; }
+.start-menu .start-item { display: flex; align-items: center; gap: var(--space-2); }
+.start-menu .start-item > .glyph { flex: none; }
+.start-menu .start-copy { min-width: 0; flex: 1; }
+.start-menu .start-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-menu .start-categories { overflow-y: auto; }
+.start-menu .start-category-list { list-style: none; margin: 0; padding: 0; }
+.start-menu .start-category { display: flex; align-items: center; gap: var(--space-2); }
+.start-menu .start-category > .glyph { flex: none; }
+.start-menu .start-category > span:not(.glyph):not(.start-category-count) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-menu[data-start-side="left"] .start-content { --split-a: 12rem; }
+.start-menu .start-category-count { margin-inline-start: auto; font-variant-numeric: tabular-nums; font-size: var(--text-2xs); }
+.start-menu .start-footer { position: static; margin: 0; padding: var(--space-3); border-top: 1px solid var(--border); flex: none; justify-content: flex-start; align-items: center; }
+.start-menu .start-footer a { display: inline-flex; gap: var(--space-1); align-items: center; }
+.start-menu .start-key-hint { margin-inline-start: auto; color: var(--text-muted); font-size: var(--text-2xs); }
+.start-menu [data-start-filtered], .start-menu [hidden] { display: none !important; }
+.start-menu .start-item { width: 100%; text-align: start; }
+.start-menu .start-copy { text-align: start; }
+@media (max-width: 650px) {
+ .start-menu { inset: var(--space-2) var(--space-2) 4rem; width: auto; height: auto; max-width: none; }
+ .start-menu .start-content { --split-a: calc(100% - 8rem); --split-target-size: 20px; }
+ .start-menu[data-start-side="left"] .start-content { --split-a: 8rem; }
+ .start-menu .start-category-count, .start-menu .start-key-hint { display: none; }
+ .start-menu .start-footer { justify-content: space-between; }
+}
+
+/* Host launcher presentations, composed with Start and split panes (0.99.0). */
+.start-menu[data-launcher][popover] { inset: auto; margin: 0; width: 720px; height: 600px; min-width: min(280px, calc(100vw - 16px)); min-height: min(260px, calc(100dvh - var(--launcher-top, 48px) - 12px)); max-width: calc(100vw - 16px); max-height: calc(100dvh - var(--launcher-top, 48px) - 12px); resize: both; }
+.start-menu[data-launcher]:not([popover]) { position: static; inset: auto; width: 100%; height: 100%; max-width: none; max-height: none; min-width: 0; border: 0; border-radius: 0; box-shadow: none; }
+
+/* Accepted launcher choices keep a static confirmation until dismissal. */
+[data-launcher] [data-launcher-selected] {
+  background: var(--raise-active-bg);
+  box-shadow: inset 3px 0 var(--accent);
+}
+@media (forced-colors: active) {
+  [data-launcher] [data-launcher-selected] { background: Highlight; color: HighlightText; outline: 1px solid Highlight; }
+  [data-launcher] [data-launcher-selected] :is(.md-item, .md-meta) { color: HighlightText; }
 }

@@ -28,7 +28,7 @@ const fs=require('fs'),path=require('path');
   evidence.live=await texts(live.win);ok('routed live output keeps original items separate around notices',JSON.stringify(evidence.live)===JSON.stringify(expected),JSON.stringify(evidence.live));
   ok('reasoning has its own accumulator',await live.win.locator('.thought').textContent()==='Reasoning only');
   ok('an empty authoritative snapshot clears text and rejects late appends',!/(TO-BE-ERASED|DO-NOT-RESURRECT|LATE-IGNORED)/.test(await live.win.locator('[data-view-id=logs]').innerText()));
-  const order=await live.win.locator('[data-view-id=logs]').innerText();ok('late old output updates its existing bubble before the notice',order.indexOf('Earlier partial continued complete')<order.indexOf('INTERVENING-NOTICE')&&order.indexOf('INTERVENING-NOTICE')<order.indexOf('New commentary complete'));
+  const order=await live.win.locator('[data-view-id=logs]').textContent();ok('late old output updates its existing bubble before the notice',order.indexOf('Earlier partial continued complete')<order.indexOf('INTERVENING-NOTICE')&&order.indexOf('INTERVENING-NOTICE')<order.indexOf('New commentary complete'));
   await p.evaluate(()=>{__emit('agent:turn',{sessionId:'live',stopReason:'steered'});__sendBoundary('live',[__boundaryUpdate('original','old','snapshot','Earlier partial continued complete')]);});
   await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   ok('completion after a steering interruption retains the original item row',JSON.stringify(await texts(live.win))===JSON.stringify(expected));

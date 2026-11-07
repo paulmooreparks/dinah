@@ -65,3 +65,60 @@ func TestDraftUnknownWorkspace(t *testing.T) {
 		t.Fatal("opened a draft in an unregistered workspace")
 	}
 }
+
+func TestEditUnknownExtensionAsText(t *testing.T) {
+	isolateWorkspaceSettings(t)
+	ws := t.TempDir()
+	a := closeBusWhenDone(t, NewApp())
+	record := newWorkspaceRecord(ws)
+	a.settings.WorkspaceRecords = []WorkspaceRecord{record}
+	for _, tc := range []struct {
+		name  string
+		data  []byte
+		valid bool
+	}{
+		{"sitenav.xfer", []byte("navigation {}\n"), true},
+		{"binary.unknown", []byte{0, 1, 2}, false},
+		{"encoding.unknown", []byte{0xff, 0xfe, 0x41}, false},
+		{"large.unknown", []byte(strings.Repeat("x", maxComputerDocument+1)), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(ws, tc.name)
+			if err := os.WriteFile(path, tc.data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			ref := ResourceRef{WorkspaceID: record.ID, SourceID: record.Sources[0].ID, Path: tc.name}
+			f, err := os.Open(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			item, err := localResourceItem(ref, record.Sources[0], f)
+			f.Close()
+			if err != nil || !slices.Contains(item.Actions, "edit-text") || slices.Contains(item.Actions, "preview") {
+				t.Fatalf("actions %+v: %v", item, err)
+			}
+			v, err := a.OpenDraft(ref)
+			if !tc.valid {
+				if err == nil {
+					t.Fatal("accepted non-text or oversized file")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			up, err := a.UpdateDraft(v.ID, v.Revision, "navigation { edited }\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := a.SaveDraft(up.ID, up.Revision); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil || string(data) != up.Text {
+				t.Fatalf("save did not preserve the original file: %v", err)
+			}
+		})
+	}
+}
