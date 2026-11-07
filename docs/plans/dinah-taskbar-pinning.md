@@ -44,3 +44,7 @@ Dinah now combines title and workspace/detail before calling PUDL's existing ret
 
 The combined-title build was installed on 2026-11-07T12:35:49.3697007+08:00. The installed executable matches SHA256 D0E95E92B3B005C4C32E3247FA13FEBF9FCA329EAEF7A9E5954160EDB3F2E6F5. Rollback executable: C:/Users/paul/.dinah/bin/dinah-desktop.exe.before-combined-titles-20261107-123549. Dinah was left running for the person to restart.
 
+
+## Candidate branch prepared
+
+The existing installed work was committed as 902df02 and fast-forwarded into master before creating feature/pudl-pinned-section-candidate. The frozen pinned-section-73c8338a72e3 distribution is now adopted in both bundles. Provenance and hash checks are recorded in the frontend PUDL.md. Host adaptation and regression execution are paused pending the person's next instructions. The installed executable and native profile remain unchanged.

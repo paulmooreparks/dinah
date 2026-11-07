@@ -38,3 +38,15 @@ Desktop enables `data-win-dock-splits` with shared tabs on all four edges. PUDL 
 - The group picker's list is PUDL's rich list box (`pudl-listbox.js`, 0.97.0): PUDL gives it its roles, keys, type-ahead and check marks and does the choosing, and Dinah writes a `.listbox-section` for each workspace and keeps each row by its chat, filling it in place, so the row PUDL has active stays active. A newly created chat's row takes the keyboard through `pudlListbox.activate` (0.97.1). A chat with no title stays choosable and, when chosen, opens its title field instead (`bus-applets.js`).
 - The status bar keeps each widget as a separate button. At compact widths, Dinah hides its label and badge while preserving its glyph and accessible name. It does not enable the aggregate Status folding control.
 
+
+## Unpublished pinned-section candidate
+
+Both bundled distributions now use frozen candidate pinned-section-73c8338a72e3. This is not a published release. Its CSS version comment remains 0.103.0.
+
+- Archive SHA256: e8d7bf70b15416338769b1aa12183ea98dd2baffb5d4929da2775c26662f00c0
+- Archive size: 7899501 bytes
+- Source fingerprint: 73c8338a72e3c00f82b6a7b47804ed0fa4808e2625d05ed09bca0d85424b703d
+- Upstream base: f585b5a18d2175afd351be5e64a7bd562761e2d0
+- Host baseline: 902df02
+
+All 805 archived files matched the supplied manifest. All 193 distribution files matched after copying into each bundle. Host regression work is paused at the person's request pending further instructions. No installation or restart was performed.
