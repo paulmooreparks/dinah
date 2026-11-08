@@ -81,6 +81,9 @@
       if (s.recoveryReview) { s.restoring = false; return Promise.resolve(s); }
       if (s.loading) return s.displayBuild ? s.displayBuild.then(function () { return s; }) : Promise.resolve(s);
       if (s.restorePromise) return s.restorePromise;
+      // A bus wake can admit the engine's open before this window mounts.
+      // Join that operation so its replay stays behind the saved display.
+      if (s.info.historyLoading) return reconnectChat(s.id, false);
       var id = s.id;
       s.restoring = true; if (s.view) s.view.refresh();
       return s.restorePromise = Promise.resolve(app().ResolveSessionContinuation ? app().ResolveSessionContinuation(id) : id).then(function (head) {
@@ -93,7 +96,9 @@
              turn in progress after it. A live chat without that number stays
              as it is. */
           var live = s.info.open && !!saved && !!saved.streamGen;
-          if (sessions[id] !== s || s.loading || (s.info.open && !live)) return s;
+          if (sessions[id] !== s || s.loading) return s;
+          if (s.info.historyLoading) return reconnectChat(id, false);
+          if (s.info.open && !live) return s;
           if (!saved || !saved.available) { s.savedRead = null; return s.info.open ? s : openSession(id, false); }
           s.historyWarning = saved.warning || ''; s.historyComplete = saved.complete !== false; s.historyRecoverable = saved.recoverable !== undefined ? !!saved.recoverable : s.historyComplete;
           s.savedCursor = saved.streamGen ? { gen: saved.streamGen, through: saved.streamThrough || 0 } : null;
@@ -177,7 +182,7 @@
       if (reveal !== false && !behind) showChat();
       if (s.savedBuild) return s.savedBuild.then(function () { return sessions[id] === s ? openResolvedSession(id, reveal, behind, quiet) : s; });
       if (s.loading) return s.loadingPromise || Promise.resolve(s);
-      if (s.info.open && !s.failedHistory) return Promise.resolve(s);
+      if (s.info.open && !s.info.historyLoading && !s.failedHistory) return Promise.resolve(s);
       var providerOpened = false; s.failedHistory = false;
       var fullHistory = !!s.loadFull;
       var kept = quiet && (s.saved || s.log.firstChild) ? { log: s.log, rows: s.rows, trimmed: s.trimmed } : null;
@@ -340,6 +345,7 @@
     }
     function adoptCopy(s, copy) {
       s.log = copy.log; s.rows = copy.rows; s.trimmed = copy.trimmed;
+      s.workGroup = copy.workGroup; s.lastYou = copy.lastYou;
       s.current = null; s.historyAvailable = true; s.saved = false;
     }
     async function prependParent(s, read) {

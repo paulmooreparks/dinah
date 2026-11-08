@@ -185,6 +185,9 @@ type Info struct {
 	// knows the generation of a chat it has had no event from yet.
 	StreamGen  string `json:"streamGen"`
 	StreamHead uint64 `json:"streamHead"`
+	// HistoryLoading distinguishes an admitted background open from a chat
+	// whose transcript checkpoint is ready for a restored window.
+	HistoryLoading bool `json:"historyLoading"`
 	// StateGen and StateVer order the snapshots of this information the page
 	// is given, by event or by call (state_events.go). Info leaves them empty.
 	StateGen string `json:"stateGen,omitempty"`
@@ -256,5 +259,5 @@ func (c *Conversation) infoLocked() Info {
 	provider := profile.ProviderOrLegacy(c.Provider())
 	// The log's mutex is a leaf, so it may be taken under mu.
 	gen, head := c.log.position()
-	return Info{Provider: provider, ID: c.ID(), Cwd: c.Cwd(), Title: c.identity.Title, UpdatedAt: c.identity.UpdatedAt, Open: c.activity.OpenLocked(), Working: c.activity.WorkingLocked(), Queued: c.activity.QueueTextsLocked(), Background: c.details.BackgroundLocked(), Subagents: c.details.SubagentListLocked(), InBackground: c.activity.BackgroundLocked(), Parked: c.activity.ParkedLocked(), StreamGen: gen, StreamHead: head, Resumed: c.resumed, Hold: c.hold, Choice: c.choice, Switch: c.copySwitchLocked(), Lead: c.copyLeadLocked(), State: copyState(c.state), Team: copyCounts(c.team)}
+	return Info{Provider: provider, ID: c.ID(), Cwd: c.Cwd(), Title: c.identity.Title, UpdatedAt: c.identity.UpdatedAt, Open: c.activity.OpenLocked(), Working: c.activity.WorkingLocked(), Queued: c.activity.QueueTextsLocked(), Background: c.details.BackgroundLocked(), Subagents: c.details.SubagentListLocked(), InBackground: c.activity.BackgroundLocked(), Parked: c.activity.ParkedLocked(), StreamGen: gen, StreamHead: head, HistoryLoading: c.details.ReplayingLocked() || c.details.RestoringLocked(), Resumed: c.resumed, Hold: c.hold, Choice: c.choice, Switch: c.copySwitchLocked(), Lead: c.copyLeadLocked(), State: copyState(c.state), Team: copyCounts(c.team)}
 }

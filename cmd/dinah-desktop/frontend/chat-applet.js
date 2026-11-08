@@ -208,7 +208,7 @@
     var SAVED_DRAW_MESSAGES = 400;
     function drawSavedCopy(owner, saved) {
       var view = ensureChat(owner);
-      var copy = Object.assign({}, owner, { displayOwner: owner, log: owner.log.cloneNode(false), view: view, savedDraw: null });
+      var copy = Object.assign({}, owner, { displayOwner: owner, log: owner.log.cloneNode(false), view: view, savedDraw: null, workGroup: null, lastYou: null });
       return drawSaved(copy, saved.messages || []).then(function () { return copy; });
     }
     function drawSaved(s, messages) {
@@ -345,6 +345,7 @@
       var previousProvider = s.info.provider;
       if (info.open === false) clearArriving(s);
       applySessionInfo(s, info);
+      if (s.info.historyLoading && s.view && !s.loading) reconnectChat(s.id, false).catch(function () {});
       rememberCatalog(s);
       if (s.view) {
         s.view.refresh();

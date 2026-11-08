@@ -50,3 +50,16 @@ Both bundled distributions now use frozen candidate pinned-section-73c8338a72e3.
 - Host baseline: 902df02
 
 All 805 archived files matched the supplied manifest. All 193 distribution files matched after copying into each bundle. Host regression work is paused at the person's request pending further instructions. No installation or restart was performed.
+
+## Published 0.104.0 adoption
+
+Both bundles now contain the complete 193-file distribution from published v0.104.0, tag commit 1793669234fd1c4ef50bee22a41807b91ff6a11a. The downloaded archive matches its published SHA256 ac9cb885e81b59528d007d9e097a95ac838e2875eacc8ebad65252e019c08a4d. Only pudl.css differs from the accepted candidate distribution. Every copied file was hash-verified.
+
+
+## Published 0.105.0 adoption, 9 November 2026
+
+Both bundles now contain all 193 distribution files from the latest published release, v0.105.0. GitHub's latest-release response and tag reference were checked directly. The tag commit is e329c43c51c4a19df35181f5a9421219fd48c864. The downloaded 7,186,020-byte archive matches the published checksum, 5c0e4f7ed32a3ca41e13e4c393ef74b7029b214d0aca4c7eaef57045fc98081d. Each copied file was hash-verified in both bundles, with no extra runtime files. VERSION is host metadata set to 0.105.0.
+
+Six isolated headless Edge suites passed: taskbar-pins, taskbar-labels, title-launcher, launcher-commands, pinned-section-candidate and pinned-section-stacks. Evidence is in build/pudl-01050-release/browser-final. An initial invocation named a nonexistent terminal-shell suite and ran no tests. The subsequent invocation failed because playwright-core was absent; npm ci restored the existing locked dependencies and all six suites passed. The original dependency failures remain in build/pudl-01050-release/browser. No host runtime edits or vendor patches were required.
+
+This adoption is a working-tree update. It does not install or restart the desktop, merge or commit the existing work. The installed executable remains the previously verified background-replay build. Native Restart validation remains outstanding.

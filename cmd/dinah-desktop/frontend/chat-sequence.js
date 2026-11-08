@@ -17,7 +17,7 @@
 
     function state(id) {
       var st = chats.get(id);
-      if (!st) { st = { gen: undefined, last: 0, held: [], filling: false, reading: null, again: false, retried: false, dropped: new Set() }; chats.set(id, st); }
+      if (!st) { st = { gen: undefined, last: 0, held: [], filling: false, reading: null, again: false, retried: false, revision: 0, paused: false, dropped: new Set() }; chats.set(id, st); }
       return st;
     }
     function withMeta(id, gen, entry) {
@@ -38,6 +38,7 @@
        What the page drew from the old generation is replaced by the reopened
        chat's replay, and anything still queued from the old one is dropped. */
     function reset(id, st, view) {
+      st.revision++; st.paused = false;
       if (st.gen !== undefined) st.dropped.add(st.gen);
       st.gen = undefined; st.last = 0; st.held = []; st.filling = false; st.reading = null; st.again = false; st.retried = false;
       adapter.reset(id);
@@ -53,7 +54,7 @@
       if (st.dropped.has(data.gen)) return;
       if (st.gen === undefined) { st.gen = data.gen; st.last = data.n - 1; }
       else if (st.gen !== data.gen) {
-        if (adapter.loading(id)) { st.dropped.add(st.gen); st.gen = data.gen; st.last = data.n - 1; st.held = []; st.filling = false; st.reading = null; st.again = false; st.retried = false; }
+        if (adapter.loading(id)) { st.revision++; st.paused = false; st.dropped.add(st.gen); st.gen = data.gen; st.last = data.n - 1; st.held = []; st.filling = false; st.reading = null; st.again = false; st.retried = false; }
         else { reset(id, st, null); st.gen = data.gen; }
       }
       if (data.n <= st.last) return;
@@ -94,11 +95,12 @@
        read; only a gap that survives it is reported as lost. A failed read marks
        the loss and lets the held events through. */
     function read(id, st) {
+      if (st.paused) return Promise.resolve();
       if (st.reading) { st.again = true; return st.reading; }
-      var gen = st.gen;
+      var gen = st.gen, revision = st.revision, after = st.last;
       st.filling = true;
-      st.reading = Promise.resolve().then(function () { return adapter.app().ChatEvents(id, gen, st.last); }).then(function (view) {
-        if (st.gen !== gen) return;
+      st.reading = Promise.resolve().then(function () { return adapter.app().ChatEvents(id, gen, after); }).then(function (view) {
+        if (st.revision !== revision) return;
         if (view.reset) return reset(id, st, view);
         take(id, st, view);
         drain(st);
@@ -106,11 +108,11 @@
         else if (!st.retried) { st.retried = true; st.again = true; }
         else { st.retried = false; skipGap(id, st); }
       }, function () {
-        if (st.gen !== gen) return;
+        if (st.revision !== revision) return;
         st.retried = false;
         if (st.held.length) skipGap(id, st); else adapter.loss(id);
       }).then(function () {
-        if (st.gen !== gen) return;
+        if (st.revision !== revision) return;
         st.reading = null;
         if (st.again) { st.again = false; return read(id, st); }
         st.filling = false;
@@ -139,13 +141,17 @@
       if (!gen) return false;
       var st = state(id);
       if (st.dropped.has(gen)) return false;
+      // A read from the previous display may still be in flight, even in
+      // the same generation. Its result must not advance this checkpoint.
+      st.revision++; st.paused = true; st.reading = null;
       st.gen = gen; st.last = through || 0; st.held = []; st.again = false; st.retried = false;
-      if (!st.reading) st.filling = true;
+      st.filling = true;
       return true;
     }
     function catchUp(id) {
       var st = chats.get(id);
       if (!st || st.gen === undefined) return Promise.resolve();
+      st.paused = false;
       return read(id, st);
     }
 

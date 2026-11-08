@@ -87,7 +87,7 @@ const { launch } = require('./lib/page');
       };
       requestAnimationFrame(frame); __openGate();
     });
-    await front().locator('.activity-row', { hasText: 'Thinking it over.' }).waitFor({ state: 'attached' });
+    await front().locator('.thought-row', { hasText: 'Thinking it over.' }).waitFor({ state: 'attached' });
     ok('once the agent has replayed, the chat shows its fuller history and no saved note', await front().locator('[data-view-id="saved-note"]').isHidden() &&
       (await front().locator('.activity-row', { hasText: 'Summarise the plan.' }).count()) === 1);
     ok('replay is revealed only after rendering settles', await page.evaluate(() => { __stopReplayFrames = true; return __partialReplay.length === 0; }));
@@ -113,7 +113,7 @@ const { launch } = require('./lib/page');
     // Restored with the layout, a chat behind the window in front starts when
     // it is seen or in idle time (PUDL 0.66.0), keeping the title it had.
     const backKey = await page.evaluate(() => dinahWorkbench.key({ kind: 'chat-session', workspace: 'C:/Test', path: 'saved-one' }));
-    await page.evaluate(k => pudlWindows.retitle(k, 'Config Reload Summary'), backKey);
+    await page.evaluate(k => dinahWorkbench.retitle(k, 'Config Reload Summary'), backKey);
     await page.waitForFunction(k => ((dinahUIState.get('dinah-window-titles') || {})[k] || {}).title === 'Config Reload Summary', backKey);
     ok('each open window\'s title is kept, for its markup when the layout is restored', true);
     await page.evaluate(() => dinahWorkbench.open({ kind: 'chat-session', workspace: 'C:/Test', path: 'saved-two' }));

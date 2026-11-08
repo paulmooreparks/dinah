@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"studio/internal/profile"
 )
@@ -123,6 +124,7 @@ func (o Options) agent() string {
 type Conn struct {
 	cmd            *exec.Cmd
 	stdin          io.WriteCloser
+	stdout         io.Closer
 	handler        Handler
 	agent          string
 	omitVersion    bool
@@ -164,6 +166,8 @@ func Start(name string, args []string, dir string, h Handler, o Options) (*Conn,
 		return nil, err
 	}
 	cmd.Dir = dir
+	// Bound os/exec's output-copy wait when a descendant retains stderr.
+	cmd.WaitDelay = 5 * time.Second
 	env := o.Env
 	if env == nil {
 		env = cmd.Environ()
@@ -185,6 +189,7 @@ func Start(name string, args []string, dir string, h Handler, o Options) (*Conn,
 	}
 	c := newConn(ctx, cancel, stdin, h, o)
 	c.cmd = cmd
+	c.stdout = stdout
 	switch {
 	case o.TraceHeadersOnly:
 		cmd.Stderr = io.Discard
@@ -206,6 +211,7 @@ func Start(name string, args []string, dir string, h Handler, o Options) (*Conn,
 func Connect(r io.Reader, w io.WriteCloser, h Handler, o Options) *Conn {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := newConn(ctx, cancel, w, h, o)
+	c.stdout, _ = r.(io.Closer)
 	go c.read(r)
 	return c
 }
@@ -229,6 +235,11 @@ func (c *Conn) Context() context.Context { return c.ctx }
 func (c *Conn) Close() {
 	c.cancel()
 	_ = c.stdin.Close()
+	// The scanner must stop before it can call Wait. A descendant can keep
+	// stdout open after the provider process itself has been cancelled.
+	if c.stdout != nil {
+		_ = c.stdout.Close()
+	}
 }
 
 // Call sends a request and waits for its answer. params of nil sends none.

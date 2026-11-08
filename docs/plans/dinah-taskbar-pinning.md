@@ -48,3 +48,33 @@ The combined-title build was installed on 2026-11-07T12:35:49.3697007+08:00. The
 ## Candidate branch prepared
 
 The existing installed work was committed as 902df02 and fast-forwarded into master before creating feature/pudl-pinned-section-candidate. The frozen pinned-section-73c8338a72e3 distribution is now adopted in both bundles. Provenance and hash checks are recorded in the frontend PUDL.md. Host adaptation and regression execution are paused pending the person's next instructions. The installed executable and native profile remain unchanged.
+
+## Frozen candidate host regression, 7 November 2026
+
+The isolated headless Edge harness executed against host commit 8586abe on feature/pudl-pinned-section-candidate and candidate pinned-section-73c8338a72e3. It serves local frontend assets through the test route and stubs the native bridge. Each browser uses a fresh context; persistence tests use fixture session storage. The installed executable and real profile were not used or changed.
+
+The runtime frontend manifest is retained at build/pinned-section-regression/host-manifest.json. Its SHA256 is 7A5DD7BF9F71874A749B6BDE13A1F7EF5A9B3D89C15DFF00F96649EC921E4F17. The candidate archive SHA256 is e8d7bf70b15416338769b1aa12183ea98dd2baffb5d4929da2775c26662f00c0, with source fingerprint 73c8338a72e3c00f82b6a7b47804ed0fa4808e2625d05ed09bca0d85424b703d.
+
+All six suites passed in their final runs. The existing taskbar-pins, taskbar-labels, title-launcher and launcher-commands suites passed. Two added candidate suites produced 28 passing checks, including two page-error checks, with zero final failures. They cover singleton minimize/raise/restore without duplicate entries, folded heading and stable button height at 390px, menu pin/unpin and restored provider references, applet context suppression, launcher exclusion, pointer/keyboard Arrange toggling, order draft cancellation, stack chooser behavior and running/dormant pictures. Existing suites cover unavailable references, combined title truncation, readiness failures and launcher behavior.
+
+Evidence is in build/pinned-section-regression. The candidate-corrected.log and stacks.log retain all added checks. Screenshots include candidate-wide.png, candidate-narrow.png, candidate-restored.png, candidate-dormant-picture.png and taskbar-combined-label.png. The narrow screenshot was inspected. The initial candidate.log retains two failed assertions caused by using immediate Unpin as an order-draft mutation; the corrected test uses Move later. Those were test errors, not candidate defects.
+
+No production code changes were required during this verification. Tests and this record remain uncommitted. No desktop build was installed or restarted. These results do not claim native restart, manual assistive technology, real touch devices, Firefox or WebKit consumer testing.
+
+Paul subsequently authorized installation. The tested unpublished candidate was built and installed on 2026-11-07T14:59:09.1303573+08:00. The installed executable matches SHA256 848F2C0DE32C2E8F076A2C07FF0BA7D7048C315AFB8A9F72EBD674EE72F1B8D4. Rollback executable: C:/Users/paul/.dinah/bin/dinah-desktop.exe.before-pinned-section-20261107-145908. Dinah was left running for the person to restart. The installation does not publish the upstream candidate.
+
+
+## Published 0.104.0 installation
+
+The complete published distribution replaced the candidate after archive, tag and copied-file verification. Only pudl.css changed from the candidate. The pinned-section, stack and combined-label suites passed. The build was installed on 2026-11-07T15:31:27.7912672+08:00, with SHA256 B1957E3643F0366CCF1906AD428E491F4FA9FB2D6E8D1EB4D0A39EBFE1D0DD7A. Rollback executable: C:/Users/paul/.dinah/bin/dinah-desktop.exe.before-pudl-01040-20261107-153127. Dinah was left running for the person to restart. Receipt: build/pudl-01040-release/install-receipt.json.
+
+
+## Published 0.105.0 adoption, 9 November 2026
+
+Both bundles now contain all 193 distribution files from the latest published release, v0.105.0. GitHub's latest-release response and tag reference were checked directly. The tag commit is e329c43c51c4a19df35181f5a9421219fd48c864. The downloaded 7,186,020-byte archive matches the published checksum, 5c0e4f7ed32a3ca41e13e4c393ef74b7029b214d0aca4c7eaef57045fc98081d. Each copied file was hash-verified in both bundles, with no extra runtime files. VERSION is host metadata set to 0.105.0.
+
+Six isolated headless Edge suites passed: taskbar-pins, taskbar-labels, title-launcher, launcher-commands, pinned-section-candidate and pinned-section-stacks. Evidence is in build/pudl-01050-release/browser-final. An initial invocation named a nonexistent terminal-shell suite and ran no tests. The subsequent invocation failed because playwright-core was absent; npm ci restored the existing locked dependencies and all six suites passed. The original dependency failures remain in build/pudl-01050-release/browser. No host runtime edits or vendor patches were required.
+
+This adoption is a working-tree update. It does not install or restart the desktop, merge or commit the existing work. The installed executable remains the previously verified background-replay build. Native Restart validation remains outstanding.
+
+The production build 0.0.0-pudl-01050-20261109 passed. Its SHA256 is A5C0FE1489E0CAB1EDAEDFA14564D060A0F92D0FAD1556B8E46409D5A0F3F6F8. The executable and results.json are retained in build/pudl-01050-release. It has not been installed.
