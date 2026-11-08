@@ -15,3 +15,4 @@
 
 # The cleanup chats' worktrees (docs/plans/cleanup.md).
 /.worktrees/
+/.diagnostics
