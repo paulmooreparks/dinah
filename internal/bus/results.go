@@ -31,6 +31,14 @@ type HostReport struct {
 	From         string          `json:"from,omitempty"`
 }
 
+// ResultQueued says whether a host result with this key is already on the
+// bus, whoever it was addressed to.
+func (b *Bus) ResultQueued(ctx context.Context, key string) (bool, error) {
+	var n int
+	err := b.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM host_results WHERE key = ?`, key).Scan(&n)
+	return n > 0, err
+}
+
 // EnqueueResult records a host result and its delivery in one transaction.
 // The stable key makes reconciliation safe after a restart or a lost reply.
 // It addresses a session ID even when that session is currently closed.

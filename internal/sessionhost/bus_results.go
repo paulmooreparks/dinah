@@ -22,9 +22,9 @@ func ChatResultKey(workspace, id string) string {
 	return "chat-result:" + bus.WorkspaceKey(workspace) + ":" + id
 }
 
-// A result whose caller has no saved bus identity cannot be queued, and stays saved until the caller has one. It is
-// tried again after a delay that doubles from resultRetryFirst to resultRetryLongest, and again at once when any chat
-// joins the bus, so the failure is neither retried every second nor reported every second.
+// A result that cannot be queued stays saved, and is tried again after a delay that doubles from resultRetryFirst
+// to resultRetryLongest, and again at once when any chat joins the bus. Only its first failure in a run is logged:
+// 27 results logged every retry wrote some 16,000 errors in three days (9 November 2026).
 const (
 	resultRetryFirst   = 5 * time.Second
 	resultRetryLongest = 10 * time.Minute
@@ -109,8 +109,15 @@ func (a *BusChats) ReconcileResults(ctx context.Context, b *bus.Bus, reported ma
 			continue
 		}
 		if err := a.EnqueueResult(ctx, b, v); err != nil {
-			delay := a.retries.failed(key, now)
-			a.host.Log("error", "queueing chat request %s's result: %v; trying again in %s", v.ID, err, delay)
+			if errors.Is(err, errCallerRemoved) {
+				// Nothing can take it; it stays saved until it is pruned.
+				a.host.Log("info", "chat request %s's result is not queued: %v", v.ID, err)
+				reported[key] = true
+				continue
+			}
+			if delay := a.retries.failed(key, now); delay == resultRetryFirst {
+				a.host.Log("error", "queueing chat request %s's result: %v; it is tried again, and further failures are not logged", v.ID, err)
+			}
 			continue
 		}
 		a.retries.succeeded(key)
@@ -118,16 +125,34 @@ func (a *BusChats) ReconcileResults(ctx context.Context, b *bus.Bus, reported ma
 	}
 }
 
-// enqueueChatResult addresses only the caller's saved bus identity. A closed
-// caller keeps its result until it reopens; another chat in that workspace
-// must never consume it.
+// errCallerRemoved is the failure for a result whose caller was removed from
+// Dinah, which nothing can take.
+var errCallerRemoved = errors.New("the chat that asked was removed")
+
+// EnqueueResult addresses only the caller's bus identity: its own, or the
+// one its continuation took over (SavedBusIdentity). A closed caller keeps
+// its result until it reopens; another chat in that workspace must never
+// consume it.
+//
+// A result already on the bus is done, whoever it went to. Every saved
+// result is checked again after a restart, and the caller's identity may
+// since have passed to another chat; looking the identity up first made 27
+// results delivered in October fail on every retry (9 November 2026).
 func (a *BusChats) EnqueueResult(ctx context.Context, b *bus.Bus, v broker.Invocation) error {
 	if v.Action != ChatAskAction || v.OwnerKind != "chat" || !broker.TerminalStatus(v.Status) {
 		return errors.New("only a completed asynchronous chat request has a result to deliver")
 	}
+	if queued, err := b.ResultQueued(ctx, ChatResultKey(v.Workspace, v.ID)); err != nil {
+		return err
+	} else if queued {
+		return nil
+	}
 	id := a.host.SavedBusIdentity(v.OwnerID)
 	if id == "" {
-		return errors.New("the caller has no saved bus identity; its result remains saved for retry")
+		if a.host.Removed != nil && a.host.Removed(v.OwnerID) {
+			return errCallerRemoved
+		}
+		return errors.New("the caller has no bus identity; its result remains saved for retry")
 	}
 	report := bus.HostReport{InvocationID: v.ID, Request: json.RawMessage(v.InputJSON), Status: v.Status, Output: json.RawMessage(v.OutputJSON), Error: v.Error}
 	// The report's identity is its JSON (bus.EnqueueResult), so a result

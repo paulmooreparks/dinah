@@ -219,6 +219,25 @@ func committedDestination(s *Settings, source, recipient string) (target, parent
 	return "", "", false
 }
 
+// resultRecipient is the bus identity that an answer to a chat's request goes
+// to: the chat's own, or, for a chat that was continued, the identity its
+// continuation took over with it (committedDestination). A continued chat
+// keeps no identity of its own, so an answer it was waiting for had nowhere
+// to go (9 November 2026).
+func resultRecipient(s *Settings, chat string) string {
+	if id := s.BusSessions[chat]; id != "" {
+		return id
+	}
+	tr, ok := s.ChatTransfers[chat]
+	if !ok || tr.Stage != "committed" {
+		return ""
+	}
+	if _, _, ok := committedDestination(s, chat, tr.Recipient); ok {
+		return tr.Recipient
+	}
+	return ""
+}
+
 func (a *App) transferHeld(id, recipient string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()

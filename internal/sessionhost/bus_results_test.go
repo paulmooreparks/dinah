@@ -65,13 +65,15 @@ func TestResultReconciliationRetriesBeforeMarkingAndQualifiesWorkspaceKeys(t *te
 	clock = clock.Add(resultRetryLongest + time.Second) // past the wait after the first failure
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+	// The cancelled round fails at the bus's check whether each result is
+	// already queued, before the identity is looked up.
 	owner.ReconcileResults(ctx, b, reported)
-	if len(reported) != 0 || acquired != 2 || lookedUp != 4 {
+	if len(reported) != 0 || acquired != 2 || lookedUp != 2 {
 		t.Fatalf("failed enqueue was reported: %v, %d, %d", reported, acquired, lookedUp)
 	}
 	clock = clock.Add(resultRetryLongest + time.Second)
 	owner.ReconcileResults(context.Background(), b, reported)
-	if len(reported) != 2 || acquired != 3 || lookedUp != 6 {
+	if len(reported) != 2 || acquired != 3 || lookedUp != 4 {
 		t.Fatalf("successful retry was not recorded: %v, %d, %d", reported, acquired, lookedUp)
 	}
 	for _, ws := range workspaces {
@@ -80,10 +82,15 @@ func TestResultReconciliationRetriesBeforeMarkingAndQualifiesWorkspaceKeys(t *te
 		}
 	}
 	owner.ReconcileResults(context.Background(), b, reported)
-	if acquired != 4 || lookedUp != 6 {
+	if acquired != 4 || lookedUp != 4 {
 		t.Fatal("already-reported result was enqueued again")
 	}
+	// As after a restart: the results are on the bus, so no identity is
+	// looked up for them.
 	owner.ReconcileResults(context.Background(), b, map[string]bool{})
+	if lookedUp != 4 {
+		t.Fatalf("a result already on the bus had its caller looked up again: %d", lookedUp)
+	}
 	msgs, _, err := b.Deliver(context.Background(), caller.ID, bus.DoorbellTurn)
 	if err != nil || len(msgs) != 2 {
 		t.Fatalf("restart deduplication changed: %v, %v", msgs, err)
@@ -159,5 +166,58 @@ func TestAResultWithoutACallerIdentityIsRetriedWithBackoffAndWhenAChatJoins(t *t
 	}
 	if _, waiting := owner.retries.by[ChatResultKey(v.Workspace, v.ID)]; !waiting || owner.retries.by[ChatResultKey(v.Workspace, v.ID)].delay != resultRetryLongest {
 		t.Fatalf("the wait is %v, not its limit", owner.retries.by)
+	}
+	// Only the first failure is logged, however often it is tried.
+	if logs != 1 {
+		t.Fatalf("the failure was logged %d times", logs)
+	}
+}
+
+// A result already on the bus is done, though its caller's identity has
+// since passed to another chat: after a restart it is not looked up, not
+// logged and not tried again. A removed caller's result is left alone,
+// logged once and not tried again (9 November 2026).
+func TestAResultAlreadyOnTheBusIsDoneAndOneForARemovedCallerIsLeft(t *testing.T) {
+	var mu sync.Mutex
+	var runtime Runtime
+	store := &broker.Broker{State: t.TempDir()}
+	b, err := bus.OpenAt(t.TempDir() + "/bus.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = b.Close() })
+	ws := t.TempDir()
+	for _, owner := range []string{"moved-on", "removed"} {
+		v := broker.Invocation{ID: "for-" + owner, Workspace: ws, OwnerKind: "chat", OwnerID: owner, Action: ChatAskAction, InputJSON: `{"question":"q"}`, OutputJSON: `{"reply":"a"}`, Status: "done", Deadline: time.Now().Add(time.Hour)}
+		if err := store.Save(&v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The first run delivered it while the caller had its identity.
+	if _, err := b.KnowSession(context.Background(), "window-then", ws, "Then"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.EnqueueResult(context.Background(), ChatResultKey(ws, "for-moved-on"), "window-then", `{"invocationId":"for-moved-on"}`); err != nil {
+		t.Fatal(err)
+	}
+	lookups, logs := map[string]int{}, 0
+	host := NewBusChats(&mu, &runtime, BusChatsHost{
+		ResultBroker:     func() (*broker.Broker, error) { return store, nil },
+		SavedBusIdentity: func(id string) string { lookups[id]++; return "" },
+		Removed:          func(id string) bool { return id == "removed" },
+		Log:              func(string, string, ...any) { logs++ },
+	})
+	reported := map[string]bool{}
+	for range 3 {
+		host.ReconcileResults(context.Background(), b, reported)
+	}
+	if lookups["moved-on"] != 0 || !reported[ChatResultKey(ws, "for-moved-on")] {
+		t.Fatalf("a result already on the bus was looked up %d times", lookups["moved-on"])
+	}
+	if lookups["removed"] != 1 || !reported[ChatResultKey(ws, "for-removed")] {
+		t.Fatalf("a removed caller's result was looked up %d times", lookups["removed"])
+	}
+	if logs != 1 {
+		t.Fatalf("%d lines were logged", logs)
 	}
 }

@@ -38,7 +38,7 @@ func (a *App) busCoordinator() *sessionhost.BusChats {
 			},
 			BusService:       a.busHost,
 			ResultBroker:     func() (*broker.Broker, error) { return a.appletHostService().Broker() },
-			SavedBusIdentity: func(id string) string { a.mu.Lock(); defer a.mu.Unlock(); return a.settings.BusSessions[id] },
+			SavedBusIdentity: func(id string) string { a.mu.Lock(); defer a.mu.Unlock(); return resultRecipient(&a.settings, id) },
 			TurnIO:           a.turnIO, AgentPerson: a.agentPerson, CanSteer: a.CanSteer,
 			BusPictures: a.busPictures, PreparePrompt: a.promptFrom, AskPrompt: askPrompt,
 			EnsureBusChat: func(target sessionhost.BusAskTarget) (string, error) {
