@@ -1,5 +1,16 @@
 # Dinah external development handoff, 9 November 2026
 
+## Current status after commit, merge and installation
+
+On 9 November 2026, commit 8315d4f integrated PUDL 0.105.0, the chat restoration and provider shutdown fixes, regression tests and this handoff. It was fast-forwarded into master in C:/Users/paul/source/repos/studio. The outstanding source changes described below are now committed. The earlier sections remain as historical investigation context.
+
+Build 0.0.0-pudl-01050-20261109 was installed at 00:38 Singapore. Its SHA256 is A5C0FE1489E0CAB1EDAEDFA14564D060A0F92D0FAD1556B8E46409D5A0F3F6F8. The rollback executable is C:/Users/paul/.dinah/bin/dinah-desktop.exe.before-pudl-01050-20261109-003840. The receipt is in the install worktree at build/pudl-01050-release/install-receipt.json. Running process IDs remained unchanged; the desktop was not restarted. Native Restart validation remains outstanding.
+
+All six launcher/taskbar suites passed with 0.105.0. All seven replay suites also passed against the new distribution before merge. The production build passed. Private transcripts, build artifacts and unrelated main-worktree files were excluded from the commit. Nothing was pushed.
+
+The outside agent can now begin from master in the main studio directory. Private evidence remains in C:/Users/paul/source/repos/dinah-install-20261105/build/. The preserved cleanup/history-capture stash remains untouched.
+
+
 ## Start here
 
 Paul is moving development to an agent outside Dinah so debugging, testing and desktop restarts do not interrupt the development agent. Continue from the existing install worktree. Do not start from a clean checkout of HEAD: the installed replay and shutdown fixes are still uncommitted.

@@ -78,3 +78,13 @@ Six isolated headless Edge suites passed: taskbar-pins, taskbar-labels, title-la
 This adoption is a working-tree update. It does not install or restart the desktop, merge or commit the existing work. The installed executable remains the previously verified background-replay build. Native Restart validation remains outstanding.
 
 The production build 0.0.0-pudl-01050-20261109 passed. Its SHA256 is A5C0FE1489E0CAB1EDAEDFA14564D060A0F92D0FAD1556B8E46409D5A0F3F6F8. The executable and results.json are retained in build/pudl-01050-release. It has not been installed.
+
+## Current status after commit, merge and installation
+
+On 9 November 2026, commit 8315d4f integrated PUDL 0.105.0, the chat restoration and provider shutdown fixes, regression tests and this handoff. It was fast-forwarded into master in C:/Users/paul/source/repos/studio. The outstanding source changes described below are now committed. The earlier sections remain as historical investigation context.
+
+Build 0.0.0-pudl-01050-20261109 was installed at 00:38 Singapore. Its SHA256 is A5C0FE1489E0CAB1EDAEDFA14564D060A0F92D0FAD1556B8E46409D5A0F3F6F8. The rollback executable is C:/Users/paul/.dinah/bin/dinah-desktop.exe.before-pudl-01050-20261109-003840. The receipt is in the install worktree at build/pudl-01050-release/install-receipt.json. Running process IDs remained unchanged; the desktop was not restarted. Native Restart validation remains outstanding.
+
+All six launcher/taskbar suites passed with 0.105.0. All seven replay suites also passed against the new distribution before merge. The production build passed. Private transcripts, build artifacts and unrelated main-worktree files were excluded from the commit. Nothing was pushed.
+
+The outside agent can now begin from master in the main studio directory. Private evidence remains in C:/Users/paul/source/repos/dinah-install-20261105/build/. The preserved cleanup/history-capture stash remains untouched.
