@@ -149,6 +149,12 @@ A chat-state snapshot from Go made every chat window draw itself again (its comp
 
 When a restored chat reopened its session, the provider replayed the whole conversation and Go forwarded it to the page in batches of updates, thousands of them on Paul's layout. The page had already drawn the chat from Dinah's saved copy and reads what followed from the session journal, so it built the replay into a log it then threw away; that was three quarters of the idle page's work in its first minute. Go now forwards a replay to the page only when the page asked to see one, which is Load Full History, and records it in the journal as before for an ordinary reopening (`replayToPage` on the conversation, set beside `SetReplaying`). Measured idle on Paul's layout after the restored chats settled, the page was busy 249 ms in 20 seconds, against 3194 ms before, and no replay events reached it.
 
+A chat window the layout kept hidden did not finish restoring until it was shown: the render queue holds a hidden window's work by design, the saved copy's last draw was such work, and the reconnect to the agent waited behind it, so the chat stayed closed on the bus with "Reading the saved conversation…" in its window. Paul ruled that a hidden chat must reconnect, since the bus may contact it, so the saved copy's last draw now runs whether or not the window is in sight.
+
+### The launcher, 9 November 2026
+
+The launcher listed none of the four applications: the Editor was filtered out in favour of New Document, and Docs, Diagrams and Slides had no launcher entry. Each is now a launcher entry in the Documents category, and a Tools entry in the menu bar, that starts an empty document of its kind in the current workspace; New Document left the launcher as the Editor's duplicate and stays in the Documents menu. The launcher's entries are in alphabetical order whichever category is chosen (Paul's ruling).
+
 ## Still to do
 
 - v0.2.52 is pinned, with #66 (page furniture kept while typing) and #67 (the Insert menu's shortcodes cached, and hosts told of a command change only when a command's state changes). Dinah's interim once-a-quarter-second memo of the applets' menu items went with it.
@@ -156,5 +162,5 @@ When a restored chat reopened its session, the provider replayed the whole conve
 - Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
 - Customising the toolbar, Slides' presenter window and its `fs.save` export, and SVG artifacts from Diagrams' `render@1`, which the broker's drawing check refuses; PNG works.
 - An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
-- A chat window the layout keeps hidden (its element is display none) does not finish restoring until it is shown: the render queue holds a hidden window's work by design, the saved copy's last draw is such work, and the reconnect to the agent follows that draw. Until then the window shows "Reading the saved conversation…" and its chat stays closed on the bus. This was so before the replay change above; whether a hidden chat should reconnect anyway is an open question.
+- A new document's window is "Untitled.d2" in Diagrams and "Untitled.slides.md" in Slides, from the application showing it; the person's Save As still picks the file's real name.
 - The browser suites keyboard and documents-menu, which failed before the change for other reasons, still test the removed Editor's own keys and menus and need rewriting for the yavc.app Editor.

@@ -275,11 +275,14 @@
           return new Promise(function (resolve) { ensureChat(s).drawAll(s, resolve, true); });
         }
         stampReplay(s);
+        // Drawn whether or not the window is in sight: a hidden chat's restore
+        // ends here and its reconnect to the agent follows, and the chat must
+        // answer the bus hidden as well as shown (Paul, 9 November 2026).
         return new Promise(function (resolve) {
           drawAll(s, function () {
             if (sessions[s.id] === (s.displayOwner || s)) { presentHistory(s); currentChat()?.sessionNote(); }
             resolve();
-          });
+          }, true);
         });
       }).finally(function () {
         // A draw stopped by a newer one leaves the chat to that draw.
@@ -561,7 +564,7 @@
       drawSessions();
     }
     function rowFor(s, cls) { return ensureChat(s).row(s, cls); }
-    function drawAll(s, ready) { return ensureChat(s).drawAll(s, ready); }
+    function drawAll(s, ready, detached) { return ensureChat(s).drawAll(s, ready, detached); }
     function stampReplay(s) { return ensureChat(s).stampReplay(s); }
     function replayProgress(s) { return ensureChat(s).replayProgress(s); }
     function signInChatInFront() {
