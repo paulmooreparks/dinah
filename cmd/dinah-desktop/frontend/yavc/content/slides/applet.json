@@ -1,0 +1,41 @@
+{
+  "name": "slides",
+  "title": "Slides",
+  "version": "0.41.1",
+  "instances": 9,
+  "description": "A slide deck from a Markdown file: edit it slide by slide, present it full screen with speaker notes, and export it as a page.",
+  "license": "Apache-2.0",
+  "src": "slides.js",
+  "css": "slides.css",
+  "icon": "icon.svg",
+  "page": {
+    "body": "page.html"
+  },
+  "window": {
+    "shape": "0.82,0.86",
+    "min": "640,420"
+  },
+  "handles": {
+    "present": {
+      "param": "file",
+      "extra": [
+        "present",
+        "presenter",
+        "view",
+        "initial-view"
+      ]
+    }
+  },
+  "actions": "actions.json",
+  "continuity": true,
+  "wants": [
+    "snapshot",
+    "fs",
+    "config",
+    "commandToolbar"
+  ],
+  "tags": [
+    "site",
+    "writing"
+  ]
+}

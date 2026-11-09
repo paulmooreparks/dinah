@@ -1,0 +1,1418 @@
+{
+  "id": "yavc.docs",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "title": "Docs",
+  "description": "Markdown document authoring, source access and page layout.",
+  "actions": [
+    {
+      "ref": "yavc.docs/theme@1",
+      "title": "Set Document Theme",
+      "description": "Set the current editable document theme as one undoable front-matter edit. Authored typography and styles retain their overrides.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "enum": [
+              "plain",
+              "manuscript",
+              "report",
+              "letter"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "theme"
+        ],
+        "properties": {
+          "theme": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/new-template@1",
+      "title": "New Document from Stock Template",
+      "description": "Create an independent unsaved document from a bundled starter under the host's document-window policy. Custom Markdown files can be chosen through File, New from Template.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "template"
+        ],
+        "properties": {
+          "template": {
+            "enum": [
+              "blank",
+              "report",
+              "letter",
+              "manuscript",
+              "meeting"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/page-setup@1",
+      "title": "Set Page Layout",
+      "description": "Change the current Markdown document page size, orientation or margins as one undoable source edit. Dimensions and returned margins are in points, in left, top, right, bottom order.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "page": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "orientation": {
+            "enum": [
+              "portrait",
+              "landscape"
+            ]
+          },
+          "margins": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "width",
+          "height",
+          "margins"
+        ],
+        "properties": {
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "margins": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/export@1",
+      "title": "Export Document",
+      "description": "Export the current Markdown document as editable Word DOCX or a PDF with selectable text. Exclusions and draft notes are removed before layout. Returns a file artifact without the Markdown source. Unresolved review annotations require an explicit reviewPolicy; the source stays unchanged.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format"
+        ],
+        "properties": {
+          "format": {
+            "enum": [
+              "docx",
+              "pdf"
+            ]
+          },
+          "reviewPolicy": {
+            "enum": [
+              "accepted",
+              "original"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "format",
+          "blocks",
+          "warnings"
+        ],
+        "properties": {
+          "format": {
+            "enum": [
+              "docx",
+              "pdf"
+            ]
+          },
+          "blocks": {
+            "type": "integer"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "capabilities": [
+        "artifact.create",
+        "files.read"
+      ],
+      "replay": "pure"
+    },
+    {
+      "ref": "yavc.docs/outline@1",
+      "title": "Read Document Outline",
+      "description": "Read the current Markdown document headings and their section ranges. Positions use UTF-16. Parent, previous and next are zero-based entry indexes, or -1. The revision is required when moving a section.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "revision"
+        ]
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "replay": "pure"
+    },
+    {
+      "ref": "yavc.docs/move-section@1",
+      "title": "Move Document Section",
+      "description": "Move a heading and its descendants among same-level siblings under the same parent. Read outline first and supply its revision. The complete move is one Undo operation.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "direction": {
+            "enum": [
+              "up",
+              "down"
+            ]
+          },
+          "before": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "after": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "from",
+          "revision"
+        ],
+        "oneOf": [
+          {
+            "required": [
+              "direction"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "before"
+                  ]
+                },
+                {
+                  "required": [
+                    "after"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "before"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "direction"
+                  ]
+                },
+                {
+                  "required": [
+                    "after"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "required": [
+              "after"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "direction"
+                  ]
+                },
+                {
+                  "required": [
+                    "before"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "moved": {
+            "type": "boolean"
+          },
+          "from": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "moved",
+          "from"
+        ]
+      },
+      "capabilities": [
+        "files.write"
+      ],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/table@1",
+      "title": "Edit Selected Table",
+      "description": "Apply a table operation at the current rich selection in Visual or Split view. Alignment changes every cell in the selected columns.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "enum": [
+              "row-above",
+              "row-below",
+              "column-before",
+              "column-after",
+              "delete-row",
+              "delete-column",
+              "delete-table",
+              "align-default",
+              "align-left",
+              "align-center",
+              "align-right"
+            ]
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "changed": {
+            "const": true
+          }
+        },
+        "required": [
+          "changed"
+        ]
+      },
+      "capabilities": [
+        "files.write"
+      ],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/format@1",
+      "title": "Format Selection",
+      "description": "Apply formatting at the current text or rich selection. Quote toggles a block quote while preserving nested content.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "op": {
+            "enum": [
+              "quote",
+              "bold",
+              "italic",
+              "underline",
+              "strike",
+              "code",
+              "highlight",
+              "superscript",
+              "subscript",
+              "bullets",
+              "numbers",
+              "paragraph",
+              "h1",
+              "h2",
+              "h3",
+              "h4",
+              "h5",
+              "h6"
+            ]
+          }
+        },
+        "required": [
+          "op"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "formatted": {
+            "const": true
+          }
+        },
+        "required": [
+          "formatted"
+        ]
+      },
+      "capabilities": [
+        "files.write"
+      ],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/define@1",
+      "title": "Read Custom Shortcode Definitions",
+      "description": "Read this document's validated custom shortcode definitions, shared definitions, parameter metadata, source ranges and problems. Ranges use UTF-16 positions in the corresponding source.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "replay": "pure"
+    },
+    {
+      "ref": "yavc.docs/open@1",
+      "title": "Open in the Docs",
+      "description": "Open a file in the Docs for the person at the page, in a new tab of the Docs's window. A file in the reader's home (~) that does not exist yet opens as a new file, which saving creates. Files outside ~ open read-only unless the reader is an admin.",
+      "handles": "document",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "kind": {
+            "enum": [
+              "file",
+              "script",
+              "page"
+            ],
+            "default": "file"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "opened"
+        ],
+        "properties": {
+          "opened": {
+            "const": true
+          },
+          "view": {
+            "enum": [
+              "window",
+              "tab"
+            ]
+          }
+        }
+      },
+      "capabilities": [
+        "window.open"
+      ],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/documents@1",
+      "title": "The Open Documents",
+      "description": "Every document the Docs has open, and which is current.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "active",
+          "documents"
+        ],
+        "properties": {
+          "active": {
+            "type": "integer"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "index",
+                "name",
+                "path",
+                "lang",
+                "modified",
+                "readOnly"
+              ],
+              "properties": {
+                "index": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "lang": {
+                  "type": "string"
+                },
+                "modified": {
+                  "type": "boolean"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "replay": "pure"
+    },
+    {
+      "ref": "yavc.docs/document@1",
+      "title": "Read a Document",
+      "description": "One open document, by its number or the current one, with its text.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A document's number among the open ones; the current one when left out."
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "path",
+          "lang",
+          "modified",
+          "readOnly",
+          "text"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lang": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "replay": "pure"
+    },
+    {
+      "ref": "yavc.docs/open-file@1",
+      "title": "Open a File",
+      "description": "Open one of the person's files (~/Ã¢â‚¬Â¦) or a page of the site in the Docs, and make it current. A file already open comes to the front.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "path",
+          "lang",
+          "modified",
+          "readOnly"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lang": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/new@1",
+      "title": "New Document",
+      "description": "Open a new document: untitled, or at a path in ~ that saving creates, with the text given.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "path",
+          "lang",
+          "modified",
+          "readOnly"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lang": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/set-text@1",
+      "title": "Replace a Document's Text",
+      "description": "Replace the whole text of a document, or of the current one, unsaved. The person watches it change.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A document's number among the open ones; the current one when left out."
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "path",
+          "lang",
+          "modified",
+          "readOnly"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lang": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/insert@1",
+      "title": "Insert Text",
+      "description": "Insert text at the cursor of the current document, replacing a selection.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "path",
+          "lang",
+          "modified",
+          "readOnly"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lang": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/replace@1",
+      "title": "Find and Replace",
+      "description": "Replace every match, or the first, of a string or a regular expression in a document, or the current one.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A document's number among the open ones; the current one when left out."
+          },
+          "find": {
+            "type": "string",
+            "minLength": 1
+          },
+          "replace": {
+            "type": "string"
+          },
+          "all": {
+            "type": "boolean",
+            "default": true
+          },
+          "regex": {
+            "type": "boolean",
+            "default": false
+          },
+          "ignoreCase": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "find",
+          "replace"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "replaced"
+        ],
+        "properties": {
+          "replaced": {
+            "type": "integer"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/save@1",
+      "title": "Save a Document",
+      "description": "Write a document, or the current one, to its file, or to the path given (~/notes/a.md), which becomes its file.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A document's number among the open ones; the current one when left out."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "index",
+          "name",
+          "path",
+          "lang",
+          "modified",
+          "readOnly"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lang": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [
+        "files.write",
+        "files.read"
+      ],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/close@1",
+      "title": "Close a Document",
+      "description": "Close a document, or the current one. One with unsaved changes asks the person first.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "A document's number among the open ones; the current one when left out."
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "closed",
+          "open"
+        ],
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "open": {
+            "type": "integer"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/view@1",
+      "title": "Set the View",
+      "description": "How the person sees the current document: its text, the page as it looks (Markdown only), both, or a preview.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "text",
+              "visual",
+              "split",
+              "preview",
+              "document"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/go-to@1",
+      "title": "Go to a Line",
+      "description": "Put the cursor at a line of the current document and show it.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "line"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "line"
+        ],
+        "properties": {
+          "line": {
+            "type": "integer"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/header-footer@1",
+      "title": "Set Header and Footer",
+      "description": "Change the current document settings as one undoable source edit.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "header": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "left": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "center": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "right": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                }
+              }
+            ]
+          },
+          "footer": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "left": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "center": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "right": {
+                    "type": "string",
+                    "maxLength": 256
+                  }
+                }
+              }
+            ]
+          },
+          "header-first": {
+            "enum": [
+              "show",
+              "none"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/typography@1",
+      "title": "Set Document Typography",
+      "description": "Change the current document settings as one undoable source edit.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "font": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "heading-font": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "spacing": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "paragraph-spacing": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/document-zoom@1",
+      "title": "Set Document Zoom",
+      "description": "Change the current document view magnification without changing source.",
+      "live": true,
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "value": {
+            "oneOf": [
+              {
+                "type": "number",
+                "minimum": 25,
+                "maximum": 400
+              },
+              {
+                "enum": [
+                  "width",
+                  "page"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "capabilities": [],
+      "replay": "once"
+    },
+    {
+      "ref": "yavc.docs/review@1",
+      "title": "Read Review Annotations",
+      "description": "Read persisted Markdown review annotations and their UTF-16 source ranges. The returned revision is required to change or resolve them.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "revision",
+          "marks",
+          "problems"
+        ],
+        "properties": {
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "marks": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "capabilities": [
+        "files.read"
+      ],
+      "replay": "pure",
+      "live": true
+    },
+    {
+      "ref": "yavc.docs/review-resolve@1",
+      "title": "Resolve Review Annotations",
+      "description": "Accept or reject one catalog annotation, or all annotations with id all, as one undoable edit. Requires the current catalog revision.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revision",
+          "id",
+          "decision"
+        ],
+        "properties": {
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "decision": {
+            "enum": [
+              "accept",
+              "reject"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "revision",
+          "modified"
+        ],
+        "properties": {
+          "revision": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once",
+      "live": true
+    },
+    {
+      "ref": "yavc.docs/review-propose@1",
+      "title": "Propose a Reviewed Change",
+      "description": "Insert a persisted Markdown review annotation as one undoable edit. Uses UTF-16 selection offsets and the current review catalog revision. Comments on a selection also highlight that selection.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revision",
+          "from",
+          "to",
+          "kind"
+        ],
+        "properties": {
+          "revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "kind": {
+            "enum": [
+              "addition",
+              "deletion",
+              "replacement",
+              "comment",
+              "highlight"
+            ]
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 65536
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "revision",
+          "modified"
+        ],
+        "properties": {
+          "revision": {
+            "type": "string"
+          },
+          "modified": {
+            "type": "boolean"
+          }
+        }
+      },
+      "capabilities": [],
+      "replay": "once",
+      "live": true
+    }
+  ]
+}

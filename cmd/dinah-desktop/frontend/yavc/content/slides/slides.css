@@ -1,0 +1,174 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+.deck-find { flex: none; min-width: 0; }
+.deck-find[hidden] { display: none; }
+.deck-find-scope { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+.deck-find-scope .form-label { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+.deck-find-scope .form-select { width: auto; }
+.deck-find-scope .form-select-wrap { width: auto; max-width: 100%; }
+.deck-find-scope .form-help { margin: 0; }
+
+/* Slides (slides.js, docs/slides-design.md): the deck's chrome in PUDL's
+   components, and the slide canvas, a fixed page of 1280 by 720 scaled to
+   its room, with its layouts and themes. Everything the canvas draws is
+   the Markdown engine's page (.doc-page, the Editor's styles), sized up
+   for a screen. The exported page carries this file whole. */
+
+/* === The applet =========================================================== */
+.deck { display: flex; flex-direction: column; min-height: 0; font-size: var(--text-sm); }
+.deck-fill { flex: 1 1 auto; height: 100%; }
+.deck-flow { height: min(80svh, 820px); min-height: 420px; }
+.deck:focus { outline: none; }
+.deck .deck-toolbar-slot { flex: none; min-width: 0; padding: var(--space-1) var(--space-3) var(--space-2); }
+.deck-main { border-top: 1px solid var(--border); }
+.deck-main { flex: 1 1 auto; min-height: 0; display: flex; position: relative; }
+/* Thumbnail height follows the available width. Reserve classic scrollbar
+   space so crossing the overflow threshold cannot change that width. */
+.deck-film { flex: none; width: 196px; overflow-y: auto; scrollbar-gutter: stable; padding: var(--space-2); border-inline-end: 1px solid var(--border); background: var(--surface-alt); display: flex; flex-direction: column; gap: var(--space-2); }
+.deck-film[hidden] { display: none; }
+.deck-thumb { display: flex; gap: 6px; align-items: flex-start; padding: 4px; border: 2px solid transparent; border-radius: var(--radius-sm); background: none; cursor: pointer; text-align: start; font: inherit; color: inherit; }
+.deck-thumb:hover { border-color: var(--border); }
+.deck-thumb[aria-selected="true"] { border-color: var(--accent); background: var(--surface-alt); box-shadow: inset 3px 0 var(--accent); }
+.deck-thumb:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-ring); }
+.deck-thumb[aria-selected="true"]:focus-visible { box-shadow: inset 3px 0 var(--accent), 0 0 0 3px var(--focus-ring); }
+.deck-tabs { flex: none; min-height: 34px; }
+.deck-tabs[hidden] { display: none; }
+.deck-thumb-n { flex: none; width: 1.2em; font-size: var(--text-xs); color: var(--text-muted); text-align: end; padding-top: 2px; }
+.deck-thumb-stage { position: relative; flex: 1 1 auto; min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 2px; background: var(--bg); pointer-events: none; }
+.deck-thumb-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.deck-canvas, .deck-thumb-canvas { contain: paint; }
+.deck-work { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
+.deck-stagebox { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg) 70%, #000); }
+.deck-work:not([data-split-pane]) { --split-a: 62%; }
+.deck-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.deck-canvas { position: absolute; left: 50%; top: 50%; transform-origin: center center; box-shadow: var(--shadow-card); }
+.deck-split[hidden] { display: none; }
+.deck-text { min-width: 0; min-height: 0; overflow: hidden; }
+.deck-work.stacked > .deck-split { cursor: row-resize; }
+/* The Markdown alone in the splitter, under a floating canvas. */
+.deck .deck-work.deck-alone > .split-pane { flex: 1 1 auto; width: auto; height: auto; }
+.deck-float-bar { flex: none; padding: var(--space-1) var(--space-2); font-size: var(--text-sm); font-weight: 600; color: var(--text-muted); background: var(--surface-alt); border-bottom: 1px solid var(--border); cursor: move; user-select: none; touch-action: none; }
+.deck-float-bar[hidden] { display: none; }
+.deck-stagebox.deck-float { position: absolute; z-index: 3; min-width: 240px; min-height: 160px; max-width: calc(100% - 8px); max-height: calc(100% - 8px); resize: both; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, .25)); }
+.deck-text .cm-editor { height: 100%; }
+.deck-notes-view { flex: none; max-height: 28%; overflow: auto; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border); background: var(--surface); font-size: var(--text-sm); color: var(--text-muted); }
+.deck-notes-view[hidden] { display: none; }
+.deck-notes-label, .deck-pv-label { margin: 0 0 var(--space-1); font-size: var(--text-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.deck-notes-view > :last-child { margin-bottom: 0; }
+.deck-status { flex: none; display: flex; gap: var(--space-3); align-items: center; padding: 2px var(--space-3); font-size: var(--text-xs); color: var(--text-muted); border-top: 1px solid var(--border); min-height: 1.6em; font-family: var(--mono); }
+.deck-message { margin-inline-start: auto; font-family: var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deck-failed, .deck-problem { color: var(--danger); padding: var(--space-4); }
+@media (max-width: 800px) { .deck-film { width: 120px; } }
+
+/* === The slide ============================================================ */
+/* A slide is drawn at its canvas size whatever it is shown at. The page's
+   type is sized for a screen: 30px text on a 1280 canvas reads from the
+   back of a room. */
+.deck-slide {
+  --deck-bg: var(--surface); --deck-ink: var(--text); --deck-muted: var(--text-muted); --deck-accent: var(--accent); --deck-rule: var(--border); --deck-code: var(--surface-alt); --deck-heading: var(--deck-ink);
+  position: relative; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden;
+  background: var(--deck-bg); color: var(--deck-ink); background-size: cover; background-position: center;
+  font-family: var(--font); font-size: 30px; line-height: 1.4;
+}
+.deck-slide[data-theme-name="paper"] { --deck-bg: #f6f1e8; --deck-ink: #22201c; --deck-muted: #6b665c; --deck-accent: #8a3a1e; --deck-rule: #d9d2c4; --deck-code: #ebe5d8; }
+.deck-slide[data-theme-name="midnight"] { --deck-bg: #0f1724; --deck-ink: #e8edf5; --deck-muted: #9fb0c8; --deck-accent: #6cc3ff; --deck-rule: #2a3a52; --deck-code: #1a2536; }
+.deck-slide .deck-body.doc-page {
+  --dinah-ink: var(--deck-ink); --dinah-muted-ink: var(--deck-muted); --dinah-link-on-surface: var(--deck-accent); --dinah-page-surface: transparent; --dinah-content-border: var(--deck-rule); --dinah-content-code-surface: var(--deck-code);
+  position: absolute; inset: 0; box-sizing: border-box; min-width: 0; min-height: 0; padding: 56px 72px; margin: 0;
+  font-size: inherit; line-height: inherit; background: transparent; color: var(--deck-ink); overflow: hidden;
+}
+.deck-body h1 { font-size: 2.3em; line-height: 1.1; margin: 0 0 0.3em; font-weight: 700; letter-spacing: -0.01em; }
+.deck-body h2 { font-size: 1.6em; line-height: 1.15; margin: 0 0 0.5em; font-weight: 700; }
+.deck-body h3 { font-size: 1.2em; margin: 0.6em 0 0.3em; }
+.deck-body p, .deck-body li { margin: 0 0 0.45em; }
+.deck-body ul, .deck-body ol { margin: 0 0 0.5em; padding-inline-start: 1.1em; }
+.deck-body li { margin-bottom: 0.3em; }
+.deck-body pre { font-size: 0.72em; line-height: 1.4; padding: 0.6em 0.8em; }
+.deck-body code { font-size: 0.85em; }
+.deck-body table { font-size: 0.8em; }
+.deck-body th, .deck-body td { padding: 0.3em 0.7em; }
+.deck-body blockquote { font-size: 1.1em; font-style: italic; border-left-width: 6px; padding-left: 0.7em; }
+.deck-body img, .deck-body svg { max-width: 100%; height: auto; }
+.deck-body .sc-figure img { max-height: 420px; width: auto; }
+.deck-body .sc-columns { gap: 56px; }
+.deck-body .notice { font-size: 0.8em; }
+.deck-body .badge, .deck-body kbd { font-size: 0.7em; }
+.deck-body [data-applet] { margin: 0.4em 0; font-size: 16px; line-height: 1.4; }
+.deck-body > .doc-block:first-child > .dinah-src > :first-child, .deck-body > .ProseMirror > :first-child { margin-top: 0; }
+/* A slide's first heading sits apart from its body with a rule of accent. */
+.deck-slide[data-layout="content"] .deck-body h2:first-child, .deck-slide[data-layout="content"] .deck-body .doc-block:first-child h2, .deck-slide[data-layout="content"] .deck-body .ProseMirror > h2:first-child, .deck-slide[data-layout="two-column"] .deck-body h2:first-child, .deck-slide[data-layout="two-column"] .deck-body .ProseMirror > h2:first-child { padding-bottom: 0.25em; border-bottom: 4px solid var(--deck-accent); margin-bottom: 0.7em; }
+/* Layouts: the Markdown flows into each one's regions in order. */
+.deck-slide[data-layout="title"] .deck-body, .deck-slide[data-layout="section"] .deck-body, .deck-slide[data-layout="quote"] .deck-body { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 56px 120px; }
+.deck-slide[data-layout="title"] .deck-body > *, .deck-slide[data-layout="section"] .deck-body > *, .deck-slide[data-layout="quote"] .deck-body > * { width: 100%; }
+.deck-slide[data-layout="title"] .deck-body h1 { font-size: 3em; margin-bottom: 0.2em; }
+.deck-body h1, .deck-body h2, .deck-body h3, .deck-body h4 { color: var(--deck-heading); }
+.deck-slide[data-layout="title"] .deck-body h2 { font-size: 1.3em; font-weight: 400; color: var(--deck-muted); border: 0; }
+.deck-slide[data-layout="section"] .deck-body h2 { font-size: 2.6em; border: 0; }
+.deck-slide[data-layout="section"] .deck-body h2::after { content: ""; display: block; width: 3em; height: 6px; margin: 0.3em auto 0; background: var(--deck-accent); }
+.deck-slide[data-layout="quote"] .deck-body blockquote { border: 0; padding: 0; font-size: 1.4em; margin: 0; }
+.deck-slide[data-layout="image"] .deck-body { padding: 40px 56px; }
+.deck-slide[data-layout="image"] .deck-body h2 { font-size: 1.2em; margin-bottom: 0.4em; border: 0; }
+.deck-slide[data-layout="image"] .deck-body .sc-figure img { max-height: 520px; max-width: 100%; }
+.deck-slide[data-layout="blank"] .deck-body { padding: 0; }
+.deck-slide[data-layout="blank"] .deck-body > * { padding: 40px; }
+/* The slide's settings and its notes on the canvas: the settings' marker
+   draws nothing; the notes show while editing as a strip the show hides. */
+.deck-slide .sc-slide { display: none; }
+.deck-slide .pm-source:has(> div > .doc-block > .sc-slide), .deck-slide .pm-source:has(.sc-slide:only-child) { display: none; }
+.deck-slide .sc-notes { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 12px 72px; font-size: 0.55em; line-height: 1.35; color: var(--deck-muted); background: color-mix(in srgb, var(--deck-ink) 6%, transparent); border-top: 1px dashed var(--deck-rule); max-height: 28%; overflow: hidden; }
+.deck-slide .sc-notes-label { margin: 0 0 2px; font-size: 0.8em; font-weight: 700; text-transform: uppercase; }
+.deck-slide .sc-notes > :last-child { margin-bottom: 0; }
+.deck-slide .pm-source:has(> div > .doc-block > .sc-notes) { position: static; }
+/* On an editable canvas the notes sit after the content, in flow, so they
+   never cover a point being edited. */
+.deck-slide .deck-body.page-view .sc-notes { position: static; margin: 0.6em -72px -56px; max-height: none; }
+.deck-canvas { outline: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.deck-show .sc-notes, .deck-thumb .sc-notes, .deck-print .sc-notes { display: none; }
+/* The page view on the canvas keeps the slide's type. */
+.deck-slide .deck-body.page-view > .ProseMirror { min-height: 0; outline: none; }
+.deck-slide .deck-body.page-view { cursor: text; }
+
+/* === The show ============================================================= */
+.deck-show { position: absolute; inset: 0; z-index: 20; background: #000; outline: none; overflow: hidden; }
+.deck-showing > :not(.deck-show) { visibility: hidden; }
+.deck-show .deck-canvas { transition: opacity .35s ease, transform .35s ease; }
+.deck-show .deck-canvas:not(:has(> .deck-current)) { opacity: 0; pointer-events: none; }
+.deck-show .deck-canvas:has(> .deck-after[data-transition="slide"]) { transform: translate(40%, -50%) scale(var(--deck-scale, 1)) !important; }
+.deck-show .deck-canvas:has(> .deck-before[data-transition="slide"]) { transform: translate(-140%, -50%) scale(var(--deck-scale, 1)) !important; }
+.deck-show .deck-canvas:has(> [data-transition="none"]) { transition: none; }
+.deck-step-hidden { visibility: hidden; }
+.deck-progress { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--accent); transition: width .3s ease; z-index: 2; }
+.deck-counter { position: absolute; right: 14px; bottom: 10px; font: 600 var(--text-sm) var(--font); font-variant-numeric: tabular-nums; color: #fff; background: rgba(0, 0, 0, .45); padding: 2px 8px; border-radius: 999px; opacity: .8; z-index: 2; }
+@media (prefers-reduced-motion: reduce) { .deck-show .deck-canvas { transition: none; } }
+
+/* === The presenter view ==================================================== */
+.deck-presenter { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); }
+.deck-presenter[hidden] { display: none; }
+.deck-pv-top { flex: 1 1 60%; min-height: 0; display: flex; gap: var(--space-3); }
+.deck-pv-now { flex: 1 1 64%; min-width: 0; display: flex; }
+.deck-pv-now .deck-stage { flex: 1 1 auto; background: #000; border-radius: var(--radius-sm); }
+.deck-pv-side { flex: 1 1 36%; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.deck-pv-clock { font: 700 var(--text-2xl) var(--mono); text-align: center; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.deck-pv-next { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.deck-pv-next .deck-stage { flex: 1 1 auto; background: #000; border-radius: var(--radius-sm); }
+.deck-pv-notes { flex: 1 1 40%; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-lg); line-height: 1.5; }
+.deck-pv-none, .deck-pv-end { color: var(--text-muted); }
+.deck-pv-end { padding: var(--space-4); text-align: center; }
+.deck-pv-help { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+
+/* === Print: one slide a page ============================================== */
+.deck-print { display: none; }
+@media print {
+  body.deck-printing > :not(.deck-print) { display: none !important; }
+  .deck-print { display: block; }
+  .deck-print .deck-canvas { position: relative; left: auto; top: auto; transform: none !important; width: 1280px; height: 720px; page-break-after: always; box-shadow: none; margin: 0 auto; }
+  @page { size: 1280px 720px; margin: 0; }
+}
+.deck-dialog { width: min(32rem, 92vw); max-width: 92vw; }
+
+/* Keep file locations readable without making the status strip taller. */
+.deck-status { min-width: 0; overflow: hidden; white-space: nowrap; }
+.deck-status [data-role="where"] { flex: 0 1 auto; min-width: 2rem; overflow: hidden; text-overflow: ellipsis; }
+.deck-status [data-role="kind"], .deck-status [data-role="state"] { flex-shrink: 0; }
+.deck-status [data-role="position"] { flex-shrink: 0; }
+.deck-show-controls { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 10; display: flex; gap: var(--space-2); }
+@media print { .deck-show-controls { display: none; } }

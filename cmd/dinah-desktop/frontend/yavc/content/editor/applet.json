@@ -1,0 +1,41 @@
+{
+  "name": "editor",
+  "title": "Editor",
+  "version": "46.13.2",
+  "description": "Edit text and source code, with safe read-only Markdown preview.",
+  "license": "Apache-2.0",
+  "src": "editor.js",
+  "css": "editor.css",
+  "icon": "icon.svg",
+  "page": {
+    "body": "page.html"
+  },
+  "window": {
+    "shape": "0.6,0.8"
+  },
+  "handles": {
+    "open": {
+      "param": "file",
+      "kinds": [
+        "file",
+        "script",
+        "page"
+      ],
+      "extra": [
+        "view",
+        "initial-view"
+      ]
+    }
+  },
+  "actions": "actions.json",
+  "wants": [
+    "snapshot",
+    "fs",
+    "config",
+    "commandToolbar"
+  ],
+  "tags": [
+    "site"
+  ],
+  "instances": 9
+}

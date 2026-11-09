@@ -1,0 +1,170 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+/* Editor: CodeMirror 6 in PUDL's clothes. The toolbar's controls are
+   raised, the editing surface is sunken like any input, and the status
+   line is flat, for reading. CodeMirror's colours come from PUDL's syntax
+   tokens in js/editor.js, so both themes apply. */
+
+.pc-editor {
+  container-type: inline-size; container-name: editor;
+  display: flex; flex-direction: column; gap: 6px;
+  height: min(80svh, 820px); min-height: 360px;
+  font-size: var(--text-sm);
+}
+/* The Editor's box takes focus from a press between its controls, so its
+   keys work there (js/editor.js); it is never drawn as focused itself. */
+.pc-editor:focus { outline: none; }
+/* The toolbar is PUDL's (0.68.0), drawn from the Editor's command table
+   into this slot and folding as the window narrows. The glyphs it uses
+   that PUDL does not have are the Editor's own, set on the root because
+   the menu bar's ribbon draws the same commands outside the Editor. */
+.pc-editor .ed-toolbar-slot { flex: none; min-width: 0; }
+.pc-editor .ed-readonly {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--text-muted); font-weight: 600; font-size: var(--text-xs);
+}
+.pc-editor .ed-readonly[hidden] { display: none; }
+
+/* The tabs are PUDL's document tabs and the surface PUDL's code surface
+   (0.26.0); only their place in the layout is set here. */
+.pc-editor .ed-tabs { min-height: 34px; }
+.pc-editor .ed-tabs[hidden] { display: none; }
+.pc-editor .doc-tab-note { font-weight: 400; color: var(--text-muted); }
+/* The panes are PUDL's split: the Explorer, its handle, and the work,
+   which is the text with the preview beside it. */
+.pc-editor .ed-panes { flex: 1 1 auto; min-height: 0; }
+.pc-editor .ed-document-space { display:flex;flex-direction:column;gap:6px;min-width:0;overflow:hidden; }
+.pc-editor .ed-document-body { --split-a:220px;flex:1;min-height:0;min-width:0; }
+.pc-editor .ed-document-body > .ed-outline-pane { flex:none;width:var(--split-a);display:flex;flex-direction:column;overflow:hidden; }
+.pc-editor .ed-outline-pane[hidden] {display:none;}
+.pc-editor .ed-document-body > .ed-split {width:6px;margin:0;}
+.pc-editor .ed-work { display: flex; gap: 6px; overflow: hidden; }
+.pc-editor .ed-surface { flex: 1 1 0; min-width: 0; min-height: 0; overflow: hidden; }
+.pc-editor .ed-surface .cm-editor { height: 100%; }
+/* The preview, beside the text on a wide screen and under it on a narrow
+   one: the public page, flat, for reading. */
+.pc-editor .ed-page { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.pc-editor .ed-page[hidden] { display: none; }
+.pc-editor .ed-preview {
+  flex: 1 1 0; min-width: 0; min-height: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg);
+}
+.pc-editor .ed-preview[hidden] { display: none; }
+
+/* Where the find bar sits over the page. The bar itself is the editing
+   kit's, styled in the site's stylesheet (static/site.css), since Diagrams
+   has it too. */
+.pc-editor .ed-find-place { flex: none; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.pc-editor .ed-find-place[hidden] { display: none; }
+.pc-editor .ed-surface .cm-panels-top { border-bottom: 1px solid var(--border); }
+@media (max-width: 800px) { .pc-editor.ed-previewing .ed-work { flex-direction: column; } }
+/* Visual alone: the page fills the work, and the text waits behind it. */
+.pc-editor.ed-visual-only .ed-surface { display: none; }
+
+.pc-editor .ed-status {
+  display: flex; flex-wrap: nowrap; gap: 4px var(--space-4); align-items: baseline;
+  color: var(--text-muted); font-size: var(--text-xs); min-height: 1.5em;
+}
+.pc-editor .ed-status > span { white-space: nowrap; }
+.pc-editor .ed-status :is([data-role="lang"], [data-role="count"], [data-role="pages"], [data-role="pos"], .ed-readonly) { flex-shrink: 0; }
+.pc-editor .ed-status [data-role="where"] { font-family: var(--mono); color: var(--text); flex: 0 1 auto; min-width: 2rem; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 620px) { .pc-editor .ed-status { gap: var(--space-2); } .pc-editor .ed-status [data-role="lang"] { display: none; } .pc-editor .ed-message { flex-basis: 0; } }
+/* What just happened sits at the right of the same line as the file, its
+   language and the cursor, trimmed rather than wrapped onto a second line
+   the window's bottom would cut off. */
+.pc-editor .ed-message { margin-left: auto; min-width: 0; flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A shortcode in the text: its name and braces, and its arguments. */
+.pc-editor .cm-shortcode-name { color: var(--syntax-tag); font-weight: 600; }
+.pc-editor .cm-shortcode-args { color: var(--syntax-attr); }
+.pc-editor .cm-tooltip .ed-sc-tip { max-width: 28rem; padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
+.pc-editor .ed-sc-tip p { margin: 0 0 var(--space-1); }
+.pc-editor .ed-sc-tip dl { margin: var(--space-2) 0 0; display: grid; grid-template-columns: auto 1fr; gap: 2px var(--space-3); }
+.pc-editor .ed-sc-tip dd { margin: 0; color: var(--text-muted); }
+.pc-editor .cm-tooltip.cm-tooltip-autocomplete .cm-completionInfo { white-space: pre-wrap; max-width: 24rem; }
+.pc-editor .ed-failed { color: var(--text-muted); padding: var(--space-4); }
+.pc-editor .ed-dialog .form-input { width: 100%; }
+.pc-editor .ed-dialog .dialog-actions { gap: 8px; }
+
+/* The Explorer: the shared file browser's tree beside the text. A narrow
+   screen has no room for it, so it gives way there whatever was chosen. */
+.pc-editor .ed-panes > .ed-explorer { width: var(--split-a, 240px); display: flex; flex-direction: column; overflow: hidden; }
+.pc-editor .ed-explorer[hidden] { display: none; }
+.pc-editor .ed-explorer .fm-body { height: 100%; }
+/* PUDL's handle, standing in the gap between the Explorer and the text. */
+.pc-editor .ed-panes > .ed-split { width: 6px; margin: 0; }
+.pc-editor .ed-split[hidden] { display: none; }
+.pc-editor .ed-pane-title {font-size:var(--text-sm);margin:0;padding:var(--space-2);color:var(--text-muted);}
+.pc-editor .ed-files-panel {flex:1;min-height:0;overflow:hidden;}
+.pc-editor .ed-outline-panel { flex:1;min-height:0;overflow: auto; }
+.pc-editor .ed-outline-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2); }
+.pc-editor .ed-outline-empty { padding: var(--space-3); color: var(--text-muted); }
+.pc-editor .ed-outline-panel .tree { --tree-row-pad-start: var(--space-2); }
+.pc-editor .ed-navigation-back { display: none; }
+@container editor (max-width: 700px) {
+  .pc-editor .ed-split { display: none; }
+  .pc-editor .ed-panes > .ed-explorer, .pc-editor .ed-document-body > .ed-outline-pane {display:none;}
+  .pc-editor.ed-compact-files .ed-document-space {display:none;}
+  .pc-editor.ed-compact-files .ed-panes > .ed-explorer {display:flex;width:100%;flex:1;}
+  .pc-editor.ed-compact-outline .ed-work {display:none;}
+  .pc-editor.ed-compact-outline .ed-document-body > .ed-outline-pane {display:flex;width:100%;flex:1;}
+  .pc-editor .ed-navigation-back { display: inline-flex; align-self: flex-start; margin: var(--space-2); }
+}
+
+/* === Filling a window ==================================================== */
+.pc-editor-fill { flex: 1 1 auto; height: auto; min-height: 0; }
+.win-body:has(.pc-editor-fill) { display: flex; flex-direction: column; overflow: hidden; }
+.win-body:has(.pc-editor-fill) .post-content {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  max-width: none; margin: 0; padding: 0;
+}
+.win-body:has(.pc-editor-fill) .post-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+/* Filling a window on yavc.app, where the window body has no padding of
+   its own so the tabs run edge to edge, the toolbar and the status line
+   keep their room, as Dinah Desktop's editor keeps it, and the panes a
+   small gutter. */
+.pc-editor-fill .ed-toolbar-slot { padding: var(--space-1) var(--space-3) 0; }
+.pc-editor-fill .ed-panes { padding: 0 var(--space-2); }
+.pc-editor-fill .ed-status { padding-inline: var(--space-3); }
+
+/* === The page: Visual, Split and Preview (page-view.js, from Dinah Desktop) ===
+   The page scrolls in a sunken surface beside the text; the page itself is
+   Dinah's document page, whose type the preview and the Visual view share. */
+.pc-editor .ed-scroll { flex: 1 1 0; min-height: 0; overflow: auto; border: 1px solid var(--input-border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--recess-shadow); }
+.pc-editor .ed-scroll:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* The page sits in from its frame, as a page does; the margin scales with the pane. */
+.pc-editor .ed-scroll > .doc-page { padding: clamp(16px, 4vw, 48px) clamp(20px, 6vw, 72px); box-sizing: border-box; max-width: 100%; }
+/* The document palette also supplies semantic shortcode colors. App chrome
+   outside the styled page continues to use the host's appearance. */
+.pc-editor [data-ed-page][data-md-style] {
+  color-scheme: light;
+  --text: var(--doc-ink); --text-muted: var(--doc-muted);
+  --surface: var(--doc-page); --surface-alt: var(--doc-code);
+  --border: var(--doc-rule); --accent: var(--doc-accent);
+  --warn: var(--doc-warning); --danger: var(--doc-danger); --positive: var(--doc-positive);
+}
+.pc-editor .ed-scroll { --sheet-gutter: var(--surface-alt); }
+.ed-key-bindings.dialog { width: min(52rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+.ed-key-bindings .dialog-body { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-4); }
+.ed-key-bindings .dialog-body > :is(p, .form-group, .form-fieldset) { margin: 0; }
+.ed-key-bindings .dialog-body > button { align-self: flex-start; }
+.ed-key-bindings [data-bindings-errors]:empty { display: none; }
+.ed-bindings-list { max-height: min(20rem, 38svh); overflow: auto; }
+.ed-bindings-list table { width: 100%; table-layout: fixed; }
+.ed-bindings-list th:first-child { width: 30%; }
+.ed-bindings-list label { white-space: nowrap; }
+.ed-bindings-list select { width: 100%; min-width: 0; }
+.ed-binding-add { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,3fr) auto; align-items: end; gap: var(--space-3); margin-block-end: var(--space-3); }
+.ed-binding-add .form-group { margin: 0; min-width: 0; }
+.ed-key-bindings [hidden] { display: none; }
+@media (max-width: 520px) {
+  .ed-binding-add { grid-template-columns: minmax(0,1fr); }
+  .ed-bindings-list :is(table, tbody, tr, th, td) { display: block; width: auto; }
+  .ed-bindings-list thead { display: none; }
+  .ed-bindings-list th { border-bottom: 0; }
+  .ed-bindings-list td { padding-top: 0; }
+}
+.pc-editor.ed-reading .ed-scroll { cursor: default; }
+.pc-editor .editor-dialog { width: min(36rem, 92vw); max-width: 92vw; }
+.pc-editor.ed-document .ed-scroll { padding: var(--space-4); background: var(--surface-alt); }
+.pc-editor.ed-document .ed-scroll > .doc-paginated { margin-inline: auto; }
+.ed-print-frame { position: fixed; left: -100000px; top: 0; width: 1200px; height: 1200px; border: 0; }

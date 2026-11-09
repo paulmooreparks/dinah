@@ -1,0 +1,9 @@
+{
+  "inputs": {
+    "package.json": "12d4044688c8d65a1dd06ff51068947a36a1ea7a19ff50c47036b111fd832ea7",
+    "package-lock.json": "1318686c055369ed3fb378dab758bf67da24cd5ae67b9d2dcc975716e3b5e583",
+    "entry.cjs": "7affcba7c6c3f44f7d92f9fad78c3f6c74beb7a8e2e871fcb05b9d2179012dcf",
+    "build.mjs": "479a9952823119de8e2359897a9f6d27079758fb083ad6c19c40a5c16a328f99"
+  },
+  "bundle": "b5d52a6810d76c73798b9ce112d7829223eaed4d659d6fccd9871d1060b2f486"
+}

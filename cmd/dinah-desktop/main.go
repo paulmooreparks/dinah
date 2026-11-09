@@ -60,7 +60,7 @@ func shownVersion() string {
 	return appVersion
 }
 
-//go:embed frontend/*.html frontend/*.css frontend/*.js frontend/*.svg frontend/pudl frontend/vendor
+//go:embed frontend/*.html frontend/*.css frontend/*.js frontend/*.svg frontend/pudl frontend/vendor frontend/yavc
 var assets embed.FS
 
 // webviewDataPath versions the WebView2 profile by app version, so a page

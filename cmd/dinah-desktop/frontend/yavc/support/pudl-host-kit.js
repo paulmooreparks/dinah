@@ -1,0 +1,156 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+/* pudl-host-kit 0.5.0: what every host gives a packaged applet, written
+   once (README.md, "The host interface"). A host loads this before its own
+   applet registry and builds window.pudlHost from it:
+
+     window.pudlHost = pudlHostKit.host({ snapshot: ..., fs: ..., config: ..., pages: '/page/',
+                                          services: { 'barcode-products': '/api/barcode-products/' } });
+
+   An applet reads pudlHost and uses what is there; a service that is
+   missing is a service the host does not have, and the applet does without.
+
+     pudlHost.identity(root, entries)   the applet's first menu title: its own
+                                        entries, then the window's commands
+                                        (open as a page, copy the link,
+                                        close) where it is in a window
+     pudlHost.action(root, selector, label)
+                                        a menu item that presses a button in
+                                        the applet, disabled as the button is
+     pudlHost.pages                     where applet pages are, such as /page/
+     pudlHost.pudl                      where the host's PUDL release is, such
+                                        as /pudl/, for a document of the
+                                        applet's own that needs PUDL
+     pudlHost.snapshot                  join(root, take) and leave, state kept
+                                        across a reload (optional)
+     pudlHost.fs                        readText(path), writeText(path, text)
+                                        and mkdir(path) under ~ (optional),
+                                        and, where the host has dialogs for
+                                        them, open(options) and save(options)
+                                        (each optional within fs) and
+                                        onChange(fn) (below)
+     pudlHost.config                    load, get, set, onChange for the
+                                        applet's settings (optional)
+     pudlHost.service(name)             the address of a service the host
+                                        offers under that name, ending in /,
+                                        or null where it offers none
+     pudlHost.actions                   run(ref, input): runs an action an
+                                        applet of the host publishes, such
+                                        as example.dice/roll@1, through the
+                                        host's own broker, opening a window
+                                        where the action needs one, and
+                                        resolves to its output (optional)
+     pudlHost.fetch(url, init)          fetch, as the host's own pages call
+                                        its server: with whatever a request
+                                        from them carries, such as a token
+                                        against forgery; plain fetch, on the
+                                        same origin's credentials, where the
+                                        host asks nothing more
+
+   The file dialogs are the host's own, so files come from and go to
+   wherever the host keeps them, and the reader's computer where it offers
+   that:
+
+     fs.open({ title, accept: ['.json'], start: '~', host: root,
+               check: function (path) { return reason or null; } })
+       resolves to { path, name, text } for a file of the host's, { name,
+       text } for one from the reader's computer, or null if cancelled.
+     fs.save({ title, name, blob, start: '~', host: root,
+               check: function (path) { return reason or null; } })
+       writes blob where the reader chooses and resolves to { path }, to
+       { download: name } when the reader downloaded it instead, or to null
+       if cancelled; it rejects with the reason a write failed. A host that
+       keeps only text offers a picture as a download.
+     fs.onChange(fn)
+       calls fn() after any file of the host's changes, here or in another
+       tab, and returns a function that stops it.
+     fs.find(query, limit)
+       resolves to the host's files whose names hold the query, as
+       [{ path, name, kind }], kind being file, page or dir, at most limit
+       of them (optional within fs).
+
+   A page with no server installs a package itself:
+
+     pudlHostKit.install('/applets/hello/applet.json').then(function (manifest) { ... });
+
+   fetches the manifest and defines the applet from it; the page then needs
+   only a mount, <div data-applet="hello"></div>. */
+(function () {
+    'use strict';
+    if (window.pudlHostKit) { return; }
+
+    /* The applet's first menu: its own entries, then, in a window, the
+       window's commands for the applet in the words an applet uses. Close
+       window is not a danger here: closing loses nothing. On a page, Copy
+       link to this applet copies the page's address. */
+    function identity(root, entries) {
+        var result = (entries || []).slice(), win = root.closest('[data-win]');
+        if (win && window.pudlWindows) {
+            var commands = window.pudlWindows.menuCommands(win.getAttribute('data-win'));
+            ['page', 'copy-link', 'close'].forEach(function (id) {
+                var command = commands.find(function (c) { return c.id === id; });
+                if (!command) { return; }
+                if (result.length && (id === 'page' || id === 'close')) { result.push('-'); }
+                result.push(Object.assign({}, command, {
+                    label: id === 'page' ? 'Open as a Page' : id === 'copy-link' ? 'Copy Link to This Applet' : 'Close Window'
+                }, id === 'close' ? { danger: false } : {}));
+            });
+        } else if (navigator.clipboard) {
+            if (result.length) { result.push('-'); }
+            result.push({ label: 'Copy Link to This Applet', run: function () {
+                return navigator.clipboard.writeText(location.href).catch(function () {
+                    var old=root.querySelector('[data-host-copy-notice]');if(old)old.remove();
+                    var notice=document.createElement('div');notice.className='notice danger';notice.setAttribute('role','alert');notice.setAttribute('data-host-copy-notice','');
+                    var content=document.createElement('div');content.className='notice-content';
+                    var text=document.createElement('p');text.className='notice-body';text.textContent='The link could not be copied. Copy the address from your browser.';
+                    content.appendChild(text);notice.appendChild(content);root.prepend(notice);
+                });
+            } });
+        }
+        return result;
+    }
+
+    /* A control in the applet and its menu item share one availability and one action. */
+    function action(root, selector, label) {
+        var button = root.querySelector(selector);
+        return { label: label, disabled: !button || button.disabled, run: function () {
+            if (root.isConnected && button && !button.disabled) { button.click(); }
+        } };
+    }
+
+    /* services, the named addresses, becomes service(name); the rest are
+       pudlHost's members as given. */
+    function host(given) {
+        var named = (given && given.services) || {};
+        var h = { identity: identity, action: action, pages: '/page/', pudl: '/pudl/', service: function (name) {
+            return Object.prototype.hasOwnProperty.call(named, name) ? named[name] : null;
+        }, fetch: function (url, init) { return window.fetch(url, Object.assign({ credentials: 'same-origin' }, init || {})); } };
+        Object.keys(given || {}).forEach(function (k) { if (k !== 'services' && given[k] != null) { h[k] = given[k]; } });
+        return h;
+    }
+
+    /* The define() a manifest stands for: its files at the manifest's own
+       address, its page where the host keeps applet pages, and its version
+       as the cache stamp. */
+    function defineFrom(manifest, manifestUrl) {
+        var base = String(manifestUrl).replace(/[^/]*$/, '');
+        var pages = (window.pudlHost && window.pudlHost.pages) || '/page/';
+        var cfg = { src: base + manifest.src, page: pages + manifest.name, ver: String(manifest.version) };
+        if (manifest.css) { cfg.css = base + manifest.css; }
+        if (manifest.handles) { cfg.handles = manifest.handles; }
+        if (manifest.instances) { cfg.instances = manifest.instances; }
+        if (manifest.actions) { cfg.actions = base + manifest.actions; }
+        return cfg;
+    }
+
+    function install(manifestUrl) {
+        return fetch(manifestUrl, { credentials: 'same-origin' })
+            .then(function (r) { if (!r.ok) { throw new Error(manifestUrl + ': HTTP ' + r.status); } return r.json(); })
+            .then(function (m) {
+                if (!m || typeof m.name !== 'string' || typeof m.src !== 'string') { throw new Error(manifestUrl + ' is not an applet manifest'); }
+                window.pudlApplets.define(m.name, defineFrom(m, manifestUrl));
+                return m;
+            });
+    }
+
+    window.pudlHostKit = { version: '0.5.0', identity: identity, action: action, host: host, install: install, defineFrom: defineFrom };
+})();

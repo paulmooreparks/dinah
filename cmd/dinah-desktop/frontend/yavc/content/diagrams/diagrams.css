@@ -1,0 +1,250 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+.dg-item-dialog { width: min(38rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+.dg-item-list { max-height: 45svh; overflow: auto; }
+.dg-item-list .listbox-title, .dg-item-list .listbox-detail { overflow-wrap: anywhere; }
+.dg-conversion-dialog.dialog { width: min(44rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+.dg-conversion-dialog .dialog-body { max-height: 65svh; overflow: auto; overflow-wrap: anywhere; }
+/* Diagrams (diagrams.js, docs/diagrams-design.md): the chrome is Slides'
+   (slides.css), so the toolbar, the tabs, the splitter and the status line
+   sit where they sit there, and the drawing takes the canvas's place. */
+
+.dg { display: flex; flex-direction: column; min-height: 0; font-size: var(--text-sm); }
+.dg-fill { flex: 1 1 auto; height: 100%; }
+.dg-flow { height: min(80svh, 820px); min-height: 400px; }
+.dg:focus { outline: none; }
+.dg .dg-toolbar-slot { flex: none; min-width: 0; padding: var(--space-1) var(--space-3) var(--space-2); }
+.dg-tabs { flex: none; min-height: 34px; }
+.dg-tabs[hidden] { display: none; }
+.dg-main { flex: 1 1 auto; min-height: 0; display: flex; position: relative; border-top: 1px solid var(--border); }
+.dg-work { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
+.dg-work:not([data-split-pane]) { --split-a: 55%; }
+.dg-work.stacked > .dg-split { cursor: row-resize; }
+.dg-split[hidden] { display: none; }
+.dg-stagebox { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface); }
+.dg-stagebox > .yavc-notice { flex: none; margin: var(--space-2) var(--space-3) 0; }
+.dg-visual-row { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0; }
+.dg-outline { flex: 0 1 13rem; min-width: 8rem; max-width: 25%; overflow: auto; padding: var(--space-2); border-inline-end: 1px solid var(--border); background: var(--surface-alt); }
+.dg-outline[hidden] { display: none; }
+.dg-outline .tree { margin-block: var(--space-2); }
+.dg-outline .tree a > span:last-child { overflow-wrap: anywhere; min-width: 0; }
+.dg-outline .tree a[aria-disabled="true"] { opacity: .55; cursor: default; }
+.dg-outline ul { list-style: none; padding: 0; margin: var(--space-2) 0; }
+.dg-outline li + li { margin-block-start: var(--space-1); }
+.dg-outline button { width: 100%; justify-content: flex-start; gap: var(--space-2); }
+.dg-outline button > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--space-4); }
+.dg-stage:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--focus-ring); }
+.dg-canvas { min-height: 100%; display: flex; }
+.dg-place { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.dg-place > img, .dg-place > svg { display: block; flex: none; }
+/* Fit: the drawing scales down to the pane and never up past its size. */
+.dg-canvas.dg-fit { height: 100%; min-height: 0; }
+.dg-canvas.dg-fit .dg-place { min-height: 0; }
+.dg-canvas.dg-fit .dg-place > img, .dg-canvas.dg-fit .dg-place > svg { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+/* The last good drawing, kept while the text has a mistake (decision 5). */
+.dg-place.sc-diagram-stale > img, .dg-place.sc-diagram-stale > svg { opacity: 0.35; filter: grayscale(0.6); }
+.dg-place > .loading { align-self: center; }
+.dg-text { min-width: 0; min-height: 0; overflow: hidden; }
+.dg-text .cm-editor { height: 100%; }
+.dg-status { flex: none; display: flex; gap: var(--space-3); align-items: center; padding: 2px var(--space-3); font-size: var(--text-xs); color: var(--text-muted); border-top: 1px solid var(--border); min-height: 1.6em; font-family: var(--mono); }
+.dg-message { margin-inline-start: auto; font-family: var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* === The visual editor (canvas.js, milestone D3) ========================== */
+/* The layer over a D2 drawing: invisible until something is pointed at or
+   selected, and the selection is PUDL's focus ring. Its lines keep their
+   width however far the drawing is scaled. */
+.dg-place.dg-editable { position: relative; }
+.dg-layer { position: absolute; overflow: visible; pointer-events: none; }
+.dg-place.sc-diagram-stale .dg-layer { display: none !important; }
+.dg-hit { pointer-events: auto; cursor: pointer; }
+.dg-hit-shape { fill: transparent; stroke: transparent; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.dg-hit-wide { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: stroke; }
+.dg-hit-thin { fill: none; stroke: transparent; stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* Hover is the faintest mark; the selection is stronger, an accent edge
+   as Slides marks its selected slide, and while the drawing has the
+   keyboard it becomes the focus ring, the one ring on the pane. A selected
+   connection is a wide halo, since its own line is the accent already. */
+.dg-hit-shape:hover { stroke: color-mix(in srgb, var(--accent) 22%, transparent); stroke-dasharray: 4 3; }
+.dg-hit-line:hover .dg-hit-wide { stroke: color-mix(in srgb, var(--accent) 14%, transparent); }
+.dg-hit-shape.is-selected { stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; }
+.dg-hit-line.is-selected .dg-hit-wide { stroke: color-mix(in srgb, var(--accent) 30%, transparent); stroke-width: 10; }
+.dg-stage:focus .dg-hit-shape.is-selected { stroke: var(--focus-ring); stroke-width: 6; }
+.dg-stage:focus .dg-hit-line.is-selected .dg-hit-wide { stroke: var(--focus-ring); stroke-width: 12; }
+.dg-stage:focus-visible:has(.is-selected) { box-shadow: none; }
+@media (forced-colors: active) {
+  .dg-layer { forced-color-adjust: none; }
+  .dg-hit-shape:hover { stroke: CanvasText; }
+  .dg-hit-shape.is-selected, .dg-stage:focus .dg-hit-shape.is-selected { stroke: Highlight; stroke-width: 3; }
+  .dg-hit-line.is-selected .dg-hit-wide, .dg-stage:focus .dg-hit-line.is-selected .dg-hit-wide { stroke: Highlight; stroke-width: 6; }
+}
+/* While a connection is being made, the pointer says a shape is to be chosen. */
+.dg-connecting .dg-hit-shape { cursor: crosshair; }
+
+/* === The palette's glyphs ================================================= */
+/* One outline for each kind of shape the palette places, drawn as PUDL's
+   glyphs are, a 16 pixel stroke that takes the text's colour. */
+:root {
+  --glyph-yavc-select: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M3.5 2.5l9 5-4 1.2-1.8 4.3z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-rectangle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Crect x='2' y='4' width='12' height='8' rx='1'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-oval: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cellipse cx='8' cy='8' rx='6' ry='4'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-diamond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M8 2.5L13.5 8L8 13.5L2.5 8z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-parallelogram: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M4.5 4h9l-2 8h-9z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-document: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M2.5 3.5h11v8c-2 -1.5 -3.5 1.5 -5.5 0s-3.5 1 -5.5 0z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-cylinder: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cellipse cx='8' cy='4' rx='5' ry='1.8'/%3E%3Cpath d='M3 4v8c0 1 2.2 1.8 5 1.8s5 -.8 5 -1.8V4'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-queue: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cellipse cx='12' cy='8' rx='1.8' ry='4'/%3E%3Cpath d='M12 4H4c-1 0 -1.8 1.8 -1.8 4s.8 4 1.8 4h8'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-person: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Ccircle cx='8' cy='5' r='2.5'/%3E%3Cpath d='M3 14c0 -3 2.2 -5 5 -5s5 2 5 5z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-cloud: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M4.5 12.5a2.5 2.5 0 0 1 -.3 -5a3.5 3.5 0 0 1 6.8 -1a2.8 2.8 0 0 1 .5 6z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-hexagon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M4.5 3h7L14.5 8l-3 5h-7L1.5 8z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-package: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M2 5h5l1 -1.5h3V5h3v8H2z'/%3E%3C/svg%3E");
+  --glyph-yavc-shape-text: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M4 4h8M8 4v8M6 12h4'/%3E%3C/svg%3E");
+}
+
+/* === Placing and dragging (milestone D3) ================================== */
+/* The ground under the shapes takes a click on empty space. While the
+   palette has a kind chosen, the pointer is a crosshair over the drawing.
+   The selected shape's handle is a raised dot on its right edge, from which
+   a connection is dragged out; while dragging, the shape or connection
+   being made is a dashed outline, and the shape it would land on has a
+   dashed accent edge. */
+.dg-ground { fill: transparent; pointer-events: auto; }
+.dg-placing .dg-ground, .dg-placing .dg-hit-shape { cursor: crosshair; }
+.dg-handle { fill: var(--surface); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: auto; cursor: crosshair; }
+.dg-handle:hover { fill: var(--accent); }
+.dg-ghost { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.dg-hit-shape.is-target { stroke: var(--accent); stroke-width: 3; stroke-dasharray: 6 3; }
+.dg-handle-grip { fill: transparent; stroke: none; }
+.dg-handle-grip:hover + .dg-handle { fill: var(--accent); }
+/* A selected shape can be dragged; a move grabs it, and a connection being
+   dragged out keeps the crosshair. */
+.dg-place:not(.dg-dragging) .dg-hit-shape.is-selected { cursor: grab; }
+.dg-placing .dg-place .dg-hit-shape.is-selected { cursor: crosshair; }
+.dg-place.dg-dragging-move, .dg-place.dg-dragging-move .dg-hit { cursor: grabbing; }
+.dg-place.dg-dragging-connect, .dg-place.dg-dragging-connect .dg-hit { cursor: crosshair; }
+@media (forced-colors: active) {
+  .dg-handle, .dg-ghost, .dg-hit-shape.is-target { stroke: Highlight; }
+  .dg-handle { fill: Canvas; }
+  .dg-handle:hover, .dg-handle-grip:hover + .dg-handle { fill: Highlight; }
+  .dg-handle-grip { fill: transparent; stroke: none; }
+}
+/* === The inspector (milestone D3) ========================================= */
+/* Beside the drawing, a column of PUDL's sunken fields for what is
+   selected; it scrolls on its own, and narrows the drawing rather than
+   covering it. */
+.dg-body { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; --dg-inspector-width: 22rem; --split-a: calc(100% - var(--dg-inspector-width) - 6px); }
+.dg-body > .dg-stage { flex: none; width: var(--split-a); min-width: 0; }
+.dg-inspector { overflow: auto; padding: var(--space-3); background: var(--surface-alt); font-size: var(--text-sm); }
+.dg-choice { border: 0; padding: 0; min-width: 0; container-type: inline-size; }
+.dg-choice .seg { display: inline-flex; align-self: flex-start; width: fit-content; max-width: 100%; flex-wrap: wrap; }
+.dg-choice .seg button { flex: 0 0 auto; min-width: 0; padding-inline: var(--space-2); gap: var(--space-1); white-space: nowrap; }
+.dg-choice .seg button > .glyph { flex: none; --glyph-size: 14px; }
+@container (max-width: 12rem) {
+  .dg-choice .seg { flex-wrap: nowrap; }
+  .dg-choice .seg button { padding-inline: var(--space-1); }
+  .dg-choice .seg button > span:not(.glyph) { display: none; }
+}
+.dg-color-presets { margin-block: var(--space-2) var(--space-3); }
+.dg-color-dot { display: inline-block; width: 1em; height: 1em; border: 1px solid var(--border); border-radius: 50%; }
+.dg-property-picker { max-width: 100%; justify-content: flex-start; gap: var(--space-2); }
+.dg-property-picker.menu-btn::after { margin-inline-start: auto; }
+.dg-property-menu-wrap { align-self: flex-start; max-width: 100%; }
+.dg-property-menu { min-width: 12rem; }
+.dg-option-content { display: inline-flex; align-items: center; gap: var(--space-2); }
+.dg-option-content > .glyph { flex: none; color: var(--text-muted); }
+.dg-inspector[hidden] { display: none; }
+.dg-inspector .form-group { margin-bottom: var(--space-3); }
+.dg-inspector .form-group > .btn { align-self: flex-start; }
+.dg-inspector .form-input, .dg-inspector .form-select { width: 100%; box-sizing: border-box; }
+.dg-inspector-title { margin: 0; font-size: var(--text-md, 1rem); font-weight: 700; }
+.dg-inspector-id { margin: 2px 0 var(--space-3); font-family: var(--mono); color: var(--text-muted); overflow-wrap: anywhere; }
+.dg-inspector-empty { margin: 0; color: var(--text-muted); }
+.dg-row { display: flex; gap: var(--space-2); align-items: center; }
+.dg-row > .form-select-wrap { flex: 1 1 auto; min-width: 0; }
+.dg-inspector-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.dg-inspector-blocked { margin: 0 0 var(--space-3); }
+.dg[data-kind="mermaid"] .dg-inspector { display: none; }
+
+/* === A canvas (docs/canvas-design.md) ===================================== */
+/* A text node's Markdown, drawn as HTML over its shape (decision 6), at the
+   size and colour the picture's SVG text uses, cut off at the node's edge
+   as the format's own applications do. */
+.dg-cv-text { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; padding: 6px 8px; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.dg-cv-text > * { flex-shrink: 0; }
+.dg-cv-text > :first-child { margin-top: 0; }
+.dg-cv-text > :last-child { margin-bottom: 0; }
+.dg-cv-text :is(p, ul, ol, pre, blockquote, table) { margin: 0 0 0.5em; }
+.dg-cv-text :is(h1, h2, h3, h4, h5, h6) { margin: 0 0 0.35em; line-height: 1.2; }
+.dg-cv-text h1 { font-size: 1.4em; }
+.dg-cv-text h2 { font-size: 1.25em; }
+.dg-cv-text :is(h3, h4, h5, h6) { font-size: 1.1em; }
+.dg-cv-text :is(ul, ol) { padding-inline-start: 1.2em; }
+.dg-cv-text.is-auto-align :is(ul, ol) { text-align: start; }
+.dg-cv-text img { max-width: 100%; height: auto; }
+
+/* The editing camera is a viewport on file coordinates. The plain SVG
+   retained for export has its own content bounds and no editing controls. */
+:root { --glyph-yavc-shape-rounded: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4'%3E%3Crect x='2' y='4' width='12' height='8' rx='3'/%3E%3C/svg%3E"); }
+:root {
+  --glyph-yavc-align-default: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='12' height='12' rx='1'/%3E%3Cpath d='M5 6h6M5 9h4'/%3E%3C/svg%3E");
+  --glyph-yavc-align-left: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4'%3E%3Cpath d='M2 3h12M2 6h8M2 9h12M2 12h8'/%3E%3C/svg%3E");
+  --glyph-yavc-align-center: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4'%3E%3Cpath d='M2 3h12M4 6h8M2 9h12M4 12h8'/%3E%3C/svg%3E");
+  --glyph-yavc-align-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4'%3E%3Cpath d='M2 3h12M6 6h8M2 9h12M6 12h8'/%3E%3C/svg%3E");
+  --glyph-yavc-align-top: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M2 2h12M4 5v7h3V5zm5 0v4h3V5z'/%3E%3C/svg%3E");
+  --glyph-yavc-align-middle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h14M4 3v10h3V3zm5 2v6h3V5z'/%3E%3C/svg%3E");
+  --glyph-yavc-align-bottom: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M2 14h12M4 4v7h3V4zm5 3v4h3V7z'/%3E%3C/svg%3E");
+  --glyph-yavc-line-solid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' stroke='black' stroke-width='1.6'%3E%3Cpath d='M1 8h14'/%3E%3C/svg%3E");
+  --glyph-yavc-line-dashed: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' stroke='black' stroke-width='1.6'%3E%3Cpath d='M1 8h3m2 0h4m2 0h3'/%3E%3C/svg%3E");
+  --glyph-yavc-line-dotted: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='black'%3E%3Ccircle cx='2' cy='8' r='1'/%3E%3Ccircle cx='6' cy='8' r='1'/%3E%3Ccircle cx='10' cy='8' r='1'/%3E%3Ccircle cx='14' cy='8' r='1'/%3E%3C/svg%3E");
+  --glyph-yavc-save-as: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3' stroke-linejoin='round'%3E%3Cpath d='M7 14H2V2h9l3 3v2M4 2v4h6V2M4 14V9h3M9 11l4-4 2 2-4 4-3 1z'/%3E%3C/svg%3E");
+  --glyph-yavc-route-elbow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5'%3E%3Cpath d='M1 3h7v10h7'/%3E%3C/svg%3E");
+  --glyph-yavc-route-straight: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' stroke='black' stroke-width='1.5'%3E%3Cpath d='M1 13L15 3'/%3E%3C/svg%3E");
+  --glyph-yavc-route-curve: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5'%3E%3Cpath d='M1 3c14 0 0 10 14 10'/%3E%3C/svg%3E");
+  --glyph-yavc-head-none: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' stroke='black' stroke-width='1.5'%3E%3Cpath d='M1 8h13'/%3E%3C/svg%3E");
+  --glyph-yavc-head-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 8h10' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 3l7 5-7 5z'/%3E%3C/svg%3E");
+  --glyph-yavc-head-triangle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h7M8 3l7 5-7 5z'/%3E%3C/svg%3E");
+  --glyph-yavc-head-diamond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h4m0 0 5-4 5 4-5 4z'/%3E%3C/svg%3E");
+  --glyph-yavc-head-circle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h5'/%3E%3Ccircle cx='10.5' cy='8' r='4.5'/%3E%3C/svg%3E");
+  --glyph-yavc-head-box: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h5M6 4h8v8H6z'/%3E%3C/svg%3E");
+  --glyph-yavc-head-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h10M7 4l8 8m0-8-8 8'/%3E%3C/svg%3E");
+  --glyph-yavc-head-cf-one: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h14M11 3v10'/%3E%3C/svg%3E");
+  --glyph-yavc-head-cf-one-required: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h14M9 3v10m4-10v10'/%3E%3C/svg%3E");
+  --glyph-yavc-head-cf-many: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h14m0-5L7 8l8 5'/%3E%3C/svg%3E");
+  --glyph-yavc-head-cf-many-required: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M1 8h14m0-5L8 8l7 5M5 3v10'/%3E%3C/svg%3E");
+}
+.dg[data-kind="canvas"] .dg-stage { padding: 0; overflow: hidden; }
+.dg[data-kind="canvas"] .dg-canvas { height: 100%; min-height: 0; }
+.dg-place.dg-cv-editor { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; touch-action: none; user-select: none; }
+.dg[data-kind="canvas"] .dg-canvas .dg-cv-editor > svg { width: 100%; height: 100%; max-width: none; max-height: none; }
+.dg-cv-editor > svg:first-child { pointer-events: none; }
+.dg-cv-editor.dg-cv-grid { background-image: radial-gradient(circle, var(--border) 1px, transparent 1px); }
+.dg-cv-layer, .dg-cv-grips { position: absolute; inset: 0; pointer-events: none; }
+.dg-cv-hit { fill: transparent; pointer-events: all; cursor: grab; }
+.dg-cv-hit:hover { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.dg-cv-edge-hit { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
+.dg-cv-ring { fill: none; stroke: var(--focus-ring); stroke-width: 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.dg-stage:focus-visible:has(.dg-cv-ring) { box-shadow: none; }
+.dg-cv-line-ring { stroke-width: 8; stroke-opacity: 0.5; }
+.dg-cv-preview { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.dg-cv-guide { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.dg-cv-grips .dg-cv-grip { position: absolute; width: 12px; height: 12px; min-width: 12px; min-height: 12px; padding: 0; transform: translate(-50%, -50%); pointer-events: auto; }
+.dg-cv-grips .dg-cv-connect { width: 16px; height: 16px; border-radius: 50%; cursor: crosshair; }
+.dg-cv-grips .dg-cv-resize { border-radius: 2px; }
+.dg-cv-grips .dg-cv-reconnect { width: 16px; height: 16px; border-radius: 50%; cursor: crosshair; }
+.dg-cv-route-muted { opacity: 0.2; }
+.dg-cv-grips .dg-cv-connect::after { content: ''; width: 8px; height: 8px; background: currentColor; mask: var(--glyph-plus) center / contain no-repeat; }
+.dg-cv-editor.dg-cv-dragging, .dg-cv-editor.dg-cv-dragging .dg-cv-hit { cursor: grabbing; }
+.dg-inline-editor { position: absolute; z-index: 2; display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: auto; padding: var(--space-1); background: var(--surface); border: 2px solid var(--focus-ring); box-sizing: border-box; }
+.dg-inline-editor .form-input { flex: 1 1 auto; min-height: 64px; resize: none; width: 100%; box-sizing: border-box; font-family: var(--mono); }
+.dg-inline-editor .form-help { margin: var(--space-1) 0 0; font-size: var(--text-xs); }
+.dg-place.sc-diagram-stale :is(.dg-cv-layer, .dg-cv-grips) { visibility: hidden; }
+.dg[data-kind="canvas"].dg-placing .dg-cv-editor { cursor: crosshair; }
+.dg[data-kind="canvas"].dg-placing .dg-cv-hit { cursor: crosshair; }
+.dg.dg-cv-panning :is(.dg-cv-editor, .dg-cv-hit) { cursor: grab; }
+@media (forced-colors: active) {
+  .dg-cv-ring, .dg-cv-hit:hover, .dg-cv-preview, .dg-cv-guide { stroke: Highlight; forced-color-adjust: none; }
+  .dg-cv-line-ring { stroke-opacity: 1; }
+}
+
+/* Keep file locations readable without making the status strip taller. */
+.dg-status { min-width: 0; overflow: hidden; white-space: nowrap; }
+.dg-status [data-role="where"] { flex: 0 1 auto; min-width: 2rem; overflow: hidden; text-overflow: ellipsis; }
+.dg-status [data-role="kind"], .dg-status [data-role="state"] { flex-shrink: 0; }

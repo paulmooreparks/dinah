@@ -1,0 +1,41 @@
+{
+  "name": "docs",
+  "title": "Docs",
+  "version": "1.13.2",
+  "description": "Write and format Markdown documents.",
+  "license": "Apache-2.0",
+  "src": "docs.js",
+  "css": "docs.css",
+  "icon": "icon.svg",
+  "page": {
+    "body": "page.html"
+  },
+  "window": {
+    "shape": "0.6,0.8"
+  },
+  "handles": {
+    "document": {
+      "param": "file",
+      "kinds": [
+        "file",
+        "script",
+        "page"
+      ],
+      "extra": [
+        "view",
+        "initial-view"
+      ]
+    }
+  },
+  "actions": "actions.json",
+  "wants": [
+    "snapshot",
+    "fs",
+    "config",
+    "commandToolbar"
+  ],
+  "tags": [
+    "site"
+  ],
+  "instances": 9
+}

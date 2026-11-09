@@ -1,0 +1,1818 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+/* Lifted from Dinah Desktop (cmd/dinah-desktop/frontend/page-view.js, Apache-2.0) for yavc.app: the
+   Markdown engine is yavc-md.wasm in the browser, through the Editor (editor.js). */
+/* Page view: the Editor's document edited as the page it will be. The whole document is one
+   ProseMirror editor (vendor/prosemirror-1.42): text is typed, selected,
+   pasted and moved through across paragraphs, headings, lists and tables
+   as in a word processor. Go reads the draft's text into the
+   editor's document and writes it back (pageview); a block the person did
+   not change is written back as the text it was read from, byte for byte,
+   so an edit changes only the block it was made in. Code, diagrams, images
+   and other blocks with no rich form are drawn as the preview draws them,
+   and a click on one edits its Markdown in place. What is typed reaches the text, and the draft, a moment
+   later, so the text stays the store of the document. */
+(function () {
+  'use strict';
+
+  /* The editor's files sit beside this one. */
+  var BASE = ((document.currentScript && document.currentScript.src) || '').split('?')[0].replace(/[^/]*$/, '');
+  var pmReady = null;
+  function loadProseMirror() {
+    if (window.PM && window.PM.EditorView) return Promise.resolve(window.PM);
+    if (!pmReady) {
+      pmReady = new Promise(function (resolve, reject) {
+        // tables.css is not loaded: it gives tables fixed column widths, and
+        // the page draws them as the preview does (editor-applet.css).
+        ['prosemirror.css', 'gapcursor.css'].forEach(function (name) {
+          var link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = BASE + 'vendor/prosemirror-1.42/' + name;
+          document.head.appendChild(link);
+        });
+        window.yavcUtil.loadScript(BASE + 'vendor/prosemirror-1.42/prosemirror.js?v=2').then(function () { resolve(window.PM); },
+          function () { pmReady = null; reject(new Error('The page editor could not be loaded.')); });
+      });
+    }
+    return pmReady;
+  }
+
+  /* The blocks Page view inserts: from the Edit menu's Insert row, from the
+     / menu on an empty line, and, in Text and Split, as their Markdown. The
+     placeholder is selected after inserting, to be typed over. */
+  var PLACEHOLDER = 'Type here.';
+  var INSERTS = [
+    { id: 'insert-checklist', label: 'Checklist', words: 'checklist task checkbox todo', markdown: '- [ ] ' + PLACEHOLDER },
+    { id: 'insert-table', label: 'Table', words: 'table grid rows columns', markdown: '| Heading 1 | Heading 2 | Heading 3 |\n| --- | --- | --- |\n| | | |\n| | | |' },
+    { id: 'insert-code', label: 'Code Block', words: 'code block snippet', markdown: '```\ncode\n```' }
+  ];
+  function insertOf(id) { return INSERTS.find(function (i) { return i.id === id; }); }
+
+  /* The editor's schema. Its names and attributes are pageview's (Go), and
+     each node and mark is drawn with the tags the preview draws it with. A
+     block read from the text keeps where it came from (uid, gap, src) so Go
+     can write it back unchanged. What the page puts on the clipboard is its
+     blocks' HTML; where a block came from in the text (uid, src) does not go
+     with it, so a pasted copy is a new block, and a block kept as its
+     Markdown keeps that Markdown in a data attribute. */
+  var place = { uid: { default: null }, gap: { default: null }, src: { default: null }, canonical: { default: null } };
+  function withPlace(attrs) { return Object.assign({}, place, attrs || {}); }
+      /* A colour as the engine writes it in a style: the site's names as
+       its tokens, anything else as given, kept to what a colour can be. */
+    function colorCSS(v) {
+      v = String(v || '').trim();
+      var named = { ink: 'var(--deck-ink, var(--dinah-ink, var(--text)))', text: 'var(--deck-ink, var(--dinah-ink, var(--text)))', muted: 'var(--deck-muted, var(--dinah-muted-ink, var(--text-muted)))', accent: 'var(--deck-accent, var(--accent))', danger: 'var(--danger)', warn: 'var(--warn)', warning: 'var(--warn)', positive: 'var(--positive)', ok: 'var(--positive)' };
+      if (named[v.toLowerCase()]) return named[v.toLowerCase()];
+      return /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{3,24}|(rgb|rgba|hsl|hsla|oklch|oklab)\([0-9a-zA-Z%.,\/ -]{1,60}\))$/.test(v) ? v : 'inherit';
+    }
+var schemaCache = null;
+  function criticAttrs(dom){
+    var raw=dom.getAttribute('data-critic-raw');if(!raw||raw.length>65542)return false;
+    try{var data=window.yavcMdEngine.current().inlineReview(raw);return {src:data.src,kind:data.kind,html:window.yavcHTML.clean(data.html),cellSafe:data.cellSafe};}catch(err){return false;}
+  }
+  function schemaOf(PM) {
+    if (schemaCache) return schemaCache;
+    var table = PM.tableNodes({ tableGroup: 'block', cellContent: 'inline*', cellAttributes: {
+      align: { default: '', getFromDOM: function (dom) { var value = dom.style.textAlign || dom.getAttribute('align') || ''; return /^(left|center|right)$/.test(value) ? value : ''; },
+        setDOMAttr: function (value, attrs) { if (/^(left|center|right)$/.test(value)) attrs.style = (attrs.style || '') + 'text-align:' + value + ';'; } }
+    } });
+    table.table.attrs = withPlace(table.table.attrs);
+    table.table.toDOM = function () {
+      var dom = document.createElement('table'), body = document.createElement('tbody');
+      dom.appendChild(body);
+      return { dom: dom, contentDOM: body };
+    };
+    table.table.parseDOM = [{ tag: 'table' }];
+    /* A cell holds its text directly, so it is a text block, and the gap
+       cursor would otherwise take the place between two cells for one where
+       a block could go: the right arrow at the end of a cell drew it there,
+       as an extra cell that pushed the row over. allowGapCursor, documented
+       in prosemirror-gapcursor's README, keeps it out of a row. */
+    table.table_row = Object.assign({}, table.table_row, { allowGapCursor: false });
+    var headings = [1, 2, 3, 4, 5, 6].map(function (l) { return { tag: 'h' + l, attrs: { level: l } }; });
+    schemaCache = new PM.Schema({
+      nodes: {
+        doc: { content: 'block+', attrs: { front: { default: '' }, tail: { default: '\n' }, crlf: { default: false } } },
+        paragraph: { group: 'block', content: 'inline*', attrs: withPlace(), parseDOM: [{ tag: 'p' }], toDOM: function () { return ['p', 0]; } },
+        heading: { group: 'block', content: 'inline*', defining: true, attrs: withPlace({ level: { default: 1 } }), parseDOM: headings,
+          toDOM: function (n) { return ['h' + n.attrs.level, 0]; } },
+        blockquote: { group: 'block', content: 'block+', defining: true, attrs: withPlace(), parseDOM: [{ tag: 'blockquote' }], toDOM: function () { return ['blockquote', 0]; } },
+        bullet_list: { group: 'block', content: 'list_item+', attrs: withPlace({ tight: { default: true }, marker: { default: '-' } }), parseDOM: [{ tag: 'ul' }],
+          toDOM: function (n) { return ['ul', n.attrs.tight ? { class: 'pm-tight' } : {}, 0]; } },
+        ordered_list: { group: 'block', content: 'list_item+', attrs: withPlace({ order: { default: 1 }, tight: { default: true } }),
+          parseDOM: [{ tag: 'ol', getAttrs: function (d) { return { order: +(d.getAttribute('start') || 1) }; } }],
+          toDOM: function (n) {
+            var attrs = n.attrs.tight ? { class: 'pm-tight' } : {};
+            if (n.attrs.order !== 1) attrs.start = n.attrs.order;
+            return ['ol', attrs, 0];
+          } },
+        /* A task item (checked true or false; null for a plain item) draws
+           its box before its blocks, as the preview does. The box is not
+           part of the editable text; clicking it ticks the item
+           (taskBoxes). A pasted item keeps a box it had. */
+        list_item: { content: 'paragraph (paragraph | blockquote | bullet_list | ordered_list)*', defining: true, attrs: withPlace({ checked: { default: null } }),
+          parseDOM: [{ tag: 'li', contentElement: function (d) { return d.querySelector(':scope > .pm-task-body') || d; },
+            getAttrs: function (d) {
+              var box = d.querySelector(':scope > input[type="checkbox"], :scope > .pm-check > input[type="checkbox"]');
+              return { checked: box ? box.checked : null };
+            } }],
+          toDOM: function (n) {
+            if (n.attrs.checked === null) return ['li', 0];
+            var box = { type: 'checkbox', tabindex: '0', 'aria-label': n.attrs.checked ? 'Done' : 'Not Done' };
+            if (n.attrs.checked) box.checked = '';
+            return ['li', { class: 'pm-task' }, ['span', { class: 'pm-check', contenteditable: 'false' }, ['input', box]], ['div', { class: 'pm-task-body' }, 0]];
+          } },
+        table: table.table,
+        table_row: table.table_row,
+        table_cell: table.table_cell,
+        table_header: table.table_header,
+        // A block with no rich form, kept as its Markdown and drawn as the
+        // preview draws it.
+        source_block: { group: 'block', atom: true, selectable: true,
+          attrs: withPlace({ kind: { default: 'text' }, html: { default: '' }, diagrams: { default: null } }),
+          parseDOM: [{ tag: 'div.pm-source', getAttrs: function (d) {
+            // HTML read from a paste is made safe as it is read (safe-html.js),
+            // so that whatever draws the block later has only safe HTML.
+            return { src: d.getAttribute('data-src'), kind: d.getAttribute('data-kind') || 'text', html: window.yavcHTML.clean(d.getAttribute('data-html') || '') };
+          } }],
+          toDOM: function (n) { return ['div', { class: 'pm-source', 'data-src': n.attrs.src || '', 'data-kind': n.attrs.kind, 'data-html': n.attrs.html }]; } },
+        /* A container shortcode, a notice say, whose body is blocks edited
+           here, drawn inside the HTML the preview draws for it (before and
+           after); and a column set, a row of columns each a run of blocks
+           (docs/page-view-design.md). Both keep their opening and closing
+           lines, to be written back as they were. */
+        container: { group: 'block', content: 'block+', defining: true, isolating: true,
+          attrs: withPlace({ name: { default: 'note' }, args: { default: '' }, open: { default: '' }, close: { default: '' }, before: { default: '' }, after: { default: '' }, tail: { default: '' } }),
+          parseDOM: [{ tag: 'div.pm-box[data-name]:not([data-columns])', getAttrs: function (d) {
+            return { name: d.getAttribute('data-name'), args: d.getAttribute('data-args') || '', open: d.getAttribute('data-open') || '', close: d.getAttribute('data-close') || '',
+              before: window.yavcHTML.clean(d.getAttribute('data-before') || ''), after: window.yavcHTML.clean(d.getAttribute('data-after') || '') };
+          } }],
+          toDOM: function (n) { return ['div', { class: 'pm-box', 'data-name': n.attrs.name, 'data-args': n.attrs.args, 'data-open': n.attrs.open, 'data-close': n.attrs.close, 'data-before': n.attrs.before, 'data-after': n.attrs.after }, 0]; } },
+        columns: { group: 'block', content: 'column+', defining: true, isolating: true,
+          attrs: withPlace({ name: { default: 'columns' }, args: { default: '' }, open: { default: '' }, close: { default: '' }, before: { default: '' }, after: { default: '' }, sep: { default: 'column' }, seps: { default: null } }),
+          parseDOM: [{ tag: 'div.pm-box[data-columns]', getAttrs: function (d) { return { name: d.getAttribute('data-name') || 'columns', open: d.getAttribute('data-open') || '', close: d.getAttribute('data-close') || '' }; } }],
+          toDOM: function (n) { return ['div', { class: 'pm-box sc-columns', 'data-name': n.attrs.name, 'data-columns': '', 'data-open': n.attrs.open, 'data-close': n.attrs.close }, 0]; } },
+        column: { content: 'block+', isolating: true, attrs: { tail: { default: '' } },
+          parseDOM: [{ tag: 'div.pm-column' }], toDOM: function () { return ['div', { class: 'pm-column sc-column' }, 0]; } },
+        /* A shortcode in a line of text, keys or a status label: one piece
+           of the line, drawn as the preview draws it, changed through its
+           form, and written back as it was written (src). */
+        shortcode: { group: 'inline', inline: true, atom: true, selectable: true, draggable: true,
+          attrs: { src: { default: '' }, html: { default: '' } },
+          parseDOM: [{ tag: 'span.pm-sc[data-src]', getAttrs: function (d) { return { src: d.getAttribute('data-src'), html: window.yavcHTML.clean(d.getAttribute('data-html') || '') }; } }],
+          toDOM: function (n) { return ['span', { class: 'pm-sc', 'data-src': n.attrs.src, 'data-html': n.attrs.html }]; } },
+        footnote: { group: 'block', content: 'block+', defining: true,
+          attrs: withPlace({ label: { default: '' }, number: { default: -1 }, tail: { default: '' } }),
+          parseDOM: [{ tag: 'aside.doc-footnote[data-footnote]', contentElement: '.doc-footnote-body', getAttrs: function (d) { return { label: d.getAttribute('data-footnote'), number: Number(d.getAttribute('data-footnote-number')) || -1 }; } }],
+          toDOM: function (n) { return ['aside', { class: 'doc-footnote', 'data-footnote': n.attrs.label, 'data-footnote-number': n.attrs.number },
+            ['span', { class: 'doc-footnote-label', contenteditable: 'false' }, n.attrs.number > 0 ? String(n.attrs.number) : n.attrs.label], ['div', { class: 'doc-footnote-body' }, 0]]; } },
+        footnote_ref: { group: 'inline', inline: true, atom: true, selectable: true,
+          attrs: { label: { default: '' }, number: { default: -1 } },
+          parseDOM: [{ tag: 'sup.doc-footnote-ref[data-footnote-ref]', priority:60, getAttrs: function (d) { return { label: d.getAttribute('data-footnote-ref'), number: Number(d.getAttribute('data-footnote-number')) || -1 }; } }],
+          toDOM: function (n) { var label = n.attrs.number > 0 ? String(n.attrs.number) : '?'; return ['sup', { class: 'doc-footnote-ref', 'data-footnote-ref': n.attrs.label, 'data-footnote-number': n.attrs.number, contenteditable: 'false' }, ['a', { 'aria-label': 'Footnote ' + label }, label]]; } },
+        critic: { group:'inline',inline:true,atom:true,selectable:true,
+          attrs:{src:{default:''},kind:{default:''},html:{default:''},cellSafe:{default:false}},
+          parseDOM:[{tag:'span.critic[data-critic-raw]',priority:60,getAttrs:criticAttrs}],
+          leafText:function(node){return node.attrs.src;},
+          toDOM:function(node){return ['span',{class:'critic','data-critic-raw':node.attrs.src},node.attrs.src];} },
+        text: { group: 'inline' },
+        // A line break, as HTML pasted from another program can hold one.
+        hard_break: { group: 'inline', inline: true, selectable: false, parseDOM: [{ tag: 'br' }], toDOM: function () { return ['br']; } },
+        // A line break inside a paragraph, which the page shows as a space.
+        soft_break: { group: 'inline', inline: true, selectable: false, parseDOM: [{ tag: 'span.pm-soft' }], toDOM: function () { return ['span', { class: 'pm-soft' }, ' ']; } }
+      },
+      // In the order pageview writes them, outermost first.
+      marks: {
+        no_export: {
+          parseDOM: [{ tag: 'span.sc-no-export[data-export="omit"]' }],
+          toDOM: function () { return ['span', { class: 'sc-no-export', 'data-export': 'omit', title: 'Not exported', role: 'note', 'aria-label': 'Not exported' }, 0]; } },
+        link: { attrs: { href: {}, title: { default: null }, auto: { default: false } }, inclusive: false,
+          // A pasted link to an address that is not safe is pasted as its
+          // text, and one written in the document is drawn without its
+          // address (safe-html.js).
+          parseDOM: [{ tag: 'a[href]', getAttrs: function (d) { var href = d.getAttribute('href'); return window.yavcHTML.attr('href', href) ? { href: href } : false; } }],
+          toDOM: function (m) { return ['a', window.yavcHTML.attr('href', m.attrs.href) ? { href: m.attrs.href } : {}, 0]; } },
+        strong: { parseDOM: [{ tag: 'strong' }, { tag: 'b' }], toDOM: function () { return ['strong', 0]; } },
+        em: { parseDOM: [{ tag: 'em' }, { tag: 'i' }], toDOM: function () { return ['em', 0]; } },
+        underline: { parseDOM: [{ tag: 'u' }], toDOM: function () { return ['u', 0]; } },
+        strike: { parseDOM: [{ tag: 's' }, { tag: 'del' }], toDOM: function () { return ['s', 0]; } },
+        code: { parseDOM: [{ tag: 'code' }], toDOM: function () { return ['code', 0]; } },
+        /* Words in a colour, {{color:…}}…{{/color}}: the value as written,
+           one of the site's names or any CSS colour. */
+        color: { attrs: { value: { default: 'accent' }, name: { default: 'color' } },
+          parseDOM: [{ tag: 'span.sc-colour', getAttrs: function (d) { return { value: d.getAttribute('data-value') || d.style.color || 'accent' }; } }],
+          toDOM: function (m) { return ['span', { class: 'sc-colour', 'data-value': m.attrs.value, style: 'color:' + colorCSS(m.attrs.value) }, 0]; } },
+        /* A class of the document's stylesheet, {{class:name}}…{{/class}},
+           drawn as u-name as the engine draws it. */
+        class: { attrs: { value: { default: '' }, name: { default: 'class' } },
+          parseDOM: [{ tag: 'span[data-class]', getAttrs: function (d) { return { value: d.getAttribute('data-class') }; } }],
+          toDOM: function (m) { var c = String(m.attrs.value).replace(/[^A-Za-z0-9-]/g, ''); return ['span', { class: c, 'data-class': c }, 0]; } },
+        /* Highlighted, raised and lowered words, {{mark}}…{{/mark}},
+           {{sup}}…{{/sup}} and {{sub}}…{{/sub}}: each the HTML element of its
+           name, as the engine draws it. Raised and lowered exclude each
+           other, so words are one or the other. */
+        mark: { parseDOM: [{ tag: 'mark' }], toDOM: function () { return ['mark', { class: 'sc-mark' }, 0]; } },
+        sup: { excludes: 'sup sub', parseDOM: [{ tag: 'sup' }], toDOM: function () { return ['sup', 0]; } },
+        sub: { excludes: 'sup sub', parseDOM: [{ tag: 'sub' }], toDOM: function () { return ['sub', 0]; } }
+      }
+    });
+    return schemaCache;
+  }
+
+  /* o: {
+       root, page, scroll       the Editor window, its page and the page's scroller
+       text()                   the draft's text as the Editor has it
+       setText(text)            puts the page's text into the Editor's text
+       docOf(text)              a promise of the editor's document for text
+       markdownOf(doc)          a promise of the doc's text
+       sourceOf(src)            a promise of { html, diagrams } for a block's source
+       blocksOf(markdown)       a promise of new blocks, as the editor's JSON, to insert
+       draw(el, html, diagrams) draws preview HTML into el, diagrams and images included
+       keys()                   [{ key, run }], the Editor's key table in ProseMirror's spelling
+       say(text, warn)          the Editor's status line
+       inlineOf(src)            a promise of { html } for an inline shortcode
+       wrapOf(line)             a promise of a container's parts for its opening line
+                                ({ name, args, open, before, after }), for its Title dialog
+       editBlock(src)           optional: a drawn block pressed; a promise of its new
+                                source, '' to take it out, or null; undefined to edit it here
+       editBlock(src)           optional: a drawn block pressed; a promise of its new
+                                source, '' to take it out, or null; undefined to edit it here
+       editBlock(src)           optional: a drawn block pressed; a promise of its new
+                                source, '' to take it out, or null; undefined to edit it here
+       changed()                the Editor's commands may have changed
+       failed(text)             the page could not be built; the Editor leaves Page view
+     } */
+  function attach(o) {
+    var PM = null, view = null, on = false, shown = null, loading = 0;
+    var footnoteNamespace='yavc-notes-'+crypto.randomUUID();
+    var dirty = false, syncTimer = 0, syncing = null, reloadTimer = 0, sourceStale = false, refreshFocus = null, frozen = false;
+    function updating(value) {
+      if (value && !sourceStale && view && view.hasFocus()) refreshFocus = view;
+      sourceStale = value;
+      if (view) { view.setProps({ editable: function () { return on && !sourceStale && !frozen; } }); view.dom.setAttribute('aria-busy', String(value)); }
+      if (!value) {
+        if (view && refreshFocus === view && document.hasFocus() && document.activeElement === document.body) view.focus();
+        refreshFocus = null;
+      }
+      o.changed();
+    }
+    /* The top-level blocks exactly as they were read from the text: the
+       same node objects, which ProseMirror keeps for a block nobody
+       touched. Such a block's text is its src, so it need not be written
+       out again, nor read again when the text changes elsewhere
+       (performance review, 2026-11-03). */
+    var pristine = null;
+
+    function enable(next) {
+      next = !!next;
+      if (next && frozen) { frozen = false; if (view) view.setProps({ editable: function () { return on && !sourceStale; } }); }
+      if (next === on) return Promise.resolve();
+      on = next;
+      o.page.classList.toggle('page-view', on);
+      if (on) return load();
+      if (view) view.setProps({ editable: function () { return false; } });
+      clearTimeout(reloadTimer);
+      return sync().then(close).catch(function (err) { on = true; if (view) view.setProps({ editable: function () { return !sourceStale && !frozen; } }); o.page.classList.add('page-view'); throw err; });
+    }
+    function close() {
+      if (view) { view.destroy(); view = null; }
+      shown = null;
+      o.changed();
+    }
+
+    /* Reads the text into a new editor, keeping the place on the page. */
+    function load() {
+      if (dirty || syncing) return sync().then(load);
+      var ticket = ++loading, text = o.text(), top = o.scroll.scrollTop;
+      updating(true);
+      return Promise.all([loadProseMirror(), o.docOf(text)]).then(function (both) {
+        if (ticket !== loading || !on) return;
+        if (o.text() !== text) return load();
+        PM = both[0];
+        var schema = schemaOf(PM), doc = schema.nodeFromJSON(both[1]), first = 0;
+        while (first < doc.content.size && hiddenSource(doc.nodeAt(first))) { first += doc.nodeAt(first).nodeSize; }
+        // Metadata is retained in the model, but opening a page places the
+        // caret in visible content. A metadata-only page needs a typing slot.
+        if (first && first === doc.content.size) { doc = doc.copy(doc.content.append(PM.Fragment.from(schema.nodes.paragraph.create()))); }
+        var state = PM.EditorState.create({ doc: doc, selection: first ? PM.TextSelection.near(doc.resolve(first)) : undefined, plugins: plugins(schema) });
+        if (view) view.updateState(state);
+        else {
+          o.page.replaceChildren();
+          view = new PM.EditorView(o.page, {
+            state: state,
+            nodeViews: { source_block: sourceView, container: boxView, columns: boxView, shortcode: inlineView,critic:criticView,footnote:footnoteView,footnote_ref:footnoteView },
+            handlePaste: handlePaste,
+            // HTML pasted from another program is made safe before the
+            // editor reads it (safe-html.js).
+            transformPastedHTML: function (html) { return window.yavcHTML.clean(html); },
+            transformPasted: safeReviewPaste,
+            dispatchTransaction: dispatch,
+            attributes: { 'aria-label': 'The Document, as Its Page' }
+          });
+        }
+        shown = text;
+        dirty = false;
+        updating(false);
+        pristine = new WeakSet();
+        view.state.doc.forEach(function (n) { pristine.add(n); });
+        // The suggestions are placed once the page is known to be the text.
+        view.dispatch(view.state.tr.setMeta(suggestKey, true));
+        o.scroll.scrollTop = top;
+        o.changed();
+      }).catch(function (err) {
+        if (ticket === loading) o.failed('The page could not be built, so it is drawn from the text until Visual is chosen again: ' + String(err && err.message || err));
+      });
+    }
+
+    function dispatch(tr) {
+      if (!view) return;
+      if ((!on || sourceStale || frozen) && tr.docChanged && !tr.getMeta('fromText')) return;
+      view.updateState(view.state.apply(tr));
+      if (tr.docChanged && !tr.getMeta('fromText')) {
+        dirty = true;
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(function () { sync().catch(function () { /* sync reports the failure beside the page. */ }); }, 300);
+      }
+      o.changed();
+    }
+
+    /* ---- The clipboard ---------------------------------------------------
+       Copy and Cut put the selected blocks' HTML (from the schema's toDOM,
+       with the attributes the HTML cannot say) and their plain text on the
+       clipboard, which the editor does itself; HTML pasted is read with the
+       schema's parse rules, so what was copied from a page comes back as it
+       was, and HTML from Word or a browser keeps its headings, lists,
+       tables, links and emphasis. Plain text pasted is read as Markdown, as
+       the text of the document is, so a passage copied from the Text view or
+       a chat keeps its form. A line with no Markdown in it is pasted as it
+       is. */
+    var MARKDOWN = /[*_`#>\[\]|{}<\\~]|^\s*([-+]|\d+[.)])\s|\n/;
+    function handlePaste(v, event, slice) {
+      var data = event && event.clipboardData;
+      if (!data || (data.files && data.files.length)) return false;
+      var html = data.getData('text/html'), text = data.getData('text/plain');
+      if (html) return intoCell(slice);
+      if (!text || !MARKDOWN.test(text)) return false;
+      pasteMarkdown(text);
+      return true;
+    }
+    /* A table's cell holds a line of text, so blocks pasted into one, which
+       the editor would put between two halves of the table, go in as their
+       words. Returns whether it pasted. */
+    function inCell(state) {
+      var $f = state.selection.$from;
+      for (var d = $f.depth; d > 0; d--) if ($f.node(d).type.spec.tableRole) return true;
+      return false;
+    }
+    function safeReviewPaste(slice){
+      var literal=false;
+      function node(value,cell){
+        cell=cell||value.type.spec.tableRole==='cell'||value.type.spec.tableRole==='header_cell';
+        if(value.type.name==='critic'){
+            var data;try{data=window.yavcMdEngine.current().inlineReview(value.attrs.src);}catch(err){data=null;}
+            if(!data||cell&&!data.cellSafe){literal=true;return view.state.schema.text(value.attrs.src,value.marks);}
+          return value.type.create({src:data.src,kind:data.kind,html:cell?data.cellHTML:data.html,cellSafe:data.cellSafe},null,value.marks);
+        }
+        if(!value.childCount)return value;var content=[];value.forEach(function(child){content.push(node(child,cell));});return value.copy(PM.Fragment.from(content));
+      }
+      var content=[];slice.content.forEach(function(value){content.push(node(value,!!view&&inCell(view.state)));});
+      if(literal)o.say('This review annotation was pasted as literal text because it cannot fit the table cell safely.',true);
+      return new PM.Slice(PM.Fragment.from(content),slice.openStart,slice.openEnd);
+    }
+    function blocksOnly(fragment) {
+      return fragment.childCount > 1 || (fragment.childCount === 1 && !fragment.firstChild.isInline && fragment.firstChild.type.name !== 'paragraph');
+    }
+    function intoCell(slice) {
+      if (!view || !slice || !inCell(view.state) || !blocksOnly(slice.content)) return false;
+      var words = [];
+      slice.content.forEach(function (nd) {
+        var t = nd.isLeaf ? nd.textContent : nd.textBetween(0, nd.content.size, ' ', ' ');
+        if (t.trim()) words.push(t.trim());
+      });
+      var sel = view.state.selection;
+      view.dispatch(view.state.tr.insertText(words.join(' '), sel.from, sel.to).scrollIntoView().setMeta('uiEvent', 'paste'));
+      return true;
+    }
+    /* Pastes Markdown at the selection: one paragraph's words go into the
+       paragraph the cursor is in, and anything more as blocks. */
+    function pasteMarkdown(text) {
+      var target = view, before = view && view.state.doc, selection = view && view.state.selection;
+      return Promise.resolve(o.blocksOf(text.replace(/\r\n/g, '\n'))).then(function (json) {
+        if (!view || view !== target || !on || view.state.doc !== before || !view.state.selection.eq(selection)) { o.say('The page or selection changed before Paste completed. Paste again.', true); return; }
+        var nodes = (json || []).map(function (j) { return view.state.schema.nodeFromJSON(j); });
+        if (!nodes.length) return;
+        var one = nodes.length === 1 && nodes[0].type.name === 'paragraph';
+        var slice = one ? new PM.Slice(PM.Fragment.from(nodes[0]), 1, 1) : new PM.Slice(PM.Fragment.fromArray(nodes), 0, 0);
+        if (!intoCell(slice)) view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView().setMeta('uiEvent', 'paste'));
+        view.focus();
+      }).catch(function (err) { o.say(String(err && err.message || err), true); });
+    }
+    /* The Edit menu's Paste: what the clipboard holds, read by Go, pasted as
+       a paste with the keyboard would paste it. */
+    function pasteContent(content) {
+      if (!view) return Promise.resolve();
+      view.focus();
+      if (content && content.html) { view.pasteHTML(content.html); return Promise.resolve(); }
+      var text = content && content.text || '';
+      if (!text) return Promise.resolve();
+      if (MARKDOWN.test(text)) return pasteMarkdown(text);
+      view.pasteText(text);
+      return Promise.resolve();
+    }
+    function selectAll() {
+      if (!view) return;
+      view.focus();
+      view.dispatch(view.state.tr.setSelection(new PM.AllSelection(view.state.doc)));
+    }
+
+    /* Puts the page's text into the Editor's text, after the last change
+       made on the page. */
+    function sync() {
+      clearTimeout(syncTimer);
+      if (syncing) return syncing.then(sync);
+      if (!dirty || !view) return Promise.resolve();
+      dirty = false;
+      var original = shown;
+      syncing = Promise.resolve(o.markdownOf(syncJSON())).then(function (text) {
+        if (o.text() !== original || shown !== original) throw new Error('The source changed while the page was being saved. The page draft was retained; copy it before reloading.');
+        shown = text;
+        o.setText(text);
+      }).catch(function (err) {
+        dirty = true;
+        o.say(String(err && err.message || err), true);
+        throw err;
+      }).finally(function () { syncing = null; });
+      return syncing;
+    }
+
+    /* The page as the engine writes it back, with each block still as it
+       was read sent as its own Markdown (a source block of its src), so
+       only the blocks that changed are written out again. The engine
+       writes an untouched block back as its src anyway, so the text is the
+       same either way. */
+    function syncJSON() {
+      var doc = view.state.doc, out = { type: 'doc', attrs: doc.attrs, content: [] };
+      doc.forEach(function (node) {
+        if (pristine && pristine.has(node) && node.attrs.src != null && node.attrs.gap != null) {
+          out.content.push({ type: 'source_block', attrs: { uid: node.attrs.uid, gap: node.attrs.gap, src: node.attrs.src, kind: 'text', html: '' } });
+        } else out.content.push(node.toJSON());
+      });
+      return out;
+    }
+
+    /* The text changed other than from the page (the text pane in Split,
+       an agent, a suggestion taken): the blocks the change touched are
+       read again and put in place, or, where that cannot be done safely,
+       the whole page is read again. */
+    function textChanged(force) {
+      if (!on) return;
+      if (!dirty && !syncing && (force === true || o.text() !== shown)) updating(true);
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(function () {
+        if (on && !dirty && !syncing && (force === true || o.text() !== shown)) {
+          if (force === true || !patchFromText(o.text())) load(); else updating(false);
+        } else if (on && o.text() === shown && sourceStale) updating(false);
+      }, 150);
+    }
+    /* Reads again only the blocks a change to the text touched, with one
+       block either side, since a change can join or split blocks; false
+       when the page is not exactly the text it was read from, or the
+       change reaches the front matter or what follows the last block. */
+    function patchFromText(text) {
+      // A definition can change invocations anywhere in the document.
+      if (text.indexOf('{{define:') >= 0 || (shown || '').indexOf('{{define:') >= 0) return false;
+      if (!view || shown == null || !pristine) return false;
+      var doc = view.state.doc, attrs = doc.attrs, front = attrs.front || '', tail = attrs.tail == null ? '\n' : attrs.tail;
+      if (attrs.crlf) return false;
+      var at = front.length, spans = [], ok = true;
+      doc.forEach(function (node, offset) {
+        if (!ok) return;
+        var a = node.attrs || {};
+        if (!pristine.has(node) || a.src == null || a.gap == null) { ok = false; return; }
+        var start = at + a.gap.length, end = start + a.src.length;
+        spans.push({ start: start, end: end, pos: offset, size: node.nodeSize, gap: a.gap, src: a.src });
+        at = end;
+      });
+      if (!ok || !spans.length || at + tail.length !== shown.length) return false;
+      var p = 0, max = Math.min(shown.length, text.length);
+      while (p < max && shown.charCodeAt(p) === text.charCodeAt(p)) p++;
+      var q = 0;
+      while (q < max - p && shown.charCodeAt(shown.length - 1 - q) === text.charCodeAt(text.length - 1 - q)) q++;
+      var oldEnd = shown.length - q, delta = text.length - shown.length, last = spans.length - 1;
+      if (p < spans[0].start || oldEnd > spans[last].end) return false;
+      var i = 0; while (i < last && spans[i].end < p) i++;
+      var j = last; while (j > 0 && spans[j].start > oldEnd) j--;
+      if (j < i) j = i;
+      i = Math.max(0, i - 1); j = Math.min(last, j + 1);
+      for (var k = i; k <= j; k++) { if (shown.slice(spans[k].start, spans[k].end) !== spans[k].src) return false; }
+      var from = spans[i].start, toNew = spans[j].end + delta;
+      if (toNew <= from) return false;
+      var slice = text.slice(from, toNew);
+      // A slice starting --- would be read as front matter.
+      if (/^---[ \t]*(\n|$)/.test(slice)) return false;
+      var ticket = ++loading, before = shown, gap = spans[i].gap;
+      return Promise.resolve(o.docOf(slice)).then(function (json) {
+        if (ticket !== loading || !view || shown !== before || !on) return;
+        if (!json || (json.attrs && (json.attrs.front || json.attrs.crlf)) || (json.attrs && json.attrs.tail)) { load(); return; }
+        // Fresh ids above every one in the page, so no block takes another's place.
+        var top = 0;
+        view.state.doc.descendants(function (n) { if (n.attrs && typeof n.attrs.uid === 'number' && n.attrs.uid > top) top = n.attrs.uid; });
+        (function renumber(list) { (list || []).forEach(function (n) { if (n.attrs && n.attrs.uid != null) n.attrs.uid = ++top; renumber(n.content); }); })(json.content);
+        if (json.content && json.content[0] && json.content[0].attrs) json.content[0].attrs.gap = gap;
+        var schema = view.state.schema, nodes = (json.content || []).map(function (j) { return schema.nodeFromJSON(j); });
+        if (!nodes.length) { load(); return; }
+        var cur = view.state.doc, fromPos = 0, toPos = 0;
+        cur.forEach(function (n, offset, index) { if (index === i) fromPos = offset; if (index === j) toPos = offset + n.nodeSize; });
+        var tr = view.state.tr.replaceWith(fromPos, toPos, nodes).setMeta('addToHistory', false).setMeta('fromText', true);
+        view.dispatch(tr);
+        view.state.doc.forEach(function (n) { if (nodes.indexOf(n) >= 0) pristine.add(n); });
+        shown = text;
+        view.dispatch(view.state.tr.setMeta(suggestKey, true).setMeta('fromText', true));
+        o.changed();
+      }).catch(function () { if (ticket === loading) load(); });
+    }
+
+    /* ---- Suggestions on the page ------------------------------------
+       A suggestion is a change to the draft's text at a place in it. The
+       page shows it block by block, as the Text view shows it character by
+       character: each block it changes is struck through, and the blocks it
+       would put there are drawn below them as the preview draws them, with
+       Accept and Reject. A block's place in the text is worked out from the
+       text it was read from and the text before it, the way the page writes
+       itself back (pageview.SerializeDocument), so it holds only while the
+       page is the text the suggestions were placed in. */
+    var suggested = { text: null, list: [] }, suggestKey = null, rereadFor = null;
+
+    /* Each block's place in the text and on the page, or null when a block
+       no longer knows where it came from (it was edited or copied since the
+       page was read, so the text it remembers is not the text there). */
+    function blockPlaces(doc, text) {
+      var out = [], ok = true, cursor = (doc.attrs.front || '').length;
+      doc.forEach(function (node, pos) {
+        if (!ok) return;
+        var src = node.attrs.src, gap = node.attrs.gap;
+        if (typeof src !== 'string' || typeof gap !== 'string') { ok = false; return; }
+        cursor += gap.length;
+        if (text.slice(cursor, cursor + src.length) !== src) { ok = false; return; }
+        out.push({ from: cursor, to: cursor + src.length, pos: pos, size: node.nodeSize });
+        cursor += src.length;
+      });
+      return ok ? out : null;
+    }
+
+    function suggestionWidget(s, markdown) {
+      return function () {
+        var box = document.createElement('div');
+        box.className = 'pm-sugg';
+        box.contentEditable = 'false';
+        box.dataset.suggestion = s.id;
+        var head = document.createElement('div');
+        head.className = 'pm-sugg-head';
+        var who = document.createElement('span');
+        who.className = 'pm-sugg-who';
+        who.textContent = 'Suggested by ' + (s.author || 'an agent') + (s.edited ? ', edited by you' : '') + (s.reason ? ': ' + s.reason : '');
+        head.appendChild(who);
+        var buttons = [];
+        [['Accept', true], ['Reject', false], ['Edit', null]].forEach(function (b) {
+          if (b[1] === null && !o.editSuggestion) return;
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn btn-sm' + (b[1] ? ' btn-primary' : '');
+          button.textContent = b[0];
+          button.setAttribute('aria-label', b[0] + ' this suggestion');
+          button.addEventListener('mousedown', function (e) { e.preventDefault(); });
+          button.addEventListener('click', function () { if (b[1] === null) edit(); else o.decide(s.id, b[1]); });
+          buttons.push(button);
+          head.appendChild(button);
+        });
+        var body = document.createElement('div');
+        body.className = 'pm-sugg-new';
+        box.append(head, body);
+        /* Edit, or a double-click on the suggested block, puts its Markdown in
+           a box in the card; Save keeps the new wording in the suggestion. */
+        function edit() {
+          if (!o.editSuggestion || box.querySelector('.sugg-edit')) return;
+          var ed = o.editSuggestion(s, function () { ed.el.remove(); body.hidden = false; buttons.forEach(function (b) { b.hidden = false; }); });
+          body.hidden = true;
+          buttons.forEach(function (b) { b.hidden = true; });
+          box.appendChild(ed.el);
+          ed.focus();
+        }
+        body.addEventListener('dblclick', edit);
+        if (!markdown.trim()) body.textContent = 'Removes the struck-through text.';
+        else Promise.resolve(o.sourceOf(markdown)).then(function (v) { o.draw(body, v.html, v.diagrams); }).catch(function () { body.textContent = markdown; });
+        return box;
+      };
+    }
+
+    /* A short hash of a text, for a widget's key: the card is drawn again
+       when its text changes, an edit of the same length included. */
+    function hash(text) {
+      var h = 0;
+      for (var i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+      return (h >>> 0).toString(36) + '.' + text.length;
+    }
+    function suggestionDecorations(doc) {
+      var none = PM.DecorationSet.empty;
+      if (!suggested.list.length || suggested.text !== shown) return none;
+      // The page counts a line end as one character; a text with CRLF line
+      // ends counts two, so its places are counted again without them.
+      var text = suggested.text, crlf = text.indexOf('\r\n') >= 0;
+      var lf = crlf ? text.replace(/\r\n/g, '\n') : text;
+      function place(at) { return crlf ? at - (text.slice(0, at).match(/\r\n/g) || []).length : at; }
+      var blocks = blockPlaces(doc, lf);
+      if (!blocks) {
+        // Typing on the page since it was read: the page is read again from
+        // the text, once for this text, so its blocks know their places.
+        if (rereadFor !== text) { rereadFor = text; setTimeout(function () { if (on && !dirty && !syncing) load(); }, 0); }
+        return none;
+      }
+      var decos = [];
+      suggested.list.forEach(function (s) {
+        var from = place(s.from), to = place(s.to);
+        var overlaps = function (b) { return b.from < to && b.to > from; };
+        var hit = blocks.filter(overlaps);
+        var start = from, end = to, at;
+        if (hit.length) {
+          start = Math.min(from, hit[0].from);
+          end = Math.max(to, hit[hit.length - 1].to);
+          hit.forEach(function (b) { decos.push(PM.Decoration.node(b.pos, b.pos + b.size, { class: 'pm-sugg-old', 'data-suggestion': s.id })); });
+          var last = hit[hit.length - 1];
+          at = last.pos + last.size;
+        } else {
+          // An addition between blocks goes after the block before it.
+          var before = blocks.filter(function (b) { return b.to <= from; }).pop();
+          at = before ? before.pos + before.size : 0;
+        }
+        var markdown = lf.slice(start, from) + s.after.replace(/\r\n/g, '\n') + lf.slice(to, end);
+        decos.push(PM.Decoration.widget(at, suggestionWidget(s, markdown), { key: 'sugg-' + s.id + '-' + hash(markdown) + (s.edited ? '-e' : ''), side: 1, ignoreSelection: true, stopEvent: function () { return true; } }));
+      });
+      return PM.DecorationSet.create(doc, decos);
+    }
+
+    function suggestionPlugin() {
+      suggestKey = new PM.PluginKey('suggestions');
+      return new PM.Plugin({
+        key: suggestKey,
+        state: {
+          init: function (config, state) { return suggestionDecorations(state.doc); },
+          apply: function (tr, set) {
+            if (tr.getMeta(suggestKey)) return suggestionDecorations(tr.doc);
+            return tr.docChanged ? set.map(tr.mapping, tr.doc) : set;
+          }
+        },
+        props: { decorations: function (state) { return suggestKey.getState(state); } }
+      });
+    }
+
+    /* Find on the page: the matches of the Editor's find bar, marked on the
+       page, the current one set apart; a match is found in each block's
+       text, so a word split across marks ("**bo**ld") is found, and a word
+       across two blocks is not. */
+    var findKey = null, found = { spans: [], current: -1 };
+    function findDecorations(doc) {
+      if (!found.spans.length) return PM.DecorationSet.empty;
+      return PM.DecorationSet.create(doc, found.spans.map(function (s, i) {
+        return PM.Decoration.inline(s.from, s.to, { class: 'pm-find-match' + (i === found.current ? ' pm-find-current' : '') });
+      }));
+    }
+    function findPlugin() {
+      findKey = new PM.PluginKey('find');
+      return new PM.Plugin({
+        key: findKey,
+        state: {
+          init: function (config, state) { return findDecorations(state.doc); },
+          apply: function (tr, set) {
+            if (tr.getMeta(findKey)) return findDecorations(tr.doc);
+            return tr.docChanged ? set.map(tr.mapping, tr.doc) : set;
+          }
+        },
+        props: { decorations: function (state) { return findKey.getState(state); } }
+      });
+    }
+    /* Each block's text with, for each of its characters, the page position
+       it is at; a leaf that is not text, such as an image, is one character. */
+    function blockTexts(doc) {
+      var out = [];
+      doc.descendants(function (node, pos) {
+        if (!node.isTextblock) return true;
+        var s = '', map = [];
+        node.forEach(function (child, offset) {
+          var at = pos + 1 + offset;
+          if (child.isText) { for (var i = 0; i < child.text.length; i++) map.push(at + i); s += child.text; }
+          else { map.push(at); s += '￼'; }
+        });
+        out.push({ text: s, map: map });
+        return false;
+      });
+      return out;
+    }
+    function redrawFind() { if (view && findKey) view.dispatch(view.state.tr.setMeta(findKey, true)); }
+    /* find takes a matcher, text to [{ from, to }] in that text, and keeps
+       the matches as page spans; null clears them. It returns how many, and
+       the index of the first match at or after the selection. */
+    function find(matcher) {
+      found = { spans: [], current: -1 };
+      if (!view || !matcher) { redrawFind(); return { count: 0, after: -1 }; }
+      blockTexts(view.state.doc).forEach(function (b) {
+        (matcher(b.text) || []).forEach(function (m) {
+          if (m.to > m.from) found.spans.push({ from: b.map[m.from], to: b.map[m.to - 1] + 1, text: b.text.slice(m.from, m.to) });
+        });
+      });
+      var head = view.state.selection.from, after = found.spans.findIndex(function (s) { return s.from >= head; });
+      redrawFind();
+      return { count: found.spans.length, after: after };
+    }
+    function goToMatch(i) {
+      if (!view || i < 0 || i >= found.spans.length) return;
+      found.current = i;
+      var s = found.spans[i];
+      view.dispatch(view.state.tr.setSelection(PM.TextSelection.create(view.state.doc, s.from, s.to)).scrollIntoView().setMeta(findKey, true));
+    }
+    function matchText(i) { return found.spans[i] ? found.spans[i].text : ''; }
+    function replaceMatch(i, text) {
+      if (!view || !found.spans[i]) return;
+      var s = found.spans[i];
+      view.dispatch(view.state.tr.insertText(text, s.from, s.to));
+    }
+    /* Replaces every match, last first so the earlier positions hold; each
+       replacement is given the match's text. */
+    function replaceAllMatches(replacementOf) {
+      if (!view || !found.spans.length) return 0;
+      var tr = view.state.tr, n = 0;
+      found.spans.slice().reverse().forEach(function (s) { tr.insertText(replacementOf(s.text), s.from, s.to); n++; });
+      view.dispatch(tr);
+      return n;
+    }
+    function selectionText() { return view ? view.state.doc.textBetween(view.state.selection.from, view.state.selection.to, ' ') : ''; }
+
+    /* The draft's suggestions, as the Editor has them: its text, and each
+       placed suggestion with where it sits in that text. */
+    function suggest(text, list) {
+      suggested = { text: text, list: list || [] };
+      if (view && suggestKey) view.dispatch(view.state.tr.setMeta(suggestKey, true));
+    }
+
+    function footnoteView(node) {
+      var rendered=PM.DOMSerializer.renderSpec(document,node.type.spec.toDOM(node)),dom=rendered.dom,isReference=node.type.name==='footnote_ref';
+      function update(next){
+        if(next.type!==node.type)return false;
+        node=next;
+        if(isReference){var label=next.attrs.number>0?String(next.attrs.number):'?';dom.setAttribute('data-footnote-ref',next.attrs.label);dom.setAttribute('data-footnote-number',next.attrs.number);dom.querySelector('a').textContent=label;dom.querySelector('a').setAttribute('aria-label','Footnote '+label);}
+        else {dom.setAttribute('data-footnote',next.attrs.label);dom.setAttribute('data-footnote-number',next.attrs.number);dom.querySelector('.doc-footnote-label').textContent=next.attrs.number>0?String(next.attrs.number):next.attrs.label;}
+        window.yavcMdEditor.scopeFootnotes(dom,footnoteNamespace);return true;
+      }
+      update(node);
+      return {dom:dom,contentDOM:rendered.contentDOM,update:update,ignoreMutation:function(mutation){return mutation.type!=='selection'&&(isReference||mutation.type==='attributes'&&mutation.target===dom||dom.querySelector('.doc-footnote-label')&&dom.querySelector('.doc-footnote-label').contains(mutation.target));}};
+    }
+    function footnoteNumbers() {
+      return new PM.Plugin({appendTransaction:function(transactions,old,state){
+        if(!transactions.some(function(tr){return tr.docChanged;}))return null;
+        var definitions=new Map(),numbers=new Map();
+        state.doc.descendants(function(node){if(node.type.name==='footnote'&&!definitions.has(node.attrs.label))definitions.set(node.attrs.label,node);});
+        function collect(node){if(node.type.name==='footnote')return false;if(node.type.name==='footnote_ref'&&definitions.has(node.attrs.label)&&!numbers.has(node.attrs.label))numbers.set(node.attrs.label,numbers.size+1);}
+        state.doc.descendants(collect);
+        for(var label of numbers.keys())definitions.get(label).descendants(collect);
+        var seen=new Set(),tr=state.tr;
+        state.doc.descendants(function(node,pos){
+          if(node.type.name!=='footnote'&&node.type.name!=='footnote_ref')return;
+          var number=numbers.get(node.attrs.label)||-1;
+          if(node.type.name==='footnote'){if(seen.has(node.attrs.label))number=-1;seen.add(node.attrs.label);}
+          if(node.attrs.number!==number)tr.setNodeMarkup(pos,null,Object.assign({},node.attrs,{number:number}));
+        });
+        return tr.steps.length?tr.setMeta('addToHistory',false):null;
+      }});
+    }
+    function plugins(schema) {
+      var n = schema.nodes;
+      // Consult current preferences without rebuilding the editor state or
+      // replacing its undo history when bindings change.
+      var keys = new PM.Plugin({ props: { handleKeyDown: function (v, event) {
+        var current = PM.keymap(Object.fromEntries((o.keys() || []).map(function (k) { return [k.key, function () { return k.run(); }]; })));
+        return current.props.handleKeyDown(v, event);
+      } } });
+      function sink(state, d) { return PM.sinkListItem(n.list_item)(state, d); }
+      function lift(state, d) { return PM.liftListItem(n.list_item)(state, d); }
+      // Tab in a table's last cell adds a row and moves into it.
+      function addRowAtEnd(state, d, v) {
+        if (!PM.isInTable(state) || !PM.addRowAfter(state, d)) return false;
+        if (d && v) PM.goToNextCell(1)(v.state, v.dispatch);
+        return true;
+      }
+      // Enter in a task item starts another task item, not yet done.
+      function splitItem(state, d) {
+        var $c = state.selection.$from, task = false;
+        for (var depth = $c.depth; depth > 0; depth--) {
+          if ($c.node(depth).type === n.list_item) { task = $c.node(depth).attrs.checked !== null; break; }
+        }
+        return PM.splitListItem(n.list_item, task ? { checked: false } : undefined)(state, d);
+      }
+      /* Enter on an empty last line of a box leaves the box, as it leaves a
+         list: the empty line goes, and a new one follows the box. */
+      function exitBox(state, d) {
+        var $c = state.selection.$from;
+        if (!state.selection.empty || $c.parent.type !== n.paragraph || $c.parent.content.size || $c.depth < 2) return false;
+        var depth = $c.depth - 1, box = $c.node(depth);
+        if (box.type !== n.container && box.type !== n.column) return false;
+        if ($c.index(depth) !== box.childCount - 1 || box.childCount < 2) return false;
+        var outer = depth;
+        if (box.type === n.column) {
+          var cols = $c.node(depth - 1);
+          if ($c.index(depth - 1) !== cols.childCount - 1) return false;
+          outer = depth - 1;
+        }
+        var after = $c.after(outer) - $c.parent.nodeSize;
+        var tr = state.tr.delete($c.before(depth + 1), $c.after(depth + 1));
+        tr.insert(after, n.paragraph.create());
+        tr.setSelection(PM.TextSelection.create(tr.doc, after + 1));
+        if (d) d(tr.scrollIntoView());
+        return true;
+      }
+      return [
+        listShortcuts(schema),
+        taskBoxes(schema),
+        footnoteNumbers(),
+        window.yavcDocumentPages.plugin(PM, o),
+        suggestionPlugin(),
+        findPlugin(),
+        slashMenu(schema),
+        emptyLineHint(schema),
+        keys,
+        PM.keymap({
+          'Tab': PM.chainCommands(PM.goToNextCell(1), addRowAtEnd, sink),
+          'Shift-Tab': PM.chainCommands(PM.goToNextCell(-1), lift),
+          'Enter': PM.chainCommands(exitBox, splitItem),
+          'Mod-z': PM.undo, 'Mod-y': PM.redo, 'Mod-Shift-z': PM.redo
+        }),
+        PM.keymap(PM.baseKeymap),
+        PM.history(), PM.dropCursor(), PM.gapCursor(), PM.tableEditing(),
+        // A block copied or split from another takes none of its place, so
+        // only the original is written back as the text it came from.
+        new PM.Plugin({
+          appendTransaction: function (trs, old, state) {
+            if (!trs.some(function (t) { return t.docChanged; })) return null;
+            var seen = new Set(), tr = null;
+            state.doc.descendants(function (node, pos) {
+              var uid = node.attrs && node.attrs.uid;
+              if (uid === null || uid === undefined) return;
+              if (!seen.has(uid)) { seen.add(uid); return; }
+              tr = tr || state.tr;
+              var attrs = Object.assign({}, node.attrs, { uid: null, gap: null });
+              if (node.type !== n.source_block) attrs.src = null;
+              tr.setNodeMarkup(pos, null, attrs);
+            });
+            return tr;
+          }
+        })
+      ];
+    }
+
+    /* Typing a list's Markdown at the start of a line makes the list, as it
+       would in the source: "- ", "* " or "+ " a bulleted list, "1. " a
+       numbered one, "- [ ] " or "- [x] " a checklist item, and "[ ] " or
+       "[x] " at the start of a list item makes that item a checklist item.
+       The space that finishes the shortcut is not typed; Undo brings the
+       typed text back. */
+    function listShortcuts(schema) {
+      var n = schema.nodes;
+      function itemDepth($p) { return $p.depth > 1 && $p.node($p.depth - 1).type === n.list_item && $p.index($p.depth - 1) === 0 ? $p.depth - 1 : -1; }
+      function tick(view, box) {
+        var $p = view.state.selection.$from, d = itemDepth($p);
+        if (d < 0) return;
+        var item = $p.node(d);
+        view.dispatch(view.state.tr.setNodeMarkup($p.before(d), null, Object.assign({}, item.attrs, { checked: /x/i.test(box) })));
+      }
+      return new PM.Plugin({
+        props: {
+          handleTextInput: function (view, from, to, text) {
+            if (text !== ' ' || from !== to) return false;
+            var state = view.state, $p = state.doc.resolve(from);
+            if ($p.parent.type !== n.paragraph) return false;
+            var before = $p.parent.textBetween(0, $p.parentOffset, null, '￼');
+            var start = $p.start(), m;
+            if ((m = /^\[([ xX])\]$/.exec(before)) && itemDepth($p) >= 0 && $p.node(itemDepth($p)).attrs.checked === null) {
+              var d = itemDepth($p), item = $p.node(d);
+              view.dispatch(state.tr.delete(start, from).setNodeMarkup($p.before(d), null, Object.assign({}, item.attrs, { checked: /x/i.test(m[1]) })));
+              return true;
+            }
+            var bullet = /^([-*+])(?: \[([ xX])\])?$/.exec(before), number = /^([0-9]{1,9})\.$/.exec(before);
+            if (!bullet && !number) return false;
+            var list = bullet ? n.bullet_list : n.ordered_list;
+            var attrs = bullet ? { marker: bullet[1] } : { order: parseInt(number[1], 10) };
+            var after = state.apply(state.tr.delete(start, from));
+            if (!PM.wrapInList(list, attrs)(after)) return false;
+            view.dispatch(state.tr.delete(start, from));
+            PM.wrapInList(list, attrs)(view.state, view.dispatch);
+            if (bullet && bullet[2] !== undefined) tick(view, bullet[2]);
+            return true;
+          }
+        }
+      });
+    }
+
+    /* Clicking a task item's box ticks or unticks the item, as one change
+       to the document that Undo takes back. The box's own click is
+       prevented, so the box shows only what the document says. */
+    function taskBoxes(schema) {
+      function item(view, box) {
+        var li = box.closest('li.pm-task');
+        if (!li || !view.dom.contains(li)) return null;
+        var $p = view.state.doc.resolve(view.posAtDOM(li, 0));
+        for (var depth = $p.depth; depth > 0; depth--) {
+          if ($p.node(depth).type === schema.nodes.list_item) return { pos: $p.before(depth), node: $p.node(depth) };
+        }
+        return null;
+      }
+      return new PM.Plugin({ props: { handleDOMEvents: {
+        keydown: function (view, e) {
+          if (e.key !== ' ' || !e.target.matches || !e.target.matches('.pm-check input')) return false;
+          e.preventDefault();
+          var found = item(view, e.target);
+          if (found && view.editable) view.dispatch(view.state.tr.setNodeMarkup(found.pos, null, Object.assign({}, found.node.attrs, { checked: !found.node.attrs.checked })));
+          return true;
+        },
+        mousedown: function (view, e) {
+          if (!e.target.matches || !e.target.matches('.pm-check input')) return false;
+          e.preventDefault();
+          var found = item(view, e.target);
+          if (!found || !view.editable) return true;
+          view.dispatch(view.state.tr.setNodeMarkup(found.pos, null, Object.assign({}, found.node.attrs, { checked: !found.node.attrs.checked })));
+          return true;
+        },
+        click: function (view, e) {
+          if (!e.target.matches || !e.target.matches('.pm-check input')) return false;
+          e.preventDefault();
+          return true;
+        }
+      } } });
+    }
+
+    /* Whether a line can take a block of its own: an empty paragraph (or
+       one holding only a / command) directly in the page. */
+    function blockLine(state, schema) {
+      var sel = state.selection;
+      if (!sel.empty) return null;
+      var $c = sel.$from, n = schema.nodes;
+      if ($c.parent.type !== n.paragraph || !inBody($c, n)) return null;
+      return $c;
+    }
+    /* Whether a position's block sits directly in the page or in a box's
+       body (a container, or a column), where a block of its own can go. */
+    function inBody($c, n) {
+      if ($c.depth === 1) return true;
+      var parent = $c.depth > 1 ? $c.node($c.depth - 1).type : null;
+      return parent === n.container || parent === n.column;
+    }
+
+    /* The / menu: typed at the start of an empty line, it lists the blocks
+       that can be inserted, narrowed by what follows the /; the arrow keys
+       and Enter choose one, and Escape closes it. */
+    var STRUCTURE = [
+      { id: 'h1', label: 'Heading 1', words: 'heading title h1' }, { id: 'h2', label: 'Heading 2', words: 'heading h2' }, { id: 'h3', label: 'Heading 3', words: 'heading h3' },
+      { id: 'paragraph', label: 'Paragraph', words: 'text body' }, { id: 'bullets', label: 'Bulleted List', words: 'list bullets' }, { id: 'numbers', label: 'Numbered List', words: 'list numbers ordered' },
+      { id: 'quote', label: 'Quote', words: 'blockquote quotation' }
+    ];
+    function slashItems() {
+      var host = typeof o.inserts === 'function' ? (o.inserts() || []) : [];
+      return STRUCTURE.concat(INSERTS, host.filter(function (i) { return i && i.label; }));
+    }
+    function slashMenu(schema) {
+      var menu = null, shown = [], active = 0, closed = '';
+      /* PUDL places the menu under its anchor (data-menu-anchor) and keeps
+         it there as the page scrolls; the anchor is a mark at the cursor. */
+      var anchorId = 'pm-slash-anchor-' + Math.random().toString(36).slice(2);
+      function close() { if (menu) { menu.remove(); menu = null; } shown = []; }
+      function query(state) {
+        var $c = blockLine(state, schema);
+        if (!$c) return null;
+        var text = $c.parent.textContent;
+        if (!/^\/[\w ]*$/.test(text) || $c.parentOffset !== text.length) return null;
+        return { q: text.slice(1).trim().toLowerCase(), from: $c.start(), to: $c.end(), text: text };
+      }
+      function paint() {
+        Array.from(menu.children).forEach(function (b, i) { b.setAttribute('aria-selected', String(i === active)); });
+        var b = menu.children[active];
+        if (b) b.scrollIntoView({ block: 'nearest' });
+      }
+      function choose(v, item) {
+        var q = query(v.state);
+        close();
+        if (q) v.dispatch(v.state.tr.delete(q.from, q.to));
+        if (typeof item.run === 'function') { item.run(); return; }
+        if (item.markdown && !insertOf(item.id)) { insertMarkdown(item.markdown); return; }
+        run(item.id);
+      }
+      function draw(v, q) {
+        shown = slashItems().filter(function (i) { return !q.q || i.label.toLowerCase().indexOf(q.q) >= 0 || (i.words || '').indexOf(q.q) >= 0; });
+        if (!shown.length) { close(); return; }
+        if (!menu) {
+          menu = document.createElement('div');
+          menu.className = 'menu-panel page-slash';
+          menu.setAttribute('popover', 'manual');
+          menu.setAttribute('role', 'listbox');
+          menu.setAttribute('aria-label', 'Insert');
+          menu.setAttribute('data-menu-anchor', anchorId);
+          document.body.appendChild(menu);
+          menu.showPopover();
+          active = 0;
+        }
+        menu.replaceChildren.apply(menu, shown.map(function (item) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'menu-action';
+          b.setAttribute('role', 'option');
+          b.textContent = item.label;
+          // The editor keeps focus, so typing goes on narrowing the list.
+          b.addEventListener('mousedown', function (e) { e.preventDefault(); choose(v, item); });
+          return b;
+        }));
+        active = Math.min(active, shown.length - 1);
+        paint();
+      }
+      return new PM.Plugin({
+        view: function () {
+          return {
+            update: function (v) {
+              var q = query(v.state);
+              // Escape closes the menu until the line changes.
+              if (!q || q.text === closed) { if (!q) closed = ''; close(); return; }
+              draw(v, q);
+            },
+            destroy: close
+          };
+        },
+        props: {
+          decorations: function (state) {
+            var q = query(state);
+            if (!q || q.text === closed) return null;
+            return PM.DecorationSet.create(state.doc, [PM.Decoration.widget(q.to, function () {
+              var mark = document.createElement('span');
+              mark.className = 'pm-slash-anchor';
+              mark.id = anchorId;
+              return mark;
+            }, { side: 1, key: anchorId })]);
+          },
+          handleKeyDown: function (v, e) {
+            if (!menu) return false;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              active = (active + (e.key === 'ArrowDown' ? 1 : shown.length - 1)) % shown.length;
+              paint();
+              return true;
+            }
+            if (e.key === 'Enter' || e.key === 'Tab') { choose(v, shown[active]); return true; }
+            if (e.key === 'Escape') { var q = query(v.state); closed = q ? q.text : ''; close(); return true; }
+            return false;
+          }
+        }
+      });
+    }
+
+    /* An empty line with the cursor in it says how to insert a block. */
+    function emptyLineHint(schema) {
+      return new PM.Plugin({
+        props: {
+          decorations: function (state) {
+            var $c = blockLine(state, schema);
+            if (!$c || $c.parent.content.size) return null;
+            var at = $c.before();
+            return PM.DecorationSet.create(state.doc, [PM.Decoration.node(at, at + $c.parent.nodeSize, { class: 'pm-hint', 'data-hint': 'Type / to insert a heading, a list, a picture, or more' })]);
+          }
+        }
+      });
+    }
+
+    /* Where a new block goes: in place of the empty line the cursor is on,
+       or after the top-level block it is in. */
+    function insertPlace(state) {
+      var sel = state.selection;
+      if (sel instanceof PM.NodeSelection) return { from: sel.to, to: sel.to };
+      var $f = sel.$from, d = $f.depth, n = state.schema.nodes;
+      if ($f.depth === 0) return { from: sel.from, to: sel.from };
+      // The block directly inside the nearest body: the page, or a box's.
+      while (d > 1) { var parent = $f.node(d - 1).type; if (parent === n.container || parent === n.column) break; d--; }
+      var block = $f.node(d);
+      if (block.isTextblock && block.content.size === 0) return { from: $f.before(d), to: $f.after(d) };
+      return { from: $f.after(d), to: $f.after(d) };
+    }
+
+    /* Inserts blocks and puts the cursor in them: on the placeholder, in
+       the first cell, or, for a code block, in its Markdown; with drawn, a
+       block drawn as the preview draws it, such as an image, stays drawn. */
+    function insertBlocks(nodes, placeholder, drawn) {
+      var v = view, hole = placeholder || PLACEHOLDER;
+      if (!v || !nodes.length) return;
+      var place = insertPlace(v.state), tr = v.state.tr.replaceWith(place.from, place.to, nodes);
+      var end = place.from + nodes.reduce(function (s, nd) { return s + nd.nodeSize; }, 0), sel = null, cell = null;
+      // The placeholder anywhere in the new blocks is selected to be typed
+      // over; failing that, the cursor goes into the first cell of a table.
+      tr.doc.nodesBetween(place.from, end, function (node, pos) {
+        if (sel) return false;
+        if (node.isText && node.text.indexOf(hole) >= 0) {
+          var at = pos + node.text.indexOf(hole);
+          sel = PM.TextSelection.create(tr.doc, at, at + hole.length);
+        } else if (cell === null && (node.type.spec.tableRole === 'cell' || node.type.spec.tableRole === 'header_cell')) {
+          cell = pos + 1;
+        }
+      });
+      if (!sel && cell !== null) sel = PM.TextSelection.create(tr.doc, cell);
+      if (sel) tr.setSelection(sel);
+      v.dispatch(tr.scrollIntoView());
+      v.focus();
+      if (!sel && !drawn && nodes[0].type.name === 'source_block') {
+        var dom = v.nodeDOM(place.from);
+        if (dom && dom.pmEdit) dom.pmEdit();
+      }
+    }
+    function insert(id) {
+      var item = insertOf(id), s = view.state.schema, n = s.nodes;
+      if (id === 'insert-checklist') {
+        var task = n.list_item.create({ checked: false }, n.paragraph.create(null, s.text(PLACEHOLDER)));
+        insertBlocks([n.bullet_list.create(null, task)]);
+        return;
+      }
+      if (id === 'insert-table') {
+        /* The heading row has text, since an empty one is a table without
+           headings and is not drawn; the first heading is selected to be
+           typed over. */
+        var head = n.table_row.create(null, [1, 2, 3].map(function (i) { return n.table_header.create(null, s.text('Heading ' + i)); }));
+        var row = function () { return n.table_row.create(null, [0, 1, 2].map(function () { return n.table_cell.createAndFill(); })); };
+        insertBlocks([n.table.create(null, [head, row(), row()])], 'Heading 1');
+        return;
+      }
+      Promise.resolve(o.blocksOf(item.markdown)).then(function (json) {
+        if (!view) return;
+        insertBlocks((json || []).map(function (j) { return view.state.schema.nodeFromJSON(j); }));
+      }).catch(function (err) { o.say(String(err && err.message || err), true); });
+    }
+    /* Inserts Markdown as blocks where a new block goes, such as an image
+       or a link to a file added to the draft. */
+    function insertMarkdown(markdown) {
+      if (!view || !on || sourceStale || frozen) return Promise.resolve(false);
+      var target=view, doc=view.state.doc, selection=view.state.selection, ticket=loading;
+      return Promise.resolve(o.blocksOf(markdown)).then(function (json) {
+        if (view!==target || !on || sourceStale || frozen || loading!==ticket || view.state.doc!==doc || !view.state.selection.eq(selection)) {
+          if(on)o.say('The document or selection changed before insertion. Try again.',true);
+          return false;
+        }
+        insertBlocks((json || []).map(function (j) { return view.state.schema.nodeFromJSON(j); }), null, true);
+        return true;
+      }).catch(function(err){if(on)o.say(String(err && err.message || err),true);return false;});
+    }
+
+    /* A block drawn as the preview draws it; a click edits its source in
+       place, and leaving the box draws it again. */
+    function hiddenStyles(root) {
+      return !!root.querySelector('.sc-style[hidden]') && Array.from(root.childNodes).every(function (node) {
+        if (node.nodeType === 3) return !node.textContent.trim();
+        return node.nodeType === 1 && (node.matches('.sc-style[hidden]') || node.matches('.doc-block') && hiddenStyles(node));
+      });
+    }
+    function hiddenSource(node) {
+      if (!node || node.type.name !== 'source_block') return false;
+      if (node.attrs.kind === 'definition') return !(node.attrs.html || '').includes('sc-problem');
+      return hiddenStyles(window.yavcHTML.fragment(node.attrs.html || ''));
+    }
+    function sourceView(node, v, getPos) {
+      var dom = document.createElement('div');
+      dom.className = 'pm-source';
+      dom.contentEditable = 'false';
+      var shownNode = null, box = null;
+      function draw(nd) {
+        shownNode = nd;
+        dom.dataset.kind = nd.attrs.kind;
+        dom.hidden = nd.attrs.kind === 'definition' && !(nd.attrs.html || '').includes('sc-problem');
+        var inner = document.createElement('div');
+        dom.replaceChildren(inner);
+        o.draw(inner, nd.attrs.html || '<pre>' + (nd.attrs.src || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>', nd.attrs.diagrams || []);
+        window.yavcMdEditor.scopeFootnotes(inner,footnoteNamespace);
+        // A valid stylesheet contributes no drawn block or selectable outline.
+        // Keep the source node so unchanged Markdown still serializes verbatim.
+        if (hiddenStyles(inner)) { dom.hidden = true; }
+      }
+      function edit() {
+        if (box) return;
+        box = document.createElement('textarea');
+        box.className = 'form-textarea page-source';
+        box.spellcheck = false;
+        box.value = shownNode.attrs.src || '';
+        box.setAttribute('aria-label', 'The Markdown of This Block');
+        dom.replaceChildren(box);
+        function fit() { box.style.height = 'auto'; box.style.height = box.scrollHeight + 2 + 'px'; }
+        box.addEventListener('input', fit);
+        box.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); done(); v.focus(); }
+        });
+        box.addEventListener('blur', done);
+        fit();
+        box.focus();
+        o.say('');
+      }
+      function done() {
+        if (!box) return;
+        var value = box.value;
+        box = null;
+        take(value);
+      }
+      /* The block's new source, drawn again; the same source is only redrawn. */
+      function take(value) {
+        var was = shownNode.attrs.src || '';
+        if (value === was) { draw(shownNode); return; }
+        var pos = getPos();
+        if (typeof pos !== 'number') return;
+        v.dispatch(v.state.tr.setNodeMarkup(pos, null, Object.assign({}, shownNode.attrs, { src: value, html: '', diagrams: null })));
+        Promise.resolve(o.sourceOf(value)).then(function (r) {
+          var at = getPos();
+          if (!view || typeof at !== 'number') return;
+          var now = view.state.doc.nodeAt(at);
+          if (!now || now.attrs.src !== value) return;
+          view.dispatch(view.state.tr.setNodeMarkup(at, null, Object.assign({}, now.attrs, { html: r.html, diagrams: r.diagrams }))
+            .setMeta('addToHistory', false));
+        }).catch(function (err) { o.say(String(err && err.message || err), true); });
+      }
+      dom.addEventListener('mousedown', function (e) {
+        if (box || e.button !== 0 || e.target.closest('summary,[data-canvas-contents]') || e.target.closest('a[href]') && e.ctrlKey) return;
+        e.preventDefault();
+        /* The host may take the block as a form, a picture's say; its
+           answer is the new source, '' to take the block out, or null. */
+        var original = shownNode, generation = loading;
+        function activeSource() { var at = getPos(); return on && view === v && loading === generation && typeof at === 'number' && v.state.doc.nodeAt(at) && v.state.doc.nodeAt(at).eq(original); }
+        Promise.resolve(sync()).then(function () {
+          if (!activeSource()) return null;
+          var asked = o.editBlock ? o.editBlock(original.attrs.src || '') : undefined;
+          if (asked === undefined) { edit(); return null; }
+          return asked;
+        }).then(function (value) {
+          if (!activeSource() || value == null) return;
+          var pos = getPos();
+          if (typeof pos !== 'number') return;
+          if (value === '') { v.dispatch(v.state.tr.delete(pos, pos + shownNode.nodeSize)); v.focus(); return; }
+          take(value);
+          v.focus();
+        }).catch(function (err) { if (on && view === v) o.say(String(err && err.message || err), true); });
+      });
+      draw(node);
+      // Inserting a code block opens its Markdown at once, the code selected.
+      dom.pmEdit = function () {
+        edit();
+        if (!box) return;
+        var v = box.value, a = v.indexOf('\n') + 1, b = v.lastIndexOf('\n');
+        if (a > 0 && b > a) box.setSelectionRange(a, b);
+      };
+      return {
+        dom: dom,
+        update: function (nd) {
+          if (nd.type !== node.type) return false;
+          if (!box && (nd.attrs.html !== shownNode.attrs.html || nd.attrs.src !== shownNode.attrs.src)) draw(nd);
+          else shownNode = nd;
+          return true;
+        },
+        stopEvent: function (e) { return !!box && box.contains(e.target) || !!e.target.closest('summary,[data-canvas-contents]'); },
+        ignoreMutation: function () { return true; },
+        selectNode: function () { dom.classList.add('selected'); },
+        deselectNode: function () { dom.classList.remove('selected'); }
+      };
+    }
+
+    /* A box: a container shortcode or a column set, its body edited as
+       blocks inside the HTML the preview draws for it. A bar at its top,
+       shown while the pointer or the keyboard is in it, changes its title,
+       adds a column, lifts its content onto the page, or turns it back into
+       Markdown (docs/page-view-design.md, decision 5). */
+    function criticView(node){
+      var current=node,dom=document.createElement('span');dom.className='pm-critic';dom.contentEditable='false';
+      function draw(){dom.replaceChildren(window.yavcHTML.fragment(current.attrs.html));if(!o.review)return;var button=document.createElement('button');button.type='button';button.className='btn btn-sm pm-critic-open';button.setAttribute('aria-label','Review '+current.attrs.kind);button.title='Review '+current.attrs.kind;button.innerHTML='<span class="glyph" style="--glyph:var(--glyph-comments)" aria-hidden="true"></span>';button.addEventListener('mousedown',function(event){event.preventDefault();});button.addEventListener('click',function(event){event.preventDefault();event.stopPropagation();o.review(current.attrs.src);});dom.appendChild(button);}
+      draw();return {dom:dom,update:function(next){if(next.type.name!=='critic')return false;current=next;draw();return true;},ignoreMutation:function(){return true;},stopEvent:function(event){return !!event.target.closest('button');}};
+    }
+    var BOX_TITLED = { info: 'Title', note: 'Title', tip: 'Title', warning: 'Title', expand: 'Title', 'class': 'Class' };
+    var BOX_NAMES = { info: 'Information', note: 'Note', tip: 'Tip', warning: 'Warning', expand: 'Expand', 'class': 'Style Class', 'no-export': 'Not Exported', 'draft-note': 'Note to Self', notes: 'Speaker Notes', columns: 'Columns' };
+    function escText(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function boxView(node, v, getPos) {
+      var isColumns = node.type.name === 'columns', current = node, contentDOM;
+      var dom = document.createElement('div');
+      dom.className = 'pm-box';
+      dom.dataset.name = node.attrs.name;
+      var bar = document.createElement('div');
+      bar.className = 'pm-box-bar';
+      bar.contentEditable = 'false';
+      bar.innerHTML = '<span class="pm-box-kind">' + escText(BOX_NAMES[node.attrs.name] || node.attrs.name) + '</span>' +
+        (o.customName && o.customName(node.attrs.name) ? '<button type="button" class="btn btn-sm" data-box="custom-args">Parameters…</button>' : '') +
+        (BOX_TITLED[node.attrs.name] ? '<button type="button" class="btn btn-sm" data-box="args">' + escText(BOX_TITLED[node.attrs.name]) + '…</button>' : '') +
+        (isColumns ? '<button type="button" class="btn btn-sm" data-box="column">Add a Column</button>' : '') +
+        '<button type="button" class="btn btn-sm" data-box="lift">Remove the Box</button>' +
+        '<button type="button" class="btn btn-sm" data-box="source">Edit as Markdown</button>';
+      bar.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      bar.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-box]');
+        if (b) boxAction(b.getAttribute('data-box'), current, getPos, v);
+      });
+      var frame;
+      if (isColumns) {
+        frame = document.createElement('div');
+        frame.className = 'pm-box-frame sc-columns';
+        contentDOM = frame;
+      } else {
+        frame = document.createElement('div');
+        frame.className = 'pm-box-frame';
+        frame.appendChild(window.yavcHTML.fragment((node.attrs.before || '<div>') + '<div class="pm-slot"></div>' + (node.attrs.after || '</div>')));
+        contentDOM = document.createElement('div');
+        contentDOM.className = 'pm-box-body';
+        var slot = frame.querySelector('.pm-slot');
+        if (slot) slot.replaceWith(contentDOM); else frame.appendChild(contentDOM);
+        // An expand section stays open while it is edited.
+        frame.querySelectorAll('details').forEach(function (det) { det.open = true; });
+        frame.querySelectorAll('summary').forEach(function (s) { s.addEventListener('click', function (e) { e.preventDefault(); }); });
+      }
+      dom.append(bar, frame);
+      return {
+        dom: dom, contentDOM: contentDOM,
+        update: function (nd) {
+          if (nd.type !== node.type || nd.attrs.before !== current.attrs.before || nd.attrs.after !== current.attrs.after) return false;
+          current = nd;
+          return true;
+        },
+        stopEvent: function (e) { return bar.contains(e.target); },
+        ignoreMutation: function (m) { return m.type !== 'selection' && !contentDOM.contains(m.target); }
+      };
+    }
+    /* A block moved to a new place: it loses where it was read from, so it
+       is written where it lands, after a blank line, as a new block is; a
+       block kept as its Markdown keeps that Markdown. */
+    function looseCopy(b, n) {
+      if (!('uid' in b.attrs)) return b;
+      return b.type.create(Object.assign({}, b.attrs, { uid: null, gap: null, src: b.type === n.source_block ? b.attrs.src : null }), b.content, b.marks);
+    }
+
+    /* An inline shortcode on the page: drawn as the preview draws it; a
+       press opens its form, whose answer replaces it or takes it out. */
+    function inlineView(node, v, getPos) {
+      var dom = document.createElement('span'), current = node;
+      dom.className = 'pm-sc';
+      dom.contentEditable = 'false';
+      dom.title = 'Change It';
+      function draw(nd) { dom.replaceChildren(window.yavcHTML.fragment(nd.attrs.html || nd.attrs.src)); }
+      draw(node);
+      dom.addEventListener('mousedown', function (e) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        var original = current, generation = loading;
+        function activeAtom() { var at = getPos(); return on && view === v && loading === generation && typeof at === 'number' && v.state.doc.nodeAt(at) && v.state.doc.nodeAt(at).eq(original); }
+        Promise.resolve(sync()).then(function () {
+          if (!activeAtom()) return null;
+          return o.editBlock ? o.editBlock(original.attrs.src) : null;
+        }).then(function (value) {
+          if (!activeAtom()) return;
+          var pos = getPos();
+          if (value == null || typeof pos !== 'number') { v.focus(); return; }
+          if (value === '') { v.dispatch(v.state.tr.delete(pos, pos + 1)); v.focus(); return; }
+          return Promise.resolve(o.inlineOf ? o.inlineOf(value) : { html: '' }).then(function (r) {
+            var at = getPos();
+            if (!activeAtom() || typeof at !== 'number') return;
+            v.dispatch(v.state.tr.setNodeMarkup(at, null, { src: value, html: r && r.html || '' }));
+            v.focus();
+          });
+        }).catch(function (err) { if (on && view === v) o.say(String(err && err.message || err), true); });
+      });
+      return {
+        dom: dom,
+        update: function (nd) { if (nd.type !== node.type) return false; if (nd.attrs.html !== current.attrs.html || nd.attrs.src !== current.attrs.src) draw(nd); current = nd; return true; },
+        ignoreMutation: function () { return true; },
+        selectNode: function () { dom.classList.add('selected'); },
+        deselectNode: function () { dom.classList.remove('selected'); }
+      };
+    }
+    /* An inline shortcode put in at the cursor, in place of the selection. */
+    function insertInline(src) {
+      return Promise.resolve(o.inlineOf ? o.inlineOf(src) : { html: '' }).then(function (r) {
+        if (!view) return;
+        var node = view.state.schema.nodes.shortcode.create({ src: src, html: r && r.html || '' });
+        view.dispatch(view.state.tr.replaceSelectionWith(node, true).scrollIntoView());
+        view.focus();
+      }).catch(function (err) { o.say(String(err && err.message || err), true); });
+    }
+    /* The selected blocks, or the block the cursor is in, wrapped in a box
+       (a container shortcode, or a column set whose first column they
+       become), within whatever body they are in. */
+    function wrap(name) {
+      if (!view || !o.wrapOf) return Promise.resolve();
+      return Promise.resolve(o.wrapOf('{{' + name + '}}')).then(function (info) {
+        if (!view) return;
+        var st = view.state, n = st.schema.nodes, sel = st.selection;
+        var range = sel.$from.blockRange(sel.$to, function (node) { return node.type === n.doc || node.type === n.container || node.type === n.column; });
+        if (!range) { o.say('These blocks cannot go into a box together.', true); return; }
+        var blocks = [];
+        for (var i = range.startIndex; i < range.endIndex; i++) blocks.push(looseCopy(range.parent.child(i), n));
+        var attrs = { name: info.name, args: info.args || '', open: '', close: '', before: info.before, after: info.after };
+        var box = name === 'columns'
+          ? n.columns.create(Object.assign(attrs, { sep: info.sep || 'column' }), [n.column.create(null, blocks), n.column.create(null, n.paragraph.create(null, st.schema.text(PLACEHOLDER)))])
+          : n.container.create(attrs, blocks);
+        var tr = st.tr.replaceWith(range.start, range.end, box);
+        tr.setSelection(PM.TextSelection.near(tr.doc.resolve(range.start + (name === 'columns' ? 3 : 2))));
+        view.dispatch(tr.scrollIntoView());
+        view.focus();
+      }).catch(function (err) { o.say(String(err && err.message || err), true); });
+    }
+
+    function boxAction(action, node, getPos, v) {
+      var pos = getPos(), n = v.state.schema.nodes;
+      if (typeof pos !== 'number') return;
+      if (action === 'custom-args') {
+        var generation = loading, sourceText = null;
+        function currentBox() { var at = getPos(); return on && view === v && generation === loading && (sourceText === null || o.text() === sourceText) && typeof at === 'number' && v.state.doc.nodeAt(at) && v.state.doc.nodeAt(at).eq(node); }
+        Promise.resolve(sync()).then(function () {
+          if (!currentBox()) return null;
+          sourceText = o.text();
+          return o.markdownOf({ type: 'doc', attrs: { front: '', tail: '', crlf: false }, content: [node.toJSON()] });
+        }).then(function (text) {
+          if (text == null || !currentBox()) return null;
+          return o.editBlock ? o.editBlock(text.replace(/^\n+|\n+$/g, '')) : null;
+        }).then(function (source) {
+          if (source == null || !currentBox()) return;
+          var at = getPos(), now = typeof at === 'number' && view ? v.state.doc.nodeAt(at) : null;
+          if (!now || !now.eq(node)) { o.say('The box changed while its parameters were open. Try again.', true); return; }
+          if (source === '') { v.dispatch(v.state.tr.delete(at, at + now.nodeSize)); return; }
+          return Promise.resolve(o.blocksOf(source)).then(function (json) {
+            var here = getPos(), latest = typeof here === 'number' && view ? v.state.doc.nodeAt(here) : null;
+            if (!currentBox() || !latest || !latest.eq(node)) return;
+            v.dispatch(v.state.tr.replaceWith(here, here + latest.nodeSize, json.map(function (item) { return v.state.schema.nodeFromJSON(item); })).scrollIntoView());
+            v.focus();
+          });
+        }).catch(function (err) { if (on && view === v) o.say(String(err && err.message || err), true); });
+        return;
+      }
+      if (action === 'args') {
+        var ask = window.yavcMdEditor && window.yavcMdEditor.askText;
+        if (!ask) return;
+        var openingDoc=v.state.doc, openingGeneration=loading;
+        function sameBox() {var at=getPos();return on && view===v && !sourceStale && !frozen && loading===openingGeneration && v.state.doc===openingDoc && typeof at==='number' && v.state.doc.nodeAt(at) && v.state.doc.nodeAt(at).eq(node);}
+        ask(BOX_NAMES[node.attrs.name] || node.attrs.name, BOX_TITLED[node.attrs.name] || 'Arguments', node.attrs.args,{signal:o.signal,okLabel:'Apply',validate:function () {return sameBox()?null:'The document or box changed. Close and reopen this form.';}}).then(function (args) {
+          if (args == null || !o.wrapOf || !sameBox()) return;
+          var line = args.trim() ? '{{' + node.attrs.name + ':' + args.trim() + '}}' : '{{' + node.attrs.name + '}}';
+          return Promise.resolve(o.wrapOf(line)).then(function (info) {
+            var at = getPos(), now = typeof at === 'number' ? v.state.doc.nodeAt(at) : null;
+            if (!sameBox() || !now || !now.eq(node)) return;
+            v.dispatch(v.state.tr.setNodeMarkup(at, null, Object.assign({}, now.attrs, { args: info.args, open: info.open, before: info.before, after: info.after })));
+            v.focus();
+          });
+        }).catch(function (err) { o.say(String(err && err.message || err), true); });
+        return;
+      }
+      if (action === 'column') {
+        var col = n.column.create(null, n.paragraph.create());
+        var tr = v.state.tr.insert(pos + node.nodeSize - 1, col);
+        tr.setSelection(PM.TextSelection.create(tr.doc, pos + node.nodeSize - 1 + 2));
+        v.dispatch(tr.scrollIntoView());
+        v.focus();
+        return;
+      }
+      if (action === 'lift') {
+        /* The blocks lose their place in the box, so they are written where
+           they land, after a blank line, as a new block is. */
+        var blocks = [];
+        if (node.type === n.columns) node.forEach(function (c) { c.forEach(function (b) { blocks.push(looseCopy(b, n)); }); });
+        else node.forEach(function (b) { blocks.push(looseCopy(b, n)); });
+        var lifted = v.state.tr.replaceWith(pos, pos + node.nodeSize, PM.Fragment.fromArray(blocks));
+        lifted.setSelection(PM.TextSelection.near(lifted.doc.resolve(pos + 1)));
+        v.dispatch(lifted.scrollIntoView());
+        v.focus();
+        return;
+      }
+      if (action === 'source') {
+        Promise.resolve(o.markdownOf({ type: 'doc', attrs: { front: '', tail: '', crlf: false }, content: [node.toJSON()] })).then(function (text) {
+          var src = String(text || '').replace(/^\n+|\n+$/g, '');
+          var at = getPos(), now = typeof at === 'number' ? v.state.doc.nodeAt(at) : null;
+          if (!now || now.type !== node.type) return;
+          var block = n.source_block.create({ src: src, kind: 'shortcode', html: '', diagrams: null });
+          v.dispatch(v.state.tr.replaceWith(at, at + now.nodeSize, block));
+          return Promise.resolve(o.sourceOf(src)).then(function (r) {
+            var here = v.state.doc.nodeAt(at);
+            if (!here || here.type !== n.source_block || here.attrs.src !== src) return;
+            v.dispatch(v.state.tr.setNodeMarkup(at, null, Object.assign({}, here.attrs, { html: r.html, diagrams: r.diagrams })).setMeta('addToHistory', false));
+          });
+        }).catch(function (err) { o.say(String(err && err.message || err), true); });
+      }
+    }
+
+    /* A table's shape: rows and columns are added and deleted. Merged
+       cells and heading cells outside the first row are what a Markdown
+       table cannot hold, so the page does not offer them. */
+    var TABLE_COMMANDS = {
+      'row-above': function () { return tableStructure(PM.addRowBefore, true); },
+      'row-below': function () { return tableStructure(PM.addRowAfter, true); },
+      'column-before': function () { return tableStructure(PM.addColumnBefore); },
+      'column-after': function () { return tableStructure(PM.addColumnAfter); },
+      'delete-row': function () { return tableStructure(PM.deleteRow); },
+      'delete-column': function () { return tableStructure(PM.deleteColumn); },
+      'delete-table': function () { return PM.deleteTable; }
+    };
+    function tableStructure(command, retainColumns) {
+      return function (state, dispatch) {
+        if (!PM.isInTable(state)) return false;
+        var rect = PM.selectedRect(state), alignment = [];
+        rect.table.firstChild.forEach(function (cell) { alignment.push(cell.attrs.align || ''); });
+        return command(state, dispatch && function (tr) {
+          var at = tr.mapping.map(rect.tableStart - 1), table = tr.doc.nodeAt(at);
+          if (table && table.type.spec.tableRole === 'table') {
+            if (!retainColumns) { alignment = []; table.firstChild.forEach(function (cell) { alignment.push(cell.attrs.align || ''); }); }
+            table.forEach(function (row, rowOffset) { row.forEach(function (cell, cellOffset, column) {
+              var value = alignment[column] || '';
+              if (cell.attrs.align !== value) tr.setNodeMarkup(at + 2 + rowOffset + cellOffset, null, Object.assign({}, cell.attrs, { align: value }));
+            }); });
+          }
+          dispatch(tr);
+        });
+      };
+    }
+    function columnAlignment(value) {
+      return function (state, dispatch) {
+        if (!PM.isInTable(state)) return false;
+        var rect = PM.selectedRect(state), valid = true;
+        rect.table.forEach(function (row) { if (row.childCount !== rect.map.width) valid = false; row.forEach(function (cell) { if (cell.attrs.colspan !== 1 || cell.attrs.rowspan !== 1) valid = false; }); });
+        if (!valid) return false;
+        if (dispatch) {
+          var tr = state.tr;
+          rect.table.forEach(function (row, rowOffset) { row.forEach(function (cell, cellOffset, column) { if (column >= rect.left && column < rect.right && cell.attrs.align !== value) tr.setNodeMarkup(rect.tableStart + rowOffset + 1 + cellOffset, null, Object.assign({}, cell.attrs, { align: value })); }); });
+          if (tr.docChanged) dispatch(tr.scrollIntoView());
+        }
+        return true;
+      };
+    }
+    ['', 'left', 'center', 'right'].forEach(function (value) { TABLE_COMMANDS['align-' + (value || 'default')] = function () { return columnAlignment(value); }; });
+    function can(name) {
+      if (!view || sourceStale) return false;
+      var make = TABLE_COMMANDS[name];
+      return !!make && PM.isInTable(view.state) && make()(view.state);
+    }
+
+    /* The Editor's commands, on the page. Each returns true when it acted. */
+    function run(name, arg) {
+      if (!view || sourceStale) return false;
+      var v = view, s = v.state.schema, n = s.nodes, cmd = null;
+      function list(type) {
+        return function (state, d) {
+          var $from = state.selection.$from;
+          for (var depth = $from.depth; depth > 0; depth--) {
+            var node = $from.node(depth);
+            if (node.type === type) return PM.liftListItem(n.list_item)(state, d);
+            if (node.type === n.bullet_list || node.type === n.ordered_list) return false;
+          }
+          return PM.wrapInList(type)(state, d);
+        };
+      }
+      switch (name) {
+        case 'undo': cmd = PM.undo; break;
+        case 'redo': cmd = PM.redo; break;
+        case 'bold': cmd = PM.toggleMark(s.marks.strong); break;
+        case 'italic': cmd = PM.toggleMark(s.marks.em); break;
+        case 'code': cmd = PM.toggleMark(s.marks.code); break;
+        case 'underline': cmd = PM.toggleMark(s.marks.underline); break;
+        case 'highlight': cmd = PM.toggleMark(s.marks.mark); break;
+        case 'superscript': cmd = PM.toggleMark(s.marks.sup); break;
+        case 'subscript': cmd = PM.toggleMark(s.marks.sub); break;
+        case 'strike': cmd = PM.toggleMark(s.marks.strike); break;
+        case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6': cmd = PM.setBlockType(n.heading, { level: +name.charAt(1) }); break;
+        case 'paragraph': cmd = PM.setBlockType(n.paragraph); break;
+        case 'quote':
+          cmd = function (state, dispatch) {
+            var $from = state.selection.$from;
+            for (var depth = $from.depth; depth > 0; depth--) {
+              if ($from.node(depth).type !== n.blockquote) continue;
+              var node = $from.node(depth), at = $from.before(depth), parent = $from.node(depth - 1), index = $from.index(depth - 1);
+              if (state.selection.to > at + node.nodeSize - 1 || !parent.canReplace(index, index + 1, node.content)) return false;
+              if (dispatch) dispatch(state.tr.replaceWith(at, at + node.nodeSize, node.content).scrollIntoView());
+              return true;
+            }
+            return PM.wrapIn(n.blockquote)(state, dispatch);
+          }; break;
+        case 'bullets': cmd = list(n.bullet_list); break;
+        case 'numbers': cmd = list(n.ordered_list); break;
+        case 'link': linkDialog(); return true;
+        case 'color': case 'class':
+          /* With a value, the selection takes that colour or class (or the
+             next words typed, when nothing is selected); without, it loses
+             it. */
+          cmd = function (state, dispatch) {
+            var sel = state.selection, type = s.marks[name];
+            if (!arg) {
+              if (dispatch) dispatch(sel.empty ? state.tr.removeStoredMark(type) : state.tr.removeMark(sel.from, sel.to, type).scrollIntoView());
+              return true;
+            }
+            var mark = type.create({ value: String(arg) });
+            if (dispatch) dispatch(sel.empty ? state.tr.removeStoredMark(type).addStoredMark(mark) : state.tr.removeMark(sel.from, sel.to, type).addMark(sel.from, sel.to, mark).scrollIntoView());
+            return true;
+          };
+          break;
+        default:
+          if (TABLE_COMMANDS[name]) { cmd = TABLE_COMMANDS[name](); break; }
+          if (!insertOf(name)) return false;
+          insert(name);
+          return true;
+      }
+      var acted = cmd(v.state, v.dispatch, v);
+      v.focus();
+      return acted;
+    }
+    /* The link for the selection, asked in the site's dialog
+       (static/dialogs.js): an address, or none to take the link away. */
+    function linkDialog() {
+      var v = view, s = v.state, mark = s.schema.marks.link, current = '';
+      s.doc.nodesBetween(s.selection.from, Math.max(s.selection.to, s.selection.from + 1), function (node) {
+        var m = mark.isInSet(node.marks);
+        if (m) current = m.attrs.href;
+      });
+      var from = s.selection.from, to = s.selection.to;
+      function unchanged() { return on && view === v && !sourceStale && !frozen && v.state.doc === s.doc && v.state.selection.eq(s.selection); }
+      window.yavcDialog.askText('Link', 'Address', current, { signal: o.signal, placeholder: 'https://', help: 'Leave the address empty to take the link away.', okLabel: 'Apply', validate: function () { return unchanged() ? null : 'The document or selection changed. Reopen this form.'; } }).then(function (address) {
+        if (!unchanged()) return;
+        v.focus();
+        if (address == null) return;
+        var tr = v.state.tr;
+        if (from === to) {
+          if (!address) return;
+          tr.insertText(address, from).addMark(from, from + address.length, mark.create({ href: address }));
+        } else {
+          tr.removeMark(from, to, mark);
+          if (address) tr.addMark(from, to, mark.create({ href: address }));
+        }
+        v.dispatch(tr);
+      });
+    }
+
+    // A link on the page is followed with Ctrl+click; a plain click places the caret.
+    function click(e) {
+      if (!on) return;
+      var reference=e.target.closest&&e.target.closest('.doc-footnote-ref[data-footnote-ref]');
+      if(reference&&o.page.contains(reference)){
+        e.preventDefault();e.stopPropagation();var label=reference.getAttribute('data-footnote-ref'),found=null;
+        view.state.doc.descendants(function(node,pos){if(found==null&&node.type.name==='footnote'&&node.attrs.label===label)found=pos;});
+        if(found!=null){view.dispatch(view.state.tr.setSelection(PM.TextSelection.near(view.state.doc.resolve(found+1))).scrollIntoView());view.focus();}
+        else {var definition=Array.from(o.page.querySelectorAll('.doc-footnote')).find(function(note){return note.getAttribute('data-footnote')===label;});if(definition)definition.scrollIntoView({block:'nearest'});}
+        return;
+      }
+      var link = e.target.closest && e.target.closest('a[href]');
+      if (link && !e.ctrlKey) { e.preventDefault(); e.stopPropagation(); }
+    }
+    o.scroll.addEventListener('click', click, true);
+    function staleInput(event) { if (sourceStale) { event.preventDefault(); event.stopPropagation(); } }
+    o.page.addEventListener('mousedown', staleInput, true);
+    o.page.addEventListener('beforeinput', staleInput, true);
+
+    return {
+      enable: enable,
+      // Preserve a failed rich draft for selection/copy after its host revokes editing.
+      freeze: function () { frozen = true; if (view) view.setProps({ editable: function () { return false; } }); },
+      active: function () { return on && !!view; },
+      // Changes on the page not yet in the Editor's text.
+      pending: function () { return dirty || !!syncing; },
+      formatSelection: function (name) {
+        if (!view || !on || sourceStale || frozen) return null;
+        var target = view, doc = view.state.doc, selection = view.state.selection, stored = view.state.storedMarks, type = view.state.schema.marks[name];
+        if (!type) return null;
+        var values = new Set();
+        function value(marks) { var mark = type.isInSet(marks); return mark ? String(mark.attrs.value || '') : ''; }
+        if (selection.empty) values.add(value(view.state.storedMarks || selection.$from.marks()));
+        else doc.nodesBetween(selection.from, selection.to, function (node) { if (node.isText) values.add(value(node.marks)); });
+        if (!values.size) return null;
+        function current() { return on && view === target && view.editable && !sourceStale && !frozen && view.state.doc === doc && view.state.selection.eq(selection) && view.state.storedMarks === stored; }
+        return { value: values.size === 1 ? Array.from(values)[0] : '', mixed: values.size > 1, empty: selection.empty,
+          text: selection.empty ? 'Sample text' : doc.textBetween(selection.from, selection.to, ' ').slice(0, 240), current: current,
+          apply: function (next) { return current() && run(name, next || null); } };
+      },
+      historyAvailable: function (name) { return !!(view && !sourceStale && PM[name](view.state)); },
+      clipboardSelection: function () {
+        if (!view || sourceStale) return null;
+        var target = view, doc = view.state.doc, selection = view.state.selection;
+        var data = view.serializeForClipboard(selection.content());
+        function current() { return on && view === target && view.editable && !sourceStale && !frozen && view.state.doc === doc && view.state.selection.eq(selection); }
+        return { text: data.text, html: data.dom.innerHTML, empty: selection.empty, current: current,
+          remove: function () { if (current()) view.dispatch(view.state.tr.deleteSelection().scrollIntoView().setMeta('uiEvent', 'cut')); } };
+      },
+      sync: sync,
+      prepareEdit: async function () {
+        await sync();
+        if(on&&sourceStale){clearTimeout(reloadTimer);await load();}
+        return !!(view&&on&&!sourceStale&&!frozen&&view.editable);
+      },
+      // Map a rich selection by serializing a temporary public transaction.
+      // Removing its unique sentinels must reproduce the current source byte
+      // for byte before these offsets can authorize a source edit.
+      sourceSelection: async function(){
+        if(!view||!on||sourceStale||frozen)return null;
+        var target=view,doc=view.state.doc,selection=view.state.selection,source=o.text(),bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
+        var nonce=Array.from(bytes,function(value){return value.toString(16).padStart(2,'0');}).join(''),begin='YavcReviewBegin'+nonce,end='YavcReviewEnd'+nonce;
+        if(source.includes(begin)||source.includes(end))return null;
+        function current(){return view===target&&on&&!sourceStale&&!frozen&&view.state.doc===doc&&view.state.selection.eq(selection)&&o.text()===source;}
+        try{
+          var temporary=view.state.tr.insertText(end,selection.to).insertText(begin,selection.from),marked=await o.markdownOf(temporary.doc.toJSON());
+          if(!current())return null;
+          var from=marked.indexOf(begin),to=marked.indexOf(end);
+          if(from<0||to<from+begin.length||marked.indexOf(begin,from+begin.length)>=0||marked.indexOf(end,to+end.length)>=0)return null;
+          var reconstructed=marked.slice(0,from)+marked.slice(from+begin.length,to)+marked.slice(to+end.length);
+          if(reconstructed!==source)return null;
+          return {from:from,to:to-begin.length,current:current};
+        }catch(err){return null;}
+      },
+      footnoteSelection: function () {
+        if (!view || !on || sourceStale || frozen || !view.editable || !view.state.selection.$to.parent.isTextblock) return null;
+        var target=view,doc=view.state.doc,selection=view.state.selection;
+        function current(){return on&&view===target&&view.editable&&!sourceStale&&!frozen&&view.state.doc===doc&&view.state.selection.eq(selection);}
+        return {current:current,apply:function(text){
+          if(!current()||typeof text!=='string'||!text.trim()||text.length>16384)return false;
+          var schema=view.state.schema,used=new Set(),number=0;
+          doc.descendants(function(node){if(node.type.name==='footnote'||node.type.name==='footnote_ref'){used.add(node.attrs.label);number=Math.max(number,node.attrs.number||0);}});
+          if(used.size>=256)return false;
+          var index=1;while(used.has('note-'+index))index++;
+          var label='note-'+index,paragraphs=text.split(/\n\s*\n/).map(function(part){var content=[];part.split('\n').forEach(function(line,i){if(i)content.push(schema.nodes.soft_break.create());if(line)content.push(schema.text(line));});return schema.nodes.paragraph.create(null,content);});
+          var note=schema.nodes.footnote.create({label:label,number:number+1},paragraphs),ref=schema.nodes.footnote_ref.create({label:label,number:number+1});
+          var tr=view.state.tr.insert(selection.to,ref);tr.insert(tr.doc.content.size,note);tr.setSelection(PM.TextSelection.near(tr.doc.resolve(selection.to+1)));
+          view.dispatch(tr.scrollIntoView());view.focus();return true;
+        }};
+      },
+      textChanged: textChanged,
+      reload: function () { return on ? load() : Promise.resolve(); },
+      // The draft's suggestions, to show on the page with Accept and Reject.
+      suggest: suggest,
+      // The Edit menu's Paste and Select All, on the page.
+      paste: pasteContent, selectAll: selectAll,
+      focus: function () { if (view) view.focus(); },
+      // The page's editable element, for the Edit menu's Cut and Copy.
+      repaginate: function () { if (view) { view.dispatch(view.state.tr.setMeta('addToHistory', false)); } },
+      element: function () { return view ? view.dom : null; },
+      // The Editor's find bar, on the page.
+      find: find, goToMatch: goToMatch, matchText: matchText, replaceMatch: replaceMatch, replaceAllMatches: replaceAllMatches, selectionText: selectionText,
+      run: run,
+      insertMarkdown: insertMarkdown,
+      insertInline: insertInline,
+      wrap: wrap,
+      /* The page's blocks the selection touches, as a document of their
+         own for markdownOf, or null with nothing selected: what a chat
+         takes as the passage, widened to whole blocks as
+         the text widens a selection to whole lines. */
+      selectedBlocks: function () {
+        if (!view || view.state.selection.empty) return null;
+        var doc = view.state.doc, sel = view.state.selection, picked = [];
+        doc.forEach(function (node, offset) {
+          if (offset < sel.to && offset + node.nodeSize > sel.from) picked.push(node.toJSON());
+        });
+        if (!picked.length) return null;
+        return { type: 'doc', attrs: Object.assign({}, doc.attrs, { front: '', tail: '\n' }), content: picked };
+      },
+      inTable: function () { return !!view && PM.isInTable(view.state); },
+      outlineIndex: function () {
+        if (!view) return -1;
+        var child = view.state.selection.$from.index(0), index = -1;
+        view.state.doc.forEach(function (node, offset, i) { if (i <= child && (node.type.name === 'heading' || node.type.name === 'source_block' && node.attrs.kind === 'heading')) index++; });
+        return index;
+      },
+      goToHeading: function (index) {
+        if (!view) return false;
+        var found = null, number = -1;
+        view.state.doc.forEach(function (node, offset) { if (node.type.name === 'heading' || node.type.name === 'source_block' && node.attrs.kind === 'heading') { number++; if (number === index) found = { node: node, offset: offset }; } });
+        if (!found) return false;
+        var selection = found.node.type.name === 'heading' ? PM.TextSelection.create(view.state.doc, found.offset + 1) : PM.NodeSelection.create(view.state.doc, found.offset);
+        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView()); view.focus(); return true;
+      },
+      // Whether a table command can act where the cursor is.
+      can: can,
+      // What the cursor is in, for the toolbar's pressed states.
+      marks: function () {
+        if (!view) return {};
+        var st = view.state, s = st.schema, out = {}, $f = st.selection.$from;
+        ['strong', 'em', 'code', 'underline', 'strike', 'link', 'color', 'class', 'mark', 'sup', 'sub'].forEach(function (m) {
+          var type = s.marks[m];
+          out[m] = st.selection.empty ? !!type.isInSet(st.storedMarks || $f.marks()) : st.doc.rangeHasMark(st.selection.from, st.selection.to, type);
+        });
+        var block = $f.parent, list = null;
+        for (var d = $f.depth; d > 0; d--) { var t = $f.node(d).type.name; if (t === 'bullet_list' || t === 'ordered_list') { list = t; break; } }
+        out.block = block.type.name === 'heading' ? 'h' + block.attrs.level : block.type.name === 'paragraph' ? 'paragraph' : block.type.name;
+        out.list = list;
+        out.table = PM.isInTable(st);
+        out.quote = false; for (var depth = $f.depth; depth > 0; depth--) { if ($f.node(depth).type === s.nodes.blockquote) { out.quote = true; break; } }
+        if (out.table) {
+          var rect = PM.selectedRect(st), values = new Set();
+          rect.table.forEach(function (row) { row.forEach(function (cell, offset, column) { if (column >= rect.left && column < rect.right) values.add(cell.attrs.align || ''); }); });
+          out.columnAlign = values.size === 1 ? values.values().next().value : null;
+        }
+        return out;
+      },
+      focus: function () { if (view) view.focus(); },
+      destroy: function () {
+        on = false;
+        loading++;
+        clearTimeout(syncTimer);
+        clearTimeout(reloadTimer);
+        o.scroll.removeEventListener('click', click, true);
+        o.page.removeEventListener('mousedown', staleInput, true);
+        o.page.removeEventListener('beforeinput', staleInput, true);
+        if (view) { view.destroy(); view = null; }
+      }
+    };
+  }
+
+  // Importers provide cleaned inert HTML; the shared schema supplies the
+  // same paste semantics without creating or mutating an editor view.
+  async function fromHTML(html) {
+    var PM=await loadProseMirror(),template=document.createElement('template');
+    template.innerHTML=window.yavcHTML.clean(html);
+    return PM.DOMParser.fromSchema(schemaOf(PM)).parse(template.content).toJSON();
+  }
+  window.yavcPageView = { attach: attach, load: loadProseMirror, fromHTML:fromHTML, insert: insertOf, inserts: INSERTS, placeholder: PLACEHOLDER };
+})();

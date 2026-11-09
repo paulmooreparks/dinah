@@ -1,0 +1,252 @@
+/* Copyright 2026 Paul Parks. SPDX-License-Identifier: Apache-2.0 */
+.doc-page .critic ins,.doc-page ins.critic-body { color:inherit;background:color-mix(in srgb,var(--positive) 15%,transparent);text-decoration:underline;text-decoration-color:var(--positive); }
+.doc-page .critic del,.doc-page del.critic-body { color:inherit;background:color-mix(in srgb,var(--danger) 12%,transparent);text-decoration:line-through;text-decoration-color:var(--danger); }
+.doc-page .critic-comment { display:inline-flex;align-items:baseline;gap:var(--space-1);padding-inline:var(--space-1);border-inline-start:2px solid var(--accent);font-size:.9em;white-space:pre-wrap; }
+.doc-page .critic-marker { display:inline-flex;gap:var(--space-1);font-size:.8em;color:var(--text-muted);border:1px solid var(--border);padding-inline:var(--space-1);border-radius:var(--radius-sm); }
+.doc-page .critic-block { display:block; }
+/* The page the Markdown engine draws (apps/md-engine): the document page's
+   type, the page view's parts and the shortcodes, shared by the Editor's
+   preview and Visual view and by Slides. The loader links it. From Dinah
+   Desktop's preview.css and editor-applet.css and parkscomputing.com's
+   pudl-site.css. */
+.doc-page {
+  /* The page's own tokens (docs/docs-design.md, decision 4). A theme, a
+     stylesheet or a {{style}} block sets these, and everything below reads
+     them, so a few lines restyle a whole document. They follow the site
+     until something changes them. */
+  --doc-font: var(--font);
+  --doc-font-heading: var(--doc-font);
+  --doc-size: var(--text-sm);
+  --doc-leading: 1.5;
+  --doc-ink: var(--text);
+  --doc-muted: var(--text-muted);
+  --doc-accent: var(--accent);
+  --doc-rule: var(--border);
+  --doc-page: var(--surface);
+  --doc-code: var(--surface-alt);
+  --doc-warning: var(--warn); --doc-danger: var(--danger); --doc-positive: var(--positive);
+  --dinah-warning-surface: color-mix(in srgb, var(--doc-danger) 8%, var(--doc-page));
+  --dinah-warning-accent: var(--doc-danger);
+  --dinah-tip-surface: color-mix(in srgb, var(--doc-positive) 8%, var(--doc-page));
+  --dinah-tip-accent: var(--doc-positive);
+  --dinah-ink: var(--doc-ink);
+  --dinah-link-on-surface: var(--doc-accent);
+  --dinah-page-surface: var(--doc-page);
+  --dinah-content-border: var(--doc-rule);
+  --dinah-content-code-surface: var(--doc-code);
+  --dinah-muted-ink: var(--doc-muted);
+  display: block; box-sizing: border-box; min-height: 100%; min-width: fit-content; margin: 0;
+  padding: var(--space-5) var(--space-6) 40vh; font-family: var(--doc-font); font-size: var(--doc-size); line-height: var(--doc-leading);
+  color: var(--dinah-ink); background-color: var(--dinah-page-surface); color-scheme: inherit;
+}
+.doc-page a { color: var(--dinah-link-on-surface); }
+.doc-page p { margin-bottom: var(--doc-paragraph-spacing, 1em); }
+.doc-page h1, .doc-page h2, .doc-page h3, .doc-page h4, .doc-page h5, .doc-page h6 { font-family: var(--doc-font-heading); line-height: 1.25; margin: 1.1em 0 0.5em 0; color: var(--dinah-ink); }
+.doc-page h1 { margin-top: 0.75em; }
+.doc-page > :first-child, .doc-page > .ProseMirror > :first-child { margin-top: 0; }
+.doc-page pre { padding: 8px 10px; overflow-x: auto; border: 1px solid var(--dinah-content-border); border-radius: 3px; background-color: var(--dinah-content-code-surface); }
+.doc-page code { font-family: var(--mono); font-size: 0.92em; }
+.doc-page blockquote { margin: 0.6em 0; padding: 0 0 0 12px; border-left: 3px solid var(--dinah-content-border); color: var(--dinah-muted-ink); }
+.doc-page .sc-no-export { outline: 1px dashed var(--doc-muted); outline-offset: 2px; }
+.doc-page span.sc-no-export { outline: 0; text-decoration: underline dashed var(--doc-muted); }
+.doc-page .sc-no-export-label { display: flex; align-items: center; gap: var(--space-1); color: var(--doc-muted); font-size: 0.8em; }
+.doc-page hr { border: 0; border-top: 1px solid var(--dinah-content-border); margin: 1.2em 0; }
+.doc-page li > input[type="checkbox"] { margin: 0 0.4em 0 0; vertical-align: middle; }
+.doc-page li:has(> input[type="checkbox"]) { list-style: none; }
+.doc-page table { border-collapse: collapse; margin: 0.6em 0; max-width: 100%; }
+.doc-page th, .doc-page td { min-width: 6em; padding: 4px 10px; border: 1px solid var(--dinah-content-border); text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.doc-page :is(th, td) :is(a, code) { overflow-wrap: anywhere; }
+.doc-page th:empty::after, .doc-page td:empty::after { content: "\200b"; }
+.doc-page th { background-color: var(--dinah-content-code-surface); }
+.doc-page .doc-block, .doc-page .dinah-block { position: relative; margin: 0; padding: 0; scroll-margin-top: var(--space-6); }
+.doc-page .dinah-diagram-placeholder { margin: 8px 0; padding: 12px; border: 1px dashed var(--dinah-content-border); border-radius: 3px; color: var(--dinah-muted-ink); text-align: center; }
+.doc-page .dinah-diagram-placeholder.ed-diagram { border: 0; padding: 0; text-align: start; }
+.doc-page .dinah-diagram-placeholder.ed-diagram svg { max-width: 100%; height: auto; }
+/* A diagram is an image (apps/diagram-kit/d2.js), centred and never wider
+   than the page. A fault is the site's notice above it or above its
+   source; on a slide, left-out icons are a muted line under it. */
+.doc-page .dinah-diagram-placeholder[data-d2].ed-diagram { text-align: center; }
+.doc-page .sc-diagram-note { margin: var(--space-1) 0 0; color: var(--dinah-muted-ink); font-size: var(--text-xs); }
+.doc-page .dinah-diagram-placeholder > .yavc-notice, .doc-page .dinah-diagram-placeholder > .loading { margin: 0 0 var(--space-2); text-align: start; }
+.doc-page .dinah-diagram-placeholder[data-d2] > pre { text-align: start; }
+.doc-page .dinah-attachment-image { max-width: 100%; height: auto; border: 1px solid var(--dinah-content-border); border-radius: 2px; }
+.doc-page .ed-missing-image { display: inline-block; padding: 2px 8px; border: 1px dashed var(--dinah-warning-accent); border-radius: 3px; color: var(--dinah-warning-accent); font-size: 0.9em; }
+/* Find's matches on the page, as the text marks them. */
+.pm-find-match { background: color-mix(in srgb, var(--accent) 22%, transparent); border-radius: 2px; }
+.pm-find-current { background: color-mix(in srgb, var(--accent) 45%, transparent); outline: 1px solid var(--accent); }
+/* Page view (page-view.js): the page is one editor. */
+.doc-page.page-view { cursor: text; }
+.doc-page.page-view > .ProseMirror { outline: none; min-height: 100%; white-space: pre-wrap; }
+.doc-page.page-view td, .doc-page.page-view th { position: relative; }
+.doc-page.page-view .selectedCell::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
+.doc-page.page-view .pm-tight > li > p, .doc-page.page-view .pm-tight > li > .pm-task-body > p { margin: 0; }
+.doc-page.page-view li.pm-task { list-style: none; display: flex; align-items: baseline; }
+.doc-page.page-view .pm-check { flex: none; }
+.doc-page.page-view .pm-check > input { margin: 0 0.4em 0 0; vertical-align: middle; cursor: pointer; }
+.doc-page.page-view .pm-task-body { flex: 1 1 auto; min-width: 0; }
+.doc-page.page-view .pm-source.selected { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.doc-page.page-view .pm-source { white-space: normal; border-radius: var(--radius-sm); cursor: pointer; }
+.doc-page.page-view .pm-source pre { white-space: pre; }
+.doc-page.page-view .pm-source:hover { outline: 1px dashed var(--input-border); outline-offset: 3px; }
+.doc-page.page-view .pm-source > div > .doc-block { margin: 0; }
+/* The empty line's hint is a placeholder, not text: the muted ink at
+   just over half strength, small and italic, so it is read as a prompt and
+   never as the page's words (placeholder text is held to 3:1 at most). */
+.doc-page.page-view .pm-hint::before { content: attr(data-hint); float: left; height: 0; pointer-events: none; color: var(--text-muted); font-style: italic; font-size: .8em; font-weight: 400; letter-spacing: 0; }
+.doc-page.page-view .pm-slash-anchor { display: inline-block; width: 0; height: 1em; vertical-align: text-bottom; }
+.page-slash { max-height: 50vh; overflow-y: auto; }
+.page-slash .menu-action[aria-selected="true"] { background: var(--surface-alt); }
+.page-source { display: block; width: 100%; min-height: 3em; font: var(--text-sm)/1.5 var(--mono); resize: none; overflow: hidden; }
+
+/* === Shortcodes on the page (internal/shortcodes, from parkscomputing.com) ===
+   Notices and status badges are PUDL's own; these place them on the page
+   and style what PUDL has no component for. */
+.doc-page .sc-notice { margin: 0 0 1.1em; }
+.doc-page .notice-body > :last-child { margin-bottom: 0; }
+.doc-page .sc-figure { text-align: center; margin: 0.6em 0 1.1em; }
+.doc-page .sc-figure img { max-width: 100%; height: auto; }
+.doc-page .sc-figure figcaption { margin-top: var(--space-2); color: var(--dinah-muted-ink); font-size: var(--text-xs); }
+.doc-page .sc-expand { margin: 0 0 1.1em; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-4); }
+.doc-page .sc-expand > summary { margin: var(--space-2) 0; list-style: none; }
+.doc-page .sc-expand > summary::-webkit-details-marker { display: none; }
+.doc-page .sc-expand[open] > summary { margin-bottom: var(--space-3); }
+.doc-page .sc-toc { margin: 0 0 1.1em; padding: var(--space-3) var(--space-4); border-inline-start: 3px solid var(--border); }
+.doc-page .sc-toc ul { margin: 0; padding-inline-start: 1.2em; }
+.doc-page .sc-toc > ul { padding-inline-start: 0; list-style: none; }
+.doc-page .sc-video { position: relative; max-width: 720px; margin: 0 auto 1.1em; aspect-ratio: 16 / 9; }
+.doc-page .sc-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.doc-page .sc-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(16em, 1fr)); gap: var(--space-5); margin: 0 0 1.1em; }
+.doc-page .sc-column > :last-child { margin-bottom: 0; }
+.doc-page kbd { display: inline-block; padding: 0 .4em; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--radius-sm); background: var(--surface-alt); font-family: var(--mono); font-size: .85em; line-height: 1.5; }
+.doc-page .sc-glyph { --glyph-size: 1em; vertical-align: -0.1em; }
+.doc-page .sc-draft-note { margin: 0 0 1.1em; padding: var(--space-3) var(--space-4); border: 1px dashed var(--warn); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.doc-page .sc-draft-note-label { margin: 0 0 var(--space-1); font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; color: var(--text-muted); }
+.doc-page :is(.sc-draft-note-label + *, .sc-expand > summary + *, .sc-column > :first-child, .sc-notice .notice-body > :first-child) { margin-top: 0; }
+.doc-page [data-applet] { margin: 0.6em 0 1.1em; }
+.doc-page .sc-problem { color: var(--danger); text-decoration: wavy underline var(--danger); cursor: help; }
+
+/* What a document says that Markdown cannot (docs/docs-design.md, decision
+   3): highlighted, raised and lowered words, a page break and a caption. */
+.doc-page mark { background: color-mix(in srgb, var(--warn) 38%, transparent); color: inherit; padding: 0 0.15em; border-radius: 2px; }
+.doc-page :is(sup, sub) { line-height: 0; }
+.doc-page .sc-page-break { margin: 1.4em 0; border-top: 1px dashed var(--dinah-content-border); text-align: center; break-after: page; }
+.doc-page .sc-page-break::after { content: "Page break"; position: relative; top: -0.8em; padding: 0 var(--space-3); background: var(--dinah-page-surface); color: var(--dinah-muted-ink); font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
+.doc-page .sc-caption { margin: -0.4em 0 1.1em; text-align: center; color: var(--dinah-muted-ink); font-size: 0.9em; }
+.doc-page .sc-caption > :is(p, ul, ol) { margin: 0; }
+
+/* The classes every document has, applied with {{class:name}} or from
+   Format, Style (apps/md-editor/kit.js lists them as STOCK_CLASSES). */
+.doc-page .center { text-align: center; }
+.doc-page .right { text-align: right; }
+.doc-page .justify { text-align: justify; hyphens: auto; }
+.doc-page .indent { margin-inline-start: 2em; }
+.doc-page .small { font-size: 0.85em; }
+.doc-page .lead { font-size: 1.2em; line-height: 1.4; }
+.doc-page .no-break { break-inside: avoid; }
+.doc-page :is(h1,h2,h3,h4,h5,h6) { break-after: avoid; break-after: avoid-page; }
+.doc-page .doc-footnote { border-top: 1px solid var(--doc-rule); margin-top: 1em; padding-top: .4em; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .6em; font-size: .85em; }
+.doc-page .doc-footnote-label { color: var(--doc-muted); }
+.doc-page .doc-footnote-body > :first-child { margin-top: 0; }
+.doc-page .doc-footnote-body > :last-child { margin-bottom: 0; }
+.doc-page .doc-footnote-ref { font-size: .75em; line-height: 0; }
+.doc-paginated > .ProseMirror > .doc-footnote { margin-top: 0; }
+.doc-paginated .doc-footnote-paged { position: absolute; left: 0;margin-top:0; }
+.doc-paginated > .doc-page-flow { position: relative; }
+.doc-paginated > .doc-page-flow > .doc-footnote { margin-top: 0; }
+/* Document view retains a single editable flow. Page gaps are decorations. */
+.doc-page.doc-paginated {
+  position: relative;
+  width: var(--sheet-width) !important; max-width: none !important; min-width: var(--sheet-width);
+  padding: var(--sheet-top) var(--sheet-right) var(--sheet-bottom) var(--sheet-left) !important;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent var(--sheet-height), var(--sheet-gutter, var(--surface-alt)) var(--sheet-height), var(--sheet-gutter, var(--surface-alt)) calc(var(--sheet-height) + var(--sheet-gap)));
+  background-color: var(--doc-page); color-scheme: light;
+}
+.doc-paginated > :is(.ProseMirror, .doc-page-flow) { display: flow-root; padding: 0; margin: 0; min-height: 0; }
+.doc-paginated > :is(.ProseMirror, .doc-page-flow) > * { margin-top: 0; }
+.doc-paginated > :is(.ProseMirror, .doc-page-flow) > .doc-page-gap { display: block; padding: 0; margin: 0; border: 0; pointer-events: none; }
+.doc-paginated .doc-page-gap-inline { display: block; padding: 0; margin: 0; border: 0; line-height: 0; pointer-events: none; }
+.doc-paginated li.doc-page-gap { display: block; counter-increment: none; list-style: none; padding: 0; margin: 0; }
+.doc-paginated li.doc-list-continuation { list-style-type: none; }
+.doc-paginated .doc-fragment-open-start { margin-top: 0 !important;padding-top:0!important;border-top-width:0!important; }
+.doc-paginated .doc-fragment-open-end { margin-bottom: 0 !important;padding-bottom:0!important;border-bottom-width:0!important; }
+.doc-paginated tr.doc-page-gap > td { padding: 0; border: 0; }
+.doc-paginated .doc-table-repeated-header { margin:0;pointer-events:none; }
+.doc-paginated .doc-cell-repeated-header { display:block;box-sizing:border-box;font-weight:bold;line-height:normal;background:var(--doc-code);padding-block:.2em; }
+.doc-paginated :is(td,th) { position:relative; }
+.doc-paginated > .doc-page-flow > .doc-block { display: flow-root; }
+.doc-paginated > .doc-page-flow > .doc-block > :first-child { margin-top: 0; }
+.doc-furniture { position: absolute; inset: 0; pointer-events: none; font-size: 9pt; line-height: 1.25; color: var(--doc-muted); }
+.doc-sheet-gutter { position:absolute;left:0;right:0;height:24px;background:var(--sheet-gutter,var(--surface-alt));z-index:1; }
+.doc-header, .doc-footer { position: absolute; left: var(--sheet-left); right: var(--sheet-right); display: flex; gap: 6pt; }
+.doc-furniture-cell { flex: 1 1 0; min-width: 0; white-space: nowrap; }
+.doc-furniture a { pointer-events: auto; }
+@media print {
+  .doc-page .sc-page-break { margin: 0; border: 0; height: 0; }
+  .doc-page .sc-page-break::after { content: none; }
+}
+
+/* The editing kit's colour dialogs (apps/md-editor/kit.js). */
+.md-swatches { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.md-swatch-dot { display: inline-block; width: 0.9em; height: 0.9em; border-radius: 50%; border: 1px solid var(--border); margin-inline-end: 0.4em; vertical-align: -0.1em; }
+
+/* A box on the page (page-view.js boxView): a container shortcode or a
+   column set edited in place. Its bar sits over its top edge and shows
+   while the pointer or the keyboard is in the box. */
+.doc-page.page-view .pm-box { position: relative; margin-top: var(--space-4); }
+.doc-page.page-view .pm-box-bar { position: absolute; top: -14px; right: var(--space-3); z-index: 2; display: flex; align-items: center; gap: var(--space-1); opacity: 0; transition: opacity .12s; }
+.doc-page.page-view .pm-box:hover > .pm-box-bar, .doc-page.page-view .pm-box:focus-within > .pm-box-bar { opacity: 1; }
+/* The box's extent shows while it is worked in, since an expand section has no edge of its own. */
+.doc-page.page-view .pm-box:hover > .pm-box-frame, .doc-page.page-view .pm-box:focus-within > .pm-box-frame { outline: 1px dashed var(--input-border); outline-offset: 4px; border-radius: var(--radius-sm); }
+.doc-page.page-view .pm-box-kind { font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; color: var(--text-muted); padding: 0 var(--space-2); background: var(--surface); border-radius: var(--radius-sm); }
+.doc-page.page-view .pm-box-frame > :first-child { margin-top: 0; }
+.doc-page.page-view .pm-box-body > :last-child, .doc-page.page-view .pm-column > :last-child { margin-bottom: 0; }
+.doc-page.page-view .pm-box .sc-expand > summary { pointer-events: none; }
+.doc-page.page-view .pm-column { min-width: 0; padding: var(--space-2); border: 1px dashed transparent; border-radius: var(--radius-sm); }
+.doc-page.page-view .pm-box:hover .pm-column, .doc-page.page-view .pm-box:focus-within .pm-column { border-color: var(--input-border); }
+
+/* An inline shortcode on the page (page-view.js inlineView): keys or a
+   status label, pressed to change it. */
+.doc-page.page-view .pm-sc { cursor: pointer; border-radius: var(--radius-sm); }
+.doc-page.page-view .pm-sc:hover { outline: 1px dashed var(--input-border); outline-offset: 2px; }
+.doc-page.page-view .pm-sc.selected { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.doc-page.page-view .pm-sc .sc-glyph { vertical-align: -0.15em; }
+
+/* The editing kit's shortcode forms (apps/md-editor/kit.js). */
+.md-form { max-width: 34rem; }
+.md-form-fields { display: grid; gap: var(--space-1); }
+.md-form-fields .form-label { margin-top: var(--space-3); }
+.md-form-fields .form-help { margin: 0; }
+.md-form-fields .form-input, .md-form-fields .form-select { width: 100%; }
+
+/* The editing kit's Properties dialog. */
+.md-props { width: min(38rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); }
+.md-props .form-input { width: 100%; }
+.md-props-custom { display: grid; gap: var(--space-2); margin-bottom: var(--space-2); }
+.md-props-custom:empty { display: none; }
+.md-prop-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--space-2); align-items: end; }
+.md-prop-row .form-group { margin: 0; min-width: 0; }
+.md-props .form-group > button { align-self: flex-start; }
+@media (max-width: 480px) { .md-prop-row { grid-template-columns: minmax(0, 1fr); } .md-prop-row > :last-child { justify-self: start; } }
+.md-prop-note { font-size: var(--text-xs); color: var(--text-muted); }
+
+/* A picture never widens the page: it scales to the column, as a figure's
+   does; code and tables scroll within themselves (DESIGN.md, decision 15). */
+.doc-page img { max-width: 100%; height: auto; }
+/* GitHub README image alignment, also retained on local attachments. */
+.doc-page img[align="right" i] { float: right; margin: 0 0 1em 1em; }
+.doc-page img[align="left" i] { float: left; margin: 0 1em 1em 0; }
+.doc-page br[clear="right" i] { clear: right; }
+.doc-page br[clear="left" i] { clear: left; }
+.doc-page br[clear="both" i], .doc-page br[clear="all" i] { clear: both; }
+
+/* The editing kit's picture dialog (apps/md-editor/kit.js). */
+.md-figure { max-width: 34rem; }
+.md-figure-fields { display: grid; gap: var(--space-1); }
+.md-figure-fields .form-label { margin-top: var(--space-3); }
+.md-figure-fields .form-help { margin: 0; }
+.md-figure-fields .form-input { width: 100%; }
+.md-figure-src { display: flex; gap: var(--space-2); }
+.md-figure-src .form-input { flex: 1 1 auto; min-width: 0; }
+.md-figure-width { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+.md-figure-width .number-field { min-width: 0; }
+.md-figure-width .form-select { width: auto; }
