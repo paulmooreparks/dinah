@@ -73,7 +73,11 @@
       tools.forEach(function (t) {
         var name = t.windowTitle || t.title, applet = t.applet && appletMentions.filter(function (m) { return m.id === t.applet; })[0];
         if (applet) covered[applet.id] = true;
-        var rank = mentionRank(q, name, t.id, [t.description || '', applet ? applet.description : ''].join(' '));
+        // Its applet's action titles name it too, as an applet's own do below.
+        var actionTitles = applet ? applet.actions.map(function (action) { return action.title + ' ' + action.ref; }).join(' ') : '';
+        var rank = actionTitles ? mentionRank(q, name, t.id, actionTitles) : -1;
+        if (rank === 3) rank = 2;
+        if (rank < 0) rank = mentionRank(q, name, t.id, [t.description || '', applet ? applet.description : ''].join(' '));
         if (rank < 0) return;
         ranked.push({ rank: rank, item: { group: 'Windows', label: name, meta: t.description || 'A ' + productName() + ' window', ins: '@' + name.replace(/\s+/g, '_'), att: { kind: 'window', window: t.id, provider: applet ? applet.id : '', name: name } } });
       });
@@ -81,8 +85,15 @@
         if (covered[m.id]) return;
         var token = '@' + m.title.replace(/\s+/g, '_');
         if (appletMentions.some(function (other) { return other.id !== m.id && other.title.replace(/\s+/g, '_') === token.slice(1); })) token += ':' + m.id;
-        var rest = [m.description, token].concat(m.actions.map(function (action) { return action.title + ' ' + action.ref + ' ' + action.description; })).join(' ');
-        var rank = mentionRank(q, m.title, m.id, rest);
+        /* An action's title is a name of the applet's too ("@draw" finds
+           Sketch Pad by its Draw action), so it ranks as the applet's id
+           does, above a word in a description; the descriptions of the
+           tool windows (Diagrams: "drawn from text") otherwise took it. */
+        var titles = [token].concat(m.actions.map(function (action) { return action.title + ' ' + action.ref; })).join(' ');
+        var rest = [m.description].concat(m.actions.map(function (action) { return action.description; })).join(' ');
+        var rank = mentionRank(q, m.title, m.id, titles);
+        if (rank === 3) rank = 2;
+        if (rank < 0) rank = mentionRank(q, m.title, m.id, rest);
         if (rank < 0) return;
         ranked.push({ rank: rank, item: { group: 'Applets', label: m.title, meta: m.description || m.actions.map(function (action) { return action.title; }).join(' · '), ins: token, att: { kind: 'applet', provider: m.id, name: m.title } } });
       });

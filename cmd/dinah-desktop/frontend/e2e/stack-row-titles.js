@@ -26,7 +26,7 @@ const { launch, PAGE } = require('./lib/page');
   const titles = [
     ['release-notes-for-the-november-desktop-build-with-hyphenated-words.md', 'Alpha'],
     ['a.md', 'Alpha'],
-    ['Untitled (changed)', 'Alpha'],
+    ['Untitled', 'Alpha'],
     ['notes-from-another-workspace.md', 'Beta'],
   ];
   for (let i = 0; i < 12; i++) titles.push(['scroll-filler-' + i + '.txt', 'Alpha']);
@@ -34,9 +34,13 @@ const { launch, PAGE } = require('./lib/page');
     await page.goto(PAGE);
     await t.waitReady();
     await page.locator('[data-win-layer]').evaluate(layer => layer.setAttribute('data-win-taskbar-stacks', 'always'));
+    // Plain item windows of a kind the suite registers: a content window
+    // keeps its title as Dinah sets it and ignores a retitle from elsewhere
+    // (workbench.js), and the rows here are PUDL's to lay out.
+    await page.evaluate(() => dinahWorkbench.register('fixture-doc', { title: 'Doc', glyph: 'document', applet: { id: 'fixture.docs', title: 'Docs', glyph: 'document', workspace: true }, init: function () { return { destroy: function () {} }; } }));
     const keys = [];
     for (let i = 0; i < titles.length; i++) {
-      keys.push(await page.evaluate(i => dinahWorkbench.open({ kind: 'editor', workspace: 'C:/Alpha', path: 'doc-' + i }), i));
+      keys.push(await page.evaluate(i => dinahWorkbench.open({ kind: 'fixture-doc', workspace: 'C:/Alpha', path: 'doc-' + i }), i));
     }
     await page.waitForFunction(keys => keys.every(k => { const w = document.querySelector('.win[data-win="' + CSS.escape(k) + '"]'); return w && w.getAttribute('data-dinah-group-workspace') === 'Alpha'; }), keys);
     await page.evaluate(([keys, titles]) => keys.forEach((k, i) => pudlWindows.retitle(k, titles[i][0], titles[i][1])), [keys, titles]);
@@ -59,12 +63,13 @@ const { launch, PAGE } = require('./lib/page');
           detailShown: dr.width > 0, detailRight: dr.right, titleRight: tr.right, titleW: tr.width, natural: title.scrollWidth, space: Math.min(sr.left, cr.left) - gr.right, stateW: sr.width, closeGap: cr.left - gr.right, label: link.getAttribute('aria-label'), tip: link.getAttribute('title') };
       }));
       const byText = s => rows.find(r => r.text === s);
-      const long = byText(titles[0][0]), short = byText('a.md'), changed = byText('Untitled (changed)'), other = byText(titles[3][0]);
+      const long = byText(titles[0][0]), short = byText('a.md'), changed = byText('Untitled'), other = byText(titles[3][0]);
       ok(name + ': every title is one line', rows.every(r => r.titleH < 30), JSON.stringify(rows.map(r => r.titleH)));
       ok(name + ': the redundant workspace is not shown', !long.detailShown && !short.detailShown && !changed.detailShown);
       ok(name + ': with no window in a state, the state column takes no width', rows.every(r => r.stateW < 1), JSON.stringify(rows.map(r => r.stateW)));
       ok(name + ': a long title takes the room from glyph to close button', long.titleW >= long.space - 24, JSON.stringify({ w: long.titleW, space: long.space, closeGap: long.closeGap }));
-      ok(name + ': the changed marker is in the visible title', changed.natural <= changed.titleW + 1);
+      // A document's title no longer carries a mark for unsaved typing (9 November 2026); a short title is wholly visible.
+      ok(name + ': a short title is wholly visible', changed.natural <= changed.titleW + 1);
       ok(name + ': the other workspace follows the title in the same line', other.detailShown || other.natural > other.titleW, JSON.stringify(other));
       ok(name + ': the full title stays in the tooltip and spoken name', long.label.includes(titles[0][0]) && long.tip.includes(titles[0][0]) && other.label.includes('Beta'));
       const scroll = await panel.evaluate(p => ({ sh: p.scrollHeight, ch: p.clientHeight, overflow: getComputedStyle(p).overflowY }));

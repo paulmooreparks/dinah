@@ -1,7 +1,7 @@
 const {launch}=require('./lib/page');
 (async()=>{const t=await launch({app:()=>({TerminalShells:async()=>({shells:[{id:'pwsh',name:'PowerShell'},{id:'cmd',name:'Command Prompt'}]})})}),p=t.page;try{
 await p.waitForFunction(()=>document.querySelector('[data-launcher-action="terminal:pwsh"]'));
-t.ok('recommended destinations and creation commands are available',await p.evaluate(()=>['skills-browser','in-progress','needs-you','new-workspace','new-empty-workspace','import-workspace','new-document','open-document','keyboard-shortcuts','about'].every(id=>document.querySelector('[data-launcher-action="'+id+'"]'))));
+t.ok('recommended destinations and creation commands are available',await p.evaluate(()=>['skills-browser','in-progress','needs-you','new-workspace','new-empty-workspace','import-workspace','tool:editor','open-document','keyboard-shortcuts','about'].every(id=>document.querySelector('[data-launcher-action="'+id+'"]'))));
 await p.evaluate(()=>{window.__terminalChoice=[];dinahResources.currentPath=async()=> 'C:/Fixture';dinahResources.openTerminal=async(path,unused,id)=>__terminalChoice.push({path,id});});
 await p.evaluate(()=>pudlMenubar.launcherButton().click());
 await p.locator('[data-start-category-key="terminals"]').click();
