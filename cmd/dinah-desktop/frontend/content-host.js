@@ -312,65 +312,9 @@
     return { files: { read: function (resource) { return read({ resource: resource }).then(function (r) { return r.text; }); } } };
   }
 
-  /* PUDL evaluates a command's dynamic items for every bound control at
-     every redraw, twice per control, and the applets' Insert menu builds
-     its items through the Markdown engine each time it is asked, which
-     made a keystroke cost hundreds of milliseconds. Until the applets cache
-     it themselves, a command's items are evaluated at most four times a
-     second here: the applet's command table is wrapped as it registers,
-     and each function valued items keeps its answer for a quarter second.
-     A shortcode defined while typing reaches the Insert menu that much
-     later, which is before the menu can be opened. */
-  var itemsMemo = new WeakMap();
-  function memoItems(fn) {
-    var wrapped = itemsMemo.get(fn);
-    if (wrapped) return wrapped;
-    var have = false, value;
-    wrapped = function () {
-      if (have) return value;
-      value = fn.apply(this, arguments);
-      have = true;
-      setTimeout(function () { have = false; value = undefined; }, 250);
-      return value;
-    };
-    itemsMemo.set(fn, wrapped);
-    return wrapped;
-  }
-  function memoTable(table) {
-    return function () {
-      var list = table.apply(this, arguments);
-      (Array.isArray(list) ? list : []).forEach(function (c) {
-        if (c && typeof c === 'object' && typeof c.items === 'function' && !c.items.__dinahMemo) {
-          var m = memoItems(c.items);
-          m.__dinahMemo = true;
-          c.items = m;
-        }
-      });
-      return list;
-    };
-  }
-  var registered = false;
-  function wrapRegister() {
-    if (registered) return;
-    registered = true;
-    var register = window.pudlApplets.register;
-    window.pudlApplets.register = function (name, def) {
-      if (APPS[name] && def && typeof def.init === 'function') {
-        var init = def.init;
-        def = Object.assign({}, def, { init: function (root, opts) {
-          var inst = init.call(this, root, opts);
-          if (inst && typeof inst.commandTable === 'function') inst.commandTable = memoTable(inst.commandTable);
-          return inst;
-        } });
-      }
-      return register.call(this, name, def);
-    };
-  }
-
   var installed = null;
   function install() {
     if (installed) return installed;
-    wrapRegister();
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
       contentWorkspace: { version: 1, directory: function () { return null; } },

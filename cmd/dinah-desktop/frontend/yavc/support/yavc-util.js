@@ -141,5 +141,32 @@
         };
     }
 
-    window.yavcUtil = Object.freeze({ esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, version: V });
+    /* Compare the documented PUDL command presentation, excluding callback
+       identity. Read dynamic fields with the command as their receiver. */
+    function commandState(table) {
+        var fields=['id','label','glyph','shortcut','disabled','reason','checked','choice','value','danger','badge','hidden','current','action','bind','glyphOnly','choiceLabel','toolbarChoice','toolbarPriority'];
+        function value(command,key){var v=command[key];return typeof v==='function'?v.call(command):v;}
+        function row(command){
+            if(!command||typeof command!=='object')return command;
+            var state={};fields.forEach(function(key){var v=value(command,key);if(v!==undefined)state[key]=v;});
+            state.runnable=typeof command.run==='function';
+            var items=value(command,'items');if(Array.isArray(items))state.items=items.map(row);
+            return state;
+        }
+        return JSON.stringify(table.map(row));
+    }
+    function commandChanges(table,report,alive) {
+        var previous=null,pending=false;
+        return function(){
+            if(pending||!alive())return;
+            pending=true;
+            Promise.resolve().then(function(){
+                pending=false;if(!alive())return;
+                var next=commandState(table());if(next===previous)return;
+                previous=next;report();
+            });
+        };
+    }
+
+    window.yavcUtil = Object.freeze({ esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
 })();

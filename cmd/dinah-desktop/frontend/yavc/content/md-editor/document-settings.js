@@ -2,7 +2,7 @@
 /* Validated document typography and running page furniture. */
 (function () {
     'use strict';
-    var count = 0;
+    var count = 0, decorated = new WeakMap();
     var THEMES = Object.freeze([
         Object.freeze({id:'plain',title:'Plain',description:'The standard document typography.',css:''}),
         Object.freeze({id:'manuscript',title:'Manuscript',description:'Serif body and headings, 12 point text and double spacing.',css:'--doc-font:Georgia,serif;--doc-font-heading:Georgia,serif;--doc-size:12pt;--doc-leading:2;--doc-paragraph-spacing:0pt;'}),
@@ -102,8 +102,10 @@
         if (Array.from(layer.querySelectorAll('.doc-furniture-cell')).some(function (cell) { return cell.scrollWidth > cell.clientWidth + 1; })) { throw new Error('A header or footer is too wide. Shorten its text or change the page margins.'); }
     }
     function decorate(host, page, count) {
+        var signature=JSON.stringify([page,count]),previous=decorated.get(host),current=host.querySelector(':scope > .doc-furniture');
+        if(previous&&previous.signature===signature&&previous.layer===current){if(current)checkRows(current);return;}
         host.querySelectorAll(':scope > .doc-furniture').forEach(function (node) { node.remove(); });
-        if (!page.furniture) { return; }
+        if (!page.furniture) { decorated.set(host,{signature:signature,layer:null});return; }
         check(page);
         var layer = document.createElement('div'); layer.className = 'doc-furniture'; layer.contentEditable = 'false';
         layer.setAttribute('aria-label', 'Page Headers and Footers');
@@ -115,6 +117,7 @@
             });
         } host.append(layer);
         try { checkRows(layer); } catch (err) { layer.hidden = true; throw err; }
+        decorated.set(host,{signature:signature,layer:layer});
     }
     async function open(kind, opts) {
         if (kind === 'typography') { var K = window.yavcMdEditor; await K.loadScript(K.here + 'typography-ui.js' + K.stamp); return window.yavcTypography.open(opts); }

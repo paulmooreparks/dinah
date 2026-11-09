@@ -220,7 +220,8 @@
             if (kind) { el.message.textContent = ''; window.yavcUtil.notice(el.tabsEl, msg, kind); return; }
             el.message.textContent = msg || '';
         }
-        function commandsChanged() { if (opts.commandsChanged) { opts.commandsChanged(); } tabRow(); }
+        var reportCommands=window.yavcUtil.commandChanges(commandTable,function(){if(opts.commandsChanged)opts.commandsChanged();},function(){return !destroyed;});
+        function commandsChanged() { reportCommands(); tabRow(); }
         function current() { return tabs[active] || null; }
         function readOnly(t) { return !!(resources && t && t.path && t.resource && !resources.canWrite(t.resource)); }
         function mutationWhy(t) { return readOnly(t || current()) ? 'This diagram is read-only. Use Save As to make an editable copy.' : null; }

@@ -313,7 +313,8 @@
             el.message.textContent = msg || '';
         }
         root.addEventListener('yavc:notice-closed', function () { fit(); });
-        function commandsChanged() { if (opts.commandsChanged) { opts.commandsChanged(); } tabRow(); }
+        var reportCommands=window.yavcUtil.commandChanges(commandTable,function(){if(opts.commandsChanged)opts.commandsChanged();},function(){return !destroyed;});
+        function commandsChanged() { reportCommands(); tabRow(); }
         function stateString() {
             var p = new URLSearchParams();
             if (path) { p.set('file', path); }

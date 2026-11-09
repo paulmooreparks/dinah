@@ -24,14 +24,18 @@
         entries.forEach(function (entry) { byName.set(entry.name, entry); });
         return Array.from(byName.values()).filter(function (entry) { return !entry.problem; });
     }
+    var metadataCache=new WeakMap();
     function metadata(engine) {
-        return catalog(engine).map(function (entry) {
+        if(engine&&metadataCache.has(engine))return metadataCache.get(engine);
+        var items=catalog(engine).map(function (entry) {
             var d = entry.definition;
             return { name: d.name, title: d.name, description: 'Custom shortcode' + (entry.shared ? ' from the shared definitions file.' : ' defined in this document.'),
                 kind: d.container ? 'container' : d.inline ? 'inline' : 'block',
                 params: (d.parameters || []).map(function (p) { return { name: p.name, description: p.help || '', required: false }; }),
                 example: '{{' + d.name + '}}' + (d.container ? '\nText.\n{{/' + d.name + '}}' : '') };
         });
+        if(engine)metadataCache.set(engine,items);
+        return items;
     }
     function find(engine, name) { return catalog(engine).find(function (entry) { return entry.name === name; }); }
     function ask(engine, name, existing, host) {

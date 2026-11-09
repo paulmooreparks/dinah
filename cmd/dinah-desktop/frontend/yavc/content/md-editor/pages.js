@@ -245,7 +245,9 @@
         return { refresh: function () { signature = ''; schedule(); }, destroy: function () { alive = false; cancelAnimationFrame(raf); ro.disconnect(); o.flow.removeEventListener('load', schedule, true); document.fonts.removeEventListener('loadingdone', schedule); } };
     }
     function plugin(PM, o) {
-        var key = new PM.PluginKey('document-pages'), signature = '', raf = 0, alive = true,seenDoc=null,tableWidths=new WeakMap();
+        var key = new PM.PluginKey('document-pages'), signature = '', raf = 0, alive = true,seenDoc=null,tableWidths=new WeakMap(),gapIds=new WeakMap(),gapSerial=0;
+        function gapIdentity(block){var node=block.rowNode||block.node;if(!gapIds.has(node))gapIds.set(node,++gapSerial);return gapIds.get(node);}
+        function headerIdentity(block){return (block.headerRows||[]).map(function(row){return row.outerHTML;}).join('');}
         function tableDecorations(v,scale){
             var decorations=[];
             v.dom.querySelectorAll('table').forEach(function(table){
@@ -268,7 +270,9 @@
                 }
                 if (!v.dom.getClientRects().length || v.dom.getBoundingClientRect().width === 0) { return; }
                 try {
-                    if(seenDoc!==v.state.doc){seenDoc=v.state.doc;tableWidths=new WeakMap();if(signature){signature='';v.dispatch(v.state.tr.setMeta(key,PM.DecorationSet.empty).setMeta('addToHistory',false));return;}}
+                    // Keep mapped page furniture visible until its replacement
+                    // has been measured. Clearing it paints a collapsed page.
+                    if(seenDoc!==v.state.doc){seenDoc=v.state.doc;tableWidths=new WeakMap();signature='';}
                     var d = surface(o.page, page), positions = []; v.state.doc.forEach(function (n, pos) { positions.push(pos); });
                     var blocks = blocksOf(v.dom, positions, function (node, offset) { return v.posAtDOM(node, offset); }), layout = plan(blocks, page);
                     var next = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
@@ -279,8 +283,9 @@
                         signature = next;
                         if (window.yavcDocumentSettings) { window.yavcDocumentSettings.decorate(o.page, page, layout.count); }
                         var scale=Number(o.page.style.zoom)||1,widgets=tableDecorations(v,scale);layout.gaps.forEach(function(gap){var block=blocks[gap.index];
-                            if(block.rowNode&&block.band){block.anchors.forEach(function(anchor,column){if(anchor)widgets.push(PM.Decoration.widget(anchor.pos,function(){return rowSpacer(gap,block,column);},{side:gap.index,key:'cell:'+anchor.pos+':'+gap.index+':'+gap.height+':'+gap.header+':'+gap.rowHeaderTop,ignoreSelection:true}));});}
-                            else widgets.push(PM.Decoration.widget(gap.pos,function(){return spacer(gap.height,!!block.anchor,block,gap.header);},{side:-1,key:gap.pos+':'+gap.height+':'+gap.header,ignoreSelection:true}));
+                            var identity=gapIdentity(block)+':'+gap.index+':'+gap.height+':'+gap.header+':'+(gap.header?headerIdentity(block):'');
+                            if(block.rowNode&&block.band){block.anchors.forEach(function(anchor,column){if(anchor)widgets.push(PM.Decoration.widget(anchor.pos,function(){return rowSpacer(gap,block,column);},{side:gap.index,key:'cell:'+identity+':'+column+':'+gap.rowHeaderTop+':'+!!anchor.exhausted,ignoreSelection:true}));});}
+                            else widgets.push(PM.Decoration.widget(gap.pos,function(){return spacer(gap.height,!!block.anchor,block,gap.header);},{side:-1,key:'gap:'+identity+':'+!!block.anchor,ignoreSelection:true}));
                         });
                         (layout.footnotes||[]).filter(function(note){return !note.part&&!note.sourceOnly;}).forEach(function(note){widgets.push(PM.Decoration.node(note.pos,note.to,{class:'doc-footnote-paged',style:'top:'+(note.top-(note.originTop||0))+'px;left:'+(-(note.originLeft||0))+'px;width:'+note.width+'px;'}));});
                         noteGaps(layout,blocks).forEach(function(gap){widgets.push(PM.Decoration.widget(gap.block.pos,function(){return spacer(gap.height,!!gap.block.anchor,gap.block);},{side:-1,key:'note:'+gap.key+':'+gap.height,ignoreSelection:true}));});

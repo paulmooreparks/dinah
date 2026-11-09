@@ -155,7 +155,13 @@
            site page's source to open, and the file's address on the site. */
         var wrapOn = true, viewsOffered = false, formatOffered = false, sourceOffered = false, siteUrl = null;
         var reviewObservers=new Set(),reviewController=null;
-        function commandsChanged() { if (destroyed) { return; } if (opts.commandsChanged) { opts.commandsChanged(); } if (tabRow) { tabRow.render(); } reviewObservers.forEach(function(listener){listener();}); }
+        var reportCommands=window.yavcUtil.commandChanges(commandTable,function(){if(opts.commandsChanged)opts.commandsChanged();},function(){return !destroyed;});
+        function commandsChanged() {
+            if(destroyed)return;
+            if(tabRow)tabRow.render();
+            reviewObservers.forEach(function(listener){listener();});
+            reportCommands();
+        }
 
         var CM = null, sourceHistory = null, F = null, view = null, destroyed = false, startupFailed = false, unsubscribe = null, styleLifetime = new AbortController();
         var tabs = [], active = -1, untitled = 0;
@@ -264,8 +270,15 @@
             }, { decorations: function (p) { return p.deco; } });
             return shortcodeHighlight;
         }
-        function currentMacroEngine() { return macroContext && view ? macroContext.withMacros(view.state.doc.toString(), macroOwner === current() ? sharedMacros : '') : null; }
-        function customShortcodes() { return window.yavcMacroTools && currentMacroEngine() ? window.yavcMacroTools.metadata(currentMacroEngine()) : []; }
+        var macroCache=null;
+        function currentMacroEngine() {
+            if(!macroContext||!view)return null;
+            var text=view.state.doc.toString(),shared=macroOwner===current()?sharedMacros:'';
+            if(!macroCache||macroCache.context!==macroContext||macroCache.text!==text||macroCache.shared!==shared)
+                macroCache={context:macroContext,text:text,shared:shared,engine:macroContext.withMacros(text,shared)};
+            return macroCache.engine;
+        }
+        function customShortcodes() { var engine=window.yavcMacroTools&&currentMacroEngine();return engine?window.yavcMacroTools.metadata(engine):[]; }
         function shortcodeByName(name) { return customShortcodes().concat(shortcodes || []).find(function (s) { return s.name === name; }) || null; }
         function shortcodeComplete(ctx) {
             var name = ctx.matchBefore(/\{\{\/?[a-z0-9-]*$/);
@@ -1779,11 +1792,13 @@
         }
         /* The Insert menu's items, one command a shortcode, in order of
            their titles; until the table has loaded, one saying so. */
+        var insertCache=null;
         function insertItems() {
+            var custom=customShortcodes(),names=JSON.stringify(custom.map(function(s){return s.name;})),mounted=!!(F&&F.mounted);
+            if(insertCache&&insertCache.inserts===INSERTS&&insertCache.authored===SHORTCODES&&insertCache.catalog===shortcodes&&insertCache.names===names&&insertCache.mounted===mounted)return insertCache.items;
             var items = INSERTS.map(function (i) { return { id: i.id, label: i.label, run: function () { insertBlock(i); } }; });
             items.push('-');
             SHORTCODES.forEach(function (i) { items.push({ id: i.id, label: i.label, run: function () { insertBlock(i); } }); });
-            var custom = customShortcodes();
             if (custom.length) { items.push('-'); custom.forEach(function (s) { items.push({ id: 'insert-custom-' + s.name, label: s.name, run: function () { insertCustom(s.name); } }); }); }
             if (F && F.mounted && shortcodes) {
                 var extra=shortcodes.filter(function (s) { return !s.builtin && s.name !== 'column'; }).sort(function (a, b) {
@@ -1792,6 +1807,7 @@
                     items.push({ id: 'insert-' + s.name, label: s.title, run: function () { insertShortcode(s.name); } });
                 });
             }
+            insertCache={inserts:INSERTS,authored:SHORTCODES,catalog:shortcodes,names:names,mounted:mounted,items:items};
             return items;
         }
         async function insertCustom(name) {
