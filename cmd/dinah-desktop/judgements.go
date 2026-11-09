@@ -207,12 +207,14 @@ func judgementRevision(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// judgeProviders are the IDs of the provider modules that can judge, in order: the
-// default judge first, so that the page lists it first, and then the rest by ID.
+// judgeProviders are the IDs of the provider modules that can judge, among the
+// providers the product offers, in order: the default judge first, so that the
+// page lists it first, and then the rest by ID. A product that does not offer
+// a provider is never asked for its models.
 func judgeProviders() []string {
 	var ids []string
 	for id, m := range providerModules {
-		if m.Judge != nil {
+		if m.Judge != nil && product.Offers(id) {
 			ids = append(ids, id)
 		}
 	}

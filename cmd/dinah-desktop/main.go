@@ -133,7 +133,7 @@ func main() {
 	// already controls it, so the hook grants nothing new. Under test the
 	// window stays hidden and serves on a free port, so it never appears on
 	// the person's screen or meets a Dinah they are using.
-	entryFile := os.Getenv("DINAH_SHELL_ENTRY_FILE")
+	entryFile := os.Getenv(product.ShellEntryVar())
 	testing := entryFile != ""
 	addr := shellAddr
 	if testing {
@@ -261,7 +261,7 @@ func showStartupFailure(failure error) {
 	log.Print(failure)
 	logf("core", "error", "%s could not start: %v", product.Name, failure)
 	// A window under test shows nothing on the person's screen.
-	if os.Getenv("DINAH_SHELL_ENTRY_FILE") != "" {
+	if os.Getenv(product.ShellEntryVar()) != "" {
 		return
 	}
 	title := product.Name + " Could Not Start"

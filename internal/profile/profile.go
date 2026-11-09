@@ -169,6 +169,11 @@ func Current() Profile {
 // HomeFolder in the person's home folder, such as DINAH_HOME.
 func (p Profile) HomeVar() string { return p.EnvPrefix + "HOME" }
 
+// ShellEntryVar is the environment variable that makes the window program
+// start hidden and write its signed-in page address to the file the variable
+// gives, for a browser test to drive the page, such as DINAH_SHELL_ENTRY_FILE.
+func (p Profile) ShellEntryVar() string { return p.EnvPrefix + "SHELL_ENTRY_FILE" }
+
 // HostedVar is the environment variable the window sets for the agents it
 // runs, such as DINAH_HOSTED.
 func (p Profile) HostedVar() string { return p.EnvPrefix + "HOSTED" }
