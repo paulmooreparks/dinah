@@ -124,9 +124,7 @@ const { launch } = require('./lib/page');
     const firstTask = p.locator('[data-win-dock] [data-win-tab]').first();
     const firstTaskKey = await firstTask.getAttribute('data-win-tab');
     ok('the taskbar leaves visible padding on the left', (await firstTask.boundingBox()).x >= 4);
-    await p.mouse.click(0, bottom);
-    await p.waitForFunction(() => pudlWindows.state().top === 'settings');
-    ok('the bottom-left corner activates fixed Settings', true);
+    // The bottom-left corner is PUDL's launcher button's when the bar shows one (902df02); at this width the menu bar's own launcher control stands in, and the corner holds nothing of Dinah's.
     await p.mouse.click(p.viewportSize().width - 1, bottom);
     ok('the bottom-right corner minimizes every window, as Show Desktop does', await p.evaluate(() => { const s = pudlWindows.state(); return s.open.filter(k => !s.min[k] && document.querySelector('[data-win-tab="' + k + '"]')).length === 0; }));
     await p.locator('.win-bar a[data-win-restore]').click();
@@ -147,9 +145,10 @@ const { launch } = require('./lib/page');
       const shown = [...dock.querySelectorAll('[data-win-tab]')].filter(b => b.offsetParent);
       return shown.length >= 1 && new Set(shown.map(b => Math.round(b.getBoundingClientRect().top))).size === 1 &&
         shown.some(b => b.dataset.winTab === pudlWindows.state().top) && more && !more.hidden &&
-        dock.scrollWidth <= dock.clientWidth + 1;
+        // PUDL 0.105 lets a full bar scroll its glyph-only buttons (data-win-taskbar-scroll) rather than overflow.
+        (dock.scrollWidth <= dock.clientWidth + 1 || document.querySelector('.win-bar').hasAttribute('data-win-taskbar-scroll'));
     });
-    ok('a full taskbar keeps one row, keeps the front window\'s button, puts the rest under "N more", and does not overflow', true);
+    ok('a full taskbar keeps one row, keeps the front window\'s button, offers the rest in its Windows button, and scrolls rather than overflows', true);
     await p.setViewportSize(wide);
     await p.evaluate(() => {
       document.querySelectorAll('[data-win-kind="document"]').forEach(win => {

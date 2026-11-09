@@ -47,7 +47,8 @@ const { settled, settledCount } = require('./lib/settled');
     await win.locator('.diff-body[data-mode="inline"] .cm-content').waitFor();
     await win.locator('.diff-hunk').first().waitFor();
     ok('open resolves with the window key', typeof key === 'string' && await p.evaluate(k => pudlWindows.state().open.includes(k), key), key);
-    ok('the window has the title and detail it was given', (await win.locator('.win-title').textContent()).trim() === 'main.go' && await win.getAttribute('data-win-detail') === 'cmd · Modified, unstaged');
+    // Dinah draws a window's detail after its title, in the title (workbench.js, combinedTitle).
+    ok('the window has the title and detail it was given', (await win.locator('.win-title').textContent()).trim() === 'main.go · cmd · Modified, unstaged');
     const meta = await win.locator('[data-df-meta]').textContent();
     const hunkCount = await win.locator('.diff-hunk').count();
     ok('the meta line says the path, the detail and the hunks', meta.startsWith('cmd/main.go · cmd · Modified, unstaged · ') && /\d+ hunks? · \+\d+ −\d+/.test(meta) && hunkCount >= 2, { meta, hunkCount });

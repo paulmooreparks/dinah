@@ -88,7 +88,8 @@ const path = require('path'), fs = require('fs');
   await page.keyboard.press('Escape');await frame.locator('#name').press('End');await page.keyboard.type(' after');
   ok('F10 enters host menubar and Escape explicitly restores child input',await frame.locator('#name').inputValue()==='before after');
   await page.evaluate(()=>{window.__focusReturns=0;document.addEventListener('pudl:menubar-return-focus',()=>__focusReturns++);});
-  await frame.locator('#name').press('F10');await page.waitForFunction(()=>document.activeElement?.classList.contains('menubar-title'));await page.keyboard.press('ArrowDown');
+  // F10 lands on the bar's first control, the launcher's (902df02); the next title is a menu.
+  await frame.locator('#name').press('F10');await page.waitForFunction(()=>document.activeElement?.classList.contains('menubar-title'));await page.keyboard.press('ArrowRight');await page.keyboard.press('ArrowDown');
   await page.locator('#menubar-panel:popover-open').waitFor();
   await page.evaluate(()=>pudlMenubar.focus({returnTo:document.querySelector('[data-win="workspace"] button')}));
   await page.keyboard.press('Escape');await page.keyboard.press('Escape');

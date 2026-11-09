@@ -83,11 +83,12 @@ const path = require('path'), fs = require('fs');
   await page.evaluate(()=>dinahWorkbench.open({kind:'extension-view',workspace:'fixture',path:JSON.stringify(['test.other','window'])}));
   await frameOf('Other Extension Window').locator('#status').filter({hasText:'ready'}).waitFor();
   ok('distinct declared manifests stay in separate applet groups in one workspace',await groupOf('Other Extension Window')==='applet-'+Buffer.from(JSON.stringify(['test.other','fixture'])).toString('base64url')&&await groupOf('Other Extension Window')!==await groupOf('Fixture Window'));
-  ok('a following window shows the workspace name as its title detail',await followerWin().getAttribute('data-win-detail')==='Fixture');
+  // Dinah draws a window's detail after its title, in the title (workbench.js, combinedTitle).
+  ok('a following window shows the workspace name as its title detail',(await followerWin().locator('.win-title').textContent()).trim().endsWith('· Fixture'));
   await selectWorkspace('other');
   await frameOf('Fixture Follower').locator('#workspace').filter({hasText:'other'}).waitFor();
   await frameOf('Fixture Pane').locator('#workspace').filter({hasText:'other'}).waitFor();
-  ok('the following window and the pane move with the selected workspace; the pinned window stays',await evalIn('Fixture Window',()=>dinah.workspace.id==='fixture'&&__events.workspace.length===0)&&await followerWin().getAttribute('data-win-detail')==='Other');
+  ok('the following window and the pane move with the selected workspace; the pinned window stays',await evalIn('Fixture Window',()=>dinah.workspace.id==='fixture'&&__events.workspace.length===0)&&(await followerWin().locator('.win-title').textContent()).trim().endsWith('· Other'));
   ok('following ownership resolves into the new taskbar group while pinned ownership stays',await groupOf('Fixture Pane')===taskbarGroup('other')&&await groupOf('Fixture Follower')===taskbarGroup('other')&&await groupOf('Fixture Window')===taskbarGroup('fixture'));
   ok('a frame moving to another workspace sees that workspace\'s shared map',await evalIn('Fixture Follower',()=>Object.keys(dinah.shared.get()).length===0));
   const pinRow=async()=>page.evaluate(()=>{const root=document.querySelector('.extension-frame[title="Fixture Follower"]').closest('.dinah-applet');return pudlApplets.commandsIn(root).filter(c=>c.label==='Pin to This Workspace').map(c=>({checked:c.checked}));});
@@ -96,12 +97,12 @@ const path = require('path'), fs = require('fs');
   await frameOf('Fixture Follower').locator('#workspace').filter({hasText:'other pinned'}).waitFor();
   await selectWorkspace('fixture');
   await frameOf('Fixture Pane').locator('#workspace').filter({hasText:/^fixture$/}).waitFor();
-  ok('a pinned following window keeps its workspace while the pane follows the selection',JSON.stringify(await pinRow())==='[{"checked":true}]'&&await evalIn('Fixture Follower',()=>dinah.workspace.id==='other'&&dinah.workspace.pinned===true)&&await followerWin().getAttribute('data-win-detail')==='Other');
+  ok('a pinned following window keeps its workspace while the pane follows the selection',JSON.stringify(await pinRow())==='[{"checked":true}]'&&await evalIn('Fixture Follower',()=>dinah.workspace.id==='other'&&dinah.workspace.pinned===true)&&(await followerWin().locator('.win-title').textContent()).trim().endsWith('· Other'));
   ok('a pin keeps taskbar membership while another workspace is selected',await groupOf('Fixture Follower')===taskbarGroup('other')&&await groupOf('Fixture Pane')===taskbarGroup('fixture'));
   ok('a pin is kept with the UI state under the window\'s key',await page.evaluate(()=>{const key=document.querySelector('.extension-frame[title="Fixture Follower"]').closest('.win').dataset.win;return dinahUIState.get('dinah-extension-pins',{})[key]==='other';}));
   await page.evaluate(()=>{const root=document.querySelector('.extension-frame[title="Fixture Follower"]').closest('.dinah-applet');return pudlApplets.commandsIn(root).find(c=>c.label==='Pin to This Workspace').run();});
   await frameOf('Fixture Follower').locator('#workspace').filter({hasText:/^fixture$/}).waitFor();
-  ok('unpinning lets the window follow the selected workspace again',await evalIn('Fixture Follower',()=>dinah.workspace.id==='fixture'&&dinah.workspace.pinned===false)&&await followerWin().getAttribute('data-win-detail')==='Fixture');
+  ok('unpinning lets the window follow the selected workspace again',await evalIn('Fixture Follower',()=>dinah.workspace.id==='fixture'&&dinah.workspace.pinned===false)&&(await followerWin().locator('.win-title').textContent()).trim().endsWith('· Fixture'));
   ok('unpinning returns the following window to the selected workspace group',await groupOf('Fixture Follower')===taskbarGroup('fixture'));
 
   // The follower is open at the view's default key but a second one in another workspace must not take it over.

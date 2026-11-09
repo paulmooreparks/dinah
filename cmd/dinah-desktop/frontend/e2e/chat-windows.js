@@ -87,7 +87,8 @@ const { choose } = require('./lib/commands');
     ok('updates that arrive before the chat has its session are drawn once', early.split('Early bird.').length === 2 && early.includes('And later.') && !early.includes('And And') &&
       await p.locator('.chat-instance [data-view-id="logs"]').filter({ hasText: 'Early bird' }).count() === 1);
     // New Chat in the Dinah menu opens a fresh chat.
-    await p.evaluate(() => document.querySelector('[data-command-menu="dinah"] [data-cmd="new-chat"]').click());
+    // New Chat is a command of the registry; the Dinah menu's row for it is drawn from there.
+    await p.evaluate(() => dinahCommands.run('new-chat'));
     await p.waitForFunction(() => document.querySelector('.win.active') && document.querySelector('.win.active').getAttribute('data-win-kind') === 'chat');
     ok('New Chat in the Dinah menu opens a fresh chat', await prompt().inputValue() === '');
     await open('Second');
@@ -129,7 +130,7 @@ const { choose } = require('./lib/commands');
     // The choice's names are the records' own, read after the refresh their change brings.
     await p.evaluate(() => { window.__wsRecords = [{ id: 'alpha', name: 'Alpha', executionPath: 'C:/Alpha', sources: [{ id: 'local', name: 'Local', kind: 'local-folder', path: 'C:/Alpha' }] }, { id: 'beta', name: 'Beta Workspace', executionPath: 'C:/Beta', sources: [{ id: 'local', name: 'Local', kind: 'local-folder', path: 'C:/Beta' }] }]; __emit('settings:changed', {}); });
     await p.waitForFunction(() => /Beta Workspace/.test(document.body.textContent));
-    await p.evaluate(() => document.querySelector('[data-command-menu="dinah"] [data-cmd="new-chat"]').click());
+    await p.evaluate(() => dinahCommands.run('new-chat'));
     const askDlg = p.locator('dialog.dinah-new-chat-workspace[open]');
     await askDlg.waitFor();
     ok('with two workspaces New Chat asks, with the one in front the default', (await askDlg.locator('#new-chat-workspace option').count()) === 2 && (await askDlg.locator('#new-chat-workspace').inputValue()) === '0' && /Alpha/.test(await askDlg.locator('#new-chat-workspace').textContent()) && /Beta Workspace/.test(await askDlg.locator('#new-chat-workspace').textContent()), await askDlg.locator('#new-chat-workspace').textContent());
@@ -138,7 +139,7 @@ const { choose } = require('./lib/commands');
     await askDlg.waitFor({ state: 'detached' });
     ok('cancel starts nothing and switches nothing', await p.evaluate(() => !window.__calls.some(c => c[0] === 'select-workspace')));
     // The default stays the workspace in front, which takes no call to switch.
-    await p.evaluate(() => document.querySelector('[data-command-menu="dinah"] [data-cmd="new-chat"]').click());
+    await p.evaluate(() => dinahCommands.run('new-chat'));
     await askDlg.waitFor();
     await askDlg.getByRole('button', { name: 'New Chat' }).click();
     await askDlg.waitFor({ state: 'detached' });
@@ -146,7 +147,7 @@ const { choose } = require('./lib/commands');
     ok('keeping the default asks the engine for nothing and opens the chat', await p.evaluate(() => !window.__calls.some(c => c[0] === 'select-workspace')));
     // Choosing the other workspace leaves the pane where it is, and the chat
     // is made under the answer's folder.
-    await p.evaluate(() => document.querySelector('[data-command-menu="dinah"] [data-cmd="new-chat"]').click());
+    await p.evaluate(() => dinahCommands.run('new-chat'));
     await askDlg.waitFor();
     await askDlg.locator('#new-chat-workspace').selectOption('1');
     await askDlg.getByRole('button', { name: 'New Chat' }).click();
@@ -164,7 +165,7 @@ const { choose } = require('./lib/commands');
     ok('the chat is made in the chosen workspace', await p.evaluate(() => window.__calls.some(c => c[0] === 'new-session' && c[1] === 'C:/Beta')));
     // One workspace configured asks nothing at all.
     await p.evaluate(() => { window.__wsRecords = [{ id: 'beta', name: 'Beta Workspace', executionPath: 'C:/Beta', sources: [{ id: 'local', name: 'Local', kind: 'local-folder', path: 'C:/Beta' }] }]; });
-    await p.evaluate(() => document.querySelector('[data-command-menu="dinah"] [data-cmd="new-chat"]').click());
+    await p.evaluate(() => dinahCommands.run('new-chat'));
     await front().locator('[data-view-id="prompt"]').waitFor();
     ok('with one workspace configured nothing is asked', (await askDlg.count()) === 0);
     await t.shot('chat-windows');

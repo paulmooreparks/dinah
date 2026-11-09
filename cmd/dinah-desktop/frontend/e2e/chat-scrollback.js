@@ -65,7 +65,8 @@ const { launch } = require('./lib/page');
   ok('the marker is the first row', await p.evaluate(sel => document.querySelector(sel).querySelector('ol').firstElementChild.classList.contains('trimmed-row'), logs));
   const text = await p.textContent(logs);
   ok('the latest message is still there', text.includes('THE LAST WORD'));
-  ok('the oldest messages are gone from the page', !text.includes('Message number 0.') && text.includes('Message number 299.'));
+  // The oldest entries go first, and those are the first turns' tool calls and thoughts, which sat in a folded run; the messages, which came after, stay.
+  ok('the oldest entries are gone from the page', !text.includes('Read file 0') && !text.includes('Thinking about step 0.') && text.includes('Message number 299.'));
   const huge = await p.evaluate(sel => {
     const pres = Array.from(document.querySelector(sel).querySelectorAll('pre'));
     const pre = pres.find(x => x.textContent.startsWith('xxxx'));

@@ -13,7 +13,7 @@ const path = require('path');
       PreviewWorkspaceResource: () => new Promise(resolve => { window.__documentReady = resolve; })
     }),
     init: () => {
-      window.dinahWorkbench = {namespaceSVG() {}, resourceRef(item) { return { workspaceId: 'w1', sourceId: 'local', path: item.path }; }, register(kind, definition) { if (kind === 'workspace-resource') window.__documentApplet = definition; }};
+      window.dinahWorkbench = {namespaceSVG() {}, retitle() {}, resourceRef(item) { return { workspaceId: 'w1', sourceId: 'local', path: item.path }; }, register(kind, definition) { if (kind === 'workspace-resource') window.__documentApplet = definition; }};
       window.pudlWindows = {retitle() {}};
     },
     goto: false,

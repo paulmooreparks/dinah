@@ -38,7 +38,7 @@ const path = require('path');
    await p.waitForFunction(()=>document.querySelector('#status-judgements .badge').textContent==='3');
    // Folded, the tray is PUDL's Status item and its menu (data-status-fold,
    // PUDL 0.97.0); each menu row is named as its item is.
-   await p.waitForFunction(() => innerWidth > 500 || !!document.querySelector('.status-area > [data-status-folded]'));
+   // The folded Status tray of PUDL 0.97 went with PUDL's compact bar (902df02); a narrow bar is compact instead, and the items keep their places.
    const foldedControl=p.locator('.status-area > .status-fold'), statusMenu=p.locator('.menu-panel:popover-open');
    const folded=await p.evaluate(()=>!!document.querySelector('.status-area > [data-status-folded]'));
    const rowFor=async id=>{const name=await p.locator('#'+id).evaluate(el=>(el.getAttribute('aria-label')||el.getAttribute('title')||el.textContent).replace(/\s+/g,' ').trim());return statusMenu.locator('.menu-action').filter({hasText:name}).first();};

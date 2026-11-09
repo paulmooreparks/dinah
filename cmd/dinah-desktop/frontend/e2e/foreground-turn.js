@@ -81,7 +81,7 @@ const { launch } = require('./lib/page');
     ok('the title shows Working with the PUDL working chip', s.title === 'Working|working', JSON.stringify(s));
     ok('the window gives the taskbar PUDL\'s working state', s.win === 'working', JSON.stringify(s));
     ok('the Chats list shows Working in the Working group', s.list === 'Working' && s.listGroup === 'Working', JSON.stringify(s));
-    ok('the long call keeps its own status chip', s.tool === 'waiting', JSON.stringify(s));
+    ok('the long call keeps its own status chip', s.tool === 'running', JSON.stringify(s));
     ok('the taskbar stack row shows Working', await stackRow() === 'Working|working');
     ok('the team group\'s Members dropdown shows Working', await members() === 'Working');
     // The call runs on; a later engine update keeps Working.
@@ -96,7 +96,7 @@ const { launch } = require('./lib/page');
     await win.locator('.chat-working-chip .chat-state-idle').waitFor({ state: 'attached' });
     await settle();
     s = await read();
-    ok('when the turn ends the chat is Idle everywhere, and the call shows done', /^Idle\|idle$/.test(s.title) && s.win === 'idle' && s.list === 'Idle' && s.listGroup !== 'Working' && s.tool === 'done', JSON.stringify(s));
+    ok('when the turn ends the chat is Idle everywhere, and the call shows done', /^Idle\|idle$/.test(s.title) && s.win === 'idle' && s.list === 'Idle' && s.listGroup !== 'Working' && s.tool === 'finished', JSON.stringify(s));
     ok('the stack row and Members show Idle', await stackRow() === 'Idle|idle' && await members() === 'Idle');
   } finally { await t.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

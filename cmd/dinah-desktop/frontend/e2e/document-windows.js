@@ -54,7 +54,8 @@ const { launch } = require('./lib/page');
     await t.shot('document-windows-light');
     await p.evaluate(() => window.pudlSetTheme('dark'));
     await t.shot('document-windows-dark');
-    ok('the preview follows Mineral dark mode', await first.locator('.doc-page').evaluate(el => getComputedStyle(el).backgroundColor) === 'rgb(23, 36, 45)');
+    // The page's surface is the theme's own surface token, whichever theme is in force.
+    ok('the preview follows dark mode', await first.locator('.doc-page').evaluate(el => { const probe = document.createElement('div'); probe.style.background = 'var(--surface)'; document.body.append(probe); const want = getComputedStyle(probe).backgroundColor; probe.remove(); return getComputedStyle(el).backgroundColor === want && want !== 'rgb(255, 255, 255)'; }));
     ok('no duplicate IDs in mounted applets', await p.evaluate(() => {
       const ids = [...document.querySelectorAll('[id]')].map(el => el.id); return new Set(ids).size === ids.length;
     }));
