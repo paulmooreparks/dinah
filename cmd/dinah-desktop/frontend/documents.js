@@ -104,7 +104,7 @@
      is not written at each pause in typing: its draft keeps the changes,
      and Publish… writes them to the page after asking. The row is drawn
      only for such a document (content-windows.js, publish). */
-  C.register({ id: 'publish-document', glyph: 'upload', menu: 'document', mnemonic: 'P', label: 'Publish…', shortcut: 'Ctrl+Shift+P', help: { label: 'Publish the Document…', key: 'Ctrl+Shift+P' },
+  C.register({ id: 'publish-document', glyph: 'upload', menu: 'document', mnemonic: 'P', label: 'Publish…', shortcut: 'Ctrl+Shift+U', help: { label: 'Publish the Document…', key: 'Ctrl+Shift+U' },
     visible: function () { return cur(function (c) { return !!c.canPublish && c.canPublish() !== null; }, false); },
     enabled: function () { return !suspended(['terminal']) && cur(function (c) { return !!c.canPublish && !!c.canPublish(); }, false); },
     reason: function () { return suspended(['terminal']) ? 'A Terminal is in front, and the key is its own.' : 'There are no changes to publish.'; },
