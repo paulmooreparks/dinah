@@ -37,6 +37,11 @@ type SourceKind struct {
 	// Copy Link and Open Externally on the source itself. Nil, the source
 	// has no address of its own.
 	URL func(s Source) string
+	// Preview draws a document of this kind as its site would, for the
+	// Files applet's preview pane: the document's Markdown becomes blocks
+	// of HTML, each with the line it starts on, and the problems found in
+	// words. Nil, a document previews as plain Markdown.
+	Preview func(markdown string) (blocks []PreviewBlock, problems []string)
 	// Attach says how a source of this kind is added, when the person can
 	// add one. Nil, the kind can only arrive by import.
 	Attach *Attach
@@ -72,6 +77,13 @@ type SourceKind struct {
 	// DefaultName is the name of an imported source of this kind that has
 	// none. Nil uses the kind.
 	DefaultName func(ExportSource) string
+}
+
+// PreviewBlock is one block of a kind's preview: its HTML and the 1-based
+// line of the Markdown it starts on.
+type PreviewBlock struct {
+	Line int
+	HTML string
 }
 
 // Attach is how the person adds a source of a kind: the form they fill in

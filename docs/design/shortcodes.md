@@ -1,0 +1,13 @@
+# Shortcodes a build adds
+
+The content applets edit a Markdown dialect with shortcodes, written `{{name}}`, `{{name:arguments}}` and `{{name}}…{{/name}}` (yavc.app, `docs/markdown-dialect.md`). A product built from Dinah's source whose documents are pages on a site has shortcodes of its own, the site's macros as the product's converter writes and reads them, and the applets did not know them: an occurrence was drawn as the text it was written as and marked as a problem, nothing offered to insert one, and the Files applet's preview drew it as text. Two openings fix that, added on 10 November 2026. Nothing in this repository names a shortcode; Dinah's own build registers none.
+
+## The registry
+
+`internal/shortcodes` is the registry. A product registers a `Set`: its `Catalog`, a list of descriptors (name, kind among inline, block, container and span, a description, its parameters and an example), and `Render`, which draws one occurrence from a `Request` (the name, the raw argument text after the colon, the whole shortcode as written and, for a container, the Markdown of its body) as HTML. A container's HTML holds one `<slot name="content"></slot>` element where the body goes; the applet draws the body itself, so the body stays the engine's and only the shell is the product's. The raw argument text is passed rather than parsed, since a product's grammar may allow spaces in positional arguments and names such as `{{@user}}`. `Render` asks each set in turn and a set answers `ErrUnknown` for a name it lacks.
+
+Two App methods carry the registry to the page, `ShortcodeCatalog` and `RenderShortcode`, and the content host offers them to the applets as `pudlHost.contentWorkspace.shortcodes`, version 1, with `catalog()` and `render(request)` answering `{ html }`. The applets' side, which merges the catalog into completion, hover and the Insert menu and asks the host to draw an occurrence the engine does not know, falling back to the problem marking when the host fails, was asked of yavc.app on 10 November 2026 and is not in the pinned release yet; until it lands the host service waits unused.
+
+## The Files preview
+
+The Files applet's preview pane, and anything else that previews a resource of a source, draws Markdown with Dinah's own renderer. A kind of source may instead draw its documents as its site would: `workspaces.SourceKind.Preview` takes the document's Markdown and returns blocks of HTML with the line each starts on, and the problems found, and `previewProvider` uses it for a document of that kind. The product's converter already renders a page's preview from the same conversion a publish makes, so what the pane shows is what the site will show.

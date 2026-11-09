@@ -233,6 +233,19 @@ func (s workspaceResourceService) previewProvider(record WorkspaceRecord, ref Re
 	if read.Format != "markdown" {
 		return ResourcePreview{Resource: read.Resource, Blocks: []preview.Block{{Line: 1, HTML: "<pre><code>" + html.EscapeString(read.Text) + "</code></pre>"}}, Problems: []Problem{}}, nil
 	}
+	// A kind that draws its documents as its site would draws the preview.
+	if k, ok := workspaces.LookupSourceKind(source.Kind); ok && k.Preview != nil {
+		drawn, found := k.Preview(read.Text)
+		blocks := make([]preview.Block, 0, len(drawn))
+		for _, b := range drawn {
+			blocks = append(blocks, preview.Block{Line: b.Line, HTML: b.HTML})
+		}
+		problems := []Problem{}
+		for _, p := range found {
+			problems = append(problems, Problem{Line: 1, Severity: "warning", Message: p})
+		}
+		return ResourcePreview{Resource: read.Resource, Blocks: blocks, Problems: problems}, nil
+	}
 	blocks, problems := markdownPreview(read.Text)
 	return ResourcePreview{Resource: read.Resource, Blocks: blocks, Problems: problems}, nil
 }

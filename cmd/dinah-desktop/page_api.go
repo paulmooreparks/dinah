@@ -58,7 +58,7 @@ var pageMethods = func() map[string]pageMethodClass {
  SessionTimes SkillCatalog ChatSkillCatalog SkillFields Skills SkillsAt SkillsForProviderAt StatWorkspaceMount
  SubagentUpdates StatWorkspaceMountExpected Templates TerminalProfiles TerminalResize
  TerminalShells UpdateState UploadConflicts UploadNameConflicts WatchFolders
- WorkspaceLocalPath WorkspaceSkills Log SaveUIState ExtensionCall ProductServices
+ WorkspaceLocalPath WorkspaceSkills Log SaveUIState ExtensionCall ProductServices ShortcodeCatalog RenderShortcode
  SuggestDocumentName JudgementCalibration JudgementState JudgementSummary JudgementRecords JudgementKinds JudgementSettings JudgementModels JudgementProviders Team ChatLead SetTeamLead ClearTeamLead MakeGroupATeam SetTeamBudget
  PendingPermissions PendingExitConfirmation PendingPageAsks PendingExtensionReviews ProviderStates
  ChatEvents ChatStates

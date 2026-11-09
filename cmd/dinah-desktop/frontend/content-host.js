@@ -347,12 +347,38 @@
     return { files: { read: function (resource) { return read({ resource: resource }).then(function (r) { return r.text; }); } } };
   }
 
+  /* ---- Shortcodes the build adds ------------------------------------------
+     A build may add shortcodes to the Markdown dialect beyond the engine's
+     own (docs/design/shortcodes.md). The applets ask for the catalog, for
+     completion, hover and the Insert menu, and for the drawing of one
+     occurrence: { name, args, source, content }, answered with { html },
+     where a container's HTML holds one <slot name="content"></slot> for the
+     body the applet draws itself. The catalog is read once and kept, since
+     it is the build's. */
+  var shortcodeCatalog = null;
+  var shortcodes = {
+    version: 1,
+    catalog: function () {
+      if (!shortcodeCatalog) {
+        shortcodeCatalog = Promise.resolve().then(function () { return api().ShortcodeCatalog ? api().ShortcodeCatalog() : []; })
+          .then(function (list) { return Array.isArray(list) ? list : []; })
+          .catch(function () { shortcodeCatalog = null; return []; });
+      }
+      return shortcodeCatalog;
+    },
+    render: function (request) {
+      var r = request || {};
+      return Promise.resolve(api().RenderShortcode({ name: String(r.name || ''), args: String(r.args || ''), source: String(r.source || ''), content: r.content == null ? '' : String(r.content) }))
+        .then(function (html) { return { html: typeof html === 'string' ? html : '' }; });
+    }
+  };
+
   var installed = null;
   function install() {
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: function () { return null; }, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion } },
+      contentWorkspace: { version: 1, directory: function () { return null; }, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
