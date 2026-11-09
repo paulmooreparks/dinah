@@ -314,7 +314,8 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .app-brand img { flex: none; }
 /* A dialog with a title has no top padding (its title sticks to the top),
    so the mark over the title gets the dialog's side padding above it. */
-.about-logo { display: block; margin: var(--space-5) 0 var(--space-4); }
+/* The logo is the product's (product-logo.svg); a product's brand.css may size it its own way. */
+.about-logo { display: block; width: 96px; height: 96px; margin: var(--space-5) 0 var(--space-4); }
 
 /* Glyphs PUDL does not have yet, drawn like its own: a 16-unit outline at
    PUDL's stroke weight, used as a mask. */

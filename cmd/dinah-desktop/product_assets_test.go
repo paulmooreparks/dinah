@@ -44,7 +44,7 @@ func TestDinahsBuildHasNoProductFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"product-mark.svg", "brand.css", "theme-data.js"} {
+	for _, name := range []string{"product-mark.svg", "product-logo.svg", "brand.css", "theme-data.js"} {
 		if !regexp.MustCompile(`(?m)["']` + regexp.QuoteMeta(name) + `["']`).Match(page) {
 			t.Errorf("the page does not refer to %s", name)
 		}

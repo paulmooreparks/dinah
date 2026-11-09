@@ -450,7 +450,7 @@
 
 
   <dialog class="dialog" id="about" aria-labelledby="about-title">
-    <img src="product-mark.svg" alt="Dinah" class="about-logo" width="96" height="96" data-product-attrs="alt">
+    <img src="product-logo.svg" alt="Dinah" class="about-logo" data-product-attrs="alt">
     <h2 class="dialog-title" id="about-title">About <span data-product-name>Dinah</span></h2>
     <p class="dialog-body"><span data-product-name>Dinah</span> <span id="about-version"></span> connects your workspace and applets to supported agents. Choose an agent in Settings or when starting a chat.</p>
     <form class="dialog-actions" method="dialog"><button class="btn btn-primary" autofocus>Close</button></form>
@@ -914,7 +914,7 @@
                 <div class="settings-panel" id="settings-judgements" role="tabpanel" aria-labelledby="settings-tab-judgements" tabindex="0" hidden>
           <section class="card vstack gap-3" id="judgements-card">
             <h3 class="card-title">Judgement Agents</h3>
-            <p class="form-help">Judgement agents answer small, declared questions in place of rules. Every call has a deadline and a check, and anything that fails puts the rule Dinah would have used in its place. What they decided is on the Judgements page.</p>
+            <p class="form-help">Judgement agents answer small, declared questions in place of rules. Every call has a deadline and a check, and anything that fails puts the rule <span data-product-name>Dinah</span> would have used in its place. What they decided is on the Judgements page.</p>
             <div class="hstack gap-3 align-center"><button type="button" class="switch" id="judgements-enabled" role="switch" aria-checked="true"><span class="switch-track"><span class="switch-thumb"></span></span>Use Judgement Agents</button><span class="form-help" id="judgements-enabled-help"></span></div>
             <div class="form-group" id="judgement-provider-group"><label class="form-label" for="judgement-provider">The Judge's Provider</label><span class="form-select-wrap"><select class="form-select" id="judgement-provider"></select></span><p class="form-help" id="judgement-provider-note"></p></div>
             <div class="form-group"><label class="form-label" for="judgement-model">The Judge's Model</label><span class="form-select-wrap"><select class="form-select" id="judgement-model"></select></span><p class="form-help">Until a model is chosen, every call uses its rule. The choices are the models the judging provider reports installed.</p></div>

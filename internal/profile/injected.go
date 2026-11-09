@@ -25,6 +25,11 @@ var injected string
 // current is the profile this build uses: Dinah's, or the injected one.
 var current = chosen()
 
+// Injected is the encoded profile this build was given, or "" for Dinah's
+// own build. The command line's install passes it on to the window it
+// builds, so an installed product is built as the product it is.
+func Injected() string { return injected }
+
 func chosen() Profile {
 	if injected == "" {
 		return dinah

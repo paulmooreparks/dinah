@@ -270,8 +270,17 @@ func install() error {
 	defer os.RemoveAll(tmp)
 	built := filepath.Join(tmp, exeName(product.WindowProgram))
 	args := []string{"build", "-tags", "desktop,production", "-o", built}
+	// The window is built as the product this command line is: its profile,
+	// when one was injected, goes on to the build (internal/profile).
+	var ldflags []string
 	if runtime.GOOS == "windows" {
-		args = append(args, "-ldflags", "-H windowsgui")
+		ldflags = append(ldflags, "-H windowsgui")
+	}
+	if encoded := profile.Injected(); encoded != "" {
+		ldflags = append(ldflags, "-X studio/internal/profile.injected="+encoded)
+	}
+	if len(ldflags) > 0 {
+		args = append(args, "-ldflags", strings.Join(ldflags, " "))
 	}
 	cmd := exec.Command("go", append(args, "./cmd/dinah-desktop")...)
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")

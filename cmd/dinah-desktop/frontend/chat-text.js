@@ -504,7 +504,7 @@
     list.addEventListener('pudl:contextmenu', function (e) {
       var a = link(e); if (!a) return;
       var web = !!a.dataset.chipUrl;
-      var rows = [{ label: web ? 'Open in Browser' : a.title || 'Open in Dinah', run: function () { openChip(a, cwd(a)); } }];
+      var rows = [{ label: web ? 'Open in Browser' : a.title || 'Open in ' + (window.dinahProduct ? window.dinahProduct.name : ''), run: function () { openChip(a, cwd(a)); } }];
       if (!web) rows.push({ label: 'Open with Default App', detail: 'HTML files open with your default HTML application.', run: function () { return external(a); } });
       rows.push({ label: 'Copy Link Address', run: function () {
         if (web) copy(a.dataset.chipUrl);
