@@ -81,3 +81,25 @@ func TestAnIncompleteOrUnknownProfileIsRefused(t *testing.T) {
 		t.Fatalf("an unknown field was accepted: %v", err)
 	}
 }
+
+// The environment's choice of providers, for development, replaces the
+// profile's; the default follows it, and a malformed value changes nothing.
+func TestProviderOverride(t *testing.T) {
+	p := example()
+	got := withProviderOverride(p, "codex, claude")
+	if len(got.Providers) != 2 || got.Providers[1] != "claude" || got.DefaultProvider != "codex" {
+		t.Fatalf("override: %+v", got)
+	}
+	kept := withProviderOverride(p, "devin,ollama")
+	if kept.DefaultProvider != "devin" || len(kept.Providers) != 2 {
+		t.Fatalf("the default should stay when offered: %+v", kept)
+	}
+	for _, bad := range []string{"", " , ", "Bad Name", "devin;codex"} {
+		if same := withProviderOverride(p, bad); len(same.Providers) != 1 || same.Providers[0] != "devin" {
+			t.Fatalf("%q changed the profile: %+v", bad, same)
+		}
+	}
+	if example().ProvidersVar() != "EXAMPLE_PROVIDERS" {
+		t.Fatal("the variable's name")
+	}
+}

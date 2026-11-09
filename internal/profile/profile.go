@@ -174,6 +174,11 @@ func (p Profile) HomeVar() string { return p.EnvPrefix + "HOME" }
 // gives, for a browser test to drive the page, such as DINAH_SHELL_ENTRY_FILE.
 func (p Profile) ShellEntryVar() string { return p.EnvPrefix + "SHELL_ENTRY_FILE" }
 
+// ProvidersVar is the environment variable that, for development, replaces
+// the agent providers the profile offers with a comma-separated list, such
+// as DINAH_PROVIDERS=devin,codex (injected.go, withProviderOverride).
+func (p Profile) ProvidersVar() string { return p.EnvPrefix + "PROVIDERS" }
+
 // HostedVar is the environment variable the window sets for the agents it
 // runs, such as DINAH_HOSTED.
 func (p Profile) HostedVar() string { return p.EnvPrefix + "HOSTED" }

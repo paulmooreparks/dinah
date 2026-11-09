@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -31,15 +33,46 @@ var current = chosen()
 func Injected() string { return injected }
 
 func chosen() Profile {
-	if injected == "" {
-		return dinah
+	p := dinah
+	if injected != "" {
+		var err error
+		p, err = parseInjected(injected)
+		if err != nil {
+			panic("the build's product profile is unusable: " + err.Error())
+		}
 	}
-	p, err := parseInjected(injected)
-	if err != nil {
-		panic("the build's product profile is unusable: " + err.Error())
+	return withProviderOverride(p, os.Getenv(p.ProvidersVar()))
+}
+
+// withProviderOverride applies the environment's choice of agent providers
+// to a profile, for development: the variable ProvidersVar names, with
+// commas, the providers the build offers in place of the profile's. The
+// default provider stays when it is among them and is otherwise the first.
+// An empty or malformed value leaves the profile as it is.
+func withProviderOverride(p Profile, value string) Profile {
+	var providers []string
+	for _, id := range strings.Split(value, ",") {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if !providerID.MatchString(id) {
+			return p
+		}
+		providers = append(providers, id)
+	}
+	if len(providers) == 0 {
+		return p
+	}
+	p.Providers = providers
+	if !slices.Contains(providers, p.DefaultProvider) {
+		p.DefaultProvider = providers[0]
 	}
 	return p
 }
+
+// providerID is the form of an agent provider's identifier.
+var providerID = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
 // parseInjected reads a profile from its base64-encoded JSON and checks that
 // every value a product must give is given.
