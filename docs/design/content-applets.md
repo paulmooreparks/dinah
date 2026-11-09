@@ -161,7 +161,7 @@ The built-in Editor's notice for a file changed on disk had a Compare button tha
 
 ### Files added to a document, 9 November 2026
 
-The built-in Editor kept an image pasted or a file dropped into a document, or chosen through Insert › Image… and File…, with the draft, and wrote it beside the document when the draft was saved. The content windows do the same for the Editor and Docs. Insert Image… and Attach File… are in the Documents menu, an image pasted or a file dropped into the document is caught at the window before the applet sees it, each file is kept with the draft (AddDraftFile, PickDraftFiles), and a reference to it goes in at the cursor through the applet's own insert action: an image as `![](name)`, any other file as a link. Saving writes the kept files beside the document, as before. Diagrams has no cursor to insert at, and Slides takes pictures through its own figure shortcode, so the commands stand aside for both. The picture itself does not yet show in the window; see Still to do.
+The built-in Editor kept an image pasted or a file dropped into a document, or chosen through Insert › Image… and File…, with the draft, and wrote it beside the document when the draft was saved. The content windows do the same for the Editor and Docs. Insert Image… and Attach File… are in the Documents menu, an image pasted or a file dropped into the document is caught at the window before the applet sees it, each file is kept with the draft (AddDraftFile, PickDraftFiles), and a reference to it goes in at the cursor through the applet's own insert action: an image as `![](name)`, any other file as a link. Saving writes the kept files beside the document, as before. Diagrams has no cursor to insert at, so the commands stand aside for it; Slides takes a file through its own add-to-slide action, a picture as its `{{figure:…}}` shortcode at the end of the current slide (10 November 2026). With v0.2.53's picture resolver the picture itself shows in the window as well.
 
 ### SVG artifacts, 9 November 2026
 
@@ -186,7 +186,6 @@ yavc.app answered the two asks the same evening, in v0.2.53, with two optional s
 ## Still to do
 
 - v0.2.53 is pinned (Editor 46.15.0, Docs 1.15.0, Diagrams 0.33.0, Slides 0.43.0), with the document host overlays below; before it v0.2.52 brought #66 (page furniture kept while typing) and #67 (the Insert menu's shortcodes cached, and hosts told of a command change only when a command's state changes).
-- Insert Image and Attach File in Slides, through its append-to-slide action with a figure shortcode.
 - Customising the toolbar, and Slides' `fs.save` export (Download as PowerPoint and PDF from its own File menu; the agent's export actions come through the broker as artifacts).
 - A new document's window is "Untitled.d2" in Diagrams and "Untitled.slides.md" in Slides, from the application showing it; the person's Save As still picks the file's real name.
 - Ctrl+O is bound twice in the bar, to Documents › Open… and to the applets' File › Open…; both open Dinah's picker, so nothing is lost, but one of the two rows should give the key up (a PUDL or yavc.app matter).

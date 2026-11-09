@@ -246,19 +246,25 @@
        writes it beside the document when it is saved (drafts.Service.Save),
        and put a reference to it at the cursor through the applet's own
        insert: an image as an image, any other file as a link, as the built-in
-       Editor did. The Editor and Docs insert at the cursor; Diagrams and
-       Slides have no such insert, so the commands stand aside for them. */
+       Editor did. The Editor and Docs insert at the cursor; Slides adds to
+       the end of the current slide, a picture as its figure shortcode;
+       Diagrams has no such insert, so the commands stand aside for it. */
     var IMAGE_TYPES = /^image\/(png|jpeg|gif|webp|svg\+xml)$/;
-    function canAttach() { return app === 'editor' || app === 'docs'; }
+    var BACKSLASH = String.fromCharCode(92);
+    function canAttach() { return app === 'editor' || app === 'docs' || app === 'slides'; }
+    // A shortcode argument with a space or a quote in it is quoted (the kit's quoteArg).
+    function quoteArg(v) { return /[\s"]/.test(v) ? '"' + v.replace(/(["\\])/g, BACKSLASH + '$1') + '"' : v; }
     function fileMarkdown(name, image) {
       var target = /[\s()<>]/.test(name) ? '<' + name + '>' : name;
-      if (!image) return '[' + name.replace(/([\\[\]])/g, '\$1') + '](' + target + ')';
+      if (!image) return '[' + name.replace(/([\\[\]])/g, BACKSLASH + '$1') + '](' + target + ')';
+      if (app === 'slides') return '{{figure:' + quoteArg(name) + ' alt=""}}';
       return '![](' + target + ')';
     }
     function insertFiles(names, images) {
       if (!names || !names.length || disposed) return Promise.resolve();
       var markdown = names.map(function (n, i) { return fileMarkdown(n, Array.isArray(images) ? images[i] : images); }).join('\n\n');
-      return call('insert', { text: markdown }).then(function () { changed(); });
+      // Slides' insert takes markdown and adds to the current slide; the Editor's and Docs' take text at the cursor.
+      return call('insert', app === 'slides' ? { markdown: markdown } : { text: markdown }).then(function () { changed(); });
     }
     function pickFiles(images) {
       if (!canAttach()) return Promise.resolve();
@@ -282,7 +288,8 @@
         return insertFiles(names, files.map(function (f) { return IMAGE_TYPES.test(f.type); }));
       }).catch(failed);
     }
-    function inDocument(target) { return !!(target && target.closest && target.closest('.cm-editor, .ProseMirror')) && !target.closest('textarea, input'); }
+    // The text (CodeMirror), the page (ProseMirror) and a slide's stage take a drop; the applets' own fields do not.
+    function inDocument(target) { return !!(target && target.closest && target.closest('.cm-editor, .ProseMirror, .deck-stage')) && !target.closest('textarea, input'); }
     function filesOf(transfer) { return transfer ? Array.from(transfer.files || []) : []; }
     root.addEventListener('paste', function (e) {
       var files = filesOf(e.clipboardData).filter(function (f) { return IMAGE_TYPES.test(f.type); });
