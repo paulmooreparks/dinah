@@ -29,6 +29,14 @@ type SourceKind struct {
 	// Label is the kind's name as people see it, such as "Wiki Page".
 	// Empty, the kind is not offered in the Add Source dialog.
 	Label string
+	// Glyph is the PUDL glyph a source of this kind is drawn with where
+	// sources are listed, such as "globe" for a page on a site. Empty, the
+	// source is drawn as a folder.
+	Glyph string
+	// URL is a source's address in a browser, when it is on a site, for
+	// Copy Link and Open Externally on the source itself. Nil, the source
+	// has no address of its own.
+	URL func(s Source) string
 	// Attach says how a source of this kind is added, when the person can
 	// add one. Nil, the kind can only arrive by import.
 	Attach *Attach

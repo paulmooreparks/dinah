@@ -70,6 +70,8 @@
       { id: 'edit', label: 'Edit', hidden: !item.ref || !has(item, 'edit'), run: run(function () { return dinahEditor.openResource(item.ref); }) },
       { id: 'edit-text', label: 'Edit as Text', hidden: !item.ref || !has(item, 'edit-text'), run: run(function () { return dinahEditor.openResource(item.ref, 'text'); }) },
       { id: 'open-external', label: has(item, 'reveal') ? 'Show in Folder' : 'Open Externally', hidden: !has(item, 'reveal') && !has(item, 'open-external'), run: run(function () { return item.ref ? app().OpenWorkspaceResource(item.ref) : app().OpenWorkspaceMount(item.path); }) },
+      // An item on a site has an address, which Copy Link puts on the clipboard.
+      { id: 'copy-link', label: 'Copy Link', hidden: !item.url, run: run(function () { host().copy(item.url); host().toast('Link copied.', 'info'); return item.url; }) },
       { id: 'copy-path', label: 'Copy Path', hidden: !item.ref || !item.writable, run: run(function () { return copyPath(item); }) },
       { id: 'rename', label: 'Rename…', shortcut: 'F2', hidden: !renames(item), run: run(function () { return renameFile(item); }) }
     ].filter(function (command) { return !command.hidden; });
@@ -90,9 +92,10 @@
     }
     return homeLoading;
   }
-  /* A resource's glyph by what the item is: a folder or a document. Every
-     surface that lists resources chooses through this, so they agree. */
-  function glyphName(item) { return item.directory ? 'folder' : 'document'; }
+  /* A resource's glyph by what the item is: the one its kind gives it (a
+     page on a site, an issue), else a folder or a document. Every surface
+     that lists resources chooses through this, so they agree. */
+  function glyphName(item) { return item.glyph || (item.directory ? 'folder' : 'document'); }
   /* Whether a folder of the file system takes a new document: a folder on
      the computer that can be written. The rest is read-only: the top of the
      file system and the listing of a workspace's mounts. */
@@ -343,8 +346,15 @@
      Files and the Editor's Open and Save As dialog share it; root is the
      element with the dinah-files class. */
   function decorate(root, F, cwd) {
+    /* An entry whose kind has a glyph of its own is drawn with it, in the
+       tree and the rows, through the fm-kind-glyph class and the
+       --resource-glyph property (files-applet.css). */
     function mark(element, node) {
-      if (node) element.classList.toggle('fm-read-only', readOnly(node));
+      if (!node) return;
+      element.classList.toggle('fm-read-only', readOnly(node));
+      element.classList.toggle('fm-kind-glyph', !!node.glyph);
+      if (node.glyph) element.style.setProperty('--resource-glyph', 'var(--glyph-' + node.glyph + ')');
+      else element.style.removeProperty('--resource-glyph');
     }
     function marked(host, node) {
       if (!host) return;

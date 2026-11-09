@@ -57,6 +57,10 @@ type Entry struct {
 	// Kind is the entry's kind for the person's view, when the source has
 	// kinds of its own, such as a wiki page; empty, it is a folder or a file.
 	Kind string
+	// Glyph is the PUDL glyph the entry is drawn with, when its kind has
+	// one of its own, such as "globe" for a page on a site or "ticket" for
+	// an issue; empty, it is drawn as a folder or a document.
+	Glyph string
 	// URL is where the entry can be opened in a browser, when it is on a
 	// site; a file has none.
 	URL string

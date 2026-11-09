@@ -56,6 +56,10 @@ type ResourceItem struct {
 	// page on a site for one, in which a new document can be made, so Save
 	// As offers it; the source decides the document's own place and name.
 	Creates bool `json:"creates,omitempty"`
+	// Glyph is the PUDL glyph the item is drawn with when its kind has one
+	// of its own (resource.Entry.Glyph, workspaces.SourceKind.Glyph); empty,
+	// it is drawn as a folder or a document.
+	Glyph string `json:"glyph,omitempty"`
 }
 type ResourcePage struct {
 	Entries   []ResourceItem `json:"entries"`

@@ -53,6 +53,7 @@
 //                                  browser, and exits 1 on any failure.
 const { chromium } = require('playwright-core');
 const path = require('path');
+const fs = require('fs');
 const { acquire: acquireBrowserLock } = require('./browser-lock');
 
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
@@ -168,7 +169,13 @@ async function launch(options = {}) {
   // and is not printed or counted as one the page should not have.
   const errors = [], failures = [], expected = [];
   const context = await browser.newContext({ viewport });
-  await context.route('http://dinah.test/**', route => route.fulfill({ path: path.join(FRONTEND, new URL(route.request().url()).pathname) }));
+  // A file the frontend lacks is a 404, as the real server answers, which a
+  // script that looks for an optional file (product-applets.js) takes in its stride.
+  await context.route('http://dinah.test/**', route => {
+    const file = path.join(FRONTEND, new URL(route.request().url()).pathname);
+    if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) return route.fulfill({ status: 404, body: 'Not found' });
+    return route.fulfill({ path: file });
+  });
   // The stub and the suite's functions are sent as one script's source, so
   // nothing is evaluated from a string in the page and a page served under
   // its real Content Security Policy runs them as any init script.

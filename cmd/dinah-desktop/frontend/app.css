@@ -325,6 +325,8 @@ body:not(.show-thoughts) .thought-row { display: none; }
      branch glyph, which the subagents used before, is Git's (Paul, 28
      October 2026). */
   --glyph-subagents: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M5.5 1.5h5v4h-5zM8 5.5V8M4 8h8M4 8v2.5M12 8v2.5M1.5 10.5h5v4h-5zM9.5 10.5h5v4h-5z'/%3E%3C/svg%3E");
+  /* Globe: a resource that lives on a site rather than on this computer. */
+  --glyph-globe: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.3'%3E%3Ccircle cx='8' cy='8' r='6.2'/%3E%3Cellipse cx='8' cy='8' rx='2.6' ry='6.2'/%3E%3Cpath d='M2 8h12M3 4.5h10M3 11.5h10'/%3E%3C/svg%3E");
 }
 
 /* Renaming a session: its row's title becomes a field in place. */

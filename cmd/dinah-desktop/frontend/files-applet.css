@@ -10,6 +10,11 @@
 /* A read-only folder carries a struck-through pencil after its name, in
    the rows, the tree and the location shown, as the Finder marks a folder
    that cannot be written to, with PUDL's pencil-off glyph. */
+/* An entry whose kind has a glyph of its own (a page on a site, an issue)
+   is drawn with it in the tree and the rows, set on the entry by
+   dinahResources.decorate. */
+.dinah-files .fm-kind-glyph > .glyph,
+.dinah-files .fm-kind-glyph .fm-cell > .glyph { --glyph: var(--resource-glyph) !important; }
 .dinah-files .fm-readonly-mark { --glyph: var(--glyph-pencil-off); --glyph-size: 1em; margin-left: var(--space-1); vertical-align: -0.15em; color: var(--text-muted); flex: none; }
 .dinah-files .fm-readonly-line { display: flex; align-items: center; gap: var(--space-2); }
 .dinah-files .fm-readonly-line .fm-readonly-mark { margin-left: 0; }

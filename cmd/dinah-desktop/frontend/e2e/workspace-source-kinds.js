@@ -33,7 +33,7 @@ const { launch, PAGE } = require('./lib/page');
         TestConnection: async id => { window.__calls.push(['test', id]); return 'Signed in as paul.'; },
         RemoveConnection: async id => { window.__calls.push(['remove', id]); connections[0].address = ''; connections[0].hasToken = false; },
         ListWorkspaceResources: async (ref, start, limit) => {
-          if (ref.sourceId === 'wiki1') return { entries: [item({ ...ref, path: '200' }, 'Architecture', true, ['list', 'read', 'preview', 'edit', 'open-external'], 'wiki-page')], nextStart: -1 };
+          if (ref.sourceId === 'wiki1') return { entries: [{ ...item({ ...ref, path: '200' }, 'Architecture', true, ['list', 'read', 'preview', 'edit', 'open-external'], 'wiki-page'), glyph: 'globe', url: 'https://wiki.example/pages/200' }], nextStart: -1 };
           return { entries: [], nextStart: -1 };
         },
         PreviewWorkspaceResource: async ref => ({ resource: item(ref, ref.path, false, ['preview']), blocks: [{ line: 1, html: '<h2>Preview</h2>' }], problems: [] }),
@@ -57,7 +57,7 @@ const { launch, PAGE } = require('./lib/page');
       backend.ListWorkspaceMounts = async (virtual, start, limit) => {
         const { record, source, ref } = resolve(virtual);
         if (source) { const result = await backend.ListWorkspaceResources(ref, start, limit); return { ...result, entries: result.entries.map(resource => mount(record, source, resource)) }; }
-        const entries = record ? record.sources.map(source => mount(record, source, { ...item({ workspaceId: record.id, sourceId: source.id, path: '' }, source.name, true, ['list']), kind: source.kind })) : [];
+        const entries = record ? record.sources.map(source => mount(record, source, { ...item({ workspaceId: record.id, sourceId: source.id, path: '' }, source.name, true, source.kind === 'wiki-page' ? ['list', 'open-external'] : ['list']), kind: source.kind, glyph: source.kind === 'wiki-page' ? 'globe' : undefined, url: source.kind === 'wiki-page' ? 'https://wiki.example/pages/100' : undefined })) : [];
         return { entries, nextStart: -1 };
       };
       backend.ListWorkspaceMountsExpected = async (virtual, start, limit) => backend.ListWorkspaceMounts(virtual, start, limit);
@@ -96,6 +96,21 @@ const { launch, PAGE } = require('./lib/page');
     const child = sources.locator('[data-resource]').filter({ has: page.locator('.fm-ti-label', { hasText: /^Architecture$/ }) });
     await child.waitFor();
     ok('the source lists its entries from the backend', await child.count() === 1);
+    const glyphs = await page.evaluate(() => Array.from(document.querySelectorAll('#workspace-sources [data-resource] > .glyph')).map(g => [g.nextElementSibling.textContent, g.style.getPropertyValue('--glyph')]));
+    ok('a source and an entry of a kind with its own glyph are drawn with it, and a folder as a folder', JSON.stringify(glyphs.filter(g => ['Working Files', 'Customer Home', 'Architecture'].includes(g[0])).sort()) === JSON.stringify([['Architecture', 'var(--glyph-globe)'], ['Customer Home', 'var(--glyph-globe)'], ['Working Files', 'var(--glyph-folder)']]));
+    for (const [name, has] of [['Architecture', true], ['Customer Home', true], ['Working Files', false]]) {
+      await sources.locator('[data-resource]').filter({ has: page.locator('.fm-ti-label', { hasText: new RegExp('^' + name + '$') }) }).first().click({ button: 'right' });
+      const menu = page.locator('.context-menu:popover-open');
+      await menu.waitFor();
+      ok(name + (has ? ' offers Copy Link' : ' has no Copy Link'), (await menu.getByText('Copy Link', { exact: true }).count() === 1) === has);
+      await page.keyboard.press('Escape');
+      await menu.waitFor({ state: 'hidden' });
+    }
+    await page.evaluate(() => { window.__copied = null; dinahHost.copy = function (text) { window.__copied = text; }; });
+    await sources.locator('[data-resource]').filter({ has: page.locator('.fm-ti-label', { hasText: /^Architecture$/ }) }).first().click({ button: 'right' });
+    await page.locator('.context-menu:popover-open').getByText('Copy Link', { exact: true }).click();
+    await page.waitForFunction(() => window.__copied !== null);
+    ok('Copy Link puts the entry\'s address on the clipboard', await page.evaluate(() => window.__copied) === 'https://wiki.example/pages/200');
     await page.evaluate(() => { window.__noKinds = true; });
     await page.locator('#workspace-source-choose').click();
     await page.waitForFunction(() => __calls.some(c => c[0] === 'choose'));

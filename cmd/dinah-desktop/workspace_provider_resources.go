@@ -39,6 +39,15 @@ func providerSourceItem(record WorkspaceRecord, source WorkspaceSource) Resource
 	if !workspaces.HasProvider(source.Kind) {
 		item.Directory, item.Unavailable, item.Actions = false, true, []string{}
 	}
+	if k, ok := workspaces.LookupSourceKind(source.Kind); ok {
+		item.Glyph = k.Glyph
+		if k.URL != nil {
+			item.URL = k.URL(source)
+		}
+		if item.URL != "" && !item.Unavailable {
+			item.Actions = append(item.Actions, "open-external")
+		}
+	}
 	return item
 }
 
@@ -53,7 +62,7 @@ func creates(p any) bool {
 func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry, makes bool) ResourceItem {
 	ref := parent
 	ref.Path = path.Join(parent.Path, e.Name)
-	item := ResourceItem{Ref: ref, Title: e.Title, Kind: e.Kind, Directory: e.Folder, Revision: e.Revision, URL: e.URL, Actions: []string{}}
+	item := ResourceItem{Ref: ref, Title: e.Title, Kind: e.Kind, Directory: e.Folder, Revision: e.Revision, URL: e.URL, Glyph: e.Glyph, Actions: []string{}}
 	if item.Title == "" {
 		item.Title = e.Name
 	}

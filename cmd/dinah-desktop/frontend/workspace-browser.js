@@ -122,7 +122,7 @@
         }
         if (permitted(item, 'preview')) add('Open', function () { open(item); });
         rows = rows.concat(window.dinahResources.itemCommands(item, options.fail).filter(function (command) {
-          return ['edit', 'edit-text', 'open-external', 'copy-path'].includes(command.id) || (!source && command.id === 'rename');
+          return ['edit', 'edit-text', 'open-external', 'copy-link', 'copy-path'].includes(command.id) || (!source && command.id === 'rename');
         }));
         // A folder on the computer takes files from anywhere on it, and any
         // folder opens in Files.

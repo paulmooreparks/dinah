@@ -46,7 +46,7 @@ func (w fakeWiki) List(_ context.Context, folder string) ([]resource.Entry, erro
 	}
 	for _, child := range page.children {
 		c := fakeWikiPages[child]
-		out = append(out, resource.Entry{Name: child, Title: c.title, Folder: true, Document: true, Kind: "wiki-page", URL: "https://wiki.example/pages/" + child, Revision: "3"})
+		out = append(out, resource.Entry{Name: child, Title: c.title, Folder: true, Document: true, Kind: "wiki-page", Glyph: "globe", URL: "https://wiki.example/pages/" + child, Revision: "3"})
 	}
 	return out, nil
 }
@@ -89,6 +89,10 @@ var registerFakeWiki = func() func() {
 		done = true
 		workspaces.RegisterSourceKind("test-wiki", workspaces.SourceKind{
 			Label: "Test Wiki Page",
+			Glyph: "globe",
+			URL: func(s workspaces.Source) string {
+				return "https://wiki.example/pages/" + workspaces.ExtraString(s.Extra, "pageId")
+			},
 			Attach: &workspaces.Attach{
 				Help:   "A page of the test wiki.",
 				Fields: []workspaces.Field{{ID: "page", Label: "Page ID", Kind: "text", Required: true, MaxLength: 10}, {ID: "children", Label: "Include Child Pages", Kind: "check", Default: "true"}},
@@ -121,6 +125,11 @@ func TestRegisteredKindIsListedReadAndPreviewedThroughItsProvider(t *testing.T) 
 	if !row.Directory || row.Unavailable || !slices.Contains(row.Actions, "list") {
 		t.Fatalf("the source's row does not list: %+v", row)
 	}
+	// The source's own row takes its kind's glyph and address, so it is drawn
+	// as what it is and has Copy Link and Open Externally like its pages.
+	if row.Glyph != "globe" || row.URL != "https://wiki.example/pages/100" || !slices.Contains(row.Actions, "open-external") {
+		t.Fatalf("the source's row lacks its kind's glyph or address: %+v", row)
+	}
 	other := workspaceSourceResource(record, WorkspaceSource{ID: "x", Kind: "nobody-knows", Name: "Kept"})
 	if !other.Unavailable || other.Directory {
 		t.Fatalf("a kind without a provider is not kept as unavailable: %+v", other)
@@ -145,7 +154,7 @@ func TestRegisteredKindIsListedReadAndPreviewedThroughItsProvider(t *testing.T) 
 			arch = e
 		}
 	}
-	if arch.Ref.Path != "200" || arch.Kind != "wiki-page" || arch.Revision != "3" || arch.URL == "" {
+	if arch.Ref.Path != "200" || arch.Kind != "wiki-page" || arch.Revision != "3" || arch.URL == "" || arch.Glyph != "globe" {
 		t.Fatalf("the page's item: %+v", arch)
 	}
 	for _, action := range []string{"list", "read", "preview", "edit", "open-external"} {
