@@ -85,7 +85,10 @@
   }
 
   C.register({ id: 'new-document', glyph: 'plus', menu: 'documents', mnemonic: 'N', label: 'New Document', reason: 'Open a workspace first.', enabled: function () { return !!(host() && host().workspaceId()); }, run: function () { return editor().newDocument(); } });
-  C.register({ id: 'open-document', glyph: 'open', menu: 'documents', mnemonic: 'O', label: 'Open…', shortcut: 'Ctrl+O', reason: 'A Terminal is in front, and the key is its own.', enabled: function () { return !suspended(['terminal']); }, run: function () { return editor().openDocument(); } });
+  /* Ctrl+O is the Editor's, Docs', Diagrams' and Slides' own File > Open...
+     while one of their windows is in front, and both open Dinah's picker, so
+     this row holds the key only when no content window is in front. */
+  C.register({ id: 'open-document', glyph: 'open', menu: 'documents', mnemonic: 'O', label: 'Open…', shortcut: function () { return appletsOwn() ? '' : 'Ctrl+O'; }, help: { label: 'Open…', key: 'Ctrl+O' }, reason: 'A Terminal is in front, and the key is its own.', enabled: function () { return !suspended(['terminal']); }, run: function () { return editor().openDocument(); } });
   C.register({ id: 'documents-sep-file', menu: 'document', separator: true });
   /* A content window's applet has Save (Ctrl+S) and Close Document in its
      own File menu, so the registry's rows stand aside for it and are drawn

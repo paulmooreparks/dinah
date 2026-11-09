@@ -61,9 +61,8 @@ const { launch, PAGE } = require('./lib/page');
     ok('and Save As…, Find and Open and Close from Dinah\'s', has('Ctrl+Shift+S', 'Save As') && has('Ctrl+P', 'Find and Open') && has('Ctrl+F4', 'Close'));
     const counts = {};
     keys.forEach(k => { counts[k.key] = (counts[k.key] || 0) + 1; });
-    // Ctrl+O is the Documents menu's Open… and the Editor's File › Open…
-    // alike; both open Dinah's own picker.
-    const twice = Object.keys(counts).filter(k => counts[k] > 1 && k !== 'Ctrl+O');
+    // Ctrl+O is the Editor's File › Open… while the Editor is in front; Dinah's Documents › Open… gives it up then.
+    const twice = Object.keys(counts).filter(k => counts[k] > 1);
     ok('no key is bound to two rows', twice.length === 0, JSON.stringify(twice));
 
     // Ctrl+S in the text saves through the Editor's File menu; Dinah's
@@ -123,10 +122,10 @@ const { launch, PAGE } = require('./lib/page');
     ok('the menu bar lists its keys, Save among them', keys.some(k => k.key === 'Ctrl+S' && /Save/.test(k.label)) && keys.some(k => k.key === 'F1'));
     ok('no letter of Dinah\'s menus is refused', menuWarnings.length === 0, menuWarnings.join('\n'));
     const panel = p.locator('#menubar-panel');
+    // The bar redraws when the front window's commands change, so the title is found and pressed in one step.
     const openTitle = async name => {
-      const title = p.locator('.menubar-title:visible', { hasText: new RegExp('^' + name + '$') });
-      if (!await title.count()) throw new Error('no title ' + name + ' among: ' + (await p.locator('.menubar-title:visible').allTextContents()).join(' | '));
-      await title.first().click();
+      const found = await p.evaluate(name => { const el = [...document.querySelectorAll('.menubar-title')].find(e => e.textContent.trim() === name && e.offsetParent); if (el) el.click(); return !!el; }, name);
+      if (!found) throw new Error('no title ' + name + ' among: ' + (await p.locator('.menubar-title:visible').allTextContents()).join(' | '));
       await panel.waitFor({ state: 'visible' });
     };
     await openTitle('Document');

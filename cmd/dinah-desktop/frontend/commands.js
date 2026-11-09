@@ -50,10 +50,12 @@
   function register(entry) {
     if (!entry || !entry.id || !entry.menu) throw new Error('A command needs an identity and a menu.');
     if (byId.has(entry.id) || aliases.has(entry.id)) throw new Error('Duplicate command: ' + entry.id);
-    if (entry.shortcut) {
+    // A shortcut may be a function, for a key a command holds only at times
+    // (Documents > Open..., which gives Ctrl+O to a content window's own Open).
+    if (typeof entry.shortcut === 'string' && entry.shortcut) {
       var key = spelling(entry.shortcut);
       entries.forEach(function (other) {
-        if (other.shortcut && spelling(other.shortcut) === key) throw new Error(entry.id + ' takes ' + entry.shortcut + ', which ' + other.id + ' has');
+        if (typeof other.shortcut === 'string' && other.shortcut && spelling(other.shortcut) === key) throw new Error(entry.id + ' takes ' + entry.shortcut + ', which ' + other.id + ' has');
       });
     }
     entries.push(entry);
@@ -126,7 +128,7 @@
       if (entry.separator) { if (out.length && out[out.length - 1] !== '-') out.push('-'); return; }
       if (entry.expand) { out = out.concat(expanded(entry)); return; }
       var on = enabled(entry);
-      var row = { label: value(entry.label), disabled: !on, danger: !!entry.danger, shortcut: entry.shortcut || '',
+      var row = { label: value(entry.label), disabled: !on, danger: !!entry.danger, shortcut: value(entry.shortcut) || '',
         reason: on ? '' : value(entry.reason) || '', mnemonic: entry.mnemonic || '', run: function () { run(entry.id); } };
       var checked = value(entry.checked);
       if (typeof checked === 'boolean') row.checked = checked;
@@ -151,7 +153,8 @@
         return;
       }
       var on = enabled(entry);
-      out.push({ id: entry.id, label: value(entry.label), menu: menu, shortcut: entry.shortcut ? shown(entry.shortcut) : '', enabled: on,
+      var shortcut = value(entry.shortcut);
+      out.push({ id: entry.id, label: value(entry.label), menu: menu, shortcut: shortcut ? shown(shortcut) : '', enabled: on,
         reason: on ? '' : value(entry.reason) || '', run: function () { run(entry.id); } });
     });
     searchSources.forEach(function (source) { out = out.concat(source() || []); });
@@ -246,7 +249,7 @@
         entries.forEach(function (entry) {
           if (entry.menu !== menu || entry.separator || entry.help === false || !(entry.shortcut || entry.help)) return;
           var help = entry.help || {};
-          row(help.label || value(entry.label), MENUS[menu], help.key || shown(entry.shortcut));
+          row(help.label || value(entry.label), MENUS[menu], help.key || shown(value(entry.shortcut) || ''));
         });
         helpGroups.forEach(function (g) {
           if (g.group === MENUS[menu]) g.rows.forEach(function (r) { row(r.label, r.where || g.group, r.key); });
