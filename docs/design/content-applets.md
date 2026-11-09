@@ -171,6 +171,10 @@ The broker admitted an SVG artifact only when it was rectangles and text with a 
 
 Dinah's document commands (Save, Save As…, Rename…, Close Document, Discard Draft…, and now Insert Image… and Attach File…) were in a Document menu the built-in Editor drew in its own window's bar; with that Editor gone, no window drew it, and the commands were reachable only from command search and by their keys. A content window's menus are the applet's own (File, Edit, Insert and so on), and Dinah's Document menu now follows them in the bar, with the letter M since O is Workspaces'. The applet's File menu has Save (Ctrl+S) and Close Document of its own, so those two registry rows stand aside for a content window rather than appear twice; Save As… stays, since its key (Ctrl+Shift+S) is Dinah's. Window › Previous Document took the letter U, since P was PUDL's Pin to Taskbar's. The keyboard and documents-menu browser suites, which tested the removed Editor's keys and menus, now test this arrangement: the applet's keys reach the bar once each, Ctrl+S saves through the applet's File menu, and the Document menu's rows are in order with their keys.
 
+### The chat path, run end to end, 9 November 2026
+
+A real Claude chat in a test copy of Dinah was asked to insert a line into an open Docs document through the applet tools. It called `applet_discover`, found `yavc.docs/insert@1`, called `applet_invoke`, and the document and its file had the line fifteen seconds after the message was sent. Three questions were put to the person on the way, each answered in the chat window: Claude's own approval of the `applet_discover` tool, its approval of `applet_invoke`, and Dinah's consent for the action itself ("The agent wants to: Insert Text", with Allow, Always Allow in This Workspace and Don't Allow). The first two are the agent's and say Yes; the third is Dinah's and says Allow; both forms are drawn by the same card. The check needs the Claude adapter in the test home (copied from `~/.dinah/claude-agent-acp`) and a real provider turn, so it is a scratch check rather than a browser suite.
+
 ## Still to do
 
 - v0.2.52 is pinned, with #66 (page furniture kept while typing) and #67 (the Insert menu's shortcodes cached, and hosts told of a command change only when a command's state changes). Dinah's interim once-a-quarter-second memo of the applets' menu items went with it.
@@ -178,6 +182,5 @@ Dinah's document commands (Save, Save As…, Rename…, Close Document, Discard 
 - Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
 - Insert Image and Attach File in Slides, through its append-to-slide action with a figure shortcode, and the yavc.app resolver above for the picture to show.
 - Customising the toolbar, and Slides' presenter window and its `fs.save` export.
-- An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
 - A new document's window is "Untitled.d2" in Diagrams and "Untitled.slides.md" in Slides, from the application showing it; the person's Save As still picks the file's real name.
 - Ctrl+O is bound twice in the bar, to Documents › Open… and to the applets' File › Open…; both open Dinah's picker, so nothing is lost, but one of the two rows should give the key up (a PUDL or yavc.app matter).
