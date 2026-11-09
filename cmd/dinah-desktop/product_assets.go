@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"embed"
+	"io"
 	"io/fs"
+	"regexp"
+	"time"
 )
 
 // A build of another product brings its own branding files: the mark the
@@ -28,14 +32,70 @@ func productFrontend() (fs.FS, error) {
 	if err != nil {
 		return nil, err
 	}
-	return overlayFS{over: over, base: base}, nil
+	page, err := fs.ReadFile(overlayFS{over: over, base: base}, "index.html")
+	if err != nil {
+		return nil, err
+	}
+	return overlayFS{over: over, base: base, page: renderPage(page)}, nil
 }
+
+/*
+The page's markup is written as Dinah's, with Dinah's name and default
+
+	theme on its html element (product.js reads them first) and in its title.
+	A product's build serves the page with its own in their place, so the
+	page is the product's from its first paint and nothing is drawn as Dinah
+	first. The spans marked data-product-name are filled by product.js from
+	the html element, so they need no rewriting here.
+*/
+var pageProduct = regexp.MustCompile(`(<html[^>]*data-product-name=")[^"]*(")`)
+var pageTheme = regexp.MustCompile(`(<html[^>]*data-product-theme=")[^"]*(")`)
+var pageTitle = regexp.MustCompile(`(<title>)[^<]*(</title>)`)
+
+func renderPage(page []byte) []byte {
+	name := []byte(product.Name)
+	page = pageProduct.ReplaceAll(page, append(append([]byte("${1}"), bytes.ReplaceAll(name, []byte("$"), []byte("$$"))...), []byte("${2}")...))
+	page = pageTheme.ReplaceAll(page, append(append([]byte("${1}"), []byte(product.DefaultTheme)...), []byte("${2}")...))
+	page = pageTitle.ReplaceAll(page, append(append([]byte("${1}"), bytes.ReplaceAll(name, []byte("$"), []byte("$$"))...), []byte("${2}")...))
+	return page
+}
+
+// memFile is a file held in memory: the rendered page.
+type memFile struct {
+	*bytes.Reader
+	name string
+}
+
+func (f memFile) Stat() (fs.FileInfo, error) { return memInfo{name: f.name, size: f.Size()}, nil }
+func (f memFile) Close() error               { return nil }
+
+type memInfo struct {
+	name string
+	size int64
+}
+
+func (i memInfo) Name() string       { return i.name }
+func (i memInfo) Size() int64        { return i.size }
+func (i memInfo) Mode() fs.FileMode  { return 0o444 }
+func (i memInfo) ModTime() time.Time { return time.Time{} }
+func (i memInfo) IsDir() bool        { return false }
+func (i memInfo) Sys() any           { return nil }
+
+var _ io.ReadSeeker = memFile{}
 
 // overlayFS serves a file from over when it has one, and from base otherwise.
 // The root directory is base's, so that listing it lists the page's files.
-type overlayFS struct{ over, base fs.FS }
+type overlayFS struct {
+	over, base fs.FS
+	// page is the rendered index.html, when the product's name and theme
+	// have been written into it (renderPage); nil serves the page as it is.
+	page []byte
+}
 
 func (o overlayFS) Open(name string) (fs.File, error) {
+	if name == "index.html" && o.page != nil {
+		return memFile{Reader: bytes.NewReader(o.page), name: name}, nil
+	}
 	if name != "." {
 		if f, err := o.over.Open(name); err == nil {
 			if info, statErr := f.Stat(); statErr == nil && !info.IsDir() {

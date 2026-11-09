@@ -3,6 +3,7 @@ package main
 import (
 	"io/fs"
 	"regexp"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -26,6 +27,25 @@ func TestProductFilesAreServedOverDinahs(t *testing.T) {
 	entries, err := fs.ReadDir(f, ".")
 	if err != nil || len(entries) != 3 {
 		t.Fatalf("the root is not Dinah's page: %v %d", err, len(entries))
+	}
+}
+
+// The served page carries the build's product on its html element and in
+// its title, whatever the markup was written with.
+func TestTheServedPageIsTheProducts(t *testing.T) {
+	page := []byte(`<!doctype html><html lang="en" data-pudl-persistence="host" data-theme="light" data-product-name="Dinah" data-product-theme="clear-chime"><head><title>Dinah</title></head><body><span data-product-name>Dinah</span></body></html>`)
+	out := string(renderPage(page))
+	want := `data-product-name="` + product.Name + `" data-product-theme="` + product.DefaultTheme + `"`
+	if !strings.Contains(out, want) || !strings.Contains(out, "<title>"+product.Name+"</title>") || !strings.Contains(out, `<span data-product-name>Dinah</span>`) {
+		t.Fatalf("the page was not rendered for the product: %s", out)
+	}
+	f, err := productFrontend()
+	if err != nil {
+		t.Fatal(err)
+	}
+	served, err := fs.ReadFile(f, "index.html")
+	if err != nil || !strings.Contains(string(served), want) {
+		t.Fatalf("the served page is not the product's: %v", err)
 	}
 }
 

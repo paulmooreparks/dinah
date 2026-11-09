@@ -179,6 +179,9 @@
   /* A key can follow a change within the redraw's delay, as Ctrl+S right
      after typing does, so a waiting redraw is made at once, before the menu
      bar reads the rows for the key. */
+  // Labels written from the product's name (Quit, About) are drawn again
+  // when the page learns the name (product.js).
+  document.addEventListener('dinah:product', function () { changed(); });
   document.addEventListener('keydown', function (e) {
     if (timer && (e.ctrlKey || e.metaKey || e.altKey || /^F\d+$/.test(e.key))) flush();
   }, true);
