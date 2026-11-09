@@ -1152,28 +1152,44 @@
     /* A picture's address from a document's own words (cat.png beside the
        document, ~/Pictures/cat.png), for a slide's background say. */
     function pictureFor(src, pictures) {
-        if (!pictures || !pictures.site) { return Promise.resolve(''); }
-        return pictures.site().then(function (site) {
+        if(!pictures)return Promise.resolve('');
+        var resolver=pictures.resources&&pictures.resources.resolve;
+        return Promise.resolve().then(function(){
+            if(pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current())return null;
+            if(!resolver||!pictures.resource)return null;
+            if(typeof src!=='string'||!src||src.length>4096||/[\x00-\x1f\x7f]/.test(src)||/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(src))throw new Error('Invalid document picture reference.');
+            return resolver.call(pictures.resources,{resource:pictures.resource,href:src,kind:'image'},{signal:pictures.signal,current:pictures.current,host:pictures.root});
+        }).then(function(result){
+            if(pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current())return '';
+            if(result!=null){
+                if(typeof result.url!=='string'||!result.url||result.url.length>16384||/[\x00-\x1f\x7f]/.test(result.url))throw new Error('Invalid host picture URL.');
+                var url=new URL(result.url,location.href);
+                if(!/^https?:$/.test(url.protocol)||url.origin!==location.origin||url.username||url.password)throw new Error('Host pictures require a same-origin web URL.');
+                return url.href;
+            }
+            if(!pictures.site)return '';
+            return pictures.site().then(function (site) {
             var F = site.F, dir = pictures.dir ? pictures.dir() : null, base = (dir && F.resolve(null, dir)) || F.home();
             var node = base ? F.resolve(base, src) : null;
             return node && !node.children ? pictureURL(node, F) : '';
+            });
         }).catch(function () { return ''; });
     }
     /* The pictures of the home folder in drawn HTML (the engine marks each
        with data-attachment, its path from the document's folder), read
        from the folder and shown; one not found is marked. */
-    function loadImages(target, pictures) {
-        var imgs = target.querySelectorAll('img[data-attachment]:not([src])');
-        if (!imgs.length) { return; }
-        if (!pictures || !pictures.site) { imgs.forEach(function (img) { img.classList.add('ed-missing-image'); }); return; }
-        pictures.site().then(function (site) {
-            var F = site.F, dir = pictures.dir ? pictures.dir() : null, base = (dir && F.resolve(null, dir)) || F.home();
-            imgs.forEach(function (img) {
-                var name = img.dataset.attachment, node = base ? F.resolve(base, name) : null;
-                if (!node || node.children) { img.classList.add('ed-missing-image'); img.alt = img.alt || name; return; }
-                pictureURL(node, F).then(function (url) { if (url) { img.src = url; } else { img.classList.add('ed-missing-image'); } });
-            });
-        }).catch(function () { imgs.forEach(function (img) { img.classList.add('ed-missing-image'); }); });
+    var imageRequests=new WeakMap();
+    function loadImages(target, pictures, force) {
+        return Promise.all(Array.from(target.querySelectorAll('img[data-attachment]')).map(function(img){
+            var name=img.dataset.attachment,owner=pictures&&pictures.identity?pictures.identity():null,resource=pictures&&pictures.resource,previous=imageRequests.get(img);
+            if(!force&&previous&&previous.name===name&&previous.owner===owner&&previous.resource===resource)return previous.promise;
+            var request={name:name,owner:owner,resource:resource};imageRequests.set(img,request);img.removeAttribute('src');
+            request.promise=pictureFor(name,pictures).then(function(url){
+                if(imageRequests.get(img)!==request||img.dataset.attachment!==name||pictures&&(pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current()))return;
+                img.classList.toggle('ed-missing-image',!url);
+                if(url)img.src=url;else img.alt=img.alt||name;
+            });return request.promise;
+        }));
     }
     /* A listing ({{code:path}}) is fetched as the page draws: a path on the
        site from /, or one of the reader's own files under ~. */
@@ -1413,6 +1429,7 @@
        diagrams: false to leave diagrams undrawn, applets: false to leave
        applets unstarted, as a thumbnail does }. */
     function refreshReferences(target, host) {
+        loadImages(target,host);
         if(!target.querySelector('[data-diagram-src]'))return;
         Promise.all([styles(),loadScript(window.yavcUtil.versioned(new URL('../diagram-kit/references.js',HERE).href))]).then(function(){
             window.yavcDiagramReferences.attach(target,host,function(kind,place,source){return kind==='canvas'?drawCanvas(place,source):kind==='d2'?drawD2(place,source):drawDiagram(place,source);});

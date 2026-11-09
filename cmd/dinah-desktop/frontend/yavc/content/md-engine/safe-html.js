@@ -61,7 +61,7 @@
   // Whether an attribute may stay, by its name and value.
   function attr(name, value) {
     name = String(name).toLowerCase();
-    if (/^on/.test(name) || name === 'srcdoc' || name === 'formaction' || name === 'action' || name === 'ping' || name === 'srcset' || name === 'imagesrcset') return false;
+    if (/^on/.test(name) || name === 'srcdoc' || name === 'formaction' || name === 'action' || name === 'ping' || name === 'srcset' || name === 'imagesrcset' || name === 'data-host-suggestion' || name === 'data-suggestion-action') return false;
     if (name !== 'href' && name !== 'src' && name !== 'xlink:href') return true;
     // A browser ignores tabs, line breaks and spaces in an address, so
     // "java\tscript:" is read as the scheme it would be followed as.
@@ -102,6 +102,14 @@
     t.content.querySelectorAll('*').forEach(function (el) {
       if (animatesAddress(el)) { el.remove(); return; }
       Array.prototype.slice.call(el.attributes).forEach(function (a) { if (!attr(a.name, a.value)) el.removeAttribute(a.name); });
+      // Document-relative images are inert until the owning host resolves
+      // them. Their authored reference stays separate from the display URL.
+      if(el.localName==='img'&&el.hasAttribute('src')){
+        var source=el.getAttribute('src');
+        if(source&&!/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(source)){
+          el.setAttribute('data-attachment',source);el.removeAttribute('src');
+        }
+      }
       if (el.hasAttribute('style')) {
         var kept = safeStyle(el.getAttribute('style'));
         if (kept) el.setAttribute('style', kept); else el.removeAttribute('style');

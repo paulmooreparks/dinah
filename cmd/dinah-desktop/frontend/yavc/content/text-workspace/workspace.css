@@ -135,6 +135,18 @@
 .pc-editor .ed-scroll > .doc-page { padding: clamp(16px, 4vw, 48px) clamp(20px, 6vw, 72px); box-sizing: border-box; max-width: 100%; }
 /* The document palette also supplies semantic shortcode colors. App chrome
    outside the styled page continues to use the host's appearance. */
+.pc-editor {
+  --host-overlay-text:var(--text);--host-overlay-muted:var(--text-muted);
+  --host-overlay-surface:var(--surface);--host-overlay-surface-alt:var(--surface-alt);
+  --host-overlay-border:var(--border);--host-overlay-accent:var(--accent);
+  --host-overlay-warn:var(--warn);--host-overlay-danger:var(--danger);--host-overlay-positive:var(--positive);
+}
+.pc-editor .host-suggestion {
+  --text:var(--host-overlay-text);--text-muted:var(--host-overlay-muted);
+  --surface:var(--host-overlay-surface);--surface-alt:var(--host-overlay-surface-alt);
+  --border:var(--host-overlay-border);--accent:var(--host-overlay-accent);
+  --warn:var(--host-overlay-warn);--danger:var(--host-overlay-danger);--positive:var(--host-overlay-positive);
+}
 .pc-editor [data-ed-page][data-md-style] {
   color-scheme: light;
   --text: var(--doc-ink); --text-muted: var(--doc-muted);

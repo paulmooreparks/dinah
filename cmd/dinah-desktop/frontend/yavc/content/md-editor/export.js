@@ -55,6 +55,22 @@
         if (out.length && out[out.length - 1].collapse) { out[out.length - 1].text = out[out.length - 1].text.replace(/ $/, ''); }
         return out;
     }
+    async function hostRaster(src,options){
+        var url=new URL(src,location.href);
+        if(!/^https?:$/.test(url.protocol)||url.origin!==location.origin||url.username||url.password)throw new Error('Export needs a same-origin host picture.');
+        var controller=new AbortController(),signal=options.pictures&&options.pictures.signal,timer=setTimeout(function(){controller.abort();},10000);
+        function abort(){controller.abort();}if(signal){if(signal.aborted)abort();else signal.addEventListener('abort',abort,{once:true});}
+        try{
+            var response=await fetch(url.href,{credentials:'same-origin',redirect:'error',signal:controller.signal});
+            if(!response.ok||!/^image\/(png|jpeg|gif|webp)(?:;|$)/i.test(response.headers.get('Content-Type')||''))throw new Error('The host picture is not a supported raster image.');
+            if(Number(response.headers.get('Content-Length'))>IMAGE_LIMIT)throw new Error('A picture exceeds the 16 MiB export limit.');
+            if(!response.body)throw new Error('The host picture has no image content.');
+            var reader=response.body.getReader(),chunks=[],size=0;
+            try{while(true){var part=await reader.read();if(part.done)break;size+=part.value.length;if(size>IMAGE_LIMIT||options.current&&!options.current())throw new Error('The picture exceeds its limit or the document changed.');chunks.push(part.value);}}
+            catch(error){await reader.cancel().catch(function(){});throw error;}
+            return URL.createObjectURL(new Blob(chunks,{type:response.headers.get('Content-Type')}));
+        }finally{clearTimeout(timer);if(signal)signal.removeEventListener('abort',abort);}
+    }
     async function image(src, width, height) {
         if (!/^(data:image\/(png|jpe?g|gif|webp);base64,|blob:)/i.test(src) || src.length > IMAGE_LIMIT * 1.4) { throw new Error('Export pictures must be embedded raster images or local home-folder pictures, at most 16 MiB.'); }
         var url = src, owned = false;
@@ -110,7 +126,10 @@
             for (var pair of pictures) {
                 if (options.current && !options.current()) { throw new Error('The document changed during export.'); }
                 var spec = pair[1], local = spec.path || (spec.source && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(spec.source) ? spec.source : null), src = local ? await K.pictureFor(local, options.pictures) : spec.source;
-                var picture = await image(src || '', (page.width - page.margins[0] - page.margins[2]) / 0.75, (page.height - page.margins[1] - page.margins[3] - 12) / 0.75);
+                var owned=null,picture;
+                try{if(local&&/^https?:/i.test(src||'')){owned=await hostRaster(src,options);src=owned;}
+                    picture=await image(src||'',(page.width-page.margins[0]-page.margins[2])/.75,(page.height-page.margins[1]-page.margins[3]-12)/.75);
+                }finally{if(owned)URL.revokeObjectURL(owned);}
                 totalImageBytes += picture.data.length;
                 if (totalImageBytes > 32 * 1024 * 1024) { throw new Error('Export pictures exceed the combined 32 MiB limit.'); }
                 picture.width *= 0.75; picture.height *= 0.75;

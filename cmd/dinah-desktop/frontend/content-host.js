@@ -321,7 +321,7 @@
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: function () { return null; } },
+      contentWorkspace: { version: 1, directory: function () { return null; }, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion } },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
@@ -356,6 +356,75 @@
     var channel = e.target.dataset.contentPresenter;
     if (channel) e.detail.state += '&presenter=1&presenter-channel=' + encodeURIComponent(channel);
   });
+
+  /* ---- Pictures and suggestions (yavc.app's document host overlays) ------
+     The applets ask their host for two things Dinah owns (v0.2.53,
+     docs/design/content-applets.md). A picture a document refers to by
+     name, as "shot.png" beside it, is resolved to a URL: Dinah serves a
+     draft's own files, and the ones beside the document it was opened
+     from, at /draft-file, so the Markdown keeps the name and the window
+     shows the picture. The suggestions Dinah keeps beside a draft (an
+     agent's proposed changes, applet_documents.go) are published to the
+     applet showing it, which marks them in the text with Accept, Reject and
+     Edit; a decision comes back here and Dinah applies it to the draft, as
+     the review panel does, and the applet shows the new text through its
+     ordinary read. */
+  function resolvePicture(request, context) {
+    var id = names()[String(request && request.resource || '')];
+    var href = String(request && request.href || '');
+    if (!id || !href || (context && context.current && !context.current())) return Promise.resolve(null);
+    var name = href;
+    try { name = decodeURIComponent(href); } catch (_) { name = href; }
+    return Promise.resolve({ url: '/draft-file?' + new URLSearchParams({ draft: id, name: name }) });
+  }
+  /* The suggestions of a draft, as the applet takes them: each placed one
+     with its place in the text given. An unplaced one stays in the panel. */
+  function suggestionSnapshot(v) {
+    var spans = v.spans || {};
+    var items = [];
+    (v.suggestions || []).forEach(function (s) {
+      var at = spans[s.id];
+      if (!at) return;
+      items.push({ id: s.id, start: at[0], end: at[1], before: s.before || '', after: s.after || '', author: s.author || '', reason: s.reason || '',
+        group: s.group || '', stale: !!s.stale, edited: !!s.edited, prefix: s.prefix || '', suffix: s.suffix || '' });
+    });
+    return { revision: v.revision, text: v.text, items: items };
+  }
+  var suggestionSubscribers = new Map(), suggestionTimers = new Map();
+  function publishSuggestions(id) {
+    var set = suggestionSubscribers.get(id);
+    if (!set || !set.size) return;
+    Promise.resolve(api().GetDraft(id)).then(function (v) {
+      var snapshot = suggestionSnapshot(v);
+      set.forEach(function (sub) { try { sub(snapshot); } catch (_) { /* the applet's own */ } });
+    }).catch(function () { /* the next change publishes again */ });
+  }
+  function publishSuggestionsSoon(id) {
+    clearTimeout(suggestionTimers.get(id));
+    suggestionTimers.set(id, setTimeout(function () { suggestionTimers.delete(id); publishSuggestions(id); }, 50));
+  }
+  function subscribeSuggestions(resource, callback, context) {
+    var id = names()[String(resource || '')];
+    if (!id || typeof callback !== 'function') return function () {};
+    var set = suggestionSubscribers.get(id);
+    if (!set) { set = new Set(); suggestionSubscribers.set(id, set); }
+    set.add(callback);
+    watchDrafts();
+    var off = function () { var s = suggestionSubscribers.get(id); if (s) { s.delete(callback); if (!s.size) suggestionSubscribers.delete(id); } };
+    if (context && context.signal) context.signal.addEventListener('abort', off, { once: true });
+    publishSuggestions(id);
+    return off;
+  }
+  var watchingDrafts = false;
+  function watchDrafts() {
+    if (watchingDrafts || !window.dinahHost) return;
+    watchingDrafts = true;
+    window.dinahHost.on('draft:changed', function (e) { if (e && e.id && suggestionSubscribers.has(e.id)) publishSuggestionsSoon(e.id); });
+  }
+  function decideSuggestion(request, context) {
+    if (!window.dinahContentWindows || !window.dinahContentWindows.decideSuggestion) return Promise.reject(new Error('Suggestions cannot be decided here.'));
+    return window.dinahContentWindows.decideSuggestion(request || {}, context || {});
+  }
 
   /* ---- Presenting ---------------------------------------------------------
      Slides presents full screen in its own window, and opens a presenter

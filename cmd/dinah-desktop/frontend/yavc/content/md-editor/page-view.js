@@ -540,7 +540,24 @@ var schemaCache = null;
        text it was read from and the text before it, the way the page writes
        itself back (pageview.SerializeDocument), so it holds only while the
        page is the text the suggestions were placed in. */
-    var suggested = { text: null, list: [] }, suggestKey = null, rereadFor = null;
+    var suggested = { text: null, list: [] }, suggestKey = null, placesLoading=null,placeTexts=new WeakMap();
+    function prepareSuggestionPlaces(doc,text){
+      if(placesLoading&&placesLoading.doc===doc&&placesLoading.text===text)return;
+      var ticket={doc:doc,text:text};placesLoading=ticket;var entries=[];
+      doc.forEach(function(node,pos){
+        var promise=placeTexts.get(node);
+        if(!promise){var json=node.toJSON();json.attrs=Object.assign({},json.attrs,{gap:''});promise=Promise.resolve(o.markdownOf({type:'doc',attrs:{front:'',tail:'',crlf:false},content:[json]}));placeTexts.set(node,promise);}
+        entries.push({node:node,pos:pos,promise:promise});
+      });
+      Promise.all(entries.map(function(entry){return entry.promise;})).then(function(parts){
+        if(placesLoading!==ticket||!view||view.state.doc!==doc||shown!==text||suggested.text!==text)return;
+        var front=doc.attrs.front||'',out=front,places=[],started=false;
+        entries.forEach(function(entry,index){var part=parts[index];if(!part)return;var gap=typeof entry.node.attrs.gap==='string'?entry.node.attrs.gap:started?'\n\n':front?'\n':'';out+=gap;places.push({from:out.length,to:out.length+part.length,pos:entry.pos,size:entry.node.nodeSize});out+=part;started=true;});
+        out+=doc.attrs.tail==null?'\n':doc.attrs.tail;
+        if(out!==text)return;
+        suggested.places=places;suggested.doc=doc;view.dispatch(view.state.tr.setMeta(suggestKey,true));
+      }).catch(function(){/* Unplaceable overlays stay in the host's review list. */}).finally(function(){if(placesLoading===ticket)placesLoading=null;});
+    }
 
     /* Each block's place in the text and on the page, or null when a block
        no longer knows where it came from (it was edited or copied since the
@@ -561,6 +578,7 @@ var schemaCache = null;
 
     function suggestionWidget(s, markdown) {
       return function () {
+        if(o.hostSuggestionWidget)return o.hostSuggestionWidget(s);
         var box = document.createElement('div');
         box.className = 'pm-sugg';
         box.contentEditable = 'false';
@@ -604,27 +622,19 @@ var schemaCache = null;
       };
     }
 
-    /* A short hash of a text, for a widget's key: the card is drawn again
-       when its text changes, an edit of the same length included. */
-    function hash(text) {
-      var h = 0;
-      for (var i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
-      return (h >>> 0).toString(36) + '.' + text.length;
-    }
-    function suggestionDecorations(doc) {
+    function suggestionDecorations(doc,previous) {
       var none = PM.DecorationSet.empty;
-      if (!suggested.list.length || suggested.text !== shown) return none;
+      if (!suggested.list.length) return none;
+      if(suggested.text!==shown)return previous||none;
       // The page counts a line end as one character; a text with CRLF line
       // ends counts two, so its places are counted again without them.
       var text = suggested.text, crlf = text.indexOf('\r\n') >= 0;
       var lf = crlf ? text.replace(/\r\n/g, '\n') : text;
       function place(at) { return crlf ? at - (text.slice(0, at).match(/\r\n/g) || []).length : at; }
-      var blocks = blockPlaces(doc, lf);
+      var blocks = suggested.doc===doc?suggested.places:blockPlaces(doc, lf);
       if (!blocks) {
-        // Typing on the page since it was read: the page is read again from
-        // the text, once for this text, so its blocks know their places.
-        if (rereadFor !== text) { rereadFor = text; setTimeout(function () { if (on && !dirty && !syncing) load(); }, 0); }
-        return none;
+        prepareSuggestionPlaces(doc,lf);
+        return previous||none;
       }
       var decos = [];
       suggested.list.forEach(function (s) {
@@ -635,7 +645,7 @@ var schemaCache = null;
         if (hit.length) {
           start = Math.min(from, hit[0].from);
           end = Math.max(to, hit[hit.length - 1].to);
-          hit.forEach(function (b) { decos.push(PM.Decoration.node(b.pos, b.pos + b.size, { class: 'pm-sugg-old', 'data-suggestion': s.id })); });
+          hit.forEach(function (b) { decos.push(PM.Decoration.node(b.pos, b.pos + b.size, { class: 'pm-sugg-old'+(s.stale?' host-suggestion-stale':''), 'data-suggestion': s.id })); });
           var last = hit[hit.length - 1];
           at = last.pos + last.size;
         } else {
@@ -644,7 +654,7 @@ var schemaCache = null;
           at = before ? before.pos + before.size : 0;
         }
         var markdown = lf.slice(start, from) + s.after.replace(/\r\n/g, '\n') + lf.slice(to, end);
-        decos.push(PM.Decoration.widget(at, suggestionWidget(s, markdown), { key: 'sugg-' + s.id + '-' + hash(markdown) + (s.edited ? '-e' : ''), side: 1, ignoreSelection: true, stopEvent: function () { return true; } }));
+        decos.push(PM.Decoration.widget(at, suggestionWidget(s, markdown), { key: 'sugg-'+JSON.stringify([s.id,o.hostSuggestionWidget?null:markdown,s.before,s.after,s.author,s.reason,s.stale,s.edited,s.pending,s.readOnly]), side: 1, ignoreSelection: true, stopEvent: function () { return true; } }));
       });
       return PM.DecorationSet.create(doc, decos);
     }
@@ -656,7 +666,7 @@ var schemaCache = null;
         state: {
           init: function (config, state) { return suggestionDecorations(state.doc); },
           apply: function (tr, set) {
-            if (tr.getMeta(suggestKey)) return suggestionDecorations(tr.doc);
+            if (tr.getMeta(suggestKey)) return suggestionDecorations(tr.doc,set);
             return tr.docChanged ? set.map(tr.mapping, tr.doc) : set;
           }
         },
@@ -748,7 +758,8 @@ var schemaCache = null;
     /* The draft's suggestions, as the Editor has them: its text, and each
        placed suggestion with where it sits in that text. */
     function suggest(text, list) {
-      suggested = { text: text, list: list || [] };
+      var prior=suggested;
+      suggested = { text: text, list: list || [],places:prior.text===text?prior.places:null,doc:prior.text===text?prior.doc:null };
       if (view && suggestKey) view.dispatch(view.state.tr.setMeta(suggestKey, true));
     }
 
@@ -1730,6 +1741,7 @@ var schemaCache = null;
       reload: function () { return on ? load() : Promise.resolve(); },
       // The draft's suggestions, to show on the page with Accept and Reject.
       suggest: suggest,
+      goToSuggestion:function(id){if(!view||!on)return false;var node=Array.from(view.dom.querySelectorAll('[data-host-suggestion]')).find(function(element){return element.dataset.hostSuggestion===id;});if(!node)return false;node.scrollIntoView({block:'center'});var button=Array.from(node.querySelectorAll('button')).find(function(element){return !element.disabled;});if(button)button.focus({preventScroll:true});return true;},
       // The Edit menu's Paste and Select All, on the page.
       paste: pasteContent, selectAll: selectAll,
       focus: function () { if (view) view.focus(); },

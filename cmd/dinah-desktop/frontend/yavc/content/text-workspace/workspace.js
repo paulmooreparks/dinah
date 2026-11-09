@@ -154,10 +154,11 @@
            wrapped, the Markdown views offered, the formatting offered, a
            site page's source to open, and the file's address on the site. */
         var wrapOn = true, viewsOffered = false, formatOffered = false, sourceOffered = false, siteUrl = null;
-        var reviewObservers=new Set(),reviewController=null;
+        var reviewObservers=new Set(),reviewController=null,hostSuggestions=null;
         var reportCommands=window.yavcUtil.commandChanges(commandTable,function(){if(opts.commandsChanged)opts.commandsChanged();},function(){return !destroyed;});
         function commandsChanged() {
             if(destroyed)return;
+            if(hostSuggestions)hostSuggestions.refresh();
             if(tabRow)tabRow.render();
             reviewObservers.forEach(function(listener){listener();});
             reportCommands();
@@ -361,6 +362,7 @@
             return [
                     CM.lineNumbers(), CM.highlightActiveLineGutter(), CM.highlightSpecialChars(),
                     sourceHistory.extension(raw), CM.drawSelection(), CM.dropCursor(), CM.indentOnInput(),
+                    hostSuggestions?hostSuggestions.extension:[],
                     CM.bracketMatching(), CM.closeBrackets(), CM.rectangularSelection(), CM.crosshairCursor(),
                     CM.highlightActiveLine(), CM.highlightSelectionMatches(),
                     /* The Editor's own bindings come first, so they win over
@@ -380,6 +382,7 @@
                     CM.EditorState.transactionFilter.of(function (tr) { return tr.docChanged && tab.readOnly ? [] : tr; }),
                     CM.EditorView.contentAttributes.of({ 'aria-label': 'Text of ' + tab.name }),
                     CM.EditorView.updateListener.of(function (u) {
+                        if(hostSuggestions&&tabs[active]===tab)hostSuggestions.update(u);
                         if (u.docChanged && tabs[active] === tab) { markModified(tab); scheduleStyles(); scheduleOutline(); }
                         /* In Split, the page follows the text. */
                         if (u.docChanged && tabs[active] === tab && !visual.fromVisual) { textChangedForPage(); }
@@ -1400,6 +1403,7 @@
                 /* A picture pressed on the page opens the picture dialog. */
                 editBlock: function (src) { return window.yavcMdEditor.editBlock(src, picturesHost()); },
                 review:function(raw){reviewTools().then(function(controller){return controller.browse(raw);}).catch(function(err){say(err.message,true);});},
+                hostSuggestionWidget:hostSuggestions?function(item){return hostSuggestions.widget(item,true);}:null,
                 root: root, page: el.page, scroll: el.scroll,
                 pagination: function () { return pagedView(viewMode) ? pageSettings : null; },
                 paginated: pageLayout,
@@ -1621,7 +1625,10 @@
         /* Where the document's pictures are, for the kit's picture dialog
            and its loader: beside the document when it is saved under ~. */
         function picturesHost() {
+            var owner=current(),resource=owner&&owner.path;
             return {
+                resources:hostServices.resources,resource:resource,
+                current:function(){return !destroyed&&!!owner&&current()===owner&&owner.path===resource;},
                 site: function () { return Promise.resolve({ F: F, FB: FB }); },
                 root: root, say: say,
                 macroContext: currentMacroEngine,
@@ -2376,6 +2383,8 @@
                     disabled: function () { return !ready; }, run: run }, more || {});
             }
             var table = [
+                cmd('suggestion-next','Next Host Suggestion','arrow-down',function(){return hostSuggestions.navigate(1);},{hidden:function(){return !hostSuggestions;},disabled:function(){return !hostSuggestions||!hostSuggestions.available();}}),
+                cmd('suggestion-previous','Previous Host Suggestion','arrow-up',function(){return hostSuggestions.navigate(-1);},{hidden:function(){return !hostSuggestions;},disabled:function(){return !hostSuggestions||!hostSuggestions.available();}}),
                 cmd('review-changes','Review Changes…','comments',async function(){return (await reviewTools()).browse();},{hidden:function(){return !tab||tab.lang!=='markdown';}}),
                 cmd('review-addition','Suggest Insertion…','plus',async function(){return (await reviewTools()).propose('addition');},{hidden:function(){return !tab||tab.lang!=='markdown';},disabled:function(){return !reviewProposable();}}),
                 cmd('review-deletion','Suggest Deletion','minus',async function(){return (await reviewTools()).propose('deletion');},{hidden:function(){return !tab||tab.lang!=='markdown';},disabled:function(){return !reviewProposable();}}),
@@ -2520,7 +2529,7 @@
             ];
             /* Format, where there is formatting to do. */
             if (formatOffered) { titles.push({ id: 'format', label: 'Format', glyph: 'paragraph', items: ['style', '-', 'bold', 'italic', 'underline', 'strike', 'code', '-', 'highlight', 'superscript', 'subscript', '-', 'color', 'class', '-', 'bullets', 'numbers', 'quote', 'table', '-', 'document-layout','page-setup', 'document-theme', 'typography', 'header-footer', '-', 'stylesheet', 'shared-stylesheet', 'custom-shortcodes'] }); }
-            if(current()&&current().lang==='markdown')titles.push({id:'review',label:'Review',glyph:'comments',items:['review-changes','-','review-addition','review-deletion','review-replacement','review-comment','review-highlight','-','review-accept-all','review-reject-all']});
+            if(current()&&(current().lang==='markdown'||hostSuggestions))titles.push({id:'review',label:'Review',glyph:'comments',items:['suggestion-previous','suggestion-next','-','review-changes','-','review-addition','review-deletion','review-replacement','review-comment','review-highlight','-','review-accept-all','review-reject-all']});
             return { titles: titles, into: { view: LAYOUT.concat(commonToolbar ? ['-', 'common-toolbar-show', 'common-toolbar-customize'] : []) } };
         }
 
@@ -2529,6 +2538,17 @@
         var boot = Promise.all([loadCodeMirror(), loadSiteFs().then(function (api) { F = api; return F ? F.load() : null; }), loadBrowser()]).then(async function (res) {
             if (destroyed) { return; }
             CM = res[0];
+            if(hostServices.suggestions){
+                if(typeof hostServices.suggestions.subscribe!=='function'||typeof hostServices.suggestions.decide!=='function')throw new Error('Host suggestions require subscribe and decide.');
+                var K=await loadKit();await loadScript(K.here+'host-suggestions.js'+K.stamp);
+                if(destroyed)return;
+                hostSuggestions=window.yavcHostSuggestions.create(CM,{provider:hostServices.suggestions,root:root,signal:styleLifetime.signal,view:function(){return view;},owner:current,
+                    readOnly:function(){return !current()||!!current().readOnly;},text:function(){return current()&&view?submittedText(current()):'';},rich:function(){return pageActive()?visual.api:null;},
+                    prepare:async function(){if(pageActive())await visual.api.sync();},say:say,changed:commandsChanged,
+                    focus:function(){if(pageActive())visual.api.focus();else if(view)view.focus();},
+                    edit:async function(value,unchanged){var answer=await window.yavcDialog.open({title:'Edit Suggested Replacement',body:'<div class="form-group"><label class="form-label" for="host-suggestion-edit-'+n+'">Replacement</label><textarea class="form-input" id="host-suggestion-edit-'+n+'" rows="6" maxlength="65536">'+esc(value)+'</textarea></div>',buttons:[{id:'cancel',label:'Cancel'},{id:'apply',label:'Apply',primary:true}],signal:styleLifetime.signal});return answer.value==='apply'&&unchanged()?answer.body.querySelector('textarea').value:null;},
+                    navigate:async function(item){if(pageActive()&&visual.api.goToSuggestion(item.id))return;await setView('text');view.dispatch({selection:{anchor:item.from,head:item.to},scrollIntoView:true});view.focus();}});
+            }
             await loadScript(resourceAsset('source-history.js'));sourceHistory=window.yavcSourceHistory.create(CM);await loadScript(resourceAsset('resources.js'));
             await loadScript(resourceAsset('resource-session.js'));
             resourceSession = await window.yavcResourceSession.open(H, function (file) { return loadScript(resourceAsset(file)); });

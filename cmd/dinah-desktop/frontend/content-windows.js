@@ -73,6 +73,17 @@
   /* Each open window's remount, by its key, for an agent's save to a path. */
   var remounts = new Map();
 
+  /* Each window's decision on a suggestion made in its text, by window key
+     (decideFromText), for the host's suggestions.decide. */
+  var decisions = new Map();
+  function decideSuggestion(request, context) {
+    var mount = context && context.host && context.host.closest ? context.host.closest('.content-applet') : null;
+    if (!mount || !request || !request.resource) return Promise.reject(new Error('The suggestion belongs to no open window.'));
+    var win = mount.closest('[data-win]'), decide = win && decisions.get(win.dataset.win);
+    if (!decide || mount.dataset.contentResource !== String(request.resource)) return Promise.reject(new Error('The suggestion belongs to no open window.'));
+    return decide(request);
+  }
+
   /* The channel a presenter window was opened for, by its deck's draft;
      a presenter window with none was restored with the layout, not opened
      by a show, and closes itself (openPresenter, init). */
@@ -460,6 +471,31 @@
     function revise(s, after) {
       return settle(function () { return api().ReviseSuggestion(draft.id, s.id, after); });
     }
+    /* A decision made in the text (the applet's Accept, Reject or an edited
+       replacement, content-host.js) is applied as the panel's are: typing
+       not yet saved is written first, and the decision is refused when the
+       text it was made against is no longer the draft's, or the suggestion
+       is gone, rather than made to later typing. The applet then reads the
+       new text and the new list through its ordinary paths. */
+    function decideFromText(request) {
+      if (deciding) return Promise.reject(new Error('Another decision is being applied.'));
+      var accept = request.decision === 'accept';
+      var fresh = null;
+      return settle(function () {
+        return Promise.resolve(api().GetDraft(draft.id)).then(function (v) {
+          fresh = v;
+          var s = (v.suggestions || []).filter(function (x) { return x.id === request.id; })[0];
+          if (!s) throw new Error('That suggestion has been decided already.');
+          if (typeof request.text === 'string' && request.text !== v.text) throw new Error('The document changed since; the suggestion is shown again where it is now.');
+          if (typeof request.revision === 'string' && request.revision !== v.revision && typeof request.text !== 'string') throw new Error('The document changed since; the suggestion is shown again where it is now.');
+          if (!accept) return api().RejectSuggestion(v.id, s.id, false);
+          if (s.stale) throw new Error('The text this would change has been changed since, so it can only be rejected.');
+          var revised = typeof request.after === 'string' && request.after !== s.after ? Promise.resolve(api().ReviseSuggestion(v.id, s.id, request.after)) : Promise.resolve(v);
+          return revised.then(function (w) { return api().AcceptSuggestion(w.id, w.revision, s.id, false); });
+        });
+      }).then(function () { if (!fresh) throw new Error('The decision could not be applied.'); });
+    }
+    decisions.set(key, decideFromText);
 
     function draftChanged(e) {
       if (!e || e.id !== draft.id || disposed || !mount) return;
@@ -741,6 +777,7 @@
           window.pudlWindows.state().open.forEach(function (k) { var other = itemOfWindow(k); if (other && other.kind === 'content-slides-presenter' && other.path === draft.id) window.pudlWindows.close(k); });
         }
         if (window.dinahDocuments) window.dinahDocuments.detach(key);
+        decisions.delete(key);
         root.removeEventListener('dinah:content-changed', changed);
         document.removeEventListener('dinah:content-renamed', renamed);
         remounts.delete(key);
@@ -1040,7 +1077,7 @@
     }).catch(function () { /* An application without lines opens the document at its start. */ });
   }
 
-  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, kindOf: kindOf, openPresenter: openPresenter };
+  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, kindOf: kindOf, openPresenter: openPresenter, decideSuggestion: decideSuggestion };
 
   /* The ways into the Editor (Documents, Files, Sources, chats, the
      Terminal's edit, In Progress) open documents here. */

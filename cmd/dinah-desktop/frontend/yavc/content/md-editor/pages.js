@@ -167,7 +167,11 @@
                 });
             } else blocks.push(block);
         }
-        Array.from(dom.children).forEach(function (node) { if (node.classList.contains('doc-page-gap')) return; emit(node, positions ? positions[sourceIndex] : 0); sourceIndex++; });
+        Array.from(dom.children).forEach(function (node) {
+            if(node.classList.contains('doc-page-gap'))return;
+            if(node.hasAttribute('data-host-suggestion')){emit(node,position?position(dom,Array.prototype.indexOf.call(dom.childNodes,node)):0);return;}
+            emit(node,positions?positions[sourceIndex]:0);sourceIndex++;
+        });
         return blocks;
     }
     function spacer(height, inline, block, header) {

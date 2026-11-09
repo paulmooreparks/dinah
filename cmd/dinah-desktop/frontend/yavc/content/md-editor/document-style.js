@@ -43,7 +43,7 @@
             if (first && first.type === CSSRule.STYLE_RULE && first.selectorText === ':scope') { result = clean(first); }
             if (sheet.cssRules.length > 1) { problem('Rules outside the document scope were omitted.'); }
         } catch (err) { problem('The browser could not parse this stylesheet.'); }
-        return { css: result ? '@scope ([data-md-style~="' + key + '"]) {' + result + '}' : '', classes: Array.from(classes).sort(), problems: problems };
+        return { css: result ? '@scope ([data-md-style~="' + key + '"]) to ([data-host-suggestion]) {' + result + '}' : '', classes: Array.from(classes).sort(), problems: problems };
     }
     function tokens(el) { return (el.getAttribute('data-md-style') || '').split(/\s+/).filter(Boolean); }
     function bind(el, key) { var keys = tokens(el); if (keys.indexOf(key) < 0) { keys.push(key); } el.setAttribute('data-md-style', keys.join(' ')); }

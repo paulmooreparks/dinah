@@ -396,7 +396,10 @@
         /* Where the deck's pictures are, for the kit's picture dialog and
            its loader: beside the deck when it is saved under ~. */
         function picturesHost() {
+            var owner=deck,resource=path;
             return {
+                resources:H.contentWorkspace&&H.contentWorkspace.resources,resource:resource,
+                current:function(){return !destroyed&&deck===owner&&path===resource;},
                 site: function () { return H.fs && H.fs.site ? H.fs.site() : Promise.reject(new Error('there is no file service here')); },
                 root: root, say: say,
                 macroContext: currentMacroEngine,
