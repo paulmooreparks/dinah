@@ -737,10 +737,12 @@ func mcpConfig(servers []any) (map[string]any, error) {
 		}
 		q := map[string]any{"enabled": true, "required": true}
 		if p.Name == "dinah-applets" {
-			// The host owns this reserved server and its read-only annotations.
-			// Codex documents writes mode as prompting only for mutating tools:
+			// The host owns this reserved server. Dinah itself asks the
+			// person before an applet action has an effect (the desktop's
+			// applet consent), so Codex is not to ask as well; a question
+			// from both made two of one edit (9 November 2026).
 			// https://learn.chatgpt.com/docs/extend/mcp?surface=cli
-			q["default_tools_approval_mode"] = "writes"
+			q["default_tools_approval_mode"] = "approve"
 			q["tool_timeout_sec"] = 30
 		}
 		switch p.Type {

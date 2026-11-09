@@ -27,6 +27,11 @@ func (a *App) newAgentHandler() *sessionhost.Handler {
 		SetCommands:  func(commands []sessionhost.Command) { a.mu.Lock(); a.commands = slices.Clone(commands); a.mu.Unlock() },
 		ResolveTitle: a.sessionTitle, PublishBusTitle: func(s *Session) { a.busCoordinator().PublishBusTitle(s) }, FlushReplay: a.flushReplay,
 		Emit: a.emit, ResolveRequestChat: func(id string) (*Session, *SubagentInfo) { return a.subagentService().RequestChat(id) }, AskPermission: func(ctx context.Context, session string, toolCall json.RawMessage, options []acp.PermissionOption) (string, bool) {
+			// The agent's question about one of Dinah's own applet tools is
+			// Dinah's to answer (applet_tool_permission.go).
+			if id, ok := ownToolPermission(toolCall, options); ok {
+				return id, true
+			}
 			return a.permissions().Ask(ctx, session, nil, toolCall, options)
 		},
 		AskAsSubagent: func(ctx context.Context, chat *Session, sub *SubagentInfo, toolCall json.RawMessage, options []acp.PermissionOption) (string, bool) {

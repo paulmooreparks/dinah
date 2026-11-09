@@ -13,7 +13,7 @@
     <button type="button" role="radio" data-value="allow" aria-checked="false" tabindex="-1">Allow Bundled Applet Calls</button>
     <button type="button" role="radio" data-value="all" aria-checked="false" tabindex="-1">Approve Everything</button>
   </div>
-  <p class="form-help">Allowing calls applies only to ${product}'s bundled applets through its managed connection. Shell commands, external tools and applet questions that require your answer keep their own approval rules.</p>
+  <p class="form-help">${product} itself asks before a bundled applet action has an effect, once, in the chat; Ask Before Invoking keeps that question, and Allow Bundled Applet Calls answers it for you in this workspace's chats. Shell commands, external tools and applet questions that require your answer keep their own approval rules.</p>
   <p class="form-help">Approve Everything allows commands, writes outside the workspace and bundled applet calls without a question. Changes apply to open chats; the sandbox changes with the next turn. Applet connection configuration also applies when a chat reconnects. Questions that need your answer still wait for you.</p>
   <p class="settings-status" id="codex-applet-approvals-status" role="status"></p>
 </section>

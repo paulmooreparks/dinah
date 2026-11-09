@@ -404,7 +404,7 @@ func TestManagedMCPApprovalPolicyIsScoped(t *testing.T) {
 	}
 	servers := config["mcp_servers"].(map[string]any)
 	managed := servers["dinah-applets"].(map[string]any)
-	if managed["default_tools_approval_mode"] != "writes" || managed["tool_timeout_sec"] != 30 {
+	if managed["default_tools_approval_mode"] != "approve" || managed["tool_timeout_sec"] != 30 {
 		t.Fatalf("managed approval or timeout policy missing: %#v", managed)
 	}
 	external := servers["external"].(map[string]any)
@@ -414,7 +414,7 @@ func TestManagedMCPApprovalPolicyIsScoped(t *testing.T) {
 		}
 	}
 	if _, exists := managed["tools"]; exists {
-		t.Fatal("a per-tool override can bypass the writes policy")
+		t.Fatal("a per-tool override can change the policy")
 	}
 }
 
@@ -441,10 +441,8 @@ func TestSessionAppletApprovalPreference(t *testing.T) {
 							t.Error(err)
 						}
 						servers := opened["config"].(map[string]any)["mcp_servers"].(map[string]any)
-						want := "writes"
-						if mode == "allow" || mode == "all" {
-							want = "approve"
-						}
+						// Dinah asks before an effect itself, so Codex never does.
+						want := "approve"
 						if got := servers["dinah-applets"].(map[string]any)["default_tools_approval_mode"]; got != want {
 							t.Errorf("policy %v, expected %v", got, want)
 						}
