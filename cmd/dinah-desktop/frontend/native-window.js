@@ -31,7 +31,13 @@
     try { await app.NativeWindowAction(name); await refresh(); return true; }
     finally { busy = false;window.dinahCommands.flush({refreshOpenMenus:true}); }
   }
-  window.dinahNativeWindow = { toggle: function () { return action('toggle').catch(function (error) { report(error); throw error; }); }, refresh: refresh };
+  /* enter and leave are for a show that fills the page (a slide deck
+     presenting, content-windows.js): the native window goes full screen
+     with it and comes back after. Each resolves with whether it changed
+     anything, so a window already full screen before the show stays so. */
+  function enter() { return refresh().then(function () { return state.available && !state.fullscreen && !busy ? action('toggle') : false; }); }
+  function leave() { return refresh().then(function () { return state.available && state.fullscreen && !busy ? action('toggle') : false; }); }
+  window.dinahNativeWindow = { toggle: function () { return action('toggle').catch(function (error) { report(error); throw error; }); }, refresh: refresh, enter: enter, leave: leave };
   window.dinahCommands.register({ id: 'fullscreen', menu: 'view', mnemonic: 'F', label: 'Full Screen', shortcut: 'F11',
     visible: function () { return state.available; }, enabled: function () { return !busy; }, checked: function () { return state.fullscreen; },
     run: function () { return action('toggle'); } });

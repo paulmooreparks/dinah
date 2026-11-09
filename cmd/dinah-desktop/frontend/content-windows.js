@@ -44,7 +44,12 @@
      Diagrams its diagrams, Slides its decks. These read them alike. */
   var OPS = { editor: { list: 'documents', text: 'document' }, docs: { list: 'documents', text: 'document' },
     diagrams: { list: 'diagrams', text: 'diagram' }, slides: { list: 'decks', text: 'text' } };
-  function appOfWindow(key) { var item = itemOfWindow(key); return item && item.kind !== 'editor' ? item.kind.replace(/^content-/, '') : 'editor'; }
+  function appOfWindow(key) {
+    var item = itemOfWindow(key);
+    if (!item || item.kind === 'editor') return 'editor';
+    // A presenter window is Slides too (content-slides-presenter).
+    return item.kind.replace(/^content-/, '').replace(/-presenter$/, '');
+  }
   /* The window's document as its application lists it, for an agent. */
   function listed(key) {
     var ops = OPS[appOfWindow(key)];
@@ -68,8 +73,18 @@
   /* Each open window's remount, by its key, for an agent's save to a path. */
   var remounts = new Map();
 
+  /* The channel a presenter window was opened for, by its deck's draft;
+     a presenter window with none was restored with the layout, not opened
+     by a show, and closes itself (openPresenter, init). */
+  var presenterChannels = new Map();
+
   function init(app, root, opts, item) {
     var key = opts.key || root.closest('[data-win]').dataset.win;
+    var presenter = !!opts.presenter;
+    if (presenter && !presenterChannels.has(item.path)) {
+      setTimeout(function () { window.pudlWindows.close(key); }, 0);
+      return { ready: Promise.resolve(), destroy: function () {} };
+    }
     /* The host finds a window's applet by this key, which for an Editor
        embedded in another window (a skill's) is its own. */
     root.dataset.contentKey = key;
@@ -88,7 +103,7 @@
     var titled = '';
     function retitle(doc) {
       if (disposed || !doc || opts.embedded) return;
-      var title = doc.name, detail = workspaceName(draft.origin.workspaceId);
+      var title = (presenter ? 'Presenter · ' : '') + doc.name, detail = workspaceName(draft.origin.workspaceId);
       if (titled === title + '\u0000' + detail) return;
       titled = title + '\u0000' + detail;
       window.dinahWorkbench.retitle(key, title, detail);
@@ -131,6 +146,7 @@
       mount.setAttribute('data-applet-flush', '');
       resource = window.dinahContentHost.resourceFor(draft);
       mount.dataset.contentResource = resource;
+      if (presenter) mount.dataset.contentPresenter = presenterChannels.get(draft.id);
       root.appendChild(mount);
       /* The applet reports its state (file, view and caret line) at every
          change, and the workbench keeps every window's state in the address
@@ -719,6 +735,11 @@
         disposed = true;
         clearTimeout(saveTimer);
         clearTimeout(problemsTimer);
+        // The deck's presenter window goes with the deck's window.
+        if (!presenter) {
+          presenterChannels.delete(draft.id);
+          window.pudlWindows.state().open.forEach(function (k) { var other = itemOfWindow(k); if (other && other.kind === 'content-slides-presenter' && other.path === draft.id) window.pudlWindows.close(k); });
+        }
         if (window.dinahDocuments) window.dinahDocuments.detach(key);
         root.removeEventListener('dinah:content-changed', changed);
         document.removeEventListener('dinah:content-renamed', renamed);
@@ -740,6 +761,29 @@
   var MNEMONICS = { editor: 'E', docs: 'D', diagrams: 'I', slides: 'S' };
   var DESCRIPTIONS = { editor: 'Start an empty document, for notes or a script.', docs: 'Start an empty Markdown document, written as it will look.',
     diagrams: 'Start an empty diagram, drawn from text.', slides: 'Start an empty slide deck, written in Markdown.' };
+  /* A presenter window of a deck (content-host.js, Presenting): Slides in
+     its presenter role, for the deck of the window that is presenting. It
+     is not pinned and not restored with the layout. */
+  window.dinahWorkbench.register('content-slides-presenter', { pinnable: false, title: 'Presenter', glyph: GLYPHS.slides, start: 'open',
+    init: function (root, opts, item) { return init('slides', root, Object.assign({}, opts, { presenter: true }), item); } });
+  function openPresenter(resource, channel) {
+    var mount = Array.prototype.find.call(document.querySelectorAll('.content-applet'), function (m) { return m.dataset.contentResource === resource && !m.dataset.contentPresenter; });
+    var win = mount && mount.closest('[data-win]'), item = win && itemOfWindow(win.dataset.win);
+    if (!item) return Promise.reject(new Error('The deck to present is not open in a window.'));
+    presenterChannels.set(item.path, channel || '');
+    return window.dinahWorkbench.open({ kind: 'content-slides-presenter', workspace: item.workspace, path: item.path, title: 'Presenter' });
+  }
+  /* A show fills the page (Slides asks for the browser's full screen on
+     its root); the native window goes full screen with it and comes back
+     when the show ends, unless it was full screen already. */
+  var showFullscreen = null;
+  document.addEventListener('fullscreenchange', function () {
+    var el = document.fullscreenElement, inShow = !!(el && el.closest && el.closest('.content-applet')), native = window.dinahNativeWindow;
+    if (!native || !native.enter) return;
+    if (inShow && !showFullscreen) showFullscreen = native.enter().catch(function () { return false; });
+    else if (!inShow && showFullscreen) { var entered = showFullscreen; showFullscreen = null; entered.then(function (did) { if (did) return native.leave(); }).catch(function () {}); }
+  });
+
   Object.keys(TITLES).forEach(function (app) {
     if (app !== 'editor') window.dinahUIState.followWindowMode(kindOf(app), 'editor');
     /* Each application is in the launcher's Documents category, and in Tools
@@ -996,7 +1040,7 @@
     }).catch(function () { /* An application without lines opens the document at its start. */ });
   }
 
-  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, kindOf: kindOf };
+  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, kindOf: kindOf, openPresenter: openPresenter };
 
   /* The ways into the Editor (Documents, Files, Sources, chats, the
      Terminal's edit, In Progress) open documents here. */

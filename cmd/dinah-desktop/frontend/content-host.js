@@ -323,7 +323,7 @@
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
       contentWorkspace: { version: 1, directory: function () { return null; } },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
-      snapshot: snapshot, config: config, documentWindows: documentWindows,
+      snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
     });
     window.pudlApplets.capability('files.read', fileServices);
@@ -347,11 +347,44 @@
   }
 
   /* A mount says which draft it shows (content-windows.js), and gets it as
-     its state. */
+     its state; a presenter's mount says so too, with the channel the show
+     speaks on. */
   document.addEventListener('pudl:applet-state', function (e) {
     var id = e.target && e.target.dataset && e.target.dataset.contentResource;
-    if (id && e.detail) e.detail.state = 'file=' + encodeURIComponent(id);
+    if (!id || !e.detail) return;
+    e.detail.state = 'file=' + encodeURIComponent(id);
+    var channel = e.target.dataset.contentPresenter;
+    if (channel) e.detail.state += '&presenter=1&presenter-channel=' + encodeURIComponent(channel);
   });
+
+  /* ---- Presenting ---------------------------------------------------------
+     Slides presents full screen in its own window, and opens a presenter
+     view (the current slide, the next, the notes and a clock) as a second
+     page of the same origin, through window.open, which the show and the
+     presenter then speak over a BroadcastChannel (its presentation
+     contract, version 1). Paul ruled (9 November 2026) that the show is
+     full screen and the presenter view a separate window when asked for.
+     Dinah has one page, so the presenter URL it gives is its own, and its
+     window.open answers that URL with a Dinah window of the presenter kind
+     (content-windows.js) rather than a browser popup; both applets are on
+     one page, where the channel works as well. Any other address goes to
+     the browser's own window.open. */
+  var PRESENTER_PATH = '/presenter';
+  var presentation = { version: 1, presenterURL: function (args) {
+    return PRESENTER_PATH + '?' + new URLSearchParams({ application: String(args.application || ''), resource: String(args.resource || ''), channel: String(args.channel || '') });
+  } };
+  var browserOpen = window.open;
+  window.open = function (url) {
+    var u = null;
+    try { u = new URL(String(url), location.href); } catch (_) { u = null; }
+    if (u && u.origin === location.origin && u.pathname === PRESENTER_PATH && window.dinahContentWindows && window.dinahContentWindows.openPresenter) {
+      window.dinahContentWindows.openPresenter(u.searchParams.get('resource'), u.searchParams.get('channel'))
+        .catch(function (err) { if (window.dinahHost) window.dinahHost.toast(String(err && err.message || err), 'danger'); });
+      // What the opener needs of a popup: that it exists.
+      return { closed: false, focus: function () {}, close: function () {} };
+    }
+    return browserOpen.apply(window, arguments);
+  };
 
   function clearSnapshot(key) { store().set('content-snapshot:' + key, null); }
 
