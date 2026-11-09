@@ -217,11 +217,19 @@
      and some applets (the content applets' tab strip) retitle at every
      change of their commands, so a retitle to the title and detail the
      window already has is dropped here before it reaches PUDL. */
+  var ownRetitle = false;
   document.addEventListener('DOMContentLoaded', function () {
     if (!window.pudlWindows || window.pudlWindows.retitle.__dinahGuarded) return;
     var pudlRetitle = window.pudlWindows.retitle;
     window.pudlWindows.retitle = function (key, title, detail) {
       var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]'), t = win && win.querySelector('.win-title');
+      /* A document window's title is Dinah's (content-windows.js): the
+         document's name and its workspace. The content applets' tab strip
+         retitles the window itself, with a mark for unsaved typing and the
+         application's name, at every change; those retitles are dropped,
+         so the title has one owner and stays still (Paul, 9 November
+         2026). */
+      if (win && !ownRetitle && /^(editor|content-)/.test(win.dataset.winKind || '')) return;
       if (t && t.textContent === String(title) && (detail === undefined || (win.getAttribute('data-win-detail') || '') === String(detail || ''))) return;
       return pudlRetitle.apply(this, arguments);
     };
@@ -251,7 +259,8 @@
     if (detail === undefined) detail = win.dataset.dinahTitleDetail || '';
     win.dataset.dinahTitle = title;
     win.dataset.dinahTitleDetail = detail || '';
-    window.pudlWindows.retitle(key, combinedTitle(title, detail), '');
+    ownRetitle = true;
+    try { window.pudlWindows.retitle(key, combinedTitle(title, detail), ''); } finally { ownRetitle = false; }
     document.dispatchEvent(new CustomEvent('dinah:pin-categories-change'));
   }
   var TITLES_KEY = 'dinah-window-titles', titlesTimer = 0;
