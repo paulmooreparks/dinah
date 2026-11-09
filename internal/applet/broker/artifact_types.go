@@ -1,9 +1,9 @@
 package broker
 
 // ArtifactMIME are the media types an action's artifact may have. Text and
-// the plain drawings ValidateSVG accepts can be shown; the documents the
-// content applets export (Word, PowerPoint, PDF) and PNG pictures are kept
-// as bytes, which Dinah never renders itself, for a person or an agent to
+// the drawings ValidateSVG accepts can be shown; the documents the content
+// applets export (Word, PowerPoint, PDF) and PNG pictures are kept as
+// bytes, which Dinah never renders itself, for a person or an agent to
 // save.
 var ArtifactMIME = map[string]bool{
 	"image/svg+xml":    true,
