@@ -36,6 +36,9 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"studio/internal/pty"
+
+	// The product registers what it brings, when this build is another product.
+	_ "studio/cmd/dinah-desktop/product"
 )
 
 // appVersion is the release the app belongs to, the same as the command's

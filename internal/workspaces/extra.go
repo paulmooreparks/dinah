@@ -149,3 +149,39 @@ func extraKey(extra map[string]json.RawMessage) string {
 // SameExtra reports whether two sources or pins have the same fields that
 // this build does not know.
 func SameExtra(a, b map[string]json.RawMessage) bool { return extraKey(a) == extraKey(b) }
+
+// ExtraString is the string field name of a source or pin of another kind
+// (Extra), or "" when it has none or it is not a string.
+func ExtraString(extra map[string]json.RawMessage, name string) string {
+	var s string
+	if raw, ok := extra[name]; ok && json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	return ""
+}
+
+// ExtraBool is the boolean field name of a source or pin of another kind
+// (Extra), or false when it has none or it is not a boolean.
+func ExtraBool(extra map[string]json.RawMessage, name string) bool {
+	var b bool
+	if raw, ok := extra[name]; ok && json.Unmarshal(raw, &b) == nil {
+		return b
+	}
+	return false
+}
+
+// WithExtra returns extra with the field name set to value, as JSON. A
+// source of another kind keeps its own fields this way, so that they are
+// saved and exported with it (docs/design/source-kinds.md).
+func WithExtra(extra map[string]json.RawMessage, name string, value any) map[string]json.RawMessage {
+	out := copyExtra(extra)
+	if out == nil {
+		out = map[string]json.RawMessage{}
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return out
+	}
+	out[name] = data
+	return out
+}

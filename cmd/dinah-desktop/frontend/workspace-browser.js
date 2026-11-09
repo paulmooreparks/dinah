@@ -271,17 +271,102 @@
         });
       }); }
       bindModel();
-      /* Add Source… asks for a folder on the computer and adds it to the
-         workspace; Cancel in the folder dialog adds nothing. */
-      function addSource() {
-        if (!record || disposed || busy) return;
+      /* Add Source… adds a folder on the computer, or a source of a kind
+         the build registered with a form (WorkspaceSourceKinds). With no
+         such kind, it goes straight to the folder dialog; Cancel there adds
+         nothing. With kinds, a dialog offers the folder and each kind, and
+         draws the chosen kind's fields. */
+      var dialog = $('add-workspace-source'), addKinds = [], addKind = 'local-folder', addingWorkspace = '';
+      var LOCAL = { kind: 'local-folder', label: 'Local Folder', help: 'Choose a folder to add to this workspace. Its files remain in their current location.', fields: [] };
+      function chooseFolder(id) {
         busy = true;
-        var id = record.id;
-        Promise.resolve().then(function () { return api().ChooseWorkspaceSource(id); }).then(function (updated) {
+        return Promise.resolve().then(function () { return api().ChooseWorkspaceSource(id); }).then(function (updated) {
           if (!disposed && updated) options.changed(updated);
         }).catch(options.fail).finally(function () { busy = false; });
       }
+      function fieldId(field) { return 'workspace-source-field-' + field.id; }
+      function setKind(kind) {
+        addKind = kind;
+        var chosen = addKinds.find(function (k) { return k.kind === kind; }) || LOCAL;
+        $('workspace-source-kind').querySelectorAll('[data-kind]').forEach(function (button) {
+          var active = button.dataset.kind === kind;
+          button.setAttribute('aria-checked', String(active)); button.setAttribute('aria-pressed', String(active)); button.tabIndex = active ? 0 : -1;
+        });
+        $('workspace-source-help').textContent = chosen.help || '';
+        $('workspace-source-help').hidden = !chosen.help;
+        var fields = $('workspace-source-fields'); fields.textContent = '';
+        (chosen.fields || []).forEach(function (field) {
+          if (field.kind === 'check') {
+            var check = node('label', 'check'), box = node('input'); box.type = 'checkbox'; box.id = fieldId(field); box.checked = field.default === 'true';
+            check.append(box, node('span', '', field.label)); fields.appendChild(check);
+            return;
+          }
+          var group = node('div', 'form-group'), label = node('label', 'form-label', field.label), input = node('input', 'form-input');
+          label.htmlFor = fieldId(field); input.id = fieldId(field); input.autocomplete = 'off'; input.spellcheck = false;
+          input.required = !!field.required; input.maxLength = field.maxLength || 4096; input.value = field.default || '';
+          if (field.placeholder) input.placeholder = field.placeholder;
+          group.append(label, input);
+          if (field.help) group.appendChild(node('p', 'form-help', field.help));
+          fields.appendChild(group);
+        });
+        fields.hidden = !(chosen.fields || []).length;
+        $('workspace-source-add').textContent = kind === 'local-folder' ? 'Choose a Folder…' : 'Add Source';
+      }
+      function drawKinds() {
+        var group = $('workspace-source-kind'); group.textContent = '';
+        [LOCAL].concat(addKinds).forEach(function (k, index) {
+          var button = node('button', '', k.label); button.type = 'button'; button.setAttribute('role', 'radio'); button.dataset.kind = k.kind;
+          button.setAttribute('aria-checked', String(index === 0)); button.setAttribute('aria-pressed', String(index === 0)); button.tabIndex = index === 0 ? 0 : -1;
+          group.appendChild(button);
+        });
+      }
+      function values() {
+        var chosen = addKinds.find(function (k) { return k.kind === addKind; }), out = {};
+        (chosen && chosen.fields || []).forEach(function (field) {
+          var element = $(fieldId(field));
+          out[field.id] = field.kind === 'check' ? String(!!(element && element.checked)) : (element ? element.value.trim() : '');
+        });
+        return out;
+      }
+      function addSource() {
+        if (!record || disposed || busy) return;
+        var id = record.id, epoch = generation;
+        busy = true;
+        Promise.resolve().then(function () { return api().WorkspaceSourceKinds ? api().WorkspaceSourceKinds() : []; }).catch(function () { return []; }).then(function (kinds) {
+          busy = false;
+          if (disposed || epoch !== generation) return;
+          addKinds = kinds || [];
+          if (!addKinds.length) return chooseFolder(id);
+          addingWorkspace = id; drawKinds(); setKind('local-folder'); $('workspace-source-error').hidden = true;
+          dialog.showModal(); $('workspace-source-kind').querySelector('[data-kind="local-folder"]').focus();
+        });
+      }
       listen($('workspace-source-choose'), 'click', addSource);
+      listen($('workspace-source-kind'), 'click', function (event) { var choice = event.target.closest('[data-kind]'); if (choice && !busy) setKind(choice.dataset.kind); });
+      listen($('workspace-source-kind'), 'keydown', function (event) {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || busy) return;
+        var kinds = [LOCAL].concat(addKinds).map(function (k) { return k.kind; }), index = kinds.indexOf(addKind);
+        event.preventDefault();
+        setKind(event.key === 'Home' ? kinds[0] : event.key === 'End' ? kinds[kinds.length - 1] : kinds[(index + (event.key === 'ArrowRight' ? 1 : kinds.length - 1)) % kinds.length]);
+        $('workspace-source-kind').querySelector('[data-kind="' + addKind + '"]').focus();
+      });
+      listen($('workspace-source-cancel'), 'click', function () { dialog.close(); });
+      listen(dialog, 'cancel', function (event) { if (busy) event.preventDefault(); });
+      listen($('add-workspace-source-form'), 'submit', function (event) {
+        event.preventDefault(); if (busy) return;
+        var kind = addKind, id = addingWorkspace, filled = values();
+        if (kind === 'local-folder') { dialog.close(); chooseFolder(id); return; }
+        busy = true; $('workspace-source-error').hidden = true;
+        dialog.querySelectorAll('button,input').forEach(function (element) { element.disabled = true; });
+        Promise.resolve().then(function () { return api().AttachWorkspaceSource(id, kind, filled); }).then(function (updated) {
+          if (disposed) return;
+          if (updated) options.changed(updated);
+          dialog.close();
+        }).catch(function (error) { if (!disposed) { $('workspace-source-error').textContent = errorText(error); $('workspace-source-error').hidden = false; } }).finally(function () {
+          if (disposed) return;
+          busy = false; dialog.querySelectorAll('button,input').forEach(function (element) { element.disabled = false; });
+        });
+      });
       return { setWorkspace: setWorkspace, addSource: addSource, destroy: function () { disposed = true; window.dinahRender.cancel(changeKey); ++generation; model.destroy(); listeners.forEach(function (remove) { remove(); }); } };
     }
   };

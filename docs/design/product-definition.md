@@ -20,6 +20,10 @@ The page refers to four brand files by product-neutral names: `product-mark.svg`
 
 That one directory is the only place in Dinah's tree a product's repository adds files; the guard the platform plan describes allows additions there and nowhere else among inherited files.
 
+## The product package, for registrations
+
+The product directory is also a Go package, `studio/cmd/dinah-desktop/product`, which the window program imports for its side effects. Dinah ships it with a documentation file alone. A product adds files beside it that import the product's own packages and register, in their `init`, what the product brings to the registries of `internal`: its kinds of workspace source and their providers (docs/design/source-kinds.md), its connections (`internal/connections`), and whatever registries follow. The page server does not serve the directory's Go files or README.
+
 ## What this does not yet do
 
-The plan lists further seams a product may need: a composition root that calls one host entry point with the product's applet bundles, resource providers, package kinds, settings sections and page contributions; registries for menus, settings and the page bridge; a workflow-hosting adapter. Each is added when a product needs it, as a general seam with a neutral name and a contract test, and is recorded here or beside here. Until a product's executable has its own composition root, it is Dinah's `cmd/dinah-desktop` and `cmd/dinah` built with the profile injected and the product directory filled, under the product's executable names.
+The plan lists further seams a product may need: a composition root that calls one host entry point with the product's applet bundles, package kinds, settings sections and page contributions; registries for menus and the page bridge; a workflow-hosting adapter. Resource providers and connections have theirs (docs/design/source-kinds.md). Each of the rest is added when a product needs it, as a general seam with a neutral name and a contract test, and is recorded here or beside here. Until a product's executable has its own composition root, it is Dinah's `cmd/dinah-desktop` and `cmd/dinah` built with the profile injected and the product directory filled, under the product's executable names.

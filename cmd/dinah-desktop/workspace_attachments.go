@@ -72,7 +72,7 @@ func (s workspaceResourceService) attachment(ref ResourceRef, name string) ([]by
 		return nil, err
 	}
 	if source.Kind != "local-folder" {
-		return nil, errors.New("this source does not provide image attachments")
+		return s.attachmentProvider(ref, source, name)
 	}
 	doc, err := openWorkspaceResource(source, ref.Path)
 	if err != nil {

@@ -49,15 +49,21 @@ func (r Resolver) Source(ref Ref) (Source, error) {
 	return Source{}, errors.New("the source is no longer attached to this workspace")
 }
 
-// Providers build the resource provider of a source from its kind. A kind of
-// source plugs in here once; callers then ask its provider for the
-// capability they need (resource.TextReader, resource.TextWriter and the
-// like) and report resource.ErrUnsupported when it is absent, instead of
-// branching on the kind themselves.
-var Providers = map[string]func(r Resolver, ctx context.Context, s Source) (any, error){
-	"local-folder": func(_ Resolver, _ context.Context, s Source) (any, error) {
+// ProviderOf builds the resource provider of a source from its kind: a
+// local folder's, or the one the kind was registered with
+// (RegisterSourceKind). Callers then ask the provider for the capability
+// they need (resource.TextReader, resource.TextWriter and the like) and
+// report resource.ErrUnsupported when it is absent, instead of branching on
+// the kind themselves. A kind with no provider is resource.ErrUnsupported.
+func (r Resolver) ProviderOf(ctx context.Context, s Source) (any, error) {
+	if s.Kind == LocalFolder {
 		return localfs.Folder{Root: s.Path, Dotfiles: Dotfiles(s)}, nil
-	},
+	}
+	k, ok := LookupSourceKind(s.Kind)
+	if !ok || k.Provider == nil {
+		return nil, resource.ErrUnsupported
+	}
+	return k.Provider(r, ctx, s)
 }
 
 // Provider returns the provider of the source a reference points into.
@@ -66,10 +72,6 @@ func (r Resolver) Provider(ctx context.Context, ref Ref) (any, Source, error) {
 	if err != nil {
 		return nil, Source{}, err
 	}
-	build, ok := Providers[source.Kind]
-	if !ok {
-		return nil, source, resource.ErrUnsupported
-	}
-	p, err := build(r, ctx, source)
+	p, err := r.ProviderOf(ctx, source)
 	return p, source, err
 }

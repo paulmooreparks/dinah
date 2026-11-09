@@ -116,10 +116,11 @@ func textExtension(path string) string {
 }
 
 func workspaceSourceResource(record WorkspaceRecord, source WorkspaceSource) ResourceItem {
-	item := ResourceItem{Ref: ResourceRef{WorkspaceID: record.ID, SourceID: source.ID}, Title: source.Name, Kind: source.Kind, Directory: true, Actions: []string{"list"}, Writable: source.Kind == "local-folder"}
+	if source.Kind != "local-folder" {
+		return providerSourceItem(record, source)
+	}
+	item := ResourceItem{Ref: ResourceRef{WorkspaceID: record.ID, SourceID: source.ID}, Title: source.Name, Kind: source.Kind, Directory: true, Actions: []string{"list"}, Writable: true}
 	switch {
-	case source.Kind != "local-folder":
-		item.Directory, item.Unavailable, item.Actions = false, true, []string{}
 	case !folderExists(source.Path):
 		item.Missing, item.Writable = true, false
 		item.Actions = []string{"list", "create-folders"}
@@ -249,6 +250,13 @@ func localResourceItem(ref ResourceRef, source WorkspaceSource, f *os.File) (Res
 	return item, nil
 }
 func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (ResourcePage, error) {
+	if start < 0 || start > 1000000 || limit < 1 || limit > 100 {
+		return ResourcePage{Entries: []ResourceItem{}, NextStart: -1}, errors.New("use a start between 0 and 1000000 and a limit between 1 and 100")
+	}
+	// A source that is not a local folder is listed through its provider.
+	if source, err := s.source(ref); err == nil && source.Kind != "local-folder" {
+		return s.listProvider(ref, source, start, limit)
+	}
 	if scope, handled, err := s.app.agentResourceScope(s.ctx); handled && !fileaccess.InOperation(s.ctx) {
 		if err != nil {
 			return ResourcePage{}, err
@@ -292,9 +300,6 @@ func (s workspaceResourceService) list(ref ResourceRef, start, limit int) (Resou
 	source, err := s.source(ref)
 	if err != nil {
 		return out, err
-	}
-	if source.Kind != "local-folder" {
-		return out, errors.New("unsupported workspace source")
 	}
 	if !folderExists(source.Path) {
 		return plannedPage(ref, s.plannedFolders(ref), start, limit), nil
@@ -452,7 +457,8 @@ func (s workspaceResourceService) read(ref ResourceRef) (ResourceRead, error) {
 		return ResourceRead{}, err
 	}
 	if source.Kind != "local-folder" {
-		return ResourceRead{}, errors.New("unsupported workspace source")
+		record, _ := s.app.workspaceSourceRecord(ref.WorkspaceID)
+		return s.readProvider(record, ref, source)
 	}
 	f, err := openWorkspaceResource(source, ref.Path)
 	if err != nil {
@@ -502,7 +508,11 @@ func (s workspaceResourceService) preview(ref ResourceRef) (ResourcePreview, err
 	if err != nil {
 		return ResourcePreview{}, err
 	}
-	if source.Kind == "local-folder" && resourceImageExtension(ref.Path) {
+	if source.Kind != "local-folder" {
+		record, _ := s.app.workspaceSourceRecord(ref.WorkspaceID)
+		return s.previewProvider(record, ref, source)
+	}
+	if resourceImageExtension(ref.Path) {
 		f, err := openWorkspaceResource(source, ref.Path)
 		if err != nil {
 			return ResourcePreview{}, err
@@ -566,7 +576,16 @@ func (a *App) OpenWorkspaceResource(ref ResourceRef) error {
 		return err
 	}
 	if source.Kind != "local-folder" {
-		return errors.New("unsupported workspace source")
+		// An entry of another kind of source opens at its address on its site.
+		record, _ := a.workspaceSourceRecord(ref.WorkspaceID)
+		item, err := s.statProvider(record, ref, source)
+		if err != nil {
+			return err
+		}
+		if item.URL == "" {
+			return errors.New("this resource has no address to open")
+		}
+		return a.openInBrowser(item.URL)
 	}
 	f, err := openWorkspaceResource(source, ref.Path)
 	if err != nil {

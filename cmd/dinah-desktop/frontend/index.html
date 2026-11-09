@@ -141,6 +141,7 @@
   <script src="pudl/pudl-menubar.js" defer></script>
   <script src="shell-applets.js" defer></script>
   <script src="file-access-settings.js" defer></script>
+  <script src="settings-connections.js" defer></script>
   <script src="theme-editor.js" defer></script>
   <script src="extensions.js" defer></script>
   <script src="group-new-chat.js" defer></script>
@@ -265,6 +266,23 @@
 
 
 
+  <!-- Add Source…: a folder on this computer, or a source of a kind the
+       build registered with a form (workspace_source_kinds.go). The kinds
+       and their fields are drawn by workspace-browser.js. -->
+  <dialog class="dialog" id="add-workspace-source" aria-labelledby="add-workspace-source-title">
+    <h2 class="dialog-title" id="add-workspace-source-title">Add a Source</h2>
+    <form class="vstack gap-3" id="add-workspace-source-form">
+      <div class="seg" id="workspace-source-kind" role="radiogroup" aria-label="Source Type"></div>
+      <p class="form-help" id="workspace-source-help"></p>
+      <div class="vstack gap-3" id="workspace-source-fields"></div>
+      <p class="form-help" id="workspace-source-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="workspace-source-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="workspace-source-add">Choose a Folder…</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog class="dialog" id="rename-workspace" aria-labelledby="rename-workspace-title">
     <h2 class="dialog-title" id="rename-workspace-title">Rename Workspace</h2>
     <form class="vstack gap-3" id="rename-workspace-form">
@@ -318,7 +336,7 @@
           <div class="toolbar ws-commands" role="toolbar" aria-label="Workspace Commands" data-toolbar-fold data-toolbar-captions="none">
             <div class="toolbar-group" role="group" aria-label="Workspace" data-toolbar-group="Workspace" data-toolbar-glyph="folder" data-toolbar-priority="20">
               <div class="menu browser-actions"><button type="button" class="btn btn-sm menu-btn" id="ws-actions-button" popovertarget="ws-actions" aria-label="Actions"><span class="glyph" style="--glyph: var(--glyph-menu)" aria-hidden="true"></span><span class="toolbar-words">Actions</span></button><nav class="menu-panel" popover id="ws-actions" data-menu-anchor="ws-actions-button" aria-label="Workspace Actions"><button type="button" class="menu-action" data-cmd="new-workspace" title="Make a workspace on a main folder you choose">New Workspace…</button><button type="button" class="menu-action" data-cmd="new-empty-workspace">New Empty Workspace</button><button type="button" class="menu-action" data-cmd="rename-workspace" disabled>Rename Workspace…</button><button type="button" class="menu-action" data-cmd="export-workspace" disabled>Export Workspace…</button><button type="button" class="menu-action" data-cmd="import-workspace">Import Workspace…</button><button type="button" class="menu-action" data-cmd="refresh-workspace">Refresh Workspace</button><button type="button" class="menu-action" data-cmd="remove-workspace" disabled>Remove Workspace…</button><hr class="menu-sep"><button type="button" class="menu-action" data-cmd="workspace-section-up" data-command-label disabled>Move Section Up</button><button type="button" class="menu-action" data-cmd="workspace-section-down" data-command-label disabled>Move Section Down</button><button type="button" class="menu-action" data-cmd="workspace-sections-reorder" disabled>Reorder Sections</button></nav></div>
-              <button type="button" class="btn btn-sm" id="workspace-source-choose" title="Add a folder on this computer to this workspace" hidden><span class="glyph" style="--glyph: var(--glyph-plus)" aria-hidden="true"></span><span class="toolbar-words">Add Source…</span></button>
+              <button type="button" class="btn btn-sm" id="workspace-source-choose" title="Add a folder on this computer, or another kind of source, to this workspace" hidden><span class="glyph" style="--glyph: var(--glyph-plus)" aria-hidden="true"></span><span class="toolbar-words">Add Source…</span></button>
             </div>
             <div class="toolbar-group" role="group" aria-label="Chats" data-toolbar-group="Chats" data-toolbar-glyph="comments" data-toolbar-priority="30" data-toolbar-end>
               <button type="button" class="btn btn-sm" data-cmd="new-session" title="Start a New Chat in This Workspace"><span class="glyph" style="--glyph: var(--glyph-comments)" aria-hidden="true"></span><span class="toolbar-words">New Chat</span></button>
@@ -731,6 +749,7 @@
         <button type="button" role="tab" id="settings-tab-chat" aria-controls="settings-chat" aria-selected="false" tabindex="-1" data-settings-section="chat">Chat</button>
         <button type="button" role="tab" id="settings-tab-terminal" aria-controls="settings-terminal" aria-selected="false" tabindex="-1" data-settings-section="terminal">Terminal</button>
         <button type="button" role="tab" id="settings-tab-packages" aria-controls="settings-packages" aria-selected="false" tabindex="-1" data-settings-section="packages">Packages</button>
+        <button type="button" role="tab" id="settings-tab-connections" aria-controls="settings-connections" aria-selected="false" tabindex="-1" data-settings-section="connections" hidden>Connections</button>
         <button type="button" role="tab" id="settings-tab-diagnostics" aria-controls="settings-diagnostics" aria-selected="false" tabindex="-1" data-settings-section="diagnostics">Diagnostics</button>
       </div>
       <div class="settings-body">
@@ -881,6 +900,12 @@
             <p class="form-help" id="packages-none">No package is installed for you or in this workspace.</p>
             <div class="settings-actions"><button type="button" class="btn btn-sm" data-cmd="update-packages" hidden>Update Packages…</button><button type="button" class="btn btn-sm" data-cmd="install-packages-file">Install From a File…</button></div>
           </section>
+        </div>
+        <!-- Settings › Connections (docs/design/source-kinds.md): the services
+             the build registered (internal/connections), drawn by
+             settings-connections.js. The tab is hidden until there is one. -->
+        <div class="settings-panel" id="settings-connections" role="tabpanel" aria-labelledby="settings-tab-connections" tabindex="0" hidden>
+          <div class="vstack gap-3" id="connections-list"></div>
         </div>
         <div class="settings-panel" id="settings-diagnostics" role="tabpanel" aria-labelledby="settings-tab-diagnostics" tabindex="0" hidden>
           <section class="card vstack gap-3" aria-labelledby="set-responsiveness-title">

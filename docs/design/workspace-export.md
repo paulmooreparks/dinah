@@ -48,7 +48,7 @@ A folder is the main folder of one workspace at most. When the importing compute
 
 Another build's exports may hold kinds of source and pin that Dinah does not have. Each kind's behaviour is a registration in package `workspaces`, in the way a `database/sql` driver registers itself, so that such a build can register its kinds from its own repository:
 
-- `RegisterSourceKind(kind, SourceKind{...})` for a kind of source. `Read` checks and cleans a source of the kind as an export has it, `Describe` gives the site and reference the import window shows, `Check` says why the computer cannot use it yet (such as a missing connection), `Export` and `Recreate` turn a registry source into an export's and back, and `DefaultName` gives a name to an imported source that has none. Every field is optional.
+- `RegisterSourceKind(kind, SourceKind{...})` for a kind of source. The same registration can bring the kind's form and resource provider, so that the person can add a source of it and open what it holds (docs/design/source-kinds.md). `Read` checks and cleans a source of the kind as an export has it, `Describe` gives the site and reference the import window shows, `Check` says why the computer cannot use it yet (such as a missing connection), `Export` and `Recreate` turn a registry source into an export's and back, and `DefaultName` gives a name to an imported source that has none. Every field is optional.
 - `RegisterPinKind(kind, PinKind{...})` for a kind of pin. `Read` says whether a pin of the kind in an export can be kept.
 
 A local folder is built in and cannot be registered.

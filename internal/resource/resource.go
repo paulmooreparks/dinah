@@ -47,6 +47,22 @@ type Entry struct {
 	Folder bool
 	// Size is a file's size in bytes.
 	Size int64
+	// Title is the entry's name as people see it, when it differs from
+	// Name: a wiki page's title, where Name is the page's ID in paths. A
+	// folder of files leaves it empty.
+	Title string
+	// Document marks a folder that is also a document, as a wiki page with
+	// child pages is: it lists, and it reads and opens for editing too.
+	Document bool
+	// Kind is the entry's kind for the person's view, when the source has
+	// kinds of its own, such as a wiki page; empty, it is a folder or a file.
+	Kind string
+	// URL is where the entry can be opened in a browser, when it is on a
+	// site; a file has none.
+	URL string
+	// Revision is the entry's revision when the source knows it from the
+	// listing alone, such as a page's version; empty otherwise.
+	Revision string
 }
 
 // Lister lists the entries of a folder in a source; the path "." is the
@@ -116,6 +132,14 @@ const MaxFile = 50 << 20
 type FileSource interface {
 	FileNames(ctx context.Context, path string) ([]string, error)
 	ReadFile(ctx context.Context, path, name string) ([]byte, error)
+}
+
+// BlobReader reads a resource's bytes by its path, as a picture or another
+// file kept in a source that is not a folder of files, bounded by MaxFile. A
+// source whose files are reached by path, beside its documents, implements
+// it so that the Files applet can show them.
+type BlobReader interface {
+	ReadBlob(ctx context.Context, path string) ([]byte, error)
 }
 
 // Written is the outcome of writing a document back: the resource as it now

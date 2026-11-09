@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -96,7 +97,8 @@ func (o overlayFS) Open(name string) (fs.File, error) {
 	if name == "index.html" && o.page != nil {
 		return memFile{Reader: bytes.NewReader(o.page), name: name}, nil
 	}
-	if name != "." {
+	// The product directory's Go files and README are not page files.
+	if name != "." && !strings.HasSuffix(name, ".go") && name != "README.md" {
 		if f, err := o.over.Open(name); err == nil {
 			if info, statErr := f.Stat(); statErr == nil && !info.IsDir() {
 				return f, nil

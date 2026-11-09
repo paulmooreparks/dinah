@@ -407,7 +407,11 @@ func (v workspaceVFS) stat(path string) (MountItem, error) {
 		return mountResourceItem(target, workspaceSourceResource(target.record, target.source)), nil
 	}
 	if target.source.Kind != "local-folder" {
-		return MountItem{}, errors.New("unsupported workspace source")
+		item, err := v.service.statProvider(target.record, *target.ref, target.source)
+		if err != nil {
+			return MountItem{}, err
+		}
+		return mountResourceItem(target, item), nil
 	}
 	f, err := openWorkspaceResource(target.source, target.ref.Path)
 	if err != nil {

@@ -49,7 +49,8 @@ func TestTheServedPageIsTheProducts(t *testing.T) {
 	}
 }
 
-// Dinah's own build ships the product directory with its README alone, and
+// Dinah's own build ships the product directory with its README and the
+// package's documentation file alone, neither of which the page serves, and
 // every brand file the page refers to is among the page's files, under the
 // product-neutral names a product replaces.
 func TestDinahsBuildHasNoProductFiles(t *testing.T) {
@@ -57,8 +58,21 @@ func TestDinahsBuildHasNoProductFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 || entries[0].Name() != "README.md" {
-		t.Fatalf("the product directory holds more than its README: %v", entries)
+	names := []string{}
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if strings.Join(names, ",") != "README.md,product.go" {
+		t.Fatalf("the product directory holds more than its README and package file: %v", names)
+	}
+	served, err := productFrontend()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		if _, err := fs.Stat(served, name); err == nil {
+			t.Fatalf("the page serves the product directory's %s", name)
+		}
 	}
 	page, err := fs.ReadFile(assets, "frontend/index.html")
 	if err != nil {
