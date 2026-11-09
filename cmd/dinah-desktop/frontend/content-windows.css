@@ -5,3 +5,22 @@
 .content-window > .content-notices { flex: none; }
 .content-window > .content-notices > .notice { margin: var(--space-2) var(--space-3) 0; }
 .content-window > .content-applet { flex: 1 1 auto; min-height: 0; }
+
+/* The suggestions an agent made, above the document: the text a suggestion
+   would remove struck through in the danger colour, the text it would put
+   in underlined in the positive colour, as the built-in Editor marks them,
+   so the change reads without its colour. The list scrolls when it is long,
+   and the document keeps the rest of the window. */
+.content-window > .content-notices > .content-review { margin: var(--space-2) var(--space-3) 0; padding: var(--space-2) var(--space-3); max-height: 40vh; overflow: auto; }
+.content-review-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.content-review-title { margin: 0; font-size: var(--text-sm); }
+.content-review-all, .content-review-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
+.content-review-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.content-review-item { border-top: 1px solid var(--border); padding-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); }
+.content-review-who, .content-review-stale { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+.content-review-change { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.content-review-change del { margin-right: .4em; text-decoration: line-through; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.content-review-change ins { text-decoration: underline; color: var(--positive); background: color-mix(in srgb, var(--positive) 10%, transparent); }
+.content-review-context { color: var(--text-muted); }
+.content-review-edit { display: block; width: 100%; min-height: 4em; margin-top: var(--space-1); }
+.content-review-item.is-stale .content-review-change { opacity: .7; }

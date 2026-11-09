@@ -214,6 +214,24 @@ func (o Ops) SaveAs(id, expected string, ref workspaces.Ref) (Saved, error) {
 	return Saved{View: o.View(d, "saved"), Notes: notes}, nil
 }
 
+// Suggest proposes changes to a draft: the changes from base, the text the
+// proposer read, to text, as suggestions the person accepts or rejects. The
+// draft's text is not changed, and the suggestions are placed in the draft
+// as it is now, even if it changed after the proposer read it.
+func (o Ops) Suggest(id, base, text string, p drafts.Proposal) (drafts.View, []drafts.Suggestion, error) {
+	if _, err := o.Draft(id); err != nil {
+		return drafts.View{}, nil, err
+	}
+	d, added, err := o.Drafts.Store.Propose(id, base, text, p)
+	if err != nil {
+		return drafts.View{}, nil, ErrorText(err)
+	}
+	if added == nil {
+		added = []drafts.Suggestion{}
+	}
+	return o.View(d, "suggested"), added, nil
+}
+
 // Decide accepts or rejects a suggestion, or every suggestion of its
 // proposal when all is true. Accepting changes the text, so it needs the
 // draft's revision.

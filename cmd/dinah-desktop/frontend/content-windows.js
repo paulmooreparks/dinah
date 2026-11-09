@@ -140,6 +140,119 @@
       window.dinahContentHost.keepMine(resource);
       flush();
     });
+    /* ---- Suggestions -----------------------------------------------------
+       An agent's suggestions (dinah.documents/suggest@1) are kept beside the
+       draft's text, never in it, until the person decides. The panel above
+       the document lists them, each with the text it would remove and the
+       text it would put in, who suggested it and why, and Accept, Reject
+       and Edit; Accept All and Reject All decide them all. A suggestion
+       whose text has changed since can only be rejected. Accepting changes
+       the draft, which the window then shows and saves (draftChanged). */
+    var review = document.createElement('section');
+    review.className = 'content-review card';
+    review.setAttribute('aria-label', 'Suggestions');
+    review.hidden = true;
+    notices.appendChild(review);
+    var deciding = false, editing = '';
+
+    function el(tag, cls, text) {
+      var n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text != null) n.textContent = text;
+      return n;
+    }
+    function button(label, cls, run, disabled) {
+      var b = el('button', 'btn btn-sm' + (cls ? ' ' + cls : ''), label);
+      b.type = 'button';
+      b.disabled = !!disabled || deciding;
+      b.addEventListener('click', run);
+      return b;
+    }
+    function drawReview() {
+      var list = (draft.suggestions || []);
+      review.hidden = !list.length;
+      review.replaceChildren();
+      if (!list.length) return;
+      var live = list.filter(function (s) { return !s.stale; });
+      var head = el('div', 'content-review-head');
+      head.appendChild(el('h3', 'content-review-title', list.length === 1 ? '1 Suggestion' : list.length + ' Suggestions'));
+      var all = el('div', 'content-review-all');
+      all.appendChild(button('Reject All', '', function () { decideAll(false); }));
+      all.appendChild(button('Accept All', 'btn-primary', function () { decideAll(true); }, !live.length));
+      head.appendChild(all);
+      review.appendChild(head);
+      var items = el('ol', 'content-review-list');
+      list.forEach(function (s) {
+        var item = el('li', 'content-review-item' + (s.stale ? ' is-stale' : ''));
+        var who = el('p', 'content-review-who', (s.author || 'An agent') + (s.edited ? ', edited by you' : '') + (s.reason ? ': ' + s.reason : ''));
+        item.appendChild(who);
+        var change = el('p', 'content-review-change');
+        /* Only the words beside the change on its own line are shown
+           around it, and a paragraph's closing line breaks are left out. */
+        var before = String(s.prefix || '').split('\n').pop().slice(-60), after = String(s.suffix || '').split('\n')[0].slice(0, 60);
+        if (before) change.appendChild(el('span', 'content-review-context', '…' + before));
+        if (s.before) change.appendChild(el('del', '', s.before.replace(/\n+$/, '')));
+        if (editing === s.id) {
+          var field = el('textarea', 'form-input content-review-edit');
+          field.value = s.after;
+          field.setAttribute('aria-label', 'Suggested text');
+          change.appendChild(field);
+        } else if (s.after) change.appendChild(el('ins', '', s.after.replace(/\n+$/, '')));
+        if (after) change.appendChild(el('span', 'content-review-context', after + '…'));
+        item.appendChild(change);
+        if (s.stale) item.appendChild(el('p', 'content-review-stale', 'The text this would change has been changed since, so it can only be rejected.'));
+        var actions = el('div', 'content-review-actions');
+        if (editing === s.id) {
+          actions.appendChild(button('Cancel', '', function () { editing = ''; drawReview(); }));
+          actions.appendChild(button('Keep Edit', 'btn-primary', function () { revise(s, item.querySelector('textarea').value); }));
+        } else {
+          actions.appendChild(button('Edit', '', function () { editing = s.id; drawReview(); var f = review.querySelector('textarea'); if (f) f.focus(); }, s.stale));
+          actions.appendChild(button('Reject', '', function () { decide(s, false); }));
+          actions.appendChild(button('Accept', 'btn-primary', function () { decide(s, true); }, s.stale));
+        }
+        item.appendChild(actions);
+        items.appendChild(item);
+      });
+      review.appendChild(items);
+    }
+    /* Typing not yet saved is saved first, so an accepted change is made to
+       the person's latest text. */
+    function settle(work) {
+      if (deciding) return Promise.resolve();
+      deciding = true;
+      drawReview();
+      return flush().then(work).then(function (v) {
+        if (v) draft = v;
+      }).catch(failed).finally(function () { deciding = false; editing = ''; drawReview(); });
+    }
+    function decide(s, accept) {
+      return settle(function () {
+        return Promise.resolve(api().GetDraft(draft.id)).then(function (v) {
+          return accept ? api().AcceptSuggestion(v.id, v.revision, s.id, false) : api().RejectSuggestion(v.id, s.id, false);
+        });
+      });
+    }
+    /* Accept All accepts every suggestion still in place, proposal by
+       proposal; Reject All rejects every one. */
+    function decideAll(accept) {
+      return settle(function () {
+        var groups = [];
+        (draft.suggestions || []).forEach(function (s) {
+          if (accept && s.stale) return;
+          if (!groups.some(function (g) { return g.group === s.group; })) groups.push(s);
+        });
+        return groups.reduce(function (chain, s) {
+          return chain.then(function () { return api().GetDraft(draft.id); }).then(function (v) {
+            if (!(v.suggestions || []).some(function (x) { return x.id === s.id; })) return v;
+            return accept ? api().AcceptSuggestion(v.id, v.revision, s.id, true) : api().RejectSuggestion(v.id, s.id, true);
+          });
+        }, Promise.resolve());
+      });
+    }
+    function revise(s, after) {
+      return settle(function () { return api().ReviseSuggestion(draft.id, s.id, after); });
+    }
+
     function draftChanged(e) {
       if (!e || e.id !== draft.id || disposed || !mount) return;
       if (e.kind === 'discarded') {
@@ -152,14 +265,18 @@
       Promise.resolve(api().GetDraft(draft.id)).then(function (latest) {
         if (disposed) return;
         draft = latest;
+        drawReview();
         if (latest.revision === window.dinahContentHost.knownRevision(resource)) return checkMoved(false);
         /* The event may come from this window's own save, before the save's
            reply, so the text decides, not the order. */
         return call('document').then(function (r) {
           var doc = r.output;
           if (doc && doc.text === latest.text) return checkMoved(false);
-          if (doc && doc.modified) showOutside();
-          else return reload().then(saveDraft).then(function () { if (host()) host().toast('"' + doc.name + '" was changed elsewhere, and shows that change.', 'info'); });
+          if (doc && doc.modified) return showOutside();
+          /* A change the person made here, by deciding a suggestion, is
+             shown without being announced. */
+          var own = deciding;
+          return reload().then(saveDraft).then(function () { if (!own && host()) host().toast('"' + doc.name + '" was changed elsewhere, and shows that change.', 'info'); });
         });
       }).catch(function () { /* The next check tries again. */ });
     }
@@ -257,6 +374,7 @@
       if (disposed) return;
       draft = v;
       mountApplet();
+      drawReview();
       return current().then(retitle);
     });
 
