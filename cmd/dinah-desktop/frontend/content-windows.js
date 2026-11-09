@@ -488,12 +488,11 @@
   /* The application a document opens in, and the view. A Markdown
      document opens as Settings › Markdown Opens In says: Visual is Docs,
      and Text, Split and Preview are the Editor in that view. A .docs.md
-     document is always Docs's. Anything else is the Editor's, in Text.
-     D2, Mermaid and JSON Canvas files are Diagrams's.
-     A document opened to read (a chat's chip, a double-click in Sources)
+     document is always Docs's, D2, Mermaid and JSON Canvas files are
+     Diagrams's, .slides.md decks are Slides's, and anything else is the
+     Editor's, in Text. A document opened to read (a chat's chip, a double-click in Sources)
      is shown in the Editor's Preview, and one opened to edit as text in its
-     Text, as with the built-in Editor. Slides takes its own documents when it
-     is adopted. */
+     Text, as with the built-in Editor. */
   function markdown(v) {
     var o = v.origin || {};
     return o.kind === 'new' ? true : /\.(md|markdown)$/i.test(o.path || '');
@@ -503,6 +502,7 @@
     if (intent === 'text') return { app: 'editor', view: 'text' };
     if (/\.docs\.md$/i.test(path)) return { app: 'docs' };
     if (/\.(d2|mmd|mermaid|canvas)$/i.test(path)) return { app: 'diagrams' };
+    if (/\.slides\.md$/i.test(path)) return { app: 'slides' };
     if (!markdown(v)) return { app: 'editor' };
     if (intent === 'read') return { app: 'editor', view: 'preview' };
     var chosen = window.dinahDocumentViews ? window.dinahDocumentViews()['text/markdown'] : 'page';
