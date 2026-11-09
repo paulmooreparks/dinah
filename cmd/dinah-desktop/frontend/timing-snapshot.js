@@ -3,7 +3,7 @@
   'use strict';
   const PERIOD = 1000, CAPACITY = 600, RAW_CAPACITY = 200, RAW_RATE = 100, RETENTION = 600000;
   const LIMIT = Number.MAX_SAFE_INTEGER, EXPORT_LIMIT = 4194304;
-  const HEADER = 'Dinah timing snapshot. Contains timings, counts and clock anchors only. It records when retained input events, such as key presses, happened and how long they waited. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall.';
+  const HEADER = (host.dinahProduct ? host.dinahProduct.name : 'Dinah') + ' timing snapshot. Contains timings, counts and clock anchors only. It records when retained input events, such as key presses, happened and how long they waited. Omits conversation content, identities, paths and commands. Process-wide runtime totals do not identify the cause of an individual stall.';
   const features = ['eventTiming', 'longTasks', 'longAnimationFrames'];
   const metrics = ['inputDelay', 'renderWork', 'renderWait', 'longTask', 'longFrame'];
   const categories = { 'chat output': 'chat', 'provider events': 'other', 'layout follow-up': 'layout_followup', 'unread': 'unread', 'diagnostics': 'diagnostics' };

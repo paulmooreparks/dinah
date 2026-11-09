@@ -518,7 +518,7 @@
       detail.appendChild(field('What the Judge Saw', pretty(r.input)));
       detail.appendChild(field('What the Judge Answered', pretty(r.answer) || '(nothing)'));
       detail.appendChild(field('What the Rule Would Have Answered', pretty(r.ruleAnswer)));
-      detail.appendChild(field('What Dinah Used', pretty(r.out)));
+      detail.appendChild(field('What ' + (window.dinahProduct ? window.dinahProduct.name : '') + ' Used', pretty(r.out)));
       if (r.effectKind) {
         var wentTo = node('div', 'judgement-field vstack gap-1');
         wentTo.appendChild(node('span', 'form-label', 'Where It Went'));

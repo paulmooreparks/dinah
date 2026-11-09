@@ -277,7 +277,7 @@
     var id = names()[String(request.sourceResource || '')];
     var item = windowItem(context && context.host);
     if (!id && item) id = item.path;
-    if (!id) return Promise.reject(new Error('The document to save is not one Dinah knows.'));
+    if (!id) return Promise.reject(new Error('The document to save is not one ' + (window.dinahProduct ? window.dinahProduct.name : '') + ' knows.'));
     var draftView = null;
     return Promise.resolve(api().GetDraft(id)).then(function (v) {
       draftView = v;

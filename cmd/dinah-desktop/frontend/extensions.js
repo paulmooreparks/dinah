@@ -1,6 +1,7 @@
 /* Signed extensions contribute isolated views and declarative commands. */
 (function () {
   'use strict';
+  function productName() { return window.dinahProduct ? window.dinahProduct.name : ''; }
   const app = window.dinahHelpers.app,
     bench = window.dinahWorkbench,
     frames = new Set(),
@@ -179,10 +180,10 @@
         glyph.style.setProperty('--glyph', 'var(--glyph-warning)');
         const text =
           e.why === 'type'
-            ? files + ' do not open here, because Dinah knows them as ' + e.by + '.'
+            ? files + ' do not open here, because ' + productName() + ' knows them as ' + e.by + '.'
             : e.why === 'earlier'
               ? files + ' open in ' + e.by + ' instead, because it was enabled first.'
-              : files + ' open in ' + e.by + ' instead, because Dinah opens them itself.';
+              : files + ' open in ' + e.by + ' instead, because ' + productName() + ' opens them itself.';
         line.append(glyph, document.createTextNode(' ' + text));
         lines.push(line);
       }
