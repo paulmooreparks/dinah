@@ -1,7 +1,10 @@
 // The Documents menu: its rows
 // and keys from the command registry, the current document they act on,
 // Recent and Show All…, command search, Keyboard Shortcuts, the Window
-// menu's keys, and the Editor's own window setting.
+// menu's keys, and the Editor's own window setting. The Editor is
+// yavc.app's (docs/design/content-applets.md): its File menu has Save and
+// Close Document, and Dinah's Document menu beside it has Save As…,
+// Rename…, Insert Image…, Attach File… and Discard Draft….
 const { launch } = require('./lib/page');
 (async () => {
   const t = await launch({
@@ -81,9 +84,9 @@ const { launch } = require('./lib/page');
     async function openMenu(name) { await p.keyboard.press('Escape'); await title(name).click(); await p.locator('.menubar-panel .menu-action').first().waitFor(); return rows(); }
     const row = (list, start) => list.find(r => r.text.startsWith(start));
 
-    // The title stands right of the site menu.
+    // The title stands right of the site menu and Workspaces.
     const titles = await p.locator('nav[data-menubar] .menubar-title').allTextContents();
-    ok('Documents stands right of the site menu', titles[1] === 'Documents' && titles.indexOf('Documents') < titles.indexOf('View'));
+    ok('Documents stands right of the site menu and Workspaces', titles.indexOf('Documents') === 2 && titles.indexOf('Documents') < titles.indexOf('View'), JSON.stringify(titles));
 
     // Documents holds what is about no particular document; the rows that
     // act on one are in that document's Editor, under Document.
@@ -93,8 +96,6 @@ const { launch } = require('./lib/page');
       row(docs, 'Open…').text.includes('Ctrl+O') && !docs.some(r => /^(Save|Close Document|Discard Draft)/.test(r.text)), JSON.stringify(docs.map(r => r.text)));
     ok('with no Editor in front there is no Document menu', await title('Document').count() === 0);
     await t.shot('documents-menu-empty');
-    const tools = await openMenu('Tools');
-    ok('New Document and Open Document have left Tools', !tools.some(r => /New Document|Open Document/.test(r.text)));
 
     // Recent: ten rows, newest first, two of one title told apart, then Show All….
     docs = await openMenu('Documents');
@@ -124,17 +125,15 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => pudlWindows.raise([...document.querySelectorAll('.win[data-win-kind="editor"]')].pop().dataset.win));
 
     // The document has changes, so Ctrl+S would save it if a dialog did not
-    // hold the key. The document would also save itself a moment after the
-    // typing, which on a busy machine can land while the dialog is open, so
-    // the fixture refuses that save: automatic saving stops, the document
-    // stays changed, and only a save Ctrl+S asked for could follow.
+    // hold the key. The document also saves itself a moment after the
+    // typing, which the fixture refuses, so the document stays changed and
+    // only a save Ctrl+S asked for could follow.
     await p.evaluate(() => { window.__refuseSaves = true; });
     await editor.locator('.cm-content').click();
     await p.keyboard.press('Control+End');
     await p.keyboard.type(' Pending.');
-    await p.waitForFunction(() => { const s = pudlWindows.state(); return document.querySelector('[data-win="' + CSS.escape(s.top) + '"] .win-title').textContent.includes('(changed)'); });
     await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'doc1.md'), null, { timeout: 30000 });
-    await editor.getByText(/Automatic saving stopped/).first().waitFor({ state: 'attached', timeout: 30000 });
+    await p.waitForTimeout(500);
     const savesBeforeDialog = await p.evaluate(() => __calls.filter(c => c[0] === 'save').length);
 
     // Show All… lists all twelve; Escape closes it, and the arrow keys and
@@ -174,19 +173,21 @@ const { launch } = require('./lib/page');
     await p.keyboard.press('Control+End');
     await p.keyboard.type(' Changed.');
     await p.waitForFunction(() => document.querySelector('.win[data-win-kind="editor"]:last-of-type') && Object.values(window.go).length);
-    await p.waitForFunction(() => { const s = pudlWindows.state(); return document.querySelector('[data-win="' + CSS.escape(s.top) + '"] .win-title').textContent.includes('(changed)'); });
+    await p.waitForTimeout(300);
+    const file = await openMenu('File');
+    ok('the Editor\'s File menu has Save with its key and Close Document', !!row(file, 'Save') && row(file, 'Save').text.includes('Ctrl+S') && !!row(file, 'Close Document'), JSON.stringify(file.map(r => r.text)));
     docs = await openMenu('Document');
-    ok('the Editor\'s Document menu has the document\'s rows in order with their keys', ['Save', 'Save As…', 'Rename…', 'Close Document', 'Discard Draft…']
+    ok('Dinah\'s Document menu has the document\'s rows in order, Save As… with its key, and no second Save or Close', ['Save As…', 'Rename…', 'Insert Image…', 'Attach File…', 'Discard Draft…']
       .every((label, i, all) => { const at = docs.findIndex(r => r.text.startsWith(label)); return at >= 0 && (i === 0 || at > docs.findIndex(r => r.text.startsWith(all[i - 1]))); }) &&
-      row(docs, 'Save').text.includes('Ctrl+S') && row(docs, 'Save As…').text.includes('Ctrl+Shift+S'), JSON.stringify(docs.map(r => r.text)));
-    ok('a changed file can be saved', !row(docs, 'Save').disabled && !row(docs, 'Save As…').disabled);
+      row(docs, 'Save As…').text.includes('Ctrl+Shift+S') && !docs.some(r => /^Save[^ ]|^Close Document/.test(r.text)), JSON.stringify(docs.map(r => r.text)));
+    ok('a changed file can be saved as a copy', !row(docs, 'Save As…').disabled);
     // F2 is the Editor window's own key, so the menu row shows none.
     ok('a file can be renamed from the Document menu, whose row has no key', !row(docs, 'Rename…').disabled && !row(docs, 'Rename…').text.includes('F2'));
     await p.keyboard.press('Escape');
     await p.locator('.win[data-win-kind="editor"] .cm-content').last().click();
     await p.keyboard.press('Control+S');
     await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'doc2.md'));
-    ok('Ctrl+S in the text saves the document through its Document menu', true);
+    ok('Ctrl+S in the text saves the document through the Editor\'s File menu', true);
 
     // A document's keys act on its own window only: with the Workspace in
     // front there is no Document menu, and Ctrl+S saves nothing behind it.
@@ -227,8 +228,10 @@ const { launch } = require('./lib/page');
       dinahFilePicker.pick = options => { __calls.push(['pick', options.mode]); return Promise.resolve(false); };
     });
     await (async () => { const t = p.locator('[data-win="' + (await p.evaluate(() => pudlWindows.state().top)) + '"] .cm-content'); await t.click(); })();
+    // Ctrl+O is the Documents menu's and the Editor's File menu's alike, and
+    // both open Dinah's own picker.
     await p.keyboard.press('Control+O');
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'open-dialog'));
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'open-dialog' || (c[0] === 'pick' && c[1] === 'open')));
     ok('Ctrl+O opens Open…', true);
     await p.keyboard.press('Control+Shift+S');
     await p.waitForFunction(() => __calls.some(c => c[0] === 'pick' && c[1] === 'save'));
@@ -291,9 +294,12 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(n => __calls.filter(c => c[0] === 'recent').length > n, reads);
     ok('a failure to record an open is shown', (await p.locator('.toast').allTextContents()).some(t => t.includes('could not be added to Recent')));
 
-    // Close Document and Discard Draft… act on the front Editor only.
+    // Close Document, in the Editor's File menu, closes the window; Discard
+    // Draft… acts on the front Editor only.
     const editors = await p.locator('.win[data-win-kind="editor"]').count();
-    await p.evaluate(() => dinahCommands.run('close-document'));
+    await p.evaluate(() => { const w = [...document.querySelectorAll('.win[data-win-kind="editor"]')].pop(); pudlWindows.raise(w.dataset.win); });
+    await openMenu('File');
+    await p.locator('.menubar-panel .menu-action').filter({ hasText: /^Close Document/ }).click();
     await p.waitForFunction(n => document.querySelectorAll('.win[data-win-kind="editor"]').length < n, editors);
     ok('Close Document closes the front Editor', true);
     await p.evaluate(() => dinahWorkbench.open('workspace'));
@@ -320,13 +326,13 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => document.querySelector('#window-kind-modes [data-reset]').disabled);
     ok('Reset returns the Editor to the choice it ships with', await editorRow.locator('[role="radio"][data-value="maximized"]').getAttribute('aria-checked') === 'true');
 
-    // The Editor's own menus keep Edit; File is gone.
+    // The Editor's own menus, File and Edit among them, stand before Dinah's Document menu.
     await p.evaluate(() => { const w = document.querySelector('.win[data-win-kind="editor"]'); if (w) pudlWindows.raise(w.dataset.win); });
     await p.waitForTimeout(300);
     await (await frontText()).click();
     await p.waitForTimeout(300);
     const allTitles = await p.locator('nav[data-menubar] .menubar-title').allTextContents();
-    ok('the Editor has no File menu', allTitles.includes('Edit') && !allTitles.includes('File'));
+    ok('the Editor has File and Edit, then Dinah\'s Document menu', allTitles.includes('File') && allTitles.includes('Edit') && allTitles.indexOf('Document') > allTitles.indexOf('Edit'), JSON.stringify(allTitles));
 
     // Documents › In Progress opens the pane: drafts and changed documents,
     // a group to a workspace. A document with nothing unsaved in it, and a
@@ -387,7 +393,8 @@ const { launch } = require('./lib/page');
     ok('a changed document\'s menu has Open and Discard Changes…', (await p.locator('.context-menu .menu-action').allTextContents()).join('|') === 'Open|Discard Changes…');
     await p.keyboard.press('Escape');
     await pane.locator('.browser-row').filter({ hasText: 'Note 09 Design' }).locator('a').click();
-    await p.waitForFunction(() => [...document.querySelectorAll('.win[data-win-kind="editor"] .win-title')].some(t => t.textContent.startsWith('Note 09 Design')));
+    // The window is titled by the file's name and workspace, as every content window is.
+    await p.waitForFunction(() => [...document.querySelectorAll('.win[data-win-kind="editor"] .win-title')].some(t => t.textContent.startsWith('note-09.md')));
     ok('a row opens its document in the Editor', true);
   } catch (err) {
     t.errors.push(String(err && err.stack || err));

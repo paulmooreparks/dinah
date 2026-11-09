@@ -87,7 +87,12 @@
   C.register({ id: 'new-document', glyph: 'plus', menu: 'documents', mnemonic: 'N', label: 'New Document', reason: 'Open a workspace first.', enabled: function () { return !!(host() && host().workspaceId()); }, run: function () { return editor().newDocument(); } });
   C.register({ id: 'open-document', glyph: 'open', menu: 'documents', mnemonic: 'O', label: 'Open…', shortcut: 'Ctrl+O', reason: 'A Terminal is in front, and the key is its own.', enabled: function () { return !suspended(['terminal']); }, run: function () { return editor().openDocument(); } });
   C.register({ id: 'documents-sep-file', menu: 'document', separator: true });
+  /* A content window's applet has Save (Ctrl+S) and Close Document in its
+     own File menu, so the registry's rows stand aside for it and are drawn
+     for a window without them; Save As… stays, since its key is here. */
+  function appletsOwn() { return cur(function (c) { return !!c.ownsFile; }, false); }
   C.register({ id: 'save-document', glyph: 'download', menu: 'document', mnemonic: 'S', shortcut: 'Ctrl+S', help: { label: 'Save or Save As…', key: 'Ctrl+S' },
+    visible: function () { return !appletsOwn(); },
     label: function () { return cur(function (c) { return c.saveLabel(); }, 'Save'); },
     enabled: function () { return !suspended(['terminal']) && cur(function (c) { return c.canSave(); }, false); },
     reason: function () { return suspended(['terminal']) ? 'A Terminal is in front, and the key is its own.' : whyNot('save', 'There are no changes to save.')(); },
@@ -95,7 +100,7 @@
   /* PUDL keeps one of two rows with one label, so this row stands aside
      while the row above reads Save As…. */
   C.register({ id: 'save-document-as', glyph: 'copy', menu: 'document', mnemonic: 'V', label: 'Save As…', shortcut: 'Ctrl+Shift+S',
-    visible: function () { return cur(function (c) { return c.saveLabel() !== 'Save As…'; }, true); },
+    visible: function () { return appletsOwn() || cur(function (c) { return c.saveLabel() !== 'Save As…'; }, true); },
     enabled: function () { return cur(function (c) { return c.canSaveAs(); }, false); }, reason: whyNot('save-as', 'The Editor is busy with the document.'),
     run: function () { return cur(function (c) { return c.saveAs(); }); } });
   /* F2 is the Editor window's own key, as it is a chat window's for Rename
@@ -120,6 +125,7 @@
   /* No key of its own: PUDL stops at the first row that matches a chord,
      even a disabled one, and Window › Close has Ctrl+F4 for every window. */
   C.register({ id: 'close-document', glyph: 'close', menu: 'document', mnemonic: 'C', label: 'Close Document',
+    visible: function () { return !appletsOwn(); },
     enabled: function () { return !!front(); }, reason: 'No Editor window is in front.',
     run: function () { var f = front(); if (f) return f.close(); } });
   C.register({ id: 'discard-draft', menu: 'document', mnemonic: 'D', label: 'Discard Draft…', danger: true,

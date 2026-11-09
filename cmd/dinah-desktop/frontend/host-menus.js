@@ -165,7 +165,7 @@
 
   C.register({ id: 'window-close', glyph: 'close', menu: 'window', mnemonic: 'C', label: 'Close', shortcut: 'Ctrl+F4', visible: function () { return !!closeItem(); }, danger: true, run: function () { var item = closeItem(); if (item) item.run(); } });
   C.register({ id: 'window-next-document', menu: 'window', mnemonic: 'N', label: 'Next Document', shortcut: 'Ctrl+F6', enabled: hasEditors, run: function () { cycleDocuments(1); } });
-  C.register({ id: 'window-previous-document', menu: 'window', mnemonic: 'P', label: 'Previous Document', shortcut: 'Ctrl+Shift+F6', enabled: hasEditors, run: function () { cycleDocuments(-1); } });
+  C.register({ id: 'window-previous-document', menu: 'window', mnemonic: 'U', label: 'Previous Document', shortcut: 'Ctrl+Shift+F6', enabled: hasEditors, run: function () { cycleDocuments(-1); } });
   C.register({ id: 'window-next', glyph: 'forward', menu: 'window', mnemonic: 'X', label: 'Next Window', shortcut: 'Ctrl+PageDown', enabled: function () { return openCount() > 1; }, run: function () { cycleWindows(1); } });
   C.register({ id: 'window-previous', glyph: 'back', menu: 'window', mnemonic: 'V', label: 'Previous Window', shortcut: 'Ctrl+PageUp', enabled: function () { return openCount() > 1; }, run: function () { cycleWindows(-1); } });
   C.register({ id: 'window-sep-1', menu: 'window', separator: true });

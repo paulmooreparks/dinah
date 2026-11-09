@@ -692,6 +692,8 @@
       saveAs: saveAs,
       close: function () { window.pudlWindows.close(key); },
       discard: discard,
+      // The applet's File menu has Save and Close Document of its own.
+      ownsFile: true,
       canAttach: canAttach,
       insertImages: function () { return pickFiles(true); },
       attachFiles: function () { return pickFiles(false); }
@@ -702,9 +704,16 @@
       ready: ready,
       check: check,
       flush: flush,
+      /* The applet's own menus, and after them Dinah's Document menu, whose
+         rows are the registry's (documents.js): what the applet's File menu
+         has not, such as Rename, Insert Image, Attach File and Discard
+         Draft. Alt+M opens it (O is Workspaces' letter). */
       menus: function () {
         var src = mount && window.pudlApplets.menuSourceIn(mount);
-        return src && src.menus ? src.menus() || { titles: [] } : { titles: [] };
+        var own = src && src.menus ? src.menus() || { titles: [] } : { titles: [] };
+        var rows = window.dinahCommands ? window.dinahCommands.rows('document') : [];
+        if (!rows.length) return own;
+        return { titles: (own.titles || []).concat([{ id: 'document', label: 'Document', mnemonic: 'M', glyph: 'document', items: rows }]) };
       },
       destroy: function () {
         disposed = true;

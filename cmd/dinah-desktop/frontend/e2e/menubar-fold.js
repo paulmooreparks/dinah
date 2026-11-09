@@ -14,7 +14,7 @@ const { launch } = require('./lib/page');
   const { page: p, ok } = t;
   try {
     await p.locator('[data-win="workspace"]').waitFor({ state: 'attached' });
-    const names = ['Documents', 'View', 'Tools', 'Window', 'Help'];
+    const names = ['Workspaces', 'Documents', 'View', 'Window', 'Help'];
     const titles = () => p.evaluate(names => names.map(n => {
       const b = [...document.querySelectorAll('.menubar-title')].find(t => (t.getAttribute('aria-label') || t.textContent).trim().startsWith(n) || (t.title || '').startsWith(n));
       if (!b) return { n, found: false };

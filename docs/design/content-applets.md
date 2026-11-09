@@ -167,6 +167,10 @@ The built-in Editor kept an image pasted or a file dropped into a document, or c
 
 The broker admitted an SVG artifact only when it was rectangles and text with a handful of attributes, the shapes an early test applet drew, so every drawing from Diagrams' `render@1` was refused and only PNG came through. The check is now a set of rules rather than a list of shapes: one SVG document, elements in the SVG namespace (and XHTML inside `foreignObject`, as Mermaid draws its labels), nothing that runs code, loads another document or takes input, no event handlers, references only to a part of the drawing or to data it carries (a picture or an embedded font), styles with no imports and the same rule for `url()`, and no declarations in the prologue beyond the XML declaration. A real D2 rendering, with its nested `svg`, masks, markers, classes and embedded fonts, passes; the refusals are tested one by one. The artifact window shows an SVG as an image, where none of those would act anyway; the check is for the file a person saves and opens elsewhere.
 
+### The Document menu, 9 November 2026
+
+Dinah's document commands (Save, Save As…, Rename…, Close Document, Discard Draft…, and now Insert Image… and Attach File…) were in a Document menu the built-in Editor drew in its own window's bar; with that Editor gone, no window drew it, and the commands were reachable only from command search and by their keys. A content window's menus are the applet's own (File, Edit, Insert and so on), and Dinah's Document menu now follows them in the bar, with the letter M since O is Workspaces'. The applet's File menu has Save (Ctrl+S) and Close Document of its own, so those two registry rows stand aside for a content window rather than appear twice; Save As… stays, since its key (Ctrl+Shift+S) is Dinah's. Window › Previous Document took the letter U, since P was PUDL's Pin to Taskbar's. The keyboard and documents-menu browser suites, which tested the removed Editor's keys and menus, now test this arrangement: the applet's keys reach the bar once each, Ctrl+S saves through the applet's File menu, and the Document menu's rows are in order with their keys.
+
 ## Still to do
 
 - v0.2.52 is pinned, with #66 (page furniture kept while typing) and #67 (the Insert menu's shortcodes cached, and hosts told of a command change only when a command's state changes). Dinah's interim once-a-quarter-second memo of the applets' menu items went with it.
@@ -176,4 +180,4 @@ The broker admitted an SVG artifact only when it was rectangles and text with a 
 - Customising the toolbar, and Slides' presenter window and its `fs.save` export.
 - An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
 - A new document's window is "Untitled.d2" in Diagrams and "Untitled.slides.md" in Slides, from the application showing it; the person's Save As still picks the file's real name.
-- The browser suites keyboard and documents-menu, which failed before the change for other reasons, still test the removed Editor's own keys and menus and need rewriting for the yavc.app Editor.
+- Ctrl+O is bound twice in the bar, to Documents › Open… and to the applets' File › Open…; both open Dinah's picker, so nothing is lost, but one of the two rows should give the key up (a PUDL or yavc.app matter).
