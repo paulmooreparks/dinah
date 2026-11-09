@@ -70,6 +70,12 @@
     function changed() {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(save, SAVE_DELAY);
+      /* A window holds one document, so closing it (File › Close
+         Document) closes the window. The applet then holds a blank
+         document of its own, which no draft stands behind. */
+      current().then(function (doc) {
+        if ((!doc || !doc.path) && !disposed && mount) { allowClose = true; window.pudlWindows.close(key); }
+      }).catch(function () {});
     }
     function flush() { clearTimeout(saveTimer); return save(); }
 
@@ -254,31 +260,35 @@
       return current().then(retitle);
     });
 
-    /* Save As puts the draft somewhere new; the applet then reads it again,
-       under its new name. */
+    /* Documents › Save As runs the applet's own Save As, which asks Dinah
+       for the file (content-host.js), so the window keeps its undo history. */
     function saveAs() {
-      return flush().then(function () { return Promise.resolve(api().GetDraft(draft.id)); }).then(function (v) {
-        draft = v;
-        var start = window.dinahResources ? window.dinahResources.currentPath() : '/';
-        return window.dinahFilePicker.pick({ mode: 'save', title: 'Save As', start: start, name: v.origin.path ? v.origin.path.split('/').pop() : (v.title || 'Untitled') + '.md',
-          saveKind: window.dinahResources ? window.dinahResources.documentHomes() : undefined,
-          commit: function (choice) {
-            if (!choice.dir) return false;
-            var ref = choice.dir.ref;
-            var target = { workspaceId: ref.workspaceId, sourceId: ref.sourceId, path: (ref.path && ref.path !== '.' ? ref.path + '/' : '') + choice.name };
-            return Promise.resolve(api().SaveDraftAs(draft.id, draft.revision, target)).then(function (saved) {
-              draft = saved;
-              unmountApplet();
-              /* The applet's recovery snapshot is of the document under its
-                 old name, so it starts again from the draft. */
-              window.dinahContentHost.clearSnapshot(key);
-              window.dinahContentHost.forget(resource);
-              mountApplet();
-              return current().then(retitle).then(function () { return true; });
-            });
-          } });
+      return flush().then(function () {
+        if (!mount) return;
+        return window.pudlCommands.run('save-as', undefined, mount, { owner: { kind: 'person' } });
       }).catch(failed);
     }
+    /* After Save As the draft has a new file, and its resource a new name. */
+    function renamed(e) {
+      var d = e.detail || {};
+      if (d.draft !== draft.id || disposed) return;
+      draft = d.view;
+      resource = d.resource;
+      if (mount) mount.dataset.contentResource = resource;
+      current().then(retitle).catch(function () {});
+    }
+    document.addEventListener('dinah:content-renamed', renamed);
+    /* An agent's save to a new file moves the draft; the window mounts the
+       applet afresh on it. */
+    function remount(e) {
+      var d = e.detail || {};
+      if (d.key !== key || disposed) return;
+      draft = d.view;
+      unmountApplet();
+      mountApplet();
+      current().then(retitle).catch(function () {});
+    }
+    document.addEventListener('dinah:content-remount', remount);
 
     var controller = {
       key: key,
@@ -308,6 +318,8 @@
         clearTimeout(saveTimer);
         if (window.dinahDocuments) window.dinahDocuments.detach(key);
         root.removeEventListener('dinah:content-changed', changed);
+        document.removeEventListener('dinah:content-renamed', renamed);
+        document.removeEventListener('dinah:content-remount', remount);
         unsubscribe();
         clearInterval(watchTimer);
         if (win) win.removeEventListener('pudl:window-closing', closingWindow);
@@ -360,6 +372,23 @@
     });
   }
   function openResource(ref) { return Promise.resolve(api().OpenDraft(ref)).then(function (v) { return open(v); }); }
+  /* Open shows Dinah's file picker in the current workspace, as Dinah's
+     Editor does; the field also takes a path on the computer, and a file
+     outside every workspace's folders opens as a new document. */
+  function openDocument(app) {
+    var currentWs = host() && host().workspaceId();
+    function workspaceOf(choice) { return choice.dir && choice.dir.ref && choice.dir.ref.workspaceId || currentWs; }
+    return window.dinahFilePicker.pick({ mode: 'open', title: 'Open',
+      commit: function (choice) {
+        if (choice.node) return Promise.resolve(api().OpenDraft(choice.node.ref)).then(function (v) { return open(v, app); });
+        return Promise.resolve(choice.reference ? api().OpenComputerFile(workspaceOf(choice), choice.reference) : api().OpenComputerDocument(workspaceOf(choice))).then(function (v) {
+          if (!v || !v.id) return false;
+          if (v.origin.kind === 'new') host().toast('"' + v.title + '" is not in the folder of any workspace, so it opened as a new document. Save As puts it where you choose.', 'warn');
+          return open(v, app);
+        });
+      } }).catch(function (err) { host().toast(message(err), 'danger'); });
+  }
+
   function newDocument(workspaceId, text, app) {
     return Promise.resolve(api().NewEmptyDraft(workspaceId || (host() && host().workspaceId()) || '')).then(function (v) {
       if (!text) return v;
@@ -476,6 +505,24 @@
           });
         }).then(function (doc) { return { output: doc }; });
       }
+      /* Saving to a path is Save As of the window's document to a new
+         file in the workspace; a file that is there is never replaced. */
+      if (op === 'save' && input.path) {
+        var saveKey = frontWindow(app, rec), target = workspaceRef(rec, input.path);
+        return window.dinahWorkbench.ready(saveKey).then(function () {
+          return window.dinahContentHost.accept(saveKey, { operation: 'document', input: {} });
+        }).then(function (r) {
+          var draftId = (itemOfWindow(saveKey) || {}).path;
+          return Promise.resolve(api().GetDraft(draftId)).then(function (v) {
+            return api().UpdateDraft(v.id, v.revision, r.output.text);
+          }).then(function (v) { return api().SaveDraftAs(v.id, v.revision, target); });
+        }).then(function (saved) {
+          var resource = window.dinahContentHost.resourceFor(saved);
+          window.dinahContentHost.clearSnapshot(saveKey);
+          document.dispatchEvent(new CustomEvent('dinah:content-remount', { detail: { key: saveKey, view: saved, resource: resource } }));
+          return window.dinahWorkbench.ready(saveKey).then(function () { return firstDocument(saveKey); });
+        }).then(function (doc) { return { output: doc }; });
+      }
       if (!args.live) {
         return window.pudlApplets.invoke(args.action, input, { owner: { kind: 'agent' }, grant: 'all' }).then(function (record) {
           if (record.status !== 'done') throw new Error(record.error || args.action + ' ended ' + record.status + '.');
@@ -498,7 +545,7 @@
 
   function enabled() { return !!(window.dinahUIState && window.dinahUIState.get('content-editor', false)); }
 
-  window.dinahContentWindows = { open: open, openResource: openResource, newDocument: newDocument, route: route, enabled: enabled, kindOf: kindOf };
+  window.dinahContentWindows = { open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, enabled: enabled, kindOf: kindOf };
 
   /* While the new Editor is chosen, the ways into the Editor open it. */
   var own = window.dinahEditor;
@@ -506,7 +553,8 @@
     window.dinahEditor = Object.assign({}, own, {
       open: function (v, intent) { return enabled() ? open(v) : own.open(v, intent); },
       openResource: function (ref, intent) { return enabled() ? openResource(ref) : own.openResource(ref, intent); },
-      newDocument: function () { return enabled() ? newDocument().catch(function (err) { host().toast(message(err), 'danger'); }) : own.newDocument(); }
+      newDocument: function () { return enabled() ? newDocument().catch(function (err) { host().toast(message(err), 'danger'); }) : own.newDocument(); },
+      openDocument: function () { return enabled() ? openDocument() : own.openDocument(); }
     });
   }
 })();

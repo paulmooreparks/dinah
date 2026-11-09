@@ -65,7 +65,12 @@
     var all = names(), o = v.origin || {};
     var base = o.path ? (workspaceName(o.workspaceId) ? workspaceName(o.workspaceId) + '/' : '') + o.path : (v.title || 'Untitled') + ' (not saved)';
     var name = base, n = 1;
-    while (all[name] && all[name] !== v.id) name = base + ' (' + (++n) + ')';
+    /* A name a window shows now stays that window's; one left by a window
+       that is gone, such as after a crash, is taken over. */
+    function shown(resource) {
+      return Array.prototype.some.call(document.querySelectorAll('.content-applet'), function (m) { return m.dataset.contentResource === resource; });
+    }
+    while (all[name] && all[name] !== v.id && shown(name)) name = base + ' (' + (++n) + ')';
     Object.keys(all).forEach(function (k) { if (all[k] === v.id && k !== name) delete all[k]; });
     if (all[name] !== v.id) { all[name] = v.id; window.dinahUIState.set(NAMES, all); }
     return name;
@@ -203,9 +208,97 @@
 
   /* The api a window's applet bound, for an agent's action routed to that
      window by Dinah (content-windows.js). */
-  function accept(key, request) { return boundApi(key).then(function (target) { return target.accept(request); }); }
+  function accept(key, request) {
+    if (window.pudlWindows.state().open.indexOf(key) < 0) return Promise.reject(new Error('The window of that document has closed.'));
+    var settle = bound.has(key) ? boundApi(key) : Promise.race([boundApi(key), new Promise(function (resolve, reject) {
+      setTimeout(function () { reject(new Error('The window of the document did not start.')); }, 30000);
+    })]);
+    return settle.then(function (target) { return target.accept(request); });
+  }
 
   /* ---- Installation ------------------------------------------------------- */
+
+  /* ---- Save As and Open -------------------------------------------------
+     Both are Dinah's own, through its file picker and the draft service
+     (yavc.app content-creation-contract.md). Save As moves the window's
+     draft to the file chosen, as Dinah's Editor does, so the window keeps
+     its document; Open opens the chosen document in a window of its own,
+     never as a second document in the asking window. */
+
+  function windowItem(el) {
+    var win = el && el.closest && el.closest('[data-win]');
+    var root = win && win.querySelector('[data-item]');
+    try { return root ? JSON.parse(root.dataset.item) : null; } catch (e) { return null; }
+  }
+  function message(err) { return String(err && err.message || err).replace(/^Error: /, ''); }
+
+  /* Save As starts in the folder of the document's file, as in Dinah's
+     Editor, or for a new document where the person is. */
+  function startFolder(v) {
+    var here = window.dinahResources ? window.dinahResources.currentPath() : '/';
+    var o = v.origin || {};
+    if (!o.path || !api().ResolveWorkspaceResourceMount) return Promise.resolve(here);
+    return Promise.resolve(api().ResolveWorkspaceResourceMount({ workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path })).then(function (item) {
+      return item.path.slice(0, item.path.lastIndexOf('/')) || '/';
+    }).catch(function () { return here; });
+  }
+
+  function saveAs(request, context) {
+    var id = names()[String(request.sourceResource || '')];
+    var item = windowItem(context && context.host);
+    if (!id && item) id = item.path;
+    if (!id) return Promise.reject(new Error('The document to save is not one Dinah knows.'));
+    var draftView = null;
+    return Promise.resolve(api().GetDraft(id)).then(function (v) {
+      draftView = v;
+      return startFolder(v);
+    }).then(function (start) {
+      var v = draftView, done = null;
+      return window.dinahFilePicker.pick({ mode: 'save', title: 'Save As', start: start, name: request.name || nameOf(v),
+        saveKind: window.dinahResources ? window.dinahResources.documentHomes() : undefined,
+        commit: function (choice) {
+          var name = choice.computer || choice.name;
+          var problem = context && context.checkName ? context.checkName(name) : null;
+          if (problem) throw new Error(typeof problem === 'string' ? problem : message(problem));
+          return Promise.resolve(api().GetDraft(id)).then(function (latest) {
+            return api().UpdateDraft(id, latest.revision, String(request.text));
+          }).then(function (updated) {
+            /* A copy on the computer is only a copy: the window stays with
+               its document. */
+            if (choice.computer) {
+              var ws = updated.origin.workspaceId || (window.dinahHost && window.dinahHost.workspaceId());
+              return Promise.resolve(api().ChooseComputerSavePath(ws, choice.computer)).then(function (path) {
+                if (!path) return false;
+                return Promise.resolve(api().SaveDraftToComputer(id, path, false)).then(function () {
+                  if (window.dinahHost) window.dinahHost.toast('Saved a copy.', 'info');
+                  return true;
+                });
+              });
+            }
+            var ref = choice.dir.ref;
+            var target = { workspaceId: ref.workspaceId, sourceId: ref.sourceId, path: (ref.path && ref.path !== '.' ? ref.path + '/' : '') + choice.name };
+            return Promise.resolve(api().SaveDraftAs(id, updated.revision, target)).then(function (saved) {
+              var resource = resourceFor(saved);
+              known.set(resource, saved.revision);
+              document.dispatchEvent(new CustomEvent('dinah:content-renamed', { detail: { draft: saved.id, resource: resource, view: saved } }));
+              done = { resource: resource, revision: saved.revision, name: nameOf(saved), writable: true };
+              return true;
+            });
+          });
+        } }).then(function () { return done; });
+    });
+  }
+
+  /* The file service the applets use only for Open (fs.open). It opens
+     the chosen document in a window of its own and tells the applet that
+     nothing was chosen for it. */
+  var fs = {
+    open: function (options) {
+      var mount = options && options.host && options.host.closest && options.host.closest('[data-applet]');
+      var app = mount ? mount.getAttribute('data-applet') : 'editor';
+      return window.dinahContentWindows.openDocument(app).then(function () { return null; });
+    }
+  };
 
   function fileServices() {
     return { files: { read: function (resource) { return read({ resource: resource }).then(function (r) { return r.text; }); } } };
@@ -217,7 +310,7 @@
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
       contentWorkspace: { version: 1, directory: function () { return null; } },
-      contentResources: { version: 1, read: read, write: write },
+      contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows
     });
     window.pudlApplets.capability('files.read', fileServices);
