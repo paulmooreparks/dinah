@@ -557,6 +557,9 @@
     return function (dir) {
       if (!dir.ref) return { why: 'Read-only. Open a workspace, or your home folder, to save the document in one of its folders.' };
       if (dir.writable) return { kind: 'file' };
+      // A folder of a source that makes its own documents, such as a page
+      // on a site, takes a new document by its title.
+      if (dir.creates) return { kind: 'file' };
       // The workspace itself is the list of what is mounted in it, as a
       // workspace is in an editor, and takes no file of its own.
       if (dir.kind === 'workspace') return { why: 'Read-only. Open one of the workspace’s folders to save the document there.' };

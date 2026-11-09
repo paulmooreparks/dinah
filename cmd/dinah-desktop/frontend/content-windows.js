@@ -174,12 +174,16 @@
        read by others as soon as it is written. The applet's text goes into
        the draft first, and the draft service refuses the write when the page
        moved on since it was opened. */
+    function unsentComments() { return !!(comments && comments.unsent()); }
     function publish() {
       return flush().then(function () { return api().GetDraft(draft.id); }).then(function (v) {
         draft = v;
-        if (!v.changed) { if (host()) host().toast('"' + (v.title || 'The document') + '" has no changes to publish.', 'info'); return v; }
+        var sendsComments = unsentComments();
+        if (!v.changed && !sendsComments) { if (host()) host().toast('"' + (v.title || 'The document') + '" has no changes to publish.', 'info'); return v; }
         var where = window.dinahWorkspaceBrowser && v.origin ? window.dinahWorkspaceBrowser.describe(v.origin) : '';
-        return host().ask('Publish This Document?', 'Your changes to "' + (v.title || 'the document') + '" are written to its page' + (where ? ' (' + where + ')' : '') + ', where everyone who reads the page sees them at once.', 'Publish', false).then(function (go) {
+        var what = v.changed ? 'Your changes to "' + (v.title || 'the document') + '" are written to its page' + (where ? ' (' + where + ')' : '') + ', where everyone who reads the page sees them at once.' : 'The comments you wrote on "' + (v.title || 'the document') + '" are sent to its page' + (where ? ' (' + where + ')' : '') + ', where everyone who reads the page sees them.';
+        if (v.changed && sendsComments) what += ' The comments you wrote go with them.';
+        return host().ask('Publish This Document?', what, 'Publish', false).then(function (go) {
           if (!go || disposed) return v;
           return Promise.resolve(api().SaveDraft(v.id, v.revision)).then(function (saved) {
             draft = saved.view || saved;
@@ -188,12 +192,14 @@
               host().toast('"' + (draft.title || 'The document') + '" was published.', 'success');
               (saved.notes || []).forEach(function (note) { host().toast(note, 'info'); });
             }
+            if (comments) comments.reload();
             return current().then(retitle).then(function () { return draft; });
           });
         });
       }).catch(failed);
     }
 
+    var body = null, commentsAside = null, comments = null;
     function mountApplet() {
       mount = document.createElement('div');
       mount.className = 'content-applet';
@@ -202,7 +208,18 @@
       resource = window.dinahContentHost.resourceFor(draft);
       mount.dataset.contentResource = resource;
       if (presenter) mount.dataset.contentPresenter = presenterChannels.get(draft.id);
-      root.appendChild(mount);
+      /* The applet and the document's comment margin (document-comments.js)
+         share a row; the margin is hidden until there is a comment. */
+      if (!body) {
+        body = document.createElement('div'); body.className = 'content-body';
+        root.appendChild(body);
+      }
+      body.appendChild(mount);
+      if (!commentsAside && !presenter && !opts.embedded && window.dinahDocumentComments) {
+        commentsAside = document.createElement('aside'); commentsAside.className = 'content-comments'; commentsAside.setAttribute('aria-label', 'Comments');
+        body.appendChild(commentsAside);
+        comments = window.dinahDocumentComments.mount(commentsAside, { draftId: draft.id, api: api, host: host, applet: body, flush: flush, changed: function () { if (window.pudlCommands) window.pudlCommands.changed(); } });
+      }
       /* The applet reports its state (file, view and caret line) at every
          change, and the workbench keeps every window's state in the address
          and the saved layout, so the caret moving a line wrote the layout
@@ -588,7 +605,7 @@
 
     var comparison = null;
     function checkMoved(afterRefusal) {
-      if (!draft.origin || draft.origin.kind === 'new' || draft.writeBack !== 'save' || disposed) return Promise.resolve();
+      if (!draft.origin || draft.origin.kind === 'new' || (draft.writeBack !== 'save' && draft.writeBack !== 'publish') || disposed) return Promise.resolve();
       return Promise.resolve(api().CompareDraft(draft.id)).then(function (c) {
         if (disposed) return;
         if (!c.moved) { $('moved').hidden = true; comparison = null; return; }
@@ -610,7 +627,7 @@
       }).catch(function () { /* The next check tries again. */ });
     }
     function showMoved(n, afterRefusal) {
-      $('moved-body').textContent = '"' + (draft.title || 'This document') + '" was changed on disk since you opened it' + (afterRefusal ? ', so your changes were not saved. ' : '. ') +
+      $('moved-body').textContent = '"' + (draft.title || 'This document') + '" was changed ' + (draft.writeBack === 'publish' ? 'at its source' : 'on disk') + ' since you opened it' + (afterRefusal ? ', so your changes were not ' + (draft.writeBack === 'publish' ? 'published. ' : 'saved. ') : '. ') +
         (n ? 'You both changed ' + (n === 1 ? 'one part' : n + ' parts') + ' of it. Change your text to settle ' + (n === 1 ? 'it' : 'them') + ', and their other changes can then be brought in.' :
           'Your changes and theirs do not touch, so theirs can be brought into your draft.');
       $('bring').hidden = n > 0;
@@ -786,11 +803,13 @@
       key: key,
       ref: function () { var o = draft.origin || {}; return o.path ? { workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path } : null; },
       saveLabel: function () { return draft.origin && draft.origin.kind === 'new' ? 'Save As…' : draft.writeBack === 'publish' ? 'Publish…' : 'Save'; },
-      canSave: function () { return draft.writeBack !== 'publish' || !!draft.changed; },
-      whyNot: function () { return draft.writeBack === 'publish' && !draft.changed ? 'There are no changes to publish.' : ''; },
+      canSave: function () { return draft.writeBack !== 'publish' || !!draft.changed || unsentComments(); },
+      whyNot: function () { return draft.writeBack === 'publish' && !draft.changed && !unsentComments() ? 'There are no changes to publish.' : ''; },
       // A document that publishes offers Publish… in the Document menu.
-      canPublish: function () { return draft.writeBack === 'publish' ? !!draft.changed : null; },
+      canPublish: function () { return draft.writeBack === 'publish' ? !!draft.changed || unsentComments() : null; },
       publish: publish,
+      // The document's comments (document-comments.js).
+      comments: function () { return comments; },
       canRename: function () { return !!draft.origin && draft.origin.kind === 'local-folder'; },
       rename: rename,
       save: function () { return draft.origin && draft.origin.kind === 'new' ? saveAs() : draft.writeBack === 'publish' ? publish() : flush(); },
@@ -822,6 +841,7 @@
         return { titles: (own.titles || []).concat([{ id: 'document', label: 'Document', mnemonic: 'M', glyph: 'document', items: rows }]) };
       },
       destroy: function () {
+        if (comments) { comments.destroy(); comments = null; }
         disposed = true;
         clearTimeout(saveTimer);
         clearTimeout(problemsTimer);

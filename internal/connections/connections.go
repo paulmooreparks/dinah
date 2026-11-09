@@ -26,7 +26,7 @@ type Settings struct {
 
 // Connection is one registered service.
 type Connection struct {
-	// Label is the service's name as people see it, such as "Confluence".
+	// Label is the service's name as people see it, such as "Wiki".
 	Label string
 	// Help is shown under the label: what the connection is for and where
 	// the token comes from.

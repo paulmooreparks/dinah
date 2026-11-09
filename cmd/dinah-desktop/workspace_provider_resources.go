@@ -42,8 +42,15 @@ func providerSourceItem(record WorkspaceRecord, source WorkspaceSource) Resource
 	return item
 }
 
+// creates says whether a provider makes new documents, so that its folders
+// are offered as places to save one.
+func creates(p any) bool {
+	_, ok := p.(resource.DocumentCreator)
+	return ok
+}
+
 // providerItem is a provider's entry as the Files applet shows it.
-func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry) ResourceItem {
+func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry, makes bool) ResourceItem {
 	ref := parent
 	ref.Path = path.Join(parent.Path, e.Name)
 	item := ResourceItem{Ref: ref, Title: e.Title, Kind: e.Kind, Directory: e.Folder, Revision: e.Revision, URL: e.URL, Actions: []string{}}
@@ -60,6 +67,7 @@ func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry) 
 	if !e.Folder {
 		item.Size = e.Size
 	}
+	item.Creates = makes && e.Folder && e.Document
 	switch {
 	case e.Folder && e.Document:
 		item.Actions = append(item.Actions, "list", "read", "preview", "edit")
@@ -109,8 +117,9 @@ func (s workspaceResourceService) listProvider(ref ResourceRef, source Workspace
 		out.NextStart = start + limit
 		entries = entries[:limit]
 	}
+	makes := creates(p)
 	for _, e := range entries {
-		out.Entries = append(out.Entries, providerItem(ref, source, e))
+		out.Entries = append(out.Entries, providerItem(ref, source, e, makes))
 	}
 	return out, nil
 }
@@ -125,12 +134,14 @@ func providerSortName(e resource.Entry) string {
 // statProvider describes one entry of a source through its provider: the
 // source's own row at the root, else the entry as its folder lists it.
 func (s workspaceResourceService) statProvider(record WorkspaceRecord, ref ResourceRef, source WorkspaceSource) (ResourceItem, error) {
-	if ref.Path == "" || ref.Path == "." {
-		return providerSourceItem(record, source), nil
-	}
 	p, err := s.providerOf(source)
 	if err != nil {
 		return ResourceItem{}, err
+	}
+	if ref.Path == "" || ref.Path == "." {
+		item := providerSourceItem(record, source)
+		item.Creates = creates(p)
+		return item, nil
 	}
 	lister, ok := p.(resource.Lister)
 	if !ok {
@@ -152,7 +163,7 @@ func (s workspaceResourceService) statProvider(record WorkspaceRecord, ref Resou
 	name := path.Base(ref.Path)
 	for _, e := range entries {
 		if e.Name == name {
-			return providerItem(parent, source, e), nil
+			return providerItem(parent, source, e, creates(p)), nil
 		}
 	}
 	return ResourceItem{}, resourceErrorText(resource.ErrNotFound)

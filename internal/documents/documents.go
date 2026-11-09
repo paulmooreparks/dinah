@@ -179,6 +179,8 @@ func (o Ops) Save(id, expected string) (Saved, error) {
 	if err != nil {
 		return Saved{}, ErrorText(err)
 	}
+	// The document's threads that its site has not seen go with the write.
+	notes = append(notes, o.sendComments(d)...)
 	if notes == nil {
 		notes = []string{}
 	}
@@ -198,6 +200,7 @@ func (o Ops) SaveAs(id, expected string, ref workspaces.Ref) (Saved, error) {
 		return Saved{}, err
 	}
 	origin := drafts.Origin{Kind: source.Kind, WorkspaceID: ref.WorkspaceID, SourceID: ref.SourceID, Path: ref.Path}
+	before, _ := o.Draft(id)
 	d, notes, err := o.Drafts.SaveAs(o.Ctx, id, expected, origin)
 	if errors.Is(err, resource.ErrConflict) {
 		return Saved{}, errors.New("something already exists there; choose another name")
@@ -208,6 +211,11 @@ func (o Ops) SaveAs(id, expected string, ref workspaces.Ref) (Saved, error) {
 	if err != nil {
 		return Saved{}, ErrorText(err)
 	}
+	// The draft's threads go with it to its new home, and to its site.
+	if before.ID != "" {
+		o.moveThreads(before, d)
+	}
+	notes = append(notes, o.sendComments(d)...)
 	if notes == nil {
 		notes = []string{}
 	}

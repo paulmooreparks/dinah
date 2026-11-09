@@ -41,6 +41,10 @@
   var EXTENSIONS = { diagrams: '.d2', slides: '.slides.md' };
   function nameOf(v, resource) {
     var own = baseName(v.origin && v.origin.path);
+    // A document of a folder is named by its file; a document of another
+    // kind of source (a page on a site) by its title, with the Markdown
+    // extension the applet reads the format from.
+    if (own && v.origin && v.origin.kind !== 'local-folder' && v.title && !/\.[A-Za-z0-9]{1,8}$/.test(own)) own = '';
     if (own) return own;
     var title = v.title || 'Untitled';
     if (/\.[A-Za-z0-9]{1,8}$/.test(title)) return title;
@@ -307,7 +311,16 @@
             }
             var ref = choice.dir.ref;
             var target = { workspaceId: ref.workspaceId, sourceId: ref.sourceId, path: (ref.path && ref.path !== '.' ? ref.path + '/' : '') + choice.name };
-            return Promise.resolve(api().SaveDraftAs(id, updated.revision, target)).then(function (saved) {
+            var titled = Promise.resolve(updated);
+            /* A source that makes its own documents (a page on a site)
+               takes the new document under the chosen folder, titled with
+               the name given, without the file extension. */
+            if (choice.dir.creates && !choice.dir.writable) {
+              target.path = ref.path && ref.path !== '.' ? ref.path : '';
+              var pageTitle = String(choice.name || '').replace(/\.(md|markdown)$/i, '').trim() || updated.title || 'Untitled';
+              titled = Promise.resolve(api().RetitleDraft(id, updated.revision, pageTitle));
+            }
+            return titled.then(function (ready) { return api().SaveDraftAs(id, ready.revision, target); }).then(function (saved) {
               var resource = resourceFor(saved);
               known.set(resource, saved.revision);
               document.dispatchEvent(new CustomEvent('dinah:content-renamed', { detail: { draft: saved.id, resource: resource, view: saved } }));

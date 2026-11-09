@@ -4,7 +4,28 @@
 .content-window { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .content-window > .content-notices { flex: none; }
 .content-window > .content-notices > .notice { margin: var(--space-2) var(--space-3) 0; }
-.content-window > .content-applet { flex: 1 1 auto; min-height: 0; }
+.content-window > .content-body { flex: 1 1 auto; min-height: 0; display: flex; }
+.content-window > .content-body > .content-applet { flex: 1 1 auto; min-width: 0; min-height: 0; }
+/* The document's comment margin (document-comments.js), beside the applet,
+   hidden until there is a comment. */
+.content-comments { flex: 0 0 clamp(14rem, 30%, 22rem); min-height: 0; overflow: auto; padding: var(--space-2) var(--space-3); background: var(--surface-alt); border-inline-start: 1px solid var(--border); font-size: var(--text-sm); }
+.document-comments-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
+.document-comments-count { color: var(--text-muted); }
+.document-comments-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.document-comment { padding: var(--space-2) var(--space-3); }
+.document-comment[data-current] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.document-comment[data-resolved] { opacity: .8; }
+.document-comment-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--text-xs); margin-bottom: var(--space-1); }
+.document-comment-state { color: var(--text-muted); }
+.document-comment-quote { display: block; width: 100%; margin: 0 0 var(--space-2); padding: 0; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-style: italic; text-align: start; cursor: pointer; overflow-wrap: anywhere; }
+button.document-comment-quote:hover { color: var(--text); }
+.document-comment-lost { margin: 0 0 var(--space-2); color: var(--warn); }
+.document-comment-message { margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
+.document-comment-when { color: var(--text-muted); font-size: var(--text-xs); }
+.document-comment-text { white-space: pre-wrap; }
+.document-comment-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+.document-comment-reply { display: flex; flex-direction: column; gap: var(--space-2); }
+.document-comment-reply .form-textarea, .document-comment-new .form-textarea { width: 100%; box-sizing: border-box; margin-bottom: var(--space-2); }
 
 /* The suggestions an agent made, above the document: the text a suggestion
    would remove struck through in the danger colour, the text it would put

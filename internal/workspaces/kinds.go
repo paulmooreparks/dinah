@@ -37,6 +37,12 @@ type SourceKind struct {
 	// supports. Nil, a source of the kind has no provider, and what asks
 	// for one is told resource.ErrUnsupported.
 	Provider func(r Resolver, ctx context.Context, s Source) (any, error)
+	// DocumentKey is the identity of a document of a source of this kind
+	// whose comment threads are kept (internal/threads), when the source
+	// gives its documents one of their own, such as a page's ID on its
+	// site, which stays when the page is renamed or moved. Nil, a document
+	// is known by its kind, workspace, source and path.
+	DocumentKey func(s Source, path string) string
 	// Read checks a source of this kind as an export file has it, and
 	// returns it cleaned, or an error that says what is wrong with it. Nil
 	// accepts any source that is not marked as the main folder.
@@ -207,3 +213,15 @@ const LocalFolder = "local-folder"
 
 // IsLocalSource includes the older desktop spelling while registries migrate.
 func IsLocalSource(source Source) bool { return source.Kind == LocalFolder || source.Kind == "local" }
+
+// DocumentKey is the identity of a document whose comment threads are kept:
+// the one its source's kind gives it, or its kind, workspace, source and
+// path.
+func DocumentKey(s Source, path string) string {
+	if k, ok := LookupSourceKind(s.Kind); ok && k.DocumentKey != nil {
+		if key := k.DocumentKey(s, path); key != "" {
+			return key
+		}
+	}
+	return s.Kind + ":" + s.ID + "/" + path
+}

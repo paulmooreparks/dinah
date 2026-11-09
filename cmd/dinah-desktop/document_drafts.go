@@ -132,6 +132,21 @@ func (a *App) UpdateDraft(id, expected, text string) (drafts.View, error) {
 	return o.Update(id, expected, text, nil)
 }
 
+// RetitleDraft gives a draft a title, provided it is still at expected: the
+// title a new page is made with when the draft is saved to a source that
+// decides its documents' own places and names.
+func (a *App) RetitleDraft(id, expected, title string) (drafts.View, error) {
+	o, err := a.documentOps(a.bindingContext(), "")
+	if err != nil {
+		return drafts.View{}, err
+	}
+	d, err := o.Draft(id)
+	if err != nil {
+		return drafts.View{}, err
+	}
+	return o.Update(id, expected, d.Text, &title)
+}
+
 // SaveDraft writes a draft back to its resource; see drafts.Service.Save.
 func (a *App) SaveDraft(id, expected string) (DraftSaved, error) {
 	o, err := a.documentOps(a.bindingContext(), "")

@@ -52,6 +52,10 @@ type ResourceItem struct {
 	// an import kept for a build that does; nothing can be done with it
 	// here but removing it.
 	Unavailable bool `json:"unavailable,omitempty"`
+	// Creates marks a folder of a source that is not a folder of files, a
+	// page on a site for one, in which a new document can be made, so Save
+	// As offers it; the source decides the document's own place and name.
+	Creates bool `json:"creates,omitempty"`
 }
 type ResourcePage struct {
 	Entries   []ResourceItem `json:"entries"`

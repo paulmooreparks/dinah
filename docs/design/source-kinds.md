@@ -6,7 +6,7 @@ A workspace's sources have one built-in kind, a folder on this computer. A build
 
 `workspaces.RegisterSourceKind(kind, workspaces.SourceKind{…})` already told the workspace export and import what a build knows about a kind (docs/design/workspace-export.md). The same registration now carries three more things:
 
-- `Label` is the kind's name as people see it, "Confluence Page" for one.
+- `Label` is the kind's name as people see it, "Wiki Page" for one.
 - `Attach` is how the person adds a source of the kind: `Help` for the top of the form, `Fields` (text fields and check fields, with labels, placeholders, help lines, required marks and defaults) and `Build`, which takes the filled form, checks it, reaches the source's site when that is what checking takes, and returns the source with its `Kind`, `Name` and `Extra` set. A kind with a `Label` and an `Attach` is offered in the Add Source dialog; a kind without either can arrive only by import.
 - `Provider` builds the resource provider of a source of the kind: a value that offers the capabilities of `internal/resource` the source supports.
 

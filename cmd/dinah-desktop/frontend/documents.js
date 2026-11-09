@@ -109,6 +109,26 @@
     enabled: function () { return !suspended(['terminal']) && cur(function (c) { return !!c.canPublish && !!c.canPublish(); }, false); },
     reason: function () { return suspended(['terminal']) ? 'A Terminal is in front, and the key is its own.' : 'There are no changes to publish.'; },
     run: function () { return cur(function (c) { return c.publish(); }); } });
+  /* Comments (document-comments.js): a new one on the selected words, the
+     next and previous, and which are shown. The rows are drawn for a window
+     that has a comment margin. */
+  function commentsOf(c) { return c.comments ? c.comments() : null; }
+  function hasComments() { return cur(function (c) { return !!commentsOf(c); }, false); }
+  C.register({ id: 'documents-sep-comments', menu: 'document', separator: true, visible: hasComments });
+  C.register({ id: 'new-comment', glyph: 'comments', menu: 'document', mnemonic: 'N', label: 'New Comment…', shortcut: 'Ctrl+Alt+M', help: { label: 'Comment on the Selected Words…', key: 'Ctrl+Alt+M' },
+    visible: hasComments, reason: 'Open a document first.', enabled: hasComments,
+    run: function () { return cur(function (c) { return commentsOf(c).newComment(); }); } });
+  C.register({ id: 'next-comment', menu: 'document', mnemonic: 'X', label: 'Next Comment', shortcut: 'F8', visible: hasComments,
+    reason: 'There are no comments.', enabled: function () { return cur(function (c) { var m = commentsOf(c); return !!m && m.count() > 0; }, false); },
+    run: function () { return cur(function (c) { return commentsOf(c).next(); }); } });
+  C.register({ id: 'previous-comment', menu: 'document', mnemonic: 'E', label: 'Previous Comment', shortcut: 'Shift+F8', visible: hasComments,
+    reason: 'There are no comments.', enabled: function () { return cur(function (c) { var m = commentsOf(c); return !!m && m.count() > 0; }, false); },
+    run: function () { return cur(function (c) { return commentsOf(c).previous(); }); } });
+  C.register({ id: 'show-comments', menu: 'document', mnemonic: 'W', visible: hasComments,
+    label: function () { var s = window.dinahDocumentComments ? window.dinahDocumentComments.shown() : 'open'; return s === 'all' ? 'Show Open Comments Only' : s === 'off' ? 'Show Comments' : 'Show All Comments'; },
+    run: function () { var s = window.dinahDocumentComments.shown(); window.dinahDocumentComments.setShown(s === 'all' ? 'open' : s === 'off' ? 'open' : 'all'); } });
+  C.register({ id: 'hide-comments', menu: 'document', mnemonic: 'H', label: 'Hide Comments', visible: function () { return hasComments() && window.dinahDocumentComments.shown() !== 'off'; },
+    run: function () { window.dinahDocumentComments.setShown('off'); } });
   /* PUDL keeps one of two rows with one label, so this row stands aside
      while the row above reads Save As…. */
   C.register({ id: 'save-document-as', glyph: 'copy', menu: 'document', mnemonic: 'V', label: 'Save As…', shortcut: 'Ctrl+Shift+S',
