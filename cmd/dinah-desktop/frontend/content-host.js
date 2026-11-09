@@ -193,9 +193,7 @@
         return boundApi(routed.key).then(function (target) {
           /* A new document is already the new window's own; anything else
              is the request the window takes. */
-          var taken = routed.done ? target.accept({ operation: 'documents', input: {} }).then(function (r) {
-            return { output: (r.output.documents || [])[0] || null };
-          }) : target.accept(request);
+          var taken = routed.done ? window.dinahContentWindows.listed(routed.key).then(function (doc) { return { output: doc }; }) : target.accept(request);
           return Promise.resolve(taken).then(function (result) {
             if (!target.flush()) throw new Error('The new window could not keep its document for recovery.');
             return result;

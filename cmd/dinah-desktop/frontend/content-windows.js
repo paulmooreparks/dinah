@@ -33,6 +33,31 @@
     try { return root ? JSON.parse(root.dataset.item) : null; } catch (e) { return null; }
   }
 
+  /* ---- What a window holds -------------------------------------------------
+     Each application lists what it has open, and gives a document's text,
+     under actions of its own names: the Editor and Docs their documents,
+     Diagrams its diagrams, Slides its decks. These read them alike. */
+  var OPS = { editor: { list: 'documents', text: 'document' }, docs: { list: 'documents', text: 'document' },
+    diagrams: { list: 'diagrams', text: 'diagram' }, slides: { list: 'decks', text: 'text' } };
+  function appOfWindow(key) { var item = itemOfWindow(key); return item ? item.kind.replace(/^content-/, '') : 'editor'; }
+  /* The window's document as its application lists it, for an agent. */
+  function listed(key) {
+    var ops = OPS[appOfWindow(key)];
+    return window.dinahContentHost.accept(key, { operation: ops.list, input: {} }).then(function (r) { return ((r.output || {})[ops.list] || [])[0] || null; });
+  }
+  /* The same, in one shape for this file: its name, path, and whether it
+     has changes not yet saved. */
+  function shown(key) {
+    return listed(key).then(function (d) {
+      if (!d) return null;
+      var path = d.path || null;
+      return { name: d.name || d.title || (path ? String(path).split('/').pop() : 'Untitled'), path: path, modified: !!d.modified, readOnly: !!d.readOnly };
+    });
+  }
+  function textOf(key) {
+    return window.dinahContentHost.accept(key, { operation: OPS[appOfWindow(key)].text, input: {} }).then(function (r) { return (r.output || {}).text; });
+  }
+
   /* ---- One window ------------------------------------------------------ */
 
   function init(app, root, opts, item) {
@@ -42,7 +67,7 @@
     root.classList.add('content-window');
 
     function call(operation, input) { return window.dinahContentHost.accept(key, { operation: operation, input: input || {} }); }
-    function current() { return call('documents').then(function (r) { var docs = r.output.documents || []; return docs[0] || null; }); }
+    function current() { return shown(key); }
 
     function retitle(doc) {
       if (disposed || !doc) return;
@@ -269,8 +294,8 @@
         if (latest.revision === window.dinahContentHost.knownRevision(resource)) return checkMoved(false);
         /* The event may come from this window's own save, before the save's
            reply, so the text decides, not the order. */
-        return call('document').then(function (r) {
-          var doc = r.output;
+        return Promise.all([textOf(key), shown(key)]).then(function (both) {
+          var doc = both[1] && { text: both[0], modified: both[1].modified, name: both[1].name };
           if (doc && doc.text === latest.text) return checkMoved(false);
           if (doc && doc.modified) return showOutside();
           /* A change the person made here, by deciding a suggestion, is
@@ -464,19 +489,21 @@
      document opens as Settings › Markdown Opens In says: Visual is Docs,
      and Text, Split and Preview are the Editor in that view. A .docs.md
      document is always Docs's. Anything else is the Editor's, in Text.
+     D2, Mermaid and JSON Canvas files are Diagrams's.
      A document opened to read (a chat's chip, a double-click in Sources)
      is shown in the Editor's Preview, and one opened to edit as text in its
-     Text, as with the built-in Editor. Diagrams and Slides take their own
-     documents as they are adopted. */
+     Text, as with the built-in Editor. Slides takes its own documents when it
+     is adopted. */
   function markdown(v) {
     var o = v.origin || {};
     return o.kind === 'new' ? true : /\.(md|markdown)$/i.test(o.path || '');
   }
   function placeFor(v, intent) {
     var path = (v.origin && v.origin.path) || '';
-    if (/\.docs\.md$/i.test(path)) return { app: 'docs' };
-    if (!markdown(v)) return { app: 'editor' };
     if (intent === 'text') return { app: 'editor', view: 'text' };
+    if (/\.docs\.md$/i.test(path)) return { app: 'docs' };
+    if (/\.(d2|mmd|mermaid|canvas)$/i.test(path)) return { app: 'diagrams' };
+    if (!markdown(v)) return { app: 'editor' };
     if (intent === 'read') return { app: 'editor', view: 'preview' };
     var chosen = window.dinahDocumentViews ? window.dinahDocumentViews()['text/markdown'] : 'page';
     if (chosen === 'text' || chosen === 'split' || chosen === 'preview') return { app: 'editor', view: chosen };
@@ -609,9 +636,7 @@
     if (!key) throw new Error('No ' + TITLES[app] + ' document is open in this workspace; open one with yavc.' + app + '/open-file@1, or start one with yavc.' + app + '/new@1.');
     return key;
   }
-  function firstDocument(key) {
-    return window.dinahContentHost.accept(key, { operation: 'documents', input: {} }).then(function (r) { return (r.output.documents || [])[0]; });
-  }
+  function firstDocument(key) { return listed(key); }
   function encodeData(data) {
     return Promise.resolve(data instanceof Blob ? data.arrayBuffer() : data).then(function (d) {
       var bytes = typeof d === 'string' ? new TextEncoder().encode(d) : d instanceof ArrayBuffer ? new Uint8Array(d) : new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
@@ -656,11 +681,11 @@
       if (op === 'save' && input.path) {
         var saveKey = frontWindow(app, rec), target = workspaceRef(rec, input.path);
         return window.dinahWorkbench.ready(saveKey).then(function () {
-          return window.dinahContentHost.accept(saveKey, { operation: 'document', input: {} });
-        }).then(function (r) {
+          return textOf(saveKey);
+        }).then(function (text) {
           var draftId = (itemOfWindow(saveKey) || {}).path;
           return Promise.resolve(api().GetDraft(draftId)).then(function (v) {
-            return api().UpdateDraft(v.id, v.revision, r.output.text);
+            return api().UpdateDraft(v.id, v.revision, text);
           }).then(function (v) { return api().SaveDraftAs(v.id, v.revision, target); });
         }).then(function (saved) {
           var resource = window.dinahContentHost.resourceFor(saved);
@@ -691,7 +716,7 @@
 
   function enabled() { return !!(window.dinahUIState && window.dinahUIState.get('content-editor', false)); }
 
-  window.dinahContentWindows = { open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, enabled: enabled, kindOf: kindOf };
+  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, enabled: enabled, kindOf: kindOf };
 
   /* While the new Editor is chosen, the ways into the Editor open it. */
   var own = window.dinahEditor;

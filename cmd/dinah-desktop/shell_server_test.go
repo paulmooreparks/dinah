@@ -48,3 +48,32 @@ func TestShellPageHasContentSecurityPolicy(t *testing.T) {
 		t.Errorf("the policy must allow no plug-in and no base address: %s", shellPolicy)
 	}
 }
+
+// Only the D2 worker of the Diagrams applet may evaluate code, and it may
+// reach nothing; every other file, the worker's neighbours included, keeps
+// the page's policy.
+func TestOnlyTheD2WorkerMayEvaluate(t *testing.T) {
+	frontend, err := fs.Sub(assets, "frontend")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &shellServer{files: http.FileServerFS(frontend), addr: "127.0.0.1:47616", token: "token", codes: map[string]time.Time{}}
+	policy := func(path string) string {
+		r := httptest.NewRequest("GET", "http://127.0.0.1:47616"+path, nil)
+		r.AddCookie(&http.Cookie{Name: shellCookie, Value: "token"})
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: status %d", path, w.Code)
+		}
+		return w.Header().Get("Content-Security-Policy")
+	}
+	if got := policy(d2WorkerPath + "?v=1"); got != d2WorkerPolicy || !strings.Contains(got, "default-src 'none'") {
+		t.Fatalf("the D2 worker is served with %q", got)
+	}
+	for _, path := range []string{"/yavc/content/diagram-kit/d2.js", "/yavc/content/md-editor/import-word-worker.js", "/yavc/content/diagram-kit/worker.js/../d2.js"} {
+		if got := policy(path); got != shellPolicy {
+			t.Errorf("%s is served with %q", path, got)
+		}
+	}
+}

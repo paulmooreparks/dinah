@@ -61,6 +61,18 @@ const shellPolicy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; s
 	"worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; " +
 	"form-action 'self'; frame-ancestors 'self'"
 
+// d2WorkerPath is the yavc.app Diagrams applet's D2 worker (frontend/YAVC.md).
+// D2's layout engines run their JavaScript through eval, so that one script
+// is served with d2WorkerPolicy instead of the page's: it may evaluate code
+// and compile WebAssembly, load this origin's scripts, and reach nothing
+// else, not even this origin. The engine arrives compiled with its first
+// message. The page itself never gains eval (yavc.app
+// content-resource-contract.md, and the CSP's worker inheritance rules,
+// https://www.w3.org/TR/CSP3/#csp-inheritance).
+const d2WorkerPath = "/yavc/content/diagram-kit/worker.js"
+
+const d2WorkerPolicy = "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'"
+
 func newShellServer(app *App, frontend fs.FS, addr string) (*shellServer, error) {
 	b, err := newPageBridge(app, pageMethods)
 	if err != nil {
@@ -130,7 +142,11 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h := w.Header()
-	h.Set("Content-Security-Policy", shellPolicy)
+	if r.URL.Path == d2WorkerPath {
+		h.Set("Content-Security-Policy", d2WorkerPolicy)
+	} else {
+		h.Set("Content-Security-Policy", shellPolicy)
+	}
 	h.Set("X-Frame-Options", "SAMEORIGIN")
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("X-Content-Type-Options", "nosniff")
