@@ -35,13 +35,17 @@
 
   function baseName(path) { var parts = String(path || '').split(/[\\/]/); return parts[parts.length - 1] || ''; }
   /* The name an applet checks a document's format by: the file's own name,
-     or for a new document, its title, which is Markdown unless the title
-     says otherwise, as in Dinah's own Editor. */
-  function nameOf(v) {
+     or for a new document, its title with the extension of the application
+     showing it (a diagram is D2, a deck is Slides' Markdown, anything else
+     is Markdown), unless the title has one of its own. */
+  var EXTENSIONS = { diagrams: '.d2', slides: '.slides.md' };
+  function nameOf(v, resource) {
     var own = baseName(v.origin && v.origin.path);
     if (own) return own;
     var title = v.title || 'Untitled';
-    return /\.[A-Za-z0-9]{1,8}$/.test(title) ? title : title + '.md';
+    if (/\.[A-Za-z0-9]{1,8}$/.test(title)) return title;
+    var mount = resource && Array.prototype.find.call(document.querySelectorAll('.content-applet'), function (m) { return m.dataset.contentResource === resource; });
+    return title + (EXTENSIONS[mount && mount.getAttribute('data-applet')] || '.md');
   }
 
   /* A resource is named for the person, since the applets show it: the
@@ -93,7 +97,7 @@
     var resource = String(request.resource || '');
     return draftOf(resource).then(function (id) { return api().GetDraft(id); }).then(function (v) {
       known.set(resource, v.revision);
-      return { resource: resource, name: nameOf(v), text: v.text, revision: v.revision, writable: true };
+      return { resource: resource, name: nameOf(v, resource), text: v.text, revision: v.revision, writable: true };
     });
   }
 
@@ -112,7 +116,7 @@
         return api().SaveDraft(id, v.revision);
       }).then(function (v) {
         document.dispatchEvent(new CustomEvent('dinah:content-written', { detail: { resource: resource, draft: v } }));
-        return { resource: resource, name: nameOf(v), revision: v.revision, writable: true };
+        return { resource: resource, name: nameOf(v, resource), revision: v.revision, writable: true };
       });
     });
     var id = resource;
@@ -262,7 +266,7 @@
       return startFolder(v);
     }).then(function (start) {
       var v = draftView, done = null;
-      return window.dinahFilePicker.pick({ mode: 'save', title: 'Save As', start: start, name: request.name || nameOf(v),
+      return window.dinahFilePicker.pick({ mode: 'save', title: 'Save As', start: start, name: request.name || nameOf(v, String(request.sourceResource || '')),
         saveKind: window.dinahResources ? window.dinahResources.documentHomes() : undefined,
         commit: function (choice) {
           var name = choice.computer || choice.name;

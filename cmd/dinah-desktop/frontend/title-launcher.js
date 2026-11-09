@@ -25,14 +25,14 @@
       ['skills-browser','tools','document'], ['in-progress','documents','pencil'], ['needs-you','tools','warning','Notifications'],
       ['show-workspace','workspace','folder'], ['new-workspace','workspace','folder'],
       ['new-empty-workspace','workspace','folder'], ['import-workspace','workspace','upload'],
-      ['new-document','documents','plus'], ['open-document','documents','open','Open Document…'],
+      ['open-document','documents','open','Open Document…'],
       ['install-packages-file','tools','download'], ['find-tool','tools','search'],
       ['keyboard-shortcuts','help','info'], ['about','help','info']
     ].forEach(function (entry) {
       var cmd = dinahCommands.describe(entry[0],entry[3]); add(entry[0],cmd.label,entry[1],entry[2],cmd.run,cmd.disabled);
       list.lastElementChild.querySelector('button').dataset.launcherCommand = entry[0];
     });
-    dinahWorkbench.launchers().filter(function (tool) { return tool.id !== 'terminal' && tool.id !== 'editor'; }).forEach(function (tool) { add('tool:'+tool.id,tool.title,tool.id === 'files' ? 'workspace' : 'tools',tool.glyph,tool.run); });
+    dinahWorkbench.launchers().filter(function (tool) { return tool.id !== 'terminal'; }).forEach(function (tool) { add('tool:'+tool.id,tool.title,tool.category || (tool.id === 'files' ? 'workspace' : 'tools'),tool.glyph,tool.run); });
     var terminal = dinahWorkbench.launchers().find(function (tool) { return tool.id === 'terminal'; });
     add('terminal:default','Default Shell','terminals','terminal',terminal ? terminal.run : function () {},!terminal);
     if (window.dinahShellTerminal) {
@@ -43,6 +43,8 @@
       });
       add('terminal:refresh','Refresh Shells','terminals','reload',dinahShellTerminal.refresh);
     }
+    // The entries are in alphabetical order, whichever category is chosen (Paul, 9 November 2026).
+    Array.from(list.children).sort(function (a, b) { return a.querySelector('.start-name').textContent.localeCompare(b.querySelector('.start-name').textContent, undefined, { sensitivity: 'base' }); }).forEach(function (li) { list.append(li); });
     if (started) pudlStart.refresh(root);
   }
   function save() {

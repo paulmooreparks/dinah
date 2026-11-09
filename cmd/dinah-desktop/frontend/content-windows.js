@@ -635,12 +635,18 @@
 
   var TITLES = { editor: 'Editor', docs: 'Docs', diagrams: 'Diagrams', slides: 'Slides' };
   var GLYPHS = { editor: 'document', docs: 'document', diagrams: 'diagram', slides: 'slides' };
+  var MNEMONICS = { editor: 'E', docs: 'D', diagrams: 'I', slides: 'S' };
+  var DESCRIPTIONS = { editor: 'Start an empty document, for notes or a script.', docs: 'Start an empty Markdown document, written as it will look.',
+    diagrams: 'Start an empty diagram, drawn from text.', slides: 'Start an empty slide deck, written in Markdown.' };
   Object.keys(TITLES).forEach(function (app) {
     if (app !== 'editor') window.dinahUIState.followWindowMode(kindOf(app), 'editor');
-    /* Tools › Editor, and the taskbar's New Document, start an empty,
-       untitled document in the current workspace, which Save As puts
-       somewhere. */
-    var launcher = app === 'editor' ? { mnemonic: 'E', description: 'Start an empty document, for notes or a script.', run: function () { return window.dinahEditor.newDocument(); } } : undefined;
+    /* Each application is in the launcher's Documents category, and in Tools
+       in the menu bar, and starts an empty, untitled document of its own kind
+       in the current workspace, which Save As puts somewhere; the Editor's is
+       also the taskbar's New Document (Paul, 9 November 2026). */
+    var launcher = { mnemonic: MNEMONICS[app], category: 'documents', description: DESCRIPTIONS[app],
+      run: app === 'editor' ? function () { return window.dinahEditor.newDocument(); }
+        : function () { return newDocument(undefined, '', app).catch(function (err) { host().toast(message(err), 'danger'); }); } };
     window.dinahWorkbench.register(kindOf(app), { pinByItem: true, title: TITLES[app], glyph: GLYPHS[app], start: 'idle', launcher: launcher,
       applet: app === 'editor' ? { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true } : undefined,
       init: function (root, opts, item) { return init(app, root, opts, item); } });
