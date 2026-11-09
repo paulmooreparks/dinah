@@ -20,6 +20,7 @@ import (
 
 	extension "github.com/paulmooreparks/dinah-extension-go"
 	"studio/internal/bridge"
+	"studio/internal/pageroutes"
 )
 
 // shellAddr is where the window's page is served, on the profile's port
@@ -192,6 +193,12 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/doc-file" || r.URL.Path == "/resource-attachment" || r.URL.Path == "/draft-file" || r.URL.Path == "/bus-attachment":
 		s.app.docFiles().ServeHTTP(w, r)
 	default:
+		// A product built from this source may serve files of its own under
+		// a prefix (internal/pageroutes), behind the same cookie as the page.
+		if h, ok := pageroutes.Lookup(r.URL.Path); ok {
+			h.ServeHTTP(w, r)
+			return
+		}
 		s.files.ServeHTTP(w, r)
 	}
 }
