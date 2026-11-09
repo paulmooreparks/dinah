@@ -1,6 +1,6 @@
 # Editor, Docs, Diagrams and Slides from yavc.app
 
-Status: plan, 9 November 2026. Nothing here is implemented. Paul's rulings of 9 November are recorded under "Rulings"; the numbered decisions are proposals unless a ruling settles them.
+Status, 9 November 2026: Editor, Docs, Diagrams and Slides are hosted and drivable by agents, behind the Settings choice Documents Open In, with Dinah's own Editor still the default. Paul's rulings are recorded under "Rulings". The numbered decisions record what was built; "Built" and "Still to do" at the end record the state of the work.
 
 Dinah's built-in Editor is to be replaced by the portable Editor from yavc.app, and Docs, Diagrams and Slides are to be added beside it. Agents in Dinah chats must be able to drive all four applications completely. The rest of Dinah stays as it is. The larger purpose is that Dinah becomes the base a private downstream product is rebuilt on, so the editing stack chosen here is the one that product's document work will eventually sit on.
 
@@ -34,15 +34,15 @@ Paul ruled on these on 9 November 2026.
 
 Dinah vendors one whole yavc.app content release as a single tree (v0.2.49 is the verified one today, with manifest digest `7391737…684a` and 483 files, but ruling 5 moves the pin to the release with the Files pane fix), the way it vendors PUDL, with a provenance file stating release, commit and digest. A Go test verifies the aggregate digest and every file's length and SHA-256, the tree gets a `-text` rule and a checkout byte test like the PUDL trees, and the release is never edited in place. Upgrading means replacing the tree with another reviewed release. The release bundles PUDL 0.105.0, which Dinah already ships; the build refuses the tree if the bundled PUDL differs from Dinah's, and Dinah serves one PUDL.
 
-### 2. Dinah implements the page side of PUDL's actions contract itself
+### 2. Agents reach the applets through Dinah's Go broker
 
-The applets need `pudlApplets.attach/can/register/request` in the page. Rather than loading PUDL's broker, which would create a second authority beside the Go one, Dinah supplies its own implementation of that documented page interface (PUDL specification, chapter 9). Attach records the live handlers per window. A Go bundle is generated from each package's `actions.json` at startup, with the manifest digest as its bundle digest, so the actions appear to agents through the existing `applet_discover` and `applet_invoke` with no new MCP tools. A Go handler forwards the invocation to the page over the existing page-ask channel, the page calls the attached handler, and the result comes back into the broker record. Consent stays in the chat, as for every other action. `request` from the applet (its calls for host services) goes to Dinah's native services.
+The applets install only on a page that has PUDL's own actions broker, `pudl-actions.js`, which refuses a manifest whose capabilities it does not know, so the page loads it. It is the page's dispatcher and nothing more: no agent reaches it directly, and the Go broker stays the one authority over what an agent may run. A Go bundle is made from each package's `actions.json` as the release has it (`applet_content.go`), so the actions appear to agents under their own references through the existing `applet_discover` and `applet_invoke`, with no new MCP tools. A handler hands the call to the page over the page-ask channel, with a longer wait than the usual answer; the page runs it in the right window through the binding each window's applet makes under `documentWindows` (its `accept`), and the result, with any artifact, comes back into the broker record. Consent stays in the chat, as for every other action.
 
-This is the piece that gives agents control, and it also makes any future PUDL applet with a manifest drivable from chat without further work.
+Opening a document and starting one make a window of their own; an agent's save to a path is a Save As of the window's document to a new file; closing closes the window. An action that works on text alone, such as Slides' `parse@1`, runs in the page's broker with no window.
 
 ### 3. Capabilities
 
-Dinah's capability list gains `files.read`, `files.write` and `window.open`. `files.read` is treated like `workspace.read` and asks nothing. `files.write` and `window.open` are effectful and ask, like `workspace.write` and `window.command`. Each is backed by the invocation's own workspace.
+What an action may do in Dinah is Dinah's to say, so the bundle puts the release's capabilities in Dinah's words instead of adding new ones: `files.read` is `workspace.read`, `files.write` is `workspace.write`, `window.open` is `window.command`, and any live action that may change the document is `workspace.write`, since Dinah saves an open document to its file as it changes. Reading actions ask nothing; changing ones ask as a workspace write does. The page registers `files.read` and `files.write` with its broker, as the workspace contract requires, backed by the draft service.
 
 ### 4. Live actions open their window
 
@@ -56,7 +56,7 @@ The yavc actions address documents by tab index and by `~/` paths, which mean no
 
 Dinah supplies `documentWindows` version 1 and answers `single` for every mount, so each document gets its own independent window, which is how Dinah's Editor already works (ruling 6). New, Open, agent creation and recovery all allocate a new window or raise the existing one; none adds a document to an open window. Because a window holds one document, Dinah routes an agent's call by window, and the applet's internal document index inside a window is always its only document. Title and changed state go through `dinahWorkbench.retitle` and the title-bar status chip, and commands, menus and shortcuts resolve to the owning window.
 
-The contract allows nine numbered instances per application, and the host refuses a tenth. Paul is asking yavc.app to lift that (ruling 4).
+PUDL's limit of nine numbered instances applies only to the windows PUDL opens itself for an applet's `handles` verbs. Dinah opens its own windows, one for each draft, and defines the packages without `handles` or `instances`, so the limit does not arise in Dinah.
 
 ### 7. Recovery and closing
 
@@ -116,3 +116,23 @@ Ruling 7 means none of these blocks the start.
 | More than nine instances per application, a PUDL change Paul is requesting (ruling 4) | The limit stands until Dinah adopts the PUDL release that lifts it. |
 | The Files pane hidden unless turned on, in progress (ruling 5) | Work starts on v0.2.49 and the pin moves when that release is out. |
 | Two comments in the Editor's source (text-workspace/workspace.js) name the downstream product, which Dinah's forbidden-terms guard refuses in a public repository | Nothing that holds v0.2.49 is pushed. The release that replaces it must not have them, and the local commits that hold v0.2.49 are rewritten before the first push. |
+
+## Built
+
+- The release vendored and verified (`frontend/yavc`, `YAVC.md`, `yavc_release_test.go`).
+- The host (`content-host.js`): resources backed by drafts, with readable resource names kept in the UI state; recovery snapshots in the UI state; settings; `documentWindows`; Save As and Open through Dinah's file picker; the toolbar service (`content-toolbar.js`).
+- The windows (`content-windows.js`): one document to a window, saved a moment after typing stops and before closing; changes made elsewhere shown, or asked about with Keep Mine and Take Theirs; a file changed on disk taken, or offered with Bring In Their Changes; a document moved between applications rather than open in two.
+- Agent control (`applet_content.go`): the 99 actions of the four packages, routed to the window in front, with exports kept as artifacts and `dinah.workspace/save-artifact@1` to save one as a file.
+- Suggestions (`applet_documents.go`): `dinah.documents/read@1` and `suggest@1`, and the review panel in each window with Edit, Accept, Reject, Accept All and Reject All.
+- Routing: Markdown by Settings › Markdown Opens In (Visual is Docs), `.docs.md` to Docs, D2, Mermaid and Canvas to Diagrams, `.slides.md` to Slides, everything else to the Editor; Edit as Text to the Editor's Text and opening to read to its Preview.
+- The D2 worker's own content policy (`shell_server.go`).
+- Two fixes found on the way: opening one resource twice at once made two drafts, and the hidden window under test loaded a second page.
+
+## Still to do
+
+- Pin the release with the Files pane fix and without the two comments the forbidden-terms guard refuses, then rewrite the unpushed history before the first push.
+- Parity with the built-in Editor: Compare, Rename, Discard from the window, skill editing (which still embeds the built-in Editor), document links and the In Progress list's view of a content window.
+- Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
+- Customising the toolbar, Slides' presenter window and its `fs.save` export, and SVG artifacts from Diagrams' `render@1`, which the broker's drawing check refuses; PNG works.
+- An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
+- Making the yavc.app Editor the default, and then removing the built-in Editor, after Paul accepts the parity result.
