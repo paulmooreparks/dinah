@@ -171,8 +171,11 @@
     }
   });
   const { title, startRename, openRemove, refreshSessions, drawSessions } = chatBrowser;
-  window.dinahChatState.connect({ fail: fail, changed: function () {
-    drawSessions(); chats.refreshStates();
+  window.dinahChatState.connect({ fail: fail, changed: function (snapshot, changedIds) {
+    // Only the chats whose state changed are drawn again; a snapshot that
+    // changed nothing draws nothing.
+    if (changedIds === null) return;
+    drawSessions(); chats.refreshStates(changedIds);
   } });
 
   const sequence = window.dinahChatSequence.create({

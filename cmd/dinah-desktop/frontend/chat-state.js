@@ -35,19 +35,36 @@
   function counts(value) {
     return value && (groups.get(value.name) || value.counts || value.team || value);
   }
+  /* apply takes a snapshot and says whether it was accepted. It also
+     works out which chats' states the snapshot changed, as a Set of
+     session ids kept in lastChanged (null when nothing changed), and the
+     event detail says the same in changed and groupsChanged, so a listener
+     redraws only what changed (9 November 2026). */
+  var lastChanged = null;
   function apply(snapshot) {
     if (!snapshot || !window.dinahStateOrder.accept('agent:chatstate', '', snapshot)) return false;
-    chats.clear(); buses.clear(); groups.clear();
+    var before = chats, beforeGroups = groups, changed = new Set();
+    chats = new Map(); buses.clear(); groups = new Map();
     (snapshot.chats || []).forEach(function (entry) {
-      if (entry.sessionId) chats.set(entry.sessionId, entry);
+      if (entry.sessionId) {
+        chats.set(entry.sessionId, entry);
+        if (JSON.stringify(before.get(entry.sessionId) || null) !== JSON.stringify(entry)) changed.add(entry.sessionId);
+      }
       if (entry.bus) buses.set(entry.bus, entry);
     });
-    (snapshot.groups || []).forEach(function (entry) { groups.set(entry.name, entry.counts); });
-    document.dispatchEvent(new CustomEvent('dinah:execution-state', { detail: snapshot }));
+    before.forEach(function (_, id) { if (!chats.has(id)) changed.add(id); });
+    var groupsChanged = false;
+    (snapshot.groups || []).forEach(function (entry) {
+      groups.set(entry.name, entry.counts);
+      if (JSON.stringify(beforeGroups.get(entry.name) || null) !== JSON.stringify(entry.counts)) groupsChanged = true;
+    });
+    if (beforeGroups.size !== groups.size) groupsChanged = true;
+    lastChanged = changed.size || groupsChanged ? changed : null;
+    document.dispatchEvent(new CustomEvent('dinah:execution-state', { detail: Object.assign({ changed: Array.from(changed), groupsChanged: groupsChanged }, snapshot) }));
     return true;
   }
   function connect(options) {
-    function changed(snapshot) { if (apply(snapshot) && options.changed) options.changed(snapshot); }
+    function changed(snapshot) { if (apply(snapshot) && options.changed) options.changed(snapshot, lastChanged); }
     function refresh() {
       var app = window.dinahHelpers.app();
       return app && app.ChatStates ? Promise.resolve(app.ChatStates()).then(changed).catch(options.fail) : Promise.resolve();

@@ -292,7 +292,19 @@
       o.keepPlace(function () { foldTraffic(activity, current && current.group); });
       observeTraffic();
     }
-    var trafficObserver = new MutationObserver(function () { if (!foldFrame) foldFrame = requestAnimationFrame(refreshTraffic); });
+    /* The fold groups the log's rows by the team message each came from,
+       so only a change to the rows themselves (one added, removed or
+       marked) can change it. Text streaming into a row, which is most of
+       what changes in a working chat, is left alone; refolding at every
+       chunk re-laid the transcript out for each one. */
+    var trafficObserver = new MutationObserver(function (records) {
+      function log(el) { return el && el.nodeType === 1 && el.classList && el.classList.contains('run-log'); }
+      var rows = records.some(function (r) {
+        var t = r.target;
+        return t === activity || log(t) || log(t.parentNode);
+      });
+      if (rows && !foldFrame) foldFrame = requestAnimationFrame(refreshTraffic);
+    });
     observeTraffic();
     function member() { return !!lead; }
     function setLead(value, force) {

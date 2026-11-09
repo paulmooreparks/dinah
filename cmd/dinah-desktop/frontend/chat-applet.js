@@ -3954,7 +3954,12 @@
       setContext: pickDocument, disposeChat, setDraftWorkspace, restorePreferences, restoreView, setupChatWindows,
       setTemplates: value => { templates = value; },
       refreshChatTitles: () => chatControllers.forEach(chat => chat.stateLine()),
-      refreshStates: () => chatControllers.forEach(chat => chat.refresh()),
+      /* The chats whose state changed draw themselves again; without a
+         list, every chat does, as after a resync. */
+      refreshStates: ids => {
+        if (!ids) { chatControllers.forEach(chat => chat.refresh()); return; }
+        ids.forEach(id => { const s = sessions[id]; if (s && s.view && s.view.refresh) s.view.refresh(); });
+      },
       settings: {
         app, on, toast, fail, ask, productName, providerName, providerOptions,
         optValues, byCat, valueWords, modelRows, loadModelPrices, drawAgentState,
