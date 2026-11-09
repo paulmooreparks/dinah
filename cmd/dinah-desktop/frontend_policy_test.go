@@ -91,8 +91,9 @@ func markup(line string) bool { return tag.MatchString(line) }
 
 // frontendScripts lists Dinah's own scripts, in every folder beneath the
 // desktop page and the web pages Go serves, without the browser suites,
-// PUDL and the vendored libraries.
-var notDinahs = map[string]bool{"e2e": true, "pudl": true, "vendor": true, "node_modules": true}
+// PUDL, the vendored libraries and the yavc.app content release (YAVC.md),
+// which is shipped as its producer built it.
+var notDinahs = map[string]bool{"e2e": true, "pudl": true, "vendor": true, "node_modules": true, "yavc": true}
 
 func frontendScripts(t *testing.T) []string {
 	t.Helper()

@@ -175,6 +175,10 @@ func (f Folder) ReadFile(ctx context.Context, path, name string) ([]byte, error)
 	return nil, resource.ErrNotFound
 }
 
+// CreateFile writes a new file of any content, such as an exported document,
+// refusing one that exists.
+func (f Folder) CreateFile(path string, data []byte) error { return f.createFile(path, data) }
+
 // createFile writes a new file of any content, refusing one that exists.
 func (f Folder) createFile(path string, data []byte) error {
 	if strings.ContainsAny(pathpkg.Base(path), "/\\") || len(data) > resource.MaxFile {

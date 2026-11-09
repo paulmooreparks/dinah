@@ -299,6 +299,16 @@
     saveLayout();
   }
   window.dinahWorkbench = {
+    /* Another file's answer to a kind of question the engine puts to the
+       page (askPage in Go), such as content-windows.js's for the content
+       applets' actions. */
+    answerAsks: function (op, fn) {
+      if (Object.prototype.hasOwnProperty.call(pageAsks, op)) throw new Error('The page already answers ' + op + '.');
+      pageAsks[op] = fn;
+    },
+    /* The open windows of the workspace a question names, as the questions
+       above see them. */
+    windowsOf: function (args) { return windowsOf(args); },
     retitle: retitle,
     windowMenuRows: windowMenuRows,
     applySavedTitles: applySavedTitles, refreshTitles: refreshTitles,

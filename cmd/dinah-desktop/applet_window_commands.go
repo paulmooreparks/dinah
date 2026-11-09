@@ -84,6 +84,12 @@ func (a *App) PendingPageAsks() []pageAsk {
 // askPage sends the page a question and waits for its answer, which is the
 // JSON the page gives, or its error.
 func (a *App) askPage(ctx context.Context, op string, args any) (string, error) {
+	return a.askPageWithin(ctx, op, args, pageAskTimeout)
+}
+
+// askPageWithin is askPage for a question that may take the page longer to
+// answer, such as exporting a document.
+func (a *App) askPageWithin(ctx context.Context, op string, args any, within time.Duration) (string, error) {
 	buf := make([]byte, 12)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
@@ -105,7 +111,7 @@ func (a *App) askPage(ctx context.Context, op string, args any) (string, error) 
 		a.asks.mu.Unlock()
 	}()
 	a.emit("page:ask", map[string]any{"id": id, "op": op, "args": args})
-	timer := time.NewTimer(pageAskTimeout)
+	timer := time.NewTimer(within)
 	defer timer.Stop()
 	select {
 	case got := <-ch:

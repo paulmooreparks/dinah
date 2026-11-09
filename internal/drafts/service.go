@@ -95,6 +95,14 @@ func (s *Service) Open(ctx context.Context, origin Origin) (Draft, error) {
 	if origin.Kind == OriginNew {
 		return Draft{}, errors.New("a new document is created, not opened")
 	}
+	// Two opens of one resource at once, from two windows or a window and an
+	// agent, must find one draft between them, so finding and creating it
+	// hold the store's lock for that resource (9 November 2026).
+	unlock, err := s.Store.lockOrigin(origin)
+	if err != nil {
+		return Draft{}, err
+	}
+	defer unlock()
 	existing, err := s.Store.FindByOrigin(origin)
 	if err != nil {
 		return Draft{}, err

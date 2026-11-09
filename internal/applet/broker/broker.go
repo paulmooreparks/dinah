@@ -483,7 +483,7 @@ func (b *Broker) prepare(v *Invocation, result applet.Result) error {
 		if _, exists := values[artifact.Key]; exists {
 			return errors.New("the artifact output key is already occupied")
 		}
-		if artifact.MIME != "image/svg+xml" && artifact.MIME != "text/plain" && artifact.MIME != "text/markdown" && artifact.MIME != "application/json" {
+		if !ArtifactMIME[artifact.MIME] {
 			return errors.New("the artifact MIME type is not supported")
 		}
 		if artifact.MIME == "image/svg+xml" {

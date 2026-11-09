@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"path"
@@ -24,6 +25,7 @@ const (
 	workspaceMakeFolderAction = "dinah.workspace/make-folder@1"
 	workspaceWriteFileAction  = "dinah.workspace/write-file@1"
 	workspaceWriteJSONAction  = "dinah.workspace/write-json@1"
+	workspaceSaveArtifact     = "dinah.workspace/save-artifact@1"
 )
 
 // writablePath checks a main-folder path against the write policy and
@@ -76,6 +78,52 @@ func (a *App) addWorkspaceWriteActions(manifest *applet.Manifest, handlers map[s
 		applet.Action{Ref: workspaceWriteJSONAction, Title: "Write a JSON File", Description: "Write a value as an indented JSON file in the calling workspace's main folder, under the same rules as Write a File. The value is a JSON object or array, or a text that contains one, such as an agent's reply, in its one fenced json block or as the whole text. The result gives the value written, so later steps can use its fields.",
 			InputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path","value"],"properties":{"path":` + str + `,"value":{},"revision":{"type":"string","pattern":"^([0-9a-f]{64})?$"}}}`), OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path","revision","value"],"properties":{"path":{"type":"string"},"revision":{"type":"string"},"value":{}}}`), Capabilities: []string{"workspace.write"}, Replay: "once"},
 	)
+	// An action's artifact, such as a document an applet exported, saved as
+	// a new file, since an agent cannot write bytes through Write a File.
+	manifest.Actions = append(manifest.Actions, applet.Action{Ref: workspaceSaveArtifact, Title: "Save an Artifact as a File",
+		Description:  "Save an artifact an action made in this workspace, such as the Word or PDF document yavc.docs/export@1 exports, as a new file in the calling workspace's main folder. The artifact is its id, as the action's output gives it under its key. A file that exists is never replaced. Dot folders and AGENTS.md are refused.",
+		InputSchema:  json.RawMessage(`{"type":"object","additionalProperties":false,"required":["artifact","path"],"properties":{"artifact":{"type":"string","minLength":3,"maxLength":200},"path":` + str + `}}`),
+		OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path","bytes"],"properties":{"path":{"type":"string"},"bytes":{"type":"integer"}}}`),
+		Capabilities: []string{"workspace.write"}, Replay: "once"})
+	handlers[workspaceSaveArtifact] = func(ctx context.Context, input string) (applet.Result, error) {
+		var in struct {
+			Artifact string `json:"artifact"`
+			Path     string `json:"path"`
+		}
+		if err := json.Unmarshal([]byte(input), &in); err != nil {
+			return applet.Result{}, err
+		}
+		ws, err := builtinWorkspace(ctx)
+		if err != nil {
+			return applet.Result{}, err
+		}
+		artifact, err := a.AppletArtifactAt(ws, in.Artifact)
+		if err != nil {
+			return applet.Result{}, err
+		}
+		data, err := base64.StdEncoding.DecodeString(artifact.DataBase64)
+		if err != nil {
+			return applet.Result{}, errors.New("the artifact's bytes could not be read")
+		}
+		p, err := writablePath(in.Path)
+		if err != nil {
+			return applet.Result{}, err
+		}
+		folder, record, err := a.mainFolder(ctx)
+		if err != nil {
+			return applet.Result{}, err
+		}
+		if dir := path.Dir(toSlash(p)); dir != "." {
+			if err := folder.MakeFolder(ctx, dir, true); err != nil && !errors.Is(err, localfs.ErrExists) {
+				return applet.Result{}, vfsError(in.Path, err)
+			}
+		}
+		if err := folder.CreateFile(toSlash(p), data); err != nil {
+			return applet.Result{}, errors.New(in.Path + ": " + err.Error())
+		}
+		a.emitWorkspaceMountChanged("content-changed", record.ID, record.PrimarySourceID)
+		return builtinJSON(map[string]any{"path": toSlash(p), "bytes": len(data)})
+	}
 	handlers[workspaceMakeFolderAction] = func(ctx context.Context, input string) (applet.Result, error) {
 		var in struct {
 			Path string `json:"path"`

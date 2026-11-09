@@ -115,3 +115,4 @@ Ruling 7 means none of these blocks the start.
 | Host-supplied agent suggestions in the review list (decision 7a) | A Dinah review panel beside the document lists each suggestion with Edit, Accept, Reject and Accept All, applied through the existing draft suggestion methods. Highlighting in the text waits for upstream. |
 | More than nine instances per application, a PUDL change Paul is requesting (ruling 4) | The limit stands until Dinah adopts the PUDL release that lifts it. |
 | The Files pane hidden unless turned on, in progress (ruling 5) | Work starts on v0.2.49 and the pin moves when that release is out. |
+| Two comments in the Editor's source (text-workspace/workspace.js) name the downstream product, which Dinah's forbidden-terms guard refuses in a public repository | Nothing that holds v0.2.49 is pushed. The release that replaces it must not have them, and the local commits that hold v0.2.49 are rewritten before the first push. |

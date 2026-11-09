@@ -169,7 +169,11 @@ func main() {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				w.Header().Set("Cache-Control", "no-store")
 				title := html.EscapeString(product.Name)
-				if failure != nil {
+				// Under test the browser that signed in with the entry
+				// file is the page; a second page in the hidden window
+				// would answer the engine's questions to the page too, so
+				// an agent's action would run twice (9 November 2026).
+				if failure != nil || testing {
 					fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>%s</title></head><body></body></html>`, title)
 					return
 				}

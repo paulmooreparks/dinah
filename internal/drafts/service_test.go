@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"sync"
 	"testing"
 
 	"studio/internal/resource"
@@ -88,6 +89,41 @@ func TestOpenEditSave(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(dir, "a.md"))
 	if string(data) != "# A\n\nMore.\n" || saved.Changed() || saved.Baseline.Revision != resource.ContentRevision(string(data)) {
 		t.Fatalf("saved %q %+v", data, saved.Baseline)
+	}
+}
+
+// Opens of one resource at the same moment, as from two windows, or from a
+// window and an agent, find one draft between them.
+func TestOpensAtOnceFindOneDraft(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.md"), []byte("# A\n"), 0o644)
+	store, _ := Open(t.TempDir())
+	origin := Origin{Kind: "local-folder", WorkspaceID: "w", SourceID: "s", Path: "a.md"}
+	ids := make(chan string, 8)
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Each caller builds its own service, as the desktop does.
+			svc := &Service{Store: store, Providers: folderProviders{localfs.Folder{Root: dir}}}
+			d, err := svc.Open(context.Background(), origin)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			ids <- d.ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	seen := map[string]bool{}
+	for id := range ids {
+		seen[id] = true
+	}
+	all, _ := store.FindByOrigin(origin)
+	if len(seen) != 1 || len(all) != 1 {
+		t.Fatalf("one resource has %d drafts, and the opens saw %d", len(all), len(seen))
 	}
 }
 

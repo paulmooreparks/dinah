@@ -11,7 +11,10 @@ func TestReleaseAssetsExcludeLocalFixtures(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if strings.Contains(path, "/e2e") || strings.Contains(path, "/node_modules") || strings.HasSuffix(path, ".md") {
+		// The yavc.app content release is shipped whole, with the licences
+		// and notes its producer put in it (frontend/YAVC.md).
+		release := strings.HasPrefix(path, "frontend/yavc/")
+		if strings.Contains(path, "/e2e") || strings.Contains(path, "/node_modules") || (strings.HasSuffix(path, ".md") && !release) {
 			t.Errorf("non-runtime file embedded in release: %s", path)
 		}
 		return nil

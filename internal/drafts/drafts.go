@@ -13,6 +13,7 @@ package drafts
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -486,6 +487,15 @@ func (s *Store) write(d Draft) error {
 		return fmt.Errorf("the draft could not be saved: %w", err)
 	}
 	return nil
+}
+
+// lockOrigin locks a resource's drafts, by its origin, as lock locks one
+// draft. The lock's name is a digest of the origin, so it is a valid file name
+// whatever the path, and it cannot be taken for a draft's.
+func (s *Store) lockOrigin(origin Origin) (func(), error) {
+	data, _ := json.Marshal(origin)
+	sum := sha256.Sum256(data)
+	return s.lock("origin-" + hex.EncodeToString(sum[:16]))
 }
 
 // lock takes the draft's lock file, which exists only while one writer holds

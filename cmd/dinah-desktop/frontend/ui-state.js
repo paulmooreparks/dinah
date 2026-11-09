@@ -7,7 +7,7 @@
 (function () {
   'use strict';
   var values = {}, loaded = false, writable = false, restoring = true;
-  var pending = false, saving = null, timer = null, mode = 'floating', kindModes = {}, initializationError = '';
+  var pending = false, saving = null, timer = null, mode = 'floating', kindModes = {}, modeOf = {}, initializationError = '';
   var originalSearch = location.search, scrolls = new Map();
   const backend = window.dinahHelpers.app;
   function clone(value) { return JSON.parse(JSON.stringify(value)); }
@@ -186,7 +186,10 @@
     /* A kind of window with a choice of its own opens that way; "same", or
        no choice, follows Open New Windows. */
     setWindowModes: function (modes) { kindModes = modes && typeof modes === 'object' ? Object.assign({}, modes) : {}; },
-    windowMode: function (kind) { var own = kindModes[kind]; return own === 'floating' || own === 'maximized' ? own : mode; },
+    windowMode: function (kind) { var own = kindModes[modeOf[kind] || kind]; return own === 'floating' || own === 'maximized' ? own : mode; },
+    /* A kind that opens as another kind's choice says (the content
+       applets' windows follow the Editor's). */
+    followWindowMode: function (kind, other) { modeOf[kind] = other; },
     isRestoring: function () { return restoring; },
     watchScroll: watchScroll, refreshScroll: refreshScroll, scrollReady: scrollReady, releaseScroll: releaseScroll,
     restorePending: function (el) { var entry = scrolls.get(el); if (entry) restoreScroll(entry); return !!entry && entry.pending; },
