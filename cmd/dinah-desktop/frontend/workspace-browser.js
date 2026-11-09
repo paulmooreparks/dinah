@@ -348,7 +348,7 @@
         var kinds = [LOCAL].concat(addKinds).map(function (k) { return k.kind; }), index = kinds.indexOf(addKind);
         event.preventDefault();
         setKind(event.key === 'Home' ? kinds[0] : event.key === 'End' ? kinds[kinds.length - 1] : kinds[(index + (event.key === 'ArrowRight' ? 1 : kinds.length - 1)) % kinds.length]);
-        $('workspace-source-kind').querySelector('[data-kind="' + addKind + '"]').focus();
+        $('workspace-source-kind').querySelector('[data-kind="' + CSS.escape(addKind) + '"]').focus();
       });
       listen($('workspace-source-cancel'), 'click', function () { dialog.close(); });
       listen(dialog, 'cancel', function (event) { if (busy) event.preventDefault(); });

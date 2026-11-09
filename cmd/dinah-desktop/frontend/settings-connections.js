@@ -79,7 +79,7 @@
   }
 
   function draw() {
-    var host = $('connections-list'), tab = document.querySelector('[data-settings-section="' + SECTION + '"]');
+    var host = $('connections-list'), tab = document.querySelector('[data-settings-section="' + CSS.escape(SECTION) + '"]');
     if (tab) tab.hidden = !items.length;
     if (!host) return;
     host.textContent = '';
