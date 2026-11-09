@@ -128,13 +128,24 @@
 
     /* A document with a file is written back after each pause in typing;
        a new one's text goes to its draft, which keeps it until Save As. */
+    /* A save the applet refused (a recovered draft whose revision no longer
+       matches, say) is not tried again for the same text: the applet keeps
+       its recovery snapshot at each attempt, which this window took as a
+       change and saved again, so the refusal and its toast came round every
+       pause (seen on the real layout, 10 November 2026). The next change to
+       the text tries again. */
+    var refusedText = null;
     function save() {
       if (disposed) return Promise.resolve();
       if (saving) return saving.then(save);
       saving = current().then(function (doc) {
         retitle(doc);
         if (!doc || !doc.modified || doc.readOnly) return;
-        return call('save').then(function () { lastError = ''; refreshProblemsSoon(); return current(); }).then(retitle);
+        return textOf(key).then(function (text) {
+          if (refusedText !== null && text === refusedText) return;
+          return call('save').then(function () { refusedText = null; lastError = ''; refreshProblemsSoon(); return current(); }).then(retitle)
+            .catch(function (err) { refusedText = text; throw err; });
+        });
       }).catch(refused).finally(function () { saving = null; });
       return saving;
     }

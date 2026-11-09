@@ -129,12 +129,30 @@
 
   function store() { return window.dinahUIState; }
   function snapshotKey(root) { return 'content-snapshot:' + (windowKey(root) || root.id || 'page'); }
+  /* The applets keep each tab's unsaved text in their recovery snapshot,
+     for a host without drafts. Dinah's draft is the document's record,
+     written at every pause in typing, so the text is left out of the
+     snapshot both ways: the applet comes back to the draft's text, never to
+     a recovered copy whose revision no longer matches the draft, which it
+     then refused to save until Save As (10 November 2026). The snapshot
+     keeps the rest: the tabs, the view and the place. */
+  function withoutText(v) {
+    if (!v || typeof v !== 'object' || !Array.isArray(v.tabs)) return v;
+    // The Editor keeps a tab's unsaved text as draft, Slides as text.
+    return Object.assign({}, v, { tabs: v.tabs.map(function (tab) {
+      if (!tab || typeof tab !== 'object') return tab;
+      var out = Object.assign({}, tab);
+      if ('text' in out) out.text = null;
+      if ('draft' in out) out.draft = null;
+      return out;
+    }) });
+  }
   var snapshot = {
     version: 2,
     join: function (root, take, options) {
-      var key = snapshotKey(root), kept = store().get(key, null), left = false, timer = 0;
+      var key = snapshotKey(root), kept = withoutText(store().get(key, null)), left = false, timer = 0;
       if (options && options.validate) options.validate(kept);
-      function put() { clearTimeout(timer); timer = 0; if (!left) store().set(key, take()); }
+      function put() { clearTimeout(timer); timer = 0; if (!left) store().set(key, withoutText(take())); }
       /* The snapshot holds the whole document, and the store sends itself
          whole to Go when it changes, so it is taken once a second while
          typing goes on; the draft keeps the text in any case, and flush
