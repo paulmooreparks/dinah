@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"html"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -121,9 +120,13 @@ func main() {
 		return
 	}
 	app.reportPreviousCrash(crashed)
-	frontend, err := fs.Sub(assets, "frontend")
+	// The page's files, with a product's own over Dinah's (product_assets.go).
+	frontend, err := productFrontend()
 	if err != nil {
 		log.Fatal(err)
+	}
+	if data, ok := productThemeData(); ok {
+		themeBuiltinsSource = data
 	}
 	// A browser test drives the live page by signing in with a code the
 	// window writes to this file. Whoever can set the window's environment

@@ -155,12 +155,13 @@ func ProviderOrLegacy(id string) string {
 	return id
 }
 
-// Current returns the profile this build uses. The result is a copy, so a
-// caller cannot change the profile for anybody else.
+// Current returns the profile this build uses: Dinah's, or the one another
+// product's build injected (injected.go). The result is a copy, so a caller
+// cannot change the profile for anybody else.
 func Current() Profile {
-	p := dinah
-	p.Providers = slices.Clone(dinah.Providers)
-	p.ReservedPrograms = slices.Clone(dinah.ReservedPrograms)
+	p := current
+	p.Providers = slices.Clone(current.Providers)
+	p.ReservedPrograms = slices.Clone(current.ReservedPrograms)
 	return p
 }
 

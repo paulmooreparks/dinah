@@ -21,7 +21,7 @@ t.ok('dormant applet pin opens and settles readiness',true);
 await p.evaluate(()=>pudlWindows.close('theme-editor'));
 t.ok('pin survives closing its last window',await p.locator('[data-win-pin="app-theme-editor"]').count()===1);
 await p.evaluate(async()=>{
- dinahWorkbench.register('pin-fixture',{title:'Saved item',glyph:'file',icon:'dinah-mark.svg',init:()=>({ready:Promise.resolve()})});
+ dinahWorkbench.register('pin-fixture',{title:'Saved item',glyph:'file',icon:'product-mark.svg',init:()=>({ready:Promise.resolve()})});
  dinahWorkbench.register('pin-excluded',{pinnable:false,title:'Temporary',init:()=>({})});
  window.__keys=[];
  for(const path of ['one','two'])__keys.push(await dinahWorkbench.open({kind:'pin-fixture',path}));

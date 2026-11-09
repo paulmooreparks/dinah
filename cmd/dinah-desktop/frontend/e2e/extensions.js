@@ -37,7 +37,7 @@ const path = require('path'), fs = require('fs');
   await frame.locator('#name').press('F11');
   await page.locator('.native-window-controls:not([hidden])').waitFor();
   ok('native controls match normal window button dimensions and shape',await page.evaluate(()=>{const native=document.querySelector('.native-window-controls [data-native-action="minimize"]'),normal=document.querySelector('.win[data-win-kind="extension-view"] .win-btn[data-win-action="minimize"]');const a=getComputedStyle(native),b=getComputedStyle(normal);return ['width','height','borderRadius','backgroundImage','boxShadow'].every(key=>a[key]===b[key]);}));
-  ok('native application menu uses the Dinah icon',await page.locator('.native-window-icon').evaluate(n=>n.getAttribute('src')==='/dinah-mark.svg'&&n.naturalWidth>0));
+  ok('native application menu uses the Dinah icon',await page.locator('.native-window-icon').evaluate(n=>n.getAttribute('src')==='/product-mark.svg'&&n.naturalWidth>0));
   await t.shot('native-controls-light');
   const mode=await page.evaluate(()=>{const old=document.documentElement.dataset.theme;document.documentElement.dataset.theme='dark';return old;});
   await t.shot('native-controls-dark');

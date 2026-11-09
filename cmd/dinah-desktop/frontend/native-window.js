@@ -8,7 +8,7 @@
   // The title is the product's name (product.js), drawn again when State
   // reports the build's own.
   document.addEventListener('dinah:product', function (e) { if (chrome && e.detail.name) chrome.update({ title: e.detail.name }); });
-  var chrome = pudlNative.attach(topbar, { title: window.dinahProduct ? window.dinahProduct.name : '', icon: '/dinah-mark.svg', state: { fullscreen: false }, actions: {
+  var chrome = pudlNative.attach(topbar, { title: window.dinahProduct ? window.dinahProduct.name : '', icon: '/product-mark.svg', state: { fullscreen: false }, actions: {
     minimize: function () { return action('minimize'); },
     restore: function () { return action('restore'); },
     close: function () { return action('close'); }

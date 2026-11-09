@@ -2,7 +2,7 @@ const {launch}=require('./lib/page');
 (async()=>{const t=await launch(),p=t.page;try{
  await p.waitForFunction(()=>window.dinahTaskbarPins);
  await p.evaluate(async()=>{
-  dinahWorkbench.register('stack-probe',{title:'Picture tool',glyph:'file',icon:'dinah-mark.svg',launcher:{run:()=>dinahWorkbench.open({kind:'stack-probe',path:'new'})},init:()=>({})});
+  dinahWorkbench.register('stack-probe',{title:'Picture tool',glyph:'file',icon:'product-mark.svg',launcher:{run:()=>dinahWorkbench.open({kind:'stack-probe',path:'new'})},init:()=>({})});
   window.__stackKeys=[];for(const path of ['one','two'])__stackKeys.push(await dinahWorkbench.open({kind:'stack-probe',path}));
   await pudlWindows.refreshTaskbarDestinations();pudlWindows.pinTaskbar('app-stack-probe',true);
  });
