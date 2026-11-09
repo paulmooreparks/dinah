@@ -213,6 +213,66 @@
       window.dinahContentHost.keepMine(resource);
       flush();
     });
+    /* ---- Files added to the document --------------------------------------
+       Insert Image… and Attach File… (the Documents menu), or an image pasted
+       or a file dropped into the window, keep the file with the draft, which
+       writes it beside the document when it is saved (drafts.Service.Save),
+       and put a reference to it at the cursor through the applet's own
+       insert: an image as an image, any other file as a link, as the built-in
+       Editor did. The Editor and Docs insert at the cursor; Diagrams and
+       Slides have no such insert, so the commands stand aside for them. */
+    var IMAGE_TYPES = /^image\/(png|jpeg|gif|webp|svg\+xml)$/;
+    function canAttach() { return app === 'editor' || app === 'docs'; }
+    function fileMarkdown(name, image) {
+      var target = /[\s()<>]/.test(name) ? '<' + name + '>' : name;
+      if (!image) return '[' + name.replace(/([\\[\]])/g, '\$1') + '](' + target + ')';
+      return '![](' + target + ')';
+    }
+    function insertFiles(names, images) {
+      if (!names || !names.length || disposed) return Promise.resolve();
+      var markdown = names.map(function (n, i) { return fileMarkdown(n, Array.isArray(images) ? images[i] : images); }).join('\n\n');
+      return call('insert', { text: markdown }).then(function () { changed(); });
+    }
+    function pickFiles(images) {
+      if (!canAttach()) return Promise.resolve();
+      return Promise.resolve(api().PickDraftFiles(draft.id, images)).then(function (names) { return insertFiles(names, images); }).catch(failed);
+    }
+    function readBase64(file) {
+      return new Promise(function (resolve, reject) {
+        var r = new FileReader();
+        r.onload = function () { var s = String(r.result); resolve(s.slice(s.indexOf(',') + 1)); };
+        r.onerror = function () { reject(r.error || new Error('The file could not be read.')); };
+        r.readAsDataURL(file);
+      });
+    }
+    function addFiles(list) {
+      var files = Array.from(list || []);
+      return Promise.all(files.map(function (f) {
+        // A pasted image has no name of its own.
+        var name = f.name && f.name !== 'image.png' ? f.name : 'pasted-' + new Date().toISOString().replace(/[:.]/g, '-') + '.' + ((f.type.split('/')[1] || 'png').replace('svg+xml', 'svg').replace('jpeg', 'jpg'));
+        return readBase64(f).then(function (data) { return api().AddDraftFile(draft.id, name, data); });
+      })).then(function (names) {
+        return insertFiles(names, files.map(function (f) { return IMAGE_TYPES.test(f.type); }));
+      }).catch(failed);
+    }
+    function inDocument(target) { return !!(target && target.closest && target.closest('.cm-editor, .ProseMirror')) && !target.closest('textarea, input'); }
+    function filesOf(transfer) { return transfer ? Array.from(transfer.files || []) : []; }
+    root.addEventListener('paste', function (e) {
+      var files = filesOf(e.clipboardData).filter(function (f) { return IMAGE_TYPES.test(f.type); });
+      if (!canAttach() || !files.length || !inDocument(e.target)) return;
+      e.preventDefault(); e.stopPropagation();
+      addFiles(files);
+    }, true);
+    root.addEventListener('drop', function (e) {
+      var files = filesOf(e.dataTransfer);
+      if (!canAttach() || !files.length || !inDocument(e.target)) return;
+      e.preventDefault(); e.stopPropagation();
+      addFiles(files);
+    }, true);
+    root.addEventListener('dragover', function (e) {
+      if (canAttach() && filesOf(e.dataTransfer).length && inDocument(e.target)) e.preventDefault();
+    }, true);
+
     /* ---- Suggestions -----------------------------------------------------
        An agent's suggestions (dinah.documents/suggest@1) are kept beside the
        draft's text, never in it, until the person decides. The panel above
@@ -631,7 +691,10 @@
       canSaveAs: function () { return true; },
       saveAs: saveAs,
       close: function () { window.pudlWindows.close(key); },
-      discard: discard
+      discard: discard,
+      canAttach: canAttach,
+      insertImages: function () { return pickFiles(true); },
+      attachFiles: function () { return pickFiles(false); }
     };
     if (!opts.embedded && window.dinahDocuments) window.dinahDocuments.attach(key, controller);
 

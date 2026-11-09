@@ -105,6 +105,17 @@
     enabled: function () { return cur(function (c) { return c.canRename(); }, false); },
     reason: whyNot('rename', 'The Editor is busy with the document.'),
     run: function () { return cur(function (c) { return c.rename(); }); } });
+  /* An image or a file added to the document is kept with its draft and
+     written beside the document when it is saved (content-windows.js). */
+  C.register({ id: 'documents-sep-files', menu: 'document', separator: true });
+  C.register({ id: 'insert-image', glyph: 'image', menu: 'document', mnemonic: 'I', label: 'Insert Image…',
+    enabled: function () { return cur(function (c) { return !!c.canAttach && c.canAttach(); }, false); },
+    reason: whyNot('insert-image', 'This document cannot take an image here.'),
+    run: function () { return cur(function (c) { return c.insertImages(); }); } });
+  C.register({ id: 'attach-file', glyph: 'clip', menu: 'document', mnemonic: 'A', label: 'Attach File…',
+    enabled: function () { return cur(function (c) { return !!c.canAttach && c.canAttach(); }, false); },
+    reason: whyNot('attach-file', 'This document cannot take a file here.'),
+    run: function () { return cur(function (c) { return c.attachFiles(); }); } });
   C.register({ id: 'documents-sep-close', menu: 'document', separator: true });
   /* No key of its own: PUDL stops at the first row that matches a chord,
      even a disabled one, and Window › Close has Ctrl+F4 for every window. */
