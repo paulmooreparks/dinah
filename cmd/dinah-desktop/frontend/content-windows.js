@@ -115,6 +115,9 @@
     function retitle(doc) {
       if (disposed || !doc || opts.embedded) return;
       var title = (presenter ? 'Presenter · ' : '') + doc.name, detail = workspaceName(draft.origin.workspaceId);
+      /* A page is published on the person's word, so the title says while
+         the draft holds changes the page does not have yet. */
+      if (draft.writeBack === 'publish' && draft.changed) detail = (detail ? detail + ' · ' : '') + 'Not published';
       if (titled === title + '\u0000' + detail) return;
       titled = title + '\u0000' + detail;
       window.dinahWorkbench.retitle(key, title, detail);
@@ -143,7 +146,7 @@
         if (!doc || !doc.modified || doc.readOnly) return;
         return textOf(key).then(function (text) {
           if (refusedText !== null && text === refusedText) return;
-          return call('save').then(function () { refusedText = null; lastError = ''; refreshProblemsSoon(); return current(); }).then(retitle)
+          return call('save').then(function () { refusedText = null; lastError = ''; refreshProblemsSoon(); return refreshDraft(); }).then(current).then(retitle)
             .catch(function (err) { refusedText = text; throw err; });
         });
       }).catch(refused).finally(function () { saving = null; });
@@ -160,6 +163,36 @@
       }).catch(function () {});
     }
     function flush() { clearTimeout(saveTimer); return save(); }
+    /* The draft as the service now sees it, after the applet's text went
+       into it; a document that publishes needs this to know whether there
+       is anything to publish. */
+    function refreshDraft() {
+      if (draft.writeBack !== 'publish') return Promise.resolve(draft);
+      return Promise.resolve(api().GetDraft(draft.id)).then(function (v) { draft = v; if (window.pudlCommands) window.pudlCommands.changed(); return v; });
+    }
+    /* Publish writes the draft to its page, after asking, since a page is
+       read by others as soon as it is written. The applet's text goes into
+       the draft first, and the draft service refuses the write when the page
+       moved on since it was opened. */
+    function publish() {
+      return flush().then(function () { return api().GetDraft(draft.id); }).then(function (v) {
+        draft = v;
+        if (!v.changed) { if (host()) host().toast('"' + (v.title || 'The document') + '" has no changes to publish.', 'info'); return v; }
+        var where = window.dinahWorkspaceBrowser && v.origin ? window.dinahWorkspaceBrowser.describe(v.origin) : '';
+        return host().ask('Publish This Document?', 'Your changes to "' + (v.title || 'the document') + '" are written to its page' + (where ? ' (' + where + ')' : '') + ', where everyone who reads the page sees them at once.', 'Publish', false).then(function (go) {
+          if (!go || disposed) return v;
+          return Promise.resolve(api().SaveDraft(v.id, v.revision)).then(function (saved) {
+            draft = saved.view || saved;
+            if (window.pudlCommands) window.pudlCommands.changed();
+            if (host()) {
+              host().toast('"' + (draft.title || 'The document') + '" was published.', 'success');
+              (saved.notes || []).forEach(function (note) { host().toast(note, 'info'); });
+            }
+            return current().then(retitle).then(function () { return draft; });
+          });
+        });
+      }).catch(failed);
+    }
 
     function mountApplet() {
       mount = document.createElement('div');
@@ -752,12 +785,15 @@
     var controller = {
       key: key,
       ref: function () { var o = draft.origin || {}; return o.path ? { workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path } : null; },
-      saveLabel: function () { return draft.origin && draft.origin.kind === 'new' ? 'Save As…' : 'Save'; },
-      canSave: function () { return true; },
-      whyNot: function () { return ''; },
+      saveLabel: function () { return draft.origin && draft.origin.kind === 'new' ? 'Save As…' : draft.writeBack === 'publish' ? 'Publish…' : 'Save'; },
+      canSave: function () { return draft.writeBack !== 'publish' || !!draft.changed; },
+      whyNot: function () { return draft.writeBack === 'publish' && !draft.changed ? 'There are no changes to publish.' : ''; },
+      // A document that publishes offers Publish… in the Document menu.
+      canPublish: function () { return draft.writeBack === 'publish' ? !!draft.changed : null; },
+      publish: publish,
       canRename: function () { return !!draft.origin && draft.origin.kind === 'local-folder'; },
       rename: rename,
-      save: function () { return draft.origin && draft.origin.kind === 'new' ? saveAs() : flush(); },
+      save: function () { return draft.origin && draft.origin.kind === 'new' ? saveAs() : draft.writeBack === 'publish' ? publish() : flush(); },
       canSaveAs: function () { return true; },
       saveAs: saveAs,
       close: function () { window.pudlWindows.close(key); },

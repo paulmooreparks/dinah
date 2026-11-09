@@ -100,6 +100,15 @@
     enabled: function () { return !suspended(['terminal']) && cur(function (c) { return c.canSave(); }, false); },
     reason: function () { return suspended(['terminal']) ? 'A Terminal is in front, and the key is its own.' : whyNot('save', 'There are no changes to save.')(); },
     run: function () { return cur(function (c) { return c.save(); }); } });
+  /* A document whose source publishes what is written (a page on a wiki)
+     is not written at each pause in typing: its draft keeps the changes,
+     and Publish… writes them to the page after asking. The row is drawn
+     only for such a document (content-windows.js, publish). */
+  C.register({ id: 'publish-document', glyph: 'upload', menu: 'document', mnemonic: 'P', label: 'Publish…', shortcut: 'Ctrl+Shift+P', help: { label: 'Publish the Document…', key: 'Ctrl+Shift+P' },
+    visible: function () { return cur(function (c) { return !!c.canPublish && c.canPublish() !== null; }, false); },
+    enabled: function () { return !suspended(['terminal']) && cur(function (c) { return !!c.canPublish && !!c.canPublish(); }, false); },
+    reason: function () { return suspended(['terminal']) ? 'A Terminal is in front, and the key is its own.' : 'There are no changes to publish.'; },
+    run: function () { return cur(function (c) { return c.publish(); }); } });
   /* PUDL keeps one of two rows with one label, so this row stands aside
      while the row above reads Save As…. */
   C.register({ id: 'save-document-as', glyph: 'copy', menu: 'document', mnemonic: 'V', label: 'Save As…', shortcut: 'Ctrl+Shift+S',
