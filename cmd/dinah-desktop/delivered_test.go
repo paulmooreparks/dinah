@@ -186,6 +186,9 @@ func (d *deliveredChat) replay(t *testing.T, extra ...string) {
 	d.mu.Unlock()
 
 	d.s.SetReplaying(true)
+	// As Load Full History reopens a chat: the page is sent the replay. An
+	// ordinary reopening sends it none (TestAnOrdinaryReopeningSendsThePageNoReplay).
+	d.s.SetReplayToPage(true)
 
 	d.a.transcriptCapture().Initialize(d.s, true)
 	for i, p := range calls {

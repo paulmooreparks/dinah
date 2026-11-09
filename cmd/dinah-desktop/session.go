@@ -30,8 +30,15 @@ func newLoadingSessionState(seed *sessionSeed, replay, restore bool, initial ...
 const replayBatch = 200
 
 // flushReplay sends the page the replayed updates it has not had yet.
+// flushReplay sends the page the replayed updates queued so far. An ordinary
+// reopening draws the saved copy and the journal, not the replay, so its
+// queue is drained and nothing is sent (Conversation.ReplayToPage).
 func (a *App) flushReplay(s *Session) {
-	sessionhost.EmitChatReplay(a.emit, s, s.DrainReplay())
+	batch := s.DrainReplay()
+	if !s.ReplayToPage() {
+		return
+	}
+	sessionhost.EmitChatReplay(a.emit, s, batch)
 }
 
 // ChatEvents is what a page missed of a chat's transcript: the entries of the

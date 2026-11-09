@@ -514,6 +514,7 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 	}
 	if !resumed {
 		s.SetReplaying(true)
+		s.SetReplayToPage(full)
 		l.host.InitTranscript(s, true)
 	}
 	l.mu.Lock()
@@ -551,6 +552,7 @@ func (l *SessionLifecycle) openAt(ws, id string, override map[string]json.RawMes
 			why = "session/resume was refused: " + err.Error()
 			resumed = false
 			s.SetReplaying(true)
+			s.SetReplayToPage(full)
 			l.host.InitTranscript(s, true)
 			stop = l.host.WatchReopen(id, "session/load")
 			err = l.host.Call(conn, "session/load", l.host.SessionParams(provider, id, cwd, servers), &res)

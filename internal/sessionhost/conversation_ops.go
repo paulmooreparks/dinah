@@ -571,6 +571,20 @@ func (c *Conversation) SetReplaying(v bool) {
 	c.details.SetReplayingLocked(v)
 }
 
+// ReplayToPage says whether the page is to be sent the replayed updates as
+// they arrive (Conversation.replayToPage).
+func (c *Conversation) ReplayToPage() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.replayToPage
+}
+
+func (c *Conversation) SetReplayToPage(v bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.replayToPage = v
+}
+
 func (c *Conversation) EndReplay() {
 	c.mu.Lock()
 	defer c.mu.Unlock()

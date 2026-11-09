@@ -27,6 +27,12 @@ type Conversation struct {
 	history  History
 	// resumed is set once for a chat reopened with session/resume.
 	resumed bool
+	// replayToPage says the page draws this chat's replay as it arrives,
+	// which only Load Full History asks for. An ordinary reopening draws
+	// the saved copy and the journal instead, so its replayed updates are
+	// recorded and numbered but not sent to the page, which built them into
+	// a log it then discarded (9 November 2026).
+	replayToPage bool
 	// hold and choice are a send held for a full context window and the course
 	// the person chose for it (context_hold.go).
 	hold   *ContextHold
