@@ -25,6 +25,10 @@
     return isNaN(d) ? stamp : dinahRegional.format(d, 'dayTime');
   }
   document.addEventListener('dinah:execution-state', function () { listeners.forEach(function (refresh) { refresh(); }); });
+  /* How many times the bus has changed since the page opened, for the
+     conversations to know whether their messages may have changed. */
+  var busChanges = 0;
+  if (host()) host().on('bus:changed', function () { busChanges++; });
   function firstLine(text) { var line = String(text || '').split('\n').find(function (l) { return l.trim(); }) || ''; return line.length > 140 ? line.slice(0, 139) + '…' : line; }
   function glyphButton(cls, glyph, label) {
     var b = node('button', 'icon-btn ' + cls); b.type = 'button';
@@ -309,13 +313,18 @@
     // whatever the window adds from the message.
     box.entry = function (m) { return { text: String(m.text || '') }; };
     box.history = window.dinahComposer.history(box.read, box.write);
-    var kept = null;
+    var kept = null, lastText = null, lastFiles = -1;
+    /* Called for every change of the box and for every redraw of the
+       window, so it touches only what changed: the box is sized again only
+       for new text, and the commands are redrawn only when Add's state or
+       the files it offers changed. */
     function changed() {
-      window.dinahComposer.fit(text);
-      go.disabled = closed || sending || (!text.value.trim() && !files.length);
+      if (text.value !== lastText) { lastText = text.value; window.dinahComposer.fit(text); }
+      var goOff = closed || sending || (!text.value.trim() && !files.length);
+      if (go.disabled !== goOff) go.disabled = goOff;
       var attach = chips && form.querySelector('.group-add');
-      if (attach) {
-        attach.disabled = closed;
+      if (attach && (attach.disabled !== closed || files.length !== lastFiles)) {
+        attach.disabled = closed; lastFiles = files.length;
         if (window.pudlCommands) pudlCommands.changed();
       }
       if (!kept) return;
@@ -674,8 +683,15 @@
      a message in the box as a quotation, and Edit puts one of the person's
      back in the box, with the chats it mentioned. The person's messages are
      the box's history for Up and Down. */
-  function conversation(root, emptyBody, fetch, box, seenKey, stopped) {
+  /* stamp, when given, says whether the messages may have changed since
+     they were fetched (the count of bus changes); a redraw asked for by
+     the overview's listeners or the chat list fetches the messages again
+     only when it has, since every redraw of the chat list and every bus
+     change loaded the overview, and every open group then fetched and
+     redrew its whole list. An explicit draw always fetches. */
+  function conversation(root, emptyBody, fetch, box, seenKey, stopped, stamp) {
     root.classList.add('bus-conversation');
+    var lastStamp = null;
     var log = node('div', 'bus-log transcript'), list = node('div', 'bus-log-list transcript-messages');
     log.setAttribute('data-scroll-defer', '');
     log.dataset.uiScroll = 'bus-log';
@@ -720,9 +736,10 @@
     function draw(end) {
       if (disposed || (box.canRead && !box.canRead())) return Promise.resolve();
       if (end === true) navigation.scroll(true);
-      var requested = ++revision;
+      var requested = ++revision, stampNow = stamp ? stamp() : null;
       return Promise.resolve(fetch()).then(function (ms) {
         if (disposed || requested !== revision || (box.canRead && !box.canRead())) return;
+        lastStamp = stampNow;
         ms = ms || [];
         box.history.set(ms.filter(function (m) { return m.fromPerson && m.kind !== 'member'; }).map(box.entry));
         var same = drawn.length <= ms.length && drawn.every(function (d, i) { return d.sig === signature(ms[i]); });
@@ -750,7 +767,10 @@
         }, function () { painting = false; if (window.dinahUIState) window.dinahUIState.scrollReady(log); navigation.scroll(); navigation.update(); });
       }).catch(function (err) { if (!disposed) host().toast(message(err), 'danger'); });
     }
-    function redraw() { return draw(); }
+    function redraw() {
+      if (stamp) { var now = stamp(); if (now !== null && now === lastStamp) return Promise.resolve(); }
+      return draw();
+    }
     listeners.add(redraw);
     draw();
     return { draw: draw, focus: function () { box.text.focus(); },
@@ -880,8 +900,15 @@
     }
     function reachSoon() { clearTimeout(reachTimer); reachTimer = setTimeout(askReach, 250); }
     box.text.addEventListener('input', reachSoon);
-    var changedBefore = box.changed;
-    box.changed = function () { changedBefore.apply(box, arguments); reachSoon(); };
+    /* The box changes at every redraw of the window as well as at every
+       keystroke; who a message reaches depends on its text and files, so
+       Go is asked again only when those changed, and on a bus change. */
+    var changedBefore = box.changed, reachFor = null;
+    box.changed = function () {
+      changedBefore.apply(box, arguments);
+      var now = box.text.value + String.fromCharCode(0) + JSON.stringify(box.files ? box.files() : []);
+      if (now !== reachFor) { reachFor = now; reachSoon(); }
+    };
     var writeBefore = box.extra.write;
     box.extra.write = function (state) { writeBefore(state); reachSoon(); };
     // Any change on the bus may change who is engaged; the answer that
@@ -1175,17 +1202,23 @@
           return from(wanted).then(function (older) { loadFrom = wanted; return older; });
         });
         return read.then(function (ms) { if (!fromInbox) markRead(); return ms; });
-      }, box, 'group:' + key, stopped);
+      }, box, 'group:' + key, stopped, function () { return String(busChanges); });
     var draftChoices = node('div', 'group-draft-choices'), draftLabel = node('label', 'form-field');
     var draftSelect = node('select', 'form-select'); draftSelect.setAttribute('aria-label', 'Other saved drafts');
     draftLabel.append(node('span', 'form-label', 'Other saved drafts'), draftSelect);
     var useDraft = node('button', 'btn btn-sm', 'Use Selected Draft'); useDraft.type = 'button';
     draftChoices.append(node('p', 'form-help', 'Another saved window contained a different draft. Choose which one to edit.'), draftLabel, useDraft);
     box.content.prepend(draftChoices);
+    var draftsShown = '';
     function refreshDrafts() {
       var saved = window.dinahUIState.get(alternativeDraftKey(key), []) || [];
       var current = window.dinahUIState.get('dinah-draft:group:' + key);
       if (!box.text.value && !box.files().length && current && current.text) box.write(current);
+      /* Asked at every keystroke and every redraw; the choices are rebuilt
+         only when they would differ. */
+      var shown = JSON.stringify([saved, lookupState, box.files().length]);
+      if (shown === draftsShown) return;
+      draftsShown = shown;
       draftChoices.hidden = !saved.length;
       draftSelect.replaceChildren();
       saved.forEach(function (entry, i) {

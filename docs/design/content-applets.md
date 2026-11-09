@@ -137,6 +137,10 @@ The fixes, all in Dinah's page: redraw requests are gathered into one every 20 m
 
 Results, 61 keys in a 400-paragraph document, before #66: fresh state 65 → 15 ms median; real layout 385 → 46 ms median and 1134 → 457 ms at the 90th percentile, with spikes of about a second left. What remains on the real layout is Dinah's chat and group windows reacting to periodic polls (chat times, team state, session information) by re-laying out their transcripts, about 14% of the main thread while typing, which is a separate piece of work.
 
+### The sweep of pointless updates, 9 November 2026
+
+Paul then asked for every pointless update that typing sets off to go, in the document applets and in chat windows alike. Measured the same way, typing in a chat composer cost 19 ms a key at the median; the handlers themselves took 11 ms across 73 keys, so the composer was already quiet apart from sizing its box twice a key, now once. What interrupted typing came from the other windows: every redraw of the chat list made the bus pane and every group window redraw, and each group window then asked Go who its draft would reach, rebuilt its list of other saved drafts and fetched and redrew its whole message list, whether or not anything of its own had changed. Those now happen only when the text or files of the box changed, when the saved drafts differ, or when the overview shows the room changed. A document window's title lost its mark for unsaved typing, its status line no longer says Saving and Saved at every write, the applets' tab strip may no longer retitle the window, and the applet's report of its caret line no longer writes the window layout to Go. Restored chats replaying their transcripts at startup still arrive as thousands of events, which is a startup cost, not typing's. Measured once that replay has settled, typing in Docs on Paul's layout costs 31 ms a key at the median and 94 ms at the 90th percentile, against 385 ms and 1134 ms at the start of the day.
+
 ## Still to do
 
 - v0.2.52 is pinned, with #66 (page furniture kept while typing) and #67 (the Insert menu's shortcodes cached, and hosts told of a command change only when a command's state changes). Dinah's interim once-a-quarter-second memo of the applets' menu items went with it.
@@ -144,5 +148,5 @@ Results, 61 keys in a 400-paragraph document, before #66: fresh state 65 → 15 
 - Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
 - Customising the toolbar, Slides' presenter window and its `fs.save` export, and SVG artifacts from Diagrams' `render@1`, which the broker's drawing check refuses; PNG works.
 - An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
-- Chat and group windows re-lay out their transcripts at every periodic poll, which costs the page about 14% of its time while typing on a large layout (see "Typing speed").
+- Chat windows redraw their composer options, and the teams strip re-lays out transcripts, at every chat-state snapshot and poll; the redraws are now coalesced, but the work behind them remains (see "Typing speed" and "The sweep of pointless updates").
 - The browser suites keyboard and documents-menu, which failed before the change for other reasons, still test the removed Editor's own keys and menus and need rewriting for the yavc.app Editor.

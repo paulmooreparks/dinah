@@ -132,6 +132,13 @@
       resource = window.dinahContentHost.resourceFor(draft);
       mount.dataset.contentResource = resource;
       root.appendChild(mount);
+      /* The applet reports its state (file, view and caret line) at every
+         change, and the workbench keeps every window's state in the address
+         and the saved layout, so the caret moving a line wrote the layout
+         to Go. Dinah's state for the window is the draft, which the mount
+         is given (content-host.js), and the applet's own recovery snapshot
+         keeps its view; its reports stay inside the window. */
+      mount.addEventListener('pudl:applet-change', function (e) { e.stopPropagation(); });
       window.pudlApplets.boot(mount);
       quietSaves(mount);
     }

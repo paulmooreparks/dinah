@@ -2744,8 +2744,10 @@
       renderComposerOptions();
     }
     // The box grows with its text as every window's box does (composer.js).
+    /* The box is sized to its text by composer.js's one listener for
+       every textarea; sizing it here as well laid the page out twice a
+       keystroke. */
     function typed() {
-      window.dinahComposer.fit($('prompt'));
       var empty = !$('prompt').value.trim() && !skillForm.isOpen() && !(typeof attachments !== 'undefined' && attachments.length);
       $('send').disabled = empty || switchingProvider;
       $('steer-send').disabled = !working || empty || switchingProvider;
