@@ -460,10 +460,29 @@
 
   /* ---- Opening ------------------------------------------------------------ */
 
-  /* The application a document opens in. Docs, Diagrams and Slides take
-     their own documents as they are adopted; until then the Editor opens
-     everything. */
-  function applicationFor() { return 'editor'; }
+  /* The application a document opens in, and the view. A Markdown
+     document opens as Settings › Markdown Opens In says: Visual is Docs,
+     and Text, Split and Preview are the Editor in that view. A .docs.md
+     document is always Docs's. Anything else is the Editor's, in Text.
+     A document opened to read (a chat's chip, a double-click in Sources)
+     is shown in the Editor's Preview, and one opened to edit as text in its
+     Text, as with the built-in Editor. Diagrams and Slides take their own
+     documents as they are adopted. */
+  function markdown(v) {
+    var o = v.origin || {};
+    return o.kind === 'new' ? true : /\.(md|markdown)$/i.test(o.path || '');
+  }
+  function placeFor(v, intent) {
+    var path = (v.origin && v.origin.path) || '';
+    if (/\.docs\.md$/i.test(path)) return { app: 'docs' };
+    if (!markdown(v)) return { app: 'editor' };
+    if (intent === 'text') return { app: 'editor', view: 'text' };
+    if (intent === 'read') return { app: 'editor', view: 'preview' };
+    var chosen = window.dinahDocumentViews ? window.dinahDocumentViews()['text/markdown'] : 'page';
+    if (chosen === 'text' || chosen === 'split' || chosen === 'preview') return { app: 'editor', view: chosen };
+    return { app: 'docs' };
+  }
+  function applicationFor(v) { return placeFor(v).app; }
 
   /* A document is open in one window at a time, so opening it in another
      application moves it there: the window it was in saves its last change
@@ -476,8 +495,10 @@
       setTimeout(function () { document.removeEventListener('pudl:window-close', done); resolve(); }, 10000);
     });
   }
-  function open(v, app) {
-    var item = itemFor(app || applicationFor(v), v);
+  function open(v, app, intent) {
+    var place = app ? { app: app } : placeFor(v, intent);
+    var item = itemFor(place.app, v);
+    var already = window.pudlWindows.state().open.indexOf(window.dinahWorkbench.key(item)) >= 0;
     var elsewhere = window.pudlWindows.state().open.filter(function (key) {
       var other = itemOfWindow(key);
       return other && other.path === v.id && other.kind !== item.kind && /^content-/.test(other.kind);
@@ -487,9 +508,16 @@
         throw new Error('"' + (v.title || 'The document') + '" could not be saved in the window it was open in, so it stays there.');
       }
       return window.dinahWorkbench.open(item);
+    }).then(function (key) {
+      /* A window just opened shows the view chosen; one already open keeps
+         the view the person left it in. */
+      if (already || !place.view) return key;
+      return window.dinahWorkbench.ready(key).then(function () {
+        return window.dinahContentHost.accept(key, { operation: 'view', input: { mode: place.view } });
+      }).then(function () { return key; }, function () { return key; });
     });
   }
-  function openResource(ref) { return Promise.resolve(api().OpenDraft(ref)).then(function (v) { return open(v); }); }
+  function openResource(ref, intent) { return Promise.resolve(api().OpenDraft(ref)).then(function (v) { return open(v, null, intent); }); }
   /* Open shows Dinah's file picker in the current workspace, as Dinah's
      Editor does; the field also takes a path on the computer, and a file
      outside every workspace's folders opens as a new document. */
@@ -669,8 +697,8 @@
   var own = window.dinahEditor;
   if (own) {
     window.dinahEditor = Object.assign({}, own, {
-      open: function (v, intent) { return enabled() ? open(v) : own.open(v, intent); },
-      openResource: function (ref, intent) { return enabled() ? openResource(ref) : own.openResource(ref, intent); },
+      open: function (v, intent) { return enabled() ? open(v, null, intent) : own.open(v, intent); },
+      openResource: function (ref, intent) { return enabled() ? openResource(ref, intent) : own.openResource(ref, intent); },
       newDocument: function () { return enabled() ? newDocument().catch(function (err) { host().toast(message(err), 'danger'); }) : own.newDocument(); },
       openDocument: function () { return enabled() ? openDocument() : own.openDocument(); }
     });

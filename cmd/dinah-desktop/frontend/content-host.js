@@ -311,7 +311,8 @@
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
       contentWorkspace: { version: 1, directory: function () { return null; } },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
-      snapshot: snapshot, config: config, documentWindows: documentWindows
+      snapshot: snapshot, config: config, documentWindows: documentWindows,
+      commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
     });
     window.pudlApplets.capability('files.read', fileServices);
     window.pudlApplets.capability('files.write', fileServices);
