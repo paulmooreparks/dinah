@@ -183,7 +183,8 @@
         '<div class="notice-actions"><button type="button" class="btn btn-sm" data-content-theirs>Take Theirs</button>' +
         '<button type="button" class="btn btn-sm btn-primary" data-content-mine>Keep Mine</button></div></div></div>' +
       '<div class="notice warn" data-content-moved hidden><div class="notice-content"><p class="notice-body" data-content-moved-body></p>' +
-        '<div class="notice-actions"><button type="button" class="btn btn-sm btn-primary" data-content-bring>Bring In Their Changes</button></div></div></div>';
+        '<div class="notice-actions"><button type="button" class="btn btn-sm" data-content-compare>Compare…</button>' +
+        '<button type="button" class="btn btn-sm btn-primary" data-content-bring>Bring In Their Changes</button></div></div></div>';
     root.appendChild(notices);
     function $(name) { return notices.querySelector('[data-content-' + name + ']'); }
 
@@ -422,11 +423,13 @@
     }
     var unsubscribe = host() ? host().on('draft:changed', draftChanged) : function () {};
 
+    var comparison = null;
     function checkMoved(afterRefusal) {
       if (!draft.origin || draft.origin.kind === 'new' || draft.writeBack !== 'save' || disposed) return Promise.resolve();
       return Promise.resolve(api().CompareDraft(draft.id)).then(function (c) {
         if (disposed) return;
-        if (!c.moved) { $('moved').hidden = true; return; }
+        if (!c.moved) { $('moved').hidden = true; comparison = null; return; }
+        comparison = c;
         var n = (c.conflicts || []).length;
         /* With nothing of the person's in the way, the window simply takes
            the file as it now is, as an agent that edits files on disk
@@ -450,15 +453,42 @@
       $('bring').hidden = n > 0;
       $('moved').hidden = false;
     }
-    $('bring').addEventListener('click', function () {
-      flush().then(function () { return api().GetDraft(draft.id); }).then(function (v) {
+    function bringIn() {
+      return flush().then(function () { return api().GetDraft(draft.id); }).then(function (v) {
         return api().MergeIntoDraft(draft.id, v.revision);
       }).then(function (v) {
-        draft = v;
+        /* The merged text is the draft's now and is saved to the file at
+           once, before the applet shows it: the applet counts nothing as
+           modified after a reload, so a save through it would write nothing. */
+        return v.changed && v.writeBack === 'save' ? api().SaveDraft(v.id, v.revision) : v;
+      }).then(function (v) {
+        draft = v; comparison = null;
         $('moved').hidden = true;
+        var diff = window.pudlWindows.state().open.filter(function (k) { return k === diffKey(); })[0];
+        if (diff) window.pudlWindows.close(diff);
         return reload();
-      }).then(function () { return flush(); }).catch(failed);
-    });
+      }).catch(failed);
+    }
+    $('bring').addEventListener('click', bringIn);
+    /* Compare shows the draft's text and the file's, as it is now, side by
+       side in Dinah's Diff window, with Bring In Their Changes there as well
+       when the two touch no part in common; a modal dialog would hide the
+       document it compares (docs/design/content-applets.md). */
+    function diffKey() { return window.dinahWorkbench.key({ kind: 'diff', workspace: draft.origin && draft.origin.workspaceId || '', path: 'draft-moved:' + draft.id, title: draft.title }); }
+    function compare() {
+      var c = comparison;
+      if (!c || !window.dinahDiff) return;
+      var n = (c.conflicts || []).length, o = draft.origin || {};
+      window.dinahDiff.open({
+        key: 'draft-moved:' + draft.id, title: draft.title, workspaceId: o.workspaceId,
+        detail: 'Yours, then the file as it is now' + (n ? ' · you both changed ' + (n === 1 ? 'one part' : n + ' parts') : ''),
+        path: o.path, file: o.workspaceId && o.sourceId ? { workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path } : undefined,
+        before: c.draft, after: c.current, readOnly: true,
+        actions: n ? [] : [{ id: 'bring', label: 'Bring In Their Changes', glyph: 'download', scope: 'file', primary: true }],
+        onAction: function (id) { if (id === 'bring') bringIn(); }
+      }).catch(failed);
+    }
+    $('compare').addEventListener('click', compare);
     /* A refused save is a change made elsewhere, or a file changed on disk,
        or a plain failure, which is shown. */
     function refused(err) {

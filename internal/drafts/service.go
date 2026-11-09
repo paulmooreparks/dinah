@@ -257,11 +257,15 @@ func fileNames(files []resource.File) []string {
 // and what the draft changed, each as a unified diff from the baseline, and
 // the two merged, with the regions both changed differently.
 type Comparison struct {
-	Moved     bool                `json:"moved"`
-	Revision  string              `json:"revision"`
-	Theirs    string              `json:"theirs"`
-	Mine      string              `json:"mine"`
-	Merged    string              `json:"merged"`
+	Moved    bool   `json:"moved"`
+	Revision string `json:"revision"`
+	Theirs   string `json:"theirs"`
+	Mine     string `json:"mine"`
+	Merged   string `json:"merged"`
+	// Draft and Current are the two texts themselves, the draft's and the
+	// resource's as it is now, for showing them side by side.
+	Draft     string              `json:"draft"`
+	Current   string              `json:"current"`
 	Title     string              `json:"title"`
 	Conflicts []textdiff.Conflict `json:"conflicts"`
 	remote    resource.Snapshot
@@ -313,7 +317,7 @@ func (s *Service) compare(ctx context.Context, id string) (Comparison, error) {
 		Moved: remote.Revision != d.Baseline.Revision, Revision: remote.Revision,
 		Theirs: textdiff.UnifiedDiff(d.Baseline.Text, remote.Text, "as opened", "as it is now"),
 		Mine:   textdiff.UnifiedDiff(d.Baseline.Text, d.Text, "as opened", "the draft"),
-		Merged: merged, Title: title, Conflicts: conflicts, remote: remote,
+		Merged: merged, Draft: d.Text, Current: remote.Text, Title: title, Conflicts: conflicts, remote: remote,
 	}, nil
 }
 

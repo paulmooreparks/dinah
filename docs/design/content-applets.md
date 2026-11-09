@@ -155,10 +155,14 @@ A chat window the layout kept hidden did not finish restoring until it was shown
 
 The launcher listed none of the four applications: the Editor was filtered out in favour of New Document, and Docs, Diagrams and Slides had no launcher entry. Each is now a launcher entry in the Documents category, and a Tools entry in the menu bar, that starts an empty document of its kind in the current workspace; New Document left the launcher as the Editor's duplicate and stays in the Documents menu. The launcher's entries are in alphabetical order whichever category is chosen (Paul's ruling).
 
+### Compare, for a file changed on disk, 9 November 2026
+
+The built-in Editor's notice for a file changed on disk had a Compare button that opened a modal dialog listing the conflicting parts. The content windows' notice has Compare again, and it opens Dinah's Diff window instead, with the draft's text as the "before" side and the file as it is now as the "after", titled "Yours, then the file as it is now"; the architectural principles rule out a modal, and the Diff window keeps the document in sight. When the two touch no part in common, the Diff window has Bring In Their Changes as the notice does; both merge the file's changes into the draft, save the merged draft to the file at once (the applet counts nothing as modified after showing the merged text, so a save through it would have written nothing, which was also true of the notice's button before), close the Diff window and show the merged text. The comparison from Go now includes the two texts themselves (`draft` and `current`) beside its unified diffs.
+
 ## Still to do
 
 - v0.2.52 is pinned, with #66 (page furniture kept while typing) and #67 (the Insert menu's shortcodes cached, and hosts told of a command change only when a command's state changes). Dinah's interim once-a-quarter-second memo of the applets' menu items went with it.
-- Parity with the removed built-in Editor: the Compare dialog for a file changed on disk (Bring In Their Changes works), and attachments added to a draft (AddDraftFile and PickDraftFiles are now unused by the page).
+- Parity with the removed built-in Editor: attachments added to a draft (AddDraftFile and PickDraftFiles are now unused by the page).
 - Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
 - Customising the toolbar, Slides' presenter window and its `fs.save` export, and SVG artifacts from Diagrams' `render@1`, which the broker's drawing check refuses; PNG works.
 - An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
