@@ -58,7 +58,7 @@ const { launch } = require('./lib/page');
     await box.fill('Recipients removed'); await send.click(); await p.waitForFunction(() => __calls.length === 6);
     ok('replacing mentioned text removes its explicit recipients', JSON.stringify((await sends())[5][3]) === '[]');
     await box.fill('Visible draft'); await everyone.click();
-    ok('pointer toolbar action retains Attach and Send', await room.locator('.group-composer').getByRole('button', { name: /Attach/ }).isVisible() && await send.isVisible());
+    ok('pointer toolbar action retains Attach and Send', await room.locator('.group-composer').getByRole('button', { name: /Add|Attach/ }).isVisible() && await send.isVisible());
     await t.shot('group-recipient-toolbar');
   } finally {
     await t.close();

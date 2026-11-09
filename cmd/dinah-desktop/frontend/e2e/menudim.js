@@ -58,7 +58,8 @@ const { launch, PAGE } = require('./lib/page');
       ok(theme + ': a long list scrolls to the keyboard selection', scrolled);
       await t.shot('all-windows-scrolled-' + theme);
       await p.locator('#go-to').getByRole('button', { name: 'Close', exact: true }).click();
-      ok(theme + ': no flat md-item buttons remain', await p.locator('button.md-item:not(.btn)').count() === 0);
+      // The launcher's rows are PUDL's start-menu rows (.start-item), which PUDL draws flat by design.
+      ok(theme + ': no flat md-item buttons remain', await p.locator('button.md-item:not(.btn):not(.start-item)').count() === 0);
     } finally { await t.close(); }
   }
 })();

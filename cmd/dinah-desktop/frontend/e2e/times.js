@@ -33,7 +33,8 @@ const { launch } = require('./lib/page');
     await p.waitForTimeout(400);
     await p.click('#sessions a:has-text("Planned yesterday")');
     await p.waitForTimeout(500);
-    const times = await p.$$eval('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time', ts => ts.map(t => t.textContent));
+    // A folded run of tool calls has a row of its own, whose time is blank; its tools' times are inside it.
+    const times = await p.$$eval('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li:not(.tool-group) > time.activity-time', ts => ts.map(t => t.textContent));
     ok('replayed messages show when they were said', times.join(' ') === '09:05 09:06 09:06 09:08 10:15 10:16', times.join(' '));
     ok('the full date is on the time', (await p.getAttribute('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time', 'title')).includes('2026'));
     await p.click('#sessions a:has-text("From Devin Desktop")');

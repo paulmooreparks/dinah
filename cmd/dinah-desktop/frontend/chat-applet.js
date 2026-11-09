@@ -2745,6 +2745,9 @@
       $('prompt').placeholder = 'Say what you want the agent to do, or type / for a skill.';
       typed();
       renderComposerOptions();
+      // Stop appears and goes with the turn in the same frame, not at the
+      // next gathered redraw of the page's commands (workbench.js).
+      if (window.pudlCommands && window.pudlCommands.changed.now) window.pudlCommands.changed.now();
     }
     // The box grows with its text as every window's box does (composer.js).
     /* The box is sized to its text by composer.js's one listener for

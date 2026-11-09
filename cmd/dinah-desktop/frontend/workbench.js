@@ -250,6 +250,13 @@
         if (due) return;
         due = setTimeout(function () { due = 0; pudlChanged(); }, 20);
       };
+      /* A change the person must see in the same frame, such as Stop
+         appearing when a turn starts, is drawn at once (chat-applet.js,
+         setWorking). */
+      window.pudlCommands.changed.now = function () {
+        if (due) { clearTimeout(due); due = 0; }
+        pudlChanged();
+      };
       window.pudlCommands.changed.__dinahCoalesced = true;
     }
   });

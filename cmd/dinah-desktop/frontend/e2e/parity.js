@@ -117,9 +117,11 @@ const path = require('path');
     ok('Quote at the end works from the keyboard and quotes the whole answer', (await p.inputValue('.win[data-chat-current] [data-view-id=prompt]')).includes('> Point 24 of the long answer.'));
     await p.fill('.win[data-chat-current] [data-view-id=prompt]', '');
 
-    // Folded tool runs.
+    // Folded tool runs, in a turn that is under way: a run that arrives
+    // while the chat is not working is a finished one, with no step in hand.
     await p.evaluate(() => {
       const e = window.__emit;
+      e('agent:session', { sessionId: 's1', open: true, working: true, queued: [] });
       for (let i = 0; i < 5; i++) e('agent:update', { sessionId: 's1', update: { sessionUpdate: 'tool_call', toolCallId: 'r' + i, title: 'Read file ' + i, kind: 'read', status: 'completed' } });
       e('agent:update', { sessionId: 's1', update: { sessionUpdate: 'tool_call', toolCallId: 'x1', title: 'Ran go vet', kind: 'execute', status: 'failed' } });
       e('agent:update', { sessionId: 's1', update: { sessionUpdate: 'tool_call', toolCallId: 'x2', title: 'Ran go test', kind: 'execute', status: 'in_progress' } });
