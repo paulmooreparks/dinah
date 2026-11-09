@@ -36,7 +36,8 @@ const path = require('path');
     const win = p.locator('[data-win="' + key + '"]');
     // The saved copy is visible before reconnect replays it. Wait for the
     // connected history before emitting live events.
-    await win.locator('.tool-row').filter({ hasText: 'Send the assignment (replayed)' }).waitFor();
+    // The replayed tool call sits in a folded run of tool calls, so it is on the page but not in sight.
+    await win.locator('.tool-row').filter({ hasText: 'Send the assignment (replayed)' }).waitFor({ state: 'attached' });
     await win.locator('.team-traffic-fold').first().waitFor();
     await p.waitForFunction(key => document.querySelector('[data-win="' + key + '"] .team-traffic-fold')?.textContent.startsWith('2 team messages'), key);
     const shared = await settledCount(p, win.locator('.team-traffic-fold'), 2);
@@ -44,7 +45,7 @@ const path = require('path');
     await p.evaluate(() => __emit('agent:teamsent', { sessionId: 'lead', message: { id: 34, room: 'team-room', roomTitle: 'Development Team', from: 'Lead' }, text: 'Live outgoing assignment.' }));
     await p.waitForFunction(key => [...document.querySelectorAll('[data-win="' + key + '"] .team-traffic-fold')].at(-1)?.textContent.startsWith('2 team messages'), key);
     await p.evaluate(() => __emit('agent:update', { sessionId: 'lead', update: { sessionUpdate: 'tool_call', toolCallId: 'failed-send', title: 'A failed send', status: 'failed', content: [{ type: 'content', content: { type: 'text', text: 'The delivery failed.' } }] } }));
-    await win.locator('.tool-row').filter({ hasText: 'A failed send' }).waitFor();
+    await win.locator('.tool-row').filter({ hasText: 'A failed send' }).waitFor({ state: 'attached' });
     ok('failed sends remain visible outside the traffic folds', await win.locator('.tool-row.team-traffic-original').count() === 0);
     await win.evaluate(w => pudlCommands.run('export-chat', undefined, w.querySelector('.chat-instance').parentElement));
     await p.waitForFunction(() => __exported.includes('Live outgoing assignment.'));
@@ -53,7 +54,8 @@ const path = require('path');
     await win.locator('.chat-team .team-toggle').click();
     await win.locator('[data-view-id="activity"]').focus(); await p.keyboard.press('Control+Home');
     await t.shot('teams-traffic-folds');
-    ok('the successful send tool call remains visible alongside its structured sent entry', await win.locator('.tool-row').filter({ hasText: 'Send the assignment' }).isVisible());
+    // The tool call sits in a folded run of tool calls, which opens on request; it stays on the page and outside the team fold.
+    ok('the successful send tool call remains alongside its structured sent entry', await win.locator('.tool-row').filter({ hasText: 'Send the assignment' }).evaluateAll(rows => rows.length === 1 && !rows[0].classList.contains('team-traffic-original')));
     await p.evaluate(() => { for (let i = 0; i < 80; i++) __emit('agent:sent', { sessionId: 'lead', kind: 'asked', text: 'Reader position ' + i + '. ' + 'A line of ordinary conversation. '.repeat(8) }); });
     await p.waitForFunction(key => document.querySelector('[data-win="' + key + '"] [data-view-id="activity"]').textContent.includes('Reader position 79.'), key);
     await win.evaluate(w => {

@@ -301,7 +301,9 @@
       function log(el) { return el && el.nodeType === 1 && el.classList && el.classList.contains('run-log'); }
       var rows = records.some(function (r) {
         var t = r.target;
-        return t === activity || log(t) || log(t.parentNode);
+        if (t === activity || log(t) || log(t.parentNode)) return true;
+        // The whole log is swapped when a reconnect's replay takes the saved copy's place.
+        return Array.prototype.some.call(r.addedNodes, log) || Array.prototype.some.call(r.removedNodes, log);
       });
       if (rows && !foldFrame) foldFrame = requestAnimationFrame(refreshTraffic);
     });
