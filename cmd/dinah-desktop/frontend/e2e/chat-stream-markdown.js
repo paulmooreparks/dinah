@@ -39,6 +39,8 @@ const path = require('path');
     await t.context.route('http://dinah.test/**', r => {
       const file = path.join(FRONTEND, new URL(r.request().url()).pathname);
       const headers = { 'Content-Security-Policy': policy };
+      // A file the frontend lacks is a 404, as the real server answers.
+      if (!require('fs').existsSync(file)) return r.fulfill({ status: 404, body: 'Not found', headers });
       return r.fulfill({ path: file, headers });
     });
     // Nothing outside the page is fetched: a hostile picture or link in TeX

@@ -25,7 +25,12 @@ const CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src
   try {
     // The page is served under the shell's policy; this route, added last,
     // is asked first.
-    await t.context.route('http://dinah.test/**', route => route.fulfill({ path: path.join(FRONTEND, new URL(route.request().url()).pathname), headers: { 'Content-Security-Policy': CSP } }));
+    await t.context.route('http://dinah.test/**', route => {
+      const file = path.join(FRONTEND, new URL(route.request().url()).pathname);
+      // A file the frontend lacks is a 404, as the real server answers.
+      if (!require('fs').existsSync(file)) return route.fulfill({ status: 404, body: 'Not found', headers: { 'Content-Security-Policy': CSP } });
+      return route.fulfill({ path: file, headers: { 'Content-Security-Policy': CSP } });
+    });
     await page.exposeFunction('__themeAPI', (method, value, expected) => {
       if (method === 'fail') { fail = true; return; }
       if (method === 'read-ui') return ui;
