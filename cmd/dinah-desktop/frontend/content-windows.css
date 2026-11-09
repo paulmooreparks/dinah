@@ -24,3 +24,13 @@
 .content-review-context { color: var(--text-muted); }
 .content-review-edit { display: block; width: 100%; min-height: 4em; margin-top: var(--space-1); }
 .content-review-item.is-stale .content-review-change { opacity: .7; }
+
+/* Dinah's own problems with the document: a button that says how many, and
+   the list it opens, each problem's line, severity and message. */
+.content-window > .content-notices > .content-problems { margin: var(--space-2) var(--space-3) 0; }
+.content-problems-list { list-style: none; margin: var(--space-1) 0 0; padding: 0; max-height: 30vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.content-problem + .content-problem { border-top: 1px solid var(--border); }
+.content-problem-go { display: flex; gap: var(--space-2); align-items: baseline; width: 100%; padding: var(--space-1) var(--space-2); border: 0; background: transparent; color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.content-problem-go:hover { background: var(--surface-hover, var(--surface)); }
+.content-problem-line { flex: none; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.content-problem-message { flex: 1 1 auto; overflow-wrap: anywhere; }

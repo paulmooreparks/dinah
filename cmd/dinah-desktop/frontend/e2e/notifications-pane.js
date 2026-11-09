@@ -83,8 +83,9 @@ const STATE = { workspace: 'C:/W', workspaceId: 'w1', recent: ['C:/W'], approval
     await t.shot('notifications-pane');
     await doc.getByRole('button', { name: 'Open the Document' }).click();
     await p.waitForFunction(() => __calls.some(c => c[0] === 'get-draft'));
-    await p.locator('.win[data-win-kind="editor"]').waitFor();
-    ok('Open the Document opens its draft in the Editor', true);
+    // A Markdown document opens in Docs, as Markdown Opens In: Visual says.
+    await p.locator('.win[data-win-kind="content-docs"], .win[data-win-kind="editor"]').first().waitFor();
+    ok('Open the Document opens its draft in a document window', true);
 
     // Clear All asks, dismisses every report and leaves the question. An
     // applet's result is dismissed in Go and its card goes when that is done.

@@ -7,15 +7,13 @@
 - **Workspace.** A workspace is a main folder and any number of further local folders attached to it as sources. The sidebar shows the workspace's chats, flows and documents. Workspaces have stable identities and names that can be changed without moving files, and a workspace with no main folder runs its chats and flows in private storage.
 - **Chats.** A chat talks to Claude, Codex, Devin or Ollama through the Agent Client Protocol. Each chat chooses its provider, mode and model, and an idle chat can change provider, continuing in the same window with the earlier conversation shown for review first. Permission requests appear beside the chat's prompt and in Notifications. During active work, ordinary sends steer when the provider and model support it and queue otherwise. The Queue and Steer buttons choose explicitly. Steer preserves the current turn and delivers guidance through the provider adapter or hooks; if that path is unavailable, the message waits for the next turn. Stop and Steer explicitly interrupts, and Stop ends the turn.
 - **Files and Terminal.** Files browses `/workspaces` and the home folder at `~/`. The Terminal runs a real shell in the workspace's folder, such as PowerShell, cmd, Git Bash or WSL, chosen under Settings › Terminal. Dinah's own shell is one of the choices: it runs its own commands (`ls`, `cd`, `cat`, `open` and the rest, with path completion and applet commands) over `/workspaces` and `~/`, and writes through it are allowed only in local folders. PowerShell 7.6 can end itself when a Ctrl+C arrives just as a command finishes. That is a defect in PowerShell, described in DESIGN.md under The Terminal, and opening a new Terminal is the remedy.
-- **Editor.** A document opens in one Editor window, as a draft that is saved back to its file. The Editor has four views. Text is the Markdown itself; Preview draws it; Split shows the text beside the page; Visual edits the page in place. Agents can suggest changes to a draft, and the Editor shows each suggestion with Accept, Reject and Edit, both in the text and on the page.
+- **Editor, Docs, Diagrams and Slides.** These are the yavc.app content applets, vendored in `frontend/yavc` (`frontend/YAVC.md`). A document opens in a window of its own, as a draft that is saved to its file a moment after typing stops. Plain text and code open in the Editor, which offers Text, Split and Preview for Markdown; Markdown opens in Docs for rich editing when Settings › Markdown Opens In says Visual; D2, Mermaid and Canvas files open in Diagrams, and `.slides.md` decks in Slides. Agents drive all four through their actions, and suggest changes that the window lists with Edit, Accept and Reject. [docs/design/content-applets.md](../../docs/design/content-applets.md) has the design.
 - **Skills and Flows.** View > Skills lists the personal and workspace skills, runs a skill with its parameters, and puts a skill's prepared instructions into a chat for review. A flow has a chart, a list of step forms, its text and its runs.
 - **Settings.** Settings has a tab each for the appearance, the agents and the chats, among others. The Agents tab finds each provider's executable, or uses one you choose, and sets the default agent and the approval rules. Credentials, executables and approval policies are changed only in this interface, never by an agent.
 
-## The Preview and the Visual View
+## The Preview
 
 The preview draws Markdown as GitHub Flavored Markdown with `internal/preview`, which uses goldmark: headings, paragraphs, emphasis, links, lists, task lists, tables, block quotes, code and images. A fenced block in `mermaid` or `d2` is drawn as a diagram in the window. A local image is loaded from beside the document, or from the draft when it was added to the draft. The preview marks each top-level block with the line it starts on, so the preview and the text scroll together, and it reports a table row with more cells than its header row as a problem.
-
-The Visual view is one ProseMirror editor over the whole document (`internal/pageview` and `frontend/page-view.js`). Paragraphs, headings, lists and tables are edited as rich text. Any other block, such as code, a diagram, an image or a quotation, is drawn as the preview draws it, and a click edits its Markdown in place. A block the person did not change is written back exactly as it was read, so an edit changes only its own block. The / menu on an empty line, and the Insert menu, put in a table or a code block.
 
 ## Where State Lives
 
@@ -23,7 +21,7 @@ Personal settings, saved window layouts and other state are kept in Dinah's own 
 
 ## Development
 
-The window is built from `cmd/dinah-desktop`; the packages it shares with the rest of the repository, such as `internal/preview` and `internal/pageview`, are under `internal/`, and the Agent Client Protocol client is in `acp/` at the top of the repository.
+The window is built from `cmd/dinah-desktop`; the packages it shares with the rest of the repository, such as `internal/preview` and `internal/drafts`, are under `internal/`, and the Agent Client Protocol client is in `acp/` at the top of the repository.
 
 - `app.go` holds the window's state and answers the agents' requests (permissions, file reads and writes).
 - `frontend/` is the page, drawn with PUDL, which is copied into `frontend/pudl` as a tagged release.

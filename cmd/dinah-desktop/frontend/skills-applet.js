@@ -133,7 +133,7 @@
      after it puts the earlier hint back. */
   function designer(prefix, hint, onChange, commandEl) {
     var el = element('div', 'skill-designer'), note = element('p', 'form-help'), table = element('div', 'skill-parameters-table'), preview = element('fieldset', 'skill-form-preview');
-    var bar = element('div', 'toolbar editor-toolbar skill-designer-toolbar'); bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Parameters');
+    var bar = element('div', 'toolbar skill-designer-toolbar'); bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Parameters');
     table.setAttribute('role', 'list'); table.setAttribute('aria-label', 'Parameters');
     preview.disabled = true;
     var legend = element('legend', '', 'As Chat asks for them'); preview.append(legend);
@@ -228,7 +228,7 @@
   dinahWorkbench.register('skill', { applet: { id: 'dinah.skills', title: 'Skills', glyph: 'document', workspace: true }, title:'Skill',glyph:'document',init:function (root,opts,item) {
     var disposed=false, pack, viewer, editor, draft, fields, design, formRevision='', filesViewer, filesLoading=false, version=0, activeTab='edit', launchDialog, fieldsTimer=0;
     root.classList.add('skill-window');
-    var toolbar=element('div','skills-toolbar'), status=element('p','form-help'), title=element('h2',''), origin=element('p','form-help'), tabs=element('div','tablist'), body=element('div','skill-window-body'); tabs.setAttribute('role','tablist'); status.setAttribute('role','status');
+    var toolbar=element('div','skills-toolbar'), status=element('p','form-help'), title=element('h2','skill-title'), origin=element('p','form-help'), tabs=element('div','tablist'), body=element('div','skill-window-body'); tabs.setAttribute('role','tablist'); status.setAttribute('role','status');
     /* The command line the parameters make, in the head under the
        description, drawn live by the designer (Paul, 14 October 2026). */
     var description=element('p','skill-description'), commandLine=element('pre','code skill-command-preview');
@@ -248,7 +248,7 @@
     function fold(title, cls) { var card=element('section','card disclosure '+cls), head=element('div','card-head'), toggle=element('button','card-toggle'), body=element('div','card-body'); toggle.type='button'; toggle.setAttribute('aria-expanded','false'); head.append(toggle, element('h3','card-title',title)); card.append(head, body); return {card:card, body:body}; }
     /* The embedded Editor is made on the host element itself, so the event
        goes to that element. */
-    var check=button('Check',function(){ if(editor)editorHost.dispatchEvent(new CustomEvent('dinah:editor-check')); });
+    var check=button('Check',function(){ if(editor&&editor.check)editor.check(); });
     var use=button('Use in Chat…',function(){launch(false);}), run=button('Run…',function(){launch(true);}), copy=button('Copy to My Skills',copyToMine), rename=button('Rename…',renameDialog), reload=button('Refresh',load);
     use.disabled=run.disabled=check.disabled=copy.disabled=rename.disabled=true;
     tabs.addEventListener('keydown',function(event){var names=Object.keys(tabButtons), index=names.indexOf(activeTab); if(event.key==='ArrowRight')index=(index+1)%names.length;else if(event.key==='ArrowLeft')index=(index+names.length-1)%names.length;else if(event.key==='Home')index=0;else if(event.key==='End')index=names.length-1;else return;event.preventDefault();tab(names[index]);tabButtons[names[index]].focus();});

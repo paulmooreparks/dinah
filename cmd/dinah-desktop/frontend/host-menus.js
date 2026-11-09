@@ -132,16 +132,18 @@
   function front() { var s = api() && api().state(); return s && s.top && !s.min[s.top] ? s.top : null; }
   function closeItem() { var key = front(); return key ? api().menuCommands(key).find(function (item) { return item.id === 'close'; }) : null; }
   function openCount() { return api() ? api().state().open.length : 0; }
-  /* The open Editor windows in the order the taskbar shows them, and the
-     next one after the front one, either way round. */
+  /* The open document windows (the Editor's, Docs', Diagrams' and
+     Slides') in the order the taskbar shows them, and the next one after
+     the front one, either way round. */
+  function documentWindow(w) { return w.kind === 'editor' || /^content-/.test(w.kind || ''); }
   function cycleDocuments(step) {
-    var editors = window.dinahOpenWindows().filter(function (w) { return w.kind === 'editor'; });
+    var editors = window.dinahOpenWindows().filter(documentWindow);
     if (!editors.length) return;
     var at = editors.findIndex(function (w) { return w.key === front(); });
     var next = at < 0 ? (step > 0 ? 0 : editors.length - 1) : (at + step + editors.length) % editors.length;
     editors[next].open();
   }
-  function hasEditors() { return window.dinahOpenWindows && window.dinahOpenWindows().some(function (w) { return w.kind === 'editor'; }); }
+  function hasEditors() { return window.dinahOpenWindows && window.dinahOpenWindows().some(documentWindow); }
   /* The next window of any kind after the front one, in the Window menu's
      order, either way round. */
   function cycleWindows(step) {

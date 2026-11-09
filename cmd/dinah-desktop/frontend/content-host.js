@@ -124,10 +124,7 @@
   /* ---- Recovery and settings --------------------------------------------- */
 
   function store() { return window.dinahUIState; }
-  function snapshotKey(root) {
-    var win = root.closest('[data-win]');
-    return 'content-snapshot:' + (win ? win.dataset.win : root.id || 'page');
-  }
+  function snapshotKey(root) { return 'content-snapshot:' + (windowKey(root) || root.id || 'page'); }
   var snapshot = {
     version: 2,
     join: function (root, take, options) {
@@ -171,7 +168,14 @@
   /* What each mount bound (document-window-contract.md): the window's key
      to its api, and to whoever waits for it. */
   var bound = new Map(), waiting = new Map();
-  function windowKey(root) { var win = root.closest('[data-win]'); return win ? win.dataset.win : null; }
+  /* The key of the content window an applet is mounted in: its window's,
+     or an embedded Editor's own (content-windows.js). */
+  function windowKey(root) {
+    var holder = root.closest('[data-content-key]');
+    if (holder) return holder.dataset.contentKey;
+    var win = root.closest('[data-win]');
+    return win ? win.dataset.win : null;
+  }
   function boundApi(key) {
     if (bound.has(key)) return Promise.resolve(bound.get(key));
     return new Promise(function (resolve) { var list = waiting.get(key) || []; list.push(resolve); waiting.set(key, list); });
@@ -207,7 +211,8 @@
   /* The api a window's applet bound, for an agent's action routed to that
      window by Dinah (content-windows.js). */
   function accept(key, request) {
-    if (window.pudlWindows.state().open.indexOf(key) < 0) return Promise.reject(new Error('The window of that document has closed.'));
+    var mounted = document.querySelector('[data-content-key="' + CSS.escape(key) + '"]');
+    if (!bound.has(key) && !mounted && window.pudlWindows.state().open.indexOf(key) < 0) return Promise.reject(new Error('The window of that document has closed.'));
     var settle = bound.has(key) ? boundApi(key) : Promise.race([boundApi(key), new Promise(function (resolve, reject) {
       setTimeout(function () { reject(new Error('The window of the document did not start.')); }, 30000);
     })]);

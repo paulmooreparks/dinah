@@ -17,6 +17,9 @@ export default [
       'cmd/dinah-desktop/frontend/wailsjs/**',
       '**/pudl/**',
       '**/vendor/**',
+      // The yavc.app content release, shipped as its producer built it
+      // (cmd/dinah-desktop/frontend/YAVC.md).
+      'cmd/dinah-desktop/frontend/yavc/**',
       '**/node_modules/**',
     ],
   },

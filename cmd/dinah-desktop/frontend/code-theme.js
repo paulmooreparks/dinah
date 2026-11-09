@@ -1,24 +1,9 @@
-/* The Editor's text surface: loading CodeMirror 6 (vendor/codemirror-6.43)
-   and its theme, set up as the Parks Computing editor sets it up; that
-   folder's NOTICE.txt records what was taken. editor-applet.js reads them
-   as window.dinahEditorCodeMirror. */
+/* The theme Dinah's CodeMirror text takes, set up as the Parks Computing
+   editor sets it up (vendor/codemirror-6.43/NOTICE.txt records what was
+   taken). The diff view (diff-applet.js) draws its text with it, as
+   window.dinahCodeTheme. */
 (function () {
   'use strict';
-
-  var cmReady = null;
-  function loadCodeMirror() {
-    if (window.CM && window.CM.EditorView) return Promise.resolve(window.CM);
-    if (!cmReady) {
-      cmReady = new Promise(function (resolve, reject) {
-        var script = document.createElement('script');
-        script.src = 'vendor/codemirror-6.43/codemirror.js';
-        script.onload = function () { resolve(window.CM); };
-        script.onerror = function () { cmReady = null; reject(new Error('The text editor could not be loaded.')); };
-        document.head.appendChild(script);
-      });
-    }
-    return cmReady;
-  }
 
   /* Colours from PUDL's tokens, as CSS variables, so the editor follows the
      theme with no code of its own (from the Parks Computing editor). */
@@ -59,8 +44,5 @@
       ]))
     ];
   }
-  // The diff view (diff-applet.js) draws its text with the same theme.
-  window.dinahEditorTheme = makeTheme;
-
-  window.dinahEditorCodeMirror = { load: loadCodeMirror, theme: makeTheme };
+  window.dinahCodeTheme = makeTheme;
 })();

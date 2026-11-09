@@ -98,9 +98,9 @@
     }
   }
 
-  /* The theme is the Editor's (editor-applet.js), so the two look alike. */
+  /* The theme is Dinah's shared code theme (code-theme.js). */
   function makeTheme(CM) {
-    if (window.dinahEditorTheme) return window.dinahEditorTheme(CM);
+    if (window.dinahCodeTheme) return window.dinahCodeTheme(CM);
     return CM.EditorView.theme({ '&': { color: 'var(--text)', backgroundColor: 'var(--input-bg)', fontSize: 'var(--editor-size, 14px)' }, '.cm-scroller': { fontFamily: 'var(--editor-font, var(--mono))', lineHeight: '1.5' } });
   }
 

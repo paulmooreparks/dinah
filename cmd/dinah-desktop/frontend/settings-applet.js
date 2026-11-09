@@ -756,18 +756,6 @@
         .catch(function (error) { refreshSettingsPreferences(); fail(error); }).finally(function () { select.disabled = false; });
     });
 
-    /* Which editor documents open in, kept in the UI state while the
-       yavc.app Editor is adopted (content-windows.js). */
-    function drawDocumentEditor() {
-      var on = !!(window.dinahUIState && window.dinahUIState.get('content-editor', false));
-      $('set-document-editor').value = on ? 'content' : 'builtin';
-    }
-    $('set-document-editor').addEventListener('change', function () {
-      if (!window.dinahUIState) return;
-      window.dinahUIState.set('content-editor', this.value === 'content');
-    });
-    if (window.dinahUIState) window.dinahUIState.ready.then(drawDocumentEditor);
-
     var settingsRefreshGeneration = 0;
     function refreshSettingsPreferences() {
       var generation = ++settingsRefreshGeneration;

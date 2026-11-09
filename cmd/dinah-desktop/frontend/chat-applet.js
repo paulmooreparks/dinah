@@ -3893,7 +3893,7 @@
     document.addEventListener('pudl:window-close', function (e) {
       var item = window.dinahWorkbench.item(e.detail.key);
       if (!item || !pickedDocument) return;
-      if (item.kind === 'editor' ? pickedDocument.draftId === item.path : item.workspace === pickedDocument.workspace && item.path === pickedDocument.path) pickDocument(null);
+      if (item.kind === 'editor' || /^content-/.test(item.kind) ? pickedDocument.draftId === item.path : item.workspace === pickedDocument.workspace && item.path === pickedDocument.path) pickDocument(null);
     });
     function showChat() {
       var s = active && sessions[active];

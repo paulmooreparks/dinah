@@ -450,10 +450,7 @@
             if (v.origin && v.origin.kind === 'new') toast('"' + v.title + '" is not in a workspace\'s folder, so it opened as a new document. Save As puts it where you choose.', 'warn');
             return ed.open(v);
           });
-        return opened.then(function (key) {
-          var win = l.line && key && document.querySelector('[data-win="' + CSS.escape(key) + '"] .editor-applet');
-          if (win) win.dispatchEvent(new CustomEvent('dinah:editor-line', { detail: { line: l.line } }));
-        });
+        return opened.then(function (key) { return l.line ? ed.goToLine(key, l.line) : null; });
       }
       if (l.opens === 'media') {
         return app().ReadLinkedImage(cwd || '', ref).then(function (src) {

@@ -53,3 +53,5 @@
 .skill-form-preview .skill-field > label { display: block; font-weight: normal; }
 .skill-command-preview { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .skill-other-fields > .card-body { display: flex; flex-direction: column; gap: var(--space-2); }
+/* The parameter designer's toolbar, a strip across the top of its pane. */
+.skill-designer-toolbar { flex: none; padding: var(--space-1) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); }

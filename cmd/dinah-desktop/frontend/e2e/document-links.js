@@ -66,16 +66,9 @@ const { launch } = require('./lib/page');
       window.__win = win;
       window.__say = (text, tool) => { if (tool) __emit('agent:update', { sessionId: 'codex:links', update: { sessionUpdate: 'tool_call', toolCallId: tool, title: 'Ran', status: 'completed' } }); __emit('agent:update', { sessionId: 'codex:links', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } } }); };
       window.__last = () => { const all = document.querySelectorAll(win + ' .msg-text'); return all[all.length - 1]; };
-      const editorWindow = key => {
-        let el = document.querySelector('[data-win="' + key + '"] .editor-applet');
-        if (!el) {
-          const w = document.createElement('div'); w.dataset.win = key; w.hidden = true;
-          el = document.createElement('div'); el.className = 'editor-applet'; w.appendChild(el); document.body.appendChild(w);
-          el.addEventListener('dinah:editor-line', e => __calls.push(['line', key, e.detail.line]));
-        }
-      };
-      dinahEditor.openResource = async (ref, intent) => { __calls.push(['editor', ref, intent || '']); editorWindow('ed-' + ref.path); return 'ed-' + ref.path; };
-      dinahEditor.open = async v => { __calls.push(['editor-draft', v.id]); editorWindow('ed-' + v.id); return 'ed-' + v.id; };
+      dinahEditor.openResource = async (ref, intent) => { __calls.push(['editor', ref, intent || '']); return 'ed-' + ref.path; };
+      dinahEditor.open = async v => { __calls.push(['editor-draft', v.id]); return 'ed-' + v.id; };
+      dinahEditor.goToLine = async (key, line) => { __calls.push(['line', key, line]); };
       dinahResources.openFiles = async (mount, ref) => { __calls.push(['files', mount, ref]); };
       window.__pending = async () => { while (dinahChatText.linksPending()) await new Promise(r => setTimeout(r, 10)); };
       window.__full = async text => { const box = document.createElement('div'); box.appendChild(dinahChatText.nodes(text, null, 'C:/Test')); await __pending(); return box.innerHTML; };

@@ -13,7 +13,7 @@ import (
 
 // The Windows applet asks the page and gives back the page's answer, with
 // the calling workspace added to what it asks; the page's refusal is the
-// action's error. The page's own side is tested in e2e/page-view.js.
+// action's error. The page's own side is tested in e2e/workbench.js.
 // A page that missed page:ask events reads the questions still waiting, each
 // as its event carried it and oldest first; a question the page has answered
 // is no longer pending, though the action has not yet returned.

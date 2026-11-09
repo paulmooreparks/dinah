@@ -34,8 +34,7 @@ import (
 //
 //	<div class="dinah-block" data-line="L">...</div>
 //
-// The inner element marks the block's source lines and its kind, for Page
-// view (pageview.Units):
+// The inner element marks the block's source lines and its kind:
 //
 //	<div class="dinah-src" data-start="S" data-end="E" data-kind="K">...</div>
 //

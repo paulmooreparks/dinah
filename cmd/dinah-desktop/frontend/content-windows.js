@@ -20,7 +20,12 @@
   function productName() { return window.dinahProduct ? window.dinahProduct.name : ''; }
   var SAVE_DELAY = 800;
 
-  function kindOf(app) { return 'content-' + app; }
+  /* The Editor's windows are of kind editor, as Dinah's Editor's always
+     were, so a saved layout, a pin and the Editor's own window setting
+     carry over; the others are content-docs, content-diagrams and
+     content-slides. */
+  function kindOf(app) { return app === 'editor' ? 'editor' : 'content-' + app; }
+  function contentKind(kind) { return kind === 'editor' || /^content-/.test(kind || ''); }
   function itemFor(app, v) { return { kind: kindOf(app), workspace: v.origin.workspaceId || '', path: v.id, title: v.title }; }
 
   function workspaceName(id) {
@@ -39,7 +44,7 @@
      Diagrams its diagrams, Slides its decks. These read them alike. */
   var OPS = { editor: { list: 'documents', text: 'document' }, docs: { list: 'documents', text: 'document' },
     diagrams: { list: 'diagrams', text: 'diagram' }, slides: { list: 'decks', text: 'text' } };
-  function appOfWindow(key) { var item = itemOfWindow(key); return item ? item.kind.replace(/^content-/, '') : 'editor'; }
+  function appOfWindow(key) { var item = itemOfWindow(key); return item && item.kind !== 'editor' ? item.kind.replace(/^content-/, '') : 'editor'; }
   /* The window's document as its application lists it, for an agent. */
   function listed(key) {
     var ops = OPS[appOfWindow(key)];
@@ -65,6 +70,9 @@
 
   function init(app, root, opts, item) {
     var key = opts.key || root.closest('[data-win]').dataset.win;
+    /* The host finds a window's applet by this key, which for an Editor
+       embedded in another window (a skill's) is its own. */
+    root.dataset.contentKey = key;
     var mount = null, resource = '', disposed = false, saveTimer = 0, saving = null, lastError = '';
     var draft = { id: item.path, origin: { workspaceId: item.workspace }, title: item.title };
     root.classList.add('content-window');
@@ -74,6 +82,7 @@
 
     function retitle(doc) {
       if (disposed || !doc) return;
+      if (opts.embedded) return;
       window.dinahWorkbench.retitle(key, doc.name + (doc.modified ? ' (changed)' : ''), workspaceName(draft.origin.workspaceId));
     }
     function failed(err) {
@@ -91,7 +100,7 @@
       saving = current().then(function (doc) {
         retitle(doc);
         if (!doc || !doc.modified || doc.readOnly) return;
-        return call('save').then(function () { lastError = ''; return current(); }).then(retitle);
+        return call('save').then(function () { lastError = ''; refreshProblems(); return current(); }).then(retitle);
       }).catch(refused).finally(function () { saving = null; });
       return saving;
     }
@@ -182,6 +191,60 @@
     review.hidden = true;
     notices.appendChild(review);
     var deciding = false, editing = '';
+
+    /* ---- Problems --------------------------------------------------------
+       Dinah's own checks of a document (the draft preview's problems: a
+       skill's package rules, a table row with more cells than its header)
+       are listed under a button that says how many there are, as the
+       built-in Editor listed them. The applet's own language checks stay
+       in the applet. A problem with a line goes to it. */
+    var problemsBox = document.createElement('section');
+    problemsBox.className = 'content-problems';
+    problemsBox.setAttribute('aria-label', 'Problems');
+    problemsBox.hidden = true;
+    var problemsButton = document.createElement('button');
+    problemsButton.type = 'button';
+    problemsButton.className = 'btn btn-sm';
+    problemsButton.setAttribute('aria-expanded', 'false');
+    var problemsList = document.createElement('ul');
+    problemsList.className = 'content-problems-list';
+    problemsList.hidden = true;
+    problemsBox.append(problemsButton, problemsList);
+    notices.appendChild(problemsBox);
+    problemsButton.addEventListener('click', function () { showProblemList(problemsList.hidden); });
+    function showProblemList(open) {
+      problemsList.hidden = !open;
+      problemsButton.setAttribute('aria-expanded', String(open));
+    }
+    var problemsAsked = 0;
+    function refreshProblems() {
+      if (!api().PreviewDraft || disposed) return Promise.resolve();
+      var asked = ++problemsAsked;
+      return Promise.resolve().then(function () { return api().PreviewDraft(draft.id); }).then(function (p) {
+        if (disposed || asked !== problemsAsked) return;
+        var list = ((p && p.problems) || []).slice().sort(function (a, b) { return (a.line || 0) - (b.line || 0); });
+        problemsBox.hidden = !list.length;
+        problemsButton.textContent = list.length === 1 ? '1 Problem' : list.length + ' Problems';
+        problemsButton.classList.toggle('btn-danger', list.some(function (x) { return x.severity === 'error'; }));
+        problemsList.replaceChildren();
+        list.forEach(function (x) {
+          var item = el('li', 'content-problem');
+          var go = el('button', 'content-problem-go');
+          go.type = 'button';
+          if (x.line) go.appendChild(el('span', 'content-problem-line', 'Line ' + x.line));
+          go.appendChild(el('span', 'badge ' + (x.severity === 'error' ? 'danger' : x.severity === 'warning' ? 'warn' : 'info'), x.severity));
+          go.appendChild(el('span', 'content-problem-message', x.message));
+          go.addEventListener('click', function () { if (x.line) call('go-to', { line: x.line }).catch(function () {}); });
+          item.appendChild(go);
+          problemsList.appendChild(item);
+        });
+        if (!list.length) showProblemList(false);
+      }).catch(function () { /* The next change asks again. */ });
+    }
+    /* Check (a skill's) saves what was typed, asks again and shows the list. */
+    function check() {
+      return flush().then(refreshProblems).then(function () { if (!problemsBox.hidden) showProblemList(true); });
+    }
 
     function el(tag, cls, text) {
       var n = document.createElement(tag);
@@ -300,6 +363,7 @@
         if (disposed) return;
         draft = latest;
         drawReview();
+        refreshProblems();
         if (latest.revision === window.dinahContentHost.knownRevision(resource)) return checkMoved(false);
         /* The event may come from this window's own save, before the save's
            reply, so the text decides, not the order. */
@@ -372,7 +436,7 @@
       if (st.min && st.min[key]) return;
       if (st.top !== key && (++ticks % 4) !== 0) return;
       checking = true;
-      Promise.resolve(api().DraftStamp(draft.id)).then(function (stamp) {
+      Promise.resolve().then(function () { return api().DraftStamp(draft.id); }).then(function (stamp) {
         var was = lastStamp;
         lastStamp = stamp;
         if (was && stamp !== was) draftChanged({ id: draft.id, kind: 'changed' });
@@ -382,7 +446,7 @@
 
     /* Closing never asks; it only waits for the last change to be saved.
        A save that fails keeps the window open, with the failure shown. */
-    var win = root.closest('[data-win]'), allowClose = false, closing = false;
+    var win = opts.embedded ? null : root.closest('[data-win]'), allowClose = false, closing = false;
     function closingWindow(e) {
       if (e.target !== win || allowClose || !mount) return;
       e.preventDefault();
@@ -409,7 +473,11 @@
       draft = v;
       mountApplet();
       drawReview();
+      refreshProblems();
       return current().then(retitle);
+    }).then(function () {
+      /* An embedding window may ask for a view, as a skill asks for Split. */
+      if (opts.embedded && opts.state && !disposed) return call('view', { mode: opts.state }).catch(function () {});
     });
 
     /* Documents › Save As runs the applet's own Save As, which asks Dinah
@@ -497,6 +565,7 @@
 
     return {
       ready: ready,
+      check: check,
       flush: flush,
       menus: function () {
         var src = mount && window.pudlApplets.menuSourceIn(mount);
@@ -524,8 +593,13 @@
   var TITLES = { editor: 'Editor', docs: 'Docs', diagrams: 'Diagrams', slides: 'Slides' };
   var GLYPHS = { editor: 'document', docs: 'document', diagrams: 'diagram', slides: 'slides' };
   Object.keys(TITLES).forEach(function (app) {
-    window.dinahUIState.followWindowMode(kindOf(app), 'editor');
-    window.dinahWorkbench.register(kindOf(app), { pinByItem: true, title: TITLES[app], glyph: GLYPHS[app], start: 'idle',
+    if (app !== 'editor') window.dinahUIState.followWindowMode(kindOf(app), 'editor');
+    /* Tools › Editor, and the taskbar's New Document, start an empty,
+       untitled document in the current workspace, which Save As puts
+       somewhere. */
+    var launcher = app === 'editor' ? { mnemonic: 'E', description: 'Start an empty document, for notes or a script.', run: function () { return window.dinahEditor.newDocument(); } } : undefined;
+    window.dinahWorkbench.register(kindOf(app), { pinByItem: true, title: TITLES[app], glyph: GLYPHS[app], start: 'idle', launcher: launcher,
+      applet: app === 'editor' ? { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true } : undefined,
       init: function (root, opts, item) { return init(app, root, opts, item); } });
   });
 
@@ -539,6 +613,11 @@
      Editor's, in Text. A document opened to read (a chat's chip, a double-click in Sources)
      is shown in the Editor's Preview, and one opened to edit as text in its
      Text, as with the built-in Editor. */
+  /* The view a Markdown document opens in, a choice in Settings
+     (document_views.go); Visual unless chosen. */
+  var documentViews = { 'text/markdown': 'page' };
+  window.dinahDocumentViews = function (views) { if (views) documentViews = views; return documentViews; };
+
   function markdown(v) {
     var o = v.origin || {};
     return o.kind === 'new' ? true : /\.(md|markdown)$/i.test(o.path || '');
@@ -555,7 +634,6 @@
     if (chosen === 'text' || chosen === 'split' || chosen === 'preview') return { app: 'editor', view: chosen };
     return { app: 'docs' };
   }
-  function applicationFor(v) { return placeFor(v).app; }
 
   /* A document is open in one window at a time, so opening it in another
      application moves it there: the window it was in saves its last change
@@ -574,7 +652,7 @@
     var already = window.pudlWindows.state().open.indexOf(window.dinahWorkbench.key(item)) >= 0;
     var elsewhere = window.pudlWindows.state().open.filter(function (key) {
       var other = itemOfWindow(key);
-      return other && other.path === v.id && other.kind !== item.kind && /^content-/.test(other.kind);
+      return other && other.path === v.id && other.kind !== item.kind && contentKind(other.kind);
     });
     return Promise.all(elsewhere.map(closed)).then(function () {
       if (window.pudlWindows.state().open.some(function (key) { return elsewhere.indexOf(key) >= 0; })) {
@@ -638,7 +716,7 @@
      goes to the document the person last worked on in that application. */
   var recent = [];
   function noteFront(key) {
-    if (!key || !/^content-/.test((itemOfWindow(key) || {}).kind || '')) return;
+    if (!key || !contentKind((itemOfWindow(key) || {}).kind)) return;
     recent = [key].concat(recent.filter(function (k) { return k !== key; }));
   }
   ['pointerdown', 'focusin'].forEach(function (type) {
@@ -758,18 +836,24 @@
   }
   window.dinahWorkbench.answerAsks('content', agentCall);
 
-  function enabled() { return !!(window.dinahUIState && window.dinahUIState.get('content-editor', false)); }
-
-  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, enabled: enabled, kindOf: kindOf };
-
-  /* While the new Editor is chosen, the ways into the Editor open it. */
-  var own = window.dinahEditor;
-  if (own) {
-    window.dinahEditor = Object.assign({}, own, {
-      open: function (v, intent) { return enabled() ? open(v, null, intent) : own.open(v, intent); },
-      openResource: function (ref, intent) { return enabled() ? openResource(ref, intent) : own.openResource(ref, intent); },
-      newDocument: function () { return enabled() ? newDocument().catch(function (err) { host().toast(message(err), 'danger'); }) : own.newDocument(); },
-      openDocument: function () { return enabled() ? openDocument() : own.openDocument(); }
-    });
+  /* Opening a document where a chat link points (chat-text.js): the
+     window's applet goes to the line, where it has lines. */
+  function goToLine(key, line) {
+    if (!key || !line) return Promise.resolve();
+    return window.dinahWorkbench.ready(key).then(function () {
+      return window.dinahContentHost.accept(key, { operation: 'go-to', input: { line: line } });
+    }).catch(function () { /* An application without lines opens the document at its start. */ });
   }
+
+  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, kindOf: kindOf };
+
+  /* The ways into the Editor (Documents, Files, Sources, chats, the
+     Terminal's edit, In Progress) open documents here. */
+  window.dinahEditor = {
+    open: function (v, intent) { return open(v, null, intent); },
+    openResource: function (ref, intent) { return openResource(ref, intent); },
+    newDocument: function () { return newDocument().catch(function (err) { host().toast(message(err), 'danger'); }); },
+    openDocument: function () { return openDocument(); },
+    goToLine: goToLine
+  };
 })();

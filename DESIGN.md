@@ -266,7 +266,7 @@ The stack:
 - **Go** for the daemon, built without CGO.
 - **Wails** for the desktop window, kept independent of the front end. The front end talks to Go over HTTP, Server-Sent Events and WebSockets and never through Wails' JavaScript bindings, so the window toolkit is an internal choice that can change without debt. Wails v2 is the stable release; v3, which adds multiple windows, is in beta and can be adopted when it is ready.
 - **Plain JavaScript on PUDL** for the front end, with no framework.
-- **CodeMirror 6** with `@codemirror/lsp-client` for editors, and ProseMirror for the visual Markdown view.
+- **CodeMirror 6** for the diff view, and the yavc.app content applets (Editor, Docs, Diagrams and Slides, `cmd/dinah-desktop/frontend/YAVC.md`) for documents.
 - **xterm.js** for the terminal, drawing a real pseudo-terminal in the daemon: the documented ConPTY API on Windows and standard pseudo-terminals on Linux and macOS.
 - **The git command line** for repositories and worktrees, because it is git's documented interface.
 - **Markdown files** as the source of truth for documents and boards, and a pure-Go SQLite (modernc.org/sqlite) for the message bus, the idea inbox, room transcripts and search indexes.

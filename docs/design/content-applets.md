@@ -1,6 +1,6 @@
 # Editor, Docs, Diagrams and Slides from yavc.app
 
-Status, 9 November 2026: Editor, Docs, Diagrams and Slides are hosted and drivable by agents, behind the Settings choice Documents Open In, with Dinah's own Editor still the default. Paul's rulings are recorded under "Rulings". The numbered decisions record what was built; "Built" and "Still to do" at the end record the state of the work.
+Status, 9 November 2026: Editor, Docs, Diagrams and Slides are hosted and drivable by agents, and the yavc.app Editor is Dinah's only Editor. Paul ruled the same day that it replaces the built-in Editor, and that all plain text editing uses it; the built-in Editor, its Visual view and their Go support are removed. Paul's rulings are recorded under "Rulings". The numbered decisions record what was built; "Built" and "Still to do" at the end record the state of the work.
 
 Dinah's built-in Editor is to be replaced by the portable Editor from yavc.app, and Docs, Diagrams and Slides are to be added beside it. Agents in Dinah chats must be able to drive all four applications completely. The rest of Dinah stays as it is. The larger purpose is that Dinah becomes the base a private downstream product is rebuilt on, so the editing stack chosen here is the one that product's document work will eventually sit on.
 
@@ -124,6 +124,7 @@ Ruling 7 means none of these blocks the start.
 - The windows (`content-windows.js`): Rename and Discard from the Documents menu, and a rename made elsewhere followed; one document to a window, saved a moment after typing stops and before closing; changes made elsewhere shown, or asked about with Keep Mine and Take Theirs; a file changed on disk taken, or offered with Bring In Their Changes; a document moved between applications rather than open in two.
 - Agent control (`applet_content.go`): the 99 actions of the four packages, routed to the window in front, with exports kept as artifacts and `dinah.workspace/save-artifact@1` to save one as a file.
 - Suggestions (`applet_documents.go`): `dinah.documents/read@1` and `suggest@1`, and the review panel in each window with Edit, Accept, Reject, Accept All and Reject All.
+- The yavc.app Editor as Dinah's Editor: its windows are of kind `editor`, so layouts, pins and the Editor's window setting carry over; skill editing embeds it; Tools › Editor and New Document start one; chat links to a line go to that line. Dinah's checks of a document (a skill's package rules) are listed in the window under a Problems button, which a skill's Check opens.
 - Routing: Markdown by Settings › Markdown Opens In (Visual is Docs), `.docs.md` to Docs, D2, Mermaid and Canvas to Diagrams, `.slides.md` to Slides, everything else to the Editor; Edit as Text to the Editor's Text and opening to read to its Preview.
 - The D2 worker's own content policy (`shell_server.go`).
 - Two fixes found on the way: opening one resource twice at once made two drafts, and the hidden window under test loaded a second page.
@@ -131,8 +132,8 @@ Ruling 7 means none of these blocks the start.
 ## Still to do
 
 - Pin the release with the Files pane fix and without the two comments the forbidden-terms guard refuses, then rewrite the unpushed history before the first push.
-- Parity with the built-in Editor: the Compare dialog for a file changed on disk (Bring In Their Changes works), skill editing (which still embeds the built-in Editor), and document links.
+- Parity with the removed built-in Editor: the Compare dialog for a file changed on disk (Bring In Their Changes works), and attachments added to a draft (AddDraftFile and PickDraftFiles are now unused by the page).
 - Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
 - Customising the toolbar, Slides' presenter window and its `fs.save` export, and SVG artifacts from Diagrams' `render@1`, which the broker's drawing check refuses; PNG works.
 - An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
-- Making the yavc.app Editor the default, and then removing the built-in Editor, after Paul accepts the parity result.
+- The browser suites keyboard and documents-menu, which failed before the change for other reasons, still test the removed Editor's own keys and menus and need rewriting for the yavc.app Editor.

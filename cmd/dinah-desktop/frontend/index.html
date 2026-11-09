@@ -37,7 +37,6 @@
   <link rel="stylesheet" href="skills-applet.css">
   <link rel="stylesheet" href="media-viewer.css">
   <link rel="stylesheet" href="preview.css">
-  <link rel="stylesheet" href="editor-applet.css">
   <link rel="stylesheet" href="content-windows.css">
   <link rel="stylesheet" href="diff-applet.css">
   <link rel="stylesheet" href="vendor/parks-files/filebrowser.css" data-fb-css>
@@ -71,21 +70,7 @@
   <script src="diagrams.js" defer></script>
   <script src="media-viewer.js" defer></script>
   <script src="document-applet.js" defer></script>
-  <script src="page-view.js" defer></script>
-  <script src="editor-common.js" defer></script>
-  <script src="editor-keys.js" defer></script>
-  <script src="editor-codemirror.js" defer></script>
-  <script src="editor-find.js" defer></script>
-  <script src="editor-suggestions.js" defer></script>
-  <script src="editor-preview.js" defer></script>
-  <script src="editor-saving.js" defer></script>
-  <script src="editor-draft.js" defer></script>
-  <script src="editor-views.js" defer></script>
-  <script src="editor-text.js" defer></script>
-  <script src="editor-format.js" defer></script>
-  <script src="editor-clipboard.js" defer></script>
-  <script src="editor-commands.js" defer></script>
-  <script src="editor-applet.js" defer></script>
+  <script src="code-theme.js" defer></script>
   <script src="content-toolbar.js" defer></script>
   <script src="content-host.js" defer></script>
   <script src="content-windows.js" defer></script>
@@ -802,14 +787,6 @@
           </section>
           <section class="card vstack gap-3" aria-labelledby="set-documents">
             <h3 class="card-title" id="set-documents">Documents</h3>
-            <div class="form-group">
-              <label class="form-label" for="set-document-editor">Documents Open In</label>
-              <span class="form-select-wrap"><select class="form-select" id="set-document-editor">
-                <option value="builtin">The Built-In Editor</option>
-                <option value="content">The yavc.app Editor (Preview)</option>
-              </select></span>
-              <p class="form-help">The yavc.app Editor is being adopted, with Docs, Diagrams and Slides to follow. Windows already open keep the editor they have.</p>
-            </div>
             <div class="form-group">
               <label class="form-label" for="set-markdown-view">Markdown Opens In</label>
               <span class="form-select-wrap"><select class="form-select" id="set-markdown-view">
