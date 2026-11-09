@@ -121,7 +121,7 @@ Ruling 7 means none of these blocks the start.
 
 - The release vendored and verified (`frontend/yavc`, `YAVC.md`, `yavc_release_test.go`).
 - The host (`content-host.js`): resources backed by drafts, with readable resource names kept in the UI state; recovery snapshots in the UI state; settings; `documentWindows`; Save As and Open through Dinah's file picker; the toolbar service (`content-toolbar.js`).
-- The windows (`content-windows.js`): one document to a window, saved a moment after typing stops and before closing; changes made elsewhere shown, or asked about with Keep Mine and Take Theirs; a file changed on disk taken, or offered with Bring In Their Changes; a document moved between applications rather than open in two.
+- The windows (`content-windows.js`): Rename and Discard from the Documents menu, and a rename made elsewhere followed; one document to a window, saved a moment after typing stops and before closing; changes made elsewhere shown, or asked about with Keep Mine and Take Theirs; a file changed on disk taken, or offered with Bring In Their Changes; a document moved between applications rather than open in two.
 - Agent control (`applet_content.go`): the 99 actions of the four packages, routed to the window in front, with exports kept as artifacts and `dinah.workspace/save-artifact@1` to save one as a file.
 - Suggestions (`applet_documents.go`): `dinah.documents/read@1` and `suggest@1`, and the review panel in each window with Edit, Accept, Reject, Accept All and Reject All.
 - Routing: Markdown by Settings › Markdown Opens In (Visual is Docs), `.docs.md` to Docs, D2, Mermaid and Canvas to Diagrams, `.slides.md` to Slides, everything else to the Editor; Edit as Text to the Editor's Text and opening to read to its Preview.
@@ -131,7 +131,7 @@ Ruling 7 means none of these blocks the start.
 ## Still to do
 
 - Pin the release with the Files pane fix and without the two comments the forbidden-terms guard refuses, then rewrite the unpushed history before the first push.
-- Parity with the built-in Editor: Compare, Rename, Discard from the window, skill editing (which still embeds the built-in Editor), document links and the In Progress list's view of a content window.
+- Parity with the built-in Editor: the Compare dialog for a file changed on disk (Bring In Their Changes works), skill editing (which still embeds the built-in Editor), and document links.
 - Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
 - Customising the toolbar, Slides' presenter window and its `fs.save` export, and SVG artifacts from Diagrams' `render@1`, which the broker's drawing check refuses; PNG works.
 - An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.

@@ -60,6 +60,9 @@
 
   /* ---- One window ------------------------------------------------------ */
 
+  /* Each open window's remount, by its key, for an agent's save to a path. */
+  var remounts = new Map();
+
   function init(app, root, opts, item) {
     var key = opts.key || root.closest('[data-win]').dataset.win;
     var mount = null, resource = '', disposed = false, saveTimer = 0, saving = null, lastError = '';
@@ -287,6 +290,12 @@
         return;
       }
       if (saving) { saving.then(function () { draftChanged(e); }); return; }
+      /* A file renamed elsewhere, as from Files, keeps its draft; the window
+         reads it again under the new name. */
+      if (e.kind === 'renamed') {
+        remount();
+        return;
+      }
       Promise.resolve(api().GetDraft(draft.id)).then(function (latest) {
         if (disposed) return;
         draft = latest;
@@ -421,17 +430,54 @@
       current().then(retitle).catch(function () {});
     }
     document.addEventListener('dinah:content-renamed', renamed);
-    /* An agent's save to a new file moves the draft; the window mounts the
-       applet afresh on it. */
-    function remount(e) {
-      var d = e.detail || {};
-      if (d.key !== key || disposed) return;
-      draft = d.view;
-      unmountApplet();
-      mountApplet();
-      current().then(retitle).catch(function () {});
+    /* A draft that moved to another file (an agent's save to a path, a
+       rename here or elsewhere) is read again: the window mounts the applet
+       afresh on it, under the new name. */
+    function remount() {
+      if (disposed) return Promise.resolve();
+      /* Typing not yet saved is saved first, under the old name, which
+         still leads to the same draft. */
+      return flush().then(function () {
+        if (disposed) return;
+        return Promise.resolve(api().GetDraft(draft.id)).then(function (v) {
+          draft = v;
+          unmountApplet();
+          window.dinahContentHost.clearSnapshot(key);
+          if (resource) window.dinahContentHost.forget(resource);
+          mountApplet();
+          return current().then(retitle);
+        });
+      }).catch(failed);
     }
-    document.addEventListener('dinah:content-remount', remount);
+    remounts.set(key, remount);
+
+    /* Rename gives the file a new name in its folder, through Dinah's own
+       rename; the applet then reads the document under its new name. */
+    function rename() {
+      if (!draft.origin || draft.origin.kind !== 'local-folder') return;
+      var o = draft.origin;
+      return flush().then(function () {
+        return window.dinahResources.renameFile({ ref: { workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path } });
+      }).then(function (renamed) {
+        var mine = renamed && (renamed.drafts || []).filter(function (v) { return v.id === draft.id; })[0];
+        if (!mine || disposed) return;
+        return remount();
+      }).catch(failed);
+    }
+    /* Discard throws the draft away, after asking, and closes the window;
+       the document itself is not changed. */
+    function discard() {
+      var isNew = draft.origin && draft.origin.kind === 'new';
+      return host().ask('Discard This Draft?', 'Your changes to "' + (draft.title || 'the document') + '" that are not saved will be lost. ' +
+        (isNew ? 'The document has not been saved anywhere.' : 'The document itself is not changed.'), 'Discard Draft', true).then(function (go) {
+        if (!go || disposed) return;
+        clearTimeout(saveTimer);
+        return Promise.resolve(api().GetDraft(draft.id)).then(function (v) { return api().DiscardDraft(v.id, v.revision); }).then(function () {
+          allowClose = true;
+          window.pudlWindows.close(key);
+        });
+      }).catch(failed);
+    }
 
     var controller = {
       key: key,
@@ -439,13 +485,13 @@
       saveLabel: function () { return draft.origin && draft.origin.kind === 'new' ? 'Save As…' : 'Save'; },
       canSave: function () { return true; },
       whyNot: function () { return ''; },
-      canRename: function () { return false; },
-      rename: function () {},
+      canRename: function () { return !!draft.origin && draft.origin.kind === 'local-folder'; },
+      rename: rename,
       save: function () { return draft.origin && draft.origin.kind === 'new' ? saveAs() : flush(); },
       canSaveAs: function () { return true; },
       saveAs: saveAs,
       close: function () { window.pudlWindows.close(key); },
-      discard: function () {}
+      discard: discard
     };
     if (!opts.embedded && window.dinahDocuments) window.dinahDocuments.attach(key, controller);
 
@@ -462,7 +508,7 @@
         if (window.dinahDocuments) window.dinahDocuments.detach(key);
         root.removeEventListener('dinah:content-changed', changed);
         document.removeEventListener('dinah:content-renamed', renamed);
-        document.removeEventListener('dinah:content-remount', remount);
+        remounts.delete(key);
         unsubscribe();
         clearInterval(watchTimer);
         if (win) win.removeEventListener('pudl:window-closing', closingWindow);
@@ -688,10 +734,8 @@
             return api().UpdateDraft(v.id, v.revision, text);
           }).then(function (v) { return api().SaveDraftAs(v.id, v.revision, target); });
         }).then(function (saved) {
-          var resource = window.dinahContentHost.resourceFor(saved);
-          window.dinahContentHost.clearSnapshot(saveKey);
-          document.dispatchEvent(new CustomEvent('dinah:content-remount', { detail: { key: saveKey, view: saved, resource: resource } }));
-          return window.dinahWorkbench.ready(saveKey).then(function () { return firstDocument(saveKey); });
+          var again = remounts.get(saveKey);
+          return (again ? again() : Promise.resolve()).then(function () { return firstDocument(saveKey); });
         }).then(function (doc) { return { output: doc }; });
       }
       if (!args.live) {
