@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"studio/internal/agents"
 	"studio/internal/layout"
@@ -78,10 +76,9 @@ func (a *App) collectPersonalAgentSkills(result *SkillCatalog) {
 	}
 }
 
-// ChatSkillCatalog adds provider-owned discovery to the shared human catalogue.
-// Codex defines discovery, including disabled packages and installed plugins:
-// https://learn.chatgpt.com/docs/app-server#skills
-// This does not create a thread or start a model turn.
+// ChatSkillCatalog adds the skills a provider finds itself, through its
+// module's Skills, to the shared human catalogue. This does not create a
+// thread or start a model turn.
 func (a *App) ChatSkillCatalog(workspace, provider string) SkillCatalog {
 	result := a.SkillCatalog()
 	filtered := result.Skills[:0]
@@ -95,55 +92,8 @@ func (a *App) ChatSkillCatalog(workspace, provider string) SkillCatalog {
 		filtered = append(filtered, skill)
 	}
 	result.Skills = filtered
-	if provider != "codex" {
-		return result
-	}
-	conn, _, err := a.lifecycle().Live(provider)
-	if err != nil {
-		result.Problems = append(result.Problems, "Codex skills: "+err.Error())
-		return result
-	}
-	ctx, cancel := context.WithTimeout(a.bindingContext(), 20*time.Second)
-	defer cancel()
-	var response struct {
-		Data []struct {
-			Cwd    string `json:"cwd"`
-			Skills []struct {
-				Name        string `json:"name"`
-				Description string `json:"description"`
-				Path        string `json:"path"`
-				Enabled     bool   `json:"enabled"`
-			} `json:"skills"`
-			Errors []struct {
-				Message string `json:"message"`
-			} `json:"errors"`
-		} `json:"data"`
-	}
-	err = conn.Call(ctx, "skills/list", map[string]any{"cwds": []string{workspace}, "forceReload": true}, &response)
-	if err != nil {
-		result.Problems = append(result.Problems, "Codex skills: "+err.Error())
-		return result
-	}
-	for _, group := range response.Data {
-		if !layout.SamePath(group.Cwd, workspace) {
-			continue
-		}
-		for _, problem := range group.Errors {
-			result.Problems = append(result.Problems, "Codex skills: "+problem.Message)
-		}
-		for _, item := range group.Skills {
-			if !item.Enabled {
-				continue
-			}
-			skill, err := externalSkill(item.Name, item.Description, "", "imported", item.Path)
-			if err != nil {
-				result.Problems = append(result.Problems, "Codex skill "+item.Name+": "+err.Error())
-				continue
-			}
-			skill.Origin = "Codex"
-			skill.Workspace = workspace
-			result.Skills = append(result.Skills, skill)
-		}
+	if m, ok := providerModules[provider]; ok && m.Skills != nil {
+		m.Skills(a, workspace, &result)
 	}
 	return result
 }

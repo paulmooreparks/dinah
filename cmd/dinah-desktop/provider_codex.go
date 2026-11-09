@@ -9,6 +9,7 @@ import (
 	"studio/internal/acp"
 	"studio/internal/agents"
 	"studio/internal/codexagent"
+	"studio/internal/layout"
 )
 
 // Codex's own work in the window: finding its program, checking its connection
@@ -23,12 +24,65 @@ func init() {
 		SessionParams: codexSessionParams,
 		Adapter:       codexAdapter,
 		Judge:         acpJudgeModule(),
+		Skills:        codexSkills,
 		Unattended: func(s Settings) bool {
 			how := codexApprovals(s)
 			mode := codexAppletApprovals(s.CodexAppletApprovals)
 			return mode == "allow" || mode == "all" || how == codexagent.ApprovalsWorkspace || how == codexagent.ApprovalsFull
 		},
 	})
+}
+
+// codexSkills adds the enabled skills Codex finds for a workspace. Codex
+// defines discovery, including disabled packages and installed plugins:
+// https://learn.chatgpt.com/docs/app-server#skills
+func codexSkills(a *App, workspace string, catalog *SkillCatalog) {
+	conn, _, err := a.lifecycle().Live("codex")
+	if err != nil {
+		catalog.Problems = append(catalog.Problems, "Codex skills: "+err.Error())
+		return
+	}
+	ctx, cancel := context.WithTimeout(a.bindingContext(), 20*time.Second)
+	defer cancel()
+	var response struct {
+		Data []struct {
+			Cwd    string `json:"cwd"`
+			Skills []struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+				Path        string `json:"path"`
+				Enabled     bool   `json:"enabled"`
+			} `json:"skills"`
+			Errors []struct {
+				Message string `json:"message"`
+			} `json:"errors"`
+		} `json:"data"`
+	}
+	if err := conn.Call(ctx, "skills/list", map[string]any{"cwds": []string{workspace}, "forceReload": true}, &response); err != nil {
+		catalog.Problems = append(catalog.Problems, "Codex skills: "+err.Error())
+		return
+	}
+	for _, group := range response.Data {
+		if !layout.SamePath(group.Cwd, workspace) {
+			continue
+		}
+		for _, problem := range group.Errors {
+			catalog.Problems = append(catalog.Problems, "Codex skills: "+problem.Message)
+		}
+		for _, item := range group.Skills {
+			if !item.Enabled {
+				continue
+			}
+			skill, err := externalSkill(item.Name, item.Description, "", "imported", item.Path)
+			if err != nil {
+				catalog.Problems = append(catalog.Problems, "Codex skill "+item.Name+": "+err.Error())
+				continue
+			}
+			skill.Origin = "Codex"
+			skill.Workspace = workspace
+			catalog.Skills = append(catalog.Skills, skill)
+		}
+	}
 }
 
 // codexInfo says whether Codex's program is found, and where.

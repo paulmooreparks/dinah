@@ -39,6 +39,10 @@ type providerModule struct {
 	// Prices are the prices known now for the provider's models, by the model
 	// option's value; only a provider whose row says it has prices has them.
 	Prices func(a *App) map[string]agents.DevinModelPrice
+	// Skills adds to a chat's skill catalogue the skills the provider finds
+	// itself for a workspace, and any problems finding them; nil for a
+	// provider that finds none of its own.
+	Skills func(a *App, workspace string, catalog *SkillCatalog)
 	// Context measures the provider's chats' context windows and the courses
 	// for one that is full (context_hold.go); nil for a provider that does not.
 	Context *contextModule
