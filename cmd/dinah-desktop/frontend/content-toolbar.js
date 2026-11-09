@@ -12,23 +12,20 @@
   function field(command, name) { var v = command[name]; return typeof v === 'function' ? v.call(command) : v; }
 
   /* The commands the table has now, by id, with the caption a group takes
-     from its first command and the choice group a command stands for. */
+     from its first command and the choice group a command stands for. Only
+     the table's own rows are read: a menu command's items are its menu's,
+     which PUDL reads when the menu opens, and reading them here on every
+     change of a command's state made the Editor rebuild its Insert
+     catalogue through its Markdown engine at every keystroke. */
   function catalog(table) {
-    var out = new Map(), walked = new Set();
-    (function walk(commands, depth) {
-      if (!Array.isArray(commands) || depth > 8) return;
-      commands.forEach(function (c) {
-        if (!c || typeof c !== 'object' || walked.has(c)) return;
-        walked.add(c);
-        try {
-          if (typeof c.id === 'string' && !out.has(c.id)) {
-            var choice = field(c, 'toolbarChoice');
-            out.set(c.id, { caption: String(field(c, 'label') || c.id), choice: typeof choice === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(choice) ? choice : null });
-          }
-          walk(field(c, 'items'), depth + 1);
-        } catch (e) { /* A command not ready yet is read again at the next change. */ }
-      });
-    })(table(), 0);
+    var out = new Map();
+    (table() || []).forEach(function (c) {
+      if (!c || typeof c !== 'object' || typeof c.id !== 'string' || out.has(c.id)) return;
+      try {
+        var choice = field(c, 'toolbarChoice');
+        out.set(c.id, { caption: String(field(c, 'label') || c.id), choice: typeof choice === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(choice) ? choice : null });
+      } catch (e) { /* A command not ready yet is read again at the next change. */ }
+    });
     return out;
   }
 
@@ -41,8 +38,12 @@
     bar.setAttribute('aria-label', (options.label || 'Document') + ' Commands');
     bar.setAttribute('data-toolbar-fold', '');
     slot.appendChild(bar);
-    var destroyed = false, drawn = '';
+    var destroyed = false, drawn = '', frame = 0;
+    /* A change of any command's state is followed by many in a burst (each
+       keystroke), so the toolbar is looked at once a frame. */
+    function changed() { if (!frame) frame = requestAnimationFrame(render); }
     function render() {
+      frame = 0;
       if (destroyed) return;
       var known = catalog(options.table);
       var ids = (options.defaults || []).filter(function (id) { return id === '-' || known.has(id); });
@@ -77,13 +78,14 @@
       if (window.pudlCommands) window.pudlCommands.changed();
       if (window.pudlToolbar) window.pudlToolbar.enhance(slot);
     }
-    document.addEventListener('pudl:commands-change', render);
+    document.addEventListener('pudl:commands-change', changed);
     render();
     return {
       commands: function () { return []; },
       destroy: function () {
         destroyed = true;
-        document.removeEventListener('pudl:commands-change', render);
+        document.removeEventListener('pudl:commands-change', changed);
+        cancelAnimationFrame(frame);
         bar.remove();
       }
     };

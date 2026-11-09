@@ -213,6 +213,38 @@
     win.querySelector('.win-title').textContent = combinedTitle(title, detail);
     win.removeAttribute('data-win-detail');
   }
+  /* PUDL's retitle redraws the docks and the taskbar for every window,
+     and some applets (the content applets' tab strip) retitle at every
+     change of their commands, so a retitle to the title and detail the
+     window already has is dropped here before it reaches PUDL. */
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.pudlWindows || window.pudlWindows.retitle.__dinahGuarded) return;
+    var pudlRetitle = window.pudlWindows.retitle;
+    window.pudlWindows.retitle = function (key, title, detail) {
+      var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]'), t = win && win.querySelector('.win-title');
+      if (t && t.textContent === String(title) && (detail === undefined || (win.getAttribute('data-win-detail') || '') === String(detail || ''))) return;
+      return pudlRetitle.apply(this, arguments);
+    };
+    window.pudlWindows.retitle.__dinahGuarded = true;
+    /* PUDL draws every command-bound control on the page again once per
+       task after anything calls pudlCommands.changed. Dinah's page has
+       many windows, each with such controls, and many callers: a keystroke
+       in a document, every chat window on a chat-state snapshot, every
+       group window on a bus overview, the periodic time and state polls.
+       Measured on a real layout of 29 windows, that was ten redraws a
+       second at 45 to 160 ms each, and typing in a document cost 385 ms a
+       key. Requests made from this page are gathered here into one redraw
+       every 20 ms. Agents read commands' live values (pudlCommands.list),
+       never the drawn controls, so they see no lag (9 November 2026). */
+    if (window.pudlCommands && !window.pudlCommands.changed.__dinahCoalesced) {
+      var pudlChanged = window.pudlCommands.changed, due = 0;
+      window.pudlCommands.changed = function () {
+        if (due) return;
+        due = setTimeout(function () { due = 0; pudlChanged(); }, 20);
+      };
+      window.pudlCommands.changed.__dinahCoalesced = true;
+    }
+  });
   function retitle(key, title, detail) {
     var win = document.querySelector('.win[data-win="' + CSS.escape(key) + '"]');
     if (!win) return;

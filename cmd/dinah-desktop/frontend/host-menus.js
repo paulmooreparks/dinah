@@ -110,7 +110,17 @@
     if (event?.detail?.refreshOpenMenus && window.pudlMenubar) window.pudlMenubar.refresh();
   }
 
+  /* The list is asked for many times in one drawing of the menus (each
+     Window row's label, visibility and check), and each asks the page for
+     every window, so it is built once per task and dropped when the task
+     ends. */
+  var openWindowsMemo = null;
   window.dinahOpenWindows = function () {
+    if (openWindowsMemo) return openWindowsMemo;
+    Promise.resolve().then(function () { openWindowsMemo = null; });
+    return (openWindowsMemo = listOpenWindows());
+  };
+  function listOpenWindows() {
     var entries = window.pudlWindows.state().open.map(function (key) {
       var win = document.querySelector('[data-win="' + CSS.escape(key) + '"]');
       if (!win) return null;

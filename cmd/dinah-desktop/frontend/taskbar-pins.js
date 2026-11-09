@@ -43,9 +43,18 @@
   document.addEventListener('pudl:taskbar-activation-end',function (event) {
     if (event.detail.status === 'failed') document.dispatchEvent(new CustomEvent('dinah:menu-error',{detail:event.detail.error || new Error('Pinned destination could not be opened')}));
   });
-  document.addEventListener('dinah:pin-categories-change',function () { if (ready) pudlWindows.refreshTaskbarDestinations(); });
-  document.addEventListener('dinah:launchers-change',function () { if (ready) pudlWindows.refreshTaskbarDestinations(); });
-  document.addEventListener('dinah:workspace-selected',function () { if (ready) pudlWindows.refreshTaskbarDestinations(); });
+  /* Resolving the destinations again resolves each pinned one, and PUDL
+     redraws the taskbar after each; a document's title changes with every
+     pause in typing (its "(changed)" mark), so the refresh waits for a
+     quiet quarter second and runs once for a burst of changes. */
+  var refreshTimer = 0;
+  function refreshDestinationsSoon() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(function () { refreshTimer = 0; if (ready) pudlWindows.refreshTaskbarDestinations(); }, 250);
+  }
+  document.addEventListener('dinah:pin-categories-change', refreshDestinationsSoon);
+  document.addEventListener('dinah:launchers-change', refreshDestinationsSoon);
+  document.addEventListener('dinah:workspace-selected', refreshDestinationsSoon);
   function reference(action) {
     if (action.indexOf('terminal:') === 0 && action !== 'terminal:refresh') return {provider:'shells',id:bench.key({kind:'shell',path:action === 'terminal:default' ? dinahShellTerminal.defaultShell() : action.slice(9)})};
     if (action === 'new-document') return {provider:'applets',id:'app-editor'};

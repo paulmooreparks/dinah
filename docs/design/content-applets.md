@@ -129,6 +129,14 @@ Ruling 7 means none of these blocks the start.
 - The D2 worker's own content policy (`shell_server.go`).
 - Two fixes found on the way: opening one resource twice at once made two drafts, and the hidden window under test loaded a second page.
 
+## Typing speed, 9 November 2026
+
+Paul found typing in Docs far slower in Dinah than in a browser, and the cause was measured on a copy of his real layout (29 windows) in a hidden window: a keystroke cost 385 ms at the median and up to 2.7 s, against 65 ms on a fresh state. Nearly all of it was redrawing. The applet reports a change of its commands at every keystroke, PUDL then redraws every command-bound control of every window on the page, and in doing so evaluates each menu command's items, which for the applets' Insert menu runs the Markdown engine to list the document's shortcodes. Dinah's own windows added to the storm: every chat window and every group window asked for a page-wide redraw at each chat-state snapshot, bus overview and periodic poll, about ten redraws a second whether or not anyone typed; each retitle of a window redrew the docks and taskbar for all windows, and the applets' tab strip retitles at every change; Dinah's Window menu rebuilt its list of open windows dozens of times per redraw; and a document's "(changed)" mark made the taskbar re-resolve every pinned destination.
+
+The fixes, all in Dinah's page: redraw requests are gathered into one every 20 ms (workbench.js); a retitle to an unchanged title is dropped before it reaches PUDL; the applets' dynamic menu items are evaluated at most four times a second until yavc.app caches them; the open-windows list is built once per task; the pins refresh waits for a quiet quarter second; the toolbar reads only the table's own rows; the recovery snapshot is written once a second; the Problems check runs once per revision after the document is still; and a window's own save no longer compares the file on disk. yavc.app's #66 stops its page furniture being redrawn while typing, and comes to Dinah with the next release.
+
+Results, 61 keys in a 400-paragraph document, before #66: fresh state 65 → 15 ms median; real layout 385 → 46 ms median and 1134 → 457 ms at the 90th percentile, with spikes of about a second left. What remains on the real layout is Dinah's chat and group windows reacting to periodic polls (chat times, team state, session information) by re-laying out their transcripts, about 14% of the main thread while typing, which is a separate piece of work.
+
 ## Still to do
 
 - Pin the release with the Files pane fix and without the two comments the forbidden-terms guard refuses, then rewrite the unpushed history before the first push.
@@ -136,4 +144,5 @@ Ruling 7 means none of these blocks the start.
 - Suggestions marked in the text itself, which needs yavc.app to accept host-supplied suggestions.
 - Customising the toolbar, Slides' presenter window and its `fs.save` export, and SVG artifacts from Diagrams' `render@1`, which the broker's drawing check refuses; PNG works.
 - An end-to-end run with a real chat agent through the MCP helper and the consent prompt; the broker path is tested, the chat path is not.
+- Chat and group windows re-lay out their transcripts at every periodic poll, which costs the page about 14% of its time while typing on a large layout (see "Typing speed").
 - The browser suites keyboard and documents-menu, which failed before the change for other reasons, still test the removed Editor's own keys and menus and need rewriting for the yavc.app Editor.
