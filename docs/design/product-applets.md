@@ -22,4 +22,4 @@ A service call counts as work for the exit guard, since the page cannot know whi
 
 ## What this does not do
 
-A product's agent-facing actions still go through applet bundles (`applet_builtins.go`), which the product package can register as the comment threads applet is. Menus of the page's own menu bar, settings sections and new pinned categories have no registry yet; each is added when a product needs it.
+A product's agent-facing actions go through applet bundles like the built-in ones: the product package registers a maker with `applet.RegisterBundle` in its `init`, and the host adds what it makes to the registry it assembles at start (`applet_builtins.go`), so the bundle's actions reach agents, flows and the page's applet SDK as the built-in bundles' do. Menus of the page's own menu bar, settings sections and new pinned categories have no registry yet; each is added when a product needs it.

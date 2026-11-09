@@ -13,13 +13,19 @@ import (
 var builtinAppletSources embed.FS
 
 // builtinAppletBundles are the built-in applets: those every program offers,
-// from package builtin as they are, and the app's own, whose implementation
-// includes the app's host files.
+// from package builtin as they are, those a product built from this source
+// registered (applet.RegisterBundle), and the app's own, whose
+// implementation includes the app's host files.
 func (a *App) builtinAppletBundles() ([]applet.Bundle, error) {
 	bundles, err := builtin.Bundles()
 	if err != nil {
 		return nil, err
 	}
+	product, err := applet.ProductBundles()
+	if err != nil {
+		return nil, err
+	}
+	bundles = append(bundles, product...)
 	makers := []func() (applet.Bundle, error){a.workspaceAppletBundle, a.chatAppletBundle, a.settingsAppletBundle, a.filesAppletBundle, a.terminalAppletBundle, a.skillsAppletBundle, a.windowsAppletBundle, a.teamAppletBundle, a.diagnosticsAppletBundle, a.documentsAppletBundle, a.documentThreadsAppletBundle}
 	for _, app := range contentApps {
 		app := app

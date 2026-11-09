@@ -190,7 +190,7 @@ func TestRegisteredKindIsListedReadAndPreviewedThroughItsProvider(t *testing.T) 
 
 	vfs := workspaceVFS{service: service}
 	item, err := vfs.stat("/workspaces/" + record.MountAlias + "/" + source.MountAlias + "/200")
-	if err != nil || item.Title != "Architecture" || !item.Directory {
+	if err != nil || item.Title != "Architecture" || !item.Directory || item.Glyph != "globe" {
 		t.Fatalf("stat through the mount: %+v %v", item, err)
 	}
 	root, err := vfs.stat("/workspaces/" + record.MountAlias + "/" + source.MountAlias)
