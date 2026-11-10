@@ -25,7 +25,7 @@
       ['skills-browser','tools','document'], ['in-progress','documents','pencil'], ['needs-you','tools','warning','Notifications'],
       ['show-workspace','workspace','folder'], ['new-workspace','workspace','folder'],
       ['new-empty-workspace','workspace','folder'], ['import-workspace','workspace','upload'],
-      ['open-document','documents','open','Open Document…'],
+      ['open-document','documents','open','Open Documentâ€¦'],
       ['install-packages-file','tools','download'], ['find-tool','tools','search'],
       ['keyboard-shortcuts','help','info'], ['about','help','info']
     ].forEach(function (entry) {
