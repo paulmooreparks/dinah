@@ -1,6 +1,6 @@
 # Editor, Docs, Diagrams and Slides as applications of their own
 
-Paul asked on 11 November 2026 what it would take to make the four document applets stand-alone applications, and whether they could still work with Dinah, and with a product built from Dinah, for people and for agents. Dinah's team, yavc.app Development and PUDL Team Lead all answered yes and agreed on the shape. This proposal records that shape, the decisions Paul has made, the ones still open, and a first proof with the Editor. Nothing in it is built.
+Paul asked on 11 November 2026 what it would take to make the four document applets stand-alone applications, and whether they could still work with Dinah, and with a product built from Dinah, for people and for agents. Dinah's team, yavc.app Development and PUDL Team Lead all answered yes and agreed on the shape. This proposal records that shape, the decisions Paul has made, the ones still open, and a first proof with the Editor. Paul authorized the Editor to be built on 11 November 2026, once the stacked taskbar buttons and a launcher label were delivered, and left the open choices to the proposal's recommendations.
 
 ## What Paul has decided
 
@@ -51,7 +51,17 @@ What it must show, from the lists Quality, Release, Engine, Front End, yavc.app 
 9. The Editor works with Dinah closed, and Dinah works with the Editor closed.
 10. yavc.app's own package tests pass against the stand-alone host.
 
-The first step of the proof is an audit, which PUDL Team Lead asked for and which has not been done: how much of the draft store, file access and settings can run without Dinah's workspaces, chats and bus. This proposal assumes the draft store can, because it is a package of its own, and has not measured it. If the audit finds otherwise, the proof stops there and the finding comes back to Paul.
+The first step of the proof is an audit, which PUDL Team Lead asked for: how much of the draft store, file access and settings can run without Dinah's workspaces, chats and bus. Its finding is in the next section.
+
+## The audit's finding
+
+The audit was done on 11 November 2026, by reading, before anything was built. The assumption holds.
+
+The draft store (`internal/drafts`) depends on three small packages and on nothing of Dinah's workspaces, chats or bus. Its service is given two things: a folder to keep drafts in, and a way to find the provider of a draft's source. The provider for files on the computer (`internal/resource/localfs`) takes a folder and already does what the proof needs of it. It reads a file with the revision of its content, and it writes one only when the file still has the revision the caller expected, which is the conflict at the save. A document service is therefore the draft store, that provider, and a rule for which folder a file belongs to.
+
+One thing Dinah does today is not good enough for a stand-alone Editor. A file that is in none of the person's workspaces is opened as a new, untitled draft that happens to start with the file's text. It has no file to save back to and no revision to compare, so Save asks for a place and a change made by another program is not noticed. The document service will open such a file as a document of its own folder, through the same provider a workspace's folder uses, so that it saves in place and meets a conflict honestly. Dinah's own Open of a file on the computer could later take the same route.
+
+Settings and appearance are small packages of their own as well (`internal/appearance`, `internal/skins`, `internal/statefile`). File access rules, recent documents and the workspaces themselves depend on Dinah's agents and layout, and the document service does not use them.
 
 ## What it would cost
 
