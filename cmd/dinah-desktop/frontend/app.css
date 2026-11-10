@@ -300,6 +300,12 @@ body:not(.show-thoughts) .thought-row { display: none; }
    first, down to PUDL's least width for it, and then the title does. */
 .win-head:has(> .win-title-detail:not([hidden])) > .win-title { flex: 0 1 auto; }
 .win-title-detail { flex: 0 1000 auto; margin-inline-end: auto; }
+/* The mark between a title and its detail. PUDL 0.105.0's own default for
+   --win-title-sep is a middle dot whose bytes were encoded twice in the
+   release, so it drew as four stray characters (Paul, 10 November 2026).
+   The dot is set here as an escape, which no encoding can change, and this
+   line can go when a PUDL release has the default right. */
+:root { --win-title-sep: " \00B7 "; }
 
 /* PUDL's loading line, made for an empty region, on one line of the status
    area while Dinah starts. */
