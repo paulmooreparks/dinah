@@ -48,7 +48,7 @@ What it must show, from the lists Quality, Release, Engine, Front End, yavc.app 
 5. Opening the same file again brings its window forward.
 6. Dinah hands a document to the stand-alone Editor, and a link to a document opens it there.
 7. An agent in Dinah edits the document in the stand-alone Editor through a call that says which application and document it means, with the person's permission asked in the Editor's window.
-8. The person and an agent edit the same file from the two programs at once, and neither overwrites the other.
+8. The person and an agent edit the same file from the two programs at once, and neither overwrites the other. Two saves that overlap in time are part of this, under the save contract below.
 9. The Editor works with Dinah closed, and Dinah works with the Editor closed.
 10. yavc.app's own package tests pass against the stand-alone host.
 
@@ -63,6 +63,18 @@ The draft store (`internal/drafts`) depends on three small packages and on nothi
 One thing Dinah does today is not good enough for a stand-alone Editor. A file that is in none of the person's workspaces is opened as a new, untitled draft that happens to start with the file's text. It has no file to save back to and no revision to compare, so Save asks for a place and a change made by another program is not noticed. The document service will open such a file as a document of its own folder, through the same provider a workspace's folder uses, so that it saves in place and meets a conflict honestly. Dinah's own Open of a file on the computer could later take the same route.
 
 Settings and appearance are small packages of their own as well (`internal/appearance`, `internal/skins`, `internal/statefile`). File access rules, recent documents and the workspaces themselves depend on Dinah's agents and layout, and the document service does not use them.
+
+## The save contract
+
+PUDL Team Lead reviewed the audit on 11 November 2026 and found that the provider's write does not yet give what point 8 of the proof asks. It checks the file's revision, writes the new text to a temporary file, checks again and renames the temporary file over the target. Nothing arbitrates between two processes, so Dinah and the document service could both pass the last check before either renames, and the later rename would replace the earlier one's text without a conflict. A test that saves one after the other cannot show this. The contract below closes it for programs built from this source and says plainly what remains for any other program.
+
+**Between programs built from this source.** Dinah, a product built from it and the document service are cooperating writers. Before its last check, a cooperating writer takes the operating system's exclusive lock on a lock file that stands for the target, and it holds the lock until the rename is done. The lock is the one Dinah's state files already use: `LockFileEx` on Windows and `flock` elsewhere, both documented to exclude a second holder whatever process it is in. Every cooperating writer finds the same lock file, because it is in one folder for the person, outside any product's own folder, and its name is made from the identity of the target's folder and the target's name. A folder's identity is what the operating system gives for it (the volume and file index on Windows, the device and inode elsewhere), so two paths to one folder give one lock. The file's own identity is not used, because the rename gives the target a new one at every save. With the lock held, the check and the rename of one writer cannot fall between the check and the rename of another. Of two overlapping saves based on the same revision, one is written and the other is refused as a conflict, with its text kept.
+
+A writer that cannot take the lock within a few seconds fails the save and says that the file is being saved by another program. It does not report a conflict it has not seen, and it never writes without the lock.
+
+**Against any other program.** A program that knows nothing of this lock, such as another editor, is an unrelated writer. Its change is seen, and the save refused, when it lands before the last check. A change that lands between the last check and the rename is replaced and not seen. No file interface that Windows, Linux and macOS all document compares and replaces a file's content in one step, so this is stated as the limit and not worked around. The rename itself is documented to replace the target whole, so a reader sees the old text or the new and never part of either.
+
+**The test.** A deterministic test holds one writer between its last check and its rename, starts a second writer on the same file from the same revision, and releases the first. Without the lock both succeed, which is the fault. With it the second waits, then finds the revision changed and is refused. The test is run within one process and across two.
 
 ## What it would cost
 
