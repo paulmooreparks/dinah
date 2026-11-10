@@ -981,15 +981,24 @@
   function openDocument(app) {
     var currentWs = host() && host().workspaceId();
     function workspaceOf(choice) { return choice.dir && choice.dir.ref && choice.dir.ref.workspaceId || currentWs; }
+    /* The dialog gives the keyboard back to the window it was asked from
+       when it closes, which brings that window forward, over the document's
+       own window opened a moment before. So the document's window is
+       brought forward once the dialog has gone. */
+    var opened = null;
+    function shown(v) { return open(v, app).then(function (key) { opened = key; return key; }); }
     return window.dinahFilePicker.pick({ mode: 'open', title: 'Open',
       commit: function (choice) {
-        if (choice.node) return Promise.resolve(api().OpenDraft(choice.node.ref)).then(function (v) { return open(v, app); });
+        if (choice.node) return Promise.resolve(api().OpenDraft(choice.node.ref)).then(shown);
         return Promise.resolve(choice.reference ? api().OpenComputerFile(workspaceOf(choice), choice.reference) : api().OpenComputerDocument(workspaceOf(choice))).then(function (v) {
           if (!v || !v.id) return false;
           if (v.origin.kind === 'new') host().toast('"' + v.title + '" is not in the folder of any workspace, so it opened as a new document. Save As puts it where you choose.', 'warn');
-          return open(v, app);
+          return shown(v);
         });
-      } }).catch(function (err) { host().toast(message(err), 'danger'); });
+      } }).then(function (picked) {
+        if (opened && window.pudlWindows.state().open.indexOf(opened) >= 0) window.pudlWindows.raise(opened);
+        return picked;
+      }).catch(function (err) { host().toast(message(err), 'danger'); });
   }
 
   function newDocument(workspaceId, text, app) {
