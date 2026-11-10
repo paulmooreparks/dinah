@@ -537,7 +537,7 @@ func (f Folder) WriteText(ctx context.Context, path, expected, text string) (str
 		root.Remove(tmp)
 		return "", err
 	}
-	release, err := holdSaveLock(ctx, filepath.Join(f.Root, filepath.Dir(name)), savelock.Wait)
+	release, err := holdSaveLock(ctx, savelock.Wait)
 	if err != nil {
 		root.Remove(tmp)
 		return "", err
@@ -557,7 +557,7 @@ func (f Folder) WriteText(ctx context.Context, path, expected, text string) (str
 	return resource.ContentRevision(text), nil
 }
 
-// holdSaveLock takes the save lock of a target's folder. A test replaces it to show what
+// holdSaveLock takes the person's save lock. A test replaces it to show what
 // two overlapping saves do without the lock.
 var holdSaveLock = savelockHold
 

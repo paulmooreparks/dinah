@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"studio/internal/resource"
+	"studio/internal/savelock"
 )
 
 // overlap starts one save, holds it between its last check and its rename,
@@ -22,6 +23,7 @@ import (
 // while the first was held, and the file's text at the end.
 func overlap(t *testing.T) (first, second error, overtook bool, text string) {
 	t.Helper()
+	t.Setenv(savelock.TestDirEnv, t.TempDir())
 	dir := t.TempDir()
 	path := filepath.Join(dir, "notes.md")
 	if err := os.WriteFile(path, []byte("base\n"), 0o644); err != nil {
@@ -85,7 +87,7 @@ func TestOverlappingSavesDoNotBothSucceed(t *testing.T) {
 // replaced with no conflict, which is the fault the lock is for. The test
 // keeps the fault on record, so that the one above cannot pass by accident.
 func TestWithoutTheLockOverlappingSavesBothSucceed(t *testing.T) {
-	holdSaveLock = func(context.Context, string, time.Duration) (func(), error) { return func() {}, nil }
+	holdSaveLock = func(context.Context, time.Duration) (func(), error) { return func() {}, nil }
 	t.Cleanup(func() { holdSaveLock = savelockHold })
 	first, second, overtook, text := overlap(t)
 	if !overtook || first != nil || second != nil {
@@ -117,6 +119,7 @@ func TestOverlappingSavesFromTwoProcesses(t *testing.T) {
 		}
 		return
 	}
+	t.Setenv(savelock.TestDirEnv, t.TempDir())
 	dir := t.TempDir()
 	path := filepath.Join(dir, "notes.md")
 	if err := os.WriteFile(path, []byte("base\n"), 0o644); err != nil {

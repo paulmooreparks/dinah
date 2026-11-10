@@ -6,17 +6,21 @@
 // both pass that check before either renamed, and the later rename then
 // replaced the earlier text with no conflict reported.
 //
-// A writer holds the lock for a target from before its last check until its
-// rename is done. The lock is the operating system's exclusive lock on a
-// lock file (internal/filelock: LockFileEx on Windows, flock elsewhere),
-// which excludes a second holder in any process and is released when its
-// holder ends. Every such program finds the same lock file, because it is in
-// one folder for the person, outside any product's own folder, and its name
-// comes from the identity of the target's folder. One lock therefore stands
-// for a whole folder, and the saves of two files in one folder wait for each
-// other. That costs a moment and needs no rule for when two file names are
-// the same file, which file systems decide differently and Windows does not
-// document as a comparison a program can make.
+// A writer holds the lock from before its last check until its rename is
+// done. The lock is the operating system's exclusive lock on a lock file
+// (internal/filelock: LockFileEx on Windows, flock elsewhere), which
+// excludes a second holder in any process and is released when its holder
+// ends. There is one lock file for the person, at a fixed place outside any
+// product's own folder, so every such program finds the same one and no two
+// can disagree about which lock a file has. The saves of any two files
+// therefore wait for each other, for the length of one comparison and one
+// rename.
+//
+// Earlier builds had a lock for each file and then for each folder, named
+// from the folder's identity. Windows documents that a folder's identifier
+// can change over time on some file systems, and gives no comparison for
+// when two names or two paths are the same file, so a narrower lock could
+// not be shown to be the same lock for every writer.
 //
 // A program that knows nothing of this lock is not held by it. Its change is
 // seen when it lands before the last check and is replaced unseen when it
@@ -26,8 +30,6 @@ package savelock
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -38,39 +40,37 @@ import (
 	"studio/internal/profile"
 )
 
-// ErrBusy is returned when another program holds a folder's lock for longer
-// than the caller would wait. The caller has seen no conflict and has written
+// ErrBusy is returned when another program holds the lock for longer than
+// the caller would wait. The caller has seen no conflict and has written
 // nothing.
-var ErrBusy = errors.New("a file in this folder is being saved by another program; save again in a moment")
+var ErrBusy = errors.New("another program is saving a file; save again in a moment")
 
-// ErrNoIdentity is returned when the identity of a target's folder could not
-// be read. The save is refused: a writer that guessed a name for the lock
-// could choose another than a second writer does, and the two would then not
-// exclude each other while each believed they did.
-var ErrNoIdentity = errors.New("the folder's identity could not be read, so two programs saving here could not be kept apart; the file was not saved and your text is kept")
-
-// Wait is how long a save waits for another program's save in the same
-// folder. A save holds the lock for one comparison and one rename.
+// Wait is how long a save waits for another program's save. A save holds the
+// lock for one comparison and one rename.
 const Wait = 5 * time.Second
 
 // retry is how often a waiting writer tries again.
 const retry = 20 * time.Millisecond
 
-// identityOf reads a folder's identity. A test replaces it.
-var identityOf = folderIdentity
+// file is the name of the one lock file.
+const file = "save.lock"
 
-// dir is the folder the lock files are in. It is the person's, and the same
+// dir is the folder the lock file is in. It is the person's, and the same
 // for every product built from this source: the operating system's folder
 // for a person's application data (os.UserConfigDir) and a name from the
 // source product's own. It is not a cache folder, which the system or a
 // tidying tool may empty: a lock file removed while its holder is still at
 // work would let a second writer lock a new file of the same name. Nothing
-// here removes a lock file. There is one for each folder a document was
-// ever saved in, and each is empty. A test's locks go under the temporary
-// folder, so a test never waits on a program the person is running.
+// here removes the lock file, which is empty. A test's lock is under the
+// temporary folder, so a test never waits on a program the person is
+// running, and a test that holds the lock for long, or starts a second
+// process, puts it in a folder of its own with TestDirEnv.
 func dir() (string, error) {
 	name := profile.Source().ID + "-save-locks"
 	if testing.Testing() {
+		if d := os.Getenv(TestDirEnv); d != "" {
+			return d, nil
+		}
 		return filepath.Join(os.TempDir(), name+"-test"), nil
 	}
 	data, err := os.UserConfigDir()
@@ -80,30 +80,14 @@ func dir() (string, error) {
 	return filepath.Join(data, name), nil
 }
 
-// key is the lock file's name for a target's folder: a digest of the
-// folder's identity as the operating system gives it (identity_windows.go,
-// identity_unix.go), so two paths to one folder give one key. A file's own
-// identity is no use, since a rename gives the target a new one at every
-// save.
-//
-// Any failure to read the identity refuses the save (ErrNoIdentity). The
-// folder's path does not stand in for it: nothing documented says that two
-// paths to one folder resolve to the same text on every file system, and a
-// writer cannot tell that they did not.
-func key(folder string) (string, error) {
-	id, err := identityOf(folder)
-	if err != nil || len(id) == 0 {
-		return "", ErrNoIdentity
-	}
-	sum := sha256.Sum256(id)
-	return hex.EncodeToString(sum[:]) + ".lock", nil
-}
+// TestDirEnv is the environment variable that says where a test's lock file
+// is. It is read only in a test binary.
+const TestDirEnv = "SAVELOCK_TEST_DIR"
 
-// Hold takes the lock for the files of folder, waiting up to wait for
-// another holder, and returns the function that releases it. It returns
-// ErrBusy when the wait runs out, ErrNoIdentity when the folder's identity
-// cannot be read, and the context's error when it is done.
-func Hold(ctx context.Context, folder string, wait time.Duration) (release func(), err error) {
+// Hold takes the lock, waiting up to wait for another holder, and returns
+// the function that releases it. It returns ErrBusy when the wait runs out
+// and the context's error when it is done.
+func Hold(ctx context.Context, wait time.Duration) (release func(), err error) {
 	d, err := dir()
 	if err != nil {
 		return nil, err
@@ -111,11 +95,7 @@ func Hold(ctx context.Context, folder string, wait time.Duration) (release func(
 	if err := os.MkdirAll(d, 0o700); err != nil {
 		return nil, err
 	}
-	name, err := key(folder)
-	if err != nil {
-		return nil, err
-	}
-	path := filepath.Join(d, name)
+	path := filepath.Join(d, file)
 	deadline := time.Now().Add(wait)
 	for {
 		if err := ctx.Err(); err != nil {
@@ -145,7 +125,7 @@ func Hold(ctx context.Context, folder string, wait time.Duration) (release func(
 // lock on a file that is no longer the one at the path excludes nobody who
 // opens the path afterwards, so the lock counts only when the file locked is
 // still the file there. A lock file removed after that, while its holder
-// works, is not seen there. Nothing built from this source removes one, and
+// works, is not seen there. Nothing built from this source removes it, and
 // the folder is not one the system tidies.
 func try(path string) (f *os.File, held bool, err error) {
 	f, err = openLockFile(path)
