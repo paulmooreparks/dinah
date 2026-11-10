@@ -53,9 +53,7 @@ func TestOneFolderHasOneLockHoweverItsPathIsWritten(t *testing.T) {
 }
 
 // A folder whose identity cannot be read is not saved to: a guessed lock
-// could differ from another writer's. A file system that says it has no
-// identity to give is the one exception, and there the resolved path is the
-// same for every writer.
+// could differ from another writer's. No path stands in for the identity.
 func TestAnUnreadableIdentityRefusesTheSave(t *testing.T) {
 	dir := t.TempDir()
 	t.Cleanup(func() { identityOf = folderIdentity })
@@ -67,14 +65,7 @@ func TestAnUnreadableIdentityRefusesTheSave(t *testing.T) {
 	if _, err := key(dir); !errors.Is(err, ErrNoIdentity) {
 		t.Fatalf("an empty identity: %v", err)
 	}
-	identityOf = func(string) ([]byte, error) { return nil, errUnsupported }
-	first, err := key(dir)
-	if err != nil {
-		t.Fatalf("a file system with no identity to give: %v", err)
-	}
-	if second, _ := key(filepath.Join(dir, ".")); second != first {
-		t.Error("the path that stands in for the identity is not the same for the same folder")
-	}
+	identityOf = folderIdentity
 	if _, err := key(filepath.Join(dir, "no such folder")); !errors.Is(err, ErrNoIdentity) {
 		t.Fatalf("a folder that is not there: %v", err)
 	}

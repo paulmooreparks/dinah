@@ -47,11 +47,7 @@ var ErrBusy = errors.New("a file in this folder is being saved by another progra
 // be read. The save is refused: a writer that guessed a name for the lock
 // could choose another than a second writer does, and the two would then not
 // exclude each other while each believed they did.
-var ErrNoIdentity = errors.New("the folder's identity could not be read, so the file cannot be saved safely; save again in a moment")
-
-// errUnsupported is what folderIdentity returns when the file system says it
-// has no identity to give.
-var errUnsupported = errors.New("the file system gives no identity")
+var ErrNoIdentity = errors.New("the folder's identity could not be read, so two programs saving here could not be kept apart; the file was not saved and your text is kept")
 
 // Wait is how long a save waits for another program's save in the same
 // folder. A save holds the lock for one comparison and one rename.
@@ -90,25 +86,12 @@ func dir() (string, error) {
 // identity is no use, since a rename gives the target a new one at every
 // save.
 //
-// A file system may have no identity to give, which the system reports as
-// such. The folder's path, with its links resolved, then stands in for it,
-// the same for every writer, and two paths to such a folder that resolve
-// differently are not arbitrated: on that file system the save is as it was
-// before this package. Any other failure to read the identity refuses the
-// save (ErrNoIdentity).
+// Any failure to read the identity refuses the save (ErrNoIdentity). The
+// folder's path does not stand in for it: nothing documented says that two
+// paths to one folder resolve to the same text on every file system, and a
+// writer cannot tell that they did not.
 func key(folder string) (string, error) {
 	id, err := identityOf(folder)
-	if errors.Is(err, errUnsupported) {
-		resolved, rerr := filepath.EvalSymlinks(folder)
-		if rerr != nil {
-			return "", ErrNoIdentity
-		}
-		abs, aerr := filepath.Abs(resolved)
-		if aerr != nil {
-			return "", ErrNoIdentity
-		}
-		id, err = append([]byte("path\x00"), filepath.Clean(abs)...), nil
-	}
 	if err != nil || len(id) == 0 {
 		return "", ErrNoIdentity
 	}
