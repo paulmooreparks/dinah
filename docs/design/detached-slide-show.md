@@ -41,6 +41,8 @@ Under test (`DINAH_SHELL_ENTRY_FILE`) no window is started. The show's address i
 
 Slides fills the show's window by itself from yavc.app v0.2.63. With v0.2.62 its root kept the height of a page in flow, and a diagram referred to by a relative path, as `{{diagram:../drawings/chart.mmd}}`, was not drawn in the show's window, because Slides took the deck's folder from the resource's text there. Both were reported to yavc.app Development and mended the same evening. With v0.2.63 in the hidden window, that diagram is drawn in the show, and a diagram whose file is missing says so.
 
+With v0.2.63 every slide change in a show made the editing window send the whole deck again, and the show's page built a new stage for it, so each slide faded in, vanished and zoomed into place. Paul saw that on 11 November 2026 on a second display. yavc.app v0.2.64 mends it in Slides. Measured through Dinah's relay in the hidden window, a slide change from the show now sends nothing back to it, one from the editing window sends a single `at`, and the stage is not rebuilt in either case.
+
 ## What is left
 
 1. Two things have not been seen, because no check may show a window on Paul's screen: the show's window visible and full screen on a real second display, and the keyboard going to it. Paul tries it on two displays.

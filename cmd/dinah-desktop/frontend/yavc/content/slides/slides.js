@@ -1265,7 +1265,11 @@
         var remoteShow = null, fromShow = false, showStateTimer = 0;
         function showMessageOf(e) { return e && e.data && typeof e.data === 'object' && e.data.v === 1 ? e.data : e; }
         function showPost(message) { if (!remoteShow) { return; } try { remoteShow.port.postMessage(Object.assign({ v: 1 }, message)); } catch (error) { } }
-        function sendShowState() {
+        /* The deck goes to the show when the show asks for it (always)
+           and after a change to its text. Moving to a slide keeps the
+           deck too, and must not send it again: the show would rebuild
+           its stage on every slide. */
+        function sendShowState(always) {
             clearTimeout(showStateTimer);
             if (!remoteShow) { return; }
             var mine = remoteShow;
@@ -1274,10 +1278,12 @@
                 if (destroyed || remoteShow !== mine) { return; }
                 var text = fullText();
                 if (text.length > 2097152) { showPost({ type: 'unavailable' }); endRemoteShow(true); say('The deck is too large to send to the show\'s window, so the show has ended.', true); return; }
+                if (!always && mine.sent === text) { return; }
+                mine.sent = text;
                 showPost({ type: 'state', text: text, resource: path || null, slide: at, step: mine.step || 0 });
             }).catch(function (error) { if (!destroyed) { say(error.message, true); } });
         }
-        function scheduleShowState() { clearTimeout(showStateTimer); showStateTimer = setTimeout(sendShowState, 300); }
+        function scheduleShowState() { clearTimeout(showStateTimer); showStateTimer = setTimeout(function () { sendShowState(false); }, 300); }
         function endRemoteShow(silent) {
             var mine = remoteShow;
             if (!mine) { return; }
@@ -1303,7 +1309,7 @@
             port.onmessage = function (e) {
                 var m = showMessageOf(e);
                 if (!m || m.v !== 1 || remoteShow !== mine || destroyed) { return; }
-                if (m.type === 'ready') { sendShowState(); return; }
+                if (m.type === 'ready') { sendShowState(true); return; }
                 if (m.type === 'leave') { endRemoteShow(); return; }
                 if (m.type !== 'at' || !Number.isInteger(m.slide) || m.slide < 0 || m.slide >= deck.slides.length || !Number.isInteger(m.step) || m.step < 0) { return; }
                 mine.step = m.step;
@@ -1317,7 +1323,7 @@
                 if (!destroyed) { updateLocation(); commandsChanged(); say('The slide show\'s window closed, so the show has ended.'); }
             };
             root.classList.add('deck-show-elsewhere');
-            sendShowState();
+            sendShowState(true);
             if (settings.presenterOnPresent && path) { presenterWindow(); }
             updateLocation();
             say('The slide show is in a window of its own.');
@@ -1350,33 +1356,47 @@
             root.appendChild(waiting);
             if (port && typeof port.postMessage === 'function') { tell('The show is waiting for the deck.'); } else { tell('This page shows a deck that the application sends it, and none was sent.', true); }
             if (!port || typeof port.postMessage !== 'function') { return; }
-            var stage = null, show = null, applying = false, drawing = 0;
+            var stage = null, show = null, applying = false, drawing = 0, shown = null;
             function post(message) { try { port.postMessage(Object.assign({ v: 1 }, message)); } catch (error) { } }
-            function clear(text, fault) { if (show) { show.destroy(); show = null; } if (stage) { stage.remove(); stage = null; } tell(text, fault); }
+            function clear(text, fault) { shown = null; if (show) { show.destroy(); show = null; } if (stage) { stage.remove(); stage = null; } tell(text, fault); }
             async function draw(slide, step) {
                 var ticket = ++drawing;
                 await deckEngine(); await installStyle();
                 if (destroyed || ticket !== drawing) { return; }
-                if (show) { show.destroy(); show = null; } if (stage) { stage.remove(); }
-                stage = document.createElement('div'); stage.className = 'deck-show';
-                buildShow(stage);
-                root.appendChild(stage);
+                /* The new stage is built beside the old one and takes its
+                   place once it is drawn and fitted, with its transitions
+                   off until then, so a change to the deck neither blanks
+                   the show nor animates the slides into place. */
+                var old = stage, oldShow = show, fresh = document.createElement('div');
+                fresh.className = 'deck-show deck-show-still';
+                fresh.style.visibility = 'hidden';
+                buildShow(fresh);
+                root.appendChild(fresh);
                 await installStyle();
-                if (destroyed || ticket !== drawing) { return; }
+                if (destroyed || ticket !== drawing) { fresh.remove(); return; }
                 applying = true;
-                show = window.yavcPresent.attach(stage, { start: Math.max(0, Math.min(deck.slides.length - 1, slide)), step: step,
+                var next = window.yavcPresent.attach(fresh, { start: Math.max(0, Math.min(deck.slides.length - 1, slide)), step: step,
                     onChange: function (i, s) { presenterRole.slide = i; presenterRole.step = s; if (!applying) { post({ type: 'at', slide: i, step: s }); } },
                     onLeave: function () { post({ type: 'leave' }); } });
                 applying = false;
+                fitShow(fresh);
+                if (oldShow) { oldShow.destroy(); } if (old) { old.remove(); }
+                stage = fresh; show = next;
+                stage.style.visibility = '';
                 waiting.hidden = true;
-                fitShow(stage);
                 stage.focus();
+                var settled = stage;
+                requestAnimationFrame(function () { requestAnimationFrame(function () { settled.classList.remove('deck-show-still'); }); });
             }
             port.onmessage = function (e) {
                 var m = showMessageOf(e);
                 if (!m || m.v !== 1 || destroyed) { return; }
                 if (m.type === 'state' && typeof m.text === 'string' && m.text.length <= 2097152) {
-                    path = typeof m.resource === 'string' && m.resource.length <= 4096 ? m.resource : null;
+                    var resource = typeof m.resource === 'string' && m.resource.length <= 4096 ? m.resource : null;
+                    var slide = Number.isInteger(m.slide) ? m.slide : 0, step = Number.isInteger(m.step) ? Math.max(0, m.step) : 0;
+                    /* The deck already shown: only the place can differ. */
+                    if (show && shown === m.text && path === resource) { if (slide >= 0 && slide < deck.slides.length) { applying = true; try { show.goTo(slide, step); } finally { applying = false; } } return; }
+                    path = resource; shown = m.text;
                     deck = parseDeck(m.text);
                     draw(Number.isInteger(m.slide) ? m.slide : 0, Number.isInteger(m.step) ? Math.max(0, m.step) : 0).catch(function (error) { clear('The deck could not be drawn: ' + error.message, true); });
                 } else if (m.type === 'unavailable') { clear('The deck is too large to send to this window.', true); }

@@ -176,3 +176,5 @@
 .deck-show-waiting[hidden] { display: none; }
 /* The show's page fills its window whatever its mount's own height. */
 .deck.deck-show-mode { position: fixed; inset: 0; width: auto; height: auto; min-height: 0; }
+/* A stage just built for the show's page is placed and fitted before its transitions are let run. */
+.deck-show-still .deck-canvas, .deck-show-still .deck-slide, .deck-show-still .deck-slide * { transition: none !important; }
