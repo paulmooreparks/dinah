@@ -924,9 +924,15 @@
   var documentViews = { 'text/markdown': 'page' };
   window.dinahDocumentViews = function (views) { if (views) documentViews = views; return documentViews; };
 
+  /* A new document is Markdown, and so is a document of a source other than
+     a folder whose path has no file name with an extension (a page on a
+     site, which its source reads as Markdown), as the applets read it
+     (nameOf in content-host.js). A file is Markdown by its extension. */
   function markdown(v) {
-    var o = v.origin || {};
-    return o.kind === 'new' ? true : /\.(md|markdown)$/i.test(o.path || '');
+    var o = v.origin || {}, path = o.path || '';
+    if (o.kind === 'new') return true;
+    if (o.kind && o.kind !== 'local-folder' && !/\.[A-Za-z0-9]{1,8}$/.test(path.split(/[\\/]/).pop())) return true;
+    return /\.(md|markdown)$/i.test(path);
   }
   function placeFor(v, intent) {
     var path = (v.origin && v.origin.path) || '';

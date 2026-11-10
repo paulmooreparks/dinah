@@ -40,8 +40,10 @@ const { launch } = require('./lib/page');
           if (!d) {
             const text = '# Notes\n';
             const id = 'd' + Object.keys(drafts).length.toString().padStart(31, '0');
-            d = drafts[id] = { id, origin: { kind: 'local-folder', workspaceId: ref.workspaceId, sourceId: ref.sourceId, path: ref.path },
-              baseline: { text, revision: 'b1', title: ref.path }, title: ref.path, text, revision: rev() };
+            // A page of the source "site" has a title and no file name.
+            const page = ref.sourceId === 'site', docTitle = page ? 'Release 2.0' : ref.path;
+            d = drafts[id] = { id, origin: { kind: page ? 'wiki-page' : 'local-folder', workspaceId: ref.workspaceId, sourceId: ref.sourceId, path: ref.path },
+              baseline: { text, revision: 'b1', title: docTitle }, title: docTitle, text, revision: rev() };
           }
           return view(d);
         },
@@ -333,6 +335,18 @@ const { launch } = require('./lib/page');
     await p.waitForTimeout(300);
     const allTitles = await p.locator('nav[data-menubar] .menubar-title').allTextContents();
     ok('the Editor has File and Edit, then Dinah\'s Document menu', allTitles.includes('File') && allTitles.includes('Edit') && allTitles.indexOf('Document') > allTitles.indexOf('Edit'), JSON.stringify(allTitles));
+
+    // A page of a source that is not a folder has no file name and is a
+    // Markdown document, whatever its title ends with: it opens in Docs,
+    // and the applet is given a Markdown name for it.
+    // The suite's Markdown documents open in Split; this one opens as Visual is chosen.
+    await p.evaluate(() => { window.dinahDocumentViews({ 'text/markdown': 'page' }); return window.dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'site', path: '11/12' }); });
+    const pageOpened = await p.waitForFunction(() => document.querySelector('.win[data-win-kind="content-docs"]'), null, { timeout: 15000 }).then(() => true, () => false);
+    ok('a page of a site opens in Docs', pageOpened, await p.evaluate(() => [...document.querySelectorAll('.win')].map(w => w.dataset.winKind).join(',')));
+    const pageName = await p.evaluate(() => { const m = document.querySelector('.win[data-win-kind="content-docs"] .content-applet'); return m ? window.dinahContentHost.read({ resource: m.dataset.contentResource }).then(r => r.name) : 'no applet'; }).catch(e => String(e));
+    ok('the page is named as Markdown for the applet, with a title that ends as a file name does', pageName === 'Release 2.0.md', pageName);
+    await p.evaluate(() => { window.dinahDocumentViews({ 'text/markdown': 'split' }); const w = document.querySelector('.win[data-win-kind="content-docs"]'); if (w) pudlWindows.close(w.dataset.win); });
+    await p.waitForFunction(() => !document.querySelector('.win[data-win-kind="content-docs"]'));
 
     // Documents › In Progress opens the pane: drafts and changed documents,
     // a group to a workspace. A document with nothing unsaved in it, and a

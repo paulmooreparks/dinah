@@ -44,9 +44,13 @@
     // A document of a folder is named by its file; a document of another
     // kind of source (a page on a site) by its title, with the Markdown
     // extension the applet reads the format from.
-    if (own && v.origin && v.origin.kind !== 'local-folder' && v.title && !/\.[A-Za-z0-9]{1,8}$/.test(own)) own = '';
+    // Such a title can end as a file name does ("Release 2.0") and is
+    // still the title of a Markdown document.
+    var page = false;
+    if (own && v.origin && v.origin.kind !== 'local-folder' && v.title && !/\.[A-Za-z0-9]{1,8}$/.test(own)) { own = ''; page = true; }
     if (own) return own;
     var title = v.title || 'Untitled';
+    if (page && !/\.(md|markdown)$/i.test(title)) return title + '.md';
     if (/\.[A-Za-z0-9]{1,8}$/.test(title)) return title;
     var mount = resource && Array.prototype.find.call(document.querySelectorAll('.content-applet'), function (m) { return m.dataset.contentResource === resource; });
     return title + (EXTENSIONS[mount && mount.getAttribute('data-applet')] || '.md');
