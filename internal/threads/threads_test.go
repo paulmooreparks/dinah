@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const doc = "# Notes\n\nThe POS sends the sale to the server.\n\nThe server answers.\n"
@@ -146,5 +147,35 @@ func TestMoveToANewHome(t *testing.T) {
 	left, _ := b.List(from)
 	if len(moved) != 1 || len(left) != 0 {
 		t.Fatalf("moved %d, left %d", len(moved), len(left))
+	}
+}
+
+// A message kept for a comment of the site, with the time the site gives
+// for it, was brought in and is marked so; one written here and sent has
+// its own time and stays unmarked, and nothing is written when no message
+// needs the mark.
+func TestMarkBrought(t *testing.T) {
+	b := Open(t.TempDir())
+	key := DocumentKey("pages", "w1", "s1", "123")
+	start := strings.Index(doc, "sends the sale")
+	onSite := time.Date(2026, 11, 3, 22, 25, 0, 0, time.UTC)
+	th, _, err := b.Add(key, New{Native: "11", Text: doc, Start: start, End: start + 4, Message: Message{Author: "mso", By: ByPerson, Text: "Which server?", Native: "11", At: onSite}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Reply(key, th.ID, Message{Author: "Paul", By: ByPerson, Text: "The store server.", Native: "12", At: onSite.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	written := map[string]time.Time{"11": onSite, "12": onSite.Add(time.Hour + 3*time.Second)}
+	marked, err := b.MarkBrought(key, written)
+	if err != nil || !marked {
+		t.Fatalf("marked %v %v", marked, err)
+	}
+	list, _ := b.List(key)
+	if !list[0].Messages[0].Brought || list[0].Messages[1].Brought {
+		t.Fatalf("messages %+v", list[0].Messages)
+	}
+	if again, err := b.MarkBrought(key, written); err != nil || again {
+		t.Fatalf("marked again %v %v", again, err)
 	}
 }

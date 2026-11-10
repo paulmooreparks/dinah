@@ -350,6 +350,14 @@
       input.focus(); input.select();
     });
   }
+  // The path a person is shown is made of titles where entries have them,
+  // because a name can be an identifier that tells them nothing (a page's
+  // number on a site). The path itself, which Copy Path gives, is unchanged.
+  function shownPath(node) {
+    var parts = [];
+    for (var n = node; n && n.path !== '/'; n = n.parent) if (!n.contentFacet) parts.unshift(n.title || n.name);
+    return n ? '/' + parts.join('/') : node.path;
+  }
   /* Marks a file browser over a tree for what it shows, after each redraw:
      a read-only folder gets the read-only mark, a crumb shows its folder's
      title, and the Date and Size columns are hidden when no entry has them.
@@ -591,5 +599,5 @@
     };
   }
 
-  window.dinahResources = { forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
+  window.dinahResources = { forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
 })();

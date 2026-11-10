@@ -75,7 +75,11 @@
   /* The resource that stands for a draft, made once and then kept. */
   function resourceFor(v) {
     var all = names(), o = v.origin || {};
-    var base = o.path ? (workspaceName(o.workspaceId) ? workspaceName(o.workspaceId) + '/' : '') + o.path : (v.title || 'Untitled') + ' (not saved)';
+    // A document of a folder is named by its path there. A document of
+    // another kind of source (a page on a site) is named by its title, as
+    // nameOf does, since its path can be made of identifiers.
+    var where = o.path && o.kind !== 'local-folder' && v.title && !/\.[A-Za-z0-9]{1,8}$/.test(baseName(o.path)) ? v.title : o.path;
+    var base = where ? (workspaceName(o.workspaceId) ? workspaceName(o.workspaceId) + '/' : '') + where : (v.title || 'Untitled') + ' (not saved)';
     var name = base, n = 1;
     /* A name a window shows now stays that window's; one left by a window
        that is gone, such as after a crash, is taken over. */

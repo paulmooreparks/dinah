@@ -63,6 +63,10 @@ type Message struct {
 	// brought in from, or sent as, so that bringing the site's comments in
 	// again adds only new ones and nothing is sent twice.
 	Native string `json:"native,omitempty"`
+	// Brought marks a message brought in from the document's own site, where
+	// a reader of the site wrote it. A message written here and sent to the
+	// site is not marked.
+	Brought bool `json:"brought,omitempty"`
 }
 
 // Thread is a discussion about a passage of a document.
@@ -333,6 +337,43 @@ func (b *Book) Sent(doc, id, native string, sent []Message) (Thread, error) {
 				}
 			}
 		}
+	})
+}
+
+// MarkBrought marks the messages that were brought in from the document's
+// site before messages were marked as they arrived. written gives, for each
+// comment on the site, the time the site says it was written. A message
+// kept for one of those comments with that same time was brought in; one
+// written here and sent has the time it was written here, and stays
+// unmarked. It reports whether a message was marked, and writes nothing
+// when none was.
+func (b *Book) MarkBrought(doc string, written map[string]time.Time) (bool, error) {
+	kept, err := b.List(doc)
+	if err != nil {
+		return false, err
+	}
+	late := func(m Message) bool {
+		at, ok := written[m.Native]
+		return ok && !m.Brought && m.By == ByPerson && !at.IsZero() && m.At.Equal(at)
+	}
+	found := false
+	for _, t := range kept {
+		for _, m := range t.Messages {
+			found = found || late(m)
+		}
+	}
+	if !found {
+		return false, nil
+	}
+	return true, b.change(doc, func(r *record) error {
+		for i := range r.Threads {
+			for j := range r.Threads[i].Messages {
+				if late(r.Threads[i].Messages[j]) {
+					r.Threads[i].Messages[j].Brought = true
+				}
+			}
+		}
+		return nil
 	})
 }
 

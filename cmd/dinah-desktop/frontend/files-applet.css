@@ -18,6 +18,10 @@
 .dinah-files .fm-readonly-mark { --glyph: var(--glyph-pencil-off); --glyph-size: 1em; margin-left: var(--space-1); vertical-align: -0.15em; color: var(--text-muted); flex: none; }
 .dinah-files .fm-readonly-line { display: flex; align-items: center; gap: var(--space-2); }
 .dinah-files .fm-readonly-line .fm-readonly-mark { margin-left: 0; }
+/* An entry with a title is shown by its title alone. Its name is then an
+   identifier (a page's number on a site, a workspace's id), which the
+   vendored row would print in grey after the title; Copy Path gives it. */
+.dinah-files .fm-title { display: none; }
 .dinah-files .fm-detail code { overflow-wrap: anywhere; }
 .dinah-files .fm-page:has(button[hidden]) { display: none; }
 .dinah-files .fm-path { flex: 1 1 12rem; overflow-x: auto; }

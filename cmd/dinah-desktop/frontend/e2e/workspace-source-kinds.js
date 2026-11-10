@@ -144,5 +144,16 @@ const { launch, PAGE } = require('./lib/page');
     await page.evaluate(() => dinahConnectionsSettings.reload());
     await page.waitForFunction(() => document.querySelector('[data-settings-section="connections"]').hidden);
     ok('with no registered connection, the Connections tab is hidden', true);
+    // An entry whose name is an identifier (the page's number here) is shown
+    // by its title alone in Files, and the path under the selection is made
+    // of titles; the entry keeps its name for everything that acts on it.
+    await page.evaluate(() => dinahResources.openFiles('/workspaces/w1/wiki1'));
+    const files = page.locator('.dinah-files').last();
+    const row = files.locator('.fm-row[data-name="200"]');
+    await row.waitFor();
+    ok('a titled entry is listed by its title, without its identifier beside it', await row.locator('.fm-name').textContent() === 'Architecture/' && !await row.locator('.fm-title').isVisible());
+    await row.click();
+    await page.waitForFunction(() => { const code = Array.from(document.querySelectorAll('.dinah-files')).pop().querySelector('.fm-detail code'); return code && code.textContent.endsWith('/Architecture'); });
+    ok('the path under a selected entry is made of titles', await files.locator('.fm-detail code').textContent() === '/Workspaces/Delivery/Customer Home/Architecture');
   } finally { await t.close(); }
 })();

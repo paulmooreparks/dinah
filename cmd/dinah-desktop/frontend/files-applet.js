@@ -118,7 +118,7 @@
     function detail(node) {
       var host = q('.fm-detail'); host.replaceChildren();
       var title = document.createElement('strong'); title.textContent = node.title || node.name || '/'; host.appendChild(title);
-      var path = document.createElement('code'); path.textContent = node.path; host.appendChild(path);
+      var path = document.createElement('code'); path.textContent = dinahResources.shownPath(node); host.appendChild(path);
       var revision = document.createElement('span'); revision.className = 'fm-d-meta'; revision.textContent = (node.kind || 'Folder') + (node.revision ? ' · Revision ' + node.revision : ''); host.appendChild(revision);
     }
     function select(node) {

@@ -100,6 +100,9 @@ func TestBringInComments(t *testing.T) {
 		list[0].Messages[0].By != "person" || list[0].Messages[0].Author != "jvychopen" || list[1].Quote != "# Plan" || list[1].Messages[0].Text != "Looks good overall." || list[0].Unsent {
 		t.Fatalf("threads %+v", list)
 	}
+	if !list[0].Messages[0].Brought || !list[0].Messages[1].Brought || !list[1].Messages[0].Brought {
+		t.Fatalf("comments from the site are not marked as brought in: %+v", list)
+	}
 	if n, _ := o.BringInComments(v.ID); n != 0 {
 		t.Fatalf("brought the same comments in again: %d", n)
 	}

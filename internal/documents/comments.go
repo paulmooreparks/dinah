@@ -89,6 +89,15 @@ func (o Ops) BringInComments(id string) (int, error) {
 			known[t.Native] = true
 		}
 	}
+	// Messages brought in before they were marked as brought are marked now.
+	written := map[string]time.Time{}
+	for _, c := range all {
+		written[c.ID] = c.Created
+	}
+	marked, err := book.MarkBrought(key, written)
+	if err != nil {
+		return 0, err
+	}
 	byParent := map[string][]resource.Comment{}
 	tops := []resource.Comment{}
 	for _, c := range all {
@@ -99,7 +108,7 @@ func (o Ops) BringInComments(id string) (int, error) {
 		}
 	}
 	sortComments(tops)
-	added, changed := 0, false
+	added, changed := 0, marked
 	for _, top := range tops {
 		replies := allReplies(byParent, top.ID)
 		sortComments(replies)
@@ -153,7 +162,7 @@ func followResolution(book *threads.Book, key string, t threads.Thread, c resour
 			return false, nil
 		}
 	}
-	m := threads.Message{Author: c.ResolvedBy, By: threads.ByPerson, At: c.ResolvedAt, Native: c.ID + "@" + c.ResolvedAt.UTC().Format(time.RFC3339)}
+	m := threads.Message{Author: c.ResolvedBy, By: threads.ByPerson, At: c.ResolvedAt, Native: c.ID + "@" + c.ResolvedAt.UTC().Format(time.RFC3339), Brought: true}
 	if m.Author == "" {
 		m.Author = "The site"
 	}
@@ -193,7 +202,7 @@ func sortComments(cs []resource.Comment) {
 
 // commentMessage is a site's comment as a person's message.
 func commentMessage(c resource.Comment) threads.Message {
-	m := threads.Message{Author: c.Author, By: threads.ByPerson, Text: strings.TrimSpace(c.Text), Native: c.ID, At: c.Created}
+	m := threads.Message{Author: c.Author, By: threads.ByPerson, Text: strings.TrimSpace(c.Text), Native: c.ID, At: c.Created, Brought: true}
 	if m.Author == "" {
 		m.Author = "Someone"
 	}

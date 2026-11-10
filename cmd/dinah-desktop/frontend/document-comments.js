@@ -94,7 +94,10 @@
       if (t.id === currentId) c.dataset.current = 'true';
       var headRow = node('div', 'document-comment-head');
       var kind = node('span', 'badge' + (t.kind === 'finding' && t.severity === 'MUST' ? ' danger' : t.kind === 'question' ? ' accent' : ''), (KIND[t.kind] || 'Comment') + (t.severity ? ' · ' + t.severity : ''));
-      var state = node('span', 'document-comment-state', t.resolved ? 'Resolved' : t.unsent ? 'Not sent yet' : t.waiting ? 'Waiting on you' : t.due ? 'For the agent' : 'Open');
+      // A thread whose last word came from the document's own site is a
+      // reader's, which no agent was asked about, so it is only open.
+      var last = (t.messages || [])[(t.messages || []).length - 1];
+      var state = node('span', 'document-comment-state', t.resolved ? 'Resolved' : t.unsent ? 'Not sent yet' : t.waiting ? 'Waiting on you' : t.due && !(last && last.brought) ? 'For the agent' : 'Open');
       headRow.append(kind, state);
       c.appendChild(headRow);
       var quote = node('button', 'document-comment-quote', '“' + (t.quote.length > 140 ? t.quote.slice(0, 140) + '…' : t.quote) + '”');
