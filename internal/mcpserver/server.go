@@ -61,7 +61,17 @@ Asking another chat with dinah.chat/ask@2 uses this same bus: the question is a 
 // What an agent in Dinah's window is told by the copy of this server that
 // the person's own Claude Code settings start there.
 func standDown() string {
-	return fill("This chat runs in {name}'s window, which gives it the bus tools through its own server, dinah-bus. This server offers no tools here; use dinah-bus.", "")
+	return fill("This chat runs in a window, which gives it the bus tools through its own server, "+bus.WindowServer+". This server does nothing here: each tool it lists only says so. Use the same tool of the "+bus.WindowServer+" server.", "")
+}
+
+// redirectedTools are the bus tools a stood-down server still lists, each
+// answering only that the window's server has it (Run).
+var redirectedTools = []string{"whoami", "sessions", "inbox", "send", "reply", "read_message", "read_attachment",
+	"room_create", "room_join", "room_leave", "subscribe", "announce_release", "verdict", "rename"}
+
+// redirect is a stood-down server's answer to a call of one of its tools.
+func redirect(tool string) string {
+	return "Nothing was done. This server stands down in a window's chat and reaches no bus. Call the " + tool + " tool of the " + bus.WindowServer + " server with the same arguments; that server is this chat's own connection to the bus."
 }
 
 func rules(person string) string {
@@ -129,6 +139,35 @@ func NewIdle(b *bus.Bus) *Server {
 	return &Server{bus: b, idle: true, others: map[string]bool{}}
 }
 
+// idleServer is the server a chat in a window is given in place of the bus:
+// the hooks' tool, and every bus tool as a signpost to the window's server.
+func (s *Server) idleServer(person string) *mcp.Server {
+	srv := mcp.NewServer(&mcp.Implementation{Name: "dinah", Version: Version},
+		&mcp.ServerOptions{Instructions: standDown(), Capabilities: &mcp.ServerCapabilities{}})
+	// The person's hooks still call hook_deliver. The window delivers
+	// the bus's messages itself, so here the hooks only hand over a
+	// steer the window queued for a working chat (bus/steers.go).
+	mcp.AddTool(srv, &mcp.Tool{Name: "hook_deliver", Description: fill("Used by {name}'s hooks. Do not call it yourself.", person)},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in hookIn) (*mcp.CallToolResult, any, error) {
+			return text("%s", s.hostedHook(ctx, in)), nil, nil
+		})
+	// A chat that used this server before it stood down, or that reads
+	// its name as the bus's, calls its tools again. With no such tool
+	// here the agent was told only that the call failed and took the
+	// bus for broken (Paul, 10 November 2026). Each bus tool is
+	// therefore still listed, as a signpost: its description and its
+	// answer say which server has the tool, and it does nothing else.
+	for _, name := range redirectedTools {
+		mcp.AddTool(srv, &mcp.Tool{Name: name, Description: "Not served here. In this chat use the " + name + " tool of the " + bus.WindowServer + " server."},
+			func(context.Context, *mcp.CallToolRequest, map[string]any) (*mcp.CallToolResult, any, error) {
+				r := text("%s", redirect(name))
+				r.IsError = true
+				return r, nil, nil
+			})
+	}
+	return srv
+}
+
 // Run serves MCP over standard input and output until the client leaves.
 //
 // The server declares itself a Claude Code channel. In a session started
@@ -139,16 +178,7 @@ func NewIdle(b *bus.Bus) *Server {
 func (s *Server) Run(ctx context.Context) error {
 	person := s.bus.PersonName()
 	if s.idle {
-		srv := mcp.NewServer(&mcp.Implementation{Name: "dinah", Version: Version},
-			&mcp.ServerOptions{Instructions: standDown(), Capabilities: &mcp.ServerCapabilities{}})
-		// The person's hooks still call hook_deliver. The window delivers
-		// the bus's messages itself, so here the hooks only hand over a
-		// steer the window queued for a working chat (bus/steers.go).
-		mcp.AddTool(srv, &mcp.Tool{Name: "hook_deliver", Description: fill("Used by {name}'s hooks. Do not call it yourself.", person)},
-			func(ctx context.Context, _ *mcp.CallToolRequest, in hookIn) (*mcp.CallToolResult, any, error) {
-				return text("%s", s.hostedHook(ctx, in)), nil, nil
-			})
-		return srv.Run(ctx, &mcp.StdioTransport{})
+		return s.idleServer(person).Run(ctx, &mcp.StdioTransport{})
 	}
 	if s.launched {
 		srv := mcp.NewServer(&mcp.Implementation{Name: "dinah", Version: Version},
@@ -301,7 +331,12 @@ func (s *Server) current(ctx context.Context) (bus.Session, error) {
 		return bus.Session{}, errors.New(fill("this dinah server process has been called by hooks from more than one session, so it cannot tell which session is calling this tool; it will not guess. Restart this session, and tell {person}, who can check the {cmd} setup", s.bus.PersonName()))
 	}
 	if bound == "" {
-		return bus.Session{}, errors.New(fill("this session has not been identified to the bus yet. The bus learns who you are from {name}'s UserPromptSubmit hook; if this persists, the hooks are not installed (run {cmd} setup)", ""))
+		// A chat in a window may reach this server as well as the window's
+		// own, where the agent starts the person's servers without the
+		// environment that would make this one stand down. Such a chat is
+		// never identified here, so the answer says where its tools are
+		// before it says anything about hooks (Paul, 10 November 2026).
+		return bus.Session{}, errors.New(fill("nothing was done: this server does not know which chat is calling. If this chat runs in a window, its bus tools are on the "+bus.WindowServer+" server, so call the same tool there with the same arguments. Otherwise the bus learns who you are from {name}'s UserPromptSubmit hook; if this persists, the hooks are not installed (run {cmd} setup)", ""))
 	}
 	return s.bus.Session(ctx, bound)
 }

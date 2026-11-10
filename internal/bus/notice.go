@@ -43,7 +43,7 @@ func noticeEntry(m Message) string {
 
 // formatNotices writes the notices of one delivery for an agent, a block for
 // each group in the order its first notice came.
-func formatNotices(notices []Message) string {
+func formatNotices(notices []Message, server string) string {
 	var order []string
 	byGroup := map[string][]Message{}
 	for _, m := range notices {
@@ -55,7 +55,7 @@ func formatNotices(notices []Message) string {
 	var b strings.Builder
 	for _, room := range order {
 		group := byGroup[room]
-		fmt.Fprintf(&b, "\nIn the group chat %q, these messages do not mention you, so each is shown as its first line. Read one whole with the bus's read_message tool (message_id), and answer in the group only if you have something the group needs.\n", group[0].groupName())
+		fmt.Fprintf(&b, "\nIn the group chat %q, these messages do not mention you, so each is shown as its first line. Read one whole with %s (message_id), and answer in the group only if you have something the group needs.\n", group[0].groupName(), busTool(server, "read_message"))
 		if len(group) > NoticeLimit {
 			cut := len(group) - NoticeLimit
 			fmt.Fprintf(&b, "%d earlier messages, from message %d to message %d, are not shown; read_message reads them.\n", cut, group[0].ID, group[cut-1].ID)

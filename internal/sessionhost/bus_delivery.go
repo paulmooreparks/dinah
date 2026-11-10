@@ -202,7 +202,7 @@ func (a *BusChats) Waiting(s *Conversation) (string, []ConversationMessage) {
 	if len(msgs) == 0 {
 		return "", nil
 	}
-	return bus.FormatForAgent(msgs, a.host.AgentPerson()), DeliveredEntries(msgs)
+	return bus.FormatForWindowChat(msgs, a.host.AgentPerson()), DeliveredEntries(msgs)
 }
 
 // busAfterTurn collects waiting messages without interrupting the active
@@ -247,7 +247,7 @@ func (a *BusChats) AfterTurn(s *Conversation) *Prompt {
 // take pictures as steering (CanSteer); otherwise they are left listed, as
 // every attachment is, for the agent to read with read_attachment.
 func (a *BusChats) Prompt(s *Conversation, msgs []bus.Message, steering bool) (Prompt, error) {
-	text := bus.FormatForAgent(msgs, a.host.AgentPerson())
+	text := bus.FormatForWindowChat(msgs, a.host.AgentPerson())
 	pics, note := a.host.BusPictures(s, msgs)
 	if len(pics) > 0 && steering && !a.host.CanSteer(s.ID(), pics) {
 		pics, note = nil, ""

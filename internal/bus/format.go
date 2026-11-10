@@ -10,10 +10,41 @@ import (
 	"studio/internal/profile"
 )
 
+// WindowServer is the name of the bus's MCP server for a chat in the window
+// (the window program's bus helper). It is the same in every build, as the
+// names on the wire are.
+const WindowServer = "dinah-bus"
+
+// busTool is how an agent is told which tool to use: by the tool's name
+// alone where the session's own setup decides the server's name, and with
+// the server's name for a chat in the window. An agent may have a second
+// server with the same tools, the command line program's from the person's
+// own settings, and a chat that had used that one kept calling it after it
+// stood down (Paul, 10 November 2026). The wording gives the server and the
+// tool as two names, since agents reach a server's tools in different ways.
+func busTool(server, tool string) string {
+	if server == "" {
+		return "the bus's " + tool + " tool"
+	}
+	return "the " + tool + " tool of the " + server + " server"
+}
+
 // FormatForAgent writes messages as the text an agent receives, with the
 // facts it needs to reply and to read attachments. person is what the agent
 // is told to call the person (PersonLabel).
 func FormatForAgent(msgs []Message, person string) string {
+	return FormatForAgentOn(msgs, person, "")
+}
+
+// FormatForWindowChat is FormatForAgent for a chat in the window, whose bus
+// tools are on WindowServer, which the text then says.
+func FormatForWindowChat(msgs []Message, person string) string {
+	return FormatForAgentOn(msgs, person, WindowServer)
+}
+
+// FormatForAgentOn is FormatForAgent with the name of the MCP server the
+// agent's bus tools are on, or "" when that is the session's own to know.
+func FormatForAgentOn(msgs []Message, person, server string) string {
 	name := profile.Current().Name
 	var b strings.Builder
 	if len(msgs) == 1 {
@@ -33,9 +64,13 @@ func FormatForAgent(msgs []Message, person string) string {
 		b.WriteString(FormatOne(m, person))
 		requests = requests || m.Kind != ResultKind
 	}
-	b.WriteString(formatNotices(notices))
+	b.WriteString(formatNotices(notices, server))
 	if requests {
-		b.WriteString("\nFor messages that require an answer, use the bus's reply tool (message_id). Do not acknowledge completion reports or thanks. Replies arrive automatically; continue independent work or end your turn instead of waiting or sleeping.")
+		b.WriteString("\nFor messages that require an answer, use " + busTool(server, "reply") + " (message_id).")
+		if server != "" {
+			b.WriteString(" That server is this chat's own connection to the bus, and a reply tool of any other server does not reach it.")
+		}
+		b.WriteString(" Do not acknowledge completion reports or thanks. Replies arrive automatically; continue independent work or end your turn instead of waiting or sleeping.")
 	}
 	return b.String()
 }

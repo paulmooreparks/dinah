@@ -197,7 +197,7 @@ func busServer(id string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"name": "dinah-bus", "command": executable,
+	return map[string]any{"name": bus.WindowServer, "command": executable,
 		"args": []string{"--bus-mcp", "--state-dir", configDir(), "--session", id}, "env": []any{}}, nil
 }
 
