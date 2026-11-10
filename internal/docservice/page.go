@@ -317,12 +317,10 @@ func (p *Page) State(shown string, changed bool) error {
 			return err
 		}
 	}
-	p.d.mu.Lock()
-	if changed {
-		p.d.touched = true
-	}
-	p.d.mu.Unlock()
 	p.setCurrent(path)
+	p.d.mu.Lock()
+	p.d.touched = changed
+	p.d.mu.Unlock()
 	return nil
 }
 
@@ -331,9 +329,6 @@ func (p *Page) setCurrent(path string) {
 	d.mu.Lock()
 	moved := d.current != path
 	d.current = path
-	if moved && path != "" {
-		d.touched = false
-	}
 	d.mu.Unlock()
 	if moved {
 		d.link.send("title", map[string]string{"title": d.title()})

@@ -50,14 +50,31 @@
     var r = bound ? bound.resource() : (attached && attached.resource);
     return r ? String(r) : '';
   }
+  function baseName(path) {
+    var text = String(path || ''), at = Math.max(text.lastIndexOf('/'), text.lastIndexOf(String.fromCharCode(92)));
+    return text.slice(at + 1);
+  }
+  /* Whether the person has changed the document is the Editor's to say,
+     through its own action that describes the document. Until the Editor
+     is there to ask, a change it reported counts. */
+  function changedNow() {
+    if (!bound) return Promise.resolve(touched);
+    return Promise.resolve().then(function () { return bound.accept({ operation: 'document', input: {} }); }).then(function (r) {
+      return !!(r && r.output && r.output.modified);
+    }, function () { return touched; });
+  }
   function tell() {
     clearTimeout(telling); telling = 0;
-    var state = resourceNow() + '\n' + (touched ? '1' : '0');
-    if (state === told) return;
-    told = state;
-    app().State(resourceNow(), touched).catch(function () { told = null; });
+    return changedNow().then(function (changed) {
+      var resource = resourceNow();
+      if (attached) document.title = (baseName(resource) || 'Untitled') + ' - ' + attached.applicationName;
+      var state = JSON.stringify([resource, changed]);
+      if (state === told) return;
+      told = state;
+      return app().State(resource, changed).catch(function () { told = null; });
+    });
   }
-  function tellSoon() { if (!telling) telling = setTimeout(tell, 300); }
+  function tellSoon() { if (!telling) telling = setTimeout(tell, 1000); }
   function whenBound() {
     if (bound) return Promise.resolve(bound);
     return new Promise(function (resolve) { boundWaiting.push(resolve); });
@@ -215,8 +232,7 @@
      when it has arrived. */
   function flushAll() {
     handles.forEach(function (h) { h.put(); });
-    tell();
-    return sending;
+    return tell().then(function () { return sending; }, function () { return sending; });
   }
 
   /* ---- Settings ---------------------------------------------------------- */

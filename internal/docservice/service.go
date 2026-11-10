@@ -285,7 +285,8 @@ type document struct {
 	picks map[string]pick
 	// calls are the actions sent to the page that it has not answered.
 	calls map[string]chan callResult
-	// touched says the page reported a change to its document.
+	// touched says the document has changes the person has not saved, as
+	// the page last said.
 	touched bool
 	// flushed is closed when the page has sent what it had to keep, after
 	// it was asked to because its window is closing.
@@ -337,16 +338,20 @@ type Document struct {
 	Name        string `json:"name"`
 	Path        string `json:"path"`
 	Changed     bool   `json:"changed"`
+	// PID is the process of the document's window, which a program in
+	// front may let come forward before it asks something of the window.
+	PID int `json:"pid"`
 }
 
 func (d *document) public() Document {
+	pid := d.link.process()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	name := "Untitled"
 	if d.current != "" {
 		name = filepath.Base(d.current)
 	}
-	return Document{ID: d.id, Application: d.application, Name: name, Path: d.current, Changed: d.touched}
+	return Document{ID: d.id, Application: d.application, Name: name, Path: d.current, Changed: d.touched, PID: pid}
 }
 
 // Documents lists the open documents in the order of their names.
