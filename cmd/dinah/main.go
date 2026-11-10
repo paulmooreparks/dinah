@@ -9,20 +9,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 
 	buildpolicy "studio"
 	"studio/internal/bus"
 	"studio/internal/hooks"
 	"studio/internal/mcpserver"
 	"studio/internal/profile"
+	"studio/internal/programs"
 	"studio/internal/server"
 	"studio/internal/web"
 )
@@ -254,10 +253,10 @@ func install() error {
 	if err != nil {
 		return err
 	}
-	programs := []installProgram{{self, filepath.Join(dir, exeName(product.CommandProgram))}}
+	list := []installProgram{{self, filepath.Join(dir, programs.FileName(product.CommandProgram))}}
 
 	if _, err := os.Stat(filepath.Join("cmd", "dinah-desktop", "main.go")); err != nil {
-		if err := installPrograms(programs, required); err != nil {
+		if err := installPrograms(list, required); err != nil {
 			return err
 		}
 		fmt.Printf("Run this from %[1]s's source folder to install the %[1]s window too.\n", product.Name)
@@ -268,7 +267,7 @@ func install() error {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	built := filepath.Join(tmp, exeName(product.WindowProgram))
+	built := filepath.Join(tmp, programs.FileName(product.WindowProgram))
 	args := []string{"build", "-tags", "desktop,production", "-o", built}
 	// The window is built as the product this command line is: its profile,
 	// when one was injected, goes on to the build (internal/profile).
@@ -288,79 +287,14 @@ func install() error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("building the %s window: %w", product.Name, err)
 	}
-	dst := filepath.Join(dir, exeName(product.WindowProgram))
-	programs = append(programs, installProgram{built, dst})
-	if err := installPrograms(programs, required); err != nil {
+	dst := filepath.Join(dir, programs.FileName(product.WindowProgram))
+	list = append(list, installProgram{built, dst})
+	if err := installPrograms(list, required); err != nil {
 		return err
 	}
 	fmt.Printf("Close the %s window and start it again to use it.\n", product.Name)
 	return nil
 }
-
-func exeName(name string) string {
-	if runtime.GOOS == "windows" {
-		return name + ".exe"
-	}
-	return name
-}
-
-// place copies the program src to dst. Something may be running the program
-// at dst, and Windows refuses to overwrite a running program but allows it
-// to be renamed, so the old one is moved aside first. Copies set aside
-// earlier are removed once nothing runs them.
-func place(src, dst string) error {
-	old, _ := filepath.Glob(dst + ".old-*")
-	for _, o := range old {
-		os.Remove(o) // fails while something still runs it; it goes next time
-	}
-	// The copy is written beside dst before anything is moved, so src is still
-	// readable when it is dst itself (installing from the installed program),
-	// and a failed copy leaves the installed program alone. It is renamed into
-	// place, so dst is never a half-written program: the window watches it to
-	// offer Restart to Update.
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	tmp := dst + ".new"
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
-	if err != nil {
-		in.Close()
-		return err
-	}
-	_, err = io.Copy(out, in)
-	in.Close() // closed before the rename below: Windows will not rename a program that is open
-	if err != nil {
-		out.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := out.Close(); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-	aside := ""
-	if _, err := os.Stat(dst); err == nil {
-		aside = fmt.Sprintf("%s.old-%d", dst, time.Now().UnixNano())
-		if err := renameFile(dst, aside); err != nil {
-			os.Remove(tmp)
-			return err
-		}
-	}
-	if err := renameFile(tmp, dst); err != nil {
-		os.Remove(tmp)
-		if aside != "" {
-			if back := renameFile(aside, dst); back != nil {
-				return fmt.Errorf("%w (and the previous program could not be put back: %v)", err, back)
-			}
-		}
-		return err
-	}
-	return nil
-}
-
-// renameFile is os.Rename; a test replaces it to fail a step of place.
-var renameFile = os.Rename
 
 // runMCP serves MCP for one session. Claude Code starts it with no flags and
 // its hooks identify the session; a Dinah launcher passes --session.

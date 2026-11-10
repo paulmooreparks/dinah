@@ -24,6 +24,12 @@ A service call counts as work for the exit guard, since the page cannot know whi
 
 An applet of a product may need to serve files of its own to the page: a client's fonts read from a cache, an embedded app's files. `internal/pageroutes` is the registry for that: the product registers an `http.Handler` under a prefix of its own, `/<name>/`, and the shell server hands it every request under that prefix that its own routes do not take, behind the same cookie that guards the page's files, so the route is reached by the page alone and never from outside. The handler decides what it serves and refuses the rest, as any file server must.
 
+## The build's own programs
+
+A product may bring its own way of delivering a new build to the people who use it, and for that its packages need two things the command line's installer already had. `internal/programs` has both. `programs.Release()` is the release the running window belongs to, which the window program records first thing from the version its build was given; a product's package cannot read that variable itself. `programs.Place(src, dst)` replaces an installed program while something may be running it, by writing the new file beside it and renaming the old one aside, which is how `install` has always placed the two programs. A file placed that way in the home folder's `bin` is seen by the window's own watcher, which offers Restart to Update when the product's profile uses the installed updater.
+
+The window program prints its name and release for `--version` and ends, as the command line does for `version`, so a build about to be placed can be asked what it is.
+
 ## What this does not do
 
 A product's agent-facing actions go through applet bundles like the built-in ones: the product package registers a maker with `applet.RegisterBundle` in its `init`, and the host adds what it makes to the registry it assembles at start (`applet_builtins.go`), so the bundle's actions reach agents, flows and the page's applet SDK as the built-in bundles' do. Menus of the page's own menu bar, settings sections and new pinned categories have no registry yet; each is added when a product needs it.

@@ -1,4 +1,4 @@
-package main
+package programs
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ func readProgram(t *testing.T, path string) string {
 func TestPlaceFromTheInstalledProgramItself(t *testing.T) {
 	dst := filepath.Join(t.TempDir(), "dinah.exe")
 	writeProgram(t, dst, "the installed program")
-	if err := place(dst, dst); err != nil {
+	if err := Place(dst, dst); err != nil {
 		t.Fatalf("installing from the installed program failed: %v", err)
 	}
 	if got := readProgram(t, dst); got != "the installed program" {
@@ -39,7 +39,7 @@ func TestPlaceReplacesAndSetsTheOldOneAside(t *testing.T) {
 	src, dst := filepath.Join(dir, "src.exe"), filepath.Join(dir, "dinah.exe")
 	writeProgram(t, src, "new")
 	writeProgram(t, dst, "old")
-	if err := place(src, dst); err != nil {
+	if err := Place(src, dst); err != nil {
 		t.Fatal(err)
 	}
 	if got := readProgram(t, dst); got != "new" {
@@ -60,7 +60,7 @@ func TestPlaceRestoresTheOldProgramWhenTheLastStepFails(t *testing.T) {
 		}
 		return real(from, to)
 	}
-	if err := place(src, dst); err == nil {
+	if err := Place(src, dst); err == nil {
 		t.Fatal("expected the failure to be reported")
 	}
 	if got := readProgram(t, dst); got != "old" {
@@ -75,7 +75,7 @@ func TestPlaceLeavesTheInstalledProgramWhenTheSourceCannotBeRead(t *testing.T) {
 	dir := t.TempDir()
 	dst := filepath.Join(dir, "dinah.exe")
 	writeProgram(t, dst, "old")
-	if err := place(filepath.Join(dir, "missing.exe"), dst); err == nil {
+	if err := Place(filepath.Join(dir, "missing.exe"), dst); err == nil {
 		t.Fatal("expected an error")
 	}
 	if got := readProgram(t, dst); got != "old" {

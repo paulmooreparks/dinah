@@ -11,6 +11,22 @@ import (
 	buildpolicy "studio"
 )
 
+func writeProgram(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readProgram(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("%s is missing: %v", path, err)
+	}
+	return string(b)
+}
+
 func TestInstallRefusesWrongCompilerBeforeReplacingEitherProgram(t *testing.T) {
 	self, err := os.Executable()
 	if err != nil {

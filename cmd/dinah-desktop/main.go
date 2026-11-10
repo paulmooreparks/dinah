@@ -35,6 +35,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"studio/internal/programs"
 	"studio/internal/pty"
 
 	// The product registers what it brings, when this build is another product.
@@ -76,6 +77,16 @@ func webviewDataPath() string {
 }
 
 func main() {
+	// A product's own packages read the release from here (internal/programs).
+	programs.SetRelease(appVersion)
+	// --version prints the program's name and release and ends, so that
+	// whoever is about to install this file can check what it is. A window
+	// program has no console of its own; the caller reads the line through
+	// the standard output it gave the program.
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(product.WindowProgram, appVersion)
+		return
+	}
 	if len(os.Args) >= 2 && os.Args[1] == "--applet-mcp" {
 		flags := flag.NewFlagSet("applet-mcp", flag.ExitOnError)
 		stateDir := flags.String("state-dir", "", product.Name+" state directory")
