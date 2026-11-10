@@ -117,6 +117,32 @@ func TestTheJudgementsStartOffForWantOfAModel(t *testing.T) {
 	}
 }
 
+// The picker's prices come from each listed provider that says prices, by
+// provider and then by model. A provider that says none is absent, and so is
+// one whose models the picker does not list.
+func TestThePickerGetsThePricesAProviderSays(t *testing.T) {
+	a, _, _ := judgementApp(t)
+	if got := a.JudgementModelPrices(); len(got) != 0 {
+		t.Fatalf("prices with no provider saying any: %+v", got)
+	}
+	said := func(*App) map[string]string { return map[string]string{"tiny:4b": "free"} }
+	for _, id := range []string{"ollama", "codex"} {
+		m := providerModules[id].Judge
+		saved := m.Prices
+		t.Cleanup(func() { m.Prices = saved })
+		m.Prices = said
+	}
+	got := a.JudgementModelPrices()
+	if len(got) != 1 || got["ollama"]["tiny:4b"] != "free" {
+		t.Fatalf("prices %+v", got)
+	}
+	// A provider that says an empty list is left out.
+	providerModules["ollama"].Judge.Prices = func(*App) map[string]string { return map[string]string{} }
+	if got := a.JudgementModelPrices(); len(got) != 0 {
+		t.Fatalf("an empty list was kept: %+v", got)
+	}
+}
+
 // The models that could judge come from the provider, and choosing one makes the
 // judge answer, record, and tell the page, in numbered events.
 func TestAChosenModelJudgesAndEveryChangeIsAnEvent(t *testing.T) {

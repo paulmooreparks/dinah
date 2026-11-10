@@ -71,7 +71,29 @@ func startDevinJudge(a *App, dir string, handler acp.Handler) (agentConnection, 
 // tokens while Devin's plan is counted in its own unit, so the cost of a call is
 // not known in the unit a budget is set in, and its models are not calibrated.
 func devinJudgeModule() *judgeModule {
-	return processJudgeModule(startDevinJudge,
+	m := processJudgeModule(startDevinJudge,
 		"Each call starts a session and uses your plan's usage. The cost of a call is not measured, so a budget cannot limit it.",
 		"Devin's models are not calibrated, because a run tries many models on your plan and the cost of a call is not measured, so no budget could stop it. Choose a model instead.")
+	m.Prices = devinJudgePrices
+	return m
+}
+
+// devinJudgePrices are Devin's own words for what each of its models costs, by
+// the model's name in the judge's picker, which is the value Devin's command
+// line lists the model's price under. They are every price Devin lists and
+// not only those of the models a chat is offered, since the judge runs in a
+// process of its own with a list of its own. A read that failed leaves none.
+func devinJudgePrices(a *App) map[string]string {
+	// Asking for a chat's prices starts the read when one is due.
+	devinModelPrices(a)
+	c := &a.devinPrices
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := map[string]string{}
+	for name, p := range c.prices {
+		if p.CostSummary != "" {
+			out[name] = p.CostSummary
+		}
+	}
+	return out
 }

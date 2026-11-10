@@ -261,6 +261,11 @@ type judgeModule struct {
 	// and stops when the budget refuses a call, so a provider whose calls cannot be
 	// counted against a budget is not calibrated, and the person chooses its model.
 	NoCalibration string
+	// Prices are what the provider says each model costs, in the provider's own
+	// words, by the model's name in the picker; nil for a provider that says
+	// none. Asking never waits: it may start a read in the background, and the
+	// prices it brings are announced as models:prices.
+	Prices func(a *App) map[string]string
 }
 
 func defaultJudgementSettings() JudgementSettings {
@@ -789,13 +794,7 @@ func (a *App) JudgementModels() ([]JudgementModel, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	out := []JudgementModel{}
-	settings, _, _ := a.judgementSettings()
-	for _, id := range judgeProviders() {
-		// A provider whose calls use the person's plan is listed only when it is the
-		// chosen judge: listing its models starts it and a session.
-		if providerModules[id].Judge.Note != "" && id != settings.Provider {
-			continue
-		}
+	for _, id := range a.pickerJudgeProviders() {
 		installed, err := providerModules[id].Judge.Installed(a, ctx, id)
 		if err != nil {
 			logf("judge", "warning", "the models of %s could not be listed: %v", id, err)
@@ -806,6 +805,41 @@ func (a *App) JudgementModels() ([]JudgementModel, error) {
 		}
 	}
 	return out, nil
+}
+
+// pickerJudgeProviders are the providers whose models the picker lists. A
+// provider whose calls use the person's plan is listed only when it is the
+// chosen judge: listing its models starts it and a session.
+func (a *App) pickerJudgeProviders() []string {
+	settings, _, _ := a.judgementSettings()
+	var out []string
+	for _, id := range judgeProviders() {
+		if providerModules[id].Judge.Note != "" && id != settings.Provider {
+			continue
+		}
+		out = append(out, id)
+	}
+	return out
+}
+
+// JudgementModelPrices are the prices known now for the models the picker
+// lists, in each provider's own words, by provider and then by the model's
+// name. A provider that says no prices is absent, and so is a model it gives
+// no price for, and the picker then shows the model's name alone. Asking never
+// waits for a price: prices read later are announced as models:prices, and the
+// page asks again.
+func (a *App) JudgementModelPrices() map[string]map[string]string {
+	out := map[string]map[string]string{}
+	for _, id := range a.pickerJudgeProviders() {
+		prices := providerModules[id].Judge.Prices
+		if prices == nil {
+			continue
+		}
+		if words := prices(a); len(words) > 0 {
+			out[id] = words
+		}
+	}
+	return out
 }
 
 // CorrectJudgement keeps the person's replacement for a decision. It records

@@ -132,3 +132,34 @@ func TestDevinPricesFailQuietly(t *testing.T) {
 		t.Fatalf("ModelPrices after a failure %+v", got)
 	}
 }
+
+// The judge's picker gets every price Devin lists, by the model's name, and
+// not only those of the models a chat is offered. A read that fails leaves
+// none, so the picker shows the names alone.
+func TestTheJudgesPickerGetsDevinsPrices(t *testing.T) {
+	fail := false
+	a, _, events := pricesFixture(t, func(string) (map[string]agents.DevinModelPrice, error) {
+		if fail {
+			return nil, errors.New("the Devin command line did not list its models in time")
+		}
+		return map[string]agents.DevinModelPrice{
+			"swe-2-high":  {CostSummary: "$0.5 / MTok In · $2.5 / MTok Out", CostTier: "High cost"},
+			"not-offered": {CostSummary: "$0.08 / MTok In · $0.38 / MTok Out"},
+		}, nil
+	})
+	a.refreshDevinPrices(`C:\devin.exe`, "1")
+	nextPrices(t, events)
+	got := devinJudgePrices(a)
+	if len(got) != 2 || got["not-offered"] != "$0.08 / MTok In · $0.38 / MTok Out" || got["swe-2-high"] != "$0.5 / MTok In · $2.5 / MTok Out" {
+		t.Fatalf("the judge's prices %+v", got)
+	}
+	if m := devinJudgeModule(); m.Prices == nil {
+		t.Fatal("Devin's judge module gives no prices")
+	}
+	fail = true
+	a.refreshDevinPrices(`C:\devin.exe`, "2")
+	nextPrices(t, events)
+	if got := devinJudgePrices(a); len(got) != 0 {
+		t.Fatalf("after a failure %+v", got)
+	}
+}

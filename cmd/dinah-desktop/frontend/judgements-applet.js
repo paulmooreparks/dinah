@@ -4,8 +4,8 @@
    and the list of decisions; and the Judgements section of Settings. The
    reads and writes are the engine's page table: JudgementState and
    JudgementSummary (the widget, the popup and the graph), JudgementRecords
-   (the list), JudgementKinds, JudgementSettings and JudgementModels (the
-   section), SetJudgementSettings and CorrectJudgement (the writes), and the
+   (the list), JudgementKinds, JudgementSettings, JudgementModels and
+   JudgementModelPrices (the section), SetJudgementSettings and CorrectJudgement (the writes), and the
    numbered judgements:changed event, after which the widget re-reads its
    state rather than keeping a count of its own. Until the first kind of
    call is wired into the program the store is empty, and the page says so. */
@@ -682,6 +682,40 @@
     if (!r || !r.settings) return r;
     return Object.assign({}, r.settings, { revision: r.revision, conflict: !!r.conflict });
   }
+  /* The models that could judge, as the engine last listed them, and what
+     each costs in its provider's own words, by provider and then by model.
+     Prices arrive in the background and may never arrive; a model with no
+     price is listed by its name alone, as before prices existed. Listing a
+     provider's models can start it and a session, so prices that arrive
+     redraw the options from the list kept here and list nothing again. */
+  var pickerModels = [], pickerPrices = {};
+  function pickerPrice(m) {
+    var of = pickerPrices[m.provider];
+    var words = of && Object.prototype.hasOwnProperty.call(of, m.name) ? of[m.name] : '';
+    return typeof words === 'string' ? words : '';
+  }
+  function drawModelOptions() {
+    var model = $('judgement-model');
+    if (!model || !settings) return;
+    model.replaceChildren(new Option('No model yet; every call uses its rule', ''));
+    pickerModels.forEach(function (m) {
+      // A provider's name comes from its record, never from a word here.
+      var pname = m.provider ? (window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider) : '';
+      var price = pickerPrice(m);
+      model.appendChild(new Option(m.name + (pname && pname !== m.name ? ' (' + pname + ')' : '') + (price ? ', ' + price : ''), m.name));
+    });
+    model.value = settings.model || '';
+  }
+  function loadModelPrices() {
+    if (!app().JudgementModelPrices) return Promise.resolve();
+    return Promise.resolve().then(function () { return app().JudgementModelPrices(); }).then(function (prices) {
+      var next = prices && typeof prices === 'object' ? prices : {};
+      if (JSON.stringify(next) === JSON.stringify(pickerPrices)) return;
+      pickerPrices = next;
+      // An open list is not rebuilt under the person's hand.
+      if (document.activeElement !== $('judgement-model')) drawModelOptions();
+    }).catch(function () {});
+  }
   function drawSettings() {
     var card = $('judgements-card');
     if (!card) return;
@@ -693,17 +727,11 @@
     var toggle = $('judgements-enabled');
     toggle.setAttribute('aria-checked', String(!!settings.enabled));
     $('judgements-enabled-help').textContent = settings.enabled ? 'Calls go to the judge.' : 'Every call uses its rule.';
-    var model = $('judgement-model');
     Promise.resolve().then(function () { return app().JudgementModels(); }).then(function (models) {
       if (!settings) return;
-      var keep = settings.model;
-      model.replaceChildren(new Option('No model yet; every call uses its rule', ''));
-      (models || []).forEach(function (m) {
-        // A provider's name comes from its record, never from a word here.
-        var pname = m.provider ? (window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider) : '';
-        model.appendChild(new Option(m.name + (pname && pname !== m.name ? ' (' + pname + ')' : ''), m.name));
-      });
-      model.value = keep || '';
+      pickerModels = models || [];
+      drawModelOptions();
+      loadModelPrices();
     }).catch(function () {});
     var providerSel = $('judgement-provider'), providerNote = $('judgement-provider-note');
     if (providerSel) {
@@ -916,6 +944,8 @@
         });
       } else save();
     });
+    // Prices that arrived while the list had the keyboard are drawn as it lets go.
+    $('judgement-model').addEventListener('blur', drawModelOptions);
     $('judgements-save-numbers').addEventListener('click', function () {
       var days = Number($('judgement-retention').value), streak = Number($('judgement-warn-streak').value);
       var status = $('judgements-status');
@@ -965,6 +995,7 @@
     readState().catch(function () {});
     initSection();
     host().on('settings:changed', function () { loadJudgementProviders().catch(function () {}); });
+    host().on('models:prices', function () { loadModelPrices(); });
     host().on('judgements:changed', function (data) {
       acceptState(data);
       if (pageApi && pageApi.refresh) pageApi.refresh();

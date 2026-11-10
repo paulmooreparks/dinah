@@ -29,6 +29,7 @@ const { launch } = require('./lib/page');
         JudgementSettings: async () => ({ settings: window.__settings, revision: window.__revision, conflict: false }),
         JudgementModels: async () => (window.__models[window.__settings.provider] || []).map(name => ({ name, provider: window.__settings.provider })),
         JudgementProviders: async () => window.__providers,
+        JudgementModelPrices: async () => ({ claude: { 'opus-max': '$5 / MTok In · $25 / MTok Out' } }),
         SetJudgementSettings: async (settings, revision) => { window.__calls.push([settings, revision]); window.__settings = settings; window.__revision = 'r' + (++window.__rev); return { settings, revision: window.__revision, conflict: false }; },
         JudgementCalibration: async () => ({ state: 'idle', models: [], cases: [] }),
       };
@@ -42,11 +43,17 @@ const { launch } = require('./lib/page');
     await settings.locator('#judgement-provider').waitFor();
     ok('each provider is offered by name', (await settings.locator('#judgement-provider option').count()) === 2 && /Claude Code/.test(await settings.locator('#judgement-provider').textContent()));
     ok('the section names Ollama’s judge with no plan note', (await settings.locator('#judgement-provider').inputValue()) === 'ollama' && (await settings.locator('#judgement-provider-note').textContent()) === '');
+    const modelWidth = (await settings.locator('#judgement-model').boundingBox()).width;
     // Choose Claude Code: the provider is saved, the plan note shows, its models appear.
     await settings.locator('#judgement-provider').selectOption('claude');
     await p.waitForFunction(() => window.__calls.some(c => c[0].provider === 'claude'));
     await settings.locator('#judgement-model option', { hasText: 'opus-max' }).first().waitFor({ state: 'attached' });
     ok('its models are offered once it is the provider', (await settings.locator('#judgement-model option').allTextContents()).map(t => t.trim()).some(t => t.includes('opus-max')));
+    // A price the provider says is shown beside its model, and a model with none is listed by its name alone.
+    await settings.locator('#judgement-model option', { hasText: '$5 / MTok In' }).first().waitFor({ state: 'attached' });
+    const priced = (await settings.locator('#judgement-model option').allTextContents()).map(t => t.trim());
+    ok('a model is listed with the price its provider says', priced.some(t => t === 'opus-max (Claude Code), $5 / MTok In · $25 / MTok Out') && priced.some(t => t === 'sonnet-max (Claude Code)'), JSON.stringify(priced));
+    ok('and the list is as wide as it was', Math.abs((await settings.locator('#judgement-model').boundingBox()).width - modelWidth) < 0.5);
     ok('and the note says in its words what its calls are', /Each call starts a session and uses your plan/.test(await settings.locator('#judgement-provider-note').textContent()));
     // Choosing its model is confirmed with the measured cost, Cancel first.
     await settings.locator('#judgement-model').selectOption('');
