@@ -115,11 +115,11 @@ type literalSet struct{}
 
 func (literalSet) Catalog() []Descriptor {
 	return []Descriptor{
-		{Name: "markup", Kind: Container, Literal: true, ColorAttribute: "data-cell-colour"},
-		{Name: "mark", Kind: Inline, Literal: true, ColorAttribute: "data-cell-colour"},
-		{Name: "prose", Kind: Container, ColorAttribute: "data-cell-colour"},
-		{Name: "styled", Kind: Container, Literal: true, ColorAttribute: "style"},
-		{Name: "handled", Kind: Container, Literal: true, ColorAttribute: "onclick"},
+		{Name: "markup", Kind: Container, Literal: true, ColorAttribute: "data-cell-colour", ColorClassPrefix: "cell-colour-"},
+		{Name: "mark", Kind: Inline, Literal: true, ColorAttribute: "data-cell-colour", ColorClassPrefix: "cell-colour-"},
+		{Name: "prose", Kind: Container, ColorAttribute: "data-cell-colour", ColorClassPrefix: "cell-colour-"},
+		{Name: "styled", Kind: Container, Literal: true, ColorAttribute: "style", ColorClassPrefix: "-colour"},
+		{Name: "handled", Kind: Container, Literal: true, ColorAttribute: "onclick", ColorClassPrefix: "cell colour"},
 	}
 }
 
@@ -169,6 +169,28 @@ func TestACatalogSaysWhichAttributeKeepsACellsColour(t *testing.T) {
 	for _, name := range []string{"mark", "prose", "styled", "handled"} {
 		if got[name] != "" {
 			t.Errorf("%s kept the attribute %q", name, got[name])
+		}
+	}
+}
+
+// A literal container may say how the class names of a coloured cell begin.
+// The catalog drops the prefix on a shortcode with no literal body, and
+// drops one that is not the beginning of a class name.
+func TestACatalogSaysHowACellsColourClassBegins(t *testing.T) {
+	Register(literalSet{})
+	got := map[string]string{}
+	for _, d := range Catalog() {
+		got[d.Name] = d.ColorClassPrefix
+		if b, _ := json.Marshal(d); d.Name == "markup" && !strings.Contains(string(b), `"colorClassPrefix":"cell-colour-"`) {
+			t.Fatalf("the container as the applets get it: %s", b)
+		}
+	}
+	if got["markup"] != "cell-colour-" {
+		t.Fatalf("the literal container's prefix: %q", got["markup"])
+	}
+	for _, name := range []string{"mark", "prose", "styled", "handled"} {
+		if got[name] != "" {
+			t.Fatalf("%s kept the prefix %q", name, got[name])
 		}
 	}
 }

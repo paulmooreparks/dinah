@@ -46,6 +46,10 @@ type Param struct {
 // literal container whose product keeps a table cell's colour in a data
 // attribute beside the cell's style, and is that attribute's name: the
 // applets write, change and remove the attribute with the colour.
+// ColorClassPrefix is for a literal container whose product also marks a
+// coloured cell with a class, and is the beginning of those class names:
+// when a cell's colour is changed or removed, the applets remove the
+// cell's classes that begin with it, and add none.
 type Descriptor struct {
 	Name        string  `json:"name"`
 	Title       string  `json:"title"`
@@ -58,6 +62,8 @@ type Descriptor struct {
 	Literal     bool    `json:"literal,omitempty"`
 	// ColorAttribute is a data attribute's name, as "data-cell-colour".
 	ColorAttribute string `json:"colorAttribute,omitempty"`
+	// ColorClassPrefix is the beginning of a class name, as "cell-colour-".
+	ColorClassPrefix string `json:"colorClassPrefix,omitempty"`
 }
 
 // Request is one occurrence of a shortcode to draw: its name, the raw
@@ -140,6 +146,10 @@ var namePattern = regexp.MustCompile(`^(@?[a-z][a-z0-9-]*)$`)
 // colour in.
 var colorAttribute = regexp.MustCompile(`^data-[a-z0-9][a-z0-9-]{0,58}$`)
 
+// colorClassPrefix is the beginning of the class names a set may mark a
+// coloured cell with, in the form the applets accept.
+var colorClassPrefix = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
+
 // Register adds a set; a build registers its sets at start.
 func Register(s Set) {
 	if s == nil {
@@ -177,6 +187,9 @@ func Catalog() []Descriptor {
 			// keep, and only a data attribute may be named for it.
 			if !d.Literal || !colorAttribute.MatchString(d.ColorAttribute) {
 				d.ColorAttribute = ""
+			}
+			if !d.Literal || !colorClassPrefix.MatchString(d.ColorClassPrefix) {
+				d.ColorClassPrefix = ""
 			}
 			out = append(out, d)
 		}

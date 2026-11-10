@@ -351,7 +351,7 @@ var schemaCache = null;
        (o.caret): set when the page is turned on, so that changing from
        Text to Visual keeps the reader's place; a page built again for a
        change to the text keeps its own scroll instead. */
-    var placeFromText = false, boxCount = 0;
+    var placeFromText = false;
     /* The position just inside the top-level block that holds an offset
        into the document's text, worked out from each block's text and the
        text before it, as the page writes itself back; null when the
@@ -1524,11 +1524,12 @@ var schemaCache = null;
       var bar = document.createElement('div');
       bar.className = 'pm-box-bar';
       bar.contentEditable = 'false';
-      /* A box the host keeps collapsed (a deck's speaker notes, shown in
-         the window's own notes pane): its bar stands in for it, with Show
-         and Hide for the author who wants to edit it here. */
-      var collapsible = !!(o.collapsed && o.collapsed(node.attrs.name)), frameId = collapsible ? 'pm-box-frame-' + (++boxCount) : '';
-      bar.innerHTML = (collapsible ? '<button type="button" class="btn btn-sm disclosure" data-box="toggle" aria-expanded="false" aria-controls="' + frameId + '">' + escText(boxTitle(node)) + '</button>' : '<span class="pm-box-kind">' + escText(boxTitle(node)) + '</span>') +
+      /* A box the host shows somewhere of its own (a deck's speaker notes,
+         in the window's notes pane) has no presence on the page at all:
+         it stays in the document, so the text is written back as it was,
+         and it is neither drawn nor reachable by the caret here. */
+      if (o.hiddenBox && o.hiddenBox(node.attrs.name)) { dom.hidden = true; dom.contentEditable = 'false'; dom.classList.add('pm-box-hidden'); }
+      bar.innerHTML = '<span class="pm-box-kind">' + escText(boxTitle(node)) + '</span>' +
         (o.customName && o.customName(node.attrs.name) ? '<button type="button" class="btn btn-sm" data-box="custom-args">Parameters…</button>' : '') +
         (hostBox(node) ? '<button type="button" class="btn btn-sm" data-box="custom-args">Arguments…</button>' : BOX_TITLED[node.attrs.name] ? '<button type="button" class="btn btn-sm" data-box="args">' + escText(BOX_TITLED[node.attrs.name]) + '…</button>' : '') +
         (isColumns ? '<button type="button" class="btn btn-sm" data-box="column">Add a Column</button>' : '') +
@@ -1537,19 +1538,8 @@ var schemaCache = null;
       bar.addEventListener('mousedown', function (e) { e.preventDefault(); });
       bar.addEventListener('click', function (e) {
         var b = e.target.closest('[data-box]');
-        if (!b) return;
-        if (b.getAttribute('data-box') === 'toggle') {
-          /* PUDL's disclosure button: the state is its aria-expanded, and
-             the frame's hidden attribute does the hiding. */
-          var open = frame.hidden;
-          frame.hidden = !open;
-          b.setAttribute('aria-expanded', String(open));
-          if (open) v.focus();
-          return;
-        }
-        boxAction(b.getAttribute('data-box'), current, getPos, v);
+        if (b) boxAction(b.getAttribute('data-box'), current, getPos, v);
       });
-      if (collapsible) dom.classList.add('pm-box-collapsible');
       var frame;
       if (isColumns) {
         frame = document.createElement('div');
@@ -1569,7 +1559,6 @@ var schemaCache = null;
         frame.querySelectorAll('details').forEach(function (det) { det.open = true; });
         frame.querySelectorAll('summary').forEach(function (s) { s.addEventListener('click', function (e) { e.preventDefault(); }); });
       }
-      if (collapsible) { frame.id = frameId; frame.hidden = true; }
       dom.append(bar, frame);
       return {
         dom: dom, contentDOM: contentDOM,
@@ -1772,6 +1761,13 @@ var schemaCache = null;
       var name = m && o.colourAttribute ? o.colourAttribute(m[1]) : '';
       return typeof name === 'string' && /^[a-z][a-z0-9:_-]{0,63}$/.test(name) && name !== 'style' && name !== 'colspan' && name !== 'rowspan' ? name : '';
     }
+    /* The beginning of the class names a host uses for a cell's colour in
+       a table of its own literal container, or '' (decision 117). */
+    function colourClassPrefix(table) {
+      var raw = table && table.attrs.raw, m = raw && /^\{\{([a-z][a-z0-9-]*)/.exec(raw.open || '');
+      var prefix = m && o.colourClassPrefix ? o.colourClassPrefix(m[1]) : '';
+      return typeof prefix === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(prefix) ? prefix : '';
+    }
     /* Colours the selected cells, or the cell the cursor is in, with the
        colour the page asked for (pendingColour), as a background colour in
        the cell's style; an empty colour takes it away. */
@@ -1792,10 +1788,19 @@ var schemaCache = null;
       /* The host may give an attribute of its own that records a cell's
          colour beside the style (a wiki's data-highlight-colour): it is
          written, changed and removed with the colour. */
-      var found = PM.findTable(state.selection.$from), attribute = found ? colourAttribute(found.node) : '';
+      var found = PM.findTable(state.selection.$from), attribute = found ? colourAttribute(found.node) : '', prefix = found ? colourClassPrefix(found.node) : '';
       var tr = state.tr;
       cells.forEach(function (c) {
         var keep = (c.node.attrs.xattrs || []).filter(function (a) { return a[0] !== 'style' && a[0] !== attribute; });
+        /* The host's classes that stand for a colour (a wiki's
+           highlight-grey) go when the colour is changed or removed, and
+           the class attribute goes when none of its classes is left.
+           Nothing is added. */
+        if (prefix) keep = keep.map(function (a) {
+          if (a[0] !== 'class') return a;
+          var left = a[1].split(/\s+/).filter(function (token) { return token && token.indexOf(prefix) !== 0; });
+          return left.length ? ['class', left.join(' ')] : null;
+        }).filter(Boolean);
         var style = (c.node.attrs.xattrs || []).find(function (a) { return a[0] === 'style'; });
         var rest = style ? style[1].split(';').map(function (s) { return s.trim(); }).filter(function (s) { return s && !/^background(-color)?\s*:/i.test(s); }).join('; ') : '';
         if (pendingColour) {

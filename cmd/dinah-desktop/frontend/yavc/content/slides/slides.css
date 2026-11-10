@@ -112,17 +112,14 @@
 .deck-slide[data-layout="blank"] .deck-body > * { padding: 40px; }
 /* The slide's settings and its notes on the canvas: the settings' marker
    draws nothing, and the notes are not drawn on the slide, since the
-   window's notes pane shows them (DESIGN.md, decision 116). On an editable
-   canvas the notes box is collapsed to its bar, which Show opens for
-   editing; the open box draws the notes in flow after the content. */
+   window's notes pane shows them (DESIGN.md, decision 116). The slide has
+   no presence for them at all, not a box nor a bar, on an editable canvas
+   or any other; they are written and changed in Text view. */
 .deck-slide .sc-slide { display: none; }
 .deck-slide .pm-source:has(> div > .doc-block > .sc-slide), .deck-slide .pm-source:has(.sc-slide:only-child) { display: none; }
 .deck-slide .sc-notes { display: none; }
 .deck-slide .pm-source:has(> div > .doc-block > .sc-notes) { display: none; }
-.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-bar { position: static; opacity: 1; justify-content: flex-start; margin: 0.6em 0 0; }
-.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-frame:not([hidden]) .sc-notes { display: block; margin: 0.4em 0 0; padding: 12px 72px 12px 0; font-size: 0.55em; line-height: 1.35; color: var(--deck-muted); }
-.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-frame:not([hidden]) .sc-notes-label { margin: 0 0 2px; font-size: 0.8em; font-weight: 700; text-transform: uppercase; }
-.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-frame:not([hidden]) .sc-notes > :last-child { margin-bottom: 0; }
+.deck-slide .pm-box[hidden], .deck-slide .pm-box[data-name="notes"] { display: none; }
 .deck-canvas { outline: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 /* The page view on the canvas keeps the slide's type. */
 .deck-slide .deck-body.page-view > .ProseMirror { min-height: 0; outline: none; }

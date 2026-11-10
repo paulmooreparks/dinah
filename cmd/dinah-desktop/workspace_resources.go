@@ -168,6 +168,15 @@ func (s workspaceResourceService) source(ref ResourceRef) (WorkspaceSource, erro
 	return s.resolver().Source(ref)
 }
 
+// missingPath is the error for a path with a segment that is not there. It
+// reads as the refusal of a symbolic link does, so a caller that shows the
+// error says no more than before, and a caller that needs to know the file
+// is missing asks with errors.Is(err, os.ErrNotExist).
+type missingPath struct{}
+
+func (missingPath) Error() string        { return "the source path is unavailable or is a symbolic link" }
+func (missingPath) Is(target error) bool { return target == os.ErrNotExist }
+
 // All local opens use Root confinement. Hidden attributes and aliases assume
 // trusted local processes; they do not protect against local ancestor mutation.
 func openWorkspaceResource(source WorkspaceSource, path string) (*os.File, error) {
@@ -186,6 +195,9 @@ func openWorkspaceResource(source WorkspaceSource, path string) (*os.File, error
 		for _, segment := range strings.Split(name, string(filepath.Separator)) {
 			part = filepath.Join(part, segment)
 			info, e := root.Lstat(part)
+			if errors.Is(e, os.ErrNotExist) {
+				return nil, missingPath{}
+			}
 			if e != nil || info.Mode()&os.ModeSymlink != 0 {
 				return nil, errors.New("the source path is unavailable or is a symbolic link")
 			}

@@ -1480,6 +1480,12 @@
                     var s = (hostEntries || []).find(function (x) { return x.name === name; });
                     return s && s.literal && typeof s.colorAttribute === 'string' ? s.colorAttribute : '';
                 },
+                /* The beginning of the class names that host uses for a
+                   cell's colour, which go when the colour changes, or ''. */
+                colourClassPrefix: function (name) {
+                    var s = (hostEntries || []).find(function (x) { return x.name === name; });
+                    return s && s.literal && typeof s.colorClassPrefix === 'string' ? s.colorClassPrefix : '';
+                },
                 hostInline: function (src) {
                     if (!hostEntries) { return Promise.resolve(null); }
                     return Promise.resolve(currentMacroEngine() || documentEngine()).then(function (m) {
@@ -1746,7 +1752,7 @@
                 root: root, say: say,
                 macroContext: currentMacroEngine,
                 shortcodeHost: hostServices.shortcodeHost, hostFills: hostFills, hostCatalog: hostEntries,
-                read: function (path) { if(!H.fs || !H.fs.readText)throw new Error('This host cannot read dependencies.');return H.fs.readText(path); },
+                read: function (path, options) { if(!H.fs || !H.fs.readText)throw new Error('This application has not given documents a way to read other files (fs.readText).');return H.fs.readText(path, options); },
                 watch: H.fs && H.fs.onChange ? function(fn){return H.fs.onChange(fn);} : null,
                 signal: styleLifetime.signal, identity: current, text: function () { return view ? view.state.doc.toString() : ''; },
                 dir: styleDirectory
@@ -1895,7 +1901,7 @@
                 var params=Array.isArray(s.params)?s.params.slice(0,32).filter(function(p){return p&&typeof p.name==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(p.name)&&typeof p.description==='string'&&p.description.length<=2048;}).map(function(p){return {name:p.name,description:p.description,required:p.required===true};}):[];
                 if(typeof s.example==='string'&&s.example.length>4096)return;
                 var example=typeof s.example==='string'?s.example:'',size=s.name.length+s.title.length+s.description.length+example.length+params.reduce(function(n,p){return n+p.name.length+p.description.length;},0);if(units+size>128*1024)return;units+=size;
-                found.set(s.name,{name:s.name,title:s.title,description:s.description,kind:s.kind,params:params,example:example,argumentRequired:s.argumentRequired===true,builtin:origin===0,managed:origin===1&&s.managed===true,literal:origin===1&&s.kind==='container'&&s.literal===true,colorAttribute:origin===1&&s.kind==='container'&&s.literal===true&&typeof s.colorAttribute==='string'&&/^[a-z][a-z0-9:_-]{0,63}$/.test(s.colorAttribute)?s.colorAttribute:'',prefix:origin===1&&s.kind==='inline'&&typeof s.prefix==='string'&&/^[@#~!$%&+=?^]$/.test(s.prefix)?s.prefix:''});
+                found.set(s.name,{name:s.name,title:s.title,description:s.description,kind:s.kind,params:params,example:example,argumentRequired:s.argumentRequired===true,builtin:origin===0,managed:origin===1&&s.managed===true,literal:origin===1&&s.kind==='container'&&s.literal===true,colorAttribute:origin===1&&s.kind==='container'&&s.literal===true&&typeof s.colorAttribute==='string'&&/^[a-z][a-z0-9:_-]{0,63}$/.test(s.colorAttribute)?s.colorAttribute:'',colorClassPrefix:origin===1&&s.kind==='container'&&s.literal===true&&typeof s.colorClassPrefix==='string'&&/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(s.colorClassPrefix)?s.colorClassPrefix:'',prefix:origin===1&&s.kind==='inline'&&typeof s.prefix==='string'&&/^[@#~!$%&+=?^]$/.test(s.prefix)?s.prefix:''});
             });});return Array.from(found.values());
         }
         function loadShortcodes() {

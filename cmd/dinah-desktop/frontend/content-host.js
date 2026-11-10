@@ -95,7 +95,26 @@
   function forget(resource) {
     var all = names();
     if (Object.prototype.hasOwnProperty.call(all, resource)) { delete all[resource]; window.dinahUIState.set(NAMES, all); }
+    folders.delete(resource);
   }
+
+  /* The folder of each document that is a file, as a virtual path, which an
+     applet asks for to find a file the document refers to by a path of its
+     own, such as a saved diagram beside a deck. The applet asks without
+     waiting (contentWorkspace.directory), so the folder is found when the
+     document is read and when it is saved under a new name. A document that
+     has no file yet, and a page of a source that is not a folder, have
+     none. */
+  var folders = new Map();
+  function findFolder(resource, v) {
+    var o = v && v.origin || {};
+    if (!o.path || o.kind !== 'local-folder' || !api().ResolveWorkspaceResourceMount) { folders.delete(resource); return Promise.resolve(); }
+    return Promise.resolve(api().ResolveWorkspaceResourceMount({ workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path })).then(function (item) {
+      var path = String(item && item.path || ''), at = path.lastIndexOf('/');
+      if (at > 0) folders.set(resource, path.slice(0, at)); else folders.delete(resource);
+    }).catch(function () { folders.delete(resource); });
+  }
+  function directory(resource) { return folders.get(String(resource || '')) || null; }
 
   /* The draft revision each resource's applet last read or wrote, which
      content-windows.js compares with the draft to see a change made
@@ -109,7 +128,9 @@
     var resource = String(request.resource || '');
     return draftOf(resource).then(function (id) { return api().GetDraft(id); }).then(function (v) {
       known.set(resource, v.revision);
-      return { resource: resource, name: nameOf(v, resource), text: v.text, revision: v.revision, writable: true };
+      return findFolder(resource, v).then(function () {
+        return { resource: resource, name: nameOf(v, resource), text: v.text, revision: v.revision, writable: true };
+      });
     });
   }
 
@@ -331,24 +352,64 @@
             return titled.then(function (ready) { return api().SaveDraftAs(id, ready.revision, target); }).then(function (saved) {
               var resource = resourceFor(saved);
               known.set(resource, saved.revision);
-              document.dispatchEvent(new CustomEvent('dinah:content-renamed', { detail: { draft: saved.id, resource: resource, view: saved } }));
-              done = { resource: resource, revision: saved.revision, name: nameOf(saved), writable: true };
-              return true;
+              return findFolder(resource, saved).then(function () {
+                document.dispatchEvent(new CustomEvent('dinah:content-renamed', { detail: { draft: saved.id, resource: resource, view: saved } }));
+                done = { resource: resource, revision: saved.revision, name: nameOf(saved), writable: true };
+                return true;
+              });
             });
           });
         } }).then(function () { return done; });
     });
   }
 
-  /* The file service the applets use only for Open (fs.open). It opens
-     the chosen document in a window of its own and tells the applet that
-     nothing was chosen for it. */
+  /* A document can refer to another file by its virtual path: a saved
+     diagram a slide shows, a stylesheet several documents share, a template
+     an export uses. readText gives the applet that file's text, or null
+     when there is no such file. The path is under /home or /workspaces
+     (~/ is the person's home), and a relative path was already joined to
+     the document's folder by the applet. The applet does not say which
+     document asks, so the person's own files are what a path can be, in
+     any of their workspaces. Dinah reads a text file of up to 1 MiB.
+     Neither function uses this, since the applets pass them on alone. */
+  function readText(path, options) {
+    var signal = options && options.signal, max = options && options.maxBytes > 0 ? Math.floor(options.maxBytes) : 0;
+    function stopped() { return new DOMException('The read was stopped.', 'AbortError'); }
+    if (signal && signal.aborted) return Promise.reject(stopped());
+    return Promise.resolve().then(function () { return api().ReadWorkspaceMountText(String(path), max); }).then(function (r) {
+      if (signal && signal.aborted) throw stopped();
+      return r && r.found ? r.text : null;
+    }, function (err) { throw new Error(message(err)); });
+  }
+  /* onChange tells the applet that a file may have changed, so that it
+     reads again what its document refers to. Dinah learns of a change it
+     made itself and of one on disk in a folder some window shows; the
+     applets also read again when the window is returned to. */
+  var changeListeners = new Set(), watchingFiles = false;
+  function onChange(listener) {
+    if (typeof listener !== 'function') return function () {};
+    changeListeners.add(listener);
+    if (!watchingFiles && window.dinahHost) {
+      watchingFiles = true;
+      window.dinahHost.on('workspace:changed', function (e) {
+        if (!e || !/^(content|disk|source)-changed$/.test(e.kind)) return;
+        changeListeners.forEach(function (fn) { try { fn(); } catch (err) { /* one listener's failure is its own */ } });
+      });
+    }
+    return function () { changeListeners.delete(listener); };
+  }
+
+  /* The file service the applets use for Open (fs.open) and for the files
+     a document refers to (fs.readText, fs.onChange). Open opens the chosen
+     document in a window of its own and tells the applet that nothing was
+     chosen for it. */
   var fs = {
     open: function (options) {
       var mount = options && options.host && options.host.closest && options.host.closest('[data-applet]');
       var app = mount ? mount.getAttribute('data-applet') : 'editor';
       return window.dinahContentWindows.openDocument(app).then(function () { return null; });
-    }
+    },
+    readText: readText, onChange: onChange
   };
 
   function fileServices() {
@@ -361,14 +422,16 @@
      contentWorkspace.shortcodes(context) is the applets' documented call
      for a host's extra shortcodes, and returns { shortcodes: [{ name,
      title, description, kind, params, example, prefix, managed, literal,
-     colorAttribute }] }
+     colorAttribute, colorClassPrefix }] }
      for completion, hover and the Insert menu. An entry has a prefix when
      the shortcode may be written with one character in place of its name
      and colon, is managed when the product keeps it with a tool of its
      own, and is literal when it is a container whose body is markup and
      not Markdown. A literal entry has a colorAttribute when the product
      keeps a table cell's colour in that data attribute beside the cell's
-     style. contentWorkspace.shortcodeHost draws and changes an occurrence:
+     style, and a colorClassPrefix when the product also marks a coloured
+     cell with a class whose name begins so, which the applets remove when
+     the colour is changed or removed. contentWorkspace.shortcodeHost draws and changes an occurrence:
      render({ name, args, source, kind }) returns { html }, where kind is
      how the applet read the occurrence and the HTML of a container or a
      span has one <slot name="content">
@@ -389,6 +452,7 @@
             if (d.managed === true) entry.managed = true;
             if (d.literal === true) entry.literal = true;
             if (d.literal === true && typeof d.colorAttribute === 'string' && d.colorAttribute) entry.colorAttribute = d.colorAttribute;
+            if (d.literal === true && typeof d.colorClassPrefix === 'string' && d.colorClassPrefix) entry.colorClassPrefix = d.colorClassPrefix;
             return entry;
           });
         })
@@ -422,7 +486,7 @@
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: function () { return null; }, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost },
+      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
