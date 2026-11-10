@@ -1,5 +1,5 @@
 {
-  "digest": "8660a0eb1469777f10054fd636ae8a08ecd4e54d1d35647953ce10f69579acc0",
+  "digest": "598c24f0fcb6b0ed9e6b11f0e8e5d3e7b2702560b101184010bbbbf08c2074bc",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -20,8 +20,8 @@
     },
     {
       "path": "content/content-kit/recovery.js",
-      "bytes": 5261,
-      "sha256": "dc3d6a62acac471823966d3ff683823b9947314519b6b0446e9c6ee91e015d88"
+      "bytes": 5263,
+      "sha256": "25934e87ff02f6574dc58b8538e63e911163ab20db88256d9b925ffdfbcf2ae6"
     },
     {
       "path": "content/content-kit/resource-session.js",
@@ -30,18 +30,18 @@
     },
     {
       "path": "content/content-kit/resources.js",
-      "bytes": 6504,
-      "sha256": "24ab2f243ed7c93e16e064f22ee28abc36a6f7b2e12da52420a9765fb9fb4e61"
+      "bytes": 6505,
+      "sha256": "147bdf73de8697cfffca4aa9a4c6b87e70c3c5dda0a2439038d11f1ac48a08a6"
     },
     {
       "path": "content/content-kit/source-history.js",
-      "bytes": 9956,
-      "sha256": "0494c5a00e0539a47c5ea4c5b5cb6719c490cd8460812c6c9dda747737b425ee"
+      "bytes": 9957,
+      "sha256": "0fb845cd0bd03436871609b857f6009217aa8232cc48ef022dfab011f548d71d"
     },
     {
       "path": "content/content-kit/text-codec.js",
-      "bytes": 4795,
-      "sha256": "f9533927307f7d55a87e8a7056699793f92ccc6e4f36e37670b4eb98cdf2f721"
+      "bytes": 4809,
+      "sha256": "4108180c1bc1209bb35eb917d592d1dee34a220e12fa11f4099dc2e7933e86ab"
     },
     {
       "path": "content/diagram-kit/LICENSES.md",
@@ -101,7 +101,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "232e437b3f9014c1bf4e36b4c626bf69f5965539e8263573df586c46229f8683"
+      "sha256": "daa0f590f3bcc77d817a885323913f0e28ff9e7d5ed07a43e143b309a515c87d"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -140,13 +140,13 @@
     },
     {
       "path": "content/docs/actions.json",
-      "bytes": 34223,
-      "sha256": "2957e9c315b2d291b21479fea0f49550a1c97d4151723d43973961f652345b64"
+      "bytes": 34252,
+      "sha256": "066a7ad30e38b2794173487783be161183c5586906a76904ac4f33c0cbb9f4c8"
     },
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "4edce468ca30225222a4dca53d6bbf62a5c3fa7d80ff47867a0c6982113e7f21"
+      "sha256": "50ec15d02fcd8204ab898c258376d473e44dc5c59051576de78e56bdfbe2a380"
     },
     {
       "path": "content/docs/docs.css",
@@ -170,13 +170,13 @@
     },
     {
       "path": "content/editor/actions.json",
-      "bytes": 32456,
-      "sha256": "82c05b93f080b4cbad97ae71f020b1365bfc669ac9bc1b5df20cdff7a11c67ed"
+      "bytes": 32534,
+      "sha256": "2dd40bbfca6c9d4ef5a75d9948a1623a18fc453bf69cbccd423188f02fe02b02"
     },
     {
       "path": "content/editor/applet.json",
-      "bytes": 686,
-      "sha256": "c61ccf0412ced4d5ec3ce7dd7401b5805d0ac63c9fff89276072e5286a1bb663"
+      "bytes": 695,
+      "sha256": "485fb4007ec067a51a1050ea88b2d6b6a002000ed20c16c257195d976f706ab7"
     },
     {
       "path": "content/editor/editor.css",
@@ -215,8 +215,8 @@
     },
     {
       "path": "content/md-editor/export.js",
-      "bytes": 30971,
-      "sha256": "9dbf74ec9b36090c60e5dfee7d9ae466e3fcd0ba9fad5b31270babc2cf60f52e"
+      "bytes": 33514,
+      "sha256": "81cd8dceb444877c8285730a2539fede929cd3b5fd6b619f0658f74b75f8b8c4"
     },
     {
       "path": "content/md-editor/host-suggestions.js",
@@ -265,8 +265,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 125874,
-      "sha256": "27858e2f825ca5c6b458435dbb625c082360d18fc65ed650d4adefdaf25d0a00"
+      "bytes": 156239,
+      "sha256": "58260de7f0b981e90143fb0a82cf118f5a46d595720ebf12a5f28daa8580f2a7"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -355,8 +355,8 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 112014,
-      "sha256": "946e8a86dc8540a01cee6e2766f60e6b36a1da5143fca54c541c53836da0efc7"
+      "bytes": 119536,
+      "sha256": "26716114af288985c911f4fffaef9d927f6eed62e3c52158ac5fdcf416847a90"
     },
     {
       "path": "content/md-editor/pages.js",
@@ -1255,13 +1255,13 @@
     },
     {
       "path": "content/md-engine/loader.js",
-      "bytes": 5070,
-      "sha256": "e4ea187c1479f4d16e82fdea85d232da28507a1b6059f079308224a5df6e78e9"
+      "bytes": 6999,
+      "sha256": "e8b9413fc8f43ddf3706e1accf7a9e2f85f6d9a3c6559d2e6796582a4264e785"
     },
     {
       "path": "content/md-engine/page.css",
-      "bytes": 20570,
-      "sha256": "107a25d0d4dd2634d36c5f5423edbdfc7e0f072d666791fe21d0a18dbac43e8d"
+      "bytes": 21416,
+      "sha256": "921bdbf6588103840afc2dcc8084dbbb5b24adc77e91bc076a8e04bc6b81cd2e"
     },
     {
       "path": "content/md-engine/safe-html.js",
@@ -1275,8 +1275,8 @@
     },
     {
       "path": "content/md-engine/yavc-md.wasm",
-      "bytes": 8126596,
-      "sha256": "9410ce6024348fdf0e702687f6a3bd54446dae190ff9b8d817fb50b659925ca9"
+      "bytes": 8189918,
+      "sha256": "463dc46f62394d6e1cf193411738b63a68aafd216a15d1b04d9624cda6839000"
     },
     {
       "path": "content/slides/actions.js",
@@ -1291,7 +1291,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "196da56bb15fdd7c90d0c5cb0f6c558b5cf48918458a4eb2f20b1d4e4380d585"
+      "sha256": "9b7fc3d35e35931e6ac901cb3099bd0c9436f274871e44e120fb752bde78c5d2"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1380,13 +1380,13 @@
     },
     {
       "path": "content/text-workspace/workspace.css",
-      "bytes": 11891,
-      "sha256": "45f29fedb2d7e71856f005b2a9d1a700cea30e011fef6f7c3b61e15e98590ff1"
+      "bytes": 11985,
+      "sha256": "5c97eb30db008d03983e15c536c7f260b1415ce26b4a23560d7ad876309501bc"
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 219054,
-      "sha256": "423d76f73c238997e6c35065883c1c0de40d38790745566945212d6e3b2cee86"
+      "bytes": 226992,
+      "sha256": "bcf9502d381bafca456791179ae0230f29260af1775e60a8ea581dde7b70f9ab"
     },
     {
       "path": "go.mod",

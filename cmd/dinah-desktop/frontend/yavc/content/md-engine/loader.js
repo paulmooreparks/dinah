@@ -59,15 +59,45 @@
             api.outline = call('outline'); api.outlineState = call('outline-state'); api.moveSection = call('section-move');
             api.shortcodes = call('shortcodes');
             api.review=call('review');api.resolveReview=call('review-resolve');api.proposeReview=call('review-propose');api.inlineReview=call('review-inline');api.editReview=call('review-edit');
-            api.withMacros = function (definitions, shared) {
+            /* An engine that reads a document's own shortcodes, the ones a
+               hosting application draws, or both. Each keeps the other when
+               it is asked for more: withMacros keeps the host's shortcodes
+               and withHosts keeps the document's definitions. */
+            function contextOf(definitions, shared, hosts) {
                 var context = Object.create(api), run = call('macro-context');
-                context.exportPreview = function (text) { return call('export-preview')({ text: text, definitions: definitions || '', shared: shared || '' }); };
+                function request(more) {
+                    more.definitions = definitions || ''; more.shared = shared || '';
+                    if (hosts && hosts.length) { more.hosts = hosts; }
+                    return more;
+                }
+                context.exportPreview = function (text) { return call('export-preview')(request({ text: text })); };
                 ['preview', 'doc', 'blocks', 'source', 'inline', 'container'].forEach(function (op) {
-                    context[op] = function (text) { return run({ op: op, text: text, definitions: definitions || '', shared: shared || '' }); };
+                    context[op] = function (text) { return run(request({ op: op, text: text })); };
                 });
-                context.macros = function () { return run({ op: 'catalog', definitions: definitions || '', shared: shared || '' }); };
+                context.macros = function () { return run(request({ op: 'catalog' })); };
+                context.withMacros = function (d, s) { return contextOf(d, s, hosts); };
+                context.withHosts = function (h) { return contextOf(definitions, shared, hostList(h)); };
+                context.hosts = function () { return hosts ? hosts.slice() : []; };
                 return context;
-            };
+            }
+            /* The host's shortcodes as the engine reads them: a name, a kind,
+               and optionally a one-character prefix and whether the host
+               manages the shortcode's content itself. */
+            function hostList(list) {
+                if (!Array.isArray(list)) { return null; }
+                var out = [];
+                list.slice(0, 256).forEach(function (h) {
+                    if (!h || typeof h.name !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(h.name) || !['inline','block','container','span'].includes(h.kind)) { return; }
+                    var entry = { name: h.name, kind: h.kind };
+                    if (typeof h.prefix === 'string' && h.prefix.length === 1) { entry.prefix = h.prefix; }
+                    if (h.managed === true) { entry.managed = true; }
+                    out.push(Object.freeze(entry));
+                });
+                return out.length ? Object.freeze(out) : null;
+            }
+            api.withMacros = function (definitions, shared) { return contextOf(definitions, shared, null); };
+            api.withHosts = function (hosts) { var list = hostList(hosts); return list ? contextOf('', '', list) : api; };
+            api.hosts = function () { return []; };
             initialized = api;
             return api;
         })();

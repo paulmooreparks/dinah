@@ -185,6 +185,15 @@ var schemaCache = null;
         no_export: {
           parseDOM: [{ tag: 'span.sc-no-export[data-export="omit"]' }],
           toDOM: function () { return ['span', { class: 'sc-no-export', 'data-export': 'omit', title: 'Not exported', role: 'note', 'aria-label': 'Not exported' }, 0]; } },
+        // Words inside a span shortcode the host application draws: the
+        // shortcode's name and its opening as it is written. One span may
+        // be inside another, and words typed at its end are outside it.
+        host_span: { attrs: { name: { default: '' }, open: { default: '' } }, excludes: '', inclusive: false,
+          parseDOM: [{ tag: 'span.sc-host[data-host-kind="span"]', getAttrs: function (dom) {
+            var name = dom.getAttribute('data-host-shortcode'), open = dom.getAttribute('data-host-source');
+            return name && open ? { name: name, open: open } : false;
+          } }],
+          toDOM: function (mark) { return ['span', { class: 'sc-host', 'data-host-shortcode': mark.attrs.name, 'data-host-kind': 'span', 'data-host-source': mark.attrs.open }, 0]; } },
         link: { attrs: { href: {}, title: { default: null }, auto: { default: false } }, inclusive: false,
           // A pasted link to an address that is not safe is pasted as its
           // text, and one written in the document is drawn without its
@@ -238,6 +247,13 @@ var schemaCache = null;
                                 source, '' to take it out, or null; undefined to edit it here
        editBlock(src)           optional: a drawn block pressed; a promise of its new
                                 source, '' to take it out, or null; undefined to edit it here
+       fill(el, cachedOnly)     optional: puts the host application's drawings into the
+                                placeholders in el (kit.js fillHosts)
+       hostSpan(name, open)     optional: { dom, contentDOM } for a host's span shortcode
+                                whose drawing is kept, or null
+       hostTitle(name)          optional: the title of one of the host's shortcodes, or ''
+       hostInline(src)          optional: a promise of { html } when src is one of the
+                                host's inline shortcodes, and of null when it is not
        changed()                the Editor's commands may have changed
        failed(text)             the page could not be built; the Editor leaves Page view
      } */
@@ -300,6 +316,7 @@ var schemaCache = null;
           view = new PM.EditorView(o.page, {
             state: state,
             nodeViews: { source_block: sourceView, container: boxView, columns: boxView, shortcode: inlineView,critic:criticView,footnote:footnoteView,footnote_ref:footnoteView },
+            markViews: { host_span: hostSpanView },
             handlePaste: handlePaste,
             // HTML pasted from another program is made safe before the
             // editor reads it (safe-html.js).
@@ -842,6 +859,7 @@ var schemaCache = null;
         listShortcuts(schema),
         taskBoxes(schema),
         footnoteNumbers(),
+        hostShortcuts(schema),
         window.yavcDocumentPages.plugin(PM, o),
         suggestionPlugin(),
         findPlugin(),
@@ -914,6 +932,40 @@ var schemaCache = null;
             view.dispatch(state.tr.delete(start, from));
             PM.wrapInList(list, attrs)(view.state, view.dispatch);
             if (bullet && bullet[2] !== undefined) tick(view, bullet[2]);
+            return true;
+          }
+        }
+      });
+    }
+
+    /* One of the host application's inline shortcodes, typed out on the
+       page, becomes the shortcode as its closing brace is typed. The braces
+       are typed as any character is, and the host is asked afterwards, so
+       text that is not the host's stays as it was typed. Undo brings the
+       typed text back. */
+    function hostShortcuts(schema) {
+      var LEAF = String.fromCharCode(0xfffc);
+      return new PM.Plugin({
+        props: {
+          handleTextInput: function (v, from, to, text) {
+            if (text !== '}' || from !== to || !o.hostInline || v.composing) return false;
+            var state = v.state, ticket = loading, $p = state.doc.resolve(from);
+            if (!$p.parent.isTextblock || $p.parent.type.spec.code) return false;
+            var before = $p.parent.textBetween(0, $p.parentOffset, null, LEAF) + '}';
+            var m = /\{\{(?:[@#~!$%&+=?^][^{}\s]+|[a-z][a-z0-9-]*(?::[^{}\n]*)?)\}\}$/.exec(before);
+            if (!m || m[0].indexOf(LEAF) >= 0) return false;
+            var src = m[0], start = from - (src.length - 1);
+            if (start < $p.start() || schema.marks.code && state.doc.rangeHasMark(start, from, schema.marks.code)) return false;
+            v.dispatch(state.tr.insertText(text, from, to));
+            var inserted = v.state.doc;
+            Promise.resolve(o.hostInline(src)).then(function (r) {
+              if (!r || !r.html || !on || sourceStale || frozen || loading !== ticket || view !== v) return;
+              var st = v.state, end = start + src.length;
+              if (st.doc !== inserted || end > st.doc.content.size) return;
+              var $s = st.doc.resolve(start), $e = st.doc.resolve(end);
+              if (!$s.sameParent($e) || !$s.parent.isTextblock || st.doc.textBetween(start, end, null, LEAF) !== src) return;
+              v.dispatch(st.tr.replaceWith(start, end, st.schema.nodes.shortcode.create({ src: src, html: r.html })));
+            }).catch(function () {});
             return true;
           }
         }
@@ -1008,7 +1060,7 @@ var schemaCache = null;
         var q = query(v.state);
         close();
         if (q) v.dispatch(v.state.tr.delete(q.from, q.to));
-        if (typeof item.run === 'function') { item.run(); return; }
+        if (typeof item.run === 'function') { Promise.resolve(item.run()).catch(function(err){if(o.say)o.say(String(err&&err.message||err),true);}); return; }
         if (item.markdown && !insertOf(item.id)) { insertMarkdown(item.markdown); return; }
         run(item.id);
       }
@@ -1296,6 +1348,39 @@ var schemaCache = null;
     var BOX_TITLED = { info: 'Title', note: 'Title', tip: 'Title', warning: 'Title', expand: 'Title', 'class': 'Class' };
     var BOX_NAMES = { info: 'Information', note: 'Note', tip: 'Tip', warning: 'Warning', expand: 'Expand', 'class': 'Style Class', 'no-export': 'Not Exported', 'draft-note': 'Note to Self', notes: 'Speaker Notes', columns: 'Columns' };
     function escText(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    /* A container the host application draws is one whose frame is the
+       engine's placeholder; its bar shows the host's title for it. */
+    function hostBox(node) { return node.type.name !== 'columns' && /\sdata-host-shortcode="/.test(node.attrs.before || ''); }
+    function boxTitle(node) { return hostBox(node) && o.hostTitle && o.hostTitle(node.attrs.name) || BOX_NAMES[node.attrs.name] || node.attrs.name; }
+    /* Words inside a host's span shortcode, drawn as the host draws the
+       span where its drawing is kept. */
+    function hostSpanView(mark) {
+      var drawn = o.hostSpan ? o.hostSpan(mark.attrs.name, mark.attrs.open) : null;
+      if (drawn && drawn.dom && drawn.contentDOM) {
+        if(o.editHostSpan){
+          var button=document.createElement('button');button.type='button';button.className='btn btn-sm';button.textContent='…';button.contentEditable='false';button.setAttribute('aria-label','Change '+mark.attrs.name+' shortcode');
+          drawn.dom.__hostControl=button;drawn.dom.appendChild(button);
+          button.addEventListener('mousedown',function(e){e.preventDefault();});
+          button.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();button.click();}});
+          button.addEventListener('click',function(e){
+            e.preventDefault();e.stopPropagation();if(!view||sourceStale||frozen)return;
+            var target=view,doc=view.state.doc,ticket=loading,ranges=[];
+            doc.descendants(function(node,pos){if(node.isText&&mark.isInSet(node.marks))ranges.push({from:pos,to:pos+node.nodeSize});});
+            var at=view.posAtDOM(drawn.contentDOM,0),range=ranges.find(function(r){return r.from<=at&&r.to>=at;});if(!range)return;
+            var start=range.from,end=range.to;for(var i=ranges.indexOf(range)-1;i>=0&&ranges[i].to===start;i--)start=ranges[i].from;for(var j=ranges.indexOf(range)+1;j<ranges.length&&ranges[j].from===end;j++)end=ranges[j].to;
+            Promise.resolve(o.editHostSpan(mark.attrs.name,mark.attrs.open)).then(function(next){
+              if(next==null||!on||view!==target||view.state.doc!==doc||loading!==ticket||sourceStale||frozen)return;
+              var tr=view.state.tr.removeMark(start,end,mark);if(next)tr.addMark(start,end,mark.type.create({name:mark.attrs.name,open:next}));view.dispatch(tr);
+            }).catch(function(err){if(o.say)o.say(String(err&&err.message||err),true);});
+          });
+        }
+        return drawn;
+      }
+      var dom = document.createElement('span');
+      dom.className = 'sc-host';
+      dom.setAttribute('data-host-shortcode', mark.attrs.name); dom.setAttribute('data-host-kind', 'span'); dom.setAttribute('data-host-source', mark.attrs.open);
+      return { dom: dom };
+    }
     function boxView(node, v, getPos) {
       var isColumns = node.type.name === 'columns', current = node, contentDOM;
       var dom = document.createElement('div');
@@ -1304,9 +1389,9 @@ var schemaCache = null;
       var bar = document.createElement('div');
       bar.className = 'pm-box-bar';
       bar.contentEditable = 'false';
-      bar.innerHTML = '<span class="pm-box-kind">' + escText(BOX_NAMES[node.attrs.name] || node.attrs.name) + '</span>' +
+      bar.innerHTML = '<span class="pm-box-kind">' + escText(boxTitle(node)) + '</span>' +
         (o.customName && o.customName(node.attrs.name) ? '<button type="button" class="btn btn-sm" data-box="custom-args">Parameters…</button>' : '') +
-        (BOX_TITLED[node.attrs.name] ? '<button type="button" class="btn btn-sm" data-box="args">' + escText(BOX_TITLED[node.attrs.name]) + '…</button>' : '') +
+        (hostBox(node) ? '<button type="button" class="btn btn-sm" data-box="custom-args">Arguments…</button>' : BOX_TITLED[node.attrs.name] ? '<button type="button" class="btn btn-sm" data-box="args">' + escText(BOX_TITLED[node.attrs.name]) + '…</button>' : '') +
         (isColumns ? '<button type="button" class="btn btn-sm" data-box="column">Add a Column</button>' : '') +
         '<button type="button" class="btn btn-sm" data-box="lift">Remove the Box</button>' +
         '<button type="button" class="btn btn-sm" data-box="source">Edit as Markdown</button>';
@@ -1328,6 +1413,8 @@ var schemaCache = null;
         contentDOM.className = 'pm-box-body';
         var slot = frame.querySelector('.pm-slot');
         if (slot) slot.replaceWith(contentDOM); else frame.appendChild(contentDOM);
+        // Preserve the same editable body when a delayed host frame arrives.
+        if (o.fill && hostBox(node)) o.fill(frame);
         // An expand section stays open while it is edited.
         frame.querySelectorAll('details').forEach(function (det) { det.open = true; });
         frame.querySelectorAll('summary').forEach(function (s) { s.addEventListener('click', function (e) { e.preventDefault(); }); });
@@ -1359,7 +1446,7 @@ var schemaCache = null;
       dom.className = 'pm-sc';
       dom.contentEditable = 'false';
       dom.title = 'Change It';
-      function draw(nd) { dom.replaceChildren(window.yavcHTML.fragment(nd.attrs.html || nd.attrs.src)); }
+      function draw(nd) { dom.replaceChildren(window.yavcHTML.fragment(nd.attrs.html || nd.attrs.src)); if (o.fill) o.fill(dom); }
       draw(node);
       dom.addEventListener('mousedown', function (e) {
         if (e.button !== 0) return;
@@ -1392,11 +1479,13 @@ var schemaCache = null;
     }
     /* An inline shortcode put in at the cursor, in place of the selection. */
     function insertInline(src) {
+      if (!view || !on || sourceStale || frozen) return Promise.resolve(false);
+      var target=view, doc=view.state.doc, selection=view.state.selection, ticket=loading;
       return Promise.resolve(o.inlineOf ? o.inlineOf(src) : { html: '' }).then(function (r) {
-        if (!view) return;
+        if (view!==target || !on || sourceStale || frozen || loading!==ticket || view.state.doc!==doc || !view.state.selection.eq(selection)) return false;
         var node = view.state.schema.nodes.shortcode.create({ src: src, html: r && r.html || '' });
         view.dispatch(view.state.tr.replaceSelectionWith(node, true).scrollIntoView());
-        view.focus();
+        view.focus(); return true;
       }).catch(function (err) { o.say(String(err && err.message || err), true); });
     }
     /* The selected blocks, or the block the cursor is in, wrapped in a box
@@ -1454,7 +1543,7 @@ var schemaCache = null;
         if (!ask) return;
         var openingDoc=v.state.doc, openingGeneration=loading;
         function sameBox() {var at=getPos();return on && view===v && !sourceStale && !frozen && loading===openingGeneration && v.state.doc===openingDoc && typeof at==='number' && v.state.doc.nodeAt(at) && v.state.doc.nodeAt(at).eq(node);}
-        ask(BOX_NAMES[node.attrs.name] || node.attrs.name, BOX_TITLED[node.attrs.name] || 'Arguments', node.attrs.args,{signal:o.signal,okLabel:'Apply',validate:function () {return sameBox()?null:'The document or box changed. Close and reopen this form.';}}).then(function (args) {
+        ask(boxTitle(node), BOX_TITLED[node.attrs.name] || 'Arguments', node.attrs.args,{signal:o.signal,okLabel:'Apply',validate:function () {return sameBox()?null:'The document or box changed. Close and reopen this form.';}}).then(function (args) {
           if (args == null || !o.wrapOf || !sameBox()) return;
           var line = args.trim() ? '{{' + node.attrs.name + ':' + args.trim() + '}}' : '{{' + node.attrs.name + '}}';
           return Promise.resolve(o.wrapOf(line)).then(function (info) {
@@ -1671,6 +1760,11 @@ var schemaCache = null;
       // Preserve a failed rich draft for selection/copy after its host revokes editing.
       freeze: function () { frozen = true; if (view) view.setProps({ editable: function () { return false; } }); },
       active: function () { return on && !!view; },
+      insertionTarget: function () {
+        if (!view || !on || sourceStale || frozen) return function () { return false; };
+        var target=view,doc=view.state.doc,selection=view.state.selection,ticket=loading;
+        return function () { return view===target && on && !sourceStale && !frozen && loading===ticket && view.state.doc===doc && view.state.selection.eq(selection); };
+      },
       // Changes on the page not yet in the Editor's text.
       pending: function () { return dirty || !!syncing; },
       formatSelection: function (name) {
@@ -1753,6 +1847,9 @@ var schemaCache = null;
       run: run,
       insertMarkdown: insertMarkdown,
       insertInline: insertInline,
+      /* A shortcode from the Insert menu: an inline one at the cursor, and
+         any other as blocks where a new block goes. */
+      insertShortcode: function (kind, src) { return kind === 'inline' ? insertInline(src) : insertMarkdown(src); },
       wrap: wrap,
       /* The page's blocks the selection touches, as a document of their
          own for markdownOf, or null with nothing selected: what a chat

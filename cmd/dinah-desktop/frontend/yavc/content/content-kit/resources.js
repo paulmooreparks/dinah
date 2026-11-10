@@ -2,7 +2,7 @@
 /* Versioned host extension; see docs/content-resource-contract.md. */
 (function (global) {
     'use strict';
-    var MAX_TEXT = 4 * 1024 * 1024;
+    var MAX_TEXT = 10 * 1024 * 1024;
     function token(value, name) {
         if (typeof value !== 'string' || !value.length || value.length > 4096) throw new TypeError('Invalid resource ' + name + '.');
         return value;

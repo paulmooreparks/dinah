@@ -1,9 +1,9 @@
 {
   "id": "yavc.editor",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "apiVersion": 1,
   "title": "Editor",
-  "description": "Text and source editing. Document formatting actions return migration guidance to yavc.docs.",
+  "description": "Text and source editing with editable Markdown Visual and Split views.",
   "actions": [
     {
       "ref": "yavc.editor/page-setup@1",
@@ -270,7 +270,7 @@
     {
       "ref": "yavc.editor/table@1",
       "title": "Edit Selected Table",
-      "description": "This action moved to yavc.docs/table@1. Editor returns migration guidance without changing content.",
+      "description": "Apply a table operation at the current rich selection in Visual or Split view. Alignment changes every cell in the selected columns.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -316,7 +316,7 @@
     {
       "ref": "yavc.editor/format@1",
       "title": "Format Selection",
-      "description": "This action moved to yavc.docs/format@1. Editor returns migration guidance without changing content.",
+      "description": "Apply formatting at the current text or rich selection. Quote toggles a block quote while preserving nested content.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -369,7 +369,7 @@
     {
       "ref": "yavc.editor/define@1",
       "title": "Read Custom Shortcode Definitions",
-      "description": "This action moved to yavc.docs/define@1. Editor returns migration guidance without changing content.",
+      "description": "Read this document's validated custom shortcode definitions, shared definitions, parameter metadata, source ranges and problems. Ranges use UTF-16 positions in the corresponding source.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -574,7 +574,7 @@
     {
       "ref": "yavc.editor/open-file@1",
       "title": "Open a File",
-      "description": "Open one of the person's files (~/Ã¢â‚¬Â¦) or a page of the site in the Editor, and make it current. A file already open comes to the front.",
+      "description": "Open one of the person's files or a page of the site in Editor, and make it current. A file already open comes to the front.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -1114,7 +1114,7 @@
     {
       "ref": "yavc.editor/typography@1",
       "title": "Set Document Typography",
-      "description": "This action moved to yavc.docs/typography@1. Editor returns migration guidance without changing content.",
+      "description": "Change the current document settings as one undoable source edit.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -1161,7 +1161,9 @@
       "outputSchema": {
         "type": "object"
       },
-      "capabilities": [],
+      "capabilities": [
+        "files.write"
+      ],
       "replay": "once"
     },
     {

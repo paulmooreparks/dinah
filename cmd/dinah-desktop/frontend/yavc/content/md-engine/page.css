@@ -61,6 +61,8 @@
 .doc-page .doc-block, .doc-page .dinah-block { position: relative; margin: 0; padding: 0; scroll-margin-top: var(--space-6); }
 .doc-page .dinah-diagram-placeholder { margin: 8px 0; padding: 12px; border: 1px dashed var(--dinah-content-border); border-radius: 3px; color: var(--dinah-muted-ink); text-align: center; }
 .doc-page .dinah-diagram-placeholder.ed-diagram { border: 0; padding: 0; text-align: start; }
+.doc-page .doc-print-diagram { text-align: center; }
+.doc-page .doc-print-diagram svg { max-width: 100%; height: auto; }
 .doc-page .dinah-diagram-placeholder.ed-diagram svg { max-width: 100%; height: auto; }
 /* A diagram is an image (apps/diagram-kit/d2.js), centred and never wider
    than the page. A fault is the site's notice above it or above its
@@ -97,6 +99,7 @@
 .page-slash { max-height: 50vh; overflow-y: auto; }
 .page-slash .menu-action[aria-selected="true"] { background: var(--surface-alt); }
 .page-source { display: block; width: 100%; min-height: 3em; font: var(--text-sm)/1.5 var(--mono); resize: none; overflow: hidden; }
+.doc-page .page-source { color: var(--doc-ink); background: var(--doc-code); caret-color: var(--doc-ink); border-color: var(--doc-rule); }
 
 /* === Shortcodes on the page (internal/shortcodes, from parkscomputing.com) ===
    Notices and status badges are PUDL's own; these place them on the page
@@ -108,6 +111,7 @@
 .doc-page .sc-figure figcaption { margin-top: var(--space-2); color: var(--dinah-muted-ink); font-size: var(--text-xs); }
 .doc-page .sc-expand { margin: 0 0 1.1em; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-4); }
 .doc-page .sc-expand > summary { margin: var(--space-2) 0; list-style: none; }
+.doc-page .sc-expand-print-title { font-weight: 600; }
 .doc-page .sc-expand > summary::-webkit-details-marker { display: none; }
 .doc-page .sc-expand[open] > summary { margin-bottom: var(--space-3); }
 .doc-page .sc-toc { margin: 0 0 1.1em; padding: var(--space-3) var(--space-4); border-inline-start: 3px solid var(--border); }
@@ -124,6 +128,13 @@
 .doc-page :is(.sc-draft-note-label + *, .sc-expand > summary + *, .sc-column > :first-child, .sc-notice .notice-body > :first-child) { margin-top: 0; }
 .doc-page [data-applet] { margin: 0.6em 0 1.1em; }
 .doc-page .sc-problem { color: var(--danger); text-decoration: wavy underline var(--danger); cursor: help; }
+/* A shortcode the host application draws (internal/shortcodes/host.go,
+   apps/md-editor/kit.js fillHosts). Until its drawing arrives, and where
+   the host draws none, an inline or block shortcode shows as it is written
+   and a container or span shows its body with nothing around it. */
+.doc-page .sc-host-source { color: var(--doc-muted); }
+.doc-page div.sc-host > .sc-host-source { display: block; margin: 0.6em 0; }
+.doc-page .sc-host.sc-host-failed > .sc-host-source { text-decoration: underline dotted var(--doc-muted); }
 
 /* What a document says that Markdown cannot (docs/docs-design.md, decision
    3): highlighted, raised and lowered words, a page break and a caption. */

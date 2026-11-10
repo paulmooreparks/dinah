@@ -1,6 +1,6 @@
 {
   "id": "yavc.docs",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": 1,
   "title": "Docs",
   "description": "Markdown document authoring, source access and page layout.",
@@ -1226,7 +1226,9 @@
       "outputSchema": {
         "type": "object"
       },
-      "capabilities": [],
+      "capabilities": [
+        "files.write"
+      ],
       "replay": "once"
     },
     {

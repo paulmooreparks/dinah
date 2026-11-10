@@ -88,12 +88,12 @@
         function loadSiteFs() { return hostServices.browser ? hostServices.browser().then(function (x) { return x.F; }) : Promise.resolve(null); }
         function loadBrowser() { return hostServices.browser ? hostServices.browser().then(function (x) { return x.FB; }) : Promise.resolve(null); }
         function loadConfig() { return Promise.resolve((window.pudlHost || {}).config || null); }
-    var SETTINGS = { wrap: true, explorer: null, explorerWidth: null, outline: null, outlineWidth: null, keys: null, markdownView: isDocs ? 'visual' : 'text', documentView: 'document', documentZoom: '100', navigation: 'files' };
-    var MARKDOWN_VIEWS = isDocs ? [['document', 'Document'], ['visual', 'Visual'], ['text', 'Text'], ['split', 'Split'], ['preview', 'Preview']] : [['text', 'Text'], ['split', 'Split'], ['preview', 'Preview']];
+    var SETTINGS = { wrap: true, explorer: null, explorerWidth: null, outline: null, outlineWidth: null, keys: null, markdownView: 'visual', documentView: 'document', documentZoom: '100', navigation: 'files' };
+    var MARKDOWN_VIEWS = (isDocs ? [['document', 'Document']] : []).concat([['visual', 'Visual'], ['text', 'Text'], ['split', 'Split'], ['preview', 'Preview']]);
     function supportsView(tab, mode) { return !!tab && (mode === 'text' || (tab.lang === 'markdown' && MARKDOWN_VIEWS.some(function (entry) { return entry[0] === mode; }))); }
     function resolvedView(tab, preferred) {
         if (supportsView(tab, preferred)) { return preferred; }
-        return (isDocs ? ['document', 'visual', 'text'] : ['text']).find(function (mode) { return supportsView(tab, mode); }) || 'text';
+        return (isDocs ? ['document', 'visual', 'text'] : ['visual', 'text']).find(function (mode) { return supportsView(tab, mode); }) || 'text';
     }
 
         var n = ++uid;
@@ -189,7 +189,7 @@
             if (current() === t) { view.dispatch({ effects: effects }); if (!preserveRich && viewMode !== 'text') return setView(viewMode); }
             else t.state = t.state.update({ effects: effects }).state;
         }
-        var wrapComp = null, langComp = null, lintComp = null, roComp = null, keyComp = null, lspComp = null, lsp = null;
+        var wrapComp = null, longLineField = null, wrapQueued = false, langComp = null, lintComp = null, roComp = null, keyComp = null, lspComp = null, lsp = null;
         var startFile = fileFrom(opts.state) || (opts.ownsUrl ? fileFrom(location.search) : null);
         var startLine = Number(new URLSearchParams(opts.state || (opts.ownsUrl ? location.search : '')).get('line')) || 1;
 
@@ -358,10 +358,17 @@
         function languageAssistance(tab) {
             return lsp && ['json','css','html'].indexOf(tab.lang) >= 0 ? lsp.extension(/\.canvas$/i.test(tab.path || tab.name) ? 'canvas' : tab.lang, !!tab.readOnly) : [];
         }
+        var WRAP_LINE_LIMIT=65536;
+        function rawLongLine(text){var count=0;for(var i=0;i<text.length;i++){if(text[i]==='\r'||text[i]==='\n')count=0;else if(++count>WRAP_LINE_LIMIT)return true;}return false;}
+        function docLongLine(doc){var lines=doc.iterLines();while(!lines.next().done)if(lines.value.length>WRAP_LINE_LIMIT)return true;return false;}
+        function longLinesActive(){return !!(view&&longLineField&&view.state.field(longLineField,false));}
+        function refreshWrap(){
+            if(wrapQueued)return;wrapQueued=true;Promise.resolve().then(function(){wrapQueued=false;if(destroyed||!view)return;view.dispatch({effects:wrapComp.reconfigure(wrapOn&&!longLinesActive()?CM.EditorView.lineWrapping:[])});commandsChanged();});
+        }
         function extensionsFor(tab,raw) {
             return [
                     CM.lineNumbers(), CM.highlightActiveLineGutter(), CM.highlightSpecialChars(),
-                    sourceHistory.extension(raw), CM.drawSelection(), CM.dropCursor(), CM.indentOnInput(),
+                    sourceHistory.extension(raw), longLineField, CM.drawSelection(), CM.dropCursor(), CM.indentOnInput(),
                     hostSuggestions?hostSuggestions.extension:[],
                     CM.bracketMatching(), CM.closeBrackets(), CM.rectangularSelection(), CM.crosshairCursor(),
                     CM.highlightActiveLine(), CM.highlightSelectionMatches(),
@@ -374,7 +381,7 @@
                         [{key:'Mod-z',run:function(v){return sourceHistory.run('undo',v);}},{key:'Mod-y',run:function(v){return sourceHistory.run('redo',v);}},{key:'Mod-Shift-z',run:function(v){return sourceHistory.run('redo',v);}}],CM.closeBracketsKeymap, CM.defaultKeymap, CM.searchKeymap, CM.lintKeymap, [CM.indentWithTab])),
                     window.yavcMdEditor.codeSearch(CM, keepQuery),
                     makeTheme(CM),
-                    wrapComp.of(wrapOn ? CM.EditorView.lineWrapping : []),
+                    wrapComp.of(wrapOn&&!rawLongLine(raw) ? CM.EditorView.lineWrapping : []),
                     langComp.of(langExtension(tab.lang)),
                     lintComp.of(lintExtension(tab)),
                     lspComp.of(languageAssistance(tab)),
@@ -382,6 +389,7 @@
                     CM.EditorState.transactionFilter.of(function (tr) { return tr.docChanged && tab.readOnly ? [] : tr; }),
                     CM.EditorView.contentAttributes.of({ 'aria-label': 'Text of ' + tab.name }),
                     CM.EditorView.updateListener.of(function (u) {
+                        if(u.docChanged&&u.startState.field(longLineField)!==u.state.field(longLineField))refreshWrap();
                         if(hostSuggestions&&tabs[active]===tab)hostSuggestions.update(u);
                         if (u.docChanged && tabs[active] === tab) { markModified(tab); scheduleStyles(); scheduleOutline(); }
                         /* In Split, the page follows the text. */
@@ -1134,10 +1142,10 @@
            kept with the settings when the reader changes it. */
         /* A saved preference overrides capability defaults. Document files
            and the Docs host share the document-view preference. */
-        function viewKey() { var t = current(); return t && /\.docs\.md$/i.test(t.path || t.name || '') ? 'documentView' : 'markdownView'; }
-        function initialMode(tab, proposed) {var key=/\.docs\.md$/i.test(tab.name)?'documentView':'markdownView';return supportsView(tab,storedSettings[key]) ? null : proposed;}
+        function viewKey() { var t = current(); return isDocs && t && /\.docs\.md$/i.test(t.path || t.name || '') ? 'documentView' : 'markdownView'; }
+        function initialMode(tab, proposed) {var key=isDocs && /\.docs\.md$/i.test(tab.name)?'documentView':'markdownView';return supportsView(tab,storedSettings[key]) ? null : proposed;}
         function markdownDefault() {
-            return MARKDOWN_VIEWS.some(function (v) { return v[0] === settings[viewKey()]; }) ? settings[viewKey()] : (isDocs ? 'document' : 'text');
+            return MARKDOWN_VIEWS.some(function (v) { return v[0] === settings[viewKey()]; }) ? settings[viewKey()] : 'visual';
         }
         function setMarkdownDefault(v) {
             var change = {};
@@ -1146,8 +1154,9 @@
             commandsChanged();
         }
         function setWrap(on, keepIt) {
+            if(keepIt&&longLinesActive()){say('Line wrapping is unavailable while a line exceeds 65,536 characters.',true);return;}
             wrapOn = !!on;
-            if (view) { view.dispatch({ effects: wrapComp.reconfigure(wrapOn ? CM.EditorView.lineWrapping : []) }); }
+            if (view) { view.dispatch({ effects: wrapComp.reconfigure(wrapOn&&!longLinesActive() ? CM.EditorView.lineWrapping : []) }); }
             if (keepIt) { saveSetting({ wrap: wrapOn }); }
             commandsChanged();
         }
@@ -1184,7 +1193,7 @@
             if (!/^(width|page)$/.test(String(value)) && (!Number.isFinite(Number(value)) || Number(value) < 25 || Number(value) > 400)) { throw new Error('Zoom must be 25 to 400 percent, Fit Width or Fit Page.'); }
             documentZoom = String(value); saveSetting({ documentZoom: documentZoom }); applyDocumentZoom(); commandsChanged();
         }
-        function readsAsPreview() { var t = current(); return viewMode === 'preview' || (!isDocs && viewMode !== 'text') || !!(t && t.readOnly && viewMode !== 'text'); }
+        function readsAsPreview() { var t = current(); return viewMode === 'preview' || !!(t && t.readOnly && viewMode !== 'text'); }
         function pagedView(mode) { return mode === 'document'; }
         function pageLayout(layout) {
             el.pages.textContent = layout.count + (layout.count === 1 ? ' page' : ' pages');
@@ -1312,11 +1321,60 @@
         function mdEngine() {
             return loadScript(window.yavcUtil.versioned(new URL('../md-engine/loader.js', SELF_SRC).href)).then(function () { return window.yavcMdEngine(); });
         }
+        /* The shortcodes the host application draws
+           (docs/content-workspace-contract.md, shortcodes and shortcodeHost).
+           The host is asked for them once for the window. The document's
+           engine reads them and writes a placeholder where one is, and the
+           kit asks the host for each drawing (apps/md-editor/kit.js). A
+           document drawn before the host has said waits a little for it,
+           and is drawn again if the host says later. */
+        var hostEntries = null, hostAsked = null, hostSettled = false, hostLate = false, hostedBase = null, hostedEngine = null, hostFills = new Map();
+        function hostDraws() { var s = hostServices.shortcodeHost; return !!(s && s.version === 1 && typeof s.render === 'function'); }
+        function hostShortcodes() {
+            if (!hostAsked) {
+                hostAsked = Promise.resolve().then(function () {
+                    if (destroyed || typeof hostServices.shortcodes !== 'function') { return null; }
+                    return hostServices.shortcodes({ signal: styleLifetime.signal, current: function () { return !destroyed; } });
+                }).then(function (body) {
+                    var list = body && Array.isArray(body.shortcodes) ? shortcodeCatalog([], body.shortcodes) : null;
+                    hostSettled = true;
+                    if (!destroyed && list && list.length && hostDraws()) { hostEntries = list; if (hostLate) { hostsArrived(); } }
+                    return list;
+                }, function () { hostSettled = true; return null; });
+            }
+            return hostAsked;
+        }
+        function hostsReady() {
+            if (hostSettled || hostLate || typeof hostServices.shortcodes !== 'function' || !hostDraws()) { return Promise.resolve(); }
+            return new Promise(function (resolve) {
+                var timer = setTimeout(function () { hostLate = true; resolve(); }, 3000);
+                hostShortcodes().then(function () { clearTimeout(timer); resolve(); });
+            });
+        }
+        /* The engine with the host's shortcodes, where the host has any. */
+        function hosted(m) {
+            if (!hostEntries || typeof m.withHosts !== 'function') { return m; }
+            if (hostedBase !== m) { hostedBase = m; hostedEngine = m.withHosts(hostEntries); }
+            return hostedEngine;
+        }
+        function hostsArrived() {
+            if (destroyed || !view) { return; }
+            macroCache = null;
+            if (pageActive()) { visual.api.textChanged(true); }
+            if (readsAsPreview()) { schedulePreview(); }
+            if (!pageActive() && !readsAsPreview() && macroContext) { documentEngine().catch(function () {}); }
+        }
+        /* What the engine made, once the drawings of the host's shortcodes
+           in it are kept, so the page draws each in place as it builds. */
+        function withHostDrawings(value) {
+            return hostEntries && window.yavcMdEditor && window.yavcMdEditor.prefillHosts ? window.yavcMdEditor.prefillHosts(value, picturesHost()) : value;
+        }
         var macroContext = null, macroOwner = null, sharedMacros = '', macroRevision = 0;
         async function documentEngine(definitions) {
             var t = current(), source = definitions == null ? view ? view.state.doc.toString() : '' : definitions, host = picturesHost(), directory = host.dir(), revision = ++macroRevision;
             host.dir = function () { return directory; };
-            var m = await mdEngine(), K = await loadKit(), M = await K.macros(), prepared = await M.prepare(m, source, host);
+            await hostsReady();
+            var m = hosted(await mdEngine()), K = await loadKit(), M = await K.macros(), prepared = await M.prepare(m, source, host);
             if (!destroyed && revision === macroRevision && current() === t && view.state.doc.toString() === source) { macroContext = prepared.engine; macroOwner = t; sharedMacros = prepared.shared; }
             return revision === macroRevision ? prepared.engine : m.withMacros(source, macroOwner === t ? sharedMacros : '');
         }
@@ -1393,15 +1451,37 @@
                 /* The / menu on the page offers the Insert menu's shortcodes. */
                 inserts: function () {
                     var extra = [];
-                    if (F && F.mounted && shortcodes) {
-                        shortcodes.filter(function (s) { return !s.builtin && s.name !== 'column' && !SHORTCODES.some(function (i) { return i.name === s.name; }); }).forEach(function (s) {
-                            extra.push({ id: 'insert-' + s.name, label: s.title, words: s.name + ' ' + s.title.toLowerCase(), markdown: s.example });
+                    if (shortcodes && (F && F.mounted || hostEntries)) {
+                        shortcodes.filter(function (s) { return !s.builtin && !s.managed && s.name !== 'column' && !SHORTCODES.some(function (i) { return i.name === s.name; }); }).forEach(function (s) {
+                            var item = { id: 'insert-' + s.name, label: s.title, words: s.name + ' ' + s.title.toLowerCase(), markdown: s.example };
+                            /* The host's own shortcode is asked for with the host's form. */
+                            if (hostEntries) { item.run = function () { return insertShortcode(s.name); }; }
+                            extra.push(item);
                         });
                     }
                     return window.yavcMdEditor ? window.yavcMdEditor.inserts(extra, picturesHost) : [];
                 },
                 /* A picture pressed on the page opens the picture dialog. */
                 editBlock: function (src) { return window.yavcMdEditor.editBlock(src, picturesHost()); },
+                /* Shortcodes the host application draws: a drawing put into
+                   its placeholder, a span's drawing for the page to put the
+                   words in, a shortcode's title, and a host's inline
+                   shortcode that has just been typed. */
+                fill: function (target, cachedOnly) { window.yavcMdEditor.fillHosts(target, picturesHost(), cachedOnly); },
+                hostSpan: function (name, open) { return window.yavcMdEditor.hostSpan(name, open, picturesHost()); },
+                editHostSpan: function (name, open) { return window.yavcMdEditor.editHostSpan(name, open, picturesHost()); },
+                hostTitle: function (name) {
+                    var s = (hostEntries || []).find(function (x) { return x.name === name; });
+                    return s && typeof s.title === 'string' && s.title.trim() && s.title.length <= 256 ? s.title : '';
+                },
+                hostInline: function (src) {
+                    if (!hostEntries) { return Promise.resolve(null); }
+                    return Promise.resolve(currentMacroEngine() || documentEngine()).then(function (m) {
+                        var out = m.inline(src);
+                        if (!out || !window.yavcMdEditor.hostInlineOnly(out.html)) { return null; }
+                        return withHostDrawings(out);
+                    }).catch(function () { return null; });
+                },
                 review:function(raw){reviewTools().then(function(controller){return controller.browse(raw);}).catch(function(err){say(err.message,true);});},
                 hostSuggestionWidget:hostSuggestions?function(item){return hostSuggestions.widget(item,true);}:null,
                 root: root, page: el.page, scroll: el.scroll,
@@ -1411,12 +1491,12 @@
                 customName: function (name) { return customShortcodes().some(function (item) { return item.name === name; }); },
                 text: function () { return view.state.doc.toString(); },
                 setText: takeVisualText,
-                docOf: function (text) { return documentEngine(text).then(function (m) { return m.doc(text); }); },
+                docOf: function (text) { return documentEngine(text).then(function (m) { return withHostDrawings(m.doc(text)); }); },
                 markdownOf: function (doc) { return mdEngine().then(function (m) { return m.markdown(doc); }); },
-                sourceOf: function (src) { return documentEngine().then(function (m) { return m.source(src); }); },
-                wrapOf: function (line) { return documentEngine().then(function (m) { return m.container(line); }); },
-                inlineOf: function (src) { return documentEngine().then(function (m) { return m.inline(src); }); },
-                blocksOf: function (text) { return documentEngine().then(function (m) { return m.blocks(text); }); },
+                sourceOf: function (src) { return documentEngine().then(function (m) { return withHostDrawings(m.source(src)); }); },
+                wrapOf: function (line) { return documentEngine().then(function (m) { return withHostDrawings(m.container(line)); }); },
+                inlineOf: function (src) { return documentEngine().then(function (m) { return withHostDrawings(m.inline(src)); }); },
+                blocksOf: function (text) { return documentEngine().then(function (m) { return withHostDrawings(m.blocks(text)); }); },
                 draw: function (target, html, diagrams) { drawBlocks(target, [{ line: 0, html: html, diagrams: diagrams }]); },
                 keys: pageKeys,
                 say: say,
@@ -1564,7 +1644,14 @@
         async function drawPreview() {
             var gen = visual.gen, t = current(), source = view.state.doc.toString(), m = await documentEngine(source);
             if (gen !== visual.gen || !view || !readsAsPreview() || current() !== t || view.state.doc.toString() !== source) { return; }
-            var p = m.preview(source), top = el.scroll.scrollTop;
+            var p = m.preview(source);
+            if (hostEntries) {
+                /* The host's drawings are kept before the preview is drawn,
+                   so each is in place when the preview first shows. */
+                await withHostDrawings(p);
+                if (gen !== visual.gen || !view || !readsAsPreview() || current() !== t || view.state.doc.toString() !== source) { return; }
+            }
+            var top = el.scroll.scrollTop;
             if (pagedView(viewMode)) {
                 var flow = el.page.querySelector(':scope > .doc-page-flow');
                 if (!flow) { el.page.replaceChildren(); flow = document.createElement('div'); flow.className = 'doc-page-flow'; el.page.append(flow); }
@@ -1592,7 +1679,7 @@
                 styleScope: function () { return el.page.getAttribute('data-md-style') || ''; },
                 page: function () { return visual.api; }, text: function () { return view; },
                 onPage: function () { return formatsThePage(); },
-                readOnly: function () { var t = current(); return !isDocs || !t || !!t.readOnly; },
+                readOnly: function () { var t = current(); return !t || t.lang !== 'markdown' || !!t.readOnly; },
                 blockStyle: blockStyle, classes: function () { return documentStyles ? documentStyles.state().classes : []; }, say: say, pictures: picturesHost
             };
         }
@@ -1627,11 +1714,12 @@
         function picturesHost() {
             var owner=current(),resource=owner&&owner.path;
             return {
-                resources:hostServices.resources,resource:resource,
+                resources:hostServices.resources,resource:resource,owner:owner,
                 current:function(){return !destroyed&&!!owner&&current()===owner&&owner.path===resource;},
                 site: function () { return Promise.resolve({ F: F, FB: FB }); },
                 root: root, say: say,
                 macroContext: currentMacroEngine,
+                shortcodeHost: hostServices.shortcodeHost, hostFills: hostFills, hostCatalog: hostEntries,
                 read: function (path) { if(!H.fs || !H.fs.readText)throw new Error('This host cannot read dependencies.');return H.fs.readText(path); },
                 watch: H.fs && H.fs.onChange ? function(fn){return H.fs.onChange(fn);} : null,
                 signal: styleLifetime.signal, identity: current, text: function () { return view ? view.state.doc.toString() : ''; },
@@ -1743,7 +1831,6 @@
         function showFormat(mode) {
             var t = current();
             var on = !!(mode === 'visual' || mode === 'split' || (t && t.lang === 'markdown' && !t.readOnly));
-            on = isDocs && on;
             if (on !== formatOffered) { formatOffered = on; commandsChanged(); if (window.pudlMenubar) { window.pudlMenubar.refresh(); } }
         }
         /* The formatting goes to the page in Visual, to the text in Text and
@@ -1782,7 +1869,7 @@
                 var params=Array.isArray(s.params)?s.params.slice(0,32).filter(function(p){return p&&typeof p.name==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(p.name)&&typeof p.description==='string'&&p.description.length<=2048;}).map(function(p){return {name:p.name,description:p.description,required:p.required===true};}):[];
                 if(typeof s.example==='string'&&s.example.length>4096)return;
                 var example=typeof s.example==='string'?s.example:'',size=s.name.length+s.title.length+s.description.length+example.length+params.reduce(function(n,p){return n+p.name.length+p.description.length;},0);if(units+size>128*1024)return;units+=size;
-                found.set(s.name,{name:s.name,title:s.title,description:s.description,kind:s.kind,params:params,example:example,argumentRequired:s.argumentRequired===true,builtin:origin===0});
+                found.set(s.name,{name:s.name,title:s.title,description:s.description,kind:s.kind,params:params,example:example,argumentRequired:s.argumentRequired===true,builtin:origin===0,managed:origin===1&&s.managed===true,prefix:origin===1&&s.kind==='inline'&&typeof s.prefix==='string'&&/^[@#~!$%&+=?^]$/.test(s.prefix)?s.prefix:''});
             });});return Array.from(found.values());
         }
         function loadShortcodes() {
@@ -1791,7 +1878,7 @@
                 shortcodesLoading = mdEngine().then(function(m){
                     if(destroyed)return [];
                     var builtin=m.shortcodes().shortcodes;shortcodes=shortcodeCatalog(builtin,[]);
-                    if(hostServices.shortcodes)Promise.resolve().then(function(){if(destroyed)return null;return hostServices.shortcodes({signal:styleLifetime.signal,current:function(){return !destroyed;}});}).then(function(body){if(!destroyed){shortcodes=shortcodeCatalog(builtin,body&&body.shortcodes);commandsChanged();}}).catch(function(){});
+                    if(hostServices.shortcodes)hostShortcodes().then(function(list){if(!destroyed){shortcodes=shortcodeCatalog(builtin,list);commandsChanged();}}).catch(function(){});
                     return shortcodes;
                 }).catch(function(){shortcodesLoading=null;return [];});
             }
@@ -1807,8 +1894,8 @@
             items.push('-');
             SHORTCODES.forEach(function (i) { items.push({ id: i.id, label: i.label, run: function () { insertBlock(i); } }); });
             if (custom.length) { items.push('-'); custom.forEach(function (s) { items.push({ id: 'insert-custom-' + s.name, label: s.name, run: function () { insertCustom(s.name); } }); }); }
-            if (F && F.mounted && shortcodes) {
-                var extra=shortcodes.filter(function (s) { return !s.builtin && s.name !== 'column'; }).sort(function (a, b) {
+            if (shortcodes && (F && F.mounted || hostEntries)) {
+                var extra=shortcodes.filter(function (s) { return !s.builtin && !s.managed && s.name !== 'column'; }).sort(function (a, b) {
                     return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
                 });if(extra.length)items.push('-');extra.forEach(function (s) {
                     items.push({ id: 'insert-' + s.name, label: s.title, run: function () { insertShortcode(s.name); } });
@@ -1825,17 +1912,22 @@
             if (formatsThePage()) { visual.api.insertShortcode(metadata.kind, src); }
             else { insertText(metadata.kind === 'inline' ? src : '\n' + src + '\n'); }
         }
-        function insertShortcode(name) {
+        async function insertShortcode(name) {
             var s = (shortcodes || []).find(function (x) { return x.name === name; });
             if (!s) { return; }
+            var owner=current(),onPage=formatsThePage(),api=visual.api;
+            if(onPage && !await api.prepareEdit()) return;
+            if(destroyed||current()!==owner||onPage!==formatsThePage())return;
+            var doc=view.state.doc,selection=view.state.selection,stable=onPage?api.insertionTarget():function(){return view.state.doc===doc&&view.state.selection.eq(selection);};
             /* A figure is asked for as a form; the rest go in as their
                examples, into the page or into the text. */
-            var asked = s.name === 'figure' ? window.yavcMdEditor.askFigure(null, picturesHost()) : Promise.resolve(s.example);
-            asked.then(function (src) {
-                if (!src) { return; }
-                if (formatsThePage()) { visual.api.insertShortcode(s.name === 'figure' ? 'block' : s.kind === 'span' ? 'inline' : s.kind, src); }
-                else { insertText(s.kind === 'inline' || s.kind === 'span' ? src : '\n' + src + '\n'); }
-            });
+            var asked = s.name === 'figure' ? window.yavcMdEditor.askFigure(null, picturesHost())
+                : !s.builtin && hostEntries && window.yavcMdEditor && window.yavcMdEditor.askHostInsert ? window.yavcMdEditor.askHostInsert(s.example, picturesHost())
+                : Promise.resolve(s.example);
+            var src=await asked;
+            if (!src || destroyed || current()!==owner || onPage!==formatsThePage() || !stable()) { return; }
+            if (onPage) { return api.insertShortcode(s.name === 'figure' ? 'block' : s.kind, src); }
+            return insertText(s.kind === 'inline' || s.kind === 'span' ? src : '\n' + src + '\n');
         }
 
         /* === Changes made elsewhere ======================================= */
@@ -1860,7 +1952,8 @@
                     F.read(r).then(function (text) { t.mtime = +r.mtime; takeOutside(t, tabs.indexOf(t), text); renderTabs(); }).catch(function () { });
                     return;
                 }
-                takeOutside(t, i, F.readHome(r));
+                var revision=r.revision;
+                F.read(r).then(function(text){var current=F.resolve(F.home(),t.path);if(tabs.indexOf(t)<0||!current||current.revision!==revision)return;takeOutside(t,tabs.indexOf(t),text);renderTabs();}).catch(function(){});
             });
             renderTabs();
         }
@@ -1904,7 +1997,7 @@
             var f = fileFrom(s);
             if (!f || !CM) { return; }
             var ticket=++stateRequest,params=new URLSearchParams(s || ''),existed=tabs.some(function (t) {return t.path===f;});function currentRequest(){return !destroyed && ticket===stateRequest;}
-            return openPath(f,false,currentRequest,params.get('view')).then(async function (opened) {if(!currentRequest())return;if (!opened) {if(F && !F.resolve(F.home(), f))await newNamed(f);else return;} var requested=params.get('view') || (!existed && initialMode(current(),params.get('initial-view')));if(requested){if(!supportsView(current(),requested))throw new Error('This view is unavailable here. Open the saved document in Docs for visual editing.');await setView(requested);}if(currentRequest())await restoreLine(Number(new URLSearchParams(s || '').get('line')) || 1); }).catch(function (err) {if(currentRequest())say(err.message,true);});
+            return openPath(f,false,currentRequest,params.get('view')).then(async function (opened) {if(!currentRequest())return;if (!opened) {if(F && !F.resolve(F.home(), f))await newNamed(f);else return;} var requested=params.get('view') || (!existed && initialMode(current(),params.get('initial-view')));if(requested){if(!supportsView(current(),requested))throw new Error('This view is unavailable for this file. Choose a supported view from the toolbar.');await setView(requested);}if(currentRequest())await restoreLine(Number(new URLSearchParams(s || '').get('line')) || 1); }).catch(function (err) {if(currentRequest())say(err.message,true);});
         }
         async function restoreLine(number) {
             var tab = current(); if (!view || !tab) { return; }
@@ -2098,7 +2191,7 @@
             var back = [], all = (kept.waiting || []).concat(kept.tabs), frontTab = null;
             restoring = true;
             try { frontTab = await reopen(all, back, kept.tabs[kept.front] || null); } finally { restoring = false; }
-            if (!isDocs && all.some(function (k) {return k && /^(document|visual)$/.test(k.view);})) back.push('legacy document source (open saved documents in Docs for visual editing)');
+            if (!isDocs && all.some(function (k) {return k && k.view === 'document';})) back.push('legacy page layout (open saved documents in Docs for Document view)');
             if (frontTab) { var fi = tabs.indexOf(frontTab); if (fi >= 0) { await activate(fi); } }
             var msg = back.length ? 'Your unsaved changes to ' + back.join(', ') + ' are back.' : '';
             if(all.some(function(k){return k&&k.history&&!k.sourceHistory;}))msg+=(msg?' ':'')+'The source and selection were restored. The previous editing history cannot be migrated.';
@@ -2427,7 +2520,7 @@
                 cmd('json-format', 'Format Source', 'code', function () { if (lsp) { lsp.format(view); } }, { shortcut: 'Shift+Alt+F', hidden: function () { return isDocs || !tab || ['json','css','html'].indexOf(tab.lang) < 0; }, disabled: function () { return !editable || !lsp; } }),
                 cmd('language-restart', 'Restart Language Assistance', 'reload', function () { if (lsp) { lsp.restart(); view.dispatch({ effects: lspComp.reconfigure(languageAssistance(current())) }); } }, { hidden: function () { return isDocs || !tab || ['json','css','html'].indexOf(tab.lang) < 0; }, disabled: function () { return !ready || !lsp; } }),
                 cmd('go-to-line', 'Go to Line…', null, goToLine, { builtIn: 'Mod-Alt-g' }),
-                cmd('toggle-wrap', 'Wrap Lines', 'yavc-wrap', function () { setWrap(!wrapOn, true); }, { checked: function () { return wrapOn; } }),
+                cmd('toggle-wrap', 'Wrap Lines', 'yavc-wrap', function () { setWrap(!wrapOn, true); }, { checked: function () { return wrapOn&&!longLinesActive(); },disabled:function(){return !ready||longLinesActive();},reason:'Line wrapping is unavailable while a line exceeds 65,536 characters.' }),
                 cmd('insert-timestamp', 'Insert Date and Time', null, COMMANDS['insert-timestamp'], { disabled: function () { return !ready || !editable; } }),
                 cmd('insert-date', 'Insert Date', null, COMMANDS['insert-date'], { disabled: function () { return !ready || !editable; } }),
                 cmd('stamp-modified', 'Update Last-Modified', null, stampModified, { disabled: function () { return !ready || !editable; } }),
@@ -2469,8 +2562,8 @@
             table.push(cmd('properties', 'Properties…', 'tag', editProperties, {
                 hidden: function () { var t = current(); return !isDocs || !(t && t.lang === 'markdown'); },
                 disabled: function () { var t = current(); return !ready || !t || !!t.readOnly; } }));
-            var noPageLayout=function () {return unformatted() || viewMode!=='document';};
-            table.push(cmd('document-layout','Switch to Document View','document',function () {current().view='document';return setView('document');},{hidden:function () {return unformatted() || viewMode==='document';}}));
+            var noPageLayout=function () {return !isDocs || unformatted() || viewMode!=='document';};
+            table.push(cmd('document-layout','Switch to Document View','document',function () {current().view='document';return setView('document');},{hidden:function () {return !isDocs || unformatted() || viewMode==='document';}}));
             table.push(cmd('page-setup', 'Page Setup…', 'file', editPageSetup, { hidden: noPageLayout, disabled: noEdit }));
             table.push(cmd('header-footer', 'Header and Footer…', 'file', function () { return editDocumentOptions('furniture'); }, { hidden: noPageLayout, disabled: noEdit }));
             table.push(cmd('typography', 'Typography…', 'paragraph', function () { return editDocumentOptions('typography'); }, { hidden: unformatted, disabled: noEdit }));
@@ -2593,6 +2686,9 @@
             setupExplorer();
             setupExplorerSplit();
             wrapComp = new CM.Compartment(); langComp = new CM.Compartment(); lintComp = new CM.Compartment(); roComp = new CM.Compartment();
+            longLineField=CM.StateField.define({create:function(state){return docLongLine(state.doc);},update:function(value,tr){
+                if(!tr.docChanged)return value;var found=false;tr.changes.iterChangedRanges(function(a,b,from,to){for(var at=from;at<=to;){var line=tr.newDoc.lineAt(at);if(line.length>WRAP_LINE_LIMIT){found=true;break;}if(line.to>=to)break;at=line.to+1;}});return found||value&&docLongLine(tr.newDoc);
+            }});
             keyComp = new CM.Compartment();
             view = new CM.EditorView({ parent: el.surface });
             view.scrollDOM.addEventListener('scroll', keep, { passive: true });
@@ -2615,7 +2711,7 @@
             if (startFile && startLine > 1) { await setView(viewMode); await restoreLine(startLine); }
             var initialParams=new URLSearchParams(opts.state || (opts.ownsUrl ? location.search : ''));
             var requestedView = initialParams.get('view') || (!startExisted && current() && initialMode(current(),initialParams.get('initial-view')));
-            if(requestedView){if(supportsView(current(),requestedView))await setView(requestedView);else say('This view is unavailable here. Open the saved document in Docs for visual editing.',true);}
+            if(requestedView){if(supportsView(current(),requestedView))await setView(requestedView);else say('This view is unavailable for this file. Choose a supported view from the toolbar.',true);}
             /* The keyboard goes back where it was: into the text, unless the
                search panel had it, which opening it did. */
             if (snap && snap.focused) { if (!view.dom.contains(document.activeElement)) { view.focus(); } }
@@ -2722,6 +2818,7 @@
             },
             'format@1': async function (input) {
                 docNo(); if (current().readOnly) { throw new Error('The document is read-only.'); }
+                if (current().lang !== 'markdown') { throw new Error('Choose a Markdown document before applying document formatting.'); }
                 if (formatsThePage()) { if (!visual.api.run(input.op)) { throw new Error('This format is unavailable for the selection.'); } await visual.api.sync(); }
                 else { window.yavcMdEditor.textFormat(view, input.op, editCtx()); }
                 return { output: { formatted: true } };
@@ -2780,7 +2877,7 @@
                 return { output: { line: line } };
             }
         };
-        if (!isDocs) ['theme@1','new-template@1','page-setup@1','typography@1','header-footer@1','export@1','print@1','document-zoom@1','table@1','format@1','define@1'].forEach(function (id) {if(liveActions[id])liveActions[id]=async function () {throw new Error('This document action moved to yavc.docs/'+id+'. Open the saved document in Docs.');};});
+        if (!isDocs) ['new-template@1','page-setup@1','header-footer@1','export@1','document-zoom@1'].forEach(function (id) {if(liveActions[id])liveActions[id]=async function () {throw new Error('This document action moved to yavc.docs/'+id+'. Open the saved document in Docs.');};});
         Object.keys(liveActions).forEach(function (id) {var handler=liveActions[id];liveActions[id]=async function (input) {await boot;if(destroyed || startupFailed || !view)throw new Error('This workspace is no longer available.');return handler(input);};});
         if (documentWindows) unbindDocuments = documentWindows.bind(root, {
             application: app, resource: function () {return current() && current().path;},

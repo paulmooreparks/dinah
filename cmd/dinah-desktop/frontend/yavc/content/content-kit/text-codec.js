@@ -2,7 +2,7 @@
 /* Pure bounded Unicode codec; see docs/text-bytes-contract.md. */
 (function (global) {
     'use strict';
-    var MAX_BYTES = 8 * 1024 * 1024, MAX_TEXT = 4 * 1024 * 1024;
+    var MAX_BYTES = 100 * 1024 * 1024, MAX_TEXT = 100 * 1024 * 1024;
     function limit(value, fallback, ceiling) {
         if (value === undefined) return fallback;
         if (!Number.isSafeInteger(value) || value < 1 || value > ceiling) throw new TypeError('Invalid text size limit.');
@@ -27,7 +27,7 @@
     }
     function encode(text, encoding, options) {
         options = options || {};
-        var maxText = limit(options.maxText, MAX_TEXT, MAX_TEXT), maxBytes = limit(options.maxBytes, MAX_BYTES, MAX_BYTES);
+        var maxText = limit(options.maxText, 4*1024*1024, MAX_TEXT), maxBytes = limit(options.maxBytes, 8*1024*1024, MAX_BYTES);
         validText(text, maxText, false);
         var result;
         if (encoding === 'utf-8') {
@@ -49,7 +49,7 @@
     }
     function decode(input, options) {
         options = options || {};
-        var source = bytes(input), maxBytes = limit(options.maxBytes, MAX_BYTES, MAX_BYTES), maxText = limit(options.maxText, MAX_TEXT, MAX_TEXT);
+        var source = bytes(input), maxBytes = limit(options.maxBytes, 8*1024*1024, MAX_BYTES), maxText = limit(options.maxText, 4*1024*1024, MAX_TEXT);
         if (source.byteLength > maxBytes) throw new TypeError('The source exceeds the byte limit.');
         var encoding = 'utf-8', bom = false;
         // UTF-32 signatures overlap UTF-16LE and must never be guessed as UTF-16.

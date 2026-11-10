@@ -2,7 +2,7 @@
 /* Original revision baselines for host-owned recovery; no storage access. */
 (function (global) {
     'use strict';
-    var MAX_TEXT = 4 * 1024 * 1024, MAX_TOTAL = 8 * 1024 * 1024;
+    var MAX_TEXT = 10 * 1024 * 1024, MAX_TOTAL = 32 * 1024 * 1024;
     var formats=typeof module==='object'&&module.exports?require('./resources.js'):global.yavcContentResources;
     function token(value) {
         if (typeof value !== 'string' || !value || value.length > 4096) throw new Error('Invalid recovery resource token.');

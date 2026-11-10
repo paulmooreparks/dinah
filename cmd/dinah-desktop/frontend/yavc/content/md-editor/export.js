@@ -99,6 +99,27 @@
         if ((rendered.problems || []).length) { throw new Error('Fix the document warnings before exporting.'); }
         // The HTML cleaner uses an inert template, so omitted assets have not loaded.
         fragment.querySelectorAll('[data-export="omit"],.sc-draft-note').forEach(function (node) { node.remove(); });
+        if (fragment.querySelector('[data-host-shortcode]')) { throw new Error('This document contains host-rendered shortcodes. This host must provide their export representation before printing or Office export.'); }
+        // Browser printing includes every disclosure body without its controls.
+        // Office conversion retains its separate structural representation gate.
+        if (options.renderPages) {
+            Array.from(fragment.querySelectorAll('details.sc-expand')).reverse().forEach(function (details) {
+                var section = document.createElement('section'); section.className = 'sc-expand';
+                var summary = details.querySelector(':scope > summary');
+                if (summary) { var title = document.createElement('p'); title.className = 'sc-expand-print-title'; title.append.apply(title, Array.from(summary.childNodes)); summary.replaceWith(title); }
+                section.append.apply(section, Array.from(details.childNodes)); details.replaceWith(section);
+            });
+        }
+        var printDiagrams = [];
+        if (options.renderPages) {
+            rendered.blocks.forEach(function (block) { (block.diagrams || []).forEach(function (diagram) {
+                if (diagram.language !== 'mermaid') { return; }
+                var matches = fragment.querySelectorAll('[data-preview-diagram="' + CSS.escape(diagram.id) + '"]'); // check-ignore(one-shared-implementation): Validate export metadata before awaiting the shared Mermaid renderer; no local rendering implementation.
+                if (matches.length !== 1) { throw new Error('A print diagram has an ambiguous source reference.'); }
+                var place = matches[0]; place.classList.remove('dinah-diagram-placeholder'); place.classList.add('doc-print-diagram');
+                printDiagrams.push({ place: place, source: diagram.source });
+            }); });
+        }
         if (fragment.querySelector('.sc-problem,.sc-glyph,.dinah-diagram-placeholder,[data-diagram-src],[data-applet],iframe,video,audio,svg,canvas,math,details,code[data-code-src]')) { throw new Error('This document contains an invalid shortcode, diagram, glyph, embedded app, SVG, interactive element or external code listing that this export cannot represent yet.'); }
         var pictures = new Map();
         fragment.querySelectorAll('img').forEach(function (img) { pictures.set(img, { source: img.getAttribute('src'), path: img.dataset.attachment }); img.removeAttribute('src'); img.removeAttribute('srcset'); img.removeAttribute('loading'); });
@@ -116,6 +137,11 @@
             await controller.update({ identity: source, inline: engine.styles(source).map(function (b) { return b.css; }), stylesheet: options.stylesheet || '' });
             if (controller.state().problems.length) { throw new Error(controller.state().problems.join(' ')); }
             page.background = rgb(getComputedStyle(surface).backgroundColor);
+            for (var diagram of printDiagrams) {
+                if (options.current && !options.current()) { throw new Error('The document changed during print preparation.'); }
+                var drawn = await K.drawMermaid(diagram.place, diagram.source, { paper: true, report: false });
+                if (drawn.problem || !diagram.place.querySelector('svg')) { throw new Error('The Mermaid diagram could not be printed: ' + (drawn.problem || 'No drawing was produced.')); }
+            }
             var noteContext=rendered.blocks.reduce(function(notes,block){return Object.assign(notes,block.footnotes||{});},Object.create(null)),noteNodes=new Map(),trustedNotes=new WeakSet();
             surface.querySelectorAll('aside.doc-footnote[data-footnote]').forEach(function(node){
                 var label=node.getAttribute('data-footnote'),number=noteContext[label];
@@ -125,9 +151,9 @@
             var images = new Map(), totalImageBytes = 0;
             for (var pair of pictures) {
                 if (options.current && !options.current()) { throw new Error('The document changed during export.'); }
-                var spec = pair[1], local = spec.path || (spec.source && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(spec.source) ? spec.source : null), src = local ? await K.pictureFor(local, options.pictures) : spec.source;
+                var spec = pair[1], siteImage = spec.source && /^\/(?!\/)/.test(spec.source), local = spec.path || (spec.source && !siteImage && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(spec.source) ? spec.source : null), src = local ? await K.pictureFor(local, options.pictures) : spec.source;
                 var owned=null,picture;
-                try{if(local&&/^https?:/i.test(src||'')){owned=await hostRaster(src,options);src=owned;}
+                try{if(siteImage || local&&/^https?:/i.test(src||'')){owned=await hostRaster(src,options);src=owned;}
                     picture=await image(src||'',(page.width-page.margins[0]-page.margins[2])/.75,(page.height-page.margins[1]-page.margins[3]-12)/.75);
                 }finally{if(owned)URL.revokeObjectURL(owned);}
                 totalImageBytes += picture.data.length;
@@ -143,7 +169,9 @@
                 });
             } finally { layer.remove(); }
             if (options.renderPages) {
-                images.forEach(function (picture, node) { node.src = picture.data; node.style.width = picture.width / .75 + 'px'; node.style.height = picture.height / .75 + 'px'; });
+                // Keep authored sizing and responsive column constraints. Fixed
+                // Office dimensions would pin height while CSS narrows width.
+                images.forEach(function (picture, node) { node.src = picture.data; });
                 await Promise.all(Array.from(surface.querySelectorAll('img')).map(function (node) { return node.decode(); }));
                 return await options.renderPages(surface, page);
             }

@@ -2,7 +2,7 @@
 /* Public CodeMirror state APIs with reversible original line endings. */
 (function (global) {
     'use strict';
-    var LIMIT = 4 * 1024 * 1024, DEPTH = 200, BUDGET=16*1024*1024;
+    var LIMIT = 10 * 1024 * 1024, DEPTH = 200, BUDGET=32*1024*1024;
     function normalize(raw) { return raw.replace(/\r\n?/g, '\n'); }
     function endings(raw) { return (raw.match(/\r\n|\r|\n/g) || []).map(function (value) { return value === '\r\n' ? 'R' : value === '\r' ? 'C' : 'L'; }).join(''); }
     function restore(text, sequence) {

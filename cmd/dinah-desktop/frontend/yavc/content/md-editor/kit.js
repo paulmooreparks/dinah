@@ -905,6 +905,9 @@
             var custom = window.yavcMacroTools.editBlock(src, pictures.macroContext(), pictures);
             if (custom !== undefined) { return custom; }
         }
+        /* A shortcode the host application draws has the host's form. */
+        var hosted = editHostBlock(src, pictures);
+        if (hosted !== undefined) { return hosted; }
         var sc = parseShortcode((src || '').trim());
         if (sc && FORMS[sc.name] && (src || '').trim().indexOf('\n') < 0) { return askShortcode(sc.name, src.trim(), pictures); }
         return undefined;
@@ -1125,6 +1128,417 @@
             }
         });
     }
+    /* === Shortcodes the host draws =========================================
+       A host application may draw shortcodes of its own
+       (docs/content-workspace-contract.md, shortcodeHost). The engine writes
+       a placeholder where one is (internal/shortcodes/host.go); the page asks
+       the host for the drawing and puts it in the placeholder. A drawing is
+       kept in pictures.hostFills, a Map the workspace owns, so a placeholder
+       drawn again is filled at once and nothing on the page moves. Until a
+       drawing arrives, and where the host draws none, an inline or block
+       shortcode shows as it is written and a container shows its body. */
+    var HOST_FILL_LIMIT = 512, HOST_FILL_UNITS = 8 * 1024 * 1024, HOST_FILL_AGE = 5 * 60 * 1000, HOST_FILL_RETRY = 30 * 1000, HOST_CALLS = 6, HOST_PENDING = 256, HOST_CALL_WAIT = 20 * 1000, HOST_HTML_LIMIT = 512 * 1024;
+    var hostQueues = new WeakMap();
+    var hostOwners = new WeakMap(), hostOwnerSequence = 0;
+    function hostService(pictures) {
+        var s = pictures && pictures.shortcodeHost;
+        return s && s.version === 1 && typeof s.render === 'function' && pictures.hostFills instanceof Map ? s : null;
+    }
+    function hostLive(pictures) { return !(pictures.signal && pictures.signal.aborted) && !(pictures.current && !pictures.current()); }
+    function hostContext(pictures, signal) { return { resource: pictures.resource || null, host: pictures.root, signal: signal, current: function () { return !signal.aborted && hostLive(pictures); } }; }
+    function hostKey(pictures, request) { var owner=pictures.owner,key=0;if(owner&&typeof owner==='object'){if(!hostOwners.has(owner))hostOwners.set(owner,++hostOwnerSequence);key=hostOwners.get(owner);}return JSON.stringify([pictures.resource || '', key, request.kind, request.name, request.source]); }
+    /* What a placeholder asks the host to draw. */
+    function hostRequest(el) {
+        var name = el.getAttribute('data-host-shortcode'), kind = el.getAttribute('data-host-kind');
+        var args = el.getAttribute('data-host-args') || '', source = el.getAttribute('data-host-source') || '';
+        if (!/^[a-z][a-z0-9-]{0,63}$/.test(name || '') || !/^(inline|block|container|span)$/.test(kind) || args.length > 65536 || source.length > 65536) { return null; }
+        return { name: name, kind: kind, args: args, source: source };
+    }
+    /* The same for a span the page view keeps as a mark: its name and its
+       opening as it is written. */
+    function hostSpanRequest(name, open) {
+        if (typeof name !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(name) || typeof open !== 'string' || open.length > 65536) { return null; }
+        var m = /^\{\{[a-z][a-z0-9-]*(?::([\s\S]*))?\}\}$/.exec(open);
+        return { name: name, kind: 'span', args: m && m[1] != null ? m[1] : '', source: open };
+    }
+    /* A few calls to the host at a time, each given up on after a while so
+       one that never returns does not stop the rest. */
+    function hostCall(store, fn, pictures) {
+        var q = hostQueues.get(store);
+        if (!q) { q = { active: 0, waiting: [] }; hostQueues.set(store, q); }
+        return new Promise(function (resolve) {
+            function run() {
+                q.active++;
+                var timer = null, settled = false, controller = new AbortController();
+                function abort() { controller.abort(); done(null); }
+                function done(value) {
+                    if (settled) { return; }
+                    settled = true; clearTimeout(timer); if (pictures.signal) pictures.signal.removeEventListener('abort', abort); q.active--; resolve(value);
+                    var next = q.waiting.shift(); if (next) { next(); }
+                }
+                timer = setTimeout(abort, HOST_CALL_WAIT);
+                if (pictures.signal) { if (pictures.signal.aborted) { abort(); return; } pictures.signal.addEventListener('abort', abort, { once: true }); }
+                Promise.resolve().then(function () { return fn(controller.signal); }).then(done, function () { done(null); });
+            }
+            if (q.active < HOST_CALLS) { run(); } else if (q.waiting.length < HOST_PENDING) { q.waiting.push(run); } else { resolve(null); }
+        });
+    }
+    function trimHostCache(store) {
+        var units = 0; store.forEach(function (entry, key) { units += key.length + (entry.html || '').length; });
+        while (store.size > HOST_FILL_LIMIT || units > HOST_FILL_UNITS) { var key = store.keys().next().value, entry = store.get(key); units -= key.length + (entry.html || '').length; store.delete(key); }
+    }
+    /* A promise of a host shortcode's drawing, as HTML, or null where the
+       host draws none. A drawing kept for a while is asked for again, and
+       the one kept is given until the new one arrives. */
+    function hostDrawing(pictures, request) {
+        var service = hostService(pictures);
+        if (!service || !request || !Array.isArray(pictures.hostCatalog) || !pictures.hostCatalog.some(function(h){return h.name===request.name;})) { return Promise.resolve(null); }
+        var store = pictures.hostFills, key = hostKey(pictures, request), entry = store.get(key), now = Date.now();
+        if (entry) {
+            if (entry.promise) { return entry.promise; }
+            if (now - entry.at < (entry.html == null ? HOST_FILL_RETRY : HOST_FILL_AGE)) { return Promise.resolve(entry.html); }
+        } else { entry = { html: null, at: 0, promise: null }; }
+        store.delete(key); store.set(key, entry);
+        trimHostCache(store);
+        var gone = {};
+        entry.promise = hostCall(store, function (signal) {
+            if (!hostLive(pictures)) { return gone; }
+            return service.render({ name: request.name, kind: request.kind, args: request.args, source: request.source }, hostContext(pictures, signal));
+        }, pictures).then(function (out) {
+            entry.promise = null;
+            /* A document that has closed keeps nothing new. */
+            if (out === gone || !hostLive(pictures)) { if (entry.html == null && store.get(key) === entry) { store.delete(key); } return entry.html; }
+            var html = out && typeof out.html === 'string' && !out.error && out.html.length <= HOST_HTML_LIMIT ? out.html : null;
+            if (html != null) { entry.html = html; entry.at = Date.now(); }
+            else { entry.at = entry.html == null ? Date.now() : Date.now() - HOST_FILL_AGE + HOST_FILL_RETRY; }
+            trimHostCache(store); return entry.html;
+        });
+        return entry.promise;
+    }
+    /* The drawing kept for a host shortcode, or null. */
+    function hostDrawn(pictures, request) {
+        if (!hostService(pictures) || !request) { return null; }
+        var entry = pictures.hostFills.get(hostKey(pictures, request));
+        return entry && entry.html != null ? entry.html : null;
+    }
+    /* A drawing as nodes for the page. It is made safe as all drawn HTML
+       is, and nothing in it is read as a placeholder of its own. */
+    function hostFragment(html) {
+        var drawing = window.yavcHTML.fragment(html);
+        drawing.querySelectorAll('*').forEach(function (n) { Array.from(n.attributes).forEach(function (a) { if (/^data-(?:host-|command|action|applet|choice)/.test(a.name)) n.removeAttribute(a.name); }); });
+        drawing.querySelectorAll('.sc-host-body').forEach(function (n) { n.classList.remove('sc-host-body'); });
+        return drawing;
+    }
+    function hostBody(el) {
+        return Array.prototype.find.call(el.querySelectorAll('.sc-host-body'), function (b) { return b.closest('[data-host-shortcode]') === el; }) || null;
+    }
+    /* Puts a drawing in its placeholder. A container's or a span's drawing
+       says where the body goes with <slot name="content">, and the body
+       that is on the page is moved there, so what is being edited in it is
+       kept. False when the drawing has no place for the body. */
+    function placeHost(el, html) {
+        if (el.__hostHtml === html) { return true; }
+        var drawing = hostFragment(html), kind = el.getAttribute('data-host-kind');
+        if (kind === 'container' || kind === 'span') {
+            var body = hostBody(el), slots = drawing.querySelectorAll('slot[name="content"]');
+            if (!body || slots.length !== 1) { return false; }
+            slots[0].replaceWith(body);
+        }
+        el.replaceChildren(drawing);
+        el.__hostHtml = html;
+        el.setAttribute('data-host-drawn', 'true');
+        el.classList.remove('sc-host-failed');
+        return true;
+    }
+    /* Fills the host placeholders in drawn HTML: at once where the drawing
+       is kept, and when it arrives where it is not. cachedOnly fills only
+       from what is kept, for a part of the page that must not change after
+       it is drawn. */
+    function fillHosts(target, pictures, cachedOnly) {
+        if (!target || !target.querySelectorAll || !hostService(pictures)) { return; }
+        var list = Array.from(target.querySelectorAll('[data-host-shortcode]'));
+        if (target.matches && target.matches('[data-host-shortcode]')) { list.unshift(target); }
+        list.forEach(function (el) {
+            var request = hostRequest(el);
+            if (!request) { return; }
+            var kept = hostDrawn(pictures, request);
+            if (kept != null && !placeHost(el, kept)) { el.classList.add('sc-host-failed'); }
+            if (cachedOnly) { return; }
+            hostDrawing(pictures, request).then(function (html) {
+                if (el.getAttribute('data-host-source') !== request.source || !hostLive(pictures)) { return; }
+                if (html == null || !placeHost(el, html)) { if (!el.hasAttribute('data-host-drawn')) { el.classList.add('sc-host-failed'); } }
+            });
+        });
+    }
+    /* Asks for the drawings of every host shortcode in what the engine
+       made (a document for the page view, blocks, a block's HTML, a
+       container's parts) and resolves with the same value once they are
+       kept, or after a few seconds whichever is first, so the page view
+       draws each in place as it builds. */
+    function prefillHosts(value, pictures) {
+        if (!value || !hostService(pictures)) { return Promise.resolve(value); }
+        var requests = [], seen = {}, holder = null;
+        function add(r) {
+            if (!r || requests.length >= 500) { return; }
+            var k = hostKey(pictures, r);
+            if (!seen[k]) { seen[k] = true; requests.push(r); }
+        }
+        function fromHTML(html) {
+            if (html.indexOf('data-host-shortcode') < 0) { return; }
+            holder = holder || document.createElement('template');
+            holder.innerHTML = html;
+            holder.content.querySelectorAll('[data-host-shortcode]').forEach(function (el) { add(hostRequest(el)); });
+        }
+        (function walk(v, depth) {
+            if (!v || typeof v !== 'object' || depth > 256) { return; }
+            if (Array.isArray(v)) { v.forEach(function (x) { walk(x, depth + 1); }); return; }
+            if (v.type === 'host_span' && v.attrs) { add(hostSpanRequest(v.attrs.name, v.attrs.open)); }
+            Object.keys(v).forEach(function (k) {
+                var x = v[k];
+                if (typeof x === 'string') { if (k === 'html' || k === 'before') { fromHTML(x); } }
+                else { walk(x, depth + 1); }
+            });
+        })(value, 0);
+        if (!requests.length) { return Promise.resolve(value); }
+        var timer = null;
+        function finished() { clearTimeout(timer); return value; }
+        return Promise.race([
+            Promise.all(requests.map(function (r) { return hostDrawing(pictures, r); })),
+            new Promise(function (resolve) { timer = setTimeout(resolve, 4000); })
+        ]).then(finished, finished);
+    }
+    /* Whether HTML the engine drew for one shortcode is a host's inline
+       shortcode and nothing else. */
+    function hostInlineOnly(html) {
+        if (typeof html !== 'string' || html.indexOf('data-host-shortcode') < 0) { return false; }
+        var holder = document.createElement('template');
+        holder.innerHTML = html;
+        var only = holder.content.childNodes.length === 1 ? holder.content.firstElementChild : null;
+        return !!only && only.getAttribute('data-host-kind') === 'inline' && only.hasAttribute('data-host-shortcode');
+    }
+    /* A plain span with the look of an element of a drawing: its classes,
+       its style and its title, and nothing the page view's schema reads as
+       formatting (a strong, a link, a colour), so words typed inside a host
+       span take no formatting from the drawing around them. */
+    var HOST_SHELL_CLASSES = { 'sc-colour': true, 'sc-no-export': true, 'sc-host': true, 'sc-host-body': true };
+    function hostShell(node) {
+        var shell = document.createElement('span');
+        Array.prototype.forEach.call(node.classList, function (c) { if (!HOST_SHELL_CLASSES[c]) { shell.classList.add(c); } });
+        ['style', 'title', 'role', 'aria-label'].forEach(function (a) { if (node.hasAttribute(a)) { shell.setAttribute(a, node.getAttribute(a)); } });
+        Array.prototype.forEach.call(node.attributes, function (a) {
+            if (/^data-/.test(a.name) && !/^data-(class|export|host-)/.test(a.name)) { shell.setAttribute(a.name, a.value); }
+        });
+        return shell;
+    }
+    /* A host span as the page view draws a mark: { dom, contentDOM }, the
+       look of the drawing's elements that are around its body with the
+       page's words to go inside, or null when no drawing is kept. Only
+       plain spans are used, so the editor finds nothing in the span but
+       the words it put there. */
+    function hostSpan(name, open, pictures) {
+        var request = hostSpanRequest(name, open);
+        if (!hostService(pictures) || !request) return null;
+        var content = document.createElement('span'), dom = document.createElement('span');
+        content.className = 'sc-host-body';
+        dom.className = 'sc-host';
+        dom.setAttribute('data-host-shortcode', name); dom.setAttribute('data-host-kind', 'span'); dom.setAttribute('data-host-source', open);
+        dom.appendChild(content);
+        function draw(html) {
+            if (html == null || dom.__hostHtml === html) return;
+            var drawing=hostFragment(html),slots=drawing.querySelectorAll('slot[name="content"]');if(slots.length!==1)return;
+            var inner=content;
+            for(var node=slots[0].parentNode;node&&node.nodeType===1;node=node.parentNode){var shell=hostShell(node);shell.appendChild(inner);inner=shell;}
+            dom.replaceChildren(inner);if(dom.__hostControl)dom.appendChild(dom.__hostControl);dom.__hostHtml=html;dom.setAttribute('data-host-drawn','true');
+        }
+        draw(hostDrawn(pictures, request));
+        hostDrawing(pictures, request).then(function(html){if(hostLive(pictures)&&dom.isConnected)draw(html);});
+        return { dom: dom, contentDOM: content, ignoreMutation:function(m){return m.type!=='selection'&&!content.contains(m.target);} };
+    }
+    function editHostSpan(name, open, pictures) {
+        var service=hostService(pictures),entry=(pictures.hostCatalog||[]).find(function(h){return h.name===name;});
+        if(!service||!entry||entry.managed||typeof service.form!=='function'||typeof service.build!=='function')return Promise.resolve(null);
+        var source=pictures.text&&pictures.text();
+        return hostCall(new Map(),function(signal){return service.form(open,hostContext(pictures,signal));},pictures).then(function(form){
+            if(!hostLive(pictures)||pictures.text&&pictures.text()!==source||!form)return null;
+            return askHostShortcode(form,pictures,{existing:true}).then(function(next){
+                if(next==='')return '';
+                var parsed=typeof next==='string'&&parseShortcode(next.trim());
+                return parsed&&parsed.name===name&&!/[\r\n]/.test(next)&&next.trim()==='{{'+parsed.name+(parsed.args?':'+parsed.args:'')+'}}'?next.trim():null;
+            });
+        });
+    }
+    /* The host's own shortcode that a block's source is, read with the
+       document's engine: { name, kind, source, managed }, or null. */
+    function hostPlaceholder(src, pictures) {
+        var text = (src || '').trim(), engine = hostService(pictures) && pictures.macroContext && pictures.macroContext();
+        if (!text || !engine || !engine.hosts || !engine.hosts().length) { return null; }
+        var html;
+        try { html = (engine.source(text) || {}).html; } catch (err) { return null; }
+        if (typeof html !== 'string' || html.indexOf('data-host-shortcode') < 0) { return null; }
+        var holder = document.createElement('template');
+        holder.innerHTML = html;
+        /* One element and no words beside it, inside a paragraph or not. */
+        function lone(parent) {
+            var el = parent.children.length === 1 ? parent.firstElementChild : null;
+            return el && parent.textContent.trim() === el.textContent.trim() ? el : null;
+        }
+        var only = lone(holder.content);
+        if (only && only.tagName === 'P' && !only.hasAttribute('data-host-shortcode')) { only = lone(only); }
+        var request = only && only.hasAttribute('data-host-shortcode') ? hostRequest(only) : null;
+        if (!request || request.kind === 'span') { return null; }
+        if (request.kind === 'inline' && request.source !== text) { return null; }
+        return { name: request.name, kind: request.kind, source: text, managed: only.getAttribute('data-host-managed') === 'true' };
+    }
+    /* A host shortcode pressed on the page: the host's form for it where
+       it has one. Resolves as editBlock does, and is undefined where the
+       source is not the host's. */
+    function editHostBlock(src, pictures) {
+        var found = hostPlaceholder(src, pictures);
+        if(!found&&hostService(pictures)&&pictures.macroContext){
+            var engine=pictures.macroContext(),drawing=engine&&engine.source(src),holder=document.createElement('template');
+            holder.innerHTML=drawing&&drawing.html||'';
+            if(holder.content.querySelector('[data-host-managed="true"]'))found={managed:true};
+        }
+        if (!found) { return undefined; }
+        if (found.managed) {
+            if (pictures.say) { pictures.say('The application keeps this part of the document itself, so it is not changed on the page.'); }
+            return Promise.resolve(null);
+        }
+        var service = hostService(pictures);
+        var opening = pictures.text && pictures.text();
+        return hostCall(new Map(), function (signal) { return typeof service.form === 'function' && typeof service.build === 'function' ? service.form(found.source, hostContext(pictures, signal)) : null; }, pictures).then(function (form) {
+            if (!hostLive(pictures) || pictures.text && pictures.text() !== opening) return null;
+            if (form) { return askHostShortcode(form, pictures, { existing: true, markdown: found.kind !== 'inline' }).then(function(next){var parsed=typeof next==='string'&&parseShortcode(next.trim());if(found.kind==='container'&&parsed&&parsed.name===found.name&&next.trim().indexOf('\n')<0){var first=found.source.split(/\r?\n/,1)[0];return next.trim()+found.source.slice(first.length);}return next;}); }
+            if (found.kind !== 'inline') { return undefined; }
+            /* An inline shortcode with no form is changed as it is written. */
+            return askText('Change the Shortcode', 'As It Is Written', found.source, { signal: pictures.signal, okLabel: 'Change' }).then(function (next) {
+                next = next == null ? '' : String(next).trim();
+                if (!next || next === found.source) { return null; }
+                if (!/^\{\{[^{}\r\n]+\}\}$/.test(next)) { if (pictures.say) { pictures.say('That is not one shortcode, so nothing was changed.', true); } return null; }
+                return next;
+            });
+        });
+    }
+    /* The host's form for one of its shortcodes (shortcodeHost.form): a
+       promise of the shortcode to write, '' to take it out, null for no
+       change, or undefined to edit it as its Markdown. The host writes the
+       shortcode from the values (shortcodeHost.build) and says which field
+       is wrong when it cannot. opts.existing is true for a shortcode that
+       is being changed; for a new one each field's value is shown as an
+       example to type over. opts.markdown offers Edit as Markdown. */
+    function askHostShortcode(form, pictures, opts) {
+        opts = opts || {};
+        var service = hostService(pictures);
+        if (!service || typeof service.build !== 'function' || !form || typeof form.kind !== 'string' || !Array.isArray(form.fields) || !hostLive(pictures)) { return Promise.resolve(null); }
+        var owner = pictures.identity && pictures.identity(), opening = pictures.text && pictures.text();
+        function unchanged() { return hostLive(pictures) && (!pictures.identity || pictures.identity() === owner) && (!pictures.text || pictures.text() === opening); }
+        if (form.kind.length > 64 || form.fields.length > 32 || typeof form.title === 'string' && form.title.length > 256 || typeof form.description === 'string' && form.description.length > 4096) return Promise.resolve(null);
+        if (JSON.stringify(form).length > 262144) return Promise.resolve(null);
+        var fieldNames = new Set(), invalid = false;
+        var fields = form.fields.filter(function (f) { if (!f || typeof f.name !== 'string' || !/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(f.name) || /^(?:__proto__|constructor|prototype)$/.test(f.name) || fieldNames.has(f.name) || typeof f.value === 'string' && f.value.length > 65536 || typeof f.label === 'string' && f.label.length > 256 || typeof f.description === 'string' && f.description.length > 4096 || Array.isArray(f.values) && (f.values.length > 256 || f.values.some(function (v) { return typeof v !== 'string' || v.length > 4096; }))) { invalid = true; return false; } fieldNames.add(f.name); return true; });
+        if (invalid) return Promise.resolve(null);
+        var id = 'md-host-' + (++dlgCount) + '-';
+        var body = '<div class="md-form-fields">' + (typeof form.description === 'string' && form.description ? '<p class="form-help">' + esc(form.description) + '</p>' : '') + fields.map(function (f, i) {
+            var fid = id + i, v = typeof f.value === 'string' ? f.value : '', label = typeof f.label === 'string' && f.label ? f.label : f.name;
+            var help = typeof f.description === 'string' && f.description ? '<p class="form-help" id="' + fid + '-help">' + esc(f.description) + '</p>' : '';
+            var described = ' aria-describedby="' + fid + '-error' + (help ? ' ' + fid + '-help' : '') + '"' + (f.required === true ? ' aria-required="true"' : '');
+            var list = Array.isArray(f.values) ? f.values.filter(function (x) { return typeof x === 'string'; }).slice(0, 256) : [], control;
+            if (list.length) {
+                /* A value the list does not have is kept as a choice of its own. */
+                if (list.indexOf(v) < 0) { list.unshift(v); }
+                control = '<span class="form-select-wrap"><select class="form-select" id="' + fid + '" data-host-field="' + i + '"' + described + '>' + list.map(function (x) {
+                    return '<option value="' + esc(x) + '"' + (x === v ? ' selected' : '') + '>' + esc(x || 'Choose…') + '</option>';
+                }).join('') + '</select></span>';
+            } else {
+                control = '<input class="form-input" id="' + fid + '" data-host-field="' + i + '"' + described + ' value="' + esc(v) + '" autocomplete="off" spellcheck="false">';
+            }
+            return '<div class="form-group"><label class="form-label" for="' + fid + '">' + esc(label) + '</label>' + control + '<p class="form-error" id="' + fid + '-error" data-host-error="' + i + '" role="alert" hidden></p>' + help + '</div>';
+        }).join('') + '<p class="form-error" data-role="error" role="alert" hidden></p></div>';
+        var title = typeof form.title === 'string' && form.title ? form.title : 'Shortcode';
+        var buttons = [];
+        if (opts.existing) { buttons.push({ id: 'remove', label: 'Remove', danger: true, submit: false }); }
+        if (opts.markdown) { buttons.push({ id: 'markdown', label: 'Edit as Markdown' }); }
+        buttons.push({ id: 'cancel', label: 'Cancel' }, { id: 'ok', label: opts.existing ? 'Change' : 'Insert', primary: true });
+        var api = null, built = null, busy = false;
+        function control(i) { return api.body.querySelector('[data-host-field="' + i + '"]'); }
+        function clear() {
+            api.body.querySelectorAll('.form-error').forEach(function (line) { line.hidden = true; line.textContent = ''; });
+            api.body.querySelectorAll('[aria-invalid]').forEach(function (c) { c.removeAttribute('aria-invalid'); });
+        }
+        function problem(name, message) {
+            var i = -1;
+            fields.forEach(function (f, at) { if (i < 0 && f.name === name) { i = at; } });
+            var line = i >= 0 ? api.body.querySelector('[data-host-error="' + i + '"]') : api.body.querySelector('[data-role="error"]'), c = control(i >= 0 ? i : 0);
+            line.textContent = message || 'The shortcode could not be written.';
+            line.hidden = false;
+            if (c) { if (i >= 0) { c.setAttribute('aria-invalid', 'true'); } c.focus(); }
+        }
+        function working(on) {
+            busy = on;
+            api.dialog.querySelectorAll('input, textarea, select, button:not([data-choice="cancel"])').forEach(function (c) {
+                if (on) { if (!c.disabled) { c.disabled = true; c.setAttribute('data-host-working', ''); } }
+                else if (c.hasAttribute('data-host-working')) { c.disabled = false; c.removeAttribute('data-host-working'); }
+            });
+        }
+        return window.yavcDialog.open({
+            title: (opts.existing ? 'Change ' : 'Insert ') + title,
+            className: 'md-editor-dialog md-form', body: body, signal: pictures.signal, buttons: buttons,
+            onOpen: function (a) {
+                api = a;
+                api.dialog.querySelector('form').noValidate = true;
+                api.body.addEventListener('input', function (event) {
+                    var c = event.target.closest('[data-host-field]');
+                    if (!c) { return; }
+                    c.removeAttribute('aria-invalid');
+                    var line = api.body.querySelector('[data-host-error="' + c.getAttribute('data-host-field') + '"]');
+                    if (line) { line.hidden = true; }
+                });
+            },
+            check: function (v) {
+                if (v !== 'ok') { return null; }
+                if (busy) { return 'working'; }
+                if (!unchanged()) { window.yavcUtil.notice(api.body, 'The document changed. Close and reopen this form.', true); return 'kept open'; }
+                clear();
+                var values = Object.create(null);
+                fields.forEach(function (f, i) { var c = control(i); values[f.name] = c ? c.value : ''; });
+                working(true);
+                hostCall(new Map(), function (signal) { return service.build(form.kind, values, hostContext(pictures, signal)); }, pictures).then(function (out) {
+                    if (!api.dialog.isConnected || !api.dialog.open) return;
+                    if (!unchanged()) { working(false); problem('', 'The document changed. Close and reopen this form.'); return; }
+                    if (out && typeof out.source === 'string' && out.source && out.source.length <= 65536 && !/[\u0000]/.test(out.source) && !out.error) { built = out.source; api.close('built'); return; }
+                    working(false);
+                    var e = out && out.error || {};
+                    problem(typeof e.field === 'string' ? e.field : '', typeof e.message === 'string' ? e.message : '');
+                }, function (err) { if (!api.dialog.isConnected || !api.dialog.open) return; working(false); problem('', String(err && err.message || err || '')); });
+                return 'working';
+            }
+        }).then(function (result) {
+            var v = result && result.value;
+            if (v === 'built' && built != null) { return unchanged() ? built : null; }
+            if (v === 'remove') { return unchanged() ? '' : null; }
+            if (v === 'markdown') { return unchanged() ? undefined : null; }
+            return null;
+        });
+    }
+    /* A host shortcode to put into a document: the host's form for its
+       example where it has one, and the example as it is otherwise.
+       Resolves to the shortcode, or to null. */
+    function askHostInsert(example, pictures) {
+        var service = hostService(pictures);
+        if (!service || typeof service.form !== 'function' || typeof service.build !== 'function' || !example) { return Promise.resolve(example || null); }
+        var opening = pictures.text && pictures.text();
+        return hostCall(new Map(), function (signal) { return service.form(example, hostContext(pictures, signal)); }, pictures).then(function (form) {
+            if (!hostLive(pictures) || pictures.text && pictures.text() !== opening) return null;
+            if (!form) { return example; }
+            return askHostShortcode(form, pictures, {}).then(function (src) {
+                if(!src)return null;
+                var opening=/^\{\{([a-z][a-z0-9-]*)(?::[^{}]*)?\}\}/.exec(example),replacement=parseShortcode(src.trim());
+                if(opening&&replacement&&replacement.name===opening[1]&&/^\{\{[^{}\r\n]+\}\}$/.test(src.trim())&&example.includes('{{/'+opening[1]+'}}'))return src.trim()+example.slice(opening[0].length);
+                return src;
+            });
+        });
+    }
+
     /* === Drawing a page ===================================================
        One renderer for the Editor's preview and page, and Slides' canvas,
        filmstrip, notes and show (review of 2026-11-03: there were two). */
@@ -1368,7 +1782,7 @@
         function settled() { clearTimeout(cue); if (loading) { loading.remove(); loading = null; } }
         return Promise.all([mermaid(), safeHTML()]).then(function () {
             window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true,
-                theme: !place.closest('[data-ed-page]') && document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default' });
+                theme: !opts.paper && !place.closest('[data-ed-page]') && document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default' });
             return window.mermaid.render(id, source);
         }).then(function (out) {
             settled();
@@ -1483,6 +1897,7 @@
             if (opts.applets !== false && window.pudlApplets && window.pudlApplets.boot && f.el.querySelector('[data-applet]')) { try { window.pudlApplets.boot(f.el); } catch (err) { } }
             loadImages(f.el, opts.pictures);
             loadListings(f.el);
+            fillHosts(f.el, opts.pictures);
         });
         scopeFootnotes(target);
         if(opts.diagrams!==false)refreshReferences(target,opts.pictures);
@@ -1608,6 +2023,7 @@
         commands: commands, editing: editing, apply: apply, classesOf: classesOf, insertItem: insertItem, inserts: inserts, textFormat: textFormat, textInsert: textInsert,
         askText: askText, askFields: askFields, askChoice: askChoice, askProperties: askProperties, STOCK: STOCK, askColour: askColour, askColours: askColours, askClass: askClass,
         askFigure: askFigure, editBlock: editBlock, drawBlocks: drawBlocks, scopeFootnotes:scopeFootnotes, refreshReferences:refreshReferences, drawDiagram: drawDiagram, pictureFor: pictureFor, askShortcode: askShortcode, FORMS: FORMS, boxCommand: boxCommand, BOXES: BOXES, loadImages: loadImages, parseFigure: parseFigure, buildFigure: buildFigure, parseShortcode: parseShortcode,
+        fillHosts: fillHosts, prefillHosts: prefillHosts, hostSpan: hostSpan, editHostSpan: editHostSpan, hostInlineOnly: hostInlineOnly, askHostShortcode: askHostShortcode, askHostInsert: askHostInsert,
         _page: null
     };
 })();

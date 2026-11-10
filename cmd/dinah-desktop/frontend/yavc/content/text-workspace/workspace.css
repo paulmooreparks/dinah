@@ -141,7 +141,8 @@
   --host-overlay-border:var(--border);--host-overlay-accent:var(--accent);
   --host-overlay-warn:var(--warn);--host-overlay-danger:var(--danger);--host-overlay-positive:var(--positive);
 }
-.pc-editor .host-suggestion {
+.pc-editor .host-suggestion,
+.pc-editor [data-ed-page] :is(.btn, .form-input, .form-textarea, .form-select, .pm-box-kind) {
   --text:var(--host-overlay-text);--text-muted:var(--host-overlay-muted);
   --surface:var(--host-overlay-surface);--surface-alt:var(--host-overlay-surface-alt);
   --border:var(--host-overlay-border);--accent:var(--host-overlay-accent);
