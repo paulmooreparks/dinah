@@ -82,6 +82,31 @@ The lock file is in the person's application data folder, as the operating syste
 
 **Built.** The lock was built the same night, ahead of the Editor, because the fault was already there between Dinah and a product built from it when both had one file open. It is `internal/savelock`, and the provider's one write path takes it (`WriteText` in `internal/resource/localfs`). Three tests in the provider cover the overlapping save: within one process with the lock, within one process without it, where both saves succeed and the fault is on record, and between two processes. PUDL Team Lead reviewed the lock three times on 11 November 2026, and it changed each time: the lock file moved from the cache folder to application data and cannot be removed on Windows while held, and the lock went from one for each file, to one for each folder, to the single lock described above. The package's own tests show that a second holder waits or is told another program is saving, that there is one lock file, that the held lock file cannot be removed or renamed on Windows, and that the lock holds between two processes.
 
+## What the first build showed
+
+The Editor was built on the night of 11 November 2026, after the stacked taskbar buttons were delivered, and `docs/design/standalone-documents.md` describes it. Each point of the proof is below with what was shown and how. Every check ran with no window on the screen, as Paul requires, so a point that needs eyes on a real window says so.
+
+1. **A file opens by double-click, by Open With and from a command line.** The command line was run for real, hidden: `yavc-editor notes.md` and `dinah-desktop --document editor notes.md` each opened the file in a window process of its own. The Editor is installed as `yavc-editor` beside the window program and registered with Windows for Paul's account, and the registered command is that same command line. It is offered in Open With for `.md`, `.markdown` and `.txt` and is no kind's default, so a double-click opens it once Paul chooses it for a kind. Nobody has yet seen Open With list it or a double-click start it, because that needs the desktop.
+2. **It is edited and saved.** Shown in a browser against the service, and through the real window process.
+3. **After the window's process is ended by force, the unsaved text is offered again.** The real window process was killed with text unsaved. The service closed the document six seconds later, the file was untouched, and the next window on the file showed the text.
+4. **A save is refused when another program has saved the file meanwhile.** The file was changed on disk under an open window. The save was refused with a message that says why, the text stayed in the window, and the other program's content stayed in the file.
+5. **Opening the same file again brings its window forward.** A second start of the same file ended at once and the first window's process was told to come forward. That it does come to the front on the screen has not been seen.
+6. **Dinah hands a document over.** Document, Open in YAVC Editor in the main window opens the file of the document in front there, and a second hand-over of the same file raised the window and started none. There is no separate kind of link yet: a document is handed over by its file's path, from that command or by an agent.
+7. **An agent in Dinah edits the document there.** Through Dinah's applet broker an agent listed the open document, read it and replaced its text by naming the application and the document's ID. The Editor's window asked first, and a refusal there refused the action. The change stayed in the window as unsaved text and the file was untouched.
+8. **Neither program overwrites the other.** With one file open in the main window and in the Editor, the Editor saved, the main window's save was then refused, it merged the Editor's change and saved, and the Editor's next save was refused in turn with its text kept. Saves that overlap in time are covered by the save contract's tests.
+9. **Each works with the other closed.** The Editor's checks ran with no main window, on a state folder of their own. The main window with no Editor lists no stand-alone documents and is otherwise as before.
+10. **yavc.app's package tests pass against this host.** yavc.app Development is writing that test against the headless service. Its result is theirs to report and is not in yet.
+
+**Linux.** Paul asked for Linux if it was not arduous, and it was not. In a Debian 12 container with GTK 3 and WebKitGTK 4.1, the window program built as the build workflow builds it, `--document-install` installed `yavc-editor` with a desktop entry, and the Editor's real window started on a virtual display with a file: its page was ready in two seconds, and a second start of the same file ended without opening another window. The tests of the document service, the save lock and the file provider pass there too. Nothing stood in the way. What has not been done on Linux is everything that needs a person at a desktop: seeing the window, the Open and Save dialogs, and a desktop's Open With. macOS was not attempted, since an application there is a bundle and none is built.
+
+**The Editor's icon.** The installed Editor is the window program under another name, so it shows Dinah's icon in the Start menu and on the taskbar. An icon of its own needs one more icon in the program's resources.
+
+Three things were decided along the way, each Paul's to change.
+
+- The page gives the Editor yavc.app's contracts and no draft store. The audit above expected the draft store to be reused. Building showed that the Editor's own recovery snapshot already keeps unsaved text with the revision it was based on, so a second record of the same text would have had to be kept in step with it.
+- A window on a document that has a file closes without a question, and the unsaved text comes back when the file is next opened. Only a changed document with no file asks first.
+- An agent's actions that change which document a window shows (open a file, new, close) are not offered on a stand-alone document. An agent opens a file there with its own action, and the person closes their own windows.
+
 ## What it would cost
 
 The slide show took one evening for Dinah's half, with its tests and checks. By that measure the proof is several such pieces of work.

@@ -48,6 +48,23 @@ func start(t *testing.T, dir string, headless bool) *harness {
 	return nil
 }
 
+// windowsEnd waits for the service to close every document, as it does when
+// the window processes have stopped asking. The time a window may stay
+// silent is shortened only for this wait, so a test's own calls before it
+// never race the service for their document.
+func (h *harness) windowsEnd() {
+	h.t.Helper()
+	windowGrace, startGrace = 200*time.Millisecond, 200*time.Millisecond
+	defer func() { windowGrace, startGrace = 6*time.Second, 90*time.Second }()
+	deadline := time.Now().Add(20 * time.Second)
+	for len(h.s.Documents()) > 0 {
+		if time.Now().After(deadline) {
+			h.t.Fatal("a document whose window ended is still open")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func (h *harness) client() *Client {
 	h.t.Helper()
 	c, err := Find(h.dir)
@@ -313,8 +330,6 @@ func TestOpeningAnOpenFileBringsItsWindowForward(t *testing.T) {
 // The text the page kept for recovery is offered to the next window that
 // opens the file, even from a new service.
 func TestAWindowThatEndsByForceLeavesItsUnsavedTextForTheNext(t *testing.T) {
-	windowGrace, startGrace = 200*time.Millisecond, 200*time.Millisecond
-	t.Cleanup(func() { windowGrace, startGrace = 6*time.Second, 90*time.Second })
 	state := t.TempDir()
 	h := start(t, state, false)
 	file := filepath.Join(t.TempDir(), "notes.md")
@@ -330,13 +345,7 @@ func TestAWindowThatEndsByForceLeavesItsUnsavedTextForTheNext(t *testing.T) {
 	if problem := p.call(&kept, "PutSnapshot", file, `{"tabs":[{"draft":"unsaved words"}]}`); problem != "" || !kept {
 		t.Fatalf("keeping the snapshot: %v %s", kept, problem)
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	for len(h.s.Documents()) > 0 {
-		if time.Now().After(deadline) {
-			t.Fatal("the document of a window that ended is still open")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	h.windowsEnd()
 	if read(t, file) != "one\n" {
 		t.Fatal("the unsaved text reached the file")
 	}
@@ -364,8 +373,6 @@ func TestAWindowThatEndsByForceLeavesItsUnsavedTextForTheNext(t *testing.T) {
 // The next blank window shows it. A window the person closed takes its
 // record with it.
 func TestANewDocumentIsKeptOnlyForAWindowThatEndedByForce(t *testing.T) {
-	windowGrace, startGrace = 200*time.Millisecond, 200*time.Millisecond
-	t.Cleanup(func() { windowGrace, startGrace = 6*time.Second, 90*time.Second })
 	h := start(t, t.TempDir(), false)
 	ctx := context.Background()
 	c := h.client()
@@ -384,13 +391,7 @@ func TestANewDocumentIsKeptOnlyForAWindowThatEndedByForce(t *testing.T) {
 		t.Fatalf("closing a changed document with no file: ask %v %v", ask, err)
 	}
 	// The window ends by force: it never says it closed.
-	deadline := time.Now().Add(5 * time.Second)
-	for len(h.s.Documents()) > 0 {
-		if time.Now().After(deadline) {
-			t.Fatal("the document is still open")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	h.windowsEnd()
 	p2 := h.open("")
 	var again Attached
 	p2.call(&again, "Attach")
