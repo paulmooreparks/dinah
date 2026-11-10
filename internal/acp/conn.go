@@ -94,7 +94,7 @@ type Options struct {
 	Agent string
 	// Env is the process's environment; nil gives it this process's own.
 	// Either way the process is told it runs in Dinah's window
-	// (profile.HostedVar).
+	// (profile.HostedVars).
 	Env []string
 	// Command builds the process to start, for an agent whose launcher needs
 	// more than exec.Command gives; nil is exec.CommandContext. The window is
@@ -174,7 +174,10 @@ func Start(name string, args []string, dir string, h Handler, o Options) (*Conn,
 	}
 	// The agent may load the person's own tools and hooks, Dinah's among
 	// them, so it is told it runs in Dinah's window.
-	cmd.Env = append(env, profile.Current().HostedVar()+"=1")
+	for _, name := range profile.Current().HostedVars() {
+		env = append(env, name+"=1")
+	}
+	cmd.Env = env
 	hideWindow(cmd)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

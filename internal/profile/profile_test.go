@@ -67,3 +67,15 @@ func TestCurrentIsACopy(t *testing.T) {
 		t.Fatalf("the profile changed through a copy: %+v", q)
 	}
 }
+
+// A window marks its agents for the product it is and for the product the
+// source is, so that either one's command line program stands down there.
+func TestHostedVarsNameTheProductAndTheSource(t *testing.T) {
+	if got := dinah.HostedVars(); len(got) != 1 || got[0] != "DINAH_HOSTED" {
+		t.Fatalf("the source's own: %v", got)
+	}
+	other := Profile{EnvPrefix: "OTHER_"}
+	if got := other.HostedVars(); len(got) != 2 || got[0] != "OTHER_HOSTED" || got[1] != "DINAH_HOSTED" {
+		t.Fatalf("another product's: %v", got)
+	}
+}

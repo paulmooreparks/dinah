@@ -37,7 +37,7 @@ func Run(ctx context.Context, b *bus.Bus, r io.Reader, w io.Writer) error {
 	}
 	// An agent in Dinah's window is on the bus as the window's chat, so its
 	// own session ID must not join as a second session.
-	if os.Getenv(bus.HostedVar) != "" {
+	if bus.Hosted() {
 		return nil
 	}
 	switch in.HookEventName {

@@ -225,6 +225,18 @@ CREATE TABLE IF NOT EXISTS person (
 // its name, DINAH_HOSTED for Dinah.
 var HostedVar = profile.Current().HostedVar()
 
+// Hosted reports whether this process was started by an agent that runs in
+// the window of a product built from this source, this product's or another
+// (profile.HostedVars).
+func Hosted() bool {
+	for _, name := range profile.Current().HostedVars() {
+		if os.Getenv(name) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // Home returns the folder where Dinah keeps its state: the profile's home
 // variable (DINAH_HOME) when it is set, otherwise the profile's home folder
 // (.dinah) in the person's home folder.

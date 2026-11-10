@@ -303,7 +303,7 @@ func runMCP(ctx context.Context, args []string) error {
 	session := fs.String("session", "", "the session a "+product.Name+" launcher registered")
 	fs.Parse(args)
 	return withBus(func(b *bus.Bus) error {
-		if *session == "" && os.Getenv(bus.HostedVar) != "" {
+		if *session == "" && bus.Hosted() {
 			return mcpserver.NewIdle(b).Run(ctx)
 		}
 		if *session == "" {

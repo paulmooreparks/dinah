@@ -194,6 +194,24 @@ func (p Profile) ProvidersVar() string { return p.EnvPrefix + "PROVIDERS" }
 // runs, such as DINAH_HOSTED.
 func (p Profile) HostedVar() string { return p.EnvPrefix + "HOSTED" }
 
+// HostedVars are the variables that say an agent runs in the window of a
+// product built from this source: the product's own, and the one of the
+// product the source is, when that is another. A person may have several
+// such products, each with its command line program in the settings their
+// agents load. A window sets every one of these for its agents, and each
+// program stands down when it sees any of them, so that only the window's
+// own bus server speaks for the chat. Before 10 November 2026 a product set
+// and read its own alone, so in a second product's window the first one's
+// bus server offered its tools without knowing the chat, and agents chose
+// them and failed.
+func (p Profile) HostedVars() []string {
+	vars := []string{p.HostedVar()}
+	if base := dinah.HostedVar(); base != vars[0] {
+		vars = append(vars, base)
+	}
+	return vars
+}
+
 // ShellAddr is the loopback address the window's page is served on.
 func (p Profile) ShellAddr() string { return "127.0.0.1:" + strconv.Itoa(p.ShellPort) }
 
