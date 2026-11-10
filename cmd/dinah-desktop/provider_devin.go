@@ -203,7 +203,7 @@ var devinAdapter = &providerAdapter{
 		return providerStart{
 			launch: func(handler acp.Handler) (agentConnection, error) {
 				trace := a.traceWriter()
-				conn, err := acp.Start(devin, args, ws, handler, acp.Options{Env: append(os.Environ(), product.HomeVar()+"="+configDir()), Trace: trace})
+				conn, err := acp.Start(devin, args, ws, handler, acp.Options{Env: devinEnvironment(), Trace: trace})
 				if err != nil {
 					_ = trace.Flush()
 					return nil, err
