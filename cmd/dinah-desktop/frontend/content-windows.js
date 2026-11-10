@@ -869,13 +869,20 @@
 
   var TITLES = { editor: 'Editor', docs: 'Docs', diagrams: 'Diagrams', slides: 'Slides' };
   var GLYPHS = { editor: 'document', docs: 'document', diagrams: 'diagram', slides: 'slides' };
+  /* Each package's own picture (the icon its applet.json gives), which the
+     taskbar, the docks, the switcher and the Window menu show in place of
+     the glyph (PUDL's data-win-icon, and the destination's icon for a pin).
+     It is a coloured picture and is drawn as one; the glyph stays as what
+     is shown until it loads, or if it does not (Paul, 11 November 2026). */
+  var ICONS = {};
+  ['editor', 'docs', 'diagrams', 'slides'].forEach(function (app) { ICONS[app] = new URL('yavc/content/' + app + '/icon.svg', document.baseURI).href; });
   var MNEMONICS = { editor: 'E', docs: 'D', diagrams: 'I', slides: 'S' };
   var DESCRIPTIONS = { editor: 'Start an empty document, for notes or a script.', docs: 'Start an empty Markdown document, written as it will look.',
     diagrams: 'Start an empty diagram, drawn from text.', slides: 'Start an empty slide deck, written in Markdown.' };
   /* A presenter window of a deck (content-host.js, Presenting): Slides in
      its presenter role, for the deck of the window that is presenting. It
      is not pinned and not restored with the layout. */
-  window.dinahWorkbench.register('content-slides-presenter', { pinnable: false, title: 'Presenter', glyph: GLYPHS.slides, start: 'open',
+  window.dinahWorkbench.register('content-slides-presenter', { pinnable: false, title: 'Presenter', glyph: GLYPHS.slides, icon: ICONS.slides, start: 'open',
     init: function (root, opts, item) { return init('slides', root, Object.assign({}, opts, { presenter: true }), item); } });
   function openPresenter(resource, channel) {
     var mount = Array.prototype.find.call(document.querySelectorAll('.content-applet'), function (m) { return m.dataset.contentResource === resource && !m.dataset.contentPresenter; });
@@ -901,10 +908,10 @@
        in the menu bar, and starts an empty, untitled document of its own kind
        in the current workspace, which Save As puts somewhere; the Editor's is
        also the taskbar's New Document (Paul, 9 November 2026). */
-    var launcher = { mnemonic: MNEMONICS[app], category: 'documents', description: DESCRIPTIONS[app],
+    var launcher = { mnemonic: MNEMONICS[app], category: 'documents', description: DESCRIPTIONS[app], icon: ICONS[app],
       run: app === 'editor' ? function () { return window.dinahEditor.newDocument(); }
         : function () { return newDocument(undefined, '', app).catch(function (err) { host().toast(message(err), 'danger'); }); } };
-    window.dinahWorkbench.register(kindOf(app), { pinByItem: true, title: TITLES[app], glyph: GLYPHS[app], start: 'idle', launcher: launcher,
+    window.dinahWorkbench.register(kindOf(app), { pinByItem: true, title: TITLES[app], glyph: GLYPHS[app], icon: ICONS[app], start: 'idle', launcher: launcher,
       applet: app === 'editor' ? { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true } : undefined,
       init: function (root, opts, item) { return init(app, root, opts, item); } });
   });
