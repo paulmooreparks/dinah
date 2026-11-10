@@ -319,7 +319,7 @@ func (p *Page) State(shown string, changed bool) error {
 	}
 	p.setCurrent(path)
 	p.d.mu.Lock()
-	p.d.touched = changed
+	p.d.touched, p.d.ready = changed, true
 	p.d.mu.Unlock()
 	return nil
 }

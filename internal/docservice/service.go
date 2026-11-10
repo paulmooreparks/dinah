@@ -285,6 +285,8 @@ type document struct {
 	picks map[string]pick
 	// calls are the actions sent to the page that it has not answered.
 	calls map[string]chan callResult
+	// ready says the page has said what its applet shows, at least once.
+	ready bool
 	// touched says the document has changes the person has not saved, as
 	// the page last said.
 	touched bool
@@ -341,6 +343,9 @@ type Document struct {
 	// PID is the process of the document's window, which a program in
 	// front may let come forward before it asks something of the window.
 	PID int `json:"pid"`
+	// Ready says the window's page has started its applet and said what
+	// it shows.
+	Ready bool `json:"ready"`
 }
 
 func (d *document) public() Document {
@@ -351,7 +356,7 @@ func (d *document) public() Document {
 	if d.current != "" {
 		name = filepath.Base(d.current)
 	}
-	return Document{ID: d.id, Application: d.application, Name: name, Path: d.current, Changed: d.touched, PID: pid}
+	return Document{ID: d.id, Application: d.application, Name: name, Path: d.current, Changed: d.touched, PID: pid, Ready: d.ready}
 }
 
 // Documents lists the open documents in the order of their names.

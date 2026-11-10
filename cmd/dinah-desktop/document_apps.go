@@ -117,3 +117,9 @@ const documentPagePath = "document.html"
 // document and the address of its page, which the test opens in a browser
 // of its own, as the main window does with its own entry file.
 func documentEntryVar() string { return product.EnvPrefix + "DOCUMENT_ENTRY_FILE" }
+
+// documentHiddenVar keeps a window off the screen for a check of the real
+// window: with it set the window loads its page as always and is never
+// shown, so a check sees the page start in the window's own browser view
+// without anything appearing in front of the person.
+func documentHiddenVar() string { return product.EnvPrefix + "DOCUMENT_HIDDEN" }

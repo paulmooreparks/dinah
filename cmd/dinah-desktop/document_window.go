@@ -118,6 +118,7 @@ func runDocumentWindow(args []string) int {
 	}
 	entryFile := os.Getenv(documentEntryVar())
 	testing := entryFile != ""
+	hidden := os.Getenv(documentHiddenVar()) != ""
 	client, err := docservice.Ensure(documentsDir(), startDocumentService)
 	if err != nil {
 		showStartupFailure(fmt.Errorf("the document could not be opened: %w", err))
@@ -150,7 +151,7 @@ func runDocumentWindow(args []string) int {
 	if _, named := documentProgramApplication(os.Args[0]); !named {
 		setProcessIdentity(start.application)
 	}
-	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, entryFile: entryFile, application: start.application}
+	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, hidden: testing || hidden, entryFile: entryFile, application: start.application}
 	err = wails.Run(&options.App{
 		EnableDefaultContextMenu: true,
 		Title:                    opened.Title,
@@ -158,7 +159,7 @@ func runDocumentWindow(args []string) int {
 		Height:                   800,
 		MinWidth:                 480,
 		MinHeight:                320,
-		StartHidden:              testing,
+		StartHidden:              testing || hidden,
 		BackgroundColour:         &options.RGBA{R: 255, G: 255, B: 255, A: 1},
 		AssetServer:              &assetserver.Options{Handler: http.HandlerFunc(w.servePage)},
 		OnStartup:                w.startup,
@@ -180,7 +181,9 @@ type documentWindow struct {
 	id          string
 	application string
 	testing     bool
-	entryFile   string
+	// hidden says the window is never shown and asks the person nothing.
+	hidden    bool
+	entryFile string
 
 	mu    sync.Mutex
 	entry string
@@ -266,7 +269,7 @@ func (w *documentWindow) listen(ctx context.Context) {
 // the document again offers it.
 func (w *documentWindow) lost(ctx context.Context) {
 	logf("documents", "error", "a document's window lost the document service")
-	if !w.testing {
+	if !w.hidden {
 		wruntime.MessageDialog(ctx, wruntime.MessageDialogOptions{Type: wruntime.ErrorDialog, Title: documentApplications[w.application].Name,
 			Message: "This window can no longer reach the document service, so it will close. What you had typed was kept as you typed it, and is offered again when you open the document."})
 	}
@@ -290,7 +293,7 @@ func (w *documentWindow) obey(ctx context.Context, c docservice.Command) {
 	}
 	switch c.Kind {
 	case "focus":
-		if w.testing {
+		if w.hidden {
 			return
 		}
 		wruntime.WindowUnminimise(ctx)
@@ -307,13 +310,13 @@ func (w *documentWindow) obey(ctx context.Context, c docservice.Command) {
 		w.client.Reply(ctx, w.id, c.Seq, true)
 	case "pick-open":
 		chosen := ""
-		if !w.testing {
+		if !w.hidden {
 			chosen, _ = wruntime.OpenFileDialog(ctx, wruntime.OpenDialogOptions{Title: "Open", DefaultDirectory: data.Folder})
 		}
 		w.client.Reply(ctx, w.id, c.Seq, chosen)
 	case "pick-save":
 		chosen := ""
-		if !w.testing {
+		if !w.hidden {
 			chosen, _ = wruntime.SaveFileDialog(ctx, wruntime.SaveDialogOptions{Title: "Save As", DefaultDirectory: data.Folder, DefaultFilename: data.Name})
 		}
 		w.client.Reply(ctx, w.id, c.Seq, chosen)
@@ -335,7 +338,7 @@ func (w *documentWindow) beforeClose(ctx context.Context) (prevent bool) {
 	short, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	ask, err := w.client.Closing(short, w.id)
-	if err == nil && ask && !w.testing {
+	if err == nil && ask && !w.hidden {
 		// Windows' own question has Yes and No for its buttons whatever
 		// names are given, so the question is one those two answer.
 		leave, stay := "Close Without Saving", "Cancel"
