@@ -30,6 +30,16 @@
       Promise.resolve(app().WatchFolders(refs)).catch(function () { watchedKey = null; });
     }, 200);
   }
+  /* A source kept somewhere else, on a site for one, may keep what it has
+     read so that it lists quickly (docs/design/source-kinds.md). Its kind
+     says when it finds a change there, which arrives as workspace:changed
+     of kind source-changed and is listed again like a change on disk. A
+     Refresh command calls forget first, so that what it lists next is asked
+     of the place the source is kept. Forgetting never stops the listing. */
+  function forget(ref) {
+    if (!ref || !ref.sourceId || !app() || !app().RefreshWorkspaceResource) return Promise.resolve();
+    return Promise.resolve().then(function () { return app().RefreshWorkspaceResource(ref); }).catch(function () {});
+  }
   var subscribers = new Set();
   function notify(event) { subscribers.forEach(function (fn) { fn(event); }); }
   function subscribe(fn) { subscribers.add(fn); return function () { subscribers.delete(fn); }; }
@@ -577,5 +587,5 @@
     };
   }
 
-  window.dinahResources = { itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
+  window.dinahResources = { forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
 })();

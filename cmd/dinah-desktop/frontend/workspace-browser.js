@@ -72,8 +72,11 @@
       // An entry's children are listed again after files went into it.
       function reload(entry) {
         expanded.add(keyFor(entry)); persist();
-        loadChildren(entry, false, true);
-        model.refresh().then(function () { if (!disposed) drawTree(); }).catch(function () {});
+        window.dinahResources.forget(entry.ref).then(function () {
+          if (disposed) return;
+          loadChildren(entry, false, true);
+          return model.refresh().then(function () { if (!disposed) drawTree(); });
+        }).catch(function () {});
       }
       /* A local folder that is not on this computer, and the folders its
          import recorded inside it, are shown dimmed until it is

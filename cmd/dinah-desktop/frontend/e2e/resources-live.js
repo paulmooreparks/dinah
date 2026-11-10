@@ -100,6 +100,21 @@ const { launch } = require('./lib/page');
     await page.evaluate(() => { __revision = 3; __emit('workspace:changed', { kind: 'disk-changed', workspaceId: 'w1', sourceId: 'docs' }); });
     await page.waitForFunction(() => __notifications === 3);
     ok('a change on disk lists the opened folders again', await page.evaluate(() => __docs.title === 'Documents 3' && __docs.children[0] === __child));
+    // A source kept somewhere else says when it changed there, and its
+    // opened folders are listed again; a Refresh command has it forget what
+    // it kept first, and lists all the same when the backend cannot.
+    await page.evaluate(() => { __revision = 4; __emit('workspace:changed', { kind: 'source-changed', workspaceId: 'w1', sourceId: 'docs' }); });
+    await page.waitForFunction(() => __notifications === 4);
+    ok('a change where a source is kept lists the opened folders again', await page.evaluate(() => __docs.title === 'Documents 4' && __docs.children[0] === __child));
+    const forgot = await page.evaluate(async () => {
+      const without = await dinahResources.forget(__docs.ref).then(() => true);
+      const asked = [];
+      go.main.App.RefreshWorkspaceResource = async r => { asked.push(r.sourceId + ':' + (r.path || '')); if (r.path === 'guide.md') throw Error('The site is away'); };
+      await dinahResources.forget(__docs.ref); await dinahResources.forget(__child.ref); await dinahResources.forget(null); await dinahResources.forget({ path: '/' });
+      delete go.main.App.RefreshWorkspaceResource;
+      return [without, asked.join(',')];
+    });
+    ok('Refresh has a source forget what it kept, and a failure there does not stop it', forgot[0] === true && forgot[1] === 'docs:,docs:guide.md');
     ok('Home lookup preserves its dedicated source and empty workspace identity', await page.evaluate(() => __home === __tree.home() && __note.parent === __home && __home.children[0] === __note && __note.ref.workspaceId === '' && __note.ref.sourceId === 'dinah-home' && __calls.some(call => call[0] === 'list-expected' && call[1].sourceId === 'dinah-home')));
     ok('commands enumerate the launcher registry and generic applet shim', await page.evaluate(() => dinahResources.commands().some(entry => entry.name === 'fixture-launcher') && dinahResources.commands().some(entry => entry.name === 'applets')));
     await page.evaluate(async () => { await dinahResources.invoke('fixture-launcher', [], () => false); await dinahResources.invoke('fixture-launcher', [], () => true); });

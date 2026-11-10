@@ -42,7 +42,7 @@
     function refresh() {
       if (!browser) return;
       loading = true; redraw(); say('Refreshing…');
-      return F.refresh().then(function () { return F.load(browser.cwd(), false, true); }).then(function () { if (!destroyed) { browser.refresh(); select(browser.selected()); say(''); } }).catch(function (error) { say(String(error), true); }).finally(function () { loading = false; redraw(); });
+      return dinahResources.forget(browser.cwd().ref).then(function () { return F.refresh(); }).then(function () { return F.load(browser.cwd(), false, true); }).then(function () { if (!destroyed) { browser.refresh(); select(browser.selected()); say(''); } }).catch(function (error) { say(String(error), true); }).finally(function () { loading = false; redraw(); });
     }
     // New Folder… makes a folder in the folder shown and selects it.
     function newFolder() {

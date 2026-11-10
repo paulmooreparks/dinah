@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"studio/internal/resource"
@@ -78,6 +79,19 @@ func (w fakeWiki) ReadFile(_ context.Context, _ string, name string) ([]byte, er
 		return []byte("PNG!"), nil
 	}
 	return nil, resource.ErrNotFound
+}
+
+// fakeWikiForgot is what the wiki was asked to forget, in order.
+var (
+	fakeWikiForgotMu sync.Mutex
+	fakeWikiForgot   []string
+)
+
+func (w fakeWiki) Refresh(_ context.Context, path string) error {
+	fakeWikiForgotMu.Lock()
+	defer fakeWikiForgotMu.Unlock()
+	fakeWikiForgot = append(fakeWikiForgot, path)
+	return nil
 }
 
 var registerFakeWiki = func() func() {

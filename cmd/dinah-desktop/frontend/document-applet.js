@@ -182,7 +182,12 @@
           if (!disposed && generation === request) $('meta').textContent = 'The document could not be drawn: ' + err;
         }
       }
-      function refresh() { load(true); }
+      // Refresh reads the document again where it is kept, past anything its
+      // source has kept of it.
+      function refresh() {
+        var forget = window.dinahResources && window.dinahResources.forget;
+        Promise.resolve(forget ? forget(resourceRef) : null).then(function () { load(true); });
+      }
       function toggleProblems() {
         problemsOpen = !problemsOpen;
         $('problems').hidden = !problemsOpen;

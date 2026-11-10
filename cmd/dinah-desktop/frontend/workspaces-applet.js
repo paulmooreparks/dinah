@@ -197,8 +197,9 @@
 
     var catalogRefresh = 0;
     if (window.dinahResources) dinahResources.subscribe(function (event) {
-      // A change on disk changes what is in a folder, not the workspaces.
-      if (!event || event.kind === 'labels' || event.kind === 'disk-changed') return;
+      // A change on disk, or where a source is kept, changes what is in a
+      // folder, not the workspaces.
+      if (!event || event.kind === 'labels' || event.kind === 'disk-changed' || event.kind === 'source-changed') return;
       var generation = ++catalogRefresh;
       Promise.resolve().then(function () { return app().State(); }).then(function (state) {
         if (generation === catalogRefresh) drawWorkspaces(state);

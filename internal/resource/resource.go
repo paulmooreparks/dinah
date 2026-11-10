@@ -185,6 +185,15 @@ type Renamer interface {
 	Rename(ctx context.Context, from, to string) error
 }
 
+// Refresher forgets what a source has kept about a path and everything under
+// it, so that the next listing or reading asks the place the source is kept.
+// A source that keeps what it has read, to list a remote site quickly,
+// implements it, and a window's Refresh command calls it before listing
+// again. A source that keeps nothing has no need of it.
+type Refresher interface {
+	Refresh(ctx context.Context, path string) error
+}
+
 // Publisher marks a source whose writes make a document visible to others,
 // such as a wiki, as opposed to saving a private file. Editors call the
 // write Publish for such a source and may ask for confirmation before it.

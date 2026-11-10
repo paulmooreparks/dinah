@@ -80,7 +80,10 @@ type App struct {
 	// folderWatch watches the folders the page shows for changes on disk
 	// (workspace_watch.go).
 	folderWatch *folderWatch
-	ctx         context.Context
+	// sourceChanges sends the page a source kind's word that a source
+	// changed where it is kept (workspace_source_changes.go).
+	sourceChanges *sourceChanges
+	ctx           context.Context
 	mu          sync.Mutex
 	settings    Settings
 	// lifecycleOnce constructs the one provider lifecycle, including in fixtures.
@@ -252,6 +255,7 @@ func (a *App) startup(ctx context.Context) {
 	logRestartWait()
 	a.restoreTerminalShutdownNotice()
 	a.startHostNotices()
+	a.hearSourceChanges()
 	go a.sweepDrafts()
 	go a.installStandardFiles()
 	go pruneAgentLogs()
@@ -304,6 +308,7 @@ func (a *App) shutdown(ctx context.Context) {
 	if watch != nil {
 		watch.close()
 	}
+	a.stopSourceChanges()
 	a.mu.Lock()
 	extensions := a.extensions
 	a.mu.Unlock()
