@@ -225,9 +225,16 @@ func TestGroupAttentionAgentRulesAndErrorsStayStrict(t *testing.T) {
 	f := newAttentionFixture(t)
 	ctx := context.Background()
 	f.person(t, f.members[0].ID)
-	m, err := f.b.Send(ctx, Sender{Session: &f.members[1]}, "#"+f.group.Name, "An informational agent post", nil, 0)
-	if err != nil || m.mentions != "" || m.Reach != nil {
-		t.Fatalf("agent routing changed %+v %v", m, err)
+	// An agent's post that names nobody reaches the engaged member, as the
+	// person's does (Paul, 10 November 2026).
+	m, err := f.b.Send(ctx, Sender{Session: &f.members[1]}, "#"+f.group.Name, "An agent post naming nobody", nil, 0)
+	if err != nil || m.Reach == nil || m.Reach.Reason != "engaged" || reachIDs(m.Reach.Reach) != f.members[0].ID || m.mentions != ","+f.members[0].ID+"," {
+		t.Fatalf("agent routing %+v %v", m, err)
+	}
+	// An explicit address stays the agent's own.
+	m, err = f.b.SendMentioning(ctx, Sender{Session: &f.members[1]}, "#"+f.group.Name, "For Gamma", nil, 0, []string{f.members[2].ID})
+	if err != nil || m.Reach != nil || m.mentions != ","+f.members[2].ID+"," {
+		t.Fatalf("explicit agent routing %+v %v", m, err)
 	}
 	before, _ := f.b.ChangeCounter(ctx)
 	if _, err := f.b.GroupReach(ctx, f.group.Name, []string{"not a member"}); err == nil {
@@ -346,5 +353,53 @@ func TestGroupAttentionIndexedTimeHandlesClockRollbackAndLegacyFractions(t *test
 	f.now = f.now.Add(time.Nanosecond)
 	if r := f.preview(t); reachIDs(r.Reach) != f.members[2].ID {
 		t.Fatalf("exact fractional expiry: %+v", r)
+	}
+}
+
+// An agent's post that names nobody never reaches its sender and never the
+// whole group: with no other member engaged it goes to the group's lead,
+// and with no lead, or with the sender as lead, it wakes nobody.
+func TestGroupAttentionAgentPostsSkipTheSenderAndNeverReachEveryone(t *testing.T) {
+	f := newAttentionFixture(t)
+	ctx := context.Background()
+	post := func(member int) Message {
+		t.Helper()
+		m, err := f.b.Send(ctx, Sender{Session: &f.members[member]}, "#"+f.group.Name, "An agent post naming nobody", nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	if m := post(0); m.Reach != nil || m.mentions != "" {
+		t.Fatalf("a quiet group was woken %+v", m)
+	}
+	f.person(t, f.members[0].ID)
+	if m := post(0); m.Reach != nil || m.mentions != "" {
+		t.Fatalf("the engaged sender woke itself %+v", m)
+	}
+	if _, _, err := f.b.MakeGroupTeam(ctx, f.group.Name, f.members[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	if m := post(0); m.Reach == nil || m.Reach.Reason != "lead" || reachIDs(m.Reach.Reach) != f.members[1].ID {
+		t.Fatalf("lead fallback %+v", m)
+	}
+	f.now = f.now.Add(31 * time.Minute)
+	if m := post(1); m.Reach != nil || m.mentions != "" {
+		t.Fatalf("the lead woke itself %+v", m)
+	}
+	// The member the post woke is asked to answer it.
+	m := post(2)
+	msgs, _, err := f.b.Deliver(ctx, f.members[1].ID, DoorbellTurn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	asked := false
+	for _, d := range msgs {
+		if d.ID == m.ID {
+			asked = d.Asked
+		}
+	}
+	if !asked {
+		t.Fatalf("the lead was not asked %+v", msgs)
 	}
 }

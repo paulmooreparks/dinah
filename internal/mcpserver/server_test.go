@@ -289,7 +289,7 @@ func TestTheReceiptSaysWhenAGroupHasUsedItsTurns(t *testing.T) {
 		}
 		return fmt.Sprint(s.sentReceipt(ctx, m).Content[0].(*mcp.TextContent).Text)
 	}
-	if got := say(); strings.Contains(got, "woke nobody") {
+	if got := say(); strings.Contains(got, "has used its turns") || !strings.Contains(got, "It named nobody") {
 		t.Fatalf("an unlimited group's receipt: %s", got)
 	}
 	if err := b.SetGroupBudget(ctx, g.Name, 0); err != nil {

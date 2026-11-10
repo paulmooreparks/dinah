@@ -239,6 +239,61 @@ func engagedMembers(t *sql.Tx, room string, members []chat, settings GroupAttent
 	return out, rows.Err()
 }
 
+// routeAgentAttention is where an agent's group post goes when it names no
+// action recipient. It reaches the members engaged in the group, as the
+// person's post does, or the group's lead when none is, and never the
+// sender. It never reaches every member: an agent addresses a whole group
+// only by naming everyone. With nobody to reach, the post stays a passive
+// notice. Paul's ruling of 10 November 2026: a chat should be woken and
+// decide whether a post concerns it, as a person reading a notification
+// does, while agents address each other directly rather than the whole
+// group (docs/design/group-attention.md). The group's turn budget still
+// bounds how long agents may keep each other talking.
+func (b *Bus) routeAgentAttention(t *sql.Tx, from string, r *resolved) (GroupReach, string, error) {
+	if r.mentions != "" {
+		return GroupReach{}, "", nil
+	}
+	reach, err := b.groupReach(t, *r, b.now())
+	if err != nil {
+		return reach, "", err
+	}
+	reach.Reach, reach.Everyone, reach.Reason = []ReachMember{}, false, ""
+	for _, m := range reach.Engaged {
+		if m.ID != from {
+			reach.Reach = append(reach.Reach, m.ReachMember)
+		}
+	}
+	if len(reach.Reach) > 0 {
+		reach.Reason = "engaged"
+	} else {
+		var lead string
+		if err := t.QueryRow(`SELECT lead FROM rooms WHERE name = ?`, r.room).Scan(&lead); err != nil {
+			return reach, "", err
+		}
+		members, err := attentionMembers(t, r.room)
+		if err != nil {
+			return reach, "", err
+		}
+		for _, m := range members {
+			if m.id == lead && lead != from {
+				reach.Reason = "lead"
+				reach.Reach = append(reach.Reach, ReachMember{m.id, m.display()})
+			}
+		}
+	}
+	if len(reach.Reach) == 0 {
+		return GroupReach{}, "", nil
+	}
+	ids := []string{}
+	for _, m := range reach.Reach {
+		ids = append(ids, m.ID)
+	}
+	r.mentions = "," + strings.Join(ids, ",") + ","
+	reach.Version++ // The enclosing send commits one bus change.
+	encoded, err := json.Marshal(reach)
+	return reach, string(encoded), err
+}
+
 func (b *Bus) routePersonAttention(t *sql.Tx, r *resolved) (GroupReach, string, error) {
 	reach, err := b.groupReach(t, *r, b.now())
 	if err != nil {

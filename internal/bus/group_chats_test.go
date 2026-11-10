@@ -85,9 +85,12 @@ func TestArrivingAgreesWithTheDoorbell(t *testing.T) {
 	if len(again) != 1 {
 		t.Fatal("Arriving took the message")
 	}
+	// With turns to spare, the agent's post that names nobody reaches the
+	// member the person just asked, which is engaged in the group, so all
+	// three are arriving.
 	g.budget(NoTurnBudget)
 	msgs, more, _ = g.b.Arriving(ctx, g.c.ID, 1)
-	if len(msgs) != 1 || more != 1 {
+	if len(msgs) != 1 || more != 2 {
 		t.Fatalf("with a limit of one: %d messages, %d more", len(msgs), more)
 	}
 }

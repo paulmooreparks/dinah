@@ -628,6 +628,12 @@ func (b *Bus) insertMessage(t *sql.Tx, from Sender, kind string, r resolved, rep
 			return 0, err
 		}
 		attentionReason, attentionReach = reach.Reason, encoded
+	} else if from.Session != nil && r.room != "" && kind == "text" {
+		reach, encoded, err := b.routeAgentAttention(t, from.Session.ID, &r)
+		if err != nil {
+			return 0, err
+		}
+		attentionReason, attentionReach = reach.Reason, encoded
 	}
 	// A message is read by other chats, so it never keeps a chat's applet
 	// context, whoever wrote it (appletcontext).
@@ -806,6 +812,19 @@ func scanMessage(r scanner) (Message, error) {
 		m.To, m.ToPerson = "subscribers of "+toWS, "subscribers of "+toWSLabel
 	}
 	return m, err
+}
+
+// OutsideWindow reports whether a message went to one chat that runs outside
+// Dinah's window (WindowSessionPrefix), for which Dinah cannot start a turn,
+// and when that chat was last active. Such a chat reads the message only at a
+// turn of its own, which may never come.
+func (b *Bus) OutsideWindow(ctx context.Context, id int64) (lastSeen string, outside bool, err error) {
+	err = b.db.QueryRowContext(ctx, `SELECT s.last_seen FROM messages m JOIN sessions s ON s.id = m.to_key
+		WHERE m.id = ? AND m.to_kind = 'session' AND substr(s.id, 1, ?) <> ?`, id, len(WindowSessionPrefix), WindowSessionPrefix).Scan(&lastSeen)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	return lastSeen, err == nil, err
 }
 
 // Message returns one message with its attachments.

@@ -12,7 +12,10 @@ func TestChatsAreToldToMentionThePersonWhenTheyNeedThem(t *testing.T) {
 	for _, want := range []string{
 		"Put paul in actionRecipients when Paul needs to decide or answer",
 		"Writing a name or @ in the body routes nothing",
-		"Informational posts never wake, reopen or steer a chat",
+		"Address a group post to the member it is for",
+		"A handoff, a request or a question always names its recipient",
+		"never the whole group",
+		"if it does not, end your turn without replying",
 		"mentions is a legacy alias and cannot be combined",
 		"routine internal traffic needs no narration",
 	} {
