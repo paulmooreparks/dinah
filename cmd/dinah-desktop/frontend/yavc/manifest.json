@@ -1,5 +1,5 @@
 {
-  "digest": "6297ef3e2b7035b46bc4fb471e7336ebc702927cd622669d484770d4d518b830",
+  "digest": "a6d749c8b46a1f6b86b7f1c45d5aa7ff74609143dad4caa4358a144eabecc938",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -30,8 +30,8 @@
     },
     {
       "path": "content/content-kit/resources.js",
-      "bytes": 6505,
-      "sha256": "147bdf73de8697cfffca4aa9a4c6b87e70c3c5dda0a2439038d11f1ac48a08a6"
+      "bytes": 6996,
+      "sha256": "15604920f3b611225021569eb2dc7df8aa4802a0b8b676d2e6a1e6cadb390eeb"
     },
     {
       "path": "content/content-kit/source-history.js",
@@ -101,7 +101,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "daa0f590f3bcc77d817a885323913f0e28ff9e7d5ed07a43e143b309a515c87d"
+      "sha256": "894cf2a00c894160b0d60d2fced4f996d6de17b12513c0c1b0361fa478a2e69a"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -125,8 +125,8 @@
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 198768,
-      "sha256": "5fc1dd0d5a6514828841adbbc1014548220ccac1ad4dceca5ec5c002b60decc7"
+      "bytes": 198820,
+      "sha256": "52a4d0f277e6a417bf900b894b2f0465ffe64b2558a076fe4a95df26d6b3d750"
     },
     {
       "path": "content/diagrams/icon.svg",
@@ -146,7 +146,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "7ab2fe34b5b8a8c8086f932b40ee5bb4ba799fed842a9dc9d9e2878679f06e08"
+      "sha256": "3350a2f46d47cc944f56c7d35ffdb1160da73388858841eded9625bbd9e3dc05"
     },
     {
       "path": "content/docs/docs.css",
@@ -176,7 +176,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 695,
-      "sha256": "c6ffc54cfa700a84cce106cf234000bffe69f6c4e4eedc7113231467acfabcf6"
+      "sha256": "821bbb298892905c34638137674edc005af6e9a5d10918631f0e90cdfe70a1d7"
     },
     {
       "path": "content/editor/editor.css",
@@ -265,8 +265,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 157631,
-      "sha256": "62e528f886a0b1f17429448b21ce74d58002f86978a2b485347de6e82c380b85"
+      "bytes": 159437,
+      "sha256": "c908da955a939675506e1c7725c52868930f3656704368c65cdf32351e740310"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -355,8 +355,8 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 137509,
-      "sha256": "8578a01d00e6f17228109f18da25c1477826edda232dbc8a11013604934efcc5"
+      "bytes": 143635,
+      "sha256": "fabb0a39cd261370c7052267ff6bf6078023c09a06e855af38747f43fc8e50a8"
     },
     {
       "path": "content/md-editor/pages.js",
@@ -1275,8 +1275,8 @@
     },
     {
       "path": "content/md-engine/yavc-md.wasm",
-      "bytes": 8402267,
-      "sha256": "6eac4d7f1ef546fb58d1f4c81673b8a477662123121c5dd4310d84e81c81ae1f"
+      "bytes": 8411937,
+      "sha256": "5430e273f6ce18a7b9caf99ce946af53abbae7b758c643f54418c361d38f63ad"
     },
     {
       "path": "content/slides/actions.js",
@@ -1291,7 +1291,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "a005e16d243082b9973f1ea952c5e3f95ea2e5ecc44fcb2e1641adc86207c63b"
+      "sha256": "3dd09e2fb4500575f5c1d79a2e5b47a7a9c6e4642b55ee5f16cacd228a7be8fa"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1340,8 +1340,8 @@
     },
     {
       "path": "content/slides/slides.js",
-      "bytes": 152897,
-      "sha256": "c1674fd37dad3beff8337bc3b164c5732f14736104fbd60ae121e1706c162fa9"
+      "bytes": 153000,
+      "sha256": "a1d75ddf7754a08476cefdc9213bfb41038feb7963c7460a9255a43ec573ec18"
     },
     {
       "path": "content/slides/vendor/jszip-3.10.1/LICENSE.markdown",
@@ -1385,8 +1385,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 230596,
-      "sha256": "b17d6317d76b4d6f3ef7eae6466456231927a84b1c75761dec77df90d2232971"
+      "bytes": 231224,
+      "sha256": "4cbf0def02abe48c0b33ae2a91888853b8020fc3aa7e0f7f6c01cabacfcfc02a"
     },
     {
       "path": "go.mod",

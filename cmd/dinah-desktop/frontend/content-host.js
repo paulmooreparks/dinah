@@ -124,12 +124,21 @@
   function knownRevision(resource) { return known.get(resource) || ''; }
   function keepMine(resource) { replacing.add(resource); }
 
+  /* A read or a write result for a new document, which has no file yet,
+     says so (needsLocation, yavc.app content-creation-contract.md), and the
+     applets' Save then asks the host's saveAs for a place instead of
+     writing the draft. The draft still keeps the text while it has none. */
+  function located(result, v) {
+    if (v && v.origin && v.origin.kind === 'new') result.needsLocation = true;
+    return result;
+  }
+
   function read(request) {
     var resource = String(request.resource || '');
     return draftOf(resource).then(function (id) { return api().GetDraft(id); }).then(function (v) {
       known.set(resource, v.revision);
       return findFolder(resource, v).then(function () {
-        return { resource: resource, name: nameOf(v, resource), text: v.text, revision: v.revision, writable: true };
+        return located({ resource: resource, name: nameOf(v, resource), text: v.text, revision: v.revision, writable: true }, v);
       });
     });
   }
@@ -149,7 +158,7 @@
         return api().SaveDraft(id, v.revision);
       }).then(function (v) {
         document.dispatchEvent(new CustomEvent('dinah:content-written', { detail: { resource: resource, draft: v } }));
-        return { resource: resource, name: nameOf(v, resource), revision: v.revision, writable: true };
+        return located({ resource: resource, name: nameOf(v, resource), revision: v.revision, writable: true }, v);
       });
     });
     var id = resource;
@@ -424,8 +433,10 @@
      contentWorkspace.shortcodes(context) is the applets' documented call
      for a host's extra shortcodes, and returns { shortcodes: [{ name,
      title, description, kind, params, example, prefix, managed, literal,
-     colorAttribute, colorClassPrefix }] }
-     for completion, hover and the Insert menu. An entry has a prefix when
+     colorAttribute, colorClassPrefix, cellColor }] }
+     for completion, hover and the Insert menu. One inline entry may have
+     cellColor, when it is the shortcode the product keeps a table cell's
+     colour with in a Markdown table. An entry has a prefix when
      the shortcode may be written with one character in place of its name
      and colon, is managed when the product keeps it with a tool of its
      own, and is literal when it is a container whose body is markup and
@@ -455,6 +466,7 @@
             if (d.literal === true) entry.literal = true;
             if (d.literal === true && typeof d.colorAttribute === 'string' && d.colorAttribute) entry.colorAttribute = d.colorAttribute;
             if (d.literal === true && typeof d.colorClassPrefix === 'string' && d.colorClassPrefix) entry.colorClassPrefix = d.colorClassPrefix;
+            if (d.cellColor === true && d.kind === 'inline') entry.cellColor = true;
             return entry;
           });
         })

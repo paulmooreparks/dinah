@@ -424,7 +424,30 @@
     ];
     /* The colour of the selected cells, asked in the colour dialog; an
        empty answer takes the colour away. */
-    function askCellColour(page) {
+    function askCellColour(page, pictures) {
+        /* On a pipe table, a host that keeps a cell's colour in a
+           shortcode of its own is asked with its own form, which refuses
+           a colour it does not know, and the table stays a pipe table
+           (DESIGN.md, decision 119). */
+        var held = page.cellColourShortcode ? page.cellColourShortcode() : null, service = pictures && hostService(pictures);
+        /* A host that marks the shortcode and gives no form for it: the
+           plain dialog would turn the table into an HTML one, so the
+           command says so and changes nothing. */
+        if (held && !(service && typeof service.form === 'function' && typeof service.build === 'function')) {
+            if (pictures && pictures.say) { pictures.say('The application gave no form for a cell color, so nothing was changed.', true); }
+            return Promise.resolve();
+        }
+        if (held) {
+            var asked = held.source || held.example || '{{' + held.name + '}}';
+            return hostCall(new Map(), function (signal) { return service.form(asked, hostContext(pictures, signal)); }, pictures).then(function (form) {
+                if (!held.current()) { return; }
+                if (!form) { if (pictures.say) { pictures.say('The application gave no form for a cell color, so nothing was changed.', true); } return; }
+                return askHostShortcode(form, pictures, { existing: !!held.source }).then(function (source) {
+                    if (source == null || !held.current()) { return; }
+                    return held.set(String(source).trim()).then(function (done) { if (!done && source && pictures.say) { pictures.say('The cell color could not be written to this table.', true); } });
+                });
+            });
+        }
         var current = page.marks().cellColour || '';
         return window.yavcDialog.askText('Cell Color', 'Background Color', current, {
             placeholder: '#DEEBFF', help: 'A CSS color for the background of the selected cells. Leave it empty to take the color away.', okLabel: 'Apply',
@@ -456,7 +479,7 @@
             if (t === '-') { items.push('-'); return; }
             items.push(row({ id: 'table-' + t[0], label: t[1], op: t[0], run: function () { var p = pageHere(); if (p) { p.run(t[0]); } } }, true));
         });
-        items.push(row({ id: 'table-cell-colour', label: 'Cell Color…', op: 'cell-colour', run: function () { var p = pageHere(); if (p) { askCellColour(p); } } }, true));
+        items.push(row({ id: 'table-cell-colour', label: 'Cell Color…', op: 'cell-colour', run: function () { var p = pageHere(); if (p) { askCellColour(p, ctx.pictures ? ctx.pictures() : null); } } }, true));
         items.push('-');
         [['default', 'Default Alignment'], ['left', 'Align Column Left'], ['center', 'Center Column'], ['right', 'Align Column Right']].forEach(function (option) {
             var value = option[0] === 'default' ? '' : option[0];

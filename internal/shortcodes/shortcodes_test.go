@@ -194,3 +194,52 @@ func TestACatalogSaysHowACellsColourClassBegins(t *testing.T) {
 		}
 	}
 }
+
+// cellSet is a set with forms whose catalog marks shortcodes for a cell's
+// colour, one of them a span and two of them inline.
+type cellSet struct{ formSet }
+
+func (cellSet) Catalog() []Descriptor {
+	return []Descriptor{
+		{Name: "cell-shade", Kind: Inline, CellColor: true},
+		{Name: "cell-tint", Kind: Inline, CellColor: true},
+		{Name: "cell-band", Kind: Span, CellColor: true},
+	}
+}
+
+// plainCellSet has no forms, so a cell's colour cannot be written through it.
+type plainCellSet struct{}
+
+func (plainCellSet) Catalog() []Descriptor {
+	return []Descriptor{{Name: "cell-plain", Kind: Inline, CellColor: true}}
+}
+
+func (plainCellSet) Render(Request) (string, error) { return "", ErrUnknown }
+
+// One inline shortcode of a set with forms may say it keeps a cell's
+// colour, and the catalog tells the applets so under the name their
+// contract reads. The flag is dropped on a second such shortcode, on one
+// that is not inline, and on one whose set has no form to write it with.
+func TestACatalogSaysWhichShortcodeKeepsACellsColour(t *testing.T) {
+	Register(plainCellSet{})
+	Register(cellSet{})
+	got := map[string]bool{}
+	for _, d := range Catalog() {
+		got[d.Name] = d.CellColor
+		b, _ := json.Marshal(d)
+		if d.Name == "cell-shade" && !strings.Contains(string(b), `"cellColor":true`) {
+			t.Fatalf("the cell colour shortcode as the applets get it: %s", b)
+		}
+		if d.Name != "cell-shade" && strings.Contains(string(b), "cellColor") {
+			t.Fatalf("%s as the applets get it: %s", d.Name, b)
+		}
+	}
+	if !got["cell-shade"] {
+		t.Fatal("the first inline shortcode of a set with forms lost the flag")
+	}
+	for _, name := range []string{"cell-tint", "cell-band", "cell-plain"} {
+		if got[name] {
+			t.Errorf("%s kept the flag", name)
+		}
+	}
+}

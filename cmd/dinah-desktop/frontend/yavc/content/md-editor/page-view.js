@@ -163,7 +163,10 @@ var schemaCache = null;
     var headings = [1, 2, 3, 4, 5, 6].map(function (l) { return { tag: 'h' + l, attrs: { level: l } }; });
     schemaCache = new PM.Schema({
       nodes: {
-        doc: { content: 'block+', attrs: { front: { default: '' }, tail: { default: '\n' }, crlf: { default: false } } },
+        /* refs says the text could define a link reference when it was
+           read; where it could not, the engine writes text in brackets
+           without an escape (decision 118). The default is the careful one. */
+        doc: { content: 'block+', attrs: { front: { default: '' }, tail: { default: '\n' }, crlf: { default: false }, refs: { default: true } } },
         paragraph: { group: 'block', content: 'inline*', attrs: withPlace(), parseDOM: [{ tag: 'p' }], toDOM: function () { return ['p', 0]; } },
         heading: { group: 'block', content: 'inline*', defining: true, attrs: withPlace({ level: { default: 1 } }), parseDOM: headings,
           toDOM: function (n) { return ['h' + n.attrs.level, 0]; } },
@@ -624,8 +627,11 @@ var schemaCache = null;
        when the page is not exactly the text it was read from, or the
        change reaches the front matter or what follows the last block. */
     function patchFromText(text) {
-      // A definition can change invocations anywhere in the document.
+      // A definition can change invocations anywhere in the document, and
+      // a link reference's definition can change text in brackets anywhere.
       if (text.indexOf('{{define:') >= 0 || (shown || '').indexOf('{{define:') >= 0) return false;
+      var defines = /(^|\n) {0,3}\[[^\]\n]+\]:/;
+      if (defines.test(text) || defines.test(shown || '')) return false;
       if (!view || shown == null || !pristine) return false;
       var doc = view.state.doc, attrs = doc.attrs, front = attrs.front || '', tail = attrs.tail == null ? '\n' : attrs.tail;
       if (attrs.crlf) return false;
@@ -1816,12 +1822,77 @@ var schemaCache = null;
        every row drawn as written from then on. A Markdown table's empty
        heading row, which is how a table without headings is written, is
        taken out rather than shown. */
+    /* The host's shortcode that records a cell's colour in a pipe table
+       (DESIGN.md, decision 119): { name, example } or null. */
+    function cellShortcodeEntry() {
+      var e = o.cellColourShortcode ? o.cellColourShortcode() : null;
+      return e && typeof e.name === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(e.name) ? e : null;
+    }
+    function isCellShortcode(node, name) {
+      return !!node && node.type.name === 'shortcode' && new RegExp('^\\{\\{' + name + '(?::[^{}\\r\\n]*)?\\}\\}$').test(node.attrs.src || '');
+    }
+    /* The cells the selection covers, as { node, pos }. */
+    function selectedCells(state) {
+      var cells = [];
+      if (state.selection instanceof PM.CellSelection) state.selection.forEachCell(function (node, pos) { cells.push({ node: node, pos: pos }); });
+      else {
+        var $c = state.selection.$from;
+        for (var d = $c.depth; d > 0; d--) {
+          var role = $c.node(d).type.spec.tableRole;
+          if (role === 'cell' || role === 'header_cell') { cells.push({ node: $c.node(d), pos: $c.before(d) }); break; }
+        }
+      }
+      return cells;
+    }
+    /* The colour shortcode of the cell the caret is in, as it is written, or ''. */
+    function cellShortcodeSource() {
+      var entry = cellShortcodeEntry();
+      if (!entry || !view || !PM.isInTable(view.state)) return '';
+      var cells = selectedCells(view.state), first = cells.length ? cells[0].node.firstChild : null;
+      return isCellShortcode(first, entry.name) ? first.attrs.src : '';
+    }
+    /* Writes the host's colour shortcode first in each selected cell of a
+       pipe table, in place of one already there; an empty source takes it
+       away. html is the engine's drawing of the shortcode. The table
+       stays a pipe table. */
+    function setCellShortcode(source, html) {
+      var entry = cellShortcodeEntry();
+      if (!entry || !view || !on || sourceStale || frozen || !PM.isInTable(view.state)) return false;
+      var state = view.state, found = PM.findTable(state.selection.$from);
+      if (!found || found.node.attrs.raw) return false;
+      var cells = selectedCells(state), tr = state.tr, type = state.schema.nodes.shortcode;
+      // From the last cell to the first, so earlier positions stay true.
+      cells.sort(function (a, b) { return b.pos - a.pos; }).forEach(function (c) {
+        var start = c.pos + 1, first = c.node.firstChild;
+        if (isCellShortcode(first, entry.name)) {
+          var end = start + first.nodeSize, next = c.node.childCount > 1 ? c.node.child(1) : null;
+          // The space written after the shortcode goes with it.
+          if (!source && next && next.isText && next.text.charAt(0) === ' ') end += 1;
+          if (source) tr.replaceWith(start, end, type.create({ src: source, html: html || '' }));
+          else tr.delete(start, end);
+        } else if (source) {
+          var nodes = [type.create({ src: source, html: html || '' })];
+          if (c.node.content.size) nodes.push(state.schema.text(' '));
+          tr.insert(start, nodes);
+        }
+      });
+      if (!tr.docChanged) return false;
+      view.dispatch(tr.scrollIntoView());
+      view.focus();
+      return true;
+    }
     function reshape(cmd) {
       return function (state, dispatch) {
         var tr = null;
         if (!cmd(state, function (t) { tr = t; })) return false;
         if (!dispatch) return true;
         var found = PM.findTable(tr.selection.$from);
+        /* A pipe table whose cells have the host's colour shortcode cannot
+           become an HTML table, in whose cells a shortcode cannot be written: the change
+           is refused until the colours are taken away. */
+        var entry = cellShortcodeEntry(), coloured = false;
+        if (found && !found.node.attrs.raw && entry) found.node.descendants(function (n) { if (isCellShortcode(n, entry.name)) coloured = true; });
+        if (coloured) { o.say('This change would turn the table into an HTML table, which cannot keep its cell colors. Remove the cell colors first.', true); return false; }
         if (found && !found.node.attrs.raw) {
           tr.setNodeMarkup(found.pos, null, Object.assign({}, found.node.attrs, { raw: { open: '', close: '', attrs: [], colgroup: '', thead: false, tbody: true } }));
           var first = found.node.firstChild, emptyHead = !!first;
@@ -2140,6 +2211,26 @@ var schemaCache = null;
         return { type: 'doc', attrs: Object.assign({}, doc.attrs, { front: '', tail: '\n' }), content: picked };
       },
       inTable: function () { return !!view && PM.isInTable(view.state); },
+      /* The host's cell colour shortcode for the pipe table the caret is
+         in: { name, example, source }, source being the one in the
+         caret's cell or ''; null in an HTML table or with no such
+         shortcode. set(source) writes it to the selected cells, drawn as
+         the engine draws it, and resolves to whether it did. */
+      cellColourShortcode: function () {
+        var entry = cellShortcodeEntry();
+        if (!entry || !view || !on || sourceStale || frozen || !PM.isInTable(view.state)) return null;
+        var found = PM.findTable(view.state.selection.$from);
+        if (!found || found.node.attrs.raw) return null;
+        var target = view, doc = view.state.doc, selection = view.state.selection, ticket = loading;
+        function current() { return view === target && on && !sourceStale && !frozen && loading === ticket && view.state.doc === doc && view.state.selection.eq(selection); }
+        return { name: entry.name, example: typeof entry.example === 'string' ? entry.example : '', source: cellShortcodeSource(), current: current,
+          set: function (source) {
+            if (!current()) return Promise.resolve(false);
+            if (!source) return Promise.resolve(setCellShortcode('', ''));
+            if (!isCellShortcode({ type: { name: 'shortcode' }, attrs: { src: source } }, entry.name)) return Promise.resolve(false);
+            return Promise.resolve(o.hostInline ? o.hostInline(source) : null).then(function (r) { return current() ? setCellShortcode(source, r && r.html || '') : false; });
+          } };
+      },
       outlineIndex: function () {
         if (!view) return -1;
         var child = view.state.selection.$from.index(0), index = -1;
@@ -2183,6 +2274,9 @@ var schemaCache = null;
             var attrs = $f.node(depth).attrs.xattrs || [], attribute = colourAttribute(rect.table), own = attribute && attrs.find(function (a) { return a[0] === attribute; });
             var style = attrs.find(function (a) { return a[0] === 'style'; }), m = style && /(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i.exec(style[1]);
             out.cellColour = own ? own[1] : m ? m[1].trim() : '';
+            /* In a pipe table the colour is the host's shortcode's argument. */
+            var shortcode = !out.rawTable ? cellShortcodeSource() : '';
+            if (shortcode) { var arg = /^\{\{[a-z][a-z0-9-]*:([^{}]*)\}\}$/.exec(shortcode); out.cellColour = arg ? arg[1].trim() : ''; }
             break;
           }
         }

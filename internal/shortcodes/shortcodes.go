@@ -50,6 +50,12 @@ type Param struct {
 // coloured cell with a class, and is the beginning of those class names:
 // when a cell's colour is changed or removed, the applets remove the
 // cell's classes that begin with it, and add none.
+//
+// CellColor says an inline shortcode is the one a product keeps a table
+// cell's colour with in a Markdown table. The applets' Cell Color writes
+// it first in each chosen cell, through the set's form and build, so the
+// table stays a Markdown table. The catalog keeps it on one inline
+// shortcode, the first, of a set that has forms.
 type Descriptor struct {
 	Name        string  `json:"name"`
 	Title       string  `json:"title"`
@@ -64,6 +70,8 @@ type Descriptor struct {
 	ColorAttribute string `json:"colorAttribute,omitempty"`
 	// ColorClassPrefix is the beginning of a class name, as "cell-colour-".
 	ColorClassPrefix string `json:"colorClassPrefix,omitempty"`
+	// CellColor marks the inline shortcode for a cell's colour.
+	CellColor bool `json:"cellColor,omitempty"`
 }
 
 // Request is one occurrence of a shortcode to draw: its name, the raw
@@ -167,7 +175,9 @@ func Catalog() []Descriptor {
 	defer mu.RUnlock()
 	seen := map[string]bool{}
 	out := []Descriptor{}
+	cellColor := false
 	for _, s := range sets {
+		_, former := s.(Former)
 		for _, d := range s.Catalog() {
 			if d.Name == "" || seen[d.Name] {
 				continue
@@ -191,6 +201,12 @@ func Catalog() []Descriptor {
 			if !d.Literal || !colorClassPrefix.MatchString(d.ColorClassPrefix) {
 				d.ColorClassPrefix = ""
 			}
+			// The applets write a cell's colour through the shortcode's form,
+			// and expect one shortcode for it.
+			if d.CellColor && (d.Kind != Inline || !former || cellColor) {
+				d.CellColor = false
+			}
+			cellColor = cellColor || d.CellColor
 			out = append(out, d)
 		}
 	}

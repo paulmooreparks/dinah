@@ -19,6 +19,8 @@
     function snapshot(value, resource, submitted, fallbackName) {
         if (!value || typeof value !== 'object' || value.resource !== resource) throw new TypeError('The host returned a different resource.');
         var result = { resource: token(resource, 'identity'), revision: token(value.revision, 'revision'), text: submitted === undefined ? text(value.text) : text(submitted), writable: value.writable === true };
+        // A host whose new document has no saved location yet says so, and Save then asks for one (docs/content-creation-contract.md).
+        if (value.needsLocation === true) result.needsLocation = true;
         var name = value.name === undefined ? fallbackName : value.name;
         if (name != null) { if (typeof name !== 'string' || !name || name.length > 255 || /[\x00-\x1f\x7f]/.test(name)) throw new TypeError('Invalid resource display name.'); result.name = name; }
         return Object.freeze(result);
@@ -46,6 +48,8 @@
             },
             canWrite: function (value) { return !!value && issued.has(value) && value.writable && typeof host.write === 'function'; },
             canSaveAs: function () { return typeof host.saveAs === 'function'; },
+            /* Whether Save should ask where to save: the host said this resource has no location yet, and it offers Save As. */
+            needsLocation: function (value) { return !!value && issued.has(value) && value.needsLocation === true && typeof host.saveAs === 'function'; },
             canCreate: function () { return typeof host.create === 'function'; },
             canFormat:function(options){try{wanted(options);return true;}catch(err){return false;}},
             create: async function (resource, content,options) {

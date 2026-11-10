@@ -1822,7 +1822,7 @@
         async function save() {
             var t = current();
             if (!t) { return; }
-            if (!t.path) { return saveAs(); }
+            if (!t.path || resources && resources.needsLocation(t.resource)) { return saveAs(); }
             var submitted = t.text;
             return queueSave(t, async function (ticket) {
                 var path = t.path, err = await writeResource(t, path, submitted);
