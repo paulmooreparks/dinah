@@ -14,6 +14,13 @@ func TestADocumentReadsAFileItRefersTo(t *testing.T) {
 	isolateWorkspaceSettings(t)
 	v, root := mountTestVFS(t)
 	a := v.service.app
+	// Reading a file watches its folder, and the watch is let go before the
+	// test's folder is removed.
+	t.Cleanup(func() {
+		if a.folderWatch != nil {
+			a.folderWatch.close()
+		}
+	})
 	if err := os.MkdirAll(filepath.Join(root, "drawings"), 0o755); err != nil {
 		t.Fatal(err)
 	}

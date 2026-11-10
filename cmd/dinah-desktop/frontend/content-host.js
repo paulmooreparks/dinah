@@ -383,8 +383,10 @@
   }
   /* onChange tells the applet that a file may have changed, so that it
      reads again what its document refers to. Dinah learns of a change it
-     made itself and of one on disk in a folder some window shows; the
-     applets also read again when the window is returned to. */
+     made itself and of one on disk, in a folder some window shows or in
+     the folder of a file readText read lately (the newest 32 such
+     folders, in local sources). The applets also read again when the
+     window is returned to. */
   var changeListeners = new Set(), watchingFiles = false;
   function onChange(listener) {
     if (typeof listener !== 'function') return function () {};

@@ -19,7 +19,8 @@ type MountText struct {
 // path, as a deck does for a saved diagram it shows. The path is under /home
 // or /workspaces. A file longer than maxBytes is refused when maxBytes is
 // above zero. A file that is not there is reported as not found and is no
-// error, so the document can say which of its references is missing.
+// error, so the document can say which of its references is missing. The
+// folder of the file is then watched for changes on disk (workspace_watch.go).
 func (a *App) ReadWorkspaceMountText(path string, maxBytes int) (MountText, error) {
 	v := workspaceVFS{service: a.resourceService()}
 	target, err := v.resolve(path)
@@ -32,6 +33,9 @@ func (a *App) ReadWorkspaceMountText(path string, maxBytes int) (MountText, erro
 	if target.ref == nil {
 		return MountText{}, errors.New(target.path + " is not a file")
 	}
+	// The file's folder is watched whether or not the file is there, so the
+	// document learns of a file that changes and of one that arrives.
+	a.watchReadFolder(*target.ref)
 	read, err := v.read(target.path)
 	if mountMissing(err) {
 		return MountText{}, nil

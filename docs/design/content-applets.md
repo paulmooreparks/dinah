@@ -195,7 +195,7 @@ A slide of Paul's that shows a saved diagram by its path (`{{diagram:...}}`) sai
 
 `contentWorkspace.directory(resource)` gives the folder of a document that is a file, as a virtual path, so that a path written relative to the document is found. The applet asks for it without waiting, so the folder is found when the document is read and again when it is saved under a new name. A document with no file yet has no folder, and neither has a page of a source that is not a folder.
 
-`fs.onChange` tells the applets when Dinah changed a file or saw one change on disk, and Dinah sees a change on disk in a folder that some window shows. The applets also read again when their window is returned to, which covers the other folders.
+`fs.onChange` tells the applets when Dinah changed a file or saw one change on disk. Dinah sees a change on disk in a folder that some window shows, and in the folder of a file that `fs.readText` read, whether or not the file was there. The read does not say which document asked or when that document closes, so Dinah watches the 32 folders read most recently and stops watching a folder once 32 others have been read since. Only a folder of a local source is watched. The applets also read again when their window is returned to, which covers every other case.
 
 The same reader serves a stylesheet that several documents share and a template that an export reads. Editing a shared stylesheet from the applet stays off, because that needs `fs.writeText`, which Dinah does not give yet.
 
