@@ -144,7 +144,12 @@ func runDocumentWindow(args []string) int {
 		appendDocumentEntry(entryFile, documentEntry{ID: opened.ID, Application: start.application, Path: start.path, Entry: opened.Entry, PID: os.Getpid()})
 	}
 	app := documentApplications[start.application]
-	setProcessIdentity(start.application)
+	// Under an application's own installed name the program is already one
+	// thing to the system. Under the window program's name it says which
+	// application it is, so its windows group apart from the main window's.
+	if _, named := documentProgramApplication(os.Args[0]); !named {
+		setProcessIdentity(start.application)
+	}
 	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, entryFile: entryFile, application: start.application}
 	err = wails.Run(&options.App{
 		EnableDefaultContextMenu: true,

@@ -120,9 +120,17 @@ func main() {
 		os.Exit(runSlideShow())
 	}
 	// A stand-alone application's window, and the service its windows
-	// share, are further copies of this program (document_apps.go).
+	// share, are further copies of this program (document_apps.go). Under
+	// an application's own installed name the program is that application,
+	// and what follows is the file to open.
+	if application, ok := documentProgramApplication(os.Args[0]); ok && (len(os.Args) < 2 || !strings.HasPrefix(os.Args[1], "--")) {
+		os.Exit(runDocumentWindow(append([]string{application}, os.Args[1:]...)))
+	}
 	if len(os.Args) >= 2 && os.Args[1] == documentOption {
 		os.Exit(runDocumentWindow(os.Args[2:]))
+	}
+	if len(os.Args) == 2 && (os.Args[1] == documentInstallOption || os.Args[1] == documentUninstallOption) {
+		os.Exit(runDocumentInstall(os.Args[1] == documentUninstallOption))
 	}
 	if len(os.Args) >= 2 && os.Args[1] == documentServiceOption {
 		os.Exit(runDocumentService(os.Args[2:]))

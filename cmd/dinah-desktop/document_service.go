@@ -78,7 +78,7 @@ func runDocumentService(args []string) int {
 // of its pages, or another program, asked for. The window is a process of
 // its own that outlives whoever started it.
 func startDocumentWindow(application, path, ticket string) error {
-	exe, err := os.Executable()
+	exe, err := documentExecutable(application)
 	if err != nil {
 		return err
 	}

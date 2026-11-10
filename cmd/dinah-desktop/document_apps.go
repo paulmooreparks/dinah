@@ -1,9 +1,13 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 
 	"studio/internal/docservice"
+	"studio/internal/profile"
+	"studio/internal/programs"
 )
 
 // The stand-alone document applications
@@ -26,6 +30,13 @@ const documentOption = "--document"
 //	--document-service [--headless] [--dir FOLDER]
 const documentServiceOption = "--document-service"
 
+// documentInstallOption installs the applications for the person, and
+// documentUninstallOption removes them again (document_install.go).
+const (
+	documentInstallOption   = "--document-install"
+	documentUninstallOption = "--document-uninstall"
+)
+
 // documentBrand is the name the applications share. Paul chose "YAVC" for
 // now and is open to another (11 November 2026), so the applications' names
 // are made here and nowhere else.
@@ -36,6 +47,57 @@ const documentBrand = "YAVC"
 // far; Docs, Slides and Diagrams join it here when they are.
 var documentApplications = map[string]docservice.Application{
 	"editor": {Applet: "editor", Name: documentBrand + " Editor"},
+}
+
+// documentExtensions are the kinds of file the Editor offers itself for in
+// the system's Open With. It takes no kind of file for itself: the person
+// chooses what opens what.
+var documentExtensions = map[string][]string{
+	"editor": {".md", ".markdown", ".txt"},
+}
+
+// documentProgramName is the file name, without an extension, of the
+// program an application is installed as, beside the window program: the
+// same program under a name of its own, so that the system has a program to
+// show by that name, to pin and to offer in Open With. Started under that
+// name it is the application's window, with what follows as the file. The
+// source product's are named for the brand, and another product's for its
+// own command, so that two products on one computer keep their own.
+func documentProgramName(application string) string {
+	prefix := strings.ToLower(documentBrand)
+	if profile.Current().ID != profile.Source().ID {
+		prefix = product.CommandProgram
+	}
+	return prefix + "-" + application
+}
+
+// documentProgramApplication is the application a program's file name
+// stands for, when it is one of the installed names.
+func documentProgramApplication(arg0 string) (string, bool) {
+	name := strings.ToLower(filepath.Base(arg0))
+	name = strings.TrimSuffix(name, ".exe")
+	for application := range documentApplications {
+		if name == documentProgramName(application) {
+			return application, true
+		}
+	}
+	return "", false
+}
+
+// documentExecutable is the program a window of an application is started
+// from: the application's own installed name when it is there beside this
+// program, so that every window of the application is the same program to
+// the system, and otherwise this program itself.
+func documentExecutable(application string) (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	named := filepath.Join(filepath.Dir(exe), programs.FileName(documentProgramName(application)))
+	if info, err := os.Stat(named); err == nil && !info.IsDir() {
+		return named, nil
+	}
+	return exe, nil
 }
 
 // documentsDir is the document service's folder in the product's state

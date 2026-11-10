@@ -292,6 +292,15 @@ func install() error {
 	if err := installPrograms(list, required); err != nil {
 		return err
 	}
+	// The stand-alone document applications are the window program under
+	// names of their own, which it installs for the person itself
+	// (cmd/dinah-desktop/document_install.go). A failure there leaves the
+	// window installed and is reported.
+	apps := exec.Command(dst, "--document-install")
+	apps.Stdout, apps.Stderr = os.Stdout, os.Stderr
+	if err := apps.Run(); err != nil {
+		fmt.Printf("The stand-alone document applications were not installed: %v\n", err)
+	}
 	fmt.Printf("Close the %s window and start it again to use it.\n", product.Name)
 	return nil
 }
