@@ -35,6 +35,7 @@ func init() {
 		PrepareApplets: devinPrepareApplets,
 		Adapter:        devinAdapter,
 		Prices:         devinModelPrices,
+		Judge:          devinJudgeModule(),
 	})
 }
 

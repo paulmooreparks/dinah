@@ -228,7 +228,7 @@ func TestJudgementSettingsAreSavedAgainstARevision(t *testing.T) {
 		"no retention": func(s *JudgementSettings) { s.RetentionDays = 0 },
 		"no threshold": func(s *JudgementSettings) { s.WarnStreak = 0 },
 		"unknown kind": func(s *JudgementSettings) { s.KindsOff = []string{"nothing"} },
-		"cannot judge": func(s *JudgementSettings) { s.Provider = "devin" },
+		"cannot judge": func(s *JudgementSettings) { s.Provider = "nobody" },
 	} {
 		bad := saved.Settings
 		edit(&bad)

@@ -31,10 +31,38 @@ func acpJudgeModule() *judgeModule {
 		Build: func(a *App, provider, model string) judge.Judge {
 			return &acpJudge{app: a, provider: provider, model: model}
 		},
-		Installed: acpJudgeModels,
+		Installed: func(a *App, ctx context.Context, provider string) ([]judge.Model, error) {
+			return acpJudgeModels(a, ctx, provider, sharedJudgeLink)
+		},
 		Available: acpJudgeAvailable,
 		Note:      "Each call starts a session and uses your plan's usage. Set a budget below.",
 	}
+}
+
+// judgeLink is the connection a judgement call is made on: the agent's process,
+// what the agent said of itself when it started, and the set of sessions whose
+// updates the connection's handler gives to their calls. release, when not nil,
+// says the call is over, for a connection that is kept only while calls use it.
+type judgeLink struct {
+	conn     agentConnection
+	init     acp.InitializeResult
+	sessions *sessionhost.JudgeSessions
+	release  func()
+}
+
+func (l judgeLink) done() {
+	if l.release != nil {
+		l.release()
+	}
+}
+
+// sharedJudgeLink is the provider's running connection, which its chats use too.
+func sharedJudgeLink(a *App, provider string) (judgeLink, error) {
+	conn, init, err := a.lifecycle().Live(provider)
+	if err != nil {
+		return judgeLink{}, err
+	}
+	return judgeLink{conn: conn, init: init, sessions: a.judgeSessionSet()}, nil
 }
 
 // acpJudgeAvailable says why the provider cannot judge now, or "" when it can. Whether
@@ -67,23 +95,36 @@ type acpJudge struct {
 	app      *App
 	provider string
 	model    string
+	// link is where the calls are made; nil is the provider's running connection.
+	link func(a *App, provider string) (judgeLink, error)
+	// unmeasured says the usage the agent reports is not in the provider's budget
+	// unit, so that the cost of a call is recorded as unknown and not as a number
+	// in the wrong unit.
+	unmeasured bool
+}
+
+func (j *acpJudge) open() (judgeLink, error) {
+	if j.link != nil {
+		return j.link(j.app, j.provider)
+	}
+	return sharedJudgeLink(j.app, j.provider)
 }
 
 // endTimeout is how long ending a call's session may take.
 const judgeEndTimeout = 10 * time.Second
 
 func (j *acpJudge) Ask(ctx context.Context, r judge.Request) (judge.Response, error) {
-	a := j.app
-	conn, init, err := a.lifecycle().Live(j.provider)
+	link, err := j.open()
 	if err != nil {
 		return judge.Response{}, err
 	}
+	defer link.done()
+	conn, init, sessions := link.conn, link.init, link.sessions
 	dir, err := os.MkdirTemp("", "dinah-judge-")
 	if err != nil {
 		return judge.Response{}, err
 	}
 	defer os.RemoveAll(dir)
-	sessions := a.judgeSessionSet()
 	ns, err := newJudgeSession(ctx, conn, sessions, dir)
 	if err != nil {
 		return judge.Response{}, err
@@ -109,6 +150,9 @@ func (j *acpJudge) Ask(ctx context.Context, r judge.Request) (judge.Response, er
 	if asked := session.Refused(); len(asked) > 0 {
 		return judge.Response{}, fmt.Errorf("the agent asked to act (%s), which a judge may not", strings.Join(asked, ", "))
 	}
+	if acted := session.Acted(); len(acted) > 0 {
+		return judge.Response{}, fmt.Errorf("the agent tried to use a tool (%s), which a judge may not", strings.Join(acted, ", "))
+	}
 	if err != nil {
 		return judge.Response{}, err
 	}
@@ -116,7 +160,7 @@ func (j *acpJudge) Ask(ctx context.Context, r judge.Request) (judge.Response, er
 		return judge.Response{}, fmt.Errorf("the agent stopped the call: %s", res.StopReason)
 	}
 	resp := judge.Response{Text: session.Text(), Provider: j.provider, Model: model}
-	if used, reported := session.Usage(); reported {
+	if used, reported := session.Usage(); reported && !j.unmeasured {
 		resp.Cost = judge.Cost{Unit: providers.Registry[j.provider].BudgetUnit, In: used}
 	} else {
 		resp.Cost = judge.Cost{Unknown: true}
@@ -245,17 +289,18 @@ func judgeOptionString(raw json.RawMessage) string {
 // new session reports, so that nothing is chosen here. None is resident: a hosted
 // model loads nothing into this machine, and a call to it costs the person's plan, so
 // only a calibration the person starts may try one.
-func acpJudgeModels(a *App, ctx context.Context, provider string) ([]judge.Model, error) {
-	conn, init, err := a.lifecycle().Live(provider)
+func acpJudgeModels(a *App, ctx context.Context, provider string, open func(a *App, provider string) (judgeLink, error)) ([]judge.Model, error) {
+	link, err := open(a, provider)
 	if err != nil {
 		return nil, err
 	}
+	defer link.done()
+	conn, init, sessions := link.conn, link.init, link.sessions
 	dir, err := os.MkdirTemp("", "dinah-judge-")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(dir)
-	sessions := a.judgeSessionSet()
 	ns, err := newJudgeSession(ctx, conn, sessions, dir)
 	if err != nil {
 		return nil, err

@@ -273,7 +273,7 @@ func TestAJudgeSessionsCommandsNeverReachTheChats(t *testing.T) {
 // and the session that listed them is ended.
 func TestAnAgentProvidersModelsComeFromItsModelSetting(t *testing.T) {
 	a, c, _ := judgeConnApp(t)
-	models, err := acpJudgeModels(a, context.Background(), "codex")
+	models, err := acpJudgeModels(a, context.Background(), "codex", sharedJudgeLink)
 	if err != nil || len(models) != 4 || models[0].Name != "initial" || models[3].Name != "changed" {
 		t.Fatalf("models %+v %v", models, err)
 	}

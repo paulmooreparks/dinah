@@ -192,6 +192,9 @@ type judging struct {
 	// sessions are the sessions that judgement calls through the protocol have open
 	// (judge_acp.go).
 	sessions *sessionhost.JudgeSessions
+	// processes are the provider processes that only judgement calls use, by
+	// provider (judge_process.go).
+	processes map[string]*judgeProcess
 	// handoffs are the judged summaries kept for the run (judge_handoff.go).
 	handoffs map[string]handoffEntry
 
@@ -253,6 +256,11 @@ type judgeModule struct {
 	// Note is a sentence for the page beside the provider, such as that its calls use
 	// the person's plan; empty for none.
 	Note string
+	// NoCalibration is why the provider's models are not calibrated, as a sentence
+	// for the person, or "" when they are. A run tries models on the person's plan
+	// and stops when the budget refuses a call, so a provider whose calls cannot be
+	// counted against a budget is not calibrated, and the person chooses its model.
+	NoCalibration string
 }
 
 func defaultJudgementSettings() JudgementSettings {
@@ -413,6 +421,7 @@ func (a *App) judges() (*judge.Judges, error) {
 // still running when the window ends finds it closed, and uses its rule.
 func (a *App) closeJudges() {
 	a.stopCalibration()
+	defer a.stopJudgeProcesses()
 	// A title judgement in flight writes the settings and the judgement store when it ends, so it is waited for
 	// (for a limit, since a judge that never answers must not hold up the app's ending).
 	a.judging.mu.Lock()

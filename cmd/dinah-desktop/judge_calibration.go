@@ -145,6 +145,9 @@ func (a *App) RunJudgementCalibration() error {
 	if !settings.Enabled {
 		return errors.New("the judges are turned off, so there is nothing to calibrate")
 	}
+	if module, ok := providerModules[settings.Provider]; ok && module.Judge != nil && module.Judge.NoCalibration != "" {
+		return errors.New(module.Judge.NoCalibration)
+	}
 	if !a.beginCalibration() {
 		return errors.New("a calibration is already running")
 	}
@@ -209,7 +212,7 @@ func (a *App) runCalibration(automatic bool) {
 		return
 	}
 	module, ok := providerModules[settings.Provider]
-	if !ok || module.Judge == nil {
+	if !ok || module.Judge == nil || module.Judge.NoCalibration != "" {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
