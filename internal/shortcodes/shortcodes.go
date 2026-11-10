@@ -40,7 +40,9 @@ type Param struct {
 // place of its name and colon, as {{@value}} is for a shortcode whose
 // prefix is "@". Managed says the product keeps the shortcode with a tool
 // of its own: the applets draw it, and neither offer to insert it nor
-// change it on the page.
+// change it on the page. Literal says the body of a container is markup
+// and not Markdown: the applets read the body whole, blank lines included,
+// and edit a body that is one table as a table.
 type Descriptor struct {
 	Name        string  `json:"name"`
 	Title       string  `json:"title"`
@@ -50,6 +52,7 @@ type Descriptor struct {
 	Example     string  `json:"example,omitempty"`
 	Prefix      string  `json:"prefix,omitempty"`
 	Managed     bool    `json:"managed,omitempty"`
+	Literal     bool    `json:"literal,omitempty"`
 }
 
 // Request is one occurrence of a shortcode to draw: its name, the raw
@@ -156,6 +159,10 @@ func Catalog() []Descriptor {
 			}
 			if d.Params == nil {
 				d.Params = []Param{}
+			}
+			// Only a container has a body to read as markup.
+			if d.Kind != Container {
+				d.Literal = false
 			}
 			out = append(out, d)
 		}

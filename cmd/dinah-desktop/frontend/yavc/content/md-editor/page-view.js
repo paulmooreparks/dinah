@@ -56,6 +56,42 @@
      Markdown keeps that Markdown in a data attribute. */
   var place = { uid: { default: null }, gap: { default: null }, src: { default: null }, canonical: { default: null } };
   function withPlace(attrs) { return Object.assign({}, place, attrs || {}); }
+  function jsonAttr(d, name) {
+    var v = d.getAttribute(name);
+    if (!v || v.length > 262144) return null;
+    try { return JSON.parse(v); } catch (err) { return null; }
+  }
+  /* The attributes of an element of a table read from HTML, as they may be
+     drawn on the page: each as safe-html allows it (no handlers, no
+     addresses but the web's, a style with only the properties it keeps),
+     and none that would reach the editor's own workings. */
+  function safeAttrs(list) {
+    if (!Array.isArray(list) || !list.length) return [];
+    var el = document.createElement('span');
+    list.forEach(function (a) {
+      if (!Array.isArray(a) || a.length !== 2 || typeof a[0] !== 'string' || typeof a[1] !== 'string') return;
+      var name = a[0].toLowerCase();
+      if (!/^[a-z][a-z0-9:_-]{0,63}$/.test(name) || /^(contenteditable|id|tabindex|draggable|hidden|role|slot|is|dir|lang|translate|inert|popover)$/.test(name) || /^(data-pm-|aria-)/.test(name) || a[1].length > 4096) return;
+      if (name === 'class' && /(^|\s)(pm-|ProseMirror)/.test(a[1])) return;
+      try { el.setAttribute(name, a[1]); } catch (err) { }
+    });
+    var cleaned = window.yavcHTML.fragment(el.outerHTML).firstElementChild, out = [];
+    if (cleaned) Array.prototype.forEach.call(cleaned.attributes, function (attr) { out.push([attr.name, attr.value]); });
+    return out;
+  }
+  function attrPairs(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(function (a) { return Array.isArray(a) && a.length === 2 && typeof a[0] === 'string' && typeof a[1] === 'string' && /^[a-z][a-z0-9:_-]{0,63}$/i.test(a[0]) && a[1].length <= 4096; }).slice(0, 64);
+  }
+  /* What a table read from HTML keeps of its markup, read back from the
+     page's own DOM (a copy, a paste from another window of the site). Its
+     column group is not taken from a paste: the engine writes it as it
+     is, so only one read from the text is trusted. */
+  function rawTableAttrs(d) {
+    var raw = jsonAttr(d, 'data-pm-raw');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    return { open: typeof raw.open === 'string' && raw.open.length <= 1024 ? raw.open : '', close: typeof raw.close === 'string' && raw.close.length <= 1024 ? raw.close : '', attrs: attrPairs(raw.attrs), colgroup: '', thead: raw.thead === true, tbody: raw.tbody === true };
+  }
       /* A colour as the engine writes it in a style: the site's names as
        its tokens, anything else as given, kept to what a colour can be. */
     function colorCSS(v) {
@@ -73,15 +109,51 @@ var schemaCache = null;
     if (schemaCache) return schemaCache;
     var table = PM.tableNodes({ tableGroup: 'block', cellContent: 'inline*', cellAttributes: {
       align: { default: '', getFromDOM: function (dom) { var value = dom.style.textAlign || dom.getAttribute('align') || ''; return /^(left|center|right)$/.test(value) ? value : ''; },
-        setDOMAttr: function (value, attrs) { if (/^(left|center|right)$/.test(value)) attrs.style = (attrs.style || '') + 'text-align:' + value + ';'; } }
+        setDOMAttr: function (value, attrs) { if (/^(left|center|right)$/.test(value)) attrs.style = (attrs.style || '') + 'text-align:' + value + ';'; } },
+      /* A table read from an HTML block (DESIGN.md, decision 112) keeps
+         each cell's attributes (a colour, a class) and whether its text is
+         in a paragraph; the page draws what safe-html allows of them, so a
+         cell's background colour shows. */
+      xattrs: { default: null, getFromDOM: function (d) { return jsonAttr(d, 'data-pm-xattrs'); } },
+      para: { default: false, getFromDOM: function (d) { return d.getAttribute('data-pm-para') === '1'; } }
     } });
-    table.table.attrs = withPlace(table.table.attrs);
-    table.table.toDOM = function () {
-      var dom = document.createElement('table'), body = document.createElement('tbody');
+    table.table.attrs = withPlace(Object.assign({}, table.table.attrs, { raw: { default: null } }));
+    table.table.toDOM = function (n) {
+      var raw = n.attrs.raw, dom = document.createElement('table'), body = document.createElement('tbody');
+      if (raw) {
+        dom.className = 'pm-raw-table';
+        safeAttrs(raw.attrs).forEach(function (a) { dom.setAttribute(a[0], a[1]); });
+        if (raw.colgroup) { var cg = window.yavcHTML.fragment('<table>' + raw.colgroup + '</table>').querySelector('colgroup'); if (cg) dom.appendChild(cg); }
+        dom.setAttribute('data-pm-raw', JSON.stringify(raw));
+      }
       dom.appendChild(body);
       return { dom: dom, contentDOM: body };
     };
-    table.table.parseDOM = [{ tag: 'table' }];
+    table.table.parseDOM = [{ tag: 'table', getAttrs: function (d) { return { raw: rawTableAttrs(d) }; } }];
+    table.table_row.attrs = Object.assign({}, table.table_row.attrs, { xattrs: { default: null }, head: { default: false } });
+    table.table_row.parseDOM = [{ tag: 'tr', getAttrs: function (d) { return { xattrs: jsonAttr(d, 'data-pm-xattrs'), head: d.getAttribute('data-pm-head') === '1' }; } }];
+    table.table_row.toDOM = function (n) {
+      var attrs = {};
+      safeAttrs(n.attrs.xattrs).forEach(function (a) { attrs[a[0]] = a[1]; });
+      if (n.attrs.xattrs) attrs['data-pm-xattrs'] = JSON.stringify(n.attrs.xattrs);
+      if (n.attrs.head) attrs['data-pm-head'] = '1';
+      return ['tr', attrs, 0];
+    };
+    ['table_cell', 'table_header'].forEach(function (name) {
+      var tag = name === 'table_cell' ? 'td' : 'th';
+      table[name].toDOM = function (n) {
+        var attrs = {};
+        safeAttrs(n.attrs.xattrs).forEach(function (a) { attrs[a[0]] = a[1]; });
+        delete attrs.colspan; delete attrs.rowspan;
+        if (n.attrs.colspan !== 1) attrs.colspan = n.attrs.colspan;
+        if (n.attrs.rowspan !== 1) attrs.rowspan = n.attrs.rowspan;
+        if (n.attrs.colwidth) attrs['data-colwidth'] = n.attrs.colwidth.join(',');
+        if (/^(left|center|right)$/.test(n.attrs.align || '')) attrs.style = (attrs.style || '') + 'text-align:' + n.attrs.align + ';';
+        if (n.attrs.xattrs) attrs['data-pm-xattrs'] = JSON.stringify(n.attrs.xattrs);
+        if (n.attrs.para) attrs['data-pm-para'] = '1';
+        return n.attrs.para ? [tag, attrs, ['p', 0]] : [tag, attrs, 0];
+      };
+    });
     /* A cell holds its text directly, so it is a text block, and the gap
        cursor would otherwise take the place between two cells for one where
        a block could go: the right arrow at the end of a cell drew it there,
@@ -175,6 +247,20 @@ var schemaCache = null;
           leafText:function(node){return node.attrs.src;},
           toDOM:function(node){return ['span',{class:'critic','data-critic-raw':node.attrs.src},node.attrs.src];} },
         text: { group: 'inline' },
+        /* Markup in a cell of a table read from HTML that is not simple
+           formatting (a wiki's link or user), kept as it was written and
+           drawn as safe-html allows it, as one piece that is not edited. */
+        raw_inline: { group: 'inline', inline: true, atom: true, selectable: true, attrs: { xml: { default: '' } },
+          parseDOM: [{ tag: 'span.pm-raw-inline[data-xml]', getAttrs: function (d) { var xml = d.getAttribute('data-xml') || ''; return xml.length <= 65536 ? { xml: xml } : false; } }],
+          toDOM: function (n) {
+            var span = document.createElement('span');
+            span.className = 'pm-raw-inline';
+            span.setAttribute('data-xml', n.attrs.xml);
+            span.setAttribute('data-tooltip', 'Markup kept as it was written');
+            span.appendChild(window.yavcHTML.fragment(n.attrs.xml));
+            if (!span.textContent.trim()) span.textContent = n.attrs.xml;
+            return span;
+          } },
         // A line break, as HTML pasted from another program can hold one.
         hard_break: { group: 'inline', inline: true, selectable: false, parseDOM: [{ tag: 'br' }], toDOM: function () { return ['br']; } },
         // A line break inside a paragraph, which the page shows as a space.
@@ -261,6 +347,43 @@ var schemaCache = null;
     var PM = null, view = null, on = false, shown = null, loading = 0;
     var footnoteNamespace='yavc-notes-'+crypto.randomUUID();
     var dirty = false, syncTimer = 0, syncing = null, reloadTimer = 0, sourceStale = false, refreshFocus = null, frozen = false;
+    /* Whether the next page built takes its place from the text's caret
+       (o.caret): set when the page is turned on, so that changing from
+       Text to Visual keeps the reader's place; a page built again for a
+       change to the text keeps its own scroll instead. */
+    var placeFromText = false;
+    /* The position just inside the top-level block that holds an offset
+       into the document's text, worked out from each block's text and the
+       text before it, as the page writes itself back; null when the
+       blocks are not exactly the text. */
+    function blockAtOffset(doc, offset) {
+      var at = (doc.attrs.front || '').length, found = null, last = null;
+      doc.forEach(function (node, pos) {
+        if (found != null) return;
+        var a = node.attrs || {};
+        if (typeof a.src !== 'string' || typeof a.gap !== 'string') { found = -1; return; }
+        var start = at + a.gap.length, end = start + a.src.length;
+        last = pos;
+        if (offset <= end) found = pos;
+        at = end;
+      });
+      if (found === -1) return null;
+      return found != null ? found + 1 : last != null ? last + 1 : null;
+    }
+    /* The text offset of the top-level block the selection is in, from
+       the blocks of a document read afresh from the text (json), for
+       keeping the place when the page's own mapping is not exact. */
+    function blockOffset(json, index) {
+      var at = ((json.attrs || {}).front || '').length, list = json.content || [];
+      for (var i = 0; i < list.length && i <= index; i++) {
+        var a = list[i].attrs || {};
+        if (typeof a.src !== 'string' || typeof a.gap !== 'string') return null;
+        at += a.gap.length;
+        if (i === index) return at;
+        at += a.src.length;
+      }
+      return null;
+    }
     function updating(value) {
       if (value && !sourceStale && view && view.hasFocus()) refreshFocus = view;
       sourceStale = value;
@@ -284,7 +407,7 @@ var schemaCache = null;
       if (next === on) return Promise.resolve();
       on = next;
       o.page.classList.toggle('page-view', on);
-      if (on) return load();
+      if (on) { placeFromText = true; return load(); }
       if (view) view.setProps({ editable: function () { return false; } });
       clearTimeout(reloadTimer);
       return sync().then(close).catch(function (err) { on = true; if (view) view.setProps({ editable: function () { return !sourceStale && !frozen; } }); o.page.classList.add('page-view'); throw err; });
@@ -309,6 +432,11 @@ var schemaCache = null;
         // Metadata is retained in the model, but opening a page places the
         // caret in visible content. A metadata-only page needs a typing slot.
         if (first && first === doc.content.size) { doc = doc.copy(doc.content.append(PM.Fragment.from(schema.nodes.paragraph.create()))); }
+        /* The place: the block the text's caret is in, when the page is
+           being turned on, so that the reader lands where they were. */
+        var placed = false, caret = placeFromText && o.caret ? o.caret() : null;
+        placeFromText = false;
+        if (typeof caret === 'number') { var inBlock = blockAtOffset(doc, caret); if (inBlock != null) { first = inBlock; placed = true; } }
         var state = PM.EditorState.create({ doc: doc, selection: first ? PM.TextSelection.near(doc.resolve(first)) : undefined, plugins: plugins(schema) });
         if (view) view.updateState(state);
         else {
@@ -333,7 +461,8 @@ var schemaCache = null;
         view.state.doc.forEach(function (n) { pristine.add(n); });
         // The suggestions are placed once the page is known to be the text.
         view.dispatch(view.state.tr.setMeta(suggestKey, true));
-        o.scroll.scrollTop = top;
+        if (placed) view.dispatch(view.state.tr.scrollIntoView().setMeta('addToHistory', false));
+        else o.scroll.scrollTop = top;
         o.changed();
       }).catch(function (err) {
         if (ticket === loading) o.failed('The page could not be built, so it is drawn from the text until Visual is chosen again: ' + String(err && err.message || err));
@@ -526,6 +655,12 @@ var schemaCache = null;
       var slice = text.slice(from, toNew);
       // A slice starting --- would be read as front matter.
       if (/^---[ \t]*(\n|$)/.test(slice)) return false;
+      /* A contents list draws the whole document's headings, which a
+         slice read on its own would not have: a change that touches a
+         heading or a contents list is read with the whole page (decision
+         114); any other change leaves every list right. */
+      var listOrHeading = /(^|\n)[ \t]{0,3}#|\{\{toc[:}]/;
+      if (listOrHeading.test(slice) || listOrHeading.test(shown.slice(from, spans[j].end))) return false;
       var ticket = ++loading, before = shown, gap = spans[i].gap;
       return Promise.resolve(o.docOf(slice)).then(function (json) {
         if (ticket !== loading || !view || shown !== before || !on) return;
@@ -1591,9 +1726,12 @@ var schemaCache = null;
       }
     }
 
-    /* A table's shape: rows and columns are added and deleted. Merged
-       cells and heading cells outside the first row are what a Markdown
-       table cannot hold, so the page does not offer them. */
+    /* A table's shape: rows and columns are added and deleted in any
+       table. Merging and splitting cells, heading cells outside the first
+       row and a cell's colour are what a Markdown table cannot hold, so a
+       Markdown table changed that way becomes an HTML table, written as
+       markup with no attributes of its own (DESIGN.md, decision 112), and
+       is edited here as before. */
     var TABLE_COMMANDS = {
       'row-above': function () { return tableStructure(PM.addRowBefore, true); },
       'row-below': function () { return tableStructure(PM.addRowAfter, true); },
@@ -1601,12 +1739,72 @@ var schemaCache = null;
       'column-after': function () { return tableStructure(PM.addColumnAfter); },
       'delete-row': function () { return tableStructure(PM.deleteRow); },
       'delete-column': function () { return tableStructure(PM.deleteColumn); },
-      'delete-table': function () { return PM.deleteTable; }
+      'delete-table': function () { return PM.deleteTable; },
+      'merge-cells': function () { return reshape(PM.mergeCells); },
+      'split-cell': function () { return reshape(PM.splitCell); },
+      'heading-row': function () { return reshape(PM.toggleHeaderRow); },
+      'heading-column': function () { return reshape(PM.toggleHeaderColumn); },
+      'heading-cell': function () { return reshape(PM.toggleHeaderCell); },
+      'cell-colour': function () { return reshape(colourCells); }
     };
+    /* Colours the selected cells, or the cell the cursor is in, with the
+       colour the page asked for (pendingColour), as a background colour in
+       the cell's style; an empty colour takes it away. */
+    var pendingColour = '';
+    function colourCells(state, dispatch) {
+      if (!PM.isInTable(state)) return false;
+      var cells = [];
+      if (state.selection instanceof PM.CellSelection) state.selection.forEachCell(function (node, pos) { cells.push({ node: node, pos: pos }); });
+      else {
+        var $c = state.selection.$from;
+        for (var d = $c.depth; d > 0; d--) {
+          var role = $c.node(d).type.spec.tableRole;
+          if (role === 'cell' || role === 'header_cell') { cells.push({ node: $c.node(d), pos: $c.before(d) }); break; }
+        }
+      }
+      if (!cells.length) return false;
+      if (!dispatch) return true;
+      var tr = state.tr;
+      cells.forEach(function (c) {
+        var keep = (c.node.attrs.xattrs || []).filter(function (a) { return a[0] !== 'style'; });
+        var style = (c.node.attrs.xattrs || []).find(function (a) { return a[0] === 'style'; });
+        var rest = style ? style[1].split(';').map(function (s) { return s.trim(); }).filter(function (s) { return s && !/^background(-color)?\s*:/i.test(s); }).join('; ') : '';
+        if (pendingColour) keep.push(['style', 'background-color: ' + pendingColour + ';' + (rest ? ' ' + rest + ';' : '')]);
+        else if (rest) keep.push(['style', rest + ';']);
+        tr.setNodeMarkup(c.pos, null, Object.assign({}, c.node.attrs, { xattrs: keep }));
+      });
+      dispatch(tr);
+      return true;
+    }
+    /* A change only an HTML table can hold: the table becomes one, with
+       every row drawn as written from then on. A Markdown table's empty
+       heading row, which is how a table without headings is written, is
+       taken out rather than shown. */
+    function reshape(cmd) {
+      return function (state, dispatch) {
+        var tr = null;
+        if (!cmd(state, function (t) { tr = t; })) return false;
+        if (!dispatch) return true;
+        var found = PM.findTable(tr.selection.$from);
+        if (found && !found.node.attrs.raw) {
+          tr.setNodeMarkup(found.pos, null, Object.assign({}, found.node.attrs, { raw: { open: '', close: '', attrs: [], colgroup: '', thead: false, tbody: true } }));
+          var first = found.node.firstChild, emptyHead = !!first;
+          if (first) first.forEach(function (cell) { if (cell.type.name !== 'table_header' || cell.content.size) emptyHead = false; });
+          found.node.forEach(function (row, offset) { tr.setNodeMarkup(found.start + offset, null, Object.assign({}, row.attrs, { xattrs: row.attrs.xattrs || [] })); });
+          if (emptyHead && found.node.childCount > 1) tr.delete(found.start, found.start + first.nodeSize);
+          o.say('This table now has a shape Markdown cannot hold, so it is kept as HTML in the text. It is edited here as before.');
+        }
+        dispatch(tr);
+        return true;
+      };
+    }
     function tableStructure(command, retainColumns) {
       return function (state, dispatch) {
         if (!PM.isInTable(state)) return false;
         var rect = PM.selectedRect(state), alignment = [];
+        /* An HTML table's cells keep their own attributes; only a
+           Markdown table's column alignment is kept across its rows. */
+        if (rect.table.attrs.raw) return command(state, dispatch);
         rect.table.firstChild.forEach(function (cell) { alignment.push(cell.attrs.align || ''); });
         return command(state, dispatch && function (tr) {
           var at = tr.mapping.map(rect.tableStart - 1), table = tr.doc.nodeAt(at);
@@ -1624,7 +1822,7 @@ var schemaCache = null;
     function columnAlignment(value) {
       return function (state, dispatch) {
         if (!PM.isInTable(state)) return false;
-        var rect = PM.selectedRect(state), valid = true;
+        var rect = PM.selectedRect(state), valid = !rect.table.attrs.raw;
         rect.table.forEach(function (row) { if (row.childCount !== rect.map.width) valid = false; row.forEach(function (cell) { if (cell.attrs.colspan !== 1 || cell.attrs.rowspan !== 1) valid = false; }); });
         if (!valid) return false;
         if (dispatch) {
@@ -1701,6 +1899,7 @@ var schemaCache = null;
           };
           break;
         default:
+          if (name === 'cell-colour') pendingColour = typeof arg === 'string' ? arg : '';
           if (TABLE_COMMANDS[name]) { cmd = TABLE_COMMANDS[name](); break; }
           if (!insertOf(name)) return false;
           insert(name);
@@ -1757,6 +1956,28 @@ var schemaCache = null;
 
     return {
       enable: enable,
+      /* The place of the page's caret in the text, for keeping the
+         reader's place when the page is left for Text: the spot itself
+         where the text is exactly the page (sourceSelection), or else
+         the start of the block the caret is in. The page is written to
+         the text first. null when there is no page. */
+      placeInText: async function () {
+        if (!view || !on) return null;
+        var target = view;
+        try { await sync(); } catch (err) { return null; }
+        if (view !== target || !on) return null;
+        var exact = await this.sourceSelection();
+        if (exact) return { from: exact.from, to: exact.to };
+        if (view !== target || !on) return null;
+        var $from = view.state.selection.$from, index = $from.depth > 0 ? $from.index(0) : Math.min($from.index(0), view.state.doc.childCount - 1);
+        var text = o.text();
+        try {
+          var json = await o.docOf(text);
+          if (view !== target || !on || o.text() !== text) return null;
+          var at = blockOffset(json, index);
+          return at == null ? null : { from: at, to: at };
+        } catch (err) { return null; }
+      },
       // Preserve a failed rich draft for selection/copy after its host revokes editing.
       freeze: function () { frozen = true; if (view) view.setProps({ editable: function () { return false; } }); },
       active: function () { return on && !!view; },
@@ -1899,6 +2120,16 @@ var schemaCache = null;
           var rect = PM.selectedRect(st), values = new Set();
           rect.table.forEach(function (row) { row.forEach(function (cell, offset, column) { if (column >= rect.left && column < rect.right) values.add(cell.attrs.align || ''); }); });
           out.columnAlign = values.size === 1 ? values.values().next().value : null;
+          out.rawTable = !!rect.table.attrs.raw;
+          /* The background colour of the cell the cursor is in, for the
+             Cell Colour dialog to start from. */
+          for (var depth = $f.depth; depth > 0; depth--) {
+            var role = $f.node(depth).type.spec.tableRole;
+            if (role !== 'cell' && role !== 'header_cell') continue;
+            var style = ($f.node(depth).attrs.xattrs || []).find(function (a) { return a[0] === 'style'; }), m = style && /(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i.exec(style[1]);
+            out.cellColour = m ? m[1].trim() : '';
+            break;
+          }
         }
         return out;
       },

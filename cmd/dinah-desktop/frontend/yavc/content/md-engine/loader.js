@@ -81,8 +81,9 @@
                 return context;
             }
             /* The host's shortcodes as the engine reads them: a name, a kind,
-               and optionally a one-character prefix and whether the host
-               manages the shortcode's content itself. */
+               and optionally a one-character prefix, whether the host
+               manages the shortcode's content itself, and whether a
+               container's body is literal markup rather than Markdown. */
             function hostList(list) {
                 if (!Array.isArray(list)) { return null; }
                 var out = [];
@@ -91,6 +92,7 @@
                     var entry = { name: h.name, kind: h.kind };
                     if (typeof h.prefix === 'string' && h.prefix.length === 1) { entry.prefix = h.prefix; }
                     if (h.managed === true) { entry.managed = true; }
+                    if (h.literal === true && h.kind === 'container') { entry.literal = true; }
                     out.push(Object.freeze(entry));
                 });
                 return out.length ? Object.freeze(out) : null;

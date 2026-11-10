@@ -80,6 +80,11 @@
 .doc-page.page-view { cursor: text; }
 .doc-page.page-view > .ProseMirror { outline: none; min-height: 100%; white-space: pre-wrap; }
 .doc-page.page-view td, .doc-page.page-view th { position: relative; }
+/* A table read from HTML (DESIGN.md, decision 112) draws each cell's own
+   attributes; a piece of markup in a cell that is not edited is one piece,
+   marked as such when selected. */
+.doc-page.page-view .pm-raw-inline { display: inline; white-space: pre-wrap; }
+.doc-page.page-view .pm-raw-inline.ProseMirror-selectednode { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
 .doc-page.page-view .selectedCell::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; }
 .doc-page.page-view .pm-tight > li > p, .doc-page.page-view .pm-tight > li > .pm-task-body > p { margin: 0; }
 .doc-page.page-view li.pm-task { list-style: none; display: flex; align-items: baseline; }

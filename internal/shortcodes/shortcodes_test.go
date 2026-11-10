@@ -1,7 +1,9 @@
 package shortcodes
 
 import (
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -106,5 +108,42 @@ func TestFormsComeFromTheSetThatHasThem(t *testing.T) {
 	}
 	if _, err := Build("Bad Kind", nil); err == nil || errors.Is(err, ErrUnknown) {
 		t.Fatalf("a bad kind was accepted: %v", err)
+	}
+}
+
+type literalSet struct{}
+
+func (literalSet) Catalog() []Descriptor {
+	return []Descriptor{
+		{Name: "markup", Kind: Container, Literal: true},
+		{Name: "mark", Kind: Inline, Literal: true},
+	}
+}
+
+func (literalSet) Render(Request) (string, error) { return "", ErrUnknown }
+
+// A container may say its body is markup, and the catalog tells the applets
+// so under the name their contract reads. The flag is dropped on a shortcode
+// that has no body.
+func TestACatalogSaysWhichContainersAreLiteral(t *testing.T) {
+	Register(literalSet{})
+	var container, inline *Descriptor
+	for _, d := range Catalog() {
+		switch d.Name {
+		case "markup":
+			container = &d
+		case "mark":
+			inline = &d
+		}
+	}
+	if container == nil || inline == nil || !container.Literal || inline.Literal {
+		t.Fatalf("container %+v, inline %+v", container, inline)
+	}
+	b, err := json.Marshal(container)
+	if err != nil || !strings.Contains(string(b), `"literal":true`) {
+		t.Fatalf("the container as the applets get it: %s %v", b, err)
+	}
+	if b, _ := json.Marshal(inline); strings.Contains(string(b), "literal") {
+		t.Fatalf("the inline shortcode as the applets get it: %s", b)
 	}
 }

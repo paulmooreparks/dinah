@@ -411,14 +411,30 @@
         return out;
     }
     /* Table: a new table, and, while the cursor is in one on the page, rows
-       and columns added and deleted there. Merged cells, which a Markdown
-       table cannot hold, are not offered (docs/docs-design.md, decision 9).
+       and columns added and deleted there. Merging and splitting cells,
+       heading cells outside the first row and a cell's colour, which a
+       Markdown table cannot hold, turn the table into an HTML table in the
+       text (DESIGN.md, decision 112), which the page goes on editing.
        opts (hidden, disabled) apply to the command and every row, as
        boxCommand's do. */
     var TABLE_OPS = [
         ['row-above', 'Insert Row Above'], ['row-below', 'Insert Row Below'], ['column-before', 'Insert Column Before'], ['column-after', 'Insert Column After'],
-        ['delete-row', 'Delete Row'], ['delete-column', 'Delete Column'], ['delete-table', 'Delete Table']
+        ['delete-row', 'Delete Row'], ['delete-column', 'Delete Column'], ['delete-table', 'Delete Table'], '-',
+        ['merge-cells', 'Merge Cells'], ['split-cell', 'Split Cell'], ['heading-row', 'Heading Row'], ['heading-column', 'Heading Column'], ['heading-cell', 'Heading Cell']
     ];
+    /* The colour of the selected cells, asked in the colour dialog; an
+       empty answer takes the colour away. */
+    function askCellColour(page) {
+        var current = page.marks().cellColour || '';
+        return window.yavcDialog.askText('Cell Color', 'Background Color', current, {
+            placeholder: '#DEEBFF', help: 'A CSS color for the background of the selected cells. Leave it empty to take the color away.', okLabel: 'Apply',
+            validate: function (v) { v = String(v || '').trim(); return !v || (v.length <= 64 && /^[#()%.,\/\sA-Za-z0-9-]+$/.test(v) && CSS.supports('background-color', v)) ? null : 'That is not a color the browser knows.'; }
+        }).then(function (v) {
+            if (v == null) { return; }
+            page.run('cell-colour', String(v).trim());
+            page.focus();
+        });
+    }
     function quoteState(ctx) {
         var page = ctx.page && ctx.page(); if (page && ctx.onPage && ctx.onPage()) { return !!page.marks().quote; }
         var view = ctx.text && ctx.text(); return !!view && /^ {0,3}>/.test(view.state.doc.lineAt(view.state.selection.main.from).text);
@@ -437,8 +453,10 @@
         }
         var items = [row({ id: 'table-new', label: 'Insert Table', run: function () { insertItem(newTable, ctx); } }, false)];
         TABLE_OPS.forEach(function (t) {
+            if (t === '-') { items.push('-'); return; }
             items.push(row({ id: 'table-' + t[0], label: t[1], op: t[0], run: function () { var p = pageHere(); if (p) { p.run(t[0]); } } }, true));
         });
+        items.push(row({ id: 'table-cell-colour', label: 'Cell Color…', op: 'cell-colour', run: function () { var p = pageHere(); if (p) { askCellColour(p); } } }, true));
         items.push('-');
         [['default', 'Default Alignment'], ['left', 'Align Column Left'], ['center', 'Center Column'], ['right', 'Align Column Right']].forEach(function (option) {
             var value = option[0] === 'default' ? '' : option[0];

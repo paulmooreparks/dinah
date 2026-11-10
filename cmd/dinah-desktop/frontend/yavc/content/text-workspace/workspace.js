@@ -1490,6 +1490,9 @@
                 paginationProblem: pageNotice,
                 customName: function (name) { return customShortcodes().some(function (item) { return item.name === name; }); },
                 text: function () { return view.state.doc.toString(); },
+                /* The text's caret, for the page to open at the block it
+                   is in (decision 113). */
+                caret: function () { return view ? view.state.selection.main.head : null; },
                 setText: takeVisualText,
                 docOf: function (text) { return documentEngine(text).then(function (m) { return withHostDrawings(m.doc(text)); }); },
                 markdownOf: function (doc) { return mdEngine().then(function (m) { return m.markdown(doc); }); },
@@ -1545,12 +1548,22 @@
             var gen = ++visual.gen;
             refreshStyles();
             clearTimeout(visual.timer);
+            /* The reader's place: leaving the page, its caret's place in
+               the text becomes the text's caret, so Text, Split and
+               Preview open there (decision 113). The page writes itself
+               to the text first. */
+            var place = null;
+            if (visual.api && visual.api.active() && mode !== 'visual' && mode !== 'document') {
+                place = await visual.api.placeInText().catch(function () { return null; });
+                if (gen !== visual.gen || destroyed) { return; }
+            }
             if (mode === 'text') {
                 closePageFind(false);
                 if (visual.api) { await visual.api.enable(false); }
                 if (gen !== visual.gen || destroyed) { return; }
                 el.page.replaceChildren();
                 say('');
+                showPlace(place, t);
                 announce();
                 keep();
                 return;
@@ -1563,6 +1576,8 @@
                     if (visual.api) { await visual.api.enable(false); }
                     if (gen !== visual.gen) { return; }
                     await drawPreview();
+                    if (gen !== visual.gen) { return; }
+                    showPlace(place, t);
                 } else {
                     if (!visual.api) {
                         await pageParts();
@@ -1572,6 +1587,8 @@
                     }
                     await visual.api.enable(true);
                     if (gen !== visual.gen) { return; }
+                    /* Split keeps the page; the text beside it opens at the page's place. */
+                    showPlace(place, t);
                     if (!el.findPlace.hidden && lastFind) { pageFind.set(lastFind); visualFind.refresh(); }
                     say('');
                     visual.api.repaginate();
@@ -1869,7 +1886,7 @@
                 var params=Array.isArray(s.params)?s.params.slice(0,32).filter(function(p){return p&&typeof p.name==='string'&&/^[a-z][a-z0-9-]{0,63}$/.test(p.name)&&typeof p.description==='string'&&p.description.length<=2048;}).map(function(p){return {name:p.name,description:p.description,required:p.required===true};}):[];
                 if(typeof s.example==='string'&&s.example.length>4096)return;
                 var example=typeof s.example==='string'?s.example:'',size=s.name.length+s.title.length+s.description.length+example.length+params.reduce(function(n,p){return n+p.name.length+p.description.length;},0);if(units+size>128*1024)return;units+=size;
-                found.set(s.name,{name:s.name,title:s.title,description:s.description,kind:s.kind,params:params,example:example,argumentRequired:s.argumentRequired===true,builtin:origin===0,managed:origin===1&&s.managed===true,prefix:origin===1&&s.kind==='inline'&&typeof s.prefix==='string'&&/^[@#~!$%&+=?^]$/.test(s.prefix)?s.prefix:''});
+                found.set(s.name,{name:s.name,title:s.title,description:s.description,kind:s.kind,params:params,example:example,argumentRequired:s.argumentRequired===true,builtin:origin===0,managed:origin===1&&s.managed===true,literal:origin===1&&s.kind==='container'&&s.literal===true,prefix:origin===1&&s.kind==='inline'&&typeof s.prefix==='string'&&/^[@#~!$%&+=?^]$/.test(s.prefix)?s.prefix:''});
             });});return Array.from(found.values());
         }
         function loadShortcodes() {
@@ -2069,6 +2086,19 @@
         /* Where a tab is scrolled to, as the line at the top of the view and
            how far into it, which survives a window of another size. */
         var pendingScroll = null;
+        /* Puts the text's caret at a place the page gave (decision 113),
+           with its line in view, and, where the preview is drawn, the
+           preview's block that holds that line in view too. */
+        function showPlace(place, tab) {
+            if (!place || typeof place.from !== 'number' || !view || !CM || current() !== tab) { return; }
+            var at = Math.max(0, Math.min(place.from, view.state.doc.length)), to = Math.max(at, Math.min(place.to == null ? at : place.to, view.state.doc.length));
+            view.dispatch({ selection: { anchor: at, head: to }, effects: CM.EditorView.scrollIntoView(at, { y: 'center' }) });
+            if (readsAsPreview()) {
+                var line = view.state.doc.lineAt(at).number, block = null;
+                el.page.querySelectorAll('[data-line]').forEach(function (b) { if (+b.getAttribute('data-line') <= line) { block = b; } });
+                if (block) { block.scrollIntoView({ block: 'center' }); }
+            }
+        }
         function scrollAnchor() {
             if (!view) { return null; }
             /* A place asked for and not yet reached is still the place. */
