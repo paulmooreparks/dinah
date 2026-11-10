@@ -888,7 +888,11 @@
         var deckStyle = null, slideStyles = new Map(), styleRevision = 0;
         var styleNotice = document.createElement('div'); styleNotice.className = 'notice warn'; styleNotice.hidden = true; styleNotice.setAttribute('role', 'status');
         styleNotice.innerHTML = '<div class="notice-content"><p class="notice-body"></p></div>'; root.insertBefore(styleNotice, el.main);
-        function styleDirectory() { if(resources)return H.contentWorkspace && H.contentWorkspace.directory ? H.contentWorkspace.directory(path) : null;return path && path.indexOf('/')>=0?path.slice(0,path.lastIndexOf('/')):null; }
+        /* A deck's folder, for the files it refers to. A deck that is a
+           host's resource, in the editing window or on the show's page,
+           is an opaque identity, so the host says its folder or there is
+           none; only a path of the site's own file system is read for it. */
+        function styleDirectory() { if(resources || presenterRole && presenterRole.show)return path && H.contentWorkspace && H.contentWorkspace.directory ? H.contentWorkspace.directory(path) : null;return path && path.indexOf('/')>=0?path.slice(0,path.lastIndexOf('/')):null; }
         function styleSections(index) {
             styledSections.forEach(function (section) { if (!root.contains(section)) { styledSections.delete(section); } });
             return Array.from(styledSections).filter(function (section) { return index == null || section.getAttribute('data-slide-index') === String(index); });

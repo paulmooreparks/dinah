@@ -1,6 +1,3 @@
-/* A slide show's page (show.html): the show fills the window, on black
-   until the first slide is drawn. Slides gives a root that stands in a
-   page's flow a height of its own (.deck-flow), which is not the window's,
-   so the mount's size is set here with a selector that outranks it. */
+/* A slide show's page (show.html): black until the first slide is drawn.
+   Slides fills the window by itself in show mode (yavc.app v0.2.63). */
 html, body.show-page { height: 100%; margin: 0; background: #000; overflow: hidden; }
-body.show-page > .show-applet.content-applet { position: fixed; inset: 0; width: 100vw; height: 100vh; min-height: 0; max-height: none; }

@@ -174,3 +174,5 @@
    arrives, and after the show ends, a line of text on the show's ground. */
 .deck-show-waiting { display: flex; align-items: center; justify-content: center; margin: 0; padding: var(--space-6); color: #fff; font-size: var(--text-lg); text-align: center; }
 .deck-show-waiting[hidden] { display: none; }
+/* The show's page fills its window whatever its mount's own height. */
+.deck.deck-show-mode { position: fixed; inset: 0; width: auto; height: auto; min-height: 0; }
