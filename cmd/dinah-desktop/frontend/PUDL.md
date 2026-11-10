@@ -63,3 +63,20 @@ Both bundles now contain all 193 distribution files from the latest published re
 Six isolated headless Edge suites passed: taskbar-pins, taskbar-labels, title-launcher, launcher-commands, pinned-section-candidate and pinned-section-stacks. Evidence is in build/pudl-01050-release/browser-final. An initial invocation named a nonexistent terminal-shell suite and ran no tests. The subsequent invocation failed because playwright-core was absent; npm ci restored the existing locked dependencies and all six suites passed. The original dependency failures remain in build/pudl-01050-release/browser. No host runtime edits or vendor patches were required.
 
 This adoption is a working-tree update. It does not install or restart the desktop, merge or commit the existing work. The installed executable remains the previously verified background-replay build. Native Restart validation remains outstanding.
+
+
+## Published 0.106.2 adoption, 11 November 2026
+
+Both bundles contain all 196 distribution files of the published release v0.106.2, tag commit a6e0d432cdd57f5798c4e58384b94f4f26d8722f. The downloaded archive is 7,213,880 bytes and matches its published SHA-256, 7e315f5775f2486808b94cb0de9142a8dec168f602560d68269137aace8afc10. The distribution manifest's SHA-256 is 60b3fff55740c41cf4e0e895582874fa1386ba0ee78fb918e2e62ffe9afa1b93, and every file in both bundles was compared with it. VERSION is host metadata set to 0.106.2. Releases 0.106.0 and 0.106.1 were never taken: 0.106.0 was held after two WebKit failures, which led to two menu corrections, and 0.106.2 has everything they had.
+
+The release brings three things Dinah uses.
+
+- A taskbar button that stands for several windows draws one edge behind it for two windows and two edges for three or more (`data-win-stack-depth`, `.win-stack-edges`). Dinah's markup did not change.
+- Alloy Bold is a new skin. `index.html` and `show.html` each link `pudl-skin-alloy-bold.css` beside the other skins, and the View menu lists it from `pudl-skins.json`.
+- The default mark between a window's title and its detail is encoded correctly. Dinah's two stand-ins for it are removed: the `data-win-text-title-sep` attribute on the window layer and the `:root` rule for `--win-title-sep` in `app.css`.
+
+Standard's boundaries are firmer in this release, and a desktop title mnemonic pressed just after a window takes focus opens that window's menu.
+
+Twenty-four headless suites passed on it: skins, skins-startup, skin-check-sync, skin-contrast-cache, skin-paints, skin-paints-2, web-skins, taskbar-stacks, taskbar-labels, taskbar-pins, taskbar-state-stability, stack-rows, stack-row-titles, pinned-section-stacks, window-stack-candidate, title-launcher, title-status-order, companion-themes, chat-menu-stale, documents-menu, menubar-fold, menudim, menus-through-updates and wsmenu. The real desktop, run hidden, showed stack depth 1 and 2 with their edges, Alloy Bold chosen, no taskbar button moved by a change of skin, and the middle dot on the taskbar. The full suite was not run.
+
+The applets' release must bundle the same PUDL, because `yavc_release_test.go` compares every PUDL file in its manifest with Dinah's copy, so this adoption and yavc.app v0.2.66 were taken in one commit. The commit before it is the rollback.

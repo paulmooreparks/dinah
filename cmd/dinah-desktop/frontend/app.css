@@ -300,16 +300,6 @@ body:not(.show-thoughts) .thought-row { display: none; }
    first, down to PUDL's least width for it, and then the title does. */
 .win-head:has(> .win-title-detail:not([hidden])) > .win-title { flex: 0 1 auto; }
 .win-title-detail { flex: 0 1000 auto; margin-inline-end: auto; }
-/* The mark between a title and its detail, for what PUDL draws outside the
-   window layer: the taskbar's buttons and the stack rows. PUDL sets
-   --win-title-sep on the layer from the page's data-win-text-title-sep
-   (index.html), which reaches the title bars and nothing outside the layer,
-   and PUDL 0.105.0's own default has the dot's bytes encoded twice. The dot
-   is an escape here, which no encoding can change, and an escape takes the
-   one space after it as its own end, so two follow it. Both this and the
-   attribute can go when a PUDL release has the default right. */
-:root { --win-title-sep: " \00B7  "; }
-
 /* PUDL's loading line, made for an empty region, on one line of the status
    area while Dinah starts. */
 .status-starting { display: inline-flex; justify-content: flex-start; padding: 0 var(--space-2); }
