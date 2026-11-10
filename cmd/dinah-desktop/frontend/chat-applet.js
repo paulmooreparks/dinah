@@ -1479,7 +1479,7 @@
           var at = times.get(li);
           if (at) last = at;
           else if (!li._msg) at = last;
-          var t = li.querySelector(':scope > time.activity-time');
+          var t = li._time || li.querySelector(':scope > time.activity-time');
           if (!t) return;
           dinahRegional.stamp(t, at || '', 'clock');
         });
@@ -1669,12 +1669,20 @@
       // when the replay ends; the time it is drawn at is not when it was said.
       if (!s.loading) dinahRegional.stamp(t, new Date(), 'clock');
       li.appendChild(t);
+      li._time = t;
       if (cls === 'turn-row') finishWork(s);
       s.log.appendChild(li);
       trimLog(s);
       if (s.loading && !s.drawingSaved) { s.replayed = (s.replayed || 0) + 1; replayProgress(s); }
       else if (s.id === active) { $('log-empty').hidden = true; scheduleDraw(); }
       return li;
+    }
+    /* A row's time is at its top right, where a group chat puts a message's
+       time (Paul, 10 November 2026). A row that is a card has it in the
+       card's head, before the head's tools when it has them; any other row
+       has it at its end (app.css). */
+    function timeInHead(li, head, before) {
+      if (li._time && head) head.insertBefore(li._time, before || null);
     }
 
     /* A chat keeps its latest rows on the page and lets the oldest go, so that
@@ -1907,6 +1915,7 @@
       var li = row(s, 'msg-row');
       var m = window.dinahChatText.card({ you: who === 'you', text: text, label: label || (who === 'you' ? 'You' : providerName(sessionProvider(s))), act: messageAction });
       li.appendChild(m.div);
+      timeInHead(li, m.div.querySelector('.msg-head'), m.div.querySelector('.msg-head > .msg-tools'));
       m.kind = who; m.li = li; m.s = s; m.cwd = function () { return chatFolder(s); };
       dirty.add(m);
       if (!s.loading) scheduleDraw();
@@ -1954,6 +1963,7 @@
       var first = text.trim().split('\n').find(function (l) { return l.trim(); }) || '';
       card.querySelector('.delivered-summary').textContent = first.length > 160 ? first.slice(0, 160) + '…' : first;
       li.appendChild(card);
+      timeInHead(li, card.querySelector('.card-head'));
       var m = { kind: 'delivered', li: li, text: text, el: card.querySelector('.delivered-text'), label: heading, s: s, cwd: function () { return chatFolder(s); } };
       li._msg = m; li._delivered = d;
       dirty.add(m);
@@ -2162,7 +2172,8 @@
       if (!r) {
         s.current = null;
         var li = row(s, 'tool-row');
-        li.innerHTML += '<details class="tool-detail"><summary><span class="tool-title"></span><span class="badge"></span></summary><div class="tool-inspector"><div class="tool-outcome"></div><button type="button" class="btn btn-sm tool-copy">Copy</button><pre class="tool-command"></pre><pre class="tool-output"></pre></div></details>';
+        // Added after the row's time, so that the time the row keeps (row) is the one on the page.
+        li.insertAdjacentHTML('beforeend', '<details class="tool-detail"><summary><span class="tool-title"></span><span class="badge"></span></summary><div class="tool-inspector"><div class="tool-outcome"></div><button type="button" class="btn btn-sm tool-copy">Copy</button><pre class="tool-command"></pre><pre class="tool-output"></pre></div></details>');
         r = s.rows[u.toolCallId] = { s: s, li: li, title: li.querySelector('.tool-title'), name: '', badge: li.querySelector('.badge'), detail: li.querySelector('.tool-detail'), pre: li.querySelector('.tool-output'), commandText: li.querySelector('.tool-command'), outcome: li.querySelector('.tool-outcome'), text: '', kind: '', status: 'pending' };
         li._tool = r;
         li.querySelector('.tool-copy').addEventListener('click', function (event) {
@@ -2261,10 +2272,11 @@
       if (g && (!containsActivity(s, g) || (g._complete && !s.loading && s.working))) { untrackWork(g); g = null; }
       if (!g) {
         g = document.createElement('li'); g.className = 'activity-row tool-group work-group';
-        g.innerHTML = '<time class="activity-time"></time><div class="card disclosure tool-group-body"><div class="card-head">' +
+        g.innerHTML = '<div class="card disclosure tool-group-body"><div class="card-head">' +
           '<button type="button" class="card-toggle" aria-expanded="false" aria-label="Show work"></button><span class="card-title work-title"></span>' +
-          '<span class="tool-group-words"></span><span class="card-summary tool-group-now"></span></div><ol class="card-body tool-group-list"></ol></div>';
-        g.querySelector('time').textContent = li.querySelector('.activity-time').textContent;
+          '<span class="tool-group-words"></span><span class="card-summary tool-group-now"></span><time class="activity-time"></time></div><ol class="card-body tool-group-list"></ol></div>';
+        g._time = g.querySelector('.card-head > .activity-time');
+        g._time.textContent = (li._time || li.querySelector('.activity-time')).textContent;
         g._list = g.querySelector('.tool-group-list'); g._session = s; g._started = performance.now(); g._complete = !!s.loading || !s.working;
         g._open = function () { if (window.pudlDisclose) window.pudlDisclose.set(g.querySelector('.card'), true); };
         s.log.insertBefore(g, li); s.workGroup = g;
@@ -2301,7 +2313,7 @@
       var r = s.rows.__plan;
       if (!r) {
         var li = row(s, 'plan-row');
-        li.innerHTML += '<span><strong>Plan</strong><ol class="plan"></ol></span>';
+        li.insertAdjacentHTML('beforeend', '<span><strong>Plan</strong><ol class="plan"></ol></span>');
         r = s.rows.__plan = { s: s, li: li, list: li.querySelector('.plan') };
       }
       r.entries = entries || [];

@@ -136,9 +136,14 @@
 /* The run's log: the activity list in dinah.css, with a row per tool call
    and a block per message from the agent or the person. */
 .run-log { margin: 0; }
-.run-log .activity-row { align-items: baseline; }
+/* A row's time is at its top right, as a group chat has it. A card's time
+   is in its head (chat-applet.js, timeInHead); any other row's is in the
+   row's last column, and what the row says has the columns before it. */
+.run-log .activity-row { align-items: baseline; grid-template-columns: minmax(0, 1fr) auto auto; }
+.run-log .activity-row > .activity-time { grid-column: -2 / -1; grid-row: 1; }
+.run-log .card-head > .activity-time, .run-log .msg-head > .activity-time { margin-inline-start: auto; font-size: var(--text-sm); white-space: nowrap; }
 .run-log .tool-title { overflow-wrap: anywhere; }
-.run-log .tool-detail { grid-column: 2 / -1; margin: var(--space-1) 0 0; }
+.run-log .tool-detail { grid-column: 1 / -2; margin: var(--space-1) 0 0; }
 .run-log .tool-detail pre { max-height: 16em; overflow: auto; margin: 0; font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
 /* A command's terminal colours (ansiHTML in app.js), in the theme's own
    colours so they read in light and dark: the sixteen colours fold onto
@@ -158,7 +163,7 @@
    the calls and, while closed, says the step in hand; its body is the calls.
    In the log it sits flush, with the card's padding drawn tighter, as a line
    of the log rather than a card of the page. */
-.tool-group-body { grid-column: 2 / -1; min-width: 0; }
+.tool-group-body { grid-column: 1 / -1; min-width: 0; }
 .tool-group-body.card { background: none; border: 0; box-shadow: none; }
 .tool-group-body.card > .card-head { padding: 0; }
 .tool-group-body.card > .card-head > .card-title { font-size: inherit; font-weight: 400; }
@@ -169,7 +174,7 @@
 /* A message the bus delivered is a PUDL disclosure card of its own, flat as
    display is, with the message's own surface; its head says who sent it
    and, for a result, its status as a badge's glyph and word. */
-.delivered-card { grid-column: 2 / -1; min-width: 0; box-shadow: none; border-radius: var(--radius-md); }
+.delivered-card { grid-column: 1 / -1; min-width: 0; box-shadow: none; border-radius: var(--radius-md); }
 .delivered-card > .card-head { padding: var(--space-2) var(--space-4); }
 .delivered-card > .card-head > .card-title { font-size: var(--text-sm); font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
 .delivered-card > .card-body { padding: 0 var(--space-4) var(--space-3); font-size: var(--text-base); overflow-wrap: anywhere; }
@@ -177,13 +182,13 @@
 .delivered-card > .card-body > :last-child { margin-bottom: 0; }
 /* A message waiting for a chat that is still replaying: display, not part of the
    conversation yet, so it has a dashed edge and says Waiting in a badge. */
-.arriving-card { grid-column: 2 / -1; min-width: 0; box-shadow: none; border-radius: var(--radius-md); border-style: dashed; }
+.arriving-card { grid-column: 1 / -1; min-width: 0; box-shadow: none; border-radius: var(--radius-md); border-style: dashed; }
 .arriving-card > .card-head { padding: var(--space-2) var(--space-4); display: flex; gap: var(--space-2); align-items: center; }
 .arriving-card > .card-head > .card-title { font-size: var(--text-sm); font-weight: 600; color: var(--text-muted); overflow-wrap: anywhere; }
 .arriving-card > .card-body { padding: 0 var(--space-4) var(--space-3); font-size: var(--text-base); overflow-wrap: anywhere; white-space: pre-wrap; }
-.arriving-more > p { grid-column: 2 / -1; margin: 0; }
+.arriving-more > p { grid-column: 1 / -1; margin: 0; }
 
-.msg { grid-column: 2 / -1; min-width: 0; font-size: var(--text-base); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border); }
+.msg { grid-column: 1 / -1; min-width: 0; font-size: var(--text-base); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--border); }
 .msg > :first-child { margin-top: 0; }
 .msg > :last-child { margin-bottom: 0; }
 .msg-you { background: var(--surface-alt); }

@@ -4,6 +4,8 @@
 // after the page has drawn its times is written into them, and a tag the
 // browser cannot use leaves the page's default.
 const { launch } = require('./lib/page');
+// A row's time is a child of the row, or in its card's head.
+const rowTimes = (li = 'li') => ['> ' + li + ' > time', '> ' + li + ' > * > .msg-head > time', '> ' + li + ' > * > .card-head > time'].map(x => '.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) ' + x + '.activity-time').join(', ');
 (async () => {
   // Each format is its own launch; the failures and page errors of the one
   // before are carried into it, so the last close reports them all.
@@ -48,7 +50,7 @@ const { launch } = require('./lib/page');
     const p = require('./lib/windows')(run.page);
     return { p, errors: run.errors };
   }
-  const times = p => p.$$eval('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time', ts => ts.map(t => t.textContent));
+  const times = p => p.$$eval(rowTimes(), ts => ts.map(t => t.textContent));
   async function listed(p) {
     await p.evaluate(() => dinahWorkbench.open('chat-browser'));
     await p.waitForTimeout(200);
@@ -73,7 +75,7 @@ const { launch } = require('./lib/page');
       await p.waitForTimeout(500);
       const t = await times(p);
       ok('a chat\'s times use the 12-hour clock of the regional format', /^09:05\sAM 09:06\sAM 09:15\sPM 09:16\sPM$/.test(t.join(' ')), t.join(' '));
-      const title = await p.getAttribute('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time', 'title');
+      const title = await p.getAttribute(rowTimes(), 'title');
       ok('a time\'s title is the full date in the regional format', /^10\/7\/2026, 09:05:00\sAM$/.test(title), title);
       const meta = await listed(p);
       ok('the chat list says when in the regional format', /Oct 7, 01:00\sPM/.test(meta), meta);
@@ -91,16 +93,16 @@ const { launch } = require('./lib/page');
     {
       const { p, errors } = await open('en-GB-u-hc-h23', true);
       await p.click('#sessions a:has-text("Planned yesterday")');
-      await p.waitForFunction(() => {
-        const ts = document.querySelectorAll('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time');
+      await p.waitForFunction(sel => {
+        const ts = document.querySelectorAll(sel);
         return ts.length === 4 && Array.from(ts).every(t => t.textContent);
-      });
+      }, rowTimes());
       const before = await noticeTime(p, undefined);
       await p.waitForFunction(() => document.querySelector('#questions time.notices-time')?.textContent);
       ok('the format had not arrived while the times were drawn', await p.evaluate(() => dinahRegional.locale === ''));
       await p.evaluate(() => window.__releaseLocale());
       await p.waitForFunction(() => dinahRegional.locale === 'en-GB-u-hc-h23');
-      await p.waitForFunction(() => Array.from(document.querySelectorAll('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time')).map(t => t.textContent).join(' ') === '09:05 09:06 21:15 21:16');
+      await p.waitForFunction(sel => Array.from(document.querySelectorAll(sel)).map(t => t.textContent).join(' ') === '09:05 09:06 21:15 21:16', rowTimes());
       const t = await times(p);
       ok('a chat\'s times drawn earlier are written again in the regional format', t.join(' ') === '09:05 09:06 21:15 21:16', t.join(' '));
       await p.evaluate(() => dinahWorkbench.open('chat-browser'));

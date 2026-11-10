@@ -332,6 +332,8 @@
           var div = document.createElement('div'); div.className = 'msg';
           div.innerHTML = '<div class="msg-head"><span class="msg-label"></span></div><div class="msg-text"></div>';
           div.querySelector('.msg-label').textContent = kind === 'you' ? 'Prompt' : (sub && sub.name) || 'Subagent';
+          // As in the chat, a message's time is at the right of its head.
+          div.querySelector('.msg-head').appendChild(li.querySelector(':scope > .activity-time'));
           li.appendChild(div); el = div.querySelector('.msg-text');
         }
         current = { kind: kind, li: li, el: el, text: '' };

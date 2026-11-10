@@ -1,6 +1,8 @@
 // A reopened session shows the times its messages were said, from the
 // journal, not the time it was reopened; a session with no journal shows none.
 const { launch } = require('./lib/page');
+// A row's time is a child of the row, or in its card's head.
+const rowTimes = (li = 'li') => ['> ' + li + ' > time', '> ' + li + ' > * > .msg-head > time', '> ' + li + ' > * > .card-head > time'].map(x => '.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) ' + x + '.activity-time').join(', ');
 (async () => {
   const ws = 'C:\\W';
   const t = await launch({
@@ -34,12 +36,12 @@ const { launch } = require('./lib/page');
     await p.click('#sessions a:has-text("Planned yesterday")');
     await p.waitForTimeout(500);
     // A folded run of tool calls has a row of its own, whose time is blank; its tools' times are inside it.
-    const times = await p.$$eval('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li:not(.tool-group) > time.activity-time', ts => ts.map(t => t.textContent));
+    const times = await p.$$eval(rowTimes('li:not(.tool-group)'), ts => ts.map(t => t.textContent));
     ok('replayed messages show when they were said', times.join(' ') === '09:05 09:06 09:06 09:08 10:15 10:16', times.join(' '));
-    ok('the full date is on the time', (await p.getAttribute('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time', 'title')).includes('2026'));
+    ok('the full date is on the time', (await p.getAttribute(rowTimes(), 'title')).includes('2026'));
     await p.click('#sessions a:has-text("From Devin Desktop")');
     await p.waitForTimeout(500);
-    const none = await p.$$eval('.win[data-chat-current] [data-view-id=logs] ol:not([hidden]) > li > time.activity-time', ts => ts.map(t => t.textContent));
+    const none = await p.$$eval(rowTimes(), ts => ts.map(t => t.textContent));
     ok('a session with no journal shows no time rather than a wrong one', none.every(t => t === ''), none.join(' '));
   } finally { await t.close(); }
 })();
