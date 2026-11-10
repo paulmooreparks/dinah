@@ -1,5 +1,5 @@
 {
-  "digest": "2f8b7de3eb3d24047bd7e6eff5814211dd7884b1bca13a35a8944e2ba8fc6b66",
+  "digest": "552c8ba7d38deaa2ace2e86fda608ac1112d0b230b70dc2e5299079c6cc68d32",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -146,7 +146,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "134dfcb5b9b6e10830c7d253bba711b9ef6e53200997e8f18caa6bd3a2b460f8"
+      "sha256": "156de1a82630b540c0116e2e87f96b2c40359fe60093f673701de3fa4aa99596"
     },
     {
       "path": "content/docs/docs.css",
@@ -176,7 +176,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 695,
-      "sha256": "835471d850e0e8883fd8c0617474f02be012be1f1d5f1d1643c1eb098ba6b6a1"
+      "sha256": "75ae8603587b6916601b39ad8807b926e4cbd55918517b4a7c278eeabafb49c2"
     },
     {
       "path": "content/editor/editor.css",
@@ -355,8 +355,8 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 133897,
-      "sha256": "a840b18635435c9f9f8ccc203f87f1ac4a9f0d426275576012f2288ba036ed4b"
+      "bytes": 137077,
+      "sha256": "21ad946e18e1179cc4620dbf163020c149c597f0e4d8267b19452e416ee3dcd2"
     },
     {
       "path": "content/md-editor/pages.js",
@@ -1260,8 +1260,8 @@
     },
     {
       "path": "content/md-engine/page.css",
-      "bytes": 21820,
-      "sha256": "cbccfdd94be6a37d85a7e53b7d0d29579aa03819bee6f28ac1e5e48166fd49f1"
+      "bytes": 22002,
+      "sha256": "d30d2399dab3c95cc6bdf2a0feff059568c27e2ea3b90b4d456c28513ef208ae"
     },
     {
       "path": "content/md-engine/safe-html.js",
@@ -1275,8 +1275,8 @@
     },
     {
       "path": "content/md-engine/yavc-md.wasm",
-      "bytes": 8401642,
-      "sha256": "452423d1a1a170b663adb616d65bf298924cc88d9de592c24290eec863600afd"
+      "bytes": 8401944,
+      "sha256": "6bf4274326bfee2dd381ff4bf2177f56a5f290282cc12fb83950dc61a3bcde12"
     },
     {
       "path": "content/slides/actions.js",
@@ -1291,7 +1291,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "a02941900eefd7d57b4ee3d95d07b2e6160dae4c8e8f2d76b2dea76ae21bd3f1"
+      "sha256": "56eeb06adcf136d097f7e2d2d6e18d7756b53a253847da00de8638328f9bbd16"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1335,13 +1335,13 @@
     },
     {
       "path": "content/slides/slides.css",
-      "bytes": 15787,
-      "sha256": "0ee0461b39acc03f1c2d7882e74a6026fb65918f86cd1554a0cd78957e8a8c82"
+      "bytes": 15926,
+      "sha256": "bbae440009c7a72b7ba2e9061e2b13b38462e4ef59d2f877ac0ec505d2282261"
     },
     {
       "path": "content/slides/slides.js",
-      "bytes": 152601,
-      "sha256": "7e825633fffd625eccab6c968c5ee8313e27b27cc54cfb8909279b1cf89d4fed"
+      "bytes": 152838,
+      "sha256": "d55e5c3363b03e268fd440da7c40ea8421993c1149d0606cfdc23e126be6f792"
     },
     {
       "path": "content/slides/vendor/jszip-3.10.1/LICENSE.markdown",
@@ -1385,8 +1385,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 229081,
-      "sha256": "3c10a58be026dccd6a459f43b6ccb3a9b34f718f8271569a0a7aeaa8484eab0d"
+      "bytes": 229916,
+      "sha256": "540d2734609b692d0e0bb90ea02d55e09c6d7f82b35ddce7b4f140b3ebc52ffa"
     },
     {
       "path": "go.mod",

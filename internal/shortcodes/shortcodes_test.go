@@ -115,8 +115,11 @@ type literalSet struct{}
 
 func (literalSet) Catalog() []Descriptor {
 	return []Descriptor{
-		{Name: "markup", Kind: Container, Literal: true},
-		{Name: "mark", Kind: Inline, Literal: true},
+		{Name: "markup", Kind: Container, Literal: true, ColorAttribute: "data-cell-colour"},
+		{Name: "mark", Kind: Inline, Literal: true, ColorAttribute: "data-cell-colour"},
+		{Name: "prose", Kind: Container, ColorAttribute: "data-cell-colour"},
+		{Name: "styled", Kind: Container, Literal: true, ColorAttribute: "style"},
+		{Name: "handled", Kind: Container, Literal: true, ColorAttribute: "onclick"},
 	}
 }
 
@@ -145,5 +148,27 @@ func TestACatalogSaysWhichContainersAreLiteral(t *testing.T) {
 	}
 	if b, _ := json.Marshal(inline); strings.Contains(string(b), "literal") {
 		t.Fatalf("the inline shortcode as the applets get it: %s", b)
+	}
+}
+
+// A literal container may say which data attribute keeps a cell's colour.
+// The catalog drops it on a shortcode with no literal body, and drops a name
+// that is not a data attribute's.
+func TestACatalogSaysWhichAttributeKeepsACellsColour(t *testing.T) {
+	Register(literalSet{})
+	got := map[string]string{}
+	for _, d := range Catalog() {
+		got[d.Name] = d.ColorAttribute
+		if b, _ := json.Marshal(d); d.Name == "markup" && !strings.Contains(string(b), `"colorAttribute":"data-cell-colour"`) {
+			t.Fatalf("the container as the applets get it: %s", b)
+		}
+	}
+	if got["markup"] != "data-cell-colour" {
+		t.Fatalf("the literal container's attribute: %q", got["markup"])
+	}
+	for _, name := range []string{"mark", "prose", "styled", "handled"} {
+		if got[name] != "" {
+			t.Errorf("%s kept the attribute %q", name, got[name])
+		}
 	}
 }

@@ -42,7 +42,10 @@ type Param struct {
 // of its own: the applets draw it, and neither offer to insert it nor
 // change it on the page. Literal says the body of a container is markup
 // and not Markdown: the applets read the body whole, blank lines included,
-// and edit a body that is one table as a table.
+// and edit a body that is one table as a table. ColorAttribute is for a
+// literal container whose product keeps a table cell's colour in a data
+// attribute beside the cell's style, and is that attribute's name: the
+// applets write, change and remove the attribute with the colour.
 type Descriptor struct {
 	Name        string  `json:"name"`
 	Title       string  `json:"title"`
@@ -53,6 +56,8 @@ type Descriptor struct {
 	Prefix      string  `json:"prefix,omitempty"`
 	Managed     bool    `json:"managed,omitempty"`
 	Literal     bool    `json:"literal,omitempty"`
+	// ColorAttribute is a data attribute's name, as "data-cell-colour".
+	ColorAttribute string `json:"colorAttribute,omitempty"`
 }
 
 // Request is one occurrence of a shortcode to draw: its name, the raw
@@ -131,6 +136,10 @@ var (
 
 var namePattern = regexp.MustCompile(`^(@?[a-z][a-z0-9-]*)$`)
 
+// colorAttribute is the name of a data attribute a set may keep a cell's
+// colour in.
+var colorAttribute = regexp.MustCompile(`^data-[a-z0-9][a-z0-9-]{0,58}$`)
+
 // Register adds a set; a build registers its sets at start.
 func Register(s Set) {
 	if s == nil {
@@ -163,6 +172,11 @@ func Catalog() []Descriptor {
 			// Only a container has a body to read as markup.
 			if d.Kind != Container {
 				d.Literal = false
+			}
+			// Only a literal body has cells whose colour an attribute can
+			// keep, and only a data attribute may be named for it.
+			if !d.Literal || !colorAttribute.MatchString(d.ColorAttribute) {
+				d.ColorAttribute = ""
 			}
 			out = append(out, d)
 		}

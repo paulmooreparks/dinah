@@ -360,12 +360,15 @@
      own (docs/design/shortcodes.md). Two services give them to the applets.
      contentWorkspace.shortcodes(context) is the applets' documented call
      for a host's extra shortcodes, and returns { shortcodes: [{ name,
-     title, description, kind, params, example, prefix, managed, literal }] }
+     title, description, kind, params, example, prefix, managed, literal,
+     colorAttribute }] }
      for completion, hover and the Insert menu. An entry has a prefix when
      the shortcode may be written with one character in place of its name
      and colon, is managed when the product keeps it with a tool of its
      own, and is literal when it is a container whose body is markup and
-     not Markdown. contentWorkspace.shortcodeHost draws and changes an occurrence:
+     not Markdown. A literal entry has a colorAttribute when the product
+     keeps a table cell's colour in that data attribute beside the cell's
+     style. contentWorkspace.shortcodeHost draws and changes an occurrence:
      render({ name, args, source, kind }) returns { html }, where kind is
      how the applet read the occurrence and the HTML of a container or a
      span has one <slot name="content">
@@ -385,6 +388,7 @@
             if (typeof d.prefix === 'string' && d.prefix.length === 1) entry.prefix = d.prefix;
             if (d.managed === true) entry.managed = true;
             if (d.literal === true) entry.literal = true;
+            if (d.literal === true && typeof d.colorAttribute === 'string' && d.colorAttribute) entry.colorAttribute = d.colorAttribute;
             return entry;
           });
         })

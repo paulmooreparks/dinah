@@ -215,6 +215,8 @@
 .doc-page.page-view .pm-box:hover > .pm-box-frame, .doc-page.page-view .pm-box:focus-within > .pm-box-frame { outline: 1px dashed var(--input-border); outline-offset: 4px; border-radius: var(--radius-sm); }
 .doc-page.page-view .pm-box-kind { font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; color: var(--text-muted); padding: 0 var(--space-2); background: var(--surface); border-radius: var(--radius-sm); }
 .doc-page.page-view .pm-box-frame > :first-child { margin-top: 0; }
+/* A box the host keeps collapsed hides its frame with the hidden attribute, which its bar's disclosure button flips. */
+.doc-page.page-view .pm-box-frame[hidden] { display: none; }
 .doc-page.page-view .pm-box-body > :last-child, .doc-page.page-view .pm-column > :last-child { margin-bottom: 0; }
 .doc-page.page-view .pm-box .sc-expand > summary { pointer-events: none; }
 .doc-page.page-view .pm-column { min-width: 0; padding: var(--space-2); border: 1px dashed transparent; border-radius: var(--radius-sm); }

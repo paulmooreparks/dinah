@@ -351,7 +351,7 @@ var schemaCache = null;
        (o.caret): set when the page is turned on, so that changing from
        Text to Visual keeps the reader's place; a page built again for a
        change to the text keeps its own scroll instead. */
-    var placeFromText = false;
+    var placeFromText = false, boxCount = 0;
     /* The position just inside the top-level block that holds an offset
        into the document's text, worked out from each block's text and the
        text before it, as the page writes itself back; null when the
@@ -1524,7 +1524,11 @@ var schemaCache = null;
       var bar = document.createElement('div');
       bar.className = 'pm-box-bar';
       bar.contentEditable = 'false';
-      bar.innerHTML = '<span class="pm-box-kind">' + escText(boxTitle(node)) + '</span>' +
+      /* A box the host keeps collapsed (a deck's speaker notes, shown in
+         the window's own notes pane): its bar stands in for it, with Show
+         and Hide for the author who wants to edit it here. */
+      var collapsible = !!(o.collapsed && o.collapsed(node.attrs.name)), frameId = collapsible ? 'pm-box-frame-' + (++boxCount) : '';
+      bar.innerHTML = (collapsible ? '<button type="button" class="btn btn-sm disclosure" data-box="toggle" aria-expanded="false" aria-controls="' + frameId + '">' + escText(boxTitle(node)) + '</button>' : '<span class="pm-box-kind">' + escText(boxTitle(node)) + '</span>') +
         (o.customName && o.customName(node.attrs.name) ? '<button type="button" class="btn btn-sm" data-box="custom-args">Parameters…</button>' : '') +
         (hostBox(node) ? '<button type="button" class="btn btn-sm" data-box="custom-args">Arguments…</button>' : BOX_TITLED[node.attrs.name] ? '<button type="button" class="btn btn-sm" data-box="args">' + escText(BOX_TITLED[node.attrs.name]) + '…</button>' : '') +
         (isColumns ? '<button type="button" class="btn btn-sm" data-box="column">Add a Column</button>' : '') +
@@ -1533,8 +1537,19 @@ var schemaCache = null;
       bar.addEventListener('mousedown', function (e) { e.preventDefault(); });
       bar.addEventListener('click', function (e) {
         var b = e.target.closest('[data-box]');
-        if (b) boxAction(b.getAttribute('data-box'), current, getPos, v);
+        if (!b) return;
+        if (b.getAttribute('data-box') === 'toggle') {
+          /* PUDL's disclosure button: the state is its aria-expanded, and
+             the frame's hidden attribute does the hiding. */
+          var open = frame.hidden;
+          frame.hidden = !open;
+          b.setAttribute('aria-expanded', String(open));
+          if (open) v.focus();
+          return;
+        }
+        boxAction(b.getAttribute('data-box'), current, getPos, v);
       });
+      if (collapsible) dom.classList.add('pm-box-collapsible');
       var frame;
       if (isColumns) {
         frame = document.createElement('div');
@@ -1554,6 +1569,7 @@ var schemaCache = null;
         frame.querySelectorAll('details').forEach(function (det) { det.open = true; });
         frame.querySelectorAll('summary').forEach(function (s) { s.addEventListener('click', function (e) { e.preventDefault(); }); });
       }
+      if (collapsible) { frame.id = frameId; frame.hidden = true; }
       dom.append(bar, frame);
       return {
         dom: dom, contentDOM: contentDOM,
@@ -1747,6 +1763,15 @@ var schemaCache = null;
       'heading-cell': function () { return reshape(PM.toggleHeaderCell); },
       'cell-colour': function () { return reshape(colourCells); }
     };
+    /* The attribute the host keeps equal to a cell's colour in a table of
+       its own literal container (docs/host-shortcodes-contract.md), read
+       from the container's opening line kept with the table; '' for a
+       bare HTML table or a host that gives none. */
+    function colourAttribute(table) {
+      var raw = table && table.attrs.raw, m = raw && /^\{\{([a-z][a-z0-9-]*)/.exec(raw.open || '');
+      var name = m && o.colourAttribute ? o.colourAttribute(m[1]) : '';
+      return typeof name === 'string' && /^[a-z][a-z0-9:_-]{0,63}$/.test(name) && name !== 'style' && name !== 'colspan' && name !== 'rowspan' ? name : '';
+    }
     /* Colours the selected cells, or the cell the cursor is in, with the
        colour the page asked for (pendingColour), as a background colour in
        the cell's style; an empty colour takes it away. */
@@ -1764,13 +1789,19 @@ var schemaCache = null;
       }
       if (!cells.length) return false;
       if (!dispatch) return true;
+      /* The host may give an attribute of its own that records a cell's
+         colour beside the style (a wiki's data-highlight-colour): it is
+         written, changed and removed with the colour. */
+      var found = PM.findTable(state.selection.$from), attribute = found ? colourAttribute(found.node) : '';
       var tr = state.tr;
       cells.forEach(function (c) {
-        var keep = (c.node.attrs.xattrs || []).filter(function (a) { return a[0] !== 'style'; });
+        var keep = (c.node.attrs.xattrs || []).filter(function (a) { return a[0] !== 'style' && a[0] !== attribute; });
         var style = (c.node.attrs.xattrs || []).find(function (a) { return a[0] === 'style'; });
         var rest = style ? style[1].split(';').map(function (s) { return s.trim(); }).filter(function (s) { return s && !/^background(-color)?\s*:/i.test(s); }).join('; ') : '';
-        if (pendingColour) keep.push(['style', 'background-color: ' + pendingColour + ';' + (rest ? ' ' + rest + ';' : '')]);
-        else if (rest) keep.push(['style', rest + ';']);
+        if (pendingColour) {
+          if (attribute) keep.push([attribute, pendingColour]);
+          keep.push(['style', 'background-color: ' + pendingColour + ';' + (rest ? ' ' + rest + ';' : '')]);
+        } else if (rest) keep.push(['style', rest + ';']);
         tr.setNodeMarkup(c.pos, null, Object.assign({}, c.node.attrs, { xattrs: keep }));
       });
       dispatch(tr);
@@ -1961,6 +1992,24 @@ var schemaCache = null;
          where the text is exactly the page (sourceSelection), or else
          the start of the block the caret is in. The page is written to
          the text first. null when there is no page. */
+      /* Brings the page's selection into view once the page has its
+         layout: when the page is turned on it is built before it is
+         shown, so a scroll asked for then lands on no layout (decision
+         113). A second look follows, for a page whose sheets are laid
+         out after it is shown. */
+      scrollToSelection: function () {
+        if (!view || !on) return;
+        var target = view, sel = view.state.selection;
+        function bring() {
+          if (view !== target || !on || !view.state.selection.eq(sel)) return;
+          try {
+            var c = view.coordsAtPos(view.state.selection.from), r = o.scroll.getBoundingClientRect();
+            if (c.top < r.top || c.bottom > r.bottom) o.scroll.scrollTop += c.top - r.top - r.height / 2;
+          } catch (err) { }
+        }
+        requestAnimationFrame(bring);
+        setTimeout(bring, 300);
+      },
       placeInText: async function () {
         if (!view || !on) return null;
         var target = view;
@@ -2126,8 +2175,9 @@ var schemaCache = null;
           for (var depth = $f.depth; depth > 0; depth--) {
             var role = $f.node(depth).type.spec.tableRole;
             if (role !== 'cell' && role !== 'header_cell') continue;
-            var style = ($f.node(depth).attrs.xattrs || []).find(function (a) { return a[0] === 'style'; }), m = style && /(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i.exec(style[1]);
-            out.cellColour = m ? m[1].trim() : '';
+            var attrs = $f.node(depth).attrs.xattrs || [], attribute = colourAttribute(rect.table), own = attribute && attrs.find(function (a) { return a[0] === attribute; });
+            var style = attrs.find(function (a) { return a[0] === 'style'; }), m = style && /(?:^|;)\s*background(?:-color)?\s*:\s*([^;]+)/i.exec(style[1]);
+            out.cellColour = own ? own[1] : m ? m[1].trim() : '';
             break;
           }
         }

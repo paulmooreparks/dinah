@@ -111,18 +111,19 @@
 .deck-slide[data-layout="blank"] .deck-body { padding: 0; }
 .deck-slide[data-layout="blank"] .deck-body > * { padding: 40px; }
 /* The slide's settings and its notes on the canvas: the settings' marker
-   draws nothing; the notes show while editing as a strip the show hides. */
+   draws nothing, and the notes are not drawn on the slide, since the
+   window's notes pane shows them (DESIGN.md, decision 116). On an editable
+   canvas the notes box is collapsed to its bar, which Show opens for
+   editing; the open box draws the notes in flow after the content. */
 .deck-slide .sc-slide { display: none; }
 .deck-slide .pm-source:has(> div > .doc-block > .sc-slide), .deck-slide .pm-source:has(.sc-slide:only-child) { display: none; }
-.deck-slide .sc-notes { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 12px 72px; font-size: 0.55em; line-height: 1.35; color: var(--deck-muted); background: color-mix(in srgb, var(--deck-ink) 6%, transparent); border-top: 1px dashed var(--deck-rule); max-height: 28%; overflow: hidden; }
-.deck-slide .sc-notes-label { margin: 0 0 2px; font-size: 0.8em; font-weight: 700; text-transform: uppercase; }
-.deck-slide .sc-notes > :last-child { margin-bottom: 0; }
-.deck-slide .pm-source:has(> div > .doc-block > .sc-notes) { position: static; }
-/* On an editable canvas the notes sit after the content, in flow, so they
-   never cover a point being edited. */
-.deck-slide .deck-body.page-view .sc-notes { position: static; margin: 0.6em -72px -56px; max-height: none; }
+.deck-slide .sc-notes { display: none; }
+.deck-slide .pm-source:has(> div > .doc-block > .sc-notes) { display: none; }
+.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-bar { position: static; opacity: 1; justify-content: flex-start; margin: 0.6em 0 0; }
+.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-frame:not([hidden]) .sc-notes { display: block; margin: 0.4em 0 0; padding: 12px 72px 12px 0; font-size: 0.55em; line-height: 1.35; color: var(--deck-muted); }
+.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-frame:not([hidden]) .sc-notes-label { margin: 0 0 2px; font-size: 0.8em; font-weight: 700; text-transform: uppercase; }
+.deck-slide .deck-body.page-view .pm-box-collapsible > .pm-box-frame:not([hidden]) .sc-notes > :last-child { margin-bottom: 0; }
 .deck-canvas { outline: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
-.deck-show .sc-notes, .deck-thumb .sc-notes, .deck-print .sc-notes { display: none; }
 /* The page view on the canvas keeps the slide's type. */
 .deck-slide .deck-body.page-view > .ProseMirror { min-height: 0; outline: none; }
 .deck-slide .deck-body.page-view { cursor: text; }
