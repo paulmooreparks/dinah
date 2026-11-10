@@ -167,6 +167,17 @@ const { choose, shows, rowsOf } = require('./lib/commands');
   await p.click('#remove-hide');
   await p.waitForTimeout(300);
   ok('hiding takes it off the list and out of the front', !(await p.textContent('#sessions')).includes('Note 14 Design Doc') && (await p.textContent('.win[data-chat-current] .win-title')) === 'New Chat');
+  // A chat is removed from its row's menu too, without opening it first.
+  const unopened = p.locator('#sessions .md-row[data-session-row]').first();
+  const unopenedTitle = await unopened.locator('.session-title').textContent();
+  const windowsBefore = await p.locator('.win[data-win]').count();
+  await unopened.hover();
+  await unopened.locator('[data-row-actions]').click();
+  await p.getByRole('menuitem', { name: 'Remove Chat…', exact: true }).click();
+  await p.waitForTimeout(150);
+  ok('the menu of a row asks to remove that chat, and opens no window for it', await p.evaluate(() => document.getElementById('remove').open) && (await p.textContent('#remove-body')).includes('"' + unopenedTitle + '"') && await p.locator('.win[data-win]').count() === windowsBefore);
+  await p.evaluate(() => document.getElementById('remove').close());
+  ok('leaving the question keeps the chat', (await p.textContent('#sessions')).includes(unopenedTitle));
   // Every group's count says how many chat rows it shows, so a hidden chat
   // cannot stay listed under a count that has already dropped it (BL-05).
   const counts = await p.evaluate(() => Array.from(document.querySelectorAll('#sessions .browser-group')).map(g => ({ count: (g.querySelector('.browser-group-count') || {}).textContent, rows: g.querySelectorAll('.md-row[data-session-row]').length })));

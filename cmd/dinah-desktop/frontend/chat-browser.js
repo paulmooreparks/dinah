@@ -360,8 +360,16 @@
           row.dataset.sessionRow = id;
           row.setAttribute('role', 'listitem');
           row.innerHTML = '<a class="md-item" href="#"><span class="browser-row-line"><span class="browser-row-title session-title"></span><span class="session-attention-slot"></span></span><span class="session-reason"></span><span class="md-meta session-row-meta"></span></a>';
-          // The Workspace pane's rows have a context menu to pin the chat.
-          if (prefix === 'workspace-' && window.dinahPins) window.dinahPins.rowActions(row, function () { return chatPin(id); });
+          // A row's context menu pins the chat to the open workspace, when
+          // the chat is that workspace's, and removes the chat, so that a
+          // chat can be removed without opening it first.
+          if (window.dinahPins) window.dinahPins.rowActions(row, function () {
+            return sessions[id] && sameWs(sessions[id].info.cwd) ? chatPin(id) : null;
+          }, function () {
+            if (!sessions[id]) return [];
+            var hides = window.dinahProviderFact(sessionProvider(sessions[id]), 'removal') === 'hides';
+            return [{ label: hides ? 'Hide Chat…' : 'Remove Chat…', danger: !hides, run: function () { openRemove(id); } }];
+          });
         }
         var a = row.firstChild;
         a.dataset.session = id;
