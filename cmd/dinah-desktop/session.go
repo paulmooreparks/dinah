@@ -181,6 +181,11 @@ func (a *App) hidden(id string) bool {
 	if _, removed := a.settings.RemovedChats[id]; removed {
 		return true
 	}
+	// A session the product says is not a chat of the person's is kept off
+	// the lists as a hidden chat is (sessionhost.RegisterNotChat).
+	if sessionhost.NotChat(id) {
+		return true
+	}
 	for _, h := range a.settings.Hidden {
 		if h == id {
 			return true

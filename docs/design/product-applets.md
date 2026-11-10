@@ -30,6 +30,10 @@ A product may bring its own way of delivering a new build to the people who use 
 
 The window program prints its name and release for `--version` and ends, as the command line does for `version`, so a build about to be placed can be asked what it is.
 
+A product's packages can add options to the window program's own with `programs.RegisterStartOption(name, run)`, called from `init`. Started with that option as its first argument, the program opens no window: it calls `run` with the arguments that follow and ends with the status `run` returns. A product whose window program replaces an earlier program of the same name uses this to keep accepting what other programs still start it with. An option that neither the window program nor the product knows ends the program with status 2 and a line on standard error; it never opens a window, since whoever passed the option expected something else.
+
+An agent lists every session it has for a folder, and a product may know that some of them were never chats of the person's, because another program ran them for a purpose of its own. `sessionhost.RegisterNotChat(f)`, called from `init`, gives the window a function that says so for a session's id. The window keeps such a session out of its lists of chats in the same way as a chat the person hid, and Show Hidden Chats Again does not bring it back. Nothing is deleted or changed at the agent. The window asks while it builds a list, so the function has to return quickly.
+
 ## What this does not do
 
 A product's agent-facing actions go through applet bundles like the built-in ones: the product package registers a maker with `applet.RegisterBundle` in its `init`, and the host adds what it makes to the registry it assembles at start (`applet_builtins.go`), so the bundle's actions reach agents, flows and the page's applet SDK as the built-in bundles' do. Menus of the page's own menu bar, settings sections and new pinned categories have no registry yet; each is added when a product needs it.

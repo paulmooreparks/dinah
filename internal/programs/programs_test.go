@@ -82,3 +82,21 @@ func TestPlaceLeavesTheInstalledProgramWhenTheSourceCannotBeRead(t *testing.T) {
 		t.Fatalf("the installed program changed: %q", got)
 	}
 }
+
+func TestStartOption(t *testing.T) {
+	if _, ok := StartOption("--no-such-option"); ok {
+		t.Fatal("an option nobody registered was found")
+	}
+	var got []string
+	RegisterStartOption("--test-option", func(args []string) int {
+		got = args
+		return 3
+	})
+	run, ok := StartOption("--test-option")
+	if !ok {
+		t.Fatal("the registered option was not found")
+	}
+	if status := run([]string{"a", "b"}); status != 3 || len(got) != 2 || got[0] != "a" || got[1] != "b" {
+		t.Fatalf("the option ran with %q and returned %d", got, status)
+	}
+}

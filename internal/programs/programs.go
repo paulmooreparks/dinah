@@ -18,7 +18,27 @@ import (
 var (
 	mu      sync.Mutex
 	release string
+	options = map[string]func(args []string) int{}
 )
+
+// RegisterStartOption adds an option to the window program's own. Started
+// with name as its first argument, the program opens no window: it calls run
+// with the arguments after name and ends with the status run returns. A
+// product's packages register in init, so the option is known before the
+// program reads its arguments (docs/design/product-applets.md).
+func RegisterStartOption(name string, run func(args []string) int) {
+	mu.Lock()
+	options[name] = run
+	mu.Unlock()
+}
+
+// StartOption is the function registered for name, if there is one.
+func StartOption(name string) (func(args []string) int, bool) {
+	mu.Lock()
+	defer mu.Unlock()
+	run, ok := options[name]
+	return run, ok
+}
 
 // SetRelease records the release the running program belongs to. The program
 // calls it once, first thing, with the version its build was given.

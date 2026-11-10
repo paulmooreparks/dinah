@@ -115,9 +115,21 @@ func main() {
 		}
 		return
 	}
+	// An option a product's packages added runs in place of the window.
+	if len(os.Args) >= 2 {
+		if run, ok := programs.StartOption(os.Args[1]); ok {
+			os.Exit(run(os.Args[2:]))
+		}
+	}
 	// A new build started by Restart to Update waits for the old window to
 	// end, which lets go of the single-instance lock (update.go).
 	os.Args = afterProcessEnds(os.Args)
+	// Whoever starts the program with an option expects what the option
+	// does, and a window in its place would only surprise them.
+	if option, unknown := unknownOption(os.Args); unknown {
+		fmt.Fprintln(os.Stderr, product.WindowProgram, "does not know the option", option)
+		os.Exit(2)
+	}
 	if err := initializeStateDirectory(); err != nil {
 		showStartupFailure(err)
 		return
@@ -258,15 +270,36 @@ func main() {
 // per state folder, since it exists so that a second window cannot save
 // over the first's settings: the person's own folder keeps the name it has
 // always had, and a window with the profile's home variable (DINAH_HOME)
-// set, such as one under test, gets a name of its own for that folder.
+// set to another folder, such as one under test, gets a name of its own for
+// that folder.
 func instanceID() string {
 	base := product.InstanceLock
 	home := os.Getenv(product.HomeVar())
 	if home == "" {
 		return base
 	}
-	sum := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(home))))
+	folder := strings.ToLower(filepath.Clean(home))
+	// The variable may say the person's own folder, as it does for every
+	// program an agent starts from the window (devinEnvironment). That is
+	// the same folder and so the same lock.
+	if own, err := userHomeDir(); err == nil && folder == strings.ToLower(filepath.Join(own, product.HomeFolder)) {
+		return base
+	}
+	sum := sha256.Sum256([]byte(folder))
 	return base + "-" + hex.EncodeToString(sum[:6])
+}
+
+// userHomeDir is os.UserHomeDir; a test replaces it.
+var userHomeDir = os.UserHomeDir
+
+// unknownOption reports the first of the window program's arguments when it
+// is an option. The program's own options and a product's have been handled
+// by the time this is asked, so an option still there is one nobody knows.
+func unknownOption(args []string) (string, bool) {
+	if len(args) >= 2 && strings.HasPrefix(args[1], "-") {
+		return args[1], true
+	}
+	return "", false
 }
 
 // A settings failure must be visible in a Windows GUI build, which has no
