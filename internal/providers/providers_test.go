@@ -1,6 +1,9 @@
 package providers
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // The facts the session code reads are what the providers do today.
 func TestTheFactsTheSessionCodeReads(t *testing.T) {
@@ -15,7 +18,7 @@ func TestTheFactsTheSessionCodeReads(t *testing.T) {
 			t.Errorf("%s: %+v", id, row)
 		}
 	}
-	if (For("nobody") != Row{}) || Name("nobody") != "" {
+	if !reflect.DeepEqual(For("nobody"), Row{}) || Name("nobody") != "" {
 		t.Error("a provider with no row has facts")
 	}
 }
@@ -95,5 +98,13 @@ func TestEveryRowDeclaresItsBudgetUnit(t *testing.T) {
 	}
 	if Registry["devin"].BudgetUnit != "acu" || Registry["claude"].BudgetUnit != "tokens" || Registry["ollama"].BudgetUnit != "tokens" {
 		t.Fatal("a unit is not the one the provider counts in")
+	}
+}
+
+// A new Claude chat starts in the mode that asks before each action unless the
+// person saved another, whatever mode the agent's release would start in.
+func TestClaudeNewChatAsksBeforeActing(t *testing.T) {
+	if got := Registry["claude"].NewChatOptions["mode"]; got != "default" {
+		t.Fatalf("a new Claude chat's mode is %q, want default", got)
 	}
 }

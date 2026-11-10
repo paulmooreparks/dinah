@@ -33,7 +33,7 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 				if providers.For(provider).OwnPreferences {
 					defaults = copyPreferenceValues(a.settings.ProviderDefaults[provider])
 				}
-				return defaults
+				return withNewChatOptions(defaults, providers.For(provider).NewChatOptions)
 			},
 			SavedOptions: func(id string) (map[string]json.RawMessage, string) {
 				a.mu.Lock()
@@ -68,4 +68,24 @@ func (a *App) sessionsLifecycle() *sessionhost.SessionLifecycle {
 		})
 	})
 	return a.sessionsService
+}
+
+// withNewChatOptions adds the provider's own settings for a new chat to the
+// person's saved defaults. A setting the person saved a default for keeps
+// theirs.
+func withNewChatOptions(saved map[string]json.RawMessage, own map[string]string) map[string]json.RawMessage {
+	for id, value := range own {
+		if _, has := saved[id]; has {
+			continue
+		}
+		raw, err := json.Marshal(value)
+		if err != nil {
+			continue
+		}
+		if saved == nil {
+			saved = map[string]json.RawMessage{}
+		}
+		saved[id] = raw
+	}
+	return saved
 }

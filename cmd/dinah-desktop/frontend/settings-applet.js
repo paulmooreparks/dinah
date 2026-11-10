@@ -72,7 +72,12 @@
         label.textContent = o.category === 'mode' ? 'Mode' : o.name;
         label.htmlFor = sel.id = 'default-' + o.id;
         var none = document.createElement('option');
-        none.value = ''; none.textContent = providerName(adapter.defaultProvider()) + '\'s own default';
+        /* With no saved default, a setting the product gives every new chat reads as that value,
+           so that the list never says the agent chooses when it does not. */
+        var chosen = adapter.providers().filter(function (p) { return p.id === adapter.defaultProvider(); })[0];
+        var given = chosen && chosen.facts && chosen.facts.newChatOptions && chosen.facts.newChatOptions[o.id];
+        var givenValue = given ? vals.filter(function (v) { return v.value === given; })[0] : null;
+        none.value = ''; none.textContent = givenValue ? givenValue.name + ' (' + productName() + '\'s choice)' : providerName(adapter.defaultProvider()) + '\'s own default';
         sel.appendChild(none);
         vals.forEach(function (v) {
           var opt = document.createElement('option');
@@ -479,6 +484,7 @@
         adapter.providers().forEach(function (p) { if (p.pinned) adapter.setProviderPins(p.id, p.pinned); });
         readAllProviderPreferences();
         drawProviders();
+        drawDefaults();
         window.dinahProviderSettings.draw(adapter.providers());
         settingsStatus('agents-status', 'Discovery finished. Installation alone does not confirm sign-in.');
         adapter.refreshComposerOptions();

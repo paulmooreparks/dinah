@@ -1,6 +1,6 @@
 # Proposal: How People Get New Claude Models
 
-Dinah Development wrote this proposal on 10 November 2026 for Paul's decision. Nothing in it is built except the move of the pinned adapter to 0.101.0, which Paul asked for the same day.
+Dinah Development wrote this proposal on 10 November 2026 for Paul's decision, and Paul decided it the same day. His answers are under Decisions at the end. The move of the pinned adapter to 0.101.0 was built first, at his request.
 
 ## Why Fable 5.2 Was Missing
 
@@ -47,3 +47,13 @@ Dinah should also set a new Claude chat's permission mode itself when the person
 1. Do you approve the three changes in the recommendation?
 2. Should a new Claude chat with no saved mode start in Manual, as it did before 0.101.0, or in Auto, as Claude Code itself now does? I recommend Manual.
 3. Is one week acceptable as the age of a pinned release?
+
+## Decisions
+
+Paul answered the three questions on 10 November 2026.
+
+1. He approved the three changes in the recommendation.
+2. A new Claude chat with no saved mode starts in Manual.
+3. One week is acceptable as the age of a pinned release.
+
+He also said that a person who cannot wait for any of this can run Claude Code in a terminal, which he accepts as a stopgap beside the changes. The published file stays unbuilt.

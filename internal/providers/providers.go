@@ -76,6 +76,12 @@ type Row struct {
 	// offers is restored to the offered choice with the same display name, as
 	// the provider names its models (docs/design/claude-model-matching.md).
 	MatchesModelsByName bool
+	// NewChatOptions are the settings a new chat is given when the person has
+	// saved no default for them, by the setting's ID. They are here so that a
+	// release of the provider's agent cannot change how a new chat starts. A
+	// value the agent does not offer is left out, and the chat starts with the
+	// agent's own (docs/design/new-chat-options.md).
+	NewChatOptions map[string]string
 	// SnapshotToolCalls identifies adapters whose terminal tool updates replace
 	// streamed output with the complete result, as their replay does.
 	SnapshotToolCalls bool
@@ -124,6 +130,10 @@ var Registry = map[string]Row{
 			URL:    "https://developers.openai.com/api/docs/guides/images-vision"}},
 	"claude": {Name: "Claude", BudgetUnit: "tokens", ImageInput: "initialize", Removal: "deletes", Usage: "none", Executable: "Node.js", ChooseExecutable: true,
 		SessionPrefix: "claude:", ManagedServers: true, OwnPreferences: true, HookSteering: true, MergedToolCalls: true, MatchesModelsByName: true,
+		// "default" is the mode Claude Code's documentation calls default and the
+		// agent shows as Manual: Claude asks before each action that needs
+		// permission. Paul chose it on 10 November 2026.
+		NewChatOptions: map[string]string{"mode": "default"},
 		// 400,000 is about 100,000 tokens, half of a 200,000-token window.
 		HandoffChars: 400_000,
 		FileLimit: FileLimit{Default: 20, Ceiling: 600,
