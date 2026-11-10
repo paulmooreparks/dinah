@@ -352,10 +352,14 @@
      own (docs/design/shortcodes.md). Two services give them to the applets.
      contentWorkspace.shortcodes(context) is the applets' documented call
      for a host's extra shortcodes, and returns { shortcodes: [{ name,
-     title, description, kind, params, example }] } for completion, hover
-     and the Insert menu. contentWorkspace.shortcodeHost draws and changes
-     an occurrence: render({ name, args, source, kind }) returns { html },
-     where the HTML of a container or a span has one <slot name="content">
+     title, description, kind, params, example, prefix, managed }] } for
+     completion, hover and the Insert menu. An entry has a prefix when the
+     shortcode may be written with one character in place of its name and
+     colon, and is managed when the product keeps it with a tool of its
+     own. contentWorkspace.shortcodeHost draws and changes an occurrence:
+     render({ name, args, source, kind }) returns { html }, where kind is
+     how the applet read the occurrence and the HTML of a container or a
+     span has one <slot name="content">
      </slot> for the body the applet draws itself; form(source) returns the
      form an occurrence is changed through, or null when it is changed as
      text; build(kind, values) returns { source }, or { error: { field,
@@ -367,8 +371,11 @@
       shortcodeCatalog = Promise.resolve().then(function () { return api().ShortcodeCatalog ? api().ShortcodeCatalog() : []; })
         .then(function (list) {
           return (Array.isArray(list) ? list : []).map(function (d) {
-            return { name: String(d.name || ''), title: String(d.title || d.name || ''), description: String(d.description || ''), kind: String(d.kind || ''), example: String(d.example || ''),
+            var entry = { name: String(d.name || ''), title: String(d.title || d.name || ''), description: String(d.description || ''), kind: String(d.kind || ''), example: String(d.example || ''),
               params: (Array.isArray(d.params) ? d.params : []).map(function (p) { return { name: String(p.name || ''), description: String(p.description || ''), required: p.required === true }; }) };
+            if (typeof d.prefix === 'string' && d.prefix.length === 1) entry.prefix = d.prefix;
+            if (d.managed === true) entry.managed = true;
+            return entry;
           });
         })
         .catch(function () { shortcodeCatalog = null; return []; });
@@ -380,7 +387,7 @@
     version: 1,
     render: function (request) {
       var r = request || {};
-      return Promise.resolve(api().RenderShortcode({ name: String(r.name || ''), args: String(r.args || ''), source: String(r.source || ''), content: r.content == null ? '' : String(r.content) }))
+      return Promise.resolve(api().RenderShortcode({ name: String(r.name || ''), args: String(r.args || ''), source: String(r.source || ''), content: r.content == null ? '' : String(r.content), kind: r.kind == null ? '' : String(r.kind) }))
         .then(function (html) { return { html: typeof html === 'string' ? html : '' }; });
     },
     form: function (source) {

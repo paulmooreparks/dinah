@@ -50,6 +50,12 @@ func TestRegistryMergesCatalogsAndRendersThroughTheFirstSetThatKnows(t *testing.
 	if _, err := Render(Request{Name: "Bad Name"}); err == nil || errors.Is(err, ErrUnknown) {
 		t.Fatalf("a bad name was accepted: %v", err)
 	}
+	if html, err := Render(Request{Name: "status", Kind: Span, Args: "x"}); err != nil || html != "<span>status</span>:x" {
+		t.Fatalf("a kind the applet read: %q %v", html, err)
+	}
+	if _, err := Render(Request{Name: "status", Kind: "page"}); err == nil || errors.Is(err, ErrUnknown) {
+		t.Fatalf("a kind that is none of the four was accepted: %v", err)
+	}
 	if !Any() {
 		t.Fatal("Any says no sets")
 	}

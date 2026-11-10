@@ -35,6 +35,12 @@ type Param struct {
 
 // Descriptor describes one shortcode as the applets present it. The title
 // is what a menu shows; the name is used when a set gives none.
+//
+// Prefix is one punctuation character the shortcode may be written with in
+// place of its name and colon, as {{@value}} is for a shortcode whose
+// prefix is "@". Managed says the product keeps the shortcode with a tool
+// of its own: the applets draw it, and neither offer to insert it nor
+// change it on the page.
 type Descriptor struct {
 	Name        string  `json:"name"`
 	Title       string  `json:"title"`
@@ -42,17 +48,25 @@ type Descriptor struct {
 	Description string  `json:"description,omitempty"`
 	Params      []Param `json:"params,omitempty"`
 	Example     string  `json:"example,omitempty"`
+	Prefix      string  `json:"prefix,omitempty"`
+	Managed     bool    `json:"managed,omitempty"`
 }
 
 // Request is one occurrence of a shortcode to draw: its name, the raw
 // argument text after the colon, the whole shortcode as written, and, for
 // a container, the Markdown of its body, which the applet draws itself in
 // the place of the <slot name="content"></slot> element the HTML holds.
+// For a container or a span the source may be the opening alone.
+//
+// Kind is how the applet read the occurrence, when it says: a container
+// opened and closed within one line is read as a span, and its drawing
+// goes inside that line.
 type Request struct {
 	Name    string `json:"name"`
 	Args    string `json:"args"`
 	Source  string `json:"source"`
 	Content string `json:"content,omitempty"`
+	Kind    string `json:"kind,omitempty"`
 }
 
 // Set is a build's shortcodes: their catalog, and how one is drawn. Render
@@ -166,6 +180,11 @@ func Render(r Request) (string, error) {
 	}
 	if len(r.Source) > 1<<16 || len(r.Content) > 1<<20 {
 		return "", errors.New("the shortcode is too large to draw")
+	}
+	switch r.Kind {
+	case "", Inline, Block, Container, Span:
+	default:
+		return "", errors.New("invalid shortcode kind")
 	}
 	mu.RLock()
 	defer mu.RUnlock()
