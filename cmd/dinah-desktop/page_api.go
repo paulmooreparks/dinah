@@ -59,7 +59,7 @@ var pageMethods = func() map[string]pageMethodClass {
  SubagentUpdates StatWorkspaceMountExpected Templates TerminalProfiles TerminalResize
  TerminalShells UpdateState UploadConflicts UploadNameConflicts WatchFolders RefreshWorkspaceResource
  WorkspaceLocalPath WorkspaceSkills Log SaveUIState ExtensionCall ProductServices ShortcodeCatalog RenderShortcode ShortcodeForm BuildShortcode
- SuggestDocumentName JudgementCalibration JudgementState JudgementSummary JudgementRecords JudgementKinds JudgementSettings JudgementModels JudgementProviders Team ChatLead SetTeamLead ClearTeamLead MakeGroupATeam SetTeamBudget
+ SuggestDocumentName JudgementCalibration JudgementState JudgementSummary JudgementRecords JudgementKinds JudgementSettings JudgementModels JudgementProviders NewestClaudeAdapter Team ChatLead SetTeamLead ClearTeamLead MakeGroupATeam SetTeamBudget
  PendingPermissions PendingExitConfirmation PendingPageAsks PendingExtensionReviews ProviderStates
  ChatEvents ChatStates
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
@@ -98,6 +98,7 @@ var pageMethods = func() map[string]pageMethodClass {
  SetNotifyWhenNeeded SetOllamaApprovals SetOllamaFileScope SetOllamaRoundLimit SetPersonName SetPinned SetPinnedForProvider
  SetPromptSendKey SetProviderFileLimit SetSessionOption SetShowThinking SetSkillField
  SetTerminalShell SetUsagePage SetWindowKindMode SetWorkspace ShowChatLog ShowSavedChatHistory ShowLogFolder SignIn
+ UseClaudeAdapter UseTestedClaudeAdapter
  StartPreparedExtensionTerminal StartSkill Steer Stop StopAndSteer StopBackgroundTask
  TerminalClose TerminalStart TerminalWrite UnhideSessions UnpinWorkspaceItem Unqueue
  UpdateDraft UploadToWorkspaceFolder WriteWorkspaceMount`)

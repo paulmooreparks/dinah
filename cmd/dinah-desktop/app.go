@@ -55,8 +55,11 @@ type App struct {
 	terminalShutdownIncomplete atomic.Bool
 	// judging is the set of judges and the person's choices for them
 	// (judgements.go).
-	judging    judging
-	extensions *extensions.Service
+	judging judging
+	// claudeAdapters is the installing of the Claude adapter's releases
+	// (provider_claude.go).
+	claudeAdapters claudeAdapterWork
+	extensions     *extensions.Service
 	// asks are the questions put to the page and not yet answered (applet_window_commands.go).
 	asks             pageAsks
 	nativeMu         sync.Mutex
@@ -84,8 +87,8 @@ type App struct {
 	// changed where it is kept (workspace_source_changes.go).
 	sourceChanges *sourceChanges
 	ctx           context.Context
-	mu          sync.Mutex
-	settings    Settings
+	mu            sync.Mutex
+	settings      Settings
 	// lifecycleOnce constructs the one provider lifecycle, including in fixtures.
 	lifecycleOnce sync.Once
 	// queueStore keeps the queued messages of chats on disk, and queueRestorer puts
@@ -259,6 +262,7 @@ func (a *App) startup(ctx context.Context) {
 	go a.sweepDrafts()
 	go a.installStandardFiles()
 	go pruneAgentLogs()
+	go a.catchUpClaudeAdapter()
 	_ = a.appletHostService().StartMaintenance()
 	// The bus is opened here, so that the schema and upgrade checks are a
 	// cost of starting and never of a call.

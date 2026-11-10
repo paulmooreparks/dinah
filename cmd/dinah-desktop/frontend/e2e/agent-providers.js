@@ -29,7 +29,18 @@ const { choose, shows } = require('./lib/commands');
         InstallClaudeAdapter: async () => {
           window.__calls.push(['install-claude']);
           Object.assign(providers[2], { installed: true, available: true, status: 'detected', detail: 'Node.js and the Claude adapter 0.87.0 are installed. Claude uses your own Claude Code sign-in.' });
-          providers[2].claude = { ...providers[2].claude, adapterInstalled: true };
+          providers[2].claude = { ...providers[2].claude, adapterInstalled: true, adapterInUse: '0.87.0' };
+          return providers[2];
+        },
+        NewestClaudeAdapter: async () => { window.__calls.push(['newest-claude']); return { version: '0.88.0', released: '2026-11-09T19:57:16Z', tested: '0.87.0', newer: true }; },
+        UseClaudeAdapter: async version => {
+          window.__calls.push(['use-claude', version]);
+          providers[2].claude = { ...providers[2].claude, adapterInUse: version, adapterNewer: true };
+          return providers[2];
+        },
+        UseTestedClaudeAdapter: async () => {
+          window.__calls.push(['tested-claude']);
+          providers[2].claude = { ...providers[2].claude, adapterInUse: '0.87.0', adapterNewer: false };
           return providers[2];
         },
         SetClaudeAPIKey: async key => {
@@ -96,6 +107,33 @@ const { choose, shows } = require('./lib/commands');
     await page.locator('#ask-yes').click();
     await settings.locator('#claude-api-key').waitFor();
     ok('Remove the Key asks first, then goes back to the sign-in', await page.evaluate(() => __calls.some(c => c[0] === 'claude-key' && c[1] === '')));
+    // Claude runs on the tested release of its adapter unless the person
+    // chooses the newest one on npm, which is looked for only when they ask.
+    const look = claudeCard.getByRole('button', { name: 'Look for a Newer Adapter' }), use = claudeCard.getByRole('button', { name: 'Use the Newest Adapter' });
+    const back = claudeCard.getByRole('button', { name: 'Return to the Tested Adapter' });
+    ok('the adapter section says the tested release runs, and npm is not asked until the person asks', (await claudeCard.textContent()).includes('Claude runs on the adapter 0.87.0, the release') &&
+      (await claudeCard.textContent()).includes('npm has not been asked') && await use.isDisabled() && await back.count() === 0 && await page.evaluate(() => !__calls.some(c => c[0] === 'newest-claude')));
+    const placed = async () => { const card = await claudeCard.boundingBox(), b = await use.boundingBox(); return { x: b.x - card.x, y: b.y - card.y, width: b.width }; };
+    const placedBefore = await placed();
+    await look.click();
+    await claudeCard.getByText('The newest release on npm is 0.88.0', { exact: false }).waitFor();
+    const placedAfter = await placed();
+    ok('the answer gives the release and its date, and Use the Newest Adapter is ready where it was', (await claudeCard.locator('.claude-adapter-found').textContent()).includes('published on') &&
+      (await claudeCard.locator('.claude-adapter-found').textContent()).includes('2026') && !(await use.isDisabled()) &&
+      placedBefore.x === placedAfter.x && placedBefore.y === placedAfter.y && placedBefore.width === placedAfter.width, JSON.stringify([placedBefore, placedAfter]));
+    await use.click();
+    await page.locator('#ask-yes').waitFor();
+    const askedFirst = await page.evaluate(() => !__calls.some(c => c[0] === 'use-claude'));
+    await page.locator('#ask-yes').click();
+    await back.waitFor();
+    ok('Use the Newest Adapter asks first, then runs Claude on that release and offers the way back', askedFirst && await page.evaluate(() => __calls.some(c => c[0] === 'use-claude' && c[1] === '0.88.0')) &&
+      (await claudeCard.textContent()).includes('Claude runs on the adapter 0.88.0, which you chose') && await claudeCard.getByRole('button', { name: 'Install the Claude Adapter' }).count() === 0);
+    await t.shot('agent-providers-claude-adapter');
+    await back.click();
+    await page.locator('#ask-yes').click();
+    const returned = await settledCount(page, back, 0);
+    ok('Return to the Tested Adapter asks first, then runs Claude on the tested release', await page.evaluate(() => __calls.some(c => c[0] === 'tested-claude')) &&
+      (await claudeCard.textContent()).includes('Claude runs on the adapter 0.87.0, the release') && returned.ok, returned.detail);
     // Ollama is a server at an address: when it does not answer it cannot be
     // chosen and says so, and its card offers Test Connection only.
     const ollamaCard = settings.locator('[data-provider="ollama"]');

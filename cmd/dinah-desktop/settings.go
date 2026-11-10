@@ -12,6 +12,7 @@ import (
 
 	"studio/internal/acp"
 	"studio/internal/bus"
+	"studio/internal/claudeagent"
 	"studio/internal/layout"
 	"studio/internal/workspaces"
 )
@@ -64,6 +65,10 @@ type Settings struct {
 	// CodexApprovals is how far a Codex chat may go without asking: "ask",
 	// "workspace" or "full" (codex_approvals.go). Empty is "ask".
 	CodexApprovals string `json:"codexApprovals,omitempty"`
+	// ClaudeAdapter is the release of Claude's adapter the person chose over
+	// the one the app was tested with (provider_claude.go). Empty is the
+	// tested one.
+	ClaudeAdapter string `json:"claudeAdapter,omitempty"`
 	// FileLimits are the limits the person chose on the files in one
 	// message, by provider, where they differ from the documented default;
 	// 0 is no limit (file_limits.go).
@@ -268,6 +273,9 @@ func loadSettings() (Settings, error) {
 	case "", "ask", "workspace", "full":
 	default:
 		s.CodexApprovals = ""
+	}
+	if !claudeagent.ValidRelease(s.ClaudeAdapter) {
+		s.ClaudeAdapter = ""
 	}
 	checkStoredFileLimits(&s)
 	checkStoredSubstitutions(&s)

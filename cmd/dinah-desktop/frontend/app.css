@@ -24,6 +24,8 @@
 /* Files per Message is a few digits wide, with Save and Use Default beside it. */
 .file-limit .file-limit-input { width: 8rem; flex: 0 0 auto; }
 .file-limit .settings-actions { align-items: center; margin-top: 0; }
+/* A line in Settings that shows an answer the person asked for keeps room for two lines, so the buttons under it stay where they are when the answer comes. */
+.settings-answer { min-height: 2lh; }
 .work-split { flex: 1 1 auto; min-height: 0; --split-a: 55%; }
 .chat-pane { display: flex; flex-direction: column; overflow: hidden; }
 .chat-output { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; }

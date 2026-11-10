@@ -50,10 +50,20 @@ type AgentProviderInfo struct {
 // (docs/proposals/claude-agent-integration.md). Path is then Node.js, which
 // runs the adapter.
 type ClaudeSetup struct {
-	// AdapterVersion is the pinned adapter release, and AdapterInstalled
-	// whether it is installed in Dinah's state folder.
+	// AdapterVersion is the pinned adapter release, the one the app was
+	// tested with, and AdapterInstalled whether it is installed in Dinah's
+	// state folder.
 	AdapterVersion   string `json:"adapterVersion"`
 	AdapterInstalled bool   `json:"adapterInstalled"`
+	// AdapterInUse is the release a start of Claude runs, "" when none is
+	// installed. It is an earlier one while the pinned one is being put in
+	// place after an update, and AdapterNewer says it is a later one, which
+	// the person chose (docs/proposals/claude-adapter-updates.md).
+	AdapterInUse string `json:"adapterInUse"`
+	AdapterNewer bool   `json:"adapterNewer"`
+	// AdapterInstalling is whether the app is installing the pinned release
+	// by itself.
+	AdapterInstalling bool `json:"adapterInstalling"`
 	// CanInstall is whether npm was found beside Node.js to install it with.
 	CanInstall bool `json:"canInstall"`
 	// APIKey is whether an API key is stored, which bills Claude to it; with

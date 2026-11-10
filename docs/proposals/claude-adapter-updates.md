@@ -57,3 +57,15 @@ Paul answered the three questions on 10 November 2026.
 3. One week is acceptable as the age of a pinned release.
 
 He also said that a person who cannot wait for any of this can run Claude Code in a terminal, which he accepts as a stopgap beside the changes. The published file stays unbuilt.
+
+## What Was Built
+
+The first two changes were built on 10 November 2026. This section says how they work and where they depart from the recommendation.
+
+When Dinah starts and the pinned release is missing while an earlier one is installed, Dinah installs the pinned release with npm in the background. Claude keeps running on the earlier release until then, and a Claude process that is already running stays on it until it next starts. The earlier release's folder is removed at a later start of Dinah, when no process can be running it. A person who never installed an adapter gets nothing installed for them. If the install fails, Claude stays on the earlier release, Settings › Agents › Claude shows the first line of npm's error, and the Install button there tries again.
+
+Settings › Agents › Claude has an Adapter section. Dinah asks npm for its newest release only when the person presses Look for a Newer Adapter, so opening Settings sends nothing to npm. Use the Newest Adapter asks first, saying that Dinah was not tested with that release and that open Claude chats are disconnected. Dinah then asks npm again and refuses if the newest release has changed since the person looked, and it refuses a release that needs a later Node.js than the person has. Return to the Tested Adapter removes the chosen release. A chosen release that a later Dinah's pin has caught up with is forgotten at the next start, so the pinned one runs from then on.
+
+Dinah has no problem report for a chat, so the adapter's version is shown in two other places. Claude's connection detail reads "Claude is connected, on the adapter" followed by the version, and Dinah's log has a line with the version each time Claude starts.
+
+An open Settings window does not refresh when the background install finishes. The person sees the new state the next time Settings › Agents is opened.
