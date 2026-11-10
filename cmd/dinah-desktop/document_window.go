@@ -191,6 +191,9 @@ type documentWindow struct {
 	// closing says the window is closing with the person's leave, so the
 	// loop that hears from the service ends quietly.
 	closing bool
+	// leaving says the question of whether the window may close is being
+	// settled, so a second press of the close button starts no second one.
+	leaving bool
 }
 
 // servePage is the toolkit's own page, which only sends the window on to
@@ -328,13 +331,26 @@ func (w *documentWindow) obey(ctx context.Context, c docservice.Command) {
 // so for a changed document that has no file, which could not be opened
 // again. A document that has a file closes without a question, and its
 // unsaved text is offered when the file is next opened.
+//
+// The toolkit asks on the window's own thread, and the page cannot answer
+// the service while that thread waits, so the close is refused here and
+// settled beside it: the window is then closed in earnest, or left open
+// when the person chose to stay.
 func (w *documentWindow) beforeClose(ctx context.Context) (prevent bool) {
 	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.closing {
-		w.mu.Unlock()
 		return false
 	}
-	w.mu.Unlock()
+	if !w.leaving {
+		w.leaving = true
+		go w.leave(ctx)
+	}
+	return true
+}
+
+// leave settles whether the window may close, and closes it.
+func (w *documentWindow) leave(ctx context.Context) {
 	short, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	ask, err := w.client.Closing(short, w.id)
@@ -348,12 +364,17 @@ func (w *documentWindow) beforeClose(ctx context.Context) (prevent bool) {
 		chosen, derr := wruntime.MessageDialog(ctx, wruntime.MessageDialogOptions{Type: wruntime.QuestionDialog, Title: documentApplications[w.application].Name,
 			Message: "This document has not been saved anywhere. Close it and lose what you typed?", Buttons: []string{leave, stay}, DefaultButton: stay, CancelButton: stay})
 		if derr != nil || chosen != leave {
-			return true
+			w.mu.Lock()
+			w.leaving = false
+			w.mu.Unlock()
+			return
 		}
 	}
 	w.mu.Lock()
 	w.closing = true
 	w.mu.Unlock()
-	w.client.Closed(short, w.id)
-	return false
+	told, done := context.WithTimeout(ctx, 5*time.Second)
+	defer done()
+	w.client.Closed(told, w.id)
+	wruntime.Quit(ctx)
 }
