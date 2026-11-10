@@ -349,27 +349,50 @@
 
   /* ---- Shortcodes the build adds ------------------------------------------
      A build may add shortcodes to the Markdown dialect beyond the engine's
-     own (docs/design/shortcodes.md). The applets ask for the catalog, for
-     completion, hover and the Insert menu, and for the drawing of one
-     occurrence: { name, args, source, content }, answered with { html },
-     where a container's HTML holds one <slot name="content"></slot> for the
-     body the applet draws itself. The catalog is read once and kept, since
-     it is the build's. */
+     own (docs/design/shortcodes.md). Two services give them to the applets.
+     contentWorkspace.shortcodes(context) is the applets' documented call
+     for a host's extra shortcodes, and returns { shortcodes: [{ name,
+     title, description, kind, params, example }] } for completion, hover
+     and the Insert menu. contentWorkspace.shortcodeHost draws and changes
+     an occurrence: render({ name, args, source, kind }) returns { html },
+     where the HTML of a container or a span has one <slot name="content">
+     </slot> for the body the applet draws itself; form(source) returns the
+     form an occurrence is changed through, or null when it is changed as
+     text; build(kind, values) returns { source }, or { error: { field,
+     message } } for a value the shortcode cannot have. The catalog is read
+     once and kept, since it is the build's. */
   var shortcodeCatalog = null;
-  var shortcodes = {
+  function shortcodeList() {
+    if (!shortcodeCatalog) {
+      shortcodeCatalog = Promise.resolve().then(function () { return api().ShortcodeCatalog ? api().ShortcodeCatalog() : []; })
+        .then(function (list) {
+          return (Array.isArray(list) ? list : []).map(function (d) {
+            return { name: String(d.name || ''), title: String(d.title || d.name || ''), description: String(d.description || ''), kind: String(d.kind || ''), example: String(d.example || ''),
+              params: (Array.isArray(d.params) ? d.params : []).map(function (p) { return { name: String(p.name || ''), description: String(p.description || ''), required: p.required === true }; }) };
+          });
+        })
+        .catch(function () { shortcodeCatalog = null; return []; });
+    }
+    return shortcodeCatalog;
+  }
+  function shortcodes() { return shortcodeList().then(function (list) { return { shortcodes: list }; }); }
+  var shortcodeHost = {
     version: 1,
-    catalog: function () {
-      if (!shortcodeCatalog) {
-        shortcodeCatalog = Promise.resolve().then(function () { return api().ShortcodeCatalog ? api().ShortcodeCatalog() : []; })
-          .then(function (list) { return Array.isArray(list) ? list : []; })
-          .catch(function () { shortcodeCatalog = null; return []; });
-      }
-      return shortcodeCatalog;
-    },
     render: function (request) {
       var r = request || {};
       return Promise.resolve(api().RenderShortcode({ name: String(r.name || ''), args: String(r.args || ''), source: String(r.source || ''), content: r.content == null ? '' : String(r.content) }))
         .then(function (html) { return { html: typeof html === 'string' ? html : '' }; });
+    },
+    form: function (source) {
+      return Promise.resolve(api().ShortcodeForm(String(source || ''))).then(function (form) { return form && form.kind ? form : null; });
+    },
+    build: function (kind, values) {
+      var v = {};
+      Object.keys(values || {}).forEach(function (name) { v[name] = values[name] == null ? '' : String(values[name]); });
+      return Promise.resolve(api().BuildShortcode(String(kind || ''), v)).then(function (built) {
+        if (built && built.error) return { error: { field: built.error.field || '', message: built.error.message || 'The shortcode could not be written.' } };
+        return { source: built && built.source || '' };
+      });
     }
   };
 
@@ -378,7 +401,7 @@
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: function () { return null; }, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes },
+      contentWorkspace: { version: 1, directory: function () { return null; }, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }

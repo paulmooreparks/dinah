@@ -34,7 +34,7 @@ func TestRegistryMergesCatalogsAndRendersThroughTheFirstSetThatKnows(t *testing.
 	for _, d := range got {
 		names += d.Name + ","
 	}
-	if names != "status,toc,tracker," || got[0].Params == nil {
+	if names != "status,toc,tracker," || got[0].Params == nil || got[0].Title != "status" {
 		t.Fatalf("catalog: %s %+v", names, got)
 	}
 	html, err := Render(Request{Name: "status", Args: "green Done"})
@@ -52,5 +52,53 @@ func TestRegistryMergesCatalogsAndRendersThroughTheFirstSetThatKnows(t *testing.
 	}
 	if !Any() {
 		t.Fatal("Any says no sets")
+	}
+}
+
+type formSet struct{ fakeSet }
+
+func (formSet) Form(source string) (Form, bool) {
+	if source != "{{label:red Late}}" {
+		return Form{}, false
+	}
+	return Form{Kind: "label", Title: "Label", Fields: []Field{
+		{Name: "colour", Label: "Colour", Value: "red", Values: []string{"red", "green"}},
+		{Name: "text", Label: "Text", Value: "Late", Required: true},
+	}}, true
+}
+
+func (formSet) Build(kind string, values map[string]string) (string, error) {
+	if kind != "label" {
+		return "", ErrUnknown
+	}
+	if values["text"] == "" {
+		return "", &FieldError{Field: "text", Message: "A label needs its text."}
+	}
+	return "{{label:" + values["colour"] + " " + values["text"] + "}}", nil
+}
+
+func TestFormsComeFromTheSetThatHasThem(t *testing.T) {
+	Register(fakeSet{names: map[string]string{"plain": "<i/>"}})
+	Register(formSet{fakeSet{names: map[string]string{"label": "<b/>"}}})
+	form, ok := FormOf("{{label:red Late}}")
+	if !ok || form.Kind != "label" || len(form.Fields) != 2 || form.Fields[0].Values[1] != "green" {
+		t.Fatalf("form: %v %+v", ok, form)
+	}
+	if _, ok := FormOf("{{plain}}"); ok {
+		t.Fatal("a shortcode with no form has one")
+	}
+	source, err := Build("label", map[string]string{"colour": "green", "text": "Done"})
+	if err != nil || source != "{{label:green Done}}" {
+		t.Fatalf("build: %q %v", source, err)
+	}
+	var field *FieldError
+	if _, err := Build("label", map[string]string{"colour": "green"}); !errors.As(err, &field) || field.Field != "text" {
+		t.Fatalf("a missing value: %v", err)
+	}
+	if _, err := Build("plain", nil); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("a kind with no form: %v", err)
+	}
+	if _, err := Build("Bad Kind", nil); err == nil || errors.Is(err, ErrUnknown) {
+		t.Fatalf("a bad kind was accepted: %v", err)
 	}
 }

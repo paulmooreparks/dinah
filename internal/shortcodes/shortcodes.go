@@ -2,9 +2,10 @@
 // Markdown dialect the content applets edit, beyond the engine's own
 // (docs/design/shortcodes.md). A product whose documents are pages on a
 // site registers a set: what each shortcode is, for completion and the
-// Insert menu, and how an occurrence of one is drawn in the preview. The
-// page hands both to the applets through the host's shortcodes service.
-// Nothing here knows a shortcode; Dinah's own build registers none.
+// Insert menu, how an occurrence of one is drawn, and, where the set has
+// them, the form an occurrence is changed through. The page hands all three
+// to the applets through the host's shortcode services. Nothing here knows
+// a shortcode; Dinah's own build registers none.
 package shortcodes
 
 import (
@@ -32,9 +33,11 @@ type Param struct {
 	Required    bool   `json:"required,omitempty"`
 }
 
-// Descriptor describes one shortcode as the applets present it.
+// Descriptor describes one shortcode as the applets present it. The title
+// is what a menu shows; the name is used when a set gives none.
 type Descriptor struct {
 	Name        string  `json:"name"`
+	Title       string  `json:"title"`
 	Kind        string  `json:"kind"`
 	Description string  `json:"description,omitempty"`
 	Params      []Param `json:"params,omitempty"`
@@ -57,6 +60,48 @@ type Request struct {
 type Set interface {
 	Catalog() []Descriptor
 	Render(r Request) (html string, err error)
+}
+
+// Field is one value of a shortcode's form: its name among the form's
+// values, the label and help shown with it, the value it has now, and the
+// choices when the value is one of a few.
+type Field struct {
+	Name        string   `json:"name"`
+	Label       string   `json:"label"`
+	Description string   `json:"description,omitempty"`
+	Required    bool     `json:"required,omitempty"`
+	Value       string   `json:"value"`
+	Values      []string `json:"values,omitempty"`
+}
+
+// Form is the form one occurrence of a shortcode is changed through: the
+// kind Build is asked for, a title and a line of help, and the fields,
+// filled from the occurrence as written.
+type Form struct {
+	Kind        string  `json:"kind"`
+	Title       string  `json:"title"`
+	Description string  `json:"description,omitempty"`
+	Fields      []Field `json:"fields"`
+}
+
+// FieldError is a value a form cannot write and the field it is in. The
+// field is empty when the fault is not one field's.
+type FieldError struct {
+	Field   string `json:"field,omitempty"`
+	Message string `json:"message"`
+}
+
+func (e *FieldError) Error() string { return e.Message }
+
+// Former is a set whose shortcodes are changed through forms, so that the
+// argument grammar stays the set's. Form reads an occurrence as its form,
+// and reports false when it has none, in which case the occurrence is
+// changed as text. Build writes the shortcode from a form's values; it
+// returns a *FieldError for a value the shortcode cannot hold and
+// ErrUnknown for a kind the set lacks.
+type Former interface {
+	Form(source string) (Form, bool)
+	Build(kind string, values map[string]string) (source string, err error)
 }
 
 // ErrUnknown is a set's answer for a shortcode it does not know.
@@ -92,6 +137,9 @@ func Catalog() []Descriptor {
 				continue
 			}
 			seen[d.Name] = true
+			if d.Title == "" {
+				d.Title = d.Name
+			}
 			if d.Params == nil {
 				d.Params = []Param{}
 			}
@@ -127,6 +175,59 @@ func Render(r Request) (string, error) {
 			continue
 		}
 		return html, err
+	}
+	return "", ErrUnknown
+}
+
+// FormOf reads one occurrence, as written, as its form, through the first
+// set that has one for it.
+func FormOf(source string) (Form, bool) {
+	if len(source) > 1<<16 {
+		return Form{}, false
+	}
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, s := range sets {
+		f, ok := s.(Former)
+		if !ok {
+			continue
+		}
+		if form, ok := f.Form(source); ok {
+			if form.Fields == nil {
+				form.Fields = []Field{}
+			}
+			return form, true
+		}
+	}
+	return Form{}, false
+}
+
+// Build writes a shortcode from a form's values through the first set that
+// knows the kind.
+func Build(kind string, values map[string]string) (string, error) {
+	kind = strings.TrimSpace(kind)
+	if !namePattern.MatchString(kind) {
+		return "", errors.New("invalid shortcode name")
+	}
+	size := 0
+	for name, value := range values {
+		size += len(name) + len(value)
+	}
+	if size > 1<<16 {
+		return "", errors.New("the values are too large for a shortcode")
+	}
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, s := range sets {
+		f, ok := s.(Former)
+		if !ok {
+			continue
+		}
+		source, err := f.Build(kind, values)
+		if errors.Is(err, ErrUnknown) {
+			continue
+		}
+		return source, err
 	}
 	return "", ErrUnknown
 }
