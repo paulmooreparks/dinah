@@ -401,11 +401,18 @@
        <div class="split-pane" id="launcher-slot"></div>
        <div class="split-handle" aria-label="Resize launcher" data-split-min="220" data-split-max="60%"></div>
        <div class="split-pane dinah-window-space win-host">
+       <!-- data-win-text-title-sep is the mark between a window's title and
+            its detail. PUDL 0.105.0's own default is a middle dot whose bytes
+            were encoded twice in the release, which drew four stray
+            characters (Paul, 10 November 2026), so the page gives the dot
+            itself, as a character reference. It can go when a PUDL release
+            has the default right. -->
        <div class="win-layer" data-win-layer data-win-src="#win-source-{key}" data-win-default="workspace,in-progress,chat-browser,needs-you,chat" data-win-required="workspace" data-win-dock-tabs="all" data-win-dock-splits data-win-taskbar-reorder data-win-resize-mode="live" data-win-dock-rail-width="960" data-win-menu data-win-taskbar-stacks="full"
          data-win-switcher data-win-text-switcher="Switch Windows" data-win-text-switch-last="Switch to the Last Window" data-win-text-switch-back="Switch Back Through the Windows"
          data-win-text-minimize-mnemonic="M" data-win-text-unminimize-mnemonic="T" data-win-text-maximize-mnemonic="Z" data-win-text-restore-mnemonic="T"
          data-win-text-snap-mnemonic="S" data-win-text-dock-mnemonic="K" data-win-text-reset-mnemonic="E" data-win-text-collapse-mnemonic="O"
-         data-win-text-expand-mnemonic="D" data-win-text-undock-mnemonic="U"></div>
+         data-win-text-expand-mnemonic="D" data-win-text-undock-mnemonic="U"
+         data-win-text-title-sep=" &#183; "></div>
        <div class="split work-split no-doc" id="work-split">
 
 
