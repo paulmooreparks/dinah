@@ -85,7 +85,7 @@ func TestOverlappingSavesDoNotBothSucceed(t *testing.T) {
 // replaced with no conflict, which is the fault the lock is for. The test
 // keeps the fault on record, so that the one above cannot pass by accident.
 func TestWithoutTheLockOverlappingSavesBothSucceed(t *testing.T) {
-	holdSaveLock = func(context.Context, string, string, time.Duration) (func(), error) { return func() {}, nil }
+	holdSaveLock = func(context.Context, string, time.Duration) (func(), error) { return func() {}, nil }
 	t.Cleanup(func() { holdSaveLock = savelockHold })
 	first, second, overtook, text := overlap(t)
 	if !overtook || first != nil || second != nil {
