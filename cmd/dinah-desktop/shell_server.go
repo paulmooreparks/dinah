@@ -44,7 +44,7 @@ type shellServer struct {
 	token  string
 
 	mu    sync.Mutex
-	codes map[string]time.Time
+	codes map[string]shellCode
 
 	http *http.Server
 	ln   net.Listener
@@ -52,6 +52,18 @@ type shellServer struct {
 
 // shellCookie is the cookie that signs the window in (product.ShellCookie).
 var shellCookie = product.ShellCookie
+
+// showCookie signs a slide show's page in. It is a cookie of its own, with
+// the show's own token, and admits its holder to what a show reads and to
+// nothing else of the App (show_sessions.go).
+var showCookie = product.ShellCookie + "-show"
+
+// shellCode is a one-time way in: when it stops being good, and the slide
+// show it signs in, or none for the window's own page.
+type shellCode struct {
+	expires time.Time
+	show    *showSession
+}
 
 // shellPolicy is the page's Content Security Policy. Scripts come only from
 // the page's own files; WebAssembly may compile, for the Terminal's shells.
@@ -80,7 +92,10 @@ func newShellServer(app *App, frontend fs.FS, addr string) (*shellServer, error)
 		return nil, err
 	}
 	s := &shellServer{app: app, bridge: b, files: http.FileServerFS(frontend), addr: addr,
-		token: rand.Text(), codes: map[string]time.Time{}}
+		token: rand.Text(), codes: map[string]shellCode{}}
+	app.shows.mu.Lock()
+	app.shows.entry = s.showEntry
+	app.shows.mu.Unlock()
 	s.bridge.ObserveCall = app.observeExitCall
 	s.bridge.Runtime("BrowserOpenURL", func(_ context.Context, args []json.RawMessage) error {
 		var u string
@@ -129,10 +144,16 @@ func (s *shellServer) close() { s.http.Close() }
 
 // entry returns an address that signs the window in, good once and for one
 // minute.
-func (s *shellServer) entry() string {
+func (s *shellServer) entry() string { return s.enterWith(nil) }
+
+// showEntry returns an address that signs a slide show's page in, good once
+// and for one minute.
+func (s *shellServer) showEntry(show *showSession) string { return s.enterWith(show) }
+
+func (s *shellServer) enterWith(show *showSession) string {
 	code := rand.Text()
 	s.mu.Lock()
-	s.codes[code] = time.Now().Add(time.Minute)
+	s.codes[code] = shellCode{expires: time.Now().Add(time.Minute), show: show}
 	s.mu.Unlock()
 	return "http://" + s.addr + "/enter?code=" + url.QueryEscape(code)
 }
@@ -177,6 +198,13 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := r.Cookie(shellCookie)
 	if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(s.token)) != 1 {
+		// A slide show's page has a cookie of its own and a narrower reach.
+		if sc, err := r.Cookie(showCookie); err == nil {
+			if show := s.app.showByToken(sc.Value); show != nil {
+				s.serveShow(w, r, show)
+				return
+			}
+		}
 		http.Error(w, "Open "+product.Name+" from its window.", http.StatusUnauthorized)
 		return
 	}
@@ -211,17 +239,21 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *shellServer) enter(w http.ResponseWriter, r *http.Request) {
 	code := r.URL.Query().Get("code")
 	s.mu.Lock()
-	expires, ok := s.codes[code]
+	entry, ok := s.codes[code]
 	delete(s.codes, code)
 	s.mu.Unlock()
-	if !ok || time.Now().After(expires) {
+	if !ok || time.Now().After(entry.expires) {
 		http.Error(w, "That way in has expired. Open "+product.Name+" from its window.", http.StatusUnauthorized)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: shellCookie, Value: s.token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
+	name, value, page, background := shellCookie, s.token, "/", ""
+	if entry.show != nil {
+		name, value, page, background = showCookie, entry.show.token, "/"+showPagePath, ` style="background:#000"`
+	}
+	http.SetCookie(w, &http.Cookie{Name: name, Value: value, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>%s</title>`+
-		`<meta http-equiv="refresh" content="0; url=/"></head><body></body></html>`, html.EscapeString(product.Name))
+		`<meta http-equiv="refresh" content="0; url=%s"></head><body%s></body></html>`, html.EscapeString(product.Name), page, background)
 }
 
 func (s *shellServer) hostAllowed(host string) bool {

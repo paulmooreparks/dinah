@@ -61,7 +61,7 @@ var pageMethods = func() map[string]pageMethodClass {
  WorkspaceLocalPath WorkspaceSkills Log SaveUIState ExtensionCall ProductServices ShortcodeCatalog RenderShortcode ShortcodeForm BuildShortcode
  SuggestDocumentName JudgementCalibration JudgementState JudgementSummary JudgementRecords JudgementKinds JudgementSettings JudgementModels JudgementModelPrices JudgementProviders NewestClaudeAdapter Team ChatLead SetTeamLead ClearTeamLead MakeGroupATeam SetTeamBudget
  PendingPermissions PendingExitConfirmation PendingPageAsks PendingExtensionReviews ProviderStates
- ChatEvents ChatStates
+ ChatEvents ChatStates OpenShow PostShow CloseShow
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
  InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate`)
 	list(pageWork, `

@@ -96,6 +96,7 @@
     var all = names();
     if (Object.prototype.hasOwnProperty.call(all, resource)) { delete all[resource]; window.dinahUIState.set(NAMES, all); }
     folders.delete(resource);
+    closeShowsOf(resource);
   }
 
   /* The folder of each document that is a file, as a virtual path, which an
@@ -428,72 +429,10 @@
   }
 
   /* ---- Shortcodes the build adds ------------------------------------------
-     A build may add shortcodes to the Markdown dialect beyond the engine's
-     own (docs/design/shortcodes.md). Two services give them to the applets.
-     contentWorkspace.shortcodes(context) is the applets' documented call
-     for a host's extra shortcodes, and returns { shortcodes: [{ name,
-     title, description, kind, params, example, prefix, managed, literal,
-     colorAttribute, colorClassPrefix, cellColor }] }
-     for completion, hover and the Insert menu. One inline entry may have
-     cellColor, when it is the shortcode the product keeps a table cell's
-     colour with in a Markdown table. An entry has a prefix when
-     the shortcode may be written with one character in place of its name
-     and colon, is managed when the product keeps it with a tool of its
-     own, and is literal when it is a container whose body is markup and
-     not Markdown. A literal entry has a colorAttribute when the product
-     keeps a table cell's colour in that data attribute beside the cell's
-     style, and a colorClassPrefix when the product also marks a coloured
-     cell with a class whose name begins so, which the applets remove when
-     the colour is changed or removed. contentWorkspace.shortcodeHost draws and changes an occurrence:
-     render({ name, args, source, kind }) returns { html }, where kind is
-     how the applet read the occurrence and the HTML of a container or a
-     span has one <slot name="content">
-     </slot> for the body the applet draws itself; form(source) returns the
-     form an occurrence is changed through, or null when it is changed as
-     text; build(kind, values) returns { source }, or { error: { field,
-     message } } for a value the shortcode cannot have. The catalog is read
-     once and kept, since it is the build's. */
-  var shortcodeCatalog = null;
-  function shortcodeList() {
-    if (!shortcodeCatalog) {
-      shortcodeCatalog = Promise.resolve().then(function () { return api().ShortcodeCatalog ? api().ShortcodeCatalog() : []; })
-        .then(function (list) {
-          return (Array.isArray(list) ? list : []).map(function (d) {
-            var entry = { name: String(d.name || ''), title: String(d.title || d.name || ''), description: String(d.description || ''), kind: String(d.kind || ''), example: String(d.example || ''),
-              params: (Array.isArray(d.params) ? d.params : []).map(function (p) { return { name: String(p.name || ''), description: String(p.description || ''), required: p.required === true }; }) };
-            if (typeof d.prefix === 'string' && d.prefix.length === 1) entry.prefix = d.prefix;
-            if (d.managed === true) entry.managed = true;
-            if (d.literal === true) entry.literal = true;
-            if (d.literal === true && typeof d.colorAttribute === 'string' && d.colorAttribute) entry.colorAttribute = d.colorAttribute;
-            if (d.literal === true && typeof d.colorClassPrefix === 'string' && d.colorClassPrefix) entry.colorClassPrefix = d.colorClassPrefix;
-            if (d.cellColor === true && d.kind === 'inline') entry.cellColor = true;
-            return entry;
-          });
-        })
-        .catch(function () { shortcodeCatalog = null; return []; });
-    }
-    return shortcodeCatalog;
-  }
-  function shortcodes() { return shortcodeList().then(function (list) { return { shortcodes: list }; }); }
-  var shortcodeHost = {
-    version: 1,
-    render: function (request) {
-      var r = request || {};
-      return Promise.resolve(api().RenderShortcode({ name: String(r.name || ''), args: String(r.args || ''), source: String(r.source || ''), content: r.content == null ? '' : String(r.content), kind: r.kind == null ? '' : String(r.kind) }))
-        .then(function (html) { return { html: typeof html === 'string' ? html : '' }; });
-    },
-    form: function (source) {
-      return Promise.resolve(api().ShortcodeForm(String(source || ''))).then(function (form) { return form && form.kind ? form : null; });
-    },
-    build: function (kind, values) {
-      var v = {};
-      Object.keys(values || {}).forEach(function (name) { v[name] = values[name] == null ? '' : String(values[name]); });
-      return Promise.resolve(api().BuildShortcode(String(kind || ''), v)).then(function (built) {
-        if (built && built.error) return { error: { field: built.error.field || '', message: built.error.message || 'The shortcode could not be written.' } };
-        return { source: built && built.source || '' };
-      });
-    }
-  };
+     The two services that give a build's shortcodes to the applets,
+     contentWorkspace.shortcodes and contentWorkspace.shortcodeHost, are in
+     shortcode-services.js, which a slide show's page loads too. */
+  var shortcodes = window.dinahShortcodeServices.shortcodes, shortcodeHost = window.dinahShortcodeServices.shortcodeHost;
 
   var installed = null;
   function install() {
@@ -617,6 +556,9 @@
      (content-windows.js) rather than a browser popup; both applets are on
      one page, where the channel works as well. Any other address goes to
      the browser's own window.open. */
+  /* The capability stays at version 1 until Dinah has a Slides that reads
+     version 2: the package of yavc.app v0.2.61 accepts no other version.
+     openShow, below, is then offered here beside presenterURL. */
   var PRESENTER_PATH = '/presenter';
   var presentation = { version: 1, presenterURL: function (args) {
     return PRESENTER_PATH + '?' + new URLSearchParams({ application: String(args.application || ''), resource: String(args.resource || ''), channel: String(args.channel || '') });
@@ -634,8 +576,67 @@
     return browserOpen.apply(window, arguments);
   };
 
+  /* ---- A show on another display -----------------------------------------
+     From version 2 of the presentation contract (yavc.app docs/
+     presentation-contract.md) Slides asks its host to run the show somewhere
+     else, and drives it through a port. Dinah runs it in a second copy of
+     the window program, full screen on a display the window is not on
+     (docs/design/detached-slide-show.md; Paul, 10 November 2026). With one
+     display the answer is null, at once, and Slides presents in its own
+     window as before. The show's page is in another browser process, so
+     the program carries the messages: PostShow one way, and the show:message
+     event the other. A message posted before the show's page reads is kept
+     for it by the program. Closing the port, or the deck's window, ends the
+     show; a show's window the person closes is the port's onclose. */
+  var shows = new Map(), listeningShows = false;
+  function listenShows() {
+    if (listeningShows || !window.dinahHost) return;
+    listeningShows = true;
+    window.dinahHost.on('show:message', function (e) {
+      var show = e && shows.get(e.id), message;
+      if (!show || typeof show.port.onmessage !== 'function') return;
+      try { message = JSON.parse(e.message); } catch (_) { return; }
+      show.port.onmessage(message);
+    });
+    window.dinahHost.on('show:closed', function (e) {
+      var show = e && shows.get(e.id);
+      if (!show) return;
+      shows.delete(e.id);
+      if (!show.closed && typeof show.port.onclose === 'function') show.port.onclose();
+    });
+  }
+  function openShow(request) {
+    var resource = String(request && request.resource || ''), id = names()[resource];
+    if (!id || !api().OpenShow) return Promise.resolve(null);
+    listenShows();
+    return Promise.resolve(api().OpenShow({ application: String(request.application || 'slides'), resource: resource, draft: id, folder: folders.get(resource) || '',
+      mode: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light' })).then(function (opened) {
+      if (!opened || !opened.id) return null;
+      var show = { resource: resource, closed: false, sending: Promise.resolve(), port: null };
+      show.port = { onmessage: null, onclose: null,
+        postMessage: function (message) {
+          if (show.closed) return;
+          var text = JSON.stringify(message);
+          show.sending = show.sending.then(function () { return api().PostShow(opened.id, text); }).catch(function () { /* The show has ended, which onclose says. */ });
+        },
+        close: function () {
+          if (show.closed) return;
+          show.closed = true;
+          /* What was posted is passed on before the window goes. */
+          show.sending.then(function () { return api().CloseShow(opened.id); }).catch(function () {});
+        } };
+      shows.set(opened.id, show);
+      return show.port;
+    }, function (err) {
+      if (window.dinahHost && window.dinahHost.toast) window.dinahHost.toast(message(err), 'danger');
+      return null;
+    });
+  }
+  /* A deck's window that closes takes its show with it. */
+  function closeShowsOf(resource) { shows.forEach(function (show) { if (show.resource === resource) show.port.close(); }); }
+
   function clearSnapshot(key) { store().set('content-snapshot:' + key, null); }
 
   window.dinahContentHost = { install: install, accept: accept, read: read, apps: APPS, resourceFor: resourceFor, forget: forget,
-    clearSnapshot: clearSnapshot, knownRevision: knownRevision, keepMine: keepMine, draftOf: function (resource) { return names()[resource] || ''; } };
+    clearSnapshot: clearSnapshot, openShow: openShow, knownRevision: knownRevision, keepMine: keepMine, draftOf: function (resource) { return names()[resource] || ''; } };
 })();

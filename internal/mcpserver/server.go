@@ -426,7 +426,8 @@ func (s *Server) outsideWindow(ctx context.Context, m bus.Message) string {
 	if t, err := time.Parse(time.RFC3339Nano, seen); err == nil {
 		when = t.UTC().Format("2 Jan 15:04 UTC")
 	}
-	return " " + m.To + " runs outside Dinah's window, so Dinah cannot start a turn for it, and it reads this only when it next takes a turn of its own. It was last active at " + when + ". If its work has moved to another chat, send the message there."
+	name := profile.Current().Name
+	return " " + m.To + " runs outside " + name + "'s window, so " + name + " cannot start a turn for it, and it reads this only when it next takes a turn of its own. It was last active at " + when + ". If its work has moved to another chat, send the message there."
 }
 
 // register adds the bus's tools to srv, whose descriptions call the person

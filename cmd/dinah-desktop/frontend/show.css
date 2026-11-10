@@ -1,0 +1,4 @@
+/* A slide show's page (show.html): the show fills the window, on black
+   until the first slide is drawn. */
+html, body.show-page { height: 100%; margin: 0; background: #000; overflow: hidden; }
+.show-applet { position: fixed; inset: 0; display: block; }

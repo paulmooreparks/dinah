@@ -10,6 +10,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"studio/internal/bus"
+	"studio/internal/profile"
 )
 
 // The receipt of an agent's group post that names nobody says whom it woke,
@@ -56,7 +57,7 @@ func TestTheReceiptSaysWhomAPostWokeAndWhenAChatCannotBeWoken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := receipt(m); !strings.Contains(got, "runs outside Dinah's window, so Dinah cannot start a turn for it") || !strings.Contains(got, "last active at") {
+	if got := receipt(m); !strings.Contains(got, "window, so "+profile.Current().Name+" cannot start a turn for it") || !strings.Contains(got, "last active at") {
 		t.Fatalf("an outside chat's receipt: %s", got)
 	}
 	m, err = b.Send(ctx, bus.Sender{Session: &outside}, "Docs Pass", "Hello from outside", nil, 0)

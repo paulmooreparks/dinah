@@ -1,6 +1,6 @@
 # A slide show on its own display
 
-Paul asked on 10 November 2026 for a slide show that runs full screen in a window of its own, apart from Dinah's window. With two displays it should appear on the one Dinah is not on. With three or more it should appear on the largest display Dinah is not on. The same applies to every product built from Dinah. This proposal is not yet approved, and nothing in it is built.
+Paul asked on 10 November 2026 for a slide show that runs full screen in a window of its own, apart from Dinah's window. With two displays it should appear on the one Dinah is not on. With three or more it should appear on the largest display Dinah is not on. The same applies to every product built from Dinah. Paul approved it the same day, and his decisions are at the end. What was built is in `docs/design/detached-slide-show.md`.
 
 ## Why it does not work today
 
@@ -29,8 +29,10 @@ The show becomes a second copy of Dinah's own window program, started for the sh
 - The show's own page is the Slides package in a show mode, which renders the snapshots it is sent, takes the keys a show takes, and sends navigation back over the same port. That is the presenter mode's arrangement with a different layout.
 - Without `openShow`, Slides behaves as it does now.
 
-## Choices for Paul
+## Paul's decisions
 
-1. A second copy of the window program, or a move to Wails v3. Wails v3 has several windows in one program and reports where each display is. It is still an alpha release, so its behaviour is not yet a contract, and the move would touch every part of the window. The second copy needs neither, and this proposal recommends it.
-2. Whether the show starts on the other display by itself whenever one exists, or asks first. This proposal recommends that it starts there by itself and that Escape ends it, which is what presentation programs commonly do.
-3. Whether yavc.app Development should build the second version of the `presentation` capability. Dinah's side can be built and tested alongside it, but nothing changes for the person until both are in.
+Paul decided all three choices on 10 November 2026, each as this proposal recommended.
+
+1. The show runs in a second copy of the window program. Dinah does not move to Wails v3, which has several windows in one program and reports where each display is, because it is still an alpha release and the move would touch every part of the window.
+2. The show starts on the other display by itself whenever one exists, and Escape ends it.
+3. yavc.app Development builds the second version of the `presentation` capability, and was asked the same day. Dinah's side is built and tested alongside it, and nothing changes for the person until both are in.

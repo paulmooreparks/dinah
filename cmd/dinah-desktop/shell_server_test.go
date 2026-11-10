@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 )
 
 // The window's page is served with the Content Security Policy, and the
@@ -17,7 +16,7 @@ func TestShellPageHasContentSecurityPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &shellServer{files: http.FileServerFS(frontend), addr: "127.0.0.1:47616", token: "token", codes: map[string]time.Time{}}
+	s := &shellServer{files: http.FileServerFS(frontend), addr: "127.0.0.1:47616", token: "token", codes: map[string]shellCode{}}
 	for _, path := range []string{"/", "/index.html", "/app.js"} {
 		r := httptest.NewRequest("GET", "http://127.0.0.1:47616"+path, nil)
 		r.AddCookie(&http.Cookie{Name: shellCookie, Value: "token"})
@@ -57,7 +56,7 @@ func TestOnlyTheD2WorkerMayEvaluate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &shellServer{files: http.FileServerFS(frontend), addr: "127.0.0.1:47616", token: "token", codes: map[string]time.Time{}}
+	s := &shellServer{files: http.FileServerFS(frontend), addr: "127.0.0.1:47616", token: "token", codes: map[string]shellCode{}}
 	policy := func(path string) string {
 		r := httptest.NewRequest("GET", "http://127.0.0.1:47616"+path, nil)
 		r.AddCookie(&http.Cookie{Name: shellCookie, Value: "token"})

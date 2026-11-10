@@ -194,6 +194,9 @@ type App struct {
 	// sink, when set, also receives every event; the live tests use it in
 	// place of the window.
 	sink func(name string, data any)
+	// shows is the slide show on another display, if one is running
+	// (show_sessions.go).
+	shows showHost
 	// events carries every event to the page (shell_server.go).
 	events interface{ Emit(name string, data any) }
 }
@@ -289,6 +292,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.closeShows()
 	a.closeResponsiveness()
 	// The watcher stops before the handle it shares is closed.
 	a.busHost().StopWatcher()

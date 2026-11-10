@@ -115,6 +115,10 @@ func main() {
 		}
 		return
 	}
+	// A slide show's window is a second copy of this program (show_window.go).
+	if len(os.Args) >= 2 && os.Args[1] == showOption {
+		os.Exit(runSlideShow())
+	}
 	// An option a product's packages added runs in place of the window.
 	if len(os.Args) >= 2 {
 		if run, ok := programs.StartOption(os.Args[1]); ok {
