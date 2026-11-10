@@ -200,9 +200,21 @@
     head.appendChild(node('strong', null, m.from));
     if (m.fromWorkspace && m.fromWorkspace !== m.from) head.appendChild(node('span', 'md-meta', 'in ' + m.fromWorkspace));
     if (!m.room) { head.appendChild(node('span', 'md-meta', 'to')); head.appendChild(node('strong', null, m.to)); }
+    /* The message's number on the bus, which agents cite ("message 5398")
+       and the person could not otherwise see (Paul, 11 November 2026). */
+    /* The number and the time are one piece at the row's end, so a narrow
+       row takes both to the next line together and never parts them. */
+    var tail = node('span', 'bus-message-tail');
+    if (m.id) {
+      var number = node('span', 'md-meta bus-message-number', '#' + m.id);
+      number.title = 'Message ' + m.id;
+      number.setAttribute('aria-label', 'Message ' + m.id);
+      tail.appendChild(number);
+    }
     var sent = node('time', 'md-meta bus-message-when');
     window.dinahRegional.stamp(sent, m.createdAt, 'dayTime');
-    head.appendChild(sent);
+    tail.appendChild(sent);
+    head.appendChild(tail);
     var view = window.dinahChatText.card({ you: !!m.fromPerson, text: String(m.text || ''), label: head, act: act });
     view.div.classList.add('bus-message');
     view.div.dataset.busMessage = String(m.id);

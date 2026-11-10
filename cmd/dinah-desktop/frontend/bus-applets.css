@@ -20,7 +20,10 @@
 .bus-message .msg-label { flex: 1; min-width: 0; }
 .bus-message-head { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); align-items: baseline; }
 .bus-message-head strong { color: var(--text); }
-.bus-message-when { margin-inline-start: auto; }
+/* The message's number and its time are one piece at the row's end. The
+   number's digits are of one width, so the time does not shift with them. */
+.bus-message-tail { margin-inline-start: auto; display: inline-flex; gap: var(--space-2); align-items: baseline; white-space: nowrap; }
+.bus-message-number { font-variant-numeric: tabular-nums; }
 .bus-message-kind { margin: 0 0 var(--space-1); font-weight: 600; }
 /* A message's attachments, under its text: the pictures as a chat's sent
    pictures are shown (app.css, .sent-images), then each other file as a

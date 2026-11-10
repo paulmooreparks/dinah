@@ -71,6 +71,9 @@ const { launch } = require('./lib/page');
     const rendered = room.locator('[data-bus-message="4"] .msg-text');
     ok('a group message is drawn from its Markdown, not shown as its marks', await rendered.locator('strong').innerText() === 'Bold' && await rendered.locator('code').first().innerText() === 'code' &&
       await rendered.locator('li').count() === 2 && !(await rendered.innerText()).includes('**'), await rendered.innerHTML());
+    // Agents cite a message by its number on the bus, so the row shows it, before its time.
+    const numbered = await p.locator('.bus-message .bus-message-number').evaluateAll(els => els.map(el => ({ same: el.textContent === '#' + el.closest('[data-bus-message]').dataset.busMessage, label: el.getAttribute('aria-label'), beforeTime: !!el.nextElementSibling && el.nextElementSibling.classList.contains('bus-message-when'), oneLine: Math.abs(el.getBoundingClientRect().top - el.nextElementSibling.getBoundingClientRect().top) < 6 })));
+    ok('every group message shows its number beside its time', numbered.length > 0 && numbered.every(n => n.same && n.beforeTime && n.oneLine && /^Message \d+$/.test(n.label)), JSON.stringify(numbered.slice(0, 3)));
     ok('its addresses and Markdown links are link chips', await rendered.locator('a.smart-chip[data-chip-url="https://example.com/page"]').count() === 1 && await rendered.locator('a.smart-chip[data-chip-url="https://example.com/notes"]', { hasText: 'the notes' }).count() === 1);
     await rendered.locator('a.smart-chip[data-chip-url="https://example.com/notes"]').click();
     ok('a link chip opens in the browser', JSON.stringify(await p.evaluate(() => __opened)) === JSON.stringify(['https://example.com/notes']));
