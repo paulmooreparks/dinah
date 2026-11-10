@@ -11,7 +11,9 @@
    slide here in the browser.
 
    State: file=<path>&slide=<n>; the request "present" opens a deck and
-   presents it (present=1), or opens the presenter view (presenter=1). */
+   presents it (present=1), or opens the presenter view (presenter=1);
+   show=1 makes the page a show a host runs elsewhere, with no deck of
+   its own (docs/presentation-contract.md). */
 (function () {
     'use strict';
     function sourceFormat(t){return window.yavcContentResources.format(t.resource&&t.resource.encoding!==undefined?t.resource:t.format||t.baseline||{});}
@@ -269,7 +271,7 @@
         var start = new URLSearchParams(String(opts.state || '').replace(/^\?/, ''));
         if (opts.host !== 'window') {
             var own = new URLSearchParams(location.search);
-            if (own.get('file') || own.get('presenter') || own.get('present')) { start = own; }
+            if (own.get('file') || own.get('presenter') || own.get('present') || own.get('show')) { start = own; }
         }
         var presenterToken = start.get('presenter-channel') || crypto.randomUUID();
         function presenterIdentity(){var t=tab();if(start.get('presenter') || !t)return presenterToken;if(!t.presenterToken)t.presenterToken=crypto.randomUUID();return t.presenterToken;}
@@ -469,7 +471,7 @@
         function updateLocation() {
             el.where.textContent = (path || 'Not saved yet') + (readOnly() ? ' (read-only)' : '');
             el.where.title = el.where.textContent;
-            q('[data-role="position"]').textContent = 'Slide ' + (at + 1) + ' of ' + deck.slides.length;
+            q('[data-role="position"]').textContent = 'Slide ' + (at + 1) + ' of ' + deck.slides.length + (remoteShow ? ' \u00b7 The show is running in a window of its own' : '');
         }
         function drawNotes() {
             var tmp = document.createElement('div');
@@ -675,6 +677,7 @@
             if(!currentOwner())return false;
             recordHistory('navigation');
             if(channel && !presenterRole && !presenting)channel.postMessage({type:'at',slide:at,step:0});
+            if(remoteShow && !fromShow)showPost({type:'at',slide:at,step:0});
         }
 
         /* === Slides: new, duplicate, delete, move ======================= */
@@ -1184,7 +1187,8 @@
             stage.querySelectorAll('.deck-canvas').forEach(function (c) { c.style.width = wh[0] + 'px'; c.style.height = wh[1] + 'px'; c.style.transform = 'translate(-50%, -50%) scale(' + k + ')'; });
         }
         var showStage = null, showResize = null, startingShow = false, showFullscreenOwned = false;
-        function presenterHost(){return !!(H.presentation && H.presentation.version===1) || !resources && opts.host!=='window';}
+        function presenterPages(){var P=H.presentation;return !!(P && (P.version===1 || P.version===2) && typeof P.presenterURL==='function');}
+        function presenterHost(){return presenterPages() || !resources && opts.host!=='window';}
         function fullscreenShow() {
             if(!root.requestFullscreen || !document.fullscreenEnabled)return Promise.resolve(false);
             return root.requestFullscreen().then(function(){return true;},function(){return false;});
@@ -1192,7 +1196,11 @@
         async function present(fromSlide) {
             if (presenting || startingShow || destroyed || presenterRole) { return; }
             if(!window.yavcPresent)return false;
-            startingShow=true;var owner=tab(),fullscreen=null;
+            if(remoteShow){if(fromSlide!=null && fromSlide!==at)await goTo(fromSlide);return true;}
+            startingShow=true;
+            try{if(await openRemoteShow(fromSlide)){startingShow=false;commandsChanged();return true;}}catch(error){}
+            if(destroyed){startingShow=false;return false;}
+            var owner=tab(),fullscreen=null;
             if(settings.presenterOnPresent && path)presenterWindow();else fullscreen=fullscreenShow();
             try {
             if (pageActive()) { await page.enable(false); }
@@ -1243,6 +1251,141 @@
             await goTo(at);
             commandsChanged();
         }
+        /* === A show the host runs in a window of its own ===============
+           (docs/presentation-contract.md; DESIGN.md, decision 121). The
+           host's presentation capability, version 2, may open the show
+           elsewhere, on another display, and gives a port to it. This
+           window stays as it is and keeps the deck. It sends the deck's
+           text and the slide to show, and it receives the slide the show
+           has moved to and the show's request to end. */
+        var remoteShow = null, fromShow = false, showStateTimer = 0;
+        function showMessageOf(e) { return e && e.data && typeof e.data === 'object' && e.data.v === 1 ? e.data : e; }
+        function showPost(message) { if (!remoteShow) { return; } try { remoteShow.port.postMessage(Object.assign({ v: 1 }, message)); } catch (error) { } }
+        function sendShowState() {
+            clearTimeout(showStateTimer);
+            if (!remoteShow) { return; }
+            var mine = remoteShow;
+            if (tab() !== mine.owner) { endRemoteShow(); return; }
+            Promise.resolve(pageActive() ? page.sync() : null).then(function () {
+                if (destroyed || remoteShow !== mine) { return; }
+                var text = fullText();
+                if (text.length > 2097152) { showPost({ type: 'unavailable' }); endRemoteShow(true); say('The deck is too large to send to the show\'s window, so the show has ended.', true); return; }
+                showPost({ type: 'state', text: text, resource: path || null, slide: at, step: mine.step || 0 });
+            }).catch(function (error) { if (!destroyed) { say(error.message, true); } });
+        }
+        function scheduleShowState() { clearTimeout(showStateTimer); showStateTimer = setTimeout(sendShowState, 300); }
+        function endRemoteShow(silent) {
+            var mine = remoteShow;
+            if (!mine) { return; }
+            showPost({ type: 'end' });
+            remoteShow = null; clearTimeout(showStateTimer);
+            try { mine.port.onmessage = null; mine.port.onclose = null; mine.port.close(); } catch (error) { }
+            root.classList.remove('deck-show-elsewhere');
+            if (!destroyed) { updateLocation(); commandsChanged(); if (!silent) { say('The slide show has ended.'); } }
+        }
+        async function openRemoteShow(fromSlide) {
+            var P = H.presentation;
+            if (!P || P.version !== 2 || typeof P.openShow !== 'function') { return false; }
+            var owner = tab(), late = false, asked;
+            try { asked = Promise.resolve(P.openShow({ application: 'slides', resource: path || null, channel: presenterIdentity() })); } catch (error) { return false; }
+            /* The host's promise is to settle within a second, so that full screen in
+               this window can still be asked for with the same press. */
+            var port = await Promise.race([asked.catch(function () { return null; }), new Promise(function (resolve) { setTimeout(function () { late = true; resolve(null); }, 1000); })]);
+            if (late) { asked.then(function (p) { try { if (p && typeof p.close === 'function') { p.close(); } } catch (error) { } }, function () { }); return false; }
+            if (!port || typeof port.postMessage !== 'function' || typeof port.close !== 'function') { return false; }
+            if (destroyed || tab() !== owner) { try { port.close(); } catch (error) { } return true; }
+            if (fromSlide != null && fromSlide !== at) { await goTo(fromSlide); }
+            var mine = remoteShow = { port: port, owner: owner, step: 0 };
+            port.onmessage = function (e) {
+                var m = showMessageOf(e);
+                if (!m || m.v !== 1 || remoteShow !== mine || destroyed) { return; }
+                if (m.type === 'ready') { sendShowState(); return; }
+                if (m.type === 'leave') { endRemoteShow(); return; }
+                if (m.type !== 'at' || !Number.isInteger(m.slide) || m.slide < 0 || m.slide >= deck.slides.length || !Number.isInteger(m.step) || m.step < 0) { return; }
+                mine.step = m.step;
+                if (channel) { channel.postMessage({ type: 'at', slide: m.slide, step: m.step }); }
+                if (m.slide !== at) { fromShow = true; Promise.resolve(goTo(m.slide)).then(function () { fromShow = false; }, function () { fromShow = false; }); }
+            };
+            port.onclose = function () {
+                if (remoteShow !== mine) { return; }
+                remoteShow = null; clearTimeout(showStateTimer);
+                root.classList.remove('deck-show-elsewhere');
+                if (!destroyed) { updateLocation(); commandsChanged(); say('The slide show\'s window closed, so the show has ended.'); }
+            };
+            root.classList.add('deck-show-elsewhere');
+            sendShowState();
+            if (settings.presenterOnPresent && path) { presenterWindow(); }
+            updateLocation();
+            say('The slide show is in a window of its own.');
+            return true;
+        }
+        /* The show's own page (show=1): nothing but the deck it is sent,
+           drawn to fill the window, with the show's keys. It keeps no
+           deck of its own and saves nothing. */
+        function becomeShow() {
+            presenterRole = { slide: 0, step: 0, started: Date.now(), show: true };
+            document.title = 'Slide Show \u00b7 Slides';
+            if (detachLive) { detachLive(); detachLive = null; } if (snap) { snap.leave(); snap = null; }
+            root.classList.add('deck-show-mode', 'deck-showing');
+            el.main.hidden = true;
+            root.querySelector('.deck-toolbar-slot').hidden = true;
+            root.querySelector('[data-role="status"]').hidden = true;
+            var P = H.presentation, port = null;
+            try { port = P && P.version === 2 && typeof P.showPort === 'function' ? P.showPort() : null; } catch (error) { port = null; }
+            var waiting = document.createElement('div');
+            waiting.className = 'deck-show deck-show-waiting'; waiting.setAttribute('role', 'status');
+            /* What the page says in place of a deck: a wait or an end as
+               a line of text, and a fault as a notice. The line is shown
+               before its words are set, so that it is announced. */
+            function tell(text, fault) {
+                waiting.hidden = false;
+                waiting.replaceChildren();
+                /* The notice goes before its anchor, inside the line's own box. */
+                if (fault) { var anchor = document.createElement('span'); waiting.appendChild(anchor); window.yavcUtil.notice(anchor, text, true); } else { waiting.textContent = text; }
+            }
+            root.appendChild(waiting);
+            if (port && typeof port.postMessage === 'function') { tell('The show is waiting for the deck.'); } else { tell('This page shows a deck that the application sends it, and none was sent.', true); }
+            if (!port || typeof port.postMessage !== 'function') { return; }
+            var stage = null, show = null, applying = false, drawing = 0;
+            function post(message) { try { port.postMessage(Object.assign({ v: 1 }, message)); } catch (error) { } }
+            function clear(text, fault) { if (show) { show.destroy(); show = null; } if (stage) { stage.remove(); stage = null; } tell(text, fault); }
+            async function draw(slide, step) {
+                var ticket = ++drawing;
+                await deckEngine(); await installStyle();
+                if (destroyed || ticket !== drawing) { return; }
+                if (show) { show.destroy(); show = null; } if (stage) { stage.remove(); }
+                stage = document.createElement('div'); stage.className = 'deck-show';
+                buildShow(stage);
+                root.appendChild(stage);
+                await installStyle();
+                if (destroyed || ticket !== drawing) { return; }
+                applying = true;
+                show = window.yavcPresent.attach(stage, { start: Math.max(0, Math.min(deck.slides.length - 1, slide)), step: step,
+                    onChange: function (i, s) { presenterRole.slide = i; presenterRole.step = s; if (!applying) { post({ type: 'at', slide: i, step: s }); } },
+                    onLeave: function () { post({ type: 'leave' }); } });
+                applying = false;
+                waiting.hidden = true;
+                fitShow(stage);
+                stage.focus();
+            }
+            port.onmessage = function (e) {
+                var m = showMessageOf(e);
+                if (!m || m.v !== 1 || destroyed) { return; }
+                if (m.type === 'state' && typeof m.text === 'string' && m.text.length <= 2097152) {
+                    path = typeof m.resource === 'string' && m.resource.length <= 4096 ? m.resource : null;
+                    deck = parseDeck(m.text);
+                    draw(Number.isInteger(m.slide) ? m.slide : 0, Number.isInteger(m.step) ? Math.max(0, m.step) : 0).catch(function (error) { clear('The deck could not be drawn: ' + error.message, true); });
+                } else if (m.type === 'unavailable') { clear('The deck is too large to send to this window.', true); }
+                else if (m.type === 'end') { drawing++; clear('The show has ended.'); }
+                else if (!show) { return; }
+                else if (m.type === 'at' && Number.isInteger(m.slide) && m.slide >= 0 && m.slide < deck.slides.length && Number.isInteger(m.step) && m.step >= 0) { applying = true; try { show.goTo(m.slide, m.step); } finally { applying = false; } }
+                else if (m.type === 'advance' && (m.direction === 'next' || m.direction === 'previous')) { if (m.direction === 'next') { show.next(); } else { show.prev(); } }
+            };
+            port.onclose = function () { drawing++; clear('The show has ended.'); };
+            window.addEventListener('resize', function () { if (stage) { fitShow(stage); } }, { signal: styleLifetime.signal });
+            post({ type: 'ready' });
+            commandsChanged();
+        }
         function onFullscreenChange() {if(document.fullscreenElement===root){showFullscreenOwned=true;return;}if(!document.fullscreenElement && showFullscreenOwned){showFullscreenOwned=false;if(presenting && !presenterRole)leave();}}
         document.addEventListener('fullscreenchange', onFullscreenChange);
         function presenterWindow() {
@@ -1253,7 +1396,7 @@
                per origin (DESIGN.md, decision 11): on the desktop that is
                the applet's standalone page at /slides on the same host. */
             var token=presenterIdentity(),url;
-            if(H.presentation && H.presentation.version===1)url=new URL(H.presentation.presenterURL({application:'slides',resource:path,channel:token}),location.href);
+            if(presenterPages())url=new URL(H.presentation.presenterURL({application:'slides',resource:path,channel:token}),location.href);
             else if(!resources && opts.host!=='window'){url=new URL(location.pathname,location.origin);url.search='?file='+encodeURIComponent(path)+'&presenter=1&presenter-channel='+encodeURIComponent(token);}
             else{say('This host does not provide a presenter page.',true);return false;}
             if(url.origin!==location.origin){say('The presenter page must use this application\'s origin.',true);return false;}
@@ -1336,10 +1479,11 @@
             channel.onmessage = function (e) {
                 var m = e.data || {};
                 if(m.type==='ready'){
-                    var reply=channel;Promise.resolve(pageActive()?page.sync():null).then(function(){if(!destroyed && channel===reply){var text=fullText();reply.postMessage(text.length>2097152?{type:'unavailable'}:{type:'state',text:text,slide:presenting?presenting.position().slide:at,step:presenting?presenting.position().step:0});}}).catch(function(error){if(!destroyed)say(error.message,true);});return;
+                    var reply=channel;Promise.resolve(pageActive()?page.sync():null).then(function(){if(!destroyed && channel===reply){var text=fullText();reply.postMessage(text.length>2097152?{type:'unavailable'}:{type:'state',text:text,slide:presenting?presenting.position().slide:at,step:presenting?presenting.position().step:remoteShow?remoteShow.step||0:0});}}).catch(function(error){if(!destroyed)say(error.message,true);});return;
                 }
                 if(m.type==='advance' && (m.direction==='next' || m.direction==='previous')){
                     if(presenting){if(m.direction==='next')presenting.next();else presenting.prev();}
+                    else if(remoteShow)showPost({type:'advance',direction:m.direction});
                     else goTo(at+(m.direction==='next'?1:-1));return;
                 }
                 if(m.type!=='goto' || !Number.isInteger(m.slide) || m.slide<0 || m.slide>=deck.slides.length || !Number.isInteger(m.step) || m.step<0)return;
@@ -1484,7 +1628,7 @@
             stash();
             return { version: resources ? 2 : undefined, tabs: tabs.map(function (t) { return { path: t.path, name: t.name, text: t.modified ? serializeDeck(t.deck) : null,format:resources?sourceFormat(t):undefined,baseline: resources ? recovery.capture(resources, t.resource, t.baseline) : undefined, slide: t.at || 0 }; }), active: active, mode: mode };
         }
-        function keep() { if (snap) { snap.changed(); } }
+        function keep() { if (snap) { snap.changed(); } if (remoteShow) { scheduleShowState(); } }
 
         /* === Commands ================================================== */
 
@@ -1615,7 +1759,7 @@
                 { id: 'deck-transition', label: 'Transition for Every Slide', items: TRANSITIONS.map(function (t) { return { id: 'deck-transition-' + t[0], label: t[1], choice: 'deck-transition', value: t[0], checked: function () { return (deck.front.transition || 'fade') === t[0]; }, run: function () { return updateDeckSettings({transition:t[0]}); } }; }) },
                 cmd('present', 'Present from the Start', 'play', function () { return present(0); }, { shortcut: 'Mod+Enter', disabled: function () { return !ready || !!presenting || startingShow; } }),
                 cmd('present-here', 'Present from This Slide', 'forward', function () { return present(at); }, { shortcut: 'Mod+Shift+Enter', disabled: function () { return !ready || !!presenting || startingShow; } }),
-                cmd('leave', 'Leave the Show', 'stop', leave, { hidden: function () { return !presenting; } }),
+                cmd('leave', 'Leave the Show', 'stop', function () { if (remoteShow) { endRemoteShow(); return; } return leave(); }, { hidden: function () { return !presenting && !remoteShow; } }),
                 cmd('presenter', 'Presenter Window', 'new-window', presenterWindow, { disabled: function () { return !path || !presenterHost(); }, reason: !presenterHost()?'This host does not provide presenter windows.':'Save this deck in this browser before opening the presenter window.' }),
                 cmd('presenter-auto', 'Always Show Presenter Window', null, function () { settings.presenterOnPresent = !settings.presenterOnPresent; keepSetting('presenterOnPresent', settings.presenterOnPresent); commandsChanged(); }, { checked: function () { return !!settings.presenterOnPresent; } }),
                 cmd('toggle-film', 'Show the Filmstrip', 'panel', function () { settings.filmstrip = !settings.filmstrip; el.film.hidden = !settings.filmstrip; keepSetting('filmstrip', settings.filmstrip); fit(); commandsChanged(); }, { checked: function () { return settings.filmstrip; } }),
@@ -1734,6 +1878,7 @@
             if (settings.filmstrip === false) { el.film.hidden = true; }
             var kept = snap && snap.kept;
             var file = start.get('file');
+            if (start.get('show')) { becomeShow(); return; }
             if (start.get('presenter')) {
                 if (file) { await openPath(file).catch(function () { return false; }); }
                 becomePresenter();
@@ -2032,6 +2177,7 @@
             destroy: function () {
                 if (unbindDocuments) unbindDocuments();
                 if (commonToolbar) { commonToolbar.destroy(); }
+                endRemoteShow(true);
                 destroyed = true;
                 abortOwnedDialogs(false); if (slideSearch) slideSearch.reset();
                 styleLifetime.abort();

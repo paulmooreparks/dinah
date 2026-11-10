@@ -1,7 +1,7 @@
 {
   "name": "slides",
   "title": "Slides",
-  "version": "0.53.0",
+  "version": "0.54.0",
   "instances": 9,
   "description": "A slide deck from a Markdown file: edit it slide by slide, present it full screen with speaker notes, and export it as a page.",
   "license": "Apache-2.0",

@@ -170,3 +170,7 @@
 .deck-status [data-role="position"] { flex-shrink: 0; }
 .deck-show-controls { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 10; display: flex; gap: var(--space-2); }
 @media print { .deck-show-controls { display: none; } }
+/* The show's own page (docs/presentation-contract.md): until the deck
+   arrives, and after the show ends, a line of text on the show's ground. */
+.deck-show-waiting { display: flex; align-items: center; justify-content: center; margin: 0; padding: var(--space-6); color: #fff; font-size: var(--text-lg); text-align: center; }
+.deck-show-waiting[hidden] { display: none; }

@@ -1,5 +1,5 @@
 {
-  "digest": "a6d749c8b46a1f6b86b7f1c45d5aa7ff74609143dad4caa4358a144eabecc938",
+  "digest": "95e490ac334d657b3a332a04c3c6416b0962b638b2c09d67405c7fe635b61fb2",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -1291,7 +1291,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "3dd09e2fb4500575f5c1d79a2e5b47a7a9c6e4642b55ee5f16cacd228a7be8fa"
+      "sha256": "16341a6dffedaaabdc61c142e4dba6d3816c879115e7b3bc68eaea73afd89bfc"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1335,13 +1335,13 @@
     },
     {
       "path": "content/slides/slides.css",
-      "bytes": 15325,
-      "sha256": "c94a11e745c7114b24090f71d2d677bd1e1d136196bb200e37b8da40bdd2179a"
+      "bytes": 15699,
+      "sha256": "098de08c2b571b4687597a513991aaf0162b60ef56adc42ec8436cbfa865b674"
     },
     {
       "path": "content/slides/slides.js",
-      "bytes": 153000,
-      "sha256": "a1d75ddf7754a08476cefdc9213bfb41038feb7963c7460a9255a43ec573ec18"
+      "bytes": 164107,
+      "sha256": "44c6dac0e7bf66309176b03970f5a8721d7c41cfae8880144567e27494a4b5ba"
     },
     {
       "path": "content/slides/vendor/jszip-3.10.1/LICENSE.markdown",

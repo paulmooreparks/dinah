@@ -549,18 +549,17 @@
      view (the current slide, the next, the notes and a clock) as a second
      page of the same origin, through window.open, which the show and the
      presenter then speak over a BroadcastChannel (its presentation
-     contract, version 1). Paul ruled (9 November 2026) that the show is
+     contract). Paul ruled (9 November 2026) that the show is
      full screen and the presenter view a separate window when asked for.
      Dinah has one page, so the presenter URL it gives is its own, and its
      window.open answers that URL with a Dinah window of the presenter kind
      (content-windows.js) rather than a browser popup; both applets are on
      one page, where the channel works as well. Any other address goes to
      the browser's own window.open. */
-  /* The capability stays at version 1 until Dinah has a Slides that reads
-     version 2: the package of yavc.app v0.2.61 accepts no other version.
-     openShow, below, is then offered here beside presenterURL. */
+  /* From yavc.app v0.2.62 the capability is version 2, and offers openShow
+     (below, A show on another display) beside presenterURL. */
   var PRESENTER_PATH = '/presenter';
-  var presentation = { version: 1, presenterURL: function (args) {
+  var presentation = { version: 2, openShow: function (request) { return openShow(request); }, presenterURL: function (args) {
     return PRESENTER_PATH + '?' + new URLSearchParams({ application: String(args.application || ''), resource: String(args.resource || ''), channel: String(args.channel || '') });
   } };
   var browserOpen = window.open;

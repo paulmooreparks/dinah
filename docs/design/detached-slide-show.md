@@ -2,7 +2,7 @@
 
 Paul asked on 10 November 2026 for a slide show that runs full screen in a window of its own, so that the presenter view can stay on one display while the audience watches the other. He approved the proposal the same day (`docs/proposals/detached-slide-show.md`), and this note records what was built in Dinah. Every product built from Dinah gets it.
 
-Slides is yavc.app's, and its half is version 2 of the presentation capability (`docs/presentation-contract.md` in yavc.app). Dinah's half is in the tree and tested. Dinah's content host still offers version 1, because the Slides package Dinah has today accepts no other, so nothing changes for the person until Dinah takes the yavc.app release that has version 2. The last section says what that step is.
+Slides is yavc.app's, and its half is version 2 of the presentation capability (`docs/presentation-contract.md` in yavc.app), which arrived in yavc.app v0.2.62 the same day. Dinah's content host offers version 2 with `openShow` beside `presenterURL` from that release on.
 
 ## Which display
 
@@ -34,16 +34,15 @@ Closing the port, closing the deck's window, or ending Dinah ends the show. When
 
 - `show_test.go` covers the display rule, the kept and carried messages, the one-time address, and that the show's cookie reaches the six methods and its own draft's pictures and is refused everything else.
 - The browser suite `show-port` covers the editing window's port: no port with one display, the order of messages, `onmessage`, `onclose`, and closing.
-- A hidden window program was run on 10 November 2026 with two pretended displays and the show's page in a second browser. Messages crossed both ways in order, and the answer with one display was null in 2 ms. The real show process was also started hidden: it signed in, and its window was at the rectangle it was given.
+- A hidden window program was run on 10 November 2026 with two pretended displays, Slides from yavc.app v0.2.62, and the show's page in a second browser profile. Present from the Start got a port in 2 to 3 ms and left the editing window as it was. The show's page drew the first slide and filled its window, the show's own arrow key moved it, Leave the Show ended it, Escape in the show ended it, and a picture beside the deck loaded. With one display the answer was null and Slides presented as before.
+- The real show process was also started hidden: it signed in, and its window was at the rectangle it was given.
 
 Under test (`DINAH_SHELL_ENTRY_FILE`) no window is started. The show's address is written beside the main page's, as `entry.txt.show`, and `DINAH_SHOW_DISPLAYS` gives the displays, so a check does not depend on the machine's own.
 
-Two things have not been seen, because no check may show a window on Paul's screen: the show's window visible and full screen on a real second display, and the keyboard going to it.
+Slides gives a root that stands in a page's flow a height of its own, so `show.css` sizes the mount to the window with a selector that outranks it.
 
 ## What is left
 
-1. When yavc.app publishes the release with Slides' show mode, take it as any release, then set the content host's `presentation` to `version: 2` with `openShow` beside `presenterURL` (`content-host.js`, Presenting). `openShow` is already there and tested, as `dinahContentHost.openShow`.
-2. Check the show's page with that release in the hidden window: the first slide drawn from `state`, navigation both ways, and Escape.
-3. Paul tries it on two displays.
-
-A file a slide refers to, such as a saved diagram, is read when the slide is drawn. The show's page is not told when such a file changes on disk, as the canvas in the main window is, so a diagram edited during a show is redrawn at the next change to the deck.
+1. Two things have not been seen, because no check may show a window on Paul's screen: the show's window visible and full screen on a real second display, and the keyboard going to it. Paul tries it on two displays.
+2. A diagram a slide refers to by a relative path, as `{{diagram:../drawings/chart.mmd}}`, is not drawn in the show's window and shows a notice in its place. Slides v0.2.62 asks the host for the deck's folder only on a page that also has the writing services, which a show's page does not have. That was reported to yavc.app Development on 10 November 2026. A diagram referred to by its full path is not affected by that.
+3. A file a slide refers to is read when the slide is drawn. The show's page is not told when such a file changes on disk, as the canvas in the main window is, so a diagram edited during a show is redrawn at the next change to the deck.
