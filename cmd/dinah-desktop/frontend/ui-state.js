@@ -76,7 +76,26 @@
     return ready;
   }
   if (backend()) initialize();
+  /* A product built from this source registers applets of its own from
+     files loaded after the page's (product-applets.js). The saved layout
+     may hold their windows, and a window whose applet is not registered
+     yet is left out of the restored layout and then out of the saved one,
+     so such a window was gone after every restart (Paul, 11 November
+     2026). The layout is therefore restored once those files have loaded.
+     A build with none waits only to learn that there are none. Until then
+     the page is still restoring, so nothing is saved over the layout. */
+  function productAppletsLoaded() {
+    var parsed = document.readyState === 'loading'
+      ? new Promise(function (resolve) { document.addEventListener('DOMContentLoaded', resolve, { once: true }); })
+      : Promise.resolve();
+    return parsed.then(function () { return window.dinahProductApplets ? window.dinahProductApplets.ready : null; }).catch(function () {});
+  }
+  var layoutRestore = null;
   function restoreLayout() {
+    if (!layoutRestore) layoutRestore = productAppletsLoaded().then(restoreLayoutNow);
+    return layoutRestore;
+  }
+  function restoreLayoutNow() {
     var saved = get('dinah-workbench-layout');
     if (!originalSearch && typeof saved === 'string') {
       try {
