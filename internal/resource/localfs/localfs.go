@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"studio/internal/resource"
+	"studio/internal/savelock"
 )
 
 // MaxText bounds a text read or write.
@@ -474,9 +475,12 @@ func (f Folder) List(ctx context.Context, path string) ([]resource.Entry, error)
 // describes. The new content is written to a temporary file beside the
 // target and renamed over it, so the file holds the old text or the new,
 // never part of either. The parent folder must exist. The current revision is
-// checked just before the rename; a program outside Dinah that writes
-// the file in that instant is not detected, which no portable file API can
-// prevent.
+// checked just before the rename, and the check and the rename are done
+// under the target's save lock (internal/savelock), so that of two programs
+// built from this source saving one file at once, the second sees what the
+// first wrote and is refused. A program that knows nothing of that lock and
+// writes the file between the check and the rename is not detected, which
+// no file interface that the three systems all document can prevent.
 func (f Folder) WriteText(ctx context.Context, path, expected, text string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -533,9 +537,18 @@ func (f Folder) WriteText(ctx context.Context, path, expected, text string) (str
 		root.Remove(tmp)
 		return "", err
 	}
+	release, err := holdSaveLock(ctx, filepath.Join(f.Root, filepath.Dir(name)), filepath.Base(name), savelock.Wait)
+	if err != nil {
+		root.Remove(tmp)
+		return "", err
+	}
+	defer release()
 	if _, err := check(); err != nil {
 		root.Remove(tmp)
 		return "", err
+	}
+	if betweenCheckAndReplace != nil {
+		betweenCheckAndReplace(name)
 	}
 	if err := root.Rename(tmp, name); err != nil {
 		root.Remove(tmp)
@@ -543,6 +556,17 @@ func (f Folder) WriteText(ctx context.Context, path, expected, text string) (str
 	}
 	return resource.ContentRevision(text), nil
 }
+
+// holdSaveLock takes a target's save lock. A test replaces it to show what
+// two overlapping saves do without the lock.
+var holdSaveLock = savelockHold
+
+var savelockHold = savelock.Hold
+
+// betweenCheckAndReplace is called, in a test, after a write's last check
+// and before its rename, which is the moment two overlapping saves contend
+// for (overlap_test.go). It is nil outside tests.
+var betweenCheckAndReplace func(name string)
 
 // tempName chooses a file beside name that does not exist. Its name starts
 // with a dot, so browsing never lists it while the write is in progress.

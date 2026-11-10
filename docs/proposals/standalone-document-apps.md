@@ -76,6 +76,8 @@ A writer that cannot take the lock within a few seconds fails the save and says 
 
 **The test.** A deterministic test holds one writer between its last check and its rename, starts a second writer on the same file from the same revision, and releases the first. Without the lock both succeed, which is the fault. With it the second waits, then finds the revision changed and is refused. The test is run within one process and across two.
 
+**Built.** The lock was built the same night, ahead of the Editor, because the fault was already there between Dinah and a product built from it when both had one file open. It is `internal/savelock`, and the provider's one write path takes it (`WriteText` in `internal/resource/localfs`). The lock files are in the person's cache folder, as the operating system gives it, under a name from this source's own product. Three tests in the provider cover the overlapping save: within one process with the lock, within one process without it, where both saves succeed and the fault is on record, and between two processes. Where a file system gives a folder no identity, the folder's path with its links resolved stands in for it, so two paths to such a folder that resolve differently are not arbitrated. That is the one case in which two cooperating writers are still as they were.
+
 ## What it would cost
 
 The slide show took one evening for Dinah's half, with its tests and checks. By that measure the proof is several such pieces of work.

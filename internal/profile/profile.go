@@ -176,6 +176,18 @@ func Current() Profile {
 	return p
 }
 
+// Source returns the profile of the product this source is, whatever
+// product the build is. Programs built from this source that must agree with
+// each other on one name, whichever product each is, take it from here:
+// where they keep the locks that arbitrate their saves of one file
+// (internal/savelock), as HostedVars does for the variable they all honour.
+func Source() Profile {
+	p := dinah
+	p.Providers = slices.Clone(dinah.Providers)
+	p.ReservedPrograms = slices.Clone(dinah.ReservedPrograms)
+	return p
+}
+
 // HomeVar is the environment variable that sets the home folder in place of
 // HomeFolder in the person's home folder, such as DINAH_HOME.
 func (p Profile) HomeVar() string { return p.EnvPrefix + "HOME" }
