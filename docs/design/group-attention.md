@@ -18,6 +18,10 @@ It never reaches every member. The person's unaddressed post falls back to every
 
 The chat instructions (`internal/communication/protocol.go`) and the bus server's rules and tool descriptions (`internal/mcpserver/server.go`) carry the etiquette. A group post names the member it is for, and an answer to one member names that member. A handoff, a request or a question always names its recipient. Everyone is used only when every member must act. A chat that a post wakes reads it and ends its turn without replying when the post does not concern it.
 
+## A turn that needs no answer
+
+A chat that a post wakes may have nothing to do, and the instructions used to tell it to end its turn without replying. One agent then reports the turn as an error ("the model ended its turn without a response"), which the window shows as a failed turn, and Paul saw a toast for each on 11 November 2026. That error's code and kind are not in the agent's documentation, so the window does not read them. The instructions ask for the documented thing instead: a chat with nothing to do posts nothing to the group and ends its turn with one short line in its own chat that says so. The line is in the block that goes with every turn, in the bus server's rules, and in the text delivered with a message.
+
 ## Which server the tools are on
 
 A chat in a window has its bus tools on the server `dinah-bus`, which the window starts for it. The same agent may also start the command line program's bus server, under the name the person's own settings give it, because those settings start it in every session. That server stands down when it sees the window's mark in its environment, and some agents do not pass their environment to the servers they start, so it can also be running there as if no window existed.

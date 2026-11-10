@@ -70,7 +70,7 @@ func FormatForAgentOn(msgs []Message, person, server string) string {
 		if server != "" {
 			b.WriteString(" That server is this chat's own connection to the bus, and a reply tool of any other server does not reach it.")
 		}
-		b.WriteString(" Do not acknowledge completion reports or thanks. Replies arrive automatically; continue independent work or end your turn instead of waiting or sleeping.")
+		b.WriteString(" Do not acknowledge completion reports or thanks. When nothing here needs an answer or an action from you, send nothing and end your turn with one short line in your own chat that says so; never end a turn with no words at all. Replies arrive automatically; continue independent work or end your turn instead of waiting or sleeping.")
 	}
 	return b.String()
 }

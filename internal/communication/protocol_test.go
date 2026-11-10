@@ -15,7 +15,8 @@ func TestChatsAreToldToMentionThePersonWhenTheyNeedThem(t *testing.T) {
 		"Address a group post to the member it is for",
 		"A handoff, a request or a question always names its recipient",
 		"never the whole group",
-		"if it does not, end your turn without replying",
+		"end your turn with one short line in your own chat that says so",
+		"Never end a turn with no words at all",
 		"mentions is a legacy alias and cannot be combined",
 		"routine internal traffic needs no narration",
 	} {
