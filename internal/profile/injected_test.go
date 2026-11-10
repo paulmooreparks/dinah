@@ -18,6 +18,7 @@ func example() Profile {
 		CommandProgram: "example", WindowProgram: "example-desktop", InstanceLock: "example-desktop-1",
 		WindowClass: "ExampleWindow", NotificationClass: "ExampleHostNotifications", KeychainService: "example",
 		ShellCookie: "example_shell", BusCookie: "example_bus", ShellPort: 47716, BusPort: 47715,
+		AppletServer:    "example-applets",
 		DefaultProvider: "devin", Providers: []string{"devin"}, DefaultTheme: "example-theme", Updater: UpdaterInstalled,
 	}
 }
@@ -64,11 +65,12 @@ func TestAnIncompleteOrUnknownProfileIsRefused(t *testing.T) {
 	short.KeychainService = " "
 	short.DefaultProvider = "codex"
 	short.BusPort = short.ShellPort
+	short.AppletServer = "Example Applets"
 	_, err := parseInjected(encode(t, short))
 	if err == nil {
 		t.Fatal("an incomplete profile was accepted")
 	}
-	for _, want := range []string{"HomeFolder", "KeychainService", "DefaultProvider must be one of Providers", "must differ"} {
+	for _, want := range []string{"HomeFolder", "KeychainService", "DefaultProvider must be one of Providers", "must differ", "AppletServer"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not say %q: %v", want, err)
 		}

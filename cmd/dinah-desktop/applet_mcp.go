@@ -175,7 +175,7 @@ func (a *App) appletPromptContext(session string) (string, error) {
 		for _, c := range b.channels {
 			if c.bound && c.session == session {
 				c.expires = time.Now().Add(24 * time.Hour)
-				return appletContextHeading + product.Name + " supplies the internal dinah-applets MCP server automatically. " +
+				return appletContextHeading + product.Name + " supplies the internal " + product.AppletServer + " MCP server automatically. " +
 					"Use its applet_discover, applet_invoke, applet_status and applet_artifact tools for bundled applets. " +
 					"For every applet tool call, pass this turn's context argument exactly: " + appletContextPrefix + b.instance + "." + c.token +
 					"\nThis is a private authorization for this chat. Do not repeat it in replies, files or other tools. " +
@@ -495,7 +495,7 @@ func appletMCPServer(resolve func(string) (*appletBridgeClient, error)) *mcp.Ser
 }
 
 func appletMCPServerUsing(resolve func(string) (*appletBridgeClient, error), admission *appletMCPAdmission) *mcp.Server {
-	s := mcp.NewServer(&mcp.Implementation{Name: "dinah-applets", Version: appVersion}, &mcp.ServerOptions{
+	s := mcp.NewServer(&mcp.Implementation{Name: product.AppletServer, Version: appVersion}, &mcp.ServerOptions{
 		Capabilities: &mcp.ServerCapabilities{Tools: &mcp.ToolCapabilities{}},
 		Instructions: product.Name + " manages this service. Every tool requires the current context supplied with the chat turn. Never print or save that private context. Discover bundled applet actions and their input schemas first. Invoke with inputJSON containing an exact JSON object and the discovered digest. All operations belong to the authorized chat's workspace. Poll status for completion, except for dinah.chat/ask@2: it sends its question to the other chat over the bus, so invoke it once and the answer, an error or a cancellation arrives automatically as a later prompt; do not poll or sleep. Waiting requests require the person in Notifications; no tool can answer them. Retrieve artifacts only by the returned artifact ID. Skills use these same tools and receive no additional authority.",
 	})

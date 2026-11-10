@@ -17,9 +17,9 @@ import (
 // agent's "allow once", and the person is asked once, and only for an
 // effect.
 
-// appletToolPrefix is how an agent names a tool of the dinah-applets MCP
-// server in its permission request.
-const appletToolPrefix = "mcp__dinah-applets__"
+// appletToolPrefix is how an agent names a tool of the applet helper's MCP
+// server (the product's AppletServer) in its permission request.
+var appletToolPrefix = "mcp__" + product.AppletServer + "__"
 
 var appletToolNames = map[string]bool{"applet_discover": true, "applet_invoke": true, "applet_status": true, "applet_artifact": true}
 
@@ -44,7 +44,7 @@ func ownToolPermission(toolCall json.RawMessage, options []acp.PermissionOption)
 		name = title[:i]
 	}
 	own := strings.HasPrefix(name, appletToolPrefix) || appletToolNames[name] ||
-		(call.RawInput.Server == "dinah-applets" && appletToolNames[call.RawInput.Tool])
+		(call.RawInput.Server == product.AppletServer && appletToolNames[call.RawInput.Tool])
 	if !own {
 		return "", false
 	}

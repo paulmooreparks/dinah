@@ -9,9 +9,11 @@
 // public host interfaces.
 //
 // Some values stay out of the profile on purpose. Names written on the wire
-// and read back, such as the dinah.* action IDs, the MCP servers dinah,
-// dinah-bus and dinah-applets, and markers such as "[Dinah chat: ...]", are
-// Dinah's whatever the build. Files that are branding in their own right
+// and read back, such as the dinah.* action IDs, the MCP servers dinah and
+// dinah-bus, and markers such as "[Dinah chat: ...]", are Dinah's whatever
+// the build. The applet helper's MCP server is the exception (AppletServer),
+// because its name is written into a file every product on the computer
+// shares. Files that are branding in their own right
 // (the icon, the Windows resources, wails.json, the brand stylesheet, the
 // logo and the theme data) stay files, and a distribution supplies its own
 // copies.
@@ -92,6 +94,13 @@ type Profile struct {
 	ShellPort int
 	BusPort   int
 
+	// AppletServer is the name of the MCP server through which an agent
+	// uses the applets. Two products on one computer must not share it: an
+	// agent that keeps its MCP servers in one file for the whole computer
+	// has every product's entry in that file under this name, and its tools
+	// are called mcp__<name>__<tool>.
+	AppletServer string
+
 	// DefaultProvider is the agent provider a new chat uses until the person
 	// chooses another.
 	DefaultProvider string
@@ -134,6 +143,8 @@ var dinah = Profile{
 
 	ShellPort: 47616,
 	BusPort:   47615,
+
+	AppletServer: "dinah-applets",
 
 	DefaultProvider: "devin",
 	Providers:       []string{"devin", "codex", "claude", "ollama"},

@@ -17,7 +17,7 @@ const titleLimit = 60
 
 // fromAppletContext reports whether a title was made from the applet context.
 func fromAppletContext(title string) bool {
-	for _, mark := range []string{appletContextPrefix, strings.TrimSpace(appletContextHeading), "applet_discover", "applet_invoke", "applet_status", "applet_artifact", "dinah-applets"} {
+	for _, mark := range []string{appletContextPrefix, strings.TrimSpace(appletContextHeading), "applet_discover", "applet_invoke", "applet_status", "applet_artifact", product.AppletServer} {
 		if strings.Contains(title, mark) {
 			return true
 		}

@@ -307,7 +307,10 @@ func insideFolder(root, path string) bool {
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
 }
 
-// describeEntry says what a dinah-applets entry in a file runs, for an error.
+// describeEntry says what an applet helper's entry in a file runs, for an
+// error. The entry is the one under the product's AppletServer name, which
+// no other product on the computer uses, so another product's helper in the
+// same file is a different entry and no conflict.
 func describeEntry(e appletRegistrationEntry) string {
 	if e.Command == "" {
 		return "which runs nothing " + product.Name + " could read"
@@ -385,13 +388,13 @@ func checkAppletRegistrationSource(path string, entry appletRegistrationEntry) e
 		case *hujson.Object:
 			for i := range value.Members {
 				member := &value.Members[i]
-				if member.Name.Value.(hujson.Literal).String() == "dinah-applets" {
+				if member.Name.Value.(hujson.Literal).String() == product.AppletServer {
 					standard := member.Value.Clone()
 					standard.Standardize()
 					var candidate appletRegistrationEntry
 					var fields map[string]json.RawMessage
 					if json.Unmarshal(standard.Pack(), &candidate) != nil || json.Unmarshal(standard.Pack(), &fields) != nil || len(fields) != 2 || !reflect.DeepEqual(candidate, entry) {
-						return fmt.Errorf("%s has a dinah-applets entry %s that conflicts with %s's own, since %s did not write it. Remove that entry from the file and %s will register its own", path, describeEntry(candidate), product.Name, product.Name, product.Name)
+						return fmt.Errorf("%s has a %s entry %s that conflicts with %s's own, since %s did not write it. Remove that entry from the file and %s will register its own", path, product.AppletServer, describeEntry(candidate), product.Name, product.Name, product.Name)
 					}
 				}
 				if err := inspect(&member.Value); err != nil {
@@ -456,18 +459,18 @@ func registerAppletMCPAt(path string, entry appletRegistrationEntry) error {
 	} else if _, ok := servers.Value.(*hujson.Object); !ok {
 		return errors.New("Devin MCP configuration mcpServers must be an object")
 	}
-	const pointer = "/mcpServers/dinah-applets"
+	pointer := "/mcpServers/" + product.AppletServer
 	if existing := doc.Find(pointer); existing != nil {
 		standard := existing.Clone()
 		standard.Standardize()
 		var old appletRegistrationEntry
 		var fields map[string]json.RawMessage
 		if json.Unmarshal(standard.Pack(), &old) != nil || json.Unmarshal(standard.Pack(), &fields) != nil || fields == nil {
-			return fmt.Errorf("%s has a dinah-applets entry that is not a %s helper and conflicts with its own. Remove that entry from the file and %s will register its own", path, product.Name, product.Name)
+			return fmt.Errorf("%s has a %s entry that is not a %s helper and conflicts with its own. Remove that entry from the file and %s will register its own", path, product.AppletServer, product.Name, product.Name)
 		}
 		owned := filepath.IsAbs(old.Command) && len(old.Args) == 3 && old.Args[0] == "--applet-mcp" && old.Args[1] == "--state-dir" && ownStateDir(old.Args[2], entry.Args[2], legacyStateDir())
 		if !owned || len(fields) != 2 {
-			return fmt.Errorf("%s has a dinah-applets entry %s that conflicts with %s's own, since %s did not write it (it is another copy's or another program's). Remove that entry from the file and %s will register its own", path, describeEntry(old), product.Name, product.Name, product.Name)
+			return fmt.Errorf("%s has a %s entry %s that conflicts with %s's own, since %s did not write it (it is another copy's or another program's). Remove that entry from the file and %s will register its own", path, product.AppletServer, describeEntry(old), product.Name, product.Name, product.Name)
 		}
 		if reflect.DeepEqual(old, entry) {
 			return nil

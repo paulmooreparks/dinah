@@ -301,7 +301,7 @@ func (c *Conn) open(ctx context.Context, method string, params, out any) error {
 		return err
 	}
 	if p.AppletApprovals == "allow" || p.AppletApprovals == "all" {
-		if managed, ok := config["mcp_servers"].(map[string]any)["dinah-applets"].(map[string]any); ok {
+		if managed, ok := config["mcp_servers"].(map[string]any)[profile.Current().AppletServer].(map[string]any); ok {
 			managed["default_tools_approval_mode"] = "approve"
 		}
 	}
@@ -736,7 +736,7 @@ func mcpConfig(servers []any) (map[string]any, error) {
 			return nil, errors.New("duplicate MCP server name")
 		}
 		q := map[string]any{"enabled": true, "required": true}
-		if p.Name == "dinah-applets" {
+		if p.Name == profile.Current().AppletServer {
 			// The host owns this reserved server. Dinah itself asks the
 			// person before an applet action has an effect (the desktop's
 			// applet consent), so Codex is not to ask as well; a question

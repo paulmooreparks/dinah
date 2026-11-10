@@ -356,7 +356,7 @@ func (a *App) referenceBlocks(s *Session, at Attachment) ([]acp.ContentBlock, er
 			if err != nil {
 				return nil, err
 			}
-			out = append(out, acp.ContentBlock{Type: "text", Text: "The user selected this bundled applet for the message:\n" + string(data) + "\nUse applet_discover to inspect its current action schemas and implementation digests. Use applet_invoke for the requested operation, then applet_status and applet_artifact for its result. " + product.Name + " manages this internal MCP connection automatically. If the tools are unavailable, report a " + product.Name + " agent-integration failure. Do not ask the person to enable, configure or reconnect dinah-applets; there is no user connection control for it. Selection alone does not execute an action or grant additional permissions. Human requests must be completed by the person in Notifications."})
+			out = append(out, acp.ContentBlock{Type: "text", Text: "The user selected this bundled applet for the message:\n" + string(data) + "\nUse applet_discover to inspect its current action schemas and implementation digests. Use applet_invoke for the requested operation, then applet_status and applet_artifact for its result. " + product.Name + " manages this internal MCP connection automatically. If the tools are unavailable, report a " + product.Name + " agent-integration failure. Do not ask the person to enable, configure or reconnect " + product.AppletServer + "; there is no user connection control for it. Selection alone does not execute an action or grant additional permissions. Human requests must be completed by the person in Notifications."})
 			found = true
 			break
 		}

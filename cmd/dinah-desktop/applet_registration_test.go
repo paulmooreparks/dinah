@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -328,6 +329,37 @@ func TestATrialCopyNeverWritesDevinsUserWideSettings(t *testing.T) {
 	}
 	if _, err := os.Stat(local); !os.IsNotExist(err) {
 		t.Fatalf("the person's own Dinah wrote a workspace file: %v", err)
+	}
+}
+
+// Another product on the computer registers its helper in the same file
+// under its own server name. That entry is not in the way: the product
+// registers beside it and leaves it as it was (two products that shared one
+// name each refused the other's entry, 10 November 2026).
+func TestAnotherProductsHelperIsNoConflict(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "mcp_config.json")
+	other := appletRegistrationEntry{Command: filepath.Join(dir, "other", "other.exe"), Args: []string{"--applet-mcp", "--state-dir", filepath.Join(dir, "other-state")}}
+	data, _ := json.Marshal(map[string]any{"mcpServers": map[string]any{"other-applets": other}})
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entry := appletRegistrationEntry{Command: filepath.Join(dir, "dinah.exe"), Args: []string{"--applet-mcp", "--state-dir", filepath.Join(dir, "state")}}
+	if err := checkAppletRegistrationSource(path, entry); err != nil {
+		t.Fatalf("another product's entry was reported as a conflict: %v", err)
+	}
+	if err := registerAppletMCPAt(path, entry); err != nil {
+		t.Fatalf("another product's entry kept this one from registering: %v", err)
+	}
+	after, _ := os.ReadFile(path)
+	var cfg struct {
+		Servers map[string]appletRegistrationEntry `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(after, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(cfg.Servers["other-applets"], other) || !reflect.DeepEqual(cfg.Servers[product.AppletServer], entry) {
+		t.Fatalf("the file does not have both entries: %s", after)
 	}
 }
 

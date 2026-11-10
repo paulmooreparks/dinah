@@ -340,5 +340,5 @@ func managedAppletServers() ([]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []any{map[string]any{"name": "dinah-applets", "command": executable, "args": []string{"--applet-mcp", "--state-dir", configDir()}, "env": []any{}}}, nil
+	return []any{map[string]any{"name": product.AppletServer, "command": executable, "args": []string{"--applet-mcp", "--state-dir", configDir()}, "env": []any{}}}, nil
 }

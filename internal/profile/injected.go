@@ -130,6 +130,9 @@ func (p Profile) check() error {
 	} else if p.ShellPort == p.BusPort {
 		problems = append(problems, "ShellPort and BusPort must differ")
 	}
+	if !providerID.MatchString(p.AppletServer) {
+		problems = append(problems, "AppletServer must be a lowercase letter followed by lowercase letters, digits or hyphens")
+	}
 	if len(p.Providers) == 0 {
 		problems = append(problems, "Providers must list at least one agent provider")
 	} else if p.DefaultProvider != "" && !slices.Contains(p.Providers, p.DefaultProvider) {

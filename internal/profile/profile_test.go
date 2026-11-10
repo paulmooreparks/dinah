@@ -27,6 +27,7 @@ func TestDinahProfile(t *testing.T) {
 		BusCookie:         "dinah_bus",
 		ShellPort:         47616,
 		BusPort:           47615,
+		AppletServer:      "dinah-applets",
 		DefaultProvider:   "devin",
 		Providers:         []string{"devin", "codex", "claude", "ollama"},
 		DefaultTheme:      "clear-chime",
