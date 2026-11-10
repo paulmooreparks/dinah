@@ -32,10 +32,13 @@ import (
 
 // Package and Version are the adapter release Dinah runs and is tested
 // against. A release is pinned, never the preview channel, and is at least
-// two weeks old when chosen.
+// two weeks old when chosen. Paul waived the two weeks for 0.101.0, which
+// was five days old on 10 November 2026, because it is the first pinned
+// release whose Claude Code offers Fable 5.2
+// (docs/proposals/claude-adapter-updates.md).
 const (
 	Package = "@agentclientprotocol/claude-agent-acp"
-	Version = "0.87.0"
+	Version = "0.101.0"
 )
 
 // MinimumNode is the oldest Node.js major version the pinned adapter
