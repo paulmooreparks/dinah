@@ -7,6 +7,7 @@ Paul asked on 11 November 2026 what it would take to make the four document appl
 1. The applications keep their HTML and PUDL interface. A native rewrite was considered the same night and set aside.
 2. An application shows one document in one window, and a document has one window. There is no window manager, taskbar or tab strip inside an application.
 3. The Editor is proved first, and the other three are packaged only after it.
+4. The document service is a process of its own, the file is what programs share, and the applications are named YAVC Editor, YAVC Docs, YAVC Slides and YAVC Diagrams for now. His answers to the choices this proposal first left open are at its end.
 
 ## What exists already
 
@@ -79,10 +80,12 @@ The slide show took one evening for Dinah's half, with its tests and checks. By 
 
 Docs, Diagrams and Slides then reuse the host. Slides asks the most of it, because of the show window, pictures and referenced diagrams, and is taken last.
 
-## Choices for Paul
+## Paul's answers to the open choices
 
-1. Whether the document service is a process of its own, or Dinah when Dinah is running. This proposal recommends a process of its own. The applications then behave the same whether Dinah is open or not, and Dinah reaches them the way any other program would.
-2. Whether the file is what the programs share, with a conflict at the save, or whether one draft is shared live between programs. This proposal recommends the file. It is the rule already in use, it needs nothing new between programs for a person's edits, and live sharing can be added later without undoing it.
-3. What the four applications are called, and whether a product built from Dinah ships them under its own names.
-4. Whether the proof is Windows alone. This proposal recommends that, since the slide show's window placement and the file associations are written for Windows first.
-5. Whether to go ahead with the audit and the Editor proof.
+Paul answered on 11 November 2026, the night he authorized the Editor.
+
+1. The document service is a process of its own. The applications behave the same whether Dinah is open or not, and Dinah reaches them the way any other program would.
+2. The file is what the programs share, with a conflict at the save. One draft shared live between programs is not built, and can be added later without undoing this.
+3. The applications are called YAVC Editor, YAVC Docs, YAVC Slides and YAVC Diagrams for now. Paul is open to another brand if the three teams agree on one that is short and free to use. The names are therefore kept in one place in the host, so that a later brand is one change.
+4. Windows is first. Paul would like Linux as well if it is not arduous, and does not want macOS ruled out. The host therefore keeps what is particular to an operating system, which is the window's identity, file associations and the Open and Save dialogs, behind files of their own for each system, and the document service and the page use nothing of Windows. The Editor proof is checked on Windows. Linux is attempted after it, and what stands in its way is reported, not worked around.
+5. The audit and the Editor proof go ahead, after the stacked taskbar buttons are delivered.
