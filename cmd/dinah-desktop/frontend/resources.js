@@ -387,7 +387,11 @@
       // The crumb's words are its first text; the mark after them stays.
       var words = crumb.firstChild && crumb.firstChild.nodeType === 3 ? crumb.firstChild : crumb.insertBefore(document.createTextNode(''), crumb.firstChild);
       words.textContent = node.title || node.name;
-      crumb.title = node.path;
+      // An entry kept under something other than the words shown says those
+      // words in full, as the workspace's tree does (workspace-browser.js).
+      // A workspace and a source keep their paths, which Copy Path gives.
+      var inSource = node.ref && node.ref.path && !node.contentFacet;
+      crumb.title = inSource && node.title && node.title !== node.name ? node.title : node.path;
     });
     root.classList.toggle('fm-no-date', !(cwd.children || []).some(function (node) { return node.date; }));
     root.classList.toggle('fm-no-size', !(cwd.children || []).some(function (node) { return typeof node.size === 'number'; }));

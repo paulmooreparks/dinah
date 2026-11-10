@@ -159,7 +159,14 @@
         // A folder on the computer takes files dropped onto its row.
         if (window.dinahResources.takesFolder(item) && window.dinahResources.uploadTarget) window.dinahResources.uploadTarget(title, function () { return item; });
         title.dataset.resource = key; title.setAttribute('aria-current', String(selected === key));
-        title.title = item.ref.path || rootSource && rootSource.path || item.title;
+        // The hover says where the entry is. A source that keeps its entries
+        // under something other than the words it shows them by, as a site
+        // keeps its pages under their numbers, has a path that tells the
+        // person nothing, so the hover is the entry's own words in full,
+        // which the row may have cut short (10 November 2026).
+        var where = item.ref.path || rootSource && rootSource.path || item.title;
+        if (!rootSource && item.title && item.ref.path && item.ref.path.split('/').pop() !== item.title) where = item.title;
+        title.title = where;
         title.addEventListener('dblclick', function () { open(item); });
         title.addEventListener('keydown', function (event) { if (event.key === 'Enter') { event.preventDefault(); select(item); open(item); } });
         wrap.appendChild(title); parent.appendChild(wrap);
