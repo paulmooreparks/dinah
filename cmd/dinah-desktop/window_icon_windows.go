@@ -33,7 +33,11 @@ var (
 // https://learn.microsoft.com/windows/win32/api/shellapi/nf-shellapi-extracticonexw
 // https://learn.microsoft.com/windows/win32/winmsg/wm-seticon
 // https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-findwindowexw
-func setWindowIcon() {
+func setWindowIcon() { setWindowIconFor(windowClass) }
+
+// setWindowIconFor gives the icon to this process's window of a class, such
+// as a document's window (document_window.go).
+func setWindowIconFor(windowClass string) {
 	exe, err := os.Executable()
 	if err != nil {
 		return

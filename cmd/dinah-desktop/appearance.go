@@ -96,7 +96,12 @@ func appearanceRevision(data []byte) string {
 func decodeAppearance(data []byte) (AppearanceState, string, error) {
 	return appearanceLibrary().Decode(data)
 }
-func (a *App) ReadAppearance() (AppearanceSnapshot, error) {
+func (a *App) ReadAppearance() (AppearanceSnapshot, error) { return readAppearance() }
+
+// readAppearance reads the person's theme and skin from the state folder.
+// A document's page reads them too, through the document service
+// (document_service.go).
+func readAppearance() (AppearanceSnapshot, error) {
 	data, err := statefile.ReadShared(filepath.Join(configDir(), "appearance.json"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return AppearanceSnapshot{}, err

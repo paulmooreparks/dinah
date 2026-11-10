@@ -119,6 +119,14 @@ func main() {
 	if len(os.Args) >= 2 && os.Args[1] == showOption {
 		os.Exit(runSlideShow())
 	}
+	// A stand-alone application's window, and the service its windows
+	// share, are further copies of this program (document_apps.go).
+	if len(os.Args) >= 2 && os.Args[1] == documentOption {
+		os.Exit(runDocumentWindow(os.Args[2:]))
+	}
+	if len(os.Args) >= 2 && os.Args[1] == documentServiceOption {
+		os.Exit(runDocumentService(os.Args[2:]))
+	}
 	// An option a product's packages added runs in place of the window.
 	if len(os.Args) >= 2 {
 		if run, ok := programs.StartOption(os.Args[1]); ok {

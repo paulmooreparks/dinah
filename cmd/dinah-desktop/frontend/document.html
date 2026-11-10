@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" data-pudl-persistence="host" data-theme="light" data-product-name="Dinah" data-product-theme="clear-chime">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document</title>
+  <link rel="icon" href="product-mark.svg" type="image/svg+xml">
+  <!-- A stand-alone document application's page
+       (docs/design/standalone-documents.md). It is one applet of the
+       yavc.app release, filling the window, and nothing else of the main
+       window: no workbench, no chats and no taskbar. It is served by the
+       document service to the cookie of its one document, and its bridge
+       offers that document and the files the person chooses in this
+       window's own dialogs (internal/docservice). -->
+  <script src="product.js"></script>
+  <script src="bridge/app.js"></script>
+  <script src="helpers.js"></script>
+  <script src="safe-html.js"></script>
+  <script src="skin-assets.js"></script>
+  <link rel="stylesheet" href="pudl/pudl.css">
+  <link rel="stylesheet" href="yavc/support/glyphs.css">
+  <link rel="stylesheet" href="pudl/pudl-skin-bevel.css" data-pudl-skin="bevel">
+  <link rel="stylesheet" href="pudl/pudl-skin-gel.css" data-pudl-skin="gel">
+  <link rel="stylesheet" href="pudl/pudl-skin-glaze.css" data-pudl-skin="glaze">
+  <link rel="stylesheet" href="pudl/pudl-skin-matte.css" data-pudl-skin="matte">
+  <link rel="stylesheet" href="pudl/pudl-skin-ink.css" data-pudl-skin="ink">
+  <link rel="stylesheet" href="pudl/pudl-skin-alloy.css" data-pudl-skin="alloy">
+  <link rel="stylesheet" href="pudl/pudl-skin-alloy-bold.css" data-pudl-skin="alloy-bold">
+  <link rel="stylesheet" href="pudl/pudl-skin-glass.css" data-pudl-skin="glass">
+  <script src="appearance-init.js"></script>
+  <script src="pudl/pudl-theme.js"></script>
+  <script src="pudl/pudl-skins.js"></script>
+  <script src="theme-data.js"></script>
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="dinah.css">
+  <link rel="stylesheet" href="preview.css">
+  <link rel="stylesheet" href="document.css">
+  <script src="appearance.js"></script>
+  <script src="yavc/support/yavc-util.js" defer></script>
+  <script src="yavc/support/dialogs.js" defer></script>
+  <script src="pudl/pudl-menu.js" defer></script>
+  <script src="pudl/pudl-commands.js" defer></script>
+  <script src="pudl/pudl-toolbar.js" defer></script>
+  <script src="pudl/pudl-tabs.js" defer></script>
+  <script src="yavc/support/doc-tabs.js" defer></script>
+  <script src="pudl/pudl-applets.js" defer></script>
+  <script src="yavc/support/pudl-host-kit.js" defer></script>
+  <script src="pudl/pudl-actions.js" defer></script>
+  <script src="pudl/pudl-dialog.js" defer></script>
+  <script src="pudl/pudl-fields.js" defer></script>
+  <script src="pudl/pudl-split.js" defer></script>
+  <script src="pudl/pudl-listbox.js" defer></script>
+  <script src="pudl/pudl-combo.js" defer></script>
+  <script src="pudl/pudl-toast.js" defer></script>
+  <script src="pudl/pudl-tooltip.js" defer></script>
+  <script src="pudl/pudl-menubar.js" defer></script>
+  <script src="document-host.js" defer></script>
+</head>
+<body class="document-page">
+  <!-- The application's menu bar. PUDL puts the applet's own menus beside
+       the application's, and its ribbon carries the applet's commands. -->
+  <header class="topbar">
+    <nav class="menubar" data-menubar data-menubar-host="desktop" data-menubar-key="" data-menubar-ribbon aria-label="Application">
+      <ul data-menubar-source hidden>
+        <li data-menubar-id="site" data-mnemonic="A"><span id="document-application">Application</span>
+          <ul>
+            <li><button type="button" id="document-new-window" data-mnemonic="N">New Window</button></li>
+            <li>-</li>
+            <li><button type="button" id="document-close-window" data-mnemonic="C">Close Window</button></li>
+          </ul></li>
+        <!-- The applet adds its own view commands to this menu. -->
+        <li data-menubar-id="view" data-mnemonic="V">View
+          <ul>
+            <li data-mnemonic="L">Color Mode
+              <ul data-menu-radio>
+                <li><button type="button" data-theme-choice="light" data-mnemonic="L" aria-checked="true">Light</button></li>
+                <li><button type="button" data-theme-choice="dark" data-mnemonic="D" aria-checked="false">Dark</button></li>
+                <li><button type="button" data-theme-choice="system" data-mnemonic="S" aria-checked="false">Follow the System</button></li>
+              </ul></li>
+          </ul></li>
+      </ul>
+      <span class="hstack align-center gap-4"><span class="brand app-brand" id="document-application-plain">Application</span></span>
+    </nav>
+  </header>
+  <main id="document" class="content-applet document-applet" data-applet-flush></main>
+  <!-- An agent's action on this document waits here for the person's word
+       (document-host.js). -->
+  <dialog class="dialog" id="document-permission" aria-labelledby="document-permission-title">
+    <form method="dialog">
+      <h3 class="dialog-title" id="document-permission-title">Allow This Change?</h3>
+      <p id="document-permission-who"></p>
+      <p id="document-permission-what"></p>
+      <div class="dialog-actions">
+        <button class="btn" value="refuse">Refuse</button>
+        <button class="btn" value="window">Allow in This Window</button>
+        <button class="btn btn-primary" value="once">Allow Once</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
