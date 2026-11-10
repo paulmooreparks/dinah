@@ -26,6 +26,7 @@
      yavcMdEditor.loadImages(el, pictures)   pictures of the home folder, read
      yavcMdEditor.drawBlocks(el, blocks, opts)   the engine's preview blocks drawn, unchanged ones kept
      yavcMdEditor.pictureFor(src, pictures)   a picture of the home folder as an address, cached
+     yavcMdEditor.pictureData(src, pictures)  the same picture as { url } or { bytes }, for a canvas to draw inside its own picture
 
    ctx says where a format goes: { page(): the page view's handle or null,
    text(): the CodeMirror view or null, onPage(): whether the page takes
@@ -1608,6 +1609,19 @@
        document, ~/Pictures/cat.png), for a slide's background say. */
     function pictureFor(src, pictures) {
         if(!pictures)return Promise.resolve('');
+        return pictureFound(src,pictures).then(function(found){return !found?'':found.url||pictureURL(found.node,found.F);}).catch(function () { return ''; });
+    }
+    /* The same picture for a caller that needs its bytes, as a canvas does
+       to draw it inside its own picture: { url } for one the host resolved,
+       { bytes } for one of the home folder, null for one that is not there. */
+    function pictureData(src, pictures) {
+        if(!pictures)return Promise.resolve(null);
+        return pictureFound(src,pictures).then(function(found){return !found?null:found.url?{url:found.url}:found.F.readBytes(found.node).then(function(bytes){return {bytes:bytes};});}).catch(function () { return null; });
+    }
+    /* Where a picture is: { url } from the host, { node, F } in the home
+       folder, or null. It rejects for a reference or an address that is
+       not allowed. */
+    function pictureFound(src, pictures) {
         var resolver=pictures.resources&&pictures.resources.resolve;
         return Promise.resolve().then(function(){
             if(pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current())return null;
@@ -1615,20 +1629,20 @@
             if(typeof src!=='string'||!src||src.length>4096||/[\x00-\x1f\x7f]/.test(src)||/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(src))throw new Error('Invalid document picture reference.');
             return resolver.call(pictures.resources,{resource:pictures.resource,href:src,kind:'image'},{signal:pictures.signal,current:pictures.current,host:pictures.root});
         }).then(function(result){
-            if(pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current())return '';
+            if(pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current())return null;
             if(result!=null){
                 if(typeof result.url!=='string'||!result.url||result.url.length>16384||/[\x00-\x1f\x7f]/.test(result.url))throw new Error('Invalid host picture URL.');
                 var url=new URL(result.url,location.href);
                 if(!/^https?:$/.test(url.protocol)||url.origin!==location.origin||url.username||url.password)throw new Error('Host pictures require a same-origin web URL.');
-                return url.href;
+                return {url:url.href};
             }
-            if(!pictures.site)return '';
+            if(!pictures.site)return null;
             return pictures.site().then(function (site) {
             var F = site.F, dir = pictures.dir ? pictures.dir() : null, base = (dir && F.resolve(null, dir)) || F.home();
             var node = base ? F.resolve(base, src) : null;
-            return node && !node.children ? pictureURL(node, F) : '';
+            return node && !node.children ? {node:node,F:F} : null;
             });
-        }).catch(function () { return ''; });
+        });
     }
     /* The pictures of the home folder in drawn HTML (the engine marks each
        with data-attachment, its path from the document's folder), read
@@ -1859,12 +1873,18 @@
        time a page has one, since the engine is large. */
     var d2Ready = null;
     var canvasReady = null;
-    function drawCanvas(place, source) {
+    /* pictures is the host's picture service, for the canvas's picture
+       nodes. A picture's path is from the folder the canvas is in: the
+       document's own for a canvas written in it, and the folder of the
+       reference for a saved one. */
+    function drawCanvas(place, source, pictures, reference) {
         if (!canvasReady) {
             canvasReady = loadScript(window.yavcUtil.versioned(new URL('../diagram-kit/canvas-embed.js', HERE).href)).then(function () { return window.yavcCanvasEmbed; });
             canvasReady.catch(function () { canvasReady = null; });
         }
-        return canvasReady.then(function (engine) { return engine.draw(place, source); }).catch(function (error) { if (place.isConnected) diagramFailed(place, error); });
+        var folder = reference ? String(reference).replace(/[^/]*$/, '') : '';
+        var options = pictures ? { signal: pictures.signal, pictures: function (path) { return pictureData(/^(?:~\/|\/)/.test(path) ? path : folder + path, pictures); } } : null;
+        return canvasReady.then(function (engine) { return engine.draw(place, source, options); }).catch(function (error) { if (place.isConnected) diagramFailed(place, error); });
     }
     function drawD2(place, source) {
         if (!d2Ready) {
@@ -1887,7 +1907,7 @@
         loadImages(target,host);
         if(!target.querySelector('[data-diagram-src]'))return;
         Promise.all([styles(),loadScript(window.yavcUtil.versioned(new URL('../diagram-kit/references.js',HERE).href))]).then(function(){
-            window.yavcDiagramReferences.attach(target,host,function(kind,place,source){return kind==='canvas'?drawCanvas(place,source):kind==='d2'?drawD2(place,source):drawDiagram(place,source);});
+            window.yavcDiagramReferences.attach(target,host,function(kind,place,source,reference){return kind==='canvas'?drawCanvas(place,source,host,reference):kind==='d2'?drawD2(place,source):drawDiagram(place,source);});
         }).catch(function(error){if(target.isConnected)target.querySelectorAll('[data-diagram-body]').forEach(function(body){window.yavcUtil.notice(body,'The diagram loader could not start: '+error.message,'warn');});});
     }
     var footnoteScopes=new WeakMap();
@@ -1932,7 +1952,7 @@
                     var place = f.el.querySelector('[data-preview-diagram="' + CSS.escape(d.id) + '"]');
                     if (place && d.language === 'mermaid') { drawDiagram(place, d.source); }
                     else if (place && d.language === 'd2') { drawD2(place, d.source); }
-                    else if (place && d.language === 'canvas') { drawCanvas(place, d.source); }
+                    else if (place && d.language === 'canvas') { drawCanvas(place, d.source, opts.pictures); }
                 });
             }
             if (opts.applets !== false && window.pudlApplets && window.pudlApplets.boot && f.el.querySelector('[data-applet]')) { try { window.pudlApplets.boot(f.el); } catch (err) { } }
@@ -2063,7 +2083,7 @@
         tableCommand: tableCommand, quoteState: quoteState, wordCount: wordCount, readingMinutes: readingMinutes,
         commands: commands, editing: editing, apply: apply, classesOf: classesOf, insertItem: insertItem, inserts: inserts, textFormat: textFormat, textInsert: textInsert,
         askText: askText, askFields: askFields, askChoice: askChoice, askProperties: askProperties, STOCK: STOCK, askColour: askColour, askColours: askColours, askClass: askClass,
-        askFigure: askFigure, editBlock: editBlock, drawBlocks: drawBlocks, scopeFootnotes:scopeFootnotes, refreshReferences:refreshReferences, drawDiagram: drawDiagram, pictureFor: pictureFor, askShortcode: askShortcode, FORMS: FORMS, boxCommand: boxCommand, BOXES: BOXES, loadImages: loadImages, parseFigure: parseFigure, buildFigure: buildFigure, parseShortcode: parseShortcode,
+        askFigure: askFigure, editBlock: editBlock, drawBlocks: drawBlocks, scopeFootnotes:scopeFootnotes, refreshReferences:refreshReferences, drawDiagram: drawDiagram, pictureFor: pictureFor, pictureData: pictureData, askShortcode: askShortcode, FORMS: FORMS, boxCommand: boxCommand, BOXES: BOXES, loadImages: loadImages, parseFigure: parseFigure, buildFigure: buildFigure, parseShortcode: parseShortcode,
         fillHosts: fillHosts, prefillHosts: prefillHosts, hostSpan: hostSpan, editHostSpan: editHostSpan, hostInlineOnly: hostInlineOnly, askHostShortcode: askHostShortcode, askHostInsert: askHostInsert,
         _page: null
     };

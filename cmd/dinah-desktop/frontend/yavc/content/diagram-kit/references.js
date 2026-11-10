@@ -48,7 +48,7 @@
                     if (entry.signature !== signature) {
                         var stage = document.createElement('div'); stage.hidden = true; figure.append(stage);
                         try {
-                            var result = await render(/\.canvas$/i.test(path) ? 'canvas' : /\.d2$/i.test(path) ? 'd2' : 'mermaid', stage, source);
+                            var result = await render(/\.canvas$/i.test(path) ? 'canvas' : /\.d2$/i.test(path) ? 'd2' : 'mermaid', stage, source, reference);
                             if (!alive() || token !== epoch || !figure.isConnected || !entries.has(figure)) { stage.remove(); return; }
                             if (result && (result.problem || (result.problems || []).length)) throw new Error(result.problem || result.problems[0].message);
                             if(!stage.querySelector('img,svg'))throw new Error(stage.textContent.trim()||'The diagram renderer returned no image.');

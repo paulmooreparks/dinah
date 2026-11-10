@@ -23,6 +23,14 @@
     var ROUTES = ['elbow', 'straight', 'curve'];
     var HEADS = ['none', 'arrow', 'triangle', 'diamond', 'circle', 'box', 'cross', 'cf-one', 'cf-one-required', 'cf-many', 'cf-many-required'];
     var LINES = ['solid', 'dashed', 'dotted'];
+    var FITS = ['contain', 'cover', 'stretch'];
+    /* A file node with one of these endings is a picture. What is drawn for
+       it is image data the caller read and checked, and nothing else. */
+    var PICTURE = /\.(png|jpe?g|gif|webp|svg)$/i;
+    var PICTURE_HREF = /^data:image\/(?:png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/;
+    var FAMILY = /^[A-Za-z0-9][A-Za-z0-9 ,_-]{0,199}$/;
+    var STYLE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+    var MAX_STYLES = 200;
     var EXT_VERSION = 1;
     /* The order the specification lists each object's properties in, which
        the writer keeps, so a change shows in a diff as the lines it changed. */
@@ -89,11 +97,38 @@
             if (doc.yavc.background != null && !isColour(doc.yavc.background)) { return fail('The canvas background must be a hex color or preset from 1 to 6.'); }
             if (doc.yavc.grid != null && typeof doc.yavc.grid !== 'boolean') { return fail('The canvas grid setting must be a boolean.'); }
             if (doc.yavc.snap != null && typeof doc.yavc.snap !== 'boolean') { return fail('The canvas snap setting must be a boolean.'); }
+            if (doc.yavc.font != null && !(typeof doc.yavc.font === 'string' && FAMILY.test(doc.yavc.font))) { return fail('The canvas font must be font family names separated by commas, in letters, digits, spaces, hyphens and underscores.'); }
+            if (doc.yavc.styles != null) {
+                if (!isObj(doc.yavc.styles)) { return fail('The canvas styles must be an object of named styles.'); }
+                var names = Object.keys(doc.yavc.styles);
+                if (names.length > MAX_STYLES) { return fail('The canvas has ' + names.length + ' styles, which is more than the ' + MAX_STYLES + ' Diagrams will read.'); }
+                for (var s = 0; s < names.length; s++) {
+                    var style = doc.yavc.styles[names[s]], named = 'The style "' + names[s] + '"';
+                    if (!STYLE_NAME.test(names[s])) { return fail('A style\'s name has from 1 to 64 letters, digits, hyphens and underscores, which "' + names[s].slice(0, 80) + '" does not.'); }
+                    if (!isObj(style)) { return fail(named + ' must be an object of node properties.'); }
+                    if (style.anchor != null || style.style != null) { return fail(named + ' cannot contain anchor or style.'); }
+                    var sp = extensionProblem(style, null, named);
+                    if (sp) { return fail(sp); }
+                }
+            }
             if (doc.yavc.version > EXT_VERSION) { problems.push({ message: 'This canvas was written by a newer Diagrams (extension version ' + doc.yavc.version + '); what this one does not know is drawn plainly.', at: null, warning: true }); }
+        }
+        var known = isObj(doc.yavc) && isObj(doc.yavc.styles) ? doc.yavc.styles : null;
+        for (var m = 0; m < nodes.length; m++) {
+            var wanted = isObj(nodes[m].yavc) ? nodes[m].yavc.style : null;
+            if (wanted != null && !(known && Object.prototype.hasOwnProperty.call(known, wanted))) { return fail('Node "' + nodes[m].id + '" uses the style "' + wanted + '", which is not one of the canvas\'s styles.', placeOfId(text, nodes[m])); }
         }
         doc.nodes = nodes; doc.edges = edges;
         return { doc: doc, problems: problems };
     }
+    /* A node's extension as it is drawn: its style's properties, with the
+       node's own over them (docs/canvas-extension.md, named styles). */
+    function extension(doc, n) {
+        var own = n && isObj(n.yavc) ? n.yavc : {}, styles = doc && isObj(doc.yavc) && isObj(doc.yavc.styles) ? doc.yavc.styles : null;
+        var style = styles && typeof own.style === 'string' && Object.prototype.hasOwnProperty.call(styles, own.style) && isObj(styles[own.style]) ? styles[own.style] : null;
+        return style ? Object.assign({}, style, own) : own;
+    }
+    function isPicture(n) { return !!(n && n.type === 'file' && typeof n.file === 'string' && PICTURE.test(n.file)); }
     /* Where an object's id is written, to mark a problem there. */
     function placeOfId(text, obj) {
         if (!obj || typeof obj.id !== 'string') { return null; }
@@ -125,17 +160,33 @@
         }
         if (n.yavc != null) {
             if (!isObj(n.yavc)) { return where + '\'s yavc property must be an object.'; }
-            if (n.yavc.fillColor != null && !isColour(n.yavc.fillColor)) { return where + '\'s fillColor must be a hex color or preset from 1 to 6.'; }
-            if (n.yavc.strokeColor != null && !isColour(n.yavc.strokeColor)) { return where + '\'s strokeColor must be a hex color or preset from 1 to 6.'; }
             if (n.yavc.anchor != null && typeof n.yavc.anchor !== 'boolean') { return where + '\'s anchor must be a boolean.'; }
             if (isAnchor(n) && (n.type !== 'text' || n.text !== '' || n.width !== 0 || n.height !== 0 || n.yavc.shape !== 'text' || !Number.isSafeInteger(n.x) || !Number.isSafeInteger(n.y))) { return where + ' is a point anchor and must be empty text with shape text, zero size and integer coordinates.'; }
-            if (n.yavc.shape != null && SHAPES.indexOf(n.yavc.shape) < 0) { return where + '\'s shape "' + n.yavc.shape + '" is not one of ' + SHAPES.join(', ') + '.'; }
-            if (n.yavc.textAlign != null && (n.type !== 'text' || ['left', 'center', 'right'].indexOf(n.yavc.textAlign) < 0)) { return where + '\'s textAlign must be left, center or right on a text node.'; }
-            if (n.yavc.textVerticalAlign != null && (n.type !== 'text' || ['top', 'middle', 'bottom'].indexOf(n.yavc.textVerticalAlign) < 0)) { return where + '\'s textVerticalAlign must be top, middle or bottom on a text node.'; }
-            var lp = lineProblem(n.yavc);
-            if (lp) { return where + lp; }
+            if (n.yavc.style != null && !(typeof n.yavc.style === 'string' && STYLE_NAME.test(n.yavc.style))) { return where + '\'s style must be the name of one of the canvas\'s styles.'; }
+            return extensionProblem(n.yavc, n.type, where);
         }
         return null;
+    }
+    /* The properties a node and a named style share. A style belongs to no
+       type of node, so type is null for one, and a property that does not
+       apply to a node is ignored on it. */
+    function extensionProblem(y, type, where) {
+        if (y.fillColor != null && !isColour(y.fillColor)) { return where + '\'s fillColor must be a hex color or preset from 1 to 6.'; }
+        if (y.strokeColor != null && !isColour(y.strokeColor)) { return where + '\'s strokeColor must be a hex color or preset from 1 to 6.'; }
+        if (y.shape != null && SHAPES.indexOf(y.shape) < 0) { return where + '\'s shape "' + y.shape + '" is not one of ' + SHAPES.join(', ') + '.'; }
+        if (y.textAlign != null && ((type && type !== 'text') || ['left', 'center', 'right'].indexOf(y.textAlign) < 0)) { return where + '\'s textAlign must be left, center or right on a text node.'; }
+        if (y.textVerticalAlign != null && ((type && type !== 'text') || ['top', 'middle', 'bottom'].indexOf(y.textVerticalAlign) < 0)) { return where + '\'s textVerticalAlign must be top, middle or bottom on a text node.'; }
+        if (y.textColor != null && !isColour(y.textColor)) { return where + '\'s textColor must be a hex color or preset from 1 to 6.'; }
+        if (y.tint != null && !isColour(y.tint)) { return where + '\'s tint must be a hex color or preset from 1 to 6.'; }
+        if (y.fontSize != null && !(typeof y.fontSize === 'number' && y.fontSize >= 6 && y.fontSize <= 200)) { return where + '\'s fontSize must be a number from 6 to 200.'; }
+        if (y.fontWeight != null && !(Number.isInteger(y.fontWeight) && y.fontWeight >= 100 && y.fontWeight <= 900 && y.fontWeight % 100 === 0)) { return where + '\'s fontWeight must be a whole number of hundreds from 100 to 900.'; }
+        if (y.fontFamily != null && !(typeof y.fontFamily === 'string' && FAMILY.test(y.fontFamily))) { return where + '\'s fontFamily must be font family names separated by commas, in letters, digits, spaces, hyphens and underscores.'; }
+        if (y.padding != null && !(Number.isInteger(y.padding) && y.padding >= 0 && y.padding <= 64)) { return where + '\'s padding must be a whole number from 0 to 64.'; }
+        if (y.radius != null && !(typeof y.radius === 'number' && y.radius >= 0 && y.radius <= 1000)) { return where + '\'s radius must be a number from 0 to 1000.'; }
+        if (y.fit != null && FITS.indexOf(y.fit) < 0) { return where + '\'s fit must be one of ' + FITS.join(', ') + '.'; }
+        if (y.outlineSides != null && !(Array.isArray(y.outlineSides) && y.outlineSides.every(function (side, at) { return SIDES.indexOf(side) >= 0 && y.outlineSides.indexOf(side) === at; }))) { return where + '\'s outlineSides must be a list of different sides from ' + SIDES.join(', ') + '.'; }
+        var lp = lineProblem(y);
+        return lp ? where + lp : null;
     }
     function lineProblem(y) {
         if (y.line != null && LINES.indexOf(y.line) < 0) { return '\'s line must be one of ' + LINES.join(', ') + '.'; }
@@ -312,11 +363,11 @@
     /* === Drawing ======================================================== */
 
     /* A shape's outline, drawn to fill its box (decision 10). */
-    function shapePath(s, x, y, w, h) {
+    function shapePath(s, x, y, w, h, radius) {
         var r = function (n) { return n.toFixed(1); };
         var X = x + w, Y = y + h, cx = x + w / 2, cy = y + h / 2;
         switch (s) {
-            case 'rounded': var rr = Math.min(h / 2, 16); return { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: rr } };
+            case 'rounded': var rr = radius == null ? Math.min(h / 2, 16) : corner(radius, w, h); return { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: rr } };
             case 'oval': return { tag: 'ellipse', a: { cx: cx, cy: cy, rx: w / 2, ry: h / 2 } };
             case 'diamond': return { d: 'M ' + r(cx) + ' ' + r(y) + ' L ' + r(X) + ' ' + r(cy) + ' L ' + r(cx) + ' ' + r(Y) + ' L ' + r(x) + ' ' + r(cy) + ' Z' };
             case 'parallelogram': var k = Math.min(w * 0.15, h * 0.6); return { d: 'M ' + r(x + k) + ' ' + r(y) + ' L ' + r(X) + ' ' + r(y) + ' L ' + r(X - k) + ' ' + r(Y) + ' L ' + r(x) + ' ' + r(Y) + ' Z' };
@@ -328,8 +379,15 @@
             case 'cloud': return { d: 'M ' + r(x + w * 0.25) + ' ' + r(Y) + ' A ' + r(w * 0.22) + ' ' + r(h * 0.28) + ' 0 0 1 ' + r(x + w * 0.12) + ' ' + r(y + h * 0.45) + ' A ' + r(w * 0.22) + ' ' + r(h * 0.3) + ' 0 0 1 ' + r(x + w * 0.42) + ' ' + r(y + h * 0.15) + ' A ' + r(w * 0.25) + ' ' + r(h * 0.32) + ' 0 0 1 ' + r(x + w * 0.85) + ' ' + r(y + h * 0.35) + ' A ' + r(w * 0.2) + ' ' + r(h * 0.32) + ' 0 0 1 ' + r(x + w * 0.78) + ' ' + r(Y) + ' Z' };
             case 'package': var tw = Math.min(w * 0.4, 80), th = Math.min(h * 0.18, 14); return { d: 'M ' + r(x) + ' ' + r(y + th) + ' L ' + r(x) + ' ' + r(y) + ' L ' + r(x + tw) + ' ' + r(y) + ' L ' + r(x + tw) + ' ' + r(y + th) + ' L ' + r(X) + ' ' + r(y + th) + ' L ' + r(X) + ' ' + r(Y) + ' L ' + r(x) + ' ' + r(Y) + ' Z' };
             case 'text': return null;
-            default: return { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: 4 } };
+            default: return { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: radius == null ? 4 : corner(radius, w, h) } };
         }
+    }
+    function corner(radius, w, h) { return Math.max(0, Math.min(radius, w / 2, h / 2)); }
+    /* The sides of a box that are drawn, each a straight line. */
+    function sidesPath(sides, x, y, w, h) {
+        var r = function (n) { return n.toFixed(1); }, X = x + w, Y = y + h;
+        var lines = { top: [x, y, X, y], right: [X, y, X, Y], bottom: [X, Y, x, Y], left: [x, Y, x, y] };
+        return sides.map(function (side) { var l = lines[side]; return 'M ' + r(l[0]) + ' ' + r(l[1]) + ' L ' + r(l[2]) + ' ' + r(l[3]); }).join(' ');
     }
     function attrs(a) {
         return Object.keys(a).map(function (k) { var v = a[k]; return ' ' + k + '="' + esc(typeof v === 'number' ? +v.toFixed(2) : v) + '"'; }).join('');
@@ -375,8 +433,12 @@
        properly over this (decision 6); a picture keeps this. */
     function plainLines(md) {
         return String(md).replace(/\r/g, '').split(/\n{2,}/).map(function (para) {
-            return para.replace(/^#{1,6}\s+/gm, '').replace(/^\s*[-*+]\s+/gm, '• ').replace(/\*\*|__|`/g, '').replace(/(^|[^*])\*([^*]+)\*/g, '$1$2').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\n/g, ' ').trim();
-        }).filter(function (p) { return p; });
+            /* Markdown's hard line break, a backslash or two spaces at the
+               end of a line, starts a new line with no paragraph's gap. */
+            return para.split(/(?:\\| {2,})\n/).map(function (part) {
+                return part.replace(/^#{1,6}\s+/gm, '').replace(/^\s*[-*+]\s+/gm, '• ').replace(/\*\*|__|`/g, '').replace(/(^|[^*])\*([^*]+)\*/g, '$1$2').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\n/g, ' ').trim();
+            }).filter(function (part) { return part; });
+        }).filter(function (p) { return p.length; });
     }
     function wrap(text, width, size) {
         var per = Math.max(4, Math.floor(width / (size * 0.56))), out = [];
@@ -387,14 +449,15 @@
         });
         return out;
     }
-    function textBlock(md, x, y, w, h, colour, size, align, vertical) {
-        var lines = [];
-        plainLines(md).forEach(function (p, i) { if (i) { lines.push(''); } lines = lines.concat(wrap(p, w - 16, size)); });
-        var lh = size * 1.3, maxLines = Math.max(1, Math.floor((h - 8) / lh));
+    /* face: { weight, family, pad }, each optional; pad is 8 without one. */
+    function textBlock(md, x, y, w, h, colour, size, align, vertical, face) {
+        var lines = [], pad = face && face.pad != null ? face.pad : 8;
+        plainLines(md).forEach(function (p, i) { if (i) { lines.push(''); } p.forEach(function (part) { lines = lines.concat(wrap(part, w - pad * 2, size)); }); });
+        var lh = size * 1.3, maxLines = Math.max(1, Math.floor((h - pad) / lh));
         if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] += '…'; }
-        var top = vertical === 'middle' ? y + h / 2 - (lines.length * lh) / 2 + size : vertical === 'bottom' ? y + h - 8 - lines.length * lh + size : y + 8 + size;
-        var tx = align === 'center' ? x + w / 2 : align === 'right' ? x + w - 8 : x + 8, anchor = align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start';
-        return '<text x="' + tx.toFixed(1) + '" y="' + top.toFixed(1) + '" font-size="' + size + '" fill="' + esc(colour) + '" text-anchor="' + anchor + '">' +
+        var top = vertical === 'middle' ? y + h / 2 - (lines.length * lh) / 2 + size : vertical === 'bottom' ? y + h - pad - lines.length * lh + size : y + pad + size;
+        var tx = align === 'center' ? x + w / 2 : align === 'right' ? x + w - pad : x + pad, anchor = align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start';
+        return '<text x="' + tx.toFixed(1) + '" y="' + top.toFixed(1) + '" font-size="' + size + '"' + (face && face.weight ? ' font-weight="' + face.weight + '"' : '') + (face && face.family ? ' font-family="' + esc(face.family) + '"' : '') + ' fill="' + esc(colour) + '" text-anchor="' + anchor + '">' +
             lines.map(function (l, i) { return '<tspan x="' + tx.toFixed(1) + '"' + (i ? ' dy="' + lh.toFixed(1) + '"' : '') + '>' + esc(l || ' ') + '</tspan>'; }).join('') + '</text>';
     }
     function bounds(doc, byId) {
@@ -411,7 +474,10 @@
        opts.pad, the margin around the contents; opts.title, the
        picture's text alternative. Nodes use the file's drawing order,
        and the edges are drawn on top. */
-    var FONT = 14;
+    /* opts.pictures: { a file node's path: 'data:image/...;base64,...' },
+       the pictures the caller read and checked. A picture that is not
+       there is drawn as the box with its name. */
+    var FONT = 14, drawings = 0;
     function render(doc, opts) {
         opts = opts || {};
         var pal = Object.assign({}, opts.palette), pad = opts.pad == null ? 24 : opts.pad;
@@ -419,29 +485,48 @@
         var byId = Object.create(null);
         doc.nodes.forEach(function (n) { byId[n.id] = n; });
         var b = bounds(doc, byId), ox = b.x - pad, oy = b.y - pad, W = Math.ceil(b.w + pad * 2), H = Math.ceil(b.h + pad * 2);
-        var out = [], boxes = [];
-        function nodeColours(n) {
-            var c = colourOf(n.color, pal), y = n.yavc || {}, fill = colourOf(y.fillColor, pal);
+        var out = [], boxes = [], tints = [], tintIds = Object.create(null), drawing = 'yc' + (++drawings);
+        var pictures = isObj(opts.pictures) ? opts.pictures : null, family = isObj(doc.yavc) && typeof doc.yavc.font === 'string' && FAMILY.test(doc.yavc.font) ? doc.yavc.font : null;
+        var baseFont = opts.font || 'Inter, system-ui, sans-serif';
+        function nodeColours(n, y) {
+            var c = colourOf(n.color, pal), fill = colourOf(y.fillColor, pal);
             var textOnly = n.type === 'text' && y.shape === 'text';
-            return { stroke: colourOf(y.strokeColor, pal) || c || (n.type === 'group' && !fill ? inkFor(pal.bg, pal.line) : pal.line), fill: fill || (c ? mixHex(c, pal.surface, 0.14) : pal.surface), text: fill || textOnly ? inkFor(fill || pal.bg, pal.text) : pal.text };
+            return { stroke: colourOf(y.strokeColor, pal) || c || (n.type === 'group' && !fill ? inkFor(pal.bg, pal.line) : pal.line), fill: fill || (c ? mixHex(c, pal.surface, 0.14) : pal.surface), text: colourOf(y.textColor, pal) || (fill || textOnly ? inkFor(fill || pal.bg, pal.text) : pal.text) };
+        }
+        /* A box that may have a radius of its own and only some of its
+           sides outlined (docs/canvas-extension.md). */
+        function box(x, y, w, h, y2, line, radius) {
+            var spec = { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: y2.radius == null ? radius : corner(y2.radius, w, h) } };
+            if (!Array.isArray(y2.outlineSides) || y2.outlineSides.length === 4) { return element(spec, line); }
+            var sides = Object.assign({}, line, { fill: 'none' });
+            return element(spec, Object.assign({}, line, { stroke: 'none' })) + (y2.outlineSides.length ? element({ d: sidesPath(y2.outlineSides, x, y, w, h) }, sides) : '');
+        }
+        /* The filter that draws a picture in one colour, made once for each
+           colour. Its id is this drawing's own, since the screen puts the
+           drawing in the page beside others. */
+        function tintOf(colour) {
+            if (!tintIds[colour]) { tintIds[colour] = drawing + 't' + tints.length; tints.push('<filter id="' + tintIds[colour] + '" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feFlood flood-color="' + esc(colour) + '"/><feComposite in2="SourceAlpha" operator="in"/></filter>'); }
+            return tintIds[colour];
         }
         doc.nodes.forEach(function (n) {
             if (isAnchor(n)) { return; }
-            var x = n.x - ox, y = n.y - oy, cols = nodeColours(n), y2 = isObj(n.yavc) ? n.yavc : {};
+            var x = n.x - ox, y = n.y - oy, y2 = extension(doc, n), cols = nodeColours(n, y2);
             var lw = y2.lineWidth || (n.type === 'group' ? 1 : 2), dash = dashOf(y2, lw);
             var line = { fill: cols.fill, stroke: cols.stroke, 'stroke-width': lw };
             if (dash) { line['stroke-dasharray'] = dash; }
+            var size = y2.fontSize || FONT, nodeFamily = y2.fontFamily && FAMILY.test(y2.fontFamily) ? y2.fontFamily : null;
+            var face = { weight: y2.fontWeight || null, family: nodeFamily ? nodeFamily + ', ' + (family ? family + ', ' : '') + baseFont : null, pad: y2.padding == null ? null : y2.padding };
             boxes.push({ id: n.id, type: n.type, x: x, y: y, w: n.width, h: n.height, colors: { fill: n.type === 'text' && y2.shape === 'text' && !y2.fillColor ? pal.bg : cols.fill, stroke: cols.stroke } });
             out.push('<g data-node="' + esc(n.id) + '">');
             if (n.type === 'group') {
                 var gl = Object.assign({}, line, { fill: colourOf(y2.fillColor, pal) || (colourOf(n.color, pal) ? mixHex(colourOf(n.color, pal), pal.bg, 0.08) : 'none'), 'stroke-dasharray': dash || '6 4' });
                 boxes[boxes.length - 1].colors.fill = gl.fill === 'none' ? pal.bg : gl.fill;
-                out.push(element({ tag: 'rect', a: { x: x, y: y, width: n.width, height: n.height, rx: 8 } }, gl));
+                out.push(box(x, y, n.width, n.height, y2, gl, 8));
                 if (n.label) { out.push('<text x="' + (x + 8).toFixed(1) + '" y="' + (y - 6).toFixed(1) + '" font-size="' + FONT + '" font-weight="600" fill="' + esc(pal.muted) + '">' + esc(n.label) + '</text>'); }
             } else if (n.type === 'text') {
                 var shape = y2.shape || 'rectangle';
                 if (shape === 'text' && y2.fillColor) { out.push(element({ tag: 'rect', a: { x: x, y: y, width: n.width, height: n.height } }, { fill: cols.fill, stroke: 'none' })); }
-                out.push(element(shapePath(shape, x, y, n.width, n.height), line));
+                out.push(shape === 'rectangle' || shape === 'rounded' ? box(x, y, n.width, n.height, y2, line, shape === 'rounded' ? Math.min(n.height / 2, 16) : 4) : element(shapePath(shape, x, y, n.width, n.height), line));
                 var inset = shape === 'person' ? { x: x, y: y + n.height * 0.55, w: n.width, h: n.height * 0.45 } : shape === 'diamond' || shape === 'hexagon' || shape === 'oval' || shape === 'cloud' ? { x: x + n.width * 0.15, y: y + n.height * 0.15, w: n.width * 0.7, h: n.height * 0.7 } : { x: x, y: y, w: n.width, h: n.height };
                 /* Where the text goes, which the screen fills with the
                    Markdown drawn as HTML (decision 6). */
@@ -449,15 +534,31 @@
                 inset.align = y2.textAlign || (centred ? 'center' : 'left');
                 inset.vertical = y2.textVerticalAlign || (centred ? 'middle' : 'top');
                 inset.color = cols.text;
+                /* The text's face, for the screen to draw the Markdown in. */
+                inset.size = size; inset.weight = face.weight; inset.family = face.family; inset.pad = face.pad;
                 boxes[boxes.length - 1].text = inset;
-                out.push('<g data-text="' + esc(n.id) + '">' + textBlock(n.text, inset.x, inset.y, inset.w, inset.h, cols.text, FONT, inset.align, inset.vertical) + '</g>');
+                out.push('<g data-text="' + esc(n.id) + '">' + textBlock(n.text, inset.x, inset.y, inset.w, inset.h, cols.text, size, inset.align, inset.vertical, face) + '</g>');
             } else if (n.type === 'file') {
-                out.push(element({ tag: 'rect', a: { x: x, y: y, width: n.width, height: n.height, rx: 4 } }, line));
-                var name = String(n.file).replace(/^.*\//, '') + (n.subpath || '');
-                out.push(textBlock(name, x, y, n.width, n.height, cols.text, FONT, 'left', 'top'));
+                var href = isPicture(n) && pictures && Object.prototype.hasOwnProperty.call(pictures, n.file) && typeof pictures[n.file] === 'string' && PICTURE_HREF.test(pictures[n.file]) ? pictures[n.file] : null;
+                if (href && n.width > 0 && n.height > 0) {
+                    /* A picture is drawn as image data and never as markup of
+                       the drawing's own, and it has an outline or a fill
+                       only where the node asks for one. */
+                    var framed = n.color != null || y2.strokeColor != null || y2.lineWidth != null || y2.line != null;
+                    if (framed || y2.fillColor != null) { out.push(box(x, y, n.width, n.height, y2, Object.assign({}, line, { fill: y2.fillColor != null ? cols.fill : 'none', stroke: framed ? cols.stroke : 'none' }), 0)); }
+                    var tint = colourOf(y2.tint, pal), picture = { x: x, y: y, width: n.width, height: n.height, preserveAspectRatio: y2.fit === 'cover' ? 'xMidYMid slice' : y2.fit === 'stretch' ? 'none' : 'xMidYMid meet', href: href };
+                    if (tint) { picture.filter = 'url(#' + tintOf(tint) + ')'; }
+                    out.push('<image' + attrs(picture) + '/>');
+                    boxes[boxes.length - 1].picture = true;
+                    boxes[boxes.length - 1].colors.fill = y2.fillColor != null ? cols.fill : pal.bg;
+                } else {
+                    out.push(box(x, y, n.width, n.height, y2, line, 4));
+                    var name = String(n.file).replace(/^.*\//, '') + (n.subpath || '');
+                    out.push(textBlock(name, x, y, n.width, n.height, cols.text, size, 'left', 'top', face));
+                }
             } else if (n.type === 'link') {
-                out.push(element({ tag: 'rect', a: { x: x, y: y, width: n.width, height: n.height, rx: 4 } }, line));
-                out.push(textBlock(n.url, x, y, n.width, n.height, cols.text, FONT, 'left', 'top'));
+                out.push(box(x, y, n.width, n.height, y2, line, 4));
+                out.push(textBlock(n.url, x, y, n.width, n.height, cols.text, size, 'left', 'top', face));
             }
             out.push('</g>');
         });
@@ -479,8 +580,8 @@
             }
             out.push('</g>');
         });
-        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="' + esc(opts.font || 'Inter, system-ui, sans-serif') + '">' +
-            (opts.title ? '<title>' + esc(opts.title) + '</title>' : '') + '<rect data-canvas-background="" width="' + W + '" height="' + H + '" fill="' + esc(pal.bg) + '"/>' + out.join('') + '</svg>';
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="' + esc((family ? family + ', ' : '') + baseFont) + '">' +
+            (opts.title ? '<title>' + esc(opts.title) + '</title>' : '') + (tints.length ? '<defs>' + tints.join('') + '</defs>' : '') + '<rect data-canvas-background="" width="' + W + '" height="' + H + '" fill="' + esc(pal.bg) + '"/>' + out.join('') + '</svg>';
         return { svg: svg, width: W, height: H, boxes: boxes, edges: paths, origin: [ox, oy], background: pal.bg };
     }
     function inkFor(fill, preferred) {
@@ -506,7 +607,7 @@
         dark: ['#ff6b6b', '#ff9f43', '#f1c40f', '#66d17a', '#3cc8d8', '#b18cff']
     });
 
-    var api = Object.freeze({ read: read, write: write, render: render, isAnchor: isAnchor, automatic: automatic, path: pathD, routes: routes, route: function (e, nodes) { return routes([e], nodes)[0].route; },
+    var api = Object.freeze({ read: read, write: write, render: render, isAnchor: isAnchor, isPicture: isPicture, extension: extension, FITS: FITS.slice(), automatic: automatic, path: pathD, routes: routes, route: function (e, nodes) { return routes([e], nodes)[0].route; },
         PRESETS: PRESETS, SHAPES: SHAPES.slice(), HEADS: HEADS.slice(), ROUTES: ROUTES.slice(), LINES: LINES.slice(), EXT_VERSION: EXT_VERSION, LIMITS: Object.freeze({ text: MAX_TEXT, items: MAX_ITEMS }) });
     if (typeof module === 'object' && module.exports) { module.exports = api; } else { root.yavcCanvas = api; }
 })(typeof window !== 'undefined' ? window : this);

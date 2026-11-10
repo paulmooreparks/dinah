@@ -23,11 +23,16 @@
     function properties(item, kind) {
         var shared = ['color', 'line', 'lineWidth'];
         return shared.concat(kind === 'edge' ? ['label', 'route', 'fromHead', 'toHead', 'fromSide', 'toSide'] :
-            ['x', 'y', 'width', 'height', 'fillColor', 'strokeColor'].concat(item.type === 'text' ? ['text', 'shape', 'textAlign', 'textVerticalAlign'] : item.type === 'group' ? ['label'] : []));
+            ['x', 'y', 'width', 'height', 'fillColor', 'strokeColor', 'style'].concat(boxed(item) ? ['radius', 'outlineSides'] : [],
+                item.type === 'text' ? ['text', 'shape', 'textAlign', 'textVerticalAlign', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding'] : item.type === 'group' ? ['label'] : J.isPicture(item) ? ['tint', 'fit'] : []));
     }
+    /* A node drawn as a rectangle, which a radius and a choice of outlined
+       sides apply to (docs/canvas-extension.md). */
+    function boxed(item) { return item.type !== 'text' || !item.yavc || item.yavc.shape == null || item.yavc.shape === 'rectangle' || item.yavc.shape === 'rounded'; }
+    var EXTENSION = ['shape', 'route', 'fromHead', 'toHead', 'line', 'lineWidth', 'textAlign', 'textVerticalAlign', 'fillColor', 'strokeColor', 'style', 'radius', 'outlineSides', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding', 'tint', 'fit'];
     function setProperty(item, kind, property, value) {
         if (properties(item, kind).indexOf(property) < 0 || ['x', 'y', 'width', 'height'].indexOf(property) >= 0) { throw new Error('That property cannot be changed on this item.'); }
-        var target = ['shape', 'route', 'fromHead', 'toHead', 'line', 'lineWidth', 'textAlign', 'textVerticalAlign', 'fillColor', 'strokeColor'].indexOf(property) >= 0 ? (item.yavc || (item.yavc = {})) : item;
+        var target = EXTENSION.indexOf(property) >= 0 ? (item.yavc || (item.yavc = {})) : item;
         if (value === null || (value === '' && property !== 'text')) { delete target[property]; } else { target[property] = value; }
         if (kind === 'edge' && ['fromSide','toSide'].indexOf(property) >= 0 && item.yavc) { delete item.yavc[property.slice(0,-4) + 'Auto']; }
     }
@@ -169,7 +174,7 @@
     }
     function edit(source, req) {
         if (req.op === 'document') {
-            if (['background', 'grid', 'snap'].indexOf(req.property) < 0 || req.items !== undefined) { throw new Error('Choose a supported diagram setting.'); }
+            if (['background', 'grid', 'snap', 'font', 'styles'].indexOf(req.property) < 0 || req.items !== undefined) { throw new Error('Choose a supported diagram setting.'); }
             var changed = copy(source), settings = changed.yavc || (changed.yavc = { version: 1 });
             if (req.value === null) { delete settings[req.property]; } else { settings[req.property] = req.value; }
             return checked(changed);
@@ -204,7 +209,14 @@
             n = { id: freeId(type === 'group' ? 'group' : 'node'), type: type, x: integer(req.x == null ? 0 : req.x), y: integer(req.y == null ? 0 : req.y), width: 180, height: 80 };
             if (type === 'group') { n.label = 'Group'; n.width = 400; n.height = 240; }
             else if (type === 'text') { n.text = req.text == null ? 'New shape' : req.text; n.yavc = { shape: req.shape || 'rectangle' }; }
-            else { throw new Error('New nodes must be text nodes or groups.'); }
+            else if (type === 'file') {
+                /* A picture, which is the one kind of file node Diagrams
+                   draws as more than its name. */
+                n.file = req.file; n.width = 48; n.height = 48;
+                if (!J.isPicture(n) || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(n.file) || /[\x00-\x1f\x7f\\]/.test(n.file) || n.file.length > 4096) { throw new Error('Give the path of a PNG, JPEG, GIF, WebP or SVG picture, from the canvas\'s folder.'); }
+            }
+            else { throw new Error('New nodes must be text nodes, pictures or groups.'); }
+            ['width', 'height'].forEach(function (k) { if (req[k] != null) { n[k] = integer(req[k]); if (n[k] < 1) { throw new Error('A new node must be at least one pixel wide and high.'); } } });
             if (type === 'group') { doc.nodes.unshift(n); } else { doc.nodes.push(n); }
             key = n.id;
         } else if (req.op === 'connect') {

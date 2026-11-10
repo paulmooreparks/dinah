@@ -858,7 +858,7 @@
     {
       "ref": "yavc.diagrams/canvas-edit@1",
       "title": "Edit a Canvas",
-      "description": "One undoable JSON Canvas edit. create uses type, shape, x and y; move uses key, dx and dy (a group carries nodes fully inside it); resize uses key and x, y, width or height; connect uses from, to and their sides; set uses key, kind, property and value (null removes it); delete and duplicate use key; paste uses text containing JSON Canvas nodes and internal edges and remaps their IDs; order uses key and direction. kind distinguishes a node from an edge with the same ID. Returns the changed item ID and drawing status. No file is saved by this action. reconnect changes one connector endpoint, using key, end (from/to), node and optional side; null node leaves a free point at x/y, and null side attaches automatically. connect also accepts a free target at x/y when to is omitted or null. Automatic sides update as shapes move.",
+      "description": "One undoable JSON Canvas edit. create uses type, shape, x and y; move uses key, dx and dy (a group carries nodes fully inside it); resize uses key and x, y, width or height; connect uses from, to and their sides; set uses key, kind, property and value (null removes it); delete and duplicate use key; paste uses text containing JSON Canvas nodes and internal edges and remaps their IDs; order uses key and direction. kind distinguishes a node from an edge with the same ID. Returns the changed item ID and drawing status. No file is saved by this action. reconnect changes one connector endpoint, using key, end (from/to), node and optional side; null node leaves a free point at x/y, and null side attaches automatically. connect also accepts a free target at x/y when to is omitted or null. Automatic sides update as shapes move. create with type file and a file path adds a picture node, 48 pixels square unless width and height are given; the path is from the canvas's folder and the host reads the picture. docs/canvas-extension.md defines every property.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -901,8 +901,14 @@
           "type": {
             "enum": [
               "text",
-              "group"
+              "group",
+              "file"
             ]
+          },
+          "file": {
+            "description": "For create with type file: the path of a PNG, JPEG, GIF, WebP or SVG picture, from the folder the canvas is in, or beginning with / or ~/.",
+            "type": "string",
+            "maxLength": 4096
           },
           "shape": {
             "enum": [
@@ -922,7 +928,7 @@
             ]
           },
           "property": {
-            "description": "textAlign and textVerticalAlign set text-node alignment. fillColor and strokeColor override node channels independently. With op=document, background sets the canvas color and grid/snap accept booleans. A null value restores the corresponding default.",
+            "description": "textAlign and textVerticalAlign set text-node alignment. fillColor and strokeColor override node channels independently. With op=document, background sets the canvas color and grid/snap accept booleans. A null value restores the corresponding default. On a text node, textColor is a color, fontSize a number from 6 to 200, fontWeight a number of hundreds from 100 to 900, fontFamily a list of family names and padding a whole number from 0 to 64. On a node drawn as a rectangle, radius is a number from 0 to 1000 and outlineSides an array of top, right, bottom and left, where an empty array draws no outline. On a picture node, tint is a color and fit is contain, cover or stretch. style is the name of one of the canvas's styles. With op=document, font is a list of family names and styles is an object of named styles, each an object of these node properties.",
             "enum": [
               "text",
               "label",
@@ -934,6 +940,18 @@
               "textVerticalAlign",
               "fillColor",
               "strokeColor",
+              "textColor",
+              "fontSize",
+              "fontWeight",
+              "fontFamily",
+              "padding",
+              "radius",
+              "outlineSides",
+              "tint",
+              "fit",
+              "style",
+              "font",
+              "styles",
               "background",
               "grid",
               "snap",
@@ -962,8 +980,10 @@
           "value": {
             "type": [
               "string",
-              "integer",
+              "number",
               "boolean",
+              "array",
+              "object",
               "null"
             ],
             "maxLength": 65536

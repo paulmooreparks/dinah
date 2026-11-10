@@ -9,13 +9,27 @@
         if (!loading) loading = window.yavcUtil.loadScript(window.yavcUtil.versioned(new URL('jcanvas.js', here).href)).then(function () { return window.yavcCanvas; }).catch(function (error) { loading = null; throw error; });
         return loading;
     }
-    async function draw(place, source) {
+    var picturesLoading = null;
+    function pictureReader() {
+        if (window.yavcCanvasPictures) return Promise.resolve(window.yavcCanvasPictures);
+        if (!picturesLoading) picturesLoading = window.yavcUtil.loadScript(window.yavcUtil.versioned(new URL('canvas-pictures.js', here).href)).then(function () { return window.yavcCanvasPictures; }).catch(function (error) { picturesLoading = null; throw error; });
+        return picturesLoading;
+    }
+    /* options.pictures(path) reads one of the canvas's pictures through the
+       host (canvas-pictures.js); options.signal ends the reading. Without
+       them a picture is the box with its name. */
+    async function draw(place, source, options) {
         var token = {}; owners.set(place, token);
         var J = await library();
         if (!place.isConnected || owners.get(place) !== token) return null;
         var parsed = J.read(source), problem = parsed.problems.find(function (p) { return !p.warning; });
         if (!parsed.doc || problem) throw new Error(problem ? problem.message : 'The canvas could not be read.');
-        var out = J.render(parsed.doc, {palette:palette,pad:24,title:'Embedded canvas diagram'});
+        var read = { pictures: {}, problems: [] };
+        if (parsed.doc.nodes.some(J.isPicture)) {
+            read = await (await pictureReader()).collect(parsed.doc, options && options.pictures, { signal: options && options.signal, canvas: J });
+            if (!place.isConnected || owners.get(place) !== token) return null;
+        }
+        var out = J.render(parsed.doc, {palette:palette,pad:24,title:'Embedded canvas diagram',pictures:read.pictures});
         if (!Number.isFinite(out.width) || !Number.isFinite(out.height) || out.width > 32768 || out.height > 32768 || out.svg.length > 16 * 1024 * 1024) throw new Error('This canvas is too large to embed. Open it in Diagrams.');
         var image = document.createElement('img');
         image.className = 'sc-diagram-image'; image.alt = 'Canvas diagram with ' + parsed.doc.nodes.length + ' nodes and ' + parsed.doc.edges.length + ' connections.';
@@ -29,6 +43,7 @@
         parsed.doc.nodes.filter(function (n) { return !J.isAnchor(n); }).forEach(function (n) { var row = document.createElement('li'); row.textContent = n.text || n.label || n.file || n.url || n.id; list.append(row); });
         parsed.doc.edges.forEach(function (e) { var row = document.createElement('li'); row.textContent = e.fromNode + ' → ' + e.toNode + (e.label ? ': ' + e.label : ''); list.append(row); });
         place.append(disclosure, list);
+        if (read.problems.length) window.yavcUtil.notice(disclosure, read.problems[0] + (read.problems.length > 1 ? ' ' + (read.problems.length - 1) + ' more could not be read.' : ''), 'warn');
         return out;
     }
     window.yavcCanvasEmbed = Object.freeze({draw:draw});
