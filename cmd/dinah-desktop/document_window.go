@@ -151,7 +151,7 @@ func runDocumentWindow(args []string) int {
 	if _, named := documentProgramApplication(os.Args[0]); !named {
 		setProcessIdentity(start.application)
 	}
-	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, hidden: testing || hidden, entryFile: entryFile, application: start.application}
+	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, hidden: testing || hidden, entryFile: entryFile, application: start.application, pickOpen: systemPickOpen, pickSave: systemPickSave}
 	err = wails.Run(&options.App{
 		EnableDefaultContextMenu: true,
 		Title:                    opened.Title,
@@ -184,6 +184,10 @@ type documentWindow struct {
 	// hidden says the window is never shown and asks the person nothing.
 	hidden    bool
 	entryFile string
+	// pickOpen and pickSave show the system's dialogs and return the path
+	// chosen, or nothing when the person chose none.
+	pickOpen func(ctx context.Context, folder string) string
+	pickSave func(ctx context.Context, folder, name string) string
 
 	mu    sync.Mutex
 	entry string
@@ -312,18 +316,34 @@ func (w *documentWindow) obey(ctx context.Context, c docservice.Command) {
 		allowForeground(data.PID)
 		w.client.Reply(ctx, w.id, c.Seq, true)
 	case "pick-open":
-		chosen := ""
-		if !w.hidden {
-			chosen, _ = wruntime.OpenFileDialog(ctx, wruntime.OpenDialogOptions{Title: "Open", DefaultDirectory: data.Folder})
-		}
-		w.client.Reply(ctx, w.id, c.Seq, chosen)
+		w.choose(ctx, c.Seq, func() string { return w.pickOpen(ctx, data.Folder) })
 	case "pick-save":
+		w.choose(ctx, c.Seq, func() string { return w.pickSave(ctx, data.Folder, data.Name) })
+	}
+}
+
+// choose answers a command with what the person picks in a dialog. The
+// dialog stays up for as long as the person likes, and the service takes a
+// window that has stopped asking for commands to have ended, so the dialog
+// runs beside the loop that asks.
+func (w *documentWindow) choose(ctx context.Context, seq int64, pick func() string) {
+	go func() {
 		chosen := ""
 		if !w.hidden {
-			chosen, _ = wruntime.SaveFileDialog(ctx, wruntime.SaveDialogOptions{Title: "Save As", DefaultDirectory: data.Folder, DefaultFilename: data.Name})
+			chosen = pick()
 		}
-		w.client.Reply(ctx, w.id, c.Seq, chosen)
-	}
+		w.client.Reply(ctx, w.id, seq, chosen)
+	}()
+}
+
+func systemPickOpen(ctx context.Context, folder string) string {
+	chosen, _ := wruntime.OpenFileDialog(ctx, wruntime.OpenDialogOptions{Title: "Open", DefaultDirectory: folder})
+	return chosen
+}
+
+func systemPickSave(ctx context.Context, folder, name string) string {
+	chosen, _ := wruntime.SaveFileDialog(ctx, wruntime.SaveDialogOptions{Title: "Save As", DefaultDirectory: folder, DefaultFilename: name})
+	return chosen
 }
 
 // beforeClose is asked when the person closes the window. The service has
