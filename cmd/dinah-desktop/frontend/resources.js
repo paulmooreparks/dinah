@@ -176,8 +176,11 @@
   }
   /* A file the page made, such as a picture of what a window draws, saved
      where the person chooses: the Save dialog starts in the current
-     workspace, takes a folder on the computer that can be written, and has
-     To Your Computer… for anywhere else. o is { name, title, blob }. The
+     workspace's main folder, takes a folder on the computer that can be
+     written, and has To Your Computer… for anywhere else. It starts in the
+     main folder because the workspace itself is the list of what is
+     attached to it and takes no file; a workspace with no main folder of
+     files starts at that list. o is { name, title, blob }. The
      promise gives { name, where } or { path } once the file is written, or
      null when the person cancelled. A name the folder already has is asked
      about, as an upload's is. */
@@ -191,7 +194,15 @@
         reader.readAsDataURL(blob);
       });
     }
-    return window.dinahFilePicker.pick({ mode: 'save', title: o.title || 'Save As', name: o.name,
+    function mainFolder() {
+      var id = host().workspaceId(), records = window.dinahWorkspaceBrowser ? window.dinahWorkspaceBrowser.records() : [];
+      var record = records.find(function (r) { return r.id === id; });
+      var source = record && (record.sources || []).find(function (s) { return s.id === record.primarySourceId && s.kind === 'local-folder'; });
+      if (!source || !app().ResolveWorkspaceResourceMount) return Promise.resolve(undefined);
+      return Promise.resolve(app().ResolveWorkspaceResourceMount({ workspaceId: id, sourceId: source.id, path: '.' })).then(function (item) { return item && item.path || undefined; }, function () { return undefined; });
+    }
+    return mainFolder().then(function (start) {
+    return window.dinahFilePicker.pick({ mode: 'save', title: o.title || 'Save As', name: o.name, start: start,
       saveKind: function (dir) {
         return takesFolder(dir) ? { kind: 'file' } : { why: 'Read-only. Open a folder that can be written, or use To Your Computer… for a place outside the workspace.' };
       },
@@ -223,7 +234,8 @@
             return true;
           });
         });
-      } }).then(function () { return done; });
+      } });
+    }).then(function () { return done; });
   }
   /* A toast says what an upload did; the report is passed on. */
   function reported(dir, r) {
