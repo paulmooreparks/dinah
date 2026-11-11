@@ -195,11 +195,13 @@
       });
     }
     function mainFolder() {
-      var id = host().workspaceId(), records = window.dinahWorkspaceBrowser ? window.dinahWorkspaceBrowser.records() : [];
-      var record = records.find(function (r) { return r.id === id; });
-      var source = record && (record.sources || []).find(function (s) { return s.id === record.primarySourceId && s.kind === 'local-folder'; });
-      if (!source || !app().ResolveWorkspaceResourceMount) return Promise.resolve(undefined);
-      return Promise.resolve(app().ResolveWorkspaceResourceMount({ workspaceId: id, sourceId: source.id, path: '.' })).then(function (item) { return item && item.path || undefined; }, function () { return undefined; });
+      return Promise.resolve(app().State()).then(function (state) {
+        var record = (state.workspaceRecords || []).find(function (entry) { return entry.id === state.workspaceId; });
+        if (!record || !record.primarySourceId || !app().ResolveWorkspaceResourceMount) return undefined;
+        return Promise.resolve(app().ResolveWorkspaceResourceMount({ workspaceId: record.id, sourceId: record.primarySourceId, path: '' })).then(function (item) {
+          return item && item.directory && item.writable ? item.path : undefined;
+        });
+      }).catch(function () { return undefined; });
     }
     return mainFolder().then(function (start) {
     return window.dinahFilePicker.pick({ mode: 'save', title: o.title || 'Save As', name: o.name, start: start,
