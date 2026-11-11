@@ -391,7 +391,7 @@
             draft=await app().OpenSkillDraft(item.path); if(disposed||request!==version)return;
             if(viewer){viewer.destroy();viewer=null;}
             editorHost.replaceChildren();
-            editor=dinahWorkbench.embed({kind:'editor',workspace:draft.origin.workspaceId||'',path:draft.id,title:pack.skill.name},editorHost,{state:'split',changed:function(){}});
+            editor=dinahWorkbench.embed({kind:'content-docs',workspace:draft.origin.workspaceId||'',path:draft.id,title:pack.skill.name},editorHost,{state:'split',changed:function(){}});
             await loadFields();
           }
         } else {

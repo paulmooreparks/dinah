@@ -162,6 +162,21 @@
     var name = reference.slice(reference.lastIndexOf('/') + 1);
     return name && name !== '.' && name !== '..' ? folder + '/' + name : null;
   }
+  /* A document handed from one application to the other
+     (pudlHost.fileResolution.open, yavc.app's
+     docs/file-resolution-contract.md). Docs asks it for Open in Editor,
+     and the Editor for Open in Docs and for a Markdown document chosen in
+     a pane of its own. The applet gives the document by its resource, which
+     Dinah knows the draft of, and the document moves to a window of the
+     application asked for, as it does when Dinah opens it there itself
+     (content-windows.js, open). Dinah offers the opening alone: which
+     application a file belongs to is decided in content-windows.js. */
+  function openIn(request) {
+    var resource = String(request && request.resource || ''), app = String(request && request.applet || '');
+    var id = names()[resource];
+    if (!id || !APPS[app] || !window.dinahContentWindows) return Promise.reject(new Error('This document cannot be opened in another application from here.'));
+    return Promise.resolve(api().GetDraft(id)).then(function (v) { return window.dinahContentWindows.open(v, app); }).then(function () { return true; });
+  }
 
   /* The draft revision each resource's applet last read or wrote, which
      content-windows.js compares with the draft to see a change made
@@ -485,7 +500,7 @@
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram, resolvePath: resolvePath },
+      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram, resolvePath: resolvePath }, fileResolution: { open: openIn },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation, documentCommands: documentCommands,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }

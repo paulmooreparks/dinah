@@ -1,8 +1,8 @@
 {
   "name": "editor",
   "title": "Editor",
-  "version": "46.34.0",
-  "description": "Edit text and source code, with editable Markdown Visual and Split views.",
+  "version": "46.35.0",
+  "description": "Edit text and source code. Markdown documents are drawn in Docs.",
   "license": "Apache-2.0",
   "src": "editor.js",
   "css": "editor.css",

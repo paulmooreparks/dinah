@@ -89,11 +89,15 @@
         function loadBrowser() { return hostServices.browser ? hostServices.browser().then(function (x) { return x.FB; }) : Promise.resolve(null); }
         function loadConfig() { return Promise.resolve((window.pudlHost || {}).config || null); }
     var SETTINGS = { wrap: true, explorer: null, explorerWidth: null, outline: null, outlineWidth: null, keys: null, markdownView: 'visual', documentView: 'document', documentZoom: '100', navigation: 'files' };
-    var MARKDOWN_VIEWS = (isDocs ? [['document', 'Document']] : []).concat([['visual', 'Visual'], ['text', 'Text'], ['split', 'Split'], ['preview', 'Preview']]);
+    /* The Editor is a text editor: it shows every file, Markdown too, as
+       its text. Docs is where a Markdown document is drawn, on a page or as
+       it will look (DESIGN.md, decision 131). */
+    var MARKDOWN_VIEWS = isDocs ? [['document', 'Document'], ['visual', 'Visual'], ['text', 'Text'], ['split', 'Split'], ['preview', 'Preview']] : [['text', 'Text']];
+    var SEVERAL_VIEWS = MARKDOWN_VIEWS.length > 1;
     function supportsView(tab, mode) { return !!tab && (mode === 'text' || (tab.lang === 'markdown' && MARKDOWN_VIEWS.some(function (entry) { return entry[0] === mode; }))); }
     function resolvedView(tab, preferred) {
         if (supportsView(tab, preferred)) { return preferred; }
-        return (isDocs ? ['document', 'visual', 'text'] : ['visual', 'text']).find(function (mode) { return supportsView(tab, mode); }) || 'text';
+        return (isDocs ? ['document', 'visual', 'text'] : ['text']).find(function (mode) { return supportsView(tab, mode); }) || 'text';
     }
 
         var n = ++uid;
@@ -490,7 +494,7 @@
                 if (!target) { return; }
                 e.detail.mark(node);
                 if (target.children) { e.detail.add([{ label: target.getAttribute ? 'Open' : 'Open', glyph: 'folder', run: function () { if (explorer) { explorer.go(target); } } }]); }
-                else { e.detail.add([{ label: 'Open', glyph: 'document', run: function () { openPath(F.displayPath(F.realOf(target))); } }]); }
+                else { e.detail.add([{ label: 'Open', glyph: 'document', run: function () { openChosen(F.displayPath(F.realOf(target))); } }]); }
                 return;
             }
             if (t.closest('.ed-surface, .ed-page, .cm-editor, .ProseMirror, [data-role="surface"], [data-role="page"]')) {
@@ -655,6 +659,8 @@
                 if (routed) return true;
             }
             function fail(msg) { if (strict) { throw new Error(msg); } say(msg, true); return false; }
+            /* The Editor once had other views, and an old address or request may still ask for one. It opens the file as its text. */
+            if (!isDocs) { requestedView = null; }
             function validView(name) {if(requestedView && !supportsView({lang:languageFor(name)},requestedView))throw new Error('This view is unavailable for this file in '+(isDocs?'Docs':'Editor')+'.');}
             if (resources) {
                 for (var ri = 0; ri < tabs.length; ri++) if (tabs[ri].path === path) {validView(tabs[ri].name);await activate(ri); return true; }
@@ -915,6 +921,23 @@
 
         /* One dialog for questions and paths: resolves to the chosen
            button's name, or with an input, to the text entered. */
+        /* A Markdown document belongs to Docs (DESIGN.md, decision 131). When
+           a person chooses one in the Editor, from its Open dialog or its
+           Files pane, the Editor asks the host to open it in Docs, where the
+           host can. A deck's and a diagram's text are not documents and
+           stay here. Where the host cannot, or Docs is not there, the file
+           opens here as its text. A file sent to the Editor by name, as
+           Docs' Open in Editor sends one, always opens here. */
+        function belongsToDocs(path) { return !isDocs && /\.(md|markdown)$/i.test(String(path || '')) && !/\.slides\.md$/i.test(String(path || '')); }
+        async function openChosen(path, strict) {
+            /* A file that is already open here comes to the front here, with whatever is unsaved in it. */
+            if (belongsToDocs(path) && !tabs.some(function (t) { return t.path === path; }) && H.fileResolution && typeof H.fileResolution.open === 'function') {
+                try { await H.fileResolution.open({ resource: path, applet: 'docs' }, { host: root }); if (!destroyed) { say('Opened ' + String(path).split('/').pop() + ' in Docs.'); } return 'docs'; }
+                catch (err) { /* Docs could not take it, so it opens here as text. */ }
+                if (destroyed) { return false; }
+            }
+            return openPath(path, strict);
+        }
         async function openDialog() {
             if (!FB || !F) {
                 if (!H.fs || !H.fs.open) throw new Error('This host does not offer file selection.');
@@ -922,7 +945,7 @@
                     try {requireNative(name);return null;} catch(err) {return err.message;}
                 }});
                 if (!chosen || destroyed) return;
-                if (chosen.path) return openPath(chosen.path,true);
+                if (chosen.path) return openChosen(chosen.path,true);
                 requireNative(chosen.name);
                 await loadScript(resourceAsset('text-codec.js'));
                 if (destroyed) return;
@@ -938,7 +961,7 @@
                 check: function (r) { return F.isText(r)||resources&&!r.children&&r.home&&!r.server ? null : r.name + ' isn\'t a text file, so the editor can\'t open it.'; },
                 /* The dialog stays open while the file is read, and says
                    there why it couldn't be. */
-                commit: function (c) { return c.file ? openFromComputer(c.file, true) : openPath(c.path, true); }
+                commit: function (c) { return c.file ? openFromComputer(c.file, true) : openChosen(c.path, true); }
             });
         }
 
@@ -1003,7 +1026,7 @@
                         if (url) { window.open(url, '_blank', 'noopener'); } else { say(node.name + ' isn\'t a file the editor can open.', true); }
                         return;
                     }
-                    openPath(F.displayPath(r)).then(function (opened) {if(opened && root.clientWidth<=700)compactNavigation('document');});
+                    openChosen(F.displayPath(r)).then(function (opened) {if(opened && opened !== 'docs' && root.clientWidth<=700)compactNavigation('document');});
                 },
                 say: function (m, isError) { if (m) { say(m, isError); } }
             });
@@ -1247,7 +1270,7 @@
         function viewKey() { var t = current(); return isDocs && t && /\.docs\.md$/i.test(t.path || t.name || '') ? 'documentView' : 'markdownView'; }
         function initialMode(tab, proposed) {var key=isDocs && /\.docs\.md$/i.test(tab.name)?'documentView':'markdownView';return supportsView(tab,storedSettings[key]) ? null : proposed;}
         function markdownDefault() {
-            return MARKDOWN_VIEWS.some(function (v) { return v[0] === settings[viewKey()]; }) ? settings[viewKey()] : 'visual';
+            return MARKDOWN_VIEWS.some(function (v) { return v[0] === settings[viewKey()]; }) ? settings[viewKey()] : isDocs ? 'visual' : 'text';
         }
         function setMarkdownDefault(v) {
             var change = {};
@@ -1503,7 +1526,7 @@
             if(pageActive()&&!rich){say('Place the caret in a paragraph before inserting a footnote.',true);return;}
             var tree=m.doc(text),used=new Set();function collect(node){if(node.attrs&&node.attrs.label)used.add(node.attrs.label);(node.content||[]).forEach(collect);}collect(tree);
             if(used.size>=256){say('A document supports at most 256 footnotes.',true);return;}
-            var value=await window.yavcDialog.askText('Insert Footnote','Footnote Text','',{multiline:true,okLabel:'Insert',signal:styleLifetime.signal,help:'The reference is inserted after the selection. You can format the note on the page.',validate:function(value){if(!unchanged())return 'The document or selection changed. Cancel and try again.';return !value.trim()?'Enter the footnote text.':value.length>16384?'Footnote text is limited to 16,384 characters.':null;}});
+            var value=await window.yavcDialog.askText('Insert Footnote','Footnote Text','',{multiline:true,okLabel:'Insert',signal:styleLifetime.signal,help:isDocs?'The reference is inserted after the selection. You can format the note on the page.':'The reference is inserted after the selection.',validate:function(value){if(!unchanged())return 'The document or selection changed. Cancel and try again.';return !value.trim()?'Enter the footnote text.':value.length>16384?'Footnote text is limited to 16,384 characters.':null;}});
             if(value==null||!unchanged())return;
             if(rich){rich.apply(value);return;}
             var index=1;while(used.has('note-'+index))index++;var label='note-'+index;
@@ -2195,7 +2218,7 @@
             var f = fileFrom(s);
             if (!f || !CM) { return; }
             var ticket=++stateRequest,params=new URLSearchParams(s || ''),existed=tabs.some(function (t) {return t.path===f;});function currentRequest(){return !destroyed && ticket===stateRequest;}
-            return openPath(f,false,currentRequest,params.get('view')).then(async function (opened) {if(!currentRequest())return;if (!opened) {if(F && !F.resolve(F.home(), f))await newNamed(f);else return;} var requested=params.get('view') || (!existed && initialMode(current(),params.get('initial-view')));if(requested){if(!supportsView(current(),requested))throw new Error('This view is unavailable for this file. Choose a supported view from the toolbar.');await setView(requested);}if(currentRequest())await restoreLine(Number(new URLSearchParams(s || '').get('line')) || 1); }).catch(function (err) {if(currentRequest())say(err.message,true);});
+            return openPath(f,false,currentRequest,params.get('view')).then(async function (opened) {if(!currentRequest())return;if (!opened) {if(F && !F.resolve(F.home(), f))await newNamed(f);else return;} var requested=isDocs ? params.get('view') || (!existed && initialMode(current(),params.get('initial-view'))) : null;if(requested){if(!supportsView(current(),requested))throw new Error('This view is unavailable for this file. Choose a supported view from the toolbar.');await setView(requested);}if(currentRequest())await restoreLine(Number(new URLSearchParams(s || '').get('line')) || 1); }).catch(function (err) {if(currentRequest())say(err.message,true);});
         }
         async function restoreLine(number) {
             var tab = current(); if (!view || !tab) { return; }
@@ -2794,7 +2817,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             table.push(cmd('shared-stylesheet', 'Edit Shared Stylesheet…', 'file', function () { return editStyles(true); }, { hidden: unformatted,
                 disabled: function () { return noEdit() || !/^~\/.+\.css$/i.test(currentSharedStyle) || !(window.pudlHost && window.pudlHost.fs && window.pudlHost.fs.writeText); },
                 reason: 'Choose a home-folder CSS file in Document Stylesheet first. This host also needs a writable file service.' }));
-            table.push({ id: 'md-default', label: 'Open Markdown As', hidden: function () { return !viewsOffered; },
+            table.push({ id: 'md-default', label: 'Open Markdown As', hidden: function () { return !viewsOffered || !SEVERAL_VIEWS; },
                 current: function () { var f = MARKDOWN_VIEWS.find(function (x) { return x[0] === markdownDefault(); }); return f ? f[1] : null; },
                 items: MARKDOWN_VIEWS.map(function (v) {
                     return { id: 'md-default-' + v[0], label: v[1], choice: 'ed-md-default', value: v[0],
@@ -2803,12 +2826,12 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             MARKDOWN_VIEWS.forEach(function (v) {
                 table.push({ id: 'view-' + v[0], label: v[1], choice: 'ed-view', choiceLabel: 'View', value: v[0],
                     checked: function () { return viewMode === v[0]; },
-                    hidden: function () { return !tab; },
+                    hidden: function () { return !tab || !SEVERAL_VIEWS; },
                     disabled: function () { return !ready || !supportsView(tab, v[0]); },
                     /* A view the reader chooses is the tab's from then on. */
                     run: function () { var t = current(); if (t) { t.view = v[0]; } setView(v[0]); } });
             });
-            return table.concat(hostCommands.rows(ready), editing() ? editing().commands() : [], commonToolbar ? commonToolbar.commands() : [], [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }]);
+            return table.concat(hostCommands.rows(ready), editing() ? editing().commands() : [], commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []);
         }
 
         /* The toolbar: what is used most stays named longest, and the view
@@ -2821,11 +2844,11 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 { label: 'File', glyph: 'file', priority: 3, items: ['toggle-files', 'new', 'open', 'save', 'save-as'] },
                 { label: 'Edit', glyph: 'yavc-undo', priority: 2, items: ['undo', 'redo', 'find', 'toggle-wrap'] },
                 { label: 'Format', glyph: 'bold', priority: 1, items: ['style', 'bold', 'italic', 'underline', 'strike', 'code', 'link', 'color', 'bullets', 'numbers', 'insert', 'table', 'box'] },
-                { label: 'View', glyph: 'new-window', priority: 4, end: true, items: ['source', { choice: 'ed-view' }, 'preview'] }
+                { label: 'View', glyph: 'new-window', priority: 4, end: true, items: SEVERAL_VIEWS ? ['source', { choice: 'ed-view' }, 'preview'] : ['source', 'preview'] }
             ] }];
         }
 
-        var LAYOUT = ['toggle-files', 'toggle-outline', 'hide-navigation', 'toggle-wrap', '-'].concat(MARKDOWN_VIEWS.map(function (v) { return 'view-' + v[0]; }), ['document-zoom', 'md-default', '-', 'source', 'preview']);
+        var LAYOUT = ['toggle-files', 'toggle-outline', 'hide-navigation', 'toggle-wrap', '-'].concat(SEVERAL_VIEWS ? MARKDOWN_VIEWS.map(function (v) { return 'view-' + v[0]; }).concat(['document-zoom', 'md-default', '-']) : [], ['source', 'preview']);
         function menus() {
             var titles = [
                 { label: isDocs ? 'Docs' : 'Editor', glyph: isDocs ? 'document' : 'code', items: H.identity(root, ['key-bindings']) },
@@ -3074,7 +3097,10 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             'define@1': async function () { docNo(); if (pageActive()) { await visual.api.sync(); } return { output: (await documentEngine()).macros() }; },
             'documents@1': async function () { return { output: { active: active + 1, documents: tabs.map(function (t, i) { return docView(i, false); }) } }; },
             'document@1': async function (input) { var i = docNo(input.index),t=tabs[i]; if(i===active&&pageActive())await visual.api.sync(); if(tabs[i]!==t)throw new Error('The document closed while its text was being read.'); return { output: docView(i, true) }; },
-            'open-file@1': async function (input) { if(!tabs.some(function (t) {return t.path===input.path;})){var routed=await routeDocument('open-file',input);if(routed)return routed.result;} await openPath(String(input.path), true); if(input.view && supportsView(current(),input.view))await setView(input.view); return { output: docView(active, false) }; },
+            'open-file@1': async function (input) {
+                /* An agent is told where a Markdown document opens, and may still ask for its text here. */
+                if (belongsToDocs(input.path) && input.view !== 'text' && !tabs.some(function (t) { return t.path === input.path; })) { throw new Error('A Markdown document opens in Docs. Use yavc.docs/open-file@1 for ' + input.path + ', or ask again here with view "text" to open its text in the Editor.'); }
+                if(!tabs.some(function (t) {return t.path===input.path;})){var routed=await routeDocument('open-file',input);if(routed)return routed.result;} await openPath(String(input.path), true); if(input.view && supportsView(current(),input.view))await setView(input.view); return { output: docView(active, false) }; },
             'new@1': async function (input) {
                 /* A new document never takes the name of a file that exists,
                    or the person's next Save would overwrite it unasked
@@ -3115,7 +3141,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 return { output: docView(savedIndex, false) };
             },
             'close@1': async function (input) { var i = docNo(input.index); var before = tabs.length; await closeTab(i); return { output: { closed: tabs.length < before, open: tabs.length } }; },
-            'view@1': async function (input) { docNo(); if(!supportsView(current(),input.mode))throw new Error('This view is unavailable in '+(isDocs?'Docs':'Editor')+'.'); await setView(input.mode); return { output: { mode: viewMode } }; },
+            'view@1': async function (input) { docNo(); if(!supportsView(current(),input.mode))throw new Error(isDocs?'This view is unavailable in Docs.':'The Editor shows a document as its text. Open it with yavc.docs/open-file@1 to see it as a page.'); await setView(input.mode); return { output: { mode: viewMode } }; },
             'go-to@1': async function (input) {
                 docNo();
                 var line = Math.min(view.state.doc.lines, Math.max(1, Math.floor(Number(input.line))));
@@ -3125,7 +3151,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 return { output: { line: line } };
             }
         };
-        if (!isDocs) ['new-template@1','page-setup@1','header-footer@1','export@1','document-zoom@1'].forEach(function (id) {if(liveActions[id])liveActions[id]=async function () {throw new Error('This document action moved to yavc.docs/'+id+'. Open the saved document in Docs.');};});
+        if (!isDocs) ['new-template@1','page-setup@1','header-footer@1','export@1','document-zoom@1','table@1'].forEach(function (id) {if(liveActions[id])liveActions[id]=async function () {throw new Error('This document action moved to yavc.docs/'+id+'. Open the saved document in Docs.');};});
         Object.keys(liveActions).forEach(function (id) {var handler=liveActions[id];liveActions[id]=async function (input) {await boot;if(destroyed || startupFailed || !view)throw new Error('This workspace is no longer available.');return handler(input);};});
         if (documentWindows) unbindDocuments = documentWindows.bind(root, {
             application: app, resource: function () {return current() && current().path;},
@@ -3136,7 +3162,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
         });
         var detachLive = window.pudlApplets && window.pudlApplets.attach ? window.pudlApplets.attach('yavc.' + app, liveActions) : null;
         var commonToolbar = window.pudlHost && window.pudlHost.commandToolbar ? window.pudlHost.commandToolbar.attach(root, { app: app, label: isDocs ? 'Docs' : 'Editor', table: commandTable,
-            defaults: ['save', '-', 'undo', 'redo', '-', 'style', 'bold', 'italic', 'link', 'insert', '-', 'find', '-', 'view-mode'] }) : null;
+            defaults: ['save', '-', 'undo', 'redo', '-', 'style', 'bold', 'italic', 'link', 'insert', '-', 'find'].concat(SEVERAL_VIEWS ? ['-', 'view-mode'] : []) }) : null;
 
         return {
             state: function () { return stateString() || null; },

@@ -1,9 +1,9 @@
 {
   "id": "yavc.editor",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "apiVersion": 1,
   "title": "Editor",
-  "description": "Text and source editing with editable Markdown Visual and Split views.",
+  "description": "Text and source editing. A Markdown document is drawn in Docs; the Editor shows its text.",
   "actions": [
     {
       "ref": "yavc.editor/page-setup@1",
@@ -274,7 +274,7 @@
     {
       "ref": "yavc.editor/table@1",
       "title": "Edit Selected Table",
-      "description": "Apply a table operation at the current rich selection in Visual or Split view. Alignment changes every cell in the selected columns.",
+      "description": "This action moved to yavc.docs/table@1. Editor returns migration guidance without changing content.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -584,7 +584,7 @@
     {
       "ref": "yavc.editor/open-file@1",
       "title": "Open a File",
-      "description": "Open one of the person's files or a page of the site in Editor, and make it current. A file already open comes to the front.",
+      "description": "Open one of the person's files or a page of the site in Editor, and make it current. A file already open comes to the front. A Markdown document (.md or .markdown) opens in Docs: use yavc.docs/open-file@1, or give view \"text\" here to open its text in the Editor.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -594,6 +594,12 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1024
+          },
+          "view": {
+            "enum": [
+              "text"
+            ],
+            "description": "Give text to open a Markdown document as its text in the Editor."
           }
         },
         "required": [
@@ -982,7 +988,7 @@
     {
       "ref": "yavc.editor/view@1",
       "title": "Set the View",
-      "description": "How the person sees the current document: its text, the page as it looks (Markdown only), both, or a preview.",
+      "description": "How the person sees the current document. The Editor shows every document as its text, so text is the only mode. A Markdown document is drawn as a page in Docs.",
       "live": true,
       "inputSchema": {
         "type": "object",
@@ -990,11 +996,7 @@
         "properties": {
           "mode": {
             "enum": [
-              "text",
-              "visual",
-              "split",
-              "preview",
-              "document"
+              "text"
             ]
           }
         },
