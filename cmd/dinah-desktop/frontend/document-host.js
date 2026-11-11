@@ -34,7 +34,7 @@
      Error's message. */
   function failing(err) { throw err instanceof Error ? err : new Error(message(err)); }
   function say(text, tone) {
-    if (window.pudlToast) window.pudlToast(text, { tone: tone || 'danger' }); else console.error(text);
+    if (window.pudlToast) window.pudlToast(text, { kind: tone || 'danger' }); else console.error(text);
   }
 
   /* ---- The document the applet shows --------------------------------------
@@ -187,6 +187,14 @@
     if (!resource || resource.indexOf('untitled:') === 0 || !href || (context && context.current && !context.current())) return Promise.resolve(null);
     var name = href;
     try { name = decodeURIComponent(href); } catch (_) { name = href; }
+    /* A site path is read from the web root the person chose for the
+       document, and is nothing this page resolves when they chose none. */
+    if (name.charAt(0) === '/') {
+      if (name.charAt(1) === '/') return Promise.resolve(null);
+      return app().WebRoot(resource).then(function (root) {
+        return root ? { url: new URL('file?' + new URLSearchParams({ doc: resource, name: name }), document.baseURI).href } : null;
+      }, function () { return null; });
+    }
     return Promise.resolve({ url: new URL('file?' + new URLSearchParams({ doc: resource, name: name }), document.baseURI).href });
   }
 
@@ -355,6 +363,23 @@
     if (bar) bar.setAttribute('aria-label', attached.applicationName);
     document.getElementById('document-new-window').addEventListener('click', function () {
       app().NewWindow().catch(function (err) { say(message(err)); });
+    });
+    /* The web root is the folder a document's site paths start from, such
+       as /images/chart.png. The person chooses it; nothing guesses it. */
+    document.getElementById('document-set-web-root').addEventListener('click', function () {
+      var resource = resourceNow();
+      if (!resource || resource.indexOf('untitled:') === 0) { say('Save the document to a file before choosing its web root.'); return; }
+      app().PickWebRoot(resource).then(function (root) {
+        if (root) say('The web root is ' + root + '. Pictures under it show when the document is next opened.', 'positive');
+      }, function (err) { say(message(err)); });
+    });
+    document.getElementById('document-clear-web-root').addEventListener('click', function () {
+      var resource = resourceNow();
+      if (!resource || resource.indexOf('untitled:') === 0) return;
+      app().WebRoot(resource).then(function (root) {
+        if (!root) { say('This document has no web root.', 'warn'); return null; }
+        return app().ClearWebRoot(resource).then(function () { say(root + ' is no longer a web root.', 'positive'); });
+      }).catch(function (err) { say(message(err)); });
     });
     document.getElementById('document-close-window').addEventListener('click', function () {
       app().CloseWindow().catch(function (err) { say(message(err)); });

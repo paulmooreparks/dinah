@@ -22,6 +22,14 @@ The page's bridge is the `Page` type in `internal/docservice/page.go`. It reads 
 
 The service's other face is the control interface under `/control`, for programs: a window's process, and any other program of the product that wants a document opened or acted on. It wants the token in the service's file, which is in the person's own state folder, and it refuses a request that carries a browser's `Origin`.
 
+## The web root
+
+A document written for a site may show a picture by a site path, such as `/images/chart.png`, which starts at the top folder of the site and says nothing about where that folder is on this computer. The person says where it is with Set Web Root in the application menu, which shows the system folder dialog. The folder chosen must contain the document. It is then the web root of every file under it, in every application, and it is kept in `webroots.json` in the service folder (`internal/docservice/webroot.go`). Clear Web Root forgets it.
+
+Nothing guesses a web root, and a document cannot state one for itself. Paul decided both on 11 November 2026. A folder name such as `wwwroot` is one site's habit, and a document that could say where its web root is could point the page at a folder of its own choosing, on a computer where that path means something else.
+
+The page's picture resolver returns nothing for a site path when the document has no web root. With one, the service reads the file from that folder through `os.Root`, after cleaning the path, so that neither `..` nor a link leads out of the folder. It serves pictures only, as it does for the files beside a document.
+
 ## The file, and what is not saved yet
 
 The service keeps no copy of a document and there is no draft store behind the page, as there is in the main window. The page gives the Editor yavc.app's written contracts and nothing else, as yavc.app's own bare test host does.

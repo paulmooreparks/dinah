@@ -140,7 +140,8 @@ func (s *Service) enter(w http.ResponseWriter, r *http.Request, d *document, pre
 }
 
 // servePicture serves a picture a document shows by a name of its own, from
-// beside one of the page's files, as the file provider finds such a file.
+// beside one of the page's files, as the file provider finds such a file,
+// or by a site path, from the document's web root (webroot.go).
 func (s *Service) servePicture(w http.ResponseWriter, r *http.Request, d *document) {
 	page := &Page{d: d}
 	path, err := page.file(r.URL.Query().Get("doc"))
@@ -150,8 +151,14 @@ func (s *Service) servePicture(w http.ResponseWriter, r *http.Request, d *docume
 		http.NotFound(w, r)
 		return
 	}
-	folder, base := folderOf(path)
-	data, err := folder.ReadFile(r.Context(), base, name)
+	var data []byte
+	if strings.HasPrefix(name, "/") {
+		// A site path, read from the web root the person chose.
+		data, err = s.readUnderWebRoot(path, name)
+	} else {
+		folder, base := folderOf(path)
+		data, err = folder.ReadFile(r.Context(), base, name)
+	}
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -209,6 +216,8 @@ func (s *Service) serveControl(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Open []string `json:"open"`
 			Save []string `json:"save"`
+			// Folder is what each folder dialog will choose.
+			Folder []string `json:"folder"`
 		}
 		if !body(w, r, &req) {
 			return
@@ -218,6 +227,7 @@ func (s *Service) serveControl(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.SetDialogs(req.Open, req.Save)
+		s.SetFolderDialogs(req.Folder)
 		reply(w, struct{}{})
 	case path == "/stop" && post:
 		reply(w, struct{}{})

@@ -587,6 +587,14 @@ func (s *Service) SetDialogs(open, save []string) {
 	s.dialogs["save"] = append(s.dialogs["save"], save...)
 }
 
+// SetFolderDialogs says what the system's folder dialog will choose next in
+// a headless service.
+func (s *Service) SetFolderDialogs(folders []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dialogs["folder"] = append(s.dialogs["folder"], folders...)
+}
+
 // choose shows one of the system's dialogs in a document's window and
 // returns the path chosen, or "" when the person cancelled.
 func (s *Service) choose(ctx context.Context, d *document, kind string, data any) (string, error) {

@@ -151,7 +151,7 @@ func runDocumentWindow(args []string) int {
 	if _, named := documentProgramApplication(os.Args[0]); !named {
 		setProcessIdentity(start.application)
 	}
-	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, hidden: testing || hidden, entryFile: entryFile, application: start.application, pickOpen: systemPickOpen, pickSave: systemPickSave}
+	w := &documentWindow{client: client, id: opened.ID, entry: opened.Entry, testing: testing, hidden: testing || hidden, entryFile: entryFile, application: start.application, pickOpen: systemPickOpen, pickSave: systemPickSave, pickFolder: systemPickFolder}
 	err = wails.Run(&options.App{
 		EnableDefaultContextMenu: true,
 		Title:                    opened.Title,
@@ -188,6 +188,8 @@ type documentWindow struct {
 	// chosen, or nothing when the person chose none.
 	pickOpen func(ctx context.Context, folder string) string
 	pickSave func(ctx context.Context, folder, name string) string
+	// pickFolder shows the system's folder dialog.
+	pickFolder func(ctx context.Context, folder string) string
 
 	mu    sync.Mutex
 	entry string
@@ -317,6 +319,8 @@ func (w *documentWindow) obey(ctx context.Context, c docservice.Command) {
 		w.client.Reply(ctx, w.id, c.Seq, true)
 	case "pick-open":
 		w.choose(ctx, c.Seq, func() string { return w.pickOpen(ctx, data.Folder) })
+	case "pick-folder":
+		w.choose(ctx, c.Seq, func() string { return w.pickFolder(ctx, data.Folder) })
 	case "pick-save":
 		w.choose(ctx, c.Seq, func() string { return w.pickSave(ctx, data.Folder, data.Name) })
 	}
@@ -338,6 +342,11 @@ func (w *documentWindow) choose(ctx context.Context, seq int64, pick func() stri
 
 func systemPickOpen(ctx context.Context, folder string) string {
 	chosen, _ := wruntime.OpenFileDialog(ctx, wruntime.OpenDialogOptions{Title: "Open", DefaultDirectory: folder})
+	return chosen
+}
+
+func systemPickFolder(ctx context.Context, folder string) string {
+	chosen, _ := wruntime.OpenDirectoryDialog(ctx, wruntime.OpenDialogOptions{Title: "Web Root", DefaultDirectory: folder})
 	return chosen
 }
 
