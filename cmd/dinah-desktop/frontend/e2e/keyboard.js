@@ -124,7 +124,12 @@ const { launch, PAGE } = require('./lib/page');
     const panel = p.locator('#menubar-panel');
     // The bar redraws when the front window's commands change, so the title is found and pressed in one step.
     const openTitle = async name => {
-      const found = await p.evaluate(name => { const el = [...document.querySelectorAll('.menubar-title')].find(e => e.textContent.trim() === name && e.offsetParent); if (el) el.click(); return !!el; }, name);
+      // The window just brought forward may not have redrawn the bar yet, so the title is looked for until it is there.
+      let found = false;
+      for (let i = 0; i < 40 && !found; i++) {
+        found = await p.evaluate(name => { const el = [...document.querySelectorAll('.menubar-title')].find(e => e.textContent.trim() === name && e.offsetParent); if (el) el.click(); return !!el; }, name);
+        if (!found) await p.waitForTimeout(50);
+      }
       if (!found) throw new Error('no title ' + name + ' among: ' + (await p.locator('.menubar-title:visible').allTextContents()).join(' | '));
       await panel.waitFor({ state: 'visible' });
     };

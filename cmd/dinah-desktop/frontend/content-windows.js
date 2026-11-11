@@ -926,11 +926,11 @@
     if (app !== 'editor') window.dinahUIState.followWindowMode(kindOf(app), 'editor');
     /* Each application is in the launcher's Documents category, and in Tools
        in the menu bar, and starts an empty, untitled document of its own kind
-       in the current workspace, which Save As puts somewhere; the Editor's is
-       also the taskbar's New Document (Paul, 9 November 2026). */
+       in the current workspace, which Save As puts somewhere (Paul, 9 November
+       2026). The Editor's is a text file. The taskbar's New Document is a
+       Markdown document, so it is Docs's. */
     var launcher = { mnemonic: MNEMONICS[app], category: 'documents', description: DESCRIPTIONS[app], icon: ICONS[app],
-      run: app === 'editor' ? function () { return window.dinahEditor.newDocument(); }
-        : function () { return newDocument(undefined, '', app).catch(function (err) { host().toast(message(err), 'danger'); }); } };
+      run: function () { return newDocument(undefined, '', app).catch(function (err) { host().toast(message(err), 'danger'); }); } };
     window.dinahWorkbench.register(kindOf(app), { pinByItem: true, title: TITLES[app], glyph: GLYPHS[app], icon: ICONS[app], start: 'idle', launcher: launcher,
       applet: app === 'editor' ? { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true } : undefined,
       init: function (root, opts, item) { return init(app, root, opts, item); } });
@@ -954,18 +954,27 @@
   var documentViews = { 'text/markdown': 'page' };
   window.dinahDocumentViews = function (views) { if (views) documentViews = views; return documentViews; };
 
-  /* A new document is Markdown, and so is a document of a source other than
-     a folder whose path has no file name with an extension (a page on a
+  /* The file name a document's kind is read from: its path, or for a new
+     document its title when the title ends as a file name does (the
+     Editor's "Untitled.txt", or a file from outside every workspace, which
+     is titled with its own name). */
+  function pathOf(v) {
+    var o = v.origin || {};
+    if (o.kind === 'new') return /\.[A-Za-z0-9]{1,8}$/.test(v.title || '') ? v.title : '';
+    return o.path || '';
+  }
+  /* A new document is Markdown unless its title says otherwise, and so is a
+     document of a source other than a folder whose path has no file name with an extension (a page on a
      site, which its source reads as Markdown), as the applets read it
      (nameOf in content-host.js). A file is Markdown by its extension. */
   function markdown(v) {
-    var o = v.origin || {}, path = o.path || '';
-    if (o.kind === 'new') return true;
+    var o = v.origin || {}, path = pathOf(v);
+    if (o.kind === 'new' && !path) return true;
     if (o.kind && o.kind !== 'local-folder' && !/\.[A-Za-z0-9]{1,8}$/.test(path.split(/[\\/]/).pop())) return true;
     return /\.(md|markdown)$/i.test(path);
   }
   function placeFor(v, intent) {
-    var path = (v.origin && v.origin.path) || '';
+    var path = pathOf(v);
     if (intent === 'text') return { app: 'editor', view: 'text' };
     if (/\.docs\.md$/i.test(path)) return { app: 'docs' };
     if (/\.(d2|mmd|mermaid|canvas)$/i.test(path)) return { app: 'diagrams' };
@@ -1046,8 +1055,14 @@
       }).catch(function (err) { host().toast(message(err), 'danger'); });
   }
 
+  /* The Editor's new document is a text file, "Untitled.txt": the Editor
+     edits text and Markdown is Docs's, so a document started in the Editor
+     is not Markdown, and Save As offers it as a text file (Paul, 12 November
+     2026). Any other application's is "Untitled", in its own format. */
   function newDocument(workspaceId, text, app) {
     return Promise.resolve(api().NewEmptyDraft(workspaceId || (host() && host().workspaceId()) || '')).then(function (v) {
+      return app === 'editor' ? api().RetitleDraft(v.id, v.revision, 'Untitled.txt') : v;
+    }).then(function (v) {
       if (!text) return v;
       return api().UpdateDraft(v.id, v.revision, text);
     }).then(function (v) { return open(v, app); });

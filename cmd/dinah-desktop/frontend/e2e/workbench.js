@@ -51,9 +51,22 @@ const { launch } = require('./lib/page');
     ok('Notifications has its own glyph', await p.locator('[data-win="needs-you"]').getAttribute('data-win-glyph') !== await p.locator('[data-win="chat-browser"]').getAttribute('data-win-glyph'));
     ok('browser commands appear in View instead of Window', await p.locator('[data-menubar-source] [data-menubar-id="view"] > ul > li > [data-cmd="chat-browser"]').count() === 1 && await p.locator('[data-menubar-source] [data-menubar-id="view"] > ul > li > [data-cmd="skills-browser"]').count() === 1 && await p.locator('#host-windows [data-cmd]').count() === 0);
     ok('Tools launchers have one shared searchable catalog, with the Editor', await p.evaluate(() => dinahWorkbench.launchers().map(l => l.id).sort().join() === 'content-diagrams,content-docs,content-slides,editor,extensions,files,terminal,theme-editor' && !document.querySelector('[data-menubar-id="session"], [data-menubar-id="go"]')));
-    // Tools › Editor starts an empty, untitled document.
-    await p.evaluate(() => { window.__emptyDraft = null; go.main.App.NewEmptyDraft = async ws => { window.__emptyDraft = ws; return { id: 'e'.repeat(32), title: 'Untitled', text: '', revision: 'r', documentType: '', origin: { kind: 'new', workspaceId: ws }, actions: ['update', 'discard', 'save-as'], suggestions: [], spans: [], changed: false }; }; return dinahWorkbench.launchers().find(l => l.id === 'editor').run(); });
+    // Tools › Editor starts an empty text document, "Untitled.txt", in the
+    // Editor's own window; Docs's is "Untitled", in Docs's.
+    await p.evaluate(() => {
+      window.__emptyDraft = null; window.__retitled = [];
+      const draft = (ws, title) => ({ id: 'e'.repeat(32), title, text: '', revision: 'r', documentType: '', origin: { kind: 'new', workspaceId: ws }, actions: ['update', 'discard', 'save-as'], suggestions: [], spans: [], changed: false });
+      go.main.App.NewEmptyDraft = async ws => { window.__emptyDraft = ws; return draft(ws, 'Untitled'); };
+      go.main.App.RetitleDraft = async (id, revision, title) => { window.__retitled.push(title); return draft(window.__emptyDraft, title); };
+      window.__opened = []; const open = dinahWorkbench.open; dinahWorkbench.open = item => { window.__opened.push(item.kind + ' ' + item.title); return open(item); };
+      return dinahWorkbench.launchers().find(l => l.id === 'editor').run();
+    });
     ok('Tools › Editor starts an empty document', await p.evaluate(() => window.__emptyDraft !== null));
+    ok('the new document of the Editor is a text file in the Editor', await p.evaluate(() => window.__retitled.join() === 'Untitled.txt' && window.__opened.join() === 'editor Untitled.txt'), await p.evaluate(() => JSON.stringify([window.__retitled, window.__opened])));
+    await p.evaluate(() => { window.__opened = []; return dinahWorkbench.launchers().find(l => l.id === 'content-docs').run(); });
+    ok('the new document of Docs is Markdown in Docs', await p.evaluate(() => window.__retitled.length === 1 && window.__opened.join() === 'content-docs Untitled'), await p.evaluate(() => JSON.stringify([window.__retitled, window.__opened])));
+    await p.evaluate(() => { window.__opened = []; return dinahEditor.newDocument(); });
+    ok('New Document is Markdown in Docs', await p.evaluate(() => window.__opened.join() === 'content-docs Untitled'), await p.evaluate(() => JSON.stringify(window.__opened)));
     await p.evaluate(()=>pudlMenubar.launcherButton().click());
     await p.locator('[data-launcher-action="find-tool"]').click();
     await p.fill('#go-to-filter', 'notes or a script');
