@@ -151,7 +151,7 @@
             var images = new Map(), totalImageBytes = 0;
             for (var pair of pictures) {
                 if (options.current && !options.current()) { throw new Error('The document changed during export.'); }
-                var spec = pair[1], siteImage = spec.source && /^\/(?!\/)/.test(spec.source), local = spec.path || (spec.source && !siteImage && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(spec.source) ? spec.source : null), src = local ? await K.pictureFor(local, options.pictures) : spec.source;
+                var spec = pair[1], siteImage = spec.source && /^\/(?!\/)/.test(spec.source), local = spec.path || (spec.source && !siteImage && !/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(spec.source) ? spec.source : null), src = local ? await K.pictureFor(local, options.pictures) : siteImage ? await K.sitePicture(spec.source, options.pictures) : spec.source;
                 var owned=null,picture;
                 try{if(siteImage || local&&/^https?:/i.test(src||'')){owned=await hostRaster(src,options);src=owned;}
                     picture=await image(src||'',(page.width-page.margins[0]-page.margins[2])/.75,(page.height-page.margins[1]-page.margins[3]-12)/.75);

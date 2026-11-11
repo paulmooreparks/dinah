@@ -15,7 +15,7 @@
             });
         });
         return { ready:ready, state:function () {return api ? api.state() : state;}, setState:function (value) {if(disposed)return;state=value;revision++;if(booted)return api.setState(value);},
-            menus:function () {return api ? api.menus() : {titles:[],into:{}};}, commandTable:function () {return api ? api.commandTable() : [];}, toolbars:function () {return api ? api.toolbars() : [];},
+            menus:function () {return api ? api.menus() : {titles:[{label:'Docs',glyph:'document',items:[]}],into:{}};}, commandTable:function () {return api ? api.commandTable() : [];}, toolbars:function () {return api ? api.toolbars() : [];},
             destroy:function () {disposed=true;if(api)api.destroy();} };
     }});
 })();

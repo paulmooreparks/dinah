@@ -160,7 +160,14 @@ var schemaCache = null;
        as an extra cell that pushed the row over. allowGapCursor, documented
        in prosemirror-gapcursor's README, keeps it out of a row. */
     table.table_row = Object.assign({}, table.table_row, { allowGapCursor: false });
-    var headings = [1, 2, 3, 4, 5, 6].map(function (l) { return { tag: 'h' + l, attrs: { level: l } }; });
+    /* An attribute block, the braces after a heading or a link
+       ({#anchor .class name="value"}), is kept with its node as the text
+       between the braces and is not drawn. It is written on the element so
+       that the node read back from the page still has it. The engine checks
+       it again before writing it (decision 123). */
+    function blockOf(d) { var raw = d.getAttribute('data-md-attributes'); return raw && raw.length <= 1024 && !/[{}\r\n]/.test(raw) ? raw : null; }
+    function blockAttr(raw) { return raw ? { 'data-md-attributes': raw } : {}; }
+    var headings = [1, 2, 3, 4, 5, 6].map(function (l) { return { tag: 'h' + l, getAttrs: function (d) { return { level: l, attributes: blockOf(d) }; } }; });
     schemaCache = new PM.Schema({
       nodes: {
         /* refs says the text could define a link reference when it was
@@ -168,8 +175,8 @@ var schemaCache = null;
            without an escape (decision 118). The default is the careful one. */
         doc: { content: 'block+', attrs: { front: { default: '' }, tail: { default: '\n' }, crlf: { default: false }, refs: { default: true } } },
         paragraph: { group: 'block', content: 'inline*', attrs: withPlace(), parseDOM: [{ tag: 'p' }], toDOM: function () { return ['p', 0]; } },
-        heading: { group: 'block', content: 'inline*', defining: true, attrs: withPlace({ level: { default: 1 } }), parseDOM: headings,
-          toDOM: function (n) { return ['h' + n.attrs.level, 0]; } },
+        heading: { group: 'block', content: 'inline*', defining: true, attrs: withPlace({ level: { default: 1 }, attributes: { default: null } }), parseDOM: headings,
+          toDOM: function (n) { return ['h' + n.attrs.level, blockAttr(n.attrs.attributes), 0]; } },
         blockquote: { group: 'block', content: 'block+', defining: true, attrs: withPlace(), parseDOM: [{ tag: 'blockquote' }], toDOM: function () { return ['blockquote', 0]; } },
         bullet_list: { group: 'block', content: 'list_item+', attrs: withPlace({ tight: { default: true }, marker: { default: '-' } }), parseDOM: [{ tag: 'ul' }],
           toDOM: function (n) { return ['ul', n.attrs.tight ? { class: 'pm-tight' } : {}, 0]; } },
@@ -283,12 +290,12 @@ var schemaCache = null;
             return name && open ? { name: name, open: open } : false;
           } }],
           toDOM: function (mark) { return ['span', { class: 'sc-host', 'data-host-shortcode': mark.attrs.name, 'data-host-kind': 'span', 'data-host-source': mark.attrs.open }, 0]; } },
-        link: { attrs: { href: {}, title: { default: null }, auto: { default: false } }, inclusive: false,
+        link: { attrs: { href: {}, title: { default: null }, auto: { default: false }, attributes: { default: null } }, inclusive: false,
           // A pasted link to an address that is not safe is pasted as its
           // text, and one written in the document is drawn without its
           // address (safe-html.js).
-          parseDOM: [{ tag: 'a[href]', getAttrs: function (d) { var href = d.getAttribute('href'); return window.yavcHTML.attr('href', href) ? { href: href } : false; } }],
-          toDOM: function (m) { return ['a', window.yavcHTML.attr('href', m.attrs.href) ? { href: m.attrs.href } : {}, 0]; } },
+          parseDOM: [{ tag: 'a[href]', getAttrs: function (d) { var href = d.getAttribute('href'); return window.yavcHTML.attr('href', href) ? { href: href, attributes: blockOf(d) } : false; } }],
+          toDOM: function (m) { return ['a', Object.assign(window.yavcHTML.attr('href', m.attrs.href) ? { href: m.attrs.href } : {}, blockAttr(m.attrs.attributes)), 0]; } },
         strong: { parseDOM: [{ tag: 'strong' }, { tag: 'b' }], toDOM: function () { return ['strong', 0]; } },
         em: { parseDOM: [{ tag: 'em' }, { tag: 'i' }], toDOM: function () { return ['em', 0]; } },
         underline: { parseDOM: [{ tag: 'u' }], toDOM: function () { return ['u', 0]; } },
@@ -1973,7 +1980,10 @@ var schemaCache = null;
         case 'superscript': cmd = PM.toggleMark(s.marks.sup); break;
         case 'subscript': cmd = PM.toggleMark(s.marks.sub); break;
         case 'strike': cmd = PM.toggleMark(s.marks.strike); break;
-        case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6': cmd = PM.setBlockType(n.heading, { level: +name.charAt(1) }); break;
+        case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6':
+          /* A heading that changes level keeps its anchor and classes. */
+          var $at = view.state.selection.$from, here = $at.sameParent(view.state.selection.$to) && $at.parent.type === n.heading ? $at.parent.attrs.attributes : null;
+          cmd = PM.setBlockType(n.heading, { level: +name.charAt(1), attributes: here }); break;
         case 'paragraph': cmd = PM.setBlockType(n.paragraph); break;
         case 'quote':
           cmd = function (state, dispatch) {
@@ -2019,11 +2029,14 @@ var schemaCache = null;
     /* The link for the selection, asked in the site's dialog
        (static/dialogs.js): an address, or none to take the link away. */
     function linkDialog() {
-      var v = view, s = v.state, mark = s.schema.marks.link, current = '';
+      var v = view, s = v.state, mark = s.schema.marks.link, current = '', found = [];
       s.doc.nodesBetween(s.selection.from, Math.max(s.selection.to, s.selection.from + 1), function (node) {
         var m = mark.isInSet(node.marks);
-        if (m) current = m.attrs.href;
+        if (m) { current = m.attrs.href; if (found.indexOf(m.attrs.attributes) < 0) found.push(m.attrs.attributes); }
       });
+      /* A link given another address keeps its attribute block, when the
+         selection held one link's worth of them. */
+      var kept = found.length === 1 ? found[0] : null;
       var from = s.selection.from, to = s.selection.to;
       function unchanged() { return on && view === v && !sourceStale && !frozen && v.state.doc === s.doc && v.state.selection.eq(s.selection); }
       window.yavcDialog.askText('Link', 'Address', current, { signal: o.signal, placeholder: 'https://', help: 'Leave the address empty to take the link away.', okLabel: 'Apply', validate: function () { return unchanged() ? null : 'The document or selection changed. Reopen this form.'; } }).then(function (address) {
@@ -2036,7 +2049,7 @@ var schemaCache = null;
           tr.insertText(address, from).addMark(from, from + address.length, mark.create({ href: address }));
         } else {
           tr.removeMark(from, to, mark);
-          if (address) tr.addMark(from, to, mark.create({ href: address }));
+          if (address) tr.addMark(from, to, mark.create({ href: address, attributes: kept }));
         }
         v.dispatch(tr);
       });

@@ -1649,16 +1649,39 @@
        from the folder and shown; one not found is marked. */
     var imageRequests=new WeakMap();
     function loadImages(target, pictures, force) {
-        return Promise.all(Array.from(target.querySelectorAll('img[data-attachment]')).map(function(img){
+        var own=Array.from(target.querySelectorAll('img[data-attachment]')).map(function(img){
             var name=img.dataset.attachment,owner=pictures&&pictures.identity?pictures.identity():null,resource=pictures&&pictures.resource,previous=imageRequests.get(img);
             if(!force&&previous&&previous.name===name&&previous.owner===owner&&previous.resource===resource)return previous.promise;
-            var request={name:name,owner:owner,resource:resource};imageRequests.set(img,request);img.removeAttribute('src');
+            /* Asked again for the same picture (force), the one showing
+               stays until the answer differs. */
+            var request={name:name,owner:owner,resource:resource};imageRequests.set(img,request);if(!force||!previous||previous.name!==name)img.removeAttribute('src');
             request.promise=pictureFor(name,pictures).then(function(url){
                 if(imageRequests.get(img)!==request||img.dataset.attachment!==name||pictures&&(pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current()))return;
                 img.classList.toggle('ed-missing-image',!url);
-                if(url)img.src=url;else img.alt=img.alt||name;
+                if(url){if(img.getAttribute('src')!==url)img.src=url;}else{img.removeAttribute('src');img.alt=img.alt||name;}
             });return request.promise;
-        }));
+        });
+        /* A picture at a path on the site (/images/chart.png) is the
+           site's own unless the host keeps the document's site somewhere
+           else, a web root on disk say. Such a host is asked, and what it
+           does not resolve stays the path as written. */
+        var hosted=pictures&&pictures.resources&&pictures.resources.resolve&&pictures.resource?Array.from(target.querySelectorAll('img[data-site-picture], img[src^="/"]:not([data-attachment])')).map(function(img){
+            var name=img.dataset.sitePicture||img.getAttribute('src'),owner=pictures.identity?pictures.identity():null,resource=pictures.resource,previous=imageRequests.get(img);
+            if(!/^\/(?!\/)/.test(name))return null;
+            if(!force&&previous&&previous.name===name&&previous.owner===owner&&previous.resource===resource)return previous.promise;
+            var request={name:name,owner:owner,resource:resource};imageRequests.set(img,request);img.dataset.sitePicture=name;
+            request.promise=sitePicture(name,pictures).then(function(url){
+                if(imageRequests.get(img)!==request||img.dataset.sitePicture!==name||pictures.signal&&pictures.signal.aborted||pictures.current&&!pictures.current())return;
+                if(img.getAttribute('src')!==url)img.src=url;
+            });return request.promise;
+        }):[];
+        return Promise.all(own.concat(hosted));
+    }
+    /* The address of a picture at a path on the site: the host's, when it
+       resolves the path for this document, and otherwise the path. */
+    function sitePicture(src, pictures) {
+        if(!pictures||!pictures.resources||!pictures.resources.resolve||!pictures.resource||!/^\/(?!\/)/.test(src))return Promise.resolve(src);
+        return pictureFound(src,Object.assign({},pictures,{site:null})).then(function(found){return found&&found.url||src;}).catch(function(){return src;});
     }
     /* A listing ({{code:path}}) is fetched as the page draws: a path on the
        site from /, or one of the reader's own files under ~. */
@@ -2083,7 +2106,7 @@
         tableCommand: tableCommand, quoteState: quoteState, wordCount: wordCount, readingMinutes: readingMinutes,
         commands: commands, editing: editing, apply: apply, classesOf: classesOf, insertItem: insertItem, inserts: inserts, textFormat: textFormat, textInsert: textInsert,
         askText: askText, askFields: askFields, askChoice: askChoice, askProperties: askProperties, STOCK: STOCK, askColour: askColour, askColours: askColours, askClass: askClass,
-        askFigure: askFigure, editBlock: editBlock, drawBlocks: drawBlocks, scopeFootnotes:scopeFootnotes, refreshReferences:refreshReferences, drawDiagram: drawDiagram, pictureFor: pictureFor, pictureData: pictureData, askShortcode: askShortcode, FORMS: FORMS, boxCommand: boxCommand, BOXES: BOXES, loadImages: loadImages, parseFigure: parseFigure, buildFigure: buildFigure, parseShortcode: parseShortcode,
+        askFigure: askFigure, editBlock: editBlock, drawBlocks: drawBlocks, scopeFootnotes:scopeFootnotes, refreshReferences:refreshReferences, drawDiagram: drawDiagram, pictureFor: pictureFor, sitePicture: sitePicture, pictureData: pictureData, askShortcode: askShortcode, FORMS: FORMS, boxCommand: boxCommand, BOXES: BOXES, loadImages: loadImages, parseFigure: parseFigure, buildFigure: buildFigure, parseShortcode: parseShortcode,
         fillHosts: fillHosts, prefillHosts: prefillHosts, hostSpan: hostSpan, editHostSpan: editHostSpan, hostInlineOnly: hostInlineOnly, askHostShortcode: askHostShortcode, askHostInsert: askHostInsert,
         _page: null
     };

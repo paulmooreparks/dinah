@@ -164,7 +164,7 @@
             reportCommands();
         }
 
-        var CM = null, sourceHistory = null, F = null, view = null, destroyed = false, startupFailed = false, unsubscribe = null, styleLifetime = new AbortController();
+        var CM = null, sourceHistory = null, F = null, view = null, destroyed = false, startupFailed = false, unsubscribe = null, unwatchPictures = null, styleLifetime = new AbortController();
         var tabs = [], active = -1, untitled = 0;
         var H = window.pudlHost || {}, resourceSession = null, resources = null, recovery = null;
         var documentWindows = H.documentWindows, documentReady = false, receivingDocument = false, unbindDocuments = null;
@@ -533,7 +533,26 @@
             var want = resolvedView(t, t.view || markdownDefault());
             if (want !== 'text' && t.lang === 'markdown' && want !== viewMode) { await setView(want); }
             markExplorer();
-            say(t.external ? 'This file was changed somewhere else since you opened it.' : '', t.external ? 'warn' : false);
+            say('', false);
+            tabWarning(t);
+        }
+        /* What is wrong with the document in front stays beside it as a
+           warning until it is put right: a recovered draft that can no
+           longer be saved over its file, or a file changed somewhere else.
+           The warning goes when the document it was about is saved under
+           another name, closed, or no longer in front. */
+        var tabWarned = false;
+        function staleReason(t) {
+            var keep = ' Use Save As to keep your text under another name.';
+            if (t.conflict === 'unavailable') return t.name + ' could not be read, so Save is unavailable until it can be.' + keep;
+            if (t.conflict === 'unknown') return 'This draft of ' + t.name + ' was kept without a record of the file it came from, so Save is unavailable.' + keep;
+            return t.name + ' was changed elsewhere after you edited it, so Save is unavailable.' + keep;
+        }
+        function tabWarning(t) {
+            var text = t && resources && t.conflict ? staleReason(t) : t && t.external ? 'This file was changed somewhere else since you opened it.' : '';
+            if (text) { say(text, 'warn'); tabWarned = true; }
+            else if (tabWarned) { window.yavcUtil.notice(el.tabs, ''); tabWarned = false; }
+            return text;
         }
 
         async function addTab(t, text,guard) {
@@ -744,6 +763,7 @@
                 if (destroyed || !tabs.includes(t)) return false;
             }
             t.resource = accepted; t.baseline = null; t.conflict = null; t.path = accepted.resource;
+            if (current() === t) tabWarning(t);
             t.format=sourceFormat(t);
             t.name = accepted.name || t.name; t.lang = languageFor(t.name); t.savedRaw = text; t.saved = normalizedSource(text);
             if(current()===t)window.yavcMdEditor.refreshReferences(root,picturesHost());
@@ -2246,7 +2266,6 @@
             if (frontTab) { var fi = tabs.indexOf(frontTab); if (fi >= 0) { await activate(fi); } }
             var msg = back.length ? 'Your unsaved changes to ' + back.join(', ') + ' are back.' : '';
             if(all.some(function(k){return k&&k.history&&!k.sourceHistory;}))msg+=(msg?' ':'')+'The source and selection were restored. The previous editing history cannot be migrated.';
-            if (resources && tabs.some(function (t) { return !!t.conflict; })) msg += ' Some drafts no longer match their original revision. Save As preserves a copy without replacing the changed file.';
             if (waiting.length) {
                 msg += (msg ? ' ' : '') + 'Unsaved changes to ' + waiting.map(function (k) { return k.path; }).join(', ') +
                     ' are kept until the file can be reached again; you may need to sign in, then reload.';
@@ -2663,7 +2682,7 @@
             ] }];
         }
 
-        var LAYOUT = ['toggle-files', 'toggle-outline', 'hide-navigation', 'toggle-wrap', '-', 'view-document', 'view-visual', 'view-text', 'view-split', 'view-preview', 'document-zoom', 'md-default', '-', 'source', 'preview'];
+        var LAYOUT = ['toggle-files', 'toggle-outline', 'hide-navigation', 'toggle-wrap', '-'].concat(MARKDOWN_VIEWS.map(function (v) { return 'view-' + v[0]; }), ['document-zoom', 'md-default', '-', 'source', 'preview']);
         function menus() {
             var titles = [
                 { label: isDocs ? 'Docs' : 'Editor', glyph: isDocs ? 'document' : 'code', items: H.identity(root, ['key-bindings']) },
@@ -2744,6 +2763,17 @@
             view = new CM.EditorView({ parent: el.surface });
             view.scrollDOM.addEventListener('scroll', keep, { passive: true });
             unsubscribe = F ? F.onChange(onFsChange) : null;
+            /* A host that reports changes to files is also saying that the
+               document's pictures may have changed or moved, a web root
+               newly chosen say, so the pictures in view are asked for again
+               (content-workspace-contract.md). */
+            if (H.fs && H.fs.onChange) {
+                var picturesAgain = null;
+                unwatchPictures = H.fs.onChange(function () {
+                    clearTimeout(picturesAgain);
+                    picturesAgain = setTimeout(function () { if (!destroyed && current() && window.yavcMdEditor) window.yavcMdEditor.loadImages(root, picturesHost(), true); }, 150);
+                });
+            }
             var restored = await restoreKept();
             if(destroyed)return;
             /* The file the address or window asks for comes to the front,
@@ -2755,7 +2785,6 @@
                 if (startFile && F && !F.resolve(F.home(), startFile)) { await newNamed(startFile); } else if (!tabs.length) { await newTab(); }
             }
             restoring = false;
-            if (restored && restored.text) { say(restored.text, restored.error); }
             /* The view showing before the reload comes back, which asks the
                server for the page, so it is not waited for. */
             if (restored && current() && supportsView(current(), current().view)) { await setView(current().view); }
@@ -2763,6 +2792,12 @@
             var initialParams=new URLSearchParams(opts.state || (opts.ownsUrl ? location.search : ''));
             var requestedView = initialParams.get('view') || (!startExisted && current() && initialMode(current(),initialParams.get('initial-view')));
             if(requestedView){if(supportsView(current(),requestedView))await setView(requestedView);else say('This view is unavailable for this file. Choose a supported view from the toolbar.',true);}
+            /* What came back is said once the view has settled, since
+               showing a view clears the status line (standalone host
+               review, 2026-11-11). A draft that can no longer be saved
+               over its file has its own warning (tabWarning). */
+            function sayRestored() { if (restored && restored.text) { say(restored.text, restored.error); } }
+            sayRestored();
             /* The keyboard goes back where it was: into the text, unless the
                search panel had it, which opening it did. */
             if (snap && snap.focused) { if (!view.dom.contains(document.activeElement)) { view.focus(); } }
@@ -2775,7 +2810,8 @@
                     if (at >= 0) tabs.splice(at, 1);
                 });
                 active = -1; await activate(tabs.indexOf(front)); renderTabs(); if (snap) snap.flush();
-                if (split.error) say('Some recovered documents remain together. ' + split.error, 'warn');
+                sayRestored();
+                if (split.error) { var frontWarning = tabWarning(current()); say('Some recovered documents remain together. ' + split.error + (frontWarning ? ' ' + frontWarning : ''), 'warn'); tabWarned = true; }
             }
         }).catch(function (err) {
             if (destroyed) { return; }
@@ -2965,6 +3001,7 @@
                 styleLifetime.abort();
                 styleRevision++; clearTimeout(styleTimer); if (documentStyles) { documentStyles.destroy(); }
                 if (unsubscribe) { unsubscribe(); }
+                if (typeof unwatchPictures === 'function') { unwatchPictures(); }
                 if (unConfig) { unConfig(); }
                 unguard();
                 if (explorer) { explorer.destroy(); }
