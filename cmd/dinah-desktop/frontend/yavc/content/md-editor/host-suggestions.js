@@ -6,6 +6,28 @@
     function boundary(text,at){return Number.isInteger(at)&&at>=0&&at<=text.length&&!(at>0&&at<text.length&&(text[at-1]==='\r'&&text[at]==='\n'||/[\uD800-\uDBFF]/.test(text[at-1])&&/[\uDC00-\uDFFF]/.test(text[at])));}
     function lfOffset(text,at){return at-(text.slice(0,at).match(/\r\n/g)||[]).length;}
     function rawOffset(text,at){var raw=0,n=0;while(n<at&&raw<text.length){raw+=text[raw]==='\r'&&text[raw+1]==='\n'?2:1;n++;}return raw;}
+    /* How much of a suggestion's old and new text is the same at the start
+       and at the end, in characters, so that only what differs is marked.
+       Each length stops at the edge of a word, so a changed word is shown
+       whole and never as the letters that happen to differ. */
+    var WORD=/[\p{L}\p{N}_]/u;
+    function narrow(before,after){
+        var limit=Math.min(before.length,after.length),head=0,tail=0;
+        while(head<limit&&before[head]===after[head])head++;
+        while(head>0&&WORD.test(before[head-1])&&(head<before.length&&WORD.test(before[head])||head<after.length&&WORD.test(after[head])))head--;
+        while(head>0&&/[\uD800-\uDBFF]/.test(before[head-1]))head--;
+        while(tail<limit-head&&before[before.length-1-tail]===after[after.length-1-tail])tail++;
+        while(tail>0&&WORD.test(before[before.length-tail])&&(before.length-tail>head&&WORD.test(before[before.length-tail-1])||after.length-tail>head&&WORD.test(after[after.length-tail-1])))tail--;
+        while(tail>0&&/[\uDC00-\uDFFF]/.test(before[before.length-tail]))tail--;
+        return {head:head,tail:tail};
+    }
+    /* A line of a pipe table as its cells, or null for any other text. */
+    function cells(line){
+        if(/\n/.test(line)||!/^\s*\|.*\|\s*$/.test(line))return null;
+        var out=[],cell='',body=line.trim().slice(1,-1);
+        for(var i=0;i<body.length;i++){if(body[i]==='\\'&&i+1<body.length){cell+=body[i]+body[++i];}else if(body[i]==='|'){out.push(cell.trim());cell='';}else cell+=body[i];}
+        out.push(cell.trim());return out;
+    }
     function parse(snapshot,base){
         if(!snapshot||typeof snapshot.revision!=='string'||!snapshot.revision||snapshot.revision.length>4096||!Array.isArray(snapshot.items)||snapshot.items.length>256)throw new Error('Invalid host suggestion snapshot.');
         var text=snapshot.text===undefined&&base&&base.revision===snapshot.revision?base.text:snapshot.text;
@@ -35,13 +57,34 @@
         function data(){return view()&&view().state.field(field,false);}
         function current(){var owner=o.owner();return alive()&&binding&&binding.owner===owner&&binding.resource===(owner&&owner.path);}
         function key(item){return JSON.stringify([item.id,item.before,item.after,item.author,item.reason,item.stale,item.edited,overrides.get(item.id),busy.has(item.id),o.readOnly()]);}
-        function visible(item){return Object.assign({},item,{after:overrides.has(item.id)?overrides.get(item.id):item.after,edited:item.edited||overrides.has(item.id),pending:busy.has(item.id),readOnly:o.readOnly()});}
+        /* The suggestion as it is drawn. head and tail say how much of the
+           marked text the suggestion leaves as it is, and a stale one keeps
+           its whole range since its text is no longer the text there. */
+        function visible(item){var after=overrides.has(item.id)?overrides.get(item.id):item.after,same=item.stale?{head:0,tail:0}:narrow(normalize(item.before),normalize(after));return Object.assign({},item,{after:after,head:same.head,tail:same.tail,edited:item.edited||overrides.has(item.id),pending:busy.has(item.id),readOnly:o.readOnly()});}
+        /* What differs between two texts, drawn into a parent: the words
+           they share before and after it unmarked, and shortened when
+           long, the old words struck and the new ones beside them. */
+        function difference(parent,before,after,whole){
+            var same=narrow(before,after),head=before.slice(0,same.head),tail=before.slice(before.length-same.tail),old=before.slice(same.head,before.length-same.tail),fresh=after.slice(same.head,after.length-same.tail);
+            function context(text,end){if(!text)return;var span=document.createElement('span');span.className='host-suggestion-context';span.textContent=whole||text.length<=64?text:end?'…'+text.slice(-60).replace(/^\S*\s/,''):text.slice(0,60).replace(/\s\S*$/,'')+'…';parent.append(span);}
+            context(head,true);
+            /* Screen readers announce del and ins unevenly, so each is said in words too. */
+            function said(text){var span=document.createElement('span');span.className='visually-hidden';span.textContent=text;parent.append(span);}
+            if(old){said('Removed:');var removed=document.createElement('del');removed.className='host-suggestion-before';removed.textContent=old;parent.append(removed);}
+            if(fresh){said('Added:');var added=document.createElement('ins');added.className='host-suggestion-new';added.textContent=fresh;parent.append(added);}
+            else if(old&&!whole){var note=document.createElement('span');note.className='host-suggestion-context';note.textContent='Delete the marked text';parent.append(note);}
+            context(tail,false);
+        }
         function widget(item,block){
             item=visible(item);var box=document.createElement(block?'div':'span');box.className='host-suggestion'+(item.stale?' host-suggestion-stale':'');box.contentEditable='false';box.dataset.hostSuggestion=item.id;box.setAttribute('role','note');
             var who=(item.author||'An agent')+(item.reason?': '+item.reason:'');box.title=who;
             var label=document.createElement('span');label.className='host-suggestion-label';label.textContent=(item.stale?'Stale suggestion by ':'Suggested by ')+(item.author||'an agent')+(item.edited?' (edited)':'');box.append(label);
-            if(item.before){var removed=document.createElement('del');removed.className='host-suggestion-before';removed.textContent=item.before;box.append(removed);}
-            var replacement=document.createElement('span');replacement.className='host-suggestion-new';replacement.textContent=item.after||'Delete the marked text';box.append(replacement);
+            var before=normalize(item.before),after=normalize(item.after),was=block?cells(before.replace(/\n$/,'')):null,now=was?cells(after.replace(/\n$/,'')):null;
+            if(was&&now&&was.length===now.length&&was.length<=64){
+                /* A changed row of a table is drawn as its cells. */
+                var row=document.createElement('span');row.className='host-suggestion-cells';row.setAttribute('role','group');row.setAttribute('aria-label','Changed table row');
+                was.forEach(function(text,index){var cell=document.createElement('span');cell.className='host-suggestion-cell';if(text===now[index])cell.textContent=text;else{cell.classList.add('host-suggestion-cell-changed');difference(cell,text,now[index],true);}row.append(cell);});box.append(row);
+            }else difference(box,before,after,false);
             var actions=document.createElement('span');actions.className='host-suggestion-actions';
             [['accept','Accept','tick'],['reject','Reject','close'],['edit','Edit','pencil']].forEach(function(spec){
                 var origin={binding:binding,serial:serial},button=document.createElement('button');button.type='button';button.className='btn btn-sm';button.dataset.suggestionAction=spec[0];button.setAttribute('aria-label',spec[1]+' suggestion by '+(item.author||'an agent'));button.disabled=busy.has(item.id)||spec[0]!=='reject'&&(item.stale||o.readOnly());
@@ -56,7 +99,7 @@
             ignoreEvent(){return true;}
         }
         function decorate(value){
-            var marks=[];value.items.forEach(function(item){if(item.to>item.from)marks.push(CM.Decoration.mark({class:'host-suggestion-old'+(item.stale?' host-suggestion-stale':''),attributes:{title:(item.author||'An agent')+(item.reason?': '+item.reason:'')}}).range(item.from,item.to));marks.push(CM.Decoration.widget({widget:new SuggestionWidget(item),side:1}).range(item.to));});
+            var marks=[];value.items.forEach(function(item){var shown=visible(item),from=item.from+shown.head,to=item.to-shown.tail;if(to>from)marks.push(CM.Decoration.mark({class:'host-suggestion-old'+(item.stale?' host-suggestion-stale':''),attributes:{title:(item.author||'An agent')+(item.reason?': '+item.reason:'')}}).range(from,to));marks.push(CM.Decoration.widget({widget:new SuggestionWidget(item),side:1}).range(item.to));});
             return Object.assign({},value,{decorations:CM.Decoration.set(marks,true)});
         }
         var field=CM.StateField.define({create:function(){return decorate({items:[],revision:null,baseRaw:null,journal:[]});},update:function(value,tr){
@@ -134,6 +177,6 @@
         return {extension:field,refresh:refresh,update:function(update){if(update.docChanged||update.transactions.some(function(tr){return tr.effects.some(function(effect){return effect.is(set);});})){draw();o.changed();}},draw:draw,widget:widget,decide:decide,available:function(){return !!(current()&&data()&&data().items.length);},
             navigate:async function(direction){if(o.prepare)await o.prepare();if(!current())return;var items=data().items.slice().sort(function(a,b){return a.from-b.from;}),head=view().state.selection.main.head;if(!items.length)return;var item=direction>0?items.find(function(value){return value.from>head;})||items[0]:items.slice().reverse().find(function(value){return value.from<head;})||items[items.length-1];await o.navigate(item);},dispose:dispose};
     }
-    var api=Object.freeze({parse:parse,mapItem:mapItem,create:create});
+    var api=Object.freeze({parse:parse,mapItem:mapItem,narrow:narrow,cells:cells,create:create});
     if(typeof module==='object'&&module.exports)module.exports=api;else global.yavcHostSuggestions=api;
 })(typeof window==='undefined'?null:window);

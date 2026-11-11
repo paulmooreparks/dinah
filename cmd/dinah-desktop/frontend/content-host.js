@@ -541,11 +541,19 @@
   }
   /* ---- Commands of Dinah's in the applets' File menu ------------------------
      pudlHost.documentCommands, version 1 (yavc.app's
-     docs/document-commands-contract.md). Publish… stands in File after Save
-     As for a document whose source publishes what is written, such as a
-     page of a wiki, because File is where a person looks for it. It is the
-     Document menu's own command (documents.js): the same question before
-     it writes and the same write. The applet says which document it asks
+     docs/document-commands-contract.md). Publish… stands in the place of
+     Save for a document whose source publishes what is written, such as a
+     page of a wiki (Paul, 11 November 2026). On such a document the
+     applet's Save wrote to the draft, which is kept at every pause anyway,
+     so the button, File › Save and Ctrl+S did nothing a person could see
+     while the page stayed as it was. The command says replaces: 'save'
+     (yavc.app v0.2.71), and where it is present the applet draws its Save
+     button and File › Save with this command's label and state and runs
+     it for Ctrl+S; for any other document Save is the applet's own. Which
+     word the command has is a matter of the kind of place the document is
+     kept, one written as the person goes or one others read at once, and
+     of no one kind of source. It is the Document menu's own command
+     (documents.js): the same question before it writes and the same write. The applet says which document it asks
      about by the document's resource, which is on the window's mount. */
   function controllerOf(resource) {
     if (!resource || !window.dinahDocuments || !window.dinahDocuments.get) return null;
@@ -610,7 +618,7 @@
   var documentCommands = {
     version: 1,
     list: function (application) {
-      return application === 'editor' || application === 'docs' ? [{ id: 'publish', label: 'Publish…', glyph: 'upload', shortcut: 'Mod+Shift+U' },
+      return application === 'editor' || application === 'docs' ? [{ id: 'publish', label: 'Publish…', glyph: 'upload', shortcut: 'Mod+Shift+U', replaces: 'save' },
         { id: 'request-change', label: 'Request a Change…', glyph: 'pencil', shortcut: 'Mod+Shift+E', menu: 'review', context: true }] : [];
     },
     state: function (id, context) {

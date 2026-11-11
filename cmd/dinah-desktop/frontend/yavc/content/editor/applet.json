@@ -1,7 +1,7 @@
 {
   "name": "editor",
   "title": "Editor",
-  "version": "46.29.0",
+  "version": "46.30.0",
   "description": "Edit text and source code, with editable Markdown Visual and Split views.",
   "license": "Apache-2.0",
   "src": "editor.js",

@@ -787,6 +787,68 @@ var schemaCache = null;
       };
     }
 
+    /* Where a text is on the page inside a node, when it is there once
+       and inside one paragraph or cell; null otherwise. A shortcode or a
+       picture in the line counts as one character that no text matches. */
+    function onceOnPage(node, pos, needle) {
+      var found = null, many = false;
+      function search(block, at) {
+        var text = '', plain = true;
+        block.forEach(function (child) { if (child.isText) text += child.text; else if (child.isLeaf) text += '￼'; else plain = false; });
+        if (!plain) { if (block.textContent.indexOf(needle) >= 0) many = true; return; }
+        var first = text.indexOf(needle);
+        if (first < 0) return;
+        if (found || text.indexOf(needle, first + 1) >= 0) { many = true; return; }
+        found = { from: at + 1 + first, to: at + 1 + first + needle.length };
+      }
+      if (node.isTextblock) search(node, pos);
+      else node.descendants(function (child, offset) { if (child.isTextblock) { search(child, pos + 1 + offset); return false; } return true; });
+      return many ? null : found;
+    }
+
+    /* The marks for a suggestion that changes part of one block, or null
+       when the whole block is to be marked. changedFrom and changedTo are
+       the part of the text the suggestion changes, without the words it
+       leaves as they are at each end. A table whose text has a line for
+       each row has only the changed rows marked. Changed words that are
+       in the text once, and on the page once, are struck where they
+       stand; a place that cannot be found that surely keeps the wider
+       mark. */
+    function narrowedMarks(doc, block, text, changedFrom, changedTo, id) {
+      var node = doc.nodeAt(block.pos);
+      if (!node || changedFrom < block.from || changedTo > block.to || changedTo < changedFrom) return null;
+      var src = text.slice(block.from, block.to), old = text.slice(changedFrom, changedTo), marks = [];
+      function word(within, at, source) {
+        if (!old.trim() || /\n/.test(old)) return null;
+        var first = source.indexOf(old);
+        if (first < 0 || source.indexOf(old, first + 1) >= 0) return null;
+        var where = onceOnPage(within, at, old);
+        return where ? PM.Decoration.inline(where.from, where.to, { class: 'pm-sugg-word', 'data-suggestion': id }) : null;
+      }
+      if (node.type.name === 'table') {
+        var lines = src.split('\n'), html = /^\s*<tr[\s>].*<\/tr>\s*$/i, piped = lines.length > 1 && /^\s*\|?\s*:?-{1,}:?\s*(\||$)/.test(lines[1]);
+        var rows = [], start = block.from, touched = [];
+        lines.forEach(function (line, index) {
+          var end = start + line.length, isRow = piped ? index !== 1 && !!line.trim() : html.test(line);
+          var hit = changedTo > changedFrom ? start < changedTo && end > changedFrom : changedFrom >= start && changedFrom <= end;
+          if (isRow) rows.push({ from: start, line: line });
+          if (hit) touched.push(isRow ? rows.length - 1 : -1);
+          start = end + 1;
+        });
+        if (rows.length !== node.childCount || !touched.length || touched.indexOf(-1) >= 0) return null;
+        var at = block.pos + 1;
+        node.forEach(function (row, offset, index) {
+          if (touched.indexOf(index) < 0) return;
+          marks.push(PM.Decoration.node(at + offset, at + offset + row.nodeSize, { class: 'pm-sugg-old', 'data-suggestion': id }));
+          var struck = touched.length === 1 ? word(row, at + offset, rows[index].line) : null;
+          if (struck) marks.push(struck);
+        });
+        return marks;
+      }
+      var only = word(node, block.pos, src);
+      return only ? [only] : null;
+    }
+
     function suggestionDecorations(doc,previous) {
       var none = PM.DecorationSet.empty;
       if (!suggested.list.length) return none;
@@ -810,7 +872,9 @@ var schemaCache = null;
         if (hit.length) {
           start = Math.min(from, hit[0].from);
           end = Math.max(to, hit[hit.length - 1].to);
-          hit.forEach(function (b) { decos.push(PM.Decoration.node(b.pos, b.pos + b.size, { class: 'pm-sugg-old'+(s.stale?' host-suggestion-stale':''), 'data-suggestion': s.id })); });
+          var narrowed = hit.length === 1 && !s.stale ? narrowedMarks(doc, hit[0], lf, from + (s.head || 0), to - (s.tail || 0), s.id) : null;
+          if (narrowed) narrowed.forEach(function (d) { decos.push(d); });
+          else hit.forEach(function (b) { decos.push(PM.Decoration.node(b.pos, b.pos + b.size, { class: 'pm-sugg-old'+(s.stale?' host-suggestion-stale':''), 'data-suggestion': s.id })); });
           var last = hit[hit.length - 1];
           at = last.pos + last.size;
         } else {

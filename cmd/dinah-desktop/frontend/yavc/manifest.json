@@ -1,5 +1,5 @@
 {
-  "digest": "5caafe36f9f7fe36584359d0527916c52e34e9bea6c678562c862fdee99dbac7",
+  "digest": "15351bddf286c1af7c9e4e8fbe7b10f7c485695a9565e94e366581651d90357a",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -151,7 +151,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "4c88238cb17da5e38ae94df540e29b84a4fd04283727d8dc38202b44b6901501"
+      "sha256": "62b9096dba562e1b141454e49065ab078d4dff51445cc20b415bcae8701d3a9c"
     },
     {
       "path": "content/docs/docs.css",
@@ -181,7 +181,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 695,
-      "sha256": "1d5418c03ad027a0a5b3d20ef0e26ecf1ec588239632f784bef5d6c37e3b4126"
+      "sha256": "c0d1be5d5989527d52595bb86bc6e436dd2be129c90c230aaf0d63ffdcda1e50"
     },
     {
       "path": "content/editor/editor.css",
@@ -225,8 +225,8 @@
     },
     {
       "path": "content/md-editor/host-suggestions.js",
-      "bytes": 15116,
-      "sha256": "645ba727862270bc68e396b10f04caff028df9c4b5786bbe805a2432b80a24e2"
+      "bytes": 19218,
+      "sha256": "27bc815463e4a40f0d55b48cbcc0291f327f9b39e11770ace5befa99044e699c"
     },
     {
       "path": "content/md-editor/import-images.js",
@@ -360,8 +360,8 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 145143,
-      "sha256": "372d5938f19631f3c23cf3eb37aa02c9c493aa65bc5a97c3e2f4d537c7a3ea9d"
+      "bytes": 149026,
+      "sha256": "9ae9073c210dd2f744e5a1d2211b54c068f24149fd4e740c1b05bdb7a78a30ae"
     },
     {
       "path": "content/md-editor/pages.js",
@@ -390,8 +390,8 @@
     },
     {
       "path": "content/md-editor/styles.css",
-      "bytes": 8435,
-      "sha256": "986b2a17794f28393ca1c0e586d885bb6252490bbbb6bfd9e11302c78bd2e53f"
+      "bytes": 9289,
+      "sha256": "3f737da309caaf1bac1d71e34e39886edd88735db463fd3647872ee2866e7106"
     },
     {
       "path": "content/md-editor/typography-ui.js",
@@ -1296,7 +1296,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "aed31a4dd30c746bafbf77ae75e0abcc5dab770dc1d5cd84587a3620d70cb76e"
+      "sha256": "ee1278813e996e6d91d07c500889ad5553cfabe5de55eb017adfdb0e5ed163c7"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1390,8 +1390,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 240468,
-      "sha256": "975dcbebe735cca7d1b3946fe3aaf986f82e68b42f6d5d962c03bcca50c28717"
+      "bytes": 242515,
+      "sha256": "4458d95c1225491cff642058a06bdaa7ebbc929aa2ffec2296943fd1ea6b5ea7"
     },
     {
       "path": "go.mod",
@@ -2440,8 +2440,8 @@
     },
     {
       "path": "workspace-lab/host.js",
-      "bytes": 5543,
-      "sha256": "d302e941a538a409e07c893b0bee00d104683a2ff314406faf4528f23dff4309"
+      "bytes": 6233,
+      "sha256": "ad4b5dd580ab161052af804c034cb7ae1fdec51398b442b40f5330b79b39f3f3"
     },
     {
       "path": "workspace-lab/index.html",

@@ -175,7 +175,7 @@
            is checked here, since it is drawn in this applet's menu. */
         var hostCommands = (function () {
             var service = H.documentCommands, declared = [];
-            if (!service || service.version !== 1 || typeof service.list !== 'function' || typeof service.state !== 'function' || typeof service.run !== 'function') return { declared: declared, rows: function () { return []; }, watch: function () { return null; } };
+            if (!service || service.version !== 1 || typeof service.list !== 'function' || typeof service.state !== 'function' || typeof service.run !== 'function') return { declared: declared, rows: function () { return []; }, standIn: function () { return null; }, watch: function () { return null; } };
             try {
                 (service.list(app) || []).slice(0, 8).forEach(function (d) {
                     if (!d || typeof d.id !== 'string' || !/^[a-z][a-z0-9-]{0,39}$/.test(d.id) || typeof d.label !== 'string' || !d.label.trim() || d.label.length > 64 || /[\x00-\x1f\x7f]/.test(d.label)) return;
@@ -183,6 +183,8 @@
                     declared.push({ id: d.id, label: d.label, glyph: typeof d.glyph === 'string' && /^[a-z0-9-]{1,40}$/.test(d.glyph) ? d.glyph : undefined,
                         shortcut: typeof d.shortcut === 'string' && /^(?:(?:Mod|Ctrl|Alt|Shift)\+){0,3}(?:[A-Z0-9]|F[1-9]|F1[0-2])$/.test(d.shortcut) ? d.shortcut : undefined,
                         menu: d.menu === 'review' ? 'review' : 'file', context: d.context === true,
+                        /* One command may stand in place of Save, the first that asks. */
+                        replaces: d.replaces === 'save' && !declared.some(function (x) { return x.replaces; }) ? 'save' : null,
                         after: typeof d.after === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(d.after) ? d.after : null });
                 });
             } catch (err) { declared = []; }
@@ -210,6 +212,17 @@
                 try { s = service.state(d.id, context()); } catch (err) { s = null; }
                 return { present: !!(s && s.present === true), disabled: !!(s && s.disabled), reason: s && typeof s.reason === 'string' ? s.reason.slice(0, 200) : undefined };
             }
+            /* What is typed on the page is in the text before the host reads it. */
+            async function run(d) {
+                try {
+                    if (pageActive()) await visual.api.sync();
+                    if (destroyed || !state(d).present || state(d).disabled) return;
+                    var chosen = await selection();
+                    if (destroyed) return;
+                    await service.run(d.id, Object.assign(context(), { selection: chosen, root: root, signal: styleLifetime.signal }));
+                } catch (err) { if (!destroyed && !(err && err.name === 'AbortError')) say(String(err && err.message || err), true); }
+                commandsChanged();
+            }
             return {
                 declared: declared,
                 rows: function (ready) {
@@ -218,18 +231,17 @@
                             hidden: function () { return !ready || !state(d).present; },
                             disabled: function () { return !ready || state(d).disabled; },
                             reason: function () { return state(d).reason; },
-                            /* What is typed on the page is in the text before the host reads it. */
-                            run: async function () {
-                                try {
-                                    if (pageActive()) await visual.api.sync();
-                                    if (destroyed || !state(d).present || state(d).disabled) return;
-                                    var chosen = await selection();
-                                    if (destroyed) return;
-                                    await service.run(d.id, Object.assign(context(), { selection: chosen, root: root, signal: styleLifetime.signal }));
-                                } catch (err) { if (!destroyed && !(err && err.name === 'AbortError')) say(String(err && err.message || err), true); }
-                                commandsChanged();
-                            } };
+                            run: function () { return run(d); } };
                     });
+                },
+                /* The command that stands in place of Save for the document
+                   in front, with its state, or null where Save is the
+                   applet's own. */
+                standIn: function () {
+                    var d = declared.filter(function (x) { return x.replaces; })[0], s = d ? state(d) : null;
+                    /* The button can fold to its glyph alone, so a glyph PUDL does not have gives way to Save's own. */
+                    if (d && d.glyphKnown === undefined) d.glyphKnown = !!(d.glyph && getComputedStyle(root).getPropertyValue('--glyph-' + d.glyph).trim());
+                    return s && s.present ? { label: d.label, glyph: d.glyphKnown ? d.glyph : undefined, disabled: s.disabled, reason: s.reason, run: function () { return run(d); } } : null;
                 },
                 watch: function () { return typeof service.onChange === 'function' && declared.length ? service.onChange(function () { if (!destroyed) commandsChanged(); }) : null; }
             };
@@ -749,6 +761,16 @@
         }
 
         /* === Saving ====================================================== */
+
+        /* Save as a person asks for it, from the button, the menu or the key. Where a
+           command of the host stands in place of Save for the document, that
+           command runs and the applet's own save does not. */
+        function saveCommand() {
+            var standIn = hostCommands.standIn();
+            if (!standIn) return save();
+            if (standIn.disabled) { say(standIn.reason || standIn.label + ' is not available now.', true); return false; }
+            return standIn.run();
+        }
 
         async function save() {
             var t = current();
@@ -2479,7 +2501,7 @@
         var COMMANDS = {
             'new': function () { return liveActions['new@1']({}); },
             'open': openDialog,
-            'save': save,
+            'save': saveCommand,
             'save-as': saveAs,
             'close-document': function () { if (current()) { closeTab(active); } },
             'undo': function () { return editing().history('undo'); },
@@ -2646,7 +2668,9 @@
                     var mode=input.view || (!existed && initialMode(current(),input.initialView));
                     if(mode && supportsView(current(),mode)){current().view=mode;await setView(mode);}return true;
                 }),
-                cmd('save', 'Save', 'yavc-save', function () { return save(); }, { disabled: function () { var t = current(); return !ready || !t || t.readOnly || !resources || !t.path && !resources.canSaveAs() || t.fresh && !resources.canCreate() || !!(t.path && !t.resource && !t.fresh); }, reason: 'This host cannot save this draft safely, or its recovered revision no longer matches. Use a supported Save As or download the source.' }),
+                cmd('save', 'Save', 'yavc-save', function () { return saveCommand(); }, { label: function () { var s = ready && hostCommands.standIn(); return s ? s.label : 'Save'; }, glyph: function () { var s = ready && hostCommands.standIn(); return s && s.glyph || 'yavc-save'; },
+                    disabled: function () { var s = ready && hostCommands.standIn(); if (s) return s.disabled; var t = current(); return !ready || !t || t.readOnly || !resources || !t.path && !resources.canSaveAs() || t.fresh && !resources.canCreate() || !!(t.path && !t.resource && !t.fresh); },
+                    reason: function () { var s = ready && hostCommands.standIn(); return s ? s.reason : 'This host cannot save this draft safely, or its recovered revision no longer matches. Use a supported Save As or download the source.'; } }),
                 cmd('save-as', 'Save As…', 'yavc-save-as', function () { return saveAs(); }, { label: function () { var t = current(); return t && t.readOnly ? 'Save a Copy…' : 'Save As…'; }, disabled: function () { return !ready || !current() || !!(resources && !resources.canSaveAs()); } }),
                 cmd('save-encoded-copy','Save Encoded Copy…','yavc-save-as',encodedCopy,{disabled:function(){return !ready||!current()||!resources||!resources.canSaveAs();}}),
                 cmd('import-docx','Import Word…','upload',importWord,{hidden:function(){return !isDocs;},disabled:function(){return !ready;}}),
@@ -2769,6 +2793,8 @@
                names, or at the end of that menu, which is there for it
                even when the document has no review marks to offer. */
             hostCommands.declared.forEach(function (d) {
+                /* A command that stands in place of Save is the Save row where it is present, and has no row of its own. */
+                if (d.replaces) return;
                 var title = titles[1];
                 if (d.menu === 'review') {
                     title = titles.filter(function (t) { return t.id === 'review'; })[0];
