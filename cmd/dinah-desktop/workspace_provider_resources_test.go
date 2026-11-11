@@ -65,7 +65,7 @@ func (w fakeWiki) Snapshot(_ context.Context, path string) (resource.Snapshot, e
 }
 
 func (w fakeWiki) ReadBlob(_ context.Context, path string) ([]byte, error) {
-	if strings.HasSuffix(path, "/attachments/diagram.png") {
+	if strings.HasSuffix(path, "attachments/diagram.png") {
 		return []byte("PNG!"), nil
 	}
 	return nil, resource.ErrNotFound
@@ -74,7 +74,11 @@ func (w fakeWiki) ReadBlob(_ context.Context, path string) ([]byte, error) {
 func (w fakeWiki) FileNames(context.Context, string) ([]string, error) {
 	return []string{"diagram.png"}, nil
 }
-func (w fakeWiki) ReadFile(_ context.Context, _ string, name string) ([]byte, error) {
+func (w fakeWiki) ReadFile(_ context.Context, path string, name string) ([]byte, error) {
+	// Files are beside a page, and an attachment is no page.
+	if strings.Contains(path, "attachments") {
+		return nil, resource.ErrUnsupported
+	}
 	if name == "diagram.png" {
 		return []byte("PNG!"), nil
 	}
@@ -193,6 +197,10 @@ func TestRegisteredKindIsListedReadAndPreviewedThroughItsProvider(t *testing.T) 
 	image, err := service.preview(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "attachments/diagram.png"})
 	if err != nil || image.Format != "image" {
 		t.Fatalf("image preview: %+v %v", image, err)
+	}
+	// The picture the preview shows is asked for by the picture's own path.
+	if own, err := service.attachment(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "attachments/diagram.png"}, "diagram.png"); err != nil || string(own) != "PNG!" {
+		t.Fatalf("a picture read by its own path: %q %v", own, err)
 	}
 	data, err := service.attachment(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "200"}, "diagram.png")
 	if err != nil || string(data) != "PNG!" {

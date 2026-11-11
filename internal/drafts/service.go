@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"studio/internal/docfiles"
 	"studio/internal/keylock"
 	"studio/internal/resource"
 	"studio/internal/textdiff"
@@ -396,11 +397,11 @@ func (s *Service) SaveAs(ctx context.Context, id, expected string, origin Origin
 }
 
 // filesOf reads the files of the document a draft was opened from that a
-// copy saved elsewhere needs: the pictures its text shows, each by the path
-// the text gives, wherever under the source that is (ShownFiles), and the
-// other files kept beside it that the text refers to by name, such as a
-// page's attachments. A file that cannot be read is left out, and a note
-// says so; so are the names in except.
+// copy saved elsewhere needs: the pictures its text shows and the files it
+// links to, each by the path the text gives, wherever under the source that
+// is (internal/docfiles), and the other files kept beside it that the text
+// refers to by name, such as a page's attachments. A file that cannot be
+// read is left out, and a note says so; so are the names in except.
 func (s *Service) filesOf(ctx context.Context, d Draft, except []string) ([]resource.File, []string) {
 	if d.Origin.Kind == "" || d.Origin.Kind == OriginNew {
 		return nil, nil
@@ -415,31 +416,38 @@ func (s *Service) filesOf(ctx context.Context, d Draft, except []string) ([]reso
 	}
 	var files []resource.File
 	var notes []string
-	// A picture is copied under the path the text gives, so a file of the
-	// same name found by the listing below is the same file and is skipped.
-	shown := map[string]bool{}
-	for _, name := range ShownFiles(d.Text) {
-		shown[pathpkg.Base(name)] = true
-		if slices.Contains(except, name) {
-			continue
+	// A file is copied under the path the text gives, so a file of the same
+	// name found by the listing below is the same file and is skipped.
+	taken := map[string]bool{}
+	byPath := func(names []string, what, how string) {
+		for _, name := range names {
+			if taken[name] {
+				continue
+			}
+			taken[name], taken[pathpkg.Base(name)] = true, true
+			if slices.Contains(except, name) {
+				continue
+			}
+			data, err := src.ReadFile(ctx, d.Origin.Path, name)
+			if errors.Is(err, resource.ErrNotFound) {
+				notes = append(notes, "The "+what+" "+name+how+" was not found beside the original, so the copy is without it.")
+				continue
+			}
+			if err != nil {
+				notes = append(notes, "The "+what+" "+name+" could not be copied from the original: "+err.Error())
+				continue
+			}
+			files = append(files, resource.File{Name: name, Data: data})
 		}
-		data, err := src.ReadFile(ctx, d.Origin.Path, name)
-		if errors.Is(err, resource.ErrNotFound) {
-			notes = append(notes, "The picture "+name+" was not found beside the original, so the copy is without it.")
-			continue
-		}
-		if err != nil {
-			notes = append(notes, "The picture "+name+" could not be copied from the original: "+err.Error())
-			continue
-		}
-		files = append(files, resource.File{Name: name, Data: data})
 	}
+	byPath(docfiles.Shown(d.Text), "picture", "")
+	byPath(docfiles.Linked(d.Text), "file", ", which the document links to,")
 	names, err := src.FileNames(ctx, d.Origin.Path)
 	if err != nil {
 		return files, append(notes, "The files beside the original could not be listed, so only its pictures were copied: "+err.Error())
 	}
 	for _, name := range names {
-		if shown[name] || !uses(d.Text, name) || slices.Contains(except, name) {
+		if taken[name] || !uses(d.Text, name) || slices.Contains(except, name) {
 			continue
 		}
 		data, err := src.ReadFile(ctx, d.Origin.Path, name)

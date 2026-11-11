@@ -406,9 +406,12 @@ func TestSaveAsCopiesThePicturesTheTextShowsByPath(t *testing.T) {
 	os.WriteFile(filepath.Join(from, "notes", "research", "03.png"), []byte("three"), 0o644)
 	os.WriteFile(filepath.Join(from, "notes", "images", "04.png"), []byte("four"), 0o644)
 	os.WriteFile(filepath.Join(from, "notes", "research", "unused.png"), []byte("unused"), 0o644)
+	os.MkdirAll(filepath.Join(from, "notes", "files"), 0o755)
+	os.WriteFile(filepath.Join(from, "notes", "files", "plan.pdf"), []byte("pdf"), 0o644)
+	os.WriteFile(filepath.Join(from, "notes", "files", "other.md"), []byte("# Other"), 0o644)
 	text := "# Screens\n\n{{figure:\"research/screens/set 1/01.png\" alt=\"One\"}}\n\n![Two](research/screens/02.png)\n\n" +
 		"<img src=\"research/03.png\" width=\"200\">\n\n![Four](04.png)\n\n{{figure:research/missing.png alt=\"Gone\"}}\n\n" +
-		"```\n![In code](research/unused.png)\n```\n"
+		"```\n![In code](research/unused.png)\n```\n\nSee [the plan](files/plan.pdf), [another document](files/other.md) and [the site](https://example.com/x.pdf).\n"
 	os.WriteFile(filepath.Join(from, "notes", "doc.md"), []byte(text), 0o644)
 	store, _ := Open(t.TempDir())
 	svc := &Service{Store: store, Providers: folders{"from": localfs.Folder{Root: from}, "to": localfs.Folder{Root: to}}}
@@ -426,10 +429,13 @@ func TestSaveAsCopiesThePicturesTheTextShowsByPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, want := range map[string]string{"research/screens/set 1/01.png": "one", "research/screens/02.png": "two", "research/03.png": "three", "04.png": "four"} {
+	for name, want := range map[string]string{"research/screens/set 1/01.png": "one", "research/screens/02.png": "two", "research/03.png": "three", "04.png": "four", "files/plan.pdf": "pdf"} {
 		if data, _ := os.ReadFile(filepath.Join(to, "copy", filepath.FromSlash(name))); string(data) != want {
 			t.Errorf("%s holds %q", name, data)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(to, "copy", "files", "other.md")); err == nil {
+		t.Error("a document the text links to was copied as a file")
 	}
 	if _, err := os.Stat(filepath.Join(to, "copy", "research", "unused.png")); err == nil {
 		t.Error("a picture shown only inside a code block was copied")
@@ -462,14 +468,3 @@ func TestSaveAsBesideTheOriginalReportsNoPictureAlreadyThere(t *testing.T) {
 type folders map[string]localfs.Folder
 
 func (f folders) Provider(_ context.Context, o Origin) (any, error) { return f[o.SourceID], nil }
-
-func TestShownFiles(t *testing.T) {
-	text := "![a](one.png) and ![b](<two words.png> \"title\") ![c](https://example.com/x.png) ![d](data:image/png;base64,AAAA)\n" +
-		"<IMG alt=\"x\" src='sub/three.png'> ![e](./four%20five.png#frag) ![f](/abs/six.png) ![g](C:\\pics\\seven.png)\n" +
-		"{{figure:src=\"eight nine.png\" alt=\"x\"}} {{figure:alt=\"Ten\" src=ten.png}} `![h](code.png)` {{figure:one.png}}\n" +
-		"~~~\n{{figure:fenced.png}}\n~~~\n{{figure:~/Pictures/home.png}} ![i](..\\up\\eleven.png)\n"
-	got := strings.Join(ShownFiles(text), "|")
-	if want := "one.png|two words.png|four five.png|sub/three.png|eight nine.png|ten.png|../up/eleven.png"; got != want {
-		t.Fatalf("got  %s\nwant %s", got, want)
-	}
-}

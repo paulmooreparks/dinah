@@ -278,6 +278,12 @@ func (s workspaceResourceService) attachmentProvider(ref ResourceRef, source Wor
 	if err != nil {
 		return nil, err
 	}
+	// A picture that is itself an entry of the source, as the Files applet
+	// shows one, is read by its own path: it is no document with files
+	// beside it, and a source need not read files beside a file.
+	if _, reads := p.(resource.BlobReader); reads && resourceImageExtension(ref.Path) && path.Base(ref.Path) == name {
+		return s.blobProvider(ref, source)
+	}
 	files, ok := p.(resource.FileSource)
 	if !ok {
 		return nil, errors.New("this source does not provide image attachments")
