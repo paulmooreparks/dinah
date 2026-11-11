@@ -104,11 +104,23 @@
      own, such as a saved diagram beside a deck. The applet asks without
      waiting (contentWorkspace.directory), so the folder is found when the
      document is read and when it is saved under a new name. A document that
-     has no file yet, and a page of a source that is not a folder, have
-     none. */
-  var folders = new Map();
+     has no file yet has none. A document of a source that is not a folder
+     of files, such as a page of a wiki, has the folder its source keeps its
+     files in, where the source says there is one (DocumentFilesMount), so
+     that a diagram attached to a page is drawn in the page's document.
+     Such a folder keeps its files by name alone: a document saved there
+     from a folder of files still shows a diagram by the path it had,
+     mockups/plan.canvas, and the file is there as plan.canvas. So a path
+     below such a folder is read as the file of its last name (flatPath),
+     as a picture's is by the source itself. */
+  var folders = new Map(), flatFolders = new Set();
   function findFolder(resource, v) {
     var o = v && v.origin || {};
+    if (o.path && o.kind && o.kind !== 'local-folder' && o.kind !== 'new' && api().DocumentFilesMount) {
+      return Promise.resolve(api().DocumentFilesMount({ workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path })).then(function (path) {
+        if (path) { folders.set(resource, String(path)); flatFolders.add(String(path)); } else folders.delete(resource);
+      }).catch(function () { folders.delete(resource); });
+    }
     if (!o.path || o.kind !== 'local-folder' || !api().ResolveWorkspaceResourceMount) { folders.delete(resource); return Promise.resolve(); }
     return Promise.resolve(api().ResolveWorkspaceResourceMount({ workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path })).then(function (item) {
       var path = String(item && item.path || ''), at = path.lastIndexOf('/');
@@ -116,6 +128,13 @@
     }).catch(function () { folders.delete(resource); });
   }
   function directory(resource) { return folders.get(String(resource || '')) || null; }
+  /* A path below a folder that keeps files by name alone, as the file of
+     its last name in that folder; any other path as it is. */
+  function flatPath(path) {
+    var hit = '';
+    flatFolders.forEach(function (folder) { if (path.indexOf(folder + '/') === 0 && folder.length > hit.length) hit = folder; });
+    return hit ? hit + '/' + path.slice(path.lastIndexOf('/') + 1) : path;
+  }
 
   /* The draft revision each resource's applet last read or wrote, which
      content-windows.js compares with the draft to see a change made
@@ -386,7 +405,7 @@
     var signal = options && options.signal, max = options && options.maxBytes > 0 ? Math.floor(options.maxBytes) : 0;
     function stopped() { return new DOMException('The read was stopped.', 'AbortError'); }
     if (signal && signal.aborted) return Promise.reject(stopped());
-    return Promise.resolve().then(function () { return api().ReadWorkspaceMountText(String(path), max); }).then(function (r) {
+    return Promise.resolve().then(function () { return api().ReadWorkspaceMountText(flatPath(String(path)), max); }).then(function (r) {
       if (signal && signal.aborted) throw stopped();
       return r && r.found ? r.text : null;
     }, function (err) { throw new Error(message(err)); });

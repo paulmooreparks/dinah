@@ -300,3 +300,38 @@ func (s workspaceResourceService) attachmentProvider(ref ResourceRef, source Wor
 	}
 	return data, nil
 }
+
+// DocumentFilesMount is the virtual path of the folder that holds the files
+// of a document of a source that is not a folder of files, such as the
+// attachments of a wiki page, or "" when the source keeps none in a folder
+// of its own (resource.FileFolder). A document that shows a file by a path
+// of its own, as a saved diagram, has the path read from there
+// (content-host.js, findFolder). A file in a folder of files needs no such
+// answer: its folder is the one it is in.
+func (a *App) DocumentFilesMount(ref ResourceRef) (string, error) {
+	s := a.resourceService()
+	source, err := s.source(ref)
+	if err != nil {
+		return "", err
+	}
+	if source.Kind == "local-folder" {
+		return "", nil
+	}
+	p, err := s.providerOf(source)
+	if err != nil {
+		return "", err
+	}
+	folder, ok := p.(resource.FileFolder)
+	if !ok {
+		return "", nil
+	}
+	at := folder.FilesFolder(ref.Path)
+	if at == "" {
+		return "", nil
+	}
+	item, err := (workspaceVFS{service: s}).statRef(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: ref.SourceID, Path: at})
+	if err != nil {
+		return "", nil
+	}
+	return item.Path, nil
+}

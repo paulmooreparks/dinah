@@ -71,6 +71,8 @@ func (w fakeWiki) ReadBlob(_ context.Context, path string) ([]byte, error) {
 	return nil, resource.ErrNotFound
 }
 
+func (w fakeWiki) FilesFolder(path string) string { return path + "/attachments" }
+
 func (w fakeWiki) FileNames(context.Context, string) ([]string, error) {
 	return []string{"diagram.png"}, nil
 }
@@ -208,6 +210,10 @@ func TestRegisteredKindIsListedReadAndPreviewedThroughItsProvider(t *testing.T) 
 	}
 	if _, err := service.read(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "999"}); err == nil {
 		t.Fatal("a missing page was read")
+	}
+	// A page's files are in the folder its source says, as a virtual path.
+	if folder, err := service.app.DocumentFilesMount(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "100"}); err != nil || folder != "/workspaces/"+record.MountAlias+"/"+source.MountAlias+"/100/attachments" {
+		t.Fatalf("the folder of a page's files: %q %v", folder, err)
 	}
 
 	vfs := workspaceVFS{service: service}

@@ -138,6 +138,18 @@ type FileSource interface {
 	ReadFile(ctx context.Context, path, name string) ([]byte, error)
 }
 
+// FileFolder says where in its source a document's files are, as a path a
+// listing of the source gives, for a source whose documents are not files
+// in a folder of their own: a page on a wiki keeps its attachments in a
+// folder under the page. A document that refers to a file by a path of its
+// own, such as a saved diagram it shows, has that path read from this
+// folder. A source of files in folders does not implement it, since a
+// file's folder is the one it is in. The folder is "" for a path that has
+// none.
+type FileFolder interface {
+	FilesFolder(path string) string
+}
+
 // BlobReader reads a resource's bytes by its path, as a picture or another
 // file kept in a source that is not a folder of files, bounded by MaxFile. A
 // source whose files are reached by path, beside its documents, implements
