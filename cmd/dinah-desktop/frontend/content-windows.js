@@ -1145,7 +1145,9 @@
     var input = args.input || {}, rec = recordOf(args);
     return window.dinahContentHost.install().then(function () {
       if (op === 'open-file' || (args.handles && input.path)) {
-        return Promise.resolve(api().OpenDraft(workspaceRef(rec, input.path))).then(function (v) { return open(v, app); }).then(function (key) {
+        /* An agent that asks the Editor for a Markdown file gets it in
+           Docs, as a person choosing it in the Editor's Open dialog does. */
+        return Promise.resolve(api().OpenDraft(workspaceRef(rec, input.path))).then(function (v) { return open(v, appChosenIn(app, v)); }).then(function (key) {
           noteFront(key);
           return window.dinahWorkbench.ready(key).then(function () {
             return input.view ? window.dinahContentHost.accept(key, { operation: 'view', input: { mode: input.view } }) : null;
