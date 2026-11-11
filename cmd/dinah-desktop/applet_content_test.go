@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"studio/internal/applet"
@@ -43,5 +44,42 @@ func TestTheContentApplicationsActionsAreOfferedWithDinahsCapabilities(t *testin
 		if asks(ref) {
 			t.Errorf("%s only reads but would ask: %v", ref, caps[ref])
 		}
+	}
+}
+
+// In a product whose agents propose their changes, an action the release
+// marks as changing a document is absent from what agents are offered and
+// cannot be called, the rest are as they were, and the description says
+// how to propose. In any other product every action is offered.
+func TestAnActionThatChangesADocumentIsAbsentWhereAgentsPropose(t *testing.T) {
+	data := []byte(`{"id":"yavc.sample","version":"1.0.0","apiVersion":1,"title":"Sample","description":"A sample.","actions":[` +
+		`{"ref":"yavc.sample/read@1","title":"Read","description":"Read it.","live":true,"replay":"pure","capabilities":["files.read"],"inputSchema":{"type":"object"},"outputSchema":{"type":"object"}},` +
+		`{"ref":"yavc.sample/set-text@1","title":"Set","description":"Set it.","live":true,"replay":"once","changes":"document","capabilities":[],"inputSchema":{"type":"object"},"outputSchema":{"type":"object"}}]}`)
+	a := NewApp()
+	refs := func(propose bool) (string, []string) {
+		b, err := a.contentBundleFrom("sample", "sample/actions.json", data, propose)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := applet.New(b); err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, act := range b.Manifest.Actions {
+			if b.Handlers[act.Ref] == nil {
+				t.Fatalf("%s is offered and cannot be run", act.Ref)
+			}
+			out = append(out, act.Ref)
+		}
+		if len(b.Handlers) != len(out) {
+			t.Fatalf("%d handlers for %d actions", len(b.Handlers), len(out))
+		}
+		return b.Manifest.Description, out
+	}
+	if note, got := refs(false); len(got) != 2 || strings.Contains(note, "dinah.documents/suggest@1") {
+		t.Fatalf("with no rule: %v %q", got, note)
+	}
+	if note, got := refs(true); len(got) != 1 || got[0] != "yavc.sample/read@1" || !strings.Contains(note, "dinah.documents/suggest@1") {
+		t.Fatalf("where agents propose: %v %q", got, note)
 	}
 }

@@ -27,23 +27,40 @@ const (
 	documentsSuggestAction = "dinah.documents/suggest@1"
 )
 
-// documentDraft opens the draft of a document in the calling workspace's
-// main folder, by its path there, with the operations scoped to that
-// workspace.
-func (a *App) documentDraft(ctx context.Context, raw string) (documentOps, drafts.View, error) {
+// documentDraft opens the draft of a document of the calling workspace,
+// with the operations scoped to that workspace. With no source it is a
+// document in the workspace's main folder, by its path there. With a source
+// it is a document of that attached source, by the path the source gives
+// it (List Source Resources), so a page of a wiki is proposed to as a file
+// is.
+func (a *App) documentDraft(ctx context.Context, sourceID, raw string) (documentOps, drafts.View, error) {
 	clean, err := workspaceRelativePath(raw)
 	if err != nil || clean == "." {
 		return documentOps{}, drafts.View{}, errors.New("give the path of a document in the workspace, such as notes/plan.md")
 	}
-	_, record, err := a.mainFolder(ctx)
-	if err != nil {
-		return documentOps{}, drafts.View{}, err
+	var record WorkspaceRecord
+	if sourceID == "" {
+		if _, record, err = a.mainFolder(ctx); err != nil {
+			return documentOps{}, drafts.View{}, err
+		}
+		sourceID = record.PrimarySourceID
+	} else {
+		if record, err = a.callingWorkspaceRecord(ctx); err != nil {
+			return documentOps{}, drafts.View{}, err
+		}
+		attached := false
+		for _, s := range record.Sources {
+			attached = attached || s.ID == sourceID
+		}
+		if !attached {
+			return documentOps{}, drafts.View{}, errors.New("the workspace has no source with that ID; List Workspace Sources gives them")
+		}
 	}
 	o, err := a.documentOps(ctx, record.ID)
 	if err != nil {
 		return documentOps{}, drafts.View{}, err
 	}
-	v, err := o.Open(ResourceRef{WorkspaceID: record.ID, SourceID: record.PrimarySourceID, Path: toSlash(clean)})
+	v, err := o.Open(ResourceRef{WorkspaceID: record.ID, SourceID: sourceID, Path: toSlash(clean)})
 	return o, v, err
 }
 
@@ -68,31 +85,33 @@ func suggestionsOut(list []drafts.Suggestion) []suggestionOut {
 
 func (a *App) documentsAppletBundle() (applet.Bundle, error) {
 	path := `{"type":"string","minLength":1,"maxLength":1024}`
+	source := `{"type":"string","maxLength":128}`
 	suggestion := `{"type":"object","additionalProperties":false,"required":["id","before","after","author","stale","edited"],"properties":{"id":{"type":"string"},"before":{"type":"string"},"after":{"type":"string"},"author":{"type":"string"},"reason":{"type":"string"},"stale":{"type":"boolean"},"edited":{"type":"boolean"}}}`
-	manifest := applet.Manifest{ID: "dinah.documents", Version: "1.0.0", APIVersion: 1, Title: "Documents",
+	manifest := applet.Manifest{ID: "dinah.documents", Version: "1.1.0", APIVersion: 1, Title: "Documents",
 		Description: "A document's text as its draft holds it, and suggestions to it that the person reviews and accepts or rejects in the document's window.",
 		Actions: []applet.Action{
 			{Ref: documentsReadAction, Title: "Read a Document", Replay: "pure", Capabilities: []string{"workspace.read"},
-				Description:  "Read a document in the calling workspace's main folder as its draft holds it, with the suggestions not yet accepted or rejected. The text is what Suggest Changes takes as base.",
-				InputSchema:  json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path"],"properties":{"path":` + path + `}}`),
+				Description:  "Read a document of the calling workspace as its draft holds it, with the suggestions not yet accepted or rejected. The text is what Suggest Changes takes as base. Without sourceId the path is in the workspace's main folder; with one it is a document of that attached source, such as a page of a wiki, by the path List Source Resources gives.",
+				InputSchema:  json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path"],"properties":{"path":` + path + `,"sourceId":` + source + `}}`),
 				OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path","text","suggestions"],"properties":{"path":{"type":"string"},"text":{"type":"string"},"suggestions":{"type":"array","items":` + suggestion + `}}}`)},
 			// Proposing changes nothing until the person accepts it, so it
 			// declares only reading.
 			{Ref: documentsSuggestAction, Title: "Suggest Changes", Replay: "once", Capabilities: []string{"workspace.read"},
-				Description: "Propose changes to a document without making them: give the text you read (base, from Read a Document) and the text you propose, and each changed paragraph becomes a suggestion the person reviews, edits if they like, and accepts or rejects in the document's window, one at a time or all at once. The document's text is not changed, and the suggestions are placed in it as it is now even if the person has typed since you read it. Give a reason the person will read beside the suggestions.",
-				InputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path","base","text"],"properties":{"path":` + path +
+				Description: "Propose changes to a document without making them: give the text you read (base, from Read a Document) and the text you propose, and each changed paragraph becomes a suggestion the person reviews, edits if they like, and accepts or rejects in the document's window, one at a time or all at once. The document's text is not changed, and the suggestions are placed in it as it is now even if the person has typed since you read it. Give a reason the person will read beside the suggestions. Give the sourceId you read with, for a document of an attached source.",
+				InputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path","base","text"],"properties":{"path":` + path + `,"sourceId":` + source +
 					`,"base":{"type":"string","maxLength":4194304},"text":{"type":"string","maxLength":4194304},"reason":{"type":"string","maxLength":4096},"sources":{"type":"array","maxItems":50,"items":{"type":"string","maxLength":1024}}}}`),
 				OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["added","suggestions"],"properties":{"added":{"type":"integer"},"suggestions":{"type":"array","items":` + suggestion + `}}}`)},
 		}}
 	handlers := map[string]applet.Handler{
 		documentsReadAction: func(ctx context.Context, input string) (applet.Result, error) {
 			var in struct {
-				Path string `json:"path"`
+				Path     string `json:"path"`
+				SourceID string `json:"sourceId"`
 			}
 			if err := json.Unmarshal([]byte(input), &in); err != nil {
 				return applet.Result{}, err
 			}
-			_, v, err := a.documentDraft(ctx, in.Path)
+			_, v, err := a.documentDraft(ctx, in.SourceID, in.Path)
 			if err != nil {
 				return applet.Result{}, err
 			}
@@ -100,16 +119,17 @@ func (a *App) documentsAppletBundle() (applet.Bundle, error) {
 		},
 		documentsSuggestAction: func(ctx context.Context, input string) (applet.Result, error) {
 			var in struct {
-				Path    string   `json:"path"`
-				Base    string   `json:"base"`
-				Text    string   `json:"text"`
-				Reason  string   `json:"reason"`
-				Sources []string `json:"sources"`
+				Path     string   `json:"path"`
+				SourceID string   `json:"sourceId"`
+				Base     string   `json:"base"`
+				Text     string   `json:"text"`
+				Reason   string   `json:"reason"`
+				Sources  []string `json:"sources"`
 			}
 			if err := json.Unmarshal([]byte(input), &in); err != nil {
 				return applet.Result{}, err
 			}
-			o, v, err := a.documentDraft(ctx, in.Path)
+			o, v, err := a.documentDraft(ctx, in.SourceID, in.Path)
 			if err != nil {
 				return applet.Result{}, err
 			}

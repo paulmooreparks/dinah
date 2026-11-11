@@ -113,6 +113,13 @@ type Profile struct {
 	// Updater is how the product learns of a newer build: UpdaterInstalled,
 	// or "" for none.
 	Updater string
+	// AgentsProposeDocumentChanges says that an agent may not change a
+	// document through the document applications' actions: the actions
+	// that change, save, make or close a document are left out of what
+	// agents are offered, and an agent proposes its changes as suggestions
+	// the person accepts or rejects (the Documents applet). The person's
+	// own editing is the same either way.
+	AgentsProposeDocumentChanges bool
 }
 
 // dinah is Dinah's profile, the one this build uses.

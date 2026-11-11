@@ -129,6 +129,18 @@ Ruling 7 means none of these blocks the start.
 - The D2 worker's own content policy (`shell_server.go`).
 - Two fixes found on the way: opening one resource twice at once made two drafts, and the hidden window under test loaded a second page.
 
+## Agents propose, where a product says so
+
+Ruling 2 gave agents suggestions: an agent reads a document and proposes new text, and the person accepts or rejects each changed paragraph in the document's window. The document applications also have actions of their own that change a document directly, and an agent could call those instead. Paul decided on 11 November 2026, for a product built from this source, that its agents must propose and that the proposals are these suggestions and not the applications' review marks, which are written into the document's text and would be published with it.
+
+A product says so in its profile with `AgentsProposeDocumentChanges` (`docs/design/product-definition.md`). In such a product the actions that the applications' release marks with `"changes": "document"` are left out of what agents are offered (`contentBundleFrom` in `applet_content.go`). An action that is not offered cannot be called, so there is nothing to refuse, and each application's description tells an agent to read with `dinah.documents/read@1` and propose with `dinah.documents/suggest@1`. The person's own editing is the same either way. Dinah's own profile does not set it.
+
+Dinah keeps no list of its own of which actions change a document. yavc.app declares it for each action and checks that every new action says which it is, so a new action cannot slip past a list here. Until a release with those marks is taken, the rule leaves nothing out.
+
+Read a Document and Suggest Changes take an optional `sourceId` since the same day, so an agent proposes to a document of any attached source, such as a page of a wiki, and not only to a file in the workspace's main folder.
+
+One thing the rule cannot reach: an agent with file tools of its own can still write a file on disk. A document that is open notices that its file changed and keeps the person's text.
+
 ## Typing speed, 9 November 2026
 
 Paul found typing in Docs far slower in Dinah than in a browser, and the cause was measured on a copy of his real layout (29 windows) in a hidden window: a keystroke cost 385 ms at the median and up to 2.7 s, against 65 ms on a fresh state. Nearly all of it was redrawing. The applet reports a change of its commands at every keystroke, PUDL then redraws every command-bound control of every window on the page, and in doing so evaluates each menu command's items, which for the applets' Insert menu runs the Markdown engine to list the document's shortcodes. Dinah's own windows added to the storm: every chat window and every group window asked for a page-wide redraw at each chat-state snapshot, bus overview and periodic poll, about ten redraws a second whether or not anyone typed; each retitle of a window redrew the docks and taskbar for all windows, and the applets' tab strip retitles at every change; Dinah's Window menu rebuilt its list of open windows dozens of times per redraw; and a document's "(changed)" mark made the taskbar re-resolve every pinned destination.

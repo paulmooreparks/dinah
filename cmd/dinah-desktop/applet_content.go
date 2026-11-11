@@ -52,8 +52,16 @@ type contentManifest struct {
 		applet.Action
 		Live    bool   `json:"live"`
 		Handles string `json:"handles"`
+		// Changes is "document" for an action that changes a document's
+		// text, saves it, or makes, closes or replaces one, as the release
+		// says of its own actions.
+		Changes string `json:"changes"`
 	} `json:"actions"`
 }
+
+// proposeNote tells an agent, in a product whose agents propose their
+// changes, where the actions that change a document went.
+const proposeNote = " In this product an agent does not change a document itself, so the actions that change, save, make or close one are not offered here. Read a document with dinah.documents/read@1 and propose your changes with dinah.documents/suggest@1; the person accepts or rejects each one in the document's window."
 
 // contentCapabilities says what an action of the release does, in Dinah's
 // capabilities.
@@ -96,13 +104,27 @@ func (a *App) contentAppletBundle(app string) (applet.Bundle, error) {
 	if err != nil {
 		return applet.Bundle{}, err
 	}
+	return a.contentBundleFrom(app, name, data, product.AgentsProposeDocumentChanges)
+}
+
+// contentBundleFrom makes a package's bundle from its actions.json. With
+// propose set, the actions the release marks as changing a document are
+// left out, so that no agent is offered one and none can be called: what
+// an agent may not do is absent, and the description says what to do
+// instead.
+func (a *App) contentBundleFrom(app, name string, data []byte, propose bool) (applet.Bundle, error) {
 	var m contentManifest
 	if err := json.Unmarshal(data, &m); err != nil {
 		return applet.Bundle{}, fmt.Errorf("%s: %w", name, err)
 	}
 	manifest := applet.Manifest{ID: m.ID, Version: m.Version, APIVersion: m.APIVersion, Title: m.Title, Description: m.Description + contentNote}
 	handlers := map[string]applet.Handler{}
+	left := false
 	for _, action := range m.Actions {
+		if propose && action.Changes == "document" {
+			left = true
+			continue
+		}
 		act := action.Action
 		act.Capabilities = contentCapabilities(action.Capabilities, action.Live, action.Replay)
 		manifest.Actions = append(manifest.Actions, act)
@@ -110,6 +132,9 @@ func (a *App) contentAppletBundle(app string) (applet.Bundle, error) {
 		handlers[ref] = func(ctx context.Context, input string) (applet.Result, error) {
 			return a.runContentAction(ctx, app, ref, live, handles, input)
 		}
+	}
+	if left {
+		manifest.Description += proposeNote
 	}
 	return applet.Bundle{Manifest: manifest, Handlers: handlers,
 		Sources: map[string][]byte{"applet_content.go": contentAppletSource, "content/" + app + "/actions.json": data}}, nil
