@@ -1103,6 +1103,24 @@
             setup: function (api) {
                 dlg = api.dialog; errorLine = dlg.querySelector('[data-role="error"]');
                 window.yavcDialog.wirePaths(api,{signal:form.signal || host && host.signal,current:unchanged});
+                /* A diagram that is already in the document can be opened for
+                   editing from its form, where the host has a way to open it. */
+                if (name === 'diagram' && existing && host && typeof host.openDiagram === 'function') {
+                    /* PUDL's place for a command that belongs to a field: a small
+                       raised control at the end of the label's row. It opens
+                       the file the document has now, whatever is typed in the
+                       field since, and a reason it cannot is shown in the form. */
+                    var open = document.createElement('button'), group = field('src').closest('.form-group'), label = group.querySelector('.form-label');
+                    var row = document.createElement('div'), end = document.createElement('span');
+                    row.className = 'form-label-row'; end.className = 'form-label-end';
+                    open.type = 'button'; open.className = 'btn btn-sm'; open.setAttribute('data-edit-diagram', '');
+                    var openGlyph = document.createElement('span'); openGlyph.className = 'glyph'; openGlyph.setAttribute('aria-hidden', 'true'); openGlyph.style.setProperty('--glyph', 'var(--glyph-new-window)');
+                    open.append(openGlyph, document.createTextNode(' Edit Diagram'));
+                    open.addEventListener('click', function () {
+                        if (host.openDiagram(values.src, function (reason) { errorLine.textContent = reason; errorLine.hidden = false; })) { api.close('cancel'); }
+                    });
+                    label.replaceWith(row); end.append(open); row.append(label, end);
+                }
                 if (name === 'glyph') {
                     var choices = dlg.querySelector('.md-glyph-options'), search = dlg.querySelector('[data-glyph-search]');
                     glyphOptions().then(function (list) {

@@ -31,3 +31,13 @@ func TestShownListsDiagramsAndListings(t *testing.T) {
 		t.Fatalf("got %s, want %s", got, want)
 	}
 }
+
+func TestCanvasFiles(t *testing.T) {
+	canvas := `{"nodes":[{"type":"text","text":"x"},{"type":"file","file":"logo.png"},{"type":"file","file":"icons/cart.svg"},{"type":"file","file":"../shared/bg.png"},{"type":"file","file":"../../outside.png"},{"type":"file","file":"https://example.com/x.png"},{"type":"file","file":"logo.png"}]}`
+	if got, want := strings.Join(CanvasFiles("mockups/plan.canvas", []byte(canvas)), "|"), "mockups/logo.png|mockups/icons/cart.svg|shared/bg.png"; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+	if CanvasFiles("plan.canvas", []byte("not json")) != nil {
+		t.Fatal("a canvas that cannot be read shows files")
+	}
+}

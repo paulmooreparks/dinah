@@ -419,7 +419,9 @@ func (s *Service) filesOf(ctx context.Context, d Draft, except []string) ([]reso
 	// A file is copied under the path the text gives, so a file of the same
 	// name found by the listing below is the same file and is skipped.
 	taken := map[string]bool{}
-	byPath := func(names []string, what, how string) {
+	var nested []string
+	var byPath func(names []string, what, how string)
+	byPath = func(names []string, what, how string) {
 		for _, name := range names {
 			if taken[name] {
 				continue
@@ -438,9 +440,15 @@ func (s *Service) filesOf(ctx context.Context, d Draft, except []string) ([]reso
 				continue
 			}
 			files = append(files, resource.File{Name: name, Data: data})
+			// A canvas diagram shows pictures of its own, which are read
+			// from beside it and go with it.
+			if strings.HasSuffix(strings.ToLower(name), ".canvas") {
+				nested = append(nested, docfiles.CanvasFiles(name, data)...)
+			}
 		}
 	}
 	byPath(docfiles.Shown(d.Text), "picture", "")
+	byPath(nested, "picture", ", which a diagram shows,")
 	byPath(docfiles.Linked(d.Text), "file", ", which the document links to,")
 	names, err := src.FileNames(ctx, d.Origin.Path)
 	if err != nil {

@@ -6,6 +6,7 @@
 package docfiles
 
 import (
+	"encoding/json"
 	"net/url"
 	pathpkg "path"
 	"regexp"
@@ -196,4 +197,36 @@ func localName(dest string) string {
 		return ""
 	}
 	return dest
+}
+
+// CanvasFiles lists the files a canvas diagram shows as pictures, each as a
+// path from the folder of the document that shows the canvas. name is the
+// canvas file's own path from that folder, and data its content, which is
+// JSON Canvas: a node of the type "file" gives the picture's path from the
+// folder the canvas file is in. A canvas that cannot be read shows none. A
+// path that leaves the document's folder is left out, as an address that is
+// no file beside the document is.
+func CanvasFiles(name string, data []byte) []string {
+	var canvas struct {
+		Nodes []struct {
+			Type string `json:"type"`
+			File string `json:"file"`
+		} `json:"nodes"`
+	}
+	if err := json.Unmarshal(data, &canvas); err != nil {
+		return nil
+	}
+	var out []string
+	for _, n := range canvas.Nodes {
+		file := localName(n.File)
+		if n.Type != "file" || file == "" {
+			continue
+		}
+		path := pathpkg.Join(pathpkg.Dir(name), file)
+		if path == "." || strings.HasPrefix(path, "../") || path == ".." || slices.Contains(out, path) {
+			continue
+		}
+		out = append(out, path)
+	}
+	return out
 }

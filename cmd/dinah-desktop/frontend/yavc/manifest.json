@@ -1,5 +1,5 @@
 {
-  "digest": "15351bddf286c1af7c9e4e8fbe7b10f7c485695a9565e94e366581651d90357a",
+  "digest": "503ce0274773937f4315ef928fdcc3caf4f17ed89b9fc8e317ea330e36affe0d",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -70,13 +70,18 @@
     },
     {
       "path": "content/diagram-kit/jcanvas.js",
-      "bytes": 50308,
-      "sha256": "6c3d8ea24fe1e6011d245bc1c077dc82fdd344dbabf85dff00ac38a67b30be50"
+      "bytes": 55342,
+      "sha256": "2d3ad35a6146a03f55cd68fb9edeb8c92b1c3f48dcf9c5d0967f4f0944a119b1"
     },
     {
       "path": "content/diagram-kit/modes.js",
       "bytes": 6902,
       "sha256": "431660c92393360bf03c61b1cd18f7cfc541f15c3b346d311de0f4bf55c06c9b"
+    },
+    {
+      "path": "content/diagram-kit/picture.js",
+      "bytes": 9318,
+      "sha256": "e35aec91dbec2542c4d341e28f590c2edefe041e1caba90184a82176b30be72c"
     },
     {
       "path": "content/diagram-kit/references.js",
@@ -100,18 +105,18 @@
     },
     {
       "path": "content/diagrams/actions.json",
-      "bytes": 34962,
-      "sha256": "1d11202c15eb9d9a84da9f51d90fd34869477d236709e095de22e7836f725bf4"
+      "bytes": 35204,
+      "sha256": "4cc6f5d52cb6e41d7974d37b9e03436b3fbe5e7029d4be58a1b1c1b6e51337c2"
     },
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "219d949a1f11fa06bac65821fed7fddd65bec917e005d1248a246fbd315ab9e9"
+      "sha256": "e96aa4d52f763972c15ac1a1df1c7515db8c31309c79a3b217fe8e7f496cd0e6"
     },
     {
       "path": "content/diagrams/canvas-model.js",
-      "bytes": 23659,
-      "sha256": "3f536525f8a38f4a6118add5215935cf5c4b17a20043fb0f57a3a3157a15111a"
+      "bytes": 23745,
+      "sha256": "0de8d15028898ebe4f0ee2c0d59c1b3d0b2bb7028dfa0b611f29f9623fd55148"
     },
     {
       "path": "content/diagrams/canvas-view.js",
@@ -130,8 +135,8 @@
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 206340,
-      "sha256": "168ebf0486a2aa027c1c8431819101adfd1db7ce2d9e5dc469d852cf5428da57"
+      "bytes": 207051,
+      "sha256": "8d08a3af28156035bebd603828ac9f60a0c45272899701af85e2eebfb0453417"
     },
     {
       "path": "content/diagrams/icon.svg",
@@ -151,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "62b9096dba562e1b141454e49065ab078d4dff51445cc20b415bcae8701d3a9c"
+      "sha256": "54f48191fb497ea85a7f64959c64570a4cf6ebadd05297bb13d192a600b37e33"
     },
     {
       "path": "content/docs/docs.css",
@@ -181,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 695,
-      "sha256": "c0d1be5d5989527d52595bb86bc6e436dd2be129c90c230aaf0d63ffdcda1e50"
+      "sha256": "f1eeba353a54a4866d76354bb5246e16db1d24918b612283435277ccf9db4f26"
     },
     {
       "path": "content/editor/editor.css",
@@ -270,8 +275,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 163216,
-      "sha256": "aa3c77c04be797149e3e90dfd885d516038cf57d2ed000a9f9d24318431f0ea6"
+      "bytes": 164919,
+      "sha256": "98d6eb87a0eaeea75546eabf8672de299f74de8d566e6fffb460fb670a44f79c"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -1280,8 +1285,13 @@
     },
     {
       "path": "content/md-engine/yavc-md.wasm",
-      "bytes": 8557421,
-      "sha256": "a50c7829bf63c8d2c6a653c2c0c696d9e858d934fd2d2c0a4ce174e16018c29c"
+      "bytes": 8597994,
+      "sha256": "44d286ff1901e3addd6c2bee958dd99ff05b18b704248ae9e842514eca61ff84"
+    },
+    {
+      "path": "content/shortcodes.json",
+      "bytes": 17527,
+      "sha256": "1ae6a19092126e22275c11f5c4834a83d6dbda630e17aac270ab1ababebeb96f"
     },
     {
       "path": "content/slides/actions.js",
@@ -1296,7 +1306,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "ee1278813e996e6d91d07c500889ad5553cfabe5de55eb017adfdb0e5ed163c7"
+      "sha256": "d837c04bf24f75853c5d987778ac9ee1667b92a820db146ebb2020d7b6478aba"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -1390,8 +1400,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 242515,
-      "sha256": "4458d95c1225491cff642058a06bdaa7ebbc929aa2ffec2296943fd1ea6b5ea7"
+      "bytes": 246136,
+      "sha256": "e6d2785cfa62c5dd665fe3586832c290313974287261330303695332d55998a9"
     },
     {
       "path": "go.mod",

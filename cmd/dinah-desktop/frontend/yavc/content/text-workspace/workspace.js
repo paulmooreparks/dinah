@@ -509,6 +509,9 @@
             }
             if (t.closest('.ed-surface, .ed-page, .cm-editor, .ProseMirror, [data-role="surface"], [data-role="page"]')) {
                 var rows = ['undo', 'redo', '-', 'find', '-'];
+                /* A diagram drawn from a file opens in the application that edits it. */
+                var drawn = t.closest('[data-diagram-src]');
+                if (drawn && root.contains(drawn) && canOpenDiagram()) { var drawnFile = drawn.getAttribute('data-diagram-src'); e.detail.mark(drawn); rows = [{ label: 'Edit Diagram', glyph: 'new-window', run: function () { openDiagram(drawnFile); } }, '-'].concat(rows); }
                 if (formatOffered) { rows = rows.concat(window.yavcMdEditor ? window.yavcMdEditor.MENU.format : []); }
                 /* The host's commands that asked to be offered here; one
                    that is not there for this document leaves no row. */
@@ -1862,6 +1865,38 @@
         }
         /* Where the document's pictures are, for the kit's picture dialog
            and its loader: beside the document when it is saved under ~. */
+        /* === A diagram a document refers to, opened for editing ==========
+           A document shows a saved diagram by its file ({{diagram:path}},
+           decision 87). Edit Diagram opens that file in the application
+           that edits it, through PUDL's request for the diagram verb, and the document
+           draws it again when the file is saved. */
+        function canOpenDiagram() { return !!(window.pudlApplets && window.pudlApplets.can && window.pudlApplets.request && window.pudlApplets.can('diagram')); }
+        /* report(text) is told why a diagram could not be opened; without one
+           the reason is said as an error in the workspace. */
+        function openDiagram(reference, report) {
+            report = report || function (text) { say(text, true); };
+            reference = String(reference || '');
+            if (!/\.(d2|mmd|mermaid|canvas)$/i.test(reference) || /[:\\?#\u0000-\u001f\u007f]/.test(reference) || reference.startsWith('//') || reference.startsWith('~') && !reference.startsWith('~/')) { report('The diagram is not a local D2, Mermaid or Canvas file, so it cannot be opened.'); return false; }
+            var directory = styleDirectory();
+            if (!/^(~\/|\/)/.test(reference) && !directory) { report('Save this document first, so the diagram beside it can be found.'); return false; }
+            var path = window.yavcStyleTools ? window.yavcStyleTools.resolve(reference, directory) : reference;
+            if (!/^(~\/|\/(?!\/))/.test(path)) { report('The diagram\'s place cannot be worked out here.'); return false; }
+            if (!canOpenDiagram()) { report('Nothing here opens a diagram file for editing.'); return false; }
+            window.pudlApplets.request('diagram', { path: path }, root);
+            return true;
+        }
+        /* The diagram the cursor is on: the line it is written on in the
+           text, or the diagram selected on the page. '' when there is none. */
+        function diagramAtCursor() {
+            if (!view || !current() || current().lang !== 'markdown') { return ''; }
+            if (pageActive() && (viewMode !== 'split' || editingPane !== 'text')) {
+                var page = visual.api.element && visual.api.element(), chosen = page && page.querySelector('.ProseMirror-selectednode');
+                var figure = chosen && (chosen.matches('[data-diagram-src]') ? chosen : chosen.querySelector('[data-diagram-src]'));
+                return figure ? figure.getAttribute('data-diagram-src') || '' : '';
+            }
+            var line = view.state.doc.lineAt(view.state.selection.main.head).text, call = /\{\{diagram:\s*(?:src=)?(?:"([^"}]*)"|'([^'}]*)'|([^\s}]+))/.exec(line);
+            return call ? call[1] || call[2] || call[3] || '' : '';
+        }
         function picturesHost() {
             var owner=current(),resource=owner&&owner.path;
             return {
@@ -1870,6 +1905,7 @@
                 site: function () { return Promise.resolve({ F: F, FB: FB }); },
                 root: root, say: say,
                 macroContext: currentMacroEngine,
+                openDiagram: canOpenDiagram() ? openDiagram : null,
                 shortcodeHost: hostServices.shortcodeHost, hostFills: hostFills, hostCatalog: hostEntries,
                 read: function (path, options) { if(!H.fs || !H.fs.readText)throw new Error('This application has not given documents a way to read other files (fs.readText).');return H.fs.readText(path, Object.assign({}, options, { document: resource || null })); },
                 watch: H.fs && H.fs.onChange ? function(fn){return H.fs.onChange(fn);} : null,
@@ -2696,6 +2732,7 @@
                 cmd('preview', 'Preview', 'new-window', preview, { hidden: function () { return !siteUrl; } }),
                 /* A deck (a file named .slides.md) presents in Slides, where
                    the site has it. */
+cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagram(diagramAtCursor()); }, { hidden: function () { var t = current(); return !t || t.lang !== 'markdown' || !canOpenDiagram(); }, disabled: function () { return !ready || !diagramAtCursor(); }, reason: 'Put the cursor on a diagram from a file first.' }),
                 cmd('present', 'Present the Deck', 'play', function () {
                     var t = current();
                     if (t && t.path && window.pudlApplets.request) { window.pudlApplets.request('present', { path: t.path, present: '1' }, root); }
@@ -2786,7 +2823,7 @@
                 { id: 'insert', label: 'Insert', glyph: 'plus', items: ['link', 'insert', 'table', 'box', 'footnote', '-', 'insert-timestamp', 'insert-date', 'stamp-modified'] }
             ];
             /* Format, where there is formatting to do. */
-            if (formatOffered) { titles.push({ id: 'format', label: 'Format', glyph: 'paragraph', items: ['style', '-', 'bold', 'italic', 'underline', 'strike', 'code', '-', 'highlight', 'superscript', 'subscript', '-', 'color', 'class', '-', 'bullets', 'numbers', 'quote', 'table', '-', 'document-layout','page-setup', 'document-theme', 'typography', 'header-footer', '-', 'stylesheet', 'shared-stylesheet', 'custom-shortcodes'] }); }
+            if (formatOffered) { titles.push({ id: 'format', label: 'Format', glyph: 'paragraph', items: ['style', '-', 'bold', 'italic', 'underline', 'strike', 'code', '-', 'highlight', 'superscript', 'subscript', '-', 'color', 'class', '-', 'bullets', 'numbers', 'quote', 'table', '-', 'edit-diagram', '-', 'document-layout','page-setup', 'document-theme', 'typography', 'header-footer', '-', 'stylesheet', 'shared-stylesheet', 'custom-shortcodes'] }); }
             if(current()&&(current().lang==='markdown'||hostSuggestions))titles.push({id:'review',label:'Review',glyph:'comments',items:['suggestion-previous','suggestion-next','-','review-changes','-','review-addition','review-deletion','review-replacement','review-comment','review-highlight','-','review-accept-all','review-reject-all']});
             /* The host's commands sit in File after the command each names,
                or after Save As. One for Review goes after the command it

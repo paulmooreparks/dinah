@@ -23,13 +23,13 @@
     function properties(item, kind) {
         var shared = ['color', 'line', 'lineWidth'];
         return shared.concat(kind === 'edge' ? ['label', 'route', 'fromHead', 'toHead', 'fromSide', 'toSide'] :
-            ['x', 'y', 'width', 'height', 'fillColor', 'strokeColor', 'style'].concat(boxed(item) ? ['radius', 'outlineSides'] : [],
-                item.type === 'text' ? ['text', 'shape', 'textAlign', 'textVerticalAlign', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding'] : item.type === 'group' ? ['label'] : J.isPicture(item) ? ['tint', 'fit'] : []));
+            ['x', 'y', 'width', 'height', 'fillColor', 'strokeColor', 'style'].concat(boxed(item) ? ['radius', 'outlineSides', 'outlinePosition', 'noFill'] : [],
+                item.type === 'text' ? ['text', 'shape', 'textAlign', 'textVerticalAlign', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding', 'lineHeight'] : item.type === 'group' ? ['label'] : J.isPicture(item) ? ['tint', 'fit'] : []));
     }
     /* A node drawn as a rectangle, which a radius and a choice of outlined
        sides apply to (docs/canvas-extension.md). */
     function boxed(item) { return item.type !== 'text' || !item.yavc || item.yavc.shape == null || item.yavc.shape === 'rectangle' || item.yavc.shape === 'rounded'; }
-    var EXTENSION = ['shape', 'route', 'fromHead', 'toHead', 'line', 'lineWidth', 'textAlign', 'textVerticalAlign', 'fillColor', 'strokeColor', 'style', 'radius', 'outlineSides', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding', 'tint', 'fit'];
+    var EXTENSION = ['shape', 'route', 'fromHead', 'toHead', 'line', 'lineWidth', 'textAlign', 'textVerticalAlign', 'fillColor', 'strokeColor', 'style', 'radius', 'outlineSides', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding', 'tint', 'fit', 'lineHeight', 'outlinePosition', 'noFill'];
     function setProperty(item, kind, property, value) {
         if (properties(item, kind).indexOf(property) < 0 || ['x', 'y', 'width', 'height'].indexOf(property) >= 0) { throw new Error('That property cannot be changed on this item.'); }
         var target = EXTENSION.indexOf(property) >= 0 ? (item.yavc || (item.yavc = {})) : item;

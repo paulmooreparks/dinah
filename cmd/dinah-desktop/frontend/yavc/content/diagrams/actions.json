@@ -941,7 +941,7 @@
             ]
           },
           "property": {
-            "description": "textAlign and textVerticalAlign set text-node alignment. fillColor and strokeColor override node channels independently. With op=document, background sets the canvas color and grid/snap accept booleans. A null value restores the corresponding default. On a text node, textColor is a color, fontSize a number from 6 to 200, fontWeight a number of hundreds from 100 to 900, fontFamily a list of family names and padding a whole number from 0 to 64. On a node drawn as a rectangle, radius is a number from 0 to 1000 and outlineSides an array of top, right, bottom and left, where an empty array draws no outline. On a picture node, tint is a color and fit is contain, cover or stretch. style is the name of one of the canvas's styles. With op=document, font is a list of family names and styles is an object of named styles, each an object of these node properties.",
+            "description": "textAlign and textVerticalAlign set text-node alignment. fillColor and strokeColor override node channels independently. With op=document, background sets the canvas color and grid/snap accept booleans. A null value restores the corresponding default. On a text node, textColor is a color, fontSize a number from 6 to 200, fontWeight a number of hundreds from 100 to 900, fontFamily a list of family names, padding a whole number from 0 to 64 and lineHeight a number from 0.8 to 3 that multiplies the font size. On a node drawn as a rectangle, radius is a number from 0 to 1000, outlineSides an array of top, right, bottom and left, where an empty array draws no outline, outlinePosition is center or inside, and noFill true draws the outline with nothing inside it. On a picture node, tint is a color and fit is contain, cover or stretch. style is the name of one of the canvas's styles. With op=document, font is a list of family names and styles is an object of named styles, each an object of these node properties.",
             "enum": [
               "text",
               "label",
@@ -958,8 +958,11 @@
               "fontWeight",
               "fontFamily",
               "padding",
+              "lineHeight",
               "radius",
               "outlineSides",
+              "outlinePosition",
+              "noFill",
               "tint",
               "fit",
               "style",

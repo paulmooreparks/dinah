@@ -907,7 +907,7 @@
                 await canvasEdit({ op: 'paste', text: clip }, text);
             } catch (err) { say('The selection could not be pasted. ' + err.message, 'problem'); }
         }
-        var NUMBER_RANGES = { lineWidth: [1, 8], fontSize: [6, 200], padding: [0, 64], radius: [0, 1000] };
+        var NUMBER_RANGES = { lineWidth: [1, 8], fontSize: [6, 200], padding: [0, 64], radius: [0, 1000], lineHeight: [0.8, 3, 0.05] };
         /* The choices for a rectangle's outlined sides: Default, which leaves
            the property out so that a style's choice or the whole outline is
            drawn, then every combination, each written in one order. */
@@ -938,8 +938,9 @@
                 if (k === 'fromHead') { return ext.fromHead || e.item.fromEnd || 'none'; }
                 if (k === 'toHead') { return ext.toHead || e.item.toEnd || 'arrow'; }
                 if (e.kind === 'edge' && (k === 'fromSide' || k === 'toSide')) { return window.yavcCanvas.automatic(e.item,k.slice(0,-4)) ? '' : e.item[k]; }
+                if (k === 'noFill') { return ext.noFill === true ? 'true' : ext.noFill === false ? 'false' : ''; }
                 if (k === 'outlineSides') { return !Array.isArray(ext.outlineSides) ? '' : ext.outlineSides.length ? SIDE_ORDER.filter(function (side) { return ext.outlineSides.indexOf(side) >= 0; }).join(',') : 'none'; }
-                var v = ['shape', 'line', 'lineWidth', 'route', 'textAlign', 'textVerticalAlign', 'fillColor', 'strokeColor', 'style', 'radius', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding', 'tint', 'fit'].indexOf(k) >= 0 ? ext[k] : e.item[k];
+                var v = ['shape', 'line', 'lineWidth', 'route', 'textAlign', 'textVerticalAlign', 'fillColor', 'strokeColor', 'style', 'radius', 'textColor', 'fontSize', 'fontWeight', 'fontFamily', 'padding', 'tint', 'fit', 'lineHeight', 'outlinePosition'].indexOf(k) >= 0 ? ext[k] : e.item[k];
                 return v == null ? (k === 'lineWidth' && e.item.type === 'group' ? 1 : defaults[k] == null ? '' : defaults[k]) : v;
             }
             function add(k, label, type, options) {
@@ -949,7 +950,7 @@
                 if (type === 'segments') { control = segmentField(id, k, label, v, options); }
                 else if (type === 'picker') { control = pickerField(id, k, label, v, options); }
                 else if (type === 'select') { control = selectField(id, k, label, mixed ? '__mixed__' : v, mixed ? [['__mixed__', 'Mixed']].concat(options) : options); }
-                else if (type === 'number') { var range = NUMBER_RANGES[k] || [k === 'x' || k === 'y' ? null : 1, null]; control = numberField(id, k, label, v || '', range[0], range[1]); }
+                else if (type === 'number') { var range = NUMBER_RANGES[k] || [k === 'x' || k === 'y' ? null : 1, null]; control = numberField(id, k, label, v || '', range[0], range[1], range[2]); }
                 else if (type === 'text') { control = field(id, label, '<textarea class="form-input" id="' + id + '" data-set="' + k + '" data-was="' + esc(v || '') + '" rows="3">' + esc(v || '') + '</textarea>'); }
                 else if (type === 'color') {
                     var pal = canvasPalette(t.place, window.yavcCanvas), resolved = /^[1-6]$/.test(v || '') ? pal.presets[Number(v) - 1] : /^#[a-f0-9]{3}$/i.test(v || '') ? v.replace(/([a-f0-9])/ig, '$1$1').replace('##', '#') : v;
@@ -971,12 +972,13 @@
             add('textVerticalAlign', 'Vertical Alignment', 'segments', [['', 'Default', 'yavc-align-default'], ['top', 'Top', 'yavc-align-top'], ['middle', 'Middle', 'yavc-align-middle'], ['bottom', 'Bottom', 'yavc-align-bottom']]);
             ['x', 'y', 'width', 'height'].forEach(function (k) { add(k, k === 'x' ? 'X' : k === 'y' ? 'Y' : k === 'width' ? 'Width' : 'Height', 'number'); });
             add('color', 'Color', 'color'); add('line', 'Line Style', 'segments', [['solid', 'Solid', 'yavc-line-solid'], ['dashed', 'Dashed', 'yavc-line-dashed'], ['dotted', 'Dotted', 'yavc-line-dotted']]); add('lineWidth', 'Line Width', 'number');
-            add('fillColor', 'Fill Color', 'color'); add('strokeColor', 'Outline Color', 'color');
+            add('fillColor', 'Fill Color', 'color'); add('noFill', 'Fill', 'select', [['', 'Default'], ['false', 'Filled'], ['true', 'No Fill']]); add('strokeColor', 'Outline Color', 'color');
             add('radius', 'Corner Radius', 'number');
             add('outlineSides', 'Outlined Sides', 'select', SIDE_CHOICES);
+            add('outlinePosition', 'Outline Position', 'select', [['', 'Default'], ['center', 'On the Edge'], ['inside', 'Inside the Edge']]);
             add('textColor', 'Text Color', 'color'); add('fontSize', 'Font Size', 'number');
             add('fontWeight', 'Font Weight', 'select', [['', 'Default'], ['100', 'Thin'], ['200', 'Extra Light'], ['300', 'Light'], ['400', 'Regular'], ['500', 'Medium'], ['600', 'Semibold'], ['700', 'Bold'], ['800', 'Extra Bold'], ['900', 'Black']]);
-            add('fontFamily', 'Font'); add('padding', 'Text Padding', 'number');
+            add('fontFamily', 'Font'); add('padding', 'Text Padding', 'number'); add('lineHeight', 'Line Height', 'number');
             add('tint', 'Tint', 'color'); add('fit', 'Picture Fit', 'select', [['', 'Default'], ['contain', 'Contain'], ['cover', 'Cover'], ['stretch', 'Stretch']]);
             add('route', 'Route', 'segments', [['elbow', 'Elbow', 'yavc-route-elbow'], ['straight', 'Straight', 'yavc-route-straight'], ['curve', 'Curve', 'yavc-route-curve']]);
             var heads = [['none', 'None'], ['arrow', 'Arrow'], ['triangle', 'Triangle'], ['diamond', 'Diamond'], ['circle', 'Circle'], ['box', 'Box'], ['cross', 'Cross'], ['cf-one', 'One'], ['cf-one-required', 'Exactly One'], ['cf-many', 'Many'], ['cf-many-required', 'One or More']];
@@ -1026,7 +1028,8 @@
             if (property === 'lineWidth') { req.value = value.trim() ? Number(value) : NaN; }
             /* A number of the extension's is removed by an empty field, and
                the sides of an outline are written as the list the file has. */
-            if (['fontSize', 'fontWeight', 'padding', 'radius'].indexOf(property) >= 0) { req.value = value.trim() ? Number(value) : null; }
+            if (['fontSize', 'fontWeight', 'padding', 'radius', 'lineHeight'].indexOf(property) >= 0) { req.value = value.trim() ? Number(value) : null; }
+            if (property === 'noFill') { req.value = value === 'true' ? true : value === 'false' ? false : null; }
             if (property === 'outlineSides') { req.value = value === '' ? null : value === 'none' ? [] : value.split(','); }
             if (canvasSelections().length > 1) { req.items = canvasSelections(); }
             try {
@@ -1188,6 +1191,7 @@
                     if (box.weight) { div.style.fontWeight = box.weight; }
                     if (box.family) { div.style.fontFamily = box.family; }
                     if (box.pad != null) { div.style.padding = box.pad + 'px'; }
+                    if (box.lineHeight) { div.style.lineHeight = String(box.lineHeight); }
                     div.style.justifyContent = box.vertical === 'middle' ? 'center' : box.vertical === 'bottom' ? 'flex-end' : 'flex-start';
                     div.style.color = box.color || palette.text;
                     div.appendChild(frag);
@@ -1303,8 +1307,8 @@
                         (mixed ? 'data-mixed="true" ' : '') + 'data-was="' + esc(value == null ? '' : value) + '"><span class="dg-option-content">' + optionGlyph(o) + '<span>' + esc(o[1]) + '</span></span></button>';
                 }).join('') + '</div></div>' + (mixed ? '<p class="form-help">Mixed values</p>' : '') + '</div>';
         }
-        function numberField(id, key, label, value, min, max) {
-            return field(id, label, '<span class="number-field"><input class="form-input" type="number" step="1"' + (min == null ? '' : ' min="' + min + '"') + (max == null ? '' : ' max="' + max + '"') + ' id="' + id + '" data-set="' + esc(key) + '" data-was="' + esc(value || '') + '" value="' + esc(value || '') + '"></span>');
+        function numberField(id, key, label, value, min, max, step) {
+            return field(id, label, '<span class="number-field"><input class="form-input" type="number" step="' + (step || 1) + '"' + (min == null ? '' : ' min="' + min + '"') + (max == null ? '' : ' max="' + max + '"') + ' id="' + id + '" data-set="' + esc(key) + '" data-was="' + esc(value || '') + '" value="' + esc(value || '') + '"></span>');
         }
         function colourField(id, key, label, value, fallback, placeholder) {
             if (/^#[a-f0-9]{3}$/i.test(fallback || '')) { fallback = fallback.replace(/([a-f0-9])/ig, '$1$1'); }

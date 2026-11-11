@@ -468,3 +468,32 @@ func TestSaveAsBesideTheOriginalReportsNoPictureAlreadyThere(t *testing.T) {
 type folders map[string]localfs.Folder
 
 func (f folders) Provider(_ context.Context, o Origin) (any, error) { return f[o.SourceID], nil }
+
+// A canvas diagram a document shows takes the pictures it shows with it.
+func TestSaveAsCopiesACanvasWithItsPictures(t *testing.T) {
+	from, to := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(from, "mockups", "icons"), 0o755)
+	os.WriteFile(filepath.Join(from, "mockups", "plan.canvas"), []byte(`{"nodes":[{"type":"file","file":"icons/cart.png"},{"type":"file","file":"gone.png"}]}`), 0o644)
+	os.WriteFile(filepath.Join(from, "mockups", "icons", "cart.png"), []byte("cart"), 0o644)
+	os.WriteFile(filepath.Join(from, "doc.md"), []byte("{{diagram:mockups/plan.canvas alt=\"The plan\"}}\n"), 0o644)
+	store, _ := Open(t.TempDir())
+	svc := &Service{Store: store, Providers: folders{"from": localfs.Folder{Root: from}, "to": localfs.Folder{Root: to}}}
+	ctx := context.Background()
+	d, err := svc.Open(ctx, Origin{Kind: "local-folder", SourceID: "from", Path: "doc.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, notes, err := svc.SaveAs(ctx, d.ID, d.Revision, Origin{Kind: "local-folder", SourceID: "to", Path: "doc.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{"mockups/plan.canvas": "", "mockups/icons/cart.png": "cart"} {
+		data, err := os.ReadFile(filepath.Join(to, filepath.FromSlash(name)))
+		if err != nil || (want != "" && string(data) != want) {
+			t.Errorf("%s: %q %v", name, data, err)
+		}
+	}
+	if len(notes) != 1 || !strings.Contains(notes[0], "mockups/gone.png") || !strings.Contains(notes[0], "which a diagram shows") {
+		t.Errorf("notes %v", notes)
+	}
+}

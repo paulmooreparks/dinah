@@ -182,6 +182,9 @@
         if (y.fontWeight != null && !(Number.isInteger(y.fontWeight) && y.fontWeight >= 100 && y.fontWeight <= 900 && y.fontWeight % 100 === 0)) { return where + '\'s fontWeight must be a whole number of hundreds from 100 to 900.'; }
         if (y.fontFamily != null && !(typeof y.fontFamily === 'string' && FAMILY.test(y.fontFamily))) { return where + '\'s fontFamily must be font family names separated by commas, in letters, digits, spaces, hyphens and underscores.'; }
         if (y.padding != null && !(Number.isInteger(y.padding) && y.padding >= 0 && y.padding <= 64)) { return where + '\'s padding must be a whole number from 0 to 64.'; }
+        if (y.lineHeight != null && !(typeof y.lineHeight === 'number' && y.lineHeight >= 0.8 && y.lineHeight <= 3)) { return where + '\'s lineHeight must be a number from 0.8 to 3.'; }
+        if (y.outlinePosition != null && ['center', 'inside'].indexOf(y.outlinePosition) < 0) { return where + '\'s outlinePosition must be center or inside.'; }
+        if (y.noFill != null && typeof y.noFill !== 'boolean') { return where + '\'s noFill must be a boolean.'; }
         if (y.radius != null && !(typeof y.radius === 'number' && y.radius >= 0 && y.radius <= 1000)) { return where + '\'s radius must be a number from 0 to 1000.'; }
         if (y.fit != null && FITS.indexOf(y.fit) < 0) { return where + '\'s fit must be one of ' + FITS.join(', ') + '.'; }
         if (y.outlineSides != null && !(Array.isArray(y.outlineSides) && y.outlineSides.every(function (side, at) { return SIDES.indexOf(side) >= 0 && y.outlineSides.indexOf(side) === at; }))) { return where + '\'s outlineSides must be a list of different sides from ' + SIDES.join(', ') + '.'; }
@@ -440,22 +443,60 @@
             }).filter(function (part) { return part; });
         }).filter(function (p) { return p.length; });
     }
-    function wrap(text, width, size) {
-        var per = Math.max(4, Math.floor(width / (size * 0.56))), out = [];
+    /* A list of font families as CSS reads it. The format allows a name
+       that is not a CSS identifier, such as one with a word that starts
+       with a digit, and CSS drops the whole list for one of those unless
+       the name is quoted. The generic families must stay unquoted. */
+    var GENERIC = /^(?:serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-serif|ui-sans-serif|ui-monospace|ui-rounded|math|emoji|fangsong)$/i;
+    function families(list) {
+        return String(list).split(',').map(function (name) { return name.trim().replace(/\s+/g, ' '); }).filter(function (name) { return name; })
+            .map(function (name) { return GENERIC.test(name) ? name : "'" + name.replace(/^['"]+|['"]+$/g, '') + "'"; }).join(', ');
+    }
+    /* How wide a text is drawn, where the page can say: a function of the
+       text and its face, from a 2D canvas context. Without one (in Node,
+       where there is no page) a width is estimated from the letter count. */
+    var ruler;
+    function measurer() {
+        if (ruler !== undefined) { return ruler; }
+        ruler = null;
+        try {
+            var surface = typeof document !== 'undefined' && document.createElement ? document.createElement('canvas').getContext('2d') : null;
+            if (surface) { ruler = function (text, size, weight, family) { surface.font = (weight || 400) + ' ' + size + 'px ' + family; return surface.measureText(text).width; }; }
+        } catch (err) { ruler = null; }
+        return ruler;
+    }
+    /* The lines a text takes in a width. wide(text) is its drawn width
+       when exact is true, and an estimate otherwise. A line breaks between
+       words. A word is cut only when it is wider than the box by itself,
+       and by an estimate only when it is clearly wider, so that a label
+       sized to its letters is not cut for an estimate's error. */
+    function wrap(text, width, wide, exact) {
+        var out = [], room = Math.max(1, width), slack = exact ? room + 0.5 : room * 1.2;
         text.split(/\s+/).forEach(function (word) {
             var last = out.length ? out[out.length - 1] : null;
-            if (last !== null && (last + ' ' + word).length <= per) { out[out.length - 1] = last + ' ' + word; }
-            else { while (word.length > per) { out.push(word.slice(0, per)); word = word.slice(per); } out.push(word); }
+            if (last !== null && wide(last + ' ' + word) <= (exact ? room + 0.5 : room)) { out[out.length - 1] = last + ' ' + word; return; }
+            while (word.length > 4 && wide(word) > slack) {
+                var cut = Math.max(4, Math.floor(word.length * room / wide(word)));
+                if (cut >= word.length) { break; }
+                out.push(word.slice(0, cut)); word = word.slice(cut);
+            }
+            out.push(word);
         });
         return out;
     }
-    /* face: { weight, family, pad }, each optional; pad is 8 without one. */
+    /* face: { weight, family, pad, lineHeight, measure, base }, each
+       optional; pad is 8 without one and the line height 1.3. family is
+       the node's own list, and base the drawing's, which the text is
+       measured in when the node has none. A line's baseline is where a
+       browser puts it in a line box of that height: half the extra space
+       above the letters, then 0.85 of the size, which for 1.3 is the size. */
     function textBlock(md, x, y, w, h, colour, size, align, vertical, face) {
-        var lines = [], pad = face && face.pad != null ? face.pad : 8;
-        plainLines(md).forEach(function (p, i) { if (i) { lines.push(''); } p.forEach(function (part) { lines = lines.concat(wrap(part, w - pad * 2, size)); }); });
-        var lh = size * 1.3, maxLines = Math.max(1, Math.floor((h - pad) / lh));
+        var lines = [], pad = face && face.pad != null ? face.pad : 8, measure = face && face.measure, fontList = face && (face.family || face.base);
+        var exact = !!(measure && fontList), wide = exact ? function (text) { return measure(text, size, face.weight, fontList); } : function (text) { return text.length * size * 0.56; };
+        plainLines(md).forEach(function (p, i) { if (i) { lines.push(''); } p.forEach(function (part) { lines = lines.concat(wrap(part, w - pad * 2, wide, exact)); }); });
+        var lh = size * (face && face.lineHeight ? face.lineHeight : 1.3), first = (lh - size) / 2 + size * 0.85, maxLines = Math.max(1, Math.floor((h - pad) / lh + 0.05));
         if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] += '…'; }
-        var top = vertical === 'middle' ? y + h / 2 - (lines.length * lh) / 2 + size : vertical === 'bottom' ? y + h - pad - lines.length * lh + size : y + pad + size;
+        var top = vertical === 'middle' ? y + h / 2 - (lines.length * lh) / 2 + first : vertical === 'bottom' ? y + h - pad - lines.length * lh + first : y + pad + first;
         var tx = align === 'center' ? x + w / 2 : align === 'right' ? x + w - pad : x + pad, anchor = align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start';
         return '<text x="' + tx.toFixed(1) + '" y="' + top.toFixed(1) + '" font-size="' + size + '"' + (face && face.weight ? ' font-weight="' + face.weight + '"' : '') + (face && face.family ? ' font-family="' + esc(face.family) + '"' : '') + ' fill="' + esc(colour) + '" text-anchor="' + anchor + '">' +
             lines.map(function (l, i) { return '<tspan x="' + tx.toFixed(1) + '"' + (i ? ' dy="' + lh.toFixed(1) + '"' : '') + '>' + esc(l || ' ') + '</tspan>'; }).join('') + '</text>';
@@ -487,16 +528,33 @@
         var b = bounds(doc, byId), ox = b.x - pad, oy = b.y - pad, W = Math.ceil(b.w + pad * 2), H = Math.ceil(b.h + pad * 2);
         var out = [], boxes = [], tints = [], tintIds = Object.create(null), drawing = 'yc' + (++drawings);
         var pictures = isObj(opts.pictures) ? opts.pictures : null, family = isObj(doc.yavc) && typeof doc.yavc.font === 'string' && FAMILY.test(doc.yavc.font) ? doc.yavc.font : null;
-        var baseFont = opts.font || 'Inter, system-ui, sans-serif';
+        var baseFont = opts.font || 'Inter, system-ui, sans-serif', rootFamily = families((family ? family + ', ' : '') + baseFont);
+        var measure = opts.measure === false ? null : typeof opts.measure === 'function' ? opts.measure : measurer();
         function nodeColours(n, y) {
             var c = colourOf(n.color, pal), fill = colourOf(y.fillColor, pal);
             var textOnly = n.type === 'text' && y.shape === 'text';
+            if (y.noFill === true) { return { stroke: colourOf(y.strokeColor, pal) || c || pal.line, fill: 'none', text: colourOf(y.textColor, pal) || inkFor(pal.bg, pal.text) }; }
             return { stroke: colourOf(y.strokeColor, pal) || c || (n.type === 'group' && !fill ? inkFor(pal.bg, pal.line) : pal.line), fill: fill || (c ? mixHex(c, pal.surface, 0.14) : pal.surface), text: colourOf(y.textColor, pal) || (fill || textOnly ? inkFor(fill || pal.bg, pal.text) : pal.text) };
         }
         /* A box that may have a radius of its own and only some of its
            sides outlined (docs/canvas-extension.md). */
         function box(x, y, w, h, y2, line, radius) {
-            var spec = { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: y2.radius == null ? radius : corner(y2.radius, w, h) } };
+            var rx = y2.radius == null ? radius : corner(y2.radius, w, h);
+            /* An outline inside the edge is drawn on a box that is smaller by
+               half the line on every side, where a line's width allows it. */
+            var some = Array.isArray(y2.outlineSides) && y2.outlineSides.length < 4;
+            if (y2.outlinePosition === 'inside' && line.stroke !== 'none' && line['stroke-width'] > 0 && w > line['stroke-width'] && h > line['stroke-width'] && !(some && !y2.outlineSides.length)) {
+                var half = line['stroke-width'] / 2;
+                if (some) {
+                    /* The fill keeps the whole box. Each side's line is moved
+                       in by half its width, and its square ends take it to
+                       the box's corners, as the sides of a CSS border meet. */
+                    return element({ tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: rx } }, Object.assign({}, line, { stroke: 'none' })) +
+                        element({ d: sidesPath(y2.outlineSides, x + half, y + half, w - half * 2, h - half * 2) }, Object.assign({}, line, { fill: 'none', 'stroke-linecap': 'square' }));
+                }
+                x += half; y += half; w -= half * 2; h -= half * 2; rx = Math.max(0, rx - half);
+            }
+            var spec = { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: rx } };
             if (!Array.isArray(y2.outlineSides) || y2.outlineSides.length === 4) { return element(spec, line); }
             var sides = Object.assign({}, line, { fill: 'none' });
             return element(spec, Object.assign({}, line, { stroke: 'none' })) + (y2.outlineSides.length ? element({ d: sidesPath(y2.outlineSides, x, y, w, h) }, sides) : '');
@@ -515,8 +573,8 @@
             var line = { fill: cols.fill, stroke: cols.stroke, 'stroke-width': lw };
             if (dash) { line['stroke-dasharray'] = dash; }
             var size = y2.fontSize || FONT, nodeFamily = y2.fontFamily && FAMILY.test(y2.fontFamily) ? y2.fontFamily : null;
-            var face = { weight: y2.fontWeight || null, family: nodeFamily ? nodeFamily + ', ' + (family ? family + ', ' : '') + baseFont : null, pad: y2.padding == null ? null : y2.padding };
-            boxes.push({ id: n.id, type: n.type, x: x, y: y, w: n.width, h: n.height, colors: { fill: n.type === 'text' && y2.shape === 'text' && !y2.fillColor ? pal.bg : cols.fill, stroke: cols.stroke } });
+            var face = { weight: y2.fontWeight || null, family: nodeFamily ? families(nodeFamily + ', ' + (family ? family + ', ' : '') + baseFont) : null, pad: y2.padding == null ? null : y2.padding, lineHeight: y2.lineHeight || null, measure: measure, base: rootFamily };
+            boxes.push({ id: n.id, type: n.type, x: x, y: y, w: n.width, h: n.height, colors: { fill: n.type === 'text' && y2.shape === 'text' && !y2.fillColor || cols.fill === 'none' ? pal.bg : cols.fill, stroke: cols.stroke } });
             out.push('<g data-node="' + esc(n.id) + '">');
             if (n.type === 'group') {
                 var gl = Object.assign({}, line, { fill: colourOf(y2.fillColor, pal) || (colourOf(n.color, pal) ? mixHex(colourOf(n.color, pal), pal.bg, 0.08) : 'none'), 'stroke-dasharray': dash || '6 4' });
@@ -535,7 +593,7 @@
                 inset.vertical = y2.textVerticalAlign || (centred ? 'middle' : 'top');
                 inset.color = cols.text;
                 /* The text's face, for the screen to draw the Markdown in. */
-                inset.size = size; inset.weight = face.weight; inset.family = face.family; inset.pad = face.pad;
+                inset.size = size; inset.weight = face.weight; inset.family = face.family; inset.pad = face.pad; inset.lineHeight = face.lineHeight;
                 boxes[boxes.length - 1].text = inset;
                 out.push('<g data-text="' + esc(n.id) + '">' + textBlock(n.text, inset.x, inset.y, inset.w, inset.h, cols.text, size, inset.align, inset.vertical, face) + '</g>');
             } else if (n.type === 'file') {
@@ -580,7 +638,7 @@
             }
             out.push('</g>');
         });
-        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="' + esc((family ? family + ', ' : '') + baseFont) + '">' +
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="' + esc(rootFamily) + '">' +
             (opts.title ? '<title>' + esc(opts.title) + '</title>' : '') + (tints.length ? '<defs>' + tints.join('') + '</defs>' : '') + '<rect data-canvas-background="" width="' + W + '" height="' + H + '" fill="' + esc(pal.bg) + '"/>' + out.join('') + '</svg>';
         return { svg: svg, width: W, height: H, boxes: boxes, edges: paths, origin: [ox, oy], background: pal.bg };
     }
@@ -607,7 +665,7 @@
         dark: ['#ff6b6b', '#ff9f43', '#f1c40f', '#66d17a', '#3cc8d8', '#b18cff']
     });
 
-    var api = Object.freeze({ read: read, write: write, render: render, isAnchor: isAnchor, isPicture: isPicture, extension: extension, FITS: FITS.slice(), automatic: automatic, path: pathD, routes: routes, route: function (e, nodes) { return routes([e], nodes)[0].route; },
+    var api = Object.freeze({ read: read, write: write, render: render, families: families, isAnchor: isAnchor, isPicture: isPicture, extension: extension, FITS: FITS.slice(), automatic: automatic, path: pathD, routes: routes, route: function (e, nodes) { return routes([e], nodes)[0].route; },
         PRESETS: PRESETS, SHAPES: SHAPES.slice(), HEADS: HEADS.slice(), ROUTES: ROUTES.slice(), LINES: LINES.slice(), EXT_VERSION: EXT_VERSION, LIMITS: Object.freeze({ text: MAX_TEXT, items: MAX_ITEMS }) });
     if (typeof module === 'object' && module.exports) { module.exports = api; } else { root.yavcCanvas = api; }
 })(typeof window !== 'undefined' ? window : this);

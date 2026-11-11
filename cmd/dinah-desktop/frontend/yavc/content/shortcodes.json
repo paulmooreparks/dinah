@@ -1,0 +1,686 @@
+{
+  "version": 1,
+  "shortcodes": [
+    {
+      "name": "info",
+      "kind": "container",
+      "title": "Information",
+      "meaning": "A notice that gives the reader information, set apart from the text around it.",
+      "arguments": [
+        {
+          "name": "title",
+          "position": 1,
+          "rest": true,
+          "required": false,
+          "description": "The notice's title, in inline Markdown. It is the whole argument."
+        }
+      ],
+      "plain": {
+        "from": "body",
+        "lead": "title"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "note",
+      "kind": "container",
+      "title": "Note",
+      "meaning": "A notice of something the reader should take note of, set apart from the text around it.",
+      "arguments": [
+        {
+          "name": "title",
+          "position": 1,
+          "rest": true,
+          "required": false,
+          "description": "The notice's title, in inline Markdown. It is the whole argument."
+        }
+      ],
+      "plain": {
+        "from": "body",
+        "lead": "title"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "tip",
+      "kind": "container",
+      "title": "Tip",
+      "meaning": "A notice that gives the reader a helpful tip, set apart from the text around it.",
+      "arguments": [
+        {
+          "name": "title",
+          "position": 1,
+          "rest": true,
+          "required": false,
+          "description": "The notice's title, in inline Markdown. It is the whole argument."
+        }
+      ],
+      "plain": {
+        "from": "body",
+        "lead": "title"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "warning",
+      "kind": "container",
+      "title": "Warning",
+      "meaning": "A notice that warns the reader of a risk, set apart from the text around it.",
+      "arguments": [
+        {
+          "name": "title",
+          "position": 1,
+          "rest": true,
+          "required": false,
+          "description": "The notice's title, in inline Markdown. It is the whole argument."
+        }
+      ],
+      "plain": {
+        "from": "body",
+        "lead": "title"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "expand",
+      "kind": "container",
+      "title": "Expand",
+      "meaning": "A section the reader opens and closes, with its title showing while it is closed.",
+      "arguments": [
+        {
+          "name": "title",
+          "position": 1,
+          "rest": true,
+          "required": false,
+          "description": "The title shown while the section is closed, in inline Markdown. It is the whole argument, and More when absent."
+        }
+      ],
+      "plain": {
+        "from": "body",
+        "lead": "title"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "status",
+      "kind": "inline",
+      "title": "Status",
+      "meaning": "A short status label with a colour that says how things stand.",
+      "arguments": [
+        {
+          "name": "colour",
+          "position": 1,
+          "required": true,
+          "description": "One of grey, blue, green, yellow or red. gray and amber are also read."
+        },
+        {
+          "name": "label",
+          "position": 2,
+          "rest": true,
+          "required": true,
+          "description": "The words of the label."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "label"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "toc",
+      "kind": "block",
+      "title": "Contents",
+      "meaning": "A linked list of the document's headings.",
+      "arguments": [
+        {
+          "name": "min",
+          "position": 0,
+          "required": false,
+          "description": "The first heading level listed, from 1 to 6."
+        },
+        {
+          "name": "max",
+          "position": 0,
+          "required": false,
+          "description": "The last heading level listed, from 1 to 6."
+        }
+      ],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "anchor",
+      "kind": "inline",
+      "title": "Anchor",
+      "meaning": "A named place in the document that a link can go to.",
+      "arguments": [
+        {
+          "name": "name",
+          "position": 1,
+          "required": true,
+          "description": "The anchor's name, a letter and then letters, digits, hyphens or underscores."
+        }
+      ],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "page",
+      "kind": "inline",
+      "title": "Page Link",
+      "meaning": "A link to another page of the same site, by the page's address on it.",
+      "arguments": [
+        {
+          "name": "slug",
+          "position": 1,
+          "required": true,
+          "description": "The page's address on the site."
+        },
+        {
+          "name": "text",
+          "position": 2,
+          "rest": true,
+          "required": false,
+          "description": "The words of the link. The slug is shown when absent."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "text",
+        "otherwise": "slug"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "figure",
+      "kind": "block",
+      "title": "Figure",
+      "meaning": "A picture from a file or an address, with an optional caption.",
+      "arguments": [
+        {
+          "name": "src",
+          "position": 1,
+          "required": true,
+          "description": "The picture's path or address."
+        },
+        {
+          "name": "alt",
+          "position": 0,
+          "required": false,
+          "description": "A description for someone who cannot see it."
+        },
+        {
+          "name": "width",
+          "position": 0,
+          "required": false,
+          "description": "The largest width it is drawn at."
+        },
+        {
+          "name": "caption",
+          "position": 0,
+          "required": false,
+          "description": "The caption, in inline Markdown."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "alt",
+        "otherwise": "caption"
+      },
+      "picture": true,
+      "published": true
+    },
+    {
+      "name": "diagram",
+      "kind": "block",
+      "title": "Diagram",
+      "meaning": "A diagram drawn from a saved D2, Mermaid or Canvas file, with an optional caption. The file stays the diagram's source.",
+      "arguments": [
+        {
+          "name": "src",
+          "position": 1,
+          "required": true,
+          "description": "The diagram file's path, ending in .d2, .mmd, .mermaid or .canvas."
+        },
+        {
+          "name": "alt",
+          "position": 0,
+          "required": false,
+          "description": "A description for someone who cannot see it."
+        },
+        {
+          "name": "width",
+          "position": 0,
+          "required": false,
+          "description": "The largest width it is drawn at."
+        },
+        {
+          "name": "caption",
+          "position": 0,
+          "required": false,
+          "description": "The caption, in inline Markdown."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "alt",
+        "otherwise": "src"
+      },
+      "picture": true,
+      "published": true
+    },
+    {
+      "name": "applet",
+      "kind": "block",
+      "title": "Applet",
+      "meaning": "An application of the hosting site running inside the page.",
+      "arguments": [
+        {
+          "name": "name",
+          "position": 1,
+          "required": true,
+          "description": "The application's name."
+        },
+        {
+          "name": "fit",
+          "position": 0,
+          "required": false,
+          "description": "flow or fill."
+        },
+        {
+          "name": "state",
+          "position": 0,
+          "required": false,
+          "description": "The state the application starts in."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "name"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "video",
+      "kind": "block",
+      "title": "Video",
+      "meaning": "A video played in the page from YouTube or Vimeo.",
+      "arguments": [
+        {
+          "name": "src",
+          "position": 1,
+          "required": true,
+          "description": "The video's link, or the service's name (youtube or vimeo)."
+        },
+        {
+          "name": "id",
+          "position": 2,
+          "required": false,
+          "description": "The video's id, when the first argument is a service's name."
+        },
+        {
+          "name": "title",
+          "position": 0,
+          "required": false,
+          "description": "A description of the video."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "title",
+        "otherwise": "src"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "code",
+      "kind": "block",
+      "title": "Code Listing",
+      "meaning": "The text of a file shown as a code listing.",
+      "arguments": [
+        {
+          "name": "src",
+          "position": 1,
+          "required": true,
+          "description": "The file's path."
+        },
+        {
+          "name": "lang",
+          "position": 0,
+          "required": false,
+          "description": "The listing's language, when the file's name does not say."
+        }
+      ],
+      "plain": {
+        "from": "file",
+        "argument": "src"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "color",
+      "kind": "span",
+      "title": "Color",
+      "meaning": "Words drawn in a colour.",
+      "arguments": [
+        {
+          "name": "colour",
+          "position": 1,
+          "required": true,
+          "description": "One of ink, muted, accent, danger, warn or positive, or a CSS colour."
+        }
+      ],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "class",
+      "kind": "container",
+      "title": "Style Class",
+      "meaning": "Words or blocks given a class of the document's stylesheet, which decides how they look.",
+      "arguments": [
+        {
+          "name": "name",
+          "position": 1,
+          "required": true,
+          "description": "The class's name."
+        }
+      ],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true,
+      "spanToo": true
+    },
+    {
+      "name": "style",
+      "kind": "container",
+      "title": "Stylesheet",
+      "meaning": "A stylesheet kept with the document. It is never shown.",
+      "arguments": [
+        {
+          "name": "scope",
+          "position": 1,
+          "required": false,
+          "description": "slide, for a stylesheet of the one slide it is in."
+        }
+      ],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": false
+    },
+    {
+      "name": "kbd",
+      "kind": "inline",
+      "title": "Keys",
+      "meaning": "Keys to press, each shown as a key.",
+      "arguments": [
+        {
+          "name": "keys",
+          "position": 1,
+          "rest": true,
+          "required": true,
+          "description": "The keys, joined by +, such as Ctrl+Shift+P. It is the whole argument."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "keys"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "glyph",
+      "kind": "inline",
+      "title": "Glyph",
+      "meaning": "One small symbol from the PUDL design language's set, in the line of text.",
+      "arguments": [
+        {
+          "name": "name",
+          "position": 1,
+          "required": true,
+          "description": "The glyph's name."
+        }
+      ],
+      "plain": {
+        "from": "argument",
+        "argument": "name"
+      },
+      "picture": true,
+      "published": true
+    },
+    {
+      "name": "columns",
+      "kind": "container",
+      "title": "Columns",
+      "meaning": "Content set side by side in columns. A column line inside it starts the next column.",
+      "arguments": [],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "column",
+      "kind": "block",
+      "title": "Next Column",
+      "meaning": "The divider between two columns, inside columns. It means nothing anywhere else.",
+      "arguments": [],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "no-export",
+      "kind": "container",
+      "title": "Not Exported",
+      "meaning": "Private working text that stays in the source and is left out of every export.",
+      "arguments": [],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": false,
+      "spanToo": true
+    },
+    {
+      "name": "draft-note",
+      "kind": "container",
+      "title": "Note to Self",
+      "meaning": "A note the author wrote to themselves, shown while editing and never published.",
+      "arguments": [],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": false
+    },
+    {
+      "name": "slide",
+      "kind": "block",
+      "title": "Slide Settings",
+      "meaning": "Settings for one slide of a deck. It draws nothing itself.",
+      "arguments": [
+        {
+          "name": "layout",
+          "position": 0,
+          "required": false,
+          "description": "The slide's layout."
+        },
+        {
+          "name": "background",
+          "position": 0,
+          "required": false,
+          "description": "The background colour."
+        },
+        {
+          "name": "image",
+          "position": 0,
+          "required": false,
+          "description": "The background picture's address."
+        },
+        {
+          "name": "reveal",
+          "position": 0,
+          "required": false,
+          "description": "How the slide's parts are revealed."
+        },
+        {
+          "name": "transition",
+          "position": 0,
+          "required": false,
+          "description": "The transition to the slide."
+        },
+        {
+          "name": "class",
+          "position": 0,
+          "required": false,
+          "description": "The slide's style class."
+        }
+      ],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": false
+    },
+    {
+      "name": "notes",
+      "kind": "container",
+      "title": "Speaker Notes",
+      "meaning": "Notes for the person presenting a deck, shown to them and not on the slide.",
+      "arguments": [],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": false
+    },
+    {
+      "name": "mark",
+      "kind": "span",
+      "title": "Highlight",
+      "meaning": "Words highlighted, as with a marker.",
+      "arguments": [],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "sup",
+      "kind": "span",
+      "title": "Superscript",
+      "meaning": "Words set as superscript.",
+      "arguments": [],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "sub",
+      "kind": "span",
+      "title": "Subscript",
+      "meaning": "Words set as subscript.",
+      "arguments": [],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "page-break",
+      "kind": "block",
+      "title": "Page Break",
+      "meaning": "The end of a page. What follows starts on a new page where the document has pages.",
+      "arguments": [],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "caption",
+      "kind": "container",
+      "title": "Caption",
+      "meaning": "The caption of the figure or table just before it.",
+      "arguments": [],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "colour",
+      "kind": "span",
+      "title": "Colour",
+      "aliasOf": "color",
+      "meaning": "Words drawn in a colour.",
+      "arguments": [
+        {
+          "name": "colour",
+          "position": 1,
+          "required": true,
+          "description": "One of ink, muted, accent, danger, warn or positive, or a CSS colour."
+        }
+      ],
+      "plain": {
+        "from": "body"
+      },
+      "picture": false,
+      "published": true
+    },
+    {
+      "name": "define",
+      "kind": "container",
+      "title": "Define a Shortcode",
+      "meaning": "The definition of a shortcode of the document's own. A use of that shortcode stands for the definition's body, so a destination works from the expanded text.",
+      "arguments": [
+        {
+          "name": "name",
+          "position": 1,
+          "required": true,
+          "description": "The new shortcode's name."
+        }
+      ],
+      "plain": {
+        "from": "nothing"
+      },
+      "picture": false,
+      "published": false
+    }
+  ]
+}

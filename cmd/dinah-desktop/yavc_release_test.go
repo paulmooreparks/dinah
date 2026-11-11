@@ -15,7 +15,7 @@ import (
 
 // The yavc.app content release Dinah vendors (frontend/YAVC.md). Changing
 // it means replacing frontend/yavc whole with another reviewed release.
-const yavcReleaseDigest = "15351bddf286c1af7c9e4e8fbe7b10f7c485695a9565e94e366581651d90357a"
+const yavcReleaseDigest = "503ce0274773937f4315ef928fdcc3caf4f17ed89b9fc8e317ea330e36affe0d"
 
 // yavcReleaseOmitted are the release's files Dinah does not ship: its
 // demonstration hosts and their Go module files. Its PUDL is checked
