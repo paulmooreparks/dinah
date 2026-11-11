@@ -128,6 +128,15 @@
     }).catch(function () { folders.delete(resource); });
   }
   function directory(resource) { return folders.get(String(resource || '')) || null; }
+  /* Edit Diagram on a diagram a document shows: the applet gives the
+     file's virtual path, and Dinah opens it in Diagrams in a window of its
+     own (diagram-picture.js). true says the request was taken, so the
+     applet does not ask PUDL for a window of PUDL's. */
+  function openDiagram(path) {
+    if (!path || !window.dinahDiagramPicture || !window.dinahDiagramPicture.open) return false;
+    window.dinahDiagramPicture.open(flatPath(String(path)));
+    return true;
+  }
   /* A path below a folder that keeps files by name alone, as the file of
      its last name in that folder; any other path as it is. */
   function flatPath(path) {
@@ -458,7 +467,7 @@
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost },
+      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation, documentCommands: documentCommands,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }

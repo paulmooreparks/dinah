@@ -1870,7 +1870,7 @@
            decision 87). Edit Diagram opens that file in the application
            that edits it, through PUDL's request for the diagram verb, and the document
            draws it again when the file is saved. */
-        function canOpenDiagram() { return !!(window.pudlApplets && window.pudlApplets.can && window.pudlApplets.request && window.pudlApplets.can('diagram')); }
+        function canOpenDiagram() { return typeof hostServices.openDiagram === 'function' || !!(window.pudlApplets && window.pudlApplets.can && window.pudlApplets.request && window.pudlApplets.can('diagram')); }
         /* report(text) is told why a diagram could not be opened; without one
            the reason is said as an error in the workspace. */
         function openDiagram(reference, report) {
@@ -1882,6 +1882,14 @@
             var path = window.yavcStyleTools ? window.yavcStyleTools.resolve(reference, directory) : reference;
             if (!/^(~\/|\/(?!\/))/.test(path)) { report('The diagram\'s place cannot be worked out here.'); return false; }
             if (!canOpenDiagram()) { report('Nothing here opens a diagram file for editing.'); return false; }
+            /* A host that opens files itself is asked first (contentWorkspace.openDiagram,
+               docs/content-workspace-contract.md); it says whether it took the request. */
+            if (typeof hostServices.openDiagram === 'function') {
+                var took = false;
+                try { took = hostServices.openDiagram(path, { host: root, document: current() && current().path || null }) === true; } catch (err) { report(String(err && err.message || err)); return false; }
+                if (took) { return true; }
+                if (!(window.pudlApplets && window.pudlApplets.can && window.pudlApplets.request && window.pudlApplets.can('diagram'))) { report('This application could not open the diagram.'); return false; }
+            }
             window.pudlApplets.request('diagram', { path: path }, root);
             return true;
         }

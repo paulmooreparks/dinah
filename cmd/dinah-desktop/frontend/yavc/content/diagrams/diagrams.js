@@ -1191,6 +1191,7 @@
                     if (box.weight) { div.style.fontWeight = box.weight; }
                     if (box.family) { div.style.fontFamily = box.family; }
                     if (box.pad != null) { div.style.padding = box.pad + 'px'; }
+                    if (box.pads) { div.style.padding = box.pads.map(function (side) { return side + 'px'; }).join(' '); }
                     if (box.lineHeight) { div.style.lineHeight = String(box.lineHeight); }
                     div.style.justifyContent = box.vertical === 'middle' ? 'center' : box.vertical === 'bottom' ? 'flex-end' : 'flex-start';
                     div.style.color = box.color || palette.text;

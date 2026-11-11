@@ -14,13 +14,15 @@
    that uses a font a product gave the page is drawn with it. The applets'
    file is fetched the first time a picture is asked for.
 
-   Edit Diagram. The applets ask for a diagram file to be opened for
-   editing with PUDL's request for the "diagram" verb, which goes to the
-   applet that says it handles the verb, in a window PUDL opens. Dinah
-   opens every document's window itself, one per document, and so takes
-   those verbs out of the applets' definitions (content-host.js). It
-   answers this verb here in their place: the file is opened in Diagrams
-   as any document is, in a window of its own. */
+   Edit Diagram. The applets ask the host to open a diagram file for
+   editing (pudlHost.contentWorkspace.openDiagram, yavc.app v0.2.74), and
+   only where the host does not take the request do they ask PUDL for the
+   applet that handles the "diagram" verb, in a window PUDL opens. Dinah
+   opens every document's window itself, one per document, and takes those
+   verbs out of the applets' definitions (content-host.js), so it takes
+   the request: the file is opened in Diagrams as any document is, in a
+   window of its own (open, below, which content-host.js offers as the
+   service). */
 (function () {
   'use strict';
   function api() { return window.dinahHelpers.app(); }
@@ -100,17 +102,5 @@
     }).then(function (v) { return window.dinahContentWindows.open(v, 'diagrams'); })
       .catch(function (err) { if (window.dinahHost) window.dinahHost.toast('The diagram could not be opened: ' + message(err), 'danger'); });
   }
-  function answerDiagramVerb() {
-    var applets = window.pudlApplets;
-    if (!applets || !applets.request || !applets.can || applets.dinahAnswersDiagram) return;
-    var can = applets.can, request = applets.request;
-    applets.can = function (verb, kind) { return verb === 'diagram' || can.call(applets, verb, kind); };
-    applets.request = function (verb, req, from) {
-      if (verb === 'diagram' && req && req.path) { openDiagram(req.path); return true; }
-      return request.call(applets, verb, req, from);
-    };
-    applets.dinahAnswersDiagram = true;
-  }
-  answerDiagramVerb();
-  document.addEventListener('DOMContentLoaded', answerDiagramVerb);
+  window.dinahDiagramPicture.open = openDiagram;
 })();

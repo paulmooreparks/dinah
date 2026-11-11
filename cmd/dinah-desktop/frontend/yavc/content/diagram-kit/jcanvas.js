@@ -185,6 +185,7 @@
         if (y.lineHeight != null && !(typeof y.lineHeight === 'number' && y.lineHeight >= 0.8 && y.lineHeight <= 3)) { return where + '\'s lineHeight must be a number from 0.8 to 3.'; }
         if (y.outlinePosition != null && ['center', 'inside'].indexOf(y.outlinePosition) < 0) { return where + '\'s outlinePosition must be center or inside.'; }
         if (y.noFill != null && typeof y.noFill !== 'boolean') { return where + '\'s noFill must be a boolean.'; }
+        if (y.paddingSides != null && !(Array.isArray(y.paddingSides) && y.paddingSides.length === 4 && y.paddingSides.every(function (side) { return Number.isInteger(side) && side >= 0 && side <= 64; }))) { return where + '\'s paddingSides must be four whole numbers from 0 to 64, for the top, right, bottom and left.'; }
         if (y.radius != null && !(typeof y.radius === 'number' && y.radius >= 0 && y.radius <= 1000)) { return where + '\'s radius must be a number from 0 to 1000.'; }
         if (y.fit != null && FITS.indexOf(y.fit) < 0) { return where + '\'s fit must be one of ' + FITS.join(', ') + '.'; }
         if (y.outlineSides != null && !(Array.isArray(y.outlineSides) && y.outlineSides.every(function (side, at) { return SIDES.indexOf(side) >= 0 && y.outlineSides.indexOf(side) === at; }))) { return where + '\'s outlineSides must be a list of different sides from ' + SIDES.join(', ') + '.'; }
@@ -461,20 +462,31 @@
         ruler = null;
         try {
             var surface = typeof document !== 'undefined' && document.createElement ? document.createElement('canvas').getContext('2d') : null;
-            if (surface) { ruler = function (text, size, weight, family) { surface.font = (weight || 400) + ' ' + size + 'px ' + family; return surface.measureText(text).width; }; }
+            if (surface) {
+                ruler = function (text, size, weight, family) { surface.font = (weight || 400) + ' ' + size + 'px ' + family; return surface.measureText(text).width; };
+                /* The font's own ascent and descent at a size, which the
+                   canvas API gives as fontBoundingBoxAscent and
+                   fontBoundingBoxDescent; null where a browser has neither. */
+                ruler.metrics = function (size, weight, family) {
+                    surface.font = (weight || 400) + ' ' + size + 'px ' + family;
+                    var m = surface.measureText('Hg');
+                    return typeof m.fontBoundingBoxAscent === 'number' && typeof m.fontBoundingBoxDescent === 'number' && m.fontBoundingBoxAscent > 0 ? { ascent: m.fontBoundingBoxAscent, descent: m.fontBoundingBoxDescent } : null;
+                };
+            }
         } catch (err) { ruler = null; }
         return ruler;
     }
     /* The lines a text takes in a width. wide(text) is its drawn width
        when exact is true, and an estimate otherwise. A line breaks between
-       words. A word is cut only when it is wider than the box by itself,
-       and by an estimate only when it is clearly wider, so that a label
-       sized to its letters is not cut for an estimate's error. */
+       words. A word is cut only when it is wider than the box by itself.
+       An estimate is trusted only when it says a text is wider than its
+       box by more than a fifth, for a new line as for a cut, so that a
+       label sized to its letters is not broken for an estimate's error. */
     function wrap(text, width, wide, exact) {
         var out = [], room = Math.max(1, width), slack = exact ? room + 0.5 : room * 1.2;
         text.split(/\s+/).forEach(function (word) {
             var last = out.length ? out[out.length - 1] : null;
-            if (last !== null && wide(last + ' ' + word) <= (exact ? room + 0.5 : room)) { out[out.length - 1] = last + ' ' + word; return; }
+            if (last !== null && wide(last + ' ' + word) <= slack) { out[out.length - 1] = last + ' ' + word; return; }
             while (word.length > 4 && wide(word) > slack) {
                 var cut = Math.max(4, Math.floor(word.length * room / wide(word)));
                 if (cut >= word.length) { break; }
@@ -484,20 +496,31 @@
         });
         return out;
     }
-    /* face: { weight, family, pad, lineHeight, measure, base }, each
-       optional; pad is 8 without one and the line height 1.3. family is
-       the node's own list, and base the drawing's, which the text is
-       measured in when the node has none. A line's baseline is where a
-       browser puts it in a line box of that height: half the extra space
-       above the letters, then 0.85 of the size, which for 1.3 is the size. */
+    /* face: { weight, family, pad, pads, lineHeight, measure, base }, each
+       optional; pad is 8 without one and the line height 1.3. pads is
+       [top, right, bottom, left] and takes pad's place. family is the
+       node's own list, and base the drawing's, which the text is measured
+       in when the node has none.
+
+       A line's baseline follows CSS's rule for a line box (CSS 2.2, 10.8.1):
+       the font's ascent and descent are centred in the line's height, and
+       the baseline is the ascent below the top of that. Where the page
+       gives the font's ascent and descent they are used, each rounded to a
+       whole pixel so that text sits on a pixel row as a page paints it.
+       Where it does not, the ascent is taken as 0.85 of the size and the
+       two together as the size, which for 1.3 puts the baseline one size
+       below the top. */
     function textBlock(md, x, y, w, h, colour, size, align, vertical, face) {
         var lines = [], pad = face && face.pad != null ? face.pad : 8, measure = face && face.measure, fontList = face && (face.family || face.base);
+        var pads = face && Array.isArray(face.pads) ? face.pads : [pad, pad, pad, pad];
         var exact = !!(measure && fontList), wide = exact ? function (text) { return measure(text, size, face.weight, fontList); } : function (text) { return text.length * size * 0.56; };
-        plainLines(md).forEach(function (p, i) { if (i) { lines.push(''); } p.forEach(function (part) { lines = lines.concat(wrap(part, w - pad * 2, wide, exact)); }); });
-        var lh = size * (face && face.lineHeight ? face.lineHeight : 1.3), first = (lh - size) / 2 + size * 0.85, maxLines = Math.max(1, Math.floor((h - pad) / lh + 0.05));
+        plainLines(md).forEach(function (p, i) { if (i) { lines.push(''); } p.forEach(function (part) { lines = lines.concat(wrap(part, w - pads[1] - pads[3], wide, exact)); }); });
+        var metrics = exact && typeof measure.metrics === 'function' ? measure.metrics(size, face.weight, fontList) : null;
+        var ascent = metrics ? Math.round(metrics.ascent) : size * 0.85, descent = metrics ? Math.round(metrics.descent) : size * 0.15;
+        var lh = size * (face && face.lineHeight ? face.lineHeight : 1.3), first = (lh - (ascent + descent)) / 2 + ascent, maxLines = Math.max(1, Math.floor((h - (Array.isArray(face && face.pads) ? pads[0] + pads[2] : pad)) / lh + 0.05));
         if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] += '…'; }
-        var top = vertical === 'middle' ? y + h / 2 - (lines.length * lh) / 2 + first : vertical === 'bottom' ? y + h - pad - lines.length * lh + first : y + pad + first;
-        var tx = align === 'center' ? x + w / 2 : align === 'right' ? x + w - pad : x + pad, anchor = align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start';
+        var top = vertical === 'middle' ? y + (h + pads[0] - pads[2]) / 2 - (lines.length * lh) / 2 + first : vertical === 'bottom' ? y + h - pads[2] - lines.length * lh + first : y + pads[0] + first;
+        var tx = align === 'center' ? x + (w + pads[3] - pads[1]) / 2 : align === 'right' ? x + w - pads[1] : x + pads[3], anchor = align === 'center' ? 'middle' : align === 'right' ? 'end' : 'start';
         return '<text x="' + tx.toFixed(1) + '" y="' + top.toFixed(1) + '" font-size="' + size + '"' + (face && face.weight ? ' font-weight="' + face.weight + '"' : '') + (face && face.family ? ' font-family="' + esc(face.family) + '"' : '') + ' fill="' + esc(colour) + '" text-anchor="' + anchor + '">' +
             lines.map(function (l, i) { return '<tspan x="' + tx.toFixed(1) + '"' + (i ? ' dy="' + lh.toFixed(1) + '"' : '') + '>' + esc(l || ' ') + '</tspan>'; }).join('') + '</text>';
     }
@@ -573,7 +596,7 @@
             var line = { fill: cols.fill, stroke: cols.stroke, 'stroke-width': lw };
             if (dash) { line['stroke-dasharray'] = dash; }
             var size = y2.fontSize || FONT, nodeFamily = y2.fontFamily && FAMILY.test(y2.fontFamily) ? y2.fontFamily : null;
-            var face = { weight: y2.fontWeight || null, family: nodeFamily ? families(nodeFamily + ', ' + (family ? family + ', ' : '') + baseFont) : null, pad: y2.padding == null ? null : y2.padding, lineHeight: y2.lineHeight || null, measure: measure, base: rootFamily };
+            var face = { weight: y2.fontWeight || null, family: nodeFamily ? families(nodeFamily + ', ' + (family ? family + ', ' : '') + baseFont) : null, pad: y2.padding == null ? null : y2.padding, pads: Array.isArray(y2.paddingSides) && y2.paddingSides.length === 4 ? y2.paddingSides : null, lineHeight: y2.lineHeight || null, measure: measure, base: rootFamily };
             boxes.push({ id: n.id, type: n.type, x: x, y: y, w: n.width, h: n.height, colors: { fill: n.type === 'text' && y2.shape === 'text' && !y2.fillColor || cols.fill === 'none' ? pal.bg : cols.fill, stroke: cols.stroke } });
             out.push('<g data-node="' + esc(n.id) + '">');
             if (n.type === 'group') {
@@ -593,7 +616,7 @@
                 inset.vertical = y2.textVerticalAlign || (centred ? 'middle' : 'top');
                 inset.color = cols.text;
                 /* The text's face, for the screen to draw the Markdown in. */
-                inset.size = size; inset.weight = face.weight; inset.family = face.family; inset.pad = face.pad; inset.lineHeight = face.lineHeight;
+                inset.size = size; inset.weight = face.weight; inset.family = face.family; inset.pad = face.pad; inset.pads = face.pads; inset.lineHeight = face.lineHeight;
                 boxes[boxes.length - 1].text = inset;
                 out.push('<g data-text="' + esc(n.id) + '">' + textBlock(n.text, inset.x, inset.y, inset.w, inset.h, cols.text, size, inset.align, inset.vertical, face) + '</g>');
             } else if (n.type === 'file') {
