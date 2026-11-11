@@ -80,7 +80,7 @@
     async function collect(doc, source, opts) {
         opts = opts || {};
         var J = opts.canvas || window.yavcCanvas, paths = [], pictures = {}, problems = [];
-        doc.nodes.forEach(function (n) { if (J.isPicture(n) && paths.indexOf(n.file) < 0) { paths.push(n.file); } });
+        doc.nodes.forEach(function (n) { if (J.isPicture(n) && !(J.embedded && J.embedded(n)) && paths.indexOf(n.file) < 0) { paths.push(n.file); } });
         if (!paths.length) { return { pictures: pictures, problems: problems }; }
         if (typeof source !== 'function') { return { pictures: pictures, problems: ['This application has not given canvases a way to read pictures, so each picture is shown by its name.'] }; }
         if (paths.length > MAX_PICTURES) { problems.push('A canvas draws at most ' + MAX_PICTURES + ' different pictures, and this one has ' + paths.length + '. The rest are shown by name.'); paths = paths.slice(0, MAX_PICTURES); }

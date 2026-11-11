@@ -461,7 +461,7 @@
         window.addEventListener('focus', function () { picturesStale++; }, { signal: lifetime.signal });
         async function canvasPictures(t, doc, J) {
             var paths = [];
-            doc.nodes.forEach(function (nd) { if (J.isPicture(nd) && paths.indexOf(nd.file) < 0) { paths.push(nd.file); } });
+            doc.nodes.forEach(function (nd) { if (J.isPicture(nd) && !J.embedded(nd) && paths.indexOf(nd.file) < 0) { paths.push(nd.file); } });
             if (!paths.length) { t.cvPictures = null; return { pictures: {}, problems: [] }; }
             var key = picturesStale + '\n' + (t.path || '') + '\n' + paths.join('\n');
             if (t.cvPictures && t.cvPictures.key === key) { return t.cvPictures.read; }

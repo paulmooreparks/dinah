@@ -58,6 +58,10 @@
             var api = { preview: call('preview'), doc: call('doc'), markdown: call('markdown'), blocks: call('blocks'), source: call('source'), container: call('container'), inline: call('inline'), glyphs: call('glyphs'), front: call('front'), frontset: call('frontset'), styles: call('styles') };
             api.outline = call('outline'); api.outlineState = call('outline-state'); api.moveSection = call('section-move');
             api.shortcodes = call('shortcodes');
+            /* A document with its own shortcodes replaced by what they stand
+               for and their definitions taken out: expand({ text, shared,
+               hosts }) -> { text, problems } (docs/shortcode-destinations.md). */
+            api.expand = function (request) { request = request || {}; return call('expand')({ text: String(request.text || ''), shared: String(request.shared || ''), hosts: hostList(request.hosts) || [] }); };
             api.review=call('review');api.resolveReview=call('review-resolve');api.proposeReview=call('review-propose');api.inlineReview=call('review-inline');api.editReview=call('review-edit');
             /* An engine that reads a document's own shortcodes, the ones a
                hosting application draws, or both. Each keeps the other when

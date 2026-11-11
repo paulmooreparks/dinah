@@ -129,6 +129,21 @@
         return style ? Object.assign({}, style, own) : own;
     }
     function isPicture(n) { return !!(n && n.type === 'file' && typeof n.file === 'string' && PICTURE.test(n.file)); }
+    /* A picture kept in the file itself (docs/canvas-extension.md, a picture
+       in the file): the data address on a picture node, or null. It is
+       image data of one of five kinds, no longer than MAX_EMBEDDED
+       characters, whose first bytes are of the kind it says. */
+    var MAX_EMBEDDED = 256 * 1024;
+    function embeddedProblem(href) {
+        if (typeof href !== 'string' || href.length > MAX_EMBEDDED || !PICTURE_HREF.test(href)) { return 'must be a data address of a PNG, JPEG, GIF, WebP or SVG picture in base64, of at most 256 KiB'; }
+        var type = /^data:image\/([a-z+]+);/.exec(href)[1], head;
+        try { head = atob(href.slice(href.indexOf(',') + 1).slice(0, type === 'svg+xml' ? 5464 : 24)); } catch (err) { return 'is not base64'; }
+        function starts(at, values) { return values.every(function (v, i) { return head.charCodeAt(at + i) === v; }); }
+        var ok = type === 'png' ? starts(0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) : type === 'jpeg' ? starts(0, [0xff, 0xd8, 0xff]) : type === 'gif' ? starts(0, [0x47, 0x49, 0x46, 0x38]) :
+            type === 'webp' ? starts(0, [0x52, 0x49, 0x46, 0x46]) && starts(8, [0x57, 0x45, 0x42, 0x50]) : /^(?:\xef\xbb\xbf)?\s*</.test(head) && /<svg[\s>]/i.test(head);
+        return ok ? null : 'is not the kind of picture it says';
+    }
+    function embedded(n) { return isPicture(n) && isObj(n.yavc) && typeof n.yavc.picture === 'string' && !embeddedProblem(n.yavc.picture) ? n.yavc.picture : null; }
     /* Where an object's id is written, to mark a problem there. */
     function placeOfId(text, obj) {
         if (!obj || typeof obj.id !== 'string') { return null; }
@@ -162,6 +177,11 @@
             if (!isObj(n.yavc)) { return where + '\'s yavc property must be an object.'; }
             if (n.yavc.anchor != null && typeof n.yavc.anchor !== 'boolean') { return where + '\'s anchor must be a boolean.'; }
             if (isAnchor(n) && (n.type !== 'text' || n.text !== '' || n.width !== 0 || n.height !== 0 || n.yavc.shape !== 'text' || !Number.isSafeInteger(n.x) || !Number.isSafeInteger(n.y))) { return where + ' is a point anchor and must be empty text with shape text, zero size and integer coordinates.'; }
+            if (n.yavc.picture != null) {
+                if (!isPicture(n)) { return where + '\'s picture belongs on a file node whose file is a picture.'; }
+                var pictureProblem = embeddedProblem(n.yavc.picture);
+                if (pictureProblem) { return where + '\'s picture ' + pictureProblem + '.'; }
+            }
             if (n.yavc.style != null && !(typeof n.yavc.style === 'string' && STYLE_NAME.test(n.yavc.style))) { return where + '\'s style must be the name of one of the canvas\'s styles.'; }
             return extensionProblem(n.yavc, n.type, where);
         }
@@ -186,6 +206,7 @@
         if (y.outlinePosition != null && ['center', 'inside'].indexOf(y.outlinePosition) < 0) { return where + '\'s outlinePosition must be center or inside.'; }
         if (y.noFill != null && typeof y.noFill !== 'boolean') { return where + '\'s noFill must be a boolean.'; }
         if (y.paddingSides != null && !(Array.isArray(y.paddingSides) && y.paddingSides.length === 4 && y.paddingSides.every(function (side) { return Number.isInteger(side) && side >= 0 && side <= 64; }))) { return where + '\'s paddingSides must be four whole numbers from 0 to 64, for the top, right, bottom and left.'; }
+        if (y.radiusCorners != null && !(Array.isArray(y.radiusCorners) && y.radiusCorners.length === 4 && y.radiusCorners.every(function (r) { return typeof r === 'number' && r >= 0 && r <= 1000; }))) { return where + '\'s radiusCorners must be four numbers from 0 to 1000, for the top left, top right, bottom right and bottom left.'; }
         if (y.radius != null && !(typeof y.radius === 'number' && y.radius >= 0 && y.radius <= 1000)) { return where + '\'s radius must be a number from 0 to 1000.'; }
         if (y.fit != null && FITS.indexOf(y.fit) < 0) { return where + '\'s fit must be one of ' + FITS.join(', ') + '.'; }
         if (y.outlineSides != null && !(Array.isArray(y.outlineSides) && y.outlineSides.every(function (side, at) { return SIDES.indexOf(side) >= 0 && y.outlineSides.indexOf(side) === at; }))) { return where + '\'s outlineSides must be a list of different sides from ' + SIDES.join(', ') + '.'; }
@@ -387,6 +408,16 @@
         }
     }
     function corner(radius, w, h) { return Math.max(0, Math.min(radius, w / 2, h / 2)); }
+    /* A box whose corners each have a radius of their own, as a path. radii
+       is [top left, top right, bottom right, bottom left]; each is drawn no
+       larger than half the box's shorter side, and less is taken off it
+       for an outline drawn inside the edge. */
+    function cornersPath(x, y, w, h, radii, less) {
+        var f = function (n) { return +n.toFixed(2); }, r = radii.map(function (radius) { return Math.max(0, corner(radius, w + less * 2, h + less * 2) - less); }), X = x + w, Y = y + h;
+        function arc(radius, toX, toY) { return radius > 0 ? ' A ' + f(radius) + ' ' + f(radius) + ' 0 0 1 ' + f(toX) + ' ' + f(toY) : ''; }
+        return 'M ' + f(x + r[0]) + ' ' + f(y) + ' L ' + f(X - r[1]) + ' ' + f(y) + arc(r[1], X, y + r[1]) + ' L ' + f(X) + ' ' + f(Y - r[2]) + arc(r[2], X - r[2], Y) +
+            ' L ' + f(x + r[3]) + ' ' + f(Y) + arc(r[3], x, Y - r[3]) + ' L ' + f(x) + ' ' + f(y + r[0]) + arc(r[0], x + r[0], y) + ' Z';
+    }
     /* The sides of a box that are drawn, each a straight line. */
     function sidesPath(sides, x, y, w, h) {
         var r = function (n) { return n.toFixed(1); }, X = x + w, Y = y + h;
@@ -562,7 +593,9 @@
         /* A box that may have a radius of its own and only some of its
            sides outlined (docs/canvas-extension.md). */
         function box(x, y, w, h, y2, line, radius) {
-            var rx = y2.radius == null ? radius : corner(y2.radius, w, h);
+            var rx = y2.radius == null ? radius : corner(y2.radius, w, h), each = Array.isArray(y2.radiusCorners) && y2.radiusCorners.length === 4 ? y2.radiusCorners : null;
+            /* The box's own shape: a rectangle with one radius, or a path when each corner has its own. */
+            function outlineOf(bx, by, bw, bh, less) { return each ? { d: cornersPath(bx, by, bw, bh, each, less) } : { tag: 'rect', a: { x: bx, y: by, width: bw, height: bh, rx: Math.max(0, rx - less) } }; }
             /* An outline inside the edge is drawn on a box that is smaller by
                half the line on every side, where a line's width allows it. */
             var some = Array.isArray(y2.outlineSides) && y2.outlineSides.length < 4;
@@ -572,12 +605,13 @@
                     /* The fill keeps the whole box. Each side's line is moved
                        in by half its width, and its square ends take it to
                        the box's corners, as the sides of a CSS border meet. */
-                    return element({ tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: rx } }, Object.assign({}, line, { stroke: 'none' })) +
+                    return element(outlineOf(x, y, w, h, 0), Object.assign({}, line, { stroke: 'none' })) +
                         element({ d: sidesPath(y2.outlineSides, x + half, y + half, w - half * 2, h - half * 2) }, Object.assign({}, line, { fill: 'none', 'stroke-linecap': 'square' }));
                 }
-                x += half; y += half; w -= half * 2; h -= half * 2; rx = Math.max(0, rx - half);
+                var inner = outlineOf(x + half, y + half, w - half * 2, h - half * 2, half);
+                return element(inner, line);
             }
-            var spec = { tag: 'rect', a: { x: x, y: y, width: w, height: h, rx: rx } };
+            var spec = outlineOf(x, y, w, h, 0);
             if (!Array.isArray(y2.outlineSides) || y2.outlineSides.length === 4) { return element(spec, line); }
             var sides = Object.assign({}, line, { fill: 'none' });
             return element(spec, Object.assign({}, line, { stroke: 'none' })) + (y2.outlineSides.length ? element({ d: sidesPath(y2.outlineSides, x, y, w, h) }, sides) : '');
@@ -620,7 +654,7 @@
                 boxes[boxes.length - 1].text = inset;
                 out.push('<g data-text="' + esc(n.id) + '">' + textBlock(n.text, inset.x, inset.y, inset.w, inset.h, cols.text, size, inset.align, inset.vertical, face) + '</g>');
             } else if (n.type === 'file') {
-                var href = isPicture(n) && pictures && Object.prototype.hasOwnProperty.call(pictures, n.file) && typeof pictures[n.file] === 'string' && PICTURE_HREF.test(pictures[n.file]) ? pictures[n.file] : null;
+                var href = embedded(n) || (isPicture(n) && pictures && Object.prototype.hasOwnProperty.call(pictures, n.file) && typeof pictures[n.file] === 'string' && PICTURE_HREF.test(pictures[n.file]) ? pictures[n.file] : null);
                 if (href && n.width > 0 && n.height > 0) {
                     /* A picture is drawn as image data and never as markup of
                        the drawing's own, and it has an outline or a fill
@@ -688,7 +722,7 @@
         dark: ['#ff6b6b', '#ff9f43', '#f1c40f', '#66d17a', '#3cc8d8', '#b18cff']
     });
 
-    var api = Object.freeze({ read: read, write: write, render: render, families: families, isAnchor: isAnchor, isPicture: isPicture, extension: extension, FITS: FITS.slice(), automatic: automatic, path: pathD, routes: routes, route: function (e, nodes) { return routes([e], nodes)[0].route; },
+    var api = Object.freeze({ read: read, write: write, render: render, families: families, isAnchor: isAnchor, isPicture: isPicture, embedded: embedded, extension: extension, FITS: FITS.slice(), automatic: automatic, path: pathD, routes: routes, route: function (e, nodes) { return routes([e], nodes)[0].route; },
         PRESETS: PRESETS, SHAPES: SHAPES.slice(), HEADS: HEADS.slice(), ROUTES: ROUTES.slice(), LINES: LINES.slice(), EXT_VERSION: EXT_VERSION, LIMITS: Object.freeze({ text: MAX_TEXT, items: MAX_ITEMS }) });
     if (typeof module === 'object' && module.exports) { module.exports = api; } else { root.yavcCanvas = api; }
 })(typeof window !== 'undefined' ? window : this);
