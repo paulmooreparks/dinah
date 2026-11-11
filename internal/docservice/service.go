@@ -277,6 +277,9 @@ type document struct {
 	grants map[string]bool
 	// key is the recovery record this window last read or wrote.
 	key string
+	// left is the record of a file the window's text was saved away from,
+	// under another name. Nothing in it is unsaved any more.
+	left string
 	// request is what the window's applet is to take when it starts, and
 	// ticket the page that waits for its answer.
 	request json.RawMessage
@@ -329,6 +332,10 @@ func (d *document) title() string {
 	name := "Untitled"
 	if d.current != "" {
 		name = filepath.Base(d.current)
+	}
+	if d.touched {
+		// A dot leads the title of a document with unsaved changes.
+		name = "• " + name
 	}
 	return name + " - " + d.app.Name
 }

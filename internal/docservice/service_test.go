@@ -714,3 +714,72 @@ func TestTwoStartsMakeOneService(t *testing.T) {
 		t.Fatalf("%d services were started", starts)
 	}
 }
+
+// Text saved under another name is no longer unsaved, so the record kept
+// under the file the window showed before goes, and that file opens later
+// with nothing offered. A snapshot for the old file that was already on its
+// way does not bring the record back for good.
+func TestSaveAsLeavesNothingUnsavedUnderTheOldName(t *testing.T) {
+	h := start(t, t.TempDir(), true)
+	folder := t.TempDir()
+	notes, copied := filepath.Join(folder, "notes.txt"), filepath.Join(folder, "copy.txt")
+	put(t, notes, "one\n")
+	p := h.open(notes)
+	var kept bool
+	if problem := p.call(&kept, "PutSnapshot", notes, `{"tabs":[{"draft":"typed"}]}`); problem != "" || !kept {
+		t.Fatalf("keeping the snapshot: %v %s", kept, problem)
+	}
+	h.s.SetDialogs(nil, []string{copied})
+	var pick SavePick
+	if problem := p.call(&pick, "PickSave", "copy.txt"); problem != "" {
+		t.Fatal(problem)
+	}
+	if problem := p.call(nil, "CommitSave", pick.Ticket, "typed\n"); problem != "" {
+		t.Fatal(problem)
+	}
+	if r := h.s.store.get(fileKey("editor", notes)); r != nil {
+		t.Fatalf("the old file still has a record: %s", r.Snapshot)
+	}
+	// One on its way arrives late, then the new file's.
+	p.call(&kept, "PutSnapshot", notes, `{"tabs":[{"draft":"typed"}]}`)
+	p.call(&kept, "PutSnapshot", copied, `{"tabs":[]}`)
+	if r := h.s.store.get(fileKey("editor", notes)); r != nil {
+		t.Fatalf("a late snapshot left the old file a record: %s", r.Snapshot)
+	}
+	if r := h.s.store.get(fileKey("editor", copied)); r == nil {
+		t.Fatal("the new file has no record")
+	}
+	// The window goes back to typing in the new file; its record stays.
+	p.call(&kept, "PutSnapshot", copied, `{"tabs":[{"draft":"more"}]}`)
+	if r := h.s.store.get(fileKey("editor", copied)); r == nil || !strings.Contains(string(r.Snapshot), "more") {
+		t.Fatal("the new file's record was lost")
+	}
+}
+
+// The window's title leads with a dot while the document has unsaved
+// changes, and the window is told when that changes.
+func TestTheTitleShowsUnsavedChanges(t *testing.T) {
+	h := start(t, t.TempDir(), true)
+	file := filepath.Join(t.TempDir(), "notes.md")
+	put(t, file, "one\n")
+	p := h.open(file)
+	titles := func() []string {
+		var out []string
+		for _, c := range h.s.doc(p.id).link.after(context.Background(), 0, time.Millisecond, 0) {
+			if c.Kind == "title" {
+				var data struct{ Title string }
+				json.Unmarshal(c.Data, &data)
+				out = append(out, data.Title)
+			}
+		}
+		return out
+	}
+	p.call(nil, "State", file, false)
+	p.call(nil, "State", file, true)
+	p.call(nil, "State", file, true)
+	p.call(nil, "State", file, false)
+	got := strings.Join(titles(), "|")
+	if want := "• notes.md - Test Editor|notes.md - Test Editor"; got != want {
+		t.Fatalf("the window was told %q, not %q", got, want)
+	}
+}

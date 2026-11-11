@@ -67,7 +67,8 @@
     clearTimeout(telling); telling = 0;
     return changedNow().then(function (changed) {
       var resource = resourceNow();
-      if (attached) document.title = (baseName(resource) || 'Untitled') + ' - ' + attached.applicationName;
+      /* A dot leads the title of a document with unsaved changes. */
+      if (attached) document.title = (changed ? '• ' : '') + (baseName(resource) || 'Untitled') + ' - ' + attached.applicationName;
       var state = JSON.stringify([resource, changed]);
       if (state === told) return;
       told = state;

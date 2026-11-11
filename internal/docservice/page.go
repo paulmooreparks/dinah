@@ -264,6 +264,19 @@ func (p *Page) CommitSave(ctx context.Context, ticket, text string) (WriteResult
 		return WriteResult{}, err
 	}
 	d.grant(chosen.path)
+	// The text the window showed is now in the file chosen, so the record
+	// kept under the file it showed before has nothing unsaved in it, and
+	// would be offered as unsaved changes when that file is next opened.
+	d.mu.Lock()
+	left := d.key
+	if strings.HasPrefix(left, "untitled:") || left == fileKey(d.application, chosen.path) {
+		left = ""
+	}
+	d.left = left
+	d.mu.Unlock()
+	if left != "" {
+		d.service.store.remove(left)
+	}
 	return out, nil
 }
 
@@ -291,14 +304,22 @@ func (p *Page) PutSnapshot(shown, snapshot string) (bool, error) {
 		key = previous
 	}
 	d.key = key
+	// A snapshot that was already on its way when the text was saved under
+	// another name puts the old file's record back, and the next one, for
+	// the new file, removes it again.
+	left := d.left
+	if key != left && previous != left {
+		d.left = ""
+	}
 	d.mu.Unlock()
 	if err := s.store.put(Record{Key: key, Application: d.application, Path: path, Untitled: path == "", Saved: time.Now().UTC(), Snapshot: json.RawMessage(snapshot)}); err != nil {
 		return false, err
 	}
 	// The record of what the window showed before goes when the window has
-	// moved on from a document with no file. A file's record stays, for the
-	// next window that opens the file.
-	if previous != "" && previous != key && strings.HasPrefix(previous, "untitled:") {
+	// moved on from a document with no file, or saved its text away from a
+	// file under another name. Any other file's record stays, for the next
+	// window that opens the file.
+	if previous != "" && previous != key && (strings.HasPrefix(previous, "untitled:") || previous == left) {
 		s.store.remove(previous)
 	}
 	p.setCurrent(path)
@@ -317,10 +338,14 @@ func (p *Page) State(shown string, changed bool) error {
 			return err
 		}
 	}
-	p.setCurrent(path)
-	p.d.mu.Lock()
-	p.d.touched, p.d.ready = changed, true
-	p.d.mu.Unlock()
+	d := p.d
+	d.mu.Lock()
+	retitle := d.touched != changed || d.current != path
+	d.current, d.touched, d.ready = path, changed, true
+	d.mu.Unlock()
+	if retitle {
+		d.link.send("title", map[string]string{"title": d.title()})
+	}
 	return nil
 }
 
