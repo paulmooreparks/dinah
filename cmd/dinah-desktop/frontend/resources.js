@@ -218,7 +218,6 @@
           return base64(o.blob).then(function (data) { return app().SaveFileToComputer(host().workspaceId(), choice.computer, data); }).then(function (path) {
             if (!path) return false;
             done = { path: path };
-            host().toast('Saved ' + path + '.', 'info');
             return true;
           });
         }
@@ -237,12 +236,16 @@
             var written = (r.added || []).concat(r.replaced || [], r.kept || []);
             if (!written.length) return false;
             done = { name: choice.name, where: where };
-            host().toast('Saved ' + choice.name + ' to ' + where + '.', 'info');
             return true;
           });
         });
       } });
-    }).then(function () { return done; });
+    }).then(function () {
+      /* Said once the dialog has gone: a toast made while a dialog is open
+         belongs to it and goes with it. */
+      if (done) host().toast(done.path ? 'Saved ' + done.path + '.' : 'Saved ' + done.name + ' to ' + done.where + '.', 'info');
+      return done;
+    });
   }
   /* A toast says what an upload did; the report is passed on. */
   function reported(dir, r) {
