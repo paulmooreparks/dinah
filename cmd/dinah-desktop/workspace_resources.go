@@ -264,9 +264,6 @@ func localResourceItem(ref ResourceRef, source WorkspaceSource, f *os.File) (Res
 	if editorOpens(ref.Path, st.Size()) {
 		item.Actions = append(item.Actions, "read", "preview", "edit")
 	}
-	if st.Size() <= 1<<20 && strings.EqualFold(filepath.Ext(ref.Path), ".mermaid") {
-		item.Actions = append(item.Actions, "read", "preview")
-	}
 	if imagePreviewable(ref.Path, st.Size()) {
 		item.Actions = append(item.Actions, "preview")
 	}
