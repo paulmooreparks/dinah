@@ -179,8 +179,9 @@
      workspace's main folder, takes a folder on the computer that can be
      written, and has To Your Computer… for anywhere else. It starts in the
      main folder because the workspace itself is the list of what is
-     attached to it and takes no file; a workspace with no main folder of
-     files starts at that list. o is { name, title, blob }. The
+     attached to it and takes no file. A workspace with no main folder
+     starts in its one folder of files, and at that list when it has none
+     or several. o is { name, title, blob }. The
      promise gives { name, where } or { path } once the file is written, or
      null when the person cancelled. A name the folder already has is asked
      about, as an upload's is. */
@@ -197,8 +198,12 @@
     function mainFolder() {
       return Promise.resolve(app().State()).then(function (state) {
         var record = (state.workspaceRecords || []).find(function (entry) { return entry.id === state.workspaceId; });
-        if (!record || !record.primarySourceId || !app().ResolveWorkspaceResourceMount) return undefined;
-        return Promise.resolve(app().ResolveWorkspaceResourceMount({ workspaceId: record.id, sourceId: record.primarySourceId, path: '' })).then(function (item) {
+        /* The main folder, or the one folder of files of a workspace
+           that has no main one. */
+        var folders = record ? (record.sources || []).filter(function (s) { return s.kind === 'local-folder'; }) : [];
+        var source = record && record.primarySourceId || (folders.length === 1 ? folders[0].id : '');
+        if (!source || !app().ResolveWorkspaceResourceMount) return undefined;
+        return Promise.resolve(app().ResolveWorkspaceResourceMount({ workspaceId: record.id, sourceId: source, path: '' })).then(function (item) {
           return item && item.directory && item.writable ? item.path : undefined;
         });
       }).catch(function () { return undefined; });
