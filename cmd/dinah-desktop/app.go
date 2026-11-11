@@ -20,6 +20,7 @@ import (
 	"studio/internal/bushost"
 	"studio/internal/extensions"
 	"studio/internal/layout"
+	"studio/internal/pageask"
 	"studio/internal/providers"
 	"studio/internal/responsiveness"
 	"studio/internal/sessionhost"
@@ -257,6 +258,11 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.watchFileAccess(ctx)
 	a.ctx = ctx
+	// An applet's action written outside this program asks the page
+	// through the same questions this program's own applets do.
+	pageask.Set(func(ctx context.Context, kind string, args any, within time.Duration) (string, error) {
+		return a.askPageWithin(ctx, kind, args, within)
+	})
 	logf("core", "info", "%s %s started", product.Name, shownVersion())
 	logRestartWait()
 	a.restoreTerminalShutdownNotice()

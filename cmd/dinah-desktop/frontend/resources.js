@@ -174,6 +174,57 @@
       'Replace', true, [{ label: 'Skip', value: 'skip' }, { label: 'Keep Both', value: 'keep-both' }])
       .then(function (answer) { return answer === true ? 'replace' : answer || null; });
   }
+  /* A file the page made, such as a picture of what a window draws, saved
+     where the person chooses: the Save dialog starts in the current
+     workspace, takes a folder on the computer that can be written, and has
+     To Your Computer… for anywhere else. o is { name, title, blob }. The
+     promise gives { name, where } or { path } once the file is written, or
+     null when the person cancelled. A name the folder already has is asked
+     about, as an upload's is. */
+  function saveFile(o) {
+    var done = null;
+    function base64(blob) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(String(reader.result).split(',')[1] || ''); };
+        reader.onerror = function () { reject(new Error('The file could not be read.')); };
+        reader.readAsDataURL(blob);
+      });
+    }
+    return window.dinahFilePicker.pick({ mode: 'save', title: o.title || 'Save As', name: o.name,
+      saveKind: function (dir) {
+        return takesFolder(dir) ? { kind: 'file' } : { why: 'Read-only. Open a folder that can be written, or use To Your Computer… for a place outside the workspace.' };
+      },
+      commit: function (choice) {
+        if (choice.computer) {
+          return base64(o.blob).then(function (data) { return app().SaveFileToComputer(host().workspaceId(), choice.computer, data); }).then(function (path) {
+            if (!path) return false;
+            done = { path: path };
+            host().toast('Saved ' + path + '.', 'info');
+            return true;
+          });
+        }
+        var dir = choice.dir, where = dir.title || dir.name || dir.path;
+        return Promise.resolve(app().UploadNameConflicts(dir.ref, [choice.name])).then(function (taken) { return existingChoice(dir, taken); }).then(function (existing) {
+          if (!existing) return false;
+          var form = new FormData();
+          form.append('folder', JSON.stringify(dir.ref));
+          form.append('existing', existing);
+          form.append('file', new File([o.blob], choice.name, { type: o.blob.type || 'application/octet-stream' }), choice.name);
+          return fetch('/upload', { method: 'POST', credentials: 'same-origin', body: form }).then(function (res) {
+            if (!res.ok) return res.text().then(function (t) { throw new Error(t || 'The file could not be saved.'); });
+            return res.json();
+          }).then(function (r) {
+            if ((r.refused || []).length) throw new Error(r.refused.join('; '));
+            var written = (r.added || []).concat(r.replaced || [], r.kept || []);
+            if (!written.length) return false;
+            done = { name: choice.name, where: where };
+            host().toast('Saved ' + choice.name + ' to ' + where + '.', 'info');
+            return true;
+          });
+        });
+      } }).then(function () { return done; });
+  }
   /* A toast says what an upload did; the report is passed on. */
   function reported(dir, r) {
     var where = dir.title || dir.name || dir.path;
@@ -599,5 +650,5 @@
     };
   }
 
-  window.dinahResources = { forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
+  window.dinahResources = { saveFile: saveFile, forget: forget, itemCommands: itemCommands, documentHomes: documentHomes, glyphName: glyphName, open: open, openFiles: openFiles, openTerminal: openTerminal, currentPath: currentPath, createTree: createTree, decorate: decorate, shownPath: shownPath, readOnly: readOnly, readOnlyMark: readOnlyMark, takesFolder: takesFolder, newFolder: newFolder, askName: askName, renames: renames, renameFile: renameFile, upload: upload, chooseAndUpload: chooseAndUpload, copyPath: copyPath, uploadTarget: uploadTarget, homePath: loadHome, has: has, verify: verify, sameRef: sameRef, compatibleRef: compatibleRef, subscribe: subscribe, commands: commands, invoke: invoke };
 })();

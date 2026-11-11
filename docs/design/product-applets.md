@@ -37,3 +37,11 @@ An agent lists every session it has for a folder, and a product may know that so
 ## What this does not do
 
 A product's agent-facing actions go through applet bundles like the built-in ones: the product package registers a maker with `applet.RegisterBundle` in its `init`, and the host adds what it makes to the registry it assembles at start (`applet_builtins.go`), so the bundle's actions reach agents, flows and the page's applet SDK as the built-in bundles' do. Menus of the page's own menu bar, settings sections and new pinned categories have no registry yet; each is added when a product needs it.
+
+## An action that needs the page, and a file the page made
+
+Two further seams were added on 11 November 2026, for a product applet that makes a picture of what its window draws.
+
+An action of a product's bundle runs in Go, in the product's own package, and some answers only the page can make. `internal/pageask` lets such an action put a question to the page: `pageask.Ask(ctx, kind, args, within)` returns the page's answer as JSON text. The window program gives its own way of asking when it starts, the same one its own applets use (`askPageWithin`). The product's page file answers the kind with `dinahWorkbench.answerAsks(kind, fn)`. The package knows no question, so the product's Go code and its page file agree on the kind and on what is asked and answered. An action that returns a file to the agent still declares `artifact.create`, as any action does.
+
+A page file that has made a file for the person, such as a picture, saves it with `dinahResources.saveFile({ name, title, blob })`. It shows the usual Save dialog, which starts in the current workspace and takes a folder on the computer that can be written. The dialog's To Your Computer… goes to the system's own dialog, through the App method `SaveFileToComputer`, which offers the kind of the suggested name first. A name the folder already has is asked about, as an upload's is. Nothing here is particular to pictures.
