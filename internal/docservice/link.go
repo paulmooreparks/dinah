@@ -43,12 +43,17 @@ func newLink() *link {
 
 // send queues a command and returns its number.
 func (l *link) send(kind string, data any) int64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.publish(kind, data)
+}
+
+// publish queues a command for a caller that has the lock.
+func (l *link) publish(kind string, data any) int64 {
 	var raw json.RawMessage
 	if data != nil {
 		raw, _ = json.Marshal(data)
 	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	l.next++
 	l.queue = append(l.queue, Command{Seq: l.next, Kind: kind, Data: raw})
 	close(l.wake)
@@ -56,7 +61,9 @@ func (l *link) send(kind string, data any) int64 {
 	return l.next
 }
 
-// ask queues a command and waits for the window's answer to it.
+// ask queues a command and waits for the window's answer to it. The place
+// for the answer is made before the window can see the command, so an
+// answer that comes at once is not lost.
 func (l *link) ask(ctx context.Context, kind string, data any) (json.RawMessage, error) {
 	answer := make(chan json.RawMessage, 1)
 	l.mu.Lock()
@@ -64,9 +71,7 @@ func (l *link) ask(ctx context.Context, kind string, data any) (json.RawMessage,
 		l.mu.Unlock()
 		return nil, errors.New("the window has closed")
 	}
-	l.mu.Unlock()
-	seq := l.send(kind, data)
-	l.mu.Lock()
+	seq := l.publish(kind, data)
 	l.replies[seq] = answer
 	l.mu.Unlock()
 	defer func() {
