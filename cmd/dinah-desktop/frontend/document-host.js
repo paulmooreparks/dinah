@@ -164,9 +164,10 @@
     changeListeners.add(listener);
     return function () { changeListeners.delete(listener); };
   }
-  window.addEventListener('focus', function () {
+  function filesMayHaveChanged() {
     changeListeners.forEach(function (fn) { try { fn(); } catch (err) { /* a listener's failure is its own */ } });
-  });
+  }
+  window.addEventListener('focus', filesMayHaveChanged);
 
   /* The folder of each file the applet has read, which it asks for without
      waiting (contentWorkspace.directory). */
@@ -370,7 +371,8 @@
       var resource = resourceNow();
       if (!resource || resource.indexOf('untitled:') === 0) { say('Save the document to a file before choosing its web root.'); return; }
       app().PickWebRoot(resource).then(function (root) {
-        if (root) say('The web root is ' + root + '. Pictures under it show when the document is next opened.', 'positive');
+        /* The applet asks again where its pictures are. */
+        if (root) { say('The web root is ' + root + '.', 'positive'); filesMayHaveChanged(); }
       }, function (err) { say(message(err)); });
     });
     document.getElementById('document-clear-web-root').addEventListener('click', function () {
@@ -378,7 +380,7 @@
       if (!resource || resource.indexOf('untitled:') === 0) return;
       app().WebRoot(resource).then(function (root) {
         if (!root) { say('This document has no web root.', 'warn'); return null; }
-        return app().ClearWebRoot(resource).then(function () { say(root + ' is no longer a web root.', 'positive'); });
+        return app().ClearWebRoot(resource).then(function () { say(root + ' is no longer a web root.', 'positive'); filesMayHaveChanged(); });
       }).catch(function (err) { say(message(err)); });
     });
     document.getElementById('document-close-window').addEventListener('click', function () {
