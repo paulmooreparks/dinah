@@ -421,7 +421,11 @@
       contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture } },
       contentResources: { version: 1, read: readWithFolder, write: write, saveAs: saveAs },
       fs: { open: open, readText: readText, onChange: onChange },
-      snapshot: snapshot, config: config, documentWindows: documentWindows
+      snapshot: snapshot, config: config, documentWindows: documentWindows,
+      /* The applet's first menu has its own entries and nothing more. The
+         kit would add a command that copies the page's address, which here
+         is an address on this computer that no one else can open. */
+      identity: function (root, entries) { return (entries || []).slice(); }
     });
     window.pudlApplets.capability('files.read', fileServices);
     window.pudlApplets.capability('files.write', fileServices);
