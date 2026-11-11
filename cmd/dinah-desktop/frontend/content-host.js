@@ -563,6 +563,28 @@
     if (can === null) return { present: false };
     return { present: true, disabled: !can, reason: can ? '' : 'There are no changes to publish.' };
   }
+  /* Request a Change… stands in Review and in the menu of a right click
+     on the selection, for a document that has a place an agent can read it
+     from (request-change.js). It needs a selection, which the applet says
+     it has and gives, as the text it stands for, when the command runs. */
+  function requestPresent(resource) {
+    var c = controllerOf(resource);
+    return !!(c && c.ref && c.ref() && window.dinahRequestChange);
+  }
+  function requestState(context) {
+    if (!requestPresent(context && context.resource)) return { present: false };
+    var selected = !!(context && context.selected);
+    return { present: true, disabled: !selected, reason: selected ? '' : 'Select the passage you want changed.' };
+  }
+  function requestChange(context) {
+    var c = controllerOf(context && context.resource);
+    if (!c || !c.ref || !c.ref()) return Promise.reject(new Error('This document has no place an agent can read it from yet. Save it first.'));
+    var selection = context && context.selection;
+    if (!selection || !selection.text) {
+      return Promise.reject(new Error('The selection could not be matched to the document\'s text. Select the passage in Text view and request the change again.'));
+    }
+    return window.dinahRequestChange.open({ ref: c.ref(), draftId: names()[String(context.resource)] || '', title: context.name || 'the document', selection: selection.text });
+  }
   var commandListeners = new Set(), commandStates = '';
   function commandSignature() {
     var parts = [];
@@ -570,7 +592,7 @@
       var r = m.dataset.contentResource;
       if (!r || m.dataset.contentPresenter) return;
       var s = publishState(r);
-      parts.push(r + (s.present ? (s.disabled ? ':off' : ':on') : ':none'));
+      parts.push(r + (s.present ? (s.disabled ? ':off' : ':on') : ':none') + (requestPresent(r) ? ':ask' : ''));
     });
     return parts.join('|');
   }
@@ -588,10 +610,15 @@
   var documentCommands = {
     version: 1,
     list: function (application) {
-      return application === 'editor' || application === 'docs' ? [{ id: 'publish', label: 'Publish…', glyph: 'upload', shortcut: 'Mod+Shift+U' }] : [];
+      return application === 'editor' || application === 'docs' ? [{ id: 'publish', label: 'Publish…', glyph: 'upload', shortcut: 'Mod+Shift+U' },
+        { id: 'request-change', label: 'Request a Change…', glyph: 'pencil', shortcut: 'Mod+Shift+E', menu: 'review', context: true }] : [];
     },
-    state: function (id, context) { return id === 'publish' ? publishState(context && context.resource) : { present: false }; },
+    state: function (id, context) {
+      if (id === 'request-change') return requestState(context);
+      return id === 'publish' ? publishState(context && context.resource) : { present: false };
+    },
     run: function (id, context) {
+      if (id === 'request-change') return requestChange(context);
       var c = id === 'publish' ? controllerOf(context && context.resource) : null;
       if (!c || !c.canPublish || !c.canPublish()) return Promise.reject(new Error('There are no changes to publish.'));
       return Promise.resolve(c.publish());

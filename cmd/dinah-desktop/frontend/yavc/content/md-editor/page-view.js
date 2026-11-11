@@ -2116,6 +2116,8 @@ var schemaCache = null;
           return at == null ? null : { from: at, to: at };
         } catch (err) { return null; }
       },
+      /* Whether anything on the page is selected, said at once. */
+      hasSelection: function () { return !!(view && on && !view.state.selection.empty); },
       // Preserve a failed rich draft for selection/copy after its host revokes editing.
       freeze: function () { frozen = true; if (view) view.setProps({ editable: function () { return false; } }); },
       active: function () { return on && !!view; },

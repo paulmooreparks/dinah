@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"io/fs"
 	"strings"
 	"testing"
 
@@ -53,7 +55,8 @@ func TestTheContentApplicationsActionsAreOfferedWithDinahsCapabilities(t *testin
 // how to propose. In any other product every action is offered.
 func TestAnActionThatChangesADocumentIsAbsentWhereAgentsPropose(t *testing.T) {
 	data := []byte(`{"id":"yavc.sample","version":"1.0.0","apiVersion":1,"title":"Sample","description":"A sample.","actions":[` +
-		`{"ref":"yavc.sample/read@1","title":"Read","description":"Read it.","live":true,"replay":"pure","capabilities":["files.read"],"inputSchema":{"type":"object"},"outputSchema":{"type":"object"}},` +
+		`{"ref":"yavc.sample/read@1","title":"Read","description":"Read it.","live":true,"replay":"pure","changes":"none","capabilities":["files.read"],"inputSchema":{"type":"object"},"outputSchema":{"type":"object"}},` +
+		`{"ref":"yavc.sample/unsaid@1","title":"Unsaid","description":"Says nothing of what it changes.","live":true,"replay":"once","capabilities":[],"inputSchema":{"type":"object"},"outputSchema":{"type":"object"}},` +
 		`{"ref":"yavc.sample/set-text@1","title":"Set","description":"Set it.","live":true,"replay":"once","changes":"document","capabilities":[],"inputSchema":{"type":"object"},"outputSchema":{"type":"object"}}]}`)
 	a := NewApp()
 	refs := func(propose bool) (string, []string) {
@@ -76,10 +79,50 @@ func TestAnActionThatChangesADocumentIsAbsentWhereAgentsPropose(t *testing.T) {
 		}
 		return b.Manifest.Description, out
 	}
-	if note, got := refs(false); len(got) != 2 || strings.Contains(note, "dinah.documents/suggest@1") {
+	if note, got := refs(false); len(got) != 3 || strings.Contains(note, "dinah.documents/suggest@1") {
 		t.Fatalf("with no rule: %v %q", got, note)
 	}
 	if note, got := refs(true); len(got) != 1 || got[0] != "yavc.sample/read@1" || !strings.Contains(note, "dinah.documents/suggest@1") {
 		t.Fatalf("where agents propose: %v %q", got, note)
+	}
+	// The release taken says of every action which it is, and the rule
+	// reaches the two applications that show suggestions and no other.
+	for _, app := range contentApps {
+		name := "frontend/yavc/content/" + app + "/actions.json"
+		data, err := fs.ReadFile(assets, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m contentManifest
+		if err := json.Unmarshal(data, &m); err != nil {
+			t.Fatal(err)
+		}
+		changing := 0
+		for _, act := range m.Actions {
+			if act.Changes != "document" && act.Changes != "none" {
+				t.Fatalf("%s does not say whether it changes a document", act.Ref)
+			}
+			if act.Changes == "document" {
+				changing++
+			}
+		}
+		all, err := a.contentBundleFrom(app, name, data, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		kept, err := a.contentBundleFrom(app, name, data, suggestionApps[app])
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := len(all.Manifest.Actions)
+		if suggestionApps[app] {
+			want -= changing
+			if changing == 0 {
+				t.Fatalf("%s marks no action as changing a document", app)
+			}
+		}
+		if len(kept.Manifest.Actions) != want {
+			t.Fatalf("%s offers %d actions where agents propose, not %d", app, len(kept.Manifest.Actions), want)
+		}
 	}
 }

@@ -182,10 +182,29 @@
                     if (declared.some(function (x) { return x.id === d.id; })) return;
                     declared.push({ id: d.id, label: d.label, glyph: typeof d.glyph === 'string' && /^[a-z0-9-]{1,40}$/.test(d.glyph) ? d.glyph : undefined,
                         shortcut: typeof d.shortcut === 'string' && /^(?:(?:Mod|Ctrl|Alt|Shift)\+){0,3}(?:[A-Z0-9]|F[1-9]|F1[0-2])$/.test(d.shortcut) ? d.shortcut : undefined,
-                        after: typeof d.after === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(d.after) ? d.after : 'save-as' });
+                        menu: d.menu === 'review' ? 'review' : 'file', context: d.context === true,
+                        after: typeof d.after === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(d.after) ? d.after : null });
                 });
             } catch (err) { declared = []; }
-            function context() { var t = current(); return { application: app, resource: t && t.path || null, name: t ? t.name : '', modified: !!(t && dirtyTab(t)) }; }
+            /* Whether the view in front has a selection, which is cheap
+               to say each time the menus are drawn. Where it is in the
+               text is worked out only when a command runs. */
+            function onPage() { return pageActive() && (viewMode !== 'split' || editingPane !== 'text'); }
+            function selected() {
+                if (!view || readsAsPreview() && editingPane !== 'text') return false;
+                return onPage() ? !!(visual.api.hasSelection && visual.api.hasSelection()) : !view.state.selection.main.empty;
+            }
+            /* The selection as a range of the document's text. One made on
+               the page is the range it maps to, and null when it cannot be
+               mapped exactly, as review proposals refuse it too. */
+            async function selection() {
+                if (!selected()) return null;
+                function range(from, to) { return to > from ? { text: view.state.doc.sliceString(from, to), start: from, end: to } : null; }
+                if (!onPage()) { var main = view.state.selection.main; return range(main.from, main.to); }
+                var mapped = await visual.api.sourceSelection();
+                return mapped ? range(mapped.from, mapped.to) : null;
+            }
+            function context() { var t = current(); return { application: app, resource: t && t.path || null, name: t ? t.name : '', modified: !!(t && dirtyTab(t)), selected: selected() }; }
             function state(d) {
                 var s = null;
                 try { s = service.state(d.id, context()); } catch (err) { s = null; }
@@ -204,7 +223,9 @@
                                 try {
                                     if (pageActive()) await visual.api.sync();
                                     if (destroyed || !state(d).present || state(d).disabled) return;
-                                    await service.run(d.id, Object.assign(context(), { root: root, signal: styleLifetime.signal }));
+                                    var chosen = await selection();
+                                    if (destroyed) return;
+                                    await service.run(d.id, Object.assign(context(), { selection: chosen, root: root, signal: styleLifetime.signal }));
                                 } catch (err) { if (!destroyed && !(err && err.name === 'AbortError')) say(String(err && err.message || err), true); }
                                 commandsChanged();
                             } };
@@ -477,6 +498,10 @@
             if (t.closest('.ed-surface, .ed-page, .cm-editor, .ProseMirror, [data-role="surface"], [data-role="page"]')) {
                 var rows = ['undo', 'redo', '-', 'find', '-'];
                 if (formatOffered) { rows = rows.concat(window.yavcMdEditor ? window.yavcMdEditor.MENU.format : []); }
+                /* The host's commands that asked to be offered here; one
+                   that is not there for this document leaves no row. */
+                var offered = hostCommands.declared.filter(function (d) { return d.context; }).map(function (d) { return 'host-' + d.id; });
+                if (offered.length) rows = rows.concat(['-'], offered);
                 e.detail.add(window.pudlCommands ? window.pudlCommands.menuRows(rows, root) : rows);
             }
         });
@@ -2740,10 +2765,18 @@
             if (formatOffered) { titles.push({ id: 'format', label: 'Format', glyph: 'paragraph', items: ['style', '-', 'bold', 'italic', 'underline', 'strike', 'code', '-', 'highlight', 'superscript', 'subscript', '-', 'color', 'class', '-', 'bullets', 'numbers', 'quote', 'table', '-', 'document-layout','page-setup', 'document-theme', 'typography', 'header-footer', '-', 'stylesheet', 'shared-stylesheet', 'custom-shortcodes'] }); }
             if(current()&&(current().lang==='markdown'||hostSuggestions))titles.push({id:'review',label:'Review',glyph:'comments',items:['suggestion-previous','suggestion-next','-','review-changes','-','review-addition','review-deletion','review-replacement','review-comment','review-highlight','-','review-accept-all','review-reject-all']});
             /* The host's commands sit in File after the command each names,
-               or after Save As. */
+               or after Save As. One for Review goes after the command it
+               names, or at the end of that menu, which is there for it
+               even when the document has no review marks to offer. */
             hostCommands.declared.forEach(function (d) {
-                var items = titles[1].items, at = items.indexOf(d.after);
-                if (at < 0) at = items.indexOf('save-as');
+                var title = titles[1];
+                if (d.menu === 'review') {
+                    title = titles.filter(function (t) { return t.id === 'review'; })[0];
+                    if (!title) { title = { id: 'review', label: 'Review', glyph: 'comments', items: [] }; titles.push(title); }
+                }
+                var items = title.items, at = d.after ? items.indexOf(d.after) : -1;
+                if (at < 0) at = d.menu === 'review' ? items.length - 1 : items.indexOf('save-as');
+                if (d.menu === 'review' && at === items.length - 1 && items.length && items[at].indexOf('host-') !== 0) { items.push('-'); at++; }
                 while (at + 1 < items.length && items[at + 1].indexOf('host-') === 0) at++;
                 items.splice(at + 1, 0, 'host-' + d.id);
             });

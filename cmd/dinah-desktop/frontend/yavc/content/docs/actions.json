@@ -1,6 +1,6 @@
 {
   "id": "yavc.docs",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "apiVersion": 1,
   "title": "Docs",
   "description": "Markdown document authoring, source access and page layout.",
@@ -39,6 +39,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -68,6 +69,7 @@
         "type": "object"
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -121,6 +123,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -178,6 +181,7 @@
         "artifact.create",
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -213,6 +217,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -330,6 +335,7 @@
       "capabilities": [
         "files.write"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -376,6 +382,7 @@
       "capabilities": [
         "files.write"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -429,6 +436,7 @@
       "capabilities": [
         "files.write"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -458,6 +466,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -508,6 +517,7 @@
       "capabilities": [
         "window.open"
       ],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -575,6 +585,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -634,6 +645,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -695,6 +707,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -753,6 +766,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -815,6 +829,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -874,6 +889,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -927,6 +943,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -991,6 +1008,7 @@
         "files.write",
         "files.read"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1025,6 +1043,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1062,6 +1081,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -1098,6 +1118,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -1174,6 +1195,7 @@
         "type": "object"
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1229,6 +1251,7 @@
       "capabilities": [
         "files.write"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1265,6 +1288,7 @@
         "type": "object"
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -1305,6 +1329,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure",
       "live": true
     },
@@ -1353,6 +1378,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once",
       "live": true
     },
@@ -1413,6 +1439,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once",
       "live": true
     }

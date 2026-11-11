@@ -1,6 +1,6 @@
 {
   "id": "yavc.diagrams",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": 1,
   "title": "Diagrams",
   "description": "Diagrams as D2, Mermaid or JSON Canvas text files: read, write and draw the diagrams open in Diagrams, read a D2 diagram's structure and change it shape by shape, and export the drawing.",
@@ -29,6 +29,7 @@
         }
       },
       "capabilities": ["files.read"],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -78,6 +79,7 @@
       "capabilities": [
         "window.open"
       ],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -146,6 +148,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -228,6 +231,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -320,6 +324,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -389,6 +394,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -476,6 +482,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -541,6 +548,7 @@
         "files.write",
         "files.read"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -575,6 +583,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -619,6 +628,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -740,6 +750,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -774,6 +785,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -853,6 +865,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1113,6 +1126,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1192,6 +1206,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -1246,6 +1261,7 @@
         "artifact.create",
         "files.read"
       ],
+      "changes": "none",
       "replay": "once"
     }
   ]

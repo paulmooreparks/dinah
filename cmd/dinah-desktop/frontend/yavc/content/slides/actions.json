@@ -1,6 +1,6 @@
 {
   "id": "yavc.slides",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "apiVersion": 1,
   "title": "Slides",
   "description": "Slide decks as Markdown files: read, build and change a deck, move through it, and present it. The deck a live action works on is the one open in Slides; parse and make work on text alone.",
@@ -50,6 +50,7 @@
       "capabilities": [
         "files.write"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -103,6 +104,7 @@
       "capabilities": [
         "files.write"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -132,6 +134,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -228,6 +231,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -329,6 +333,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -378,6 +383,7 @@
       "capabilities": [
         "window.open"
       ],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -442,6 +448,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -474,6 +481,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -507,6 +515,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -587,6 +596,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -633,6 +643,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -665,6 +676,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -697,6 +709,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -749,6 +762,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -796,6 +810,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -828,6 +843,7 @@
       "capabilities": [
         "files.write"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -878,6 +894,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -930,6 +947,7 @@
       "capabilities": [
         "files.read"
       ],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -978,6 +996,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1011,6 +1030,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1044,6 +1064,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1084,6 +1105,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1166,6 +1188,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1271,6 +1294,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     },
     {
@@ -1327,6 +1351,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -1359,6 +1384,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -1387,6 +1413,7 @@
         }
       },
       "capabilities": [],
+      "changes": "none",
       "replay": "once"
     },
     {
@@ -1417,6 +1444,7 @@
         "artifact.create",
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -1450,6 +1478,7 @@
         "artifact.create",
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -1483,6 +1512,7 @@
         "artifact.create",
         "files.read"
       ],
+      "changes": "none",
       "replay": "pure"
     },
     {
@@ -1537,6 +1567,7 @@
         }
       },
       "capabilities": [],
+      "changes": "document",
       "replay": "once"
     }
   ]

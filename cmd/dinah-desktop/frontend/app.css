@@ -832,3 +832,9 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 }
 
 #dinah-launcher [data-launcher-pin], #dinah-launcher [data-launcher-size] { margin-inline-start: auto; }
+
+/* Request a Change: the selected passage, as the agent will get it. It
+   keeps its line breaks, wraps, and scrolls in a box of one height, so a
+   long passage does not push the dialog's fields away. */
+.request-change-passage { margin: 0; padding: var(--space-2); max-height: 9rem; min-height: 3rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+#request-change { width: min(36rem, calc(100vw - 2rem)); }

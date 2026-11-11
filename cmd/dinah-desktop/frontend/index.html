@@ -88,6 +88,7 @@
   <script src="files-applet.js" defer></script>
   <script src="file-picker.js" defer></script>
   <script src="documents.js" defer></script>
+  <script src="request-change.js" defer></script>
   <script src="terminal-applet.js" defer></script>
   <script src="terminal-shell.js" defer></script>
   <script src="terminal-lua.js" defer></script>
@@ -284,6 +285,33 @@
       <div class="dialog-actions">
         <button type="button" class="btn" id="workspace-source-cancel">Cancel</button>
         <button type="submit" class="btn btn-primary" id="workspace-source-add">Choose a Folder…</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Request a Change: what should change in the selected passage, and
+       which chat is asked (request-change.js). -->
+  <dialog class="dialog" id="request-change" aria-labelledby="request-change-title">
+    <h2 class="dialog-title" id="request-change-title">Request a Change</h2>
+    <form class="vstack gap-3" id="request-change-form">
+      <div class="form-group">
+        <span class="form-label" id="request-change-passage-label">The Selected Passage</span>
+        <pre class="request-change-passage" id="request-change-passage" tabindex="0" aria-labelledby="request-change-passage-label"></pre>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="request-change-words">What Should Change</label>
+        <textarea class="form-textarea" id="request-change-words" rows="4" required></textarea>
+        <p class="form-help">The agent proposes the change. You accept or reject each suggestion in the document.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="request-change-chat">Chat</label>
+        <span class="form-select-wrap"><select class="form-select" id="request-change-chat" required></select></span>
+        <p class="form-help" id="request-change-none" hidden>There is no chat in this document's workspace. Start one there, then request the change.</p>
+      </div>
+      <p class="form-help" id="request-change-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="request-change-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="request-change-send">Request</button>
       </div>
     </form>
   </dialog>

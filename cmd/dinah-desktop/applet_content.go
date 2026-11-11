@@ -53,8 +53,10 @@ type contentManifest struct {
 		Live    bool   `json:"live"`
 		Handles string `json:"handles"`
 		// Changes is "document" for an action that changes a document's
-		// text, saves it, or makes, closes or replaces one, as the release
-		// says of its own actions.
+		// text, saves it, or makes, closes or replaces one, and "none" for
+		// one that does not, as the release says of every action of its
+		// own. The release gives one or the other, so an action with
+		// neither is taken to change a document.
 		Changes string `json:"changes"`
 	} `json:"actions"`
 }
@@ -104,12 +106,18 @@ func (a *App) contentAppletBundle(app string) (applet.Bundle, error) {
 	if err != nil {
 		return applet.Bundle{}, err
 	}
-	return a.contentBundleFrom(app, name, data, product.AgentsProposeDocumentChanges)
+	return a.contentBundleFrom(app, name, data, product.AgentsProposeDocumentChanges && suggestionApps[app])
 }
 
+// suggestionApps are the applications whose windows show an agent's
+// suggestions for the person to accept or reject. Only there can an agent
+// propose in place of changing, so only their actions are left out where a
+// product's agents propose; a deck or a diagram has no suggestions yet.
+var suggestionApps = map[string]bool{"editor": true, "docs": true}
+
 // contentBundleFrom makes a package's bundle from its actions.json. With
-// propose set, the actions the release marks as changing a document are
-// left out, so that no agent is offered one and none can be called: what
+// propose set, every action the release does not mark as leaving the
+// document alone is left out, so that no agent is offered one and none can be called: what
 // an agent may not do is absent, and the description says what to do
 // instead.
 func (a *App) contentBundleFrom(app, name string, data []byte, propose bool) (applet.Bundle, error) {
@@ -121,7 +129,7 @@ func (a *App) contentBundleFrom(app, name string, data []byte, propose bool) (ap
 	handlers := map[string]applet.Handler{}
 	left := false
 	for _, action := range m.Actions {
-		if propose && action.Changes == "document" {
+		if propose && action.Changes != "none" {
 			left = true
 			continue
 		}
