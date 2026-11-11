@@ -441,7 +441,7 @@
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
       contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
-      snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation,
+      snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation, documentCommands: documentCommands,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
     });
     window.pudlApplets.capability('files.read', fileServices);
@@ -539,6 +539,70 @@
     watchingDrafts = true;
     window.dinahHost.on('draft:changed', function (e) { if (e && e.id && suggestionSubscribers.has(e.id)) publishSuggestionsSoon(e.id); });
   }
+  /* ---- Commands of Dinah's in the applets' File menu ------------------------
+     pudlHost.documentCommands, version 1 (yavc.app's
+     docs/document-commands-contract.md). Publish… stands in File after Save
+     As for a document whose source publishes what is written, such as a
+     page of a wiki, because File is where a person looks for it. It is the
+     Document menu's own command (documents.js): the same question before
+     it writes and the same write. The applet says which document it asks
+     about by the document's resource, which is on the window's mount. */
+  function controllerOf(resource) {
+    if (!resource || !window.dinahDocuments || !window.dinahDocuments.get) return null;
+    var mounts = document.querySelectorAll('.content-applet');
+    for (var i = 0; i < mounts.length; i++) {
+      if (mounts[i].dataset.contentResource !== String(resource) || mounts[i].dataset.contentPresenter) continue;
+      var win = mounts[i].closest('[data-win]');
+      var c = win ? window.dinahDocuments.get(win.getAttribute('data-win')) : null;
+      if (c) return c;
+    }
+    return null;
+  }
+  function publishState(resource) {
+    var c = controllerOf(resource), can = c && c.canPublish ? c.canPublish() : null;
+    if (can === null) return { present: false };
+    return { present: true, disabled: !can, reason: can ? '' : 'There are no changes to publish.' };
+  }
+  var commandListeners = new Set(), commandStates = '';
+  function commandSignature() {
+    var parts = [];
+    document.querySelectorAll('.content-applet').forEach(function (m) {
+      var r = m.dataset.contentResource;
+      if (!r || m.dataset.contentPresenter) return;
+      var s = publishState(r);
+      parts.push(r + (s.present ? (s.disabled ? ':off' : ':on') : ':none'));
+    });
+    return parts.join('|');
+  }
+  /* Whether there is something to publish changes with the draft and with
+     the comments not yet sent, which the applet cannot see. Dinah's own
+     commands are redrawn for both, so the applets are told then, and only
+     when a document's answer has changed. */
+  document.addEventListener('dinah:commands-change', function () {
+    if (!commandListeners.size) return;
+    var now = commandSignature();
+    if (now === commandStates) return;
+    commandStates = now;
+    commandListeners.forEach(function (fn) { try { fn(); } catch (_) { /* a listener's failure is its own */ } });
+  });
+  var documentCommands = {
+    version: 1,
+    list: function (application) {
+      return application === 'editor' || application === 'docs' ? [{ id: 'publish', label: 'Publish…', glyph: 'upload', shortcut: 'Mod+Shift+U' }] : [];
+    },
+    state: function (id, context) { return id === 'publish' ? publishState(context && context.resource) : { present: false }; },
+    run: function (id, context) {
+      var c = id === 'publish' ? controllerOf(context && context.resource) : null;
+      if (!c || !c.canPublish || !c.canPublish()) return Promise.reject(new Error('There are no changes to publish.'));
+      return Promise.resolve(c.publish());
+    },
+    onChange: function (callback) {
+      if (typeof callback !== 'function') return function () {};
+      commandListeners.add(callback);
+      return function () { commandListeners.delete(callback); };
+    }
+  };
+
   function decideSuggestion(request, context) {
     if (!window.dinahContentWindows || !window.dinahContentWindows.decideSuggestion) return Promise.reject(new Error('Suggestions cannot be decided here.'));
     return window.dinahContentWindows.decideSuggestion(request || {}, context || {});

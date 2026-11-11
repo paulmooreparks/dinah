@@ -53,6 +53,8 @@
     detach: function (key) { controllers.delete(key); recency = recency.filter(function (k) { return k !== key; }); C.changed(); },
     current: current,
     front: front,
+    /* The controller of one window, by the window's key. */
+    get: function (key) { return controllers.get(key) || null; },
     /* The documents open in Editor windows, the most recently in front
        first, as { draftId, title, workspaceId }, for the chat's @. */
     open: function () {
@@ -104,7 +106,12 @@
      is not written at each pause in typing: its draft keeps the changes,
      and Publish… writes them to the page after asking. The row is drawn
      only for such a document (content-windows.js, publish). */
-  C.register({ id: 'publish-document', glyph: 'upload', menu: 'document', mnemonic: 'P', label: 'Publish…', shortcut: 'Ctrl+Shift+U', help: { label: 'Publish the Document…', key: 'Ctrl+Shift+U' },
+  /* The Editor and Docs draw Publish… in their own File menu too, with the
+     same key (content-host.js, documentCommands), and the key is theirs
+     while one of their windows is in front. This row holds it otherwise,
+     as when a chat beside the document is in front, so one press never
+     publishes twice. */
+  C.register({ id: 'publish-document', glyph: 'upload', menu: 'document', mnemonic: 'P', label: 'Publish…', shortcut: function () { var f = front(); return f && f.ownsFile ? '' : 'Ctrl+Shift+U'; }, help: { label: 'Publish the Document…', key: 'Ctrl+Shift+U' },
     visible: function () { return cur(function (c) { return !!c.canPublish && c.canPublish() !== null; }, false); },
     enabled: function () { return !suspended(['terminal']) && cur(function (c) { return !!c.canPublish && !!c.canPublish(); }, false); },
     reason: function () { return suspended(['terminal']) ? 'A Terminal is in front, and the key is its own.' : 'There are no changes to publish.'; },

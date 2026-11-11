@@ -168,6 +168,52 @@
         var tabs = [], active = -1, untitled = 0;
         var H = window.pudlHost || {}, resourceSession = null, resources = null, recovery = null;
         var documentWindows = H.documentWindows, documentReady = false, receivingDocument = false, unbindDocuments = null;
+        /* Commands the host adds to the File menu, to publish a document
+           somewhere of the host's say (docs/document-commands-contract.md).
+           The host says for each document whether a command is there and
+           whether it can run, and the host runs it. What the host declares
+           is checked here, since it is drawn in this applet's menu. */
+        var hostCommands = (function () {
+            var service = H.documentCommands, declared = [];
+            if (!service || service.version !== 1 || typeof service.list !== 'function' || typeof service.state !== 'function' || typeof service.run !== 'function') return { declared: declared, rows: function () { return []; }, watch: function () { return null; } };
+            try {
+                (service.list(app) || []).slice(0, 8).forEach(function (d) {
+                    if (!d || typeof d.id !== 'string' || !/^[a-z][a-z0-9-]{0,39}$/.test(d.id) || typeof d.label !== 'string' || !d.label.trim() || d.label.length > 64 || /[\x00-\x1f\x7f]/.test(d.label)) return;
+                    if (declared.some(function (x) { return x.id === d.id; })) return;
+                    declared.push({ id: d.id, label: d.label, glyph: typeof d.glyph === 'string' && /^[a-z0-9-]{1,40}$/.test(d.glyph) ? d.glyph : undefined,
+                        shortcut: typeof d.shortcut === 'string' && /^(?:(?:Mod|Ctrl|Alt|Shift)\+){0,3}(?:[A-Z0-9]|F[1-9]|F1[0-2])$/.test(d.shortcut) ? d.shortcut : undefined,
+                        after: typeof d.after === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(d.after) ? d.after : 'save-as' });
+                });
+            } catch (err) { declared = []; }
+            function context() { var t = current(); return { application: app, resource: t && t.path || null, name: t ? t.name : '', modified: !!(t && dirtyTab(t)) }; }
+            function state(d) {
+                var s = null;
+                try { s = service.state(d.id, context()); } catch (err) { s = null; }
+                return { present: !!(s && s.present === true), disabled: !!(s && s.disabled), reason: s && typeof s.reason === 'string' ? s.reason.slice(0, 200) : undefined };
+            }
+            return {
+                declared: declared,
+                rows: function (ready) {
+                    return declared.map(function (d) {
+                        return { id: 'host-' + d.id, label: d.label, glyph: d.glyph, shortcut: d.shortcut,
+                            hidden: function () { return !ready || !state(d).present; },
+                            disabled: function () { return !ready || state(d).disabled; },
+                            reason: function () { return state(d).reason; },
+                            /* What is typed on the page is in the text before the host reads it. */
+                            run: async function () {
+                                try {
+                                    if (pageActive()) await visual.api.sync();
+                                    if (destroyed || !state(d).present || state(d).disabled) return;
+                                    await service.run(d.id, Object.assign(context(), { root: root, signal: styleLifetime.signal }));
+                                } catch (err) { if (!destroyed && !(err && err.name === 'AbortError')) say(String(err && err.message || err), true); }
+                                commandsChanged();
+                            } };
+                    });
+                },
+                watch: function () { return typeof service.onChange === 'function' && declared.length ? service.onChange(function () { if (!destroyed) commandsChanged(); }) : null; }
+            };
+        })();
+        var unwatchHostCommands = hostCommands.watch();
         async function routeDocument(operation, input,guard) {
             if(guard&&!guard())throw new DOMException('Import cancelled.','AbortError');
             if (!documentWindows || documentWindows.mode(root) !== 'single' || !documentReady || receivingDocument || restoring) return null;
@@ -2665,7 +2711,7 @@
                     /* A view the reader chooses is the tab's from then on. */
                     run: function () { var t = current(); if (t) { t.view = v[0]; } setView(v[0]); } });
             });
-            return table.concat(editing() ? editing().commands() : [], commonToolbar ? commonToolbar.commands() : [], [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }]);
+            return table.concat(hostCommands.rows(ready), editing() ? editing().commands() : [], commonToolbar ? commonToolbar.commands() : [], [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }]);
         }
 
         /* The toolbar: what is used most stays named longest, and the view
@@ -2693,6 +2739,14 @@
             /* Format, where there is formatting to do. */
             if (formatOffered) { titles.push({ id: 'format', label: 'Format', glyph: 'paragraph', items: ['style', '-', 'bold', 'italic', 'underline', 'strike', 'code', '-', 'highlight', 'superscript', 'subscript', '-', 'color', 'class', '-', 'bullets', 'numbers', 'quote', 'table', '-', 'document-layout','page-setup', 'document-theme', 'typography', 'header-footer', '-', 'stylesheet', 'shared-stylesheet', 'custom-shortcodes'] }); }
             if(current()&&(current().lang==='markdown'||hostSuggestions))titles.push({id:'review',label:'Review',glyph:'comments',items:['suggestion-previous','suggestion-next','-','review-changes','-','review-addition','review-deletion','review-replacement','review-comment','review-highlight','-','review-accept-all','review-reject-all']});
+            /* The host's commands sit in File after the command each names,
+               or after Save As. */
+            hostCommands.declared.forEach(function (d) {
+                var items = titles[1].items, at = items.indexOf(d.after);
+                if (at < 0) at = items.indexOf('save-as');
+                while (at + 1 < items.length && items[at + 1].indexOf('host-') === 0) at++;
+                items.splice(at + 1, 0, 'host-' + d.id);
+            });
             return { titles: titles, into: { view: LAYOUT.concat(commonToolbar ? ['-', 'common-toolbar-show', 'common-toolbar-customize'] : []) } };
         }
 
@@ -3002,6 +3056,7 @@
                 styleRevision++; clearTimeout(styleTimer); if (documentStyles) { documentStyles.destroy(); }
                 if (unsubscribe) { unsubscribe(); }
                 if (typeof unwatchPictures === 'function') { unwatchPictures(); }
+                if (typeof unwatchHostCommands === 'function') { unwatchHostCommands(); }
                 if (unConfig) { unConfig(); }
                 unguard();
                 if (explorer) { explorer.destroy(); }
