@@ -24,3 +24,10 @@ func TestLinked(t *testing.T) {
 		t.Fatalf("got  %s\nwant %s", got, want)
 	}
 }
+
+func TestShownListsDiagramsAndListings(t *testing.T) {
+	text := "{{diagram:mockups/plan.canvas alt=" + `"The plan"` + " width=80%}}" + "\n" + "{{code:scripts/run.sh lang=sh}} {{diagram:~/shared/flow.d2}} `{{diagram:code.d2}}`" + "\n"
+	if got, want := strings.Join(Shown(text), "|"), "mockups/plan.canvas|scripts/run.sh"; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+}

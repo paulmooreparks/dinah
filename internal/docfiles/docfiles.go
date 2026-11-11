@@ -25,11 +25,16 @@ var (
 	linkRe        = regexp.MustCompile(`(!?)\[[^\]]*\]\(\s*(?:<([^>\n]+)>|([^\s)]+))`)
 	shownImageRe  = regexp.MustCompile(`!\[[^\]]*\]\(\s*(?:<([^>\n]+)>|([^\s)]+))`)
 	shownImgTagRe = regexp.MustCompile(`(?i)<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')`)
-	shownFigureRe = regexp.MustCompile(`\{\{figure:(.*?)\}\}`)
+	shownFigureRe = regexp.MustCompile(`\{\{(?:figure|diagram|code):(.*?)\}\}`)
 	shownCodeRe   = regexp.MustCompile("`+[^`\n]*`+")
 	shownSchemeRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*:`)
 )
 
+// A document also shows a saved diagram with {{diagram}} and a file as a
+// code listing with {{code}}, which the applets draw from the file itself,
+// so those files are a document's as its pictures are, and Shown lists them
+// with the pictures.
+//
 // Shown lists the files a document's text shows as pictures, each as the
 // path the text gives from the document's folder, in the order of their lines
 // and once each. A picture at a web address or inside the text itself
