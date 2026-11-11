@@ -25,6 +25,21 @@ func TestLinked(t *testing.T) {
 	}
 }
 
+func TestDefinitions(t *testing.T) {
+	for text, want := range map[string]string{
+		"---\ntitle: A\nshortcodes: ../shared/codes.md\n---\n\nWords.\n": "../shared/codes.md",
+		"---\nshortcodes: \"my codes.md\"\n---\n":                        "my codes.md",
+		"---\nshortcodes: ~/codes.md\n---\n":                             "",
+		"---\nshortcodes: codes.txt\n---\n":                              "",
+		"---\ntitle: A\n---\n\nshortcodes: codes.md\n":                   "",
+		"shortcodes: codes.md\n":                                         "",
+	} {
+		if got := Definitions(text); got != want {
+			t.Errorf("%q: got %q, want %q", text, got, want)
+		}
+	}
+}
+
 func TestShownListsDiagramsAndListings(t *testing.T) {
 	text := "{{diagram:mockups/plan.canvas alt=" + `"The plan"` + " width=80%}}" + "\n" + "{{code:scripts/run.sh lang=sh}} {{diagram:~/shared/flow.d2}} `{{diagram:code.d2}}`" + "\n"
 	if got, want := strings.Join(Shown(text), "|"), "mockups/plan.canvas|scripts/run.sh"; got != want {

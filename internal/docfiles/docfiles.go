@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"studio/internal/frontmatter"
 )
 
 // The pictures a document shows are written in its text in three ways: a
@@ -79,6 +81,28 @@ func Linked(text string) []string {
 		}
 	})
 	return out
+}
+
+// Definitions is the file of shortcode definitions a document shares with
+// other documents, as a path from the document's folder, or "" when it has
+// none. The content applets keep the path in the document's front matter,
+// under the key "shortcodes", and take only a Markdown file (frontend/
+// YAVC.md). The definitions are part of what the document says, so the file
+// goes with a copy of the document as its pictures do. A path that is not
+// from the document's folder is no file beside the document.
+func Definitions(text string) string {
+	fields, _ := frontmatter.Fields(text)
+	for _, f := range fields {
+		if f.Key != "shortcodes" || !f.Scalar {
+			continue
+		}
+		name := localName(f.Value)
+		if strings.ToLower(pathpkg.Ext(name)) != ".md" {
+			return ""
+		}
+		return name
+	}
+	return ""
 }
 
 // documentExtensions are the kinds of file a link to which is a link to

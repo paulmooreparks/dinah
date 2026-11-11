@@ -450,6 +450,9 @@ func (s *Service) filesOf(ctx context.Context, d Draft, except []string) ([]reso
 	byPath(docfiles.Shown(d.Text), "picture", "")
 	byPath(nested, "picture", ", which a diagram shows,")
 	byPath(docfiles.Linked(d.Text), "file", ", which the document links to,")
+	if shared := docfiles.Definitions(d.Text); shared != "" {
+		byPath([]string{shared}, "file of shortcode definitions", "")
+	}
 	names, err := src.FileNames(ctx, d.Origin.Path)
 	if err != nil {
 		return files, append(notes, "The files beside the original could not be listed, so only its pictures were copied: "+err.Error())
