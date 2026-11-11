@@ -938,14 +938,17 @@
 
   /* ---- Opening ------------------------------------------------------------ */
 
-  /* The application a document opens in, and the view. A Markdown
-     document opens as Settings › Markdown Opens In says: Visual is Docs,
-     and Text, Split and Preview are the Editor in that view. A .docs.md
-     document is always Docs's, D2, Mermaid and JSON Canvas files are
-     Diagrams's, .slides.md decks are Slides's, and anything else is the
-     Editor's, in Text. A document opened to read (a chat's chip, a double-click in Sources)
-     is shown in the Editor's Preview, and one opened to edit as text in its
-     Text, as with the built-in Editor. */
+  /* The application a document opens in, and the view. Every Markdown
+     document is Docs's and every other text file the Editor's (Paul, 12
+     November 2026). Before that a Markdown document opened in either,
+     by the view chosen and by how it was opened, and there was no rule a
+     person could guess for which. Settings › Markdown Opens In now
+     chooses the view of Docs only: Visual, Text, Split or Preview. D2,
+     Mermaid and JSON Canvas files are Diagrams's and .slides.md decks are
+     Slides's. A document opened to read (a chat's chip, a double-click in
+     Sources) is shown in Docs's Preview. Edit as Text is the one way a
+     Markdown document reaches the Editor from here, since it asks for
+     the source by name; Docs's own Open in Editor is the other. */
   /* The view a Markdown document opens in, a choice in Settings
      (document_views.go); Visual unless chosen. */
   var documentViews = { 'text/markdown': 'page' };
@@ -968,10 +971,16 @@
     if (/\.(d2|mmd|mermaid|canvas)$/i.test(path)) return { app: 'diagrams' };
     if (/\.slides\.md$/i.test(path)) return { app: 'slides' };
     if (!markdown(v)) return { app: 'editor' };
-    if (intent === 'read') return { app: 'editor', view: 'preview' };
+    if (intent === 'read') return { app: 'docs', view: 'preview' };
     var chosen = window.dinahDocumentViews ? window.dinahDocumentViews()['text/markdown'] : 'page';
-    if (chosen === 'text' || chosen === 'split' || chosen === 'preview') return { app: 'editor', view: chosen };
+    if (chosen === 'text' || chosen === 'split' || chosen === 'preview') return { app: 'docs', view: chosen };
     return { app: 'docs' };
+  }
+  /* The application a document chosen in an application's own Open dialog
+     opens in. It is the application that asked, except that the Editor
+     does not take a Markdown document: one chosen there opens in Docs. */
+  function appChosenIn(app, v) {
+    return app === 'editor' && placeFor(v).app === 'docs' ? 'docs' : app;
   }
 
   /* A document is open in one window at a time, so opening it in another
@@ -1022,7 +1031,7 @@
        own window opened a moment before. So the document's window is
        brought forward once the dialog has gone. */
     var opened = null;
-    function shown(v) { return open(v, app).then(function (key) { opened = key; return key; }); }
+    function shown(v) { return open(v, appChosenIn(app, v)).then(function (key) { opened = key; return key; }); }
     return window.dinahFilePicker.pick({ mode: 'open', title: asked && asked.title || 'Open', extensions: asked && asked.accept || [],
       commit: function (choice) {
         if (choice.node) return Promise.resolve(api().OpenDraft(choice.node.ref)).then(shown);

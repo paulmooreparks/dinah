@@ -22,7 +22,7 @@ const { launch } = require('./lib/page');
       window.__drafts = drafts;
       // Twelve recent documents, newest first, two of them with one title.
       window.__recent = Array.from({ length: 12 }, (_, i) => ({
-        ref: { workspaceId: 'w1', sourceId: 'local', path: 'doc' + i + '.md' },
+        ref: { workspaceId: 'w1', sourceId: 'local', path: 'doc' + i + '.txt' },
         kind: 'local-folder', title: i === 4 || i === 5 ? 'Notes' : 'Document ' + i,
         workspaceName: i === 5 ? 'Other' : 'Fixture', opened: new Date(Date.now() - i * 3600e3).toISOString() }));
       window.__windowModes = { editor: 'maximized' };
@@ -47,7 +47,7 @@ const { launch } = require('./lib/page');
           }
           return view(d);
         },
-        OpenComputerFile: async (ws, file) => { window.__calls.push(['computer-open', ws, file]); return window.go.main.App.OpenDraft({ workspaceId: 'w1', sourceId: 'local', path: 'computer.md' }); },
+        OpenComputerFile: async (ws, file) => { window.__calls.push(['computer-open', ws, file]); return window.go.main.App.OpenDraft({ workspaceId: 'w1', sourceId: 'local', path: 'computer.txt' }); },
         GetDraft: async id => view(get(id)),
         // As the app does, only the drafts with something unsaved in them.
         ListDrafts: async () => Object.values(drafts).map(view).filter(v => v.origin.kind === 'new' ? v.text.trim() !== '' : v.changed || v.suggestions.length > 0),
@@ -111,7 +111,7 @@ const { launch } = require('./lib/page');
     ok('the first nine Recent rows are numbered, so the digit is their letter', /1\. /.test(recentText) && /9\. /.test(recentText) && !/10\. /.test(recentText));
     await t.shot('documents-menu-recent');
     await p.locator('.menubar-panel .menu-action').filter({ hasText: /^\d\. Document 1$/ }).click();
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'open' && c[2] === 'doc1.md'));
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'open' && c[2] === 'doc1.txt'));
     const editor = p.locator('.win[data-win-kind="editor"]').first();
     await editor.locator('.cm-content').waitFor();
     ok('a Recent row opens its document in the Editor', true);
@@ -134,7 +134,7 @@ const { launch } = require('./lib/page');
     await editor.locator('.cm-content').click();
     await p.keyboard.press('Control+End');
     await p.keyboard.type(' Pending.');
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'doc1.md'), null, { timeout: 30000 });
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'doc1.txt'), null, { timeout: 30000 });
     await p.waitForTimeout(500);
     const savesBeforeDialog = await p.evaluate(() => __calls.filter(c => c[0] === 'save').length);
 
@@ -161,7 +161,7 @@ const { launch } = require('./lib/page');
     await p.keyboard.press('ArrowDown');
     await p.keyboard.press('ArrowDown');
     await p.keyboard.press('Enter');
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'open' && c[2] === 'doc2.md'));
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'open' && c[2] === 'doc2.txt'));
     ok('arrow keys and Enter open the chosen document and close the dialog', await p.locator('dialog.recent-documents').count() === 0);
     ok('Ctrl+S did nothing to a changed document while the dialog was open', await p.evaluate(n => __calls.filter(c => c[0] === 'save').length === n, savesBeforeDialog));
     await p.evaluate(() => { window.__refuseSaves = false; });
@@ -170,7 +170,7 @@ const { launch } = require('./lib/page');
     const doc2 = p.locator('.win[data-win-kind="editor"]').filter({ has: p.locator('.cm-content') }).last();
     await p.waitForFunction(() => document.querySelectorAll('.win[data-win-kind="editor"]').length === 2);
     const front = () => p.evaluate(() => { const s = pudlWindows.state(); return document.querySelector('[data-win="' + CSS.escape(s.top) + '"] .win-title').textContent; });
-    ok('the newest document is in front', (await front()).startsWith('doc2.md'));
+    ok('the newest document is in front', (await front()).startsWith('doc2.txt'));
     await p.locator('.win[data-win-kind="editor"] .cm-content').last().click();
     await p.keyboard.press('Control+End');
     await p.keyboard.type(' Changed.');
@@ -188,7 +188,7 @@ const { launch } = require('./lib/page');
     await p.keyboard.press('Escape');
     await p.locator('.win[data-win-kind="editor"] .cm-content').last().click();
     await p.keyboard.press('Control+S');
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'doc2.md'));
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'doc2.txt'));
     ok('Ctrl+S in the text saves the document through the Editor\'s File menu', true);
 
     // A document's keys act on its own window only: with the Workspace in
@@ -210,8 +210,8 @@ const { launch } = require('./lib/page');
     ok('Ctrl+S with the Workspace in front saves no document behind it', await p.evaluate(n => __calls.filter(c => c[0] === 'save').length === n, saves));
 
     // A third document, for the keys that go from one document to the next.
-    await p.evaluate(() => dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'third.md' }));
-    await p.waitForFunction(() => { const s = pudlWindows.state(); return document.querySelector('[data-win="' + CSS.escape(s.top) + '"] .win-title').textContent.startsWith('third.md'); });
+    await p.evaluate(() => dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'third.txt' }));
+    await p.waitForFunction(() => { const s = pudlWindows.state(); return document.querySelector('[data-win="' + CSS.escape(s.top) + '"] .win-title').textContent.startsWith('third.txt'); });
 
     // Window: Close has Ctrl+F4, and Ctrl+F6 goes to the next document.
     const windowRows = await openMenu('Window');
@@ -287,7 +287,7 @@ const { launch } = require('./lib/page');
     ok('">" in Find and Open lists commands', (await p.locator('#go-to-list').textContent()).includes('Save As…'));
     await p.locator('#go-to-filter').fill('');
     await p.keyboard.press('Enter');
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'open' && c[2] === 'doc0.md'));
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'open' && c[2] === 'doc0.txt'));
     ok('Ctrl+P then Enter opens the last document', true);
 
     // A Recent change told by Go is read again; a failure is shown.
@@ -318,9 +318,9 @@ const { launch } = require('./lib/page');
     await p.waitForFunction(() => __calls.some(c => c[0] === 'window-mode' && c[2] === 'same'));
     await p.waitForFunction(() => !document.querySelector('#window-kind-modes [data-reset]').disabled);
     ok('Like Other Windows is saved and Reset comes on', true);
-    await p.evaluate(() => dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'floating.md' }));
-    await p.waitForFunction(() => [...document.querySelectorAll('.win[data-win-kind="editor"]')].some(w => w.querySelector('[aria-label="Text of floating.md"]')));
-    ok('an Editor set to Like Other Windows opens floating', await p.evaluate(() => [...document.querySelectorAll('.win[data-win-kind="editor"]')].find(w => w.querySelector('[aria-label="Text of floating.md"]')).dataset.winMode === 'floating'));
+    await p.evaluate(() => dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'floating.txt' }));
+    await p.waitForFunction(() => [...document.querySelectorAll('.win[data-win-kind="editor"]')].some(w => w.querySelector('[aria-label="Text of floating.txt"]')));
+    ok('an Editor set to Like Other Windows opens floating', await p.evaluate(() => [...document.querySelectorAll('.win[data-win-kind="editor"]')].find(w => w.querySelector('[aria-label="Text of floating.txt"]')).dataset.winMode === 'floating'));
     await p.evaluate(() => { const b = document.createElement('button'); b.dataset.cmd = 'settings'; document.body.append(b); b.click(); b.remove(); });
     await t.shot('documents-window-setting');
     await editorRow.locator('[data-reset]').click();
@@ -348,6 +348,22 @@ const { launch } = require('./lib/page');
     await p.evaluate(() => { window.dinahDocumentViews({ 'text/markdown': 'split' }); const w = document.querySelector('.win[data-win-kind="content-docs"]'); if (w) pudlWindows.close(w.dataset.win); });
     await p.waitForFunction(() => !document.querySelector('.win[data-win-kind="content-docs"]'));
 
+    // Every Markdown file is Docs's, whichever view is chosen and however it
+    // is opened; the view chosen is a view of Docs. Edit as Text alone asks
+    // for the Editor.
+    for (const [intent, name] of [[undefined, 'chosen-split.md'], ['read', 'read.md']]) {
+      await p.evaluate(([intent, name]) => window.dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: name }, intent), [intent, name]);
+      const inDocs = await p.waitForFunction(n => [...document.querySelectorAll('.win[data-win-kind="content-docs"] .win-title')].some(t => t.textContent.startsWith(n)), name, { timeout: 15000 }).then(() => true, () => false);
+      ok('a Markdown file opened ' + (intent === 'read' ? 'to read' : 'with Split chosen') + ' opens in Docs', inDocs, await p.evaluate(() => [...document.querySelectorAll('.win')].map(w => w.dataset.winKind + ':' + (w.querySelector('.win-title') || {}).textContent).join(',')));
+      await p.evaluate(() => { const w = document.querySelector('.win[data-win-kind="content-docs"]'); if (w) pudlWindows.close(w.dataset.win); });
+      await p.waitForFunction(() => !document.querySelector('.win[data-win-kind="content-docs"]'));
+    }
+    await p.evaluate(() => window.dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'as-text.md' }, 'text'));
+    const asText = await p.waitForFunction(() => [...document.querySelectorAll('.win[data-win-kind="editor"] .win-title')].some(t => t.textContent.startsWith('as-text.md')), null, { timeout: 15000 }).then(() => true, () => false);
+    ok('Edit as Text opens a Markdown file in the Editor', asText);
+    await p.evaluate(() => { const w = [...document.querySelectorAll('.win[data-win-kind="editor"]')].find(w => w.querySelector('.win-title').textContent.startsWith('as-text.md')); if (w) pudlWindows.close(w.dataset.win); });
+    await p.waitForFunction(() => ![...document.querySelectorAll('.win[data-win-kind="editor"] .win-title')].some(t => t.textContent.startsWith('as-text.md')));
+
     // Documents › In Progress opens the pane: drafts and changed documents,
     // a group to a workspace. A document with nothing unsaved in it, and a
     // new one with nothing in it, are not listed.
@@ -356,8 +372,8 @@ const { launch } = require('./lib/page');
       Object.keys(__drafts).forEach(k => delete __drafts[k]);
       const at = h => new Date(Date.now() - h * 3600e3).toISOString();
       const d = (id, title, origin, text, base, updated, extra) => { __drafts[id] = Object.assign({ id, title, origin, text, baseline: { text: base, revision: 'b1', title }, revision: 'r-' + id, updated }, extra || {}); };
-      d('a'.repeat(32), 'Note 09 Design', { kind: 'local-folder', workspaceId: 'w1', sourceId: 'local', path: 'design/note-09.md' }, '# Changed\n', '# Old\n', at(1));
-      d('b'.repeat(32), 'Release Plan', { kind: 'local-folder', workspaceId: 'w1', sourceId: 'local', path: 'release-plan.md' }, '# Same\n', '# Same\n', at(0));
+      d('a'.repeat(32), 'Note 09 Design', { kind: 'local-folder', workspaceId: 'w1', sourceId: 'local', path: 'design/note-09.txt' }, '# Changed\n', '# Old\n', at(1));
+      d('b'.repeat(32), 'Release Plan', { kind: 'local-folder', workspaceId: 'w1', sourceId: 'local', path: 'release-plan.txt' }, '# Same\n', '# Same\n', at(0));
       d('c'.repeat(32), 'Meeting Notes', { kind: 'new', workspaceId: 'w1', sourceId: '', path: '' }, '# Notes\n', '', at(2));
       d('e'.repeat(32), 'Untitled', { kind: 'new', workspaceId: 'w1', sourceId: '', path: '' }, '', '', at(2));
     });
@@ -369,7 +385,7 @@ const { launch } = require('./lib/page');
     const paneRows = () => pane.evaluate(el => [...el.querySelectorAll('.in-progress-kind .browser-group-title, .browser-row')].map(n => n.classList.contains('browser-row') ? n.querySelector('.browser-row-title').textContent + ' | ' + [...n.querySelectorAll('.md-meta')].map(m => m.textContent).join(' | ') : '# ' + n.textContent));
     let listed = await paneRows();
     ok('In Progress lists the draft and the changed document under their headings, and nothing else', listed.length === 4 && listed[0] === '# Drafts' && listed[1].startsWith('Meeting Notes | Not saved anywhere yet') &&
-      listed[2] === '# Changed Documents' && listed[3].startsWith('Note 09 Design | design/note-09.md | Changes not saved'), JSON.stringify(listed));
+      listed[2] === '# Changed Documents' && listed[3].startsWith('Note 09 Design | design/note-09.txt | Changes not saved'), JSON.stringify(listed));
     ok('the group is the workspace', (await pane.locator('.browser-group:not(.in-progress-kind) > .browser-group-head .browser-group-title').allTextContents()).join() === 'Fixture');
     // Each kind is a group of its own, which closes and opens again.
     const drafts = pane.locator('.in-progress-kind').filter({ hasText: 'Drafts' });
@@ -408,7 +424,7 @@ const { launch } = require('./lib/page');
     await p.keyboard.press('Escape');
     await pane.locator('.browser-row').filter({ hasText: 'Note 09 Design' }).locator('a').click();
     // The window is titled by the file's name and workspace, as every content window is.
-    await p.waitForFunction(() => [...document.querySelectorAll('.win[data-win-kind="editor"] .win-title')].some(t => t.textContent.startsWith('note-09.md')));
+    await p.waitForFunction(() => [...document.querySelectorAll('.win[data-win-kind="editor"] .win-title')].some(t => t.textContent.startsWith('note-09.txt')));
     ok('a row opens its document in the Editor', true);
   } catch (err) {
     t.errors.push(String(err && err.stack || err));

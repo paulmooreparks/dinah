@@ -47,11 +47,11 @@ const { launch, PAGE } = require('./lib/page');
     p.on('console', m => { if (m.type() === 'warning' && m.text().startsWith('pudl-menubar: Dinah:')) menuWarnings.push(m.text()); });
     await p.goto(PAGE);
     await t.waitReady();
-    const key = await p.evaluate(() => dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'notes.md' }));
+    const key = await p.evaluate(() => dinahEditor.openResource({ workspaceId: 'w1', sourceId: 'local', path: 'notes.txt' }));
     const ed = p.locator('[data-win="' + key + '"]');
     await ed.locator('.cm-content').waitFor({ timeout: 30000 });
     await p.waitForTimeout(500);
-    ok('a Markdown document set to open as text opens in the Editor', await ed.getAttribute('data-win-kind') === 'editor');
+    ok('a text file opens in the Editor', await ed.getAttribute('data-win-kind') === 'editor');
     const text = () => ed.locator('.cm-content').evaluate(el => [...el.querySelectorAll('.cm-line')].map(l => l.textContent).join('\n'));
 
     // The Editor's keys reach the menu bar once each, with Dinah's.
@@ -70,13 +70,13 @@ const { launch, PAGE } = require('./lib/page');
     await ed.locator('.cm-content').click();
     await p.keyboard.press('Control+End');
     await p.keyboard.type(' Typed.');
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'notes.md'), null, { timeout: 15000 });
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'save' && c[1] === 'notes.txt'), null, { timeout: 15000 });
     const saves = await p.evaluate(() => __calls.filter(c => c[0] === 'save').length);
     await p.keyboard.type(' More.');
     await p.keyboard.press('Control+s');
     await p.waitForFunction(n => __calls.filter(c => c[0] === 'save').length > n, saves, { timeout: 15000 });
     ok('Ctrl+S in the text saves the document', (await text()).includes('More.'));
-    ok('the window\'s title stays the document\'s name while typing', (await ed.locator('.win-title').textContent()).trim() === 'notes.md · Fixture');
+    ok('the window\'s title stays the document\'s name while typing', (await ed.locator('.win-title').textContent()).trim() === 'notes.txt · Fixture');
 
     // Global keys and the reference.
     await ed.locator('.cm-content').click();
