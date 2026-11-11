@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -390,5 +391,85 @@ func TestReadOnlySource(t *testing.T) {
 	}
 	if _, err := svc.Open(ctx, Origin{Kind: OriginNew}); err == nil {
 		t.Fatal("opened a new document")
+	}
+}
+
+// A copy of a file saved elsewhere takes the pictures its text shows from
+// wherever under the document's folder they are kept, at the same paths, and
+// a note says which picture was not found.
+func TestSaveAsCopiesThePicturesTheTextShowsByPath(t *testing.T) {
+	from, to := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(from, "notes", "research", "screens", "set 1"), 0o755)
+	os.MkdirAll(filepath.Join(from, "notes", "images"), 0o755)
+	os.WriteFile(filepath.Join(from, "notes", "research", "screens", "set 1", "01.png"), []byte("one"), 0o644)
+	os.WriteFile(filepath.Join(from, "notes", "research", "screens", "02.png"), []byte("two"), 0o644)
+	os.WriteFile(filepath.Join(from, "notes", "research", "03.png"), []byte("three"), 0o644)
+	os.WriteFile(filepath.Join(from, "notes", "images", "04.png"), []byte("four"), 0o644)
+	os.WriteFile(filepath.Join(from, "notes", "research", "unused.png"), []byte("unused"), 0o644)
+	text := "# Screens\n\n{{figure:\"research/screens/set 1/01.png\" alt=\"One\"}}\n\n![Two](research/screens/02.png)\n\n" +
+		"<img src=\"research/03.png\" width=\"200\">\n\n![Four](04.png)\n\n{{figure:research/missing.png alt=\"Gone\"}}\n\n" +
+		"```\n![In code](research/unused.png)\n```\n"
+	os.WriteFile(filepath.Join(from, "notes", "doc.md"), []byte(text), 0o644)
+	store, _ := Open(t.TempDir())
+	svc := &Service{Store: store, Providers: folders{"from": localfs.Folder{Root: from}, "to": localfs.Folder{Root: to}}}
+	ctx := context.Background()
+	d, err := svc.Open(ctx, Origin{Kind: "local-folder", SourceID: "from", Path: "notes/doc.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = svc.SaveAs(ctx, d.ID, d.Revision, Origin{Kind: "local-folder", SourceID: "to", Path: "copy/doc.md"})
+	if err == nil {
+		t.Fatal("a copy was saved into a folder that does not exist")
+	}
+	os.MkdirAll(filepath.Join(to, "copy"), 0o755)
+	_, notes, err := svc.SaveAs(ctx, d.ID, d.Revision, Origin{Kind: "local-folder", SourceID: "to", Path: "copy/doc.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{"research/screens/set 1/01.png": "one", "research/screens/02.png": "two", "research/03.png": "three", "04.png": "four"} {
+		if data, _ := os.ReadFile(filepath.Join(to, "copy", filepath.FromSlash(name))); string(data) != want {
+			t.Errorf("%s holds %q", name, data)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(to, "copy", "research", "unused.png")); err == nil {
+		t.Error("a picture shown only inside a code block was copied")
+	}
+	if len(notes) != 1 || !strings.Contains(notes[0], "research/missing.png") {
+		t.Errorf("notes %v", notes)
+	}
+}
+
+// A copy saved into the folder of the original finds its pictures already
+// there, which is no fault to report.
+func TestSaveAsBesideTheOriginalReportsNoPictureAlreadyThere(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "pictures"), 0o755)
+	os.WriteFile(filepath.Join(dir, "pictures", "a.png"), []byte("a"), 0o644)
+	os.WriteFile(filepath.Join(dir, "doc.md"), []byte("![A](pictures/a.png)\n"), 0o644)
+	store, _ := Open(t.TempDir())
+	svc := &Service{Store: store, Providers: folders{"": localfs.Folder{Root: dir}}}
+	ctx := context.Background()
+	d, err := svc.Open(ctx, Origin{Kind: "local-folder", Path: "doc.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, notes, err := svc.SaveAs(ctx, d.ID, d.Revision, Origin{Kind: "local-folder", Path: "doc 2.md"}); err != nil || len(notes) != 0 {
+		t.Fatalf("notes %v, %v", notes, err)
+	}
+}
+
+// folders gives the local folder of each source ID.
+type folders map[string]localfs.Folder
+
+func (f folders) Provider(_ context.Context, o Origin) (any, error) { return f[o.SourceID], nil }
+
+func TestShownFiles(t *testing.T) {
+	text := "![a](one.png) and ![b](<two words.png> \"title\") ![c](https://example.com/x.png) ![d](data:image/png;base64,AAAA)\n" +
+		"<IMG alt=\"x\" src='sub/three.png'> ![e](./four%20five.png#frag) ![f](/abs/six.png) ![g](C:\\pics\\seven.png)\n" +
+		"{{figure:src=\"eight nine.png\" alt=\"x\"}} {{figure:alt=\"Ten\" src=ten.png}} `![h](code.png)` {{figure:one.png}}\n" +
+		"~~~\n{{figure:fenced.png}}\n~~~\n{{figure:~/Pictures/home.png}} ![i](..\\up\\eleven.png)\n"
+	got := strings.Join(ShownFiles(text), "|")
+	if want := "one.png|two words.png|four five.png|sub/three.png|eight nine.png|ten.png|../up/eleven.png"; got != want {
+		t.Fatalf("got  %s\nwant %s", got, want)
 	}
 }

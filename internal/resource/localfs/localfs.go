@@ -5,6 +5,7 @@
 package localfs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -57,16 +58,33 @@ func (f Folder) WriteDocument(ctx context.Context, path string, base resource.Sn
 		out.Snapshot.Title = edit.Title
 		out.Notes = append(out.Notes, "A file's title is its name, so the file keeps its name; rename the file to change it.")
 	}
-	out.Notes = append(out.Notes, f.createFiles(path, edit.Files)...)
+	out.Notes = append(out.Notes, f.createFiles(ctx, path, edit.Files)...)
 	return out, nil
 }
 
 // createFiles writes files beside the document at path, and returns a note
 // for each that could not be written, such as one whose name is taken.
-func (f Folder) createFiles(path string, files []resource.File) []string {
+func (f Folder) createFiles(ctx context.Context, path string, files []resource.File) []string {
 	var notes []string
 	for _, file := range files {
-		if err := f.createFile(pathpkg.Join(pathpkg.Dir(path), file.Name), file.Data); err != nil {
+		place := pathpkg.Join(pathpkg.Dir(path), file.Name)
+		// A file the document shows by a path, as images/plan.png, goes at
+		// that path from the document, in folders made for it.
+		err := error(nil)
+		if strings.Contains(file.Name, "/") {
+			err = f.MakeFolder(ctx, pathpkg.Dir(place), true)
+		}
+		if err == nil {
+			err = f.createFile(place, file.Data)
+		}
+		// The same file already there is what was wanted, as when a copy is
+		// saved into the folder of the original.
+		if err != nil {
+			if have, rerr := f.ReadFile(ctx, path, file.Name); rerr == nil && bytes.Equal(have, file.Data) {
+				err = nil
+			}
+		}
+		if err != nil {
 			notes = append(notes, "The file "+file.Name+" was not written beside the document: "+err.Error())
 		}
 	}
@@ -83,7 +101,7 @@ func (f Folder) CreateDocument(ctx context.Context, path string, edit resource.E
 		return resource.Written{}, err
 	}
 	out := resource.Written{Snapshot: resource.Snapshot{Text: edit.Text, Revision: rev, Format: Format(path), Title: filepath.Base(filepath.FromSlash(path))}}
-	out.Notes = f.createFiles(path, edit.Files)
+	out.Notes = f.createFiles(ctx, path, edit.Files)
 	return out, nil
 }
 
