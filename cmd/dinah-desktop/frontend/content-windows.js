@@ -1011,7 +1011,10 @@
   /* Open shows Dinah's file picker in the current workspace, as Dinah's
      Editor does; the field also takes a path on the computer, and a file
      outside every workspace's folders opens as a new document. */
-  function openDocument(app) {
+  /* asked is what the application said of the dialog it wants: its title
+     and the kinds of file it opens, as { title, accept } (the applets'
+     fs.open). Without it the dialog is Open, for any document. */
+  function openDocument(app, asked) {
     var currentWs = host() && host().workspaceId();
     function workspaceOf(choice) { return choice.dir && choice.dir.ref && choice.dir.ref.workspaceId || currentWs; }
     /* The dialog gives the keyboard back to the window it was asked from
@@ -1020,7 +1023,7 @@
        brought forward once the dialog has gone. */
     var opened = null;
     function shown(v) { return open(v, app).then(function (key) { opened = key; return key; }); }
-    return window.dinahFilePicker.pick({ mode: 'open', title: 'Open',
+    return window.dinahFilePicker.pick({ mode: 'open', title: asked && asked.title || 'Open', extensions: asked && asked.accept || [],
       commit: function (choice) {
         if (choice.node) return Promise.resolve(api().OpenDraft(choice.node.ref)).then(shown);
         return Promise.resolve(choice.reference ? api().OpenComputerFile(workspaceOf(choice), choice.reference) : api().OpenComputerDocument(workspaceOf(choice))).then(function (v) {

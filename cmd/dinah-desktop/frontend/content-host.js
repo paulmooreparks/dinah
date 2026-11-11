@@ -447,7 +447,7 @@
     open: function (options) {
       var mount = options && options.host && options.host.closest && options.host.closest('[data-applet]');
       var app = mount ? mount.getAttribute('data-applet') : 'editor';
-      return window.dinahContentWindows.openDocument(app).then(function () { return null; });
+      return window.dinahContentWindows.openDocument(app, { title: options && options.title, accept: options && options.accept }).then(function () { return null; });
     },
     readText: readText, onChange: onChange
   };

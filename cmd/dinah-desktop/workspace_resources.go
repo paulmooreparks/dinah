@@ -110,7 +110,12 @@ var textExtensions = map[string]bool{
 	".ini": true, ".cfg": true, ".conf": true, ".properties": true, ".sql": true,
 	".lua": true, ".sh": true, ".bash": true, ".ps1": true, ".psm1": true, ".bat": true, ".cmd": true,
 	".go": true, ".py": true, ".js": true, ".mjs": true, ".ts": true, ".java": true, ".cs": true, ".groovy": true,
-	".css": true, ".html": true, ".d2": true, ".mmd": true,
+	".css": true, ".html": true,
+	// The kinds Diagrams opens: D2, Mermaid by either of its extensions, and
+	// a canvas, which is JSON. A canvas and .mermaid were missing until 12
+	// November 2026, so a canvas a person had just saved was not listed in
+	// the Open dialog and did not open from Files.
+	".d2": true, ".mmd": true, ".mermaid": true, ".canvas": true,
 }
 
 // textExtension is a file's extension for textExtensions, in lower case. A
