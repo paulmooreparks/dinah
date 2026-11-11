@@ -80,3 +80,15 @@ Standard's boundaries are firmer in this release, and a desktop title mnemonic p
 Twenty-four headless suites passed on it: skins, skins-startup, skin-check-sync, skin-contrast-cache, skin-paints, skin-paints-2, web-skins, taskbar-stacks, taskbar-labels, taskbar-pins, taskbar-state-stability, stack-rows, stack-row-titles, pinned-section-stacks, window-stack-candidate, title-launcher, title-status-order, companion-themes, chat-menu-stale, documents-menu, menubar-fold, menudim, menus-through-updates and wsmenu. The real desktop, run hidden, showed stack depth 1 and 2 with their edges, Alloy Bold chosen, no taskbar button moved by a change of skin, and the middle dot on the taskbar. The full suite was not run.
 
 The applets' release must bundle the same PUDL, because `yavc_release_test.go` compares every PUDL file in its manifest with Dinah's copy, so this adoption and yavc.app v0.2.66 were taken in one commit. The commit before it is the rollback.
+
+## Published 0.107.1 adoption, 11 November 2026
+
+Both bundles contain all 196 distribution files of the published release v0.107.1, tag commit e2c05a919dba47ead103b0940e51f3d8200fb01a. The archive `pudl-0.107.1.zip` has SHA-256 `8b9cac72f0430e9601f56b20e91915dec5a614cd501eafeedf4166ef982be9e6` and its distribution manifest `8469d48c529a7077b5a36477fb7d001cffeb218c5f0e8ead9edef5964a47f2b5`, and every file was checked against that manifest before it replaced the copy here. Four files differ from 0.106.2: the menu bar script, its minified copy and map, and the version comment in `pudl.css`. 0.107.0 was never published.
+
+The release adds one thing Dinah uses. A host whose content is the application itself sets `data-menubar-composition="application"` on its menu bar, and PUDL then draws the host menus and the applet menus as one group under the host name, with the applet identity commands in the first menu. The stand-alone document page (`document.html`) sets it, so a stand-alone Editor has one menu bar: its name, then File, Edit, View, Insert, Format and Review. The main window does not set it and keeps its two groups.
+
+PUDL published this release with one limitation Paul accepted: a single automated test of a taskbar popup timed out once on the tag and did not fail again in 160 repeats, and its cause is not known.
+
+Seven headless suites passed on it: menubar-fold, menudim, menus-through-updates, wsmenu, documents-menu, chat-menu-stale and title-launcher. The stand-alone page, run against a headless document service in Chromium, drew one bar with those titles and no warning in its console, and edit, save, a refused save, recovery and the web root behaved as before. The real window was not seen, and Firefox, WebKit, the ribbon, the collapsed bar and keyboard use were not checked here. The full suite was not run.
+
+This adoption and yavc.app v0.2.68, which is v0.2.67 with this PUDL bundled, were taken in one commit. The commit before it is the rollback.
