@@ -103,6 +103,23 @@
         return '<div class="form-group"><label class="form-label" for="' + esc(o.id) + '">' + esc(o.label) + '</label><div class="yavc-path-field"><input class="form-input" id="' + esc(o.id) + '" data-file-path data-accept="' + esc(o.accept || '') + '"' +
             (o.maxBytes!=null?' data-max-bytes="'+esc(o.maxBytes)+'"':'') + (o.help?' aria-describedby="'+esc(o.id)+'-help"':'') + ' value="' + esc(o.value || '') + '" autocomplete="off"><button class="btn" type="button" data-browse-for="' + esc(o.id) + '"><span class="glyph" style="--glyph:var(--glyph-folder)" aria-hidden="true"></span>Browse…</button></div>' + (o.help ? '<p class="form-help" id="'+esc(o.id)+'-help">' + esc(o.help) + '</p>' : '') + '</div>';
     }
+    /* A chosen file as a document writes it (docs/file-fields-contract.md).
+       A path from the document's own folder goes with the document when it
+       is saved somewhere else or published, and a full path does not. So a
+       file that shares a folder with the document, at any depth, is written
+       from the document's folder, with .. where it has to go up. A file
+       that shares only the root with it, or a document with no folder yet,
+       keeps the full path. */
+    function referenceFrom(path, base) {
+        path = String(path || ''); base = String(base || '');
+        var rootOf = function (p) { return p.indexOf('~/') === 0 ? '~/' : p.charAt(0) === '/' && p.charAt(1) !== '/' ? '/' : ''; }, root = rootOf(path);
+        if (!root || rootOf(base + '/') !== root) { return path; }
+        var parts = function (p) { return p.slice(root.length).split('/').filter(function (part) { return part; }); }, to = parts(path), from = parts(base), same = 0;
+        if (to.concat(from).some(function (part) { return part === '.' || part === '..'; })) { return path; }
+        while (same < to.length - 1 && same < from.length && to[same] === from[same]) { same++; }
+        if (!same) { return path; }
+        return new Array(from.length - same + 1).join('../') + to.slice(same).join('/');
+    }
     function wirePaths(api, opts) {
         opts = opts || {};
         var hostFields=window.pudlHost && window.pudlHost.fileFields;
@@ -120,7 +137,7 @@
                 try {
                     var limit=input.getAttribute('data-max-bytes');
                     var path = await capability({signal:controller.signal,current:current,kind:opts.browse === 'folder' ? 'folder' : 'file',accept:input.getAttribute('data-accept'),maxBytes:limit?Number(limit):undefined,start:opts.start || '~',host:opts.host});
-                    if (path != null && current()) { input.value = path; input.dispatchEvent(new Event('input',{bubbles:true})); input.focus(); }
+                    if (path != null && current()) { input.value = opts.base ? referenceFrom(path, typeof opts.base === 'function' ? opts.base() : opts.base) : path; input.dispatchEvent(new Event('input',{bubbles:true})); input.focus(); }
                 } catch (err) { if (current()) window.yavcUtil.notice(input.closest('.form-group'),err.message || String(err),true); }
                 finally { if (button.isConnected) button.disabled = false; }
             });
@@ -180,5 +197,5 @@
         }).then(function (r) { return r.value === 'save' || r.value === 'discard' ? r.value : null; });
     }
 
-    window.yavcDialog = Object.freeze({ open: open, askText: askText, askChoice: askChoice, confirm: confirm, askSave: askSave, pathField:pathField, wirePaths:wirePaths });
+    window.yavcDialog = Object.freeze({ open: open, askText: askText, askChoice: askChoice, confirm: confirm, askSave: askSave, pathField:pathField, wirePaths:wirePaths,referenceFrom:referenceFrom });
 })();

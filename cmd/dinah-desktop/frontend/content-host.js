@@ -177,6 +177,51 @@
     if (!id || !APPS[app] || !window.dinahContentWindows) return Promise.reject(new Error('This document cannot be opened in another application from here.'));
     return Promise.resolve(api().GetDraft(id)).then(function (v) { return window.dinahContentWindows.open(v, app); }).then(function () { return true; });
   }
+  /* Browse beside a path in an applet's dialog (pudlHost.fileFields,
+     version 1, yavc.app's docs/file-fields-contract.md): the picture
+     dialog, the forms for a diagram and a code listing, the shared file of
+     shortcode definitions and the shared stylesheet. Dinah shows its own
+     Open dialog over the workspaces' folders, with the kinds of file the
+     field takes, starting in the folder of the document the dialog is
+     for, and answers with the file's path, or null when nothing is
+     chosen. The applet writes the path from the document's folder where
+     the two share one (yavc.app v0.2.80), which is the form a document
+     keeps its files by when it is saved somewhere else or published.
+
+     Three choices are refused with the reason, which the applet shows
+     beside the field. A file on the computer outside every workspace is
+     not copied into one from here, since Dinah has no step that asks
+     where it should go. A folder is not chosen, since the dialog chooses
+     files. And a document whose folder keeps files by name alone, as a
+     page of a wiki keeps its attachments, takes only a file of that
+     folder: any other path would be one the page does not have. */
+  function chooseFile(request) {
+    request = request || {};
+    if (request.kind === 'folder') return Promise.reject(new Error('A folder cannot be chosen here. Type its path.'));
+    if (!window.dinahFilePicker) return Promise.reject(new Error('Files cannot be browsed here. Type the path.'));
+    var stale = function () { return (request.signal && request.signal.aborted) || (typeof request.current === 'function' && !request.current()); };
+    if (stale()) return Promise.resolve(null);
+    var accept = Array.isArray(request.accept) ? request.accept : String(request.accept || '').split(',');
+    accept = accept.map(function (k) { return String(k).trim().toLowerCase(); }).filter(Boolean).map(function (k) { return k.charAt(0) === '.' ? k : '.' + k; });
+    /* The document the dialog is for: the applet's own root where the
+       request gives it, and otherwise the document of the window in front,
+       which is the one a dialog is opened from. */
+    var mount = request.host && request.host.closest ? request.host.closest('.content-applet') || (request.host.querySelector && request.host.querySelector('.content-applet')) : null;
+    if (!mount && window.pudlWindows) {
+      var top = window.pudlWindows.state().top, front = top ? document.querySelector('[data-win="' + CSS.escape(top) + '"]') : null;
+      mount = front ? front.querySelector('.content-applet') : null;
+    }
+    var folder = mount ? folders.get(String(mount.dataset.contentResource || '')) : '';
+    var flat = !!folder && flatFolders.has(folder), chosen = null;
+    return window.dinahFilePicker.pick({ mode: 'open', any: true, title: request.title || 'Choose a File', okLabel: 'Choose', extensions: accept, start: folder || undefined,
+      commit: function (choice) {
+        if (!choice.node || !choice.node.path) throw new Error('Choose a file in a workspace\'s folders. A file elsewhere on the computer is copied into one with Files first.');
+        var path = String(choice.node.path);
+        if (flat && path.slice(0, path.lastIndexOf('/')) !== folder) throw new Error('This document is kept where files are attached to it, so choose one of its attached files.');
+        chosen = path;
+        return true;
+      } }).then(function (picked) { return picked && chosen && !stale() ? chosen : null; });
+  }
 
   /* The draft revision each resource's applet last read or wrote, which
      content-windows.js compares with the draft to see a change made
@@ -500,7 +545,7 @@
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram, resolvePath: resolvePath }, fileResolution: { open: openIn },
+      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram, resolvePath: resolvePath }, fileResolution: { open: openIn }, fileFields: { version: 1, choose: chooseFile },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation, documentCommands: documentCommands,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }

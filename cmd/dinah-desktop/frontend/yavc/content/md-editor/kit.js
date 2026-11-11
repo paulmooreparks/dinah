@@ -926,7 +926,7 @@
             title: f ? 'Change the Picture' : 'Insert a Picture', className: 'md-figure', body: body, remove: !!f, okLabel: f ? 'Change' : 'Insert', signal:pictures && pictures.signal,current:current,
             setup: function (api) {
                 dlg = api.dialog; errorLine = dlg.querySelector('[data-role="error"]');
-                window.yavcDialog.wirePaths(api,{signal:pictures && pictures.signal,current:current});
+                window.yavcDialog.wirePaths(api,{signal:pictures && pictures.signal,current:current,base:pictures && pictures.dir ? pictures.dir() : null});
                 if (f) { field('caption').focus(); }
             },
             submit: function () {
@@ -1102,7 +1102,7 @@
             className: 'md-form', body: body, remove: !!existing, okLabel: existing ? 'Change' : 'Insert',
             setup: function (api) {
                 dlg = api.dialog; errorLine = dlg.querySelector('[data-role="error"]');
-                window.yavcDialog.wirePaths(api,{signal:form.signal || host && host.signal,current:unchanged});
+                window.yavcDialog.wirePaths(api,{signal:form.signal || host && host.signal,current:unchanged,base:host && host.dir ? host.dir() : null});
                 /* A diagram that is already in the document can be opened for
                    editing from its form, where the host has a way to open it. */
                 if (name === 'diagram' && existing && host && typeof host.openDiagram === 'function') {

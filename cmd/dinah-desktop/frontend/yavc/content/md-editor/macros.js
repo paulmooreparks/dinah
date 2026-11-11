@@ -120,7 +120,7 @@
                 onOpen: function (opened) {
                     api = opened; show(); opts.signal.addEventListener('abort', abort, { once: true });
                     api.body.querySelector('#'+id+'-shared').setAttribute('data-macro-shared','');
-                    window.yavcDialog.wirePaths(api,opts);
+                    window.yavcDialog.wirePaths(api,Object.assign({},opts,{base:opts.host && opts.host.dir ? opts.host.dir() : null}));
                     api.body.querySelector('[data-macro-select]').addEventListener('change', function (event) { capture(); selected = +event.target.value; show(); });
                     api.dialog.addEventListener('cancel', function (event) { if (busy) { event.preventDefault(); } });
                     api.dialog.querySelector('[data-choice="cancel"]').addEventListener('click', function (event) { if (busy) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);

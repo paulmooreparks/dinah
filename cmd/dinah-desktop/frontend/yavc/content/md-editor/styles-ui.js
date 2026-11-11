@@ -60,7 +60,7 @@
                 onOpen: function (opened) {
                     api = opened; field = api.body.querySelector('#' + id + '-shared');
                     if (field) field.setAttribute('data-style-shared','');
-                    window.yavcDialog.wirePaths(api,opts);
+                    window.yavcDialog.wirePaths(api,Object.assign({},opts,{base:opts.dir || null}));
                     api.dialog.querySelector('[type="submit"]').title = (opts.okLabel || 'Apply Styles') + ' (' + window.yavcUtil.shortcut('Mod+S') + ')';
                     if (opts.signal) { opts.signal.addEventListener('abort', abort, { once: true }); }
                     view = new CM.EditorView({ parent: api.body.querySelector('[data-style-code]'), state: state(0) });

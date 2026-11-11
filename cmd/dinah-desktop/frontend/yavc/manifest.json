@@ -1,5 +1,5 @@
 {
-  "digest": "2799b0d14cb6ca7e6bf952158896c4b712cf2d788a0995348e3d1bd4c36c4309",
+  "digest": "544ae0314d379d1e48eed05abe3f37c8051b0ef1520e016c21f7d7eb6e90b718",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "97b416b513669d48839c83d35a86957b2518f86e982f60f5766f3a8277a4a902"
+      "sha256": "9415ea87e734906515754f7d30fd5794911f893201d44fc7d197f5928756f939"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 686,
-      "sha256": "bd18fb07b4f2e20df8935349c3abd7a2459075737e248550aa62b86c1ddf0090"
+      "sha256": "8961febee0351a82e72998d07b0f7520ce3ecc2edc6f66b4b209ef14e7bff21f"
     },
     {
       "path": "content/editor/editor.css",
@@ -275,8 +275,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 164919,
-      "sha256": "98d6eb87a0eaeea75546eabf8672de299f74de8d566e6fffb460fb670a44f79c"
+      "bytes": 165015,
+      "sha256": "d3597c583d1b27ce64c7eea135277329191c55ba4b5c3311e98eef30b6cfa2ea"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -340,8 +340,8 @@
     },
     {
       "path": "content/md-editor/macros.js",
-      "bytes": 15126,
-      "sha256": "50f49e46e637eee24fc45f1caf36caa307d96998e61428f7bb8eee1bf511cbff"
+      "bytes": 15203,
+      "sha256": "ac7775ab50ec90b0a33df625572bef738523f3ded4a4cb1a1fa9bd0afcd226ec"
     },
     {
       "path": "content/md-editor/office-input.js",
@@ -390,8 +390,8 @@
     },
     {
       "path": "content/md-editor/styles-ui.js",
-      "bytes": 9886,
-      "sha256": "f8fa12160f1272e465cf3270bbe0e341c9e4193a941ed152cbcd54a4ac214d01"
+      "bytes": 9928,
+      "sha256": "3abc0bfc45c8f00cdc95162d10fd781c3888817bce2d63a640a30c425184d150"
     },
     {
       "path": "content/md-editor/styles.css",
@@ -1306,7 +1306,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "f56ad990b26404da6b7443a2a1ffa373dcbc303122394241bb843173fa6665a3"
+      "sha256": "799154246f84450b63df6cfefefa52c02def25f7d58d1b1cf57ad9f5d48725cd"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -2415,8 +2415,8 @@
     },
     {
       "path": "support/dialogs.js",
-      "bytes": 13995,
-      "sha256": "c6b63ee1e9a138228e8afbdb84e2e25f570e7e1c8ac4ee704ac1ecaa495495f5"
+      "bytes": 15431,
+      "sha256": "7cdcac63769be8ea70abde9e347b51d50e917af77ad5dbf7f9d9bc4aef32a643"
     },
     {
       "path": "support/doc-tabs.js",

@@ -52,10 +52,12 @@
     var FB = window.pcFileBrowser, F = dinahResources.createTree(), save = o.mode === 'save', id = 'dinah-pick-' + (++count);
     // Open takes a document the Editor can open, or with any, any file.
     // An application that asks for kinds of file of its own, as Diagrams
-    // asks for diagram files, is shown those alone (o.extensions).
+    // asks for diagram files, is shown those alone (o.extensions). The
+    // kinds hold with any too, as for a picture a document is to show,
+    // which is no document the Editor opens.
     var kinds = (o.extensions || []).map(function (k) { return String(k).toLowerCase(); }).filter(Boolean);
     function ofKind(n) { var name = String(n && (n.name || n.title) || '').toLowerCase(); return !kinds.length || kinds.some(function (k) { return name.slice(-k.length) === k; }); }
-    var accept = o.any ? function (n) { return !!n && !n.directory; } : function (n) { return editable(n) && ofKind(n); };
+    var accept = o.any ? function (n) { return !!n && !n.directory && ofKind(n); } : function (n) { return editable(n) && ofKind(n); };
     var dlg = document.createElement('dialog');
     dlg.className = 'dialog fb-picker dinah-picker dinah-files';
     dlg.setAttribute('aria-labelledby', id + '-title');
@@ -202,7 +204,7 @@
           busy(false);
           if (folderOf(node) && !accept(F.childNamed(node, '@content'))) { input.value = ''; return b.go(node); }
           if (folderOf(node)) node = F.childNamed(node, '@content');
-          if (!accept(node)) { say((node.title || node.name) + (o.any ? ' cannot be chosen.' : kinds.length && editable(node) ? ' is not one of ' + kinds.join(', ') + '.' : ' is not a document the Editor can open.')); return; }
+          if (!accept(node)) { say((node.title || node.name) + (o.any && !kinds.length ? ' cannot be chosen.' : kinds.length && (o.any || editable(node)) ? ' is not one of ' + kinds.join(', ') + '.' : ' is not a document the Editor can open.')); return; }
           commit({ node: node });
         }, function () { busy(false); say('There is nothing at ' + value + '.'); });
         return;
