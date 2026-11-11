@@ -70,6 +70,8 @@ Ruling 2 sets the requirement. Two mechanisms exist. Dinah's suggestions are a l
 
 The proposal is that agent suggestions stay a draft-side layer, so they never touch the saved file until accepted and they work in every file type, and that the new applets show and resolve them with the same review list and controls yavc.app built for its marks. That needs yavc.app to accept host-supplied suggestions (ranges, replacement text, author) through its host interface, and to report Accept, Reject and edits back to the host. CriticMarkup stays available for people who want marks kept in a Markdown document. The downstream product's implementation is to be compared before this is settled.
 
+A suggestion replaces whole lines, since Markdown keeps a paragraph, and a row of a table, on one line. Dinah's review panel shows less than that (11 November 2026): the words the old and the new line begin with alike and end with alike are drawn as what is around the change, and only the words between them are struck and put in, so one word changed in a long row reads as one word. What is accepted or rejected is still the line. How the change is marked in the document itself is the applet's to draw.
+
 ### 8. Content security policy
 
 The D2 layout worker needs evaluation. Only that one worker route gets a narrower policy that allows it; the page policy and its test stay unchanged.

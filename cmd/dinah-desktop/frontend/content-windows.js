@@ -455,6 +455,16 @@
       b.addEventListener('click', run);
       return b;
     }
+    /* The part of a change that differs: the words two texts begin with
+       alike and end with alike, and what is between them in each. A text
+       that is wholly new or wholly gone has no such words. */
+    function changedPart(was, now) {
+      if (!was || !now) return { head: '', was: was, now: now, tail: '' };
+      var a = was.split(/(\s+)/), b = now.split(/(\s+)/), start = 0, end = 0;
+      while (start < a.length && start < b.length && a[start] === b[start]) start++;
+      while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
+      return { head: a.slice(0, start).join(''), was: a.slice(start, a.length - end).join(''), now: b.slice(start, b.length - end).join(''), tail: a.slice(a.length - end).join('') };
+    }
     function drawReview() {
       var list = (draft.suggestions || []);
       review.hidden = !list.length;
@@ -477,14 +487,24 @@
         /* Only the words beside the change on its own line are shown
            around it, and a paragraph's closing line breaks are left out. */
         var before = String(s.prefix || '').split('\n').pop().slice(-60), after = String(s.suffix || '').split('\n')[0].slice(0, 60);
+        /* A suggestion replaces whole lines, and a line may be a long
+           paragraph or a row of a table of which one word changed. The
+           words the two texts begin and end with alike are shown as what
+           is around the change, so that what is struck and what is put in
+           are the words that differ. While it is edited the whole
+           suggested text is in the field, so the whole old text is shown. */
+        var was = String(s.before || '').replace(/\n+$/, ''), now = String(s.after || '').replace(/\n+$/, '');
+        var part = editing === s.id ? { head: '', was: was, now: now, tail: '' } : changedPart(was, now);
+        if (part.head) before = (before + part.head).slice(-60);
+        if (part.tail) after = (part.tail + after).slice(0, 60);
         if (before) change.appendChild(el('span', 'content-review-context', '…' + before));
-        if (s.before) change.appendChild(el('del', '', s.before.replace(/\n+$/, '')));
+        if (part.was) change.appendChild(el('del', '', part.was));
         if (editing === s.id) {
           var field = el('textarea', 'form-input content-review-edit');
           field.value = s.after;
           field.setAttribute('aria-label', 'Suggested text');
           change.appendChild(field);
-        } else if (s.after) change.appendChild(el('ins', '', s.after.replace(/\n+$/, '')));
+        } else if (part.now) change.appendChild(el('ins', '', part.now));
         if (after) change.appendChild(el('span', 'content-review-context', after + '…'));
         item.appendChild(change);
         if (s.stale) item.appendChild(el('p', 'content-review-stale', 'The text this would change has been changed since, so it can only be rejected.'));
