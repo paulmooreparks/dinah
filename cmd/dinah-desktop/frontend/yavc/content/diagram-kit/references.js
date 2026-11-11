@@ -24,8 +24,8 @@
                 try {
                     var reference = figure.getAttribute('data-diagram-src') || '';
                     if (!/\.(d2|mmd|mermaid|canvas)$/i.test(reference) || /[:\\?#\u0000-\u001f\u007f]/.test(reference) || reference.startsWith('//') || reference.startsWith('~') && !reference.startsWith('~/')) throw new Error('Use a local D2, Mermaid or Canvas file.');
-                    if (!/^(~\/|\/)/.test(reference) && !directory) throw new Error('Save this document first, or choose an absolute virtual file path.');
-                    var path = window.yavcStyleTools.resolve(reference, directory);
+                    if (!/^(~\/|\/)/.test(reference) && !directory && !host.resolve) throw new Error('Save this document first, or choose an absolute virtual file path.');
+                    var path = host.resolve ? host.resolve(reference, 'diagram') : window.yavcStyleTools.resolve(reference, directory);
                     if (!/^(~\/|\/(?!\/))/.test(path)) throw new Error('The diagram path cannot be resolved by this host.');
                     if (!reads.has(path)) {
                         if (reads.size >= MAX_FILES) throw new Error('A document can reference at most 16 different diagram files.');

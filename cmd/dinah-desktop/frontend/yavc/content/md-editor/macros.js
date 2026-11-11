@@ -7,17 +7,29 @@
         var shared = '', path = '', front = engine.front(text), directory = host.dir ? host.dir() : '~';
         await K.styles();
         (front.entries || []).forEach(function (entry) { if (entry.key === 'shortcodes') { path = entry.value; } });
-        var reference = path;
+        var reference = path, problem = '';
+        /* The shared file is read as a diagram a document shows by path is
+           read: through the host's own reading where it has one, and
+           through the site's files otherwise. A file that is missing or
+           cannot be read does not stop the document from being drawn. Its
+           shortcodes stay as they are written, and problem says why. */
         if (path) {
-            path = window.yavcStyleTools.resolve(path, directory);
-            if (!/^~\/.+\.md$/i.test(path)) { throw new Error('Shared shortcodes must be a local Markdown file under ~.'); }
-            if (!host.site) { throw new Error('Shared shortcodes need the local file service.'); }
-            var site = await host.site(), node = site.F.resolve(null, path);
-            if (!node || node.children) { throw new Error('The shared shortcode file was not found: ' + path); }
-            shared = await site.F.read(node);
-            if (typeof shared !== 'string' || new TextEncoder().encode(shared).length > 256 * 1024) { throw new Error('Shared shortcodes must be a text file no larger than 256 KiB.'); }
+            try {
+                path = host.resolve ? host.resolve(path, 'shortcodes') : window.yavcStyleTools.resolve(path, directory);
+                if (!/^(~\/|\/(?!\/)).+\.md$/i.test(path)) { throw new Error('The shared shortcode file must be a local Markdown file: ' + reference); }
+                var found;
+                if (typeof host.read === 'function') { found = await host.read(path, { signal: host.signal, maxBytes: 256 * 1024 }); }
+                else {
+                    if (!host.site) { throw new Error('Shared shortcodes need a way to read files here.'); }
+                    var site = await host.site(), node = site.F && site.F.resolve(null, path);
+                    found = node && !node.children ? await site.F.read(node) : null;
+                }
+                if (found == null) { throw new Error('The shared shortcode file was not found: ' + reference); }
+                if (typeof found !== 'string' || new TextEncoder().encode(found).length > 256 * 1024) { throw new Error('The shared shortcode file must be text no larger than 256 KiB: ' + reference); }
+                shared = found;
+            } catch (err) { shared = ''; problem = String(err && err.message || err); }
         }
-        return { engine: engine.withMacros(text, shared), shared: shared, path: path, reference: reference };
+        return { engine: engine.withMacros(text, shared), shared: shared, path: path, reference: reference, problem: problem };
     }
     function catalog(engine) {
         var entries = engine ? engine.macros().entries : [], byName = new Map();
@@ -132,6 +144,7 @@
                         var shared = api.body.querySelector('[data-macro-shared]').value.trim();
                         if (shared !== context.reference) { text = opts.engine.frontset({ text: text, set: { shortcodes: shared || null }, order: ['shortcodes'] }).text; if (newline === '\r\n') { text = text.replace(/\r?\n/g, newline); } }
                         var next = await prepare(opts.engine, text, opts.host), problem = next.engine.macros().entries.find(function (entry) { return entry.problem; });
+                        if (next.problem) { throw new Error(next.problem); }
                         if (problem) { throw new Error(problem.name + ': ' + problem.problem); }
                         var local = next.engine.macros().entries.filter(function (entry) { return !entry.shared; });
                         if (local.length !== entries.length + (added.name ? 1 : 0) || local.some(function (entry, i) { return entry.name !== drafts[i].name || entry.body !== (i < entries.length && drafts[i].body === entries[i].body ? entries[i].body : bodyText(drafts[i].body)); })) {

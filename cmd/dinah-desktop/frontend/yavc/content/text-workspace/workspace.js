@@ -900,7 +900,7 @@
             await K.styles();
             var front = m.front(output), path = '';
             (front.entries || []).forEach(function (entry) { if (entry.key === 'stylesheet') { path = entry.value; } });
-            var result = await E.build(format, { text: output, engine: m, stylesheet: window.yavcStyleTools.resolve(path, directory),
+            var result = await E.build(format, { text: output, engine: m, stylesheet: path ? resolveReference(path, 'stylesheet', directory) : '',
                 read: function (path) { if (!unchanged()) { throw new Error('The document changed during export.'); } return window.pudlHost.fs.readText(path); }, pictures: pictures, current: unchanged });
             result.name = (tab.path ? tab.path.split('/').pop().replace(/(?:\.docs)?\.md$/i, '') : 'document') + '.' + format;
             return result;
@@ -1477,6 +1477,8 @@
             host.dir = function () { return directory; };
             await hostsReady();
             var m = hosted(await mdEngine()), K = await loadKit(), M = await K.macros(), prepared = await M.prepare(m, source, host);
+            /* A shared definitions file that cannot be read is said once for each reason, and the document is drawn without it. */
+            if (!destroyed && revision === macroRevision && current() === t) { if (prepared.problem && prepared.problem !== t.sharedCodesProblem) { window.yavcUtil.toast(prepared.problem, 'warn'); } t.sharedCodesProblem = prepared.problem || ''; }
             if (!destroyed && revision === macroRevision && current() === t && view.state.doc.toString() === source) { macroContext = prepared.engine; macroOwner = t; sharedMacros = prepared.shared; }
             return revision === macroRevision ? prepared.engine : m.withMacros(source, macroOwner === t ? sharedMacros : '');
         }
@@ -1750,7 +1752,7 @@
                         var notice = root.querySelector('[data-role="style-problems"]'); notice.hidden = !problems.length; notice.querySelector('.notice-body').textContent = problems.join(' ');
                     } }); }
                 var front = m.front(text), path = ''; (front.entries || []).forEach(function (entry) { if (entry.key === 'stylesheet') { path = entry.value; } });
-                currentSharedStyle = window.yavcStyleTools.resolve(path, styleDirectory());
+                currentSharedStyle = path ? resolveReference(path, 'stylesheet') : '';
                 await documentStyles.update({ identity: t, inline: m.styles(text).map(function (block) { return block.css; }), stylesheet: currentSharedStyle, reload: reload === true });
                 var oldShared = sharedMacros; await documentEngine();
                 if (!destroyed && revision === styleRevision && oldShared !== sharedMacros) {
@@ -1856,6 +1858,20 @@
            decision 87). Edit Diagram opens that file in the application
            that edits it, through PUDL's request for the diagram verb, and the document
            draws it again when the file is saved. */
+        /* A document's reference to another file, as a path to read. The
+           host decides where it can (contentWorkspace.resolvePath,
+           docs/content-workspace-contract.md), since only it knows how its
+           places are laid out. Otherwise the reference is taken from the
+           document's folder. kind is diagram, stylesheet or shortcodes. */
+        function resolveReference(reference, kind, directory) {
+            var t = current();
+            if (typeof hostServices.resolvePath === 'function') {
+                var given = null;
+                try { given = hostServices.resolvePath({ resource: t && t.path || null, reference: String(reference || ''), kind: kind }); } catch (err) { given = null; }
+                if (typeof given === 'string' && given.length <= 4096 && /^(~\/|\/(?!\/))/.test(given) && !/[\u0000-\u001f\u007f\\]/.test(given)) { return given; }
+            }
+            return window.yavcStyleTools.resolve(reference, directory === undefined ? styleDirectory() : directory);
+        }
         function canOpenDiagram() { return typeof hostServices.openDiagram === 'function' || !!(window.pudlApplets && window.pudlApplets.can && window.pudlApplets.request && window.pudlApplets.can('diagram')); }
         /* report(text) is told why a diagram could not be opened; without one
            the reason is said as an error in the workspace. */
@@ -1864,8 +1880,8 @@
             reference = String(reference || '');
             if (!/\.(d2|mmd|mermaid|canvas)$/i.test(reference) || /[:\\?#\u0000-\u001f\u007f]/.test(reference) || reference.startsWith('//') || reference.startsWith('~') && !reference.startsWith('~/')) { report('The diagram is not a local D2, Mermaid or Canvas file, so it cannot be opened.'); return false; }
             var directory = styleDirectory();
-            if (!/^(~\/|\/)/.test(reference) && !directory) { report('Save this document first, so the diagram beside it can be found.'); return false; }
-            var path = window.yavcStyleTools ? window.yavcStyleTools.resolve(reference, directory) : reference;
+            if (!/^(~\/|\/)/.test(reference) && !directory && typeof hostServices.resolvePath !== 'function') { report('Save this document first, so the diagram beside it can be found.'); return false; }
+            var path = window.yavcStyleTools ? resolveReference(reference, 'diagram', directory) : reference;
             if (!/^(~\/|\/(?!\/))/.test(path)) { report('The diagram\'s place cannot be worked out here.'); return false; }
             if (!canOpenDiagram()) { report('Nothing here opens a diagram file for editing.'); return false; }
             /* A host that opens files itself is asked first (contentWorkspace.openDiagram,
@@ -1904,7 +1920,8 @@
                 read: function (path, options) { if(!H.fs || !H.fs.readText)throw new Error('This application has not given documents a way to read other files (fs.readText).');return H.fs.readText(path, Object.assign({}, options, { document: resource || null })); },
                 watch: H.fs && H.fs.onChange ? function(fn){return H.fs.onChange(fn);} : null,
                 signal: styleLifetime.signal, identity: current, text: function () { return view ? view.state.doc.toString() : ''; },
-                dir: styleDirectory
+                dir: styleDirectory,
+                resolve: function (reference, kind) { return resolveReference(reference, kind); }
             };
         }
 

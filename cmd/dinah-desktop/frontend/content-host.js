@@ -144,6 +144,24 @@
     flatFolders.forEach(function (folder) { if (path.indexOf(folder + '/') === 0 && folder.length > hit.length) hit = folder; });
     return hit ? hit + '/' + path.slice(path.lastIndexOf('/') + 1) : path;
   }
+  /* A document's reference to another file, as the path to read
+     (contentWorkspace.resolvePath, yavc.app v0.2.78, its
+     docs/content-workspace-contract.md). The applet asks before it resolves
+     the reference itself, and null leaves it to the applet, which takes the
+     reference from the document's folder. Dinah decides for a document
+     whose folder keeps files by name alone: every reference the document
+     gives by a path of its own is the file of the reference's last name in
+     that folder. That holds for a path that leaves the folder too, as
+     ../shared/codes.md, which flatPath cannot see once it is resolved,
+     since it is then no longer below the folder. A reference that begins
+     at a root is not one from the document's folder and is left alone. */
+  function resolvePath(request) {
+    var resource = String(request && request.resource || ''), reference = String(request && request.reference || '');
+    var folder = folders.get(resource);
+    if (!folder || !flatFolders.has(folder) || !reference || /^(~|\/)/.test(reference)) return null;
+    var name = reference.slice(reference.lastIndexOf('/') + 1);
+    return name && name !== '.' && name !== '..' ? folder + '/' + name : null;
+  }
 
   /* The draft revision each resource's applet last read or wrote, which
      content-windows.js compares with the draft to see a change made
@@ -467,7 +485,7 @@
     if (installed) return installed;
     window.pudlHost = window.pudlHostKit.host({
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
-      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram },
+      contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram, resolvePath: resolvePath },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation, documentCommands: documentCommands,
       commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
