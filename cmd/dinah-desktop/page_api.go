@@ -91,7 +91,7 @@ var pageMethods = func() map[string]pageMethodClass {
  RemoveOptionSubstitution RemovePackages RemoveTerminalProfile RemoveWorkspace
  RemoveWorkspaceMount RenameDocumentFile RenameSession RenameSkill RenameWorkspace
  RenameWorkspaceSource ResetProviderFileLimit Restart ReviseSuggestion
- SaveAppearance SaveAppletArtifactAt SaveDraft SaveDraftAs SaveDraftToComputer SaveHistory
+ SaveAppearance SaveAppletArtifactAt SaveDraft SaveDraftAs SaveDraftToComputer SaveFileToComputer SaveHistory
  SaveNotification SaveRun SaveTemplate SelectWorkspace Send SetAgentExecutable SetApprovals
  SetClaudeAPIKey SetCodexAppletApprovals SetCodexApprovals SetDefault SetDefaultForProvider
  SetDefaultProvider SetDocumentView SetExtensionCommandReview SetLogLevel SetNewWindowMode
