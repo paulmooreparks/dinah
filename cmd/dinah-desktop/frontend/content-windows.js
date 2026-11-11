@@ -1105,7 +1105,7 @@
       return item && item.kind === kind && item.workspace === rec.id;
     });
     var key = recent.find(function (k) { return open.indexOf(k) >= 0; }) || open[open.length - 1];
-    if (!key) throw new Error('No ' + TITLES[app] + ' document is open in this workspace; open one with yavc.' + app + '/open-file@1, or start one with yavc.' + app + '/new@1.');
+    if (!key) throw new Error('No ' + TITLES[app] + ' document is open in this workspace; open one with yavc.' + app + '/open-file@1. Where yavc.' + app + '/new@1 is among the actions offered, it starts a new one.');
     return key;
   }
   function firstDocument(key) { return listed(key); }
