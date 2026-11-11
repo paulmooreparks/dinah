@@ -35,7 +35,7 @@ func (w fakeWiki) List(_ context.Context, folder string) ([]resource.Entry, erro
 		id = workspaces.ExtraString(w.source.Extra, "pageId")
 	}
 	if folder == "attachments" || strings.HasSuffix(folder, "/attachments") {
-		return []resource.Entry{{Name: "diagram.png", Size: 4, Kind: "attachment"}}, nil
+		return []resource.Entry{{Name: "diagram.png", Size: 4, Kind: "attachment"}, {Name: "plan.canvas", Size: 40, Kind: "attachment", Editable: true}, {Name: "notes.txt", Size: 12, Kind: "attachment"}}, nil
 	}
 	page, ok := fakeWikiPages[id]
 	if !ok {
@@ -210,6 +210,14 @@ func TestRegisteredKindIsListedReadAndPreviewedThroughItsProvider(t *testing.T) 
 	}
 	if _, err := service.read(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "999"}); err == nil {
 		t.Fatal("a missing page was read")
+	}
+	// A file the source says it writes back is offered for editing, and
+	// another file of the source is only read.
+	for name, want := range map[string]bool{"plan.canvas": true, "notes.txt": false} {
+		item, err := service.statProvider(record, ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "attachments/" + name}, source)
+		if err != nil || slices.Contains(item.Actions, "edit") != want || !slices.Contains(item.Actions, "read") {
+			t.Fatalf("%s: %v %v", name, item.Actions, err)
+		}
 	}
 	// A page's files are in the folder its source says, as a virtual path.
 	if folder, err := service.app.DocumentFilesMount(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "100"}); err != nil || folder != "/workspaces/"+record.MountAlias+"/"+source.MountAlias+"/100/attachments" {

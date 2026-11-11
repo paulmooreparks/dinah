@@ -67,6 +67,12 @@ type Entry struct {
 	// Revision is the entry's revision when the source knows it from the
 	// listing alone, such as a page's version; empty otherwise.
 	Revision string
+	// Editable marks a file of a source that is not a folder of files which
+	// the source opens for editing and writes back, as a wiki does a text
+	// file attached to a page (a diagram's file, for one). The source then
+	// takes the file's path in Snapshot and WriteDocument as it takes a
+	// document's. A file without it is read and shown, and not edited.
+	Editable bool
 }
 
 // Lister lists the entries of a folder in a source; the path "." is the

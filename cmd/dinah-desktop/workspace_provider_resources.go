@@ -85,6 +85,9 @@ func providerItem(parent ResourceRef, source WorkspaceSource, e resource.Entry, 
 	default:
 		if editorOpens(e.Name, e.Size) {
 			item.Actions = append(item.Actions, "read", "preview")
+			if e.Editable {
+				item.Actions = append(item.Actions, "edit")
+			}
 		}
 		if imagePreviewable(e.Name, e.Size) {
 			item.Actions = append(item.Actions, "preview")
