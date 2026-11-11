@@ -111,7 +111,7 @@
      while one of their windows is in front. This row holds it otherwise,
      as when a chat beside the document is in front, so one press never
      publishes twice. */
-  C.register({ id: 'publish-document', glyph: 'upload', menu: 'document', mnemonic: 'P', label: 'Publish…', shortcut: function () { var f = front(); return f && f.ownsFile ? '' : 'Ctrl+Shift+U'; }, help: { label: 'Publish the Document…', key: 'Ctrl+Shift+U' },
+  C.register({ id: 'publish-document', glyph: 'upload', menu: 'document', mnemonic: 'P', label: 'Publish…', shortcut: function () { var f = front(); return f && f.ownsFile ? '' : 'Ctrl+Shift+L'; }, help: { label: 'Publish the Document…', key: 'Ctrl+Shift+L' },
     visible: function () { return cur(function (c) { return !!c.canPublish && c.canPublish() !== null; }, false); },
     enabled: function () { return !suspended(['terminal']) && cur(function (c) { return !!c.canPublish && !!c.canPublish(); }, false); },
     reason: function () { return suspended(['terminal']) ? 'A Terminal is in front, and the key is its own.' : 'There are no changes to publish.'; },

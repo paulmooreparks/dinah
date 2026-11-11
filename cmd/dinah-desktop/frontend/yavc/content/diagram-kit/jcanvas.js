@@ -137,7 +137,8 @@
     function embeddedProblem(href) {
         if (typeof href !== 'string' || href.length > MAX_EMBEDDED || !PICTURE_HREF.test(href)) { return 'must be a data address of a PNG, JPEG, GIF, WebP or SVG picture in base64, of at most 256 KiB'; }
         var type = /^data:image\/([a-z+]+);/.exec(href)[1], head;
-        try { head = atob(href.slice(href.indexOf(',') + 1).slice(0, type === 'svg+xml' ? 5464 : 24)); } catch (err) { return 'is not base64'; }
+        /* 5464 characters of base64 are 4098 bytes, of which the first 4096 are looked at. */
+        try { head = atob(href.slice(href.indexOf(',') + 1).slice(0, type === 'svg+xml' ? 5464 : 24)).slice(0, 4096); } catch (err) { return 'is not base64'; }
         function starts(at, values) { return values.every(function (v, i) { return head.charCodeAt(at + i) === v; }); }
         var ok = type === 'png' ? starts(0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) : type === 'jpeg' ? starts(0, [0xff, 0xd8, 0xff]) : type === 'gif' ? starts(0, [0x47, 0x49, 0x46, 0x38]) :
             type === 'webp' ? starts(0, [0x52, 0x49, 0x46, 0x46]) && starts(8, [0x57, 0x45, 0x42, 0x50]) : /^(?:\xef\xbb\xbf)?\s*</.test(head) && /<svg[\s>]/i.test(head);

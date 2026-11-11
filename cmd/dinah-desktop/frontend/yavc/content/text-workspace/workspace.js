@@ -176,18 +176,8 @@
         var hostCommands = (function () {
             var service = H.documentCommands, declared = [];
             if (!service || service.version !== 1 || typeof service.list !== 'function' || typeof service.state !== 'function' || typeof service.run !== 'function') return { declared: declared, rows: function () { return []; }, standIn: function () { return null; }, watch: function () { return null; } };
-            try {
-                (service.list(app) || []).slice(0, 8).forEach(function (d) {
-                    if (!d || typeof d.id !== 'string' || !/^[a-z][a-z0-9-]{0,39}$/.test(d.id) || typeof d.label !== 'string' || !d.label.trim() || d.label.length > 64 || /[\x00-\x1f\x7f]/.test(d.label)) return;
-                    if (declared.some(function (x) { return x.id === d.id; })) return;
-                    declared.push({ id: d.id, label: d.label, glyph: typeof d.glyph === 'string' && /^[a-z0-9-]{1,40}$/.test(d.glyph) ? d.glyph : undefined,
-                        shortcut: typeof d.shortcut === 'string' && /^(?:(?:Mod|Ctrl|Alt|Shift)\+){0,3}(?:[A-Z0-9]|F[1-9]|F1[0-2])$/.test(d.shortcut) ? d.shortcut : undefined,
-                        menu: d.menu === 'review' ? 'review' : 'file', context: d.context === true,
-                        /* One command may stand in place of Save, the first that asks. */
-                        replaces: d.replaces === 'save' && !declared.some(function (x) { return x.replaces; }) ? 'save' : null,
-                        after: typeof d.after === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(d.after) ? d.after : null });
-                });
-            } catch (err) { declared = []; }
+            var checked = window.yavcUtil.documentCommands(service, app);
+            declared = checked.declared;
             /* Whether the view in front has a selection, which is cheap
                to say each time the menus are drawn. Where it is in the
                text is worked out only when a command runs. */
@@ -207,11 +197,7 @@
                 return mapped ? range(mapped.from, mapped.to) : null;
             }
             function context() { var t = current(); return { application: app, resource: t && t.path || null, name: t ? t.name : '', modified: !!(t && dirtyTab(t)), selected: selected() }; }
-            function state(d) {
-                var s = null;
-                try { s = service.state(d.id, context()); } catch (err) { s = null; }
-                return { present: !!(s && s.present === true), disabled: !!(s && s.disabled), reason: s && typeof s.reason === 'string' ? s.reason.slice(0, 200) : undefined };
-            }
+            function state(d) { return checked.state(d, context()); }
             /* What is typed on the page is in the text before the host reads it. */
             async function run(d) {
                 try {

@@ -11,7 +11,8 @@
      yavcUtil.download(name, blob)    hands the person a file through the browser
      yavcUtil.shortcut(key)           a CodeMirror key (Mod-b) as PUDL spells a shortcut (Mod+B)
      yavcUtil.notice(ref, text, kind) PUDL's persistent notice before ref
-     yavcUtil.toast(text, kind)      a transient operation result, with a dialog fallback */
+     yavcUtil.toast(text, kind)      a transient operation result, with a dialog fallback
+     yavcUtil.documentCommands(service, application)   a host's commands for a document application, checked */
 (function () {
     'use strict';
     if (window.yavcUtil) { return; }
@@ -168,5 +169,33 @@
         };
     }
 
-    window.yavcUtil = Object.freeze({ esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
+    /* The commands a host adds to a document application
+       (docs/document-commands-contract.md), read once and checked, since
+       they are drawn in the application's own menus. It gives { declared,
+       state(d, context) }: the declarations that keep the rules, and a
+       command's state for a document with an exception counted as not
+       present. A host with no such service gives no declarations. */
+    function documentCommands(service, application) {
+        var declared = [];
+        if (!service || service.version !== 1 || typeof service.list !== 'function' || typeof service.state !== 'function' || typeof service.run !== 'function') { return { declared: declared, state: function () { return { present: false, disabled: false }; } }; }
+        try {
+            (service.list(application) || []).slice(0, 8).forEach(function (d) {
+                if (!d || typeof d.id !== 'string' || !/^[a-z][a-z0-9-]{0,39}$/.test(d.id) || typeof d.label !== 'string' || !d.label.trim() || d.label.length > 64 || /[\x00-\x1f\x7f]/.test(d.label)) { return; }
+                if (declared.some(function (x) { return x.id === d.id; })) { return; }
+                declared.push({ id: d.id, label: d.label, glyph: typeof d.glyph === 'string' && /^[a-z0-9-]{1,40}$/.test(d.glyph) ? d.glyph : undefined,
+                    shortcut: typeof d.shortcut === 'string' && /^(?:(?:Mod|Ctrl|Alt|Shift)\+){0,3}(?:[A-Z0-9]|F[1-9]|F1[0-2])$/.test(d.shortcut) ? d.shortcut : undefined,
+                    menu: d.menu === 'review' ? 'review' : 'file', context: d.context === true,
+                    /* One command may stand in place of Save, the first that asks. */
+                    replaces: d.replaces === 'save' && !declared.some(function (x) { return x.replaces; }) ? 'save' : null,
+                    after: typeof d.after === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(d.after) ? d.after : null });
+            });
+        } catch (err) { declared = []; }
+        return { declared: declared, state: function (d, context) {
+            var s = null;
+            try { s = service.state(d.id, context); } catch (err) { s = null; }
+            return { present: !!(s && s.present === true), disabled: !!(s && s.disabled), reason: s && typeof s.reason === 'string' ? s.reason.slice(0, 200) : undefined };
+        } };
+    }
+
+    window.yavcUtil = Object.freeze({ documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
 })();

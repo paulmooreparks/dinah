@@ -222,6 +222,32 @@
         }
         var reportCommands=window.yavcUtil.commandChanges(commandTable,function(){if(opts.commandsChanged)opts.commandsChanged();},function(){return !destroyed;});
         function commandsChanged() { reportCommands(); tabRow(); }
+        /* The commands a host adds for a diagram (docs/document-commands-contract.md),
+           such as publishing one that is kept where other people see it. A
+           diagram has no selection of text, so the host is told there is
+           none. */
+        var hostCommands = window.yavcUtil.documentCommands(H.documentCommands, 'diagrams');
+        /* Diagrams has no Review menu, and a command has one place in the menus, so one for Review is left out here. */
+        hostCommands.declared = hostCommands.declared.filter(function (d) { return d.menu === 'file'; });
+        function hostContext() { var t = current(); return { application: 'diagrams', resource: t && t.path || null, name: t ? tabTitle(t) : '', modified: !!(t && t.modified), selected: false }; }
+        function hostState(d) { return hostCommands.state(d, hostContext()); }
+        async function hostRun(d) {
+            try {
+                var state = hostState(d);
+                if (destroyed || !state.present) { return; }
+                if (state.disabled) { say(state.reason || d.label + ' is not available now.', true); return; }
+                await H.documentCommands.run(d.id, Object.assign(hostContext(), { selection: null, root: root, signal: lifetime.signal }));
+            } catch (err) { if (!destroyed && !(err && err.name === 'AbortError')) { say(String(err && err.message || err), true); } }
+            commandsChanged();
+        }
+        /* The command that stands in place of Save for the diagram in front, or null. */
+        function saveStandIn() {
+            var d = hostCommands.declared.filter(function (x) { return x.replaces; })[0], s = d ? hostState(d) : null;
+            if (d && d.glyphKnown === undefined) { d.glyphKnown = !!(d.glyph && getComputedStyle(root).getPropertyValue('--glyph-' + d.glyph).trim()); }
+            return s && s.present ? { label: d.label, glyph: d.glyphKnown ? d.glyph : undefined, disabled: s.disabled, reason: s.reason, run: function () { return hostRun(d); } } : null;
+        }
+        function saveCommand() { var standIn = saveStandIn(); return standIn ? standIn.run() : save(); }
+        var unwatchHostCommands = hostCommands.declared.length && H.documentCommands && typeof H.documentCommands.onChange === 'function' ? H.documentCommands.onChange(function () { if (!destroyed) { commandsChanged(); } }) : null;
         function current() { return tabs[active] || null; }
         function readOnly(t) { return !!(resources && t && t.path && t.resource && !resources.canWrite(t.resource)); }
         function mutationWhy(t) { return readOnly(t || current()) ? 'This diagram is read-only. Use Save As to make an editable copy.' : null; }
@@ -262,6 +288,8 @@
             var ext = [visualChange, CM.lineNumbers(), CM.highlightActiveLineGutter(), history, CM.drawSelection(), CM.highlightActiveLine(), CM.highlightSelectionMatches(), CM.bracketMatching(), CM.closeBrackets(),
                 t.accessComp.of([]), CM.EditorState.transactionFilter.of(function (tr) { return tr.docChanged && readOnly(t) ? [] : tr; }),
                 lspComp.of(lsp && t.kind === 'canvas' ? lsp.extension('canvas', readOnly(t)) : []),
+                /* While a host's command stands in place of Save, the key in the text runs it here, so that an unavailable one says why. PUDL's own key handling refuses a disabled command without a word. */
+                CM.keymap.of([{ key: 'Mod-s', run: function () { if (!saveStandIn()) { return false; } saveCommand(); return true; } }]),
                 CM.keymap.of([].concat(CM.closeBracketsKeymap, CM.completionKeymap, CM.lintKeymap, CM.defaultKeymap, CM.searchKeymap, CM.historyKeymap, [CM.indentWithTab])),
                 window.yavcMdEditor.codeSearch(CM),
                 CM.indentUnit.of('  '),
@@ -2167,7 +2195,7 @@
                 cmd('convert-canvas', 'Convert to Canvas…', 'copy', function () { return convertDiagram('canvas'); }, {hidden:function(){return !isD2();}}),
                 cmd('convert-d2', 'Convert to D2…', 'copy', function () { return convertDiagram('d2'); }, {hidden:function(){return !isCanvas();}}),
                 cmd('open', 'Open…', 'folder', open, { shortcut: 'Mod+O' }),
-                cmd('save', 'Save', 'yavc-save', save, { shortcut: 'Mod+S', disabled: function () { var t = current(); return !t || (resources ? !t.path ? !resources.canSaveAs() : !resources.canWrite(t.resource) : !t.path || !H.fs || !H.fs.writeText); }, reason: function () { var t = current(); return mutationWhy(t) || (!resources && t && !t.path ? 'This host cannot create a destination. Download the source.' : t && t.recoveryConflict ? 'Recovered edits have no matching file revision. Use Save As or download the source.' : undefined); } }),
+                cmd('save', 'Save', 'yavc-save', saveCommand, { shortcut: 'Mod+S', label: function () { var s = saveStandIn(); return s ? s.label : 'Save'; }, glyph: function () { var s = saveStandIn(); return s && s.glyph || 'yavc-save'; }, disabled: function () { var s = saveStandIn(); if (s) { return s.disabled; } var t = current(); return !t || (resources ? !t.path ? !resources.canSaveAs() : !resources.canWrite(t.resource) : !t.path || !H.fs || !H.fs.writeText); }, reason: function () { var s = saveStandIn(); if (s) { return s.reason; } var t = current(); return mutationWhy(t) || (!resources && t && !t.path ? 'This host cannot create a destination. Download the source.' : t && t.recoveryConflict ? 'Recovered edits have no matching file revision. Use Save As or download the source.' : undefined); } }),
                 cmd('save-as', 'Save As…', 'yavc-save-as', saveAs, { disabled: function () { return !current() || !resources || !resources.canSaveAs(); }, reason: function () { return !resources || !resources.canSaveAs() ? 'This host does not offer conditional Save As. Download the source to keep a copy.' : undefined; } }),
                 cmd('close-diagram', 'Close Diagram', null, function () { closeTab(active); }, { disabled: function () { return !current(); } }),
                 cmd('undo', 'Undo', 'yavc-undo', function () { if (cm && !readOnly(current())) { CM.undo(cm); } }, { builtIn: 'Mod-z', glyphOnly: true, disabled: function () { return readOnly(current()); }, reason: function () { return mutationWhy(); } }),
@@ -2209,7 +2237,11 @@
             VIEWS.forEach(function (v) {
                 table.push({ id: 'view-' + v[0], label: v[0] === 'preview' ? function () { return isD2() || isCanvas() ? 'Visual' : 'Preview'; } : v[1], choice: 'dg-view', choiceLabel: 'View', value: v[0], checked: function () { return viewOf(current()) === v[0]; }, run: function () { setView(v[0]); } });
             });
-            return table.concat(canvasCommands(), commonToolbar ? commonToolbar.commands() : [], [
+            /* The host's own commands. One that stands in place of Save keeps its command, for its own shortcut, and has no row in a menu. */
+            var hostRows = hostCommands.declared.map(function (d) {
+                return { id: 'host-' + d.id, label: d.label, glyph: d.glyph, shortcut: d.shortcut, hidden: function () { return !hostState(d).present; }, disabled: function () { return hostState(d).disabled; }, reason: function () { return hostState(d).reason; }, run: function () { return hostRun(d); } };
+            });
+            return table.concat(hostRows, canvasCommands(), commonToolbar ? commonToolbar.commands() : [], [
                 cmd('drawing-tool', 'Drawing Tool', 'square', null, { hidden: function () { return !isD2() && !isCanvas(); }, items: ['tool-select'].concat(PALETTE.map(function (k) { return 'tool-' + k[0]; })) }),
                 cmd('view-mode', 'View', 'panel', null, { toolbarChoice: 'dg-view', toolbarPriority: 50, items: ['view-preview', 'view-text', 'view-split'] })
             ]);
@@ -2226,9 +2258,18 @@
         /* Diagrams' help is a page of the site, /help/diagrams, which the
            site's Help menu links to (DESIGN.md, decision 19). */
         function menus() {
+            /* The host's commands sit in File after the command each names, or after Save As. One that stands in place of Save is the Save row and has none of its own. */
+            var fileItems = ['new', 'new-mermaid', 'new-canvas', 'open', 'save', 'save-as', '-', 'convert-canvas', 'convert-d2', 'edit-in-editor', '-', 'export-svg', 'export-png', 'export-source', '-', 'close-diagram'];
+            hostCommands.declared.forEach(function (d) {
+                if (d.replaces) { return; }
+                var at = d.after ? fileItems.indexOf(d.after) : -1;
+                if (at < 0) { at = fileItems.indexOf('save-as'); }
+                while (at + 1 < fileItems.length && fileItems[at + 1].indexOf('host-') === 0) { at++; }
+                fileItems.splice(at + 1, 0, 'host-' + d.id);
+            });
             return { titles: [
                 { label: 'Diagrams', glyph: 'document', items: H.identity ? H.identity(root, []) : [] },
-                { id: 'file', label: 'File', glyph: 'file', items: ['new', 'new-mermaid', 'new-canvas', 'open', 'save', 'save-as', '-', 'convert-canvas', 'convert-d2', 'edit-in-editor', '-', 'export-svg', 'export-png', 'export-source', '-', 'close-diagram'] },
+                { id: 'file', label: 'File', glyph: 'file', items: fileItems },
                 { id: 'edit', label: 'Edit', glyph: 'pencil', items: ['undo', 'redo', '-', 'cv-copy', 'cv-paste', 'cv-duplicate', 'cv-delete', 'copy-embed', '-', 'cv-select-all', 'cv-select-items', '-', 'find', 'go-to-line', 'cv-next', 'cv-previous', '-', 'format-text', 'redraw', 'language-restart'] },
                 { id: 'shape', label: 'Shape', glyph: 'square', items: (isD2() || isCanvas() ? [{ label: 'Drawing Tool', glyph: 'square', items: ['tool-select'].concat(PALETTE.map(function (k) { return 'tool-' + k[0]; })) }, '-'] : []).concat(['shape-add', 'shape-add-inside', 'connect', 'cv-new', 'cv-add-picture', 'cv-group', 'cv-connect', 'cv-reconnect-start', 'cv-reconnect-end', 'cv-resize', 'cv-edit-text', '-', { label: 'Align and Distribute', items: ['cv-align-left', 'cv-align-center', 'cv-align-right', 'cv-align-top', 'cv-align-middle', 'cv-align-bottom', '-', 'cv-distribute-horizontal', 'cv-distribute-vertical'] }, '-', 'shape-label', 'shape-rename', 'shape-type', '-', 'shape-move-into', 'shape-move-top', 'cv-left', 'cv-right', 'cv-up', 'cv-down', 'cv-forward', 'cv-back', '-', 'shape-delete']) }
             ], into: { view: ['view-preview', 'view-text', 'view-split', '-', 'dock', 'fit', 'toggle-inspector', 'toggle-outline'].concat(commonToolbar ? ['-', 'common-toolbar-show', 'common-toolbar-customize'] : [], ['-', 'cv-pan', 'cv-pan-left', 'cv-pan-right', 'cv-pan-up', 'cv-pan-down', 'cv-zoom-in', 'cv-zoom-out', 'cv-actual']) } };
@@ -2236,11 +2277,13 @@
         root.addEventListener('pudl:contextmenu', function (e) {
             var t = e.detail.target;
             var own = function (ids) { return window.pudlCommands ? window.pudlCommands.menuRows(ids, root) : ids; };
+            /* The host's commands that asked to be offered on a right-click, over the drawing and over the text. */
+            var offered = hostCommands.declared.filter(function (d) { return d.context; }).map(function (d) { return 'host-' + d.id; });
             if (t.closest && t.closest('.dg-stagebox')) {
                 var rows = isCanvas() ? ['cv-edit-text', 'cv-new', 'cv-add-picture', 'cv-group', 'cv-connect', 'cv-reconnect-start', 'cv-reconnect-end', 'cv-resize', '-', 'cv-copy', 'cv-paste', 'cv-duplicate', 'cv-forward', 'cv-back', 'cv-delete', '-'] : isD2() && selection() ? ['shape-label', 'shape-rename', 'shape-type', 'connect', 'shape-add-inside', '-', 'shape-delete', '-'] : isD2() ? ['shape-add', '-'] : [];
-                e.detail.add(own(rows.concat(['copy-embed', 'export-svg', 'export-png', '-', 'fit', 'redraw'])));
+                e.detail.add(own(rows.concat(['copy-embed', 'export-svg', 'export-png', '-', 'fit', 'redraw'], offered.length ? ['-'].concat(offered) : [])));
             }
-            else if (t.closest && t.closest('.dg-text')) { e.detail.add(own(['undo', 'redo', '-', 'find', '-', 'format-text', 'copy-embed', '-', 'view-text', 'view-preview', 'view-split'])); }
+            else if (t.closest && t.closest('.dg-text')) { e.detail.add(own(['undo', 'redo', '-', 'find', '-', 'format-text', 'copy-embed', '-', 'view-text', 'view-preview', 'view-split'].concat(offered.length ? ['-'].concat(offered) : []))); }
         });
 
         /* === Start ======================================================== */
@@ -2540,6 +2583,7 @@
                 if (unbindDocuments) unbindDocuments();
                 if (commonToolbar) { commonToolbar.destroy(); }
                 destroyed = true;
+                if (unwatchHostCommands) { unwatchHostCommands(); unwatchHostCommands = null; }
                 lifetime.abort();
                 finishInlineText(false); inspectorSize.disconnect();
                 modeWatch.disconnect();

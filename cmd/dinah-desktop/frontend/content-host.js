@@ -646,7 +646,16 @@
   var documentCommands = {
     version: 1,
     list: function (application) {
-      return application === 'editor' || application === 'docs' ? [{ id: 'publish', label: 'Publish…', glyph: 'upload', shortcut: 'Mod+Shift+U', replaces: 'save' },
+      /* The key is one CodeMirror leaves free. It took Mod+Shift+U for
+         itself, so that key never came here while a text pane had the
+         keyboard (yavc.app, 12 November 2026). */
+      var publish = { id: 'publish', label: 'Publish…', glyph: 'upload', shortcut: 'Mod+Shift+L', replaces: 'save' };
+      /* Diagrams takes the commands since yavc.app v0.2.77: a diagram kept
+         where others read it at once, as one attached to a page of a wiki,
+         has Publish… in the place of Save as a document has. A diagram has
+         no selection of text, so no change is requested on one. */
+      if (application === 'diagrams') return [publish];
+      return application === 'editor' || application === 'docs' ? [publish,
         { id: 'request-change', label: 'Request a Change…', glyph: 'pencil', shortcut: 'Mod+Shift+E', menu: 'review', context: true }] : [];
     },
     state: function (id, context) {
