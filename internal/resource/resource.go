@@ -219,6 +219,21 @@ type Publisher interface {
 	Publishes() bool
 }
 
+// PictureRedrawer is a source that keeps, beside a document, a picture of
+// each diagram the document shows, because the place the document is kept
+// cannot draw a diagram file itself (a wiki's page). Such a source draws a
+// picture when the diagram is written and keeps it while the diagram is
+// unchanged. RedrawPictures draws the pictures again from the diagrams the
+// source has now and writes them, without writing the document: for a
+// document, the picture of each diagram it shows, and for a diagram kept
+// beside a document, its own. The notes say what was drawn and what could
+// not be. RedrawsPictures reports whether path is such a document or
+// diagram, so that an editor offers the command only there.
+type PictureRedrawer interface {
+	RedrawsPictures(path string) bool
+	RedrawPictures(ctx context.Context, path string) (notes []string, err error)
+}
+
 // ErrConflict means the resource is no longer at the expected revision, or
 // already exists when it was expected not to.
 var ErrConflict = errors.New("the resource has changed since it was read")

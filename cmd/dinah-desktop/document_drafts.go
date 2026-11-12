@@ -9,6 +9,7 @@ import (
 	"studio/internal/drafts"
 	"studio/internal/preview"
 	"studio/internal/recent"
+	"studio/internal/resource"
 	"studio/internal/resource/localfs"
 	"studio/internal/workspaces"
 )
@@ -158,6 +159,42 @@ func (a *App) SaveDraft(id, expected string) (DraftSaved, error) {
 		a.savedElsewhere(saved)
 	}
 	return saved, err
+}
+
+// RedrawDraftPictures draws again the pictures a document's source keeps of
+// the diagrams the document shows, from the diagrams the source has now; see
+// resource.PictureRedrawer. The document itself is not written, and the
+// draft is not changed. The notes say what was drawn.
+func (a *App) RedrawDraftPictures(id string) ([]string, error) {
+	ctx := a.bindingContext()
+	o, err := a.documentOps(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	d, err := o.Draft(id)
+	if err != nil {
+		return nil, err
+	}
+	if d.Origin.Kind == "" || d.Origin.Kind == drafts.OriginNew {
+		return nil, resource.ErrUnsupported
+	}
+	p, err := o.Drafts.Providers.Provider(ctx, d.Origin)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := p.(resource.PictureRedrawer)
+	if !ok || !r.RedrawsPictures(d.Origin.Path) {
+		return nil, resource.ErrUnsupported
+	}
+	notes, err := r.RedrawPictures(ctx, d.Origin.Path)
+	if err != nil {
+		return nil, draftErrorText(err)
+	}
+	a.emitWorkspaceMountChanged("content-changed", d.Origin.WorkspaceID, d.Origin.SourceID)
+	if notes == nil {
+		notes = []string{}
+	}
+	return notes, nil
 }
 
 // savedElsewhere tells the page that a document was written to where it is

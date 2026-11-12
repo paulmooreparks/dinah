@@ -149,6 +149,10 @@
     enabled: function () { return cur(function (c) { return c.canRename(); }, false); },
     reason: whyNot('rename', 'The Editor is busy with the document.'),
     run: function () { return cur(function (c) { return c.rename(); }); } });
+  /* Shown only for a document whose source keeps pictures of its diagrams. */
+  C.register({ id: 'redraw-diagram-pictures', glyph: 'reload', menu: 'document', mnemonic: 'G', label: 'Redraw Diagram Pictures',
+    visible: function () { return cur(function (c) { return !!c.canRedrawPictures && c.canRedrawPictures(); }, false); },
+    run: function () { return cur(function (c) { return c.redrawPictures(); }); } });
   /* An image or a file added to the document is kept with its draft and
      written beside the document when it is saved (content-windows.js). */
   C.register({ id: 'documents-sep-files', menu: 'document', separator: true });

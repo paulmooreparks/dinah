@@ -46,6 +46,10 @@ const (
 	ActionDiscard = "discard"
 	// ActionSaveAs writes the draft to a new resource; see Service.SaveAs.
 	ActionSaveAs = "save-as"
+	// ActionRedrawPictures draws again the pictures a source keeps of the
+	// diagrams a document shows; see resource.PictureRedrawer. It is offered
+	// for a document of such a source whether or not the draft has changes.
+	ActionRedrawPictures = "redraw-pictures"
 )
 
 // View is a draft with the operations currently legal for it, so that a
@@ -77,6 +81,9 @@ func (s *Service) View(ctx context.Context, d Draft) View {
 				if pub, ok := p.(resource.Publisher); ok && pub.Publishes() {
 					v.WriteBack = ActionPublish
 				}
+			}
+			if r, ok := p.(resource.PictureRedrawer); ok && r.RedrawsPictures(d.Origin.Path) {
+				v.Actions = append(v.Actions, ActionRedrawPictures)
 			}
 		}
 	}

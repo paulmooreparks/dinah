@@ -175,6 +175,17 @@
        the draft first, and the draft service refuses the write when the page
        moved on since it was opened. */
     function unsentComments() { return !!(comments && comments.unsent()); }
+    var redrawing = false;
+    function redrawPictures() {
+      if (redrawing) return Promise.resolve();
+      redrawing = true;
+      if (window.dinahCommands) window.dinahCommands.changed();
+      return Promise.resolve(api().RedrawDraftPictures(draft.id)).then(function (notes) {
+        if (host()) host().toast((notes || []).join(' ') || 'There were no diagram pictures to draw.', 'info');
+      }, function (err) {
+        if (host()) host().toast('The diagram pictures were not drawn again: ' + message(err), 'danger');
+      }).then(function () { redrawing = false; if (window.dinahCommands) window.dinahCommands.changed(); });
+    }
     function publish() {
       return flush().then(function () { return api().GetDraft(draft.id); }).then(function (v) {
         draft = v;
@@ -830,6 +841,13 @@
       publish: publish,
       // The document's comments (document-comments.js).
       comments: function () { return comments; },
+      /* A source that keeps pictures of the diagrams a document shows (a
+         page of a site) draws them again when asked: the picture is drawn
+         when its diagram is written and kept while the diagram is
+         unchanged, so a picture that is wrong or old stays until then
+         (Paul, 12 November 2026). */
+      canRedrawPictures: function () { return (draft.actions || []).indexOf('redraw-pictures') >= 0; },
+      redrawPictures: redrawPictures,
       canRename: function () { return !!draft.origin && draft.origin.kind === 'local-folder'; },
       rename: rename,
       save: function () { return draft.origin && draft.origin.kind === 'new' ? saveAs() : draft.writeBack === 'publish' ? publish() : flush(); },
