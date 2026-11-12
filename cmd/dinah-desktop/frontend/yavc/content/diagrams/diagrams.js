@@ -973,13 +973,12 @@
                 var mixed = cells.some(function (c) { return c !== cells[0]; });
                 return partField(prefix + group + '-' + i, group, i, name, cells[0], mixed, def, helpId, base);
             }).join('');
-            return '<section class="card disclosure dg-parts" data-parts="' + group + '" aria-labelledby="' + titleId + '"><div class="card-head"><button type="button" class="card-toggle" aria-expanded="' + !!partsOpen[group] + '" aria-controls="' + bodyId + '"></button>' +
+            return '<section class="card disclosure dg-parts" id="' + prefix + group + '-group" data-parts="' + group + '" aria-labelledby="' + titleId + '"><div class="card-head"><button type="button" class="card-toggle" aria-expanded="' + !!partsOpen[group] + '" aria-controls="' + bodyId + '"></button>' +
                 '<h4 class="card-title" id="' + titleId + '">' + def.title + '</h4><span class="card-summary">' + esc(summary) + '</span></div>' +
                 '<div class="card-body" id="' + bodyId + '" role="group" aria-labelledby="' + titleId + '">' + fields + '<p class="form-help" id="' + helpId + '">' + esc(def.help(base)) + '</p></div>' +
                 '<div class="card-actions"><button type="button" class="btn btn-sm" id="' + prefix + group + '-clear" aria-label="Clear ' + def.title + '" data-parts-clear="' + group + '"' + (arrays.every(function (a) { return !a; }) ? ' disabled' : '') + '>Clear</button></div></section>';
         }
         function renderCanvasInspector(t) {
-            if (holdFocus()) { return; }
             renderOutline();
             var selected = canvasSelections(), show = !!(settings.inspector && t.cv);
             inspectorPresentation(show);
@@ -987,11 +986,12 @@
             var blocked = !!(canvasWhy(false) || mutationWhy(t)), state = 'canvas|' + JSON.stringify(selected) + '|' + blocked;
             if (inspected === state && el.inspector.contains(document.activeElement)) { return; }
             inspected = state;
-            if (!selected.length) { renderDocumentInspector(t, blocked); return; }
+            if (!selected.length) { if (holdFocus()) { return; } inspectedItems = null; renderDocumentInspector(t, blocked); return; }
             var entries = selected.map(function (s) { return { kind: s.kind, item: (s.kind === 'node' ? t.cvDoc.nodes : t.cvDoc.edges).find(function (x) { return x.id === s.id; }) }; });
             if (entries.some(function (e) { return !e.item; })) { return; }
             var properties = entries.map(function (e) { return window.yavcCanvasModel.properties(e.item, e.kind); }).reduce(function (a, b) { return a.filter(function (k) { return b.indexOf(k) >= 0; }); });
-            var p = 'dg-cv-in-' + n + '-', restoreKeyboard = holdKeyboard();
+            var p = 'dg-cv-in-' + n + '-';
+            fontWanted = {};
             var html = '<h3 class="dg-inspector-title">' + (selected.length > 1 ? selected.length + ' Items' : selected[0].kind === 'node' ? 'Node' : 'Connector') + '</h3><p class="dg-inspector-id">' + esc(selected.map(function (s) { return s.id; }).join(', ')) + '</p>';
             var defaults = { shape: 'rectangle', line: 'solid', lineWidth: 2, route: 'elbow' };
             function value(e, k) {
@@ -1018,12 +1018,12 @@
                     var pal = canvasPalette(t.place, window.yavcCanvas), resolved = /^[1-6]$/.test(v || '') ? pal.presets[Number(v) - 1] : /^#[a-f0-9]{3}$/i.test(v || '') ? v.replace(/([a-f0-9])/ig, '$1$1').replace('##', '#') : v;
                     var box = (t.cvColors || []).find(function (b) { return b.id === selected[0].id; });
                     var fallback = box && box.colors && (k === 'fillColor' ? box.colors.fill : k === 'strokeColor' ? box.colors.stroke : k === 'textColor' ? box.text && box.text.color : null);
-                    control = colourField(id, k, label, v || '', resolved || fallback || (k === 'fillColor' ? pal.surface : k === 'tint' ? null : pal.line), k === 'tint' ? 'No tint' : k === 'textColor' ? 'Automatic' : null) + '<div class="hstack dg-color-presets" role="group" aria-label="' + esc(label) + ' Presets">' + pal.presets.map(function (c, i) {
+                    control = colourField(id, k, label, v || '', resolved || fallback || (k === 'fillColor' ? pal.surface : k === 'tint' ? null : pal.line), k === 'tint' ? 'No tint' : k === 'textColor' ? 'Automatic' : null) + '<div class="hstack dg-color-presets" id="' + id + '-presets" role="group" aria-label="' + esc(label) + ' Presets">' + pal.presets.map(function (c, i) {
                         var name = ['Red', 'Orange', 'Yellow', 'Green', 'Cyan', 'Purple'][i];
                         return '<button type="button" class="btn btn-sm" data-set="' + esc(k) + '" value="' + (i + 1) + '" data-was="' + esc(mixed ? '__mixed__' : v) + '" aria-label="' + name + '" title="' + name + '"><span class="dg-color-dot" style="background:' + esc(c) + '" aria-hidden="true"></span></button>';
                     }).join('') + '<button type="button" class="btn btn-sm" data-set="' + esc(k) + '" value="" title="' + (k === 'color' ? 'Theme Default' : k === 'tint' ? 'No Tint' : k === 'textColor' ? 'Choose a Readable Color Automatically' : 'Use the Coordinated Color') + '" data-was="' + esc(mixed ? '__mixed__' : v) + '">Default</button></div>';
                 } else { control = textField(id, k, label, v); }
-                if (mixed && type !== 'segments' && type !== 'picker' && type !== 'font') { control = control.replace(/data-was="[^"]*"/g, 'data-mixed="true" data-was=""').replace(/ placeholder="[^"]*"/g, '').replace(/<(input|textarea)\b/g, '<$1 placeholder="Mixed"'); control += '<p class="form-help">Mixed values</p>'; }
+                if (mixed && type !== 'segments' && type !== 'picker' && type !== 'font') { control = control.replace(/data-was="[^"]*"/g, 'data-mixed="true" data-was=""').replace(/ placeholder="[^"]*"/g, '').replace(/<(input|textarea)\b/g, '<$1 placeholder="Mixed"'); control += '<p class="form-help" id="' + id + '-mixed">Mixed values</p>'; }
                 html += control;
             }
             add('text', 'Text', 'text'); add('label', 'Label');
@@ -1052,13 +1052,36 @@
             var sides = [['', 'Automatic'], ['top', 'Top'], ['right', 'Right'], ['bottom', 'Bottom'], ['left', 'Left']];
             add('fromSide', 'Start Side', 'select', sides); add('toSide', 'End Side', 'select', sides);
             if (selected.length === 1 && selected[0].kind === 'edge') { html += '<fieldset class="form-fieldset"><legend>Endpoints</legend><div class="hstack"><button type="button" class="btn btn-sm" data-command="cv-reconnect-start"></button><button type="button" class="btn btn-sm" data-command="cv-reconnect-end"></button></div></fieldset>'; }
-            el.inspector.innerHTML = '<fieldset class="dg-inspector-fields"' + (blocked ? ' disabled' : '') + '>' + html + '</fieldset>';
-            if (blocked) { el.inspector.insertAdjacentHTML('afterbegin', '<p class="form-help">Put the canvas text right before changing these settings.</p>'); }
+            var drawn = (blocked ? '<p class="form-help">Put the canvas text right before changing these settings.</p>' : '') + '<fieldset class="dg-inspector-fields" data-inspector="item"' + (blocked ? ' disabled' : '') + '>' + html + '</fieldset>';
+            var itemsKey = (t.inspectorSerial || (t.inspectorSerial = ++inspectorSerial)) + '|' + JSON.stringify(selected);
+            if (inspectedItems !== null && el.inspector.querySelector(':scope > fieldset[data-inspector="item"]')) {
+                /* The controls the person may be in are kept, and each is given its new value, placeholder and state. A refusal belongs to the
+                   items that were selected, so it goes when the selection changes. */
+                newSelection = itemsKey !== inspectedItems;
+                if (newSelection) {
+                    el.inspector.querySelectorAll('.form-error').forEach(function (e) { e.remove(); });
+                    el.inspector.querySelectorAll('[aria-invalid]').forEach(function (e) { e.removeAttribute('aria-invalid'); });
+                    el.inspector.querySelectorAll('[aria-describedby]').forEach(function (e) {
+                        var ids = e.getAttribute('aria-describedby').split(/\s+/).filter(function (id) { return id && !/-error$/.test(id); });
+                        if (ids.length) { e.setAttribute('aria-describedby', ids.join(' ')); } else { e.removeAttribute('aria-describedby'); }
+                    });
+                }
+                var scratch = document.createElement('div');
+                scratch.innerHTML = drawn;
+                morphChildren(el.inspector, scratch);
+            } else {
+                if (holdFocus()) { return; }
+                var restoreKeyboard = holdKeyboard();
+                el.inspector.innerHTML = drawn;
+                restoreKeyboard();
+            }
+            inspectedItems = itemsKey;
             if (window.pudlFields) { window.pudlFields.enhance(el.inspector); }
             placeFonts(t); growFields();
-            restoreKeyboard();
+            newSelection = false;
         }
         function renderDocumentInspector(t, blocked) {
+            fontWanted = {};
             var id = 'dg-doc-' + n + '-', settings = t.cvDoc.yavc || {}, palette = canvasPalette(t.place, window.yavcCanvas);
             var restoreKeyboard = holdKeyboard();
             var value = settings.background || '', resolved = /^[1-6]$/.test(value) ? palette.presets[Number(value) - 1] : /^#[a-f0-9]{3}$/i.test(value) ? value.replace(/([a-f0-9])/ig, '$1$1') : value;
@@ -1419,8 +1442,85 @@
                 try { if (back.value !== was) { back.select(); } else { back.setSelectionRange(from, to, direction); back.scrollTop = top; } } catch (err) { /* A field with no caret. */ }
             };
         }
+        /* The Inspector is updated in place. What a draw builds is laid over what is on the page: a control that is there keeps its
+           element, its focus and its caret and is given the new value, placeholder and state, and only a control whose presence has
+           changed is added or taken away. Controls are matched by id, and those without one by tag and place among their siblings.
+           Four things are left alone because PUDL changes them after they are drawn: a number field is brought up to date through
+           PUDL's own refresh, a font box is updated by placeFonts, a button PUDL fills from its command is PUDL's, and the class,
+           label target and a textarea's grown height are the page's. A field the person is in is given no value, unless the
+           selection has changed, and a refusal shown by a field stays until the field or the selection changes. */
+        var inspectedItems = null, inspectorSerial = 0, newSelection = false;
+        /* An attribute the new markup has is copied, and one it lacks is taken away, so a state that comes and goes, such as disabled,
+           checked or selected, needs no list. What the page or PUDL owns is the exception. The class, the label target, the id and the
+           descriptions are never copied. The style is copied where the markup has one and never taken away, since the page sizes a
+           text area, PUDL places a menu and a colour field is styled after it is drawn. Never taken away either are a request's mark
+           and the side a menu opens on. PUDL gives a disclosure's toggle its name and hides its summary while it is open. */
+        var NOT_COPIED = ['class', 'for', 'id', 'aria-describedby', 'aria-invalid'];
+        var NOT_REMOVED = NOT_COPIED.concat(['style', 'data-sending', 'data-menu-side']);
+        function ownedByPudl(node, name) { return (name === 'aria-labelledby' && node.classList.contains('card-toggle')) || (name === 'aria-hidden' && node.classList.contains('card-summary')) || (name === 'hidden' && node.tagName === 'INPUT' && node.parentNode && node.parentNode.classList.contains('number-field')); }
+        function copyAttributes(live, fresh, typing) {
+            Array.prototype.forEach.call(fresh.attributes, function (a) {
+                if (NOT_COPIED.indexOf(a.name) >= 0 || (a.name === 'style' && live.tagName === 'TEXTAREA') || (a.name === 'value' && typing && live.tagName !== 'BUTTON')) { return; }
+                if (live.getAttribute(a.name) !== a.value) { live.setAttribute(a.name, a.value); }
+            });
+            Array.prototype.slice.call(live.attributes).forEach(function (a) {
+                if (fresh.hasAttribute(a.name) || NOT_REMOVED.indexOf(a.name) >= 0 || ownedByPudl(live, a.name) || (a.name === 'value' && typing)) { return; }
+                live.removeAttribute(a.name);
+            });
+        }
+        function isRefusal(node) { return node.nodeType === 1 && node.classList.contains('form-error'); }
+        function fontKey(node) {
+            if (node.hasAttribute('data-font-place')) { return 'font:' + node.getAttribute('data-font-place'); }
+            for (var which in fontBoxes) { if (fontBoxes[which].wrap === node) { return 'font:' + which; } }
+            return null;
+        }
+        function keysOf(parent) {
+            var count = {};
+            return Array.prototype.map.call(parent.childNodes, function (node) {
+                var name = node.nodeType === 1 ? node.tagName : '#text', key = node.nodeType === 1 ? (node.id ? '#' + node.id : node.tagName === 'OPTION' ? 'option:' + node.getAttribute('value') : fontKey(node)) : null;
+                if (key) { return key; }
+                count[name] = (count[name] || 0) + 1;
+                return name + count[name];
+            });
+        }
+        function morphNumber(live, fresh) {
+            var input = live.querySelector('input[type="number"]'), want = fresh.querySelector('input');
+            if (!input || !want) { return; }
+            copyAttributes(input, want, false);
+            var visible = live.querySelector('input[type="text"]');
+            if (!newSelection && (document.activeElement === input || (visible && document.activeElement === visible))) { return; }
+            input.value = want.getAttribute('value') || '';
+            if (window.pudlFields) { window.pudlFields.refresh(input); }
+        }
+        function morphNode(live, fresh) {
+            if (live.nodeType !== 1) { if (live.nodeValue !== fresh.nodeValue) { live.nodeValue = fresh.nodeValue; } return; }
+            if (live.classList.contains('number-field')) { morphNumber(live, fresh); return; }
+            /* A button PUDL fills from its command, and the commands it shows, are PUDL's to update. */
+            if (fontKey(live) || live.hasAttribute('data-command') || live.hasAttribute('data-command-choice')) { return; }
+            var typing = live === document.activeElement && !newSelection;
+            copyAttributes(live, fresh, typing);
+            morphChildren(live, fresh);
+            /* A choice has no caret to keep, so it is always given the value it has. */
+            if (live.tagName === 'SELECT') { live.value = fresh.value; return; }
+            if (typing) { return; }
+            if (live.tagName === 'TEXTAREA') { live.value = fresh.value; }
+            else if (live.tagName === 'INPUT') { if (live.type === 'checkbox') { live.checked = fresh.checked; } else { live.value = fresh.getAttribute('value') || ''; } }
+        }
+        function morphChildren(live, fresh) {
+            var liveKeys = keysOf(live), freshKeys = keysOf(fresh), byKey = new Map(), wanted = new Set(freshKeys);
+            Array.prototype.forEach.call(live.childNodes, function (node, i) { byKey.set(liveKeys[i], node); });
+            byKey.forEach(function (node, key) { if (!wanted.has(key) && !isRefusal(node)) { node.remove(); byKey.delete(key); } });
+            var cursor = live.firstChild;
+            Array.prototype.slice.call(fresh.childNodes).forEach(function (node, i) {
+                while (cursor && isRefusal(cursor)) { cursor = cursor.nextSibling; }
+                var match = byKey.get(freshKeys[i]);
+                if (!match) { live.insertBefore(node.cloneNode(true), cursor); return; }
+                if (match === cursor) { cursor = cursor.nextSibling; } else { live.insertBefore(match, cursor); }
+                morphNode(match, node);
+            });
+        }
         function field(id, label, control, help) {
-            return '<div class="form-group"><label class="form-label" for="' + id + '">' + esc(label) + '</label>' + control +
+            return '<div class="form-group" id="' + id + '-group"><label class="form-label" for="' + id + '">' + esc(label) + '</label>' + control +
                 (help ? '<p class="form-help" id="' + id + '-help">' + esc(help) + '</p>' : '') + '</div>';
         }
         function described(id, help) { return help ? ' aria-describedby="' + id + '-help"' : ''; }
@@ -1439,8 +1539,8 @@
         function placeFonts(t) {
             var used = [(t.cvDoc.yavc || {}).font].concat((t.cvDoc.nodes || []).map(function (node) { return (node.yavc || {}).fontFamily; })).filter(function (name) { return typeof name === 'string' && name.trim(); }).map(function (name) { return name.trim(); }).sort();
             var seen = new Set(), names = used.concat(window.yavcUtil.fontChoices).filter(function (name) { var key = name.toLowerCase(); if (seen.has(key)) { return false; } seen.add(key); return true; });
-            el.inspector.querySelectorAll('[data-font-place]').forEach(function (place) {
-                var which = place.getAttribute('data-font-place'), want = fontWanted[which], box = fontBoxes[which];
+            Object.keys(fontWanted).forEach(function (which) {
+                var want = fontWanted[which], box = fontBoxes[which], place = el.inspector.querySelector('[data-font-place="' + which + '"]');
                 if (!box) {
                     box = fontBoxes[which] = { wrap: document.createElement('span'), input: document.createElement('input'), list: document.createElement('datalist') };
                     box.wrap.className = 'combo'; box.list.id = 'dg-fonts-' + n + '-' + (++fontSerial);
@@ -1448,12 +1548,15 @@
                     if (which === 'document') { box.input.setAttribute('data-document', ''); }
                     box.wrap.append(box.input, box.list);
                 }
+                if (!place && !el.inspector.contains(box.wrap)) { return; }
                 box.list.replaceChildren.apply(box.list, names.map(function (name) { var option = document.createElement('option'); option.value = name; return option; }));
-                box.input.id = want.id; box.input.setAttribute('data-set', want.key); box.input.value = want.value; box.input.dataset.was = want.value;
+                box.input.id = want.id; box.input.setAttribute('data-set', want.key);
+                /* The value of a field the person is in is theirs until they leave it. */
+                if (newSelection || document.activeElement !== box.input) { box.input.value = want.value; }
+                box.input.dataset.was = want.value;
                 if (want.mixed) { box.input.setAttribute('data-mixed', 'true'); box.input.placeholder = 'Mixed'; } else { box.input.removeAttribute('data-mixed'); box.input.removeAttribute('placeholder'); }
                 if (want.help) { box.input.setAttribute('aria-describedby', want.id + '-help'); } else { box.input.removeAttribute('aria-describedby'); }
-                box.input.removeAttribute('aria-invalid');
-                place.replaceWith(box.wrap);
+                if (place) { box.input.removeAttribute('aria-invalid'); place.replaceWith(box.wrap); }
             });
             if (window.pudlCombo) { window.pudlCombo.enhance(el.inspector); }
         }
@@ -1470,13 +1573,13 @@
                 options.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === (value || '') ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></span>');
         }
         function segmentField(id, key, label, value, options) {
-            return '<fieldset class="form-group dg-choice"><legend class="form-label" id="' + id + '-label">' + esc(label) + '</legend><div class="seg sm">' +
+            return '<fieldset class="form-group dg-choice" id="' + id + '-group"><legend class="form-label" id="' + id + '-label">' + esc(label) + '</legend><div class="seg sm">' +
                 options.map(function (o, i) { return '<button type="button" id="' + id + '-' + i + '" data-set="' + esc(key) + '" value="' + esc(o[0]) + '" data-was="' + esc(value == null ? '__mixed__' : value) + '" aria-label="' + esc(o[1]) + '" title="' + esc(o[1]) + '" aria-pressed="' + (value != null && o[0] === value) + '">' + optionGlyph(o) + '<span>' + esc(o[1]) + '</span></button>'; }).join('') + '</div>' + (value == null ? '<p class="form-help">Mixed values</p>' : '') + '</fieldset>';
         }
         function optionGlyph(option) { return option[2] ? '<span class="glyph" style="--glyph:var(--glyph-' + esc(option[2]) + ')" aria-hidden="true"></span>' : ''; }
         function pickerField(id, key, label, value, options) {
             var selected = options.find(function (o) { return o[0] === value; }), mixed = value == null;
-            return '<div class="form-group"><span class="form-label" id="' + id + '-label">' + esc(label) + '</span><div class="menu dg-property-menu-wrap">' +
+            return '<div class="form-group" id="' + id + '-group"><span class="form-label" id="' + id + '-label">' + esc(label) + '</span><div class="menu dg-property-menu-wrap">' +
                 '<button type="button" class="btn menu-btn dg-property-picker" id="' + id + '" popovertarget="' + id + '-menu" aria-haspopup="menu" aria-labelledby="' + id + '-label ' + id + '-value">' +
                 (selected ? optionGlyph(selected) : '') + '<span id="' + id + '-value">' + esc(mixed ? 'Mixed' : selected ? selected[1] : value) + '</span></button>' +
                 '<div class="menu-panel dg-property-menu" id="' + id + '-menu" popover role="menu" aria-labelledby="' + id + '-label">' + options.map(function (o) {
@@ -1490,7 +1593,7 @@
         function colourField(id, key, label, value, fallback, placeholder) {
             if (/^#[a-f0-9]{3}$/i.test(fallback || '')) { fallback = fallback.replace(/([a-f0-9])/ig, '$1$1'); }
             return window.yavcMdEditor.colourRows([{ id: id, key: key, label: label, value: value || '', fallback: fallback || '#808080', placeholder: placeholder || 'Theme default' }])
-                .replace(/data-key="/, 'data-was="' + esc(value || '') + '" data-set="');
+                .replace(/data-key="/, 'data-was="' + esc(value || '') + '" data-set="').replace('<div class="form-group md-colour-row">', '<div class="form-group md-colour-row" id="' + id + '-group">');
         }
         function checks(legend, items) {
             return '<fieldset class="form-fieldset"><legend>' + esc(legend) + '</legend><div class="form-options inline">' + items.map(function (c) {

@@ -12,7 +12,8 @@
      yavcUtil.shortcut(key)           a CodeMirror key (Mod-b) as PUDL spells a shortcut (Mod+B)
      yavcUtil.notice(ref, text, kind) PUDL's persistent notice before ref
      yavcUtil.toast(text, kind)      a transient operation result, with a dialog fallback
-     yavcUtil.documentCommands(service, application)   a host's commands for a document application, checked */
+     yavcUtil.documentCommands(service, application)   a host's commands for a document application, checked
+     yavcUtil.hostPath(answer)        a host's answer to where a file is, if it is a path to use, else null */
 (function () {
     'use strict';
     if (window.yavcUtil) { return; }
@@ -197,7 +198,15 @@
         } };
     }
 
+    /* A host's answer to where a file is (contentWorkspace.resolvePath, docs/content-workspace-contract.md): the path to read, or
+       null where the answer is not one this application will use. A usable path is a string of at most 4096 characters that
+       begins with ~/ or a single /, and has no control character and no backslash. This is the one test of an answer, so that
+       Editor, Docs and Slides cannot come to accept different ones. */
+    function hostPath(answer) {
+        return typeof answer === 'string' && answer.length <= 4096 && /^(~\/|\/(?!\/))/.test(answer) && !/[\u0000-\u001f\u007f\\]/.test(answer) ? answer : null;
+    }
+
     /* The font families a font field suggests. A person may type any other family, or a list of them. */
     var fontChoices = Object.freeze(['Arial', 'Aptos', 'Calibri', 'Cambria', 'Candara', 'Consolas', 'Courier New', 'Garamond', 'Georgia', 'Helvetica', 'Inter', 'Liberation Sans', 'Liberation Serif', 'Palatino Linotype', 'Roboto', 'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'monospace', 'sans-serif', 'serif', 'system-ui']);
-    window.yavcUtil = Object.freeze({ fontChoices: fontChoices, documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
+    window.yavcUtil = Object.freeze({ hostPath: hostPath, fontChoices: fontChoices, documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
 })();

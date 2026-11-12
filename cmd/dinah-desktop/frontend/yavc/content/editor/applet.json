@@ -1,7 +1,7 @@
 {
   "name": "editor",
   "title": "Editor",
-  "version": "46.37.3",
+  "version": "46.37.4",
   "description": "Edit text and source code. Markdown documents are drawn in Docs.",
   "license": "Apache-2.0",
   "src": "editor.js",

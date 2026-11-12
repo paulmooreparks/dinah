@@ -1793,7 +1793,8 @@
             try {
                 if (shared) {
                     var path = ''; (m.front(text).entries || []).forEach(function (entry) { if (entry.key === 'stylesheet') { path = entry.value; } });
-                    await window.yavcStyleTools.shared({ path: path, dir: styleDirectory(), current: unchanged, signal: styleLifetime.signal, read: window.pudlHost.fs.readText, write: window.pudlHost.fs.writeText });
+                    /* The file the host said, which is the file that was installed, and not one worked out again. */
+                    await window.yavcStyleTools.shared({ path: path ? resolveReference(path, 'stylesheet') : '', dir: null, current: unchanged, signal: styleLifetime.signal, read: window.pudlHost.fs.readText, write: window.pudlHost.fs.writeText });
                 } else {
                     await window.yavcStyleTools.document({ text: text, engine: m, current: unchanged, signal: styleLifetime.signal, save: function (next) {
                         takeVisualText(next); textChangedForPage(); refreshStyles();
@@ -1891,7 +1892,7 @@
             if (typeof hostServices.resolvePath === 'function') {
                 var given = null;
                 try { given = hostServices.resolvePath({ resource: t && t.path || null, reference: String(reference || ''), kind: kind }); } catch (err) { given = null; }
-                if (typeof given === 'string' && given.length <= 4096 && /^(~\/|\/(?!\/))/.test(given) && !/[\u0000-\u001f\u007f\\]/.test(given)) { return given; }
+                if (window.yavcUtil.hostPath(given) !== null) { return given; }
             }
             return window.yavcStyleTools.resolve(reference, directory === undefined ? styleDirectory() : directory);
         }

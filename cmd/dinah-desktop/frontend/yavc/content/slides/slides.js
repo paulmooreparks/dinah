@@ -408,7 +408,8 @@
                 read: function (path, options) {if(!H.fs || !H.fs.readText)throw new Error('This application has not given documents a way to read other files (fs.readText).');return H.fs.readText(path, Object.assign({}, options, { document: resource || null }));},
                 watch: H.fs && H.fs.onChange ? function(fn){return H.fs.onChange(fn);} : null,
                 signal: styleLifetime.signal, identity: function () { return deck; }, text: fullText,
-                dir: styleDirectory
+                dir: styleDirectory,
+                resolve: function (reference, kind) { return resolveReference(reference, kind); }
             };
         }
         function pageHost() {
@@ -893,6 +894,18 @@
            is an opaque identity, so the host says its folder or there is
            none; only a path of the site's own file system is read for it. */
         function styleDirectory() { if(resources || presenterRole && presenterRole.show)return path && H.contentWorkspace && H.contentWorkspace.directory ? H.contentWorkspace.directory(path) : null;return path && path.indexOf('/')>=0?path.slice(0,path.lastIndexOf('/')):null; }
+        /* A deck's reference to another file, as a path to read: where the host says it is (contentWorkspace.resolvePath,
+           docs/content-workspace-contract.md), since only it knows how its places are laid out, and otherwise taken from the
+           deck's folder. kind is diagram, stylesheet or shortcodes. Docs asks the same way. */
+        function resolveReference(reference, kind) {
+            var service = H.contentWorkspace && H.contentWorkspace.resolvePath;
+            if (typeof service === 'function') {
+                var given = null;
+                try { given = service.call(H.contentWorkspace, { resource: path || null, reference: String(reference || ''), kind: kind }); } catch (err) { given = null; }
+                if (window.yavcUtil.hostPath(given) !== null) { return given; }
+            }
+            return window.yavcStyleTools.resolve(reference, styleDirectory());
+        }
         function styleSections(index) {
             styledSections.forEach(function (section) { if (!root.contains(section)) { styledSections.delete(section); } });
             return Array.from(styledSections).filter(function (section) { return index == null || section.getAttribute('data-slide-index') === String(index); });
@@ -910,7 +923,7 @@
                 if (!deckStyle) { deckStyle = D.attach({ surfaces: function () { return styleSections(); }, boundaries: function () { return styleBoundaries(); },
                     read: function (p) { return H.fs && H.fs.readText ? H.fs.readText(p) : Promise.resolve(null); } }); }
                 var all = deck.slides.map(function (slide) { return md.styles(slide.text); });
-                var sharedPath = window.yavcStyleTools.resolve(deck.front.stylesheet, styleDirectory());
+                var sharedPath = deck.front.stylesheet ? resolveReference(deck.front.stylesheet, 'stylesheet') : '';
                 var work = [deckStyle.update({ identity: deck, inline: [].concat.apply([], all.map(function (blocks) { return blocks.filter(function (block) { return !block.slide; }).map(function (block) { return block.css; }); })), stylesheet: sharedPath, reload: reload === true })];
                 slideStyles.forEach(function (controller, i) { if (i >= all.length) { controller.destroy(); slideStyles.delete(i); } });
                 all.forEach(function (blocks, i) {
@@ -939,7 +952,7 @@
             function unchanged() { return !destroyed && deck === captured && current() === slide && slide.text === text && frontTextOf(deck) === front; }
             if (!unchanged()) { return; }
             try {
-                if (shared) { await window.yavcStyleTools.shared({ path: deck.front.stylesheet, dir: styleDirectory(), current: unchanged, signal: styleLifetime.signal, read: H.fs.readText, write: H.fs.writeText }); }
+                if (shared) { await window.yavcStyleTools.shared({ path: deck.front.stylesheet ? resolveReference(deck.front.stylesheet, 'stylesheet') : '', dir: null, current: unchanged, signal: styleLifetime.signal, read: H.fs.readText, write: H.fs.writeText }); }
                 else { await window.yavcStyleTools.document({ title: 'Slide Stylesheet', slide: true, text: text, engine: md, stylesheet: deck.front.stylesheet || '', current: unchanged, signal: styleLifetime.signal,
                     save: function (next, path) { takeText(next, 'styles'); if (path !== (deck.front.stylesheet || '')) { setFront('stylesheet', path); } } }); }
                 await installStyle(true);
@@ -1755,7 +1768,7 @@
                 cmd('deck-style-block', 'Edit Style Blocks…', 'code', function () { return editStyles(false); }, { shortcut: 'Mod+Shift+F' }),
                 cmd('custom-shortcodes', 'Custom Shortcodes…', 'code', editDefinitions),
                 cmd('deck-shared-stylesheet', 'Edit Shared Stylesheet…', 'file', function () { return editStyles(true); }, {
-                    disabled: function () { return !(H.fs && H.fs.writeText && window.yavcStyleTools && /^~\/.+\.css$/i.test(window.yavcStyleTools.resolve(deck.front.stylesheet, styleDirectory()))); },
+                    disabled: function () { return !(H.fs && H.fs.writeText && window.yavcStyleTools && /^~\/.+\.css$/i.test(deck.front.stylesheet ? resolveReference(deck.front.stylesheet, 'stylesheet') : '')); },
                     reason: 'Choose a home-folder CSS file in Stylesheet File first. This host also needs a writable file service.' }),
                 cmd('slide-class', 'Slide Style…', 'tag', slideClasses),
                 cmd('styles-help', 'Styling a Deck', 'info', function () { window.open(publicOrigin() + '/slides-styles', '_blank', 'noopener'); }),
