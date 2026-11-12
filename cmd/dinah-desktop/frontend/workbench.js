@@ -478,7 +478,12 @@
       var kept = savedTitles()[id];
       var live = document.querySelector('.win[data-win="' + CSS.escape(id) + '"]');
       if (live && live.dataset.dinahTitle) kept = {title:live.dataset.dinahTitle,detail:live.dataset.dinahTitleDetail || ''};
-      return { label: combinedTitle((kept && kept.title) || item.title || cfg.title, kept && kept.detail || ''),
+      /* A pinned thing whose window is closed has no kept title, so its
+         kind is asked for one before its placeholder is used: a pinned chat
+         says its name, not "Loading chat…". */
+      var named = '';
+      if (!(kept && kept.title) && typeof cfg.titleOf === 'function') { try { named = cfg.titleOf(item) || ''; } catch (e) { named = ''; } }
+      return { label: combinedTitle((kept && kept.title) || named || item.title || cfg.title, kept && kept.detail || ''),
         glyph:cfg.glyph || 'app', icon:cfg.icon,
         open: function () { return cfg.launcher && provider === 'applets' ? cfg.launcher.run() : window.dinahWorkbench.open(item); } };
     },

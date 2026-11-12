@@ -3918,6 +3918,28 @@
       // A chat restored behind other windows starts when it is seen, or in idle
       // time after the windows in sight.
       window.dinahWorkbench.register('chat-session', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, identity: chatIdentity, title: 'Loading chat…', loadingText: 'Loading the saved conversation…', titleOf: function (item) { var s = S(item.path); return (adapter.hasKnownTitle && adapter.hasKnownTitle(s.id)) || s.titleKnown && !s.loading && !s.restoring ? title(s) : ''; }, glyph: 'comments', start: 'idle', statuses: true, init: init });
+      /* A pinned button of a chat is the chat's, and a chat continued under
+         a new session (a change of provider) is the same chat. A button
+         pinned before the change kept the old session: it was not tied to
+         the chat's window, and pressing it opened a window for the old
+         session first. At the start each pinned chat is asked for its
+         newest session, and the button is given that one (Paul, 12 November
+         2026). A session that cannot be resolved keeps its button as it
+         is. */
+      function movePinnedChats() {
+        if (!app().ResolveSessionContinuation || !window.dinahTaskbarPins || !window.dinahTaskbarPins.move || !window.pudlWindows.taskbarState) return;
+        (window.pudlWindows.taskbarState().pins || []).forEach(function (id) {
+          var pinned = window.dinahWorkbench.item(id);
+          if (!pinned || pinned.kind !== 'chat-session' || !pinned.path) return;
+          Promise.resolve().then(function () { return app().ResolveSessionContinuation(pinned.path); }).then(function (head) {
+            if (!head || typeof head !== 'string' || head === pinned.path) return;
+            window.dinahTaskbarPins.move(id, window.dinahWorkbench.key({ kind: 'chat-session', workspace: pinned.workspace, path: head }));
+          }).catch(function () { /* The button stays with the session it has. */ });
+        });
+      }
+      function movePinnedChatsSoon() { setTimeout(movePinnedChats, 1000); }
+      if (document.documentElement.dataset.uiStateReady === 'true') movePinnedChatsSoon();
+      else document.addEventListener('dinah:ui-state-restored', movePinnedChatsSoon, { once: true });
       document.addEventListener('pudl:windows-change', function () {
         var key = window.pudlWindows.state().top, item = window.dinahWorkbench.item(key);
         if (key === 'chat') selectChat(null);

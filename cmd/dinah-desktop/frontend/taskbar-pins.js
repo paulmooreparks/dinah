@@ -43,7 +43,10 @@
   function remap(to) {
     if (!ready) return;
     var now = remapped(pudlWindows.taskbarState(), to);
-    if (now) pudlWindows.configureTaskbar({providers:providers,scope:scope,pins:now.pins,order:now.order,references:now.references});
+    if (!now) return;
+    pudlWindows.configureTaskbar({providers:providers,scope:scope,pins:now.pins,order:now.order,references:now.references});
+    // Setting the taskbar is no change of the person's, so it is kept here.
+    dinahUIState.set(store,Object.assign({version:1},pudlWindows.taskbarState()));
   }
   function move(from, to) {
     if (!ready || from === to || (pudlWindows.taskbarState().pins || []).indexOf(from) < 0) return;

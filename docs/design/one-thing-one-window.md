@@ -19,11 +19,14 @@ A kind that says nothing keeps one window for each key, as before.
 
 ## Pinned buttons follow their thing
 
-`taskbar-pins.js` gives a pinned button the key its thing has now, in three cases.
+`taskbar-pins.js` gives a pinned button the key its thing has now, in four cases.
 
 - A window is given a new key (`rekey` in `workbench.js`): its button goes with it.
 - An old session's window closes in favour of the continuation's (`follow`): the button becomes the continuation's.
 - At the start, and when a window opens later, a button whose thing has an open window under another key takes that window's key. This heals the pins saved before this change, with no action by the person.
+- At the start each pinned chat is asked for its newest session (`movePinnedChats` in `chat-applet.js`, the engine's `ResolveSessionContinuation`), and a button saved for a session the chat was continued from is given the newest one. No window is opened for this.
+
+A pinned thing whose window is closed has no kept title, so its kind is asked for one (`titleOf`) before the placeholder is used.
 
 A button whose new key is pinned already is dropped, so no thing has two. PUDL keeps the pins, their order and their references; the three are rewritten together and given back through `configureTaskbar`, which PUDL documents as the way to set them.
 
@@ -37,4 +40,4 @@ This start could not be reproduced in the browser suites, where a window opens a
 
 ## Checks
 
-`e2e/one-thing-one-window.js` covers the rule with a fixture kind: two spellings open one window, a pinned button is found by the other spelling, a window given a new key keeps its button, and a button moved onto a pinned thing leaves one. `e2e/chat-continued-spelling.js` is Paul's case: the old session's window, pinned and spelled one way, is handed over to the continuation's window spelled the other way. It fails on the code before this change, with the old window left open.
+`e2e/one-thing-one-window.js` covers the rule with a fixture kind: two spellings open one window, a pinned button is found by the other spelling, a window given a new key keeps its button, and a button moved onto a pinned thing leaves one. `e2e/chat-continued-spelling.js` is Paul's case: the old session's window, pinned and spelled one way, is handed over to the continuation's window spelled the other way. It fails on the code before this change, with the old window left open. `e2e/chat-pins-follow.js` starts with a pinned button for a continued chat's old session and no window, and finds the button moved to the newest session with no chat opened.
