@@ -55,3 +55,21 @@ button.document-comment-quote:hover { color: var(--text); }
 .content-problem-go:hover { background: var(--surface-hover, var(--surface)); }
 .content-problem-line { flex: none; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .content-problem-message { flex: 1 1 auto; overflow-wrap: anywhere; }
+
+/* Customize Toolbar (content-toolbar.js): the commands left to add and the
+   toolbar's own, side by side with the transfer buttons between them. */
+.dialog.content-toolbar-dialog { width: min(54rem, 94vw); max-width: 94vw; }
+.content-toolbar-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.content-toolbar-columns { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "available-label . selected-label" "available transfer selected" "available-caption . selected-caption" ". . order"; column-gap: var(--space-3); row-gap: var(--space-2); }
+.content-toolbar-available-label { grid-area: available-label; }
+.content-toolbar-selected-label { grid-area: selected-label; }
+.content-toolbar-columns [data-available] { grid-area: available; }
+.content-toolbar-columns [data-selected] { grid-area: selected; }
+.content-toolbar-columns select { display: block; width: 100%; height: auto; min-height: 12rem; }
+.content-toolbar-columns [data-available-caption] { grid-area: available-caption; }
+.content-toolbar-columns [data-selected-caption] { grid-area: selected-caption; }
+.content-toolbar-columns .content-toolbar-caption { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.content-toolbar-transfer { grid-area: transfer; display: flex; flex-direction: column; gap: var(--space-2); align-self: center; }
+.content-toolbar-transfer .btn { min-inline-size: 2.5rem; }
+.content-toolbar-order { grid-area: order; flex-wrap: wrap; }
+.content-toolbar-fields > .check { display: block; margin-block: var(--space-2); }

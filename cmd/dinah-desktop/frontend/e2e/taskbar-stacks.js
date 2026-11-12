@@ -151,8 +151,14 @@ const { launch, PAGE } = require('./lib/page');
       for (const [folder, id] of [['/workspaces/alpha/root', 'terminal-alpha'], ['/workspaces/beta/root', 'terminal-beta']]) {
         terminals.push(await dinahWorkbench.open({ kind: 'terminal', path: JSON.stringify([folder, id]) }));
       }
-      return { editor, terminals };
+      const docs = await dinahWorkbench.open({ kind: 'content-docs', workspace: 'ws_BETA', path: 'pending-docs' });
+      const diagrams = [await dinahWorkbench.open({ kind: 'content-diagrams', workspace: 'ws_BETA', path: 'pending-diagram-1' }), await dinahWorkbench.open({ kind: 'content-diagrams', workspace: 'ws_BETA', path: 'pending-diagram-2' })];
+      const slides = await dinahWorkbench.open({ kind: 'content-slides', workspace: 'ws_BETA', path: 'pending-slides' });
+      return { editor, terminals, docs, diagrams, slides };
     });
+    const diagramAttrs = await Promise.all(extra.diagrams.map(attrs));
+    ok('Docs shares the Documents stack of its workspace, and Diagrams and Slides each have one', (await attrs(extra.docs)).group === groupKey('dinah.documents', 'ws_BETA') &&
+      diagramAttrs.every(a => a.group === groupKey('yavc.diagrams', 'ws_BETA') && a.label === 'Beta Release (Diagrams)') && (await attrs(extra.slides)).group === groupKey('yavc.slides', 'ws_BETA'), JSON.stringify(diagramAttrs));
     ok('Documents and Chats in the same workspace have separate identities', (await attrs(extra.editor)).group === groupKey('dinah.documents', 'ws_BETA') && (await attrs(extra.editor)).group !== (await attrs(b1)).group);
     const terminalAttrs = await Promise.all(extra.terminals.map(attrs));
     ok('Terminal groups independently of its launch folders', terminalAttrs.every(a => a.group === groupKey('dinah.terminal') && a.label === 'Terminal'));

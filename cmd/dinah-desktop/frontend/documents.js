@@ -149,41 +149,6 @@
     enabled: function () { return cur(function (c) { return c.canRename(); }, false); },
     reason: whyNot('rename', 'The Editor is busy with the document.'),
     run: function () { return cur(function (c) { return c.rename(); }); } });
-  /* The document in front, handed to the stand-alone Editor application: a
-     window of its own, in a program of its own, on the same file
-     (docs/design/standalone-documents.md). Only a file on this computer can
-     be handed over, since the file is what the two programs share. The
-     application's name comes from the program, which keeps it in one
-     place. */
-  var standaloneEditor = null;
-  function findStandalone() {
-    if (!api().StandaloneApplications) return;
-    Promise.resolve(api().StandaloneApplications()).then(function (list) {
-      standaloneEditor = (list || []).find(function (a) { return a.id === 'editor'; }) || null;
-      C.changed();
-    }).catch(function () { /* The row stays hidden. */ });
-  }
-  function frontDraft() {
-    var key = frontKey(), item = key && controllers.has(key) ? window.dinahWorkbench.item(key) : null;
-    return item && item.path ? item.path : '';
-  }
-  function openStandalone() {
-    var id = frontDraft();
-    if (!id || !standaloneEditor) return;
-    return Promise.resolve(api().GetDraft(id)).then(function (v) {
-      var o = v.origin || {};
-      if (o.kind !== 'local-folder' || !o.path) throw new Error('Only a document that is a file on this computer can be opened in ' + standaloneEditor.name + '. Save this one to a folder first.');
-      return api().WorkspaceLocalPath({ workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path });
-    }).then(function (path) { return api().OpenStandalone(standaloneEditor.id, path); }).catch(function (err) {
-      if (host() && host().toast) host().toast(String(err && err.message || err).replace(/^Error: /, ''), 'danger');
-    });
-  }
-  C.register({ id: 'open-standalone-editor', menu: 'document', mnemonic: 'Y',
-    label: function () { return 'Open in ' + (standaloneEditor ? standaloneEditor.name : 'the Editor Application'); },
-    visible: function () { return !!standaloneEditor; },
-    enabled: function () { return !!frontDraft(); }, reason: 'No document window is in front.',
-    run: openStandalone });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', findStandalone); else findStandalone();
   /* An image or a file added to the document is kept with its draft and
      written beside the document when it is saved (content-windows.js). */
   C.register({ id: 'documents-sep-files', menu: 'document', separator: true });

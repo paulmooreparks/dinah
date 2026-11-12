@@ -922,6 +922,18 @@
     else if (!inShow && showFullscreen) { var entered = showFullscreen; showFullscreen = null; entered.then(function (did) { if (did) return native.leave(); }).catch(function () {}); }
   });
 
+  /* The stack each application's windows gather in on a full taskbar, one
+     for each workspace. The Editor's and Docs's are both documents of text
+     and share Documents, with the older document windows; diagrams and
+     decks each have their own. Only the Editor's windows said which stack
+     they were in before, so no other application's stacked (Paul, 12
+     November 2026). */
+  var GROUPS = {
+    editor: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true },
+    docs: { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true },
+    diagrams: { id: 'yavc.diagrams', title: 'Diagrams', glyph: 'diagram', workspace: true },
+    slides: { id: 'yavc.slides', title: 'Slides', glyph: 'slides', workspace: true }
+  };
   Object.keys(TITLES).forEach(function (app) {
     if (app !== 'editor') window.dinahUIState.followWindowMode(kindOf(app), 'editor');
     /* Each application is in the launcher's Documents category, and in Tools
@@ -932,7 +944,7 @@
     var launcher = { mnemonic: MNEMONICS[app], category: 'documents', description: DESCRIPTIONS[app], icon: ICONS[app],
       run: function () { return newDocument(undefined, '', app).catch(function (err) { host().toast(message(err), 'danger'); }); } };
     window.dinahWorkbench.register(kindOf(app), { pinByItem: true, title: TITLES[app], glyph: GLYPHS[app], icon: ICONS[app], start: 'idle', launcher: launcher,
-      applet: app === 'editor' ? { id: 'dinah.documents', title: 'Documents', glyph: 'document', workspace: true } : undefined,
+      applet: GROUPS[app],
       init: function (root, opts, item) { return init(app, root, opts, item); } });
   });
 
