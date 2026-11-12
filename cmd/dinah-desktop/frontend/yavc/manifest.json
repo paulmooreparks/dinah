@@ -1,5 +1,5 @@
 {
-  "digest": "6e824927b3bffe7596e0375224eeaec2f2b7a44c72e2149598c8cf8585c8eb67",
+  "digest": "28611564f550a959d6bd5cd58916c5e70417ca3c32436f0078f808e69a35f005",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -111,7 +111,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "c87e2a277ca441bf46da94f31c5f90309eb4d2f852d1b6140e136e790754d0b0"
+      "sha256": "e13b99fb3dfa1982c78022e37555a36bc763cb5bf58f22a5ce1557e02e55d985"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -130,13 +130,13 @@
     },
     {
       "path": "content/diagrams/diagrams.css",
-      "bytes": 25909,
-      "sha256": "a8684e4737188b991e1f6d08b19f9aeea53c153caeb97e74cbb962d4ebd23763"
+      "bytes": 26379,
+      "sha256": "15c7de144b2052ba1ade8ad40f6012178521d6044082d18f07bbacb2b0904c88"
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 234864,
-      "sha256": "9f603d1d994ce64beaf7c17ce7ef8cfea664e72378258b4c8750eb55825a5e3c"
+      "bytes": 238365,
+      "sha256": "f130b9ddb89b51555213df7551dc9ed5eab37e8c1374143c2830eabbbbc2f3a4"
     },
     {
       "path": "content/diagrams/icon.svg",

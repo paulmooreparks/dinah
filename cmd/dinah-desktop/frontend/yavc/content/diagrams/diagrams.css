@@ -162,9 +162,14 @@
 .dg-inspector .dg-parts > .card-head > .card-title { font-size: var(--text-sm); }
 .dg-inspector .dg-parts > .card-body { padding: var(--space-1) var(--space-3) var(--space-2); }
 .dg-inspector .dg-parts > .card-actions { padding: var(--space-2) var(--space-3); }
+/* The heading takes the keyboard by script when the field that held it has gone. It is not a Tab stop, and shows the ring only to a keyboard. */
+.dg-inspector-title:focus { outline: none; }
+.dg-inspector-title:focus-visible { box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--radius-sm, 2px); }
 .dg-inspector-title { margin: 0; font-size: var(--text-md, 1rem); font-weight: 700; }
 .dg-inspector-id { margin: 2px 0 var(--space-3); font-family: var(--mono); color: var(--text-muted); overflow-wrap: anywhere; }
 .dg-inspector-empty { margin: 0; color: var(--text-muted); }
+.dg-inspector-empty:focus { outline: none; }
+.dg-inspector-empty:focus-visible { box-shadow: 0 0 0 3px var(--focus-ring); border-radius: var(--radius-sm, 2px); }
 .dg-row { display: flex; gap: var(--space-2); align-items: center; }
 .dg-row > .form-select-wrap { flex: 1 1 auto; min-width: 0; }
 .dg-inspector-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
