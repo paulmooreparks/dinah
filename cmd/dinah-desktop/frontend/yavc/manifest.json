@@ -1,5 +1,5 @@
 {
-  "digest": "544ae0314d379d1e48eed05abe3f37c8051b0ef1520e016c21f7d7eb6e90b718",
+  "digest": "64c3b9e6e3065f9883ea321117d120622b6cd78e0a3a35c05524c0b44b8339b8",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -111,7 +111,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "fbe622057cddb7da270f28d2d688063689b7b8af60e10d5fb4ddc5ad18f05885"
+      "sha256": "3f435f107fe72dc84b02f6a720fc8b22782516c8cc882dc5e4d86d4bc0931cf4"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -130,13 +130,13 @@
     },
     {
       "path": "content/diagrams/diagrams.css",
-      "bytes": 25249,
-      "sha256": "3570ccae96624de9954cd358220c4973896e087bbc754d663f0995ceb5efc20c"
+      "bytes": 25424,
+      "sha256": "3095c0e18f38db43a498744204ea76127ebaddb8efe2a46858477e4747da2a85"
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 211795,
-      "sha256": "4649a3e98c338e45922b97f505ac3df00621e858e0d641aae7bd9e53aa8867e9"
+      "bytes": 216272,
+      "sha256": "45a3f453f3233a0c453bf1e1b7dec77282eb6e7c22fcf1078bfa15aa369e5ba4"
     },
     {
       "path": "content/diagrams/icon.svg",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "9415ea87e734906515754f7d30fd5794911f893201d44fc7d197f5928756f939"
+      "sha256": "a12285b7e8e2366eca2331c897859b278b5f22c2d4c6d0d1095518434c46b715"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 686,
-      "sha256": "8961febee0351a82e72998d07b0f7520ce3ecc2edc6f66b4b209ef14e7bff21f"
+      "sha256": "7dcd948c13334ed3c57b757fab726147046359a55ca8f54352a2b299b8623dad"
     },
     {
       "path": "content/editor/editor.css",
@@ -400,8 +400,8 @@
     },
     {
       "path": "content/md-editor/typography-ui.js",
-      "bytes": 14956,
-      "sha256": "fef292ef866fdae96f342b6621bed68e0f94c7fe42f42113de2cac170fbe7130"
+      "bytes": 14650,
+      "sha256": "c1916510b7bb1857046a3cb12711b71c8bc9398ece43f396425f86b26f41962b"
     },
     {
       "path": "content/md-editor/vendor/codemirror-6.43/BUILD.md",
@@ -1306,7 +1306,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "799154246f84450b63df6cfefefa52c02def25f7d58d1b1cf57ad9f5d48725cd"
+      "sha256": "07d327e059b14f74c78dfd0c658e151f45235480564fe9ca99d754fc027c5061"
     },
     {
       "path": "content/slides/export-pdf.js",
@@ -2414,6 +2414,16 @@
       "sha256": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad"
     },
     {
+      "path": "support/command-toolbar.css",
+      "bytes": 1565,
+      "sha256": "0cb1e2734a0610a4275f16b3a01c5bec266a2e9f6e46fb797ff9ce99cfdd7ac6"
+    },
+    {
+      "path": "support/command-toolbar.js",
+      "bytes": 18287,
+      "sha256": "972e53ad4f267b2af18b29841ae52476881744f31cc5de4f5910d1fd55fc0dc0"
+    },
+    {
       "path": "support/dialogs.js",
       "bytes": 15431,
       "sha256": "7cdcac63769be8ea70abde9e347b51d50e917af77ad5dbf7f9d9bc4aef32a643"
@@ -2440,8 +2450,8 @@
     },
     {
       "path": "support/yavc-util.js",
-      "bytes": 11926,
-      "sha256": "c4fed7051eb8ea6e6d4746e632808008a8488a751e1199e9f5ee8bc87d67ea85"
+      "bytes": 12407,
+      "sha256": "f033b27b07dad5f70764b86c3fffacae14b72a0c3d7aec23b3cfbffb111e9c71"
     },
     {
       "path": "workspace-lab/host.css",
@@ -2450,13 +2460,13 @@
     },
     {
       "path": "workspace-lab/host.js",
-      "bytes": 6233,
-      "sha256": "ad4b5dd580ab161052af804c034cb7ae1fdec51398b442b40f5330b79b39f3f3"
+      "bytes": 6646,
+      "sha256": "96464a44ec1be2e8fedf4883b48e6f94304216771bb115589904950f2eed76b5"
     },
     {
       "path": "workspace-lab/index.html",
-      "bytes": 1441,
-      "sha256": "3cc034482a8fa4d9b3aa261008a151665bd430ace300cb9e7b7acb93d9fe82d8"
+      "bytes": 1563,
+      "sha256": "e7adfac5b840aaa6fae09c2575bc4430a0da138974968b30bf464d233f609db5"
     }
   ],
   "kind": "portable-content-release-set",

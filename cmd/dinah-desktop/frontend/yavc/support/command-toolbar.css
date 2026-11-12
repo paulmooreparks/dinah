@@ -1,0 +1,18 @@
+[data-toolbar-slot]:has(> .yavc-command-toolbar[hidden]) { display: none; }
+.yavc-command-toolbar[hidden] { display: none; }
+.dialog.yavc-toolbar-dialog { width: min(54rem, 94vw); max-width: 94vw; }
+.yavc-toolbar-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.yavc-toolbar-columns { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "available-label . selected-label" "available transfer selected" "available-caption . selected-caption" ". . order"; column-gap: var(--space-3); row-gap: var(--space-2); }
+.yavc-toolbar-available-label { grid-area: available-label; }
+.yavc-toolbar-selected-label { grid-area: selected-label; }
+.yavc-toolbar-columns [data-available] { grid-area: available; }
+.yavc-toolbar-columns [data-selected] { grid-area: selected; }
+.yavc-toolbar-columns select { display: block; width: 100%; height: auto; min-height: 12rem; }
+.yavc-toolbar-columns [data-available-caption] { grid-area: available-caption; }
+.yavc-toolbar-columns [data-selected-caption] { grid-area: selected-caption; }
+.yavc-toolbar-columns .yavc-toolbar-caption { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.yavc-toolbar-transfer { grid-area: transfer; display: flex; flex-direction: column; gap: var(--space-2); align-self: center; }
+.yavc-toolbar-transfer .btn { min-inline-size: 2.5rem; }
+.yavc-toolbar-order { grid-area: order; flex-wrap: wrap; }
+.yavc-toolbar-fields > .check { display: block; margin-block: var(--space-2); }
+@media (max-width: 600px) { .yavc-toolbar-order { grid-column: 1 / -1; } }

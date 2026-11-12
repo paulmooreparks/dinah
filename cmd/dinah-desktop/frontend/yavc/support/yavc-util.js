@@ -197,5 +197,7 @@
         } };
     }
 
-    window.yavcUtil = Object.freeze({ documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
+    /* The font families a font field suggests. A person may type any other family, or a list of them. */
+    var fontChoices = Object.freeze(['Arial', 'Aptos', 'Calibri', 'Cambria', 'Candara', 'Consolas', 'Courier New', 'Garamond', 'Georgia', 'Helvetica', 'Inter', 'Liberation Sans', 'Liberation Serif', 'Palatino Linotype', 'Roboto', 'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'monospace', 'sans-serif', 'serif', 'system-ui']);
+    window.yavcUtil = Object.freeze({ fontChoices: fontChoices, documentCommands: documentCommands, esc: esc, versioned: versioned, loadScript: loadScript, loadGlobal: loadGlobal, siteFs: siteFs, download: download, shortcut: shortcut, notice: notice, toast: toast, modalFocus: modalFocus, commandState: commandState, commandChanges: commandChanges, version: V });
 })();

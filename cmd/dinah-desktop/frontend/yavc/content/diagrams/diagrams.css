@@ -153,7 +153,9 @@
 .dg-inspector[hidden] { display: none; }
 .dg-inspector .form-group { margin-bottom: var(--space-3); }
 .dg-inspector .form-group > .btn { align-self: flex-start; }
-.dg-inspector .form-input, .dg-inspector .form-select { width: 100%; box-sizing: border-box; }
+.dg-inspector .form-input, .dg-inspector .form-select, .dg-inspector .form-textarea { width: 100%; box-sizing: border-box; }
+/* The field for a shape's text sizes itself to its text, so it has no handle to drag. */
+.dg-inspector .form-textarea.dg-grow { resize: none; }
 .dg-inspector-title { margin: 0; font-size: var(--text-md, 1rem); font-weight: 700; }
 .dg-inspector-id { margin: 2px 0 var(--space-3); font-family: var(--mono); color: var(--text-muted); overflow-wrap: anywhere; }
 .dg-inspector-empty { margin: 0; color: var(--text-muted); }

@@ -3,7 +3,6 @@
 (function () {
     'use strict';
     var serial = 0;
-    var FONTS = ['Arial', 'Aptos', 'Calibri', 'Cambria', 'Candara', 'Consolas', 'Courier New', 'Garamond', 'Georgia', 'Helvetica', 'Inter', 'Liberation Sans', 'Liberation Serif', 'Palatino Linotype', 'Roboto', 'Segoe UI', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'monospace', 'sans-serif', 'serif', 'system-ui'];
     var KEYS = ['font', 'heading-font', 'size', 'spacing', 'paragraph-spacing'];
     async function open(opts) {
         if (opts.signal.aborted || !opts.current()) { return; }
@@ -29,7 +28,7 @@
             '<section class="md-type-sample" aria-label="Typography Preview"><div class="md-type-label"><span>Preview</span><output data-type-summary aria-live="polite"></output></div><div class="md-type-preview-boundary"><div class="doc-page md-type-preview" data-type-preview>' +
             '<h2>A clear document</h2><p>The quick brown fox jumps over the lazy dog. Numbers 0123456789.</p><p>Good typography makes the next paragraph easy to find and read.</p></div></div>' +
             '<p class="form-help">Document styles can override these settings. Font availability depends on this computer; PDF uses Roboto.</p></section></div>' +
-            '<datalist id="' + id + '-fonts">' + FONTS.map(function (name) { return '<option value="' + esc(name) + '"></option>'; }).join('') + '</datalist>' +
+            '<datalist id="' + id + '-fonts">' + window.yavcUtil.fontChoices.map(function (name) { return '<option value="' + esc(name) + '"></option>'; }).join('') + '</datalist>' +
             '<div class="md-type-defaults"><button type="button" class="btn btn-sm" data-type-reset>Use Stylesheet Defaults</button></div><div data-type-error-ref></div>';
         function field(key) { return api.body.querySelector('[data-type-field="' + key + '"]'); }
         function visible(key) { var node = field(key); return node && node.closest('.form-group').querySelector('label').control || node; }

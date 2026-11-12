@@ -210,7 +210,7 @@
             } else {
                 var width = el.inspector.getBoundingClientRect().width;
                 if (Math.abs(width - inspectorLastWidth) > 0.5) { settings.inspectorWidth = width; inspectorLastWidth = width; }
-                positionInlineText();
+                positionInlineText(); growFields();
             }
         }); inspectorSize.observe(el.body); inspectorSize.observe(el.inspector);
         /* Failed commands use toasts. Parse and recovery warnings remain
@@ -561,8 +561,8 @@
             if (!entry || entry.owner !== current() || !entry.owner.cv) { return; }
             var box = entry.owner.cv.bounds(entry.key), stage = el.stage.getBoundingClientRect();
             if (!box) { finishInlineText(false); return; }
-            entry.el.style.width = Math.min(Math.max(box.width, 180), el.stage.clientWidth) + 'px';
-            entry.field.style.height = Math.min(240, Math.max(64, box.height)) + 'px';
+            entry.el.style.width = Math.min(Math.max(box.width, 280), el.stage.clientWidth) + 'px';
+            growText(entry.field, Math.min(240, Math.max(64, box.height)), 320);
             entry.el.style.left = (Math.max(0, Math.min(box.x - stage.left, el.stage.clientWidth - entry.el.offsetWidth)) + el.stage.scrollLeft) + 'px';
             entry.el.style.top = (Math.max(0, Math.min(box.y - stage.top, el.stage.clientHeight - entry.el.offsetHeight)) + el.stage.scrollTop) + 'px';
         }
@@ -588,6 +588,7 @@
             field.addEventListener('input', function () {
                 if (inlineText !== entry || entry.owner !== current()) { return; }
                 var value = field.value, before = entry.value, version = ++entry.inputVersion;
+                positionInlineText();
                 entry.value = value; entry.writing = true;
                 var pending = canvasEdit({ op: 'set', kind: 'node', key: key, property: 'text', value: value }, t.text, true, 'input.type.canvas.' + entry.session);
                 entry.writing = false;
@@ -979,7 +980,8 @@
                 else if (type === 'picker') { control = pickerField(id, k, label, v, options); }
                 else if (type === 'select') { control = selectField(id, k, label, mixed ? '__mixed__' : v, mixed ? [['__mixed__', 'Mixed']].concat(options) : options); }
                 else if (type === 'number') { var range = NUMBER_RANGES[k] || [k === 'x' || k === 'y' ? null : 1, null]; control = numberField(id, k, label, v || '', range[0], range[1], range[2]); }
-                else if (type === 'text') { control = field(id, label, '<textarea class="form-input" id="' + id + '" data-set="' + k + '" data-was="' + esc(v || '') + '" rows="3">' + esc(v || '') + '</textarea>'); }
+                else if (type === 'text') { control = field(id, label, '<textarea class="form-textarea dg-grow" id="' + id + '" data-set="' + k + '" data-was="' + esc(v || '') + '" rows="3">' + esc(v || '') + '</textarea>'); }
+                else if (type === 'font') { control = fontField('node', id, k, label, v, mixed); }
                 else if (type === 'color') {
                     var pal = canvasPalette(t.place, window.yavcCanvas), resolved = /^[1-6]$/.test(v || '') ? pal.presets[Number(v) - 1] : /^#[a-f0-9]{3}$/i.test(v || '') ? v.replace(/([a-f0-9])/ig, '$1$1').replace('##', '#') : v;
                     var box = (t.cvColors || []).find(function (b) { return b.id === selected[0].id; });
@@ -989,7 +991,7 @@
                         return '<button type="button" class="btn btn-sm" data-set="' + esc(k) + '" value="' + (i + 1) + '" data-was="' + esc(mixed ? '__mixed__' : v) + '" aria-label="' + name + '" title="' + name + '"><span class="dg-color-dot" style="background:' + esc(c) + '" aria-hidden="true"></span></button>';
                     }).join('') + '<button type="button" class="btn btn-sm" data-set="' + esc(k) + '" value="" title="' + (k === 'color' ? 'Theme Default' : k === 'tint' ? 'No Tint' : k === 'textColor' ? 'Choose a Readable Color Automatically' : 'Use the Coordinated Color') + '" data-was="' + esc(mixed ? '__mixed__' : v) + '">Default</button></div>';
                 } else { control = textField(id, k, label, v); }
-                if (mixed && type !== 'segments' && type !== 'picker') { control = control.replace(/data-was="[^"]*"/g, 'data-mixed="true" data-was=""').replace(/ placeholder="[^"]*"/g, '').replace(/<(input|textarea)\b/g, '<$1 placeholder="Mixed"'); control += '<p class="form-help">Mixed values</p>'; }
+                if (mixed && type !== 'segments' && type !== 'picker' && type !== 'font') { control = control.replace(/data-was="[^"]*"/g, 'data-mixed="true" data-was=""').replace(/ placeholder="[^"]*"/g, '').replace(/<(input|textarea)\b/g, '<$1 placeholder="Mixed"'); control += '<p class="form-help">Mixed values</p>'; }
                 html += control;
             }
             add('text', 'Text', 'text'); add('label', 'Label');
@@ -1006,7 +1008,7 @@
             add('outlinePosition', 'Outline Position', 'select', [['', 'Default'], ['center', 'On the Edge'], ['inside', 'Inside the Edge']]);
             add('textColor', 'Text Color', 'color'); add('fontSize', 'Font Size', 'number');
             add('fontWeight', 'Font Weight', 'select', [['', 'Default'], ['100', 'Thin'], ['200', 'Extra Light'], ['300', 'Light'], ['400', 'Regular'], ['500', 'Medium'], ['600', 'Semibold'], ['700', 'Bold'], ['800', 'Extra Bold'], ['900', 'Black']]);
-            add('fontFamily', 'Font'); add('padding', 'Text Padding', 'number'); add('lineHeight', 'Line Height', 'number');
+            add('fontFamily', 'Font', 'font'); add('padding', 'Text Padding', 'number'); add('lineHeight', 'Line Height', 'number');
             add('tint', 'Tint', 'color'); add('fit', 'Picture Fit', 'select', [['', 'Default'], ['contain', 'Contain'], ['cover', 'Cover'], ['stretch', 'Stretch']]);
             add('route', 'Route', 'segments', [['elbow', 'Elbow', 'yavc-route-elbow'], ['straight', 'Straight', 'yavc-route-straight'], ['curve', 'Curve', 'yavc-route-curve']]);
             var heads = [['none', 'None'], ['arrow', 'Arrow'], ['triangle', 'Triangle'], ['diamond', 'Diamond'], ['circle', 'Circle'], ['box', 'Box'], ['cross', 'Cross'], ['cf-one', 'One'], ['cf-one-required', 'Exactly One'], ['cf-many', 'Many'], ['cf-many-required', 'One or More']];
@@ -1018,6 +1020,7 @@
             el.inspector.innerHTML = '<fieldset class="dg-inspector-fields"' + (blocked ? ' disabled' : '') + '>' + html + '</fieldset>';
             if (blocked) { el.inspector.insertAdjacentHTML('afterbegin', '<p class="form-help">Put the canvas text right before changing these settings.</p>'); }
             if (window.pudlFields) { window.pudlFields.enhance(el.inspector); }
+            placeFonts(t); growFields();
             if (had) { var back = document.getElementById(had); if (back && !back.disabled) { back.focus({ preventScroll: true }); } }
         }
         function renderDocumentInspector(t, blocked) {
@@ -1030,9 +1033,10 @@
             [['grid', 'Show Grid', !!settings.grid], ['snap', 'Snap to Grid and Shapes', settings.snap !== false]].forEach(function (setting) {
                 html += '<div class="form-group"><label class="check"><input type="checkbox" id="' + id + setting[0] + '" data-document data-set="' + setting[0] + '"' + (setting[2] ? ' checked' : '') + '> ' + setting[1] + '</label></div>';
             });
-            html += textField(id + 'font', 'font', 'Font', settings.font || '', 'Give font family names, separated by commas. A font is drawn when this application or the reader\'s machine has it.').replace(/ data-set=/g, ' data-document data-set=');
+            html += fontField('document', id + 'font', 'font', 'Font', settings.font || '', false, 'Choose a font, or type font family names separated by commas. A font is drawn when this application or the reader\'s machine has it.');
             html += '<p class="form-help">Grid spacing is 8 pixels. Hold Alt while dragging to bypass snapping. The grid is not exported.</p>';
             el.inspector.innerHTML = '<fieldset class="dg-inspector-fields"' + (blocked ? ' disabled' : '') + '>' + html + '</fieldset>';
+            placeFonts(t);
             if (had) { var back = document.getElementById(had); if (back && !back.disabled) { back.focus({ preventScroll: true }); } }
         }
         async function canvasInspectorChanged(f) {
@@ -1051,6 +1055,9 @@
             var picker = f.dataset.picker, restoreFocus = picker && document.activeElement === f;
             if (f.tagName === 'SELECT' && value === '__mixed__') { return; }
             if (!f.hasAttribute('data-mixed') && value === f.dataset.was) { return; }
+            /* One change is sent once. Choosing a font with Enter fires change, and the same Enter then reaches the Inspector's own key. */
+            if (f.dataset.sending === value) { return; }
+            f.dataset.sending = value;
             var req = { op: 'set', key: s.id, kind: s.kind, property: property, value: property === 'text' ? value : value || null };
             if (['x', 'y', 'width', 'height'].indexOf(property) >= 0) { req = { op: 'resize', key: s.id }; req[property] = value.trim() ? Number(value) : NaN; }
             if (property === 'lineWidth') { req.value = value.trim() ? Number(value) : NaN; }
@@ -1068,6 +1075,7 @@
                     var trigger = document.getElementById(picker); if (trigger) { trigger.focus({ preventScroll: true }); }
                 }
             } catch (err) { if (!destroyed && owner === current() && f.isConnected) { markField(f, err.message); } }
+            finally { if (f.dataset.sending === value) { delete f.dataset.sending; } }
         }
         function canvasCommands() {
             function c(id, label, run, key, needs, glyph) {
@@ -1317,6 +1325,44 @@
         function textField(id, key, label, value, help) {
             return field(id, label, '<input class="form-input" id="' + id + '" data-set="' + esc(key) + '" data-was="' + esc(value || '') + '" value="' + esc(value || '') + '" autocomplete="off" spellcheck="false"' + described(id, help) + '>', help);
         }
+        /* A font is chosen from a list or typed, since a diagram may use any family, or several with fallbacks.
+           The list starts with the fonts the diagram already uses. Without PUDL's combo script the browser draws the list.
+           The Inspector is drawn again at every selection and change, and PUDL keeps a list and its listeners for each combo box it
+           takes in, with no way to give one back. So each of the two font fields is made once and put into each drawing of the Inspector. */
+        var fontBoxes = {}, fontWanted = {}, fontSerial = 0;
+        function fontField(which, id, key, label, value, mixed, help) {
+            fontWanted[which] = { id: id, key: key, value: value || '', mixed: mixed, help: help };
+            return field(id, label, '<span data-font-place="' + which + '"></span>' + (mixed ? '<p class="form-help">Mixed values</p>' : ''), help);
+        }
+        function placeFonts(t) {
+            var used = [(t.cvDoc.yavc || {}).font].concat((t.cvDoc.nodes || []).map(function (node) { return (node.yavc || {}).fontFamily; })).filter(function (name) { return typeof name === 'string' && name.trim(); }).map(function (name) { return name.trim(); }).sort();
+            var seen = new Set(), names = used.concat(window.yavcUtil.fontChoices).filter(function (name) { var key = name.toLowerCase(); if (seen.has(key)) { return false; } seen.add(key); return true; });
+            el.inspector.querySelectorAll('[data-font-place]').forEach(function (place) {
+                var which = place.getAttribute('data-font-place'), want = fontWanted[which], box = fontBoxes[which];
+                if (!box) {
+                    box = fontBoxes[which] = { wrap: document.createElement('span'), input: document.createElement('input'), list: document.createElement('datalist') };
+                    box.wrap.className = 'combo'; box.list.id = 'dg-fonts-' + n + '-' + (++fontSerial);
+                    box.input.className = 'form-input'; box.input.maxLength = 200; box.input.autocomplete = 'off'; box.input.spellcheck = false; box.input.setAttribute('list', box.list.id);
+                    if (which === 'document') { box.input.setAttribute('data-document', ''); }
+                    box.wrap.append(box.input, box.list);
+                }
+                box.list.replaceChildren.apply(box.list, names.map(function (name) { var option = document.createElement('option'); option.value = name; return option; }));
+                box.input.id = want.id; box.input.setAttribute('data-set', want.key); box.input.value = want.value; box.input.dataset.was = want.value;
+                if (want.mixed) { box.input.setAttribute('data-mixed', 'true'); box.input.placeholder = 'Mixed'; } else { box.input.removeAttribute('data-mixed'); box.input.removeAttribute('placeholder'); }
+                if (want.help) { box.input.setAttribute('aria-describedby', want.id + '-help'); } else { box.input.removeAttribute('aria-describedby'); }
+                box.input.removeAttribute('aria-invalid');
+                place.replaceWith(box.wrap);
+            });
+            if (window.pudlCombo) { window.pudlCombo.enhance(el.inspector); }
+        }
+        /* A field for text is as tall as its text, from a least height to a greatest, and scrolls beyond that. */
+        function growText(f, least, most) {
+            if (!f.getClientRects().length) { return; }
+            f.style.height = 'auto';
+            var whole = f.scrollHeight + f.offsetHeight - f.clientHeight;
+            f.style.height = Math.max(least, Math.min(most, whole)) + 'px'; f.style.overflowY = whole > most ? 'auto' : 'hidden';
+        }
+        function growFields() { el.inspector.querySelectorAll('textarea.dg-grow').forEach(function (f) { growText(f, 0, 240); }); }
         function selectField(id, key, label, value, options) {
             return field(id, label, '<span class="form-select-wrap"><select class="form-select" id="' + id + '" data-set="' + esc(key) + '" data-was="' + esc(value || '') + '">' +
                 options.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === (value || '') ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></span>');
@@ -1469,6 +1515,7 @@
             var msg = f.type === 'checkbox' ? 'Turned ' + name + (value ? ' on.' : ' off.') : value == null ? 'Took the ' + name.toLowerCase() + ' away.' : 'Set the ' + name.toLowerCase() + ' to ' + shown + '.';
             applyEdit({ op: 'set', key: setKey, value: value }, key, true).then(function (out) { finish(out, msg); });
         }
+        el.inspector.addEventListener('input', function (e) { if (e.target.matches('textarea.dg-grow')) { growText(e.target, 0, 240); } });
         el.inspector.addEventListener('change', function (e) {
             if (e.target.classList.contains('md-colour-pick')) {
                 var paired = el.inspector.querySelector('#' + CSS.escape(e.target.getAttribute('data-for')));

@@ -548,7 +548,11 @@
       contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture }, suggestions: { subscribe: subscribeSuggestions, decide: decideSuggestion }, shortcodes: shortcodes, shortcodeHost: shortcodeHost, openDiagram: openDiagram, resolvePath: resolvePath }, fileResolution: { open: openIn }, fileFields: { version: 1, choose: chooseFile },
       contentResources: { version: 1, read: read, write: write, saveAs: saveAs }, fs: fs,
       snapshot: snapshot, config: config, documentWindows: documentWindows, presentation: presentation, documentCommands: documentCommands,
-      commandToolbar: { attach: function (root, options) { return window.dinahContentToolbar.attach(root, options); } }
+      /* The applets' toolbar and its Customize Toolbar dialog are yavc.app's
+         own controller, which comes in the package (support/command-toolbar.js,
+         decision 9 of its command-toolbar-design.md); what the person
+         chooses is kept in the applets' settings under command-toolbars. */
+      commandToolbar: { attach: function (root, options) { return window.yavcCommandToolbar.attach(root, Object.assign({}, options, { config: config })); } }
     });
     window.pudlApplets.capability('files.read', fileServices);
     window.pudlApplets.capability('files.write', fileServices);
