@@ -52,7 +52,9 @@ func TestDraftBindings(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Each open by the person also puts the document at the top of Recent.
-	want := []string{"draft:changed", "documents:recent", "documents:recent", "draft:changed", "draft:changed", "draft:changed"}
+	// The save also tells the page that the document was written where it
+	// is kept, so that what draws from it reads it again.
+	want := []string{"draft:changed", "documents:recent", "documents:recent", "draft:changed", "draft:changed", "workspace:changed", "draft:changed"}
 	if !slices.Equal(events, want) {
 		t.Fatalf("events %v", events)
 	}

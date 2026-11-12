@@ -1,7 +1,7 @@
 {
   "name": "diagrams",
   "title": "Diagrams",
-  "version": "0.44.0",
+  "version": "0.44.1",
   "instances": 9,
   "description": "Draw diagrams from D2 and Mermaid text and JSON Canvas files, with the drawing beside the text, and export them as pictures.",
   "license": "Apache-2.0",

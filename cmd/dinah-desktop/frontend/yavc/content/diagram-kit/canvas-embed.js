@@ -36,14 +36,14 @@
         image.width = out.width; image.height = out.height; image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(out.svg);
         image.style.maxWidth = '100%'; image.style.height = 'auto';
         place.replaceChildren(image); place.classList.add('ed-diagram');
-        var disclosure = document.createElement('button'), list = document.createElement('ul');
-        list.id = 'canvas-contents-' + (++count); list.hidden = true; list.setAttribute('data-canvas-outline', '');
-        disclosure.type = 'button'; disclosure.className = 'btn btn-sm disclosure'; disclosure.textContent = 'Diagram Contents'; disclosure.setAttribute('data-canvas-contents', ''); disclosure.setAttribute('aria-expanded', 'false'); disclosure.setAttribute('aria-controls', list.id);
-        disclosure.addEventListener('click', function () { list.hidden = !list.hidden; disclosure.setAttribute('aria-expanded', String(!list.hidden)); });
+        /* What the drawing says, for a reader who cannot see it. The picture's own words say only how much it has. The list is not drawn:
+           a button that showed it stood beside every diagram and told a sighted reader nothing the drawing did not (decision 136). */
+        var list = document.createElement('ul');
+        list.id = 'canvas-contents-' + (++count); list.className = 'visually-hidden'; list.setAttribute('aria-label', 'Diagram contents'); list.setAttribute('data-canvas-outline', '');
         parsed.doc.nodes.filter(function (n) { return !J.isAnchor(n); }).forEach(function (n) { var row = document.createElement('li'); row.textContent = n.text || n.label || n.file || n.url || n.id; list.append(row); });
         parsed.doc.edges.forEach(function (e) { var row = document.createElement('li'); row.textContent = e.fromNode + ' → ' + e.toNode + (e.label ? ': ' + e.label : ''); list.append(row); });
-        place.append(disclosure, list);
-        if (read.problems.length) window.yavcUtil.notice(disclosure, read.problems[0] + (read.problems.length > 1 ? ' ' + (read.problems.length - 1) + ' more could not be read.' : ''), 'warn');
+        place.append(list);
+        if (read.problems.length) window.yavcUtil.notice(image, read.problems[0] + (read.problems.length > 1 ? ' ' + (read.problems.length - 1) + ' more could not be read.' : ''), 'warn');
         return out;
     }
     window.yavcCanvasEmbed = Object.freeze({draw:draw});

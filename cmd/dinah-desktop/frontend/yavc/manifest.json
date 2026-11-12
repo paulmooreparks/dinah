@@ -1,5 +1,5 @@
 {
-  "digest": "64c3b9e6e3065f9883ea321117d120622b6cd78e0a3a35c05524c0b44b8339b8",
+  "digest": "9ceb34c2cb48f2578e9a0f1974be3deff9080cb0c033e88a17c163a4a9c9d4f6",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -50,8 +50,8 @@
     },
     {
       "path": "content/diagram-kit/canvas-embed.js",
-      "bytes": 4508,
-      "sha256": "83927fcd67d2e38d8b6803232fee1605aa1e03dfef30c847a65a0280d25089fe"
+      "bytes": 4348,
+      "sha256": "63de732f52772d80ada5a02d13186f88501389b70e72447b1a527c11fc9c9203"
     },
     {
       "path": "content/diagram-kit/canvas-pictures.js",
@@ -111,7 +111,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "3f435f107fe72dc84b02f6a720fc8b22782516c8cc882dc5e4d86d4bc0931cf4"
+      "sha256": "9c6968f184aed9e28554fd621ce20d716c47618436e0d4f1b2a05d7e306e57ea"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "a12285b7e8e2366eca2331c897859b278b5f22c2d4c6d0d1095518434c46b715"
+      "sha256": "66291abdbd4077e65667bb70d860501c95ced56bebe9ea7098cfb2c6a27548d7"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 686,
-      "sha256": "7dcd948c13334ed3c57b757fab726147046359a55ca8f54352a2b299b8623dad"
+      "sha256": "94964d1334680cc7c30ad9e3400cd49a5598a69ddc692736771a6e41630010c1"
     },
     {
       "path": "content/editor/editor.css",
@@ -365,8 +365,8 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 149026,
-      "sha256": "9ae9073c210dd2f744e5a1d2211b54c068f24149fd4e740c1b05bdb7a78a30ae"
+      "bytes": 148980,
+      "sha256": "e93680bdb5f5578197fec8781637010a5a06222b9b8f54dcb0fe26c476f2740d"
     },
     {
       "path": "content/md-editor/pages.js",
@@ -1306,7 +1306,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "07d327e059b14f74c78dfd0c658e151f45235480564fe9ca99d754fc027c5061"
+      "sha256": "d9038fc56edbe12327714602d549e27f1742464c906f9082e433e273a67dfe8f"
     },
     {
       "path": "content/slides/export-pdf.js",
