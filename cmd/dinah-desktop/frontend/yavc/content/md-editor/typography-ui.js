@@ -75,14 +75,18 @@
                 if (node.getAttribute('aria-invalid') === 'true') { throw Object.assign(new Error('Enter a valid number.'), { field: key === 'multiple' ? 'spacing' : key }); }
             }); S.typography(values); return values;
         }
+        /* A field the person is in is not given a value by a draw: its text may be selected for them to type over, and a value written
+           under them drops the selection, so that what they type is put into the middle of the new text. When they leave it, a draw
+           gives it the default it should show. */
+        function hasKeyboard(key) { var node = field(key), group = node && node.closest('.form-group'); return !!(group && group.contains(document.activeElement)); }
         async function draw() {
             if (!alive || !ready) { return; }
             var mine = ++revision;
             try { var values = read(); await controller.update({ identity: id, base: P.paper + ';' + S.typeCSS(Object.assign({},props,values)), inline: opts.styles || [], stylesheet: opts.stylesheet || '' });
                 if (!alive || mine !== revision) { return; }
                 var preview = api.body.querySelector('[data-type-preview]'), css = getComputedStyle(preview);
-                if (!explicit['heading-font']) { setField('heading-font', getComputedStyle(preview.querySelector('h2')).fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '')); }
-                if (!explicit['paragraph-spacing'] && !pending['paragraph-spacing']) { setField('paragraph-spacing', Math.round(parseFloat(getComputedStyle(preview.querySelector('p')).marginBottom) * .75 * 1000000) / 1000000); }
+                if (!explicit['heading-font'] && !hasKeyboard('heading-font')) { setField('heading-font', getComputedStyle(preview.querySelector('h2')).fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '')); }
+                if (!explicit['paragraph-spacing'] && !pending['paragraph-spacing'] && !hasKeyboard('paragraph-spacing')) { setField('paragraph-spacing', Math.round(parseFloat(getComputedStyle(preview.querySelector('p')).marginBottom) * .75 * 1000000) / 1000000); }
                 api.body.querySelector('[data-type-summary]').textContent = (parseFloat(css.fontSize) * .75).toFixed(1).replace(/\.0$/, '') + ' pt';
             } catch (_) { /* Invalid drafts remain in the controls until corrected or Apply reports them. */ }
         }
@@ -132,6 +136,7 @@
                     if (node.dataset.typeField) { clearIssue(node.dataset.typeField); }
                     if (node.matches('[data-type-field="font"],[data-type-field="heading-font"]')) { changed(node.dataset.typeField); }
                 });
+                api.body.addEventListener('focusout', function () { if (ready) { schedule(); } });
                 api.body.addEventListener('change', function (event) { if (!ready) { return; } var key = event.target.dataset.typeField; if (key === 'multiple') { changed('spacing'); } else if (key) { changed(key); } });
                 api.body.querySelectorAll('[data-type-default]').forEach(function (button) { button.addEventListener('click', function () { if (ready) { reset(button.dataset.typeDefault); } }); });
                 api.body.querySelector('[data-type-reset]').addEventListener('click', function () { if (ready) { KEYS.forEach(reset); } });

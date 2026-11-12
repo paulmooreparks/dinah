@@ -1,5 +1,5 @@
 {
-  "digest": "28611564f550a959d6bd5cd58916c5e70417ca3c32436f0078f808e69a35f005",
+  "digest": "d3de205075c6e6eebcb3ee892d278dc09acde9ff64e5fc9dcd3bb354b0a760a2",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -111,7 +111,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "e13b99fb3dfa1982c78022e37555a36bc763cb5bf58f22a5ce1557e02e55d985"
+      "sha256": "ac92f4dc426026573741995420532224e73b2648c3016513f4fad29350d4371b"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -135,8 +135,8 @@
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 238365,
-      "sha256": "f130b9ddb89b51555213df7551dc9ed5eab37e8c1374143c2830eabbbbc2f3a4"
+      "bytes": 238840,
+      "sha256": "8c6e07e0f340f3448d111375b6fb09df9010d46770a394eb462e8728b65e6b19"
     },
     {
       "path": "content/diagrams/icon.svg",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "460c3907514e886775a858ccb2ccdebfc8c639e0d6bc00590ac6cc27cf7e9e82"
+      "sha256": "fb4a7bff1233be437343719735f86d9157192672043758b0715ce625901f1aac"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 686,
-      "sha256": "e59789f6f243c9a345fecaa77d6a94759c66ca1d56b751dbc591d607b0ab9770"
+      "sha256": "beae31b1848ca471a76061d024b0c36a6be4abfa557660085ea9c9d543da6c11"
     },
     {
       "path": "content/editor/editor.css",
@@ -275,8 +275,8 @@
     },
     {
       "path": "content/md-editor/kit.js",
-      "bytes": 165015,
-      "sha256": "d3597c583d1b27ce64c7eea135277329191c55ba4b5c3311e98eef30b6cfa2ea"
+      "bytes": 165304,
+      "sha256": "1b72174b9c6247dfb6522cd49b8a3491191a1e888841472203f36a50cc8f16b2"
     },
     {
       "path": "content/md-editor/language-service/README.md",
@@ -365,13 +365,13 @@
     },
     {
       "path": "content/md-editor/page-view.js",
-      "bytes": 148980,
-      "sha256": "e93680bdb5f5578197fec8781637010a5a06222b9b8f54dcb0fe26c476f2740d"
+      "bytes": 150223,
+      "sha256": "e928c4cd5b788a26e52ab18cd21976ac5d903e3eb3782610d5463d90acb2f951"
     },
     {
       "path": "content/md-editor/pages.js",
-      "bytes": 30701,
-      "sha256": "82304b5881a8161a9778e4ac9dcd92edc41866b1b5d5567641a5ac075c907088"
+      "bytes": 32277,
+      "sha256": "ba70c7956d7bec2726726f031212622608aeaa15a649dd0133fdaf485301b96e"
     },
     {
       "path": "content/md-editor/paper-sizes.js",
@@ -395,13 +395,13 @@
     },
     {
       "path": "content/md-editor/styles.css",
-      "bytes": 9289,
-      "sha256": "3f737da309caaf1bac1d71e34e39886edd88735db463fd3647872ee2866e7106"
+      "bytes": 9535,
+      "sha256": "3050b23069fbb7ea173b2de0a5f8b76b44565f23dffe041460e280f6953825a6"
     },
     {
       "path": "content/md-editor/typography-ui.js",
-      "bytes": 14650,
-      "sha256": "c1916510b7bb1857046a3cb12711b71c8bc9398ece43f396425f86b26f41962b"
+      "bytes": 15304,
+      "sha256": "877bec0ae6f1ba8a3767651566ed2fea4defe907163bf9644acb4d490a80f2a1"
     },
     {
       "path": "content/md-editor/vendor/codemirror-6.43/BUILD.md",
@@ -1400,8 +1400,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 255745,
-      "sha256": "df07323c42aea5eca6a35b12bab5cc107ee0f797fef9bcbfe8c792aff7257619"
+      "bytes": 256400,
+      "sha256": "7c818440ec6155e3c07f306b32c4860a0d5a763389ce6698abab064c861927c6"
     },
     {
       "path": "go.mod",

@@ -2059,6 +2059,9 @@
             else { el.work.setAttribute('data-split-pane', first ? 'second' : 'first'); }
             if (cm) { cm.requestMeasure(); }
         }
+        /* The text takes the keyboard when the view is set, and that can be after the file has opened, so it does so only when the keyboard is on
+           nothing or already in this application, and not when the person has gone elsewhere, such as into the launcher. */
+        function keyboardIsFree() { var active = document.activeElement; return !active || active === document.body || active === document.documentElement || root.contains(active); }
         function setView(view) {
             var t = current();
             if (!VIEWS.some(function (v) { return v[0] === view; })) { return; }
@@ -2066,7 +2069,7 @@
             settings.view = view;
             keepSetting('view', view);
             applyDock();
-            if (view !== 'preview' && cm && (opts.ownsUrl || !root.closest('.win') || root.closest('.win.active'))) { cm.focus(); }
+            if (view !== 'preview' && cm && (opts.ownsUrl || !root.closest('.win') || root.closest('.win.active')) && keyboardIsFree()) { cm.focus(); }
             commandsChanged();
             if (window.pudlMenubar) { window.pudlMenubar.refresh(); }
             announce();

@@ -94,6 +94,20 @@
         if(blocks.noteProblem)result.problem=blocks.noteProblem;
         return result;
     }
+    /* The page is measured at 100 percent, whatever the reader's zoom is. A browser lays text out in the zoomed size, and in WebKit a
+       line's height then differs a little between zooms (a paragraph is 153.89 px at 100 percent and 153.78 at 50), so measuring at the
+       zoom that is shown let the page count change with it. A page with no zoom set is measured with it set to 1 as well, since
+       WebKit lays text out differently with the property set to 1 than with none. The zoom is put back before anything is painted. */
+    function measured(dom, measure) {
+        var host = dom.closest('.doc-paginated'), was = host && host.style.zoom;
+        if (!host || was === '1') { return measure(); }
+        /* Measuring at 100 percent can make the page shorter than the place a reader has scrolled to, and the browser then moves the
+           scroll back. Every scroll position above the page is put back with the zoom. */
+        var kept = [];
+        for (var node = host.parentElement; node; node = node.parentElement) { if (node.scrollTop || node.scrollLeft) { kept.push([node, node.scrollTop, node.scrollLeft]); } }
+        host.style.zoom = '1';
+        try { return measure(); } finally { host.style.zoom = was; kept.forEach(function (k) { k[0].scrollTop = k[1]; k[0].scrollLeft = k[2]; }); }
+    }
     function blocksOf(dom, positions, position) {
         var host = dom.closest('.doc-paginated'), scale = host ? Number(host.style.zoom) || 1 : 1;
         var top = dom.getBoundingClientRect().top, blocks = [], sourceIndex = 0;
@@ -138,7 +152,7 @@
             }
             var gapNode = node.parentElement && node.parentElement.matches('li') && node.parentElement.firstElementChild === node ? node.parentElement : node;
             if (gapNode !== node && position) suppliedPosition = position(gapNode.parentNode, Array.prototype.indexOf.call(gapNode.parentNode.childNodes, gapNode));
-            var block = { node: gapNode, pos: suppliedPosition, top: clean(rect.top), row: node.tagName === 'TR', columns: node.cells ? node.cells.length : 0,
+            var block = { node: gapNode, pos: suppliedPosition, top: clean(rect.top), row: node.tagName === 'TR', columns: node.classList.contains('host-suggestion-row') ? node.cells[0].colSpan : node.cells ? node.cells.length : 0,
                 height: clean(rect.bottom) - clean(rect.top) + Math.max(0, parseFloat(css.marginBottom) || 0),
                 references:node.matches('aside.doc-footnote')?[]:window.yavcPageFootnotes?window.yavcPageFootnotes.references(node):[],
                 keepNext:/^(avoid|avoid-page)$/.test(css.breakAfter)||/^(avoid|avoid-page)$/.test(contentCSS.breakAfter)||node.tagName==='TR'&&!!node.querySelector('th'),
@@ -147,7 +161,7 @@
                 breakBefore: /^(page|always)$/.test(css.breakBefore)||/^(page|always)$/.test(contentCSS.breakBefore)||!!(previous&&(previous.control||previous.breakAfter)) };
             if(block.row&&!node.querySelector('th')){
                 var table=node.closest('table'),headers=[];
-                if(table)for(var row of Array.from(table.rows)){if(row===node||!row.querySelector('th')||row.classList.contains('doc-page-gap'))break;headers.push(row);}
+                if(table)for(var row of Array.from(table.rows)){if(row.classList.contains('host-suggestion-row'))continue;if(row===node||!row.querySelector('th')||row.classList.contains('doc-page-gap'))break;headers.push(row);}
                 block.headerRows=headers;block.repeatHeader=headers.reduce(function(sum,row){return sum+row.getBoundingClientRect().height/scale;},0);
             }
             var bands=block.row&&window.yavcPageLines&&window.yavcPageLines.rowBands(content,top,scale,offsets,position);
@@ -229,12 +243,12 @@
                 try {
                     // Preview source wrappers do not participate in physical layout.
                     Array.from(o.flow.querySelectorAll('.dinah-src[data-start]')).reverse().forEach(function (node) { node.replaceWith.apply(node, Array.from(node.childNodes)); });
-                    var blocks = blocksOf(o.flow), layout = plan(blocks, page), next = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
+                    var blocks = measured(o.flow, function () { return blocksOf(o.flow); }), layout = plan(blocks, page), next = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
                     var d = surface(o.host, page); o.host.style.minHeight = (layout.count * (d.height + GAP) - GAP) + 'px'; o.host.setAttribute('data-page-count', layout.count);
                     o.changed(layout);
                     if (next !== signature) {
                         o.flow.querySelectorAll('.doc-page-gap').forEach(function (node) { node.remove(); }); o.flow.normalize();
-                        blocks = blocksOf(o.flow); layout = plan(blocks, page);
+                        blocks = measured(o.flow, function () { return blocksOf(o.flow); }); layout = plan(blocks, page);
                         if (window.yavcDocumentSettings) { window.yavcDocumentSettings.decorate(o.host, page, layout.count); }
                         signature = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
                         layout.gaps.slice().reverse().forEach(function (gap) { var block = blocks[gap.index];if(block.rowNode&&block.band){block.anchors.forEach(function(anchor,column){if(anchor)window.yavcPageLines.insert(o.flow,anchor,rowSpacer(gap,block,column));});}else window.yavcPageLines.insert(o.flow, block, spacer(gap.height, !!block.anchor, block, gap.header)); });
@@ -278,7 +292,7 @@
                     // has been measured. Clearing it paints a collapsed page.
                     if(seenDoc!==v.state.doc){seenDoc=v.state.doc;tableWidths=new WeakMap();signature='';}
                     var d = surface(o.page, page), positions = []; v.state.doc.forEach(function (n, pos) { positions.push(pos); });
-                    var blocks = blocksOf(v.dom, positions, function (node, offset) { return v.posAtDOM(node, offset); }), layout = plan(blocks, page);
+                    var blocks = measured(v.dom, function () { return blocksOf(v.dom, positions, function (node, offset) { return v.posAtDOM(node, offset); }); }), layout = plan(blocks, page);
                     var next = JSON.stringify([page, layout.gaps, layout.count, layout.oversized,layout.footnotes,layout.problem]);
                     o.page.style.minHeight = (layout.count * (d.height + GAP) - GAP) + 'px';
                     o.page.setAttribute('data-page-count', layout.count);

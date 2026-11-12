@@ -79,6 +79,8 @@
 .md-gallery-dialog [hidden] { display:none; }
 .host-suggestion { display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:var(--space-2);max-width:100%;padding:var(--space-2);margin-inline:var(--space-1);border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:normal .875rem/1.4 var(--font-body, sans-serif);vertical-align:baseline;white-space:normal; }
 div.host-suggestion { display:flex;margin:var(--space-2) 0; }
+/* A card that comes after a changed row of a table is a row of that table with one cell across it, and shows no cell border or tint of the table. */
+.host-suggestion-row > .host-suggestion-row-cell { padding:0;border:0;background:transparent; }
 .host-suggestion-label { color:var(--text-muted); }
 .host-suggestion-new { white-space:pre-wrap;overflow-wrap:anywhere;max-height:12rem;overflow:auto;min-width:0; }
 .host-suggestion-before { white-space:pre-wrap;overflow-wrap:anywhere;max-height:12rem;overflow:auto;min-width:0;text-decoration:line-through 2px var(--diff-del); }

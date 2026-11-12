@@ -645,9 +645,14 @@
             /* Focus would raise the Editor's window over one the reader has
                since brought forward, so it waits for the window to be in
                front. */
-            if (inFront()) { view.focus(); }
+            if (mayFocus()) { view.focus(); }
         }
         function inFront() { return opts.ownsUrl || !root.closest('.win') || !!root.closest('.win.active'); }
+        /* A focus that is made after something asynchronous, such as a file opening or a session being restored, takes the keyboard only if
+           this window is in front and the keyboard is on nothing or already in this application. Otherwise a window that finishes starting
+           after the person has gone elsewhere, such as into the launcher, would take what they type. */
+        function keyboardIsFree() { var active = document.activeElement; return !active || active === document.body || active === document.documentElement || root.contains(active); }
+        function mayFocus() { return inFront() && keyboardIsFree(); }
 
         /* Opens a file by path: switches to it if it is open already. */
         /* With strict, a file that can't be opened throws, for the Open
@@ -1740,7 +1745,7 @@
                     visual.api.repaginate();
                     /* A page just turned on opened at the text's caret; now that it is shown, bring that into view. */
                     if (!wasOn) { visual.api.scrollToSelection(); }
-                    if ((mode === 'visual' || mode === 'document') && inFront()) { visual.api.focus(); }
+                    if ((mode === 'visual' || mode === 'document') && mayFocus()) { visual.api.focus(); }
                 }
             } catch (err) {
                 if (gen !== visual.gen || destroyed) { return; }
@@ -3045,7 +3050,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             sayRestored();
             /* The keyboard goes back where it was: into the text, unless the
                search panel had it, which opening it did. */
-            if (snap && snap.focused) { if (!view.dom.contains(document.activeElement)) { view.focus(); } }
+            if (snap && snap.focused) { if (!view.dom.contains(document.activeElement) && mayFocus()) { view.focus(); } }
             else if (!(opts.ownsUrl || root.closest('.win.active'))) { view.contentDOM.blur(); }
             documentReady = true;
             if (documentWindows && documentWindows.mode(root) === 'single' && tabs.length > 1) {

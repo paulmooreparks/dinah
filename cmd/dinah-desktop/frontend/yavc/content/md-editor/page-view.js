@@ -741,11 +741,25 @@ var schemaCache = null;
       return ok ? out : null;
     }
 
-    function suggestionWidget(s, markdown) {
+    /* A card for a change to rows of a table is a row of the table, with one cell across every column, so that it comes straight after
+       the changed row. It is drawn only, and is no part of the document. */
+    function inTableRow(card, columns) {
+      var row = document.createElement('tr'), cell = document.createElement('td');
+      row.className = 'host-suggestion-row'; row.contentEditable = 'false';
+      cell.colSpan = columns; cell.className = 'host-suggestion-row-cell';
+      cell.append(card); row.append(cell);
+      return row;
+    }
+    function suggestionWidget(s, markdown, columns) {
+      var make = suggestionCard(s, markdown);
+      return columns ? function () { return inTableRow(make(), columns); } : make;
+    }
+    function suggestionCard(s, markdown) {
       return function () {
         if(o.hostSuggestionWidget)return o.hostSuggestionWidget(s);
         var box = document.createElement('div');
         box.className = 'pm-sugg';
+        box.setAttribute('role', 'note');
         box.contentEditable = 'false';
         box.dataset.suggestion = s.id;
         var head = document.createElement('div');
@@ -842,7 +856,9 @@ var schemaCache = null;
           marks.push(PM.Decoration.node(at + offset, at + offset + row.nodeSize, { class: 'pm-sugg-old', 'data-suggestion': id }));
           var struck = touched.length === 1 ? word(row, at + offset, rows[index].line) : null;
           if (struck) marks.push(struck);
+          marks.rowEnd = at + offset + row.nodeSize;
         });
+        marks.columns = 0; node.firstChild.forEach(function (cell) { marks.columns += cell.attrs.colspan || 1; });
         return marks;
       }
       var only = word(node, block.pos, src);
@@ -868,7 +884,7 @@ var schemaCache = null;
         var from = place(s.from), to = place(s.to);
         var overlaps = function (b) { return b.from < to && b.to > from; };
         var hit = blocks.filter(overlaps);
-        var start = from, end = to, at;
+        var start = from, end = to, at, columns = 0;
         if (hit.length) {
           start = Math.min(from, hit[0].from);
           end = Math.max(to, hit[hit.length - 1].to);
@@ -877,13 +893,15 @@ var schemaCache = null;
           else hit.forEach(function (b) { decos.push(PM.Decoration.node(b.pos, b.pos + b.size, { class: 'pm-sugg-old'+(s.stale?' host-suggestion-stale':''), 'data-suggestion': s.id })); });
           var last = hit[hit.length - 1];
           at = last.pos + last.size;
+          /* A change to rows of a table puts its card straight after the last changed row, so that it is not found at the end of the table. */
+          if (narrowed && narrowed.rowEnd && narrowed.columns) { at = narrowed.rowEnd; columns = narrowed.columns; }
         } else {
           // An addition between blocks goes after the block before it.
           var before = blocks.filter(function (b) { return b.to <= from; }).pop();
           at = before ? before.pos + before.size : 0;
         }
         var markdown = lf.slice(start, from) + s.after.replace(/\r\n/g, '\n') + lf.slice(to, end);
-        decos.push(PM.Decoration.widget(at, suggestionWidget(s, markdown), { key: 'sugg-'+JSON.stringify([s.id,o.hostSuggestionWidget?null:markdown,s.before,s.after,s.author,s.reason,s.stale,s.edited,s.pending,s.readOnly]), side: 1, ignoreSelection: true, stopEvent: function () { return true; } }));
+        decos.push(PM.Decoration.widget(at, suggestionWidget(s, markdown, columns), { key: 'sugg-'+JSON.stringify([columns,s.id,o.hostSuggestionWidget?null:markdown,s.before,s.after,s.author,s.reason,s.stale,s.edited,s.pending,s.readOnly]), side: 1, ignoreSelection: true, stopEvent: function () { return true; } }));
       });
       return PM.DecorationSet.create(doc, decos);
     }

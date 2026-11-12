@@ -1170,7 +1170,10 @@
                             var input = document.createElement('input');
                             input.className = 'form-input'; input.id = sel.id; input.setAttribute('data-key', f.key); input.value = want; input.autocomplete = 'off'; input.spellcheck = false;
                             if (f.placeholder) { input.placeholder = f.placeholder; }
+                            var had = document.activeElement === sel;
                             (sel.closest('.form-select-wrap') || sel).replaceWith(input);
+                            /* The person may already be in the choice when its list turns out to be none, and the keyboard goes to the field that replaces it. */
+                            if (had) { input.focus(); }
                             return;
                         }
                         var opts = list.slice();
