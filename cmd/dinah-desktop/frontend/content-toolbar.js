@@ -149,6 +149,8 @@
       tools.setAttribute('role', 'group');
       tools.setAttribute('aria-label', 'Toolbar Settings');
       tools.setAttribute('data-toolbar-end', '');
+      /* Folded in a narrow window, the group's own button is a pencil too. */
+      tools.setAttribute('data-toolbar-glyph', 'pencil');
       tools.setAttribute('data-toolbar-priority', '100');
       var edit = document.createElement('button');
       edit.type = 'button';
