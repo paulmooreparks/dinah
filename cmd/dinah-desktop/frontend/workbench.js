@@ -93,6 +93,36 @@
       return { kind: value[0], workspace: value[1], path: value[2] };
     } catch (e) { return null; }
   }
+  /* One thing, one window. A kind may say what its items are the same
+     thing by (identity, a function of the item): a chat is its session,
+     whatever spelling of its folder an item was made with. Windows writes
+     one folder with a small or a capital drive letter, the two spellings
+     made two keys, and so a chat had a pinned button that never found its
+     window and kept the placeholder title, and a second, empty window
+     (Paul, 12 November 2026). An item of such a kind is therefore read as
+     the item of the window already open for the same thing, or else of the
+     pinned button for it, so that every way of asking for it reaches that
+     one. */
+  function canonical(item) {
+    var cfg = item && kinds.get(item.kind);
+    if (!cfg || typeof cfg.identity !== 'function' || !window.pudlWindows) return item;
+    var own = encode(item), want, lists;
+    try {
+      want = String(cfg.identity(item));
+      lists = [window.pudlWindows.state().open || [], window.pudlWindows.taskbarState ? window.pudlWindows.taskbarState().pins || [] : []];
+    } catch (e) { return item; }
+    for (var i = 0; i < lists.length; i++) {
+      if (lists[i].indexOf(own) >= 0) return item;
+      for (var j = 0; j < lists[i].length; j++) {
+        var other = decode(lists[i][j]);
+        if (!other || other.kind !== item.kind) continue;
+        var is;
+        try { is = String(cfg.identity(other)); } catch (e) { continue; }
+        if (is === want) return Object.assign({}, item, { workspace: other.workspace, path: other.path });
+      }
+    }
+    return item;
+  }
   function pinReference(item) {
     var cfg = kinds.get(item.kind);
     if (!cfg || cfg.pinnable === false) return null;
@@ -101,11 +131,12 @@
       try { var address = JSON.parse(item.path); return { provider:'shells', id:encode({kind:'shell',path:address[3] || 'dinah'}) }; } catch (_) { return null; }
     }
     if (cfg.singleton || cfg.launcher && !cfg.pinByItem) return { provider:'applets', id:'app-' + item.kind };
-    return { provider:'items', id:encode(item) };
+    return { provider:'items', id:encode(canonical(item)) };
   }
   function source(item) {
     var cfg = kinds.get(item.kind);
     if (!cfg) throw new Error('Unknown applet: ' + item.kind);
+    item = canonical(item);
     var key = cfg.singleton ? item.kind : encode(item);
     if (document.getElementById('win-source-' + key)) return key;
     var template = document.createElement('template');
@@ -461,7 +492,10 @@
       await instance.ready;
       return key;
     },
-    key: encode,
+    key: function (item) { return encode(canonical(item)); },
+    /* The key of the window or pinned button that is the same thing as
+       the one with this key, or the key itself (taskbar-pins.js). */
+    sameAs: function (key) { var item = decode(key); return item ? encode(canonical(item)) : key; },
     // Apply a navigation target without raising a background restored window.
     setState: setWindowState,
     /* A window for a resource: the resource viewer. */
@@ -502,6 +536,8 @@
     rekey: function (oldKey, item) {
       var key = source(item);
       if (!window.pudlWindows.rekey(oldKey, key, true)) throw new Error('The chat window could not be renamed.');
+      // A pinned button for the window goes with it to its new key.
+      if (window.dinahTaskbarPins && window.dinahTaskbarPins.move) window.dinahTaskbarPins.move(oldKey, key);
       var instance = instances.get(oldKey);
       instances.delete(oldKey);
       if (instance) instances.set(key, instance);

@@ -1146,6 +1146,8 @@
         var target = chatKey(next.id, workspace), own = root.closest('[data-win]');
         if (own && target !== key && window.pudlWindows.state().open.includes(target)) {
           var mine = key;
+          // A pinned button for this window is the continuation's now.
+          if (window.dinahTaskbarPins && window.dinahTaskbarPins.move) window.dinahTaskbarPins.move(mine, target);
           window.pudlWindows.raise(target);
           window.pudlWindows.close(mine);
           return;
@@ -3880,9 +3882,16 @@
       // New Chat starts its chat in the workspace chosen in the Workspace
       // pane (setDraftWorkspace), so its window is that workspace's.
       window.dinahWorkbench.register('chat', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, singleton: true, title: 'New Chat', glyph: 'comments', statuses: true, init: init, workspaceOf: function () { return window.dinahHost.workspaceId(); } });
+      /* A chat is its session in its folder, however the folder is spelled:
+         a small or a capital drive letter, or either slash, is the same
+         folder, and two spellings gave one chat two windows and a pinned
+         button that never found its own (workbench.js, canonical). A chat
+         continued into another workspace has another folder, and is not
+         the same window. */
+      function chatIdentity(item) { return JSON.stringify([item.path, String(item.workspace || '').split(String.fromCharCode(92)).join('/').replace(/[/]+$/, '').toLowerCase()]); }
       // A chat restored behind other windows starts when it is seen, or in idle
       // time after the windows in sight.
-      window.dinahWorkbench.register('chat-session', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, title: 'Loading chat…', loadingText: 'Loading the saved conversation…', titleOf: function (item) { var s = S(item.path); return (adapter.hasKnownTitle && adapter.hasKnownTitle(s.id)) || s.titleKnown && !s.loading && !s.restoring ? title(s) : ''; }, glyph: 'comments', start: 'idle', statuses: true, init: init });
+      window.dinahWorkbench.register('chat-session', { applet: { id: 'dinah.chat', title: 'Chats', glyph: 'comments', workspace: true }, identity: chatIdentity, title: 'Loading chat…', loadingText: 'Loading the saved conversation…', titleOf: function (item) { var s = S(item.path); return (adapter.hasKnownTitle && adapter.hasKnownTitle(s.id)) || s.titleKnown && !s.loading && !s.restoring ? title(s) : ''; }, glyph: 'comments', start: 'idle', statuses: true, init: init });
       document.addEventListener('pudl:windows-change', function () {
         var key = window.pudlWindows.state().top, item = window.dinahWorkbench.item(key);
         if (key === 'chat') selectChat(null);
