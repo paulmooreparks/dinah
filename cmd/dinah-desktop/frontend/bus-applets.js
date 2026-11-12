@@ -1105,12 +1105,18 @@
         var canonicalKey = window.dinahWorkbench.key(canonical), other = groupWindows.get(canonicalKey);
         rememberGroup(canonicalKey, room.name);
         moveGroupDraft(item.path, room.name, !!(other && other !== controller && other.hasDraft()));
-        if (canonicalKey !== windowKey && window.pudlWindows.state().open.includes(canonicalKey)) {
+        /* The group's own window may be open, or be one the layout is still
+           opening at the start, which PUDL does not list as open yet and
+           will not give this window's key up for either (chat-applet.js,
+           follow). Then this window gives way to it. */
+        var listed = window.pudlWindows.state().open.includes(canonicalKey);
+        if (canonicalKey !== windowKey && (listed || window.dinahWorkbench.known(canonicalKey))) {
           if (other) other.refreshDrafts();
           if (state !== undefined) window.dinahWorkbench.setState(canonicalKey, state);
           var foreground = window.pudlWindows.state().top === windowKey;
           window.pudlWindows.close(windowKey);
-          if (foreground) window.pudlWindows.raise(canonicalKey);
+          if (!listed) window.dinahWorkbench.open(canonical).catch(function () { /* The window says so itself. */ });
+          else if (foreground) window.pudlWindows.raise(canonicalKey);
           return;
         }
         if (canonicalKey !== windowKey) {

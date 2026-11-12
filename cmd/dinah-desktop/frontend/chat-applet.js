@@ -1142,14 +1142,31 @@
          A window that follows a continuation shows the continuation's own
          saved copy and events, read as a window opened for it reads them
          (restoreChat, under the same condition as init). */
+      /* The continuation has a window of its own, so this one gives way:
+         its pinned button becomes the continuation's, that window is opened
+         or brought forward, and this one closes. */
+      function handOverTo(mine, target, next) {
+        if (window.dinahTaskbarPins && window.dinahTaskbarPins.move) window.dinahTaskbarPins.move(mine, target);
+        Promise.resolve().then(function () { return window.dinahWorkbench.open({ kind: 'chat-session', workspace: workspace, path: next.id }); })
+          .catch(function () { /* The window that could not be opened says so itself. */ })
+          .then(function () { window.pudlWindows.close(mine); });
+      }
       function follow(next) {
         var target = chatKey(next.id, workspace), own = root.closest('[data-win]');
-        if (own && target !== key && window.pudlWindows.state().open.includes(target)) {
-          var mine = key;
-          // A pinned button for this window is the continuation's now.
-          if (window.dinahTaskbarPins && window.dinahTaskbarPins.move) window.dinahTaskbarPins.move(mine, target);
-          window.pudlWindows.raise(target);
-          window.pudlWindows.close(mine);
+        /* The window's key is what PUDL has for it. This controller's own
+           record of it can differ (a key worked out again from another
+           spelling of the folder), and PUDL renames and closes a window only
+           by the key it has. */
+        if (own && own.dataset.win && own.dataset.win !== key) { chatControllers.delete(key); key = own.dataset.win; chatControllers.set(key, controller); }
+        /* The continuation's window may be open, or be one the layout is
+           still opening at the start, which PUDL does not list as open yet
+           and will not give this window's key up for either. Both are known
+           by the window's markup, which the workbench makes for every window
+           of the layout before any opens. Asking only for an open window
+           left this one half-followed at a start: its log emptied, and the
+           rename refused (Paul, 12 November 2026). */
+        if (own && target !== key && (window.pudlWindows.state().open.includes(target) || window.dinahWorkbench.known(target))) {
+          handOverTo(key, target, next);
           return;
         }
         if (next.view && next.view !== controller) {
@@ -1164,7 +1181,16 @@
         key = chatKey(next.id, workspace);
         chatControllers.delete(old); chatControllers.set(key, controller); next.view = controller;
         $('logs').replaceChildren();
-        if (own) window.dinahWorkbench.rekey(old, item);
+        if (own) {
+          try { window.dinahWorkbench.rekey(old, item); }
+          catch (err) {
+            // The key is another window's after all: that window is the chat's.
+            chatControllers.delete(key); chatControllers.set(old, controller); next.view = null;
+            key = old;
+            handOverTo(old, target, next);
+            return;
+          }
+        }
         selectChat(next.id); controller.refresh(); loadSkills();
         refreshSessions();
         if (!next.info.open || (!next.saved && !next.loading && !next.log.firstChild)) Promise.resolve().then(function () { return restoreChat(next); }).catch(function () {});

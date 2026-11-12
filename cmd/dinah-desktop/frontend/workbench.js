@@ -495,6 +495,9 @@
     key: function (item) { return encode(canonical(item)); },
     /* The key of the window or pinned button that is the same thing as
        the one with this key, or the key itself (taskbar-pins.js). */
+    /* Whether a window of this key is one the workbench has made markup
+       for: one that is open, was open, or is in the layout being opened. */
+    known: function (key) { return !!document.getElementById('win-source-' + key); },
     sameAs: function (key) { var item = decode(key); return item ? encode(canonical(item)) : key; },
     // Apply a navigation target without raising a background restored window.
     setState: setWindowState,

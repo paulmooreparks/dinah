@@ -27,6 +27,14 @@ A kind that says nothing keeps one window for each key, as before.
 
 A button whose new key is pinned already is dropped, so no thing has two. PUDL keeps the pins, their order and their references; the three are rewritten together and given back through `configureTaskbar`, which PUDL documents as the way to set them.
 
+## A window that is still being opened
+
+At the next start after the first version of this change one chat's old window was still left half-followed, with its log emptied and the error "The chat window could not be renamed" (Paul, 12 November 2026). The hand-over asked PUDL whether the continuation's window was open. At a start PUDL opens the windows of the layout one after another, and does not list a window as open until it is; it also refuses to give a window the key of one it is opening. So the old window found no open window, tried to take the key, and was refused part of the way through.
+
+The hand-over now also counts a window the workbench has made markup for (`known` in `workbench.js`), which it does for every window of the layout before any opens. It opens that window, which waits for one being opened and brings an open one forward, and then closes the old one (`handOverTo` in `chat-applet.js`). A rename that PUDL still refuses ends the same way and leaves nothing half-done. The window is renamed and closed by the key PUDL has for it, read from the window itself. A group chat's window that finds its group's own window does the same (`bus-applets.js`).
+
+This start could not be reproduced in the browser suites, where a window opens at once. `e2e/chat-continued-pinned.js` and `e2e/chat-continued-opening.js` cover the hand-over to a window that is open and to one whose markup exists and is opened at that moment; the refusal itself was seen only in Paul's log.
+
 ## Checks
 
 `e2e/one-thing-one-window.js` covers the rule with a fixture kind: two spellings open one window, a pinned button is found by the other spelling, a window given a new key keeps its button, and a button moved onto a pinned thing leaves one. `e2e/chat-continued-spelling.js` is Paul's case: the old session's window, pinned and spelled one way, is handed over to the continuation's window spelled the other way. It fails on the code before this change, with the old window left open.
