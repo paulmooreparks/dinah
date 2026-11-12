@@ -2834,18 +2834,78 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
             return table.concat(hostCommands.rows(ready), editing() ? editing().commands() : [], commonToolbar ? commonToolbar.commands() : [], SEVERAL_VIEWS ? [{ id: 'view-mode', label: 'View', glyph: 'panel', toolbarChoice: 'ed-view', toolbarPriority: 50, items: MARKDOWN_VIEWS.map(function (v) { return 'view-'+v[0]; }) }] : []);
         }
 
-        /* The toolbar: what is used most stays named longest, and the view
-           switch and Preview keep to the end of the row. */
-        function toolbars() {
-            if (commonToolbar) { return []; }
-            /* ribbon: 'hide' (PUDL 0.80.1): every command here is in a
-               menu (menus() below), so the ribbon has them while it shows. */
-            return [{ label: isDocs ? 'Docs' : 'Editor', ribbon: 'hide', groups: [
-                { label: 'File', glyph: 'file', priority: 3, items: ['toggle-files', 'new', 'open', 'save', 'save-as'] },
-                { label: 'Edit', glyph: 'yavc-undo', priority: 2, items: ['undo', 'redo', 'find', 'toggle-wrap'] },
-                { label: 'Format', glyph: 'bold', priority: 1, items: ['style', 'bold', 'italic', 'underline', 'strike', 'code', 'link', 'color', 'bullets', 'numbers', 'insert', 'table', 'box'] },
-                { label: 'View', glyph: 'new-window', priority: 4, end: true, items: SEVERAL_VIEWS ? ['source', { choice: 'ed-view' }, 'preview'] : ['source', 'preview'] }
-            ] }];
+        /* The toolbar a host without the toolbar service gets: what is used
+           most stays named longest, and the view switch and Preview keep to
+           the end of the row. It is drawn by the workspace into its own
+           slot, as the host's toolbar service draws its bar (below), and
+           not returned from toolbars(). PUDL reads toolbars() once, as the
+           shell returns, which is before this script has loaded, so a bar
+           offered there was never drawn. */
+        var FALLBACK_TOOLBAR = [
+            { label: 'File', glyph: 'file', priority: 3, items: ['toggle-files', 'new', 'open', 'save', 'save-as'] },
+            { label: 'Edit', glyph: 'yavc-undo', priority: 2, items: ['undo', 'redo', 'find', 'toggle-wrap'] },
+            { label: 'Format', glyph: 'bold', priority: 1, items: ['style', 'bold', 'italic', 'underline', 'strike', 'code', 'link', 'color', 'bullets', 'numbers', 'insert', 'table', 'box'] },
+            { label: 'View', glyph: 'new-window', priority: 4, end: true, items: SEVERAL_VIEWS ? ['source', { choice: 'ed-view' }, 'preview'] : ['source', 'preview'] }
+        ];
+        function toolbars() { return []; }
+        var fallbackBar = null, fallbackSignature = null;
+        /* The bar holds a button for each command that is in the table now and a segmented choice where a command is in it, and is drawn
+           again when the commands change, since the editing commands come and go with the document. Only buttons for commands that
+           exist are drawn, so no control is left for PUDL to fill with nothing. A command's fields may be functions, and a command may
+           hold others in its items, as PUDL reads them. */
+        var fallbackFocusFrame = 0;
+        function fallbackCommands() {
+            var known = new Set(), choices = new Set(), walked = new Set();
+            function field(c, name) { var v = c[name]; return typeof v === 'function' && name !== 'run' ? v.call(c) : v; }
+            (function walk(list, depth) {
+                if (!Array.isArray(list) || depth > 8) { return; }
+                list.forEach(function (c) {
+                    if (!c || typeof c !== 'object' || walked.has(c)) { return; } walked.add(c);
+                    if (typeof c.id === 'string') { known.add(c.id); }
+                    try { var choice = field(c, 'choice'); if (typeof choice === 'string') { choices.add(choice); } walk(field(c, 'items'), depth + 1); } catch (err) { /* A submenu that is not ready is read again at the next change. */ }
+                });
+            })(commandTable(), 0);
+            return { known: known, choices: choices };
+        }
+        function drawFallbackToolbar() {
+            if (!fallbackBar || destroyed) { return; }
+            var have = fallbackCommands();
+            var groups = FALLBACK_TOOLBAR.map(function (g) {
+                return { g: g, items: g.items.filter(function (item) { return typeof item === 'string' ? have.known.has(item) : have.choices.has(item.choice); }) };
+            }).filter(function (entry) { return entry.items.length; });
+            var next = JSON.stringify(groups.map(function (entry) { return [entry.g.label, entry.items]; }));
+            if (next === fallbackSignature) { return; }
+            fallbackSignature = next;
+            var owned = fallbackBar.contains(document.activeElement), focused = owned ? document.activeElement.getAttribute('data-command') : null;
+            fallbackBar.replaceChildren();
+            groups.forEach(function (entry) {
+                var g = entry.g, group = document.createElement('div');
+                group.className = 'toolbar-group'; group.setAttribute('role', 'group'); group.setAttribute('aria-label', g.label);
+                group.setAttribute('data-toolbar-group', g.label); group.setAttribute('data-toolbar-glyph', g.glyph); group.setAttribute('data-toolbar-priority', String(g.priority));
+                if (g.end) { group.setAttribute('data-toolbar-end', ''); }
+                entry.items.forEach(function (item) {
+                    var control;
+                    if (typeof item === 'string') { control = document.createElement('button'); control.type = 'button'; control.setAttribute('data-command', item); }
+                    else { control = document.createElement('div'); control.className = 'seg sm'; control.setAttribute('data-command-choice', item.choice); }
+                    group.appendChild(control);
+                });
+                fallbackBar.appendChild(group);
+            });
+            if (window.pudlCommands) { window.pudlCommands.changed(); }
+            if (window.pudlToolbar) { window.pudlToolbar.enhance(fallbackBar.parentNode); }
+            /* PUDL fills the controls and folds the row in the next frame, so the keyboard is given back after that, to the same command
+               where it is still shown and otherwise to the first control that is, or to the workspace. */
+            if (owned) {
+                cancelAnimationFrame(fallbackFocusFrame);
+                fallbackFocusFrame = requestAnimationFrame(function () {
+                    fallbackFocusFrame = 0;
+                    if (destroyed || !fallbackBar || (!fallbackBar.contains(document.activeElement) && document.activeElement !== document.body)) { return; }
+                    if (window.pudlToolbar && window.pudlToolbar.fit) { window.pudlToolbar.fit(fallbackBar); }
+                    var shown = Array.from(fallbackBar.querySelectorAll('button')).filter(function (b) { return !b.disabled && b.getAttribute('aria-disabled') !== 'true' && b.getClientRects().length && getComputedStyle(b).visibility !== 'hidden'; });
+                    var back = shown.find(function (b) { return focused && b.getAttribute('data-command') === focused; }) || shown[0];
+                    (back || root).focus({ preventScroll: true });
+                });
+            }
         }
 
         var LAYOUT = ['toggle-files', 'toggle-outline', 'hide-navigation', 'toggle-wrap', '-'].concat(SEVERAL_VIEWS ? MARKDOWN_VIEWS.map(function (v) { return 'view-' + v[0]; }).concat(['document-zoom', 'md-default', '-']) : [], ['source', 'preview']);
@@ -3163,6 +3223,18 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
         var detachLive = window.pudlApplets && window.pudlApplets.attach ? window.pudlApplets.attach('yavc.' + app, liveActions) : null;
         var commonToolbar = window.pudlHost && window.pudlHost.commandToolbar ? window.pudlHost.commandToolbar.attach(root, { app: app, label: isDocs ? 'Docs' : 'Editor', table: commandTable,
             defaults: ['save', '-', 'undo', 'redo', '-', 'style', 'bold', 'italic', 'link', 'insert', '-', 'find'].concat(SEVERAL_VIEWS ? ['-', 'view-mode'] : []) }) : null;
+        /* Without the host's toolbar service the workspace draws its own, once it has started. */
+        var fallbackSlot = commonToolbar ? null : root.querySelector('[data-toolbar-slot]');
+        if (fallbackSlot) {
+            fallbackBar = document.createElement('div');
+            fallbackBar.className = 'toolbar yavc-fallback-toolbar'; fallbackBar.setAttribute('role', 'toolbar');
+            fallbackBar.setAttribute('aria-label', (isDocs ? 'Docs' : 'Editor') + ' Toolbar'); fallbackBar.setAttribute('data-toolbar-fold', '');
+            /* Every command on it is in a menu, so the ribbon has them while it shows (PUDL 0.80.1). */
+            fallbackBar.setAttribute('data-toolbar-ribbon', 'hide');
+            fallbackSlot.appendChild(fallbackBar);
+            document.addEventListener('pudl:commands-change', drawFallbackToolbar);
+            drawFallbackToolbar();
+        }
 
         return {
             state: function () { return stateString() || null; },
@@ -3180,6 +3252,7 @@ cmd('edit-diagram', 'Edit Diagram', 'new-window', function () { return openDiagr
                 outlineRevision++; clearTimeout(outlineTimer);
                 window.removeEventListener('popstate', locationChanged);
                 if (commonToolbar) { commonToolbar.destroy(); }
+                if (fallbackBar) { document.removeEventListener('pudl:commands-change', drawFallbackToolbar); cancelAnimationFrame(fallbackFocusFrame); fallbackBar.remove(); fallbackBar = null; }
                 /* The session as the Editor closes, for when it opens again. */
                 if (detachLive) { detachLive(); }
                 keepSession();

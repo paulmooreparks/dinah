@@ -1,5 +1,5 @@
 {
-  "digest": "3fc1f626ee8fa5cc12af7621639db11cde663d521d1f99c997d1dd3f423ed791",
+  "digest": "209ea31e97d8b1f952ce7862de820cdf043dbcfdc3f1511f2d9b4e1a374a8c0b",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -111,7 +111,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "c792770ae302d5e6a67b497817c3df2865c2db5158ca1ed2278721c8843d570c"
+      "sha256": "52e74d51b7a4577f2ea452f2f8531f0e4c72f5871cba43c542046d92ad4c38a6"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -130,13 +130,13 @@
     },
     {
       "path": "content/diagrams/diagrams.css",
-      "bytes": 25424,
-      "sha256": "3095c0e18f38db43a498744204ea76127ebaddb8efe2a46858477e4747da2a85"
+      "bytes": 25909,
+      "sha256": "a8684e4737188b991e1f6d08b19f9aeea53c153caeb97e74cbb962d4ebd23763"
     },
     {
       "path": "content/diagrams/diagrams.js",
-      "bytes": 216272,
-      "sha256": "45a3f453f3233a0c453bf1e1b7dec77282eb6e7c22fcf1078bfa15aa369e5ba4"
+      "bytes": 226272,
+      "sha256": "9bb39a20d311232b1ad2e50d28868977f745dd854240174615647b7ee920bbbb"
     },
     {
       "path": "content/diagrams/icon.svg",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "da51ba8613a6bb2eb7d45869b5ab57794fd9e9eab2cbc6a4ffaab91b8fd105dc"
+      "sha256": "ff555cbe0c4ec105778f7472ca582b541d0ea6792111079a8db6c55d4c586526"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 686,
-      "sha256": "1205963504e7abdaceed861d70a2213755f459523403411b0eec0f751e56953e"
+      "sha256": "d76136f98798ede01140220d7b1d1dcb8a865cf601d16abc3da432a167026747"
     },
     {
       "path": "content/editor/editor.css",
@@ -1400,8 +1400,8 @@
     },
     {
       "path": "content/text-workspace/workspace.js",
-      "bytes": 249765,
-      "sha256": "633958385391c8cfd63d7bda2770cec965b7d4db7ced8f8eb587da40caad3196"
+      "bytes": 255679,
+      "sha256": "663d3edfc2f0e6bdc681a964d0009f1af36b6b0bc96044a4ec6f3cc894ecff83"
     },
     {
       "path": "go.mod",
