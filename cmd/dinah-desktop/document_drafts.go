@@ -153,7 +153,24 @@ func (a *App) SaveDraft(id, expected string) (DraftSaved, error) {
 	if err != nil {
 		return DraftSaved{}, err
 	}
-	return o.Save(id, expected)
+	saved, err := o.Save(id, expected)
+	if err == nil {
+		a.savedElsewhere(saved)
+	}
+	return saved, err
+}
+
+// savedElsewhere tells the page that a document was written to where it is
+// kept, so that a window showing something that draws from it reads it
+// again: a document that shows a diagram kept on a page, after the diagram
+// is published from its own window. A file in a folder is seen changing on
+// disk as well; a document of any other source is seen by this alone.
+func (a *App) savedElsewhere(saved DraftSaved) {
+	o := saved.View.Origin
+	if o.Kind == "" || o.Kind == drafts.OriginNew {
+		return
+	}
+	a.emitWorkspaceMountChanged("content-changed", o.WorkspaceID, o.SourceID)
 }
 
 // SaveDraftAs writes a draft to a new resource, such as a new file in a local
@@ -167,6 +184,7 @@ func (a *App) SaveDraftAs(id, expected string, ref ResourceRef) (DraftSaved, err
 	saved, err := o.SaveAs(id, expected, ref)
 	if err == nil {
 		a.recordOpened(saved.View)
+		a.savedElsewhere(saved)
 	}
 	return saved, err
 }
