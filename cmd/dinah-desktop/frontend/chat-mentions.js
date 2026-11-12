@@ -106,7 +106,7 @@
       // Documents open in the Editor, the one most recently in front first.
       ((window.dinahDocuments && window.dinahDocuments.open) ? window.dinahDocuments.open() : []).forEach(function (d) {
         if (q && d.title.toLowerCase().indexOf(q.replace(/_/g, ' ')) < 0) return;
-        out.push({ group: 'Open Documents', label: d.title, meta: 'Open in the Editor', ins: '@' + d.title.replace(/\s+/g, '_'), att: { kind: 'draft', name: d.title, draftId: d.draftId } });
+        out.push({ group: 'Open Documents', label: d.title, meta: 'Open in ' + (d.application || 'the Editor') + (d.where ? ' · ' + d.where : ''), ins: '@' + d.title.replace(/\s+/g, '_'), att: { kind: 'draft', name: d.title, draftId: d.draftId } });
       });
       /* Open chats across workspaces, with this chat's workspace first and
          workspace labels to distinguish names. A

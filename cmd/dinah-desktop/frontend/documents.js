@@ -48,6 +48,23 @@
   // The Editor in front gives its Edit and View commands to command search.
   C.addSearch(function () { var f = front(); return f && f.searchRows ? f.searchRows() : []; });
 
+  /* Where an open document is kept, in words a person can tell two
+     documents of one name apart by: its source, and for a file the folder
+     it is in. Two windows may show documents of the same name, one a page
+     of a site and one a file, and a list of them said nothing else about
+     either (Paul, 12 November 2026). A new document is kept nowhere yet. */
+  var APPLICATIONS = { 'editor': 'the Editor', 'content-docs': 'Docs', 'content-diagrams': 'Diagrams', 'content-slides': 'Slides' };
+  function where(ref) {
+    if (!ref || !ref.path) return 'Not saved yet';
+    var records = window.dinahWorkspaceBrowser ? window.dinahWorkspaceBrowser.records() : [];
+    var owner = records.find(function (r) { return r.id === ref.workspaceId; });
+    var source = owner && (owner.sources || []).find(function (x) { return x.id === ref.sourceId; });
+    var name = source && source.name || 'A source';
+    // A file's folder is part of where it is; the path of a document of
+    // another kind of source is the source's own (a page's number).
+    var folder = source && source.kind === 'local-folder' && ref.path.indexOf('/') >= 0 ? ref.path.slice(0, ref.path.lastIndexOf('/')) : '';
+    return name + (folder ? ' / ' + folder : '');
+  }
   window.dinahDocuments = {
     attach: function (key, controller) { controllers.set(key, controller); noteFront(); },
     detach: function (key) { controllers.delete(key); recency = recency.filter(function (k) { return k !== key; }); C.changed(); },
@@ -63,7 +80,8 @@
       return keys.map(function (k) {
         var item = window.dinahWorkbench.item(k), win = document.querySelector('[data-win="' + CSS.escape(k) + '"] .win-title');
         var title = (item && item.title) || (win ? win.textContent.replace(/ \(changed\)$/, '').trim() : '');
-        return item && item.path ? { draftId: item.path, title: title, workspaceId: item.workspace } : null;
+        var c = controllers.get(k);
+        return item && item.path ? { draftId: item.path, title: title, workspaceId: item.workspace, application: APPLICATIONS[item.kind] || 'the Editor', where: where(c && c.ref ? c.ref() : null) } : null;
       }).filter(Boolean);
     },
     /* Recent shows each workspace's name as it is now, so a rename reads
