@@ -66,6 +66,7 @@
     return name + (folder ? ' / ' + folder : '');
   }
   window.dinahDocuments = {
+    where: where,
     attach: function (key, controller) { controllers.set(key, controller); noteFront(); },
     detach: function (key) { controllers.delete(key); recency = recency.filter(function (k) { return k !== key; }); C.changed(); },
     current: current,

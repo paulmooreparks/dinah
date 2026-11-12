@@ -111,10 +111,21 @@
        every pause in typing, which moved the title bar's words and redrew
        the taskbar and the docks for every window (Paul, 9 November 2026).
        Retitling redraws them, so the title is set only when it changes. */
-    var titled = '';
+    var titled = '', lastDoc = null;
     function retitle(doc) {
       if (disposed || !doc || opts.embedded) return;
+      lastDoc = doc;
       var title = (presenter ? 'Presenter · ' : '') + doc.name, detail = workspaceName(draft.origin.workspaceId);
+      /* Two windows of one workspace whose documents have the same name
+         say where each is kept, after the workspace: the source, and for
+         a file its folder. Nothing else in a title, a taskbar row or the
+         Window menu told a page of a site from a file of the same name
+         (Paul, 12 November 2026). A window with no such twin says only its
+         workspace, as before. */
+      var o = draft.origin || {};
+      if (named(key, title, o.workspaceId || '', function () { titled = ''; retitle(lastDoc); }) && window.dinahDocuments && window.dinahDocuments.where) {
+        detail = (detail ? detail + ' · ' : '') + window.dinahDocuments.where(o.path ? { workspaceId: o.workspaceId, sourceId: o.sourceId, path: o.path } : null);
+      }
       /* A page is published on the person's word, so the title says while
          the draft holds changes the page does not have yet. */
       if (draft.writeBack === 'publish' && draft.changed) detail = (detail ? detail + ' · ' : '') + 'Not published';
@@ -884,6 +895,7 @@
       destroy: function () {
         if (comments) { comments.destroy(); comments = null; }
         disposed = true;
+        unnamed(key);
         clearTimeout(saveTimer);
         clearTimeout(problemsTimer);
         // The deck's presenter window goes with the deck's window.
@@ -968,6 +980,32 @@
       applet: GROUPS[app],
       init: function (root, opts, item) { return init(app, root, opts, item); } });
   });
+
+  /* The names the open document windows have, so that two of one name in
+     one workspace can each say where its document is kept. named records a
+     window's name and reports whether another window has it; a window
+     whose twin came or went is asked to title itself again. */
+  var names = new Map();
+  function twins(key, name, workspace) {
+    var out = [];
+    names.forEach(function (n, k) { if (k !== key && n.name === name && n.workspace === workspace) out.push(n); });
+    return out;
+  }
+  function named(key, name, workspace, again) {
+    var was = names.get(key);
+    var changed = !was || was.name !== name || was.workspace !== workspace;
+    var left = was && changed ? twins(key, was.name, was.workspace) : [];
+    names.set(key, { name: name, workspace: workspace, again: again });
+    var now = twins(key, name, workspace);
+    if (changed) left.concat(now).forEach(function (n) { setTimeout(n.again, 0); });
+    return now.length > 0;
+  }
+  function unnamed(key) {
+    var was = names.get(key);
+    if (!was) return;
+    names.delete(key);
+    twins(key, was.name, was.workspace).forEach(function (n) { setTimeout(n.again, 0); });
+  }
 
   /* ---- Opening ------------------------------------------------------------ */
 
