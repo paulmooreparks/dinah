@@ -19,7 +19,7 @@
   var FILE = 'command-toolbars', SHOW = 'common-toolbar-show', EDIT = 'common-toolbar-customize', LIMIT = 60, serial = 0;
 
   function field(command, name) { var v = command[name]; return typeof v === 'function' ? v.call(command) : v; }
-  function esc(text) { return String(text).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function esc(text) { return window.dinahHTML.text(text); }
   function toast(text) { if (window.dinahHost && window.dinahHost.toast) window.dinahHost.toast(text, 'danger'); }
 
   /* The ids a toolbar may hold: strings, each once, at most 60, with no
