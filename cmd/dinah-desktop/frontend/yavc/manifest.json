@@ -1,5 +1,5 @@
 {
-  "digest": "9ceb34c2cb48f2578e9a0f1974be3deff9080cb0c033e88a17c163a4a9c9d4f6",
+  "digest": "3fc1f626ee8fa5cc12af7621639db11cde663d521d1f99c997d1dd3f423ed791",
   "entries": [
     "content/editor/applet.json",
     "content/docs/applet.json",
@@ -65,8 +65,8 @@
     },
     {
       "path": "content/diagram-kit/d2.js",
-      "bytes": 17074,
-      "sha256": "4bcdde198186eb5eed562649e786ced70504b040ba528fbefae7adfc965ba4f7"
+      "bytes": 17904,
+      "sha256": "27426a2260be3e43394b9d98a558402e06f130d8e1f1da292ced10adeabcf002"
     },
     {
       "path": "content/diagram-kit/jcanvas.js",
@@ -80,8 +80,8 @@
     },
     {
       "path": "content/diagram-kit/picture.js",
-      "bytes": 9318,
-      "sha256": "e35aec91dbec2542c4d341e28f590c2edefe041e1caba90184a82176b30be72c"
+      "bytes": 9355,
+      "sha256": "ad1c7312b02fde3311b70b935f4628a136622342fe163c3b7db8c7955be1eae7"
     },
     {
       "path": "content/diagram-kit/references.js",
@@ -111,7 +111,7 @@
     {
       "path": "content/diagrams/applet.json",
       "bytes": 742,
-      "sha256": "9c6968f184aed9e28554fd621ce20d716c47618436e0d4f1b2a05d7e306e57ea"
+      "sha256": "c792770ae302d5e6a67b497817c3df2865c2db5158ca1ed2278721c8843d570c"
     },
     {
       "path": "content/diagrams/canvas-model.js",
@@ -156,7 +156,7 @@
     {
       "path": "content/docs/applet.json",
       "bytes": 653,
-      "sha256": "66291abdbd4077e65667bb70d860501c95ced56bebe9ea7098cfb2c6a27548d7"
+      "sha256": "da51ba8613a6bb2eb7d45869b5ab57794fd9e9eab2cbc6a4ffaab91b8fd105dc"
     },
     {
       "path": "content/docs/docs.css",
@@ -186,7 +186,7 @@
     {
       "path": "content/editor/applet.json",
       "bytes": 686,
-      "sha256": "94964d1334680cc7c30ad9e3400cd49a5598a69ddc692736771a6e41630010c1"
+      "sha256": "1205963504e7abdaceed861d70a2213755f459523403411b0eec0f751e56953e"
     },
     {
       "path": "content/editor/editor.css",
@@ -1306,7 +1306,7 @@
     {
       "path": "content/slides/applet.json",
       "bytes": 776,
-      "sha256": "d9038fc56edbe12327714602d549e27f1742464c906f9082e433e273a67dfe8f"
+      "sha256": "8da62ab75594dee966f63f17f810f581e0dda3a90866d99a7c23227d58ca8d44"
     },
     {
       "path": "content/slides/export-pdf.js",

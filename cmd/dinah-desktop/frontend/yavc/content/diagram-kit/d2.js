@@ -207,6 +207,16 @@
         window.yavcUtil.notice(ref, 'The diagram could not be drawn. ' + where + first.message + more, 'problem');
     }
 
+    /* D2's drawing has a viewBox and no size of its own. A browser gives such a picture in an img a natural size of 300 by 150 at most,
+       whatever the img's own width and height say, and anything that asks the picture for its size, a host's frame around it say, gets
+       that small one. So a drawing that leaves here as a picture states its size, as a canvas's does (decision 137). */
+    function sized(svg, width, height) {
+        var open = /^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b[^>]*>/.exec(svg);
+        if (!open || !(width > 0) || !(height > 0) || /\swidth\s*=/.test(open[0])) { return svg; }
+        var at = open[0].lastIndexOf('<svg') + 4;
+        return svg.slice(0, at) + ' width="' + Math.round(width) + '" height="' + Math.round(height) + '"' + svg.slice(at);
+    }
+
     var drawCount = 0;
     function call(name, req, key) {
         return request(name, JSON.stringify(req), key);
@@ -245,7 +255,7 @@
             if (out.problems && out.problems.length) { failed(out.problems); return out; }
             var img = document.createElement('img');
             img.className = 'sc-diagram-image';
-            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(out.svg);
+            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(sized(out.svg, out.width, out.height));
             img.width = out.width;
             img.height = out.height;
             img.alt = opts.alt || 'A diagram drawn from D2 source';
@@ -299,5 +309,5 @@
     new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-palette', 'data-skin'] });
     if (window.matchMedia) { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll); }
 
-    window.yavcD2Engine = Object.freeze({ compile: compile, draw: draw, call: call, version: function () { return request('version', '').then(function (o) { return o && o.d2; }); } });
+    window.yavcD2Engine = Object.freeze({ compile: compile, draw: draw, sized: sized, call: call, version: function () { return request('version', '').then(function (o) { return o && o.d2; }); } });
 })();

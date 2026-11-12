@@ -70,7 +70,7 @@
             throw new Error(first ? (first.line > 0 ? 'Line ' + first.line + ': ' : '') + first.message : 'The diagram engine gave no drawing.');
         }
         var problems = out.icons && out.icons.length ? [out.icons.length === 1 ? 'One icon from another site was left out of this diagram.' : out.icons.length + ' icons from other sites were left out of this diagram.'] : [];
-        return { svg: out.svg, width: out.width, height: out.height, problems: problems };
+        return { svg: engine.sized(out.svg, out.width, out.height), width: out.width, height: out.height, problems: problems };
     }
 
     /* Mermaid measures its text on the page, so it draws into a place that
