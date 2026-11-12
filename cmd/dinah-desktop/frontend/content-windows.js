@@ -858,7 +858,10 @@
         var own = src && src.menus ? src.menus() || { titles: [] } : { titles: [] };
         var rows = window.dinahCommands ? window.dinahCommands.rows('document') : [];
         if (!rows.length) return own;
-        return { titles: (own.titles || []).concat([{ id: 'document', label: 'Document', mnemonic: 'M', glyph: 'document', items: rows }]) };
+        /* What the applet adds to the window's own View menu (its into)
+           is kept: it was dropped here, so the applets' View rows, Show
+           the Toolbar and Customize Toolbar among them, were in no menu. */
+        return Object.assign({}, own, { titles: (own.titles || []).concat([{ id: 'document', label: 'Document', mnemonic: 'M', glyph: 'document', items: rows }]) });
       },
       destroy: function () {
         if (comments) { comments.destroy(); comments = null; }
