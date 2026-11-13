@@ -63,7 +63,7 @@ var pageMethods = func() map[string]pageMethodClass {
  PendingPermissions PendingExitConfirmation PendingPageAsks PendingExtensionReviews ProviderStates
  ChatEvents ChatStates OpenShow PostShow CloseShow StandaloneApplications OpenStandalone
  ChatHistory ChatImageInput ChatWindows HostLocale ModelPrices Notifications
- InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate`)
+ InstalledPackages OldAttachments PlanPackages PlanPersonalPackages PlanRemovePackages PlanWorkspaceImport RestartToUpdate PauseAndRestart`)
 	list(pageWork, `
  AddFileAccessEntry RemoveFileAccessEntry SetFileAccessDefault AcknowledgeFileAccessLog
  LogQueueDefault DismissJudgementWarning DismissJudgementWarnings SetJudgementSettings RunJudgementCalibration CorrectJudgement ResolveHold ForgetContextChoice AcceptSuggestion AddDraftFile AddTerminalProfile AgentCheck AgentConnect AgentRestart

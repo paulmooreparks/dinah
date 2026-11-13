@@ -271,6 +271,7 @@ func (a *App) startup(ctx context.Context) {
 	})
 	logf("core", "info", "%s %s started", product.Name, shownVersion())
 	logRestartWait()
+	go a.resumePaused(true)
 	a.restoreTerminalShutdownNotice()
 	a.startHostNotices()
 	a.hearSourceChanges()

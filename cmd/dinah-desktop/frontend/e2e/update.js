@@ -14,7 +14,8 @@ const { launch } = require('./lib/page');
         ReadUIState: async () => ({ version: 1, values: { 'dinah-workbench-layout': '?open=workspace' } }),
         UpdateState: async () => window.__update,
         RestartToUpdate: async now => { __calls.push(['restart', now]); window.__update = Object.assign({}, window.__update, { pending: true }); __emit('update:state', window.__update); },
-        CancelRestart: async () => { __calls.push(['cancel']); window.__update = Object.assign({}, window.__update, { pending: false }); __emit('update:state', window.__update); },
+        CancelRestart: async () => { __calls.push(['cancel']); window.__update = Object.assign({}, window.__update, { pending: false, pausing: false, overdue: false, blockers: [] }); __emit('update:state', window.__update); },
+        PauseAndRestart: async () => { __calls.push(['pause']); window.__update = Object.assign({}, window.__update, { pending: true, pausing: true, working: 2, blockers: ['Fix the Parser', 'Write the Tests'] }); __emit('update:state', window.__update); },
       };
     },
     ready: () => document.querySelector('[data-win="workspace"]'),
@@ -78,6 +79,24 @@ const { launch } = require('./lib/page');
     const quiet = await p.locator('#ask-body').textContent();
     ok('Restart Now asks with the count it reads now, which fell to 0 since the update arrived', /No chat is working/.test(quiet) && !/unfinished/.test(quiet), quiet);
     await p.locator('#ask-no').click();
+    // Pause Chats and Restart asks the working chats to stop, says which ones it still waits for,
+    // and after two minutes keeps a card in Notifications that restarts anyway or cancels.
+    await p.keyboard.press('Escape');
+    await item.click();
+    await p.locator('#update-pause').click();
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'pause'));
+    await p.waitForFunction(() => /asked the working chats to pause/.test(document.querySelector('#update-note').textContent));
+    const pausing = await p.locator('#update-note').textContent();
+    ok('the note names the chats the restart still waits for', pausing.includes('Still working: Fix the Parser, Write the Tests.'), pausing);
+    ok('while pausing, the menu offers Cancel the Restart and no second pause', await p.evaluate(() => !document.getElementById('update-cancel').hidden && document.getElementById('update-pause').hidden));
+    ok('no card is kept before two minutes', await p.evaluate(() => !dinahHost.notices.get('dinah-pause-overdue')));
+    await p.evaluate(() => { window.__update = Object.assign({}, window.__update, { overdue: true, blockers: ['Write the Tests'] }); __emit('update:state', window.__update); });
+    await p.waitForFunction(() => !!dinahHost.notices.get('dinah-pause-overdue'));
+    const card = await p.evaluate(() => { const e = dinahHost.notices.get('dinah-pause-overdue'); return { title: e.title, description: e.description, actions: e.actions.map(a => a.label) }; });
+    ok('after two minutes a card says who has not paused, with Restart Now and Cancel the Restart', card.title.startsWith('1 chat has not paused') && card.description.includes('Write the Tests') && card.actions.join('|') === 'Restart Now…|Cancel the Restart', JSON.stringify(card));
+    await p.evaluate(() => dinahHost.notices.get('dinah-pause-overdue').actions[1].run());
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'cancel') && !dinahHost.notices.get('dinah-pause-overdue'));
+    ok('Cancel the Restart on the card cancels, and the card goes', await p.evaluate(() => !document.getElementById('update-pause').hidden));
     await p.evaluate(() => __emit('update:state', { ready: false, pending: false, working: 0 }));
     await p.waitForFunction(() => !dinahHost.notices.get('dinah-update'));
     ok('the Notifications card goes when no newer build is waiting', true);

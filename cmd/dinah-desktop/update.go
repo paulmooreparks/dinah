@@ -41,6 +41,14 @@ type UpdateState struct {
 	Working int `json:"working"`
 	// Writing is how many documents are being saved or published.
 	Writing int `json:"writing"`
+	// Pausing is set when the waiting restart asked the working chats to
+	// pause, and Blockers are the chats a waiting restart still waits for,
+	// by their titles.
+	Pausing  bool     `json:"pausing"`
+	Blockers []string `json:"blockers"`
+	// Overdue is set when chats asked to pause are still working after
+	// pauseGrace.
+	Overdue bool `json:"overdue"`
 	// StateGen and StateVer order the snapshots of this state the page is
 	// given (internal/sessionhost/state_events.go).
 	StateGen string `json:"stateGen,omitempty"`
@@ -57,7 +65,19 @@ type updateWatch struct {
 	// pending is set while the window waits to restart, and restarting
 	// once the window has agreed to close.
 	pending, restarting bool
+	// pausing is set when the waiting restart asked the working chats to
+	// pause, and telling for the moment in which they are asked, when a
+	// steering message is let through although turns are held
+	// (restart_pause.go).
+	pausing, telling bool
+	// pausedAt is when the chats were asked to pause.
+	pausedAt time.Time
 }
+
+// pauseGrace is how long the chats asked to pause are given before the
+// ones still working are shown as what the restart waits for, with the
+// choice to restart anyway or to cancel (Paul, 14 November 2026).
+const pauseGrace = 2 * time.Minute
 
 // admitWrite is asked before a document is written to where it is kept: a
 // file saved, a page published, a source's pictures drawn again. It refuses
@@ -206,12 +226,18 @@ func (a *App) UpdateState() UpdateState {
 	w := a.update
 	st := UpdateState{}
 	if w != nil {
-		st.Ready, st.Pending = w.ready, w.pending
+		st.Ready, st.Pending, st.Pausing = w.ready, w.pending, w.pending && w.pausing
+		st.Overdue = st.Pausing && time.Since(w.pausedAt) >= pauseGrace
 	}
 	st.Writing = a.writing
 	st.StateGen, st.StateVer = a.updateClock().Next()
 	a.updMu.Unlock()
 	st.Working = a.workingChats()
+	st.Blockers = []string{}
+	if st.Pending {
+		st.Blockers = a.blockers()
+	}
+	st.Overdue = st.Overdue && len(st.Blockers) > 0
 	return st
 }
 
@@ -221,7 +247,7 @@ func (a *App) emitUpdate() { a.emit("update:state", a.UpdateState()) }
 func (a *App) holdingTurns() error {
 	a.updMu.Lock()
 	defer a.updMu.Unlock()
-	if a.update != nil && a.update.pending {
+	if a.update != nil && a.update.pending && !a.update.telling {
 		return errors.New(product.Name + " restarts for its update when the running turns end. Your message is still in the box; send it after the restart")
 	}
 	return nil
@@ -262,11 +288,16 @@ func (a *App) RestartToUpdate(now bool) error {
 // CancelRestart stops waiting to restart, and turns may start again.
 func (a *App) CancelRestart() {
 	a.updMu.Lock()
+	paused := a.update != nil && a.update.pausing
 	if a.update != nil {
-		a.update.pending = false
+		a.update.pending, a.update.pausing = false, false
 	}
 	a.updMu.Unlock()
 	a.emitUpdate()
+	// The chats that were asked to pause are told to carry on.
+	if paused {
+		go a.resumePaused(false)
+	}
 }
 
 func (a *App) restartWhenIdle() {
@@ -275,6 +306,7 @@ func (a *App) restartWhenIdle() {
 		a.updMu.Lock()
 		pending := a.update != nil && a.update.pending
 		writing := a.writing
+		overdue := pending && a.update.pausing && time.Since(a.update.pausedAt) >= pauseGrace
 		a.updMu.Unlock()
 		if !pending {
 			return
@@ -286,7 +318,11 @@ func (a *App) restartWhenIdle() {
 			a.closeForUpdate()
 			return
 		}
-		if n := chats*1000 + writing; n != last {
+		n := chats*1000 + writing
+		if overdue {
+			n = -2 - n
+		}
+		if n != last {
 			last = n
 			a.emitUpdate()
 		}
@@ -298,6 +334,9 @@ func (a *App) restartWhenIdle() {
 // and the new build starts once it has closed (startUpdate). A close the
 // page does not finish leaves the window open and the restart off.
 func (a *App) closeForUpdate() {
+	// The chats still working, and the ones that paused, are told to carry
+	// on after the restart (restart_pause.go).
+	a.noteInterrupted()
 	a.updMu.Lock()
 	if a.update != nil {
 		a.update.restarting = true
@@ -313,7 +352,7 @@ func (a *App) restartAbandoned() {
 	a.updMu.Lock()
 	changed := a.update != nil && (a.update.restarting || a.update.pending)
 	if a.update != nil {
-		a.update.restarting, a.update.pending = false, false
+		a.update.restarting, a.update.pending, a.update.pausing = false, false, false
 	}
 	a.updMu.Unlock()
 	if changed {
