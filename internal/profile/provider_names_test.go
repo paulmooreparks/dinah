@@ -101,6 +101,12 @@ func TestNoProviderNamesInSharedCodeBeyondTheList(t *testing.T) {
 						return filepath.SkipDir
 					}
 				}
+				// A testdata folder is a test's own, as a _test.go file is:
+				// the go tool builds nothing in it into a program, and a
+				// stand-in for one provider's agent has to say its name.
+				if d.Name() == "testdata" {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
