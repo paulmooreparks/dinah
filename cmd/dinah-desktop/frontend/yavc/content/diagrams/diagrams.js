@@ -1204,7 +1204,7 @@
                 c('zoom-in', 'Zoom In', function () { current().cv.zoom(1.25); }, '+', false, 'plus'),
                 c('zoom-out', 'Zoom Out', function () { current().cv.zoom(0.8); }, '-', false, 'minus'),
                 c('actual', 'Actual Size', function () { current().cv.actual(); }, '1', false),
-                Object.assign(c('pan', 'Pan', function () { setCanvasPan(!canvasPan); }, 'h', false, 'move'), { checked: function () { return canvasPan; } })
+                Object.assign(c('pan', 'Pan', function () { setCanvasPan(!canvasPan); }, 'h', false, 'move'), { checked: function () { return canvasPan; }, detail: 'Holding Space or the middle button and dragging pans without the tool.' })
             ];
             [['left', 'Left', -1, 0], ['right', 'Right', 1, 0], ['up', 'Up', 0, -1], ['down', 'Down', 0, 1]].forEach(function (d) {
                 commands.push(c(d[0], 'Move ' + d[1], function () { canvasRequest({ op: 'move', dx: d[2], dy: d[3] }); }, 'Arrow' + d[1], 'nodes'));
@@ -2114,7 +2114,7 @@
             el.kind.textContent = KIND_NAME[t.kind];
             root.setAttribute('data-kind', t.kind);
             q('.dg-keys').textContent = t.kind === 'canvas'
-                ? 'Tab selects nodes and connectors in drawing order. Shift+Tab selects the previous item and leaves the drawing at the first item. Arrow keys move a node by one pixel, or eight with Shift. N adds a shape, G a group, C connects, R resizes, E reconnects a connector end, Shift+E reconnects its start, and Delete deletes. Ctrl or Command with C, V and D copies, pastes and duplicates. Alt with arrow keys pans. Plus and minus zoom, 0 fits, and 1 shows actual size. Space with a drag pans. Escape cancels a drag and returns to Select.'
+                ? 'Tab selects nodes and connectors in drawing order. Shift+Tab selects the previous item and leaves the drawing at the first item. Arrow keys move a node by one pixel, or eight with Shift. N adds a shape, G a group, C connects, R resizes, E reconnects a connector end, Shift+E reconnects its start, and Delete deletes. Ctrl or Command with C, V and D copies, pastes and duplicates. Alt with arrow keys pans. Plus and minus zoom, 0 fits, and 1 shows actual size. Space or the middle mouse button with a drag pans, and so does the Pan tool, which H turns on and off. Scroll bars appear when the drawing is larger than the pane. Escape cancels a drag and returns to Select.'
                 : 'Arrow keys select a shape or connection. Enter edits its label, F2 renames it, N adds a shape, C connects it, Delete deletes it, and Escape returns to Select.';
             inspected = undefined;
             renderInspector();
@@ -2860,7 +2860,7 @@
             flush: function () { return !!snap && snap.flush(); }
         });
         var commonToolbar = H.commandToolbar ? H.commandToolbar.attach(root, { app: 'diagrams', label: 'Diagrams', table: commandTable,
-            defaults: ['save', '-', 'undo', 'redo', '-', 'drawing-tool', 'shape-add', 'connect', 'cv-new', 'cv-connect', '-', 'fit', 'cv-zoom-in', 'cv-zoom-out', 'view-mode'] }) : null;
+            defaults: ['save', '-', 'undo', 'redo', '-', 'drawing-tool', 'shape-add', 'connect', 'cv-new', 'cv-connect', '-', 'fit', 'cv-pan', 'cv-zoom-in', 'cv-zoom-out', 'view-mode'] }) : null;
 
         return {
             ready: booted,

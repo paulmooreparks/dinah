@@ -9,6 +9,8 @@
         var M = window.yavcCanvasModel, J = window.yavcCanvas, doc, out, picture, selection = null, selections = [];
         var camera = null, scale = 1, autoFit = true, drag = null, space = false, destroyed = false, previewId;
         var layer = document.createElementNS(NS, 'svg'), grips = document.createElement('div');
+        var scroll = document.createElement('div'), spacer = document.createElement('div'), extent = null, barLeft = 0, barTop = 0;
+        scroll.className = 'dg-cv-scroll'; scroll.tabIndex = -1; scroll.setAttribute('aria-hidden', 'true'); scroll.appendChild(spacer);
         layer.setAttribute('class', 'dg-cv-layer'); layer.setAttribute('aria-hidden', 'true');
         grips.className = 'dg-cv-grips';
         place.classList.add('dg-cv-editor');
@@ -22,10 +24,47 @@
             var p = new DOMPoint(e.clientX, e.clientY).matrixTransform(layer.getScreenCTM().inverse());
             return { x: p.x + out.origin[0], y: p.y + out.origin[1] };
         }
-        function view() {
+        /* The pane the drawing is seen through: the place less the width of
+           the scroll bars, which sit at its right and bottom edges. */
+        function port() { return { width: scroll.clientWidth || place.clientWidth, height: scroll.clientHeight || place.clientHeight }; }
+        /* The scroll bars belong to a native scrolling box under the drawing,
+           holding a spacer as large as the drawing and the camera together, so
+           the bars are the browser's own. The camera is a position in that
+           box: scrollLeft and scrollTop are its offset from the extent's
+           corner, in screen pixels. */
+        function syncBars() {
+            if (!out || !camera) { return; }
+            var width = place.clientWidth, height = place.clientHeight;
+            for (var pass = 0; pass < 3; pass++) {
+                var p = port();
+                camera.w = p.width / scale; camera.h = p.height / scale;
+                var pad = autoFit ? 0 : 24 / scale;
+                extent = { x: Math.min(out.origin[0] - pad, camera.x), y: Math.min(out.origin[1] - pad, camera.y) };
+                var right = Math.max(out.origin[0] + out.width + pad, camera.x + camera.w), bottom = Math.max(out.origin[1] + out.height + pad, camera.y + camera.h);
+                spacer.style.width = Math.ceil((right - extent.x) * scale) + 'px'; spacer.style.height = Math.ceil((bottom - extent.y) * scale) + 'px';
+                var across = Math.max(0, width - scroll.clientWidth), below = Math.max(0, height - scroll.clientHeight);
+                place.style.setProperty('--cv-sbw', across + 'px'); place.style.setProperty('--cv-sbh', below + 'px');
+                var q = port();
+                if (q.width === p.width && q.height === p.height) { break; }
+            }
+            scroll.scrollLeft = (camera.x - extent.x) * scale; scroll.scrollTop = (camera.y - extent.y) * scale;
+            barLeft = scroll.scrollLeft; barTop = scroll.scrollTop;
+        }
+        /* A scroll the bars made, which is not one view() made. The camera
+           follows the offset, and the extent stays as it is until the next
+           change of the view, so a drag of a bar is not working against a
+           box that changes under it. */
+        function scrolled() {
+            if (!camera || !extent || destroyed || (scroll.scrollLeft === barLeft && scroll.scrollTop === barTop)) { return; }
+            if (drag) { cancel(); }
+            barLeft = scroll.scrollLeft; barTop = scroll.scrollTop;
+            autoFit = false;
+            camera.x = extent.x + barLeft / scale; camera.y = extent.y + barTop / scale;
+            view(true);
+        }
+        function view(fromBars) {
             if (!out || !camera || !picture) { return; }
-            var r = place.getBoundingClientRect();
-            camera.w = r.width / scale; camera.h = r.height / scale;
+            if (fromBars) { var p = port(); camera.w = p.width / scale; camera.h = p.height / scale; } else { syncBars(); }
             var vb = [camera.x - out.origin[0], camera.y - out.origin[1], camera.w, camera.h].join(' ');
             picture.setAttribute('viewBox', vb); layer.setAttribute('viewBox', vb);
             picture.setAttribute('preserveAspectRatio', 'none'); layer.setAttribute('preserveAspectRatio', 'none');
@@ -39,7 +78,7 @@
         }
         function fit() {
             if (!out) { return; }
-            var r = place.getBoundingClientRect();
+            var r = { width: place.clientWidth, height: place.clientHeight };
             if (r.width < 1 || r.height < 1) { return; }
             scale = Math.min(1, r.width / out.width, r.height / out.height);
             autoFit = true;
@@ -49,7 +88,7 @@
         function zoom(factor, at) {
             if (!camera) { return; }
             autoFit = false;
-            var r = place.getBoundingClientRect();
+            var r = port();
             at = at || { x: r.width / 2, y: r.height / 2 };
             var x = camera.x + at.x / scale, y = camera.y + at.y / scale;
             scale = Math.min(4, Math.max(0.05, scale * factor));
@@ -131,6 +170,7 @@
             if (background) { background.setAttribute('fill', 'none'); }
             var used = new Set(doc.nodes.concat(doc.edges).map(function (n) { return n.id; })), i = 0;
             do { previewId = '@pointer-' + (++i); } while (used.has(previewId));
+            if (scroll.parentNode !== place || place.firstChild !== scroll) { place.prepend(scroll); }
             place.append(layer, grips);
             layer.replaceChildren();
             /* Edges are drawn above nodes by the renderer, so their hits
@@ -194,6 +234,11 @@
         function locked() { return !!(host.readOnly && host.readOnly()); }
         function down(e) {
             if (drag || !out || !camera || !host.enabled() || (e.button !== 0 && e.button !== 1)) { return; }
+            /* A press on the scroll bars is the browser's, and starts nothing in the drawing. */
+            if (e.target === scroll) {
+                var box = scroll.getBoundingClientRect();
+                if (e.clientX >= box.left + scroll.clientWidth || e.clientY >= box.top + scroll.clientHeight) { return; }
+            }
             var grip = e.target.closest('[data-grip]'), hit = e.target.closest('[data-id]'), p = point(e);
             stage.focus({ preventScroll: true });
             if (space || e.button === 1 || host.panTool()) { drag = { kind: 'pan', px: e.clientX, py: e.clientY, camera: Object.assign({}, camera) }; }
@@ -299,12 +344,18 @@
         }
         function keyup(e) { if (e.key === ' ') { space = false; } }
         function blur() { space = false; cancel(); }
+        function middle(e) { if (e.button === 1) { e.preventDefault(); } }
         function activate(e) {
             var under = document.elementFromPoint(e.clientX, e.clientY), hit = under && place.contains(under) && under.closest('[data-id]');
             if (hit && hit.dataset.kind === 'node' && host.enabled() && !locked() && host.activate) { host.activate(hit.dataset.id); }
         }
         place.addEventListener('pointerdown', down); place.addEventListener('pointermove', move); place.addEventListener('pointerup', up);
         place.addEventListener('dblclick', activate);
+        scroll.addEventListener('scroll', scrolled);
+        /* A press on a scroll bar can focus the box, which has no keys of its own, so focus goes to the stage where Space and the arrows are heard. */
+        scroll.addEventListener('focus', function () { stage.focus({ preventScroll: true }); });
+        /* The middle button pans, so it must not also start the browser's own autoscroll or paste. */
+        place.addEventListener('mousedown', middle); place.addEventListener('auxclick', middle);
         place.addEventListener('pointercancel', cancel); place.addEventListener('lostpointercapture', cancel); place.addEventListener('wheel', wheel, { passive: false });
         window.addEventListener('keyup', keyup); window.addEventListener('blur', blur);
         var ro = new ResizeObserver(function () { if (!destroyed) { cancel(); if (camera && !autoFit) { view(); } else { fit(); } } }); ro.observe(stage);
@@ -317,9 +368,11 @@
             destroy: function () {
                 destroyed = true; cancel(); ro.disconnect(); window.removeEventListener('keyup', keyup); window.removeEventListener('blur', blur);
                 place.removeEventListener('pointerdown', down); place.removeEventListener('pointermove', move); place.removeEventListener('pointerup', up);
-                place.removeEventListener('dblclick', activate);
+                place.removeEventListener('dblclick', activate); scroll.removeEventListener('scroll', scrolled);
+                place.removeEventListener('mousedown', middle); place.removeEventListener('auxclick', middle);
                 place.removeEventListener('pointercancel', cancel); place.removeEventListener('lostpointercapture', cancel); place.removeEventListener('wheel', wheel);
-                layer.remove(); grips.remove(); place.classList.remove('dg-cv-editor', 'dg-cv-grid');
+                layer.remove(); grips.remove(); scroll.remove(); place.classList.remove('dg-cv-editor', 'dg-cv-grid');
+                place.style.removeProperty('--cv-sbw'); place.style.removeProperty('--cv-sbh');
                 place.style.removeProperty('background-color'); place.style.removeProperty('background-size'); place.style.removeProperty('background-position');
             } };
     }

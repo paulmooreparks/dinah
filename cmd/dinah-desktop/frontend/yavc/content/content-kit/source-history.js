@@ -30,7 +30,7 @@
         return raw;
     }
     function create(CM) {
-        var initial = CM.Facet.define({ combine: function (values) { return values.length ? values[values.length - 1] : ''; } }), replay = CM.StateEffect.define(),adoption=CM.StateEffect.define();
+        var initial = CM.Facet.define({ combine: function (values) { return values.length ? values[values.length - 1] : ''; } }), replay = CM.StateEffect.define(),adoption=CM.StateEffect.define(),join=CM.StateEffect.define();
         function selected(selection, length) { selection.ranges.forEach(function (range) { if (range.from < 0 || range.to > length) throw new Error('The recovered history selection is invalid.'); }); return selection; }
         function encode(entry) { return { undo: entry.undo.toJSON(), redo: entry.redo.toJSON(), before: entry.before.toJSON(), after: entry.after.toJSON(), beforeEndings: entry.beforeEndings, afterEndings: entry.afterEndings }; }
         function decode(entry) {
@@ -62,7 +62,8 @@
                 if (tr.annotation(CM.Transaction.addToHistory) === false) return { raw: raw, done: [], undone: [], time: 0, group: false };
                 var done = value.done.slice(), now = Date.now(), isolation = tr.annotation(CM.isolateHistory),group=tr.isUserEvent('input.type')?'input.type':tr.isUserEvent('input.visual')?'input.visual':tr.isUserEvent('delete.backward')?'delete.backward':tr.isUserEvent('delete.forward')?'delete.forward':false;
                 var entry = { undo: tr.changes.invert(tr.startState.doc), redo: tr.changes, before: tr.startState.selection, after: tr.newSelection, beforeEndings: endings(value.raw), afterEndings: endings(raw) }, previous = done[done.length - 1];
-                if (group && value.group===group && now - value.time < 500 && isolation !== 'before' && isolation !== 'full' && previous && previous.after.eq(tr.startState.selection)) {
+                var joined = tr.effects.some(function (effect) { return effect.is(join); });
+                if (group && value.group===group && (joined || now - value.time < 500) && isolation !== 'before' && isolation !== 'full' && previous && previous.after.eq(tr.startState.selection)) {
                     entry.undo = entry.undo.compose(previous.undo); entry.redo = previous.redo.compose(entry.redo); entry.before = previous.before; entry.beforeEndings = previous.beforeEndings; done.pop();
                 }
                 entry.bytes=cost(entry);done.push(entry);var bytes=retained(done);while(done.length>DEPTH||bytes>BUDGET)bytes-=done.shift().bytes;
@@ -86,7 +87,7 @@
             var next = { raw: restore(changes.apply(view.state.doc).toString(), undo ? entry.beforeEndings : entry.afterEndings), done: done, undone: undone, time: 0, group: false };
             view.dispatch({ changes: changes, selection: undo ? entry.before : entry.after, effects: replay.of(next), annotations: CM.Transaction.userEvent.of(name), scrollIntoView: true }); return true;
         }
-        return Object.freeze({ field: field, extension: function (raw) { return [initial.of(raw || ''), field]; }, adopt:function(raw){return adoption.of(raw);},raw: function (state) { return state.field(field).raw; }, endings: function (state) { return endings(state.field(field).raw); }, retainedBytes:function(state){var value=state.field(field);return retained(value.done)+retained(value.undone);},budget:BUDGET,can: can, run: run });
+        return Object.freeze({ join: join, field: field, extension: function (raw) { return [initial.of(raw || ''), field]; }, adopt:function(raw){return adoption.of(raw);},raw: function (state) { return state.field(field).raw; }, endings: function (state) { return endings(state.field(field).raw); }, retainedBytes:function(state){var value=state.field(field);return retained(value.done)+retained(value.undone);},budget:BUDGET,can: can, run: run });
     }
     var api = Object.freeze({ create: create, normalize: normalize, endings: endings, restore: restore, changed: changed });
     if (typeof module === 'object' && module.exports) module.exports = api; else global.yavcSourceHistory = api;

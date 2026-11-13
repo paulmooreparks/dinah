@@ -58,6 +58,8 @@
                 '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.5' },
                 '.cm-content': { caretColor: 'var(--accent)' },
                 '.cm-gutters': { backgroundColor: 'var(--surface)', color: 'var(--text-muted)', borderRight: '1px solid var(--border)' },
+                // A line takes its base direction from its own first strong character (with perLineTextDirection, which is how the editor moves the caret and measures it).
+                '.cm-line': { unicodeBidi: 'plaintext' },
                 '.cm-activeLine': { backgroundColor: tint(6) },
                 '.cm-activeLineGutter': { backgroundColor: tint(12), color: 'var(--text)' },
                 '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--accent)' },
@@ -1938,7 +1940,7 @@
         /* The engine reports a fault in the diagram itself; what reaches
            this catch is the engine failing to load. */
         return d2Ready.then(function (engine) { return engine.draw(place, source); })
-            .catch(function () { diagramFailed(place, 'the diagram engine did not load. Reloading the page tries again.'); });
+            .catch(function (error) { diagramFailed(place, error && error.omitted ? error : 'the diagram engine did not load. Reloading the page tries again.'); });
     }
     /* Draws the engine's preview blocks into an element. A block whose
        HTML is the same as one already there keeps its element, with its
@@ -1966,6 +1968,11 @@
         references.forEach(function(reference){var number=Number(reference.getAttribute('data-footnote-number')),link=reference.querySelector('a');if(link){if(Number.isSafeInteger(number)&&number>0)link.setAttribute('href','#'+namespace+'-note-'+number);else link.removeAttribute('href');}});
         return namespace;
     }
+    /* Each paragraph, heading, list item, quotation and table cell takes its direction from its own first strong character, so a
+       Hebrew or Arabic one sits at the right and its punctuation lands on the correct side (the dir attribute's auto value). */
+    function autoDirection(root) {
+        root.querySelectorAll('p,h1,h2,h3,h4,h5,h6,li,blockquote,td,th,dt,dd').forEach(function (e) { if (!e.hasAttribute('dir')) { e.setAttribute('dir', 'auto'); } });
+    }
     function drawBlocks(target, blocks, opts) {
         opts = opts || {};
         var old = Array.prototype.filter.call(target.children, function (c) { return c.classList && c.classList.contains('doc-block'); });
@@ -1980,6 +1987,7 @@
             block.dataset.line = b.line;
             block.__mdHtml = b.html;
             block.replaceChildren(window.yavcHTML.fragment(b.html));
+            autoDirection(block);
             order.push(block);
             fresh.push({ el: block, diagrams: b.diagrams });
         });

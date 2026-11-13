@@ -26,13 +26,39 @@
     function versioned(path) { return path + (path.indexOf('?') < 0 ? '?' : '&') + 'v=' + encodeURIComponent(V); }
 
     var loading = {};
+    /* The sentence for a file that a reduced package leaves out on purpose (docs/content-release-downloads.md, "Profiles"), or
+       null. The list is in this script: the package build for a reduced profile writes it in place of null on the next line, so a
+       reduced package says it has omissions before anything is asked, and a full package, which leaves the line as it is, makes no
+       request at all. A missing file in a full package is a fault and is reported as one. */
+    var omittedByBuild = null; // yavc-content: omissions
+    function omission(src) {
+        var url;
+        try { url = new URL(src, document.baseURI); } catch (err) { return Promise.resolve(null); }
+        var at = url.pathname.lastIndexOf('/content/');
+        if (at < 0 || !omittedByBuild) { return Promise.resolve(null); }
+        var inside = url.pathname.slice(at + 1);
+        return Promise.resolve(omittedByBuild).then(function (list) {
+            if (!list || list.version !== 1 || !Array.isArray(list.omitted)) { return null; }
+            for (var i = 0; i < list.omitted.length; i++) {
+                var f = list.omitted[i], paths = f && Array.isArray(f.paths) ? f.paths : [];
+                for (var j = 0; j < paths.length; j++) {
+                    if (typeof paths[j] === 'string' && (inside === paths[j] || paths[j].endsWith('/') && inside.startsWith(paths[j]))) { return typeof f.message === 'string' ? f.message.slice(0, 200) : null; }
+                }
+            }
+            return null;
+        });
+    }
     function loadScript(src) {
         if (!loading[src]) {
             loading[src] = new Promise(function (resolve, reject) {
                 var s = document.createElement('script');
                 s.src = src;
                 s.onload = function () { resolve(); };
-                s.onerror = function () { delete loading[src]; reject(new Error(src + ' did not load')); };
+                s.onerror = function () {
+                    delete loading[src];
+                    // A package built for one applet leaves some features out and says so, so a missing file is reported as the choice it was.
+                    omission(src).then(function (said) { var err = new Error(said || src + ' did not load'); if (said) { err.omitted = true; } reject(err); });
+                };
                 document.head.appendChild(s);
             });
         }

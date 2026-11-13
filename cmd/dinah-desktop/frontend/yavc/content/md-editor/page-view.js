@@ -142,7 +142,7 @@ var schemaCache = null;
     ['table_cell', 'table_header'].forEach(function (name) {
       var tag = name === 'table_cell' ? 'td' : 'th';
       table[name].toDOM = function (n) {
-        var attrs = {};
+        var attrs = { dir: 'auto' };
         safeAttrs(n.attrs.xattrs).forEach(function (a) { attrs[a[0]] = a[1]; });
         delete attrs.colspan; delete attrs.rowspan;
         if (n.attrs.colspan !== 1) attrs.colspan = n.attrs.colspan;
@@ -174,10 +174,10 @@ var schemaCache = null;
            read; where it could not, the engine writes text in brackets
            without an escape (decision 118). The default is the careful one. */
         doc: { content: 'block+', attrs: { front: { default: '' }, tail: { default: '\n' }, crlf: { default: false }, refs: { default: true } } },
-        paragraph: { group: 'block', content: 'inline*', attrs: withPlace(), parseDOM: [{ tag: 'p' }], toDOM: function () { return ['p', 0]; } },
+        paragraph: { group: 'block', content: 'inline*', attrs: withPlace(), parseDOM: [{ tag: 'p' }], toDOM: function () { return ['p', { dir: 'auto' }, 0]; } },
         heading: { group: 'block', content: 'inline*', defining: true, attrs: withPlace({ level: { default: 1 }, attributes: { default: null } }), parseDOM: headings,
-          toDOM: function (n) { return ['h' + n.attrs.level, blockAttr(n.attrs.attributes), 0]; } },
-        blockquote: { group: 'block', content: 'block+', defining: true, attrs: withPlace(), parseDOM: [{ tag: 'blockquote' }], toDOM: function () { return ['blockquote', 0]; } },
+          toDOM: function (n) { return ['h' + n.attrs.level, Object.assign({ dir: 'auto' }, blockAttr(n.attrs.attributes)), 0]; } },
+        blockquote: { group: 'block', content: 'block+', defining: true, attrs: withPlace(), parseDOM: [{ tag: 'blockquote' }], toDOM: function () { return ['blockquote', { dir: 'auto' }, 0]; } },
         bullet_list: { group: 'block', content: 'list_item+', attrs: withPlace({ tight: { default: true }, marker: { default: '-' } }), parseDOM: [{ tag: 'ul' }],
           toDOM: function (n) { return ['ul', n.attrs.tight ? { class: 'pm-tight' } : {}, 0]; } },
         ordered_list: { group: 'block', content: 'list_item+', attrs: withPlace({ order: { default: 1 }, tight: { default: true } }),
@@ -198,10 +198,10 @@ var schemaCache = null;
               return { checked: box ? box.checked : null };
             } }],
           toDOM: function (n) {
-            if (n.attrs.checked === null) return ['li', 0];
+            if (n.attrs.checked === null) return ['li', { dir: 'auto' }, 0];
             var box = { type: 'checkbox', tabindex: '0', 'aria-label': n.attrs.checked ? 'Done' : 'Not Done' };
             if (n.attrs.checked) box.checked = '';
-            return ['li', { class: 'pm-task' }, ['span', { class: 'pm-check', contenteditable: 'false' }, ['input', box]], ['div', { class: 'pm-task-body' }, 0]];
+            return ['li', { class: 'pm-task', dir: 'auto' }, ['span', { class: 'pm-check', contenteditable: 'false' }, ['input', box]], ['div', { class: 'pm-task-body' }, 0]];
           } },
         table: table.table,
         table_row: table.table_row,
@@ -272,7 +272,7 @@ var schemaCache = null;
             return span;
           } },
         // A line break, as HTML pasted from another program can hold one.
-        hard_break: { group: 'inline', inline: true, selectable: false, parseDOM: [{ tag: 'br' }], toDOM: function () { return ['br']; } },
+        hard_break: { group: 'inline', inline: true, selectable: false, attrs: { form: { default: null } }, parseDOM: [{ tag: 'br' }], toDOM: function () { return ['br']; } },
         // A line break inside a paragraph, which the page shows as a space.
         soft_break: { group: 'inline', inline: true, selectable: false, parseDOM: [{ tag: 'span.pm-soft' }], toDOM: function () { return ['span', { class: 'pm-soft' }, ' ']; } }
       },
@@ -350,11 +350,16 @@ var schemaCache = null;
        hostTitle(name)          optional: the title of one of the host's shortcodes, or ''
        hostInline(src)          optional: a promise of { html } when src is one of the
                                 host's inline shortcodes, and of null when it is not
-       changed()                the Editor's commands may have changed
+       changed(edited)          the Editor's commands may have changed; edited is true when the text of the document did
        failed(text)             the page could not be built; the Editor leaves Page view
      } */
   function attach(o) {
+    /* The page's edits reach the Editor's text in placements, at times that depend on the host and the load (the timer, a host's take, an
+       undo), and the Editor's undo history merges typing that is less than 500 ms apart. So that the placements do not change what one
+       undo takes back, each placement says whether the typing it carries went on from the typing of the placement before it with no
+       gap of 500 ms or more, as the page's own history would group it, and the Editor's history then joins the two. */
     var PM = null, view = null, on = false, shown = null, loading = 0;
+    var lastEdit = 0, batchFirst = 0, batchBroke = false, batchLinked = false, placedEdit = 0;
     var footnoteNamespace='yavc-notes-'+crypto.randomUUID();
     var dirty = false, syncTimer = 0, syncing = null, reloadTimer = 0, sourceStale = false, refreshFocus = null, frozen = false;
     /* Whether the next page built takes its place from the text's caret
@@ -461,7 +466,16 @@ var schemaCache = null;
             transformPastedHTML: function (html) { return window.yavcHTML.clean(html); },
             transformPasted: safeReviewPaste,
             dispatchTransaction: dispatch,
-            attributes: { 'aria-label': 'The Document, as Its Page' }
+            attributes: Object.assign({ 'aria-label': 'The Document, as Its Page', role: 'textbox', 'aria-multiline': 'true' }, o.spellcheck === false ? { spellcheck: 'false' } : {})
+          });
+          /* A composition that is about to begin starts from a page already written
+             into the text, so that a host asking for the draft while it lasts gets the
+             text as it was before it. When it ends the host is told of the edit.
+             The listener is added after ProseMirror's own, so view.composing is already
+             false when it runs, and the last of the composition's changes has been read. */
+          view.dom.addEventListener('compositionstart', function () { flush(); }, true);
+          view.dom.addEventListener('compositionend', function () {
+            setTimeout(function () { if (view && !view.composing) { if (dirty) schedule(); o.changed(true); } }, 0);
           });
         }
         shown = text;
@@ -483,12 +497,29 @@ var schemaCache = null;
       if (!view) return;
       if ((!on || sourceStale || frozen) && tr.docChanged && !tr.getMeta('fromText')) return;
       view.updateState(view.state.apply(tr));
-      if (tr.docChanged && !tr.getMeta('fromText')) {
+      var edited = tr.docChanged && !tr.getMeta('fromText');
+      if (edited) {
+        var editAt = tr.time || Date.now();
+        if (!batchFirst) { batchFirst = editAt; batchLinked = !!placedEdit && editAt - placedEdit < 500; }
+        else if (editAt - lastEdit >= 500) batchBroke = true;
+        lastEdit = editAt;
         dirty = true;
-        clearTimeout(syncTimer);
-        syncTimer = setTimeout(function () { sync().catch(function () { /* sync reports the failure beside the page. */ }); }, 300);
+        schedule();
       }
-      o.changed();
+      /* The host is told of an edit at once, so that its copy of the draft is asked for
+         when it was made, and not 300 milliseconds later when the text is written. While
+         an input method is composing the host is told when it ends instead. */
+      o.changed(edited && !view.composing);
+    }
+    /* Writes the page's text into the Editor's text after a pause in typing, and
+       not while an input method is composing, since converting then can break the
+       composition. */
+    function schedule() {
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(function () {
+        if (view && view.composing) { schedule(); return; }
+        sync().catch(function () { /* sync reports the failure beside the page. */ });
+      }, 300);
     }
 
     /* ---- The clipboard ---------------------------------------------------
@@ -587,17 +618,52 @@ var schemaCache = null;
       if (syncing) return syncing.then(sync);
       if (!dirty || !view) return Promise.resolve();
       dirty = false;
-      var original = shown;
-      syncing = Promise.resolve(o.markdownOf(syncJSON())).then(function (text) {
-        if (o.text() !== original || shown !== original) throw new Error('The source changed while the page was being saved. The page draft was retained; copy it before reloading.');
-        shown = text;
-        o.setText(text);
+      var original = shown, mine = ++syncTicket;
+      var running = Promise.resolve(o.markdownOf(syncJSON())).then(function (text) {
+        // flush() has written a newer page since, and this one is no longer wanted.
+        if (mine !== syncTicket) return;
+        place(text, original);
       }).catch(function (err) {
+        if (mine !== syncTicket) return;
         dirty = true;
         o.say(String(err && err.message || err), true);
         throw err;
-      }).finally(function () { syncing = null; });
-      return syncing;
+      }).finally(function () { if (syncing === running) syncing = null; });
+      syncing = running;
+      return running;
+    }
+    /* Puts text the page was converted to into the Editor's text, as sync and flush both do. */
+    function place(text, original) {
+      if (o.text() !== original || shown !== original) throw new Error('The source changed while the page was being saved. The page draft was retained; copy it before reloading.');
+      shown = text;
+      o.setText(text, false, !!(batchFirst && batchLinked && !batchBroke));
+      placedEdit = lastEdit; batchFirst = 0; batchBroke = false; batchLinked = false;
+    }
+    var syncTicket = 0;
+    /* The same as sync, at once and without a promise, for a host that asks for the
+       draft and needs it now (the snapshot's take). The engine converts the page in
+       one synchronous call, so this is the conversion the timer runs, not another.
+       It leaves the page, the selection and the undo history as they are. It does
+       nothing while an input method is composing, so the text is then what it was
+       before the composition began, which flush() made current when it began.
+       Returns whether the Editor's text is now the page's. */
+    function flush() {
+      clearTimeout(syncTimer);
+      if (!view || (!dirty && !syncing)) return true;
+      if (view.composing) { schedule(); return false; }
+      var original = shown, ticket = ++syncTicket;
+      try {
+        var text = o.markdownNow(syncJSON());
+        dirty = false;
+        place(text, original);
+        return true;
+      } catch (err) {
+        // A failed conversion leaves the draft on the page and the timer to try again.
+        syncTicket = ticket - 1;
+        dirty = true;
+        schedule();
+        return false;
+      }
     }
 
     /* The page as the engine writes it back, with each block still as it
@@ -1048,6 +1114,18 @@ var schemaCache = null;
         var current = PM.keymap(Object.fromEntries((o.keys() || []).map(function (k) { return [k.key, function () { return k.run(); }]; })));
         return current.props.handleKeyDown(v, event);
       } } });
+      /* Shift+Enter breaks the line inside the paragraph. The break is written as a backslash before the newline, which CommonMark
+         defines and which is visible in the text. A table's cell and a heading have no such break in Markdown, so there the key
+         says so and writes nothing. */
+      function lineBreak(state, d) {
+        var parent = state.selection.$from.parent;
+        if (parent.type !== n.paragraph || inCell(state)) {
+          if (d) o.say('A line break can be typed inside a paragraph only.', true);
+          return true;
+        }
+        if (d) d(state.tr.replaceSelectionWith(n.hard_break.create()).scrollIntoView());
+        return true;
+      }
       function sink(state, d) { return PM.sinkListItem(n.list_item)(state, d); }
       function lift(state, d) { return PM.liftListItem(n.list_item)(state, d); }
       // Tab in a table's last cell adds a row and moves into it.
@@ -1100,6 +1178,7 @@ var schemaCache = null;
           'Tab': PM.chainCommands(PM.goToNextCell(1), addRowAtEnd, sink),
           'Shift-Tab': PM.chainCommands(PM.goToNextCell(-1), lift),
           'Enter': PM.chainCommands(exitBox, splitItem),
+          'Shift-Enter': lineBreak,
           'Mod-z': PM.undo, 'Mod-y': PM.redo, 'Mod-Shift-z': PM.redo
         }),
         PM.keymap(PM.baseKeymap),
@@ -2210,6 +2289,7 @@ var schemaCache = null;
       },
       // Changes on the page not yet in the Editor's text.
       pending: function () { return dirty || !!syncing; },
+      flush: flush,
       formatSelection: function (name) {
         if (!view || !on || sourceStale || frozen) return null;
         var target = view, doc = view.state.doc, selection = view.state.selection, stored = view.state.storedMarks, type = view.state.schema.marks[name];

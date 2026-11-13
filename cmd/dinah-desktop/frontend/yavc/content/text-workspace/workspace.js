@@ -171,6 +171,8 @@
         var CM = null, sourceHistory = null, F = null, view = null, destroyed = false, startupFailed = false, unsubscribe = null, unwatchPictures = null, styleLifetime = new AbortController();
         var tabs = [], active = -1, untitled = 0;
         var H = window.pudlHost || {}, resourceSession = null, resources = null, recovery = null;
+        /* The host's editing settings (docs/editing-settings-contract.md), read once here and used for every editing area for as long as this applet lives. Only a version 1 service whose spellcheck is the boolean false changes anything. */
+        var spellcheckOff = !!(H.editing && H.editing.version === 1 && H.editing.spellcheck === false);
         var documentWindows = H.documentWindows, documentReady = false, receivingDocument = false, unbindDocuments = null;
         /* Commands the host adds to the File menu, to publish a document
            somewhere of the host's say (docs/document-commands-contract.md).
@@ -456,7 +458,9 @@
                     lspComp.of(languageAssistance(tab)),
                     roComp.of([CM.EditorState.readOnly.of(!!tab.readOnly), CM.EditorView.editable.of(!tab.readOnly), CM.EditorView.contentAttributes.of({ 'aria-readonly': String(!!tab.readOnly), tabindex: '0' })]),
                     CM.EditorState.transactionFilter.of(function (tr) { return tr.docChanged && tab.readOnly ? [] : tr; }),
-                    CM.EditorView.contentAttributes.of({ 'aria-label': 'Text of ' + tab.name }),
+                    // Each line takes its direction from its own first strong character, so a Hebrew or Arabic line sits at the right (docs: CodeMirror's perLineTextDirection).
+                    CM.EditorView.perLineTextDirection.of(true),
+                    CM.EditorView.contentAttributes.of(spellcheckOff ? { 'aria-label': 'Text of ' + tab.name, spellcheck: 'false' } : { 'aria-label': 'Text of ' + tab.name }),
                     CM.EditorView.updateListener.of(function (u) {
                         if(u.docChanged&&u.startState.field(longLineField)!==u.state.field(longLineField))refreshWrap();
                         if(hostSuggestions&&tabs[active]===tab)hostSuggestions.update(u);
@@ -1634,7 +1638,7 @@
                 },
                 review:function(raw){reviewTools().then(function(controller){return controller.browse(raw);}).catch(function(err){say(err.message,true);});},
                 hostSuggestionWidget:hostSuggestions?function(item){return hostSuggestions.widget(item,true);}:null,
-                root: root, page: el.page, scroll: el.scroll,
+                root: root, page: el.page, scroll: el.scroll, spellcheck: spellcheckOff ? false : null,
                 pagination: function () { return pagedView(viewMode) ? pageSettings : null; },
                 paginated: pageLayout,
                 paginationProblem: pageNotice,
@@ -1646,6 +1650,8 @@
                 setText: takeVisualText,
                 docOf: function (text) { return documentEngine(text).then(function (m) { return withHostDrawings(m.doc(text)); }); },
                 markdownOf: function (doc) { return mdEngine().then(function (m) { return m.markdown(doc); }); },
+                /* The same conversion without waiting, for the snapshot's take. The engine is loaded once the page has been built. */
+                markdownNow: function (doc) { return window.yavcMdEngine.current().markdown(doc); },
                 sourceOf: function (src) { return documentEngine().then(function (m) { return withHostDrawings(m.source(src)); }); },
                 wrapOf: function (line) { return documentEngine().then(function (m) { return withHostDrawings(m.container(line)); }); },
                 inlineOf: function (src) { return documentEngine().then(function (m) { return withHostDrawings(m.inline(src)); }); },
@@ -1653,7 +1659,7 @@
                 draw: function (target, html, diagrams) { drawBlocks(target, [{ line: 0, html: html, diagrams: diagrams }]); },
                 keys: pageKeys,
                 say: say,
-                changed: function () { commandsChanged(); markOutline(); if (visualFind && !el.findPlace.hidden) { visualFind.refresh(); } },
+                changed: function (edited) { commandsChanged(); markOutline(); if (visualFind && !el.findPlace.hidden) { visualFind.refresh(); } if (edited) { keep(); } },
                 failed: function (text) { setView(viewMode === 'document' ? 'visual' : 'text').then(function () { say(text, true); }); }
             };
         }
@@ -2042,14 +2048,14 @@
         /* The page's edit, as text: the least change that turns the text into
            the new text, so the cursor and the undo history in Split keep
            their sense. */
-        function takeVisualText(text, isolate) {
+        function takeVisualText(text, isolate, joined) {
             var old = view.state.doc.toString();
             if (old === text) { return; }
             var a = 0, b = 0;
             while (a < old.length && a < text.length && old[a] === text[a]) { a++; }
             while (b < old.length - a && b < text.length - a && old[old.length - 1 - b] === text[text.length - 1 - b]) { b++; }
             visual.fromVisual = true;
-            try { view.dispatch({ changes: { from: a, to: old.length - b, insert: text.slice(a, text.length - b) }, userEvent: 'input.visual',annotations:isolate?CM.isolateHistory.of('full'):[] }); }
+            try { view.dispatch({ changes: { from: a, to: old.length - b, insert: text.slice(a, text.length - b) }, userEvent: 'input.visual',annotations:isolate?CM.isolateHistory.of('full'):[],effects:joined?[sourceHistory.join.of(true)]:[] }); }
             finally { visual.fromVisual = false; }
         }
 
@@ -2347,6 +2353,9 @@
             /* Until what was kept is all back, it is still the whole of it. */
             if (restoring) { return snap && snap.kept; }
             if (!view || !CM) { return null; }
+            /* A change made on the page is written into the text after a pause, so it is
+               written now, since a draft that leaves it out would be stale. */
+            if (pageActive()) { visual.api.flush(); }
             var front = current();
             if (front) { front.state = view.state; front.scroll = scrollAnchor(); }
             var list = [], frontAt = -1;
@@ -2749,7 +2758,7 @@
                     reason: function () { var s = ready && hostCommands.standIn(); return s ? s.reason : 'This host cannot save this draft safely, or its recovered revision no longer matches. Use a supported Save As or download the source.'; } }),
                 cmd('save-as', 'Save As…', 'yavc-save-as', function () { return saveAs(); }, { label: function () { var t = current(); return t && t.readOnly ? 'Save a Copy…' : 'Save As…'; }, disabled: function () { return !ready || !current() || !!(resources && !resources.canSaveAs()); } }),
                 cmd('save-encoded-copy','Save Encoded Copy…','yavc-save-as',encodedCopy,{disabled:function(){return !ready||!current()||!resources||!resources.canSaveAs();}}),
-                cmd('import-docx','Import Word…','upload',importWord,{hidden:function(){return !isDocs;},disabled:function(){return !ready;}}),
+                cmd('import-docx','Import Word…','upload',function(){return importWord().catch(function(err){if(!destroyed&&!(err&&err.name==='AbortError'))say('The Word document could not be imported: '+((err&&err.message)||err),true);return false;});},{hidden:function(){return !isDocs;},disabled:function(){return !ready;}}),
                 cmd('close-document', 'Close Document', null, function () { COMMANDS['close-document'](); }, { disabled: function () { return !ready || !current(); } }),
                 /* glyphOnly: a glyph every reader knows shows alone on the
                    menu bar's ribbon (PUDL 0.79.0), its words its tooltip. */
