@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -20,6 +21,14 @@ import (
 	d2log "oss.terrastruct.com/d2/lib/log"
 	"oss.terrastruct.com/d2/lib/textmeasure"
 )
+
+// noFiles is a file system with no files, which d2 is given so that a
+// diagram's imports are refused.
+type noFiles struct{}
+
+func (noFiles) Open(name string) (fs.File, error) {
+	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrPermission}
+}
 
 // quietLogger discards D2's internal slog output; without a logger in context
 // D2 emits a stack-trace warning on every render.
@@ -43,6 +52,11 @@ func Render(src string) ([]byte, error) {
 	compileOpts := &d2lib.CompileOptions{
 		Ruler:  ruler,
 		Layout: &layout,
+		// d2 opens an imported file from the disk unless it is given a file
+		// system of its own; a diagram written by someone else could then
+		// read any file the person can and put it in a picture that is
+		// shown or published. A diagram imports nothing.
+		FS: noFiles{},
 		LayoutResolver: func(string) (d2graph.LayoutGraph, error) {
 			return d2dagrelayout.DefaultLayout, nil
 		},
