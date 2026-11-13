@@ -224,17 +224,23 @@ func Any() bool {
 // Render draws one occurrence through the first set that knows its name.
 // The request's name must be a shortcode name; the source is bounded.
 func Render(r Request) (string, error) {
+	html, _, err := render(r)
+	return html, err
+}
+
+// render is Render, with the set that drew the occurrence.
+func render(r Request) (string, Set, error) {
 	r.Name = strings.TrimSpace(r.Name)
 	if !namePattern.MatchString(r.Name) {
-		return "", errors.New("invalid shortcode name")
+		return "", nil, errors.New("invalid shortcode name")
 	}
 	if len(r.Source) > 1<<16 || len(r.Content) > 1<<20 {
-		return "", errors.New("the shortcode is too large to draw")
+		return "", nil, errors.New("the shortcode is too large to draw")
 	}
 	switch r.Kind {
 	case "", Inline, Block, Container, Span:
 	default:
-		return "", errors.New("invalid shortcode kind")
+		return "", nil, errors.New("invalid shortcode kind")
 	}
 	mu.RLock()
 	defer mu.RUnlock()
@@ -243,9 +249,9 @@ func Render(r Request) (string, error) {
 		if errors.Is(err, ErrUnknown) {
 			continue
 		}
-		return html, err
+		return html, s, err
 	}
-	return "", ErrUnknown
+	return "", nil, ErrUnknown
 }
 
 // FormOf reads one occurrence, as written, as its form, through the first

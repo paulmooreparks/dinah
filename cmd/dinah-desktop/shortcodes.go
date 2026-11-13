@@ -17,8 +17,13 @@ func (a *App) ShortcodeCatalog() []shortcodes.Descriptor { return shortcodes.Cat
 
 // RenderShortcode draws one occurrence of a shortcode this build adds, as
 // HTML the applet sanitises and shows in place; a container's HTML holds
-// one <slot name="content"></slot> for the body the applet draws itself.
-func (a *App) RenderShortcode(r shortcodes.Request) (string, error) { return shortcodes.Render(r) }
+// one <slot name="content"></slot> for the body the applet draws itself,
+// with its frame and body marked so that the applet can draw it across
+// pages, and a block's drawing says whether it is flow content
+// (internal/shortcodes/pieces.go).
+func (a *App) RenderShortcode(r shortcodes.Request) (shortcodes.Drawing, error) {
+	return shortcodes.Draw(r)
+}
 
 // ShortcodeForm reads one occurrence, as written, as the form it is changed
 // through. It returns nil when the occurrence has no form and is changed

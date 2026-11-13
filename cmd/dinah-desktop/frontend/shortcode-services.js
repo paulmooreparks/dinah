@@ -57,7 +57,12 @@
     render: function (request) {
       var r = request || {};
       return Promise.resolve(app().RenderShortcode({ name: String(r.name || ''), args: String(r.args || ''), source: String(r.source || ''), content: r.content == null ? '' : String(r.content), kind: r.kind == null ? '' : String(r.kind) }))
-        .then(function (html) { return { html: typeof html === 'string' ? html : '' }; });
+        .then(function (drawn) {
+          /* The engine answers { html, flow }; flow says a block's drawing
+             is flow content the applet may break across pages. */
+          var html = drawn && typeof drawn.html === 'string' ? drawn.html : '';
+          return drawn && drawn.flow === true ? { html: html, flow: true } : { html: html };
+        });
     },
     form: function (source) {
       return Promise.resolve(app().ShortcodeForm(String(source || ''))).then(function (form) { return form && form.kind ? form : null; });

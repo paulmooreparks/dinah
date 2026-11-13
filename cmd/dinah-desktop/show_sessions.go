@@ -285,7 +285,7 @@ func (p *showPage) ReadAppearance() (AppearanceSnapshot, error) { return p.app.R
 
 func (p *showPage) ShortcodeCatalog() []shortcodes.Descriptor { return p.app.ShortcodeCatalog() }
 
-func (p *showPage) RenderShortcode(r shortcodes.Request) (string, error) {
+func (p *showPage) RenderShortcode(r shortcodes.Request) (shortcodes.Drawing, error) {
 	return p.app.RenderShortcode(r)
 }
 
