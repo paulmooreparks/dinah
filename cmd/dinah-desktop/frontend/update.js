@@ -6,15 +6,16 @@
      once, after a question, ending the turns still running. */
   const app = window.dinahHelpers.app;
   function host() { return window.dinahHost; }
-  var state = { ready: false, pending: false, working: 0 };
+  var state = { ready: false, pending: false, working: 0, writing: 0 };
 
   function turns(n) { return n === 1 ? '1 chat is' : n + ' chats are'; }
+  function writes(n) { return n === 1 ? 'the document being written is' : 'the ' + n + ' documents being written are'; }
   function draw() {
     var item = document.getElementById('status-update');
     if (!item) return;
     item.hidden = !state.ready;
     var name = window.dinahProduct.name;
-    var note = state.pending ? name + ' restarts when the running turns end. ' + turns(state.working) + ' still working; new messages wait until after the restart.'
+    var note = state.pending ? name + ' restarts when the running turns end' + (state.writing ? ' and ' + writes(state.writing) + ' saved or published' : '') + '. ' + turns(state.working) + ' still working; new messages wait until after the restart, and so does saving or publishing a document.'
       : 'A newer build of ' + name + ' is installed. Restarting reopens your chats, and their messages wait for them.';
     var label = state.pending ? name + ' restarts for its update when the running turns end' : 'A newer build of ' + name + ' is installed';
     item.setAttribute('aria-label', label); item.title = label;
@@ -58,7 +59,8 @@
     var fresh = app().UpdateState ? Promise.resolve(app().UpdateState()).then(read).catch(function () {}) : Promise.resolve();
     return fresh.then(function () {
       var words = state.working ? turns(state.working) + ' still working, and ' + (state.working === 1 ? 'its turn ends' : 'their turns end') + ' unfinished.' : 'No chat is working.';
-      return host().ask('Restart Now?', words + ' The chats reopen after the restart.', 'Restart Now', state.working > 0);
+      if (state.writing) words += ' ' + (state.writing === 1 ? 'A document is' : state.writing + ' documents are') + ' being saved or published, and whether that reaches its source will not be known.';
+      return host().ask('Restart Now?', words + ' The chats reopen after the restart.', 'Restart Now', state.working > 0 || state.writing > 0);
     }).then(function (yes) {
       if (yes) return app().RestartToUpdate(true);
     }).catch(host().fail);

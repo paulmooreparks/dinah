@@ -26,7 +26,11 @@ type (
 func draftErrorText(err error) error { return documents.ErrorText(err) }
 
 func (a *App) draftService() (*drafts.Service, error) {
-	return documents.Service(stateLayout(), a.resourceService().resolver())
+	svc, err := documents.Service(stateLayout(), a.resourceService().resolver())
+	if err == nil {
+		svc.Admit = a.admitWrite
+	}
+	return svc, err
 }
 
 // documentOps are the document operations bound to the app.
@@ -186,6 +190,11 @@ func (a *App) RedrawDraftPictures(id string) ([]string, error) {
 	if !ok || !r.RedrawsPictures(d.Origin.Path) {
 		return nil, resource.ErrUnsupported
 	}
+	done, err := a.admitWrite()
+	if err != nil {
+		return nil, err
+	}
+	defer done()
 	notes, err := r.RedrawPictures(ctx, d.Origin.Path)
 	if err != nil {
 		return nil, draftErrorText(err)

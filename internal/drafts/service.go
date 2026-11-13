@@ -34,6 +34,19 @@ type Service struct {
 	// changed and the baseline not, and report the draft's own write as a change
 	// made elsewhere.
 	writes keylock.Set
+	// Admit, when set, is asked before a draft is written to its resource. It
+	// refuses the write with an error, or returns what to call when the write
+	// has ended, so that whoever supplies it knows the writes that are under
+	// way and can stop admitting new ones.
+	Admit func() (func(), error)
+}
+
+// admit asks Admit, and admits every write when there is none.
+func (s *Service) admit() (func(), error) {
+	if s.Admit == nil {
+		return func() {}, nil
+	}
+	return s.Admit()
 }
 
 // The operations a draft offers, as View.Actions lists them. Save and Publish
@@ -212,6 +225,11 @@ func (s *Service) refreshed(ctx context.Context, d Draft) Draft {
 // to the resource elsewhere is overwritten. What was written becomes the new
 // baseline. The notes say what the write could not keep.
 func (s *Service) Save(ctx context.Context, id, expected string) (Draft, []string, error) {
+	done, err := s.admit()
+	if err != nil {
+		return Draft{}, nil, err
+	}
+	defer done()
 	defer s.writes.Lock(id)()
 	d, err := s.Store.Get(id)
 	if err != nil {
@@ -400,6 +418,11 @@ func (s *Service) Merge(ctx context.Context, id, expected string) (Draft, error)
 // else. It is refused when a resource already exists at origin, so nothing is
 // replaced that the person has not seen.
 func (s *Service) SaveAs(ctx context.Context, id, expected string, origin Origin) (Draft, []string, error) {
+	done, err := s.admit()
+	if err != nil {
+		return Draft{}, nil, err
+	}
+	defer done()
 	defer s.writes.Lock(id)()
 	d, err := s.Store.Get(id)
 	if err != nil {

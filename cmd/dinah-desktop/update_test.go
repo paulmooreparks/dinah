@@ -87,3 +87,45 @@ func TestANewBuildWaitsForTheOldWindow(t *testing.T) {
 		t.Fatalf("plain arguments changed: %v", got)
 	}
 }
+
+func TestWaitingToRestartHoldsNewWritesAndWaitsForOneUnderWay(t *testing.T) {
+	a, path := watchedApp(t)
+	os.WriteFile(path, []byte("build two, longer"), 0o755)
+	a.checkUpdate()
+	done, err := a.admitWrite()
+	if err != nil {
+		t.Fatalf("a write was refused with no restart waiting: %v", err)
+	}
+	a.updMu.Lock()
+	a.update.pending = true
+	a.updMu.Unlock()
+	if st := a.UpdateState(); st.Writing != 1 {
+		t.Fatalf("the state is %+v with one write under way", st)
+	}
+	if _, err := a.admitWrite(); err == nil || !strings.Contains(err.Error(), "after the restart") {
+		t.Fatalf("a new write was admitted while the restart waits: %v", err)
+	}
+	finished := make(chan struct{})
+	go func() { a.restartWhenIdle(); close(finished) }()
+	select {
+	case <-finished:
+		t.Fatal("the restart did not wait for the write under way")
+	case <-time.After(700 * time.Millisecond):
+	}
+	done()
+	done()
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the restart did not go on once the write had ended")
+	}
+	if st := a.UpdateState(); st.Writing != 0 {
+		t.Fatalf("the state is %+v after the write ended", st)
+	}
+	a.CancelRestart()
+	if done, err := a.admitWrite(); err != nil {
+		t.Fatalf("writes are still held after cancelling: %v", err)
+	} else {
+		done()
+	}
+}

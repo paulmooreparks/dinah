@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -22,7 +23,8 @@ import (
 // path while the window runs, and the window, when it was started from that
 // path, notices the new file and offers to restart. Restarting holds new
 // turns (the person's prompts stay in their boxes, and bus messages wait on
-// the bus), waits for every running turn to end, closes the window the
+// the bus) and new writes of a document to where it is kept, waits for
+// every running turn and every such write to end, closes the window the
 // usual way, and starts the new build, which waits for this process to end
 // before it takes the single-instance lock. The reopened chats carry on
 // from their saved sessions.
@@ -37,6 +39,8 @@ type UpdateState struct {
 	Pending bool `json:"pending"`
 	// Working is how many chats are in a turn.
 	Working int `json:"working"`
+	// Writing is how many documents are being saved or published.
+	Writing int `json:"writing"`
 	// StateGen and StateVer order the snapshots of this state the page is
 	// given (internal/sessionhost/state_events.go).
 	StateGen string `json:"stateGen,omitempty"`
@@ -53,6 +57,28 @@ type updateWatch struct {
 	// pending is set while the window waits to restart, and restarting
 	// once the window has agreed to close.
 	pending, restarting bool
+}
+
+// admitWrite is asked before a document is written to where it is kept: a
+// file saved, a page published, a source's pictures drawn again. It refuses
+// while the window waits to restart, and otherwise counts the write until
+// the returned function is called. The refusal and the count are decided
+// under one lock, so a write is either refused or waited for.
+func (a *App) admitWrite() (func(), error) {
+	a.updMu.Lock()
+	defer a.updMu.Unlock()
+	if a.update != nil && a.update.pending {
+		return nil, errors.New(product.Name + " is waiting to restart for its update, so nothing is saved or published until it has restarted. The document keeps its changes; save it after the restart, or cancel the restart")
+	}
+	a.writing++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			a.updMu.Lock()
+			a.writing--
+			a.updMu.Unlock()
+		})
+	}, nil
 }
 
 // updatePoll is how often the installed program is looked at.
@@ -182,6 +208,7 @@ func (a *App) UpdateState() UpdateState {
 	if w != nil {
 		st.Ready, st.Pending = w.ready, w.pending
 	}
+	st.Writing = a.writing
 	st.StateGen, st.StateVer = a.updateClock().Next()
 	a.updMu.Unlock()
 	st.Working = a.workingChats()
@@ -201,8 +228,10 @@ func (a *App) holdingTurns() error {
 }
 
 // RestartToUpdate restarts into the newer build. With now unset it holds
-// new turns and waits for the running ones to end; with now set it
-// restarts at once, and turns still running end unfinished.
+// new turns and new writes of documents, and waits for the running ones to
+// end; with now set it restarts at once, and turns still running end
+// unfinished. A write under way when the person chooses that is logged,
+// since whether it reached its source is then not known.
 func (a *App) RestartToUpdate(now bool) error {
 	a.updMu.Lock()
 	w := a.update
@@ -215,6 +244,12 @@ func (a *App) RestartToUpdate(now bool) error {
 	a.updMu.Unlock()
 	a.emitUpdate()
 	if now {
+		a.updMu.Lock()
+		writing := a.writing
+		a.updMu.Unlock()
+		if writing > 0 {
+			logf("core", "warn", "restarting at once with %d document(s) being saved or published; whether each write reached its source is not known, and none is repeated automatically", writing)
+		}
 		a.closeForUpdate()
 		return nil
 	}
@@ -239,16 +274,19 @@ func (a *App) restartWhenIdle() {
 	for {
 		a.updMu.Lock()
 		pending := a.update != nil && a.update.pending
+		writing := a.writing
 		a.updMu.Unlock()
 		if !pending {
 			return
 		}
-		n := a.workingChats()
-		if n == 0 {
+		// No write starts while pending is set (admitWrite), so a count of
+		// none stays none.
+		chats := a.workingChats()
+		if chats == 0 && writing == 0 {
 			a.closeForUpdate()
 			return
 		}
-		if n != last {
+		if n := chats*1000 + writing; n != last {
 			last = n
 			a.emitUpdate()
 		}

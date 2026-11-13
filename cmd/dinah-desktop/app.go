@@ -183,8 +183,11 @@ type App struct {
 
 	// update is the installed build the window watches for Restart to
 	// Update (update.go); updateStop ends the watch.
-	updMu      sync.Mutex
-	update     *updateWatch
+	updMu  sync.Mutex
+	update *updateWatch
+	// writing is how many documents are being written to where they are
+	// kept (admitWrite), guarded by updMu.
+	writing    int
 	updateStop chan struct{}
 
 	hmu sync.Mutex // the history file
