@@ -79,14 +79,22 @@
     // another kind of source (a page on a site) is named by its title, as
     // nameOf does, since its path can be made of identifiers.
     var where = o.path && o.kind !== 'local-folder' && v.title && !/\.[A-Za-z0-9]{1,8}$/.test(baseName(o.path)) ? v.title : o.path;
-    var base = where ? (workspaceName(o.workspaceId) ? workspaceName(o.workspaceId) + '/' : '') + where : (v.title || 'Untitled') + ' (not saved)';
+    // Diagrams chooses its language from the resource identifier's suffix.
+    // Keep that suffix after labels and collision numbers, as for a file.
+    function labelled(name, label) { return name.replace(/(\.[A-Za-z0-9]{1,8})?$/, label + '$1'); }
+    var base = where ? (workspaceName(o.workspaceId) ? workspaceName(o.workspaceId) + '/' : '') + where : labelled(v.title || 'Untitled', ' (not saved)');
     var name = base, n = 1;
+    // Existing recovery snapshots refer to their assigned identity. Leave
+    // legacy identities alone; this naming rule applies to new assignments.
+    var legacyBase = where ? base : (v.title || 'Untitled') + ' (not saved)';
+    var legacy = Object.keys(all).find(function (k) { return all[k] === v.id && k !== base && (k === legacyBase || k.replace(/ \(\d+\)$/, '') === legacyBase); });
+    if (legacy) return legacy;
     /* A name a window shows now stays that window's; one left by a window
        that is gone, such as after a crash, is taken over. */
     function shown(resource) {
       return Array.prototype.some.call(document.querySelectorAll('.content-applet'), function (m) { return m.dataset.contentResource === resource; });
     }
-    while (all[name] && all[name] !== v.id && shown(name)) name = base + ' (' + (++n) + ')';
+    while (all[name] && all[name] !== v.id && shown(name)) name = labelled(base, ' (' + (++n) + ')');
     Object.keys(all).forEach(function (k) { if (all[k] === v.id && k !== name) delete all[k]; });
     if (all[name] !== v.id) { all[name] = v.id; window.dinahUIState.set(NAMES, all); }
     return name;
@@ -373,7 +381,7 @@
         return boundApi(routed.key).then(function (target) {
           /* A new document is already the new window's own; anything else
              is the request the window takes. */
-          var taken = routed.done ? window.dinahContentWindows.listed(routed.key).then(function (doc) { return { output: doc }; }) : target.accept(request);
+          var taken = routed.done ? window.dinahContentWindows.created(routed.key, application).then(function (doc) { return { output: doc }; }) : target.accept(request);
           return Promise.resolve(taken).then(function (result) {
             if (!target.flush()) throw new Error('The new window could not keep its document for recovery.');
             return result;
