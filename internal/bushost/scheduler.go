@@ -169,6 +169,18 @@ func (s *Scheduler) Consider(chat, path string, newest int64, hidden, open bool,
 	s.queue = append(s.queue, chat)
 	return Decision{}, false
 }
+
+// Waiting are the queued chats that still have a message waiting for them, in
+// the order they queued. They are the chats that open when places free.
+func (s *Scheduler) Waiting(paths map[string]string) []string {
+	var out []string
+	for _, chat := range s.queue {
+		if _, waiting := paths[chat]; waiting {
+			out = append(out, chat)
+		}
+	}
+	return out
+}
 func (s *Scheduler) Next(paths map[string]string, liveBackground int, now time.Time) (Decision, bool) {
 	for len(s.queue) > 0 && s.BackgroundPending()+liveBackground < BackgroundSlots {
 		chat := s.queue[0]

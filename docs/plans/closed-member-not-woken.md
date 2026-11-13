@@ -1,6 +1,6 @@
 # A Closed Team Member Was Not Woken by Its Assignment
 
-Paul reported this fault on 13 November 2026 and asked for it to be filed and fixed. It is open, and nobody has diagnosed it yet.
+Paul reported this fault on 13 November 2026 and asked for it to be filed and fixed. The cause is found and the first part of the fix is built; the section The Cause and the Fix, at the end, says which part is left.
 
 ## What Happened
 
@@ -37,3 +37,19 @@ The member's task before this one ended with an instruction to stop work, so a s
 A message that asks a closed chat to act opens that chat in the background and starts its turn, with no window opened by the person. When Dinah does not open the chat, for a reason it knows, the sender's receipt says so and says why, and the log has a line for it. The send receipt already warns when a chat runs outside the window and cannot be woken, and this is the same promise for a chat that the window chose not to open.
 
 The check is a test that sends an assignment to a closed member and finds its turn started, and one for each reason a wake is declined that finds the reason in the receipt.
+
+## The Cause and the Fix
+
+The cause is the third of the places above. At most three chats are open in the background at once (`BackgroundSlots` in `internal/bushost/scheduler.go`), and a chat opened there kept its place for thirty minutes after its last turn ended. A chat that a message asked for while all three places were taken was put in a queue, and nothing was written or shown.
+
+That was the state on 13 November. The chat list, read a few minutes after the fault, had exactly three chats open in the background: two that were working, and one that had been idle since 15:31 UTC, nine minutes before the assignment. The member waited behind a chat that had nothing to do.
+
+Three things are changed.
+
+1. A chat open in the background that has been idle for a minute gives its place to a chat that waits, longest idle first (`yieldIdleBackground` in `internal/sessionhost/bus_chats.go`, `BackgroundYield`). It is parked as an idle chat is, so it keeps its session with the agent and its next message opens it again. A chat that is working, has background work or subagents running, or ended a turn within the minute keeps its place.
+2. When a chat still waits, because all three places belong to chats that are working, the log says so once, with the chat that waits and the three that are in its way.
+3. The team's list (`dinah.team/list@1` and the team page) says beside such a member that a message waits for it and why.
+
+`TestAnIdleBackgroundChatYieldsItsPlaceToAWaitingOne` covers the first and the third.
+
+Two parts are left. The sender's receipt does not say that the chat it asked could not be opened: the receipt is written by the bus when the message is sent, and the places are known only to the window, a moment later. And the limit itself is still three, so a fourth chat still waits when three are working at once, for as long as they work. Whether three is the right number is Paul's to say.

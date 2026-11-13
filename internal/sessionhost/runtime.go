@@ -181,6 +181,23 @@ func (r *Runtime) ConsiderWakeLocked(chat, path string, newest int64, hidden boo
 	}
 	return r.wake.Consider(chat, path, newest, hidden, open, now)
 }
+
+// WakeShortfallLocked is how many of the chats queued for a message have no
+// place in the background to open in, and so wait for one.
+func (r *Runtime) WakeShortfallLocked(paths map[string]string) int {
+	free := bushost.BackgroundSlots - r.BackgroundUsedLocked()
+	if free < 0 {
+		free = 0
+	}
+	if n := len(r.wake.Waiting(paths)) - free; n > 0 {
+		return n
+	}
+	return 0
+}
+
+// WaitingWakesLocked are the chats queued for a message that have not been
+// opened, in the order they queued.
+func (r *Runtime) WaitingWakesLocked(paths map[string]string) []string { return r.wake.Waiting(paths) }
 func (r *Runtime) NextWakeLocked(paths map[string]string, now time.Time) (bushost.Decision, bool) {
 	live := r.BackgroundUsedLocked() - r.wake.BackgroundPending()
 	return r.wake.Next(paths, live, now)

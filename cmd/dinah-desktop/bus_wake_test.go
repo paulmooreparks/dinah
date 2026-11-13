@@ -162,9 +162,10 @@ func TestAtMostThreeChatsOpenInTheBackground(t *testing.T) {
 
 	a.session("codex:one").SetIdleSince(now)
 
-	a.session("codex:two").SetIdleSince(now.Add(backgroundIdle))
+	// The other two ended a turn a moment ago, so they keep their places.
+	a.session("codex:two").SetIdleSince(now.Add(backgroundIdle + time.Minute))
 
-	a.session("codex:three").SetIdleSince(now.Add(backgroundIdle))
+	a.session("codex:three").SetIdleSince(now.Add(backgroundIdle + time.Minute))
 
 	wakeRound(t, a)
 	asked = r.take()
@@ -187,6 +188,56 @@ func TestAtMostThreeChatsOpenInTheBackground(t *testing.T) {
 	wakeRound(t, a)
 	if got := askedIDs(r.take()); strings.Join(got, ",") != "codex:five" {
 		t.Fatalf("the last chat did not open when a failed one freed its slot: %v", got)
+	}
+}
+
+// A message to a closed chat opens it although every place in the background
+// is taken, when a chat in one of them has finished its work: that chat is
+// closed and the waiting one opens in its place. Chats that are in the middle
+// of an exchange keep their places, and the chat that waits is said to wait.
+func TestAnIdleBackgroundChatYieldsItsPlaceToAWaitingOne(t *testing.T) {
+	a, _ := providerTestApp(t)
+	r := watchConnects(a)
+	for _, id := range []string{"codex:one", "codex:two", "codex:three"} {
+		closedChat(t, a, id, "Chat "+id)
+	}
+	a.ChatWindows(nil)
+	wakeRound(t, a)
+	openAsAsked(t, a, r.take())
+	now := time.Now()
+	for _, id := range []string{"codex:one", "codex:two", "codex:three"} {
+		a.session(id).SetIdleSince(now)
+	}
+	// A fourth chat is asked while all three ended a turn a moment ago.
+	closedChat(t, a, "codex:four", "Chat four")
+	a.wakeNow = func() time.Time { return now.Add(sessionhost.BackgroundYield - time.Second) }
+	wakeRound(t, a)
+	if got := r.take(); len(got) != 0 {
+		t.Fatalf("a fourth chat was opened while every place was in use: %v", askedIDs(got))
+	}
+	if !a.busCoordinator().WaitingForPlace("codex:four") || a.busCoordinator().WaitingForPlace("codex:one") {
+		t.Fatal("the chat that waits for a place is not said to wait")
+	}
+	// One of the three has been idle for longer than the others.
+	a.session("codex:two").SetIdleSince(now.Add(-time.Minute))
+	a.wakeNow = func() time.Time { return now.Add(sessionhost.BackgroundYield - time.Second) }
+	wakeRound(t, a)
+	if got := askedIDs(r.take()); strings.Join(got, ",") != "codex:four" {
+		t.Fatalf("the waiting chat did not open in the place of an idle one: %v", got)
+	}
+	if info := a.session("codex:two").Info(); !info.Parked || info.InBackground {
+		t.Fatalf("the idle chat did not give up its place: %+v", info)
+	}
+	for _, id := range []string{"codex:one", "codex:three"} {
+		if info := a.session(id).Info(); info.Parked || !info.InBackground {
+			t.Fatalf("%s lost its place though it was not idle for long: %+v", id, info)
+		}
+	}
+	if a.busCoordinator().WaitingForPlace("codex:four") {
+		t.Fatal("the opened chat is still said to wait")
+	}
+	if n := a.backgroundUsedLocked(); n != backgroundSlots {
+		t.Fatalf("%d places are in use after the exchange", n)
 	}
 }
 

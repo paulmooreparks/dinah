@@ -4,6 +4,8 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,7 +41,8 @@ var BusChatsSource []byte
 // At most backgroundSlots chats are open in the background at once, or
 // being opened there; the rest queue in the order their messages came and
 // open as slots free, so a message to a large group cannot start a crowd of
-// agents. A chat open in the background closes itself backgroundIdle after
+// agents. A chat that has been idle for BackgroundYield frees its slot for
+// one that is queued. A chat open in the background closes itself backgroundIdle after
 // its last turn ends, unless the person has opened its window by then,
 // which makes it an ordinary open chat. Neither limit touches a chat's
 // membership of a group: its messages wait for it as they wait for any
@@ -47,6 +50,15 @@ var BusChatsSource []byte
 // newer message wakes it, and its messages keep waiting.
 
 const BackgroundIdle = 30 * time.Minute
+
+// BackgroundYield is how long a chat open in the background has to have been
+// idle before it gives its place to a chat that a message waits for. Without
+// it a chat that had finished its work kept its place for BackgroundIdle, and
+// with every place taken a message to a fourth closed chat opened nothing
+// and said nothing (docs/plans/closed-member-not-woken.md). The chat that
+// yields is parked, as an idle one is, and its next message opens it again.
+// The minute keeps a chat that is between the turns of one exchange open.
+const BackgroundYield = time.Minute
 
 // BusChats coordinates session bus activity using the existing runtime authority.
 // It owns no bus handle or watcher and must not be copied after use.
@@ -56,6 +68,9 @@ type BusChats struct {
 	host    BusChatsHost
 	// retries holds the results that could not be queued yet, and when each is tried again (bus_results.go).
 	retries resultRetries
+	// waiting are the chats a message waits for that have no place in the
+	// background, each noted in the log once; mu guards it.
+	waiting map[string]bool
 }
 
 type BusChatsHost struct {
@@ -174,8 +189,72 @@ func (a *BusChats) ConnectWaking(ctx context.Context, b *bus.Bus) {
 	for _, w := range reconnect {
 		a.AskToConnect(w.Session, w.WorkspacePath, false)
 	}
+	a.yieldIdleBackground(paths)
 	a.OpenQueued(paths)
+	a.noteWaiting(paths)
 	a.openWarm()
+}
+
+// yieldIdleBackground parks the chats open in the background that have been
+// idle for BackgroundYield, longest idle first, as many as there are chats
+// that a message waits for and that have no place to open in. A chat that
+// is working, or has work of its own running, keeps its place.
+func (a *BusChats) yieldIdleBackground(paths map[string]string) {
+	now := a.host.Clock()
+	a.mu.Lock()
+	need := a.runtime.WakeShortfallLocked(paths)
+	var idle []*Conversation
+	if need > 0 {
+		for _, s := range a.runtime.ConversationsLocked() {
+			if s.UsesBackgroundSlot() && s.IdleBackground(now, BackgroundYield) {
+				idle = append(idle, s)
+			}
+		}
+	}
+	a.mu.Unlock()
+	sort.Slice(idle, func(i, j int) bool { return idle[i].IdleSince().Before(idle[j].IdleSince()) })
+	for i := 0; i < len(idle) && i < need; i++ {
+		a.host.Log("info", "chat %s was idle in the background and is closed, so that a chat with a message waiting can open in its place", idle[i].ID())
+		a.Park(idle[i])
+	}
+}
+
+// noteWaiting writes in the log, once for each chat, that a message waits for
+// a chat that could not be opened because every place in the background is
+// taken by a chat that is working, and which chats those are.
+func (a *BusChats) noteWaiting(paths map[string]string) {
+	a.mu.Lock()
+	queued := a.runtime.WaitingWakesLocked(paths)
+	var fresh []string
+	now := map[string]bool{}
+	for _, chat := range queued {
+		now[chat] = true
+		if !a.waiting[chat] {
+			fresh = append(fresh, chat)
+		}
+	}
+	a.waiting = now
+	var holders []string
+	if len(fresh) > 0 {
+		for _, s := range a.runtime.ConversationsLocked() {
+			if s.UsesBackgroundSlot() {
+				holders = append(holders, s.ID())
+			}
+		}
+	}
+	a.mu.Unlock()
+	sort.Strings(holders)
+	for _, chat := range fresh {
+		a.host.Log("warn", "chat %s has a message waiting and was not opened: all %d places in the background are taken by chats that are working (%s); it opens when one of them is idle", chat, bushost.BackgroundSlots, strings.Join(holders, ", "))
+	}
+}
+
+// WaitingForPlace reports whether a message waits for the chat and it has
+// not been opened because every place in the background is taken.
+func (a *BusChats) WaitingForPlace(chat string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.waiting[chat]
 }
 
 // queueWarm makes the one pass, after the window has started, that queues the
