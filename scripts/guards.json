@@ -354,6 +354,17 @@
     "browser-lock",
     "agent-file-access",
     "ollama-file-access",
-    "responsiveness-snapshot"
+    "responsiveness-snapshot",
+    "settings-updates-loading",
+    "settings-updates-current",
+    "settings-updates-available",
+    "settings-updates-installing",
+    "settings-updates-installed",
+    "settings-updates-unavailable",
+    "settings-updates-errors",
+    "settings-updates-packages",
+    "settings-updates-repair",
+    "settings-updates-missing-services",
+    "settings-updates-service"
   ]
 }
