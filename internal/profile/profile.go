@@ -136,6 +136,12 @@ type ToolServer struct {
 	Name    string
 	Program string
 	Args    []string
+	// EarlierFolders are the folders, in the person's home folder, where an
+	// earlier installation of the product put the program. An entry that
+	// runs the program from one of them was written by that installation
+	// and is brought to the program's place now. An entry that runs it
+	// from anywhere else is a person's own.
+	EarlierFolders []string
 }
 
 // dinah is Dinah's profile, the one this build uses.

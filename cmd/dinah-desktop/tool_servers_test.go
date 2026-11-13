@@ -64,10 +64,14 @@ func TestAnEarlierInstallationsToolServerIsMovedToTheProgramsPlace(t *testing.T)
 	if err := os.WriteFile(path, []byte(initial), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	server := toolServerEntry{Name: "example-tools", Entry: appletRegistrationEntry{Command: filepath.Join(dir, "bin", "example-tools.exe"), Args: []string{"serve"}}}
+	server := toolServerEntry{Name: "example-tools", Entry: appletRegistrationEntry{Command: filepath.Join(dir, "bin", "example-tools.exe"), Args: []string{"serve"}}, Earlier: []string{filepath.Join(dir, "old")}}
 	notes, err := registerToolServersAt(path, []toolServerEntry{server})
 	if err != nil || len(notes) != 1 || !strings.Contains(notes[0], "now runs") {
 		t.Fatalf("the move: %v %v", notes, err)
+	}
+	// The file as it was is kept beside it.
+	if kept, err := os.ReadFile(path + toolServerBackup); err != nil || string(kept) != initial {
+		t.Fatalf("the copy of the file as it was: %v", err)
 	}
 	if got, _ := entryOf(t, path, "example-tools"); got.Command != server.Entry.Command {
 		t.Fatalf("the entry still runs %s", got.Command)
@@ -85,14 +89,16 @@ func TestAnEarlierInstallationsToolServerIsMovedToTheProgramsPlace(t *testing.T)
 // as it is, and the registration says so.
 func TestAPersonsOwnToolServerEntryIsLeftAlone(t *testing.T) {
 	dir := t.TempDir()
-	server := toolServerEntry{Name: "example-tools", Entry: appletRegistrationEntry{Command: filepath.Join(dir, "bin", "example-tools.exe"), Args: []string{"serve"}}}
+	server := toolServerEntry{Name: "example-tools", Entry: appletRegistrationEntry{Command: filepath.Join(dir, "bin", "example-tools.exe"), Args: []string{"serve"}}, Earlier: []string{filepath.Join(dir, "old")}}
 	old := string(mustJSON(t, filepath.Join(dir, "old", "example-tools.exe")))
+	custom := string(mustJSON(t, filepath.Join(dir, "custom-build", "example-tools.exe")))
 	for name, entry := range map[string]string{
-		"other arguments":     `{"command":` + old + `,"args":["serve","--verbose"]}`,
-		"an environment":      `{"command":` + old + `,"args":["serve"],"env":{"SPACE":"TEST"}}`,
-		"another program":     `{"command":"C:/tools/wrapper.cmd","args":["serve"]}`,
-		"not a server":        `"a string"`,
-		"no arguments at all": `{"command":` + old + `}`,
+		"other arguments":      `{"command":` + old + `,"args":["serve","--verbose"]}`,
+		"an environment":       `{"command":` + old + `,"args":["serve"],"env":{"SPACE":"TEST"}}`,
+		"a build of their own": `{"command":` + custom + `,"args":["serve"]}`,
+		"another program":      `{"command":"C:/tools/wrapper.cmd","args":["serve"]}`,
+		"not a server":         `"a string"`,
+		"no arguments at all":  `{"command":` + old + `}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "mcp_config.json")
@@ -107,6 +113,9 @@ func TestAPersonsOwnToolServerEntryIsLeftAlone(t *testing.T) {
 			}
 			if len(notes) != 1 || !strings.Contains(notes[0], "left as it is") {
 				t.Fatalf("what was said: %v", notes)
+			}
+			if _, err := os.Stat(path + toolServerBackup); err == nil {
+				t.Fatal("a copy was kept of a file that was not changed")
 			}
 		})
 	}

@@ -687,6 +687,29 @@ func devinModelPrices(a *App) map[string]agents.DevinModelPrice {
 type toolServerEntry struct {
 	Name  string
 	Entry appletRegistrationEntry
+	// Earlier are the folders an earlier installation ran the program from.
+	Earlier []string
+}
+
+// toolServerBackup ends the name of the copy kept of a settings file before
+// a tool server's entry in it is changed.
+const toolServerBackup = ".before-tool-servers"
+
+// installed reports whether command is the server's program in a folder an
+// installation of the product puts it in: where it is now, or where an
+// earlier installation had it. The file's name alone does not say so, since
+// a person may run a build of their own that has the same name.
+func (s toolServerEntry) installed(command string) bool {
+	command = filepath.Clean(filepath.FromSlash(command))
+	if !strings.EqualFold(filepath.Base(command), filepath.Base(s.Entry.Command)) {
+		return false
+	}
+	for _, folder := range append([]string{filepath.Dir(s.Entry.Command)}, s.Earlier...) {
+		if strings.EqualFold(filepath.Dir(command), filepath.Clean(folder)) {
+			return true
+		}
+	}
+	return false
 }
 
 // installedToolServers are the product's tool servers whose programs are
@@ -703,7 +726,13 @@ func installedToolServers() []toolServerEntry {
 		if args == nil {
 			args = []string{}
 		}
-		out = append(out, toolServerEntry{Name: s.Name, Entry: appletRegistrationEntry{Command: program, Args: args}})
+		var earlier []string
+		if home, err := os.UserHomeDir(); err == nil {
+			for _, folder := range s.EarlierFolders {
+				earlier = append(earlier, filepath.Join(home, filepath.FromSlash(folder)))
+			}
+		}
+		out = append(out, toolServerEntry{Name: s.Name, Entry: appletRegistrationEntry{Command: program, Args: args}, Earlier: earlier})
 	}
 	return out
 }
@@ -734,9 +763,9 @@ func ensureToolServerRegistrations() {
 // registerToolServersAt gives each server its entry in a Devin MCP
 // configuration, and says what it did. A server with no entry gets one. An
 // entry that is the product's own is brought to the program's place now:
-// one that runs a program of the same file name with the same arguments
-// and has nothing else in it, which is what this function and the earlier
-// setup wrote. Any other entry of that name is a person's and is kept as it
+// one that runs the program from a folder an installation puts it in, with
+// the same arguments and nothing else in it, which is what this function
+// and an earlier installation wrote. Any other entry of that name is a person's and is kept as it
 // is. Everything else in the file is kept, comments included.
 func registerToolServersAt(path string, servers []toolServerEntry) ([]string, error) {
 	appletRegistrationMu.Lock()
@@ -776,8 +805,7 @@ func registerToolServersAt(path string, servers []toolServerEntry) ([]string, er
 			var old appletRegistrationEntry
 			var fields map[string]json.RawMessage
 			readable := json.Unmarshal(standard.Pack(), &old) == nil && json.Unmarshal(standard.Pack(), &fields) == nil
-			own := readable && len(fields) == 2 && reflect.DeepEqual(old.Args, s.Entry.Args) &&
-				strings.EqualFold(filepath.Base(filepath.FromSlash(old.Command)), filepath.Base(s.Entry.Command))
+			own := readable && len(fields) == 2 && reflect.DeepEqual(old.Args, s.Entry.Args) && s.installed(old.Command)
 			if !own {
 				notes = append(notes, fmt.Sprintf("%s has an entry for %s that %s did not write, so it was left as it is", path, s.Name, product.Name))
 				continue
@@ -798,6 +826,13 @@ func registerToolServersAt(path string, servers []toolServerEntry) ([]string, er
 	patch, _ := json.Marshal(patches)
 	if err := doc.Patch(patch); err != nil {
 		return notes, errors.New("could not update the tool servers' registration")
+	}
+	// The file as it was is kept beside it before it is replaced, one copy,
+	// which the next change replaces.
+	if !missing {
+		if err := os.WriteFile(path+toolServerBackup, original, 0o600); err != nil {
+			return notes, fmt.Errorf("the settings were not changed, since a copy of them could not be kept: %w", err)
+		}
 	}
 	return notes, replaceDevinConfig(path, original, missing, doc.Pack())
 }
