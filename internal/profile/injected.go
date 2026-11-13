@@ -133,6 +133,12 @@ func (p Profile) check() error {
 	if !providerID.MatchString(p.AppletServer) {
 		problems = append(problems, "AppletServer must be a lowercase letter followed by lowercase letters, digits or hyphens")
 	}
+	for _, s := range p.ToolServers {
+		if !providerID.MatchString(s.Name) || s.Name == p.AppletServer || !providerID.MatchString(s.Program) {
+			problems = append(problems, "each of ToolServers needs a Name and a Program of lowercase letters, digits and hyphens, and a Name that is not AppletServer")
+			break
+		}
+	}
 	if len(p.Providers) == 0 {
 		problems = append(problems, "Providers must list at least one agent provider")
 	} else if p.DefaultProvider != "" && !slices.Contains(p.Providers, p.DefaultProvider) {

@@ -31,3 +31,13 @@ The product directory is also a Go package, `studio/cmd/dinah-desktop/product`, 
 ## What this does not yet do
 
 The plan lists further seams a product may need: a composition root that calls one host entry point with the product's applet bundles, package kinds, settings sections and page contributions; registries for menus and the page bridge; a workflow-hosting adapter. Resource providers and connections have theirs (docs/design/source-kinds.md), and a product's applets and the Go services behind them have theirs (docs/design/product-applets.md). Each of the rest is added when a product needs it, as a general seam with a neutral name and a contract test, and is recorded here or beside here. Until a product's executable has its own composition root, it is Dinah's `cmd/dinah-desktop` and `cmd/dinah` built with the profile injected and the product directory filled, under the product's executable names.
+
+## A product's own tool servers
+
+A product may have programs of its own that offer agents tools over MCP and are no applets. It lists them in its profile as `ToolServers`, each with the name agents know it by, the program, and the arguments it is started with. The program is installed in the product's bin folder beside the window program and is replaced with it.
+
+The window registers each server in the settings of the agent it starts, when it prepares a chat (`ensureToolServerRegistrations` in `provider_devin.go`). A new installation therefore needs no setup, and an update needs none, since the program keeps its path. A server with no entry gets one. An entry from an earlier installation, which runs a program of the same file name with the same arguments from another folder, is brought to where the program is now. Any other entry of that name was written or changed by a person and is left as it is, and the log says so. The registration never keeps a chat from starting. A test, and a copy run with a state folder of its own, change no settings.
+
+Before 13 November 2026 nothing but a person's own settings said where such a program was, and a product's tools stayed a month behind its window (Paul, 13 November 2026).
+
+Two limits remain. Only Devin's settings are written, since it is the one provider that reads its servers from a file the window manages; a provider that is given its servers when a session starts would be given these there. An entry in a workspace's own settings file that replaces the person's is not looked for.

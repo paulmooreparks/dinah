@@ -18,6 +18,7 @@ import (
 	"studio/internal/acp"
 	"studio/internal/agents"
 	"studio/internal/profile"
+	"studio/internal/programs"
 )
 
 // Devin's own work in the window: finding its command line among the ones on
@@ -96,6 +97,8 @@ func devinPrepareApplets(workspace string) error {
 	if err := ensureAppletMCPRegistration(workspace); err != nil {
 		return err
 	}
+	// The product's own tool servers, which never keep a chat from starting.
+	ensureToolServerRegistrations()
 	return ensureDevinSteeringHooks(workspace)
 }
 
@@ -482,7 +485,12 @@ func registerAppletMCPAt(path string, entry appletRegistrationEntry) error {
 	if err := doc.Patch(patch); err != nil {
 		return errors.New("could not update the managed applet registration")
 	}
-	out := doc.Pack()
+	return replaceDevinConfig(path, original, missing, doc.Pack())
+}
+
+// replaceDevinConfig writes Devin's MCP configuration as out, provided the
+// file is still original, which is what out was made from.
+func replaceDevinConfig(path string, original []byte, missing bool, out []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
@@ -660,4 +668,136 @@ func devinModelPrices(a *App) map[string]agents.DevinModelPrice {
 		go func() { a.refreshDevinPrices(a.providerInfoOf(devinID).Path, "") }()
 	}
 	return a.matchedDevinPrices()
+}
+
+/* A product's own tool servers (profile.ToolServers): programs installed
+   beside the window program that offer agents tools over MCP. The window
+   registers each in the settings of the agent it starts, when it prepares a
+   chat, so a new installation needs no setup and an update needs none
+   either, since the program keeps its path and is replaced with the window.
+   A product's tools once stayed a month behind its window because nothing
+   but a person's own settings said where they were (Paul, 13 November
+   2026).
+
+   The registration is a convenience and never a condition: whatever comes
+   of it, the chat starts. An entry a person wrote or changed is theirs and
+   is left alone. */
+
+// toolServerEntry is one tool server as it is registered.
+type toolServerEntry struct {
+	Name  string
+	Entry appletRegistrationEntry
+}
+
+// installedToolServers are the product's tool servers whose programs are
+// in the product's bin folder, which is where an installation and every
+// update put them. A program that is not there is not registered.
+func installedToolServers() []toolServerEntry {
+	var out []toolServerEntry
+	for _, s := range profile.Current().ToolServers {
+		program := filepath.Join(configDir(), "bin", programs.FileName(s.Program))
+		if st, err := os.Stat(program); err != nil || st.IsDir() {
+			continue
+		}
+		args := s.Args
+		if args == nil {
+			args = []string{}
+		}
+		out = append(out, toolServerEntry{Name: s.Name, Entry: appletRegistrationEntry{Command: program, Args: args}})
+	}
+	return out
+}
+
+// ensureToolServerRegistrations registers the product's tool servers in
+// Devin's settings for the person. A test, and a copy run with a state
+// folder of its own, change nothing, as for the applet helper
+// (ensureAppletMCPRegistration).
+func ensureToolServerRegistrations() {
+	servers := installedToolServers()
+	if len(servers) == 0 || configOverride != "" || !personsOwnStateFolder() {
+		return
+	}
+	base, err := os.UserConfigDir()
+	if err != nil {
+		logf("tools", "warn", "the tool servers were not registered: %v", err)
+		return
+	}
+	notes, err := registerToolServersAt(filepath.Join(base, "devin", "mcp_config.json"), servers)
+	for _, note := range notes {
+		logf("tools", "info", "%s", note)
+	}
+	if err != nil {
+		logf("tools", "warn", "the tool servers were not registered: %v", err)
+	}
+}
+
+// registerToolServersAt gives each server its entry in a Devin MCP
+// configuration, and says what it did. A server with no entry gets one. An
+// entry that is the product's own is brought to the program's place now:
+// one that runs a program of the same file name with the same arguments
+// and has nothing else in it, which is what this function and the earlier
+// setup wrote. Any other entry of that name is a person's and is kept as it
+// is. Everything else in the file is kept, comments included.
+func registerToolServersAt(path string, servers []toolServerEntry) ([]string, error) {
+	appletRegistrationMu.Lock()
+	defer appletRegistrationMu.Unlock()
+	original, err := os.ReadFile(path)
+	missing := errors.Is(err, os.ErrNotExist)
+	if err != nil && !missing {
+		return nil, fmt.Errorf("read Devin MCP configuration: %w", err)
+	}
+	input := withoutBOM(original)
+	if missing {
+		input = []byte("{}\n")
+	}
+	doc, err := hujson.Parse(input)
+	if err != nil {
+		return nil, errors.New("Devin MCP configuration is not valid JSON with comments")
+	}
+	if err := uniqueAppletConfigObjects(&doc); err != nil {
+		return nil, err
+	}
+	if _, ok := doc.Value.(*hujson.Object); !ok {
+		return nil, errors.New("Devin MCP configuration must be an object")
+	}
+	patches := []map[string]any{}
+	if found := doc.Find("/mcpServers"); found == nil {
+		patches = append(patches, map[string]any{"op": "add", "path": "/mcpServers", "value": map[string]any{}})
+	} else if _, ok := found.Value.(*hujson.Object); !ok {
+		return nil, errors.New("Devin MCP configuration mcpServers must be an object")
+	}
+	var notes []string
+	changed := false
+	for _, s := range servers {
+		pointer := "/mcpServers/" + s.Name
+		if existing := doc.Find(pointer); existing != nil {
+			standard := existing.Clone()
+			standard.Standardize()
+			var old appletRegistrationEntry
+			var fields map[string]json.RawMessage
+			readable := json.Unmarshal(standard.Pack(), &old) == nil && json.Unmarshal(standard.Pack(), &fields) == nil
+			own := readable && len(fields) == 2 && reflect.DeepEqual(old.Args, s.Entry.Args) &&
+				strings.EqualFold(filepath.Base(filepath.FromSlash(old.Command)), filepath.Base(s.Entry.Command))
+			if !own {
+				notes = append(notes, fmt.Sprintf("%s has an entry for %s that %s did not write, so it was left as it is", path, s.Name, product.Name))
+				continue
+			}
+			if strings.EqualFold(filepath.Clean(filepath.FromSlash(old.Command)), filepath.Clean(s.Entry.Command)) {
+				continue
+			}
+			notes = append(notes, fmt.Sprintf("%s ran %s for %s and now runs %s", path, old.Command, s.Name, s.Entry.Command))
+		} else {
+			notes = append(notes, fmt.Sprintf("%s now has %s, which runs %s", path, s.Name, s.Entry.Command))
+		}
+		patches = append(patches, map[string]any{"op": "add", "path": pointer, "value": s.Entry})
+		changed = true
+	}
+	if !changed {
+		return notes, nil
+	}
+	patch, _ := json.Marshal(patches)
+	if err := doc.Patch(patch); err != nil {
+		return notes, errors.New("could not update the tool servers' registration")
+	}
+	return notes, replaceDevinConfig(path, original, missing, doc.Pack())
 }

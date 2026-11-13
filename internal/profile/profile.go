@@ -100,6 +100,13 @@ type Profile struct {
 	// has every product's entry in that file under this name, and its tools
 	// are called mcp__<name>__<tool>.
 	AppletServer string
+	// ToolServers are further MCP servers the product gives the chats it
+	// starts: programs of its own, installed beside the window program,
+	// that offer agents tools the product does not offer as applets. The
+	// window registers each for its agents by itself, so a new
+	// installation needs no setup and the tools are the release the window
+	// is (provider_devin.go). Dinah has none.
+	ToolServers []ToolServer
 
 	// DefaultProvider is the agent provider a new chat uses until the person
 	// chooses another.
@@ -120,6 +127,15 @@ type Profile struct {
 	// the person accepts or rejects (the Documents applet). The person's
 	// own editing is the same either way.
 	AgentsProposeDocumentChanges bool
+}
+
+// ToolServer is one MCP server of a product's own: the name agents know it
+// by, the program that serves it, by its name without an extension, and the
+// arguments the program is started with.
+type ToolServer struct {
+	Name    string
+	Program string
+	Args    []string
 }
 
 // dinah is Dinah's profile, the one this build uses.
