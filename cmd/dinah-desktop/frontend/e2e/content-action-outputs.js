@@ -40,6 +40,12 @@ const path = require('path');
       window.__outputRejections = [];
       window.addEventListener('unhandledrejection', event => {
         const value = event.reason;
+        /* Closing a Diagrams window ends its language session, and the package's bridge rejects the
+           initialization still pending with { code: -32800, message: 'Language session ended.' }, which
+           nothing in the package handles (reported to yavc.app Development, 14 November 2026). That one
+           rejection is recorded and taken here, so this suite says whether the host's answers match
+           their schemas; any other error still fails it. Remove this when the package handles it. */
+        if (value && value.code === -32800) event.preventDefault();
         window.__outputRejections.push({ text: String(value), message: value && value.message, stack: value && value.stack,
           value: (() => { try { return JSON.stringify(value); } catch (_) { return ''; } })() });
       });
