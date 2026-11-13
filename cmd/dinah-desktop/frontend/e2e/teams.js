@@ -21,6 +21,14 @@ const { launch } = require('./lib/page');
     ], budget: { providers: [{ provider: 'codex', name: 'Codex', unit: 'tokens' }, { provider: 'claude', name: 'Claude Code', unit: 'tokens' }], unmeasured: ['claude'], periodStart: '2026-10-26T00:00:00+08:00', periodEnd: '2026-11-02T00:00:00+08:00', rows: [
       { provider: 'codex', name: 'Codex', unit: 'tokens', hasAllowance: true, allowance: 1000, used: 600, today: 200, unknown: 1, todayUnknown: 1, complete: false, over: false }
     ] } };
+    window.__closedMember = (closed, reason) => {
+      const row = __team.members[2], wasClosed = row.life === 'closed';
+      row.life = closed ? 'closed' : 'open'; row.window = row.open = !closed;
+      row.state = closed ? 'closed' : 'waiting'; row.stateWhy = closed ? reason : 'Context full';
+      if (closed) delete row.exec; else row.exec = { state: 'waiting', why: 'Context full' };
+      if (wasClosed !== closed) { __team.counts.closed += closed ? 1 : -1; __team.counts.waiting += closed ? -1 : 1; }
+      __team.stateVer++; __emit('team:state', structuredClone(__team));
+    };
     window.__memberLead = true;
     const chats = ['lead', 'builder', 'nested', 'child', 'held', 'retired'].map(id => ({ id: 'bus-' + id, chat: id, title: id === 'lead' ? 'Team Lead' : id === 'builder' ? 'Builder' : id, workspace: 'Fixture', state: 'open' }));
     window.__teamRoom = { name: 'team-room', title: 'Development Team', members: chats.concat([{ id: 'paul', title: 'Paul', state: 'person' }]), unread: 0, lead: 'bus-lead' };
@@ -60,6 +68,16 @@ const { launch } = require('./lib/page');
     ok('the lead sees its direct reports\' named state glyphs and reasons, and retired members apart', /Working/.test(await leadChip('bus-builder').getAttribute('aria-label')) && /Context full/.test(await leadChip('bus-held').getAttribute('aria-label'))
       && await lead.locator('.team-members .member-list[aria-label="Members"] [data-team-member]').count() === 3 && await lead.locator('.team-members [data-team-member="bus-child"]').count() === 0
       && await lead.locator('.team-members .member-list[aria-label="Retired members"] [data-team-member="bus-retired"]').count() === 1);
+    const reason = 'Its chat is not open, and a message waits for it: all 64 places for chats open in the background are taken by chats that are working';
+    const compact = lead.locator('.team-members [data-team-member="bus-held"] .member-open');
+    const rect = locator => locator.evaluate(el => { const r = el.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; });
+    const compactBefore = await rect(compact);
+    await compact.focus();
+    await p.evaluate(reason => __closedMember(true, reason), reason);
+    await leadChip('bus-held').filter({ hasText: 'Closed' }).waitFor();
+    ok('a closed admission wait stays Closed with its reason in the Members tooltip and accessible name', (await compact.getAttribute('title')).includes(reason) && (await compact.getAttribute('aria-label')).includes(reason) && (await leadChip('bus-held').getAttribute('aria-label')).includes(reason));
+    ok('the closed-wait wording preserves Members row geometry and focus', JSON.stringify(compactBefore) === JSON.stringify(await rect(compact)) && await compact.evaluate(el => el === document.activeElement));
+    await p.evaluate(() => __closedMember(false));
     await p.keyboard.press('Escape');
     // Reasons, tasks, usage and allowances are the team group's Team Report (9f20613).
     await p.evaluate(() => dinahBus.openGroup('team-room'));
@@ -69,6 +87,22 @@ const { launch } = require('./lib/page');
     await report.click();
     await panel.locator('[data-team-member="bus-builder"] .team-task').waitFor();
     ok('the Team Report shows named state glyphs, reasons, task and provider usage', /Working/.test(await panel.locator('[data-team-member="bus-builder"] > a .team-state > .badge.chat-state:not(.chat-state-reserve)').getAttribute('aria-label')) && /Context full/.test(await panel.locator('[data-team-member="bus-held"]').innerText()) && /200 tokens/.test(await panel.locator('[data-team-member="bus-builder"]').innerText()) && /Build the shared controls/.test(await panel.locator('[data-team-member="bus-builder"]').innerText()));
+    const detailRow = panel.locator('[data-team-member="bus-held"] > a');
+    const detailBefore = await rect(detailRow);
+    await detailRow.focus();
+    await p.evaluate(reason => __closedMember(true, reason), reason);
+    await panel.locator('[data-team-member="bus-held"] .team-reason').filter({ hasText: reason }).waitFor();
+    ok('Team Report keeps a closed admission wait separate from execution', (await detailRow.locator('.chat-state:not(.chat-state-reserve)').textContent()).trim() === 'Closed' && (await detailRow.getAttribute('aria-label')).includes(reason));
+    ok('the closed-wait reason preserves Team Report row geometry and focus', JSON.stringify(detailBefore) === JSON.stringify(await rect(detailRow)) && await detailRow.evaluate(el => el === document.activeElement));
+    await p.setViewportSize({ width: 520, height: 900 });
+    const narrowBefore = await rect(detailRow);
+    const longerReason = reason + '. The message remains queued until a place is free.';
+    await p.evaluate(reason => __closedMember(true, reason), longerReason);
+    await panel.locator('[data-team-member="bus-held"] .team-reason').filter({ hasText: longerReason }).waitFor();
+    ok('longer admission text updates in place at narrow width and keeps its full accessible explanation', JSON.stringify(narrowBefore) === JSON.stringify(await rect(detailRow)) && await detailRow.locator('.team-reason').getAttribute('title') === longerReason && await detailRow.locator('.team-reason').evaluate(el => el.scrollWidth > el.clientWidth));
+    await t.shot('teams-closed-admission-wait');
+    await p.setViewportSize({ width: 1440, height: 1000 });
+    await p.evaluate(() => __closedMember(false));
     const nested = panel.locator('[data-team-member="bus-nested"] > a');
     await nested.focus(); await nested.press('ArrowLeft');
     ok('a nested team folds separately from its chat link', await nested.getAttribute('aria-expanded') === 'false');
@@ -79,7 +113,7 @@ const { launch } = require('./lib/page');
     ok('allowances keep the provider unit and explain incomplete remaining usage', /Remaining usage is incomplete/.test(await panel.locator('.team-budget').textContent()) && await panel.locator('meter').count() === 1);
     const taskFocus = panel.locator('[data-team-member="bus-builder"] .team-task');
     await taskFocus.focus();
-    await p.evaluate(() => { __team.stateVer = 2; __team.members[0].usage[0].today = 250; __emit('team:state', structuredClone(__team)); });
+    await p.evaluate(() => { __team.stateVer++; __team.members[0].usage[0].today = 250; __emit('team:state', structuredClone(__team)); });
     await p.waitForFunction(() => document.querySelector('.team-report [data-team-member="bus-builder"] .team-usage').textContent.includes('250'));
     ok('live usage updates preserve keyboard focus on the assignment link', await taskFocus.evaluate(n => document.activeElement === n));
     await t.shot('teams-lead-light-focused');
@@ -134,10 +168,10 @@ const { launch } = require('./lib/page');
     ok('the task link opens the assignment at its stable message address', JSON.parse(new URL(await p.url()).searchParams.get('view.' + await group.getAttribute('data-win'))).message === 11);
     await p.evaluate(() => { document.documentElement.dataset.theme = 'dark'; pudlWindows.raise(document.querySelector('.win[data-win-kind="chat-session"] .chat-team')?.closest('.win').dataset.win); });
     await t.shot('teams-lead-dark-focused');
-    await p.evaluate(() => { document.documentElement.dataset.theme = 'light'; __team.stateVer = 3; __team.members[0].exec.state = 'idle'; __team.counts.working = 0; __team.counts.idle = 1; __emit('team:state', structuredClone(__team)); });
+    await p.evaluate(() => { document.documentElement.dataset.theme = 'light'; __team.stateVer++; __team.members[0].exec.state = 'idle'; __team.counts.working = 0; __team.counts.idle = 1; __emit('team:state', structuredClone(__team)); });
     await openMembers();
     await lead.locator('.team-members [data-team-member="bus-builder"] .team-state > .badge.chat-state-idle:not(.chat-state-reserve)').waitFor();
-    await p.evaluate(() => { __team.stateVer = 2; __team.members[0].exec.state = 'working'; __emit('team:state', structuredClone(__team)); });
+    await p.evaluate(() => { __team.stateVer--; __team.members[0].exec.state = 'working'; __emit('team:state', structuredClone(__team)); });
     ok('an older team event cannot replace the live snapshot', /Idle/.test(await leadChip('bus-builder').getAttribute('aria-label')));
     await p.keyboard.press('Escape');
 

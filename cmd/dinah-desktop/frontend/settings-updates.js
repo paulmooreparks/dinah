@@ -106,7 +106,7 @@
       var key = String(p.pid), r = runningRows.get(key);
       if (!r) { r = row($('updates-running'), key); runningRows.set(key, r); }
       seen.add(key);
-      r.words.textContent = 'PID ' + p.pid + ': ' + (p.current ? 'installed copy' : 'older copy; restart its owner when ready') +
+      r.words.textContent = 'PID ' + p.pid + (p.self ? ' (this window)' : '') + ': ' + (p.current ? 'installed copy' : 'older copy; restart its owner when ready') +
         '\nVersion: ' + (p.version || 'unknown') + '\nStarted by: ' + (p.startedBy || 'owner not reported') + '\n' + p.path;
     });
     if (!s.runningError) runningRows.forEach(function (r, key) {

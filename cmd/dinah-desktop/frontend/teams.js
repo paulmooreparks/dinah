@@ -27,7 +27,21 @@
     return window.dinahBus.openGroup(group, { message: message || 0, mention: mention || null });
   }
   // A member's state is the standard chip, as wide as its own glyph and word.
-  function stateBadge(m) { return window.dinahChatState.badge(m, { labelled: true, className: 'team-state' }); }
+  function memberReason(m) {
+    var state = window.dinahChatState.read(m);
+    // Admission may wait while the chat is closed. It is not executing.
+    return state.life === 'closed' ? m.stateWhy || '' : state.exec && state.exec.why || '';
+  }
+  function memberLabel(m) {
+    var reason = memberReason(m);
+    return window.dinahChatState.read(m).life === 'closed' && reason ? 'Closed. ' + reason : window.dinahChatState.describe(m).label;
+  }
+  function stateBadge(m) {
+    var slot = window.dinahChatState.badge(m, { labelled: true, className: 'team-state' });
+    var chip = slot.querySelector('.chat-state:not(.chat-state-reserve)');
+    if (chip) { chip.title = memberLabel(m); chip.setAttribute('aria-label', memberLabel(m)); }
+    return slot;
+  }
   function usageWords(u) {
     if (!u) return 'Usage unavailable';
     if (Array.isArray(u)) return u.length ? u.map(usageWords).join('; ') : 'Usage unavailable';
@@ -140,11 +154,10 @@
           if (held.title.textContent !== m.title) held.title.textContent = m.title;
           if (held.a.href !== href) held.a.href = href;
           held.status.replaceChildren(stateBadge(m));
-          var words = [m.title, window.dinahChatState.describe(m).label];
+          var words = [m.title, memberLabel(m)];
           if (opts.detailed) {
             if (m.counts) held.status.appendChild(window.dinahChatState.badge(m.counts, { compact: true }));
-            var liveState = window.dinahChatState.read(m);
-            held.why.textContent = (liveState.exec && liveState.exec.why || '') + (!m.chat ? ' Open this chat in its owning window.' : '');
+            held.why.textContent = memberReason(m) + (!m.chat ? ' Open this chat in its owning window.' : '');
             held.meta.textContent = [m.workspace, window.dinahProviderName ? window.dinahProviderName(m.provider) : m.provider, m.model].filter(Boolean).join(' · ');
             held.usage.textContent = usageWords(m.usage);
             [held.why, held.meta, held.usage].forEach(function (line) { line.title = line.textContent; line.setAttribute('aria-label', line.textContent); });
@@ -260,11 +273,11 @@
           return held;
         }, update: function (held, m) {
         held.member = m;
-        var signature = JSON.stringify([m.title, m.chat, m.life, window.dinahChatState.read(m), window.dinahChatState.describe(m)]);
+        var signature = JSON.stringify([m.title, m.chat, m.life, m.stateWhy, window.dinahChatState.read(m), window.dinahChatState.describe(m)]);
         if (held.signature === signature) return;
         held.signature = signature;
         if (held.name.textContent !== m.title) held.name.textContent = m.title;
-        var label = window.dinahChatState.describe(m).label;
+        var label = memberLabel(m);
         held.open.setAttribute('aria-label', 'Open ' + m.title + ', ' + label);
         held.open.title = m.chat ? 'Open ' + m.title + '. ' + label : 'Open this chat in its owning window. ' + label;
         held.open.setAttribute('aria-disabled', String(!m.chat));
