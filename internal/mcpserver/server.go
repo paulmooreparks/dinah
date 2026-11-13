@@ -66,7 +66,7 @@ func standDown() string {
 
 // redirectedTools are the bus tools a stood-down server still lists, each
 // answering only that the window's server has it (Run).
-var redirectedTools = []string{"whoami", "sessions", "inbox", "send", "reply", "read_message", "read_attachment",
+var redirectedTools = []string{"whoami", "sessions", "inbox", "send", "reply", "ask_person", "read_message", "read_attachment",
 	"room_create", "room_join", "room_leave", "subscribe", "announce_release", "verdict", "rename"}
 
 // redirect is a stood-down server's answer to a call of one of its tools.
@@ -527,6 +527,7 @@ func (s *Server) register(srv *mcp.Server, person string) {
 			})
 	}
 
+	s.addAskPersonTool(srv)
 	mcp.AddTool(srv, &mcp.Tool{Name: "send",
 		Description: "Send a message to a chat by its title, to a workspace, to a group chat as # and its name, or to paul. Add a chat's workspace in parentheses when two chats share its title, as \"Fix the Parser (studio)\"; a title that more than one chat has is refused with the chats it could be. A message to a workspace goes to every chat open in it, or waits for its next one when none is. A message to a group chat goes to every member chat and wakes its actionRecipients (or legacy mentions), or, when it names nobody, the members active in it lately or its lead; a recipient outside the group is refused. Address a post to the member it is for. Attached files are sent as live links."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in sendIn) (*mcp.CallToolResult, any, error) {

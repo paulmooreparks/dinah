@@ -33,6 +33,27 @@ type Bus struct {
 }
 
 const schema = `
+CREATE TABLE IF NOT EXISTS person_requests (
+ message_id INTEGER PRIMARY KEY REFERENCES messages(id),
+ asker TEXT NOT NULL,
+ operation_id TEXT NOT NULL,
+ fingerprint TEXT NOT NULL,
+ revision INTEGER NOT NULL,
+ closed INTEGER NOT NULL,
+ questions TEXT NOT NULL,
+ UNIQUE (asker, operation_id)
+);
+CREATE TABLE IF NOT EXISTS decision_operations (
+ operation_id TEXT PRIMARY KEY,
+ fingerprint TEXT NOT NULL,
+ receipt TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS decision_previews (
+ token TEXT PRIMARY KEY,
+ preview TEXT NOT NULL,
+ expires_at INTEGER NOT NULL,
+ consumed INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS workspaces (
 	key  TEXT PRIMARY KEY,
 	path TEXT NOT NULL,
@@ -203,6 +224,7 @@ CREATE TABLE IF NOT EXISTS group_attention_policy (
 );
 INSERT OR IGNORE INTO group_attention_policy (id, member_limit, minutes) VALUES (1, 3, 30);
 CREATE INDEX IF NOT EXISTS messages_group_history ON messages(room, id);
+CREATE INDEX IF NOT EXISTS messages_decision_replies ON messages(reply_to, from_session, from_name, kind);
 CREATE INDEX IF NOT EXISTS messages_group_attention_time ON messages(room, julianday(created_at));
 CREATE INDEX IF NOT EXISTS messages_group_kind_history ON messages(room, kind, id);
 CREATE TABLE IF NOT EXISTS changes (
