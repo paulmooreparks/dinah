@@ -227,6 +227,7 @@
     hasWorkingChat: () => Object.keys(sessions).some(id => sessions[id].working)
   });
   const { installPackages } = packages;
+  window.dinahPackageUpdates = Object.freeze({ install: packages.installUpdate });
 
   const finder = window.dinahFind.create({
     fail, nextNotification, showChat,

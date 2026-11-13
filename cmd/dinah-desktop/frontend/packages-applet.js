@@ -121,7 +121,7 @@
         if (target === 'workspace') return installWorkspacePackages();
       }).catch(fail);
     }
-    function installPersonalPackages(given) {
+    function installPersonalPackages(given, leaveRunning) {
       var ws = adapter.workspace();
       return Promise.resolve().then(function () { return given || app().ChoosePackageBundle(); }).then(function (bundle) {
         if (!bundle) return;
@@ -135,14 +135,14 @@
           return showInstallPlan('Install ' + plan.name + ' for You?', plan, intro, plan.home + ', with copies in your own folders').then(function (yes) {
             if (!yes) return;
             return app().InstallPersonalPackages(ws, bundle, plan.token).then(function (done) {
-              packagesChanged('Installed ' + done.name + ' ' + done.to + ' for you. Every workspace now has its skills.' + (done.backup ? ' Replaced files are kept in ' + done.backup + '.' : ''));
+              packagesChanged('Installed ' + done.name + ' ' + done.to + ' for you. Every workspace now has its skills.' + (done.backup ? ' Replaced files are kept in ' + done.backup + '.' : ''), leaveRunning);
               return true;
             });
           });
         });
       });
     }
-    function installWorkspacePackages(given) {
+    function installWorkspacePackages(given, leaveRunning) {
       if (!adapter.workspace()) { toast('Open the workspace to install the package in first.', 'warn'); return Promise.resolve(); }
       var ws = adapter.workspace();
       return Promise.resolve().then(function () { return given || app().ChoosePackageBundle(); }).then(function (bundle) {
@@ -153,7 +153,7 @@
           return showInstallPlan('Install ' + plan.name + ' in This Workspace?', plan, intro, ws).then(function (yes) {
             if (!yes) return;
             return app().InstallPackages(ws, bundle, plan.token).then(function (done) {
-              packagesChanged('Installed ' + done.name + ' ' + done.to + ' in ' + workspaceLabel(ws) + '.' + (done.backup ? ' Replaced files are kept in ' + done.backup + '.' : ''));
+              packagesChanged('Installed ' + done.name + ' ' + done.to + ' in ' + workspaceLabel(ws) + '.' + (done.backup ? ' Replaced files are kept in ' + done.backup + '.' : ''), leaveRunning);
               return true;
             });
           });
@@ -163,8 +163,9 @@
     /* After a package is installed, updated or removed, the agent in front
        restarts to read the skills, unless a chat is working, which a restart
        would stop. */
-    function packagesChanged(message) {
+    function packagesChanged(message, leaveRunning) {
       drawPackages();
+      if (leaveRunning) { toast(message + ' Restart agents when you are ready for them to read the new skills.', 'positive'); return; }
       var busy = adapter.hasWorkingChat();
       if (busy) {
         toast(message + ' A chat is working, so ' + providerName(frontProvider()) + ' reads the new skills when you restart it from its menu in the status bar.', 'positive');
@@ -257,7 +258,13 @@
     });
     window.dinahCommands.register({ id: 'update-packages', menu: 'dinah', label: 'Update Packages…', visible: function () { return packageSources > 0; }, run: openPackageUpdates });
 
-    return { installPackages, openPackageUpdates, hasSources: () => packageSources > 0, setSources: count => { packageSources = count; } };
+    function installUpdate(update) {
+      if (update.reason) return Promise.reject(new Error(update.reason));
+      if (update.target === 'me') return installPersonalPackages(update.bundle, true);
+      if (update.target === 'workspace' && update.workspace === adapter.workspace()) return installWorkspacePackages(update.bundle, true);
+      return Promise.reject(new Error('Open the package workspace before updating it.'));
+    }
+    return { installPackages, openPackageUpdates, installUpdate, hasSources: () => packageSources > 0, setSources: count => { packageSources = count; } };
   }
 
   window.dinahPackages = { create };

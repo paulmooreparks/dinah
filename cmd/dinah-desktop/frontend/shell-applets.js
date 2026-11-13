@@ -34,7 +34,7 @@
         function settingsTab(value, record) {
           // The sections are the tabs the page has.
           var at = String(value || '').indexOf('?'), name = at < 0 ? String(value || '') : value.slice(0, at), part = at < 0 ? '' : value.slice(at + 1);
-          var choices = Array.from(content.querySelectorAll('[data-settings-section]')).map(function (tab) { return tab.dataset.settingsSection; });
+          var choices = Array.from(content.querySelectorAll('[data-settings-section]')).filter(function (tab) { return !tab.hidden; }).map(function (tab) { return tab.dataset.settingsSection; });
           settingsSection = choices.includes(name) ? name : 'appearance';
           content.querySelectorAll('[data-settings-section]').forEach(function (tab) {
             var selected = tab.dataset.settingsSection === settingsSection;
@@ -48,7 +48,7 @@
         if (kind === 'settings') settingsChanged = function () { opts.changed(state()); };
         function settingsClick(event) {
           var tab = event.target.closest('[data-settings-section]');
-          if (tab) settingsTab(tab.dataset.settingsSection, true);
+          if (tab && !tab.hidden) settingsTab(tab.dataset.settingsSection, true);
         }
         if (kind === 'settings') content.addEventListener('click', settingsClick);
         function state() {
@@ -107,7 +107,7 @@
               else if (label === 'Choose Executable…') label = 'Choose ' + name + ' Executable…';
               else if (label === 'Use Automatic Discovery') label = 'Use Automatic Discovery for ' + name;
             }
-            return button.dataset.cmd ? window.dinahCommands.describe(button.dataset.cmd, label) : { label: label, disabled: button.disabled, run: function () { button.click(); } };
+            return button.dataset.cmd ? window.dinahCommands.describe(button.dataset.cmd, label) : { label: label, disabled: button.disabled || button.getAttribute('aria-disabled') === 'true', run: function () { button.click(); } };
           });
           function hostCommand(label, cmd) { commands.push(window.dinahCommands.describe(cmd, label)); }
           if (kind === 'chat-browser') { hostCommand('Refresh Chats', 'refresh-sessions'); hostCommand('Show Hidden Chats Again', 'unhide-sessions'); }

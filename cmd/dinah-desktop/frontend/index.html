@@ -150,6 +150,7 @@
   <script src="shell-applets.js" defer></script>
   <script src="file-access-settings.js" defer></script>
   <script src="settings-connections.js" defer></script>
+  <script src="settings-updates.js" defer></script>
   <script src="theme-editor.js" defer></script>
   <script src="extensions.js" defer></script>
   <script src="product-applets.js" defer></script>
@@ -786,6 +787,7 @@
         <button type="button" role="tab" id="settings-tab-chat" aria-controls="settings-chat" aria-selected="false" tabindex="-1" data-settings-section="chat">Chat</button>
         <button type="button" role="tab" id="settings-tab-terminal" aria-controls="settings-terminal" aria-selected="false" tabindex="-1" data-settings-section="terminal">Terminal</button>
         <button type="button" role="tab" id="settings-tab-packages" aria-controls="settings-packages" aria-selected="false" tabindex="-1" data-settings-section="packages">Packages</button>
+        <button type="button" role="tab" id="settings-tab-updates" aria-controls="settings-updates" aria-selected="false" tabindex="-1" data-settings-section="updates" hidden>Updates</button>
         <button type="button" role="tab" id="settings-tab-connections" aria-controls="settings-connections" aria-selected="false" tabindex="-1" data-settings-section="connections" hidden>Connections</button>
         <button type="button" role="tab" id="settings-tab-diagnostics" aria-controls="settings-diagnostics" aria-selected="false" tabindex="-1" data-settings-section="diagnostics">Diagnostics</button>
       </div>
@@ -936,6 +938,46 @@
             <ul class="package-list vstack gap-2" id="packages-installed" aria-labelledby="set-packages-title" hidden></ul>
             <p class="form-help" id="packages-none">No package is installed for you or in this workspace.</p>
             <div class="settings-actions"><button type="button" class="btn btn-sm" data-cmd="update-packages" hidden>Update Packages…</button><button type="button" class="btn btn-sm" data-cmd="install-packages-file">Install From a File…</button></div>
+          </section>
+        </div>
+        <div class="settings-panel" id="settings-updates" role="tabpanel" aria-labelledby="settings-tab-updates" tabindex="0" hidden>
+          <section class="card vstack gap-3" aria-labelledby="updates-programs-title">
+            <h3 class="card-title" id="updates-programs-title">Installed and Running Programs</h3>
+            <p class="form-help">Versions come from the update service. Source identifiers are shown as reported. An unknown version stays unknown.</p>
+            <div class="updates-programs" id="updates-programs"></div>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" id="updates-refresh">Refresh Status</button></div>
+            <p class="settings-status updates-status" id="updates-inventory-status" role="status">Status has not been read.</p>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="updates-release-title">
+            <h3 class="card-title" id="updates-release-title">Application Release</h3>
+            <p class="settings-status updates-status" id="updates-release-status" role="status">Release has not been checked.</p>
+            <div class="updates-notes form-help" id="updates-notes" tabindex="0" role="region" aria-label="Release notes">Release notes have not been read.</div>
+            <div class="progress-row updates-progress"><progress class="progress" id="updates-progress" max="1" value="0" aria-label="Release download"></progress><span class="progress-value" id="updates-progress-text">No download in progress.</span></div>
+            <p class="settings-status updates-status" id="updates-restart-status" role="status">Restart status has not been read.</p>
+            <div class="settings-actions updates-actions"><button type="button" class="btn btn-sm" id="updates-check">Check for Updates</button><button type="button" class="btn btn-sm btn-primary" id="updates-install" disabled>Install Update</button></div>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" id="updates-notifications">Open Notifications</button></div>
+            <p class="form-help">Nothing restarts automatically. When a new desktop is installed, Notifications offers the existing Restart to Update workflow. External agents read their new tools when you restart those agents.</p>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="updates-running-title">
+            <h3 class="card-title" id="updates-running-title">Running Copies and Agent Connections</h3>
+            <p class="settings-status updates-status" id="updates-running-status" role="status">Running programs have not been read.</p>
+            <div class="updates-scroll" id="updates-running" tabindex="0" role="region" aria-label="Running programs"></div>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="updates-packages-title">
+            <h3 class="card-title" id="updates-packages-title">Skill Packages</h3>
+            <p class="settings-status updates-status" id="updates-package-status" role="status">Installed packages have not been read.</p>
+            <div class="updates-scroll" id="updates-packages" tabindex="0" role="region" aria-label="Skill package updates"></div>
+            <div class="settings-actions"><button type="button" class="btn btn-sm" id="updates-package-check">Check Skill Packages</button></div>
+            <p class="form-help">Checking may prepare the source cache. Updating shows the installer's file preview and asks before replacing package contents. Agents are left running.</p>
+          </section>
+          <section class="card vstack gap-3" aria-labelledby="updates-repair-title">
+            <h3 class="card-title" id="updates-repair-title">Repair Agent Settings</h3>
+            <p class="form-help">Check first to see the client, scope and destination of each proposed repair. Custom entries are kept. Missing entries are not added by a general repair.</p>
+            <p class="form-help">Project scopes appear when the service reports them. Unreported workspace overrides remain unverified by this page.</p>
+            <p class="settings-status updates-status" id="updates-repair-status" role="status">Agent settings have not been checked.</p>
+            <div class="updates-scroll" id="updates-repair" tabindex="0" role="region" aria-label="Agent settings findings"></div>
+            <div class="updates-notes form-help" id="updates-repair-lines" tabindex="0" role="region" aria-label="Repair details from the service">Repair details have not been read.</div>
+            <div class="settings-actions updates-actions"><button type="button" class="btn btn-sm" id="updates-repair-check">Check Agent Settings</button><button type="button" class="btn btn-sm btn-primary" id="updates-repair-apply" disabled>Repair Agent Settings</button></div>
           </section>
         </div>
         <!-- Settings › Connections (docs/design/source-kinds.md): the services
