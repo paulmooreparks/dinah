@@ -10,7 +10,8 @@ import (
 //go:embed scheduler.go
 var SchedulerSource []byte
 
-const BackgroundSlots = 3
+const BackgroundSlots = 8
+const MaxBackgroundSlots = 64
 const ConnectPatience = 2 * time.Minute
 
 // The chats of groups are opened in the background when the window starts, so
@@ -29,15 +30,27 @@ const (
 // completion updates to that snapshot. It never calls the host. Returned maps
 // and decisions are copies. The desktop uses App.mu for this transaction.
 type Scheduler struct {
-	windows    map[string]bool
-	known      bool
-	queue      []string
-	connecting map[string]request
-	tried      map[string]int64
-	failed     map[string]failure
-	warmQueue  []Decision
-	warmed     bool
+	backgroundLimit int
+	windows         map[string]bool
+	known           bool
+	queue           []string
+	connecting      map[string]request
+	tried           map[string]int64
+	failed          map[string]failure
+	warmQueue       []Decision
+	warmed          bool
 }
+
+// SetBackgroundLimit changes admission only. Existing chats keep their places.
+func (s *Scheduler) SetBackgroundLimit(limit int) { s.backgroundLimit = limit }
+
+func (s *Scheduler) BackgroundLimit() int {
+	if s.backgroundLimit < 1 || s.backgroundLimit > MaxBackgroundSlots {
+		return BackgroundSlots
+	}
+	return s.backgroundLimit
+}
+
 type request struct {
 	at         time.Time
 	background bool
@@ -182,7 +195,7 @@ func (s *Scheduler) Waiting(paths map[string]string) []string {
 	return out
 }
 func (s *Scheduler) Next(paths map[string]string, liveBackground int, now time.Time) (Decision, bool) {
-	for len(s.queue) > 0 && s.BackgroundPending()+liveBackground < BackgroundSlots {
+	for len(s.queue) > 0 && s.BackgroundPending()+liveBackground < s.BackgroundLimit() {
 		chat := s.queue[0]
 		s.queue = s.queue[1:]
 		path, waiting := paths[chat]

@@ -10,6 +10,7 @@ import (
 
 func TestSchedulerQueueLimitsRetryAndCopies(t *testing.T) {
 	var s Scheduler
+	s.SetBackgroundLimit(3)
 	now := time.Now()
 	s.SetWindows(nil)
 	s.Expire(now)
@@ -54,6 +55,47 @@ func TestSchedulerQueueLimitsRetryAndCopies(t *testing.T) {
 	s.Complete("0", nil, now)
 	if s.FailedSince("0", now) != nil {
 		t.Fatal("failure was not cleared")
+	}
+}
+
+func TestBackgroundLimitDefaultsAndChangesWithoutDroppingPending(t *testing.T) {
+	var s Scheduler
+	if s.BackgroundLimit() != 8 {
+		t.Fatal("default is not eight")
+	}
+	now := time.Now()
+	s.SetWindows(nil)
+	s.Expire(now)
+	paths := map[string]string{}
+	for i := 0; i < 10; i++ {
+		id := fmt.Sprint(i)
+		paths[id] = "folder"
+		s.Consider(id, "folder", 1, false, false, now)
+	}
+	for i := 0; i < 8; i++ {
+		if _, ok := s.Next(paths, 0, now); !ok {
+			t.Fatal("default admission stopped early")
+		}
+	}
+	if _, ok := s.Next(paths, 0, now); ok {
+		t.Fatal("ninth admitted")
+	}
+	s.SetBackgroundLimit(9)
+	if d, ok := s.Next(paths, 0, now); !ok || d.Chat != "8" {
+		t.Fatal("increase did not admit FIFO head", d)
+	}
+	s.SetBackgroundLimit(1)
+	if s.BackgroundPending() != 9 {
+		t.Fatal("lowering limit cancelled pending connects")
+	}
+	if _, ok := s.Next(paths, 0, now); ok {
+		t.Fatal("admitted above lowered limit")
+	}
+	for _, invalid := range []int{0, -1, MaxBackgroundSlots + 1} {
+		s.SetBackgroundLimit(invalid)
+		if s.BackgroundLimit() != BackgroundSlots {
+			t.Fatal("invalid stored limit lost default")
+		}
 	}
 }
 

@@ -53,3 +53,17 @@ Three things are changed.
 `TestAnIdleBackgroundChatYieldsItsPlaceToAWaitingOne` covers the first and the third.
 
 Two parts are left. The sender's receipt does not say that the chat it asked could not be opened: the receipt is written by the bus when the message is sent, and the places are known only to the window, a moment later. And the limit itself is still three, so a fourth chat still waits when three are working at once, for as long as they work. Whether three is the right number is Paul's to say.
+
+## Engine follow-up, 14 November 2026
+
+The remaining changes are prepared on engine/background-limit, from master 393c763a, in .worktrees/engine-background-limit. This branch is for review only; it is not merged, pushed or installed.
+
+Settings > Chat now has Maximum Chats under Chats Opened in the Background. The application stores backgroundChatLimit in settings.json. A missing or invalid stored value uses eight, and the Settings method accepts integers from one to sixty-four. Reads, changes and wake admission share the application mutex. The next wake check applies a change without restarting. Lowering the limit keeps current chats and pending connects; another chat waits until admission is below the limit. Visible chats and startup-warmed chats retain their existing separate treatment.
+
+When noteWaiting finds a queued chat after idle yielding and admission, it looks up the original senders of actionable, undelivered messages. Each sender receives one private host-result notice for that waiting chat, identifying it and explaining that the background places are in use. The original message stays queued. A later sender receives its own notice; more messages from an already-notified sender do not repeat it during the same wait. The person's notice goes to the bus inbox. These are bus messages, with no operating-system notification or desktop interaction introduced.
+
+Notices use the bus's durable host-result keys based on target, sender and first pending message. Repeated checks or reconciliation after a restart do not duplicate a notice for that delivery. The in-memory sender set also suppresses another notice within the same waiting episode. A chat admitted by an idle yield is no longer queued before notification runs, so admission sends no second notice. Host results are excluded from sender lookup, preventing notification chains. The send receipt remains unchanged because it precedes this admission decision.
+
+Go fixtures cover the default, persistence, live admission changes, preservation after lowering, configurable shortfall, sender privacy, human delivery, durable deduplication, passive group readers and notification-loop prevention. The application fixture assigns work through a group to a closed member, observes one sender notice while blocked, and then observes admission after a yield without another notice.
+
+The first two focused executions failed in the new application fixture because it tried to address a closed chat directly through the live-chat address resolver. The corrected fixture uses the group-assignment route from this incident. The third focused execution passed. Full touched-package results and verification limits are recorded before handoff; no full browser suite or desktop automation is permitted for this branch.

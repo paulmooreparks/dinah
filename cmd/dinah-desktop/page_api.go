@@ -40,7 +40,7 @@ var pageMethods = func() map[string]pageMethodClass {
 		}
 	}
 	list(pageQuery, `
- SetResponsivenessRecording GetResponsivenessTimingSnapshot
+ SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus
  NativeWindowState NativeWindowAction State Sessions SessionsAt History SavedConversation
@@ -96,7 +96,7 @@ var pageMethods = func() map[string]pageMethodClass {
  SetClaudeAPIKey SetCodexAppletApprovals SetCodexApprovals SetDefault SetDefaultForProvider
  SetDefaultProvider SetDocumentView SetExtensionCommandReview SetLogLevel SetNewWindowMode
  SetNotifyWhenNeeded SetOllamaApprovals SetOllamaFileScope SetOllamaRoundLimit SetPersonName SetPinned SetPinnedForProvider
- SetPromptSendKey SetProviderFileLimit SetSessionOption SetShowThinking SetSkillField
+ SetPromptSendKey SetBackgroundChatLimit SetProviderFileLimit SetSessionOption SetShowThinking SetSkillField
  SetTerminalShell SetUsagePage SetWindowKindMode SetWorkspace ShowChatLog ShowSavedChatHistory ShowLogFolder SignIn
  UseClaudeAdapter UseTestedClaudeAdapter
  StartPreparedExtensionTerminal StartSkill Steer Stop StopAndSteer StopBackgroundTask
