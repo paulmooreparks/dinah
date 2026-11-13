@@ -1147,7 +1147,7 @@
     var from = itemOfWindow(fromKey), workspace = from ? from.workspace : '';
     var input = request.input || {};
     if (request.operation === 'new' || request.operation === 'import-source') {
-      return newDocument(workspace, input.text || '', application).then(function (key) { return { key: key, done: true }; });
+      return newDocument(workspace, input.text || '', application, NEW_NAMES[application + ':' + (input.kind || 'd2')]).then(function (key) { return { key: key, done: true }; });
     }
     if (request.operation === 'open-file' && input.path) {
       return Promise.resolve(api().GetDraft(String(input.path))).then(function (v) { return open(v, application); })
@@ -1238,6 +1238,7 @@
       return window.dinahContentHost.accept(key, { operation: NEW_ANSWER[app], input: { text: text } });
     }).then(function (r) { return (r && r.output) || {}; });
   }
+  function created(key, app) { return NEW_ANSWER[app] ? newAnswer(key, app) : firstDocument(key); }
 
   /* An agent's call of a content action (applet_content.go). Opening and
      starting a document make a window of their own; closing closes its
@@ -1258,11 +1259,11 @@
         }).then(function (doc) { return args.handles ? { output: { opened: true, view: 'window' } } : { output: doc }; });
       }
       if (op === 'new' || op === 'new-template') {
-        return newDocument(rec.id, op === 'new' ? input.text || '' : '', app, op === 'new' ? NEW_NAMES[app + ':' + input.kind] : '').then(function (key) {
+        return newDocument(rec.id, op === 'new' ? input.text || '' : '', app, op === 'new' ? NEW_NAMES[app + ':' + (input.kind || 'd2')] : '').then(function (key) {
           noteFront(key);
           return window.dinahWorkbench.ready(key).then(function () {
             if (op === 'new-template') return window.dinahContentHost.accept(key, { operation: 'new-template', input: input }).then(function () { return firstDocument(key); });
-            return NEW_ANSWER[app] ? newAnswer(key, app) : firstDocument(key);
+            return created(key, app);
           });
         }).then(function (doc) { return { output: doc }; });
       }
@@ -1311,7 +1312,7 @@
     }).catch(function () { /* An application without lines opens the document at its start. */ });
   }
 
-  window.dinahContentWindows = { listed: listed, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, kindOf: kindOf, openPresenter: openPresenter, decideSuggestion: decideSuggestion };
+  window.dinahContentWindows = { listed: listed, created: created, open: open, openResource: openResource, openDocument: openDocument, newDocument: newDocument, route: route, kindOf: kindOf, openPresenter: openPresenter, decideSuggestion: decideSuggestion };
 
   /* The ways into the Editor (Documents, Files, Sources, chats, the
      Terminal's edit, In Progress) open documents here. */
