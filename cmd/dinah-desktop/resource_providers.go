@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"path"
+	"strings"
 
 	"studio/internal/resource"
 )
@@ -24,3 +27,25 @@ func resourceErrorText(err error) error {
 	}
 	return err
 }
+
+// resourceMissing is resourceErrorText for a read of something by its path,
+// where what is missing is said by its name. The read may be of a file that
+// an open document shows, such as a diagram, and "the document no longer
+// exists" then sent a person looking for a deleted document when one file
+// was missing (Paul, 12 November 2026). The error is still
+// resource.ErrNotFound to errors.Is, so a caller that treats a missing file
+// as an answer and not as a failure still can (ReadWorkspaceMountText); as
+// plain text it was not, and a document was given an error where it should
+// have been told that its reference is missing.
+func resourceMissing(err error, at string) error {
+	if errors.Is(err, resource.ErrNotFound) {
+		return missingResource(fmt.Sprintf("%s was not found; it may have been moved or renamed, or not put there yet", path.Base(strings.TrimRight(strings.ReplaceAll(at, `\`, "/"), "/"))))
+	}
+	return resourceErrorText(err)
+}
+
+// missingResource is what a person reads about something that is not there.
+type missingResource string
+
+func (m missingResource) Error() string        { return string(m) }
+func (m missingResource) Is(target error) bool { return target == resource.ErrNotFound }

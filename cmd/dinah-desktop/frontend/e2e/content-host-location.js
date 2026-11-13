@@ -15,6 +15,8 @@ const { launch } = require('./lib/page');
       const drafts = { ['n'.repeat(32)]: draft('n'.repeat(32), { kind: 'new', workspaceId: 'C:\\W' }), ['f'.repeat(32)]: draft('f'.repeat(32), { kind: 'local-folder', workspaceId: 'C:\\W', sourceId: 's', path: 'notes.md' }), ['d'.repeat(32)]: Object.assign(draft('d'.repeat(32), { kind: 'wiki', workspaceId: 'C:\\W', sourceId: 'k', path: '123' }), { title: 'deck.md' }) };
       return {
         GetDraft: async id => drafts[id],
+        ReadWorkspaceMountText: async path => { window.__mountReads = (window.__mountReads || []).concat(path); return path.endsWith('/there.canvas') ? { found: true, text: 'in the folder' } : { found: false, text: '' }; },
+        DraftKeptText: async (id, name) => { window.__keptReads = (window.__keptReads || []).concat(id + ' ' + name); return id === 'd'.repeat(32) && name === 'new.canvas' ? { found: true, text: 'kept with the draft' } : { found: false, text: '' }; },
         DocumentFilesMount: async ref => ref.sourceId === 'k' ? '/workspaces/w/wiki/files/' + ref.path : '',
         UpdateDraft: async (id, rev, text) => Object.assign({}, drafts[id], { text, revision: 'r2', changed: true }),
         SaveDraft: async (id) => Object.assign({}, drafts[id], { revision: 'r3' }),
@@ -46,7 +48,9 @@ const { launch } = require('./lib/page');
       const where = reference => workspace.resolvePath({ resource: deck, reference });
       const paths = { beside: where('plan.canvas'), below: where('mockups/plan.canvas'), outside: where('../shared/deck.css'), rooted: where('/elsewhere/deck.css'), file: workspace.resolvePath({ resource: saved, reference: 'plan.canvas' }) };
       const usable = [paths.beside, paths.below, paths.outside].every(a => window.yavcUtil.hostPath(a) === a);
-      return { newRead, fileRead, newWrite, fileWrite, catalog, paths, usable };
+      const files = window.pudlHost.fs, at = '/workspaces/w/wiki/files/123/';
+      const kept = { there: await files.readText(at + 'there.canvas', { document: deck }), added: await files.readText(at + 'new.canvas', { document: deck }), none: await files.readText(at + 'none.canvas', { document: deck }), unasked: await files.readText(at + 'new.canvas'), other: await files.readText(at + 'new.canvas', { document: saved }), keptReads: window.__keptReads || [] };
+      return { newRead, fileRead, newWrite, fileWrite, catalog, paths, usable, kept };
     });
     ok('a new document is read as needing a location', got.newRead.needsLocation === true, JSON.stringify(got.newRead));
     ok('a document that is a file is read without the field', !('needsLocation' in got.fileRead), JSON.stringify(got.fileRead));
@@ -60,5 +64,9 @@ const { launch } = require('./lib/page');
     ok('a deck kept in a source with no folders is told where its files are', got.paths.beside === at + 'plan.canvas' && got.paths.below === at + 'plan.canvas' && got.paths.outside === at + 'deck.css', JSON.stringify(got.paths));
     ok('the answers are paths the applets accept', got.usable === true, JSON.stringify(got.paths));
     ok('a reference from a root, and a document in a folder of files, are left to the applet', got.paths.rooted === null && got.paths.file === null, JSON.stringify(got.paths));
+    ok('a file in the folder of the document is read from there', got.kept.there === 'in the folder' && !got.kept.keptReads.some(r => r.endsWith('there.canvas')), JSON.stringify(got.kept));
+    ok('a file attached to the draft and not yet published is read from the draft', got.kept.added === 'kept with the draft', JSON.stringify(got.kept));
+    ok('a file that is nowhere is still missing', got.kept.none === null);
+    ok('another document, and a read that says no document, do not see the file kept with the draft', got.kept.unasked === null && got.kept.other === null, JSON.stringify(got.kept));
   } finally { await t.close(); }
 })();

@@ -178,7 +178,7 @@ func (s workspaceResourceService) statProvider(record WorkspaceRecord, ref Resou
 			return providerItem(parent, source, e, creates(p)), nil
 		}
 	}
-	return ResourceItem{}, resourceErrorText(resource.ErrNotFound)
+	return ResourceItem{}, resourceMissing(resource.ErrNotFound, ref.Path)
 }
 
 // readProvider reads an entry as text: through the provider's TextReader,
@@ -204,7 +204,7 @@ func (s workspaceResourceService) readProvider(record WorkspaceRecord, ref Resou
 		return ResourceRead{}, errors.New("this source does not read its contents as text")
 	}
 	if err != nil {
-		return ResourceRead{}, resourceErrorText(err)
+		return ResourceRead{}, resourceMissing(err, ref.Path)
 	}
 	if len(text.Text) > 1<<20 {
 		return ResourceRead{}, errors.New("the resource exceeds the 1 MiB text limit")
@@ -266,7 +266,7 @@ func (s workspaceResourceService) blobProvider(ref ResourceRef, source Workspace
 	}
 	data, err := reader.ReadBlob(s.ctx, ref.Path)
 	if err != nil {
-		return nil, resourceErrorText(err)
+		return nil, resourceMissing(err, ref.Path)
 	}
 	if len(data) > workspaceAttachmentLimit {
 		return nil, errors.New("the file exceeds the 20 MiB preview limit")

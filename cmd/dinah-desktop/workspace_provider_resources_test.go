@@ -211,6 +211,17 @@ func TestRegisteredKindIsListedReadAndPreviewedThroughItsProvider(t *testing.T) 
 	if _, err := service.read(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "999"}); err == nil {
 		t.Fatal("a missing page was read")
 	}
+	// A file a document shows that is not there is said by its name, and
+	// not as a document that no longer exists.
+	_, err = service.read(ResourceRef{WorkspaceID: ref.WorkspaceID, SourceID: "wiki", Path: "attachments/missing.canvas"})
+	if err == nil || !strings.Contains(err.Error(), "missing.canvas was not found") || strings.Contains(err.Error(), "document no longer exists") {
+		t.Fatalf("a missing file: %v", err)
+	}
+	// A document that asks for such a file is told that it is not there,
+	// which is an answer and no error, so it says which reference is missing.
+	if text, err := service.app.ReadWorkspaceMountText("/workspaces/"+record.MountAlias+"/"+source.MountAlias+"/attachments/missing.canvas", 0); err != nil || text.Found {
+		t.Fatalf("a missing file asked for by a document: %+v %v", text, err)
+	}
 	// A file the source says it writes back is offered for editing, and
 	// another file of the source is only read.
 	for name, want := range map[string]bool{"plan.canvas": true, "notes.txt": false} {

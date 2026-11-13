@@ -169,29 +169,59 @@ func (f Folder) ReadFile(ctx context.Context, path, name string) ([]byte, error)
 	}
 	defer root.Close()
 	for _, place := range places {
-		clean, err := f.clean(place)
+		data, found, err := f.readPlace(root, place)
 		if err != nil {
-			continue
+			return nil, err
 		}
-		info, err := f.checkAncestors(root, clean)
-		if err != nil || info == nil || !info.Mode().IsRegular() {
-			continue
+		if found {
+			return data, nil
 		}
-		file, err := root.Open(clean)
-		if err != nil {
-			continue
-		}
-		data, err := io.ReadAll(io.LimitReader(file, resource.MaxFile+1))
-		file.Close()
-		if err != nil {
-			return nil, errors.New("the file could not be read")
-		}
-		if len(data) > resource.MaxFile {
-			return nil, fmt.Errorf("the file is larger than %d MiB", resource.MaxFile>>20)
-		}
-		return data, nil
 	}
 	return nil, resource.ErrNotFound
+}
+
+// readPlace reads the file at one path in the folder, up to
+// resource.MaxFile, and reports false when no file is there.
+func (f Folder) readPlace(root *os.Root, place string) ([]byte, bool, error) {
+	clean, err := f.clean(place)
+	if err != nil {
+		return nil, false, nil
+	}
+	info, err := f.checkAncestors(root, clean)
+	if err != nil || info == nil || !info.Mode().IsRegular() {
+		return nil, false, nil
+	}
+	file, err := root.Open(clean)
+	if err != nil {
+		return nil, false, nil
+	}
+	data, err := io.ReadAll(io.LimitReader(file, resource.MaxFile+1))
+	file.Close()
+	if err != nil {
+		return nil, false, errors.New("the file could not be read")
+	}
+	if len(data) > resource.MaxFile {
+		return nil, false, fmt.Errorf("the file is larger than %d MiB", resource.MaxFile>>20)
+	}
+	return data, true, nil
+}
+
+// ReadBlob reads a file of the folder by its path, whatever it holds, up to
+// resource.MaxFile (resource.BlobReader).
+func (f Folder) ReadBlob(ctx context.Context, path string) ([]byte, error) {
+	root, err := os.OpenRoot(f.Root)
+	if err != nil {
+		return nil, errors.New("the local source is unavailable")
+	}
+	defer root.Close()
+	data, found, err := f.readPlace(root, path)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, resource.ErrNotFound
+	}
+	return data, nil
 }
 
 // CreateFile writes a new file of any content, such as an exported document,

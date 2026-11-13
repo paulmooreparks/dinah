@@ -488,11 +488,31 @@ func (s *Store) write(d Draft) error {
 		os.Remove(tmp.Name())
 		return fmt.Errorf("the draft could not be saved: %w", err)
 	}
-	if err := os.Rename(tmp.Name(), name); err != nil {
+	if err := s.replace(tmp.Name(), name); err != nil {
 		os.Remove(tmp.Name())
 		return fmt.Errorf("the draft could not be saved: %w", err)
 	}
 	return nil
+}
+
+// replace renames the complete temporary file over the draft's file. On
+// Windows a file cannot be replaced while a program has it open without
+// sharing its deletion (FILE_SHARE_DELETE, in the documentation of
+// CreateFile), and the rename is then refused with access denied. A draft's
+// file is read without the draft's lock, by this program and by any other
+// that reads the folder, so a reader may have it open for a moment as it is
+// replaced. A refusal of permission is therefore waited out, as lock waits
+// one out, and reported only if it outlasts the wait. A save of a draft was
+// lost to such a refusal once (Paul's log, 12 November 2026).
+func (s *Store) replace(from, to string) error {
+	deadline := s.now().Add(s.lockWait)
+	for {
+		err := os.Rename(from, to)
+		if err == nil || !errors.Is(err, os.ErrPermission) || s.now().After(deadline) {
+			return err
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }
 
 // lockOrigin locks a resource's drafts, by its origin, as lock locks one

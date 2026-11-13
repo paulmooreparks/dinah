@@ -5,9 +5,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	pathpkg "path"
 
 	"studio/internal/applet"
 	"studio/internal/drafts"
+	"studio/internal/resource"
 )
 
 //go:embed applet_documents.go
@@ -20,11 +22,22 @@ var documentsAppletSource []byte
    rejects, one at a time or all at once. Nothing reaches the document's
    text until the person accepts it, so proposing asks no consent: the
    person decides on each change instead. Accepting and rejecting are the
-   person's, and agents have no action for them. */
+   person's, and agents have no action for them.
+
+   A suggestion may refer to a file the document does not have yet, such as
+   a diagram. Attach a File keeps a file of the workspace with the
+   document's draft, as Attach File in the document's window does. The file
+   is written with the document only when the document's text refers to it
+   and the person saves or publishes (drafts.Service.Save), so attaching
+   changes nothing a reader sees either, and asks no consent. An agent
+   proposed fifteen diagram references to a page whose draft had none of
+   the diagram files, and the person saw fifteen missing diagrams (Paul, 12
+   November 2026). */
 
 const (
 	documentsReadAction    = "dinah.documents/read@1"
 	documentsSuggestAction = "dinah.documents/suggest@1"
+	documentsAttachAction  = "dinah.documents/attach@1"
 )
 
 // documentDraft opens the draft of a document of the calling workspace,
@@ -87,9 +100,13 @@ func (a *App) documentsAppletBundle() (applet.Bundle, error) {
 	path := `{"type":"string","minLength":1,"maxLength":1024}`
 	source := `{"type":"string","maxLength":128}`
 	suggestion := `{"type":"object","additionalProperties":false,"required":["id","before","after","author","stale","edited"],"properties":{"id":{"type":"string"},"before":{"type":"string"},"after":{"type":"string"},"author":{"type":"string"},"reason":{"type":"string"},"stale":{"type":"boolean"},"edited":{"type":"boolean"}}}`
-	manifest := applet.Manifest{ID: "dinah.documents", Version: "1.1.0", APIVersion: 1, Title: "Documents",
+	manifest := applet.Manifest{ID: "dinah.documents", Version: "1.2.0", APIVersion: 1, Title: "Documents",
 		Description: "A document's text as its draft holds it, and suggestions to it that the person reviews and accepts or rejects in the document's window.",
 		Actions: []applet.Action{
+			{Ref: documentsAttachAction, Title: "Attach a File to a Document", Replay: "once", Capabilities: []string{"workspace.read"},
+				Description:  "Keep a file of the calling workspace's main folder with a document's draft, so that a change you suggest can refer to it: a diagram file, a picture, a file to download. Do this before Suggest Changes for every file your proposed text refers to that the document does not have yet. The answer gives the name the file is kept under, which differs from the file's own name when the document already has a file of that name; refer to the file by the name in the answer. The document shows the file at once, and the file is saved or published with the document only if the document's text refers to it when the person saves or publishes. Nothing is published by this action. Give the sourceId you read the document with, for a document of an attached source.",
+				InputSchema:  json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path","file"],"properties":{"path":` + path + `,"sourceId":` + source + `,"file":` + path + `}}`),
+				OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["name","bytes"],"properties":{"name":{"type":"string"},"bytes":{"type":"integer"}}}`)},
 			{Ref: documentsReadAction, Title: "Read a Document", Replay: "pure", Capabilities: []string{"workspace.read"},
 				Description:  "Read a document of the calling workspace as its draft holds it, with the suggestions not yet accepted or rejected. The text is what Suggest Changes takes as base. Without sourceId the path is in the workspace's main folder; with one it is a document of that attached source, such as a page of a wiki, by the path List Source Resources gives.",
 				InputSchema:  json.RawMessage(`{"type":"object","additionalProperties":false,"required":["path"],"properties":{"path":` + path + `,"sourceId":` + source + `}}`),
@@ -103,6 +120,42 @@ func (a *App) documentsAppletBundle() (applet.Bundle, error) {
 				OutputSchema: json.RawMessage(`{"type":"object","additionalProperties":false,"required":["added","suggestions"],"properties":{"added":{"type":"integer"},"suggestions":{"type":"array","items":` + suggestion + `}}}`)},
 		}}
 	handlers := map[string]applet.Handler{
+		documentsAttachAction: func(ctx context.Context, input string) (applet.Result, error) {
+			var in struct {
+				Path     string `json:"path"`
+				SourceID string `json:"sourceId"`
+				File     string `json:"file"`
+			}
+			if err := json.Unmarshal([]byte(input), &in); err != nil {
+				return applet.Result{}, err
+			}
+			clean, err := workspaceRelativePath(in.File)
+			if err != nil || clean == "." {
+				return applet.Result{}, errors.New("give the path of a file in the workspace's main folder, such as diagrams/plan.canvas")
+			}
+			folder, _, err := a.mainFolder(ctx)
+			if err != nil {
+				return applet.Result{}, err
+			}
+			data, err := folder.ReadBlob(ctx, toSlash(clean))
+			if errors.Is(err, resource.ErrNotFound) {
+				return applet.Result{}, errors.New(toSlash(clean) + " was not found in the workspace's main folder")
+			}
+			if err != nil {
+				return applet.Result{}, err
+			}
+			o, v, err := a.documentDraft(ctx, in.SourceID, in.Path)
+			if err != nil {
+				return applet.Result{}, err
+			}
+			name, err := o.AddFile(v.ID, pathpkg.Base(toSlash(clean)), data)
+			if err != nil {
+				return applet.Result{}, err
+			}
+			// A window that shows the document reads its files again.
+			a.emitWorkspaceMountChanged("content-changed", v.Origin.WorkspaceID, v.Origin.SourceID)
+			return builtinJSON(map[string]any{"name": name, "bytes": len(data)})
+		},
 		documentsReadAction: func(ctx context.Context, input string) (applet.Result, error) {
 			var in struct {
 				Path     string `json:"path"`

@@ -348,6 +348,17 @@ func (o Ops) AddFile(id, name string, data []byte) (string, error) {
 	return kept, nil
 }
 
+// Kept reads a file kept with a draft and not yet saved with it, or returns
+// drafts.ErrNotFound when the draft keeps no file of that name. A document
+// shows such a file before it is saved or published: a diagram attached to
+// a page's draft is drawn although the page has no such attachment yet.
+func (o Ops) Kept(id, name string) ([]byte, error) {
+	if _, err := o.Draft(id); err != nil {
+		return nil, err
+	}
+	return o.Drafts.Store.ReadFile(id, name)
+}
+
 // File reads a file a draft's text shows: one kept with the draft, or else
 // the one of that name beside the document it was opened from.
 func (o Ops) File(id, name string) ([]byte, error) {

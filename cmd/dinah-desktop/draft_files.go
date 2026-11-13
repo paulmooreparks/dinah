@@ -10,7 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"unicode/utf8"
 
+	"studio/internal/drafts"
 	"studio/internal/resource"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -35,6 +37,35 @@ func (a *App) AddDraftFile(id, name, data string) (string, error) {
 		return "", err
 	}
 	return o.AddFile(id, name, raw)
+}
+
+// DraftKeptText reads, as text, a file kept with a draft and not yet saved
+// with it. A document refers to a file by a path in its folder
+// (ReadWorkspaceMountText), and a file attached to the draft is not in
+// that folder until the draft is saved or published, so the page asks here
+// when the folder has no such file, and the document shows a diagram that
+// was attached a moment ago. A file the draft does not keep is reported as
+// not found and is no error. A file longer than maxBytes is refused when
+// maxBytes is above zero, and so is one that is not text.
+func (a *App) DraftKeptText(id, name string, maxBytes int) (MountText, error) {
+	o, err := a.documentOps(a.bindingContext(), "")
+	if err != nil {
+		return MountText{}, err
+	}
+	data, err := o.Kept(id, name)
+	if errors.Is(err, drafts.ErrNotFound) {
+		return MountText{}, nil
+	}
+	if err != nil {
+		return MountText{}, err
+	}
+	if maxBytes > 0 && len(data) > maxBytes {
+		return MountText{}, fmt.Errorf("%s is longer than %d bytes", name, maxBytes)
+	}
+	if !utf8.Valid(data) {
+		return MountText{}, errors.New(name + " is not a text file")
+	}
+	return MountText{Found: true, Text: string(data)}, nil
 }
 
 // PickDraftFiles asks for files in the native dialog, images only when

@@ -487,12 +487,23 @@
      the document's folder by the applet. The applet does not say which
      document asks, so the person's own files are what a path can be, in
      any of their workspaces. Dinah reads a text file of up to 1 MiB.
-     Neither function uses this, since the applets pass them on alone. */
+     Neither function uses this, since the applets pass them on alone.
+
+     A file attached to a document's draft is not in the document's folder
+     until the draft is saved or published. The Editor and Docs say which
+     document asks (options.document, yavc.app v0.2.61), so a file the
+     folder does not have is looked for among the files that document's
+     draft keeps, by its name, and a diagram attached a moment ago, by the
+     person or by an agent, is drawn before anything is published. */
   function readText(path, options) {
     var signal = options && options.signal, max = options && options.maxBytes > 0 ? Math.floor(options.maxBytes) : 0;
     function stopped() { return new DOMException('The read was stopped.', 'AbortError'); }
     if (signal && signal.aborted) return Promise.reject(stopped());
-    return Promise.resolve().then(function () { return api().ReadWorkspaceMountText(flatPath(String(path)), max); }).then(function (r) {
+    var where = String(path), draft = names()[String(options && options.document || '')];
+    return Promise.resolve().then(function () { return api().ReadWorkspaceMountText(flatPath(where), max); }).then(function (r) {
+      if ((r && r.found) || !draft || !api().DraftKeptText) return r;
+      return api().DraftKeptText(draft, where.slice(where.lastIndexOf('/') + 1), max);
+    }).then(function (r) {
       if (signal && signal.aborted) throw stopped();
       return r && r.found ? r.text : null;
     }, function (err) { throw new Error(message(err)); });
