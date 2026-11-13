@@ -1130,9 +1130,9 @@
      edits text and Markdown is Docs's, so a document started in the Editor
      is not Markdown, and Save As offers it as a text file (Paul, 12 November
      2026). Any other application's is "Untitled", in its own format. */
-  function newDocument(workspaceId, text, app) {
+  function newDocument(workspaceId, text, app, name) {
     return Promise.resolve(api().NewEmptyDraft(workspaceId || (host() && host().workspaceId()) || '')).then(function (v) {
-      return app === 'editor' ? api().RetitleDraft(v.id, v.revision, 'Untitled.txt') : v;
+      return name || app === 'editor' ? api().RetitleDraft(v.id, v.revision, name || 'Untitled.txt') : v;
     }).then(function (v) {
       if (!text) return v;
       return api().UpdateDraft(v.id, v.revision, text);
@@ -1222,6 +1222,23 @@
     })).then(function (list) { return { output: (result && result.output) || {}, artifacts: list }; });
   }
 
+  /* What an agent's New needs beyond a new draft. The draft is the host's,
+     one to a window, so the host makes it and not the application's own
+     New, which would add a second document to the window. A diagram's kind
+     is in its file name, so a new one is named for the kind asked for. And
+     where an application's New answers with more than its list's row, the
+     answer is that of the documented action given here, run on the new
+     window with the text it already has: Diagrams' set-text returns what
+     its New returns, whether the diagram was drawn and what is wrong with
+     it, and writing a document's own text changes nothing. */
+  var NEW_NAMES = { 'diagrams:d2': 'Untitled.d2', 'diagrams:mermaid': 'Untitled.mmd', 'diagrams:canvas': 'Untitled.canvas' };
+  var NEW_ANSWER = { diagrams: 'set-text' };
+  function newAnswer(key, app) {
+    return textOf(key).then(function (text) {
+      return window.dinahContentHost.accept(key, { operation: NEW_ANSWER[app], input: { text: text } });
+    }).then(function (r) { return (r && r.output) || {}; });
+  }
+
   /* An agent's call of a content action (applet_content.go). Opening and
      starting a document make a window of their own; closing closes its
      window; a call that works on text alone runs in the page's broker; every
@@ -1241,10 +1258,11 @@
         }).then(function (doc) { return args.handles ? { output: { opened: true, view: 'window' } } : { output: doc }; });
       }
       if (op === 'new' || op === 'new-template') {
-        return newDocument(rec.id, op === 'new' ? input.text || '' : '', app).then(function (key) {
+        return newDocument(rec.id, op === 'new' ? input.text || '' : '', app, op === 'new' ? NEW_NAMES[app + ':' + input.kind] : '').then(function (key) {
           noteFront(key);
           return window.dinahWorkbench.ready(key).then(function () {
-            return op === 'new-template' ? window.dinahContentHost.accept(key, { operation: 'new-template', input: input }).then(function () { return firstDocument(key); }) : firstDocument(key);
+            if (op === 'new-template') return window.dinahContentHost.accept(key, { operation: 'new-template', input: input }).then(function () { return firstDocument(key); });
+            return NEW_ANSWER[app] ? newAnswer(key, app) : firstDocument(key);
           });
         }).then(function (doc) { return { output: doc }; });
       }
