@@ -31,6 +31,14 @@ module.exports = async function run(name) {
         ok('installed and running versions appear', (await text('updates-programs')).includes('Installed: 2.0.0') && (await text('updates-programs')).includes('Running: 2.0.0'));
         ok('source suffix remains visible without a mismatch claim', (await text('updates-programs')).includes('2.0.0+source.abcdef') && !(await text('updates-inventory-status')).includes('mismatch'));
         ok('current state has no stale restart warning', (await text('updates-running-status')).startsWith('0 older'));
+        const selfBefore = await geometry(t);
+        await page.evaluate(() => { __u.status.running[0].self = true; });
+        await page.locator('#updates-refresh').click(); await settle(t);
+        ok('only the caller is labelled this window without changing geometry', await page.locator('#updates-running [data-key="100"]').textContent().then(s => s.includes('PID 100 (this window): installed copy')) && (await text('updates-running')).split('(this window)').length === 2 && JSON.stringify(selfBefore) === JSON.stringify(await geometry(t)));
+        await page.evaluate(() => { __u.status.running[0].current = false; __u.status.behind = 1; });
+        await page.locator('#updates-refresh').click(); await settle(t);
+        ok('an older caller keeps its this window label and restart explanation', (await page.locator('#updates-running [data-key="100"]').textContent()).includes('(this window): older copy; restart its owner when ready'));
+        await page.evaluate(() => { __u.status.running[0].current = true; __u.status.behind = 0; });
         ok('Settings commands preserve PUDL disabled action meaning', await page.evaluate(() => pudlApplets.commandsIn(document.querySelector('#settings').closest('.win')).some(c => c.label === 'Install Update' && c.disabled)));
         await setRelease(t, { current: '2.0.1', latest: '2.0.1', available: false });
         ok('already current is explicit', (await text('updates-release-status')).includes('No newer release') && await page.locator('#updates-install').isDisabled());
