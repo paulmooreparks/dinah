@@ -122,9 +122,12 @@ func main() {
 	case "version":
 		fmt.Println(product.CommandProgram, mcpserver.Version)
 	case "help", "-h", "--help":
-		fmt.Print(usage)
+		fmt.Print(usage + forwardedUsage())
 	default:
-		fmt.Fprintf(os.Stderr, "%s: unknown command %q\n\n%s", product.CommandProgram, os.Args[1], usage)
+		if program, ok := forwarded(os.Args[1]); ok {
+			os.Exit(forward(program, os.Args[1:]))
+		}
+		fmt.Fprintf(os.Stderr, "%s: unknown command %q\n\n%s", product.CommandProgram, os.Args[1], usage+forwardedUsage())
 		os.Exit(2)
 	}
 	if err != nil && !errors.Is(err, context.Canceled) {
@@ -142,8 +145,12 @@ func completion(args []string) error {
 	if len(args) != 1 || args[0] != "powershell" {
 		return errors.New("usage: " + product.CommandProgram + " completion powershell")
 	}
-	quoted := make([]string, len(commands))
-	for i, c := range commands {
+	all := append([]string{}, commands...)
+	for _, c := range profile.Current().ProgramCommands {
+		all = append(all, c.Name)
+	}
+	quoted := make([]string, len(all))
+	for i, c := range all {
 		quoted[i] = "'" + c + "'"
 	}
 	fmt.Printf(`Register-ArgumentCompleter -Native -CommandName %[1]s, %[1]s.exe -ScriptBlock {

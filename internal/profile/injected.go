@@ -139,6 +139,12 @@ func (p Profile) check() error {
 			break
 		}
 	}
+	for _, c := range p.ProgramCommands {
+		if !providerID.MatchString(c.Name) || !providerID.MatchString(c.Program) || c.Program == p.CommandProgram || strings.TrimSpace(c.Summary) == "" || strings.ContainsAny(c.Summary, "\r\n") {
+			problems = append(problems, "each of ProgramCommands needs a Name and a Program of lowercase letters, digits and hyphens, a Program that is not CommandProgram, and a Summary of one line")
+			break
+		}
+	}
 	if len(p.Providers) == 0 {
 		problems = append(problems, "Providers must list at least one agent provider")
 	} else if p.DefaultProvider != "" && !slices.Contains(p.Providers, p.DefaultProvider) {

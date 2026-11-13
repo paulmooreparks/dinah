@@ -107,6 +107,12 @@ type Profile struct {
 	// installation needs no setup and the tools are the release the window
 	// is (provider_devin.go). Dinah has none.
 	ToolServers []ToolServer
+	// ProgramCommands are commands of the command program that another
+	// program of the product, installed beside it, carries out, so that a
+	// person has one program to type. The command program starts that
+	// program with the command and its arguments and ends as it ends
+	// (cmd/dinah/forward.go). Dinah has none.
+	ProgramCommands []ProgramCommand
 
 	// DefaultProvider is the agent provider a new chat uses until the person
 	// chooses another.
@@ -142,6 +148,17 @@ type ToolServer struct {
 	// and is brought to the program's place now. An entry that runs it
 	// from anywhere else is a person's own.
 	EarlierFolders []string
+}
+
+// ProgramCommand is one command the command program hands to another
+// program of the product.
+type ProgramCommand struct {
+	// Name is the command as it is typed, and Program the program that
+	// carries it out, started with Name and the arguments after it.
+	Name    string
+	Program string
+	// Summary is the line the command program's help gives it.
+	Summary string
 }
 
 // dinah is Dinah's profile, the one this build uses.
