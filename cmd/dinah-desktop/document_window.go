@@ -31,11 +31,7 @@ var documentWindowClass = product.WindowClass + "Document"
 // share. It is not the main window's: a document's page signs in with a
 // cookie of its own.
 func documentWebviewDataPath() string {
-	p := filepath.Join(configDir(), "webview2", appVersion+"-documents")
-	if os.MkdirAll(p, 0o700) != nil {
-		return ""
-	}
-	return p
+	return webviewProfile(webviewRoot(), profileDocuments, appVersion)
 }
 
 // documentStart is what a document's window is started with.

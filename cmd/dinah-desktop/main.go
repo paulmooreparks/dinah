@@ -66,15 +66,9 @@ func shownVersion() string {
 //go:embed frontend/*.html frontend/*.css frontend/*.js frontend/*.svg frontend/pudl frontend/vendor frontend/yavc
 var assets embed.FS
 
-// webviewDataPath versions the WebView2 profile by app version, so a page
-// cached by an earlier build is never served.
-func webviewDataPath() string {
-	p := filepath.Join(configDir(), "webview2", appVersion)
-	if os.MkdirAll(p, 0o700) != nil {
-		return ""
-	}
-	return p
-}
+// webviewDataPath is the main window's browser profile, which does not
+// change with the release (webview_profile.go).
+func webviewDataPath() string { return webviewProfile(webviewRoot(), profileMain, appVersion) }
 
 func main() {
 	// A product's own packages read the release from here (internal/programs).

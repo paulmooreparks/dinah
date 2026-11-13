@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sync"
 
 	wails "github.com/wailsapp/wails/v2"
@@ -32,11 +31,7 @@ var showWindowClass = product.WindowClass + "Show"
 // not the main window's: the show's page signs in with a cookie of its own,
 // which lets it read what a slide needs and nothing else.
 func showWebviewDataPath() string {
-	p := filepath.Join(configDir(), "webview2", appVersion+"-show")
-	if os.MkdirAll(p, 0o700) != nil {
-		return ""
-	}
-	return p
+	return webviewProfile(webviewRoot(), profileShow, appVersion)
 }
 
 // loopbackEntry says an address is on this machine's loopback interface,
