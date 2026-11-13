@@ -288,7 +288,9 @@ func (a *App) RestartToUpdate(now bool) error {
 // CancelRestart stops waiting to restart, and turns may start again.
 func (a *App) CancelRestart() {
 	a.updMu.Lock()
-	paused := a.update != nil && a.update.pausing
+	// An in-flight pause records who was told before it sends cancellation.
+	// Consuming the record here would lose a chat whose steering is settling.
+	paused := a.update != nil && a.update.pausing && !a.update.telling
 	if a.update != nil {
 		a.update.pending, a.update.pausing = false, false
 	}
@@ -306,6 +308,7 @@ func (a *App) restartWhenIdle() {
 		a.updMu.Lock()
 		pending := a.update != nil && a.update.pending
 		writing := a.writing
+		telling := pending && a.update.telling
 		overdue := pending && a.update.pausing && time.Since(a.update.pausedAt) >= pauseGrace
 		a.updMu.Unlock()
 		if !pending {
@@ -314,7 +317,7 @@ func (a *App) restartWhenIdle() {
 		// No write starts while pending is set (admitWrite), so a count of
 		// none stays none.
 		chats := a.workingChats()
-		if chats == 0 && writing == 0 {
+		if chats == 0 && writing == 0 && !telling {
 			a.closeForUpdate()
 			return
 		}

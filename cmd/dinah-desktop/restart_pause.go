@@ -156,17 +156,24 @@ func (a *App) PauseAndRestart() error {
 	}
 	// Turns are held from here on, and the request to pause is the one
 	// message let through.
-	if err := a.RestartToUpdate(false); err != nil {
-		return err
-	}
 	a.updMu.Lock()
 	a.update.pausing, a.update.telling, a.update.pausedAt = true, true, time.Now()
 	a.updMu.Unlock()
+	if err := a.RestartToUpdate(false); err != nil {
+		a.updMu.Lock()
+		a.update.pausing, a.update.telling = false, false
+		a.updMu.Unlock()
+		return err
+	}
 	defer a.emitUpdate()
 	defer func() {
 		a.updMu.Lock()
 		a.update.telling = false
+		cancelled := !a.update.pending
 		a.updMu.Unlock()
+		if cancelled {
+			a.resumePaused(false)
+		}
 	}()
 	for _, s := range a.workingSessions() {
 		id := s.ID()
