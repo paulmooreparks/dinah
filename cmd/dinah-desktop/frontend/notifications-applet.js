@@ -51,7 +51,7 @@
       openTarget: function (entry) { return entry.target && entry.target.chat ? openSession(entry.target.chat) : null; },
       showAll: function () { return window.dinahWorkbench.open('needs-you'); },
       dismiss: function (entry) { return entry.data.notificationId ? dismissStoredNotification(entry.data.notificationId) : null; },
-      clear: function () { return flushNotifications().then(function () { return app().ClearNotifications ? app().ClearNotifications() : null; }); },
+      clear: function (entries) { return flushNotifications().then(function () { return Promise.all(entries.filter(function (entry) { return !entry.dismiss && entry.data.notificationId; }).map(function (entry) { return dismissStoredNotification(entry.data.notificationId); })); }); },
       error: function (err) { fail(err); },
       formatTime: function (d) { return dinahRegional.format(d, 'dayTime'); }
     });
@@ -96,7 +96,7 @@
        dismissed, but nothing in the chat waits on it, so it does not put the
        chat under Needs You. */
     function needsCount(id) {
-      return notices.list(function (e) { return e.type === 'question' && e.target && e.target.chat === id; }).length;
+      return notices.list(function (e) { return e.data.attentionChat === id || e.type === 'question' && e.target && e.target.chat === id; }).length;
     }
 
     /* types are the kinds ticked in the Show menu; none ticked shows every
@@ -108,8 +108,8 @@
     }
     /* The pane draws every entry as a card, the filter hiding some; the
        taskbar item's popover lists them all. */
-    var noticePane = notices.mountPane($('questions'), { filter: needsShown, drawn: function (info) {
-      $('needs-empty').hidden = info.shown > 0;
+    var noticePane = notices.mountPane($('questions'), { stable: true, filter: needsShown, drawn: function (info) {
+      $('needs-empty').style.visibility = info.shown > 0 ? 'hidden' : '';
       $('needs-empty').textContent = info.total ? 'No notifications match the filter.' : 'No notifications right now.';
     } });
     notices.mountList($('notifications-status-list'), { popover: $('notifications-status-menu'), empty: 'No notifications.' });
@@ -305,19 +305,72 @@
       } }];
       return entry;
     }
-    /* A chat mentioned the person, in a group or directly (mention_notices.go). The
-       card opens the group, whose window marks its messages read, which ends the
-       card; Dismiss only removes the card. */
-    function mentionNotice(item) {
-      var actions = [];
-      if (item.group) actions.push({ label: 'Open Group', primary: true, run: function () {
-        return window.dinahBus.openGroup(item.group, { message: item.message || 0 }); } });
-      else if (item.sessionId) actions.push({ label: 'Open Chat', primary: true, run: function () { return openSession(item.sessionId); } });
-      if (item.kind === 'relay' && item.lead) actions.push({ label: 'Open Lead', run: function () { return openSession(item.lead); } });
-      return { id: item.id, type: item.kind === 'relay' ? 'warning' : 'info', needsPerson: true, title: item.title, body: item.body || '', details: item.details || [],
-        description: item.title + (item.body ? ' ' + item.body : ''), time: item.created || null, source: item.sessionTitle || '',
-        actions: actions, dismissible: true, announced: true, className: 'question heads-up', data: { notificationId: item.id, group: item.group || '', message: item.message } };
+    var attentionNavigation = 0;
+    var attentionItems = new Map(), attentionGroups = new Map(), attentionDismissals = new Map();
+    function attentionSource(item) { return item.sessionId ? 'chat:' + item.sessionId : item.sourceId ? 'bus:' + item.sourceId : 'message:' + item.id; }
+    function forgetAttention(id) {
+      var item = attentionItems.get(id);
+      if (!item) return;
+      attentionItems.delete(id); drawAttention(attentionSource(item));
     }
+    function dismissAttention(ids) {
+      return Promise.all(ids.map(function (id) {
+        if (attentionDismissals.has(id)) return attentionDismissals.get(id);
+        var pending = Promise.resolve().then(function () { return dismissStoredNotification(id); }).then(function () { forgetAttention(id); })
+          .finally(function () { attentionDismissals.delete(id); });
+        attentionDismissals.set(id, pending); return pending;
+      }));
+    }
+    function drawAttention(key) {
+      var items = Array.from(attentionItems.values()).filter(function (item) { return attentionSource(item) === key; });
+      var group = attentionGroups.get(key);
+      if (!items.length) { if (group) notices.remove(group.id); attentionGroups.delete(key); return; }
+      if (!group) { group = { id: items[0].id }; attentionGroups.set(key, group); }
+      items.sort(function (a, b) { return new Date(a.created) - new Date(b.created) || (a.message || 0) - (b.message || 0); });
+      var latest = items[items.length - 1], ids = items.map(function (item) { return item.id; });
+      var firstLine = String(latest.body || '').trim().split(/\r?\n/)[0];
+      var title = latest.title + (items.length > 1 ? ' (' + items.length + ' requests)' : '');
+      function open() {
+        attentionNavigation++;
+        var opening = latest.group ? window.dinahBus.openGroup(latest.group, { message: latest.message || 0 }) : latest.message ?
+          window.dinahWorkbench.open({ kind: 'bus-thread', path: String(latest.message), title: 'Message From ' + latest.sessionTitle }) : latest.sessionId ? openSession(latest.sessionId) : Promise.reject(new Error('The requesting chat is no longer available.'));
+        return Promise.resolve(opening).then(function (shown) { if (shown === false || shown === null) throw new Error('The request could not be opened.'); return dismissAttention(ids); }).finally(function () { attentionNavigation--; });
+      }
+      var actions = [{ label: latest.group ? 'Open Group' : 'Open Chat', primary: true, run: open }];
+      if (latest.kind === 'relay' && latest.lead) actions.push({ label: 'Open Lead', run: function () { return openSession(latest.lead); } });
+      notices.add({ id: group.id, type: latest.kind === 'attention' ? 'question' : latest.kind === 'relay' ? 'warning' : 'info', needsPerson: true,
+        title: title, body: firstLine, description: title + ' ' + firstLine, source: latest.sessionTitle || latest.groupTitle || '', time: latest.created,
+        details: [items.length + (items.length === 1 ? ' request' : ' requests') + (latest.groupTitle ? '; latest in ' + latest.groupTitle : '')],
+        actions: actions, dismissible: true, dismiss: function () { return dismissAttention(ids); }, announced: true,
+        className: 'question heads-up attention-kept', data: { notificationId: group.id, attentionChat: latest.sessionId || '', group: latest.group || '', message: latest.message, requestCount: items.length } });
+    }
+    function keepAttention(item) {
+      if (!item || item.dismissed) return;
+      attentionItems.set(item.id, item);
+      if (item.permissionKey) notices.remove('question-' + item.permissionKey);
+      drawAttention(attentionSource(item));
+    }
+    // Restoring an applet or refreshing a covered group is not acknowledgement.
+    // Only a new foreground target or direct interaction acknowledges its snapshot.
+    var lastAttentionWindow = '';
+    function acknowledgeWindow(key) {
+      if (attentionNavigation || !key || window.dinahUIState && window.dinahUIState.isRestoring()) return;
+      var item = window.dinahWorkbench.item(key);
+      if (!item) return;
+      var ids = Array.from(attentionItems.values()).filter(function (notice) {
+        return item.kind === 'chat-session' && notice.sessionId === item.path || item.kind === 'bus-room' && notice.group === item.path || item.kind === 'bus-thread' && notice.message === Number(item.path);
+      }).map(function (notice) { return notice.id; });
+      if (ids.length) dismissAttention(ids).catch(fail);
+    }
+    document.addEventListener('pudl:windows-change', function (event) {
+      var key = event.detail && event.detail.top;
+      if (key === lastAttentionWindow) return;
+      lastAttentionWindow = key; acknowledgeWindow(key);
+    });
+    document.addEventListener('focusin', function (event) {
+      var win = event.target.closest('[data-win]');
+      if (win && win.classList.contains('active')) acknowledgeWindow(win.dataset.win);
+    });
     var SEVERITY = { danger: 'error', warn: 'warning', positive: 'success', info: 'info' };
     /* Keeps what a toast said as a report. The same report again, while an
        earlier copy is still listed, is not added twice. */
@@ -336,7 +389,10 @@
     }
     function restoreNotifications() {
       if (!app().Notifications) return Promise.resolve();
+      var requestedAttention = new Map(attentionItems);
       return app().Notifications().then(function (items) {
+        var storedAttention = new Set((items || []).filter(function (item) { return !item.dismissed && /^(mention|relay|attention)$/.test(item.kind); }).map(function (item) { return item.id; }));
+        Array.from(attentionItems.keys()).forEach(function (id) { if (requestedAttention.get(id) === attentionItems.get(id) && !storedAttention.has(id)) forgetAttention(id); });
         var waiting = new Set((items || []).filter(function (item) { return item.kind === 'delivery-failure' || item.kind === 'delivery-store-error'; }).map(function (item) { return item.id; }));
         notices.list(function (entry) { return /^(waiting_|transfer_)/.test(String(entry.id)) && !waiting.has(entry.id); }).forEach(function (entry) { notices.remove(entry.id); });
         (items || []).forEach(function (item) {
@@ -352,9 +408,10 @@
             waitingSession.info.title = waitingSession.info.title || item.sessionTitle;
             notices.add(deliveryFailureNotice(item)); return;
           }
-          if (item.dismissed || notices.get(item.id)) return;
+          if (item.dismissed) return;
+          if (item.kind === 'mention' || item.kind === 'relay' || item.kind === 'attention') { keepAttention(item); return; }
+          if (notices.get(item.id)) return;
           if (item.kind === 'document' || item.kind === 'app') { notices.add(reportNotice(item)); return; }
-          if (item.kind === 'mention' || item.kind === 'relay') { notices.add(mentionNotice(item)); return; }
           if (item.kind !== 'turn-failure') return;
           var s = S(item.sessionId);
           s.info.cwd = s.info.cwd || item.workspace;
@@ -451,7 +508,7 @@
       if (seenPermissions.size > 1000) seenPermissions.delete(seenPermissions.values().next().value);
       var entry = { request: q, description: describe(s, q.toolCall, q.subagent), askedAt: now(), answering: false };
       permissionRequests.set(q.key, entry);
-      notices.add({ id: 'question-' + q.key, type: 'question', description: entry.description, source: title(s),
+      if (!Array.from(attentionItems.values()).some(function (item) { return item.permissionKey === q.key && item.sessionId === q.sessionId; })) notices.add({ id: 'question-' + q.key, type: 'question', description: entry.description, source: title(s),
         target: { chat: q.sessionId, permission: q.key }, announced: true, className: 'question',
         data: { permissionKey: q.key, session: q.sessionId },
         render: function (card) { card.id = 'question-' + q.key; fillPermission(card, entry, false); } });
@@ -483,9 +540,9 @@
     on('agent:answered', permissionAnswered);
     // The engine makes a card when a chat mentions the person and ends it when the message is read.
     on('notifications:added', function (item) {
-      if (item && (item.kind === 'mention' || item.kind === 'relay') && !item.dismissed && !notices.get(item.id)) notices.add(mentionNotice(item));
+      if (item && (item.kind === 'mention' || item.kind === 'relay' || item.kind === 'attention')) keepAttention(item);
     });
-    on('notifications:dismissed', function (done) { if (done && done.id) notices.remove(done.id); });
+    on('notifications:dismissed', function (done) { if (done && done.id) { if (attentionItems.has(done.id)) forgetAttention(done.id); else notices.remove(done.id); } });
     on('notification:delivery', function () { restoreNotifications().catch(fail); });
     /* After a resync the engine's pending questions are read again: one the
        page has not seen is shown, and one the page shows that is no longer

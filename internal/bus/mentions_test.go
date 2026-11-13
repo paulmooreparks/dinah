@@ -70,4 +70,19 @@ func TestMentionsAreWhatAgentsSentThePersonAndTheyHaveNotRead(t *testing.T) {
 	if strings.Contains(strings.Join(textsOf(left), "|"), "need you") {
 		t.Fatal("a read mention is still found")
 	}
+	attention, err := g.b.AttentionMentions(ctx, 0)
+	if err != nil || len(attention) != 2 {
+		t.Fatalf("read receipts removed attention candidates: %+v %v", attention, err)
+	}
+	answered, err := g.b.MentionsAnswered(ctx, []int64{first.ID})
+	if err != nil || len(answered) != 0 {
+		t.Fatalf("reading was treated as answering: %v %v", answered, err)
+	}
+	if _, err := g.b.ReplyInThread(ctx, Sender{}, first.ID, "The person's answer"); err != nil {
+		t.Fatal(err)
+	}
+	answered, err = g.b.MentionsAnswered(ctx, []int64{first.ID})
+	if err != nil || len(answered) != 1 || answered[0] != first.ID {
+		t.Fatalf("actual answer missing: %v %v", answered, err)
+	}
 }

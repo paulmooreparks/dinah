@@ -620,6 +620,11 @@ textarea.form-textarea[rows="5"], textarea.form-textarea[rows="6"] { min-height:
 /* Notifications sits between the run and the composer, so a question is in
    sight whatever the run has scrolled to. */
 .needs-you { flex: none; max-height: min(60%, 32rem); overflow-y: auto; padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border); background: var(--surface); }
+.dinah-applet > .needs-you { height: 100%; box-sizing: border-box; overflow: hidden; }
+.needs-you > .needs-filters, .needs-you > #needs-empty { flex: none; }
+#needs-empty { height: 1.5em; min-height: 1.5em; margin: 0; overflow: hidden; }
+#questions { flex: 1 1 auto; min-height: 0; overflow: auto; overflow-anchor: none; }
+#questions > .attention-kept { flex: none; box-sizing: border-box; height: 14rem; overflow: auto; }
 .needs-you h2 { margin: 0; font-size: var(--text-base); }
 /* The filter above the entries: the kind, the text, and Clear All. */
 .needs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }

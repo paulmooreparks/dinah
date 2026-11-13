@@ -17,7 +17,7 @@ var PermissionsSource []byte
 type PermissionHost struct {
 	NextKey        func() string
 	Emit           func(string, any)
-	NoticeQuestion func(string, json.RawMessage)
+	NoticeQuestion func(string, string, json.RawMessage)
 }
 
 // Permissions owns pending permission waiters. Host callbacks run outside mu.
@@ -73,14 +73,16 @@ func (p *Permissions) Pending() []map[string]any {
 	return out
 }
 
-func (p *Permissions) Answer(key, optionID string) {
+func (p *Permissions) Answer(key, optionID string) bool {
 	p.mu.Lock()
 	q := p.questions[key]
 	delete(p.questions, key)
 	p.mu.Unlock()
 	if q != nil {
 		q.ch <- optionID
+		return true
 	}
+	return false
 }
 
 // Ask registers a permission, emits its card, notifies the host and waits.
@@ -107,8 +109,8 @@ func (p *Permissions) Ask(ctx context.Context, session string, sub *SubagentInfo
 		p.mu.Unlock()
 		p.host.Emit("agent:answered", map[string]string{"sessionId": session, "key": key})
 	}()
+	p.host.NoticeQuestion(session, key, toolCall)
 	p.host.Emit("agent:permission", ask)
-	p.host.NoticeQuestion(session, toolCall)
 	select {
 	case id, ok := <-q.ch:
 		return id, ok

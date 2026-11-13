@@ -137,17 +137,16 @@
       if (!entry) return Promise.resolve();
       return Promise.resolve().then(function () {
         return entry.dismiss ? entry.dismiss(entry) : adapter.dismiss ? adapter.dismiss(entry) : null;
-      }).then(function () { remove(entry.id); });
+      }).then(function () { if (get(entry.id) === entry) remove(entry.id); });
     }
-    /* Clear All takes every clearable entry. The adapter records it in one
-       call; an entry with a dismissal of its own makes it, and stays if
+    /* Clear All takes a snapshot of every clearable entry. The adapter records it; an entry with a dismissal of its own makes it, and stays if
        that fails. Resolves with the failures. */
     function clear() {
       var targets = list(function (e) { return e.clearable; });
       return Promise.resolve(adapter.clear ? adapter.clear(targets) : null).then(function () {
         return Promise.allSettled(targets.map(function (e) {
-          if (e.dismiss) return Promise.resolve().then(function () { return e.dismiss(e); }).then(function () { remove(e.id); });
-          if (adapter.clear) { remove(e.id); return null; }
+          if (e.dismiss) return Promise.resolve().then(function () { return e.dismiss(e); }).then(function () { if (get(e.id) === e) remove(e.id); });
+          if (adapter.clear) { if (get(e.id) === e) remove(e.id); return null; }
           return dismiss(e.id);
         }));
       }).then(function (settled) {
@@ -320,10 +319,17 @@
 
     function mountPane(host, options) {
       options = options || {};
+      var arrivalOrder = [];
       var nodes = null;
       var draw = keyed(host, card);
       var view = mount(function () {
-        var entries = list(), shown = 0;
+        var entries = options.stable ? Array.from(records.values()).map(function (record) { return record.entry; }) : list(), shown = 0;
+        if (options.stable) {
+          var byId = new Map(entries.map(function (entry) { return [entry.id, entry]; }));
+          arrivalOrder = arrivalOrder.filter(function (id) { return byId.has(id); });
+          entries.forEach(function (entry) { if (!arrivalOrder.includes(entry.id)) arrivalOrder.push(entry.id); });
+          entries = arrivalOrder.map(function (id) { return byId.get(id); });
+        }
         nodes = draw(entries);
         entries.forEach(function (entry) {
           var node = nodes.get(entry.id).node;

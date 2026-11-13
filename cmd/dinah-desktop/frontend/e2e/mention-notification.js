@@ -1,6 +1,6 @@
 // A chat that mentions the person raises a card in Notifications (kind "mention"), from the
 // event while the page runs and from the saved list at start. Open Group opens the group's
-// window, the engine ends the card when the message is read (notifications:dismissed), and
+// window and acknowledges its card; an actual answer also ends the card, and
 // the card's own Dismiss tells the engine.
 const { launch } = require('./lib/page');
 
@@ -51,7 +51,7 @@ const { launch } = require('./lib/page');
     await page.evaluate(() => __emit('notifications:dismissed', { id: 'mention-41' }));
     await page.waitForFunction(() => dinahHost.notices.list(e => e.id === 'mention-41').length === 0);
     ok('the engine ending the card removes it', true);
-    ok('and that is not a Dismiss, so the engine is not asked to dismiss it', await page.evaluate(() => window.__calls.length) === 0);
+    ok('opening the group acknowledges its attention card', await page.evaluate(() => window.__calls.some(c => c[1] === 'mention-41')));
 
     // The card's own Dismiss.
     await page.evaluate(item => __emit('notifications:added', item), mention(42, { group: '', groupTitle: '', title: 'Docs Pass sent you a message' }));
@@ -65,6 +65,9 @@ const { launch } = require('./lib/page');
     await page.reload();
     await page.waitForFunction(() => window.dinahHost && window.dinahHost.notices && dinahHost.notices.list(e => e.id === 'mention-43').length === 1, null, { timeout: 10000 });
     ok('a mention saved by the engine is restored at start', true);
+    await page.evaluate(() => dinahBus.openGroup('release-group'));
+    await page.waitForFunction(() => __calls.some(c => c[1] === 'mention-43'));
+    ok('opening the group independently acknowledges its restored request', true);
   } finally {
     await t.close();
   }

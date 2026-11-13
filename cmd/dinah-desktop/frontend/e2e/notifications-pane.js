@@ -12,7 +12,7 @@ const STATE = { workspace: 'C:/W', workspaceId: 'w1', recent: ['C:/W'], approval
     app: () => ({
       Notifications: async () => __store.filter(n => !n.dismissed),
       SaveNotification: async n => { const item = Object.assign({}, n, { created: new Date().toISOString(), dismissed: false }); __store.push(item); return item; },
-      DismissNotification: async id => { __store.find(n => n.id === id).dismissed = true; },
+      DismissNotification: async id => { __calls.push(['dismiss', id]); __store.find(n => n.id === id).dismissed = true; },
       ClearNotifications: async () => { __calls.push(['clear']); __store.forEach(n => { n.dismissed = true; }); },
       GetDraft: async id => { __calls.push(['get-draft', id]); return { id, title: 'Note 09', text: '# Note 09\n', revision: 'r1', origin: { kind: 'local-folder', workspaceId: 'w1', sourceId: 'local', path: 'note.md' }, baseline: { text: '# Note 09\n', revision: 'b', title: 'Note 09' }, actions: [], suggestions: [], spans: {} }; },
       PreviewDraft: async () => ({ revision: 'r1', blocks: [], problems: [] })
@@ -25,7 +25,7 @@ const STATE = { workspace: 'C:/W', workspaceId: 'w1', recent: ['C:/W'], approval
     await p.evaluate(() => dinahWorkbench.open('needs-you'));
     const entries = () => p.locator('#questions > .notice:not([hidden])');
 
-    // Every kind of toast is an entry, newest first, and is kept.
+    // Every kind of toast is an entry, in stable arrival order, and is kept.
     await p.evaluate(() => {
       dinahHost.toast('Saved "notes.md".', 'positive');
       dinahHost.toast('The workspace could not be read.', 'danger');
@@ -34,7 +34,7 @@ const STATE = { workspace: 'C:/W', workspaceId: 'w1', recent: ['C:/W'], approval
     });
     await p.waitForFunction(() => __store.length === 4);
     ok('every toast is an entry, kept with its severity', await entries().count() === 4 && (await p.evaluate(() => __store.map(n => n.severity).join(','))) === 'success,error,warning,info');
-    ok('the newest report is first', (await entries().first().textContent()).startsWith('The export finished.'));
+    ok('arrival preserves the first report position', (await entries().first().textContent()).startsWith('Saved'));
     ok('the count is of questions and errors only', await p.textContent('#status-needs .badge') === '1');
 
     // The same report again is one entry, though it toasts again.
@@ -42,10 +42,10 @@ const STATE = { workspace: 'C:/W', workspaceId: 'w1', recent: ['C:/W'], approval
     await p.waitForTimeout(100);
     ok('a repeated report is one entry', await p.locator('#questions .notification-report', { hasText: 'The workspace could not be read.' }).count() === 1 && await p.evaluate(() => __store.length) === 4);
 
-    // A question stands first, and is counted.
+    // A question appends without shifting reports, and is counted.
     await p.evaluate(() => __emit('agent:permission', { sessionId: 'chat-1', key: 'q1', toolCall: null, options: [{ optionId: 'allow_once', name: 'Allow', kind: 'allow_once' }] }));
     await p.locator('#questions [data-permission-key="q1"]').waitFor();
-    ok('a question stands before the reports and is counted', await entries().first().getAttribute('data-permission-key') === 'q1' && await p.textContent('#status-needs .badge') === '2');
+    ok('a question appends without moving reports and is counted', await entries().last().getAttribute('data-permission-key') === 'q1' && await p.textContent('#status-needs .badge') === '2');
     ok('a question is announced by a toast', await p.locator('.toast', { hasText: 'has a question for you' }).count() >= 1);
 
     // Filtering by kind, several at once, and by text. The kinds are boxes
@@ -105,7 +105,7 @@ const STATE = { workspace: 'C:/W', workspaceId: 'w1', recent: ['C:/W'], approval
       return b.classList.contains('btn-danger') && s.content !== 'none' && s.maskImage.includes('svg') && parseFloat(s.width) > 0;
     }));
     await p.click('#ask-yes');
-    await p.waitForFunction(() => __calls.some(c => c[0] === 'clear'));
+    await p.waitForFunction(() => __calls.some(c => c[0] === 'dismiss'));
     await p.waitForTimeout(150);
     ok('Clear All leaves only the question', await entries().count() === 1 && await entries().first().getAttribute('data-permission-key') === 'q1' && await p.evaluate(() => __store.every(n => n.dismissed)));
     ok('Clear All dismisses an applet\'s result in Go and removes its card', await p.evaluate(() => __calls.some(c => c[0] === 'dismiss-applet' && c[2] === 'inv1')) && await p.locator('.applet-result-notice').count() === 0);

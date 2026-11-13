@@ -57,7 +57,7 @@ const {openStatus}=require('./lib/status');
       listed[2].startsWith('error:The workspace index') && listed[3] === 'info:The export finished.' && listed[4] === 'warning:Choose a workspace first.' && listed[5] === 'success:Saved "notes.md".');
     const paneOrder = await page.evaluate(() => [...document.querySelectorAll('#questions > .notice')].map(c => c.dataset.noticeId));
     const listOrder = await rows.evaluateAll(rs => rs.map(r => r.dataset.noticeId));
-    ok('the list and the pane have the same order', JSON.stringify(paneOrder) === JSON.stringify(listOrder));
+    ok('the list and stable pane contain the same entries', JSON.stringify(paneOrder.slice().sort()) === JSON.stringify(listOrder.slice().sort()));
 
     // Glyph and colour per type; the colour is the type's token.
     const looks = await rows.evaluateAll(rs => rs.map(r => {

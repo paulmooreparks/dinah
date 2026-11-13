@@ -164,7 +164,7 @@ func TestAMentionMakesOneCardAndTheHostIsTold(t *testing.T) {
 
 // Reading the message dismisses its card, in the group's window or the inbox,
 // and dismissing a card leaves its message unread.
-func TestReadingAMentionDismissesItsCardAndNotTheOtherWayRound(t *testing.T) {
+func TestReadingAMentionKeepsItsCardUntilAnAnswerOrDismissal(t *testing.T) {
 	a, _, me, group, _, events := mentionRig(t)
 	pass(t, a)
 	chatSays(t, a, me, group, "first mention", bus.Human)
@@ -187,15 +187,55 @@ func TestReadingAMentionDismissesItsCardAndNotTheOtherWayRound(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	// Reading the group dismisses the card that is left.
+	// A background group can mark messages read without the person opening it.
 	if err := a.BusMarkGroupRead(group); err != nil {
 		t.Fatal(err)
 	}
 	pass(t, a)
+	if left := mentionCards(t, a); len(left) != 1 {
+		t.Fatalf("reading removed attention: %+v", left)
+	}
+	if err := a.busHost().With(func(b *bus.Bus) error {
+		_, err := b.ReplyInThread(context.Background(), bus.Sender{}, cards[1].Message, "My answer")
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	pass(t, a)
 	if left := mentionCards(t, a); len(left) != 0 {
-		t.Fatalf("a read mention kept its card: %+v", left)
+		t.Fatalf("an answered request kept its card: %+v", left)
 	}
 	if !strings.Contains(strings.Join(*events, ","), "notifications:dismissed") {
 		t.Fatalf("the page was not told: %v", *events)
+	}
+}
+
+func TestMentionReadBeforeCaptureStillHasAttention(t *testing.T) {
+	a, _, me, group, _, _ := mentionRig(t)
+	pass(t, a)
+	chatSays(t, a, me, group, "Read by a background group", bus.Human)
+	if err := a.BusMarkGroupRead(group); err != nil {
+		t.Fatal(err)
+	}
+	pass(t, a)
+	if cards := mentionCards(t, a); len(cards) != 1 {
+		t.Fatalf("read-before-capture lost attention: %+v", cards)
+	}
+}
+
+func TestMentionMigrationDoesNotResurrectHistoricalReadRequests(t *testing.T) {
+	a, _, me, group, _, _ := mentionRig(t)
+	pass(t, a)
+	baseline := *a.settings.MentionBaseline
+	chatSays(t, a, me, group, "Historical read", bus.Human)
+	if err := a.BusMarkGroupRead(group); err != nil {
+		t.Fatal(err)
+	}
+	a.settings.MentionBaseline = &baseline
+	a.settings.AttentionReadSafe = false
+	chatSays(t, a, me, group, "Still unread", bus.Human)
+	pass(t, a)
+	if cards := mentionCards(t, a); len(cards) != 1 || cards[0].Body != "Still unread" {
+		t.Fatalf("migration: %+v", cards)
 	}
 }
