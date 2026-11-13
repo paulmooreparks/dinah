@@ -21,3 +21,11 @@ The focused race gate waited its FIFO turn and ran `go test -race ./internal/bus
 ## Handoff
 
 The implementation is ready for Lead review and Front End integration against the accepted methods and DTOs. The commits are a75815aa for the initial contract, a83674cb for terminal refusals and 6b12a0d6 for implementation, tests and the final contract details. Engine retains ownership until review accepts the branch. The rendered window and its saved drafts remain Front End's verification responsibility. Nothing on this branch has been pushed, merged or installed.
+
+## Follow-up from Lead review
+
+The 14 November review requested shared agent guidance and a way to clear unavailable requests. The chat communication text now directs person-only decisions through ask_person with recommendations, while person action recipients remain for results and notices. The MCP server's rules carry the same distinction for external agents without assuming their server has the window's name. The rest of both instruction texts remains unchanged.
+
+The contract amendment at 33fe6f05 adds canDismiss and dismissalReason to Decision. Plain mentions remain dismissible. Structured requests become dismissible when the asking chat is removed or retired, or when their original group destination or membership is gone. Dismissal rechecks the current revision and availability, closes the durable row without fabricating answers, and retains an idempotent receipt. A restored destination refuses dismissal with a durable dismissal_unavailable receipt.
+
+Focused checks passed for all four unavailable-destination cases, clearing the row after a partial answer, stale dismissal revisions, receipt reconciliation, retry without another reply and a destination restored between display and dismissal. The updated shared guidance checks also passed before the final external-server wording correction. Final touched-package results for this follow-up will be recorded after completion. Front End has the committed DTO amendment and owns displaying the legal action.

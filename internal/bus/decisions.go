@@ -32,19 +32,21 @@ type AskPersonInput struct {
 }
 
 type Decision struct {
-	ID           string           `json:"id"`
-	Revision     int              `json:"revision"`
-	MessageID    int64            `json:"messageId"`
-	Kind         string           `json:"kind"`
-	CreatedAt    string           `json:"createdAt"`
-	AskerSession string           `json:"askerSession"`
-	Asker        string           `json:"asker"`
-	Workspace    string           `json:"workspace"`
-	Group        string           `json:"group"`
-	GroupTitle   string           `json:"groupTitle"`
-	Destination  string           `json:"destination"`
-	Text         string           `json:"text"`
-	Questions    []PersonQuestion `json:"questions"`
+	ID              string           `json:"id"`
+	Revision        int              `json:"revision"`
+	MessageID       int64            `json:"messageId"`
+	Kind            string           `json:"kind"`
+	CreatedAt       string           `json:"createdAt"`
+	AskerSession    string           `json:"askerSession"`
+	Asker           string           `json:"asker"`
+	Workspace       string           `json:"workspace"`
+	Group           string           `json:"group"`
+	GroupTitle      string           `json:"groupTitle"`
+	Destination     string           `json:"destination"`
+	Text            string           `json:"text"`
+	Questions       []PersonQuestion `json:"questions"`
+	CanDismiss      bool             `json:"canDismiss"`
+	DismissalReason string           `json:"dismissalReason"`
 }
 
 type DecisionPage struct {
@@ -218,6 +220,19 @@ func (b *Bus) decision(t *sql.Tx, id int64) (Decision, bool, error) {
 		return out, false, err
 	}
 	out.ID = out.Kind + ":" + strconv.FormatInt(id, 10)
+	if !closed {
+		out.CanDismiss = out.Kind == "mention"
+		if out.Kind == "request" {
+			available, err := decisionDestinationAvailable(t, out)
+			if err != nil {
+				return out, false, err
+			}
+			out.CanDismiss = !available
+			if !available {
+				out.DismissalReason = "The asking chat or its group destination is no longer available."
+			}
+		}
+	}
 	return out, closed, nil
 }
 
@@ -369,16 +384,9 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "revision_changed", "This decision changed. Refresh it before sending your answers.")
 			return err
 		}
-		available, err := decisionSessionAvailable(t, d.AskerSession)
+		available, err := decisionDestinationAvailable(t, d)
 		if err != nil {
 			return err
-		}
-		if available && d.Group != "" {
-			var members int
-			if err = t.QueryRow(`SELECT COUNT(*) FROM room_members rm JOIN rooms r ON r.name=rm.room WHERE rm.room=? AND rm.member_kind='session' AND rm.member=?`, d.Group, d.AskerSession).Scan(&members); err != nil {
-				return err
-			}
-			available = members == 1
 		}
 		if !available {
 			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "decision_unavailable", "The asking chat or its group destination is no longer available. No answer was sent.")
@@ -438,7 +446,7 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 
 func (b *Bus) DismissDecision(ctx context.Context, in DismissDecisionInput) (DecisionReceipt, error) {
 	var out DecisionReceipt
-	if !decisionOperationID(in.OperationID) || !strings.HasPrefix(in.ID, "mention:") || in.Revision != 1 {
+	if !decisionOperationID(in.OperationID) || in.Revision < 1 {
 		return out, errors.New("invalid operation identity")
 	}
 	id, err := decisionMessageID(in.ID)
@@ -461,17 +469,31 @@ func (b *Bus) DismissDecision(ctx context.Context, in DismissDecisionInput) (Dec
 		if err != nil {
 			return err
 		}
-		if d.ID != in.ID || d.Kind != "mention" || in.Revision != 1 {
-			return errors.New("only an open plain mention can be dismissed")
+		if d.ID != in.ID {
+			return errors.New("decision identity has the wrong kind")
 		}
 		if closed {
-			out, err = rejectDecision(t, in.OperationID, fp, in.ID, 1, true, "decision_closed", "This mention has already closed. Refresh the list.")
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, true, "decision_closed", "This decision has already closed. Refresh the list.")
 			return err
+		}
+		if d.Revision != in.Revision {
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "revision_changed", "This decision changed. Refresh it before dismissing.")
+			return err
+		}
+		if !d.CanDismiss {
+			out, err = rejectDecision(t, in.OperationID, fp, in.ID, d.Revision, false, "dismissal_unavailable", "This request can receive an answer. Refresh it before continuing.")
+			return err
+		}
+		if d.Kind == "request" {
+			d.Revision++
+			if _, err = t.Exec(`UPDATE person_requests SET revision=?,closed=1 WHERE message_id=?`, d.Revision, id); err != nil {
+				return err
+			}
 		}
 		if _, err = t.Exec(`UPDATE deliveries SET inbox_dismissed_at=? WHERE message_id=? AND recipient_kind='human'`, b.stamp(), id); err != nil {
 			return err
 		}
-		out = DecisionReceipt{OperationID: in.OperationID, State: "committed", ID: d.ID, Revision: 1, Closed: true, MessageIDs: []int64{}}
+		out = DecisionReceipt{OperationID: in.OperationID, State: "committed", ID: d.ID, Revision: d.Revision, Closed: true, MessageIDs: []int64{}}
 		return storeDecisionReceipt(t, fp, out)
 	})
 	return out, err
@@ -490,4 +512,14 @@ func decisionSessionAvailable(t *sql.Tx, id string) (bool, error) {
 	err := t.QueryRow(`SELECT COUNT(*) FROM sessions s WHERE s.id=? AND s.removed_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM team_members tm WHERE tm.member=s.id AND tm.retired=1)`, id).Scan(&count)
 	return count == 1, err
+}
+
+func decisionDestinationAvailable(t *sql.Tx, d Decision) (bool, error) {
+	available, err := decisionSessionAvailable(t, d.AskerSession)
+	if err != nil || !available || d.Group == "" {
+		return available, err
+	}
+	var members int
+	err = t.QueryRow(`SELECT COUNT(*) FROM room_members rm JOIN rooms r ON r.name=rm.room WHERE rm.room=? AND rm.member_kind='session' AND rm.member=?`, d.Group, d.AskerSession).Scan(&members)
+	return members == 1, err
 }

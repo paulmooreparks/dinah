@@ -6,13 +6,12 @@ import (
 	"testing"
 )
 
-// The bus server's own rules and the field description of send tell a chat to
-// notify the person by mentioning them, that their name in the text notifies
-// nobody, and when not to; and no longer describe the mention as only an inbox.
+// The bus server separates person decisions from notices and explains routing.
 func TestTheBusServerTellsChatsHowToReachThePerson(t *testing.T) {
 	text := rules("Paul")
 	for _, want := range []string{
-		"Put paul in actionRecipients when Paul needs to decide or answer",
+		"For a decision only Paul can make, use ask_person with a recommendation for each question",
+		"Put paul in actionRecipients for results and notices that need Paul's attention",
 		"routes nothing",
 		"Do not notify Paul for thanks",
 	} {

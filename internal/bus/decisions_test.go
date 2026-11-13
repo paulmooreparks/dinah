@@ -144,8 +144,8 @@ func TestDecisionGroupAnswerAndPlainMentionResolution(t *testing.T) {
 	if d.Group != room.Name || d.Destination != "#"+room.Title {
 		t.Fatalf("group DTO %+v", d)
 	}
-	if _, err = b.DismissDecision(ctx, DismissDecisionInput{OperationID: "bad-dismiss", ID: d.ID, Revision: 1}); err == nil {
-		t.Fatal("structured request dismissed")
+	if r, err := b.DismissDecision(ctx, DismissDecisionInput{OperationID: "bad-dismiss", ID: d.ID, Revision: 1}); err != nil || r.State != "rejected" || r.Reason.Code != "dismissal_unavailable" {
+		t.Fatalf("available request dismissal %+v %v", r, err)
 	}
 	r, err := b.AnswerDecision(ctx, AnswerDecisionInput{OperationID: "group-answer", ID: d.ID, Revision: 1, Answers: []DecisionAnswer{{Number: 1, AsRecommended: true}}})
 	if err != nil {
@@ -451,6 +451,141 @@ func TestDecisionRetiredChatsExcludedFromPreview(t *testing.T) {
 	preview, err := b.PreviewDecisionBroadcast(ctx, "all", "Everyone currently available", nil)
 	if err != nil || preview.Count != 1 || preview.Targets[0].Session != lead.ID {
 		t.Fatalf("retired preview %+v %v", preview, err)
+	}
+}
+
+func TestDecisionUnavailableRequestsCanBeCleared(t *testing.T) {
+	for _, kind := range []string{"removed", "retired", "group removed", "member removed"} {
+		t.Run(kind, func(t *testing.T) {
+			ctx := context.Background()
+			b, s, d := personRequestFixture(t)
+			var group string
+			if kind == "group removed" || kind == "member removed" {
+				room, err := b.CreateGroup(ctx, Sender{}, "Orphan fixture", []string{s.ID})
+				if err != nil {
+					t.Fatal(err)
+				}
+				group = room.Name
+				d, err = b.AskPerson(ctx, s, AskPersonInput{OperationID: "group-orphan", Group: "#" + group, Questions: []PersonQuestion{{Number: 2, Text: "What should happen?", Recommendation: "Wait."}, {Number: 7, Text: "When?", Recommendation: "Tomorrow."}}})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if d.CanDismiss || d.DismissalReason != "" {
+				t.Fatalf("available request allowed dismissal %+v", d)
+			}
+			partial, err := b.AnswerDecision(ctx, AnswerDecisionInput{OperationID: "partial-before-orphan", ID: d.ID, Revision: 1, Answers: []DecisionAnswer{{Number: 7, AsRecommended: true}}})
+			if err != nil || partial.State != "committed" {
+				t.Fatalf("partial %+v %v", partial, err)
+			}
+			switch kind {
+			case "removed":
+				if _, err = b.db.Exec(`UPDATE sessions SET removed_at=? WHERE id=?`, b.stamp(), s.ID); err != nil {
+					t.Fatal(err)
+				}
+			case "retired":
+				lead, err := b.RegisterSession(ctx, "window-orphan-lead", s.WorkspacePath, "Lead")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err = b.SetLead(ctx, s.ID, lead.ID); err != nil {
+					t.Fatal(err)
+				}
+				if err = b.SetRetired(ctx, s.ID, true); err != nil {
+					t.Fatal(err)
+				}
+			case "group removed":
+				if err = b.DeleteRoom(ctx, group); err != nil {
+					t.Fatal(err)
+				}
+			case "member removed":
+				if _, err = b.db.Exec(`DELETE FROM room_members WHERE room=? AND member=?`, group, s.ID); err != nil {
+					t.Fatal(err)
+				}
+			}
+			page, err := b.Decisions(ctx, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var orphan Decision
+			for _, row := range page.Items {
+				if row.ID == d.ID {
+					orphan = row
+				}
+			}
+			if !orphan.CanDismiss || orphan.DismissalReason == "" || orphan.Revision != 2 {
+				t.Fatalf("orphan affordance %+v", orphan)
+			}
+			stale, err := b.DismissDecision(ctx, DismissDecisionInput{OperationID: "stale-dismiss", ID: d.ID, Revision: 1})
+			if err != nil || stale.State != "rejected" || stale.Reason.Code != "revision_changed" {
+				t.Fatalf("stale dismissal %+v %v", stale, err)
+			}
+			in := DismissDecisionInput{OperationID: "clear-orphan", ID: d.ID, Revision: 2}
+			cleared, err := b.DismissDecision(ctx, in)
+			if err != nil || cleared.State != "committed" || !cleared.Closed || cleared.Revision != 3 || len(cleared.MessageIDs) != 0 {
+				t.Fatalf("clear orphan %+v %v", cleared, err)
+			}
+			page, err = b.Decisions(ctx, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, row := range page.Items {
+				if row.ID == d.ID {
+					t.Fatalf("unclearable request remains %+v", row)
+				}
+			}
+			receipt, err := b.DecisionOperation(ctx, in.OperationID)
+			if err != nil || !reflect.DeepEqual(receipt, cleared) {
+				t.Fatalf("reconciled dismissal %+v %v", receipt, err)
+			}
+			retry, err := b.DismissDecision(ctx, in)
+			if err != nil || !reflect.DeepEqual(retry, cleared) {
+				t.Fatalf("repeated dismissal %+v %v", retry, err)
+			}
+			var replies int
+			if err = b.db.QueryRow(`SELECT COUNT(*) FROM messages WHERE reply_to=?`, d.MessageID).Scan(&replies); err != nil || replies != 1 {
+				t.Fatalf("dismissal sent reply %d %v", replies, err)
+			}
+		})
+	}
+}
+
+func TestDecisionDismissalRechecksRestoredDestination(t *testing.T) {
+	ctx := context.Background()
+	b, s, d := personRequestFixture(t)
+	lead, err := b.RegisterSession(ctx, "window-restored-lead", s.WorkspacePath, "Lead")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = b.SetLead(ctx, s.ID, lead.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.SetRetired(ctx, s.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	page, err := b.Decisions(ctx, 0)
+	if err != nil || !page.Items[0].CanDismiss {
+		t.Fatalf("retired row %+v %v", page, err)
+	}
+	if err = b.SetRetired(ctx, s.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	in := DismissDecisionInput{OperationID: "restored-dismiss", ID: d.ID, Revision: 1}
+	rejected, err := b.DismissDecision(ctx, in)
+	if err != nil || rejected.State != "rejected" || rejected.Reason.Code != "dismissal_unavailable" {
+		t.Fatalf("restored dismissal %+v %v", rejected, err)
+	}
+	if err = b.SetRetired(ctx, s.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	retry, err := b.DismissDecision(ctx, in)
+	if err != nil || !reflect.DeepEqual(retry, rejected) {
+		t.Fatalf("terminal rejection changed %+v %v", retry, err)
+	}
+	in.OperationID = "new-orphan-dismiss"
+	cleared, err := b.DismissDecision(ctx, in)
+	if err != nil || cleared.State != "committed" || !cleared.Closed {
+		t.Fatalf("fresh dismissal %+v %v", cleared, err)
 	}
 }
 
