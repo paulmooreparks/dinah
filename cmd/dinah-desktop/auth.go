@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"studio/internal/acp"
@@ -45,18 +46,62 @@ func (a *App) callWithin(conn agentConnection, limit time.Duration, method strin
 	err := conn.Call(ctx, method, params, out)
 	if acp.IsAuthRequired(err) {
 		provider := a.providerOf(conn)
-		if m, ok := providerModules[provider]; ok && m.AuthRequired != nil {
+		a.refused.refuse(provider, method)
+		m, ok := providerModules[provider]
+		if ok && m.AuthRequired != nil {
 			return m.AuthRequired(a)
 		}
-		// A provider that signs in outside Dinah (AgentSignIn).
+		// A provider that signs in outside Dinah (AgentSignIn). The page
+		// says how, and offers no sign-in of its own.
 		name := providerName(provider)
 		if name == "" {
 			name = "The agent"
 		}
-		a.emit("agent:auth", map[string]any{"state": "required", "provider": provider})
+		a.emit("agent:auth", map[string]any{"state": "required", "provider": provider, "outside": true, "detail": m.SignInHelp})
 		return errors.New(name + " needs you to sign in. Open Settings > Agents")
 	}
+	if err == nil && a.refused.any() {
+		if provider := a.providerOf(conn); a.refused.answered(provider, method) {
+			a.emit("agent:auth", map[string]any{"state": "signed-in", "provider": provider})
+		}
+	}
 	return err
+}
+
+// refusedCalls is the request each provider last refused for want of a
+// sign-in. A provider that signs in outside the window never says that the
+// person has signed in, so the same request going through afterwards is how
+// the window learns it, and the page then takes its notice away.
+type refusedCalls struct {
+	mu sync.Mutex
+	by map[string]string
+}
+
+func (r *refusedCalls) refuse(provider, method string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.by == nil {
+		r.by = map[string]string{}
+	}
+	r.by[provider] = method
+}
+
+func (r *refusedCalls) any() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.by) > 0
+}
+
+// answered reports whether the request is the one the provider refused, and
+// forgets the refusal when it is.
+func (r *refusedCalls) answered(provider, method string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if refused, ok := r.by[provider]; !ok || refused != method {
+		return false
+	}
+	delete(r.by, provider)
+	return true
 }
 
 // SignIn asks Devin to sign the person in, starting Devin first if it is not

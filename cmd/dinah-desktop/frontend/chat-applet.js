@@ -2655,10 +2655,13 @@
        organisation's sign-in page and the app waits for it to report back.
        The provider status menu also offers sign-in. */
     var signing = false;
-    function signInNote(state, text) {
+    /* outside is a provider that signs in with its own program: the note
+       says how, and offers no sign-in of the window's own. */
+    function signInNote(state, text, outside) {
       var note = $('signin-note'), go = $('signin-go');
       note.hidden = state === 'hidden';
       if (note.hidden) return;
+      go.hidden = !!outside;
       $('signin-title').textContent = state === 'signing-in' ? 'Signing in to ' + agentName() + '…' : state === 'failed' ? 'The sign-in did not complete.' : agentName() + ' needs you to sign in.';
       $('signin-body').textContent = text;
       go.disabled = state === 'signing-in';
@@ -2680,11 +2683,16 @@
       });
     }
     $('signin-go').addEventListener('click', signIn);
+    /* The person can always put the note away. It also goes by itself when
+       the provider is signed in (agent:auth, signed-in). */
+    $('signin-dismiss').addEventListener('click', function () { signInNote('hidden'); });
     on('agent:auth', function (m) {
       if (m.provider && m.provider !== chatProvider()) return;
       if (m.state === 'signed-in') { signInNote('hidden'); scanProviders(); return; }
-      if (m.state === 'failed') { signInNote('failed', m.detail || 'Sign-in did not complete.'); return; }
-      if (m.state === 'required' && !signing) {
+      if (m.state === 'failed') { signInNote('failed', m.detail || m.error || 'Sign-in did not complete.'); return; }
+      if (m.state === 'required' && !signing && m.outside) {
+        signInNote('required', m.detail || agentName() + ' signs in with its own program. Sign in there, then send your message again.', true);
+      } else if (m.state === 'required' && !signing) {
         signInNote('required', agentName() + ' requires sign-in before continuing. Sign in through the provider\'s browser page.' + (m.method ? ' Available method: ' + m.method + '.' : ''));
       }
     });

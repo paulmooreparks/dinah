@@ -20,10 +20,11 @@ import (
 
 func init() {
 	registerProviderModule("claude", providerModule{
-		Info:    func(a *App, p *AgentProviderInfo, workspaces []string) { a.claudeInfo(p, workspaces) },
-		Adapter: claudeAdapter,
-		Picture: claudePicture,
-		Judge:   acpJudgeModule(),
+		Info:       func(a *App, p *AgentProviderInfo, workspaces []string) { a.claudeInfo(p, workspaces) },
+		Adapter:    claudeAdapter,
+		Picture:    claudePicture,
+		Judge:      acpJudgeModule(),
+		SignInHelp: "Claude signs in through your own Claude Code. Run claude in a terminal and sign in there with /login, or store an API key in Settings > Agents. This notice goes away when Claude next answers.",
 		SignIn: func(*App) error {
 			// Dinah never offers a Claude login of its own
 			// (docs/proposals/claude-agent-integration.md, Authentication).

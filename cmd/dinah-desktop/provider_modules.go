@@ -22,6 +22,9 @@ type providerModule struct {
 	Check func(a *App, conn agentConnection, info *AgentProviderInfo)
 	// SignIn signs the person in, or says why Dinah cannot.
 	SignIn func(a *App) error
+	// SignInHelp says how the person signs in to a provider that signs in
+	// outside the window; the page shows it when a request is refused.
+	SignInHelp string
 	// AuthRequired reports that a request was refused for want of a sign-in,
 	// and returns what the page is told.
 	AuthRequired func(a *App) error

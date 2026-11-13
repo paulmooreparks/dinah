@@ -40,5 +40,24 @@ const { launch } = require('./lib/page');
     await p.click('.win[data-chat-current] [data-view-id=signin-go]');
     await p.waitForTimeout(100);
     ok('Try Again starts another', (await p.evaluate(() => window.__signins)) === 3);
+    // A provider that signs in with its own program: the note says how,
+    // offers no sign-in of the window's own, and can be put away.
+    await p.evaluate(() => window.__finish.ok());
+    await p.waitForTimeout(200);
+    const note = '.win[data-chat-current] [data-view-id=signin-note]';
+    await p.evaluate(() => window.__emit('agent:auth', { state: 'required', outside: true, detail: 'Run the program in a terminal and sign in there.' }));
+    await p.locator(note).waitFor();
+    ok('a provider that signs in outside says how and offers no sign-in', (await p.textContent('.win[data-chat-current] [data-view-id=signin-body]')).includes('in a terminal') && await p.isHidden('.win[data-chat-current] [data-view-id=signin-go]') && await p.isVisible('.win[data-chat-current] [data-view-id=signin-dismiss]'));
+    await t.shot('signin-outside');
+    await p.click('.win[data-chat-current] [data-view-id=signin-dismiss]');
+    ok('Dismiss puts the note away', await p.isHidden(note));
+    await p.evaluate(() => window.__emit('agent:auth', { state: 'required', outside: true, detail: 'Run the program in a terminal and sign in there.' }));
+    await p.locator(note).waitFor();
+    await p.evaluate(() => window.__emit('agent:auth', { state: 'signed-in' }));
+    await p.waitForTimeout(100);
+    ok('the note goes when the provider is signed in', await p.isHidden(note));
+    await p.evaluate(() => window.__emit('agent:auth', { state: 'required', method: 'Log in with browser' }));
+    await p.locator(note).waitFor();
+    ok('a provider the window signs in to has its button again', await p.isVisible('.win[data-chat-current] [data-view-id=signin-go]'));
   } finally { await t.close(); }
 })();
