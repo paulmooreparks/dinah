@@ -130,7 +130,7 @@ func (o Ops) Open(ref workspaces.Ref) (drafts.View, error) {
 		return drafts.View{}, err
 	}
 	origin := drafts.Origin{Kind: source.Kind, WorkspaceID: ref.WorkspaceID, SourceID: ref.SourceID, Path: ref.Path}
-	before, _ := o.Drafts.Store.FindByOrigin(origin)
+	before, _ := o.Drafts.Find(o.Ctx, origin)
 	d, err := o.Drafts.Open(o.Ctx, origin)
 	if err != nil {
 		return drafts.View{}, ErrorText(err)

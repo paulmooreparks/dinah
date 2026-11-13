@@ -27,6 +27,16 @@ The Files applet, the Workspace pane and the mount paths agents and the Terminal
 
 Listing is paged in memory from the provider's whole listing of one folder, with folders before documents and files, by title. The local folder keeps its own path, which opens each entry under its root and governs agents' reads.
 
+## One resource with more than one path
+
+A source may let one resource be given by more than one path. A page of a wiki is the same page by its own ID and by the IDs of the pages down to it, which is the path the Files applet builds from the listing. A person opens the page from the tree by the long path, and an agent that knows only the page's ID gives the short one.
+
+A provider of such a source implements `resource.Identifier`, whose `Identity` returns, from the path alone, what the path's resource is the same by. The drafts find a resource's draft by that (`drafts.Service.Find`): a draft opened by any path to the resource is the resource's draft, and opening the resource by another path continues it. A draft keeps the path it was opened by. The lock that makes two opens at once find one draft is taken by the identity too. A provider that is no `Identifier` has one resource for each path, as before.
+
+Before 13 November 2026 a draft was found by its path as given, so one page had two drafts. An agent's suggestions went to the draft the person was not looking at, and accepting them changed nothing in the open document (Paul, 13 November 2026). Two drafts made that way are both kept. The resource opens as the one changed last, and the other stays in the list of drafts until its owner discards it.
+
+`internal/drafts/identity_test.go` covers two paths with one draft, two old drafts of one resource, and opens at the same moment by two paths.
+
 ## A source that keeps what it has read
 
 A source on a site is slow to list when every folder opened is a request, so a kind may keep what it has read and list from that. Two things in the shared code let it do so without showing people something old for long.

@@ -97,6 +97,40 @@ func (d Draft) snapshot() resource.Snapshot {
 	return resource.Snapshot{Text: d.Baseline.Text, Revision: d.Baseline.Revision, Title: d.Baseline.Title, Native: d.Baseline.Storage}
 }
 
+// identifier is what says which paths of the origin's source are one
+// resource, or nil when the source has one resource for each path.
+func (s *Service) identifier(ctx context.Context, origin Origin) resource.Identifier {
+	if s.Providers == nil {
+		return nil
+	}
+	p, err := s.Providers.Provider(ctx, origin)
+	if err != nil {
+		return nil
+	}
+	id, _ := p.(resource.Identifier)
+	return id
+}
+
+// Find returns the drafts of a resource, most recent first. In a source that
+// says what its resources are the same by (resource.Identifier), a draft
+// opened by another path to the same resource is the resource's draft too.
+// One page of a wiki, asked for by its own ID and by the IDs of the pages
+// down to it, had two drafts, and an agent's suggestions went to the one the
+// person was not looking at (Paul, 13 November 2026). A draft keeps the path
+// it was opened by.
+func (s *Service) Find(ctx context.Context, origin Origin) ([]Draft, error) {
+	id := s.identifier(ctx, origin)
+	if id == nil {
+		return s.Store.FindByOrigin(origin)
+	}
+	want := id.Identity(origin.Path)
+	return s.Store.find(func(o Origin) bool {
+		path := o.Path
+		o.Path = origin.Path
+		return o == origin && (path == origin.Path || id.Identity(path) == want)
+	})
+}
+
 // Open returns the most recent draft of a resource, or makes one from a
 // snapshot of it. Reopening a resource therefore continues the work in
 // progress instead of starting again from the resource.
@@ -107,12 +141,17 @@ func (s *Service) Open(ctx context.Context, origin Origin) (Draft, error) {
 	// Two opens of one resource at once, from two windows or a window and an
 	// agent, must find one draft between them, so finding and creating it
 	// hold the store's lock for that resource (9 November 2026).
-	unlock, err := s.Store.lockOrigin(origin)
+	// The lock is the resource's, whichever of its paths it was asked for by.
+	held := origin
+	if id := s.identifier(ctx, origin); id != nil {
+		held.Path = id.Identity(origin.Path)
+	}
+	unlock, err := s.Store.lockOrigin(held)
 	if err != nil {
 		return Draft{}, err
 	}
 	defer unlock()
-	existing, err := s.Store.FindByOrigin(origin)
+	existing, err := s.Find(ctx, origin)
 	if err != nil {
 		return Draft{}, err
 	}

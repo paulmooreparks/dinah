@@ -240,13 +240,19 @@ func (s *Store) List() ([]Draft, error) {
 
 // FindByOrigin returns the drafts of one resource, most recent first.
 func (s *Store) FindByOrigin(origin Origin) ([]Draft, error) {
+	return s.find(func(o Origin) bool { return o == origin })
+}
+
+// find returns the drafts whose origin is one of those wanted, most recent
+// first.
+func (s *Store) find(wanted func(Origin) bool) ([]Draft, error) {
 	all, err := s.List()
 	if err != nil {
 		return nil, err
 	}
 	out := []Draft{}
 	for _, d := range all {
-		if d.Origin == origin {
+		if wanted(d.Origin) {
 			out = append(out, d)
 		}
 	}

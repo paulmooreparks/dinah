@@ -111,6 +111,17 @@ type Labeler interface {
 	AddLabels(ctx context.Context, path string, labels []string) error
 }
 
+// Identifier says what a path's resource is the same by. A source in which
+// one resource can be given by more than one path implements it: a page of
+// a wiki is the same page by its own ID and by the IDs of the pages down to
+// it. Two paths with one identity are one resource, so they have one draft
+// (drafts.Service.Open). The identity is found from the path alone, without
+// reading the resource, and a path the source cannot read is its own
+// identity. A source that says nothing has one resource for each path.
+type Identifier interface {
+	Identity(path string) string
+}
+
 // Snapshotter takes a Snapshot of a resource. A source whose resources can be
 // opened for editing implements it.
 type Snapshotter interface {
