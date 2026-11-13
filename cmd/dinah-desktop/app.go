@@ -382,7 +382,8 @@ type State struct {
 	// agent needs the person (host_notices.go).
 	NotifyWhenNeeded bool `json:"notifyWhenNeeded"`
 	// PromptSendKey is "enter" or "ctrl-enter" (prompt_keys.go).
-	PromptSendKey string `json:"promptSendKey"`
+	PromptSendKey       string `json:"promptSendKey"`
+	BackgroundChatLimit int    `json:"backgroundChatLimit"`
 	// PersonName is the name the person chose, AccountName the operating
 	// system's name for the account, used when none was chosen, and
 	// BusHandle the person's address on the bus, which headings replace
@@ -463,7 +464,7 @@ func (a *App) stateLocked() State {
 	defer a.mu.Unlock()
 	s := State{Workspace: a.settings.Workspace, Recent: append([]string{}, a.settings.Recent...), Approvals: a.settings.Approvals,
 		WorkspaceID: a.settings.WorkspaceID, WorkspaceRecords: workspaces.Copy(a.settings.WorkspaceRecords),
-		NewWindowMode: a.settings.NewWindowMode, WindowModes: effectiveWindowModes(a.settings), WindowModesShipped: effectiveWindowModes(Settings{}), NotifyWhenNeeded: !a.settings.HostNotificationsOff, PromptSendKey: promptSendKey(a.settings),
+		NewWindowMode: a.settings.NewWindowMode, WindowModes: effectiveWindowModes(a.settings), WindowModesShipped: effectiveWindowModes(Settings{}), NotifyWhenNeeded: !a.settings.HostNotificationsOff, PromptSendKey: promptSendKey(a.settings), BackgroundChatLimit: backgroundChatLimit(a.settings),
 		AccountName: accountName(), BusHandle: bus.Human,
 		DocumentViews: documentViews(a.settings), OllamaApprovals: ollamaApprovals(a.settings), OllamaFileScope: ollamaFileScope(a.settings), OllamaFileFolders: ollamaFileFolders(a.settings), OllamaRoundLimit: ollamaRoundLimit(a.settings), CodexApprovals: codexApprovals(a.settings),
 		FileLimits: fileLimitViews(a.settings), OptionSubstitutions: optionSubstitutionViews(a.settings),

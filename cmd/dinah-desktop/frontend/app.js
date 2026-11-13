@@ -206,7 +206,7 @@
   });
   const { openSettings, setWindowModeControl, drawWindowKindModes,
     setFileLimits, setOptionSubstitutions, scanProviders,
-    setThinking, saveThinking, setNotifyNeeded, reportFocus, setSendKey,
+    setThinking, saveThinking, setNotifyNeeded, reportFocus, setSendKey, setBackgroundChatLimitControl,
     setPersonName, setDocumentViews, settingsStatus } = settings;
 
   const workspaces = window.dinahWorkspaces.create({
@@ -297,6 +297,7 @@
       setNotifyNeeded(st.notifyWhenNeeded !== false);
       reportFocus();
       setSendKey(st.promptSendKey || 'enter');
+      setBackgroundChatLimitControl(st.backgroundChatLimit);
       setPersonName(st.personName || '', st.accountName || '', st.busHandle || '');
       setDocumentViews(st.documentViews);
       window.dinahProviderSettings.apply(st);

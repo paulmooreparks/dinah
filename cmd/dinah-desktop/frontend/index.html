@@ -1090,6 +1090,15 @@
           </div>
         </section>
 
+        <section class="card vstack gap-3" aria-labelledby="set-background-chats">
+          <h3 class="card-title" id="set-background-chats">Chats Opened in the Background</h3>
+          <div class="form-group">
+            <label class="form-label" for="set-background-chat-limit">Maximum Chats</label>
+            <input class="form-input" id="set-background-chat-limit" type="number" min="1" max="64" step="1" value="8" inputmode="numeric" aria-describedby="set-background-chat-help">
+            <p class="form-help" id="set-background-chat-help">How many closed chats messages can open in the background, from 1 to 64. The default is 8. Changes apply on the next message check without restarting. Lowering the limit leaves working chats open; new chats wait for a place. Chats with visible windows and startup-warmed chats are outside this limit.</p>
+          </div>
+        </section>
+
         <section class="card vstack gap-3" aria-labelledby="set-group-attention">
           <h3 class="card-title" id="set-group-attention">Who Your Group Messages Reach</h3>
           <p class="form-help">A message of yours that mentions no one goes to the members you are in conversation with: those you mentioned, or who answered you, most recently. With no one in conversation it goes to everyone, or in a team channel to its lead. A change here applies at once to every group, including conversations already under way, and a longer time can bring back members who had dropped out.</p>

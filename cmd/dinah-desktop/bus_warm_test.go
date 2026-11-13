@@ -162,10 +162,11 @@ func TestTheStartPassSkipsHiddenAndOpenChatsButNotWindowedOnes(t *testing.T) {
 	}
 }
 
-// Chats opened at start do not use the three background slots, so a message
+// Chats opened at start do not use the configured background slots, so a message
 // that wakes another chat is not made to wait for one of them to close.
 func TestWarmChatsLeaveTheBackgroundSlotsFree(t *testing.T) {
 	a, _ := providerTestApp(t)
+	a.settings.BackgroundChatLimit = 3
 	r := watchConnects(a)
 	ids := groupOfClosedChats(t, a, "w", 4)
 	a.ChatWindows(nil)

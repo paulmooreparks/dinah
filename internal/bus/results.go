@@ -41,7 +41,8 @@ func (b *Bus) ResultQueued(ctx context.Context, key string) (bool, error) {
 
 // EnqueueResult records a host result and its delivery in one transaction.
 // The stable key makes reconciliation safe after a restart or a lost reply.
-// It addresses a session ID even when that session is currently closed.
+// It addresses a session ID even when that session is currently closed,
+// or Human for a notice to the person's inbox.
 // This is a host API and is not exposed as an agent messaging tool.
 func (b *Bus) EnqueueResult(ctx context.Context, key, sessionID, text string) (Message, error) {
 	if key == "" || sessionID == "" || strings.TrimSpace(text) == "" {
@@ -60,11 +61,14 @@ func (b *Bus) EnqueueResult(ctx context.Context, key, sessionID, text string) (M
 		if !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		title, err := sessionLabel(t, sessionID)
-		if err != nil {
-			return err
+		r := resolved{label: Human, toKind: "human", recipients: []recipient{{"human", Human}}}
+		if sessionID != Human {
+			title, err := sessionLabel(t, sessionID)
+			if err != nil {
+				return err
+			}
+			r = chatResolved(sessionID, title)
 		}
-		r := chatResolved(sessionID, title)
 		id, err = b.insertMessage(t, Sender{}, ResultKind, r, 0, text, "", "", nil)
 		if err != nil {
 			return err

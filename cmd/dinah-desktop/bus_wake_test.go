@@ -140,6 +140,7 @@ func TestAWakingMessageOpensAClosedChatInTheBackground(t *testing.T) {
 
 func TestAtMostThreeChatsOpenInTheBackground(t *testing.T) {
 	a, c := providerTestApp(t)
+	a.settings.BackgroundChatLimit = 3
 	r := watchConnects(a)
 	ids := []string{"codex:one", "codex:two", "codex:three", "codex:four", "codex:five"}
 	for _, id := range ids {
@@ -197,6 +198,7 @@ func TestAtMostThreeChatsOpenInTheBackground(t *testing.T) {
 // of an exchange keep their places, and the chat that waits is said to wait.
 func TestAnIdleBackgroundChatYieldsItsPlaceToAWaitingOne(t *testing.T) {
 	a, _ := providerTestApp(t)
+	a.settings.BackgroundChatLimit = 3
 	r := watchConnects(a)
 	for _, id := range []string{"codex:one", "codex:two", "codex:three"} {
 		closedChat(t, a, id, "Chat "+id)
@@ -236,7 +238,7 @@ func TestAnIdleBackgroundChatYieldsItsPlaceToAWaitingOne(t *testing.T) {
 	if a.busCoordinator().WaitingForPlace("codex:four") {
 		t.Fatal("the opened chat is still said to wait")
 	}
-	if n := a.backgroundUsedLocked(); n != backgroundSlots {
+	if n := a.backgroundUsedLocked(); n != 3 {
 		t.Fatalf("%d places are in use after the exchange", n)
 	}
 }
@@ -503,6 +505,7 @@ func TestWakeAdmissionWithConcurrentCompletionAndWindowChanges(t *testing.T) {
 
 func TestRecoveredBackgroundWakeKeepsItsSlotAndFinishesOriginalAttempt(t *testing.T) {
 	a, c := providerTestApp(t)
+	a.settings.BackgroundChatLimit = 3
 	r := watchConnects(a)
 	for _, id := range []string{"codex:one", "codex:two", "codex:three", "codex:four"} {
 		closedChat(t, a, id, "Chat "+id)

@@ -128,7 +128,7 @@ func (a *App) memberState(b *bus.Bus, ctx context.Context, m bus.TeamMember, st 
 	case st.Life == lifeRetired:
 		return "retired", "it has been retired and its session ended", false
 	case st.Life == lifeClosed && a.busCoordinator().WaitingForPlace(a.chatOfBus(m.Session)):
-		return "closed", fmt.Sprintf("its chat is not open, and a message waits for it: all %d places for chats open in the background are taken by chats that are working", backgroundSlots), false
+		return "closed", fmt.Sprintf("its chat is not open, and a message waits for it: all %d places for chats open in the background are taken by chats that are working", a.BackgroundChatLimit()), false
 	case st.Life == lifeClosed:
 		return "closed", "its chat is not open", false
 	}

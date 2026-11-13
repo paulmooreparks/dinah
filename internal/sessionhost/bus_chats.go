@@ -70,28 +70,31 @@ type BusChats struct {
 	retries resultRetries
 	// waiting are the chats a message waits for that have no place in the
 	// background, each noted in the log once; mu guards it.
-	waiting map[string]bool
+	waiting      map[string]bool
+	waitNotified map[string]map[string]bool
 }
 
 type BusChatsHost struct {
-	Removed          func(string) bool
-	DeliveryHeld     func(string, string) bool
-	WakeAttempts     *WakeAttempts
-	ResolveWake      func(string, string) (WakeRoute, error)
-	OpenDeliveryChat func(WakeRoute) (Info, error)
-	ResultBroker     func() (*broker.Broker, error)
-	SavedBusIdentity func(string) string
-	TurnIO           func() *TurnIO
-	AgentPerson      func() string
-	CanSteer         func(string, []Attachment) bool
-	BusPictures      func(*Conversation, []bus.Message) ([]Attachment, string)
-	PreparePrompt    func(*Conversation, string, []Attachment) (Prompt, error)
-	AskPrompt        func(string, string) string
-	EnsureBusChat    func(BusAskTarget) (string, error)
-	BusService       func() *bushost.Service
-	EndClosed        func()
-	HoldingTurns     func() error
-	ChatOfBus        func(string) string
+	// BackgroundLimitLocked reads settings under the shared runtime mutex.
+	BackgroundLimitLocked func() int
+	Removed               func(string) bool
+	DeliveryHeld          func(string, string) bool
+	WakeAttempts          *WakeAttempts
+	ResolveWake           func(string, string) (WakeRoute, error)
+	OpenDeliveryChat      func(WakeRoute) (Info, error)
+	ResultBroker          func() (*broker.Broker, error)
+	SavedBusIdentity      func(string) string
+	TurnIO                func() *TurnIO
+	AgentPerson           func() string
+	CanSteer              func(string, []Attachment) bool
+	BusPictures           func(*Conversation, []bus.Message) ([]Attachment, string)
+	PreparePrompt         func(*Conversation, string, []Attachment) (Prompt, error)
+	AskPrompt             func(string, string) string
+	EnsureBusChat         func(BusAskTarget) (string, error)
+	BusService            func() *bushost.Service
+	EndClosed             func()
+	HoldingTurns          func() error
+	ChatOfBus             func(string) string
 	// HiddenLocked is called under the shared state mutex and must not re-enter it.
 	HiddenLocked        func(string) bool
 	Clock               func() time.Time
@@ -151,6 +154,11 @@ func (a *BusChats) HasWindow(chat string) bool {
 
 // ConnectWaking consumes a watcher-borrowed bus synchronously and retains no handle.
 func (a *BusChats) ConnectWaking(ctx context.Context, b *bus.Bus) {
+	if a.host.BackgroundLimitLocked != nil {
+		a.mu.Lock()
+		a.runtime.SetBackgroundLimitLocked(a.host.BackgroundLimitLocked())
+		a.mu.Unlock()
+	}
 	a.CloseIdleBackground()
 	a.host.EndClosed()
 	a.mu.Lock()
@@ -191,7 +199,7 @@ func (a *BusChats) ConnectWaking(ctx context.Context, b *bus.Bus) {
 	}
 	a.yieldIdleBackground(paths)
 	a.OpenQueued(paths)
-	a.noteWaiting(paths)
+	a.noteWaiting(ctx, b, paths)
 	a.openWarm()
 }
 
@@ -222,7 +230,7 @@ func (a *BusChats) yieldIdleBackground(paths map[string]string) {
 // noteWaiting writes in the log, once for each chat, that a message waits for
 // a chat that could not be opened because every place in the background is
 // taken by a chat that is working, and which chats those are.
-func (a *BusChats) noteWaiting(paths map[string]string) {
+func (a *BusChats) noteWaiting(ctx context.Context, b *bus.Bus, paths map[string]string) {
 	a.mu.Lock()
 	queued := a.runtime.WaitingWakesLocked(paths)
 	var fresh []string
@@ -234,6 +242,12 @@ func (a *BusChats) noteWaiting(paths map[string]string) {
 		}
 	}
 	a.waiting = now
+	for chat := range a.waitNotified {
+		if !now[chat] {
+			delete(a.waitNotified, chat)
+		}
+	}
+	limit := a.runtime.BackgroundLimitLocked()
 	var holders []string
 	if len(fresh) > 0 {
 		for _, s := range a.runtime.ConversationsLocked() {
@@ -245,7 +259,48 @@ func (a *BusChats) noteWaiting(paths map[string]string) {
 	a.mu.Unlock()
 	sort.Strings(holders)
 	for _, chat := range fresh {
-		a.host.Log("warn", "chat %s has a message waiting and was not opened: all %d places in the background are taken by chats that are working (%s); it opens when one of them is idle", chat, bushost.BackgroundSlots, strings.Join(holders, ", "))
+		a.host.Log("warn", "chat %s has a message waiting and was not opened: all %d places in the background are taken by chats that are working (%s); it opens when one of them is idle", chat, limit, strings.Join(holders, ", "))
+	}
+	// Query every waiting chat so a new sender also learns why its message
+	// waits. A successful notice is retained for the whole waiting episode.
+	for _, chat := range queued {
+		if a.host.SavedBusIdentity == nil {
+			continue
+		}
+		target := a.host.SavedBusIdentity(chat)
+		if target == "" {
+			continue
+		}
+		senders, err := b.WakeSenders(ctx, target)
+		if err != nil {
+			a.host.Log("error", "finding senders of waiting chat %s: %v", chat, err)
+			continue
+		}
+		for _, sender := range senders {
+			a.mu.Lock()
+			notified := a.waitNotified[chat][sender.Session]
+			a.mu.Unlock()
+			if notified {
+				continue
+			}
+			title := chat
+			if session, err := b.Session(ctx, target); err == nil {
+				title = session.Display()
+			}
+			if err := b.NotifyWakeWaiting(ctx, target, title, sender, limit); err != nil {
+				a.host.Log("error", "notifying sender of waiting chat %s: %v", chat, err)
+				continue
+			}
+			a.mu.Lock()
+			if a.waitNotified == nil {
+				a.waitNotified = map[string]map[string]bool{}
+			}
+			if a.waitNotified[chat] == nil {
+				a.waitNotified[chat] = map[string]bool{}
+			}
+			a.waitNotified[chat][sender.Session] = true
+			a.mu.Unlock()
+		}
 	}
 }
 

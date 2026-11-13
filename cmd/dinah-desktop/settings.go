@@ -19,6 +19,8 @@ import (
 
 // Settings are the person's choices that outlast a restart.
 type Settings struct {
+	// BackgroundChatLimit bounds chats opened for bus messages. Zero uses eight.
+	BackgroundChatLimit    int                            `json:"backgroundChatLimit,omitempty"`
 	NativeSessions         map[string]nativeSessionRecord `json:"nativeSessions,omitempty"`
 	NativeRecoveryAttempts map[string]string              `json:"nativeRecoveryAttempts,omitempty"`
 	RemovedChats           map[string]chatRemoval         `json:"removedChats,omitempty"`

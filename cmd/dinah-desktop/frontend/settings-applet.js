@@ -693,6 +693,17 @@
         .catch(function (error) { setSendKey(before); fail(error); }).finally(function () { select.disabled = false; });
     });
 
+    function setBackgroundChatLimitControl(value) {
+      $('set-background-chat-limit').value = Number.isInteger(value) ? value : 8;
+    }
+    $('set-background-chat-limit').addEventListener('change', function () {
+      var field = this, value = Number(field.value);
+      if (!field.checkValidity() || !Number.isInteger(value) || !app().SetBackgroundChatLimit) return;
+      field.disabled = true;
+      Promise.resolve().then(function () { return app().SetBackgroundChatLimit(value); }).then(refreshSettingsPreferences)
+        .catch(function (error) { fail(error); return refreshSettingsPreferences(); }).finally(function () { field.disabled = false; });
+    });
+
     /* Removing old attachments (Settings › Chat, bus_views.go): the files the
        person attached to group chats' messages, older than the age chosen.
        The count and the space come first, in the question, and nothing is
@@ -777,6 +788,7 @@
         if (state.windowModesShipped) drawWindowKindModes(state.windowModes, state.windowModesShipped);
         if (typeof state.notifyWhenNeeded === 'boolean') setNotifyNeeded(state.notifyWhenNeeded);
         if (state.promptSendKey) setSendKey(state.promptSendKey);
+        setBackgroundChatLimitControl(state.backgroundChatLimit);
         setPersonName(state.personName, state.accountName, state.busHandle);
         window.dinahProviderSettings.apply(state);
         if (state.fileLimits) setFileLimits(state.fileLimits);
@@ -795,7 +807,7 @@
     on('settings:changed', function () { refreshSettingsPreferences().then(readAllProviderPreferences).catch(fail); });
     window.dinahHost.onResync(function () { return refreshSettingsPreferences().then(readAllProviderPreferences); });
 
-    return { readProviderPreferences, thinkingState: () => ({ checked: shownThinking, busy: thinkingSaving }), drawDefaults, openSettings, setWindowModeControl, drawWindowKindModes, setFileLimits, setOptionSubstitutions, scanProviders, drawPrefs, setThinking, saveThinking, setNotifyNeeded, reportFocus, setSendKey, sendKeyName, setPersonName, setDocumentViews, settingsStatus };
+    return { readProviderPreferences, thinkingState: () => ({ checked: shownThinking, busy: thinkingSaving }), drawDefaults, openSettings, setWindowModeControl, drawWindowKindModes, setFileLimits, setOptionSubstitutions, scanProviders, drawPrefs, setThinking, saveThinking, setNotifyNeeded, reportFocus, setSendKey, sendKeyName, setPersonName, setDocumentViews, settingsStatus, setBackgroundChatLimitControl };
   }
 
   window.dinahSettings = { create };
