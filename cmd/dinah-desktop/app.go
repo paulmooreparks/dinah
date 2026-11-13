@@ -573,7 +573,11 @@ func (a *App) Restart() error {
 }
 
 // Answer settles a question the agent asked, with the option the person chose.
-func (a *App) Answer(key, optionID string) { a.permissions().Answer(key, optionID) }
+func (a *App) Answer(key, optionID string) {
+	if a.permissions().Answer(key, optionID) {
+		a.answerAttention(key)
+	}
+}
 
 // PendingPermissions is the permission questions waiting for the person,
 // each as the agent:permission event carried it. A page that missed the
@@ -584,7 +588,7 @@ func (a *App) permissions() *sessionhost.Permissions {
 	a.permissionOnce.Do(func() {
 		a.permissionService = sessionhost.NewPermissions(sessionhost.PermissionHost{
 			NextKey: func() string { return fmt.Sprintf("q%d", a.qseq.Add(1)) },
-			Emit:    a.emit, NoticeQuestion: a.noticeQuestion,
+			Emit:    a.emit, NoticeQuestion: a.keepQuestion,
 		})
 	})
 	return a.permissionService

@@ -185,7 +185,7 @@ func relayCard(m bus.Message, reason string) Notification {
 	title := from + " could not reach you through " + lead
 	body := cutText(m.Text, mentionBodyLimit)
 	n := Notification{ID: fmt.Sprintf("relay-%d", m.ID), Kind: "relay", Severity: "warning", Title: title, Body: body,
-		SessionTitle: from, Group: m.Room, GroupTitle: m.RoomTitle, Message: m.ID,
+		SessionTitle: from, SourceID: m.FromSession, Group: m.Room, GroupTitle: m.RoomTitle, Message: m.ID,
 		Details: []string{"It could not be relayed: " + strings.TrimSpace(reason)}}
 	return n
 }

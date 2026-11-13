@@ -21,8 +21,22 @@ var kindsNotMentions = "('" + ResultKind + "', '" + MemberKind + "', '" + Questi
 // Mentions returns the messages that agents sent the person which the person
 // has not read, with numbers above after, oldest first. It changes nothing.
 func (b *Bus) Mentions(ctx context.Context, after int64) ([]Message, error) {
+	return b.mentions(ctx, after, true)
+}
+
+// AttentionMentions includes read deliveries: reading is not an answer, and a
+// background view can mark a delivery read before attention was captured.
+func (b *Bus) AttentionMentions(ctx context.Context, after int64) ([]Message, error) {
+	return b.mentions(ctx, after, false)
+}
+
+func (b *Bus) mentions(ctx context.Context, after int64, unread bool) ([]Message, error) {
+	readClause := ""
+	if unread {
+		readClause = " AND d.delivered_at IS NULL"
+	}
 	rows, err := b.db.QueryContext(ctx, `SELECT m.id FROM deliveries d JOIN messages m ON m.id = d.message_id
-		WHERE d.recipient_kind = 'human' AND d.delivered_at IS NULL AND d.cancelled_at IS NULL AND m.from_session <> '' AND m.id > ?
+		WHERE d.recipient_kind = 'human' AND d.cancelled_at IS NULL AND m.from_session <> '' AND m.id > ?`+readClause+`
 			AND m.kind NOT IN `+kindsNotMentions+` ORDER BY m.id`, after)
 	if err != nil {
 		return nil, err
@@ -49,6 +63,46 @@ func (b *Bus) Mentions(ctx context.Context, after int64) ([]Message, error) {
 		out = append(out, m)
 	}
 	return out, nil
+}
+
+// MentionsAnswered returns requests to which the person posted an actual reply.
+func (b *Bus) MentionsAnswered(ctx context.Context, ids []int64) ([]int64, error) {
+	var out []int64
+	for len(ids) > 0 {
+		count := min(256, len(ids))
+		part, err := b.mentionsAnswered(ctx, ids[:count])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, part...)
+		ids = ids[count:]
+	}
+	return out, nil
+}
+
+func (b *Bus) mentionsAnswered(ctx context.Context, ids []int64) ([]int64, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	args := make([]any, len(ids))
+	marks := make([]string, len(ids))
+	for i, id := range ids {
+		args[i], marks[i] = id, "?"
+	}
+	rows, err := b.db.QueryContext(ctx, `SELECT DISTINCT reply_to FROM messages WHERE from_session = '' AND from_name = 'paul' AND reply_to IN (`+strings.Join(marks, ",")+`)`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
 }
 
 // HighestMessage is the number of the newest message on the bus, or 0.

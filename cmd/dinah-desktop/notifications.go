@@ -15,9 +15,8 @@ import (
 // ("turn-failure" for a failed chat turn, "document" for one draft, "run"
 // for a flow run that finished, failed or stopped, "app" for anything else)
 // and a severity (error, warning, success or info).
-// Questions, such as provider approval requests, are not kept, because
-// their sources keep them and their response channels do not survive a
-// restart.
+// Permission attention is retained as history. Its live response controls
+// belong to the pending request and cannot survive a restart.
 type Notification struct {
 	ID              string   `json:"id"`
 	Kind            string   `json:"kind"`
@@ -27,6 +26,8 @@ type Notification struct {
 	Details         []string `json:"details"`
 	SessionID       string   `json:"sessionId"`
 	SessionTitle    string   `json:"sessionTitle"`
+	SourceID        string   `json:"sourceId,omitempty"`
+	PermissionKey   string   `json:"permissionKey,omitempty"`
 	Workspace       string   `json:"workspace"`
 	Provider        string   `json:"provider"`
 	RetryAllowed    bool     `json:"retryAllowed,omitempty"`
@@ -74,6 +75,10 @@ func validateNotification(n Notification) error {
 		return errors.New("invalid durable notification")
 	}
 	switch n.Kind {
+	case "attention":
+		if n.SessionID == "" || n.PermissionKey == "" || n.Group != "" || n.Message != 0 {
+			return errors.New("invalid permission attention")
+		}
 	case "turn-failure":
 		if n.Severity != "error" || n.SessionID == "" || !filepath.IsAbs(n.Workspace) {
 			return errors.New("invalid durable notification")
@@ -104,7 +109,7 @@ func validateNotification(n Notification) error {
 	if len(n.Title) > 4096 || len(n.Body) > 65536 || len(n.SessionTitle) > 4096 || len(n.Details) > 512 {
 		return errors.New("the notification exceeds its size limit")
 	}
-	if len(n.SessionID) > 512 || len(n.Provider) > 64 || len(n.Workspace) > 32768 {
+	if len(n.SessionID) > 512 || len(n.SourceID) > 512 || len(n.PermissionKey) > 512 || len(n.Provider) > 64 || len(n.Workspace) > 32768 {
 		return errors.New("notification source metadata exceeds its size limit")
 	}
 	for _, detail := range n.Details {
@@ -162,7 +167,8 @@ func writeNotifications(store notificationStore) error {
 }
 
 // A report is kept for notificationRetention, and the store keeps the
-// newest maxNotifications; a test lowers the number, since filling 500 takes
+// newest maxNotifications ordinary reports. Active attention is exempt.
+// A test lowers the number, since filling 500 takes
 // 500 writes of the store.
 const notificationRetention = 7 * 24 * time.Hour
 
@@ -176,15 +182,30 @@ var notificationNow = time.Now
 func pruned(items []Notification) []Notification {
 	cutoff := notificationNow().Add(-notificationRetention)
 	out := []Notification{}
+	ordinary := 0
 	for _, item := range items {
+		if !keptAttention(item) && item.Created.After(cutoff) {
+			ordinary++
+		}
+	}
+	for _, item := range items {
+		if keptAttention(item) {
+			out = append(out, item)
+			continue
+		}
 		if item.Created.After(cutoff) {
+			ordinary--
+			if ordinary >= maxNotifications {
+				continue
+			}
 			out = append(out, item)
 		}
 	}
-	if len(out) > maxNotifications {
-		out = out[len(out)-maxNotifications:]
-	}
 	return out
+}
+
+func keptAttention(item Notification) bool {
+	return !item.Dismissed && (item.Kind == "mention" || item.Kind == "relay" || item.Kind == "attention")
 }
 
 func (a *App) Notifications() ([]Notification, error) {
@@ -263,7 +284,9 @@ func (a *App) saveNotification(item Notification) (Notification, bool, error) {
 		}
 	}
 	item.Dismissed = false
-	item.Created = notificationNow().UTC()
+	if item.Created.IsZero() {
+		item.Created = notificationNow().UTC()
+	}
 	store.Items = pruned(append(store.Items, item))
 	if err := writeNotifications(store); err != nil {
 		return Notification{}, false, err

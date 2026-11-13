@@ -148,7 +148,11 @@
         "TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState",
         "TestResponsivenessShellContractClearsAndExcludesOtherSurfaces",
         "TestResponsivenessShutdownPreventsFirstEnable",
-        "TestResponsivenessFirstEnableRacingShutdownCannotRestart"
+        "TestResponsivenessFirstEnableRacingShutdownCannotRestart",
+        "TestPermissionAttentionSurvivesCancellationAndRestartUntilAnswered",
+        "TestAttentionDoesNotAgeOutOrLoseToReportCapacity",
+        "TestMentionReadBeforeCaptureStillHasAttention",
+        "TestMentionMigrationDoesNotResurrectHistoricalReadRequests"
       ],
       "onlyOn": {
         "TestWindowsShortNamesPreserveCatalogHistoryAttachmentAndState": [
@@ -365,6 +369,7 @@
     "settings-updates-packages",
     "settings-updates-repair",
     "settings-updates-missing-services",
-    "settings-updates-service"
+    "settings-updates-service",
+    "attention-kept"
   ]
 }

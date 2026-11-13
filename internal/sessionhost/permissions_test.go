@@ -32,13 +32,13 @@ func TestPermissionsCallbackOrderAndRemovalBeforeAnswer(t *testing.T) {
 				t.Fatal("answered event preceded removal")
 			}
 		},
-		NoticeQuestion: func(string, json.RawMessage) { order = append(order, "notice") },
+		NoticeQuestion: func(string, string, json.RawMessage) { order = append(order, "notice") },
 	})
 	id, ok := p.Ask(context.Background(), "chat", &SubagentInfo{ID: "child", Name: "Helper"}, nil, nil)
 	if id != "allow" || !ok {
 		t.Fatalf("answer %q %v", id, ok)
 	}
-	if !reflect.DeepEqual(order, []string{"agent:permission", "notice", "agent:answered"}) {
+	if !reflect.DeepEqual(order, []string{"notice", "agent:permission", "agent:answered"}) {
 		t.Fatal(order)
 	}
 }
@@ -61,7 +61,7 @@ func TestPermissionsPendingIsWhatTheEventCarried(t *testing.T) {
 				emitted <- struct{}{}
 			}
 		},
-		NoticeQuestion: func(string, json.RawMessage) {},
+		NoticeQuestion: func(string, string, json.RawMessage) {},
 	})
 	if got := p.Pending(); len(got) != 0 {
 		t.Fatalf("pending before any question: %v", got)
@@ -109,12 +109,12 @@ func TestPermissionsCancelledContextStillPublishesAndNotifies(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	var order []string
-	p := NewPermissions(PermissionHost{NextKey: func() string { return "q1" }, Emit: func(name string, _ any) { order = append(order, name) }, NoticeQuestion: func(string, json.RawMessage) { order = append(order, "notice") }})
+	p := NewPermissions(PermissionHost{NextKey: func() string { return "q1" }, Emit: func(name string, _ any) { order = append(order, name) }, NoticeQuestion: func(string, string, json.RawMessage) { order = append(order, "notice") }})
 	id, ok := p.Ask(ctx, "chat", nil, nil, nil)
 	if id != "" || ok || p.HasPending("chat") {
 		t.Fatalf("cancelled %q %v", id, ok)
 	}
-	if !reflect.DeepEqual(order, []string{"agent:permission", "notice", "agent:answered"}) {
+	if !reflect.DeepEqual(order, []string{"notice", "agent:permission", "agent:answered"}) {
 		t.Fatal(order)
 	}
 }
@@ -131,7 +131,7 @@ func TestPermissionsConcurrentAnswerAndCancellationHaveOneOwner(t *testing.T) {
 					close(ready)
 				}
 			},
-			NoticeQuestion: func(string, json.RawMessage) {},
+			NoticeQuestion: func(string, string, json.RawMessage) {},
 		})
 		go func() {
 			id, ok := p.Ask(context.Background(), "chat", &SubagentInfo{ID: "child"}, nil, nil)

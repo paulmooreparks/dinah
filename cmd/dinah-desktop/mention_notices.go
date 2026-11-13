@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"studio/internal/bus"
@@ -19,7 +20,7 @@ import (
 const mentionBodyLimit = 400
 
 // noticeMentions makes the cards for mentions that have none and dismisses
-// those whose message the person has read. The bus watcher calls it each time
+// those whose message the person has answered. The bus watcher calls it each time
 // the bus has changed, and it runs nowhere else, so two passes never overlap.
 func (a *App) noticeMentions(ctx context.Context, b *bus.Bus) {
 	baseline, err := a.mentionBaseline(ctx, b)
@@ -27,26 +28,56 @@ func (a *App) noticeMentions(ctx context.Context, b *bus.Bus) {
 		logf("bus", "error", "finding where the mentions of the person begin: %v", err)
 		return
 	}
-	mentions, err := b.Mentions(ctx, baseline)
+	a.mu.Lock()
+	readSafe := a.settings.AttentionReadSafe
+	a.mu.Unlock()
+	// Older builds used a fixed baseline and pruned dismissed records. Import
+	// only their unread backlog so historical acknowledgements do not return.
+	migrationTop, topErr := b.HighestMessage(ctx)
+	if topErr != nil {
+		return
+	}
+	var mentions []bus.Message
+	if readSafe {
+		mentions, err = b.AttentionMentions(ctx, baseline)
+	} else {
+		mentions, err = b.Mentions(ctx, baseline)
+	}
 	if err != nil {
 		logf("bus", "error", "looking for chats that mention the person: %v", err)
 		return
 	}
+	highest := baseline
+	complete := true
 	for _, m := range mentions {
 		item := mentionCard(m)
 		item.SessionID = a.chatOfBus(m.FromSession)
 		saved, created, err := a.saveNotification(item)
 		if err != nil {
 			logf("bus", "error", "making a card for message %d: %v", m.ID, err)
-			continue
+			complete = false
+			break
 		}
+		highest = m.ID
 		if !created {
 			continue
 		}
 		a.emit("notifications:added", saved)
 		a.notices.show(saved.Title, saved.Body, true, a.notifyWhenNeeded())
 	}
-	a.dismissReadMentions(ctx, b)
+	if !readSafe && complete {
+		highest = max(highest, migrationTop)
+	}
+	if highest > baseline || !readSafe && complete {
+		if err := a.updateSettings(func(s *Settings) error {
+			s.MentionBaseline = &highest
+			s.AttentionReadSafe = readSafe || complete
+			return nil
+		}); err != nil {
+			logf("bus", "error", "keeping mention attention watermark: %v", err)
+		}
+	}
+	a.dismissAnsweredMentions(ctx, b)
 	a.checkRelays(ctx, b)
 	a.recordTeamSends(ctx, b)
 }
@@ -61,8 +92,9 @@ func mentionCard(m bus.Message) Notification {
 	if m.Room != "" {
 		title = from + " mentioned you in " + m.RoomTitle
 	}
-	n := Notification{ID: fmt.Sprintf("mention-%d", m.ID), Kind: "mention", Severity: "info", Title: title, Body: cutText(m.Text, mentionBodyLimit),
-		SessionTitle: from, Group: m.Room, GroupTitle: m.RoomTitle, Message: m.ID}
+	at, _ := time.Parse(time.RFC3339Nano, m.CreatedAt)
+	n := Notification{ID: fmt.Sprintf("mention-%d", m.ID), Kind: "mention", Severity: "info", Title: title, Body: cutText(strings.Split(strings.TrimSpace(m.Text), "\n")[0], mentionBodyLimit),
+		SessionTitle: from, SourceID: m.FromSession, Group: m.Room, GroupTitle: m.RoomTitle, Message: m.ID, Created: at}
 	if m.FromWorkspace != "" {
 		n.Details = []string{"From the workspace " + m.FromWorkspace + "."}
 	}
@@ -80,10 +112,9 @@ func cutText(text string, limit int) string {
 	return string(runes[:limit]) + "…"
 }
 
-// dismissReadMentions dismisses the cards of mentions the person has read, in
-// the inbox or in the group's window. A card that is dismissed does not mark
-// its message read.
-func (a *App) dismissReadMentions(ctx context.Context, b *bus.Bus) {
+// dismissAnsweredMentions ends only requests with an actual reply by the person.
+// Delivery read receipts cannot prove that an attention card was acknowledged.
+func (a *App) dismissAnsweredMentions(ctx context.Context, b *bus.Bus) {
 	notificationStoreMu.Lock()
 	store, err := readNotifications()
 	notificationStoreMu.Unlock()
@@ -92,29 +123,31 @@ func (a *App) dismissReadMentions(ctx context.Context, b *bus.Bus) {
 	}
 	var ids []int64
 	for _, item := range store.Items {
-		if item.Kind == "mention" && !item.Dismissed {
+		if (item.Kind == "mention" || item.Kind == "relay") && !item.Dismissed {
 			ids = append(ids, item.Message)
 		}
 	}
-	read, err := b.MentionsRead(ctx, ids)
+	read, err := b.MentionsAnswered(ctx, ids)
 	if err != nil {
-		logf("bus", "error", "looking for mentions the person has read: %v", err)
+		logf("bus", "error", "looking for mentions the person has answered: %v", err)
 		return
 	}
 	for _, id := range read {
-		card := fmt.Sprintf("mention-%d", id)
-		if err := a.DismissNotification(card); err != nil {
-			continue
+		for _, item := range store.Items {
+			if item.Message != id || item.Dismissed || (item.Kind != "mention" && item.Kind != "relay") {
+				continue
+			}
+			if err := a.DismissNotification(item.ID); err != nil {
+				continue
+			}
+			a.emit("notifications:dismissed", map[string]string{"id": item.ID})
 		}
-		a.emit("notifications:dismissed", map[string]string{"id": card})
 	}
 }
 
-// mentionBaseline is the number of the newest message on the bus when this
-// window first looked for mentions. Only mentions after it become cards: the
-// unread ones before it, when this build first runs, stay in the inbox as they
-// are, so that a backlog does not become a heap of cards at once. It is kept
-// in the window's settings.
+// mentionBaseline starts at the newest message when a window first watches.
+// Successful capture advances it, preventing old dismissed cards from returning
+// after their tombstones expire. Older fixed baselines migrate unread items only.
 func (a *App) mentionBaseline(ctx context.Context, b *bus.Bus) (int64, error) {
 	a.mu.Lock()
 	kept := a.settings.MentionBaseline
@@ -129,6 +162,7 @@ func (a *App) mentionBaseline(ctx context.Context, b *bus.Bus) (int64, error) {
 	if err := a.updateSettings(func(s *Settings) error {
 		if s.MentionBaseline == nil {
 			s.MentionBaseline = &highest
+			s.AttentionReadSafe = true
 		}
 		return nil
 	}); err != nil {

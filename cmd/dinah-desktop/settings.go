@@ -60,10 +60,11 @@ type Settings struct {
 	// line each came from (judge_titles.go).
 	JudgedTitles      map[string]JudgedTitle `json:"judgedTitles,omitempty"`
 	OllamaFileFolders []string               `json:"ollamaFileFolders,omitempty"`
-	// MentionBaseline is the number of the newest bus message when the window
-	// first looked for mentions of the person; only later ones make cards
-	// (mention_notices.go). Nil until then.
-	MentionBaseline *int64 `json:"mentionBaseline,omitempty"`
+	// MentionBaseline is the last captured request, starting at the newest bus
+	// message on first watch. AttentionReadSafe marks migration from the old
+	// fixed cursor, where read deliveries also dismissed their cards.
+	MentionBaseline   *int64 `json:"mentionBaseline,omitempty"`
+	AttentionReadSafe bool   `json:"attentionReadSafe,omitempty"`
 	// CodexApprovals is how far a Codex chat may go without asking: "ask",
 	// "workspace" or "full" (codex_approvals.go). Empty is "ask".
 	CodexApprovals string `json:"codexApprovals,omitempty"`
