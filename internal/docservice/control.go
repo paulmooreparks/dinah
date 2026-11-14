@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"studio/internal/helpercompat"
 	"time"
 )
 
@@ -186,6 +187,13 @@ func (s *Service) serveControl(w http.ResponseWriter, r *http.Request) {
 	// if it somehow does: the interface is for programs.
 	if r.Header.Get("Origin") != "" {
 		http.Error(w, "The control interface is not for pages.", http.StatusForbidden)
+		return
+	}
+	if !helpercompat.For(helpercompat.Documents).Accept(w, r) {
+		return
+	}
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/control")

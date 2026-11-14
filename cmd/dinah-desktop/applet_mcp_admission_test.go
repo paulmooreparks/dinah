@@ -45,6 +45,10 @@ func TestAppletMCPAdmissionThroughWire(t *testing.T) {
 	var mu sync.Mutex
 	seen := map[string]int{}
 	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		var q appletBridgeRequest
 		if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
 			t.Error(err)
@@ -156,7 +160,13 @@ func TestAppletMCPAdmissionThroughWire(t *testing.T) {
 
 func TestAppletMCPLargeResponseThroughWire(t *testing.T) {
 	payload := `{"data":"` + strings.Repeat("a", 17<<20) + `"}`
-	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, payload) }))
+	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		io.WriteString(w, payload)
+	}))
 	defer bridge.Close()
 	client, err := newAppletBridgeClient(bridge.URL+"/rpc", "test")
 	if err != nil {
@@ -182,6 +192,10 @@ func TestAppletMCPNormalSDKNegotiationAndCancellation(t *testing.T) {
 	started := make(chan struct{})
 	cancelled := make(chan struct{})
 	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		// Consume the body before waiting so the server can observe peer closure.
 		io.Copy(io.Discard, r.Body)
 		close(started)

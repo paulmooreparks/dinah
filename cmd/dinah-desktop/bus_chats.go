@@ -11,6 +11,7 @@ import (
 
 	"studio/internal/bus"
 	"studio/internal/bushost"
+	"studio/internal/helpercompat"
 	"studio/internal/layout"
 	"studio/internal/mcpserver"
 	"studio/internal/sessionhost"
@@ -313,6 +314,9 @@ func runBusMCP(args []string) error {
 	}
 	if *stateDir == "" || *session == "" || flags.NArg() != 0 {
 		return errors.New("the bus helper needs --state-dir and --session")
+	}
+	if err := helpercompat.CheckEnvironment(context.Background(), helpercompat.Bus); err != nil {
+		return err
 	}
 	b, err := bus.OpenAt(filepath.Join(*stateDir, "bus.db"))
 	if err != nil {

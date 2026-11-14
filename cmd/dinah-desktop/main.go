@@ -35,6 +35,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"studio/internal/helpercompat"
 	"studio/internal/programs"
 	"studio/internal/pty"
 
@@ -229,6 +230,9 @@ func main() {
 				return
 			}
 			go shell.serve()
+			// Child agents and their installed helpers inherit only this
+			// read-only endpoint, with no cookie or bearer credential.
+			os.Setenv(helpercompat.EndpointEnv(), "http://"+shell.addr+helpercompat.EndpointPath)
 			if testing {
 				os.WriteFile(entryFile, []byte(shell.entry()), 0o600)
 			}

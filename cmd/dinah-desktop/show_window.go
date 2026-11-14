@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"studio/internal/helpercompat"
 	"sync"
 
 	wails "github.com/wailsapp/wails/v2"
@@ -48,6 +49,10 @@ func loopbackEntry(entry string) bool {
 // keyboard. The main program ends the process when the show ends; closing
 // the window ends it too, which the main program sees.
 func runSlideShow() int {
+	if err := helpercompat.CheckEnvironment(context.Background(), helpercompat.SlideShow); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
 	entry := os.Getenv(showEntryVar())
 	place, placed := parseShowRect(os.Getenv(showPlaceVar()))
 	if !loopbackEntry(entry) || !placed {

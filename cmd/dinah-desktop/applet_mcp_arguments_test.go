@@ -30,6 +30,10 @@ func appletArgumentCases() map[string]any {
 
 func TestAppletMCPArgumentCompatibility(t *testing.T) {
 	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		var q appletBridgeRequest
 		if err := json.NewDecoder(r.Body).Decode(&q); err != nil {
 			t.Error(err)
@@ -100,6 +104,10 @@ func TestAppletMCPAuthorizationPrecedesTimeout(t *testing.T) {
 func TestAppletToolsRefuseMissingAndUnknownFields(t *testing.T) {
 	forwarded := 0
 	bridge := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		forwarded++
 		var q appletBridgeRequest
 		_ = json.NewDecoder(r.Body).Decode(&q)

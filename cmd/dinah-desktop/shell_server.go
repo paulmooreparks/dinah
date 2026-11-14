@@ -20,6 +20,7 @@ import (
 
 	extension "github.com/paulmooreparks/dinah-extension-go"
 	"studio/internal/bridge"
+	"studio/internal/helpercompat"
 	"studio/internal/pageroutes"
 )
 
@@ -177,6 +178,21 @@ func (s *shellServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Cache-Control", "no-store")
+	if r.URL.Path == helpercompat.EndpointPath {
+		if r.Method != http.MethodGet || r.Header.Get("Origin") != "" || r.Header.Get("Sec-Fetch-Site") != "" || r.URL.RawQuery != "" {
+			http.Error(w, "helper compatibility is for local programs", http.StatusForbidden)
+			return
+		}
+		channel := helpercompat.Channel(r.Header.Get(helpercompat.ChannelHeader))
+		if !helpercompat.Known(channel) {
+			http.Error(w, "unknown helper channel", http.StatusBadRequest)
+			return
+		}
+		if helpercompat.For(channel).Accept(w, r) {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		return
+	}
 	if r.URL.Path == "/enter" {
 		s.enter(w, r)
 		return
