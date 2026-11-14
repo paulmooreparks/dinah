@@ -297,8 +297,11 @@
   };
 
   function fileApplet(path) {
-    var match = /\.[^./\\]+$/.exec(String(path || ''));
-    return match && attached.fileApplets && attached.fileApplets[match[0].toLowerCase()] || attached.defaultApplet || attached.application;
+    var name = baseName(path).toLowerCase(), length = 0, selected = attached.defaultApplet || attached.application;
+    Object.keys(attached.fileApplets || {}).forEach(function (suffix) {
+      if (suffix.length > length && name.endsWith(suffix)) { selected = attached.fileApplets[suffix]; length = suffix.length; }
+    });
+    return selected;
   }
   function routeFile(path) {
     function another() { return documentWindows.open(mount, attached.application, { operation: 'open-file', input: { path: path } }); }

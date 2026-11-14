@@ -7,8 +7,8 @@ import (
 
 func TestFileAppletSelectionKeepsApplicationIdentity(t *testing.T) {
 	h := start(t, t.TempDir(), true)
-	h.s.opt.Applications["editor"] = Application{Applet: "editor", Name: "Test Editor", FileApplets: map[string]string{".md": "docs", ".markdown": "docs"}}
-	for _, tc := range []struct{ name, applet string }{{"note.md", "docs"}, {"note.MARKDOWN", "docs"}, {"note.txt", "editor"}, {"note.slides.md", "docs"}} {
+	h.s.opt.Applications["editor"] = Application{Applet: "editor", Name: "Test Editor", FileApplets: map[string]string{".md": "docs", ".markdown": "docs", ".slides.md": "editor"}}
+	for _, tc := range []struct{ name, applet string }{{"note.md", "docs"}, {"note.MARKDOWN", "docs"}, {"note.txt", "editor"}, {"note.slides.md", "editor"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), tc.name)
 			put(t, path, "# Invented\n")

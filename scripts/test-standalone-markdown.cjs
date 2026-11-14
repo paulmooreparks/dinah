@@ -41,6 +41,7 @@ let child, browser, control, phase='start'; const errors=[], windows=[];
   const alias=path.join(work,'yavc-editor.exe');fs.copyFileSync(exe,alias);
   const upper=await launched(alias,[file('long.MARKDOWN')]);await running(upper.page,'docs');
   const plain=await open('plain.txt');await running(plain.page,'editor');assert.equal(await plain.page.locator('.ProseMirror').count(),0);
+  fs.writeFileSync(file('deck.slides.md'),'# Deck\n');const deck=await open('deck.slides.md');await running(deck.page,'editor');assert.equal(await text(deck.page),'# Deck\n');
   phase='an Editor-produced Markdown draft is recovered in Docs';
   await control('POST','/dialogs',{save:[file('legacy.md')]});await run(plain.page,'save-as');await type(plain.page,'Legacy draft.\n');await flush(plain.page);await control('POST','/window/'+plain.id+'/closed',{});await plain.page.context().close();
   const legacy=await open('legacy.md');await running(legacy.page,'docs');assert.match(await text(legacy.page),/Legacy draft/);assert.doesNotMatch(disk('legacy.md'),/Legacy draft/);
@@ -68,5 +69,5 @@ let child, browser, control, phase='start'; const errors=[], windows=[];
   await flush(blank.page);const record=JSON.parse(fs.readFileSync(path.join(state,'recovery',require('node:crypto').createHash('sha256').update('file:editor:'+file('chosen.markdown')).digest('hex')+'.json'),'utf8'));assert.equal(record.path,file('chosen.markdown'));
   assert.deepEqual(errors,[]);console.log('PASS Markdown routing, rich view, save, conflict, Save As, recovery, permission, blank reuse, cross-format Open, Docs New and plain text control');
  } catch(e){console.error('FAIL in '+phase,errors);throw e;}
- finally{if(browser)await browser.close();if(control)await control('POST','/stop',{}).catch(()=>{});for(const p of [...windows,child].filter(Boolean)){if(p.exitCode!==null)continue;const ended=new Promise(r=>p.once('exit',r));await Promise.race([ended,wait(5000)]);if(p.exitCode===null){p.kill();await Promise.race([ended,wait(5000)]);}}fs.rmSync(work,{recursive:true,force:true});}
+ finally{if(browser)await browser.close();if(control)await control('POST','/stop',{}).catch(()=>{});for(const p of [...windows,child].filter(Boolean)){if(p.exitCode!==null||p.signalCode)continue;const ended=new Promise(r=>p.once('exit',r));await Promise.race([ended,wait(5000)]);if(p.exitCode===null&&!p.signalCode){p.kill();await Promise.race([ended,wait(5000)]);}}console.log('Retained invented native launch artifacts: '+work);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

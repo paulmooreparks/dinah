@@ -46,7 +46,7 @@ const documentBrand = "YAVC"
 // the word that follows documentOption. The Editor is the one proved so
 // far; Docs, Slides and Diagrams join it here when they are.
 var documentApplications = map[string]docservice.Application{
-	"editor": {Applet: "editor", Name: documentBrand + " Editor", FileApplets: map[string]string{".md": "docs", ".markdown": "docs"}},
+	"editor": {Applet: "editor", Name: documentBrand + " Editor", FileApplets: map[string]string{".md": "docs", ".markdown": "docs", ".slides.md": "editor"}},
 }
 
 // documentExtensions are the kinds of file the Editor offers itself for in

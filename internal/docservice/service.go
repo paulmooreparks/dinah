@@ -45,16 +45,20 @@ type Application struct {
 	Applet string `json:"applet"`
 	// Name is the application's name, as its window and taskbar show it.
 	Name string `json:"name"`
-	// FileApplets selects an applet by the file's lower-case extension.
+	// FileApplets selects an applet by the longest lower-case filename suffix.
 	// The application keeps its process identity, grants and recovery keys.
 	FileApplets map[string]string `json:"fileApplets,omitempty"`
 }
 
 func (a Application) fileApplet(path string) string {
-	if selected := a.FileApplets[strings.ToLower(filepath.Ext(path))]; selected != "" {
-		return selected
+	name := strings.ToLower(filepath.Base(path))
+	selected, length := a.Applet, 0
+	for suffix, applet := range a.FileApplets {
+		if len(suffix) > length && strings.HasSuffix(name, suffix) {
+			selected, length = applet, len(suffix)
+		}
 	}
-	return a.Applet
+	return selected
 }
 
 // Options are what the program gives the service.

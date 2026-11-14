@@ -34,6 +34,8 @@ The page's picture resolver returns nothing for a site path when the document ha
 
 The installed YAVC Editor program selects Docs for `.md` and `.markdown` files, ignoring case, and Editor for plain text. Its executable, Open With name, permissions and file recovery keys remain the same. Command-line opens and the registered shell command use the same service selection. Open in a blank untouched window may replace its applet in place; Open in a used window allocates or raises a window through the existing document-window contract. The host supplies the applets' documented file-resolution handoff. A New request from Docs retains the Docs applet in its new blank window, without registering another application with the operating system.
 
+The compound `.slides.md` suffix remains in Editor because the bundled Docs explicitly refuses slide decks. This preserves the previous source-editing behavior until a stand-alone Slides application is offered. File applet selection uses the longest configured filename suffix.
+
 An in-place replacement first drains the blank mount's state and snapshots, then asks the service to select a file already granted by the picker. The service refuses a used window or a file already open elsewhere. The host retires the old snapshot handles before destroying the old mount, preventing its asynchronous cleanup from writing over the incoming document. The new applet receives that file's recovery record and the existing resource, save and permission services. No vendor package is modified.
 
 The service keeps no copy of a document and there is no draft store behind the page, as there is in the main window. The page gives the Editor yavc.app's written contracts and nothing else, as yavc.app's own bare test host does.
