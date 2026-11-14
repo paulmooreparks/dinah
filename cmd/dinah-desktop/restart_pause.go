@@ -61,7 +61,7 @@ var pausedMu sync.Mutex
 func pausedPath() string { return filepath.Join(configDir(), pausedFile) }
 
 // pauseRequest is what a working chat is told.
-const pauseRequest = "The person is restarting %s, and asks every chat to pause. Stop at the next safe point: finish the step you are in the middle of if stopping now would leave something half written, start nothing new, and end your turn with one or two lines that say what you had finished and what you were about to do. Do not commit, push, send messages or start long commands in order to finish first. After the restart you are told to carry on."
+const pauseRequest = "The person is restarting %s, and asks every chat to pause. Stop at the next safe point: finish the step you are in the middle of if stopping now would leave something half written, start nothing new, and end your turn with one or two lines that say what you had finished, what you were about to do, and, when the task has a definite end, what remains of it. Do not commit, push, send messages or start long commands in order to finish first. After the restart you are told to carry on."
 
 func readPaused() pausedRecord {
 	var r pausedRecord
