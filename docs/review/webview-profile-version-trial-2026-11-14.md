@@ -73,4 +73,10 @@ The shell now applies no-store when its page-file writer commits a status or bod
 
 Normal startup now calls shellStartupAddress(false), which returns the profile's ShellAddr. Its regression independently splits the selected address, checks loopback and the configured nonzero ShellPort, and verifies repeated normal selections stay equal. The hidden selection remains 127.0.0.1:0. The test binds no port and opens no window.
 
-The focused correction gate passed before the additional show/range cases were added. The complete touched-package result is pending. The original native/storage trial was not rerun, and native WebView2 storage remains unproved. No debugging capability was added to the production loader.
+The focused correction gate passed before the additional show/range cases were added. All correction source and regressions are committed at 1516c6d5f59b2ec47fe07b3512db180b3a5b6de7. The complete touched-package gate then passed under the shared FIFO:
+
+```powershell
+pwsh -NoProfile -File scripts/go-gate.ps1 ./cmd/dinah-desktop/... -count=1
+```
+
+The command exited zero. The desktop package passed in 234.912 seconds; its product subpackage has no test files. The original native/storage trial was not rerun, and native WebView2 storage remains unproved. No debugging capability was added to the production loader. This follow-up used Go tests only and did not open a window or use desktop input. Nothing was pushed, merged or installed.
