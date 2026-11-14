@@ -537,6 +537,10 @@ body:not(.show-thoughts) .thought-row { display: none; }
 .updates-progress .progress-value { min-width: 0; overflow-wrap: anywhere; }
 .updates-actions { display: flex; flex-wrap: wrap; min-height: 2.5rem; }
 .updates-actions > button { width: 12rem; max-width: 100%; }
+#settings-set-aside { scrollbar-gutter: stable; }
+#set-aside-list { overflow-anchor: none; }
+#set-aside-list > .updates-row > input { flex: none; }
+#set-aside-list > .updates-row > .updates-row-text { margin: 0; }
 [data-provider-module] .seg { max-width: 100%; }
 [data-provider-module] .seg button { white-space: normal; }
 /* A kind of window's own choice stands under Open New Windows, indented, as

@@ -152,6 +152,7 @@
   <script src="file-access-settings.js" defer></script>
   <script src="settings-connections.js" defer></script>
   <script src="settings-updates.js" defer></script>
+  <script src="settings-set-aside.js" defer></script>
   <script src="theme-editor.js" defer></script>
   <script src="extensions.js" defer></script>
   <script src="product-applets.js" defer></script>
@@ -813,6 +814,7 @@
         <button type="button" role="tab" id="settings-tab-terminal" aria-controls="settings-terminal" aria-selected="false" tabindex="-1" data-settings-section="terminal">Terminal</button>
         <button type="button" role="tab" id="settings-tab-packages" aria-controls="settings-packages" aria-selected="false" tabindex="-1" data-settings-section="packages">Packages</button>
         <button type="button" role="tab" id="settings-tab-updates" aria-controls="settings-updates" aria-selected="false" tabindex="-1" data-settings-section="updates" hidden>Updates</button>
+        <button type="button" role="tab" id="settings-tab-set-aside" aria-controls="settings-set-aside" aria-selected="false" tabindex="-1" data-settings-section="set-aside" hidden>Set-aside Programs</button>
         <button type="button" role="tab" id="settings-tab-connections" aria-controls="settings-connections" aria-selected="false" tabindex="-1" data-settings-section="connections" hidden>Connections</button>
         <button type="button" role="tab" id="settings-tab-diagnostics" aria-controls="settings-diagnostics" aria-selected="false" tabindex="-1" data-settings-section="diagnostics">Diagnostics</button>
       </div>
@@ -963,6 +965,19 @@
             <ul class="package-list vstack gap-2" id="packages-installed" aria-labelledby="set-packages-title" hidden></ul>
             <p class="form-help" id="packages-none">No package is installed for you or in this workspace.</p>
             <div class="settings-actions"><button type="button" class="btn btn-sm" data-cmd="update-packages" hidden>Update Packages…</button><button type="button" class="btn btn-sm" data-cmd="install-packages-file">Install From a File…</button></div>
+          </section>
+        </div>
+        <div class="settings-panel" id="settings-set-aside" role="tabpanel" aria-labelledby="settings-tab-set-aside" tabindex="0" hidden>
+          <section class="card vstack gap-3" aria-labelledby="set-aside-title">
+            <h3 class="card-title" id="set-aside-title">Set-aside Programs</h3>
+            <p class="form-help">Choose older program copies to remove. Running copies and the newest fallback stay protected. Nothing is removed automatically.</p>
+            <p class="settings-status updates-status" id="set-aside-status" role="status">Program copies have not been read.</p>
+            <p class="settings-status updates-status" id="set-aside-warnings" role="status">Process inspection warnings will appear here.</p>
+            <div class="updates-scroll" id="set-aside-list" role="group" aria-label="Set-aside program copies"></div>
+            <p class="settings-status updates-status" id="set-aside-total" role="status">Selected total: 0 bytes.</p>
+            <div class="settings-actions updates-actions"><button type="button" class="btn btn-sm" id="set-aside-refresh">Refresh Program Copies</button><button type="button" class="btn btn-sm btn-primary" id="set-aside-remove" aria-disabled="true">Remove Selected Copies</button></div>
+            <div class="updates-notes form-help" id="set-aside-results" tabindex="0" role="status" aria-label="Removal results">No removal has been requested.</div>
+            <p class="form-help">Sizes are logical file lengths. Hard links and compression can change the physical disk space freed. Select at most 100 copies per removal.</p>
           </section>
         </div>
         <div class="settings-panel" id="settings-updates" role="tabpanel" aria-labelledby="settings-tab-updates" tabindex="0" hidden>
