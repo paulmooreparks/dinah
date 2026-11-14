@@ -91,6 +91,7 @@ type Attachment struct {
 // (ToPerson). Messages made in a test may leave them empty, and the headings
 // then show FromName and ToLabel.
 type Message struct {
+	AnswerOrigin       *AnswerOrigin
 	ID                 int64
 	CreatedAt          string
 	Kind               string // text, release, verdict or question (questions.go)
@@ -766,7 +767,8 @@ const messageSelect = `SELECT m.id, m.created_at, m.kind, m.from_session, m.from
 	fs.id IS NOT NULL AS from_known, COALESCE(fs.title, '') AS from_title,
 	m.to_kind, ts.id IS NOT NULL AS to_known, COALESCE(ts.title, '') AS to_title,
 	COALESCE(tw.name, '') AS to_ws_name, COALESCE(CASE WHEN tw.label <> '' THEN tw.label ELSE tw.name END, '') AS to_ws_label,
-	COALESCE(CASE WHEN r.title <> '' THEN r.title ELSE r.name END, '') AS room_title, m.mentions, m.relay_lead, m.attention_reach
+	COALESCE(CASE WHEN r.title <> '' THEN r.title ELSE r.name END, '') AS room_title, m.mentions, m.relay_lead, m.attention_reach,
+	COALESCE((SELECT origin FROM decision_answer_origins WHERE message_id=m.id), '')
 	FROM messages m
 	LEFT JOIN rooms r ON m.room <> '' AND r.name = m.room
 	LEFT JOIN workspaces fw ON fw.key = m.from_workspace
@@ -779,10 +781,16 @@ func scanMessage(r scanner) (Message, error) {
 	var m Message
 	var fromKnown, toKnown bool
 	var fromTitle, toKind, toTitle, toWS, toWSLabel string
-	var attentionReach string
+	var attentionReach, answerOrigin string
 	err := r.Scan(&m.ID, &m.CreatedAt, &m.Kind, &m.FromSession, &m.FromName, &m.FromWorkspace, &m.FromWorkspaceLabel,
 		&m.ToLabel, &m.Room, &m.ReplyTo, &m.Text, &m.Version, &m.Verdict,
-		&fromKnown, &fromTitle, &toKind, &toKnown, &toTitle, &toWS, &toWSLabel, &m.RoomTitle, &m.mentions, &m.RelayLead, &attentionReach)
+		&fromKnown, &fromTitle, &toKind, &toKnown, &toTitle, &toWS, &toWSLabel, &m.RoomTitle, &m.mentions, &m.RelayLead, &attentionReach, &answerOrigin)
+	if err == nil && answerOrigin != "" {
+		m.AnswerOrigin = &AnswerOrigin{}
+		if e := json.Unmarshal([]byte(answerOrigin), m.AnswerOrigin); e != nil {
+			return m, fmt.Errorf("message %d has invalid answer origin: %w", m.ID, e)
+		}
+	}
 	if err == nil && attentionReach != "" {
 		m.Reach = &GroupReach{}
 		if e := json.Unmarshal([]byte(attentionReach), m.Reach); e != nil {

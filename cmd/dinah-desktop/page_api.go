@@ -41,7 +41,7 @@ var pageMethods = func() map[string]pageMethodClass {
 	}
 	list(pageQuery, `
  ListSetAsidePrograms
- Decisions DecisionEntries DecisionOperation PreviewDecisionBroadcast
+ Decisions DecisionByID DecisionEntries DecisionOperation PreviewDecisionBroadcast
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus

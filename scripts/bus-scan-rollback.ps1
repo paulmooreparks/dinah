@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$YesterdayTree,[Parameter(Mandatory=$true)][string]$Out)
+param([Parameter(Mandatory=$true)][string]$YesterdayTree,[Parameter(Mandatory=$true)][string]$Out,[string]$CurrentTest='^TestBusScanMigrationTrial$')
 $ErrorActionPreference='Stop'
 $outPath=[IO.Path]::GetFullPath($Out)
 $tempRoot=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')+'\'
@@ -28,9 +28,9 @@ $currentTree=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 try {
  Copy-Item -LiteralPath (Join-Path $currentTree 'internal/bus/testdata/scan_yesterday_test.go.txt') -Destination $testPath
  Run-Checked 'old-seed' $oldTree 'seed' '^TestBusScanYesterdayTrial$'
- Run-Checked 'new-migrate' $currentTree 'migrate' '^TestBusScanMigrationTrial$'
+ Run-Checked 'new-migrate' $currentTree 'migrate' $CurrentTest
  Run-Checked 'old-read-deliver-write' $oldTree 'verify' '^TestBusScanYesterdayTrial$'
- Run-Checked 'new-read-back' $currentTree 'verify' '^TestBusScanMigrationTrial$'
+ Run-Checked 'new-read-back' $currentTree 'verify' $CurrentTest
 } finally {
  if (Test-Path -LiteralPath $testPath) { Remove-Item -LiteralPath $testPath }
 }

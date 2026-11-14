@@ -33,6 +33,10 @@ type Bus struct {
 }
 
 const schema = `
+CREATE TABLE IF NOT EXISTS decision_answer_origins (
+ message_id INTEGER PRIMARY KEY REFERENCES messages(id),
+ origin TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS person_requests (
  message_id INTEGER PRIMARY KEY REFERENCES messages(id),
  asker TEXT NOT NULL,

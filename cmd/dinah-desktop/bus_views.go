@@ -29,26 +29,27 @@ import (
 // Mentions are the members it mentions. Line is the sentence a group shows
 // for a member who joined or left (bus.MemberKind).
 type BusMessage struct {
-	ID            int64           `json:"id"`
-	CreatedAt     string          `json:"createdAt"`
-	Kind          string          `json:"kind"`
-	From          string          `json:"from"`
-	FromSession   string          `json:"fromSession,omitempty"`
-	FromPerson    bool            `json:"fromPerson"`
-	FromWorkspace string          `json:"fromWorkspace"`
-	To            string          `json:"to"`
-	Room          string          `json:"room"`
-	RoomTitle     string          `json:"roomTitle,omitempty"`
-	Mentions      []BusMention    `json:"mentions"`
-	Reach         *bus.GroupReach `json:"reach,omitempty"`
-	Line          string          `json:"line,omitempty"`
-	ReplyTo       int64           `json:"replyTo"`
-	Text          string          `json:"text"`
-	Version       string          `json:"version,omitempty"`
-	Verdict       string          `json:"verdict,omitempty"`
-	Attachments   []BusAttachment `json:"attachments"`
-	Unread        bool            `json:"unread"`
-	Dismissed     bool            `json:"dismissed"`
+	AnswerOrigin  *bus.AnswerOrigin `json:"answerOrigin,omitempty"`
+	ID            int64             `json:"id"`
+	CreatedAt     string            `json:"createdAt"`
+	Kind          string            `json:"kind"`
+	From          string            `json:"from"`
+	FromSession   string            `json:"fromSession,omitempty"`
+	FromPerson    bool              `json:"fromPerson"`
+	FromWorkspace string            `json:"fromWorkspace"`
+	To            string            `json:"to"`
+	Room          string            `json:"room"`
+	RoomTitle     string            `json:"roomTitle,omitempty"`
+	Mentions      []BusMention      `json:"mentions"`
+	Reach         *bus.GroupReach   `json:"reach,omitempty"`
+	Line          string            `json:"line,omitempty"`
+	ReplyTo       int64             `json:"replyTo"`
+	Text          string            `json:"text"`
+	Version       string            `json:"version,omitempty"`
+	Verdict       string            `json:"verdict,omitempty"`
+	Attachments   []BusAttachment   `json:"attachments"`
+	Unread        bool              `json:"unread"`
+	Dismissed     bool              `json:"dismissed"`
 	// Relay is set on a team member's message to the person that was rerouted to its lead: the
 	// group shows it for the person, who is not notified (teams.go).
 	Relay *BusRelay `json:"relay,omitempty"`
@@ -209,7 +210,7 @@ func busMessage(m bus.Message) BusMessage {
 	if person {
 		from = speakerName(bus.Human)
 	}
-	out := BusMessage{ID: m.ID, CreatedAt: m.CreatedAt, Kind: m.Kind, From: from, FromSession: m.FromSession, FromPerson: person,
+	out := BusMessage{AnswerOrigin: m.AnswerOrigin.Clone(), ID: m.ID, CreatedAt: m.CreatedAt, Kind: m.Kind, From: from, FromSession: m.FromSession, FromPerson: person,
 		FromWorkspace: m.FromWorkspaceLabel, To: m.ToPerson, Room: m.Room, RoomTitle: m.RoomTitle, Mentions: []BusMention{},
 		ReplyTo: m.ReplyTo, Text: m.Text, Version: m.Version, Verdict: m.Verdict, Attachments: []BusAttachment{}, Unread: m.Unread, Dismissed: m.Dismissed, Reach: m.Reach}
 	if m.Kind == bus.MemberKind {
