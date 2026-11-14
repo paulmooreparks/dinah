@@ -40,7 +40,7 @@ var pageMethods = func() map[string]pageMethodClass {
 		}
 	}
 	list(pageQuery, `
- Decisions DecisionOperation PreviewDecisionBroadcast
+ Decisions DecisionEntries DecisionOperation PreviewDecisionBroadcast
  SetResponsivenessRecording GetResponsivenessTimingSnapshot BackgroundChatLimit
  FileAccessPolicy CheckFileAccessPath FileAccessLog
  AckUIStateFlush AnswerExitConfirmation BeginExitWork EndExitWork ExitStatus
