@@ -8,6 +8,12 @@ Paul's cross-project Architectural Principles, the DIRT principle and the rule a
 
 ## Exit confirmation
 
+## Installed helpers
+
+Each installed helper channel has a protocol number independent of release versions. Both sides select a supported number before work; incompatibility refuses with a message identifying the newer program and asking for a window restart. An absent number means legacy protocol 1, so builds predating the check continue to interoperate. The [helper compatibility record](docs/design/helper-compatibility.md) inventories the channels, negotiation and legacy rules. Only incompatible exchange changes advance a channel's number.
+
+## Exit confirmation
+
 The [exit-confirmation design](docs/design/exit-confirmation.md) records interruption checks and the Cancel-first close handshake. Active chats and work without automatic recovery require explicit confirmation before layout saving and shutdown.
 
 ## Native full-screen mode
