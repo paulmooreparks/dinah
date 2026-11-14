@@ -404,9 +404,13 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 			return err
 		}
 		var words strings.Builder
+		origin := &AnswerOrigin{Version: 1, RequestID: d.ID, MessageID: d.MessageID, Kind: d.Kind, Questions: []AnsweredQuestion{}}
+		recommended := map[int]bool{}
 		for _, a := range in.Answers {
+			recommended[a.Number] = a.AsRecommended
 			if d.Kind == "mention" {
 				words.WriteString(a.Text)
+				origin.Questions = append(origin.Questions, AnsweredQuestion{Number: 0, Text: appletcontext.Redact(d.Text), Answer: appletcontext.Redact(a.Text)})
 				continue
 			}
 			index := indexes[a.Number]
@@ -422,6 +426,13 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 			q.Answered, q.Answer = true, appletcontext.Redact(answer)
 			fmt.Fprintf(&words, "Question %d. %s\n%s answered: %s\n\n", q.Number, q.Text, person, q.Answer)
 		}
+		if d.Kind == "request" {
+			for _, q := range d.Questions {
+				if seenAnswers[q.Number] {
+					origin.Questions = append(origin.Questions, AnsweredQuestion{Number: q.Number, Text: appletcontext.Redact(q.Text), Answer: q.Answer, AsRecommended: recommended[q.Number]})
+				}
+			}
+		}
 		r := chatResolved(d.AskerSession, d.Asker)
 		if d.Group != "" {
 			r, err = groupResolved(t, Sender{}, "#"+d.Group)
@@ -434,6 +445,13 @@ func (b *Bus) AnswerDecision(ctx context.Context, in AnswerDecisionInput) (Decis
 		}
 		reply, err := b.insertMessage(t, Sender{}, "text", r, id, words.String(), "", "", nil)
 		if err != nil {
+			return err
+		}
+		encodedOrigin, err := json.Marshal(origin)
+		if err != nil {
+			return err
+		}
+		if _, err = t.Exec(`INSERT INTO decision_answer_origins(message_id,origin) VALUES(?,?)`, reply, string(encodedOrigin)); err != nil {
 			return err
 		}
 		closed = true

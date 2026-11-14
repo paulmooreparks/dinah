@@ -239,7 +239,7 @@ func (a *App) recordTeamSends(ctx context.Context, b *bus.Bus) {
 		if s == nil {
 			continue
 		}
-		d := sessionhost.DeliveredMessage{ID: m.ID, Kind: m.Kind, From: m.From, FromSession: m.FromSession, Time: m.CreatedAt, Room: m.Room, RoomTitle: m.RoomTitle}
+		d := sessionhost.DeliveredMessage{AnswerOrigin: m.AnswerOrigin.Clone(), ID: m.ID, Kind: m.Kind, From: m.From, FromSession: m.FromSession, Time: m.CreatedAt, Room: m.Room, RoomTitle: m.RoomTitle}
 		a.transcriptCapture().RecordSent(s, d, m.Text)
 	}
 }

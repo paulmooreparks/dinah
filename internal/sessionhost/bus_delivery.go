@@ -157,6 +157,9 @@ func (a *BusChats) announceArriving(ctx context.Context, b *bus.Bus, s *Conversa
 			from = m.FromName
 		}
 		entry := map[string]any{"id": m.ID, "kind": m.Kind, "from": from, "text": string(text), "sentAt": m.CreatedAt}
+		if m.AnswerOrigin != nil {
+			entry["decisionAnswer"] = true
+		}
 		if m.FromWorkspace != "" {
 			entry["workspace"] = m.FromWorkspace
 		}
@@ -340,7 +343,7 @@ func DeliveredEntries(msgs []bus.Message) []ConversationMessage {
 	for _, m := range msgs {
 		d := bus.Describe(m)
 		out = append(out, ConversationMessage{Role: "delivered", Text: d.Text,
-			Delivered: &DeliveredMessage{ID: d.ID, Kind: d.Kind, From: d.From, FromSession: d.FromSession, Workspace: d.Workspace, Time: d.Time, Status: d.Status, Room: m.Room, RoomTitle: m.RoomTitle}})
+			Delivered: &DeliveredMessage{AnswerOrigin: m.AnswerOrigin.Clone(), ID: d.ID, Kind: d.Kind, From: d.From, FromSession: d.FromSession, Workspace: d.Workspace, Time: d.Time, Status: d.Status, Room: m.Room, RoomTitle: m.RoomTitle}})
 	}
 	return out
 }

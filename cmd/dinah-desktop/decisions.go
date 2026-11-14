@@ -16,6 +16,12 @@ func (a *App) Decisions(before int64) (bus.DecisionPage, error) {
 	return out, err
 }
 
+func (a *App) DecisionByID(id string) (bus.DecisionDetail, error) {
+	var out bus.DecisionDetail
+	err := a.busHost().With(func(b *bus.Bus) error { var err error; out, err = b.DecisionByID(context.Background(), id); return err })
+	return out, err
+}
+
 func (a *App) AnswerDecision(in bus.AnswerDecisionInput) (bus.DecisionReceipt, error) {
 	var out bus.DecisionReceipt
 	err := a.busHost().With(func(b *bus.Bus) error {

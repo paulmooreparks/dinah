@@ -42,6 +42,8 @@ The window query is `DecisionByID(id string) (bus.DecisionDetail, error)`, with 
 
 `decision` is the existing complete `bus.Decision` DTO, including its latest question answers, revision, source, text and destination. The abbreviated example above omits those existing fields for space. `DecisionDetail` has `Decision Decision`, `Closed bool` and `ReadOnly bool`, tagged `decision`, `closed` and `readOnly`. ReadOnly is always true, including for a still-open request, and the linked view offers no answer or dismissal action. Open-list behavior and mutations keep their existing contracts.
 
+The read-only projection clears `canDismiss` and `dismissalReason` rather than advertising a dismissal action from this representation.
+
 The lookup accepts the existing `request:<messageId>` and `mention:<messageId>` identities and verifies the kind. Structured requests remain readable after answer or dismissal. Plain mentions remain readable after a reply, group conversation, dismissal or first-use boundary exclusion, provided the original agent text in its group had a human delivery. A missing message, wrong kind or identity that never named such a request returns an error. The page displays that the request is unavailable. The query marks nothing read, changes no attention or Decisions state, and sends nothing.
 
 ## Ownership and checks

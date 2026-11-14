@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"studio/internal/acp"
+	"studio/internal/bus"
 	"studio/internal/workspaces"
 )
 
@@ -12,13 +13,14 @@ import (
 var ValuesSource []byte
 
 type DeliveredMessage struct {
-	ID          int64  `json:"id"`
-	Kind        string `json:"kind"`
-	From        string `json:"from"`
-	FromSession string `json:"fromSession,omitempty"`
-	Workspace   string `json:"workspace,omitempty"`
-	Time        string `json:"time"`
-	Status      string `json:"status,omitempty"`
+	AnswerOrigin *bus.AnswerOrigin `json:"answerOrigin,omitempty"`
+	ID           int64             `json:"id"`
+	Kind         string            `json:"kind"`
+	From         string            `json:"from"`
+	FromSession  string            `json:"fromSession,omitempty"`
+	Workspace    string            `json:"workspace,omitempty"`
+	Time         string            `json:"time"`
+	Status       string            `json:"status,omitempty"`
 	// Room is the key of the group chat the message was posted in, empty for a message that was not a group's,
 	// so a window can fold a run of a team's traffic (docs/plans/teams-ui.md).
 	Room      string `json:"room,omitempty"`

@@ -36,6 +36,7 @@ func copyMessages(in []ConversationMessage) []ConversationMessage {
 		out[i].Images = copyContent(out[i].Images)
 		if out[i].Delivered != nil {
 			delivered := *out[i].Delivered
+			delivered.AnswerOrigin = delivered.AnswerOrigin.Clone()
 			out[i].Delivered = &delivered
 		}
 	}
