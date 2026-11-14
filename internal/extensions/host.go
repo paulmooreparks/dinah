@@ -19,6 +19,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	extension "github.com/paulmooreparks/dinah-extension-go"
+	"studio/internal/helpercompat"
 )
 
 type limitedBuffer struct {
@@ -142,6 +143,9 @@ func (m *Manager) hostHTTP(w http.ResponseWriter, r *http.Request) {
 	m.mu.Unlock()
 	if !ok || scope.ctx.Err() != nil {
 		fail(403, errors.New("host scope is missing or expired"))
+		return
+	}
+	if !helpercompat.For(helpercompat.ExtensionHost).Accept(w, r) {
 		return
 	}
 	var request extension.HostRequest

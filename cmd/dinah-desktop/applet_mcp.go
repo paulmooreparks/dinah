@@ -27,6 +27,7 @@ import (
 
 	"studio/internal/appletcontext"
 	"studio/internal/communication"
+	"studio/internal/helpercompat"
 )
 
 const appletBridgeLimit = 1 << 20
@@ -267,7 +268,7 @@ func (a *App) closeAppletBridge() {
 
 func (a *App) serveAppletBridge(b *appletBridgeServer, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != http.MethodPost || r.URL.Path != "/rpc" || r.URL.RawQuery != "" || r.Host != b.host || r.Header.Get("Origin") != "" || r.Header.Get("Sec-Fetch-Site") != "" {
+	if (r.Method != http.MethodPost && r.Method != http.MethodOptions) || r.URL.Path != "/rpc" || r.URL.RawQuery != "" || r.Host != b.host || r.Header.Get("Origin") != "" || r.Header.Get("Sec-Fetch-Site") != "" {
 		http.Error(w, "invalid applet bridge request", http.StatusForbidden)
 		return
 	}
@@ -290,6 +291,13 @@ func (a *App) serveAppletBridge(b *appletBridgeServer, w http.ResponseWriter, r 
 	b.mu.Unlock()
 	if channel == nil || time.Now().After(owner.expires) {
 		http.Error(w, "applet channel expired", http.StatusUnauthorized)
+		return
+	}
+	if !helpercompat.For(helpercompat.Applets).Accept(w, r) {
+		return
+	}
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	select {
@@ -450,6 +458,14 @@ func newAppletBridgeClient(endpoint, token string) (*appletBridgeClient, error) 
 	return &appletBridgeClient{endpoint: endpoint, token: token, http: &http.Client{Timeout: 25 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("applet bridge redirects are disabled") }}}, nil
 }
 func (c *appletBridgeClient) call(ctx context.Context, q appletBridgeRequest) (json.RawMessage, error) {
+	policy := helpercompat.For(helpercompat.Applets)
+	headers := make(http.Header)
+	headers.Set("Authorization", "Bearer "+c.token)
+	headers.Set("Content-Type", "application/json")
+	selected, err := policy.Probe(ctx, c.http, c.endpoint, headers)
+	if err != nil {
+		return nil, err
+	}
 	data, err := json.Marshal(q)
 	if err != nil {
 		return nil, err
@@ -463,11 +479,15 @@ func (c *appletBridgeClient) call(ctx context.Context, q appletBridgeRequest) (j
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(helpercompat.OfferHeader, strconv.Itoa(selected))
 	res, err := c.http.Do(req)
 	if err != nil {
 		return nil, errors.New("the " + product.Name + " applet bridge is unavailable")
 	}
 	defer res.Body.Close()
+	if _, err := policy.Response(res); err != nil {
+		return nil, err
+	}
 	body, err := io.ReadAll(io.LimitReader(res.Body, appletBridgeResponseLimit+1))
 	if err != nil {
 		return nil, err

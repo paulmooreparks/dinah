@@ -13,7 +13,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"studio/internal/helpercompat"
 	"time"
 )
 
@@ -89,8 +91,15 @@ func (m *Manager) publishControl() error {
 }
 func (m *Manager) controlHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	if r.Method != "POST" || r.Host != m.listener.Addr().String() || r.Header.Get("Origin") != "" || r.Header.Get("Authorization") != "Bearer "+m.controlToken {
+	if (r.Method != "POST" && r.Method != http.MethodOptions) || r.Host != m.listener.Addr().String() || r.Header.Get("Origin") != "" || r.Header.Get("Authorization") != "Bearer "+m.controlToken {
 		http.Error(w, "control request denied", 403)
+		return
+	}
+	if !helpercompat.For(helpercompat.ExtensionControl).Accept(w, r) {
+		return
+	}
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	var request controlRequest
@@ -131,22 +140,33 @@ func WithPausedHosts(ctx context.Context, root, id string, mutate func() error) 
 	hosts := []controlAddress{}
 	client := &http.Client{Timeout: 25 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("control redirects are forbidden") }}
 	send := func(host controlAddress, operation string) error {
-		data, _ := json.Marshal(controlRequest{ID: id, Lease: lease, Operation: operation})
 		callCtx := ctx
 		if operation == "resume" {
 			callCtx = context.WithoutCancel(ctx)
 		}
+		policy := helpercompat.For(helpercompat.ExtensionControl)
+		headers := make(http.Header)
+		headers.Set("Authorization", "Bearer "+host.Token)
+		selected, err := policy.Probe(callCtx, client, host.URL, headers)
+		if err != nil {
+			return err
+		}
+		data, _ := json.Marshal(controlRequest{ID: id, Lease: lease, Operation: operation})
 		request, err := http.NewRequestWithContext(callCtx, "POST", host.URL, bytes.NewReader(data))
 		if err != nil {
 			return err
 		}
 		request.Header.Set("Authorization", "Bearer "+host.Token)
 		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set(helpercompat.OfferHeader, strconv.Itoa(selected))
 		response, err := client.Do(request)
 		if err != nil {
 			return err
 		}
 		defer response.Body.Close()
+		if _, err := policy.Response(response); err != nil {
+			return err
+		}
 		if response.StatusCode != 204 {
 			return fmt.Errorf("extension host control returned %d", response.StatusCode)
 		}

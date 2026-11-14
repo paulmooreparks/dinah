@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"studio/internal/filelock"
+	"studio/internal/helpercompat"
 )
 
 // Endpoint is how the service is found: its address and its control token,
@@ -88,6 +89,8 @@ func Find(dir string) (*Client, error) {
 func Ensure(dir string, start func() error) (*Client, error) {
 	if c, err := Find(dir); err == nil {
 		return c, nil
+	} else if helpercompat.IsRefusal(err) {
+		return nil, err
 	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
@@ -114,6 +117,8 @@ func Ensure(dir string, start func() error) (*Client, error) {
 	defer filelock.Unlock(lock)
 	if c, err := Find(dir); err == nil {
 		return c, nil
+	} else if helpercompat.IsRefusal(err) {
+		return nil, err
 	}
 	// A file left by a service that ended by force would be found, and
 	// fail, until the new one replaces it.
@@ -124,6 +129,8 @@ func Ensure(dir string, start func() error) (*Client, error) {
 	for time.Now().Before(deadline) {
 		if c, err := Find(dir); err == nil {
 			return c, nil
+		} else if helpercompat.IsRefusal(err) {
+			return nil, err
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -131,6 +138,13 @@ func Ensure(dir string, start func() error) (*Client, error) {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, in, out any) error {
+	policy := helpercompat.For(helpercompat.Documents)
+	headers := make(http.Header)
+	headers.Set("Authorization", "Bearer "+c.Endpoint.Token)
+	selected, err := policy.Probe(ctx, c.http, "http://"+c.Endpoint.Addr+"/control/ping", headers)
+	if err != nil {
+		return err
+	}
 	var reader io.Reader
 	if in != nil {
 		data, err := json.Marshal(in)
@@ -144,6 +158,7 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Endpoint.Token)
+	req.Header.Set(helpercompat.OfferHeader, strconv.Itoa(selected))
 	if in != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -152,6 +167,9 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 		return err
 	}
 	defer res.Body.Close()
+	if _, err := policy.Response(res); err != nil {
+		return err
+	}
 	data, err := io.ReadAll(io.LimitReader(res.Body, 64<<20))
 	if err != nil {
 		return err

@@ -18,6 +18,7 @@ import (
 
 	buildpolicy "studio"
 	"studio/internal/bus"
+	"studio/internal/helpercompat"
 	"studio/internal/hooks"
 	"studio/internal/mcpserver"
 	"studio/internal/profile"
@@ -92,9 +93,15 @@ func main() {
 	case "mcp":
 		err = runMCP(ctx, os.Args[2:])
 	case "steering-hook":
-		err = withBus(func(b *bus.Bus) error { return hooks.Steering(ctx, b, os.Stdin, os.Stdout) })
+		err = helpercompat.CheckEnvironment(ctx, helpercompat.Steering)
+		if err == nil {
+			err = withBus(func(b *bus.Bus) error { return hooks.Steering(ctx, b, os.Stdin, os.Stdout) })
+		}
 	case "hook":
-		err = withBus(func(b *bus.Bus) error { return hooks.Run(ctx, b, os.Stdin, os.Stdout) })
+		err = helpercompat.CheckEnvironment(ctx, helpercompat.Steering)
+		if err == nil {
+			err = withBus(func(b *bus.Bus) error { return hooks.Run(ctx, b, os.Stdin, os.Stdout) })
+		}
 	case "serve":
 		err = serve(ctx, os.Args[2:])
 	case "open":
@@ -165,6 +172,9 @@ func completion(args []string) error {
 }
 
 func withBus(f func(*bus.Bus) error) error {
+	if err := helpercompat.CheckEnvironment(context.Background(), helpercompat.Bus); err != nil {
+		return err
+	}
 	b, err := bus.Open()
 	if err != nil {
 		return err

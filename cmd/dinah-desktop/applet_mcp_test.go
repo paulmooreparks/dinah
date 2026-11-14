@@ -193,6 +193,12 @@ func TestAppletMCPExactInputAndMethods(t *testing.T) {
 	exact := `{"count":9007199254740993,"nested":[1e1000,"000123"]}`
 	requests := make(chan appletBridgeRequest, 8)
 	fixture := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			// Model the legacy host's method guard. A compatibility probe
+			// has no operation body and must not enter the broker fixture.
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		if r.Header.Get("Authorization") != "Bearer test" {
 			t.Error("missing credential")
 		}
