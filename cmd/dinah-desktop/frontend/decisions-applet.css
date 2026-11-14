@@ -46,3 +46,10 @@
   [data-decision-detail="true"] .decisions-list { display: none; }
 }
 .decisions-question select { max-width: 100%; }
+.decisions-context { height: 18rem; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border); padding: var(--space-3); margin-bottom: var(--space-4); }
+.decisions-context h3 { flex: none; margin: 0 0 var(--space-2); font-size: var(--text-sm); }
+.decisions-context-body { flex: 1; min-height: 0; overflow: auto; overflow-anchor: none; scrollbar-gutter: stable; }
+.decisions-context-message { border-bottom: 1px solid var(--border); padding-bottom: var(--space-3); margin-bottom: var(--space-3); }
+.decisions-context-meta { display: flex; gap: var(--space-2); flex-wrap: wrap; margin: 0; font-size: var(--text-sm); }
+.decisions-context-text { white-space: pre-wrap; margin: var(--space-2) 0; line-height: 1.6; max-height: 3.2em; overflow: hidden; }
+.decisions-context-message[data-expanded="true"] .decisions-context-text { max-height: none; }

@@ -160,6 +160,7 @@
       changedLine = node('p', 'text-warning'); review = button('I Have Reviewed the Updated Request', function () { draft.reviewed = signature(item); saveEdited(); });
       var reviewPanel = node('div', 'decisions-review'); reviewPanel.append(changedLine, review); content.appendChild(reviewPanel);
       if (item.dismissalReason) content.appendChild(node('p', 'decisions-recommendation', item.dismissalReason));
+      content.appendChild(window.dinahDecisionContext(item));
       (item.kind === 'mention' ? [{ number: 0, text: item.text, choices: [], answered: false }] : item.questions).forEach(function (q) { content.appendChild(question(q, item)); });
       destination = node('p', 'decisions-destination', 'Send to ' + item.destination + '. Reply to message ' + item.messageId + '.'); content.appendChild(destination);
       send = button('Send Answers', answer, true); var actions = node('div', 'decisions-actions'); actions.appendChild(send);
