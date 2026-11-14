@@ -36,25 +36,27 @@ const conflictText = "The file has changed since it was read, so it was not save
 // document, and what its applet is to take first when another window asked
 // for this one.
 type Attached struct {
-	ID              string `json:"id"`
-	Application     string `json:"application"`
-	Applet          string `json:"applet"`
-	ApplicationName string `json:"applicationName"`
-	Resource        string `json:"resource"`
-	Name            string `json:"name"`
-	Kept            string `json:"kept"`
-	Request         string `json:"request"`
-	Product         any    `json:"product"`
-	Headless        bool   `json:"headless"`
+	ID              string            `json:"id"`
+	Application     string            `json:"application"`
+	Applet          string            `json:"applet"`
+	ApplicationName string            `json:"applicationName"`
+	Resource        string            `json:"resource"`
+	Name            string            `json:"name"`
+	Kept            string            `json:"kept"`
+	Request         string            `json:"request"`
+	Product         any               `json:"product"`
+	Headless        bool              `json:"headless"`
+	FileApplets     map[string]string `json:"fileApplets,omitempty"`
+	DefaultApplet   string            `json:"defaultApplet"`
 }
 
 // Attach gives the page its document.
 func (p *Page) Attach() Attached {
 	d, s := p.d, p.d.service
 	d.mu.Lock()
-	start, request, key := d.start, d.request, d.key
+	start, request, key, applet := d.start, d.request, d.key, d.applet
 	d.mu.Unlock()
-	out := Attached{ID: d.id, Application: d.application, Applet: d.app.Applet, ApplicationName: d.app.Name,
+	out := Attached{ID: d.id, Application: d.application, Applet: applet, DefaultApplet: d.app.Applet, ApplicationName: d.app.Name, FileApplets: d.app.FileApplets,
 		Resource: start, Request: string(request), Product: s.opt.Product, Headless: s.opt.Headless}
 	var kept *Record
 	switch {
@@ -77,6 +79,33 @@ func (p *Page) Attach() Attached {
 		out.Kept = string(kept.Snapshot)
 	}
 	return out
+}
+
+// UseFile reuses an untouched blank window after its page has flushed its
+// old mount. Only a file already granted to that page is legal.
+func (p *Page) UseFile(shown string) (Attached, error) {
+	path, err := p.file(shown)
+	if err != nil {
+		return Attached{}, err
+	}
+	d := p.d
+	if other := d.service.find(d.application, path); other != nil && other != d {
+		return Attached{}, errors.New("that file already has a window")
+	}
+	d.mu.Lock()
+	if d.current != "" || d.touched {
+		d.mu.Unlock()
+		return Attached{}, errors.New("this window already has a document")
+	}
+	previous := d.key
+	d.start, d.current, d.key = path, path, fileKey(d.application, path)
+	d.applet = d.app.fileApplet(path)
+	d.mu.Unlock()
+	if strings.HasPrefix(previous, "untitled:") {
+		d.service.store.remove(previous)
+	}
+	d.link.send("title", map[string]string{"title": d.title()})
+	return p.Attach(), nil
 }
 
 // folderOf is the file provider for the folder of a file, and the file's
@@ -376,6 +405,19 @@ type windowRequest struct {
 // already shows brings that window forward and starts none.
 func (p *Page) OpenWindow(ctx context.Context, application, request string) (string, error) {
 	d, s := p.d, p.d.service
+	// An applet selected within this application still uses its own program.
+	applet := ""
+	if application == d.app.Applet {
+		applet = application
+	}
+	for _, candidate := range d.app.FileApplets {
+		if candidate == application {
+			applet = candidate
+		}
+	}
+	if applet != "" {
+		application = d.application
+	}
 	var r windowRequest
 	if err := json.Unmarshal([]byte(request), &r); err != nil {
 		return "", errors.New("the request for another window could not be read")
@@ -409,7 +451,7 @@ func (p *Page) OpenWindow(ctx context.Context, application, request string) (str
 		return "", fmt.Errorf("a window cannot be opened for %q", r.Operation)
 	}
 	id := rand.Text()
-	t := &ticket{request: json.RawMessage(request), grant: path, done: make(chan callResult, 1), made: time.Now()}
+	t := &ticket{request: json.RawMessage(request), applet: applet, grant: path, done: make(chan callResult, 1), made: time.Now()}
 	s.mu.Lock()
 	s.tickets[id] = t
 	s.mu.Unlock()

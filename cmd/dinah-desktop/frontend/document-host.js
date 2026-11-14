@@ -28,6 +28,7 @@
   var BASE = new URL('yavc/', document.baseURI).href;
   var mount = document.getElementById('document');
   var attached = null;
+  var switching = false;
 
   function message(err) { return String(err && err.message || err).replace(/^Error: /, ''); }
   /* The bridge rejects with the error's text, and the applets show an
@@ -65,6 +66,7 @@
   }
   function tell() {
     clearTimeout(telling); telling = 0;
+    if (switching) return Promise.resolve();
     return changedNow().then(function (changed) {
       var resource = resourceNow();
       /* A dot leads the title of a document with unsaved changes. */
@@ -137,6 +139,9 @@
       return app().PickOpen().then(function (picked) {
         if (!picked) return undefined;
         if (options && options.signal && options.signal.aborted) return undefined;
+        if (fileApplet(picked.path) !== attached.applet) {
+          return routeFile(picked.path).then(function () { return undefined; });
+        }
         var problem = options && options.check ? options.check(picked.name) : null;
         if (problem) { say(typeof problem === 'string' ? problem : message(problem)); return choose(); }
         return { path: picked.path, name: picked.name };
@@ -209,6 +214,7 @@
      warning for a document nobody could reopen. */
   var sending = Promise.resolve(), sendFailed = false, handles = new Set();
   function send(value) {
+    if (switching) return;
     var resource = resourceNow(), text;
     try { text = JSON.stringify(value); } catch (err) { sendFailed = true; return; }
     sending = sending.then(function () { return app().PutSnapshot(resource, text); }).then(function () { sendFailed = false; }, function () { sendFailed = true; });
@@ -290,6 +296,35 @@
     split: function () { return Promise.resolve({ moved: [], error: 'Each document already has its own window.' }); }
   };
 
+  function fileApplet(path) {
+    var match = /\.[^./\\]+$/.exec(String(path || ''));
+    return match && attached.fileApplets && attached.fileApplets[match[0].toLowerCase()] || attached.defaultApplet || attached.application;
+  }
+  function routeFile(path) {
+    function another() { return documentWindows.open(mount, attached.application, { operation: 'open-file', input: { path: path } }); }
+    if (switching) return Promise.reject(new Error('This window is opening a document.'));
+    return changedNow().then(function (changed) {
+      if (resourceNow() || changed) return another();
+      // Drain the blank mount before changing its service state. Its late
+      // destroy callbacks must not write snapshots over the receiving mount.
+      return flushAll().then(function () {
+        switching = true; mount.inert = true;
+        return app().UseFile(path).then(function (next) {
+          handles.forEach(function (h) { h.leave(); });
+          window.pudlApplets.destroy(mount);
+          clearTimeout(telling); telling = 0;
+          mount.replaceChildren();
+          bound = null; touched = false; told = null; keptOnce = false;
+          attached = next;
+          return mountApplet();
+        }, function () {
+          switching = false; mount.inert = false;
+          return another();
+        }).finally(function () { switching = false; mount.inert = false; });
+      });
+    });
+  }
+
   /* A window another window asked for takes that window's request when its
      applet is ready, keeps the result for recovery, and answers. */
   function takeRequest() {
@@ -329,6 +364,7 @@
     });
   }
   function invoked(e) {
+    if (switching) { app().Answer(e.call, '', 'This window is opening a document. Please try again.'); return; }
     var request;
     try { request = JSON.parse(e.request); } catch (_) { app().Answer(e.call, '', 'The action could not be read.'); return; }
     var operation = String(request && request.operation || '');
@@ -420,6 +456,11 @@
       pages: BASE + 'content/', pudl: new URL('pudl/', document.baseURI).href,
       contentWorkspace: { version: 1, directory: directory, resources: { resolve: resolvePicture } },
       contentResources: { version: 1, read: readWithFolder, write: write, saveAs: saveAs },
+      fileResolution: { open: function (request) {
+        var resource = String(request.resource || '');
+        if (request.applet && request.applet !== fileApplet(resource)) return Promise.reject(new Error('This application opens that file in ' + fileApplet(resource) + '.'));
+        return routeFile(resource);
+      } },
       fs: { open: open, readText: readText, onChange: onChange },
       snapshot: snapshot, config: config, documentWindows: documentWindows,
       /* The applet's first menu has its own entries and nothing more. The
@@ -429,6 +470,11 @@
     });
     window.pudlApplets.capability('files.read', fileServices);
     window.pudlApplets.capability('files.write', fileServices);
+    return mountApplet();
+  }
+
+  function mountApplet() {
+    mount.setAttribute('data-applet', attached.applet);
     var url = BASE + 'content/' + attached.applet + '/applet.json';
     return fetch(url, { credentials: 'same-origin' }).then(function (r) {
       if (!r.ok) throw new Error(url + ': HTTP ' + r.status);
